@@ -449,12 +449,12 @@ class RustExpr {
                         // An owned String slot receiving the substituted value
                         // owns its text; a literal or a reusable view converts
                         // once at the boundary.
-                        if (isStringType(targetType) && !StringTools.endsWith(sub, ".to_string()")
+                        if (isStringType(targetType) && !StringTools.endsWith(sub, ".to_ustring()")
                             && (isStringLiteralText(sub) || reusableReadText(sub)))
                             return "Some(" + sub + ".to_string())";
                         return "Some(" + sub + ")";
                     }
-                    return asOption && isStringType(targetType) && isStringLiteralText(sub) ? sub + ".to_string()" : sub;
+                    return asOption && isStringType(targetType) && isStringLiteralText(sub) ? sub + ".to_ustring()" : sub;
                 } else if (name.indexOf(".") >= 0) coalescingStaticFieldText(name, targetType)
                 else RustImports.toSnakeCase(name);
             case CInstanceFieldRead(name):
@@ -538,7 +538,7 @@ class RustExpr {
         final inner = getNullInnerType(targetType);
         // An owned String slot receiving a reusable string view converts once
         // at the boundary so the Option owns its text.
-        if (isStringType(inner) && reusableReadText(rendered) && !StringTools.endsWith(rendered, ".to_string()"))
+        if (isStringType(inner) && reusableReadText(rendered) && !StringTools.endsWith(rendered, ".to_ustring()"))
             return "Some(" + rendered + ".to_string())";
         if (!isTypeCopy(inner) && !isStringType(inner) && reusableReadText(rendered)
             && !StringTools.endsWith(rendered, ".clone()")
@@ -697,7 +697,7 @@ class RustExpr {
                     final isConst = valueTypeStaticIsConst(member);
                     final rendered = abs.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(fieldName) : RustImports.toSnakeCase(fieldName));
                     final memberValue = isConst ? rendered : rendered + "()";
-                    return isStringType(targetType) ? memberValue + ".to_string()" : memberValue;
+                    return isStringType(targetType) ? memberValue + ".to_ustring()" : memberValue;
                 case TAbstract(absRef, _):
                     final abs = absRef.get();
                     imports.requireType(abs.module, abs.name);
@@ -997,7 +997,7 @@ class RustExpr {
                 case TAbstract(a, _) if (a.get().name == "Bool"): "false";
                 case TAbstract(a, _) if (a.get().name == "Int"): "0";
                 case TAbstract(a, _) if (a.get().name == "Float"): "0.0";
-                case TInst(c, _) if (c.get().name == "String"): "String::new()";
+                case TInst(c, _) if (c.get().name == "String"): "UString::new()";
                 case TAbstract(a, _) if (a.get().name == "Null"): "None";
                 case TType(_, _): null;
                 case _: null;
@@ -1175,7 +1175,7 @@ class RustExpr {
                 case CParameterRead(_): isStringType(DefaultArgExpander.withoutNull(site.valueExpr.t));
                 default: false;
             };
-            final defaultText = isStringDefault ? rawDefaultText + ".to_string()" : rawDefaultText;
+            final defaultText = isStringDefault ? rawDefaultText + ".to_ustring()" : rawDefaultText;
             final combinator = defaultIsNull ? ".or_else(|| " : ".unwrap_or_else(|| ";
             // The rebound parameter only needs mutability when the body
             // assigns it again or a try block captures an assignment; the
@@ -1505,7 +1505,7 @@ class RustExpr {
                 if (isStringType(v.t)) {
                     switch (stripWrap(init).expr) {
                         case TConst(TString(s)):
-                            initStr = s.length == 0 ? "String::new()" : initStr + ".to_string()";
+                            initStr = s.length == 0 ? "UString::new()" : initStr + ".to_string()";
                         case _:
                     }
                 }
@@ -1838,13 +1838,13 @@ class RustExpr {
                 // already renders None, so neither wraps again.
                 if (returnTypeName == "String") {
                     switch (stripWrap(ret).expr) {
-                        case TConst(TString(s)): retStr = s.length == 0 ? "String::new()" : retStr + ".to_string()";
+                        case TConst(TString(s)): retStr = s.length == 0 ? "UString::new()" : retStr + ".to_ustring()";
                         case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(ret.t)):
                             // A null-checked Null<String> local owns its
                             // text; the view unwrap yields the value the
                             // guard proved present.
                             retStr = "(" + retStr + ").as_deref().unwrap_or(\"\").to_string()";
-                        case TLocal(v) if (isBorrowedLocal(v) && !StringTools.endsWith(retStr, ".to_string()")):
+                        case TLocal(v) if (isBorrowedLocal(v) && !StringTools.endsWith(retStr, ".to_ustring()")):
                             // A borrowed String parameter renders as &str; the
                             // owned String return slot converts it once.
                             retStr = "(" + retStr + ").to_string()";
@@ -1854,7 +1854,7 @@ class RustExpr {
                     var payload = switch (stripWrap(ret).expr) {
                         case TLocal(v) if (borrowedLoopVarIds.exists(v.id)):
                             isTypeCopy(ret.t) ? "*" + retStr : ownedLoopItemCloneText(ret.t, retStr);
-                        case TConst(TString(_)): retStr + ".to_string()";
+                        case TConst(TString(_)): retStr + ".to_ustring()";
                         case _: retStr;
                     };
                     // Rust does not infer an integer literal inside Some from
@@ -2200,7 +2200,7 @@ class RustExpr {
         return switch (stripWrap(arg).expr) {
             case TConst(TString(_)): rendered;
             case TLocal(v) if (isBorrowedParamLocal(v)): rendered;
-            case _: rendered + ".as_str()";
+            case _: rendered + ".as_ustr()";
         };
     }
 
@@ -3745,7 +3745,7 @@ class RustExpr {
                 + "))";
             case StringKey:
                 imports.require("std::sync::Arc");
-                "Arc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_str(), b.as_str()))";
+                "Arc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_ustr(), b.as_ustr()))";
             case StructKey(def, _):
                 final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
                 imports.requireType(def.module, cmpName);
@@ -4021,7 +4021,7 @@ class RustExpr {
                     // A String parameter is &str, which owns through
                     // to_string(); any other reference clones the referent
                     // so the array owns its element.
-                    argStr = isStringType(arg.t) ? argStr + ".to_string()" : "(*" + argStr + ").clone()";
+                    argStr = isStringType(arg.t) ? argStr + ".to_ustring()" : "(*" + argStr + ").clone()";
                 case TLocal(_) | TField(_) | TArray(_, _):
                     if (!StringTools.endsWith(argStr, ".clone()")
                         && !StringTools.endsWith(argStr, ".to_vec()")
@@ -4212,7 +4212,7 @@ class RustExpr {
         return switch (stripWrap(r).expr) {
             // A literal is a &str while the Null target owns
             // Option<String>; clone does not exist on str.
-            case TConst(TString(_)): expr(r) + ".to_string()";
+            case TConst(TString(_)): expr(r) + ".to_ustring()";
             // A borrowed String parameter is a &str view; the owned
             // Option<String> slot converts its text once.
             case TLocal(v) if (isBorrowedLocal(v) && isStringType(r.t)):
@@ -4803,7 +4803,7 @@ class RustExpr {
                 // closure's own copy.
                 // (ClosureCaptureOwnedCopy)
                 if (captureOwnedStringCopies.exists(v.id))
-                    return RustImports.toSnakeCase(localName(v)) + ".as_str()";
+                    return RustImports.toSnakeCase(localName(v)) + ".as_ustr()";
                 return RustImports.toSnakeCase(localName(v));
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
@@ -5127,7 +5127,7 @@ class RustExpr {
             case TLocal(v) if (v.id == value.id):
                 final noneExpr = trueIsNone ? ifTrue : ifFalse;
                 final noneText = expr(noneExpr);
-                final typedNoneText = isStringType(resultType) ? noneText + ".to_string()" : noneText;
+                final typedNoneText = isStringType(resultType) ? noneText + ".to_ustring()" : noneText;
                 final localName = RustImports.toSnakeCase(value.name);
                 return "match " + localName + " { None => " + typedNoneText + ", Some(ref " + localName + ") => " + localName + ".clone() }";
             case _:
@@ -5271,8 +5271,8 @@ class RustExpr {
     function enumNameRead(subject:TypedExpr):String {
         final rendered = expr(subject);
         return switch (PolicyQueries.enumQueryPlan(subject)) {
-            case EnumKindQuery(QLookup, _, _): rendered + ".unwrap().name().to_string()";
-            case _: rendered + ".name().to_string()";
+            case EnumKindQuery(QLookup, _, _): "UString::from(" + rendered + ".unwrap().name())";
+            case _: "UString::from(" + rendered + ".name())";
         };
     }
 
@@ -6468,8 +6468,8 @@ class RustExpr {
         if (!isStringType(e.t))
             return expr(e);
         return switch (stripWrap(e).expr) {
-            case TConst(TString(_)): expr(e) + ".to_string()";
-            case TLocal(v) if (isBorrowedLocal(v)): expr(e) + ".to_string()";
+            case TConst(TString(_)): expr(e) + ".to_ustring()";
+            case TLocal(v) if (isBorrowedLocal(v)): expr(e) + ".to_ustring()";
             case TLocal(_): expr(e) + ".clone()";
             case _: expr(e);
         };
@@ -6761,11 +6761,11 @@ class RustExpr {
                         collapsedTarget >= 0 && !i32Locals.exists(collapsedTarget));
                 } else if (isStringType(l.t) && !isNullType(l.t)) {
                     switch (stripWrap(r).expr) {
-                        case TConst(TString(_)): expr(r) + ".to_string()";
+                        case TConst(TString(_)): expr(r) + ".to_ustring()";
                         // A String parameter renders as &str in the callee;
                         // the element slot owns its text, so the assigned
                         // value converts on the way in.
-                        case TLocal(v) if (isBorrowedLocal(v)): expr(r) + ".to_string()";
+                        case TLocal(v) if (isBorrowedLocal(v)): expr(r) + ".to_ustring()";
                         default: expr(r);
                     }
                 } else if (isOwnedVecType(l.t) && !isNullType(l.t) && borrowedArrayRead(r)) {
@@ -7121,7 +7121,7 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TConst(TString(_)): expr(e);
             case TLocal(v) if (isBorrowedLocal(v)): expr(e);
-            case _: "(" + expr(e) + ").as_str()";
+            case _: "(" + expr(e) + ").as_ustr()";
         };
     }
 
@@ -7957,7 +7957,7 @@ class RustExpr {
                 final rendered = staticRef(cls, name);
                 if (StaticFieldHelper.isArrayType(cf.get().type))
                     return rendered + ".to_vec()";
-                return StaticFieldHelper.isStringType(cf.get().type) ? rendered + ".to_string()" : rendered;
+                return StaticFieldHelper.isStringType(cf.get().type) ? rendered + ".to_ustring()" : rendered;
             case FEnum(e, ef):
                 final en = e.get();
                 imports.requireType(en.module, en.name);
@@ -8125,7 +8125,7 @@ class RustExpr {
                     return access;
                 }
                 if (name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
-                    return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
+                    return isStringType(cf.get().type) ? "(" + access + ").to_ustring()" : "(" + access + ").clone()";
                 }
                 if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
                     && !RustDecl.isBorrowedByteField(imports.selfModule, name)
@@ -9725,7 +9725,7 @@ class RustExpr {
                         switch (stripWrap(args[0]).expr) {
                             case TConst(TString(_)): expr(args[0]);
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(args[0]);
-                            case _: "(" + expr(args[0]) + ").as_str()";
+                            case _: "(" + expr(args[0]) + ").as_ustr()";
                         };
                     } else {
                         expr(args[0]);
@@ -10008,7 +10008,7 @@ class RustExpr {
                     if (args.length > 1) {
                         final vExpr = if (isStringType(args[1].t)) {
                             switch (args[1].expr) {
-                                case TConst(TString(_)): expr(args[1]) + ".to_string()";
+                                case TConst(TString(_)): expr(args[1]) + ".to_ustring()";
                                 case _: expr(args[1]) + ".clone()";
                             }
                         } else {
@@ -10220,7 +10220,7 @@ class RustExpr {
                         switch (stripWrap(args[0]).expr) {
                             case TConst(TString(_)): expr(args[0]);
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(args[0]);
-                            case _: expr(args[0]) + ".as_str()";
+                            case _: expr(args[0]) + ".as_ustr()";
                         }
                     } else {
                         expr(args[0]);
@@ -10373,7 +10373,7 @@ class RustExpr {
                         case "substringBetween":
                             return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "].to_string()";
                         case "fromCodePoint":
-                            return "char::from_u32(" + RustConversions.reinterpret(expr(args[0]), "u32") + ").unwrap_or('\\0').to_string()";
+                            return "UString::from(&char::from_u32(" + RustConversions.reinterpret(expr(args[0]), "u32") + ").unwrap_or('\\0').to_string())";
                         case _:
                     }
                 }
@@ -10818,7 +10818,7 @@ class RustExpr {
         final previousOwnedStrings = captureOwnedStringCopies;
         currentCaptureClones = [for (v in captures) if (!sharedClosureArrays.exists(v.id) && !sharedClosureScalars.exists(v.id)) v.id => true];
         currentCaptureMut = captureMutatedCopies(f, captures);
-        captureOwnedStringCopies = [for (v in captures) if (captureCopySuffix(v) == ".to_string()") v.id => true];
+        captureOwnedStringCopies = [for (v in captures) if (captureCopySuffix(v) == ".to_ustring()") v.id => true];
         final copies = [for (v in captures) sharedClosureArrays.exists(v.id)
             ? "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
             // The prologue copy feeds the move capture by value and is only
@@ -10895,7 +10895,7 @@ class RustExpr {
     function captureCopySuffix(v:TVar):String {
         if (!isBorrowedLocal(v))
             return ".clone()";
-        return StringTools.startsWith(types.of(v.t, true), "&Vec") ? ".to_vec()" : ".to_string()";
+        return StringTools.startsWith(types.of(v.t, true), "&Vec") ? ".to_vec()" : ".to_ustring()";
     }
 
     /** Clone reusable non-Copy locals at a closure boundary before move capture. */
@@ -11937,7 +11937,7 @@ class RustExpr {
 
     function rustMapKey(e:TypedExpr):String {
         final rendered = expr(e);
-        return isStringType(e.t) || isStringLiteral(e) ? rendered + ".to_string()" : rendered;
+        return isStringType(e.t) || isStringLiteral(e) ? rendered + ".to_ustring()" : rendered;
     }
 
     function isStringLiteral(e:TypedExpr):Bool {
@@ -11966,16 +11966,16 @@ class RustExpr {
             rendered = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap().clone()";
         }
         return isStringType(e.t) ? switch (stripWrap(e).expr) {
-            case TConst(TString(_)): rendered + ".to_string()";
+            case TConst(TString(_)): rendered + ".to_ustring()";
             case _: rendered;
         } : rendered;
     }
 
     /**
         Constructor arguments (feature spec 27): a String parameter takes
-        &str, so a heap String argument borrows through .as_str() while a
+        &str, so a heap String argument borrows through .as_ustr() while a
         literal keeps its own static borrowing and a parameter of the
-        enclosing function is already &str (`.as_str()` on &str is
+        enclosing function is already &str (`.as_ustr()` on &str is
         unstable); every other parameter renders as the plain expression,
         the convention the resident tables already construct under.
     **/
@@ -12202,7 +12202,7 @@ class RustExpr {
                     // renders as Option already, so it passes through. A
                     // non-Copy payload clones so the source stays usable.
                     final inner = getNullInnerType(pt);
-                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_string()"))
+                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_ustring()"))
                         out.push("Some(" + argStr + ".to_string())");
                     else if (isTypeCopy(inner))
                         out.push("Some(" + argStr + ")");
@@ -12256,7 +12256,7 @@ class RustExpr {
                         continue;
                     }
                     final inner = switch (stripWrap(arg).expr) {
-                        case TConst(TString(s)): quoteString(s) + ".to_string()";
+                        case TConst(TString(s)): "UString::from(" + quoteString(s) + ")";
                         case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
                             StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                         case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
@@ -12289,7 +12289,7 @@ class RustExpr {
                         case TConst(TString(_)): argStr;
                         case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                         case TLocal(v) if (isBorrowedParamLocal(v)): argStr;
-                        case _: argStr + ".as_str()";
+                        case _: argStr + ".as_ustr()";
                     });
                     continue;
                 }
@@ -12392,7 +12392,7 @@ class RustExpr {
         return switch (v) {
             case VInt(x): isFloatType(t) ? intToFloatText(Std.string(x)) : Std.string(x);
             case VFloat(x): x;
-            case VString(x): quoteString(x) + ".to_string()";
+            case VString(x): "UString::from(" + quoteString(x) + ")";
             case VBool(x): x ? "true" : "false";
             case VNull: "None";
             case VEnum(e, f): e.get().name + "::" + RustImports.toSnakeCase(f.name);
@@ -12660,8 +12660,8 @@ class RustExpr {
             for (f in fields) {
                 var val = if (isStringType(f.expr.t)) {
                     switch (stripWrap(f.expr).expr) {
-                        case TConst(TString(_)): expr(f.expr) + ".to_string()";
-                        case TLocal(v) if (isBorrowedParamLocal(v)): expr(f.expr) + ".to_string()";
+                        case TConst(TString(_)): expr(f.expr) + ".to_ustring()";
+                        case TLocal(v) if (isBorrowedParamLocal(v)): expr(f.expr) + ".to_ustring()";
                         case _: expr(f.expr) + ".clone()";
                     }
                 } else {
@@ -14505,7 +14505,7 @@ class RustExpr {
                     // renders as Option already, so it passes through. A
                     // non-Copy payload clones so the source stays usable.
                     final inner = getNullInnerType(pt);
-                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_string()"))
+                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_ustring()"))
                         argStr = "Some(" + argStr + ".to_string())";
                     else if (isTypeCopy(inner))
                         argStr = "Some(" + argStr + ")";
@@ -14544,7 +14544,7 @@ class RustExpr {
                         // already None or Some(...)
                     } else {
                         final inner = switch (stripWrap(arg).expr) {
-                            case TConst(TString(s)): quoteString(s) + ".to_string()";
+                            case TConst(TString(s)): "UString::from(" + quoteString(s) + ")";
                             case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
                                 StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                             case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
@@ -14686,7 +14686,7 @@ class RustExpr {
                             case TConst(TString(_)): argStr;
                             case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(arg);
-                            case _: expr(arg) + ".as_str()";
+                            case _: expr(arg) + ".as_ustr()";
                         };
                     }
                 } else if (isRecordValueType(arg.t) && switch (stripWrap(arg).expr) {
@@ -14901,11 +14901,11 @@ class RustExpr {
                     // through; the binding copies that shared borrow.
                     return {bind: argStr, usage: name};
                 case _:
-                    // renderCallArgs appended the `.as_str()` borrow to the
+                    // renderCallArgs appended the `.as_ustr()` borrow to the
                     // owned String value; the binding owns that value and
                     // the call site borrows the binding.
-                    final base = StringTools.endsWith(argStr, ".as_str()") ? argStr.substr(0, argStr.length - ".as_str()".length) : expr(arg);
-                    return {bind: hoistedOwnedText(arg, base), usage: name + ".as_str()"};
+                    final base = StringTools.endsWith(argStr, ".as_ustr()") ? argStr.substr(0, argStr.length - ".as_ustr()".length) : expr(arg);
+                    return {bind: hoistedOwnedText(arg, base), usage: name + ".as_ustr()"};
             }
         }
         // A bare local that lowers to a reference copies the borrow into the
@@ -15108,7 +15108,7 @@ class RustExpr {
         return switch (e.expr) {
             case TConst(TNull): kind == "String" ? "None::<String>" : "None::<u32>";
             case _ if (isNullType(e.t)): expr(e);
-            case TConst(TString(s)) if (kind == "String"): "Some(" + quoteString(s) + ".to_string())";
+            case TConst(TString(s)) if (kind == "String"): "Some(UString::from(" + quoteString(s) + "))";
             case TConst(TInt(i)) if (kind == "Int"): "Some(" + Std.string(i) + ")";
             case _: kind == "String" ? "Some(" + expr(e) + ".clone())" : "Some(" + expr(e) + ")";
         };
@@ -15225,7 +15225,7 @@ class RustExpr {
         if (isBoolType(element))
             return "false";
         if (isStringType(element))
-            return "String::new()";
+            return "UString::new()";
         return null;
     }
 
@@ -15730,10 +15730,10 @@ class RustExpr {
             return text;
         }
         final siblingText = expr(sibling);
-        final ownedStringCall = StringTools.endsWith(siblingText, ".to_string()")
+        final ownedStringCall = StringTools.endsWith(siblingText, ".to_ustring()")
             || StringTools.endsWith(siblingText, ".to_string()?")
             || StringTools.endsWith(siblingText, ".to_string().unwrap()");
-        return ownedStringCall ? text + ".to_string()" : text;
+        return ownedStringCall ? text + ".to_ustring()" : text;
     }
 
     /** Renders an if-else branch, wrapping a non-null branch in Some(...) when
