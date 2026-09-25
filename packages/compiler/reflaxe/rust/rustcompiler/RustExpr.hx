@@ -3428,6 +3428,11 @@ class RustExpr {
                     loopOpen.push(indent(depth + 1) + itemBind);
                     loopClose.push(indent(depth + 1) + iName + " += 1;");
                     loopClose.push(indent(depth) + "}");
+                    // The guard is a std::sync::MutexGuard: it holds the lock
+                    // until the end of its lexical scope, not its last use, so
+                    // a later lock() of the same mutex in this function would
+                    // self-deadlock without an explicit drop. (LoopGuardScope)
+                    loopClose.push(indent(depth) + "drop(" + guardName + ");");
                 } else {
                     if (loopVecName != null)
                         loopOpen.push(indent(depth) + "let " + loopVecName + " = " + expr(sliceSubj) + ".clone();");
@@ -3528,6 +3533,12 @@ class RustExpr {
         for (l in blockLines(loop.body, depth + 1))
             out.push(l);
         out.push(indent(depth) + "}");
+        // Each hoisted body guard holds its mutex across the loop; std::sync::
+        // MutexGuard drops at scope end, so an explicit drop frees the mutex
+        // before any later lock() of the same mutex in this function. (LoopGuardScope)
+        for (g in bodyGuardState) {
+            out.push(indent(depth) + "drop(" + g.guard + ");");
+        }
         for (g in bodyGuardState) {
             subst.remove(g.v.id);
             if (g.isArr) sharedClosureArrays.set(g.v.id, true);
