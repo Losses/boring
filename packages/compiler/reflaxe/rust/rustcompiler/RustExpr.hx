@@ -4756,7 +4756,7 @@ class RustExpr {
                             return padded + "f32";
                         }
                         return padded + "f64";
-                    case TString(s): return quoteString(s);
+                    case TString(s): return "UString::from(" + quoteString(s) + ")";
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "None";
                     case TThis: return thisBindingName;
