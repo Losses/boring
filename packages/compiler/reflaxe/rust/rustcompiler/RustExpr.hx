@@ -6864,7 +6864,7 @@ class RustExpr {
                     // appends that. (StringAppendStringify)
                     case OpAdd if (isStringType(l.t) && !isNullType(l.t) && !isNullType(r.t)
                         && (isIntType(r.t) || isFloatType(r.t) || isBoolType(r.t))):
-                        return assignTarget(l) + " += &(" + expr(r) + ").to_string()";
+                        return assignTarget(l) + " += &UString::from((" + expr(r) + ").to_string().as_str())";
                     case _:
                 }
                 // Haxe widens an Int operand in a Float compound assignment;
@@ -10371,7 +10371,7 @@ class RustExpr {
                             return RustConversions.narrowI32("(" + castArg(args[1], "usize") + " + (" + expr(args[0]) + ")[" + castArg(args[1], "usize")
                                 + "..].chars().next().unwrap_or('\\0').len_utf8())");
                         case "substringBetween":
-                            return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "].to_string()";
+                            return "UString((" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "].to_vec())";
                         case "fromCodePoint":
                             return "UString::from(&char::from_u32(" + RustConversions.reinterpret(expr(args[0]), "u32") + ").unwrap_or('\\0').to_string())";
                         case _:
@@ -10395,9 +10395,9 @@ class RustExpr {
                         case "currentTestId":
                             return "crate::runtime::test::current_test_id()";
                         case "intToString":
-                            return "(" + expr(args[0]) + ").to_string()";
+                            return "UString::from((" + expr(args[0]) + ").to_string().as_str())";
                         case "floatToString":
-                            return "(" + expr(args[0]) + ").to_string()";
+                            return "UString::from((" + expr(args[0]) + ").to_string().as_str())";
                         case _:
                     }
                 }
@@ -14579,7 +14579,7 @@ class RustExpr {
                         // String argument therefore specializes T as String,
                         // even when the source expression itself is a borrowed
                         // string parameter or a literal.
-                        argStr = "&(" + argStr + ").to_string()";
+                        argStr = "&(" + argStr + ").to_ustring()";
                     } else if (!borrowed && !StringTools.startsWith(argStr, "&")) {
                         argStr = "&(" + argStr + ")";
                     }
@@ -14664,7 +14664,7 @@ class RustExpr {
                         // storage: the table key is a String, so the literal
                         // converts once at the boundary.
                         // (AppliedReceiverParams)
-                        argStr = "&(" + argStr + ").to_string()";
+                        argStr = "&(" + argStr + ").to_ustring()";
                     }
                     if (stdTableReceiver && i < paramTypes.length
                         && isNumericScalarType(paramTypes[i])
