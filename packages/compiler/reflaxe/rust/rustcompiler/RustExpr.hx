@@ -124,6 +124,15 @@ class RustExpr {
     // binding, so the scalar shares through Arc<Mutex> like the array family.
     // (SharedClosureScalars)
     final sharedClosureScalars:Map<Int, Bool> = [];
+    // Loop guard hoist tracking: when a shared closure array is iterated
+    // in a for-in loop, the lock is hoisted to a guard variable and the
+    // array's local id is redirected to the guard through subst. These
+    // fields track the hoist state so the subst can be restored after the
+    // body is generated. (LoopGuardHoist)
+    var loopHoistGuardName:Null<String> = null;
+    var loopHoistSubjectId:Int = -1;
+    var loopHoistWasSharedArray:Bool = false;
+    var loopHoistWasSharedScalar:Bool = false;
     // Subject texts proven non-null by an `if (X == null) { continue; }`
     // guard inside a loop. A later `let v = X;` copy of the same subject
     // inherits the proof, so it passes call slots as the inner value.
@@ -222,6 +231,12 @@ class RustExpr {
     // secondary receivers read at the same index in the body.
     // (PerCharLoopUnits)
     final perCharLoopUnits:Array<{ indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}>, countTemp:String, countCall:String }> = [];
+    // Hoisted string parameter materializations: when a &str parameter is
+    // read with charCodeAt/charAt/unit_count in multiple places and the
+    // function body never reassigns it, the UTF-16 units and unit count
+    // are hoisted once at function entry and every read routes through
+    // unit_at_from. Key is the param local id. (StrParamHoist)
+    final hoistedStrParams:Map<Int, {unitsTemp:String, countTemp:String, receiverText:String}> = [];
     // Locals whose declaration initializer is provably dead (overwritten
     // by a later store before any read): the declaration demotes to a
     // typed binding and the later store initializes it.
@@ -814,12 +829,25 @@ class RustExpr {
         scanLocalFunctionFallibility(f.expr);
         markFallibleBlockParams(cls, f);
         scanReadsAfter(f.expr);
+        // Materialize UTF-16 units and count once for &str parameters
+        // read by charCodeAt/charAt/unit_count in multiple places, when the
+        // body never reassigns them. (StrParamHoist)
+        scanStrParamHoists(f);
         final previousReceiverContext = renderingMethodReceiver;
         renderingMethodReceiver = RustDecl.methodWritesReceiver(f.field);
         final lines = blockLines(statementsOf(f.expr), 1, true);
         final normalized = coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]);
         renderingMethodReceiver = previousReceiverContext;
-        return normalized.concat(lines);
+        // Prepend hoisted string-param materializations before the body.
+        final hoistLines:Array<String> = [];
+        for (pid => info in hoistedStrParams) {
+            hoistLines.push("let " + info.unitsTemp + " = u_string::units(&" + info.receiverText + ");");
+        }
+        for (pid => info in hoistedStrParams) {
+            hoistLines.push("let " + info.countTemp + " = u_string::unit_count(&" + info.receiverText + ");");
+        }
+        hoistedStrParams.clear();
+        return normalized.concat(hoistLines).concat(lines);
     }
 
     /** Body lowering for a member declared on a value wrapper. */
@@ -1737,8 +1765,18 @@ class RustExpr {
                 while (StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
                     condStr = condStr.substr(1, condStr.length - 2);
                 }
-                if (perChar != null)
+                if (perChar != null) {
                     condStr = StringTools.replace(condStr, perChar.countCall, perChar.countTemp);
+                    // Rewrite per-char reads inside the condition (the
+                    // `s.charCodeAt(i)` side of `i < s.length && ...`) to the
+                    // O(1) vector form once the units are hoisted. The
+                    // unit_at -> unit_at_from prefix swap keeps the index and
+                    // the surrounding Option machinery unchanged; reads at a
+                    // different index (a reverse walk) sit in the body, not
+                    // this condition, so they are left alone. (PerCharCompoundCond)
+                    for (r in perChar.receivers)
+                        condStr = StringTools.replace(condStr, "u_string::unit_at(&" + r.receiverText + ", ", "u_string::unit_at_from(&" + r.unitsTemp + ", ");
+                }
                 // A literal true condition lowers to Rust's dedicated loop.
                 final header = condStr == "true" ? "loop" : "while " + condStr;
                 // A compared cursor local (`while cursor != None`) is proven
@@ -3391,20 +3429,39 @@ class RustExpr {
                 if (sharedSubject) {
                     final iName = freshRegionName("__loop_i");
                     final lenName = freshRegionName("__loop_len");
+                    final guardName = freshRegionName("__loop_guard");
                     final subjText = expr(sliceSubj);
-                    // expr(sliceSubj) already renders the guard through
-                    // .lock().unwrap() for a shared closure array, so the index
-                    // and length reads build on that text directly; each guard
-                    // drops at the end of its own statement.
-                    final idxAccess = subjText + "[" + "usize::try_from(" + iName + ").unwrap_or(0)" + "]";
+                    // Hoist the lock into a guard bound before the loop so
+                    // the mutex is acquired once and held across every element
+                    // access. The array's local id is removed from the shared-
+                    // closure set and redirected through subst to the guard,
+                    // so the body code reads and writes the guard directly.
+                    // The restore happens after blockLines renders the body.
+                    // (LoopGuardHoist)
+                    final isSharedArray = sharedClosureArrays.exists(subjectLocalId);
+                    final isSharedScalar = sharedClosureScalars.exists(subjectLocalId);
+                    if (isSharedArray) sharedClosureArrays.remove(subjectLocalId);
+                    if (isSharedScalar) sharedClosureScalars.remove(subjectLocalId);
+                    subst.set(subjectLocalId, guardName);
+                    loopHoistGuardName = guardName;
+                    loopHoistSubjectId = subjectLocalId;
+                    loopHoistWasSharedArray = isSharedArray;
+                    loopHoistWasSharedScalar = isSharedScalar;
+                    final idxAccess = guardName + "[" + "usize::try_from(" + iName + ").unwrap_or(0)" + "]";
                     final itemBind = isScalar ? ("let " + itemName + " = " + idxAccess + ";") : ("let " + itemName + " = (" + idxAccess + ").clone();");
+                    loopOpen.push(indent(depth) + "let mut " + guardName + " = " + subjText + ";");
                     loopOpen.push(indent(depth) + "let mut " + iName + " = 0u32;");
                     loopOpen.push(indent(depth) + "loop {");
-                    loopOpen.push(indent(depth + 1) + "let " + lenName + " = match u32::try_from(" + subjText + ".len()) { Ok(value) => value, Err(_) => u32::MAX };");
+                    loopOpen.push(indent(depth + 1) + "let " + lenName + " = match u32::try_from(" + guardName + ".len()) { Ok(value) => value, Err(_) => u32::MAX };");
                     loopOpen.push(indent(depth + 1) + "if " + iName + " >= " + lenName + " { break; }");
                     loopOpen.push(indent(depth + 1) + itemBind);
                     loopClose.push(indent(depth + 1) + iName + " += 1;");
                     loopClose.push(indent(depth) + "}");
+                    // The guard is a std::sync::MutexGuard: it holds the lock
+                    // until the end of its lexical scope, not its last use, so
+                    // a later lock() of the same mutex in this function would
+                    // self-deadlock without an explicit drop. (LoopGuardScope)
+                    loopClose.push(indent(depth) + "drop(" + guardName + ");");
                 } else {
                     if (loopVecName != null)
                         loopOpen.push(indent(depth) + "let " + loopVecName + " = " + expr(sliceSubj) + ".clone();");
@@ -3446,6 +3503,7 @@ class RustExpr {
                     out.push(indent(depth + 1) + builderStr + ".put(" + kPutExpr + ", &pipeline_bucket);");
                     for (l in loopClose)
                         out.push(l);
+                    restoreLoopGuardHoist();
                     return out;
                 }
 
@@ -3456,12 +3514,12 @@ class RustExpr {
                     out.push(l);
                 for (l in loopClose)
                     out.push(l);
+                restoreLoopGuardHoist();
                 return out;
             }
         }
 
         final startStr = expr(loop.start);
-        final boundStr = loopBound(loop.bound);
         var readsIndex = false;
         for (statement in loop.body)
             if (mentionsLocal(statement, loop.index)) {
@@ -3469,17 +3527,32 @@ class RustExpr {
                 break;
             }
         final loopName = readsIndex ? name : "_";
-        // A bound that reads a shared closure array or scalar renders a
-        // MutexGuard through `.lock().unwrap()`. In a `for i in 0..bound`
-        // the iterator expression's temporaries live for the whole loop, so
-        // the guard would be held across every body iteration; a body that
-        // locks the same mutex again would self-deadlock. Hoist the bound to
-        // a let binding so the guard drops before the loop starts. Haxe
-        // evaluates `for (i in 0...x.length)` once at loop start, so reading
-        // the length into a binding matches the source semantics.
-        // (LoopGuardScope)
         final out:Array<String> = [];
-        if (mentionsSharedGuard(loop.bound)) {
+        // Hoist every shared closure array/scalar read by the body to a
+        // loop-level guard so the mutex is acquired once instead of per
+        // element. The subst redirects the local during body generation and
+        // is reverted after. The guard is declared `mut` so index writes and
+        // pushes resolve through DerefMut. (LoopGuardHoist)
+        final bodyGuardVars = collectSharedBodyGuards(loop.body);
+        final bodyGuardState:Array<{v:TVar, guard:String, isArr:Bool, isScal:Bool}> = [];
+        for (v in bodyGuardVars) {
+            final guardName = freshRegionName("__loop_guard");
+            final isArr = sharedClosureArrays.exists(v.id);
+            final isScal = sharedClosureScalars.exists(v.id);
+            if (isArr) sharedClosureArrays.remove(v.id);
+            if (isScal) sharedClosureScalars.remove(v.id);
+            subst.set(v.id, isArr ? guardName : (isTypeCopy(v.t) ? "*" + guardName : guardName));
+            bodyGuardState.push({v: v, guard: guardName, isArr: isArr, isScal: isScal});
+            out.push(indent(depth) + "let mut " + guardName + " = " + RustImports.toSnakeCase(localName(v)) + ".lock().unwrap();");
+        }
+        // Re-render the bound after the body guards are substituted: a bound
+        // that reads a body-guard array now renders through the guard (no
+        // re-lock), so it is safe to inline. A bound that reads a different
+        // shared array still renders a fresh lock and must be hoisted to drop
+        // before the loop starts. (LoopGuardScope, LoopGuardHoist)
+        final boundStr = loopBound(loop.bound);
+        final boundNeedsHoist = mentionsSharedGuard(loop.bound);
+        if (boundNeedsHoist) {
             final boundName = freshRegionName("__loop_bound");
             out.push(indent(depth) + "let " + boundName + " = " + boundStr + ";");
             out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundName + " {");
@@ -3489,6 +3562,17 @@ class RustExpr {
         for (l in blockLines(loop.body, depth + 1))
             out.push(l);
         out.push(indent(depth) + "}");
+        // Each hoisted body guard holds its mutex across the loop; std::sync::
+        // MutexGuard drops at scope end, so an explicit drop frees the mutex
+        // before any later lock() of the same mutex in this function. (LoopGuardScope)
+        for (g in bodyGuardState) {
+            out.push(indent(depth) + "drop(" + g.guard + ");");
+        }
+        for (g in bodyGuardState) {
+            subst.remove(g.v.id);
+            if (g.isArr) sharedClosureArrays.set(g.v.id, true);
+            if (g.isScal) sharedClosureScalars.set(g.v.id, true);
+        }
         return out;
     }
 
@@ -3562,6 +3646,46 @@ class RustExpr {
         }
         scan(e);
         return found;
+    }
+
+    // Collect the shared closure array/scalar locals referenced by an indexed
+    // loop body, in first-appearance order. Each is hoisted to a lock guard
+    // before the loop so the body reads and writes the guard instead of
+    // locking the mutex on every element access. (LoopGuardHoist)
+    function collectSharedBodyGuards(body:Array<TypedExpr>):Array<TVar> {
+        final seen:Map<Int, Bool> = [];
+        final result:Array<TVar> = [];
+        function scan(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v) if (sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id)):
+                    if (!seen.exists(v.id)) {
+                        seen.set(v.id, true);
+                        result.push(v);
+                    }
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, scan);
+        }
+        for (stmt in body)
+            scan(stmt);
+        return result;
+    }
+
+    // Restore shared-closure-set membership and clear the subst entry after
+    // a loop body has been rendered with a hoisted lock guard. The guard
+    // variable itself drops when the loop closes; this only reverts the
+    // subst/removal that redirected the array's local id during body
+    // generation. (LoopGuardHoist)
+    function restoreLoopGuardHoist() {
+        if (loopHoistSubjectId < 0)
+            return;
+        subst.remove(loopHoistSubjectId);
+        if (loopHoistWasSharedArray)
+            sharedClosureArrays.set(loopHoistSubjectId, true);
+        if (loopHoistWasSharedScalar)
+            sharedClosureScalars.set(loopHoistSubjectId, true);
+        loopHoistSubjectId = -1;
+        loopHoistGuardName = null;
     }
 
     function loopBound(bound:TypedExpr):String {
@@ -4806,6 +4930,12 @@ class RustExpr {
                         return narrowed;
                     }
                 }
+                // A loop hoist redirects this shared variable to a lock
+                // guard bound outside the loop, so the guard outlives every
+                // element access instead of locking per element. (LoopGuardHoist)
+                if (subst.exists(v.id)) {
+                    return subst.get(v.id);
+                }
                 // A shared closure array read dereferences through the
                 // mutex guard; index writes and pushes on the guard resolve
                 // through DerefMut (SharedClosureArrays).
@@ -4824,9 +4954,6 @@ class RustExpr {
                     // it. (SharedClosureScalars)
                     final star = isTypeCopy(v.t) ? "*" : "";
                     return star + RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
-                }
-                if (subst.exists(v.id)) {
-                    return subst.get(v.id);
                 }
                 // A capture copy converted to its owned String form reads
                 // as a borrowed view: the body's &str consumers borrow the
@@ -8069,6 +8196,13 @@ class RustExpr {
                     // target (stdlib/15), so it reads the u_string unit
                     // count ahead of the container paths below.
                     if (isString(subj)) {
+                        // A function-level hoisted String parameter reads the
+                        // precomputed count instead of rescanning. (StrParamHoist)
+                        final hoisted = hoistedStrParamMatch(subj);
+                        if (hoisted != null) {
+                            final countText = hoisted.countTemp;
+                            return RuntimeResidents.isResident(imports.selfModule) ? RustConversions.reinterpret(countText, "i32") : countText;
+                        }
                         final units = stringUnitCount(expr(subj));
                         // Resident modules keep the signed Int domain: their
                         // lengths join index arithmetic.
@@ -8416,8 +8550,12 @@ class RustExpr {
             // The index must advance so the walk terminates and stays in range.
             if (!incrementsLocal(b, indexId))
                 return null;
-            // Only hoist when the body genuinely reads the receiver at the index.
-            if (!bodyReadsReceiverAtIndex(b, recv.id, indexId))
+            // A per-char read can sit in the body (pure `i < s.length`)
+            // or in the condition (compound `i < s.length && s.charCodeAt(i)`).
+            // Accept either one so the units and count are hoisted in both
+            // shapes. (PerCharCompoundCond)
+            if (!bodyReadsReceiverAtIndex(b, recv.id, indexId)
+                && !bodyReadsReceiverAtIndex(c, recv.id, indexId))
                 return null;
             return buildPerCharInfo(indexId, recv, 0, stableSecondaryReceivers(b, indexId, 0));
         }
@@ -8710,6 +8848,16 @@ class RustExpr {
         return switch (stripWrap(c).expr) {
             case TBinop(OpLt | OpLte, l, r): perCharPair(l, r);
             case TBinop(OpGt | OpGte, l, r): perCharPair(r, l);
+            // Compound && conditions: walk both sides; the per-char bailouts
+            // (writesLocal, incrementsLocal, bodyReadsReceiverAtIndex) still
+            // guard correctness afterward. The count replacement (countCall
+            // -> countTemp) rewrites every occurrence in condStr, so the
+            // length read inside the short-circuit is hoisted regardless of
+            // which side it sits on. (PerCharCompoundCond)
+            case TBinop(OpBoolAnd, l, r):
+                final lp = perCharLoopCondition(l);
+                if (lp != null) return lp;
+                return perCharLoopCondition(r);
             case _: null;
         };
     }
@@ -8784,7 +8932,12 @@ class RustExpr {
     function bodyReadsReceiverAtIndex(e:TypedExpr, receiverId:Int, indexId:Int):Bool {
         return switch (stripWrap(e).expr) {
             case TBlock(stmts): anyBodyRead(stmts, receiverId, indexId);
-            case TCall({expr: TField(subj, fa)}, args): perCharCallRead(subj, fa, args, receiverId, indexId);
+            case TCall(fn, args): 
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, fa) if (perCharCallRead(subj, fa, args, receiverId, indexId)): return true;
+                    case _:
+                }
+                bodyReadsReceiverAtIndex(fn, receiverId, indexId) || anyBodyRead(args, receiverId, indexId);
             case TIf(c, t, f): bodyReadsReceiverAtIndex(c, receiverId, indexId)
                 || bodyReadsReceiverAtIndex(t, receiverId, indexId)
                 || (f != null && bodyReadsReceiverAtIndex(f, receiverId, indexId));
@@ -8855,6 +9008,80 @@ class RustExpr {
             case TConst(TInt(value)): value == 1;
             case _: false;
         };
+    }
+
+    /** Whether the expression tree contains any function literal. */
+    function hasMoveClosures(e:TypedExpr):Bool {
+        var found = false;
+        function scan(node:TypedExpr):Void {
+            switch (stripWrap(node).expr) {
+                case TFunction(_): found = true;
+                case _:
+            }
+            if (!found) haxe.macro.TypedExprTools.iter(node, scan);
+        }
+        scan(e);
+        return found;
+    }
+
+    /**
+        Scan the function body for String parameters that are read by
+        charCodeAt/charAt/substring/length in multiple places and never
+        reassigned, then hoist their UTF-16 units and count once at
+        function entry so every read routes through unit_at_from.
+        (StrParamHoist)
+    **/
+    function scanStrParamHoists(f:ClassFuncData):Void {
+        hoistedStrParams.clear();
+        // A function that contains move closures or shared-state captures
+        // may move the hoisted units vector into a closure, breaking later
+        // borrows. Only hoist when the body has no closures at all, which
+        // is the common case for small helper functions that do repeated
+        // charCodeAt reads. (StrParamHoist)
+        if (hasMoveClosures(f.expr)) return;
+        for (a in f.args) {
+            final v = a.tvar;
+            if (v == null) continue;
+            if (!isStringType(a.type)) continue;
+            if (writesLocal(f.expr, v.id)) continue;
+            final reads = countStrParamReads(f.expr, v.id);
+            if (reads < 2) continue;
+            hoistedStrParams.set(v.id, {
+                unitsTemp: freshRegionName("__units"),
+                countTemp: freshRegionName("__count"),
+                receiverText: RustImports.toSnakeCase(localName(v)),
+            });
+        }
+    }
+
+    /** Count charCodeAt/charAt/substring/length reads of a param. */
+    function countStrParamReads(e:TypedExpr, paramId:Int):Int {
+        var count = 0;
+        function scan(node:TypedExpr):Void {
+            switch (stripWrap(node).expr) {
+                case TCall({expr: TField(subj, fa)}, args):
+                    final name = fieldName(fa);
+                    if ((name == "charAt" || name == "charCodeAt" || name == "char_code_at"
+                        || name == "substring" || name == "sub_string")
+                        && isLocalId(subj, paramId))
+                        count += 1;
+                case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "length" && isLocalId(subj, paramId)):
+                    count += 1;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, scan);
+        }
+        scan(e);
+        return count;
+    }
+
+    /** Match a subject against hoisted string parameters. */
+    function hoistedStrParamMatch(subj:TypedExpr):Null<{unitsTemp:String, countTemp:String, receiverText:String}> {
+        final subjId = switch (stripWrap(subj).expr) {
+            case TLocal(v): v.id;
+            case _: return null;
+        };
+        return hoistedStrParams.get(subjId);
     }
 
     /** Whether the expression is index + 1, the exclusive end of a one-unit substring. */
@@ -9760,6 +9987,11 @@ class RustExpr {
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
                         return "u_string::char_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
+                    // Function-level hoisted String parameter: read from the
+                    // precomputed unit vector (O(1) vs O(n)). (StrParamHoist)
+                    final hoisted = hoistedStrParamMatch(subj);
+                    if (hoisted != null)
+                        return "u_string::char_at_from(&" + hoisted.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // The exclusive end is the index plus one in the same
                     // integer domain as the start. A bare `(index) + 1`
                     // rendered source is an untyped {integer} literal when
@@ -9816,6 +10048,12 @@ class RustExpr {
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
                         return "u_string::unit_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
+                    // A function-level hoisted String parameter reads from the
+                    // precomputed unit vector (O(1) vs O(n) per access).
+                    // (StrParamHoist)
+                    final hoisted = hoistedStrParamMatch(subj);
+                    if (hoisted != null)
+                        return "u_string::unit_at_from(&" + hoisted.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // The call site's own expression decides: a Null<Int>
                     // context keeps the Option and an Int context unwraps it.
                     var callRet:Null<Type> = null;
