@@ -1746,8 +1746,18 @@ class RustExpr {
                 while (StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
                     condStr = condStr.substr(1, condStr.length - 2);
                 }
-                if (perChar != null)
+                if (perChar != null) {
                     condStr = StringTools.replace(condStr, perChar.countCall, perChar.countTemp);
+                    // Rewrite per-char reads inside the condition (the
+                    // `s.charCodeAt(i)` side of `i < s.length && ...`) to the
+                    // O(1) vector form once the units are hoisted. The
+                    // unit_at -> unit_at_from prefix swap keeps the index and
+                    // the surrounding Option machinery unchanged; reads at a
+                    // different index (a reverse walk) sit in the body, not
+                    // this condition, so they are left alone. (PerCharCompoundCond)
+                    for (r in perChar.receivers)
+                        condStr = StringTools.replace(condStr, "u_string::unit_at(&" + r.receiverText + ", ", "u_string::unit_at_from(&" + r.unitsTemp + ", ");
+                }
                 // A literal true condition lowers to Rust's dedicated loop.
                 final header = condStr == "true" ? "loop" : "while " + condStr;
                 // A compared cursor local (`while cursor != None`) is proven
@@ -8514,8 +8524,12 @@ class RustExpr {
             // The index must advance so the walk terminates and stays in range.
             if (!incrementsLocal(b, indexId))
                 return null;
-            // Only hoist when the body genuinely reads the receiver at the index.
-            if (!bodyReadsReceiverAtIndex(b, recv.id, indexId))
+            // A per-char read can sit in the body (pure `i < s.length`)
+            // or in the condition (compound `i < s.length && s.charCodeAt(i)`).
+            // Accept either one so the units and count are hoisted in both
+            // shapes. (PerCharCompoundCond)
+            if (!bodyReadsReceiverAtIndex(b, recv.id, indexId)
+                && !bodyReadsReceiverAtIndex(c, recv.id, indexId))
                 return null;
             return buildPerCharInfo(indexId, recv, 0, stableSecondaryReceivers(b, indexId, 0));
         }
@@ -8808,6 +8822,16 @@ class RustExpr {
         return switch (stripWrap(c).expr) {
             case TBinop(OpLt | OpLte, l, r): perCharPair(l, r);
             case TBinop(OpGt | OpGte, l, r): perCharPair(r, l);
+            // Compound && conditions: walk both sides; the per-char bailouts
+            // (writesLocal, incrementsLocal, bodyReadsReceiverAtIndex) still
+            // guard correctness afterward. The count replacement (countCall
+            // -> countTemp) rewrites every occurrence in condStr, so the
+            // length read inside the short-circuit is hoisted regardless of
+            // which side it sits on. (PerCharCompoundCond)
+            case TBinop(OpBoolAnd, l, r):
+                final lp = perCharLoopCondition(l);
+                if (lp != null) return lp;
+                return perCharLoopCondition(r);
             case _: null;
         };
     }
@@ -8882,7 +8906,12 @@ class RustExpr {
     function bodyReadsReceiverAtIndex(e:TypedExpr, receiverId:Int, indexId:Int):Bool {
         return switch (stripWrap(e).expr) {
             case TBlock(stmts): anyBodyRead(stmts, receiverId, indexId);
-            case TCall({expr: TField(subj, fa)}, args): perCharCallRead(subj, fa, args, receiverId, indexId);
+            case TCall(fn, args): 
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, fa) if (perCharCallRead(subj, fa, args, receiverId, indexId)): return true;
+                    case _:
+                }
+                bodyReadsReceiverAtIndex(fn, receiverId, indexId) || anyBodyRead(args, receiverId, indexId);
             case TIf(c, t, f): bodyReadsReceiverAtIndex(c, receiverId, indexId)
                 || bodyReadsReceiverAtIndex(t, receiverId, indexId)
                 || (f != null && bodyReadsReceiverAtIndex(f, receiverId, indexId));
