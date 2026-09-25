@@ -15718,9 +15718,9 @@ class RustExpr {
     function conditionalBranchText(branch:TypedExpr, sibling:TypedExpr, resultType:Null<Type> = null):String {
         final text = expr(branch);
         if (resultType != null && isStringType(resultType)) {
-            if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
+            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
                 return text;
-            return text + ".to_string()";
+            return text + ".to_ustring()";
         }
         if (isUStringCountText(text) && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
@@ -15732,8 +15732,8 @@ class RustExpr {
             return text;
         }
         final siblingText = expr(sibling);
-        final ownedStringCall = StringTools.endsWith(siblingText, ".to_string()")
-            || StringTools.endsWith(siblingText, ".to_string()?")
+        final ownedStringCall = StringTools.endsWith(siblingText, ".to_ustring()")
+            || StringTools.endsWith(siblingText, ".to_ustring()?")
             || StringTools.endsWith(siblingText, ".to_string().unwrap()");
         return ownedStringCall ? text + ".to_string()" : text;
     }
@@ -15789,7 +15789,7 @@ class RustExpr {
             && !isInterfaceType(branch.t))
             return "Box::new(" + text + ") as " + types.of(getNullInnerType(resultType), false);
         if (resultType != null && isStringType(resultType)) {
-            if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
+            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
                 return text;
             return text + ".to_string()";
         }
