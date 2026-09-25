@@ -944,6 +944,47 @@ impl UString {
         from_code_points(&inner)
     }
 }
+
+impl UString {
+    /// The UTF-16 code units of this string. UString stores units natively,
+    /// so this is the slice itself — no re-encoding. (String.encodeUtf16)
+    pub fn encode_utf16(&self) -> std::slice::Iter<u16> {
+        self.0.iter()
+    }
+}
+
+// Cross-type comparison: a Haxe string compares against Rust str/String by
+// UTF-16 unit sequence, the same order the unit-based storage defines.
+impl PartialEq<UString> for UStr {
+    fn eq(&self, other: &UString) -> bool {
+        self.0 == other.0[..]
+    }
+}
+impl PartialEq<UStr> for UString {
+    fn eq(&self, other: &UStr) -> bool {
+        self.0[..] == other.0
+    }
+}
+impl PartialEq<str> for UStr {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other.encode_utf16().collect::<Vec<u16>>()[..]
+    }
+}
+impl PartialEq<UStr> for str {
+    fn eq(&self, other: &UStr) -> bool {
+        other == self
+    }
+}
+impl PartialEq<String> for UStr {
+    fn eq(&self, other: &String) -> bool {
+        self == other.as_str()
+    }
+}
+impl PartialEq<UStr> for String {
+    fn eq(&self, other: &UStr) -> bool {
+        other == self.as_str()
+    }
+}
 ';
 
     /**
