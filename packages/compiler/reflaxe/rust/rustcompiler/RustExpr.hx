@@ -4143,6 +4143,36 @@ class RustExpr {
         return text;
     }
 
+    /**
+        Wrap a boolean operand when its inner binary operator has lower
+        precedence than the parent boolean operator: (a || b) && c must stay
+        (a || b) && c in Rust, where && binds tighter than || just like Haxe.
+        Does NOT double-wrap when the operand is already TParenthesis (the
+        TParenthesis case in expr already renders its own parens).
+        (BoolPrecedenceParens)
+    **/
+    function boolOperand(e:TypedExpr, text:String, parent:Binop, isRight:Bool):String {
+        var result = text;
+        switch (stripWrap(e).expr) {
+            case TBinop(op, _, _):
+                final cp = precedenceOf(op);
+                final pp = precedenceOf(parent);
+                if (cp < pp || (cp == pp && (!associative(op) || isRight)))
+                    result = alreadyWrappedInParens(e) ? text : "(" + text + ")";
+            case _:
+        }
+        return result;
+    }
+
+    /** Whether e is TParenthesis through any TMeta layers. */
+    function alreadyWrappedInParens(e:TypedExpr):Bool {
+        return switch (e.expr) {
+            case TParenthesis(_): true;
+            case TMeta(_, inner): alreadyWrappedInParens(inner);
+            case _: false;
+        }
+    }
+
     function narrowedSubject(subject:TypedExpr):Null<String> {
         return narrowedText(subjectTextOf(subject));
     }
@@ -6624,7 +6654,7 @@ class RustExpr {
                     final terms:Array<String> = [];
                     final provenNow:Array<TVar> = [];
                     for (i in 1...chain.length) {
-                        terms.push(expr(chain[i]));
+                        terms.push(boolOperand(chain[i], expr(chain[i]), OpBoolAnd, true));
                         final midGuard = nullGuardOf(chain[i]);
                         if (midGuard != null)
                             switch (stripWrap(midGuard.subject).expr) {
@@ -6645,7 +6675,7 @@ class RustExpr {
                 if (guard != null && !guard.noneWhenTrue) {
                     final name = freshRegionName("__option");
                     optionNarrowings.push({subjectText: subjectTextOf(guard.subject), name: name});
-                    final right = expr(r);
+                    final right = boolOperand(r, expr(r), OpBoolAnd, true);
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
                     if (hit)
@@ -6654,9 +6684,9 @@ class RustExpr {
                 final proven = provenNonNullLocal(l);
                 if (proven != null) {
                     provenNonNullVarIds.set(proven.id, true);
-                    final right = expr(r);
+                    final right = boolOperand(r, expr(r), OpBoolAnd, true);
                     provenNonNullVarIds.remove(proven.id);
-                    return expr(l) + " && " + right;
+                    return boolOperand(l, expr(l), OpBoolAnd, false) + " && " + right;
                 }
                 // A `&&` chain of `!= null` checks proves every checked
                 // local for the right operand; the single-local form above
@@ -6665,18 +6695,18 @@ class RustExpr {
                 if (provenChain.length > 0) {
                     for (v in provenChain)
                         provenNonNullVarIds.set(v.id, true);
-                    final right = expr(r);
+                    final right = boolOperand(r, expr(r), OpBoolAnd, true);
                     for (v in provenChain)
                         provenNonNullVarIds.remove(v.id);
-                    return expr(l) + " && " + right;
+                    return boolOperand(l, expr(l), OpBoolAnd, false) + " && " + right;
                 }
-                return nullableBoolOperand(l, expr(l)) + " && " + nullableBoolOperand(r, expr(r));
+                return boolOperand(l, nullableBoolOperand(l, expr(l)), OpBoolAnd, false) + " && " + boolOperand(r, nullableBoolOperand(r, expr(r)), OpBoolAnd, true);
             case OpBoolOr:
                 final guard = nullGuardOf(l);
                 if (guard != null && guard.noneWhenTrue) {
                     final name = freshRegionName("__option");
                     optionNarrowings.push({subjectText: subjectTextOf(guard.subject), name: name});
-                    final right = expr(r);
+                    final right = boolOperand(r, expr(r), OpBoolOr, true);
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
                     if (hit)
@@ -6692,12 +6722,12 @@ class RustExpr {
                 if (orChain.length > 0) {
                     for (v in orChain)
                         provenNonNullVarIds.set(v.id, true);
-                    final right = expr(r);
+                    final right = boolOperand(r, expr(r), OpBoolOr, true);
                     for (v in orChain)
                         provenNonNullVarIds.remove(v.id);
-                    return nullableBoolOperand(l, expr(l)) + " || " + right;
+                    return boolOperand(l, nullableBoolOperand(l, expr(l)), OpBoolOr, false) + " || " + right;
                 }
-                return nullableBoolOperand(l, expr(l)) + " || " + nullableBoolOperand(r, expr(r));
+                return boolOperand(l, nullableBoolOperand(l, expr(l)), OpBoolOr, false) + " || " + boolOperand(r, nullableBoolOperand(r, expr(r)), OpBoolOr, true);
             case OpAssign:
                 final map = mapAssignment(l);
                 if (map != null) {

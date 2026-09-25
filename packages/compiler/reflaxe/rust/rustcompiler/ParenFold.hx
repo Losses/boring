@@ -171,23 +171,26 @@ class ParenFold {
 
     /**
         A fold may not change grouping. When the removed pair sits next to
-        an operator, the tightest top-level operator inside must bind
+        an operator, the loosest top-level operator inside must bind
         strictly tighter than that neighbor: Rust reads `a | b << c` as
-        `a | (b << c)`, so `(a | b) << c` keeps its parens. A cast, a
-        method call, an index, an invocation, and a unary prefix all bind
-        at the top level (10), above every binary operator.
+        `a | (b << c)`, so `(a | b) << c` keeps its parens. The loosest
+        operator is the first to re-associate once the pair is gone, which
+        matters when the inner mixes operators: `(!x || y != z) && w` must
+        keep its parens because the `||` (looser than `&&`) would escape.
+        A cast, a method call, an index, an invocation, and a unary prefix
+        all bind at the top level (10), above every binary operator.
         (OperatorPrecedenceGuard)
     **/
     static function foldChangesGrouping(text:String, open:Int, close:Int):Bool {
-        final innerTightest = tightestTopLevelPrecedence(text.substr(open + 1, close - open - 1));
-        if (innerTightest <= 0)
+        final innerLoosest = loosestTopLevelPrecedence(text.substr(open + 1, close - open - 1));
+        if (innerLoosest <= 0)
             return false;
         var j = close + 1;
         while (j < text.length && isSpaceChar(text.charAt(j)))
             j++;
         if (j < text.length) {
             final succ = successorPrecedence(text, j);
-            if (succ > 0 && innerTightest <= succ)
+            if (succ > 0 && innerLoosest <= succ)
                 return true;
         }
         var k = open - 1;
@@ -195,7 +198,7 @@ class ParenFold {
             k--;
         if (k >= 0) {
             final pred = predecessorPrecedence(text, k);
-            if (pred > 0 && innerTightest <= pred)
+            if (pred > 0 && innerLoosest <= pred)
                 return true;
         }
         return false;
@@ -277,13 +280,18 @@ class ParenFold {
         return !isOperand;
     }
 
-    /** Highest precedence among top-level operators in `text`. A cast
-        target follows the last top-level ` as `; its angle brackets are
-        type syntax and carry no comparison. (OperatorPrecedenceGuard) */
-    static function tightestTopLevelPrecedence(text:String):Int {
+    /** Lowest precedence among top-level binary operators in `text`,
+        which is the operator that would re-associate first if an enclosing
+        pair were dropped. A lone prefix sign (a unary `-`) still binds
+        above every binary operator and returns 10; no top-level operator
+        returns 0. A cast target follows the last top-level ` as `; its
+        angle brackets are type syntax and carry no comparison.
+        (OperatorPrecedenceGuard) */
+    static function loosestTopLevelPrecedence(text:String):Int {
         var depth = 0;
         var inString = false;
-        var tightest = 0;
+        var loosest = 0;
+        var hasUnary = false;
         var i = 0;
         while (i < text.length) {
             final c = text.charAt(i);
@@ -311,21 +319,21 @@ class ParenFold {
                 }
                 final two = text.substr(i, 2);
                 if (BINARY_PRECEDENCE.exists(two) && two.length == 2) {
-                    if (BINARY_PRECEDENCE.get(two) > tightest)
-                        tightest = BINARY_PRECEDENCE.get(two);
+                    if (loosest == 0 || BINARY_PRECEDENCE.get(two) < loosest)
+                        loosest = BINARY_PRECEDENCE.get(two);
                     i += 2;
                     continue;
                 }
                 if (BINARY_PRECEDENCE.exists(c)) {
                     if (unaryContextBefore(text, i))
-                        tightest = 10
-                    else if (BINARY_PRECEDENCE.get(c) > tightest)
-                        tightest = BINARY_PRECEDENCE.get(c);
+                        hasUnary = true;
+                    else if (loosest == 0 || BINARY_PRECEDENCE.get(c) < loosest)
+                        loosest = BINARY_PRECEDENCE.get(c);
                 }
             }
             i++;
         }
-        return tightest;
+        return loosest != 0 ? loosest : (hasUnary ? 10 : 0);
     }
 
     static function matchParen(text:String, open:Int):Int {
