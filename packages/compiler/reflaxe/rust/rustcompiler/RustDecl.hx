@@ -60,6 +60,26 @@ class RustDecl {
     }
 
     /** Widen an Int const val initializer to Float when the field type is Float. */
+    /** UTF-16 unit literal for a const UStr: the single code point below 0x10000
+        occupies one unit; a supplementary code point splits into lead and trail surrogates. */
+    static function u16ConstLiteral(s:String):String {
+        final out:Array<Int> = [];
+        for (i in 0...s.length) {
+            final code = s.charCodeAt(i);
+            if (code >= 0x10000) {
+                final c = code - 0x10000;
+                out.push(0xD800 + (c >> 10));
+                out.push(0xDC00 + (c & 0x3FF));
+            } else {
+                out.push(code);
+            }
+        }
+        if (out.length == 0) {
+            return "unsafe { &*(&[] as *const [u16] as *const crate::runtime::u_string::UStr) }";
+        }
+        return "unsafe { &*(&[" + [for (u in out) "0x" + StringTools.hex(u, 4) + "u16"].join(", ") + "] as *const [u16] as *const crate::runtime::u_string::UStr) }";
+    }
+
     function constValFloatInit(init:TypedExpr, fieldType:Type):String {
         final text = expr.rawExpression(init);
         if (expr.isIntType(expr.emittedType(init)) && expr.isFloatType(fieldType))
@@ -1340,12 +1360,21 @@ class RustDecl {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
             final valStr = constValFloatInit(init, field.type);
             final typeStr = switch (field.type) {
-                case TInst(c, _) if (c.get().name == "String"): "&str";
+                case TInst(c, _) if (c.get().name == "String"): "&UStr";
                 case _: types.of(field.type);
             };
             // @:allow members use crate visibility so allowed cross-module references compile.
             final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
             final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
+            if (typeStr == "&UStr") {
+                imports.requireType("runtime.UString", "UStr");
+                final s = switch (init.expr) {
+                    case TConst(TString(s)): s;
+                    case _: throw "const String field must be a string literal: " + cls.name + "." + field.name;
+                };
+                final val = u16ConstLiteral(s);
+                return ['    ${vis}const ${name}: ${typeStr} = $val;'];
+            }
             return ['    ${vis}const ${name}: ${typeStr} = $valStr;'];
         }
         return [];
