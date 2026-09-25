@@ -732,13 +732,13 @@ class Compiler extends PluginCompiler<Compiler> {
                     case "Int": "u32";
                     case "Float": FloatPrecision.isF32() ? "f32" : "f64";
                     case "Bool": "bool";
-                    case "String": "String";
+                    case "String": "UString";
                     case "std.ReadOnlyArray": "Vec<" + rustType(params[0]) + ">";
                     case _: abs.name;
                 }
             case TInst(c, params):
                 final cls = c.get();
-                if (cls.name == "String") "String"; else if (cls.name == "Array") "Vec<" + rustType(params[0]) + ">"; else if (cls.name == "Bytes"
+                if (cls.name == "String") "UString"; else if (cls.name == "Array") "Vec<" + rustType(params[0]) + ">"; else if (cls.name == "Bytes"
                     || (cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")) "Vec<u8>"; else "crate::" + RustImports.moduleToRustPath(cls.module) + "::"
                     + cls.name;
             case TType(def, params):
@@ -839,10 +839,19 @@ class Compiler extends PluginCompiler<Compiler> {
         // resident callers reach the class itself, and one file holds the
         // whole UString runtime. runtime.Graphemes carries the single
         // boundaries adapter under the same pattern.
-        final abiSource = module == "runtime.UString" ? "\n" + StringTools.trim(RustRuntime.USTRING_ABI_SOURCE) + "\n" : module == "runtime.Graphemes" ? "\n"
-            + StringTools.trim(RustRuntime.GRAPHEMES_ABI_SOURCE)
-            + "\n" : "";
-        final content = imports + (imports.length > 0 ? "\n" : "") + body + abiSource + "\n";
+        // For runtime.UString, the compiled unit struct is replaced by the
+        // UString/UStr newtype and the resident methods fold into the rewritten
+        // ABI adapters (USTRING_TYPE_SOURCE + USTRING_ABI_SOURCE_NEW). The
+        // compiled body stays empty: its byte-based walk primitives target
+        // &str and cannot operate on &UStr directly.
+        final abiSource = module == "runtime.UString"
+            ? "\n" + StringTools.trim(RustRuntime.USTRING_TYPE_SOURCE) + "\n"
+                + StringTools.trim(RustRuntime.USTRING_ABI_SOURCE_NEW) + "\n"
+            : module == "runtime.Graphemes"
+            ? "\n" + StringTools.trim(RustRuntime.GRAPHEMES_ABI_SOURCE) + "\n"
+            : "";
+        final bodyUsed = module == "runtime.UString" ? "" : body;
+        final content = imports + (imports.length > 0 ? "\n" : "") + bodyUsed + abiSource + "\n";
         saveTreeFile(RuntimeConfig.emitPath(dir, fileName), content);
     }
 
