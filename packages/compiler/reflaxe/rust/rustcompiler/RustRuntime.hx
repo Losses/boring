@@ -221,6 +221,20 @@ impl FPHelper {
 }
 ';
 
+    /** Business u32 text read with sign reinterpretation: Haxe Int is
+        u32 in business modules, so a negative Int stored as its two's
+        complement bits must print as the signed i32 the source authored
+        (T5). Resident modules already render i32 and never call this. */
+    public static final INT_TEXT_SOURCE = '
+pub struct IntText;
+
+impl IntText {
+    pub fn int_text(v: u32) -> String {
+        i32::from_ne_bytes(v.to_ne_bytes()).to_string()
+    }
+}
+';
+
     public static final CONSOLE_SOURCE = '
 pub struct Console;
 
