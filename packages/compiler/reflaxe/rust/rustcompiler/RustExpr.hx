@@ -9306,7 +9306,11 @@ class RustExpr {
                 // to the reference and the deref applies to the returned
                 // &str. Parenthesize the deref so .name() reaches the
                 // enum value (E0308 expected String, found str).
-                (StringTools.startsWith(value, "*") ? "(" + value + ")" : value) + ".name()" + (inConcat ? "" : ".to_string()");
+                final receiver = StringTools.startsWith(value, "*") ? "(" + value + ")" : value;
+                if (inConcat)
+                    return receiver + ".name()";
+                imports.requireType("runtime.UString", "UString");
+                return "UString::from(" + receiver + ".name())";
             case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
             case IsPayloadEnum(_): value + ".to_string()";
             case IsUnsupported:
@@ -12005,7 +12009,7 @@ class RustExpr {
         if (expected == null)
             return text;
         if (isStringType(expected) && isStringType(arg.t)) {
-            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()))
+            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone())"))
                 return text;
             if (StringTools.startsWith(text, "UString::from("))
                 return text;
