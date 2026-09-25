@@ -105,6 +105,12 @@ class RustExpr {
     // Error type of the local function literal currently being lowered; null
     // for argument closures that do not own a Result boundary.
     var localFunctionErrorName:Null<String> = null;
+    // Error type of the try region that a fallible-block argument propagates
+    // into. It is tracked separately from errorTypeName because rendering a
+    // call's arguments retargets errorTypeName to the callee's own error, and
+    // a constructor nested in that argument list must still convert into the
+    // region rather than into whatever the innermost argument pass set.
+    var blockClosureErrorName:Null<String> = null;
     var inGenericFunction:Bool = false;
     final borrowedLoopVarIds:Map<Int, Bool> = [];
     final provenNonNullVarIds:Map<Int, Bool> = [];
@@ -510,8 +516,10 @@ class RustExpr {
                 // the same unwrap through normalizeConstructorResult. Inside
                 // an unwrap_or_else closure the closure returns the concrete
                 // value, so `?` cannot propagate there.
-                if (state.funcErrorEnums.exists(RustEmissionState.funcKey(modulePath, "new", false)))
-                    constructed += inClosure ? ".unwrap()" : (isFallible ? "?" : ".unwrap()");
+                if (state.funcErrorEnums.exists(RustEmissionState.funcKey(modulePath, "new", false))) {
+                    final ctorFault = state.funcErrorTypes.get(RustEmissionState.funcKey(modulePath, "new", false));
+                    constructed += defaultErrorSuffix(ctorFault != null ? ctorFault.name : null, inClosure);
+                }
                 // A concrete implementor default entering an interface slot
                 // boxes through the same sanctioned construction the
                 // ordinary call path uses; the interface default is
@@ -621,8 +629,10 @@ class RustExpr {
         // enters the slot, mirroring the constructor default handling.
         // Inside an unwrap_or_else closure the closure returns the concrete
         // value, so `?` cannot propagate there.
-        if (state.funcErrorEnums.exists(RustEmissionState.funcKey(modulePath, methodName, true)))
-            rendered += inClosure ? ".unwrap()" : (isFallible ? "?" : ".unwrap()");
+        if (state.funcErrorEnums.exists(RustEmissionState.funcKey(modulePath, methodName, true))) {
+            final staticFault = state.funcErrorTypes.get(RustEmissionState.funcKey(modulePath, methodName, true));
+            rendered += defaultErrorSuffix(staticFault != null ? staticFault.name : null, inClosure);
+        }
         return rendered;
     }
 
@@ -802,6 +812,7 @@ class RustExpr {
         scanContinueNullGuards(f.expr);
         scanCursorLocals(f.expr);
         scanLocalFunctionFallibility(f.expr);
+        markFallibleBlockParams(cls, f);
         scanReadsAfter(f.expr);
         final previousReceiverContext = renderingMethodReceiver;
         renderingMethodReceiver = RustDecl.methodWritesReceiver(f.field);
@@ -2235,23 +2246,70 @@ class RustExpr {
             return isFallibleCallee(c, cf, isStatic) ? ".unwrap()" : "";
         if (!isFallibleCallee(c, cf, isStatic))
             return "";
+        // Inside a fallible-block closure the conversion target is the region
+        // the block propagates into. Rendering a call's arguments retargets
+        // errorTypeName to the callee's own error, so the region is tracked
+        // in its own field and preferred here.
+        final targetName = blockClosureErrorName != null ? blockClosureErrorName : errorTypeName;
         final callee = state.funcErrorTypes.get(RustEmissionState.funcKey(c.get().module, cf.get().name, isStatic));
-        if (callee == null || errorTypeName == null || callee.name == errorTypeName)
+        if (targetName == null || (callee != null && callee.name == targetName))
             return "?";
-        final variant = state.syntheticErrorVariant(errorTypeName, callee);
+        // An unregistered callee still returns a Result whose error type this
+        // side cannot name. A message-only target needs no variant to map
+        // into, so the conversion is decided by the target alone.
+        if (callee == null) {
+            final unregisteredTarget = state.messageOnlyModuleFor(targetName);
+            if (unregisteredTarget != null) {
+                imports.requireType(unregisteredTarget, targetName);
+                return ".map_err(|e| " + targetName + "::new(&format!(\"{:?}\", e)))?";
+            }
+            return "?";
+        }
+        final variant = state.syntheticErrorVariant(targetName, callee);
         if (variant == null) {
             // The declared caller enum may carry growth variants registered
             // for callee faults merged beyond its declared set; `?` then maps
             // into a real constructor replacing a missing From impl.
-            final growth = state.enumGrowthFor(errorTypeName);
+            final growth = state.enumGrowthFor(targetName);
             if (growth != null) {
                 for (item in growth)
                     if (item.calleeName == callee.name)
-                        return ".map_err(|e| " + errorTypeName + "::" + item.variant + "(e))?";
+                        return ".map_err(|e| " + targetName + "::" + item.variant + "(e))?";
+            }
+            // A message-only exception declares no variants, so there is no
+            // constructor to map into; it carries text, and the text is what
+            // the catch arm reads. Format the source error into it.
+            final messageOnlyModule = state.messageOnlyModuleFor(targetName);
+            if (messageOnlyModule != null) {
+                // The conversion names the exception type, so the call site
+                // must import it the same way a declared use would.
+                imports.requireType(messageOnlyModule, targetName);
+                return ".map_err(|e| " + targetName + "::new(&format!(\"{:?}\", e)))?";
             }
             return "?";
         }
-        return ".map_err(|e| " + errorTypeName + "::" + variant + "(e))?";
+        return ".map_err(|e| " + targetName + "::" + variant + "(e))?";
+    }
+
+    /**
+        The suffix a throwing default's Result takes before the value enters
+        its slot. Inside an unwrap_or_else closure the closure returns the
+        concrete value, so `?` cannot propagate there. A message-only target
+        declares no variant to map into, so a fault of another type is
+        formatted into the text its catch arm reads.
+    **/
+    function defaultErrorSuffix(declaredName:Null<String>, inClosure:Bool):String {
+        if (inClosure || !isFallible)
+            return ".unwrap()";
+        final target = blockClosureErrorName != null ? blockClosureErrorName : errorTypeName;
+        if (target == null || declaredName == target)
+            return "?";
+        final module = state.messageOnlyModuleFor(target);
+        if (module != null) {
+            imports.requireType(module, target);
+            return ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+        }
+        return "?";
     }
 
     function payloadEnumRef(e:TypedExpr):Null<Ref<haxe.macro.Type.EnumType>> {
@@ -10554,8 +10612,10 @@ class RustExpr {
                     // parameter casts once at the call boundary.
                     signedPositions = intParamPositions(cf.get().type);
                 }
+                final fbKey = RustEmissionState.funcKey(cls.module, name, true);
+                final fbIdx = state.fallibleBlockParams.get(fbKey);
                 final callStr = callWithSiblingReadHoist(staticRef(cls, name), true, cf.get().type, args, signedPositions, 0,
-                    mutableParamPositions(cf.get()), null, q);
+                    mutableParamPositions(cf.get()), null, q, fbIdx, fbKey);
                 if (calleeResident != callerResident && returnsInt(cf.get().type)) {
                     // An Int result crosses between the two conventions;
                     // containers never cross whole, only their elements
@@ -10691,6 +10751,12 @@ class RustExpr {
         localFunctionErrorName = null;
         isFallible = closureError != null;
         errorTypeName = closureError;
+        // Establish the region for the whole closure body: nested calls in the
+        // body's argument lists must convert into this type, and rendering
+        // those argument lists retargets errorTypeName to the callee's error.
+        final previousBlockClosure = blockClosureErrorName;
+        if (closureError != null)
+            blockClosureErrorName = closureError;
         inGenericFunction = true;
         genericParamIds.clear();
         final previousClosureParams = closureParamIds.copy();
@@ -10717,6 +10783,7 @@ class RustExpr {
         currentReturnType = previousReturnType;
         isFallible = previousFallible;
         errorTypeName = previousErrorTypeName;
+        blockClosureErrorName = previousBlockClosure;
         localFunctionErrorName = closureError;
         inGenericFunction = previousGeneric;
         closureParamIds.clear();
@@ -11691,7 +11758,65 @@ class RustExpr {
     function normalizeConstructorResult(e:TypedExpr, rendered:String):String {
         if (!isFallibleConstructor(e) || StringTools.endsWith(rendered, "?") || StringTools.endsWith(rendered, ".unwrap()"))
             return rendered;
-        return isFallible ? rendered + "?" : "(" + rendered + ").unwrap()";
+        if (!isFallible)
+            return "(" + rendered + ").unwrap()";
+        // A constructor fault reaching a message-only region has no variant to
+        // map into: the region carries text and its catch arm reads that text,
+        // so the conversion formats the source error instead of a plain `?`.
+        final target = blockClosureErrorName != null ? blockClosureErrorName : (localFunctionErrorName != null ? localFunctionErrorName : errorTypeName);
+        final module = target != null ? state.messageOnlyModuleFor(target) : null;
+        if (module != null && constructorErrorName(e) != target) {
+            imports.requireType(module, target);
+            return rendered + ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+        }
+        return rendered + "?";
+    }
+
+    /**
+        The suffix that carries a constructor fault into the current error slot.
+        A message-only region declares no variant to map into, so a fault of a
+        different type is formatted into the text its catch arm reads.
+    **/
+    function constructorPropagationSuffix(c:Ref<ClassType>):String {
+        final target = blockClosureErrorName != null ? blockClosureErrorName : (localFunctionErrorName != null ? localFunctionErrorName : errorTypeName);
+        final declared = state.funcErrorTypes.get(RustEmissionState.funcKey(c.get().module, "new", false));
+        if (target == null || (declared != null && declared.name == target)) {
+            return "?";
+        }
+        // An unregistered constructor still returns a Result. A message-only
+        // target needs no variant, so the conversion is decided by the target.
+        if (declared == null) {
+            final constructorTarget = state.messageOnlyModuleFor(target);
+            if (constructorTarget != null) {
+                imports.requireType(constructorTarget, target);
+                return ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+            }
+            return "?";
+        }
+        final variant = state.syntheticErrorVariant(target, declared);
+        if (variant != null)
+            return ".map_err(|e| " + target + "::" + variant + "(e))?";
+        final growth = state.enumGrowthFor(target);
+        if (growth != null)
+            for (item in growth)
+                if (item.calleeName == declared.name)
+                    return ".map_err(|e| " + target + "::" + item.variant + "(e))?";
+        final module = state.messageOnlyModuleFor(target);
+        if (module != null) {
+            imports.requireType(module, target);
+            return ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+        }
+        return "?";
+    }
+
+    /** The error enum a fallible constructor returns, read from its TNew. **/
+    function constructorErrorName(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TNew(c, _, _):
+                final declared = state.funcErrorTypes.get(RustEmissionState.funcKey(c.get().module, "new", false));
+                declared == null ? null : declared.name;
+            case _: null;
+        }
     }
 
     /**
@@ -11728,7 +11853,7 @@ class RustExpr {
             imports.requireType(valueType.module, valueType.name);
             final rendered = ctorCallArgs(cls, args);
             if (ValueTypeSupport.constructorThrows(valueType)) {
-                return valueType.name + "::new(" + rendered + ")" + (isFallible ? "?" : ".unwrap()");
+                return valueType.name + "::new(" + rendered + ")" + (isFallible ? constructorPropagationSuffix(c) : ".unwrap()");
             }
             return valueType.name + "(" + rendered + ")";
         }
@@ -11762,7 +11887,7 @@ class RustExpr {
                 // a try-region closure, and an infallible context
                 // unwraps (feature spec 27).
                 final ctorFallible = state.funcErrorEnums.exists(RustEmissionState.funcKey(cls.module, "new", false));
-                final q = ctorFallible ? (isFallible ? "?" : ".unwrap()") : "";
+                final q = ctorFallible ? (isFallible ? constructorPropagationSuffix(c) : ".unwrap()") : "";
                 return cls.name + genericStr + "::new(" + ctorCallArgs(cls, args) + ")" + q;
         }
     }
@@ -12969,6 +13094,58 @@ class RustExpr {
                 fallibleLocalFunctionErrors.set(fn.id, errorTypeName);
     }
 
+    /**
+        Marks a function's fallible-block parameters (detected in preScan) as
+        fallible local functions so their call sites propagate with `?`. The
+        parameter's error type is the enclosing function's error enum, matching
+        the declaration rendered by RustDecl for the same slot.
+    **/
+    function markFallibleBlockParams(cls:ClassType, f:ClassFuncData):Void {
+        final key = RustEmissionState.funcKey(f.classType.module, f.field.name, f.isStatic);
+        final idx = state.fallibleBlockParams.get(key);
+        if (idx != null) {
+            for (i in idx) {
+                if (i >= 0 && i < f.args.length) {
+                    final region = state.fallibleBlockRegions.get(key + "#" + i);
+                    if (region == null)
+                        continue;
+                    final a = f.args[i];
+                    if (a.tvar != null)
+                        fallibleLocalFunctionErrors.set(a.tvar.id, region);
+                }
+            }
+        }
+        // A local bound to a forwarded block literal carries the slot's Result
+        // as well, so its declaration and its literal agree with the callee.
+        // This runs for every function, not only those with a fallible-block
+        // parameter: a function that merely passes a local to a fallible
+        // callee still needs that local's declaration rendered with the slot's
+        // Result. The body is a TFunction wrapping the block; iterating the
+        // TFunction only visits the block node, never the TVar statements
+        // inside it, so the walk descends into the block's statements directly.
+        if (f.expr != null) {
+            function markLocalSlots(e:TypedExpr):Void {
+                switch (stripWrap(e).expr) {
+                    case TFunction(fn):
+                        markLocalSlots(fn.expr);
+                    case TBlock(es):
+                        for (x in es)
+                            markLocalSlots(x);
+                    case TVar(v, _):
+                        final slot = state.fallibleBlockLocalSlots.get(v.id);
+                        if (slot != null) {
+                            final region = state.fallibleBlockRegions.get(slot);
+                            if (region != null)
+                                fallibleLocalFunctionErrors.set(v.id, region);
+                        }
+                    case _:
+                        haxe.macro.TypedExprTools.iter(e, markLocalSlots);
+                }
+            }
+            markLocalSlots(f.expr);
+        }
+    }
+
     function localFunctionBodyThrows(e:TypedExpr):Bool {
         var found = false;
         function walk(x:TypedExpr):Void {
@@ -14036,7 +14213,8 @@ class RustExpr {
 
     function renderCallArgs(fnType:Null<Type>, args:Array<TypedExpr>, signedPositions:Null<Array<Int>> = null, paramOffset:Int = 0,
             mutablePositions:Null<Array<Int>> = null, receiverType:Null<Type> = null,
-            hoistOut:Null<Array<{name:String, bind:String}>> = null):String {
+            hoistOut:Null<Array<{name:String, bind:String}>> = null, fallibleBlockIdx:Null<Array<Int>> = null,
+            fallibleBlockKey:Null<String> = null):String {
         final paramTypes = if (fnType != null) {
             final applied = appliedReceiverParamTypes(fnType, receiverType);
             if (applied != null)
@@ -14078,7 +14256,21 @@ class RustExpr {
             final arg = args[i];
             final paramIndex = i + paramOffset;
             final pt = paramIndex < paramTypes.length ? paramTypes[paramIndex] : null;
+            // The literal's error type is the region the callee's call sits in,
+            // looked up per slot: one callee may take several blocks whose
+            // regions differ.
+            final blockRegion = fallibleBlockKey != null ? state.fallibleBlockRegions.get(fallibleBlockKey + "#" + paramIndex) : null;
+            final isFallibleBlockArg = blockRegion != null && fallibleBlockIdx != null && fallibleBlockIdx.indexOf(paramIndex) >= 0
+                && switch (stripWrap(arg).expr) { case TFunction(_): true; case _: false; };
+            final savedBlockError = localFunctionErrorName;
+            final savedBlockClosure = blockClosureErrorName;
+            if (isFallibleBlockArg) {
+                localFunctionErrorName = blockRegion;
+                blockClosureErrorName = blockRegion;
+            }
             var argStr = renderValueForType(pt, arg, expr(arg));
+            localFunctionErrorName = savedBlockError;
+            blockClosureErrorName = savedBlockClosure;
             // A by-value class parameter the callee mutates renders as a
             // mutable reference (Haxe class arguments are references: the
             // caller must observe the callee's writes). An argument whose
@@ -14734,11 +14926,12 @@ class RustExpr {
         expression) must be order-neutral. (MutRefSiblingBorrow)
     **/
     function callWithSiblingReadHoist(callee:String, calleeOrderNeutral:Bool, fnType:Null<Type>, args:Array<TypedExpr>,
-            signedPositions:Null<Array<Int>>, paramOffset:Int, mutablePositions:Array<Int>, receiverType:Null<Type>, suffix:String):String {
+            signedPositions:Null<Array<Int>>, paramOffset:Int, mutablePositions:Array<Int>, receiverType:Null<Type>, suffix:String,
+            fallibleBlockIdx:Null<Array<Int>> = null, fallibleBlockKey:Null<String> = null):String {
         if (!calleeOrderNeutral || mutablePositions.length == 0)
-            return callee + "(" + renderCallArgs(fnType, args, signedPositions, paramOffset, mutablePositions, receiverType) + ")" + suffix;
+            return callee + "(" + renderCallArgs(fnType, args, signedPositions, paramOffset, mutablePositions, receiverType, null, fallibleBlockIdx, fallibleBlockKey) + ")" + suffix;
         final hoist:Array<{name:String, bind:String}> = [];
-        final text = callee + "(" + renderCallArgs(fnType, args, signedPositions, paramOffset, mutablePositions, receiverType, hoist) + ")" + suffix;
+        final text = callee + "(" + renderCallArgs(fnType, args, signedPositions, paramOffset, mutablePositions, receiverType, hoist, fallibleBlockIdx, fallibleBlockKey) + ")" + suffix;
         if (hoist.length == 0)
             return text;
         return "{ " + [for (h in hoist) "let " + h.name + " = " + h.bind + ";"].join(" ") + " " + text + " }";
