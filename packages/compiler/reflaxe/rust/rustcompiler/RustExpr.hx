@@ -12005,12 +12005,10 @@ class RustExpr {
         if (expected == null)
             return text;
         if (isStringType(expected) && isStringType(arg.t)) {
-            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
+            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()))
                 return text;
             if (StringTools.startsWith(text, "UString::from("))
                 return text;
-            if (StringTools.startsWith(text, "format!") || StringTools.endsWith(text, ".name())"))
-                return "UString::from((" + text + ").as_str())";
             return text + ".to_ustring()";
         }
         // ReadOnlyArray literals and direct static arrays are emitted as Rust
