@@ -12002,7 +12002,7 @@ class RustExpr {
             if (StringTools.startsWith(text, "UString::from("))
                 return text;
             if (StringTools.startsWith(text, "format!") || StringTools.endsWith(text, ".name())"))
-                return "UString::from(&(" + text + "))";
+                return "UString::from((" + text + ").as_str())";
             return text + ".to_ustring()";
         }
         // ReadOnlyArray literals and direct static arrays are emitted as Rust
