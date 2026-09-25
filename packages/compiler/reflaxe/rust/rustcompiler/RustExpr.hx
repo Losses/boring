@@ -55,6 +55,12 @@ class RustExpr {
     // A field used as a method receiver remains borrowed; value reads clone
     // non-Copy fields unless this narrow receiver context applies.
     var renderingMethodReceiver:Bool = false;
+    // Whether the enclosing function's receiver is a mutable self reference.
+    // Set once at function-body entry; the receiver-rendering flag above is
+    // narrower and is overridden around each receiver, so this separate flag
+    // keeps the function-level mutability available when lowering self as a
+    // mutable reference argument. (SelfMutRefArgument)
+    var currentFunctionMutatesSelf:Bool = false;
     var inTryClosure:Bool = false;
 
     final subst:Map<Int, String> = [];
@@ -835,8 +841,11 @@ class RustExpr {
         scanStrParamHoists(f);
         final previousReceiverContext = renderingMethodReceiver;
         renderingMethodReceiver = RustDecl.methodWritesReceiver(f.field);
+        final previousFunctionMutatesSelf = currentFunctionMutatesSelf;
+        currentFunctionMutatesSelf = renderingMethodReceiver;
         final lines = blockLines(statementsOf(f.expr), 1, true);
         final normalized = coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]);
+        currentFunctionMutatesSelf = previousFunctionMutatesSelf;
         renderingMethodReceiver = previousReceiverContext;
         // Prepend hoisted string-param materializations before the body.
         final hoistLines:Array<String> = [];
@@ -10557,13 +10566,6 @@ class RustExpr {
                 }
                 final isMethodFallible = isFallibleCallee(c, cf, false);
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
-                final previousReceiverContext = renderingMethodReceiver;
-                renderingMethodReceiver = RustDecl.methodWritesReceiver(cf.get());
-                final subjText = expr(subj);
-                renderingMethodReceiver = previousReceiverContext;
-                final narrowed = narrowedSubject(subj);
-                if (narrowed != null)
-                    optionNarrowingHitCount++;
                 // A mutating method borrows the unwrapped receiver mutably:
                 // the trait-mutation table drives the interface-method calls,
                 // the receiver-writer list the concrete ones. The table is
@@ -10571,6 +10573,25 @@ class RustExpr {
                 // (MutatingForcing, InterfaceKeyedTraitMutation)
                 final mutCall = RustDecl.mutatingTraitMethods.exists(RustEmissionState.interfaceMethodKey(c.get().module, c.get().name, cf.get().name))
                     || RustDecl.methodWritesReceiver(cf.get());
+                // The receiver stays borrowed (not cloned) when the method
+                // writes through it. Interface methods carry no body for
+                // methodWritesReceiver to inspect, so the trait-mutation
+                // registry supplies the verdict for them; without it a
+                // mutating interface method (an LRU get, a stateful shaper
+                // shape) would clone its receiver and lose the mutation.
+                // (InterfaceMutatingReceiverBorrow)
+                // A receiver rooted at self (a field of self, or self itself)
+                // also stays borrowed: cloning a field of self is never
+                // correct - it is wasteful on a collection and loses the
+                // internal state of a stateful object (a shaper, a
+                // classifier, a cache). (SelfFieldReceiverBorrow)
+                final previousReceiverContext = renderingMethodReceiver;
+                renderingMethodReceiver = mutCall || isSelfRootedReceiver(subj);
+                final subjText = expr(subj);
+                renderingMethodReceiver = previousReceiverContext;
+                final narrowed = narrowedSubject(subj);
+                if (narrowed != null)
+                    optionNarrowingHitCount++;
                 final forcingRead = mutCall ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
                 final subjStr = narrowed != null ? narrowed
                     : (receiverCarriesFallibleWrapper(subj) ? subjText + forcingRead : subjText);
@@ -14611,11 +14632,19 @@ class RustExpr {
             // borrow. (MutableRefObjectParam)
             if (mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0
                 && pt != null && RustDecl.isMutableRefParamType(pt)) {
-                final reborrow = switch (stripWrap(arg).expr) {
+                // A self receiver of a mutating method reborrows directly:
+                // self is already a mutable reference, so cloning it (as a
+                // value read would) discards every write the callee makes.
+                // (SelfMutRefArgument)
+                final selfArg = switch (stripWrap(arg).expr) {
+                    case TConst(TThis): currentFunctionMutatesSelf;
+                    case _: false;
+                };
+                final reborrow = selfArg || switch (stripWrap(arg).expr) {
                     case TLocal(v): paramVarIds.exists(v.id) && mutated.exists(v.id);
                     case _: false;
                 };
-                argStr = reborrow ? argStr : "&mut " + (StringTools.startsWith(argStr, "&mut ") ? argStr.substr(5) : argStr);
+                argStr = reborrow ? (selfArg ? thisBindingName : argStr) : "&mut " + (StringTools.startsWith(argStr, "&mut ") ? argStr.substr(5) : argStr);
                 rendered.push(argStr);
                 continue;
             }
@@ -15283,6 +15312,14 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TConst(TThis): true;
             case TLocal(_) | TField(_, _): true;
+            case _: false;
+        };
+    }
+
+    function isSelfRootedReceiver(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(TThis): true;
+            case TField(subj, _): isSelfRootedReceiver(subj);
             case _: false;
         };
     }
