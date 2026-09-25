@@ -2198,7 +2198,7 @@ class RustExpr {
         if (!isStringType(arg.t))
             return rendered;
         return switch (stripWrap(arg).expr) {
-            case TConst(TString(_)): rendered;
+            case TConst(TString(_)): "&(" + rendered + ")";
             case TLocal(v) if (isBorrowedParamLocal(v)): rendered;
             case _: rendered + ".as_ustr()";
         };
