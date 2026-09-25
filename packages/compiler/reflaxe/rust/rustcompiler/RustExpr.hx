@@ -6276,8 +6276,20 @@ class RustExpr {
                 || hasGuardedTernaryLocals.exists(v.id);
             case _: false;
         };
-        if ((!isNullType(subj.t) && !isImplicitNullableLocal(subj)) || guardedCollapse)
+        if ((!isNullType(subj.t) && !isImplicitNullableLocal(subj)) || guardedCollapse) {
+            // (ElementWriteCloneLoss) A mutating method (push, insert)
+            // whose receiver is an array element must reach the element
+            // in place; a value-read clone would discard the mutation.
+            // Only TArray elements are eligible: a borrowed field
+            // behind &self would not compile without the clone.
+            if (mutable) {
+                switch (stripWrap(subj).expr) {
+                    case TArray(arr, idx): return optionContainerIndexAccess(arr, idx, false);
+                    case _:
+                }
+            }
             return expr(subj);
+        }
         final previousReceiverContext = renderingMethodReceiver;
         if (mutable) renderingMethodReceiver = true;
         final base = expr(subj);
@@ -8045,7 +8057,16 @@ class RustExpr {
                     return RustConversions.truncate(receiverText + ".len()", "u32");
                 }
                 final snake = RustImports.toSnakeCase(name);
-                final subjText = expr(subj);
+                // (ElementCloneFieldCopyRead) An array element whose
+                // field is Copy skips the element clone: the Index borrow
+                // suffices for a Copy field read, and cloning a non-Copy
+                // element for every loop iteration is O(n^2) waste.
+                final subjText = switch (stripWrap(subj).expr) {
+                    case TArray(arr, idx) if (!isTypeCopy(subj.t) && isTypeCopy(cf.get().type)):
+                        optionContainerIndexAccess(arr, idx, false);
+                    case _:
+                        expr(subj);
+                };
                 // A null guard narrows the complete field path. For example,
                 // `glyph.bounds != null` registers the whole `glyph.bounds`
                 // path as the guarded subject. When that same field is read
@@ -9259,19 +9280,19 @@ class RustExpr {
             case IsArray(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
-                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
+                final item = stdStringType(element, "arr[" + index + "]", true, origin, depth + 1);
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let arr = ${value};\n        let n = arr.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedSet(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
-                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
+                final item = stdStringType(element, "set.at(" + index + ")", true, origin, depth + 1);
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let set = ${value};\n        let n = set.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedMap(key, val):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final itemKey = stdStringType(key, value + ".key_at(" + index + ")", true, origin, depth + 1);
-                final itemVal = stdStringType(val, value + ".value_at(" + index + ")", true, origin, depth + 1);
-                '{\n        let mut out = String::new();\n        out.push(\'{\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}={}", ${itemKey}, ${itemVal});\n            ${index} += 1;\n        }\n        out.push(\'}\');\n        out\n    }';
+                final itemKey = stdStringType(key, "map.key_at(" + index + ")", true, origin, depth + 1);
+                final itemVal = stdStringType(val, "map.value_at(" + index + ")", true, origin, depth + 1);
+                '{\n        let mut out = String::new();\n        out.push(\'{\');\n        let map = ${value};\n        let n = map.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}={}", ${itemKey}, ${itemVal});\n            ${index} += 1;\n        }\n        out.push(\'}\');\n        out\n    }';
             case IsTypeParameter:
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
