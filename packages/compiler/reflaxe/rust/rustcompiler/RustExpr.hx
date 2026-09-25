@@ -9259,19 +9259,19 @@ class RustExpr {
             case IsArray(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
-                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
+                final item = stdStringType(element, "arr[" + index + "]", true, origin, depth + 1);
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let arr = ${value};\n        let n = arr.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedSet(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
-                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
+                final item = stdStringType(element, "set.at(" + index + ")", true, origin, depth + 1);
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let set = ${value};\n        let n = set.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedMap(key, val):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final itemKey = stdStringType(key, value + ".key_at(" + index + ")", true, origin, depth + 1);
-                final itemVal = stdStringType(val, value + ".value_at(" + index + ")", true, origin, depth + 1);
-                '{\n        let mut out = String::new();\n        out.push(\'{\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}={}", ${itemKey}, ${itemVal});\n            ${index} += 1;\n        }\n        out.push(\'}\');\n        out\n    }';
+                final itemKey = stdStringType(key, "map.key_at(" + index + ")", true, origin, depth + 1);
+                final itemVal = stdStringType(val, "map.value_at(" + index + ")", true, origin, depth + 1);
+                '{\n        let mut out = String::new();\n        out.push(\'{\');\n        let map = ${value};\n        let n = map.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}={}", ${itemKey}, ${itemVal});\n            ${index} += 1;\n        }\n        out.push(\'}\');\n        out\n    }';
             case IsTypeParameter:
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
