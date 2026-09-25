@@ -2229,10 +2229,15 @@ class RustDecl {
                 }
                 // A String parameter borrows as &str while the field owns
                 // a String; the initializer converts (feature spec 27).
+                // The unit-storage twin borrows as &UStr while the field
+                // owns a UString; to_ustring() converts the borrow.
                 final isStringParam = types.of(a.type, true) == "&str";
+                final isUStringParam = types.of(a.type, true) == "&UStr";
                 final isNullableStringParam = types.of(a.type, false) == "Option<String>";
                 if (isStringParam) {
                     lines.push('            $sname: ${sname}.to_string(),');
+                } else if (isUStringParam) {
+                    lines.push('            $sname: ${sname}.to_ustring(),');
                 } else if (isNullableStringParam) {
                     final localCoalescing = DefaultArgExpander.coalescingDefaultForLocalParam(cls, f.field.name, a.name, a.name);
                     final coalescing = localCoalescing != null ? localCoalescing : DefaultArgExpander.coalescingDefaultForParam(cls, f.field.name, a.name);
