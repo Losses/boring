@@ -15716,9 +15716,9 @@ class RustExpr {
     function conditionalBranchText(branch:TypedExpr, sibling:TypedExpr, resultType:Null<Type> = null):String {
         final text = expr(branch);
         if (resultType != null && isStringType(resultType)) {
-            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
+            if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
                 return text;
-            return text + ".to_ustring()";
+            return text + ".to_string()";
         }
         if (isUStringCountText(text) && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
@@ -15730,10 +15730,10 @@ class RustExpr {
             return text;
         }
         final siblingText = expr(sibling);
-        final ownedStringCall = StringTools.endsWith(siblingText, ".to_ustring()")
-            || StringTools.endsWith(siblingText, ".to_ustring()?")
-            || StringTools.endsWith(siblingText, ".to_ustring().unwrap()");
-        return ownedStringCall ? text + ".to_ustring()" : text;
+        final ownedStringCall = StringTools.endsWith(siblingText, ".to_string()")
+            || StringTools.endsWith(siblingText, ".to_string()?")
+            || StringTools.endsWith(siblingText, ".to_string().unwrap()");
+        return ownedStringCall ? text + ".to_string()" : text;
     }
 
     /** Renders an if-else branch, wrapping a non-null branch in Some(...) when
@@ -15787,9 +15787,9 @@ class RustExpr {
             && !isInterfaceType(branch.t))
             return "Box::new(" + text + ") as " + types.of(getNullInnerType(resultType), false);
         if (resultType != null && isStringType(resultType)) {
-            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
+            if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
                 return text;
-            return text + ".to_ustring()";
+            return text + ".to_string()";
         }
         // An owned Vec result slot that receives a borrowed array parameter
         // clones the referent, so both arms of the conditional carry one
