@@ -953,6 +953,29 @@ impl UString {
     }
 }
 
+// String append (Haxe String += operand) accepts a borrowed Haxe string,
+// a borrowed Rust str, and an owned std String.
+impl std::ops::AddAssign<&UStr> for UString {
+    fn add_assign(&mut self, rhs: &UStr) {
+        self.0.extend_from_slice(rhs.as_slice());
+    }
+}
+impl std::ops::AddAssign<&str> for UString {
+    fn add_assign(&mut self, rhs: &str) {
+        self.0.extend(rhs.encode_utf16());
+    }
+}
+impl std::ops::AddAssign<&String> for UString {
+    fn add_assign(&mut self, rhs: &String) {
+        self += rhs.as_str();
+    }
+}
+impl std::ops::AddAssign<String> for UString {
+    fn add_assign(&mut self, rhs: String) {
+        self += rhs.as_str();
+    }
+}
+
 // Cross-type comparison: a Haxe string compares against Rust str/String by
 // UTF-16 unit sequence, the same order the unit-based storage defines.
 impl PartialEq<UString> for UStr {
