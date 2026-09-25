@@ -124,6 +124,15 @@ class RustExpr {
     // binding, so the scalar shares through Arc<Mutex> like the array family.
     // (SharedClosureScalars)
     final sharedClosureScalars:Map<Int, Bool> = [];
+    // Loop guard hoist tracking: when a shared closure array is iterated
+    // in a for-in loop, the lock is hoisted to a guard variable and the
+    // array's local id is redirected to the guard through subst. These
+    // fields track the hoist state so the subst can be restored after the
+    // body is generated. (LoopGuardHoist)
+    var loopHoistGuardName:Null<String> = null;
+    var loopHoistSubjectId:Int = -1;
+    var loopHoistWasSharedArray:Bool = false;
+    var loopHoistWasSharedScalar:Bool = false;
     // Subject texts proven non-null by an `if (X == null) { continue; }`
     // guard inside a loop. A later `let v = X;` copy of the same subject
     // inherits the proof, so it passes call slots as the inner value.
@@ -3391,16 +3400,30 @@ class RustExpr {
                 if (sharedSubject) {
                     final iName = freshRegionName("__loop_i");
                     final lenName = freshRegionName("__loop_len");
+                    final guardName = freshRegionName("__loop_guard");
                     final subjText = expr(sliceSubj);
-                    // expr(sliceSubj) already renders the guard through
-                    // .lock().unwrap() for a shared closure array, so the index
-                    // and length reads build on that text directly; each guard
-                    // drops at the end of its own statement.
-                    final idxAccess = subjText + "[" + "usize::try_from(" + iName + ").unwrap_or(0)" + "]";
+                    // Hoist the lock into a guard bound before the loop so
+                    // the mutex is acquired once and held across every element
+                    // access. The array's local id is removed from the shared-
+                    // closure set and redirected through subst to the guard,
+                    // so the body code reads and writes the guard directly.
+                    // The restore happens after blockLines renders the body.
+                    // (LoopGuardHoist)
+                    final isSharedArray = sharedClosureArrays.exists(subjectLocalId);
+                    final isSharedScalar = sharedClosureScalars.exists(subjectLocalId);
+                    if (isSharedArray) sharedClosureArrays.remove(subjectLocalId);
+                    if (isSharedScalar) sharedClosureScalars.remove(subjectLocalId);
+                    subst.set(subjectLocalId, guardName);
+                    loopHoistGuardName = guardName;
+                    loopHoistSubjectId = subjectLocalId;
+                    loopHoistWasSharedArray = isSharedArray;
+                    loopHoistWasSharedScalar = isSharedScalar;
+                    final idxAccess = guardName + "[" + "usize::try_from(" + iName + ").unwrap_or(0)" + "]";
                     final itemBind = isScalar ? ("let " + itemName + " = " + idxAccess + ";") : ("let " + itemName + " = (" + idxAccess + ").clone();");
+                    loopOpen.push(indent(depth) + "let mut " + guardName + " = " + subjText + ";");
                     loopOpen.push(indent(depth) + "let mut " + iName + " = 0u32;");
                     loopOpen.push(indent(depth) + "loop {");
-                    loopOpen.push(indent(depth + 1) + "let " + lenName + " = match u32::try_from(" + subjText + ".len()) { Ok(value) => value, Err(_) => u32::MAX };");
+                    loopOpen.push(indent(depth + 1) + "let " + lenName + " = match u32::try_from(" + guardName + ".len()) { Ok(value) => value, Err(_) => u32::MAX };");
                     loopOpen.push(indent(depth + 1) + "if " + iName + " >= " + lenName + " { break; }");
                     loopOpen.push(indent(depth + 1) + itemBind);
                     loopClose.push(indent(depth + 1) + iName + " += 1;");
@@ -3446,6 +3469,7 @@ class RustExpr {
                     out.push(indent(depth + 1) + builderStr + ".put(" + kPutExpr + ", &pipeline_bucket);");
                     for (l in loopClose)
                         out.push(l);
+                    restoreLoopGuardHoist();
                     return out;
                 }
 
@@ -3456,12 +3480,12 @@ class RustExpr {
                     out.push(l);
                 for (l in loopClose)
                     out.push(l);
+                restoreLoopGuardHoist();
                 return out;
             }
         }
 
         final startStr = expr(loop.start);
-        final boundStr = loopBound(loop.bound);
         var readsIndex = false;
         for (statement in loop.body)
             if (mentionsLocal(statement, loop.index)) {
@@ -3469,17 +3493,32 @@ class RustExpr {
                 break;
             }
         final loopName = readsIndex ? name : "_";
-        // A bound that reads a shared closure array or scalar renders a
-        // MutexGuard through `.lock().unwrap()`. In a `for i in 0..bound`
-        // the iterator expression's temporaries live for the whole loop, so
-        // the guard would be held across every body iteration; a body that
-        // locks the same mutex again would self-deadlock. Hoist the bound to
-        // a let binding so the guard drops before the loop starts. Haxe
-        // evaluates `for (i in 0...x.length)` once at loop start, so reading
-        // the length into a binding matches the source semantics.
-        // (LoopGuardScope)
         final out:Array<String> = [];
-        if (mentionsSharedGuard(loop.bound)) {
+        // Hoist every shared closure array/scalar read by the body to a
+        // loop-level guard so the mutex is acquired once instead of per
+        // element. The subst redirects the local during body generation and
+        // is reverted after. The guard is declared `mut` so index writes and
+        // pushes resolve through DerefMut. (LoopGuardHoist)
+        final bodyGuardVars = collectSharedBodyGuards(loop.body);
+        final bodyGuardState:Array<{v:TVar, guard:String, isArr:Bool, isScal:Bool}> = [];
+        for (v in bodyGuardVars) {
+            final guardName = freshRegionName("__loop_guard");
+            final isArr = sharedClosureArrays.exists(v.id);
+            final isScal = sharedClosureScalars.exists(v.id);
+            if (isArr) sharedClosureArrays.remove(v.id);
+            if (isScal) sharedClosureScalars.remove(v.id);
+            subst.set(v.id, isArr ? guardName : (isTypeCopy(v.t) ? "*" + guardName : guardName));
+            bodyGuardState.push({v: v, guard: guardName, isArr: isArr, isScal: isScal});
+            out.push(indent(depth) + "let mut " + guardName + " = " + RustImports.toSnakeCase(localName(v)) + ".lock().unwrap();");
+        }
+        // Re-render the bound after the body guards are substituted: a bound
+        // that reads a body-guard array now renders through the guard (no
+        // re-lock), so it is safe to inline. A bound that reads a different
+        // shared array still renders a fresh lock and must be hoisted to drop
+        // before the loop starts. (LoopGuardScope, LoopGuardHoist)
+        final boundStr = loopBound(loop.bound);
+        final boundNeedsHoist = mentionsSharedGuard(loop.bound);
+        if (boundNeedsHoist) {
             final boundName = freshRegionName("__loop_bound");
             out.push(indent(depth) + "let " + boundName + " = " + boundStr + ";");
             out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundName + " {");
@@ -3489,6 +3528,11 @@ class RustExpr {
         for (l in blockLines(loop.body, depth + 1))
             out.push(l);
         out.push(indent(depth) + "}");
+        for (g in bodyGuardState) {
+            subst.remove(g.v.id);
+            if (g.isArr) sharedClosureArrays.set(g.v.id, true);
+            if (g.isScal) sharedClosureScalars.set(g.v.id, true);
+        }
         return out;
     }
 
@@ -3562,6 +3606,46 @@ class RustExpr {
         }
         scan(e);
         return found;
+    }
+
+    // Collect the shared closure array/scalar locals referenced by an indexed
+    // loop body, in first-appearance order. Each is hoisted to a lock guard
+    // before the loop so the body reads and writes the guard instead of
+    // locking the mutex on every element access. (LoopGuardHoist)
+    function collectSharedBodyGuards(body:Array<TypedExpr>):Array<TVar> {
+        final seen:Map<Int, Bool> = [];
+        final result:Array<TVar> = [];
+        function scan(node:TypedExpr) {
+            switch (node.expr) {
+                case TLocal(v) if (sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id)):
+                    if (!seen.exists(v.id)) {
+                        seen.set(v.id, true);
+                        result.push(v);
+                    }
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, scan);
+        }
+        for (stmt in body)
+            scan(stmt);
+        return result;
+    }
+
+    // Restore shared-closure-set membership and clear the subst entry after
+    // a loop body has been rendered with a hoisted lock guard. The guard
+    // variable itself drops when the loop closes; this only reverts the
+    // subst/removal that redirected the array's local id during body
+    // generation. (LoopGuardHoist)
+    function restoreLoopGuardHoist() {
+        if (loopHoistSubjectId < 0)
+            return;
+        subst.remove(loopHoistSubjectId);
+        if (loopHoistWasSharedArray)
+            sharedClosureArrays.set(loopHoistSubjectId, true);
+        if (loopHoistWasSharedScalar)
+            sharedClosureScalars.set(loopHoistSubjectId, true);
+        loopHoistSubjectId = -1;
+        loopHoistGuardName = null;
     }
 
     function loopBound(bound:TypedExpr):String {
@@ -4806,6 +4890,12 @@ class RustExpr {
                         return narrowed;
                     }
                 }
+                // A loop hoist redirects this shared variable to a lock
+                // guard bound outside the loop, so the guard outlives every
+                // element access instead of locking per element. (LoopGuardHoist)
+                if (subst.exists(v.id)) {
+                    return subst.get(v.id);
+                }
                 // A shared closure array read dereferences through the
                 // mutex guard; index writes and pushes on the guard resolve
                 // through DerefMut (SharedClosureArrays).
@@ -4824,9 +4914,6 @@ class RustExpr {
                     // it. (SharedClosureScalars)
                     final star = isTypeCopy(v.t) ? "*" : "";
                     return star + RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
-                }
-                if (subst.exists(v.id)) {
-                    return subst.get(v.id);
                 }
                 // A capture copy converted to its owned String form reads
                 // as a borrowed view: the body's &str consumers borrow the
