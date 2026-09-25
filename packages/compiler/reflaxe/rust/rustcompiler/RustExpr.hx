@@ -9731,30 +9731,25 @@ class RustExpr {
                     // helper converts the start to a byte offset and the
                     // match back to units; a negative start is treated as 0
                     // and a start past the last unit yields -1. An omitted
-                    // ?startIndex reaches this arm as a null argument and
-                    // keeps the plain find() form.
+                    // ?startIndex reaches this arm as a null argument, which
+                    // searches from unit 0 through the same helper: Rust's
+                    // str::find returns a UTF-8 byte offset, while the tiqian
+                    // ABI counts UTF-16 code units, so the plain find() form
+                    // reported a wrong index for any non-ASCII prefix.
+                    // (IndexOfUnitOffset)
                     final startOmitted = args.length < 2 || switch (stripWrap(args[1]).expr) {
                         case TConst(TNull): true;
                         case _: false;
                     };
-                    if (!startOmitted) {
-                        state.shimsUsed.set("std.UStringRT", true);
-                        imports.require("crate::runtime::u_string");
-                        return "u_string::find_from(&"
-                            + expr(subj)
-                            + ", "
-                            + needle
-                            + ", "
-                            + castSignedI32(args[1])
-                            + ")";
-                    }
-                    return "match ("
+                    state.shimsUsed.set("std.UStringRT", true);
+                    imports.require("crate::runtime::u_string");
+                    return "u_string::find_from(&"
                         + expr(subj)
-                        + ").find(&"
+                        + ", "
                         + needle
-                        + ") { Some(v) => "
-                        + RustConversions.narrowI32("v")
-                        + ", None => -1 }";
+                        + ", "
+                        + (startOmitted ? "0" : castSignedI32(args[1]))
+                        + ")";
                 }
                 if ((name == "charCodeAt" || name == "char_code_at") && isString(stripCast(subj))) {
                     state.shimsUsed.set("std.UStringRT", true);
