@@ -918,6 +918,18 @@ impl fmt::Debug for UStr {
     }
 }
 
+impl PartialEq<UString> for &UStr {
+    fn eq(&self, other: &UString) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl PartialEq<&UStr> for UString {
+    fn eq(&self, other: &&UStr) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
 // Resident ABI wrappers (i32 domain) for internal runtime callers
 // that compile through the std.UStringRT resident path.
 impl UString {

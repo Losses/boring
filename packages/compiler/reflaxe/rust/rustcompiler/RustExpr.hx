@@ -9737,7 +9737,7 @@ class RustExpr {
                     // while an owned String local borrows through as_str.
                     final needle = if (isStringType(args[0].t)) {
                         switch (stripWrap(args[0]).expr) {
-                            case TConst(TString(_)): expr(args[0]);
+                            case TConst(TString(_)): expr(args[0]) + ".as_ustr()";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(args[0]);
                             case _: "(" + expr(args[0]) + ").as_ustr()";
                         };
