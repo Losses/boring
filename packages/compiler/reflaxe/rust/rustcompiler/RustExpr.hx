@@ -9291,7 +9291,8 @@ class RustExpr {
                 // emits a Result unwraps at the read site.
                 value + ".to_string()" + (instanceToStringFallible(t) ? ".unwrap()" : "");
             case IsMarkedAbstract(abs):
-                value + ".0.to_string()";
+                imports.requireType("runtime.UString", "UString");
+                return "UString::from(" + value + ".0.to_string().as_str())";
             case IsNull:
                 "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
             case IsFloat:
