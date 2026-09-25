@@ -5734,11 +5734,16 @@ class RustExpr {
         if (StringTools.startsWith(text, "Some(") && StringTools.endsWith(text, ")")) {
             final payload = text.substr(5, text.length - 6);
             if (isIntType(inner) && (target == "f32" || target == "f64"))
-                return "Some(" + intToFloatText(payload) + ")";
+                return "Some(" + intToFloatSignedText(payload) + ")";
             return text;
         }
+        // An Int arm widened to Float takes its sign from the i32 bits: the
+        // business module renders a negative Haxe Int as the wrapped u32
+        // decimal, so a plain float cast turns -1 into 4294967295.0. A bare
+        // literal keeps the plain cast inside the helper.
+        // (SignedIntToFloatBranch)
         if (isIntType(inner) && (target == "f32" || target == "f64"))
-            return intToFloatText(text);
+            return intToFloatSignedText(text);
         // A signed i32 arm entering the business u32 conditional slot
         // reinterprets its bits so both Rust arms carry one type. The
         // rendered-text check catches an i32-returning call (unit_count,
@@ -12255,7 +12260,7 @@ class RustExpr {
                         case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
                             StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                         case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
-                            intToFloatText(argStr);
+                            intToFloatSignedText(argStr);
                         case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isTypeCopy(getNullInnerType(pt))):
                             "*" + argStr;
                         case _ if (isOwnedVecType(getNullInnerType(pt))):
@@ -14026,7 +14031,10 @@ class RustExpr {
         }
         if (isNullType(expected) && !isNullType(actual.t)
             && isFloatType(getNullInnerType(expected)) && isIntType(emittedType(actual)))
-            return "Some(" + intToFloatText(rendered) + ")";
+            // The Int actual may be the wrapped u32 decimal of a negative
+            // Haxe Int, so the sign comes from the i32 bits.
+            // (SignedIntToFloatNullableArg)
+            return "Some(" + intToFloatSignedText(rendered) + ")";
         if (isNullType(expected) && isNullType(actual.t) && isStringType(getNullInnerType(expected))) {
             final borrowedParam = switch (stripWrap(actual).expr) {
                 case TLocal(v): isBorrowedParamLocal(v);
@@ -14540,7 +14548,10 @@ class RustExpr {
                             case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
                                 StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
                             case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
-                                intToFloatText(argStr);
+                                // The Int argument may be the wrapped u32 decimal of a
+                                // negative Haxe Int; the sign comes from the i32 bits.
+                                // (SignedIntToFloatNullableCallArg)
+                                intToFloatSignedText(argStr);
                             case _ if (isOwnedVecType(getNullInnerType(pt))):
                                 nullableArrayPayload(arg, argStr);
                             case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isInterfaceType(getNullInnerType(pt)) && isInterfaceType(arg.t)):
