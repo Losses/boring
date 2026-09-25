@@ -695,7 +695,8 @@ class RustDecl {
         if (ValueTypeSupport.memberField(abs, "toString") != null) {
             final f = findFunc(funcFields, "toString");
             lines.push("");
-            lines.push("    fn to_string_value(&self) -> String {");
+            imports.requireType("runtime.UString", "UString");
+            lines.push("    fn to_string(&self) -> UString {");
             expr.setFallible(false);
             for (line in expr.valueTypeFunctionBody(cls, f, isStringRepresentation(info.representation) ? "self.0.clone()" : "self.0"))
                 lines.push("    " + line);
@@ -748,7 +749,7 @@ class RustDecl {
         lines.push("impl std::fmt::Display for " + info.name + " {");
         lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
         if (ValueTypeSupport.memberField(abs, "toString") != null)
-            lines.push("        write!(formatter, \"{}\", self.to_string_value())");
+            lines.push("        write!(formatter, \"{}\", self.to_string())");
         else
             lines.push("        write!(formatter, \"{}\", self.0)");
         lines.push("    }");
