@@ -813,8 +813,8 @@ fn byte_to_unit(s: &str, byte: usize) -> u32 {
 // and s[a..b] yields a &[u16] slice — extra Index impls are not needed.
 //
 // Conversions to Rust String (UTF-8) are explicit and named:
-//   to_string_lossy() -> String     (always succeeds, replaces unpaired surrogates)
-//   to_string()       -> Option<String> (None on unpaired surrogates)
+//   to_utf8_lossy() -> String     (always succeeds, replaces unpaired surrogates)
+//   to_utf8()       -> Option<String> (None on unpaired surrogates)
 
 use std::fmt;
 use std::ops::{Deref, DerefMut};
@@ -841,11 +841,11 @@ impl UStr {
         UString(self.0.to_vec())
     }
 
-    pub fn to_string_lossy(&self) -> String {
+    pub fn to_utf8_lossy(&self) -> String {
         String::from_utf16_lossy(&self.0)
     }
 
-    pub fn to_string(&self) -> Option<String> {
+    pub fn to_utf8(&self) -> Option<String> {
         String::from_utf16(&self.0).ok()
     }
 }
@@ -859,11 +859,11 @@ impl UString {
         UStr::new(&self.0)
     }
 
-    pub fn to_string_lossy(&self) -> String {
+    pub fn to_utf8_lossy(&self) -> String {
         String::from_utf16_lossy(&self.0)
     }
 
-    pub fn to_string(&self) -> Option<String> {
+    pub fn to_utf8(&self) -> Option<String> {
         String::from_utf16(&self.0).ok()
     }
 }
@@ -1219,7 +1219,7 @@ pub fn substr(s: &UStr, pos: i32, len: Option<i32>) -> UString {
 
 // Haxe Std.parseFloat lowers here.
 pub fn parse_f64(s: &UStr) -> f64 {
-    let t = s.to_string_lossy();
+    let t = s.to_utf8_lossy();
     let t2 = trim_fixed(&t);
     if !valid_decimal_token(t2.as_bytes()) {
         return f64::NAN;
@@ -1228,7 +1228,7 @@ pub fn parse_f64(s: &UStr) -> f64 {
 }
 
 pub fn parse_f32(s: &UStr) -> f32 {
-    let t = s.to_string_lossy();
+    let t = s.to_utf8_lossy();
     let t2 = trim_fixed(&t);
     if !valid_decimal_token(t2.as_bytes()) {
         return f32::NAN;
@@ -1238,7 +1238,7 @@ pub fn parse_f32(s: &UStr) -> f32 {
 
 // Haxe Std.parseInt lowers here.
 pub fn parse_i32(s: &UStr) -> Option<i32> {
-    let t = s.to_string_lossy();
+    let t = s.to_utf8_lossy();
     let t2 = trim_fixed(&t);
     let b = t2.as_bytes();
     let mut i = 0;
