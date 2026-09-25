@@ -231,6 +231,12 @@ class RustExpr {
     // secondary receivers read at the same index in the body.
     // (PerCharLoopUnits)
     final perCharLoopUnits:Array<{ indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}>, countTemp:String, countCall:String }> = [];
+    // Hoisted string parameter materializations: when a &str parameter is
+    // read with charCodeAt/charAt/unit_count in multiple places and the
+    // function body never reassigns it, the UTF-16 units and unit count
+    // are hoisted once at function entry and every read routes through
+    // unit_at_from. Key is the param local id. (StrParamHoist)
+    final hoistedStrParams:Map<Int, {unitsTemp:String, countTemp:String, receiverText:String}> = [];
     // Locals whose declaration initializer is provably dead (overwritten
     // by a later store before any read): the declaration demotes to a
     // typed binding and the later store initializes it.
@@ -823,12 +829,25 @@ class RustExpr {
         scanLocalFunctionFallibility(f.expr);
         markFallibleBlockParams(cls, f);
         scanReadsAfter(f.expr);
+        // Materialize UTF-16 units and count once for &str parameters
+        // read by charCodeAt/charAt/unit_count in multiple places, when the
+        // body never reassigns them. (StrParamHoist)
+        scanStrParamHoists(f);
         final previousReceiverContext = renderingMethodReceiver;
         renderingMethodReceiver = RustDecl.methodWritesReceiver(f.field);
         final lines = blockLines(statementsOf(f.expr), 1, true);
         final normalized = coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]);
         renderingMethodReceiver = previousReceiverContext;
-        return normalized.concat(lines);
+        // Prepend hoisted string-param materializations before the body.
+        final hoistLines:Array<String> = [];
+        for (pid => info in hoistedStrParams) {
+            hoistLines.push("let " + info.unitsTemp + " = u_string::units(&" + info.receiverText + ");");
+        }
+        for (pid => info in hoistedStrParams) {
+            hoistLines.push("let " + info.countTemp + " = u_string::unit_count(&" + info.receiverText + ");");
+        }
+        hoistedStrParams.clear();
+        return normalized.concat(hoistLines).concat(lines);
     }
 
     /** Body lowering for a member declared on a value wrapper. */
@@ -8177,6 +8196,13 @@ class RustExpr {
                     // target (stdlib/15), so it reads the u_string unit
                     // count ahead of the container paths below.
                     if (isString(subj)) {
+                        // A function-level hoisted String parameter reads the
+                        // precomputed count instead of rescanning. (StrParamHoist)
+                        final hoisted = hoistedStrParamMatch(subj);
+                        if (hoisted != null) {
+                            final countText = hoisted.countTemp;
+                            return RuntimeResidents.isResident(imports.selfModule) ? RustConversions.reinterpret(countText, "i32") : countText;
+                        }
                         final units = stringUnitCount(expr(subj));
                         // Resident modules keep the signed Int domain: their
                         // lengths join index arithmetic.
@@ -8982,6 +9008,60 @@ class RustExpr {
             case TConst(TInt(value)): value == 1;
             case _: false;
         };
+    }
+
+    /**
+        Scan the function body for String parameters that are read by
+        charCodeAt/charAt/substring/length in multiple places and never
+        reassigned, then hoist their UTF-16 units and count once at
+        function entry so every read routes through unit_at_from.
+        (StrParamHoist)
+    **/
+    function scanStrParamHoists(f:ClassFuncData):Void {
+        hoistedStrParams.clear();
+        for (a in f.args) {
+            final v = a.tvar;
+            if (v == null) continue;
+            if (!isStringType(a.type)) continue;
+            if (writesLocal(f.expr, v.id)) continue;
+            final reads = countStrParamReads(f.expr, v.id);
+            if (reads < 2) continue;
+            hoistedStrParams.set(v.id, {
+                unitsTemp: freshRegionName("__units"),
+                countTemp: freshRegionName("__count"),
+                receiverText: RustImports.toSnakeCase(localName(v)),
+            });
+        }
+    }
+
+    /** Count charCodeAt/charAt/substring/length reads of a param. */
+    function countStrParamReads(e:TypedExpr, paramId:Int):Int {
+        var count = 0;
+        function scan(node:TypedExpr):Void {
+            switch (stripWrap(node).expr) {
+                case TCall({expr: TField(subj, fa)}, args):
+                    final name = fieldName(fa);
+                    if ((name == "charAt" || name == "charCodeAt" || name == "char_code_at"
+                        || name == "substring" || name == "sub_string")
+                        && isLocalId(subj, paramId))
+                        count += 1;
+                case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "length" && isLocalId(subj, paramId)):
+                    count += 1;
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, scan);
+        }
+        scan(e);
+        return count;
+    }
+
+    /** Match a subject against hoisted string parameters. */
+    function hoistedStrParamMatch(subj:TypedExpr):Null<{unitsTemp:String, countTemp:String, receiverText:String}> {
+        final subjId = switch (stripWrap(subj).expr) {
+            case TLocal(v): v.id;
+            case _: return null;
+        };
+        return hoistedStrParams.get(subjId);
     }
 
     /** Whether the expression is index + 1, the exclusive end of a one-unit substring. */
@@ -9887,6 +9967,11 @@ class RustExpr {
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
                         return "u_string::char_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
+                    // Function-level hoisted String parameter: read from the
+                    // precomputed unit vector (O(1) vs O(n)). (StrParamHoist)
+                    final hoisted = hoistedStrParamMatch(subj);
+                    if (hoisted != null)
+                        return "u_string::char_at_from(&" + hoisted.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // The exclusive end is the index plus one in the same
                     // integer domain as the start. A bare `(index) + 1`
                     // rendered source is an untyped {integer} literal when
@@ -9943,6 +10028,12 @@ class RustExpr {
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
                         return "u_string::unit_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
+                    // A function-level hoisted String parameter reads from the
+                    // precomputed unit vector (O(1) vs O(n) per access).
+                    // (StrParamHoist)
+                    final hoisted = hoistedStrParamMatch(subj);
+                    if (hoisted != null)
+                        return "u_string::unit_at_from(&" + hoisted.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // The call site's own expression decides: a Null<Int>
                     // context keeps the Option and an Int context unwraps it.
                     var callRet:Null<Type> = null;
