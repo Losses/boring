@@ -9296,7 +9296,11 @@ class RustExpr {
                 "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
             case IsFloat:
                 inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
-            case IsInt | IsBool: inConcat ? value : "(" + value + ").to_string()";
+            case IsInt | IsBool:
+                if (inConcat)
+                    return value;
+                imports.requireType("runtime.UString", "UString");
+                return "UString::from((" + value + ").to_string().as_str())";
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
             case IsParameterlessEnum(en):
