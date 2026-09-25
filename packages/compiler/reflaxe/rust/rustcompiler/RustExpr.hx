@@ -6902,7 +6902,7 @@ class RustExpr {
                     if (isStringType(part.t))
                         pushes.push("__s += " + stringViewArg(part) + ";");
                     else
-                        pushes.push("__s += &(" + stringConcatOperand(part) + ");");
+                        pushes.push("__s += &(" + stdStringType(part.t, expr(part), false, part) + ");");
                 }
                 return "{ let mut __s = UString::new(); " + pushes.join(" ") + " __s }";
             case OpDiv if (StringTools.endsWith(operand(l, op, false), ".len()")):
