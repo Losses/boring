@@ -2511,12 +2511,13 @@ class RustExpr {
 
     /**
         The format spec a message-only conversion uses for the source error.
-        A declared payload enum renders its message through Display, so the
-        conversion reads the message body; a synthetic union derives only
-        Debug and keeps the Debug form.
+        Every source — a declared payload enum, a message-only fault, or a
+        synthetic union whose Display formats the member fault (see
+        syntheticErrorDecls) — renders its message through Display, so the
+        conversion reads the message body.
     **/
     function errorTextSpec(sourceName:Null<String>):String {
-        return sourceName != null && !state.isSyntheticErrorType(sourceName) ? "\"{}\"" : "\"{:?}\"";
+        return "\"{}\"";
     }
 
     /** The element text an iterable Std.string rendering writes for one item. **/
@@ -2572,14 +2573,12 @@ class RustExpr {
                 // The conversion names the exception type, so the call site
                 // must import it the same way a declared use would.
                 imports.requireType(messageOnlyModule, targetName);
-                // When the source error is also message-only its Display is
-                // the bare text; format with {} to keep the text through
+                // Every source fault — message-only struct, declared payload
+                // enum, or synthetic union — carries its message through
+                // Display, so {} keeps the bare text through the conversion
                 // instead of wrapping it in a Debug struct name.
                 // (ExceptionFormatSpec)
-                final sourceModule = state.messageOnlyModuleFor(callee.name);
-                final sourceIsFaultUnion = StringTools.endsWith(callee.name, "Fault");
-                final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
-                return ".map_err(|e| " + targetName + "::new(&format!(\"" + formatSpec + "\", e)))?";
+                return ".map_err(|e| " + targetName + "::new(&format!(\"{}\", e)))?";
             }
             return "?";
         }
@@ -2602,10 +2601,9 @@ class RustExpr {
         final module = state.messageOnlyModuleFor(target);
         if (module != null) {
             imports.requireType(module, target);
-            final sourceModule = declaredName != null ? state.messageOnlyModuleFor(declaredName) : null;
-            final sourceIsFaultUnion = declaredName != null && StringTools.endsWith(declaredName, "Fault");
-            final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
-            return ".map_err(|e| " + target + "::new(&format!(\"" + formatSpec + "\", e)))?";
+            // Every source fault carries its message through Display, so {}
+            // keeps the bare text through the conversion. (ExceptionFormatSpec)
+            return ".map_err(|e| " + target + "::new(&format!(\"{}\", e)))?";
         }
         return "?";
     }
@@ -12554,10 +12552,9 @@ class RustExpr {
         final module = state.messageOnlyModuleFor(target);
         if (module != null) {
             imports.requireType(module, target);
-            final sourceModule = state.messageOnlyModuleFor(declared.name);
-            final sourceIsFaultUnion = StringTools.endsWith(declared.name, "Fault");
-            final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
-            return ".map_err(|e| " + target + "::new(&format!(\"" + formatSpec + "\", e)))?";
+            // Every source fault carries its message through Display, so {}
+            // keeps the bare text through the conversion. (ExceptionFormatSpec)
+            return ".map_err(|e| " + target + "::new(&format!(\"{}\", e)))?";
         }
         return "?";
     }
