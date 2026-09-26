@@ -1643,6 +1643,13 @@ class DartExpr {
                 final lFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(lStr) : lStr;
                 final rFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rStr) : rStr;
                 return lFinal + " " + symbolOf(op) + " " + rFinal;
+            case OpMod if (isIntTyped(l) && isIntTyped(r)):
+                // Dart's `%` is the Euclidean modulo (the result is always
+                // non-negative), while Haxe's Int `%` is the truncated
+                // remainder whose sign follows the dividend; `int.remainder`
+                // is the truncated one, so the i32 domain keeps the parity
+                // the other targets' native `%` already has.
+                return "(" + operand(l, op, false) + ").remainder(" + operand(r, op, true) + ")";
             case OpShl:
                 // The i32 domain of features/14: Dart's int is a 64-bit
                 // word, so a shifted value can leave the domain the

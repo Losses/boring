@@ -47,8 +47,8 @@ describe("enum value queries generated trees", () => {
   });
 
   test("Rust emits ALL, name, from_name and a literal range", () => {
-    const decl = read("../../reference/rust-gen/src/boring/float_width.rs");
-    const ops = read("../../reference/rust-gen/src/boring/enum_queries_ops.rs");
+    const decl = read("../../reference/rust/gen/boring/float_width.rs");
+    const ops = read("../../reference/rust/gen/boring/enum_queries_ops.rs");
     expect(decl).toContain("pub const ALL: [FloatWidth; 3]");
     expect(decl).toContain("pub fn name(&self) -> &'static str");
     expect(decl).toContain("pub fn from_name(name: &str) -> Option<FloatWidth>");
@@ -56,7 +56,7 @@ describe("enum value queries generated trees", () => {
   });
 
   test("no generated target retains a Type static call", () => {
-    const roots = ["../../reference/ts/gen", "../../reference/kotlin/gen", "../../reference/swift/gen", "../../reference/dart/gen", "../../reference/rust-gen/src"]
+    const roots = ["../../reference/ts/gen", "../../reference/kotlin/gen", "../../reference/swift/gen", "../../reference/dart/gen", "../../reference/rust/gen"]
       .map((root) => path.resolve(__dirname, root));
     for (const file of roots.flatMap(walk)) {
       if (!/\.(ts|kt|swift|dart|rs)$/.test(file)) continue;

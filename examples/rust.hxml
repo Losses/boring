@@ -1,6 +1,6 @@
 # reflaxe Rust target generation
 # Run from the repository root: haxe examples/rust.hxml
-# The rust-output define writes output to reference/rust-gen/src.
+# The rust-output define writes output to reference/rust/gen.
 -lib reflaxe
 -lib boring
 -cp packages/compiler/reflaxe/rust/std-shadow
@@ -14,7 +14,7 @@
 --macro haxe.macro.Compiler.keep('registry.Semver')
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro rustcompiler.Compiler.use()
--D rust-output=reference/rust-gen/src
+-D rust-output=reference/rust/gen
 -D runtime-import=crate::runtime
 -D runtime-emit=runtime
 -D package-name=boring-codec-gen
@@ -369,6 +369,10 @@ tests.ArrayMethodSwiftTests
 
 boring.FunctionalLocalOps
 tests.FunctionalLocalTests
+# The kotlin-emitter probe of the local sumOfFloat shape: trivial on the
+# other targets, but present in every root list so the cross-target id
+# set stays equal (feature spec 19).
+tests.SumOfFloatLocalTests
 
 boring.SwitchNullArmOps
 tests.SwitchNullArmTests

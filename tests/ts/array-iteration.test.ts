@@ -23,7 +23,7 @@ describe("array element iteration generated tree", () => {
   });
 
   test("Rust emits element for loops", () => {
-    const content = read(path.resolve(__dirname, "../../reference/rust-gen/src/boring/array_iteration_ops.rs"));
+    const content = read(path.resolve(__dirname, "../../reference/rust/gen/boring/array_iteration_ops.rs"));
     expect(content).toContain("for &item in values {\n            total = u32::wrapping_add(total, item);");
     expect(content).toContain("for &item in values {\n            total = u32::wrapping_add(total, item);");
     expect(content).toContain("let _g1 = holder.values.clone();\n            for &item in &_g1 {");

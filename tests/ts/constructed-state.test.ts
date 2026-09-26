@@ -19,7 +19,7 @@ describe("constructed static initializer trees", () => {
     expect(read("reference/dart/gen/lib/boring/constructed_state_ops.dart")).toContain(
       "static final FramePolicy weighted = FramePolicy("
     );
-    const rust = read("reference/rust-gen/src/boring/constructed_state_ops.rs");
+    const rust = read("reference/rust/gen/boring/constructed_state_ops.rs");
     expect(rust).toContain("LazyLock<FramePolicy>");
     expect(rust).toContain("LazyLock::new");
     expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
