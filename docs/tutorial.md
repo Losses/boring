@@ -1150,6 +1150,13 @@ checkout can sit apart.
   bundle through the run step's environment:
   `"run": { "env": { "BORING_TEST_TIMEOUT_MS": "60000" } }`. Boring's
   own suite and tiqian both hit this with long-running cases.
+- Every target toolchain the invoked bundles need must be on
+  `PATH`. A shell that lacks one stops the run with an error such as
+  `Executable not found in $PATH: "dart"`; the tiqian development
+  shell originally shipped without `dart` and `kotlinc` and hit
+  exactly that. Enter boring's `nix develop` (it carries the
+  toolchains) or install the missing compilers before running the
+  driver.
 - The generated trees sit inside gitignored directories
   (`reference/<id>/gen` and `reference/<id>/gen-tests` for boring
   itself). Treat them as build output: regeneration overwrites them,
