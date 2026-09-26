@@ -2918,7 +2918,15 @@ class SwiftExpr {
                             inoutTempCounter += 1;
                             final tempName = "inoutTmp" + inoutTempCounter;
                             reserveName(tempName);
-                            inoutTemps.push("var " + tempName + " = " + expr(a));
+                            // A bare array literal of integer literals
+                            // infers the 64-bit Int element (features/14:
+                            // Haxe Int is Int32), and an empty literal carries
+                            // no element type at all; the temporary names the
+                            // argument's container type so the inout slot
+                            // accepts it. (InoutTempContainerType)
+                            final literalHazard = isEmptyArrayDecl(a) || isIntLiteralArrayDecl(a) || isFloatLiteralArrayDecl(a);
+                            final tempAnnotation = literalHazard ? ": " + types.of(a.t) : "";
+                            inoutTemps.push("var " + tempName + tempAnnotation + " = " + expr(a));
                             "&" + tempName;
                     }
                 } else {
