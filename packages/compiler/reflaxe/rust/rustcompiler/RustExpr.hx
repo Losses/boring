@@ -1849,6 +1849,13 @@ class RustExpr {
                             // owned String return slot converts it once.
                             retStr = "(" + retStr + ").to_ustring()";
                         case _:
+                            // A std-String-shaped rendering (a format! result,
+                            // a display block, a .name() label, a .to_string()
+                            // display value) carries none of the UString
+                            // methods the String return slot needs; it wraps
+                            // through UString::from like any other owned slot.
+                            if (isStringType(ret.t) && stdStringShapedText(retStr))
+                                retStr = ustringFromStdText(retStr);
                     }
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && !isTNull(ret) && (!isNullType(ret.t) || isNullableCollapsedLocal(ret))) {
                     var payload = switch (stripWrap(ret).expr) {
@@ -2238,6 +2245,27 @@ class RustExpr {
     **/
     function nullableMatchArmText(rendered:String):String {
         return stdStringShapedText(rendered) ? ustringFromStdText(rendered) : rendered;
+    }
+
+    /**
+        A &str slot receives a Haxe String. A std-String-shaped rendering
+        (a format! result, a display block, a .name() label) has no
+        as_ustr method, so it converts through UString::from first.
+    **/
+    function ustringViewShapedText(text:String):String {
+        return stdStringShapedText(text) ? ustringFromStdText(text) + ".as_ustr()" : text + ".as_ustr()";
+    }
+
+    /**
+        A nullable String slot takes the owned conversion: an already
+        converted rendering passes through, a std-String-shaped rendering
+        wraps through UString::from, a plain rendering converts with
+        .to_ustring().
+    **/
+    function nullableStringArgText(text:String):String {
+        if (StringTools.endsWith(text, ".to_ustring()"))
+            return text;
+        return stdStringShapedText(text) ? ustringFromStdText(text) : "(" + text + ").to_ustring()";
     }
 
     function ownedStringSlotText(text:String):String {
@@ -4074,6 +4102,9 @@ class RustExpr {
             }
             return argStr;
         }
+        if (elementType != null && isStringType(elementType) && isStringType(arg.t)
+            && stdStringShapedText(argStr))
+            return ustringFromStdText(argStr);
         if (!isTypeCopy(arg.t)) {
             switch (stripWrap(arg).expr) {
                 // The base constant renderer emits a bare &str literal, so
@@ -7196,7 +7227,7 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TConst(TString(_)): expr(e);
             case TLocal(v) if (isBorrowedLocal(v)): expr(e);
-            case _: "(" + expr(e) + ").as_ustr()";
+            case _: "(" + ustringViewShapedText(expr(e)) + ")";
         };
     }
 
@@ -12054,7 +12085,7 @@ class RustExpr {
 
     function rustMapKey(e:TypedExpr):String {
         final rendered = expr(e);
-        return isStringType(e.t) || isStringLiteral(e) ? rendered + ".to_ustring()" : rendered;
+        return isStringType(e.t) || isStringLiteral(e) ? ownedStringSlotText(rendered) : rendered;
     }
 
     function isStringLiteral(e:TypedExpr):Bool {
@@ -12116,7 +12147,7 @@ class RustExpr {
                 return text;
             if (StringTools.startsWith(text, "UString::from("))
                 return text;
-            return text + ".to_ustring()";
+            return ownedStringSlotText(text);
         }
         // ReadOnlyArray literals and direct static arrays are emitted as Rust
         // arrays, while an owned constructor slot is Vec<T>.
@@ -12321,8 +12352,8 @@ class RustExpr {
                     // renders as Option already, so it passes through. A
                     // non-Copy payload clones so the source stays usable.
                     final inner = getNullInnerType(pt);
-                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_ustring()"))
-                        out.push("Some(" + argStr + ".to_ustring())");
+                    if (isStringType(inner))
+                        out.push("Some(" + nullableStringArgText(argStr) + ")");
                     else if (isTypeCopy(inner))
                         out.push("Some(" + argStr + ")");
                     else
@@ -12377,7 +12408,7 @@ class RustExpr {
                     final inner = switch (stripWrap(arg).expr) {
                         case TConst(TString(s)): "UString::from(" + quoteString(s) + ")";
                         case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
-                            StringTools.endsWith(argStr, ".to_ustring()") ? argStr : "(" + argStr + ").to_ustring()";
+                            nullableStringArgText(argStr);
                         case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
                             intToFloatSignedText(argStr);
                         case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isTypeCopy(getNullInnerType(pt))):
@@ -12408,7 +12439,7 @@ class RustExpr {
                         case TConst(TString(_)): "&(" + argStr + ")";
                         case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(UStr::new(&[]))";
                         case TLocal(v) if (isBorrowedParamLocal(v)): argStr;
-                        case _: argStr + ".as_ustr()";
+                        case _: ustringViewShapedText(argStr);
                     });
                     continue;
                 }
@@ -14624,8 +14655,8 @@ class RustExpr {
                     // renders as Option already, so it passes through. A
                     // non-Copy payload clones so the source stays usable.
                     final inner = getNullInnerType(pt);
-                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_ustring()"))
-                        argStr = "Some(" + argStr + ".to_ustring())";
+                    if (isStringType(inner))
+                        argStr = "Some(" + nullableStringArgText(argStr) + ")";
                     else if (isTypeCopy(inner))
                         argStr = "Some(" + argStr + ")";
                     else
@@ -14665,7 +14696,7 @@ class RustExpr {
                         final inner = switch (stripWrap(arg).expr) {
                             case TConst(TString(s)): "UString::from(" + quoteString(s) + ")";
                             case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
-                                StringTools.endsWith(argStr, ".to_ustring()") ? argStr : "(" + argStr + ").to_ustring()";
+                                nullableStringArgText(argStr);
                             case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
                                 // The Int argument may be the wrapped u32 decimal of a
                                 // negative Haxe Int; the sign comes from the i32 bits.
@@ -14805,7 +14836,7 @@ class RustExpr {
                             case TConst(TString(_)): argStr;
                             case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(UStr::new(&[]))";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(arg);
-                            case _: expr(arg) + ".as_ustr()";
+                            case _: ustringViewShapedText(expr(arg));
                         };
                     }
                 } else if (isRecordValueType(arg.t) && switch (stripWrap(arg).expr) {
