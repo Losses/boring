@@ -1514,9 +1514,11 @@ pub fn find_from(s: &UStr, needle: &UStr, start: i32) -> i32 {
     if n.is_empty() {
         return i32::try_from(start_unit).unwrap_or(-1);
     }
-    for i in 0..=rest.len().saturating_sub(n.len()) {
-        if &rest[i..i + n.len()] == n {
-            return i32::try_from(u32::try_from(begin + i).unwrap_or(0)).unwrap_or(-1);
+    if rest.len() >= n.len() {
+        for i in 0..=(rest.len() - n.len()) {
+            if &rest[i..i + n.len()] == n {
+                return i32::try_from(u32::try_from(begin + i).unwrap_or(0)).unwrap_or(-1);
+            }
         }
     }
     -1
