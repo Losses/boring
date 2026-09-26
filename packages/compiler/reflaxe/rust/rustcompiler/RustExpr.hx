@@ -4962,7 +4962,7 @@ class RustExpr {
                 final staticGuard = staticGuardOf(arr);
                 if (staticGuard != null) {
                     final base = staticGuard + "[" + staticIndex(idx) + "]";
-                    return !isTypeCopy(e.t) ? "(" + base + ").clone()" : base;
+                    return !isTypeCopy(e.t) && !renderingMethodReceiver ? "(" + base + ").clone()" : base;
                 }
                 final base = optionContainerIndexAccess(arr, idx, false);
                 // Reading a String element moves it out of the Vec, so a
@@ -4970,8 +4970,13 @@ class RustExpr {
                 // through arrayArgBorrow and skip the copy.
                 // Reads from an owned Haxe Array must not move its element out of
                 // the Rust Vec. Clone non-Copy values at the indexing boundary;
-                // this is the value semantics promised by Haxe arrays.
-                return !isTypeCopy(e.t) ? "(" + base + ").clone()" : base;
+                // this is the value semantics promised by Haxe arrays. A
+                // mutating method call through the indexed element is the
+                // exception: Haxe arrays are reference-semantic, so
+                // groups[i].push(x) must reach the storage inside the Vec;
+                // cloning here sends the mutation to a temporary and the
+                // original container never changes. (IndexedReceiverMutation)
+                return !isTypeCopy(e.t) && !renderingMethodReceiver ? "(" + base + ").clone()" : base;
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
