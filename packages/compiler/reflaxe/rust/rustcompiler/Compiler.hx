@@ -43,10 +43,22 @@ class Compiler extends PluginCompiler<Compiler> {
         for (line in content.split("\n")) {
             var rest = line;
             while (rest.length > 280) {
+                // Break only at a top-level comma. The old cutter also
+                // took any space before the limit, which could land inside
+                // a slice, a cast, or a call like `.contains(`; the fold
+                // ParenFold.strip applies afterwards then reads the split
+                // group as a doubled-paren pair and peels it. A comma
+                // inside any bracket group is not top level, so `((..))`,
+                // `a..=b`, and method-call arguments survive the wrap.
+                // Without a fitting top-level comma the line stays long:
+                // wrapping serves the width limit, never the other way
+                // around. (ParenFold)
                 var quote = false;
                 var escaped = false;
                 var cut = -1;
-                for (i in 0...rest.length) {
+                var depth = 0;
+                var i = 0;
+                while (i < rest.length && i <= 280) {
                     final c = rest.charAt(i);
                     if (quote) {
                         if (escaped) escaped = false;
@@ -54,13 +66,18 @@ class Compiler extends PluginCompiler<Compiler> {
                         else if (c == '"') quote = false;
                     } else if (c == '"') {
                         quote = true;
-                    } else if (c == ',' || c == ' ') {
-                        if (i <= 280) cut = i;
+                    } else if (c == "(" || c == "[") {
+                        depth++;
+                    } else if (c == ")" || c == "]") {
+                        if (depth > 0) depth--;
+                    } else if (c == ',' && depth == 0) {
+                        cut = i;
                     }
+                    i++;
                 }
                 if (cut < 1)
                     break;
-                wrapped.push(rest.substr(0, cut + (rest.charAt(cut) == ',' ? 1 : 0)));
+                wrapped.push(rest.substr(0, cut + 1));
                 rest = StringTools.ltrim(rest.substr(cut + 1));
             }
             wrapped.push(rest);
@@ -502,92 +519,95 @@ class Compiler extends PluginCompiler<Compiler> {
             "#![allow(unused_imports, dead_code)]",
             "",
             "use crate::runtime::test_core;",
+            "use crate::runtime::u_string::{UStr, UString};",
             "",
+            "pub fn equals_ustring(a: &UString, b: &UString) -> bool { a == b }",
+            "pub fn format_ustring(v: &UString) -> String { test_core::TestCore::test_core_format_string(v).to_utf8_lossy() }",
             "pub fn equals_bytes(a: &[u8], b: &[u8]) -> bool { a == b }",
-            "pub fn format_bytes(v: &[u8]) -> String { test_core::TestCore::test_core_format_bytes(v) }",
-            "pub fn assert_equals_bytes(expected: &[u8], actual: &[u8], message: &str) {",
+            "pub fn format_bytes(v: &[u8]) -> String { test_core::TestCore::test_core_format_bytes(v).to_utf8_lossy() }",
+            "pub fn assert_equals_bytes(expected: &[u8], actual: &[u8], message: &UStr) {",
             "    if !equals_bytes(expected, actual) {",
-            "        test_core::TestCore::test_core_report_failure(message, &format_bytes(expected), &format_bytes(actual));",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format_bytes(expected).as_str()).as_ustr(), &UString::from(format_bytes(actual).as_str()).as_ustr());",
             "    }",
             "}",
             "",
             "pub fn equals_bool(a: &bool, b: &bool) -> bool { *a == *b }",
             "pub fn format_bool(v: &bool) -> String { if *v { \"true\".to_string() } else { \"false\".to_string() } }",
-            "pub fn assert_equals_bool(expected: &bool, actual: &bool, message: &str) {",
+            "pub fn assert_equals_bool(expected: &bool, actual: &bool, message: &UStr) {",
             "    if !equals_bool(expected, actual) {",
-            "        test_core::TestCore::test_core_report_failure(message, &format_bool(expected), &format_bool(actual));",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format_bool(expected).as_str()).as_ustr(), &UString::from(format_bool(actual).as_str()).as_ustr());",
             "    }",
             "}",
             "",
             "pub fn equals_i32(a: &i32, b: &i32) -> bool { *a == *b }",
             "pub fn format_i32(v: &i32) -> String { v.to_string() }",
-            "pub fn assert_equals_i32(expected: &i32, actual: &i32, message: &str) {",
+            "pub fn assert_equals_i32(expected: &i32, actual: &i32, message: &UStr) {",
             "    if !equals_i32(expected, actual) {",
-            "        test_core::TestCore::test_core_report_failure(message, &format_i32(expected), &format_i32(actual));",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format_i32(expected).as_str()).as_ustr(), &UString::from(format_i32(actual).as_str()).as_ustr());",
             "    }",
             "}",
             "",
             'pub fn equals_$real(a: &$real, b: &$real) -> bool { *a == *b }',
-            'pub fn format_$real(v: &$real) -> String { crate::runtime::fp_helper::FPHelper::format_float${FloatPrecision.isF32() ? "_f32" : ""}(*v) }',
-            'pub fn assert_equals_$real(expected: &$real, actual: &$real, message: &str) {',
+            'pub fn format_$real(v: &$real) -> String { crate::runtime::fp_helper::FPHelper::format_float${FloatPrecision.isF32() ? "_f32" : ""}(*v).to_utf8_lossy() }',
+            'pub fn assert_equals_$real(expected: &$real, actual: &$real, message: &UStr) {',
             '    if !equals_$real(expected, actual) {',
-            '        test_core::TestCore::test_core_report_failure(message, &format_$real(expected), &format_$real(actual));',
+            '        test_core::TestCore::test_core_report_failure(message, &UString::from(format_$real(expected).as_str()).as_ustr(), &UString::from(format_$real(actual).as_str()).as_ustr());',
             "    }",
             "}",
             "",
             "pub fn equals_u32(a: &u32, b: &u32) -> bool { *a == *b }",
             "pub fn format_u32(v: &u32) -> String { v.to_string() }",
-            "pub fn assert_equals_u32(expected: &u32, actual: &u32, message: &str) {",
+            "pub fn assert_equals_u32(expected: &u32, actual: &u32, message: &UStr) {",
             "    if !equals_u32(expected, actual) {",
-            "        test_core::TestCore::test_core_report_failure(message, &format_u32(expected), &format_u32(actual));",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format_u32(expected).as_str()).as_ustr(), &UString::from(format_u32(actual).as_str()).as_ustr());",
             "    }",
             "}",
             "",
             "pub fn equals_u16(a: &u16, b: &u16) -> bool { *a == *b }",
             "pub fn format_u16(v: &u16) -> String { v.to_string() }",
-            "pub fn assert_equals_u16(expected: &u16, actual: &u16, message: &str) {",
+            "pub fn assert_equals_u16(expected: &u16, actual: &u16, message: &UStr) {",
             "    if !equals_u16(expected, actual) {",
-            "        test_core::TestCore::test_core_report_failure(message, &format_u16(expected), &format_u16(actual));",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format_u16(expected).as_str()).as_ustr(), &UString::from(format_u16(actual).as_str()).as_ustr());",
             "    }",
             "}",
             "",
             "pub fn equals_usize(a: &usize, b: &usize) -> bool { *a == *b }",
             "pub fn format_usize<T: std::fmt::Display>(v: &T) -> String { v.to_string() }",
-            "pub fn assert_equals_usize(expected: &usize, actual: &usize, message: &str) {",
+            "pub fn assert_equals_usize(expected: &usize, actual: &usize, message: &UStr) {",
             "    if !equals_usize(expected, actual) {",
-            "        test_core::TestCore::test_core_report_failure(message, &format!(\"{}\", expected), &format!(\"{}\", actual));",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format!(\"{}\", expected).as_str()).as_ustr(), &UString::from(format!(\"{}\", actual).as_str()).as_ustr());",
             "    }",
             "}",
             "",
             "pub fn equals_string(a: &String, b: &String) -> bool { a == b }",
-            "pub fn format_string(v: &String) -> String { test_core::TestCore::test_core_format_string(v) }",
-            "pub fn assert_equals_string(expected: &String, actual: &String, message: &str) {",
+            "pub fn format_string(v: &String) -> String { test_core::TestCore::test_core_format_string(UString::from(v.as_str()).as_ustr()).to_utf8_lossy() }",
+            "pub fn assert_equals_string(expected: &String, actual: &String, message: &UStr) {",
             "    if !equals_string(expected, actual) {",
-            "        test_core::TestCore::test_core_report_failure(message, &format_string(expected), &format_string(actual));",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format_string(expected).as_str()).as_ustr(), &UString::from(format_string(actual).as_str()).as_ustr());",
             "    }",
             "}",
             "",
-            "pub fn equals_opt_string(a: &Option<String>, b: &Option<String>) -> bool { a == b }",
-            "pub fn format_opt_string(v: &Option<String>) -> String { match v { Some(s) => test_core::TestCore::test_core_format_string(s), None => \"null\".to_string() } }",
-            "pub fn assert_equals_opt_string(expected: &Option<String>, actual: &Option<String>, message: &str) {",
+            "pub fn equals_opt_string(a: &Option<UString>, b: &Option<UString>) -> bool { a == b }",
+            "pub fn format_opt_string(v: &Option<UString>) -> String { match v { Some(s) => test_core::TestCore::test_core_format_string(s).to_utf8_lossy(), None => \"null\".to_string() } }",
+            "pub fn assert_equals_opt_string(expected: &Option<UString>, actual: &Option<UString>, message: &UStr) {",
             "    if !equals_opt_string(expected, actual) {",
-            "        test_core::TestCore::test_core_report_failure(message, &format_opt_string(expected), &format_opt_string(actual));",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format_opt_string(expected).as_str()).as_ustr(), &UString::from(format_opt_string(actual).as_str()).as_ustr());",
             "    }",
             "}",
             "",
-            "pub fn assert_equals_opt<T: PartialEq + ToString>(expected: &Option<T>, actual: &Option<T>, message: &str) {",
+            "pub fn assert_equals_opt<T: PartialEq + ToString>(expected: &Option<T>, actual: &Option<T>, message: &UStr) {",
             "    if expected != actual {",
             "        let expected_text = match expected { Some(x) => x.to_string(), None => \"null\".to_string() };",
             "        let actual_text = match actual { Some(x) => x.to_string(), None => \"null\".to_string() };",
-            "        test_core::TestCore::test_core_report_failure(message, &expected_text, &actual_text);",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(expected_text.as_str()).as_ustr(), &UString::from(actual_text.as_str()).as_ustr());",
             "    }",
             "}",
             "",
             "pub fn equals_opt_u32(a: &Option<u32>, b: &Option<u32>) -> bool { a == b }",
             "pub fn format_opt_u32(v: &Option<u32>) -> String { match v { Some(x) => x.to_string(), None => \"null\".to_string() } }",
-            "pub fn assert_equals_opt_u32(expected: &Option<u32>, actual: &Option<u32>, message: &str) {",
+            "pub fn assert_equals_opt_u32(expected: &Option<u32>, actual: &Option<u32>, message: &UStr) {",
             "    if !equals_opt_u32(expected, actual) {",
-            "        test_core::TestCore::test_core_report_failure(message, &format_opt_u32(expected), &format_opt_u32(actual));",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format_opt_u32(expected).as_str()).as_ustr(), &UString::from(format_opt_u32(actual).as_str()).as_ustr());",
             "    }",
             "}"
         ];
@@ -616,9 +636,9 @@ class Compiler extends PluginCompiler<Compiler> {
                     lines.push('    for item in v { parts.push(format_$safeSnake(item)); }');
                     lines.push('    format!("[{}]", parts.join(", "))');
                     lines.push('}');
-                    lines.push('pub fn assert_equals_vec_$safeSnake(expected: &[$elemTypeStr], actual: &[$elemTypeStr], message: &str) {');
+                    lines.push('pub fn assert_equals_vec_$safeSnake(expected: &[$elemTypeStr], actual: &[$elemTypeStr], message: &UStr) {');
                     lines.push('    if !equals_vec_$safeSnake(expected, actual) {');
-                    lines.push('        test_core::TestCore::test_core_report_failure(message, &format_vec_$safeSnake(expected), &format_vec_$safeSnake(actual));');
+                    lines.push('        test_core::TestCore::test_core_report_failure(message, &UString::from(format_vec_$safeSnake(expected).as_str()).as_ustr(), &UString::from(format_vec_$safeSnake(actual).as_str()).as_ustr());');
                     lines.push('    }');
                     lines.push('}');
                 case TAbstract(a, params) if (a.get().name == "ReadOnlyArray"
@@ -637,9 +657,9 @@ class Compiler extends PluginCompiler<Compiler> {
                     lines.push('    for item in v { parts.push(format_$safeSnake(item)); }');
                     lines.push('    format!("[{}]", parts.join(", "))');
                     lines.push('}');
-                    lines.push('pub fn assert_equals_vec_$safeSnake(expected: &[$elemTypeStr], actual: &[$elemTypeStr], message: &str) {');
+                    lines.push('pub fn assert_equals_vec_$safeSnake(expected: &[$elemTypeStr], actual: &[$elemTypeStr], message: &UStr) {');
                     lines.push('    if !equals_vec_$safeSnake(expected, actual) {');
-                    lines.push('        test_core::TestCore::test_core_report_failure(message, &format_vec_$safeSnake(expected), &format_vec_$safeSnake(actual));');
+                    lines.push('        test_core::TestCore::test_core_report_failure(message, &UString::from(format_vec_$safeSnake(expected).as_str()).as_ustr(), &UString::from(format_vec_$safeSnake(actual).as_str()).as_ustr());');
                     lines.push('    }');
                     lines.push('}');
                 case TType(def, _):
@@ -675,9 +695,9 @@ class Compiler extends PluginCompiler<Compiler> {
                             lines.push('pub fn format_$safeSnake(v: &$structPath) -> String {');
                             lines.push('    format!("{{{}}}", [' + fmtParts + '].join(", "))');
                             lines.push('}');
-                            lines.push('pub fn assert_equals_$safeSnake(expected: &$structPath, actual: &$structPath, message: &str) {');
+                            lines.push('pub fn assert_equals_$safeSnake(expected: &$structPath, actual: &$structPath, message: &UStr) {');
                             lines.push('    if !equals_$safeSnake(expected, actual) {');
-                            lines.push('        test_core::TestCore::test_core_report_failure(message, &format_$safeSnake(expected), &format_$safeSnake(actual));');
+                            lines.push('        test_core::TestCore::test_core_report_failure(message, &UString::from(format_$safeSnake(expected).as_str()).as_ustr(), &UString::from(format_$safeSnake(actual).as_str()).as_ustr());');
                             lines.push('    }');
                             lines.push('}');
                         case _:
@@ -716,9 +736,9 @@ class Compiler extends PluginCompiler<Compiler> {
                         lines.push(a);
                     lines.push('    }');
                     lines.push('}');
-                    lines.push('pub fn assert_equals_$safeSnake(expected: &$enumPath, actual: &$enumPath, message: &str) {');
+                    lines.push('pub fn assert_equals_$safeSnake(expected: &$enumPath, actual: &$enumPath, message: &UStr) {');
                     lines.push('    if !equals_$safeSnake(expected, actual) {');
-                    lines.push('        test_core::TestCore::test_core_report_failure(message, &format_$safeSnake(expected), &format_$safeSnake(actual));');
+                    lines.push('        test_core::TestCore::test_core_report_failure(message, &UString::from(format_$safeSnake(expected).as_str()).as_ustr(), &UString::from(format_$safeSnake(actual).as_str()).as_ustr());');
                     lines.push('    }');
                     lines.push('}');
                 case _:
@@ -735,13 +755,13 @@ class Compiler extends PluginCompiler<Compiler> {
                     case "Int": "u32";
                     case "Float": FloatPrecision.isF32() ? "f32" : "f64";
                     case "Bool": "bool";
-                    case "String": "String";
+                    case "String": "UString";
                     case "std.ReadOnlyArray": "Vec<" + rustType(params[0]) + ">";
                     case _: abs.name;
                 }
             case TInst(c, params):
                 final cls = c.get();
-                if (cls.name == "String") "String"; else if (cls.name == "Array") "Vec<" + rustType(params[0]) + ">"; else if (cls.name == "Bytes"
+                if (cls.name == "String") "UString"; else if (cls.name == "Array") "Vec<" + rustType(params[0]) + ">"; else if (cls.name == "Bytes"
                     || (cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")) "Vec<u8>"; else "crate::" + RustImports.moduleToRustPath(cls.module) + "::"
                     + cls.name;
             case TType(def, params):
@@ -763,7 +783,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 return s;
             }
             if (s == "String")
-                return "string";
+                return "ustring";
             if (s == "Vec<u8>")
                 return "bytes";
         }
@@ -773,12 +793,12 @@ class Compiler extends PluginCompiler<Compiler> {
                     case "Int": "i32";
                     case "Float": FloatPrecision.isF32() ? "f32" : "f64";
                     case "Bool": "bool";
-                    case "String": "string";
+                    case "String": "ustring";
                     case _: RustImports.toSnakeCase(a.get().name);
                 }
             case TInst(c, _):
                 switch (c.get().name) {
-                    case "String": "string";
+                    case "String": "ustring";
                     case "Bytes": "bytes";
                     case _: RustImports.toSnakeCase(c.get().name);
                 }
@@ -842,10 +862,19 @@ class Compiler extends PluginCompiler<Compiler> {
         // resident callers reach the class itself, and one file holds the
         // whole UString runtime. runtime.Graphemes carries the single
         // boundaries adapter under the same pattern.
-        final abiSource = module == "runtime.UString" ? "\n" + StringTools.trim(RustRuntime.USTRING_ABI_SOURCE) + "\n" : module == "runtime.Graphemes" ? "\n"
-            + StringTools.trim(RustRuntime.GRAPHEMES_ABI_SOURCE)
-            + "\n" : "";
-        final content = imports + (imports.length > 0 ? "\n" : "") + body + abiSource + "\n";
+        // For runtime.UString, the compiled unit struct is replaced by the
+        // UString/UStr newtype and the resident methods fold into the rewritten
+        // ABI adapters (USTRING_TYPE_SOURCE + USTRING_ABI_SOURCE_NEW). The
+        // compiled body stays empty: its byte-based walk primitives target
+        // &str and cannot operate on &UStr directly.
+        final abiSource = module == "runtime.UString"
+            ? "\n" + StringTools.trim(RustRuntime.USTRING_TYPE_SOURCE) + "\n"
+                + StringTools.trim(RustRuntime.USTRING_ABI_SOURCE_NEW) + "\n"
+            : module == "runtime.Graphemes"
+            ? "\n" + StringTools.trim(RustRuntime.GRAPHEMES_ABI_SOURCE) + "\n"
+            : "";
+        final bodyUsed = module == "runtime.UString" ? "" : body;
+        final content = imports + (imports.length > 0 ? "\n" : "") + bodyUsed + abiSource + "\n";
         saveTreeFile(RuntimeConfig.emitPath(dir, fileName), content);
     }
 
@@ -873,6 +902,22 @@ class Compiler extends PluginCompiler<Compiler> {
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
                     lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
                 }
+                lines.push("}");
+                // The union derives only Debug; a message read or a
+                // message-only conversion needs the message text, and every
+                // member fault carries it through its own Display
+                // (t-muix2u8h-xtvt).
+                lines.push("impl std::fmt::Display for " + u.name + " {");
+                lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
+                lines.push("        match self {");
+                for (item in u.members) {
+                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final variant = variants != null && variants.exists(item.module + "::" + item.name)
+                        ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
+                    lines.push("            " + u.name + "::" + variant + "(value) => write!(formatter, \"{}\", value),");
+                }
+                lines.push("        }");
+                lines.push("    }");
                 lines.push("}");
                 for (target in u.members) {
                     final targetEmitted = state.payloadEnumModules.exists(target.module) ? state.payloadEnumModules.get(target.module) : target.module;
@@ -1728,7 +1773,39 @@ class Compiler extends PluginCompiler<Compiler> {
             for (item in set) {
                 if (item.module == pair.module && item.name == pair.name)
                     continue;
-                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(item.module), item.name);
+                // A test-module fault stays inside the cfg(test) tree: growing
+                // a business union with a crate::tests payload makes every
+                // non-test build fail to resolve the variant. (TestFaultGrowth)
+                if (StringTools.startsWith(RustImports.moduleToRustPath(item.module), "tests::")
+                    || state.testModules.exists(item.module))
+                    continue;
+                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(item.module) + "::" + item.name, item.name);
+            }
+        }
+
+        // A declared-enum caller whose callee resolves to a synthetic union
+        // meets the whole union at its question-mark site. Register a wrapping
+        // growth variant for the union itself so the call site maps the union
+        // into the caller's enum with a real constructor and does not fall
+        // back to a From impl whose unrelated-fault arm cannot represent the
+        // payload (the panic behind rejects_shaper_clusters...).
+        for (entry in entries) {
+            final pair = state.funcErrorTypes.get(entry.key);
+            if (pair == null || state.isSyntheticErrorType(pair.name))
+                continue;
+            for (edge in entry.edges) {
+                final edgeEnum = state.funcErrorTypes.get(edge.callee);
+                if (edgeEnum == null || !state.isSyntheticErrorType(edgeEnum.name))
+                    continue;
+                if (edgeEnum.module == pair.module && edgeEnum.name == pair.name)
+                    continue;
+                // A test-module fault stays inside the cfg(test) tree:
+                // growing a business union with a crate::tests payload makes
+                // every non-test build fail to resolve the variant. (TestFaultGrowth)
+                if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
+                    || state.testModules.exists(edgeEnum.module))
+                    continue;
+                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
             }
         }
 
@@ -1789,9 +1866,9 @@ class Compiler extends PluginCompiler<Compiler> {
                 final callerType = state.funcErrorTypes.get(entry.key);
                 if (callerType == null) continue;
                 if (!state.isSyntheticErrorType(callerType.name)) {
-                    // A non-synthetic caller whose callee just became a union:
+                    // A non-synthetic caller whose callee became a union in this pass:
                     // when the callee union already covers every error the caller
-                    // carries, adopt the union directly instead of leaving the
+                    // carries, adopt the union directly and do not leave the
                     // caller on its pre-union leaf. Nesting the union as a member
                     // would need a leaf conversion the catch lowering cannot build.
                     for (edge in entry.edges) {
@@ -1886,6 +1963,27 @@ class Compiler extends PluginCompiler<Compiler> {
                 state.syntheticErrorVariants.set(decl.name, variants);
             }
         }
+        // Union growth registration, re-run after the fourth propagation:
+        // that pass writes the callee unions into funcErrorTypes, so an edge
+        // read before it still sees the callee's declared error and the
+        // wrapping variant for the union itself is never registered.
+        for (entry in entries) {
+            final pair = state.funcErrorTypes.get(entry.key);
+            if (pair == null || state.isSyntheticErrorType(pair.name))
+                continue;
+            for (edge in entry.edges) {
+                final edgeEnum = state.funcErrorTypes.get(edge.callee);
+                if (edgeEnum == null || !state.isSyntheticErrorType(edgeEnum.name))
+                    continue;
+                if (edgeEnum.module == pair.module && edgeEnum.name == pair.name)
+                    continue;
+                if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
+                    || state.testModules.exists(edgeEnum.module))
+                    continue;
+                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
+            }
+        }
+
         scanFallibleBlockParams(mtypes);
     }
 
@@ -2018,7 +2116,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     switch (stripDecorations(fn).expr) {
                         case TLocal(v) if (v.id == paramId):
                             // No region here means the parameter is forwarded to
-                            // another slot; the block inherits that slot's region.
+                            // another slot; the block takes on that slot's region.
                             found = region != null ? region : (forwarded != null ? state.fallibleBlockRegions.get(forwarded) : null);
                         case _:
                     }

@@ -57,7 +57,7 @@ here; this repository needs none of them.
 
 `verify` drives the bundle driver of feature spec 59 over the
 project file `boring.json` (gen, test, and compare for the haxe, ts,
-kotlin, dart, and rust bundles; the generated trees are written into the gitignored
+kotlin, dart, and rust bundles; the generated trees are written to the gitignored
 `reference/<id>/gen` and `reference/<id>/gen-tests` directories), then
 runs the TypeScript tests, the Haxe checks, the Kotlin checks, the
 interception suite, the Rust tests, ESLint, `tsc`,

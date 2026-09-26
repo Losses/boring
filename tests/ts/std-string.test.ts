@@ -11,7 +11,7 @@ describe("Std.string lowering", () => {
       "reference/kotlin/gen",
       "reference/kotlin-f32/gen",
       "reference/rust/gen",
-      "reference/rust-f32-gen/src",
+      "reference/rust-f32/gen",
       "reference/swift/gen",
       "reference/swift-f32/gen",
       "reference/dart/gen",
