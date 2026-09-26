@@ -114,10 +114,7 @@ class PackageArtifacts {
         final parent = artifactDirectory(outputDir);
         final stage = haxe.io.Path.join([parent, ".package-npm-stage"]);
         deleteTree(stage);
-        for (entry in sortedPaths()) {
-            if (!StringTools.endsWith(entry.path, ".ts") || excluded.indexOf(entry.path) >= 0) {
-                continue;
-            }
+        for (entry in npmCompileSet(excluded)) {
             final path = haxe.io.Path.join([stage, entry.path]);
             sys.FileSystem.createDirectory(haxe.io.Path.directory(path));
             sys.io.File.saveContent(path, rewriteTsSpecifiers(entry.content));
@@ -142,6 +139,64 @@ class PackageArtifacts {
         final stem = StringTools.replace(PackageShell.name(), "/", "-") + "-" + PackageShell.version();
         sys.io.File.saveBytes(haxe.io.Path.join([parent, stem + ".tgz"]), gzipBytes(tarFromEntries("package/", files)));
         deleteTree(stage);
+    }
+
+    /**
+        The staged compile set: every recorded `.ts` write except the
+        excluded ones and except every module that imports one of them,
+        followed to a fixed point. An excluded module is deliberately
+        absent from the tarball, so a module importing it cannot
+        typecheck; leaving it in the stage fails the whole pack with a
+        missing-module error instead. The closure is what keeps the
+        compile set consistent with the exclusion — the runtime test
+        entry, and the test helpers that call into it.
+    **/
+    static function npmCompileSet(excluded:Array<String>):Array<{path:String, content:String}> {
+        final excludedSet = new Map<String, Bool>();
+        for (path in excluded) {
+            excludedSet.set(path, true);
+        }
+        final tsEntries = [for (entry in sortedPaths()) if (StringTools.endsWith(entry.path, ".ts")) entry];
+        var changed = true;
+        while (changed) {
+            changed = false;
+            final excludedNow = [for (path in excludedSet.keys()) path];
+            for (entry in tsEntries) {
+                if (excludedSet.exists(entry.path)) {
+                    continue;
+                }
+                for (path in excludedNow) {
+                    if (importsPath(entry.path, entry.content, path)) {
+                        excludedSet.set(entry.path, true);
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+        }
+        return [for (entry in tsEntries) if (!excludedSet.exists(entry.path)) entry];
+    }
+
+    /** Whether one recorded module imports the module at `targetPath`. */
+    static function importsPath(fromPath:String, content:String, targetPath:String):Bool {
+        return content.indexOf('from "' + relativeSpecifier(haxe.io.Path.directory(fromPath), targetPath) + '"') >= 0;
+    }
+
+    /**
+        The specifier one module writes to reach another: the `./` or
+        `../` form the TypeScript target emits for a relative import,
+        computed from the two workspace-relative paths.
+    **/
+    static function relativeSpecifier(fromDir:String, targetPath:String):String {
+        final fromParts = fromDir == "" ? [] : fromDir.split("/");
+        final toParts = targetPath.split("/");
+        var common = 0;
+        while (common < fromParts.length && common < toParts.length - 1 && fromParts[common] == toParts[common]) {
+            common++;
+        }
+        final parts = [for (_ in common...fromParts.length) ".."].concat(toParts.slice(common));
+        final joined = parts.join("/");
+        return StringTools.startsWith(joined, ".") ? joined : "./" + joined;
     }
 
     /**
