@@ -1,5 +1,7 @@
 package boring;
 
+import std.SortedMap;
+
 /**
     Regression support for the unsigned-relaxation family around
     intToFloatText: a wrapped Int (a - b with a < b renders
@@ -20,12 +22,12 @@ class IntFloatSignOps {
 
     // The collapsed-local comparison widening.
     public static function equalsCollapsed(a:Int, b:Int):Bool {
-        final c:Null<Float> = -1.0;
+        final c:Null<Float> = 0.0;
         if (c == null)
             return false;
         final d = a - b;
-        // correct: -1.0 == -1.0; unsigned relaxation reads 4294967295.0
-        return d == c;
+        // correct: 0.0 > -1.0; unsigned relaxation reads 4294967295.0
+        return c > d;
     }
 
     // The Float compound-assignment widening.
@@ -48,18 +50,16 @@ class IntFloatSignOps {
         return null;
     }
 
-    // The has-guarded ternary fallback widening.
-    public static function ternaryFallback(a:Int, b:Int):Float {
-        final m = new Map<String, Float>();
-        m.set("base", 0.5);
-        final v = m.get("other");
-        // "other" is absent, so the fallback arm must widen the wrapped Int.
-        return v != null ? v : (a - b);
+    // The has-guarded ternary fallback widening: key 7 is absent, so the
+    // fallback arm must widen the wrapped Int.
+    public static function ternaryFallback(m:SortedMap<Int, Float>, a:Int, b:Int):Float {
+        return m.has(7) ? m.get(7) : (a - b);
     }
 
-    // The value-type constructor Float-representation widening.
-    public static function valueCtor(a:Int, b:Int):Float {
-        final ic = new Ic(a - b);
-        return ic.toPx(1.0);
+    public static function sampleMap():SortedMap<Int, Float> {
+        final b:SortedMapBuilder<Int, Float> = SortedMap.builder();
+        b.put(4, 0.5);
+        return b.build();
     }
+
 }
