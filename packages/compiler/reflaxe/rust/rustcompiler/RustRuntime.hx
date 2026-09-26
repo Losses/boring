@@ -20,9 +20,12 @@ impl Exception {
 }
 ';
 
-    /** The Functional shim is precision-parameterized: sum_of_float
-        accumulates at the element Float's width, so the f32 mode binds
-        f32 and the f64 mode binds f64 (feature spec 23). */
+    /** The Functional shim is precision-parameterized: sum_of_float keeps
+        the element binding at the Float width (f32 mode binds f32, f64 mode
+        binds f64), but the accumulator is binary64 with one closing
+        narrowing, matching std.Functional.sumOfFloat on the JVM/Kotlin
+        reference (AccurateSum.of depends on it: thirty 16.0 advances must
+        total exactly 480, not 479.99982 from a binary32 accumulator). */
     public static function functionalSource():String {
         final f = FloatPrecision.isF32() ? "f32" : "f64";
         return '
@@ -42,11 +45,11 @@ impl Functional {
     where
         F: FnMut(&T) -> $f,
     {
-        let mut total = 0.0;
+        let mut total = 0.0f64;
         for item in arr {
-            total += f(item);
+            total += f(item) as f64;
         }
-        total
+        total as $f
     }
 }
 ';
