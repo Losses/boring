@@ -8296,7 +8296,7 @@ class RustExpr {
                     // clones so the read produces an owned Option; the non-cloned form does not
                     // perform a move out of a reference. A method receiver keeps its
                     // borrow so mutations reach the original storage.
-                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && switch (subj.expr) {
+                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && switch (subj.expr) {
                         case TConst(TThis): true;
                         case _: isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()");
                     }) {
@@ -8307,7 +8307,7 @@ class RustExpr {
                 if (name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
                     return isStringType(cf.get().type) ? "(" + access + ").to_ustring()" : "(" + access + ").clone()";
                 }
-                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
+                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !isTypeCopy(cf.get().type)
                     && !RustDecl.isBorrowedByteField(imports.selfModule, name)
                     && switch (subj.expr) {
                         case TConst(TThis): true;
@@ -8320,7 +8320,7 @@ class RustExpr {
                 // field. Non-Copy fields must clone at the read site so the
                 // value slots that consume them receive an owned copy.
                 // Covers the borrowed-field-read family (E0507).
-                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
+                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !isTypeCopy(cf.get().type)
                     && (isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()"))) {
                     return "(" + access + ").clone()";
                 }
@@ -10266,7 +10266,15 @@ class RustExpr {
                     return nullableMethodReceiver(subj, false) + "." + name + "(" + kExpr + ")";
                 }
                 if (name == "push") {
-                    return nullableMethodReceiver(subj, true) + ".push(" + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
+                    // An indexed element receiver must stay a place
+                    // expression: the mutation must reach the storage inside
+                    // the Vec, not a cloned temporary.
+                    // (IndexedReceiverMutation)
+                    final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
+                    renderingInPlaceMutatorReceiver = true;
+                    final pushed = nullableMethodReceiver(subj, true) + ".push(" + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
+                    renderingInPlaceMutatorReceiver = previousMutatorReceiver;
+                    return pushed;
                 }
                 if (name == "join") {
                     if (isVecType(subj)) {
