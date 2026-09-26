@@ -113,7 +113,7 @@ class RustEmissionState {
     /**
         Fallible-block region error names, keyed by `funcKey#paramIndex`: the
         error type of the try region that encloses the parameter's call in the
-        callee body. A block propagates into *that* region, not into the
+        callee body. A block propagates into *that* region and never into the
         callee's own error enum, so the parameter type, the callee's call to
         it, and the caller's literal must all name the caught type.
     **/

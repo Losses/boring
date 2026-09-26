@@ -33,7 +33,7 @@ class RustDecl {
     public static var mutatingTraitMethods:Map<String, Bool> = new Map();
 
     /**
-        Interfaces whose interface-slot handles must be genuinely shared
+        Interfaces whose interface-slot handles must be shared
         (ClassHandleShare). Haxe object references are shared: when a
         caller hands a stateful implementor (a cache, a shaper) to an
         engine through an interface slot, the engine's writes must be
@@ -1252,10 +1252,10 @@ class RustDecl {
 
     /**
         Whether the parameter type lowers as a mutable object reference when
-        the body mutates it: a plain owned class instance, not one of the
-        borrowed primitives (Array, String, StringBuf, Bytes), not an
-        interface (trait objects carry their own mutation machinery), and
-        not an optional (Option storage mutates differently).
+        the body mutates it: a plain owned class instance and none of the
+        borrowed primitives (Array, String, StringBuf, Bytes); no
+        interface (trait objects carry their own mutation machinery) and
+        no optional (Option storage mutates differently).
         (MutableRefObjectParam)
     **/
     public static function isMutableRefParamType(t:Null<Type>):Bool {

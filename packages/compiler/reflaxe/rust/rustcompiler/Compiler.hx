@@ -1769,7 +1769,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // A declared-enum caller whose callee resolves to a synthetic union
         // meets the whole union at its question-mark site. Register a wrapping
         // growth variant for the union itself so the call site maps the union
-        // into the caller's enum with a real constructor instead of falling
+        // into the caller's enum with a real constructor and does not fall
         // back to a From impl whose unrelated-fault arm cannot represent the
         // payload (the panic behind rejects_shaper_clusters...).
         for (entry in entries) {
@@ -1849,9 +1849,9 @@ class Compiler extends PluginCompiler<Compiler> {
                 final callerType = state.funcErrorTypes.get(entry.key);
                 if (callerType == null) continue;
                 if (!state.isSyntheticErrorType(callerType.name)) {
-                    // A non-synthetic caller whose callee just became a union:
+                    // A non-synthetic caller whose callee became a union in this pass:
                     // when the callee union already covers every error the caller
-                    // carries, adopt the union directly instead of leaving the
+                    // carries, adopt the union directly and do not leave the
                     // caller on its pre-union leaf. Nesting the union as a member
                     // would need a leaf conversion the catch lowering cannot build.
                     for (edge in entry.edges) {
@@ -2099,7 +2099,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     switch (stripDecorations(fn).expr) {
                         case TLocal(v) if (v.id == paramId):
                             // No region here means the parameter is forwarded to
-                            // another slot; the block inherits that slot's region.
+                            // another slot; the block takes on that slot's region.
                             found = region != null ? region : (forwarded != null ? state.fallibleBlockRegions.get(forwarded) : null);
                         case _:
                     }

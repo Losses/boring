@@ -27,7 +27,7 @@ impl Exception {
         binds f64), but the accumulator is binary64 with one closing
         narrowing, matching std.Functional.sumOfFloat on the JVM/Kotlin
         reference (AccurateSum.of depends on it: thirty 16.0 advances must
-        total exactly 480, not 479.99982 from a binary32 accumulator). */
+        total exactly 480; a binary32 accumulator yields 479.99982). */
     public static function functionalSource():String {
         final f = FloatPrecision.isF32() ? "f32" : "f64";
         return '
