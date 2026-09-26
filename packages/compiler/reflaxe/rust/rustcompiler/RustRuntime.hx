@@ -848,6 +848,19 @@ impl UStr {
     pub fn to_utf8(&self) -> Option<String> {
         String::from_utf16(&self.0).ok()
     }
+
+    /// Unicode lowercase of the text (String.toLowerCase). Borrowed
+    /// receivers (`&UStr`) and owned `UString` (through Deref) both land
+    /// here; the result is an owned Haxe String.
+    pub fn to_lowercase(&self) -> UString {
+        UString::from(self.to_utf8_lossy().to_lowercase())
+    }
+
+    /// The UTF-16 code units as an iterator (String.encodeUtf16). Mirrors
+    /// the UString inherent method so `&UStr` receivers resolve too.
+    pub fn encode_utf16(&self) -> std::slice::Iter<u16> {
+        self.0.iter()
+    }
 }
 
 impl UString {
@@ -875,7 +888,27 @@ impl UString {
     pub fn from_utf16(units: &[u16]) -> Result<UString, usize> {
         match String::from_utf16(units) {
             Ok(_) => Ok(UString(units.to_vec())),
-            Err(e) => Err(e),
+            Err(_) => {
+                // The declared Err payload is the unit index of the first
+                // unpaired surrogate; String::from_utf16 wraps that detail
+                // in FromUtf16Error, so rescan here to recover the index.
+                let mut i = 0;
+                while i < units.len() {
+                    let u = units[i];
+                    if (0xD800..0xDC00).contains(&u) {
+                        if i + 1 < units.len() && (0xDC00..0xE000).contains(&units[i + 1]) {
+                            i += 2;
+                            continue;
+                        }
+                        return Err(i);
+                    }
+                    if (0xDC00..0xE000).contains(&u) {
+                        return Err(i);
+                    }
+                    i += 1;
+                }
+                Err(units.len())
+            }
         }
     }
 }
@@ -889,6 +922,12 @@ impl From<&str> for UString {
 impl From<&UStr> for UString {
     fn from(s: &UStr) -> UString {
         UString(s.as_slice().to_vec())
+    }
+}
+
+impl From<&String> for UString {
+    fn from(s: &String) -> UString {
+        UString::from(s.as_str())
     }
 }
 
@@ -996,12 +1035,12 @@ impl std::ops::AddAssign<&UString> for UString {
 }
 impl std::ops::AddAssign<&String> for UString {
     fn add_assign(&mut self, rhs: &String) {
-        self += rhs.as_str();
+        *self += rhs.as_str();
     }
 }
 impl std::ops::AddAssign<String> for UString {
     fn add_assign(&mut self, rhs: String) {
-        self += rhs.as_str();
+        *self += rhs.as_str();
     }
 }
 
