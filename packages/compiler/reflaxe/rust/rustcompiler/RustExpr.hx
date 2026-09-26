@@ -4333,6 +4333,21 @@ class RustExpr {
         return text;
     }
 
+    /**
+        A boolean operand whose operator binds looser than the boolean
+        operator being rendered must carry its own grouping parens: the
+        hand-assembled `l && r` / `l || r` returns of the boolean lowering
+        bypass the generic precedence pass, so `(a || b) && c` used to
+        render bare as `a || b && c`, which Rust parses as `a || (b && c)`
+        and admits a different break tier. (BooleanOperandGrouping)
+    **/
+    function groupedBoolOperand(e:TypedExpr, parentOp:Binop, text:String):String {
+        return switch (stripWrap(e).expr) {
+            case TBinop(op, _, _) if (precedenceOf(op) < precedenceOf(parentOp)): "(" + text + ")";
+            case _: text;
+        }
+    }
+
     function narrowedSubject(subject:TypedExpr):Null<String> {
         return narrowedText(subjectTextOf(subject));
     }
@@ -6821,7 +6836,7 @@ class RustExpr {
                     final terms:Array<String> = [];
                     final provenNow:Array<TVar> = [];
                     for (i in 1...chain.length) {
-                        terms.push(expr(chain[i]));
+                        terms.push(groupedBoolOperand(chain[i], OpBoolAnd, expr(chain[i])));
                         final midGuard = nullGuardOf(chain[i]);
                         if (midGuard != null)
                             switch (stripWrap(midGuard.subject).expr) {
@@ -6846,14 +6861,14 @@ class RustExpr {
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
                     if (hit)
-                        return "(match &(" + expr(guard.subject) + ") { Some(" + name + ") => " + right + ", None => false })";
+                        return "(match &(" + expr(guard.subject) + ") { Some(" + name + ") => " + groupedBoolOperand(r, OpBoolAnd, right) + ", None => false })";
                 }
                 final proven = provenNonNullLocal(l);
                 if (proven != null) {
                     provenNonNullVarIds.set(proven.id, true);
                     final right = expr(r);
                     provenNonNullVarIds.remove(proven.id);
-                    return expr(l) + " && " + right;
+                    return groupedBoolOperand(l, OpBoolAnd, expr(l)) + " && " + groupedBoolOperand(r, OpBoolAnd, right);
                 }
                 // A `&&` chain of `!= null` checks proves every checked
                 // local for the right operand; the single-local form above
@@ -6865,9 +6880,9 @@ class RustExpr {
                     final right = expr(r);
                     for (v in provenChain)
                         provenNonNullVarIds.remove(v.id);
-                    return expr(l) + " && " + right;
+                    return groupedBoolOperand(l, OpBoolAnd, expr(l)) + " && " + groupedBoolOperand(r, OpBoolAnd, right);
                 }
-                return nullableBoolOperand(l, expr(l)) + " && " + nullableBoolOperand(r, expr(r));
+                return groupedBoolOperand(l, OpBoolAnd, nullableBoolOperand(l, expr(l))) + " && " + groupedBoolOperand(r, OpBoolAnd, nullableBoolOperand(r, expr(r)));
             case OpBoolOr:
                 final guard = nullGuardOf(l);
                 if (guard != null && guard.noneWhenTrue) {
@@ -6877,7 +6892,7 @@ class RustExpr {
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
                     if (hit)
-                        return "(match &(" + expr(guard.subject) + ") { None => true, Some(" + name + ") => " + right + " })";
+                        return "(match &(" + expr(guard.subject) + ") { None => true, Some(" + name + ") => " + groupedBoolOperand(r, OpBoolOr, right) + " })";
                 }
                 // A `||` chain of `== null` checks proves every checked
                 // local for the right operand: the chain is true when any
@@ -6892,9 +6907,9 @@ class RustExpr {
                     final right = expr(r);
                     for (v in orChain)
                         provenNonNullVarIds.remove(v.id);
-                    return nullableBoolOperand(l, expr(l)) + " || " + right;
+                    return groupedBoolOperand(l, OpBoolOr, nullableBoolOperand(l, expr(l))) + " || " + groupedBoolOperand(r, OpBoolOr, right);
                 }
-                return nullableBoolOperand(l, expr(l)) + " || " + nullableBoolOperand(r, expr(r));
+                return groupedBoolOperand(l, OpBoolOr, nullableBoolOperand(l, expr(l))) + " || " + groupedBoolOperand(r, OpBoolOr, nullableBoolOperand(r, expr(r)));
             case OpAssign:
                 final map = mapAssignment(l);
                 if (map != null) {
