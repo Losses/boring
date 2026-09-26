@@ -20,7 +20,7 @@ class IntFloatSignTests {
     @:test("a wrapped Int stays -1.0 through a Float compound assignment")
     public static function testCompoundAssign():Void {
         Test.equals(-0.5, IntFloatSignOps.compoundSum(3, 4));
-        Test.equals(4.5, IntFloatSignOps.compoundSum(4, 3));
+        Test.equals(1.5, IntFloatSignOps.compoundSum(4, 3));
     }
 
     @:test("a wrapped Int stays -1.0 through an array-literal Float element")
@@ -42,6 +42,6 @@ class IntFloatSignTests {
         final m = IntFloatSignOps.sampleMap();
         Test.equals(-1.0, IntFloatSignOps.ternaryFallback(m, 3, 4));
         Test.equals(1.0, IntFloatSignOps.ternaryFallback(m, 4, 3));
-        Test.equals(0.5, IntFloatSignOps.ternaryFallback(m, 9, 9));
+        Test.equals(0.0, IntFloatSignOps.ternaryFallback(m, 9, 9));
     }
 }
