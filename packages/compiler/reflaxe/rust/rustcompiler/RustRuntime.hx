@@ -857,9 +857,10 @@ impl UStr {
     }
 
     /// The UTF-16 code units as an iterator (String.encodeUtf16). Mirrors
-    /// the UString inherent method so `&UStr` receivers resolve too.
-    pub fn encode_utf16(&self) -> std::slice::Iter<u16> {
-        self.0.iter()
+    /// the UString inherent method so `&UStr` receivers resolve too. Items
+    /// are owned `u16`, matching the std String encode_utf16 item type.
+    pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+        self.0.iter().copied()
     }
 
     /// Trim Unicode whitespace from both ends (String.trim). Borrowed
@@ -1064,8 +1065,9 @@ impl UString {
 impl UString {
     /// The UTF-16 code units of this string. UString stores units natively,
     /// so this is the slice itself — no re-encoding. (String.encodeUtf16)
-    pub fn encode_utf16(&self) -> std::slice::Iter<u16> {
-        self.0.iter()
+    /// Items are owned `u16`, matching the std String encode_utf16 item type.
+    pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+        self.0.iter().copied()
     }
 }
 
