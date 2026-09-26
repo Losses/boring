@@ -1118,8 +1118,23 @@ consumer's comparison is judged by the divergence list alone.
 
 On the `ts` and `kotlin` targets, `pack` spawns the host
 toolchain. The executable resolves through `BORING_PACKAGE_TSC` and
-`BORING_PACKAGE_KOTLINC` first, then from `PATH`. A bundle without
-a `package` object is rejected before anything compiles.
+`BORING_PACKAGE_KOTLINC` first, then from `PATH`:
+
+    BORING_PACKAGE_TSC=/path/to/tsc bun out/bundle/driver.js pack ts
+    BORING_PACKAGE_KOTLINC=/path/to/kotlinc bun out/bundle/driver.js pack kotlin
+
+A bundle without a `package` object is rejected before anything
+compiles, with the bundle named:
+
+    Error: bundle "dart": the pack action requires a package (name and version) on every named bundle
+
+One caveat measured on this repository: `pack ts` type-checks the
+staged npm tree with the host `tsc`, so pin the compiler to the
+TypeScript the emit was written against (5.9.x; a newer standalone
+`tsc` reports different errors). If the staged tree fails with
+`TS2307: Cannot find module '../runtime/test.js'`, the emit-side
+staging is missing a runtime file - that is an emitter gap, not a
+project-file mistake.
 
 ### Starting a consumer project
 
@@ -1128,13 +1143,20 @@ consumer compiles it once to JavaScript and then runs it against its
 own project file:
 
     haxe tools/bundle/driver.hxml
-    bun out/bundle/driver.js gen --project /path/to/consumer/boring.json
-    bun out/bundle/driver.js test --project /path/to/consumer/boring.json
+    bun out/bundle/driver.js gen <id>... --project /path/to/consumer/boring.json
+    bun out/bundle/driver.js test <id>... --project /path/to/consumer/boring.json
     bun out/bundle/driver.js compare --project /path/to/consumer/boring.json
 
-Paths inside the project file resolve against the directory holding
-the project file, so the driver, the consumer tree, and the boring
-checkout can sit apart.
+Every action except `compare` takes the bundle ids to run; an action
+named no bundle stops with an error instead of guessing. Paths inside
+the project file resolve against the directory holding the project
+file, so the driver, the consumer tree, and the boring checkout can
+sit apart. A consumer roots file owns its own classpaths and macro
+calls, exactly like boring's `examples/ts.hxml` does: the driver adds
+only the classpaths of `sourceRoots` and the derived defines, so
+macros that read files by path (the pinned Unicode data, the test
+collector) still resolve relative to the working directory the driver
+is invoked from.
 
 ### Known pitfalls
 
@@ -1144,10 +1166,11 @@ checkout can sit apart.
   checkout first; shell entry registers the `boring` and `reflaxe`
   haxelibs, which creates the directory.
 - The generated runners apply a per-test timeout budget of 5000 ms
-  (`BORING_TEST_TIMEOUT_MS`, milliseconds). The driver sets no budget
-  of its own, so a test that outruns the default is recorded as a
-  timeout and `compare` reports the divergence. Raise the budget per
-  bundle through the run step's environment:
+  (`BORING_TEST_TIMEOUT_MS`, milliseconds); a case that outruns the
+  budget is recorded as a timeout, which shows up on the wall clock as
+  roughly six seconds for the case. The driver sets no budget of its
+  own, so `compare` reports the divergence unless the project raises
+  the budget per bundle through the run step's environment:
   `"run": { "env": { "BORING_TEST_TIMEOUT_MS": "60000" } }`. Boring's
   own suite and tiqian both hit this with long-running cases.
 - Every target toolchain the invoked bundles need must be on
