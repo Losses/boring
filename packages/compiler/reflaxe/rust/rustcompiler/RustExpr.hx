@@ -250,6 +250,13 @@ class RustExpr {
     // String.indexOf lowers to an expression that always yields i32; a local
     // initialized from it keeps that domain even where Int maps to u32.
     final i32Locals:Map<Int, Bool> = [];
+    // A Float local only ever fed by compound additions (`total += item`)
+    // accumulates in binary64 with one narrowing per read: the JVM reference
+    // sums Float loops in double, so a binary32 accumulator drifts below or
+    // above the admitted measure and the DP admits a different break. The
+    // storage widens to f64, each += widens its f32 operand, and every read
+    // narrows once back to the Float width. (FloatAccumulatorBinary64)
+    final f64AccumLocals:Map<Int, Bool> = [];
     // True while rendering the initializer of an i32-domain local, so the
     // wrapping arithmetic in it picks the i32 domain and the binding infers
     // i32; wrapping arithmetic is bit-identical on both domains, so the
@@ -782,6 +789,7 @@ class RustExpr {
         nullableSensitiveLocals.clear();
         parseIntLocals.clear();
         i32Locals.clear();
+        f64AccumLocals.clear();
         i32BindingLocals.clear();
         declaredUnsignedIntLocals.clear();
         signedCountdownVars.clear();
@@ -819,6 +827,7 @@ class RustExpr {
         scanLocalFunctionFallibility(f.expr);
         markFallibleBlockParams(cls, f);
         scanReadsAfter(f.expr);
+        scanFloatAccumulators(f.expr);
         final previousReceiverContext = renderingMethodReceiver;
         renderingMethodReceiver = RustDecl.methodWritesReceiver(f.field);
         final lines = blockLines(statementsOf(f.expr), 1, true);
@@ -1232,6 +1241,17 @@ class RustExpr {
                 // (DeadInitDemote)
                 if (deadInitLocals.exists(v.id))
                     return [indent(depth) + (deadInitLocals.get(v.id) ? "let mut" : "let") + " " + name + ": " + types.of(v.t, false) + ";"];
+                // A binary64 accumulator local widens its declaration: the
+                // storage type names f64 and a float-literal initializer
+                // rebinds at the wider width. (FloatAccumulatorBinary64)
+                if (FloatPrecision.isF32() && f64AccumLocals.exists(v.id) && isFloatType(v.t) && !isNullType(v.t)) {
+                    var accInit = expr(init);
+                    if (StringTools.endsWith(accInit, "f32"))
+                        accInit = accInit.substr(0, accInit.length - 3) + "f64";
+                    else
+                        accInit = "(" + accInit + ") as f64";
+                    return [indent(depth) + kw + " " + name + ": f64 = " + accInit + ";"];
+                }
                 // A Null<T> declared local keeps Option storage at runtime
                 // even when a guard narrows a later read's Haxe type to T;
                 // record it so &str/&T slots unwrap the wrapper before the
@@ -4976,6 +4996,11 @@ class RustExpr {
                 // (ClosureCaptureOwnedCopy)
                 if (captureOwnedStringCopies.exists(v.id))
                     return RustImports.toSnakeCase(localName(v)) + ".as_ustr()";
+                // A binary64 accumulator narrows once per value read; the
+                // assignment target path above bypasses this so writes reach
+                // the wide storage. (FloatAccumulatorBinary64)
+                if (FloatPrecision.isF32() && f64AccumLocals.exists(v.id))
+                    return "(" + RustImports.toSnakeCase(localName(v)) + " as f32)";
                 return RustImports.toSnakeCase(localName(v));
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
@@ -7062,6 +7087,14 @@ class RustExpr {
                 // same explicit Float cast ordinary Float operands use.
                 if (isFloatType(l.t) && isIntType(emittedType(r)))
                     return assignTarget(l) + " " + symbolOf(inner) + "= " + intToFloatText(expr(r));
+                // A binary64 accumulator widens each added operand; the
+                // storage does the accumulation the JVM performs in double.
+                // (FloatAccumulatorBinary64)
+                if (FloatPrecision.isF32() && (switch (stripWrap(l).expr) {
+                    case TLocal(v): f64AccumLocals.exists(v.id);
+                    case _: false;
+                }))
+                    return assignTarget(l) + " " + symbolOf(inner) + "= (" + expr(r) + ") as f64";
                 // A Null<Float> right operand lowers to Option<Float>; Haxe
                 // compound arithmetic uses the absent value's numeric zero,
                 // so extract it before the op-assign reaches the target. A
@@ -11523,6 +11556,43 @@ class RustExpr {
     /** Locals whose id the body never mentions in a TLocal read: the
         declaration only stores a value no one observes.
         (UnusedLocalNaming) */
+    /**
+        Marks every Float local whose only writes are compound additions
+        (`x += item`): those locals accumulate in binary64 storage and
+        narrow once per read, matching the JVM reference that sums Float
+        loops in double. A plain reassignment (`x = ...`) disqualifies the
+        local, because the stored f64 slot would take an f32 value without
+        a widening the assignment boundary does not apply. Parameters and
+        substitution-renamed locals stay out. (FloatAccumulatorBinary64)
+    **/
+    function scanFloatAccumulators(root:TypedExpr):Void {
+        final compoundTargets:Map<Int, Bool> = [];
+        final plainAssignTargets:Map<Int, Bool> = [];
+        function collect(node:TypedExpr):Void {
+            switch (node.expr) {
+                case TBinop(OpAssign, t, _):
+                    switch (stripWrap(t).expr) {
+                        case TLocal(v): plainAssignTargets.set(v.id, true);
+                        case _:
+                    }
+                case TBinop(OpAssignOp(OpAdd), t, v):
+                    switch (stripWrap(t).expr) {
+                        case TLocal(l):
+                            if (isFloatType(l.t) && !isNullType(l.t) && isFloatType(v.t)
+                                && !paramVarIds.exists(l.id) && !RustType.isTypeParam(l.t))
+                                compoundTargets.set(l.id, true);
+                        case _:
+                    }
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, collect);
+        }
+        collect(root);
+        for (id in compoundTargets.keys())
+            if (!plainAssignTargets.exists(id))
+                f64AccumLocals.set(id, true);
+    }
+
     function scanUnusedLocals(root:TypedExpr):Void {
         final counts:Map<Int, Int> = [];
         function walk(node:TypedExpr):Void {
