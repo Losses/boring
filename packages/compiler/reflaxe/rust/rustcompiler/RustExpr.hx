@@ -10488,7 +10488,9 @@ class RustExpr {
                             return RustConversions.narrowI32("(" + castArg(args[1], "usize") + " + {let _u = (" + expr(args[0]) + ")[" + castArg(args[1], "usize")
                                 + "..].first().copied().unwrap_or(0u16); 1 + ((_u as u32) > 0x7F) as usize + ((_u as u32) > 0x7FF) as usize})");
                         case "substringBetween":
-                            return "UString((" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "].to_vec())";
+                            // UString's fields are private (E0423); build
+                            // through the borrowed slice form instead.
+                            return "UString::from(UStr::new(&(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "]))";
                         case "fromCodePoint":
                             return "UString::from(&char::from_u32(" + RustConversions.reinterpret(expr(args[0]), "u32") + ").unwrap_or('\\0').to_string())";
                         case _:
