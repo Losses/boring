@@ -95,6 +95,10 @@ class ParenFold {
                         if (!StringTools.startsWith(ltrimInner, "*")
                             && castSuffixAt(ltrimInner)
                             && !hasTopLevelComma(text, i + 1, close)
+                            // A cast followed by `.m()` keeps its parens:
+                            // bare, the method would bind to the cast type
+                            // and rustc reads `x as T.m()` (ParenFold)
+                            && !(k < text.length && text.charAt(k) == ".")
                             && !foldChangesGrouping(text, i, close)) {
                             out.add(ltrimInner);
                             i = close + 1;
@@ -132,10 +136,15 @@ class ParenFold {
                     if (prev == "(" || prev == ",") {
                         final inner = text.substr(i + 1, close - i - 1);
                         final ltrim = StringTools.ltrim(inner);
+                        var k = close + 1;
+                        while (k < text.length && text.charAt(k) == " ")
+                            k++;
                         if (StringTools.startsWith(ltrim, "(") && closeIndexAt(ltrim, 0) == ltrim.length - 1) {
                             // A fully wrapped inner expression: the outer
                             // pair is the doubled case handled below.
-                        } else if (castSuffixAt(ltrim) && !hasTopLevelComma(text, i + 1, close) && !foldChangesGrouping(text, i, close)) {
+                        } else if (castSuffixAt(ltrim) && !hasTopLevelComma(text, i + 1, close)
+                            && !(k < text.length && text.charAt(k) == ".")
+                            && !foldChangesGrouping(text, i, close)) {
                             out.add(inner);
                             i = close + 1;
                             onChange();
