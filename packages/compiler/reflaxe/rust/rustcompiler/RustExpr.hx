@@ -2189,9 +2189,48 @@ class RustExpr {
     }
 
     /**
+        A Haxe String expression whose Rust rendering is a std String value:
+        a format! result, a .name() enum label, a .to_string() display
+        value, a display block, or a from_utf16 decode. Every other String
+        rendering is already a UString producer.
+    **/
+    function stdStringShapedText(rendered:String):Bool {
+        return StringTools.endsWith(rendered, ".to_string()")
+            || StringTools.startsWith(rendered, "format!(")
+            || StringTools.startsWith(rendered, "{")
+            || rendered.indexOf("let mut out = String::new()") >= 0
+            || StringTools.endsWith(rendered, ".name()")
+            || StringTools.startsWith(rendered, "String::from_utf16(")
+            || rendered.indexOf("FPHelper::format_float") >= 0;
+    }
+
+    /**
+        Converts a std-String-shaped rendering into a UString value. The
+        .to_string() tail peels off first so the Display receiver, not the
+        finished String, feeds From<&str>.
+    **/
+    function ustringFromStdText(rendered:String):String {
+        return "UString::from(format!(\"{}\", " + rendered + ").as_str())";
+    }
+
+    /**
+        A Haxe String value slot receives either a UString producer (which
+        takes .to_ustring()) or a std-String-shaped rendering, which wraps
+        through UString::from instead of calling a method String has none of.
+    **/
+    function ownedStringSlotText(text:String):String {
+        if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()")
+            || StringTools.startsWith(text, "UString::from("))
+            return text;
+        return stdStringShapedText(text) ? ustringFromStdText(text) : text + ".to_ustring()";
+    }
+
+    /**
         stringViewArg: a Rust &str slot takes a Haxe String. A string literal
         keeps its static borrowing, a borrowed parameter is already a view,
-        and every other String expression borrows through as_str.
+        and every other String expression borrows through as_str — unless its
+        rendering is a std String value (a format! result, a display block,
+        a .name() label), which converts through UString::from first.
     **/
     function stringViewArg(arg:TypedExpr):String {
         final rendered = expr(arg);
@@ -2200,7 +2239,7 @@ class RustExpr {
         return switch (stripWrap(arg).expr) {
             case TConst(TString(_)): "&(" + rendered + ")";
             case TLocal(v) if (isBorrowedParamLocal(v)): rendered;
-            case _: rendered + ".as_ustr()";
+            case _: stdStringShapedText(rendered) ? ustringFromStdText(rendered) + ".as_ustr()" : rendered + ".as_ustr()";
         };
     }
 
@@ -9222,7 +9261,7 @@ class RustExpr {
                     + value
                     + " { Some(ref v) => "
                     + stdStringType(inner, "v", false, origin, depth + 1)
-                    + ", None => \"null\".to_string() }";
+                    + ", None => UString::from(\"null\") }";
             case _:
         }
         // Context.follow unwraps Null<T> into T, so the switch below never
@@ -9249,7 +9288,7 @@ class RustExpr {
                     + binding
                     + ") => "
                     + stdStringType(inner, "v", false, origin, depth + 1, true)
-                    + ", None => \"null\".to_string() }";
+                    + ", None => UString::from(\"null\") }";
             case _:
         }
         // A local whose Rust storage renders as Option<T> (a null-initialized
@@ -9260,7 +9299,7 @@ class RustExpr {
                 final optionInner = getNullInnerType(origin.t);
                 final optionBinding = isTypeCopy(optionInner) ? "v" : "ref v";
                 return "match " + value + " { Some(" + optionBinding + ") => "
-                    + stdStringType(optionInner, "v", false, origin, depth + 1, true) + ", None => \"null\".to_string() }";
+                    + stdStringType(optionInner, "v", false, origin, depth + 1, true) + ", None => UString::from(\"null\") }";
             case _:
         }
         return switch (PolicyQueries.stdStringCategory(t)) {
@@ -9294,7 +9333,11 @@ class RustExpr {
                 imports.requireType("runtime.UString", "UString");
                 return "UString::from(" + value + ".0.to_string().as_str())";
             case IsNull:
-                "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
+                // Both arms produce UString: Haxe's String is UString, and a
+                // mixed-arm match is one Rust type error regardless of the
+                // surrounding slot.
+                imports.requireType("runtime.UString", "UString");
+                "match " + value + " { Some(v) => UString::from(v.to_string().as_str()), None => UString::from(\"null\") }";
             case IsFloat:
                 inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
             case IsInt | IsBool:
@@ -9450,7 +9493,9 @@ class RustExpr {
                     if (narrowed != null)
                         optionNarrowingHitCount++;
                     final receiverText = narrowed != null ? narrowed : expr(receiver);
-                    return receiverText + ".to_string()";
+                    // Haxe's String is UString, so the Display text converts
+                    // at the read site instead of leaking a std String.
+                    return "UString::from((" + receiverText + ").to_string().as_str())";
                 }
                 final op = ValueTypeSupport.operatorOf(abs, field);
                 if (op != null) {
@@ -9482,7 +9527,7 @@ class RustExpr {
                 if (narrowed != null)
                     optionNarrowingHitCount++;
                 final receiver = narrowed != null ? narrowed : expr(subj);
-                return name == "toString" ? receiver + ".to_string()" : receiver
+                return name == "toString" ? "UString::from((" + receiver + ").to_string().as_str())" : receiver
                     + "."
                     + RustImports.toSnakeCase(name)
                     + "("
@@ -9660,8 +9705,11 @@ class RustExpr {
                         // that lead and the map_err names it. The `?` or
                         // `.unwrap()` rides the ordinary fallibility rules.
                         final q = isFallible ? "?" : ".unwrap()";
-                        return "String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from("
-                            + expr(subj) + "[" + expr(subj) + ".len() - 1]) }") + ")" + q;
+                        // toString returns Haxe String (UString), so the
+                        // decoded UTF-8 String converts at the read site.
+                        imports.requireType("runtime.UString", "UString");
+                        return "UString::from((String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from("
+                            + expr(subj) + "[" + expr(subj) + ".len() - 1]) }") + ")" + q + ").as_str())";
                     }
                     if (name == "get_length" || name == "length") {
                         return RustConversions.truncate(expr(subj) + ".len()", "u32");
@@ -15739,7 +15787,7 @@ class RustExpr {
         if (resultType != null && isStringType(resultType)) {
             if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
                 return text;
-            return text + ".to_ustring()";
+            return ownedStringSlotText(text);
         }
         if (isUStringCountText(text) && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
@@ -15810,7 +15858,7 @@ class RustExpr {
         if (resultType != null && isStringType(resultType)) {
             if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
                 return text;
-            return text + ".to_ustring()";
+            return ownedStringSlotText(text);
         }
         // An owned Vec result slot that receives a borrowed array parameter
         // clones the referent, so both arms of the conditional carry one
