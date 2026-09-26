@@ -214,7 +214,7 @@ describe("package artifact emission", () => {
       const rustResult = await runHaxe("package-artifacts-rust.hxml", rewriteHxml("rust.hxml", rustRoot));
       expect(rustResult.stderr).toBe("");
       expect(rustResult.exitCode).toBe(0);
-      const crate = path.join(rustRoot, "rust", "gen", "boring-codec-gen-0.1.0.crate");
+      const crate = path.join(rustRoot, "rust", "boring-codec-gen-0.1.0.crate");
       expect(fs.existsSync(crate)).toBe(true);
       const crateEntries = await tarList(crate);
       expect(crateEntries).toEqual([...crateEntries].sort());
@@ -317,7 +317,7 @@ describe("package artifact emission", () => {
     try {
       const packages: PackageIdentity[] = [
         {hxml: "ts.hxml", file: "ts/generated-0.1.0.tgz", extra: [`-D package-tsc=${TSC}`]},
-        {hxml: "rust.hxml", file: "rust/gen/boring-codec-gen-0.1.0.crate", extra: []},
+        {hxml: "rust.hxml", file: "rust/boring-codec-gen-0.1.0.crate", extra: []},
         {hxml: "swift.hxml", file: "swift/generated-0.1.0.zip", extra: []},
         {hxml: "dart.hxml", file: "dart/generated-0.1.0.tar.gz", extra: []},
         {hxml: "kotlin.hxml", file: "kotlin/maven/generated/generated/0.1.0/generated-0.1.0.jar", extra: ["-D package-kotlinc=kotlinc"]},
