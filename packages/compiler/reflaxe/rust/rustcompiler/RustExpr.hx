@@ -464,7 +464,10 @@ class RustExpr {
                 FloatPrecision.isF32() ? padded + "f32" : padded;
             case CString(s):
                 imports.requireType("runtime.UString", "UString");
-                "UString::from(" + quoteString(s) + ")";
+                final lit = "UString::from(" + quoteString(s) + ")";
+                // A borrowed &UStr slot borrows the literal once: the owned
+                // form converts at the boundary. (CoalescingDefaultUstrView)
+                return types.of(targetType, true) == "&UStr" ? lit + ".as_ustr()" : lit;
             case CBool(b): b ? "true" : "false";
             case CNull: "None";
             case CEmptyArray: "vec![]";
@@ -11239,6 +11242,13 @@ class RustExpr {
                         imports.require("crate::tests::test_helper::*");
                         return fnName + "(&" + expr(expectedArg) + ", &" + expr(actualArg) + ", " + msg + ")";
                     }
+                }
+                // A native enum from_name lookup reads a &UStr name; the
+                // argument is a Haxe String value that converts to the
+                // borrowed view once here. (FromNameUstrArg)
+                if (cf.get().name == "from_name") {
+                    final parts = [for (a in args) stdStrViewArg(a)];
+                    return cls.name + "::from_name(" + parts.join(", ") + ")";
                 }
                 final isStaticFallible = isFallibleCallee(c, cf, true);
                 final q = isFallible ? (isStaticFallible ? errorPropagationSuffix(c, cf, true) : "") : (isStaticFallible ? ".unwrap()" : "");
