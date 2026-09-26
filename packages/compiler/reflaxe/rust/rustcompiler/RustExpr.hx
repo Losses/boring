@@ -1907,7 +1907,8 @@ class RustExpr {
                     // Rust does not infer an integer literal inside Some from
                     // an Option<f64> return slot, so widen at this boundary.
                     if (StringTools.startsWith(returnTypeName, "Option<f") && isIntType(emittedType(ret)))
-                        payload = intToFloatText(payload);
+                        // A wrapped Int return (u32::wrapping_sub underflow) must widen through its signed i32 bits. (SignedIntFloatWiden)
+                        payload = intToFloatSignedText(payload, ret);
                     retStr = "Some(" + payload + ")";
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && isIntType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
                     // An Int expression returned from a Null<Int> function
@@ -4591,7 +4592,8 @@ class RustExpr {
         // The fallback value stays plain (not Some-wrapped).
         final getText = expr(ifTrue);
         final fallback = isFloatType(emittedType(ifTrue)) && isIntType(emittedType(ifFalse))
-            ? intToFloatText(expr(ifFalse))
+            // The fallback Int may carry a wrapped u32 value; widen signed. (SignedIntFloatWiden)
+            ? intToFloatSignedText(expr(ifFalse), ifFalse)
             : expr(ifFalse);
         // The fallback must be a concrete non-null value so both arms of the
         // unwrapped ternary share the inner value type. A null literal keeps
@@ -5049,7 +5051,7 @@ class RustExpr {
                         } else {
                             elemNeedsClone && !StringTools.endsWith(source, ".clone()") ? "(" + source + ").clone()" : source;
                         };
-                        if (elemFloat && isIntType(emittedType(x))) inner = intToFloatText(inner);
+                        if (elemFloat && isIntType(emittedType(x))) inner = intToFloatSignedText(inner, x);
                         // An i32-domain element in a business u32 array
                         // reinterprets its bits at the literal boundary.
                         if (!elemFloat && elemType != null && isIntType(elemType) && types.of(elemType, false) == "u32"
@@ -5357,7 +5359,8 @@ class RustExpr {
                 final narrowedOperand = valueTypeNarrowedInlineValue(value, locals);
                 final operand = narrowedOperand != null ? narrowedOperand : valueTypeOperand(value, locals, abs);
                 final valueText = ValueTypeSupport.isFloatRepresentation(abs) && isIntType(emittedType(value))
-                    ? intToFloatText(operand)
+                    // A wrapped Int argument widens through its signed i32 bits. (SignedIntFloatWiden)
+                    ? intToFloatSignedText(operand, value)
                     : operand;
                 wrapperName + "(" + valueText + ")";
         };
@@ -6676,9 +6679,9 @@ class RustExpr {
                 var collapsedLeft = expr(l);
                 var collapsedRight = expr(r);
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
-                    collapsedLeft = intToFloatText(collapsedLeft);
+                    collapsedLeft = intToFloatSignedText(collapsedLeft, l);
                 else if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
-                    collapsedRight = intToFloatText(collapsedRight);
+                    collapsedRight = intToFloatSignedText(collapsedRight, r);
                 return collapsedLeft + " " + symbolOf(op) + " " + collapsedRight;
             case OpEq | OpNotEq if (nullableEnumComparedWithEnum(l.t, r.t) || nullableEnumComparedWithEnum(r.t, l.t)):
                 // A narrowed operand renders the dereferenced match binding
@@ -7059,7 +7062,8 @@ class RustExpr {
                 // Rust has no `f64 op= {integer}`, so the right side takes the
                 // same explicit Float cast ordinary Float operands use.
                 if (isFloatType(l.t) && isIntType(emittedType(r)))
-                    return assignTarget(l) + " " + symbolOf(inner) + "= " + intToFloatText(expr(r));
+                    // A wrapped Int operand widens through its signed i32 bits. (SignedIntFloatWiden)
+                    return assignTarget(l) + " " + symbolOf(inner) + "= " + intToFloatSignedText(expr(r), r);
                 // A Null<Float> right operand lowers to Option<Float>; Haxe
                 // compound arithmetic uses the absent value's numeric zero,
                 // so extract it before the op-assign reaches the target. A
@@ -7219,9 +7223,9 @@ class RustExpr {
                 // Rust does not implicitly widen integer literals or Haxe
                 // Int expressions when the other comparison operand is Float.
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
-                    leftText = intToFloatText(leftText);
+                    leftText = intToFloatSignedText(leftText, l);
                 if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
-                    rightText = intToFloatText(rightText);
+                    rightText = intToFloatSignedText(rightText, r);
                 // An ordered comparison keeps both sides in one Rust integer
                 // type. When one operand renders in the signed i32 domain and
                 // the other in the business u32 domain, reinterpret the u32
@@ -7282,9 +7286,9 @@ class RustExpr {
                 // Haxe unifies Int and Float; widen Int comparison operands to
                 // Float when the other side is Float.
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
-                    left = intToFloatText(left);
+                    left = intToFloatSignedText(left, l);
                 if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
-                    right = intToFloatText(right);
+                    right = intToFloatSignedText(right, r);
                 // An i32-domain operand compared with a business u32 operand
                 // reinterprets its bits so both sides share the u32 domain.
                 if (isIntType(emittedType(l)) && isIntType(emittedType(r)) && !isFloatType(e.t)) {
