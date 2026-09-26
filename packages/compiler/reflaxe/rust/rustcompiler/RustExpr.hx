@@ -11067,10 +11067,12 @@ class RustExpr {
                             return "i32::try_from(u32::from(" + "(" + expr(args[0]) + ")[" + castArg(args[1], "usize")
                                 + "..].first().copied().unwrap_or(0)" + ")).unwrap_or(0)";
                         case "advance":
-                            // The advance walks one UTF-16 unit and adds its
-                            // UTF-8 width (1/2/3 bytes for a BMP scalar).
-                            return RustConversions.narrowI32("(" + castArg(args[1], "usize") + " + {let _u = (" + expr(args[0]) + ")[" + castArg(args[1], "usize")
-                                + "..].first().copied().unwrap_or(0u16); 1 + ((_u as u32) > 0x7F) as usize + ((_u as u32) > 0x7FF) as usize})");
+                            // A UStr cursor is a UTF-16 unit index, so the
+                            // advance steps exactly one unit. The old UTF-8
+                            // width walk skipped 2-3 units per astral lead
+                            // and overran the buffer, letting distinct keys
+                            // compare equal (SortedKeyDomain astral keys).
+                            return RustConversions.narrowI32("(" + castArg(args[1], "usize") + " + 1)");
                         case "substringBetween":
                             // UString's fields are private (E0423); build
                             // through the borrowed slice form instead.
