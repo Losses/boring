@@ -388,8 +388,10 @@ class SwiftExpr {
             case CBool(b): b ? "true" : "false";
             case CNull: types.optionalNone(targetType);
             // An empty read-only array default renders as the native literal;
-            // the declared type annotation gives Swift its element type.
-            case CEmptyArray: StaticFieldHelper.isReadOnlyArrayType(targetType) ? "[]" : "TiqianArray()";
+            // the declared type annotation gives Swift its element type. An
+            // optional parameter carries Null<ReadOnlyArray<T>>, so the Null
+            // wrapper strips before the read-only check.
+            case CEmptyArray: StaticFieldHelper.isReadOnlyArrayType(DefaultArgExpander.withoutNull(targetType)) ? "[]" : "TiqianArray()";
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
