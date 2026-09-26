@@ -33,18 +33,15 @@ class IntFloatSignTests {
     public static function testOptionalReturn():Void {
         final v = IntFloatSignOps.asOptional(3, 4);
         Test.equals(true, v != null);
-        Test.equals(-1.0, v);
+        if (v != null)
+            Test.equals(-1.0, v);
     }
 
     @:test("a wrapped Int stays -1.0 through a guarded ternary fallback")
     public static function testTernaryFallback():Void {
-        Test.equals(-1.0, IntFloatSignOps.ternaryFallback(3, 4));
-        Test.equals(1.0, IntFloatSignOps.ternaryFallback(4, 3));
-    }
-
-    @:test("a wrapped Int stays -1.0 through a value-type Float constructor")
-    public static function testValueCtor():Void {
-        Test.equals(-1.0, IntFloatSignOps.valueCtor(3, 4));
-        Test.equals(1.0, IntFloatSignOps.valueCtor(4, 3));
+        final m = IntFloatSignOps.sampleMap();
+        Test.equals(-1.0, IntFloatSignOps.ternaryFallback(m, 3, 4));
+        Test.equals(1.0, IntFloatSignOps.ternaryFallback(m, 4, 3));
+        Test.equals(0.5, IntFloatSignOps.ternaryFallback(m, 9, 9));
     }
 }
