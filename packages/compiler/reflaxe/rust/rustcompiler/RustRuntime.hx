@@ -556,7 +556,7 @@ pub fn split(s: &str, separator: &str) -> Vec<String> {
     let mut start = 0usize;
     let mut cursor = 0usize;
     while cursor + needle.len() <= source.len() {
-        if source[cursor..cursor + needle.len()] == needle[..] {
+        if &source[cursor..cursor + needle.len()] == needle {
             out.push(String::from_utf16_lossy(&source[start..cursor]));
             cursor += needle.len();
             start = cursor;
@@ -853,7 +853,7 @@ impl UStr {
     /// receivers (`&UStr`) and owned `UString` (through Deref) both land
     /// here; the result is an owned Haxe String.
     pub fn to_lowercase(&self) -> UString {
-        UString::from(self.to_utf8_lossy().to_lowercase())
+        UString(self.to_utf8_lossy().to_lowercase().encode_utf16().collect())
     }
 
     /// The UTF-16 code units as an iterator (String.encodeUtf16). Mirrors
@@ -895,14 +895,14 @@ impl UString {
                 let mut i = 0;
                 while i < units.len() {
                     let u = units[i];
-                    if (0xD800..0xDC00).contains(&u) {
-                        if i + 1 < units.len() && (0xDC00..0xE000).contains(&units[i + 1]) {
+                    if u >= 0xD800 && u < 0xDC00 {
+                        if i + 1 < units.len() && units[i + 1] >= 0xDC00 && units[i + 1] < 0xE000 {
                             i += 2;
                             continue;
                         }
                         return Err(i);
                     }
-                    if (0xDC00..0xE000).contains(&u) {
+                    if u >= 0xDC00 && u < 0xE000 {
                         return Err(i);
                     }
                     i += 1;
@@ -1194,7 +1194,7 @@ pub fn split(s: &UStr, separator: &UStr) -> Vec<UString> {
     let mut start = 0usize;
     let mut cursor = 0usize;
     while cursor + needle.len() <= source.len() {
-        if source[cursor..cursor + needle.len()] == needle {
+        if &source[cursor..cursor + needle.len()] == needle {
             out.push(UString(source[start..cursor].to_vec()));
             cursor += needle.len();
             start = cursor;
@@ -1462,7 +1462,7 @@ pub fn find_from(s: &UStr, needle: &UStr, start: i32) -> i32 {
         return i32::try_from(start_unit).unwrap_or(-1);
     }
     for i in 0..=rest.len().saturating_sub(n.len()) {
-        if rest[i..i + n.len()] == n {
+        if &rest[i..i + n.len()] == n {
             return i32::try_from(u32::try_from(begin + i).unwrap_or(0)).unwrap_or(-1);
         }
     }
