@@ -44,7 +44,7 @@ class Compiler extends PluginCompiler<Compiler> {
             var rest = line;
             while (rest.length > 280) {
                 // Break only at a top-level comma. The old cutter also
-                // took any space before the limit, which could land inside
+                // took any space before the limit, which could fall inside
                 // a slice, a cast, or a call like `.contains(`; the fold
                 // ParenFold.strip applies afterwards then reads the split
                 // group as a doubled-paren pair and peels it. A comma
