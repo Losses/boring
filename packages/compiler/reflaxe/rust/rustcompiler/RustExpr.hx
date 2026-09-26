@@ -5359,8 +5359,7 @@ class RustExpr {
                 final narrowedOperand = valueTypeNarrowedInlineValue(value, locals);
                 final operand = narrowedOperand != null ? narrowedOperand : valueTypeOperand(value, locals, abs);
                 final valueText = ValueTypeSupport.isFloatRepresentation(abs) && isIntType(emittedType(value))
-                    // A wrapped Int argument widens through its signed i32 bits. (SignedIntFloatWiden)
-                    ? intToFloatSignedText(operand, value)
+                    ? intToFloatText(operand)
                     : operand;
                 wrapperName + "(" + valueText + ")";
         };
