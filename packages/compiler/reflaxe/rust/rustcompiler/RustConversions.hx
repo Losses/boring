@@ -93,7 +93,10 @@ class RustConversions {
                 inner = inner.substr(1, inner.length - 2);
         }
         final rustTarget = to.indexOf("<") >= 0 ? to.substr(0, to.indexOf("<")) + "::<" + to.substr(to.indexOf("<") + 1) : to;
-        return rustTarget + "::from_ne_bytes((" + inner + ").to_ne_bytes())";
+        // Pin the receiver to the exact integer width of `rustTarget`.
+        // Without it a bare literal or a range-loop binding renders as
+        // `{integer}` and rustc rejects `.to_ne_bytes()` with E0689.
+        return rustTarget + "::from_ne_bytes(((" + inner + ") as " + rustTarget + ").to_ne_bytes())";
     }
 
     /**

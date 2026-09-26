@@ -59,7 +59,7 @@ describe("first-class function value generated trees", () => {
   });
 
   test("Rust's f32 tree carries the same function-value lowering", () => {
-    const rust = read("reference/rust-f32-gen/src/boring/fn_values_ops.rs");
+    const rust = read("reference/rust-f32/gen/boring/fn_values_ops.rs");
     expect(rust).toContain("Arc<dyn Fn(u32) -> String + Send + Sync>");
     expect(rust).toContain("Box<dyn NameResolver>");
     expect(rust).toContain("Arc::new(move |suffix|");
@@ -80,7 +80,7 @@ describe("first-class function value generated trees", () => {
   });
 
   test("Rust's f32 tree bounds the resident comparator", () => {
-    const sortedTable = read("reference/rust-f32-gen/src/runtime/sorted_table.rs");
+    const sortedTable = read("reference/rust-f32/gen/runtime/sorted_table.rs");
     expect(sortedTable).toContain("pub fn sorted_table_set_builder<K: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>)");
     expect(sortedTable).toContain("pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>");
   });

@@ -379,7 +379,7 @@ tests.ArrayMethodSwiftTests
 
 boring.FunctionalLocalOps
 tests.FunctionalLocalTests
-# The kotlin-emitter probe of the local sumOfFloat shape: trivial on the
+# The kotlin-emitter probe of the local sumOfFloat shape: plain on the
 # other targets, but present in every root list so the cross-target id
 # set stays equal (feature spec 19).
 tests.SumOfFloatLocalTests
@@ -686,3 +686,5 @@ tests.TestApplicabilityProbeTests
 
 boring.DartNullPushOps
 tests.DartNullPushTests
+boring.IntFloatSignOps
+tests.IntFloatSignTests
