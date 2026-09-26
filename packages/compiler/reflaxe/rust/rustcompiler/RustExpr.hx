@@ -2351,7 +2351,21 @@ class RustExpr {
 
     function staticUstrLiteral(s:String):String {
         imports.requireType("runtime.UString", "UStr");
-        final units = [for (i in 0...s.length) Std.string(s.charCodeAt(i))];
+        // Haxe charCodeAt yields full code points; the UStr storage is
+        // UTF-16 units, so astral code points encode as surrogate pairs.
+        final units:Array<String> = [];
+        for (i in 0...s.length) {
+            final c = s.charCodeAt(i);
+            if (c == null)
+                continue;
+            if (c >= 0x10000) {
+                final v = c - 0x10000;
+                units.push(Std.string(0xD800 + (v >> 10)));
+                units.push(Std.string(0xDC00 + (v & 0x3FF)));
+            } else {
+                units.push(Std.string(c));
+            }
+        }
         return "UStr::new(&[" + units.join(",") + "])";
     }
 
