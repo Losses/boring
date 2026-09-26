@@ -1194,8 +1194,8 @@ class KotlinExpr {
     function nullGuardPositionsInBlock(stmts:Array<TypedExpr>):Map<Int, Array<{file:String, min:Int, max:Int}>> {
         final result:Map<Int, Array<{file:String, min:Int, max:Int}>> = [];
         // A comparison fed to a call argument (the assertion idiom
-        // `assertNotNullRendered(d != null, ...)`) is a runtime proof, not a
-        // structural narrowing kotlin performs, so such comparisons must not
+        // `assertNotNullRendered(d != null, ...)`) is a runtime proof; kotlin
+        // performs no structural narrowing, so such comparisons must not
         // register a guard: the accessor rendering hardens the subject
         // instead. (CallArgComparisonNotStructural)
         function record(e:TypedExpr, inCallArgs:Bool):Void {
@@ -1730,7 +1730,7 @@ class KotlinExpr {
         final retStr = ret == "Unit" ? "" : ": " + ret;
         // A nested function or lambda declares its own return type in TFunc.t
         // and emits that declaration as the literal result annotation, so the
-        // returns in its body are judged against the declaration instead of the
+        // returns in its body are judged against the declaration and never against the
         // enclosing member contract. Without the swap a `return null` inside a
         // Null<T>-returning literal inherits the outer non-null return type and
         // hardens to `return null!!`. (NestedFunctionNullableReturn)
@@ -2064,7 +2064,7 @@ class KotlinExpr {
                     // A Haxe Array index write grows the array when the index
                     // reaches past the end, so it needs the growth guard.
                     // Kotlin assignments are statements, so an index write
-                    // that lands in expression position wraps the guard and
+                    // appearing in expression position wraps the guard and
                     // the assignment in a run block.
                     final growth = arrayWriteLines(l, value, 0);
                     if (growth != null)
@@ -3020,7 +3020,7 @@ class KotlinExpr {
                 // Enum + String or Int + String unresolved. The left
                 // operand is the receiver of that same call, and Kotlin
                 // declares the operator on String?, so a null receiver
-                // renders "null" too instead of raising. A nullable Haxe
+                // renders "null" too and does not raise. A nullable Haxe
                 // type therefore keeps its nullable rendering on either
                 // side; the nullable Kotlin storage of a non-null Haxe
                 // value still extracts, because keepsNull reads the Haxe
@@ -4865,7 +4865,7 @@ class KotlinExpr {
     /**
         Appends `suffix` to a rendered expression, parenthesizing a text whose
         top level is not a single expression so the appended operator binds to
-        the whole value instead of to its last operand. (HardenAppendAtomicity)
+        the whole value and never to its last operand. (HardenAppendAtomicity)
     **/
     function hardenAppend(text:String, suffix:String):String {
         return isAtomicAppendTarget(text) ? text + suffix : "(" + text + ")" + suffix;
@@ -4981,7 +4981,7 @@ class KotlinExpr {
         arguments the receiver applies, so a bare type parameter reads as the
         Null-wrapped argument the receiver carries and a nullable argument is
         not hardened into a runtime throw. Substitution only ever makes an
-        expected type more nullable, never less, so a genuinely non-null
+        expected type more nullable, never less, so a non-null
         parameter keeps its assertion.
         (GenericReceiverParamNullability)
     **/
@@ -5320,7 +5320,7 @@ class KotlinExpr {
 
     /**
      * True for the empty string literal, the `split` separator whose haxe
-     * contract is one element per UTF-16 code unit rather than a platform
+     * contract is one element per UTF-16 code unit and never a platform
      * pattern match.
      */
     function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {

@@ -1375,7 +1375,7 @@ class SwiftExpr {
             case TConst(TInt(_)): "Int32(" + expr(e) + ")";
             case TField(subj, fa) if (fieldName(fa) == "length"):
     // A String length is the UTF-16 code-unit count (the Haxe
-    // String.length contract), not Swift's grapheme-cluster count.
+    // String.length contract) and never Swift's grapheme-cluster count.
     // Resident modules render String as [UInt16], where .count already
     // counts units; business modules need .utf16.count to keep index
     // loops aligned with the UTF-16 indexing ABI.
@@ -1589,7 +1589,7 @@ class SwiftExpr {
 
     /**
         True when the subject's Haxe type is a SortedMapBuilder or
-        SortedSetBuilder (the mutable builder), not the immutable built
+        SortedSetBuilder (the mutable builder) and never the immutable built
         table. Only the builder carries `put`, so only a builder-backed
         local can be written back.
     **/
@@ -1605,7 +1605,7 @@ class SwiftExpr {
         Swift runtime keeps the value array non-optional (the type
         renderer strips the inner Null so get returns one optional layer).
         A put of a possibly-nil value therefore cannot force-unwrap; the
-        nil case must not reach the store. The read side treats an absent
+        nil case must not reach the store. Reads treat an absent
         key and a nil value the same (get returns nil for both), so
         guarding the put preserves the observable reads. (NullableSortedPut)
     **/
@@ -2411,8 +2411,8 @@ class SwiftExpr {
         The container conversion of an Array<->ReadOnlyArray boundary cast,
         or null when the cast does not cross the mutable/immutable line
         (features/18). Mutable Array lowers to TiqianArray while
-        ReadOnlyArray lowers to the native value Array, so the Haxe-level
-        implicit casts render as the Swift container initializers.
+        ReadOnlyArray lowers to the native value Array, so implicit casts on the Haxe side render as the Swift container
+        initializers.
     **/
     function arrayBoundaryText(inner:TypedExpr, rendered:String, target:Type):Null<String> {
         if (StaticFieldHelper.isReadOnlyArrayType(target)) {
@@ -2984,7 +2984,7 @@ class SwiftExpr {
                             // mutable lvalue; Haxe accepts any expression
                             // there because the callee mutates its own
                             // copy. The argument materializes into a fresh
-                            // var declared just before the call, and the
+                            // var declared immediately before the call, and the
                             // call passes its address. The fresh name goes
                             // through reserveName so it can never shadow a
                             // user identifier; the declaration is collected
@@ -3336,7 +3336,7 @@ class SwiftExpr {
         materializes that argument into a temporary local (argTexts), and
         expression lowering has no statement outlet for its declaration, so
         the call text is wrapped in an immediately-invoked closure carrying
-        the collected declarations — the same shape the hoisted
+        the collected declarations (the same shape the hoisted
         interpolation leaves use. Nested calls lower through this same
         wrapper, so each call folds only its own temporaries into its own
         text and an enclosing call never sees them.
@@ -3505,7 +3505,7 @@ class SwiftExpr {
                 }
                 if (module == "String" && cls.pack.length == 0 && fName == "fromCharCode") {
                     // Haxe yields the string that holds one UTF-16 code
-                    // unit, and the corpus supplies lone surrogates. The
+                    // unit, and the sample suite supplies lone surrogates. The
                     // scalar conversion traps on a surrogate and a Swift
                     // String carries no unpaired one, so the call decodes
                     // the unit and keeps the valid scalar and surrogate
@@ -3699,7 +3699,7 @@ class SwiftExpr {
                     // per unit. The native separator forms cannot express
                     // that: `first!` on an empty separator traps, and a
                     // Character separator would cut at grapheme clusters
-                    // instead of units. The empty separator therefore walks
+                    // and never the units. The empty separator therefore walks
                     // the UTF-16 view, matching the Kotlin chunked(1) and
                     // the TypeScript native split("") shape.
                     // (StringSplitEmptyDelimiter)
@@ -3786,7 +3786,7 @@ class SwiftExpr {
                     // omitted end becomes the count. The result is a
                     // Haxe Array, which lowers to TiqianArray: the closure
                     // returns that container, so the let or return slot's
-                    // declared type accepts it, not the bare Swift Array
+                    // declared type accepts it and never the bare Swift Array
                     // the range subscript yields. (ArraySliceClamping)
                     final endOmitted = args.length < 2 || switch (stripWrap(args[1]).expr) {
                         case TConst(TNull): true;
@@ -4335,7 +4335,7 @@ class SwiftExpr {
         }
         // The second pass renders with the parameter map bound, so a
         // materialized default that reads an earlier parameter resolves
-        // against the argument this call passes for it instead of the
+        // against the argument this call passes for it and never the
         // bare parameter name, which is not in scope at the call site.
         // (OmittedDefaultReads)
         final saved = callParameterValues;
@@ -5691,7 +5691,7 @@ class SwiftExpr {
                     // A local without an explicit annotation bound to an
                     // optional-valued initializer infers an optional Swift
                     // binding. Register it as an optional binding so a nil
-                    // comparison stays live instead of folding to a constant
+                    // comparison stays live and does not fold to a constant
                     // and deleting the initialization branch. (OptionalInitBinding)
                     optionalBindingLocals.set(v.id, true);
                 }
@@ -6350,7 +6350,7 @@ class SwiftExpr {
 
     /**
         True for the empty string literal, the `split` separator whose haxe
-        contract is one element per UTF-16 code unit rather than a platform
+        contract is one element per UTF-16 code unit and never a platform
         pattern match.
     **/
     function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {

@@ -2023,7 +2023,7 @@ class DartExpr {
         The assertion of requiredValueText for an argument the call site
         pre-rendered (the base of callArgTexts, the padded text of
         constructorArgTexts). The pre-rendered text is the one that gets
-        emitted, so derive the assertion from it instead of rendering the
+        emitted, so derive the assertion from it and do not render the
         argument a second time: the first pass already recorded the local
         into flowPromotedNonNull, and a second render of the same field
         access would silently drop the receiver assertion.
@@ -2068,8 +2068,8 @@ class DartExpr {
     /**
         (GenericParamResolvedForArgs) A member of a generic class carries
         its class type parameters unsubstituted, so the value parameter of
-        SortedMapTableBuilder.put reads as V rather than the nullable type
-        the receiver bound to it. An argument of such a parameter would then
+        SortedMapTableBuilder.put reads as V even when the receiver bound
+        a nullable type to it. An argument of such a parameter would then
         look like one a non-null slot demands, and the unwrap it appends
         throws on exactly the null the builder stores. The bound type is
         the one the demand test must see.
@@ -2564,7 +2564,7 @@ class DartExpr {
                                 // operands must stay parenthesized: a bare
                                 // additive left child would otherwise bind
                                 // looser than ~/ and the fold would read
-                                // `a + (b ~/ 2)` instead of `(a + b) ~/ 2`
+                                // `a + (b ~/ 2)` where the intended grouping is `(a + b) ~/ 2`
                                 // (StdIntTruncDivParens).
                                 return "(" + expr(l) + ") ~/ (" + expr(r) + ")";
                             case _:

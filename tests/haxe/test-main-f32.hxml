@@ -1,6 +1,6 @@
 # Haxe reference in-source f32 oracle test runner (features/44).
 # TestMainF32 lives in the bundle driver's derived gen-tests dir and
-# the js lands in the derived gen dir (feature spec 59).
+# the js is written to the derived gen dir (feature spec 59).
 -lib reflaxe
 -cp packages/compiler
 -cp samples
