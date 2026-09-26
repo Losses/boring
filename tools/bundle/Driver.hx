@@ -14,7 +14,7 @@ import js.Syntax;
         bun out/bundle/driver.js compare
         bun out/bundle/driver.js verify [--with-pack]
 
-    Every generated tree lands under `<outRoot>/<id>/gen` and
+    Every generated tree is written under `<outRoot>/<id>/gen` and
     `<outRoot>/<id>/gen-tests`, derived from the project file and never
     named by it; the results file of a bundle is
     `<resultsDir>/<id>.jsonl`. The generation defines derive from the
@@ -38,9 +38,16 @@ import js.Syntax;
     (`cargo test --no-run`) and the run step runs the whole command, so
     one `cargo test` executes per test action. The swift recipe reads
     the library module name from the `swift-test-import` define of the
-    bundle's effective arguments. The pack step resolves the host
-    compiler through `BORING_PACKAGE_TSC` / `BORING_PACKAGE_KOTLINC`
-    or from `PATH`.
+    bundle's effective arguments, compiles the library with
+    `-emit-module` so the test executable's `import` resolves, and
+    compiles every test source (the backend's entry is TestMain.swift).
+    swiftc has no package graph, so a tree that imports a SwiftPM-only
+    module (SystemPackage backs the std.Fs host edge) takes that module
+    from `BORING_SWIFT_SYSTEM_PACKAGE`, a directory holding the built
+    swiftmodule and its shared library; the run stops with the variable
+    named when the tree needs it and the variable is unset. The pack
+    step resolves the host compiler through `BORING_PACKAGE_TSC` /
+    `BORING_PACKAGE_KOTLINC` or from `PATH`.
 
     `compare` delegates to the consistency manager of spec 19: the
     driver compiles `tools/test-consistency/manager.hxml` from the
@@ -413,7 +420,7 @@ class Driver {
     /**
         The haxe arguments of one generation. Order: the classpaths, the
         target defaults, the roots file, the project's arguments, the
-        bundle's arguments, then the derived defines — haxe keeps the
+        bundle's arguments, then the derived defines; haxe keeps the
         last value of a repeated define, so the derived output
         directories win over anything the roots file states, and the
         roots file wins over the driver's defaults.
@@ -578,7 +585,7 @@ class Driver {
                         buildArgs.push(root);
                     }
                     buildArgs = buildArgs.concat(bundle.build.args);
-                    buildArgs = buildArgs.concat(["-main", "TestMain", "-js", joinPath(gen, "test-main.js")]);
+                    buildArgs = buildArgs.concat(["-main", haxeTestMain(project, bundle), "-js", joinPath(gen, "test-main.js")]);
                     step(project, bundle, "test", "build", "haxe", buildArgs, bundle.build.env, null);
                     step(project, bundle, "test", "run", "bun", [joinPath(gen, "test-main.js")].concat(bundle.run.args), runEnv, null);
                 case "kotlin":
@@ -600,26 +607,46 @@ class Driver {
                     step(project, bundle, "test", "run", "java",
                         ["-cp", libraryJar + ":" + testsJar].concat(bundle.run.args).concat(["TestMainKt"]), runEnv, null);
                 case "rust":
+                    // The crate root is the bundle's derived gen dir.
+                    // The f32 twin crate is excluded from the cargo
+                    // workspace (feature spec 23), and cargo builds an
+                    // excluded crate from inside its own directory;
+                    // the form package.json's test:rust-f32 reaches
+                    // from the project root through --manifest-path.
                     step(project, bundle, "test", "build", "cargo", ["test", "--no-run"].concat(bundle.build.args), bundle.build.env, gen);
                     step(project, bundle, "test", "run", "cargo", ["test"].concat(bundle.run.args), runEnv, gen);
                 case "swift":
                     final module = swiftTestImport(project, bundle);
                     makeDirs(build);
                     final genFiles = [for (file in walkFiles(gen, ".swift")) joinPath(gen, file)];
+                    final testFiles = [for (file in walkFiles(genTests, ".swift")) joinPath(genTests, file)];
                     if (genFiles.length == 0) {
                         fail('bundle "${bundle.id}": no .swift sources under $gen; run gen first');
                     }
+                    if (testFiles.length == 0) {
+                        fail('bundle "${bundle.id}": no .swift sources under $genTests; run gen first');
+                    }
+                    final systemPackage = swiftSystemPackageDir(bundle, genFiles, testFiles);
+                    final importArgs = systemPackage == null ? [] : ["-I", systemPackage];
+                    // -emit-module writes <module>.swiftmodule beside the
+                    // library, which is what the executable's import reads.
                     step(project, bundle, "test", "build library", "swiftc",
-                        ["-emit-library"].concat(genFiles).concat(bundle.build.args)
+                        ["-emit-library", "-emit-module"].concat(importArgs).concat(genFiles).concat(bundle.build.args)
                             .concat(["-module-name", module, "-o", joinPath(build, "lib" + module + ".so")]),
                         bundle.build.env, null);
+                    // The backend names its entry TestMain.swift and the test
+                    // classes live beside it; every test source compiles into
+                    // the executable, the way the kotlin recipe does.
+                    final linkArgs = systemPackage == null ? [] : ["-L", systemPackage, "-lSystemPackage"];
                     step(project, bundle, "test", "build test executable", "swiftc",
-                        [joinPath(genTests, "main.swift")].concat(bundle.build.args)
-                            .concat(["-I", build, "-L", build, "-l" + module, "-o", joinPath(build, "test-runner")]),
+                        importArgs.concat(testFiles).concat(bundle.build.args)
+                            .concat(["-I", build, "-L", build, "-l" + module]).concat(linkArgs)
+                            .concat(["-o", joinPath(build, "test-runner")]),
                         bundle.build.env, null);
                     final runEnvSwift:Dynamic = Syntax.code("({...{0}})", runEnv);
                     final existing = Syntax.code("process.env.LD_LIBRARY_PATH || ''");
-                    Reflect.setField(runEnvSwift, "LD_LIBRARY_PATH", build + ":" + existing);
+                    final runPaths = systemPackage == null ? build : build + ":" + systemPackage;
+                    Reflect.setField(runEnvSwift, "LD_LIBRARY_PATH", runPaths + ":" + existing);
                     step(project, bundle, "test", "run", joinPath(build, "test-runner"), bundle.run.args, runEnvSwift, null);
                 default:
                     fail('bundle "${bundle.id}": target "${bundle.target}" has no recipe');
@@ -628,20 +655,74 @@ class Driver {
     }
 
     /**
+        The directory holding a prebuilt SystemPackage swiftmodule, when
+        the bundle's generated tree imports it. swiftc carries no package
+        graph: the SwiftPM-only module a std.Fs host edge imports is not
+        derivable from the compilation, so the environment names a built
+        module directory (BORING_SWIFT_SYSTEM_PACKAGE). Without it the
+        run stops with the variable named and without a bare compiler
+        error. (SwiftModuleDependencies)
+    **/
+    static function swiftSystemPackageDir(bundle:Bundle, genFiles:Array<String>, testFiles:Array<String>):Null<String> {
+        var imports = false;
+        for (file in genFiles.concat(testFiles)) {
+            if (readText(file).indexOf("import SystemPackage") >= 0) {
+                imports = true;
+                break;
+            }
+        }
+        if (!imports) {
+            return null;
+        }
+        final fromEnv:String = Syntax.code("process.env.BORING_SWIFT_SYSTEM_PACKAGE || ''");
+        if (fromEnv.length == 0) {
+            fail('bundle "${bundle.id}": the generated tree imports SystemPackage, which the swift toolchain does not ship; build the module (e.g. from the apple/swift-system sources pinned by Package.resolved) and point BORING_SWIFT_SYSTEM_PACKAGE at the directory holding SystemPackage.swiftmodule and its shared library');
+        }
+        if (!exists(joinPath(fromEnv, "SystemPackage.swiftmodule"))) {
+            fail('bundle "${bundle.id}": BORING_SWIFT_SYSTEM_PACKAGE names $fromEnv, which holds no SystemPackage.swiftmodule');
+        }
+        return fromEnv;
+    }
+
+    /**
+        The value of one `-D <name>=<value>` pair of an argument list,
+        when the list carries it.
+    **/
+    static function defineValue(args:Array<String>, name:String):Null<String> {
+        var i = 0;
+        while (i + 1 < args.length) {
+            if (args[i] == "-D" && StringTools.startsWith(args[i + 1], name + "=")) {
+                return args[i + 1].substr(name.length + 1);
+            }
+            i++;
+        }
+        return null;
+    }
+
+    /**
         The library module name of the swift recipe, read from the
         `swift-test-import` define of the bundle's effective arguments.
     **/
     static function swiftTestImport(project:Project, bundle:Bundle):String {
-        final args = genArgs(project, bundle, false);
-        var i = 0;
-        while (i + 1 < args.length) {
-            if (args[i] == "-D" && StringTools.startsWith(args[i + 1], "swift-test-import=")) {
-                return args[i + 1].substr("swift-test-import=".length);
-            }
-            i++;
+        final module = defineValue(genArgs(project, bundle, false), "swift-test-import");
+        if (module == null) {
+            fail('bundle "${bundle.id}": the swift recipe needs the library module name; pass -D swift-test-import=<module> in the bundle haxeArgs');
+            return "";
         }
-        fail('bundle "${bundle.id}": the swift recipe needs the library module name; pass -D swift-test-import=<module> in the bundle haxeArgs');
-        return "";
+        return module;
+    }
+
+    /**
+        The main class of the haxe recipe's test build, read from the
+        `haxe-test-main` define of the bundle's effective arguments.
+        The binary64 reference entry is TestMain; the f32 oracle runner
+        (features/44) is generated as TestMainF32 into the bundle's
+        derived gen-tests directory, so the f32 bundle states the
+        entry.
+    **/
+    static function haxeTestMain(project:Project, bundle:Bundle):String {
+        final main = defineValue(genArgs(project, bundle, false), "haxe-test-main");
+        return main == null ? "TestMain" : main;
     }
 
     static function actionCompare(project:Project):Void {

@@ -109,6 +109,16 @@ class SwiftExpr {
     /** Rendered constructor arguments available to defaults that read parameters. */
     var constructorParameterValues:Null<Map<String, String>> = null;
 
+    /**
+        Rendered call-site arguments per callee parameter name, active
+        while one call's coalescing defaults render. A registered
+        default that reads an earlier parameter is written for the
+        callee body, where that parameter is a local binding; the call
+        site has no such binding, so the read resolves against the
+        argument this call passes for it. (OmittedDefaultReads)
+    **/
+    var callParameterValues:Null<Map<String, String>> = null;
+
     final coalescingLocals:Map<Int, Bool> = [];
     var currentFuncReturnsOptional:Bool = false;
     var currentFuncReturnsFloat:Bool = false;
@@ -377,12 +387,17 @@ class SwiftExpr {
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: types.optionalNone(targetType);
-            case CEmptyArray: "TiqianArray()";
+            // An empty read-only array default renders as the native literal;
+            // the declared type annotation gives Swift its element type. An
+            // optional parameter carries Null<ReadOnlyArray<T>>, so the Null
+            // wrapper strips before the read-only check.
+            case CEmptyArray: StaticFieldHelper.isReadOnlyArrayType(DefaultArgExpander.withoutNull(targetType)) ? "[]" : "TiqianArray()";
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
-            case CParameterRead(name): constructorParameterValues != null && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : name;
+            case CParameterRead(name): callParameterValues != null && callParameterValues.exists(name) ? callParameterValues.get(name) : (constructorParameterValues != null
+                && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : name);
             case CInstanceFieldRead(name): "self." + SwiftNameEscape.escape(name);
             case CLocalRead(name): name;
             case CFieldAccess(CParameterRead(staticPath), ""): constructorParameterValues != null && constructorParameterValues.exists(staticPath) ? constructorParameterValues.get(staticPath) : coalescingStaticFieldText(staticPath);
@@ -757,6 +772,10 @@ class SwiftExpr {
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
                     initText = intToFloatText(initText);
+                // features/18: the annotated read-only declaration converts
+                // its mutable initializer to the native value Array.
+                if (hasTypeAnnotation && StaticFieldHelper.isReadOnlyArrayType(v.t) && isMutableArrayType(init.t))
+                    initText = "Array(" + initText + ")";
                 if (unwrapNullableInitializer && !StringTools.endsWith(initText, "!"))
                     initText += "!";
                 if (swiftShadowedLocals.exists(v.id))
@@ -802,6 +821,11 @@ class SwiftExpr {
                         var retText = returnValue(ret);
                         if (isIntType(emittedType(ret)) && currentReturnType != null && isFloatLeafType(currentReturnType))
                             retText = intToFloatText(retText);
+                        // features/18: a function returning ReadOnlyArray is the
+                        // decode boundary; the internal mutable container
+                        // converts to the native value Array at the return.
+                        if (currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) && isMutableArrayType(ret.t))
+                            retText = "Array(" + retText + ")";
                         final tryKw = containsThrowingCall(ret) ? "try " : "";
                         return [indent(depth) + "return " + tryKw + retText];
                 }
@@ -867,8 +891,12 @@ class SwiftExpr {
                     case TLocal(_) | TField(_, _): assignmentValue(l, r);
                     case _: expr(r);
                 };
+                // Haxe promotes Int into Float compound arithmetic; Swift has
+                // no implicit conversion, so the Int right side widens first
+                // (numbers ruling).
+                final widened = isArithmeticOp(inner) && isFloatTyped(l) && isIntType(emittedType(r)) ? intToFloatText(rhs) : rhs;
                 return [
-                    indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + rhs
+                    indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + widened
                 ];
             case _:
                 final builderMutation = builderBackedMutationLines(e, depth);
@@ -1347,7 +1375,7 @@ class SwiftExpr {
             case TConst(TInt(_)): "Int32(" + expr(e) + ")";
             case TField(subj, fa) if (fieldName(fa) == "length"):
     // A String length is the UTF-16 code-unit count (the Haxe
-    // String.length contract), not Swift's grapheme-cluster count.
+    // String.length contract) and never Swift's grapheme-cluster count.
     // Resident modules render String as [UInt16], where .count already
     // counts units; business modules need .utf16.count to keep index
     // loops aligned with the UTF-16 indexing ABI.
@@ -1561,7 +1589,7 @@ class SwiftExpr {
 
     /**
         True when the subject's Haxe type is a SortedMapBuilder or
-        SortedSetBuilder (the mutable builder), not the immutable built
+        SortedSetBuilder (the mutable builder) and never the immutable built
         table. Only the builder carries `put`, so only a builder-backed
         local can be written back.
     **/
@@ -1577,7 +1605,7 @@ class SwiftExpr {
         Swift runtime keeps the value array non-optional (the type
         renderer strips the inner Null so get returns one optional layer).
         A put of a possibly-nil value therefore cannot force-unwrap; the
-        nil case must not reach the store. The read side treats an absent
+        nil case must not reach the store. Reads treat an absent
         key and a nil value the same (get returns nil for both), so
         guarding the put preserves the observable reads. (NullableSortedPut)
     **/
@@ -1833,10 +1861,10 @@ class SwiftExpr {
                     }
                     return expr(coalescing.valueExpr);
                 }
-                final optional = optionalIf(c, t, f);
+                final optional = optionalIf(e, c, t, f);
                 if (optional != null)
                     return optional;
-                final guarded = guardedLookupIf(c, t, f);
+                final guarded = guardedLookupIf(e, c, t, f);
                 if (guarded != null)
                     return guarded;
                 final condition = expr(c);
@@ -1907,7 +1935,7 @@ class SwiftExpr {
 #end
     }
 
-    function optionalIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
+    function optionalIf(e:TypedExpr, c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
         var target:Null<TypedExpr> = null;
         switch (stripWrap(c).expr) {
             case TBinop(OpEq, left, right) | TBinop(OpNotEq, left, right):
@@ -1934,7 +1962,7 @@ class SwiftExpr {
         }
         final fallback = trueMatches ? ifFalse : ifTrue;
         emissionTrace("OPTIONAL_IF", expr(target));
-        return expr(target) + " ?? " + expr(fallback);
+        return expr(target) + " ?? " + coalescingFallbackText(fallback, e.t);
     }
 
     /**
@@ -2004,7 +2032,7 @@ class SwiftExpr {
         present, so nil-coalescing both keeps the check and drops the optional
         arm Swift rejects in a non-optional context.
     **/
-    function guardedLookupIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
+    function guardedLookupIf(e:TypedExpr, c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
         final guard = mapHasKey(c);
         if (guard == null) {
             return null;
@@ -2025,7 +2053,7 @@ class SwiftExpr {
             return expr(getCall);
         }
         emissionTrace("GUARD_LOOKUP", expr(getCall));
-        return expr(getCall) + " ?? " + expr(fallback);
+        return expr(getCall) + " ?? " + coalescingFallbackText(fallback, e.t);
     }
 
     function mapHasKey(e:TypedExpr):Null<{subject:TypedExpr, key:TypedExpr}> {
@@ -2237,7 +2265,12 @@ class SwiftExpr {
                 // Swift's `+=` needs the converted right side.
                 return assignTarget(l) + " += " + stdString(r, false);
             case OpAssignOp(inner):
-                return assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + expr(r);
+                final rhs = expr(r);
+                // Haxe promotes Int into Float compound arithmetic; Swift has
+                // no implicit conversion, so the Int right side widens first
+                // (numbers ruling).
+                final widened = isArithmeticOp(inner) && isFloatTyped(l) && isIntType(emittedType(r)) ? intToFloatText(rhs) : rhs;
+                return assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + widened;
             case OpAdd:
                 if (isUnitArrayTyped(e) && addLeafCount(e) >= 4) {
                     return splitConcat(e);
@@ -2353,6 +2386,14 @@ class SwiftExpr {
         // transparent; Swift needs the explicit conversion.
         if (isFloatLeafType(target) && isIntType(emittedType(inner)) && !isFloatTyped(inner))
             return intToFloatText(rendered);
+        // features/18: a Haxe Array<->ReadOnlyArray implicit cast crosses the
+        // mutable/immutable container boundary, and the two lower to different
+        // Swift types (TiqianArray vs the native value Array); the unify check
+        // below would accept the cast silently, so the container conversion
+        // renders first.
+        final container = arrayBoundaryText(inner, rendered, target);
+        if (container != null)
+            return container;
         if (Context.unify(inner.t, target)) {
             return rendered;
         }
@@ -2366,6 +2407,32 @@ class SwiftExpr {
         };
     }
 
+    /**
+        The container conversion of an Array<->ReadOnlyArray boundary cast,
+        or null when the cast does not cross the mutable/immutable line
+        (features/18). Mutable Array lowers to TiqianArray while
+        ReadOnlyArray lowers to the native value Array, so implicit casts on the Haxe side render as the Swift container
+        initializers.
+    **/
+    function arrayBoundaryText(inner:TypedExpr, rendered:String, target:Type):Null<String> {
+        if (StaticFieldHelper.isReadOnlyArrayType(target)) {
+            if (isMutableArrayType(inner.t))
+                return "Array(" + rendered + ")";
+            return null;
+        }
+        if (isMutableArrayType(target) && StaticFieldHelper.isReadOnlyArrayType(inner.t))
+            return "TiqianArray(" + rendered + ")";
+        return null;
+    }
+
+    /** Whether the type is the mutable Haxe Array, which lowers to TiqianArray. */
+    function isMutableArrayType(t:Null<Type>):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
+            case _: false;
+        };
+    }
+
     /** The module real's Swift name; Int sides of Float operations widen to it. */
     function isNullConstant(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
@@ -2376,6 +2443,24 @@ class SwiftExpr {
 
     function realType():String {
         return FloatPrecision.isF32() ? "Float" : "Double";
+    }
+
+    /**
+        The `??` fallback arm with an Int side widened when the merge type is
+        the module real: Haxe unifies the Int fallback with the Float lookup,
+        while Swift's `??` needs both sides of the same type.
+    **/
+    function coalescingFallbackText(fallback:TypedExpr, merged:Type):String {
+        final text = expr(fallback);
+        return isFloatLeafType(merged) && isIntType(emittedType(fallback)) ? intToFloatText(text) : text;
+    }
+
+    /** Only the arithmetic compound ops accept a widened operand. */
+    function isArithmeticOp(op:Binop):Bool {
+        return switch (op) {
+            case OpAdd | OpSub | OpMult | OpDiv | OpMod: true;
+            case _: false;
+        };
     }
 
     /** The operand text with an Int side of a Float operation widened. */
@@ -2899,7 +2984,7 @@ class SwiftExpr {
                             // mutable lvalue; Haxe accepts any expression
                             // there because the callee mutates its own
                             // copy. The argument materializes into a fresh
-                            // var declared just before the call, and the
+                            // var declared immediately before the call, and the
                             // call passes its address. The fresh name goes
                             // through reserveName so it can never shadow a
                             // user identifier; the declaration is collected
@@ -2907,13 +2992,26 @@ class SwiftExpr {
                             inoutTempCounter += 1;
                             final tempName = "inoutTmp" + inoutTempCounter;
                             reserveName(tempName);
-                            inoutTemps.push("var " + tempName + " = " + expr(a));
+                            // A bare array literal of integer literals
+                            // infers the 64-bit Int element (features/14:
+                            // Haxe Int is Int32), and an empty literal carries
+                            // no element type at all; the temporary names the
+                            // argument's container type so the inout slot
+                            // accepts it. (InoutTempContainerType)
+                            final literalHazard = isEmptyArrayDecl(a) || isIntLiteralArrayDecl(a) || isFloatLiteralArrayDecl(a);
+                            final tempAnnotation = literalHazard ? ": " + types.of(a.t) : "";
+                            inoutTemps.push("var " + tempName + tempAnnotation + " = " + expr(a));
                             "&" + tempName;
                     }
                 } else {
                     (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a))) && demandsValue ? expr(a) + "!" : expr(a);
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
+                // features/18: an Array argument reaching a ReadOnlyArray
+                // parameter crosses the container boundary the typer leaves
+                // implicit, so the conversion renders here.
+                if (pt != null && StaticFieldHelper.isReadOnlyArrayType(pt) && isMutableArrayType(a.t))
+                    t = "Array(" + t + ")";
                 t;
             }
         ];
@@ -2937,14 +3035,31 @@ class SwiftExpr {
         final inner = stripWrap(subj);
         // A Haxe flow-narrowed local's expression type is already non-null
         // while its Swift declaration stays optional, so a narrowed subject
-        // still unwraps.
-        if (!optionalValued(subj) && !isNullLeafType(subj.t) && !optionalValued(inner) && !isNullLeafType(inner.t) && !isNarrowed(subj)) {
+        // still unwraps. A coalescing local is the opposite: its Swift
+        // declaration is plain while the Haxe type keeps the Null wrapper,
+        // so that wrapper must not unwrap here either.
+        // (CoalescingLocalPlainBinding)
+        if ((!optionalValued(subj) && !isNullLeafType(subj.t) && !optionalValued(inner) && !isNullLeafType(inner.t) && !isNarrowed(subj))
+            || plainBoundCoalescingLocal(inner)) {
             return expr(subj);
         }
         final base = expr(subj);
         return switch (inner.expr) {
             case TLocal(_): base + "!";
             case _: "(" + base + ")!";
+        };
+    }
+
+    /**
+        A local the coalescing machinery bound to a plain Swift value: the
+        Haxe type keeps the Null wrapper while the emitted declaration is
+        plain, so a value use neither unwraps nor nil-compares it.
+        (CoalescingLocalPlainBinding)
+    **/
+    function plainBoundCoalescingLocal(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): coalescingLocals.exists(v.id) || nonOptionalDeclared.exists(v.id);
+            case _: false;
         };
     }
 
@@ -3221,7 +3336,7 @@ class SwiftExpr {
         materializes that argument into a temporary local (argTexts), and
         expression lowering has no statement outlet for its declaration, so
         the call text is wrapped in an immediately-invoked closure carrying
-        the collected declarations — the same shape the hoisted
+        the collected declarations (the same shape the hoisted
         interpolation leaves use. Nested calls lower through this same
         wrapper, so each call folds only its own temporaries into its own
         text and an enclosing call never sees them.
@@ -3327,8 +3442,9 @@ class SwiftExpr {
                 }
                 if (module == "std.Process" && fName == "args") {
                     // std.Process.args() reads the arguments after the
-                    // program name (stdlib/17).
-                    return "Array(CommandLine.arguments.dropFirst())";
+                    // program name (stdlib/17). The Haxe result is an
+                    // Array, which lowers to TiqianArray.
+                    return "TiqianArray(Array(CommandLine.arguments.dropFirst()))";
                 }
                 if (module == "std.UStringPlatform") {
                     return ustringPlatformCall(fName, args, fn);
@@ -3389,7 +3505,7 @@ class SwiftExpr {
                 }
                 if (module == "String" && cls.pack.length == 0 && fName == "fromCharCode") {
                     // Haxe yields the string that holds one UTF-16 code
-                    // unit, and the corpus supplies lone surrogates. The
+                    // unit, and the sample suite supplies lone surrogates. The
                     // scalar conversion traps on a surrogate and a Swift
                     // String carries no unpaired one, so the call decodes
                     // the unit and keeps the valid scalar and surrogate
@@ -3583,21 +3699,26 @@ class SwiftExpr {
                     // per unit. The native separator forms cannot express
                     // that: `first!` on an empty separator traps, and a
                     // Character separator would cut at grapheme clusters
-                    // instead of units. The empty separator therefore walks
+                    // and never the units. The empty separator therefore walks
                     // the UTF-16 view, matching the Kotlin chunked(1) and
                     // the TypeScript native split("") shape.
                     // (StringSplitEmptyDelimiter)
+                    // Both forms yield a Haxe Array of String parts,
+                    // which lowers to TiqianArray; the bare Swift Array
+                    // the map produces would not convert into a let or
+                    // return slot of that container type.
+                    // (StringSplitContainer)
                     if (isEmptyDelimiterSplit(name, args))
-                        return types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
+                        return "TiqianArray(" + (types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
                             + receiverText(subj)
-                            + ".utf16).map { String(decoding: [$0], as: UTF16.self) }";
-                    return types.resident ? receiverText(subj)
+                            + ".utf16).map { String(decoding: [$0], as: UTF16.self) }") + ")";
+                    return "TiqianArray(" + (types.resident ? receiverText(subj)
                         + ".split(separator: "
                         + expr(args[0])
                         + ".first!, omittingEmptySubsequences: false).map { Array($0) }" : receiverText(subj)
                         + ".split(separator: "
                         + expr(args[0])
-                        + ", omittingEmptySubsequences: false).map { String($0) }";
+                        + ", omittingEmptySubsequences: false).map { String($0) }") + ")";
                 }
                 if (name == "push") {
                     final elemType = switch (subj.t) {
@@ -3662,25 +3783,32 @@ class SwiftExpr {
                     // synthesized null for an omitted end, which Haxe reads as
                     // the length. The Swift range subscript traps on a bound
                     // outside the array, so both bounds are clamped and the
-                    // omitted end becomes the count. (ArraySliceClamping)
+                    // omitted end becomes the count. The result is a
+                    // Haxe Array, which lowers to TiqianArray: the closure
+                    // returns that container, so the let or return slot's
+                    // declared type accepts it and never the bare Swift Array
+                    // the range subscript yields. (ArraySliceClamping)
                     final endOmitted = args.length < 2 || switch (stripWrap(args[1]).expr) {
                         case TConst(TNull): true;
                         case _: false;
                     };
                     final s = receiverText(subj);
                     final from = "Int(" + expr(args[0]) + ")";
+                    final wrapped = isUnitArrayTyped(subj);
+                    final open = wrapped ? "TiqianArray(Array(" : "Array(";
+                    final close = wrapped ? "))" : ")";
                     var body = "({ () in let _a = "
                         + s
                         + "; let _n = _a.count; let _f = "
                         + from
                         + "; let _s = _f < 0 ? max(_n + _f, 0) : min(_f, _n);";
                     if (endOmitted) {
-                        body += " return Array(_a[_s..<_n]) }())";
+                        body += " return " + open + "_a[_s..<_n]" + close + " }())";
                     } else {
                         body += " let _t = Int("
                             + expr(args[1])
                             + "); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n);"
-                            + " let _e = _e0 < _s ? _s : _e0; return Array(_a[_s..<_e]) }())";
+                            + " let _e = _e0 < _s ? _s : _e0; return " + open + "_a[_s..<_e]" + close + " }())";
                     }
                     return body;
                 }
@@ -3856,7 +3984,20 @@ class SwiftExpr {
         // (a null-checked Null<String>) force-unwraps at the boundary
         // exactly like any other non-optional call parameter.
         final callArgs = argTexts(fn, args).join(", ");
-        return helper + "(" + callArgs + ")";
+        final text = helper + "(" + callArgs + ")";
+        // The Fs.readDir helper returns a bare Swift array while the
+        // Haxe call's result is a Haxe Array, which lowers to
+        // TiqianArray; the boundary wraps the helper call in that
+        // container so a let slot's declared type accepts it.
+        // (FsReadDirContainer)
+        final ret = switch (Context.follow(fn.t)) {
+            case TFun(_, r): r;
+            case _: null;
+        };
+        if (ret != null && arrayElementType(ret) != null) {
+            return "TiqianArray(" + text + ")";
+        }
+        return text;
     }
 
     /**
@@ -4173,15 +4314,66 @@ class SwiftExpr {
             case TFun(v, _): [for (x in v) x.t];
             case _: [];
         };
-        return [for (i in 0...args.length) {
-            final p = i < ps.length ? ps[i] : null;
-            final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
-            d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
-                && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : base[i];
-        }
+        final names = target == null ? [] : switch (Context.follow(target.t)) {
+            case TFun(v, _): [for (x in v) x.name];
+            case _: [];
+        };
+        final render = () -> [
+            for (i in 0...args.length) {
+                final p = i < ps.length ? ps[i] : null;
+                final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
+                d != null
+                && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
+                    && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                        p) + ")" : base[i];
+            }
         ];
+        final firstPass = render();
+        final substitutions = callParameterSubstitutions(target, names, args, firstPass);
+        if (substitutions == null) {
+            return firstPass;
+        }
+        // The second pass renders with the parameter map bound, so a
+        // materialized default that reads an earlier parameter resolves
+        // against the argument this call passes for it and never the
+        // bare parameter name, which is not in scope at the call site.
+        // (OmittedDefaultReads)
+        final saved = callParameterValues;
+        callParameterValues = substitutions;
+        final secondPass = render();
+        callParameterValues = saved;
+        return secondPass;
+    }
+
+    /**
+        Rendered call-site text per callee parameter name, or null when
+        the call needs no substitution. Only a registered coalescing
+        default that reads a parameter of its own function needs the
+        map; every other call keeps the single pass. (OmittedDefaultReads)
+    **/
+    function callParameterSubstitutions(target:Null<{c:ClassType, n:String, t:Type}>, names:Array<String>, args:Array<TypedExpr>,
+            rendered:Array<String>):Null<Map<String, String>> {
+        if (target == null) {
+            return null;
+        }
+        var readsParameter = false;
+        for (i in 0...args.length) {
+            if (DefaultArgExpander.coalescingDefaultReadsParameter(target.c, target.n, i)) {
+                readsParameter = true;
+                break;
+            }
+        }
+        if (!readsParameter) {
+            return null;
+        }
+        final map:Map<String, String> = [];
+        for (i in 0...rendered.length) {
+            final name = i < names.length ? names[i] : null;
+            if (name != null && !map.exists(name)) {
+                map.set(name, rendered[i]);
+            }
+        }
+        return map;
     }
 
     /**
@@ -4222,6 +4414,11 @@ class SwiftExpr {
             // explicit cast; Swift needs the widening conversion.
             if (p != null && isIntType(emittedType(args[i])) && isFloatLeafType(p))
                 text = intToFloatText(text);
+            // features/18: an Array argument reaching a ReadOnlyArray
+            // parameter crosses the container boundary the typer leaves
+            // implicit, so the conversion renders here.
+            if (p != null && StaticFieldHelper.isReadOnlyArrayType(p) && isMutableArrayType(args[i].t))
+                text = "Array(" + text + ")";
             rendered.push(text);
             if (i < names.length)
                 constructorParameterValues.set(names[i], text);
@@ -5189,7 +5386,10 @@ class SwiftExpr {
                     // literal, which Swift forbids inside an interpolation, so
                     // the leaf is hoisted into a let statement. Optional String
                     // leaves keep the describing form from interpolationLeaf.
-                    if (StringTools.endsWith(types.of(leaf.t), "?") && !isOptionalStringLeafType(leaf.t)) {
+                    // A coalescing local's declaration is plain, so its
+                    // Null-wrapped Haxe type must not read as optional here.
+                    // (CoalescingLocalPlainBinding)
+                    if (StringTools.endsWith(types.of(leaf.t), "?") && !plainBoundCoalescingLocal(leaf) && !isOptionalStringLeafType(leaf.t)) {
                         rendered = "(" + rendered + " == nil ? \"null\" : String(describing: " + rendered + "!))";
                         needsHoist = true;
                     }
@@ -5491,7 +5691,7 @@ class SwiftExpr {
                     // A local without an explicit annotation bound to an
                     // optional-valued initializer infers an optional Swift
                     // binding. Register it as an optional binding so a nil
-                    // comparison stays live instead of folding to a constant
+                    // comparison stays live and does not fold to a constant
                     // and deleting the initialization branch. (OptionalInitBinding)
                     optionalBindingLocals.set(v.id, true);
                 }
@@ -5881,6 +6081,14 @@ class SwiftExpr {
 
     function localDeclarationNeedsTypeAnnotation(t:Type, init:TypedExpr, hasCoalescing:Bool = false):Bool {
         return isEmptyArrayDecl(init)
+            // features/18: a read-only declaration bound to the mutable
+            // container annotates the native Array type; Swift inference
+            // would otherwise pin TiqianArray and reject later read-only
+            // consumption.
+            || (StaticFieldHelper.isReadOnlyArrayType(t) && switch (Context.follow(init.t)) {
+                case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
+                case _: false;
+            })
             || (isIntLeafType(t) && !mentionsRangeLoopVar(init))
             || isIntLiteralArrayDecl(init)
             || isBuilderCall(init)
@@ -6142,7 +6350,7 @@ class SwiftExpr {
 
     /**
         True for the empty string literal, the `split` separator whose haxe
-        contract is one element per UTF-16 code unit rather than a platform
+        contract is one element per UTF-16 code unit and never a platform
         pattern match.
     **/
     function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {

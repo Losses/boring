@@ -636,7 +636,15 @@ class SwiftDecl {
             // Swift forbids a throw from a global/static stored initializer;
             // the value is a compile-time fixture, so force the fault and
             // let a failure trap at load (stdlib/08/27).
-            final rendered = expr.containsThrowingCall(init) ? "try! " + initText : initText;
+            var rendered = expr.containsThrowingCall(init) ? "try! " + initText : initText;
+            // features/18: a read-only field initialized from a mutable array
+            // crosses the container boundary; Swift renders the two as
+            // different types, so the conversion names the native Array.
+            if (StaticFieldHelper.isReadOnlyArrayType(field.type) && switch (Context.follow(init.t)) {
+                case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
+                case _: false;
+            })
+                rendered = "Array(" + rendered + ")";
             // A non-null Haxe field initialized to null becomes an implicitly
             // unwrapped optional: the declaration admits the nil start while
             // reads stay plain, matching the Haxe null-until-assigned idiom.

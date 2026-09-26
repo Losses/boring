@@ -58,9 +58,14 @@ class RustExpr {
     // Whether the enclosing function's receiver is a mutable self reference.
     // Set once at function-body entry; the receiver-rendering flag above is
     // narrower and is overridden around each receiver, so this separate flag
-    // keeps the function-level mutability available when lowering self as a
+    // keeps the mutability of the whole function available when lowering self as a
     // mutable reference argument. (SelfMutRefArgument)
     var currentFunctionMutatesSelf:Bool = false;
+    // True only while rendering the receiver of an in-place mutating call
+    // (push/sort/... ): an indexed element receiver must stay a place
+    // expression so the mutation reaches the storage inside the Vec, while
+    // plain value reads keep the clone. (IndexedReceiverMutation)
+    var renderingInPlaceMutatorReceiver:Bool = false;
     var inTryClosure:Bool = false;
 
     final subst:Map<Int, String> = [];
@@ -115,7 +120,7 @@ class RustExpr {
     // into. It is tracked separately from errorTypeName because rendering a
     // call's arguments retargets errorTypeName to the callee's own error, and
     // a constructor nested in that argument list must still convert into the
-    // region rather than into whatever the innermost argument pass set.
+    // region, and the innermost argument pass cannot re-route it.
     var blockClosureErrorName:Null<String> = null;
     var inGenericFunction:Bool = false;
     final borrowedLoopVarIds:Map<Int, Bool> = [];
@@ -230,7 +235,7 @@ class RustExpr {
     // that walks the loop and every receiver local whose UTF-16 units were
     // hoisted into a Vec before the loop; per-char reads of any of those
     // receivers at the walking index (plus indexOffset) lower against the
-    // vector instead of rescanning the UTF-8 string. indexOffset is the
+    // vector and skip a rescan of the UTF-8 string. indexOffset is the
     // constant added to the walking index to get the read index (0 for a
     // forward walk, -1 for a reverse walk that reads at i-1). receivers[0]
     // is the primary receiver (named by the loop condition); the rest are
@@ -266,6 +271,13 @@ class RustExpr {
     // String.indexOf lowers to an expression that always yields i32; a local
     // initialized from it keeps that domain even where Int maps to u32.
     final i32Locals:Map<Int, Bool> = [];
+    // A Float local only ever fed by compound additions (`total += item`)
+    // accumulates in binary64 with one narrowing per read: the JVM reference
+    // sums Float loops in double, so a binary32 accumulator drifts below or
+    // above the admitted measure and the DP admits a different break. The
+    // storage widens to f64, each += widens its f32 operand, and every read
+    // narrows once back to the Float width. (FloatAccumulatorBinary64)
+    final f64AccumLocals:Map<Int, Bool> = [];
     // True while rendering the initializer of an i32-domain local, so the
     // wrapping arithmetic in it picks the i32 domain and the binding infers
     // i32; wrapping arithmetic is bit-identical on both domains, so the
@@ -445,12 +457,20 @@ class RustExpr {
                         inClosure) + " } else { " + coalescingDefaultText(f, targetType, true, nested, inClosure) + " }";
                 default:
             }
-        final rendered = switch (value) {
+        var rendered = switch (value) {
             case CInt(v): isFloatType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case CFloat(s):
                 final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
                 FloatPrecision.isF32() ? padded + "f32" : padded;
-            case CString(s): quoteString(s) + (asOption || !nested ? ".to_string()" : "");
+            case CString(s):
+                imports.requireType("runtime.UString", "UString");
+                final lit = "UString::from(" + quoteString(s) + ")";
+                if (asOption)
+                    return "Some(" + lit + ")";
+                // A nested call argument enters a borrowed &UStr parameter
+                // face; a top-level default enters the owned unwrap slot.
+                // (CoalescingDefaultUstrView)
+                return nested ? staticUstrLiteral(s) : lit;
             case CBool(b): b ? "true" : "false";
             case CNull: "None";
             case CEmptyArray: "vec![]";
@@ -470,12 +490,12 @@ class RustExpr {
                         // An owned String slot receiving the substituted value
                         // owns its text; a literal or a reusable view converts
                         // once at the boundary.
-                        if (isStringType(targetType) && !StringTools.endsWith(sub, ".to_string()")
+                        if (isStringType(targetType) && !StringTools.endsWith(sub, ".to_ustring()")
                             && (isStringLiteralText(sub) || reusableReadText(sub)))
-                            return "Some(" + sub + ".to_string())";
+                            return "Some(" + sub + ".to_ustring())";
                         return "Some(" + sub + ")";
                     }
-                    return asOption && isStringType(targetType) && isStringLiteralText(sub) ? sub + ".to_string()" : sub;
+                    return asOption && isStringType(targetType) && isStringLiteralText(sub) ? sub + ".to_ustring()" : sub;
                 } else if (name.indexOf(".") >= 0) coalescingStaticFieldText(name, targetType)
                 else RustImports.toSnakeCase(name);
             case CInstanceFieldRead(name):
@@ -544,12 +564,27 @@ class RustExpr {
                 // A concrete implementor default entering an interface slot
                 // boxes through the same sanctioned construction the
                 // ordinary call path uses; the interface default is
-                // otherwise emitted bare and fails the dyn cast.
-                if (isInterfaceType(targetType))
-                    "Box::new(" + constructed + ")";
-                else
+                // otherwise emitted bare and fails the dyn cast. A shared
+                // interface builds the shared handle instead.
+                // (ClassHandleShare)
+                if (isInterfaceType(targetType)) {
+                    if (isSharedIfaceType(targetType)) {
+                        imports.require("std::sync::Arc");
+                        imports.require("std::sync::Mutex");
+                        "Arc::new(Mutex::new(" + constructed + "))";
+                    } else
+                        "Box::new(" + constructed + ")";
+                } else
                     constructed;
         };
+        // A concrete implementor of a shared interface defaulting into a
+        // slot of its own class wraps into the shared handle, matching the
+        // declaration-site lowering of the class. (ClassHandleShare)
+        if (!isInterfaceType(targetType) && isSharedImplementorType(targetType)) {
+            imports.require("std::sync::Arc");
+            imports.require("std::sync::Mutex");
+            rendered = "Arc::new(Mutex::new(" + rendered + "))";
+        }
         if (!asOption)
             return rendered;
         // A nullable slot owns its payload. A plain read (a local or field,
@@ -559,8 +594,8 @@ class RustExpr {
         final inner = getNullInnerType(targetType);
         // An owned String slot receiving a reusable string view converts once
         // at the boundary so the Option owns its text.
-        if (isStringType(inner) && reusableReadText(rendered) && !StringTools.endsWith(rendered, ".to_string()"))
-            return "Some(" + rendered + ".to_string())";
+        if (isStringType(inner) && reusableReadText(rendered) && !StringTools.endsWith(rendered, ".to_ustring()"))
+            return "Some(" + rendered + ".to_ustring())";
         if (!isTypeCopy(inner) && !isStringType(inner) && reusableReadText(rendered)
             && !StringTools.endsWith(rendered, ".clone()")
             && !StringTools.endsWith(rendered, ".to_vec()"))
@@ -708,7 +743,7 @@ class RustExpr {
                             return rendered + ".to_vec()";
                     }
                     return isStringType(targetType)
-                        && !StringTools.endsWith(rendered, ".to_string()") ? rendered + ".to_string()" : rendered;
+                        && !StringTools.endsWith(rendered, ".to_ustring()") ? rendered + ".to_ustring()" : rendered;
                 case TAbstract(absRef, _) if (ValueTypeSupport.isMarkedAbstract(absRef.get())):
                     final abs = absRef.get();
                     final member = ValueTypeSupport.memberField(abs, fieldName);
@@ -718,7 +753,7 @@ class RustExpr {
                     final isConst = valueTypeStaticIsConst(member);
                     final rendered = abs.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(fieldName) : RustImports.toSnakeCase(fieldName));
                     final memberValue = isConst ? rendered : rendered + "()";
-                    return isStringType(targetType) ? memberValue + ".to_string()" : memberValue;
+                    return isStringType(targetType) ? memberValue + ".to_ustring()" : memberValue;
                 case TAbstract(absRef, _):
                     final abs = absRef.get();
                     imports.requireType(abs.module, abs.name);
@@ -798,6 +833,7 @@ class RustExpr {
         nullableSensitiveLocals.clear();
         parseIntLocals.clear();
         i32Locals.clear();
+        f64AccumLocals.clear();
         i32BindingLocals.clear();
         declaredUnsignedIntLocals.clear();
         signedCountdownVars.clear();
@@ -839,6 +875,7 @@ class RustExpr {
         // read by charCodeAt/charAt/unit_count in multiple places, when the
         // body never reassigns them. (StrParamHoist)
         scanStrParamHoists(f);
+        scanFloatAccumulators(f.expr);
         final previousReceiverContext = renderingMethodReceiver;
         renderingMethodReceiver = RustDecl.methodWritesReceiver(f.field);
         final previousFunctionMutatesSelf = currentFunctionMutatesSelf;
@@ -1034,7 +1071,9 @@ class RustExpr {
                 case TAbstract(a, _) if (a.get().name == "Bool"): "false";
                 case TAbstract(a, _) if (a.get().name == "Int"): "0";
                 case TAbstract(a, _) if (a.get().name == "Float"): "0.0";
-                case TInst(c, _) if (c.get().name == "String"): "String::new()";
+                case TInst(c, _) if (c.get().name == "String"):
+                    imports.requireType("runtime.UString", "UString");
+                    "UString::new()";
                 case TAbstract(a, _) if (a.get().name == "Null"): "None";
                 case TType(_, _): null;
                 case _: null;
@@ -1212,7 +1251,11 @@ class RustExpr {
                 case CParameterRead(_): isStringType(DefaultArgExpander.withoutNull(site.valueExpr.t));
                 default: false;
             };
-            final defaultText = isStringDefault ? rawDefaultText + ".to_string()" : rawDefaultText;
+            // The closure returns the Option's inner value, so an owned
+            // String default drops the borrowed view the literal edge took.
+            final ownedDefault = StringTools.endsWith(rawDefaultText, ".as_ustr()")
+                ? rawDefaultText.substr(0, rawDefaultText.length - ".as_ustr()".length) : rawDefaultText;
+            final defaultText = isStringDefault ? rawDefaultText + ".to_ustring()" : ownedDefault;
             final combinator = defaultIsNull ? ".or_else(|| " : ".unwrap_or_else(|| ";
             // The rebound parameter only needs mutability when the body
             // assigns it again or a try block captures an assignment; the
@@ -1264,6 +1307,17 @@ class RustExpr {
                 // (DeadInitDemote)
                 if (deadInitLocals.exists(v.id))
                     return [indent(depth) + (deadInitLocals.get(v.id) ? "let mut" : "let") + " " + name + ": " + types.of(v.t, false) + ";"];
+                // A binary64 accumulator local widens its declaration: the
+                // storage type names f64 and a float-literal initializer
+                // rebinds at the wider width. (FloatAccumulatorBinary64)
+                if (FloatPrecision.isF32() && f64AccumLocals.exists(v.id) && isFloatType(v.t) && !isNullType(v.t)) {
+                    var accInit = expr(init);
+                    if (StringTools.endsWith(accInit, "f32"))
+                        accInit = accInit.substr(0, accInit.length - 3) + "f64";
+                    else
+                        accInit = "(" + accInit + ") as f64";
+                    return [indent(depth) + kw + " " + name + ": f64 = " + accInit + ";"];
+                }
                 // A Null<T> declared local keeps Option storage at runtime
                 // even when a guard narrows a later read's Haxe type to T;
                 // record it so &str/&T slots unwrap the wrapper before the
@@ -1542,8 +1596,20 @@ class RustExpr {
                 if (isStringType(v.t)) {
                     switch (stripWrap(init).expr) {
                         case TConst(TString(s)):
-                            initStr = s.length == 0 ? "String::new()" : initStr + ".to_string()";
+                            initStr = s.length == 0 ? "UString::new()" : initStr + ".to_ustring()";
                         case _:
+                            // A std-String-shaped rendering (a format! result, a
+                            // .to_string() display value) is not a UString
+                            // producer; the local's UString storage converts it
+                            // once here so later .as_ustr() reads bind.
+                            // (StringLocalStorage)
+                            if (stdStringShapedText(initStr)
+                                && !isNullType(v.t)
+                                && !StringTools.startsWith(initStr, "UString::from(")
+                                && !StringTools.endsWith(initStr, ".to_ustring()")
+                                && !StringTools.endsWith(initStr, ".clone()")
+                                && !(StringTools.startsWith(initStr, "{") && initStr.indexOf("UString") >= 0))
+                                initStr = ustringFromStdText(initStr);
                     }
                 }
                 // A nullable local holds an Option; a non-null initializer
@@ -1578,6 +1644,21 @@ class RustExpr {
                 // (ForcingReadLocals).
                 if (initStr.indexOf(".unwrap_or(") >= 0 && !StringTools.startsWith(initStr, "if "))
                     forcingReadLocals.set(v.id, true);
+                // A local of a class implementing a registered shared
+                // interface holds the shared handle itself, so the local
+                // and every interface slot it enters name one object.
+                // (ClassHandleShare)
+                if (isSharedImplementorType(v.t) && !isTNull(init)
+                    && !StringTools.startsWith(initStr, "Arc::new(Mutex::new(")
+                    && !StringTools.startsWith(initStr, "Some(Arc::new(Mutex::new(")) {
+                    imports.require("std::sync::Arc");
+                    imports.require("std::sync::Mutex");
+                    final copyOfShared = switch (stripWrap(init).expr) {
+                        case TLocal(_) | TField(_, _): isSharedImplementorType(init.t);
+                        case _: false;
+                    };
+                    initStr = copyOfShared ? "Arc::clone(&" + initStr + ")" : "Arc::new(Mutex::new(" + initStr + "))";
+                }
                 if (isNullType(v.t) && !isTNull(init) && !StaticFieldHelper.isNullableType(init.t) && !lookupInit) {
                     initStr = "Some(" + initStr + ")";
                 }
@@ -1883,31 +1964,49 @@ class RustExpr {
                 // String expression in Some. Expressions that already carry
                 // the Null type lower to Option themselves, and TNull
                 // already renders None, so neither wraps again.
-                if (returnTypeName == "String") {
+                // A String function owns its value at the boundary. Haxe
+                // String renders as UString (and an abstract over String
+                // such as FontFaceId carries the same slot), while a
+                // Null<String> slot keeps its Option branch below.
+                final returnsOwnedString = returnTypeName == "String" || returnTypeName == "UString";
+                if (returnsOwnedString) {
                     switch (stripWrap(ret).expr) {
-                        case TConst(TString(s)): retStr = s.length == 0 ? "String::new()" : retStr + ".to_string()";
+                        case TConst(TString(s)): retStr = s.length == 0 ? "UString::new()" : retStr + ".to_ustring()";
                         case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(ret.t)):
                             // A null-checked Null<String> local owns its
                             // text; the view unwrap yields the value the
                             // guard proved present.
-                            retStr = "(" + retStr + ").as_deref().unwrap_or(\"\").to_string()";
-                        case TLocal(v) if (isBorrowedLocal(v) && !StringTools.endsWith(retStr, ".to_string()")):
+                            retStr = "(" + retStr + ").as_deref().unwrap_or(UStr::new(&[])).to_ustring()";
+                        case TLocal(v) if (isBorrowedLocal(v) && !StringTools.endsWith(retStr, ".to_ustring()")):
                             // A borrowed String parameter renders as &str; the
                             // owned String return slot converts it once.
-                            retStr = "(" + retStr + ").to_string()";
+                            retStr = "(" + retStr + ").to_ustring()";
                         case _:
+                            // A std-String-shaped rendering (a format! result,
+                            // a display block, a .name() label, a .to_string()
+                            // display value) carries none of the UString
+                            // methods the String return slot needs; it wraps
+                            // through UString::from like any other owned slot.
+                            // The rendered value may itself be a non-String
+                            // Haxe value (Std.string on an enum renders
+                            // Display); the String return slot still needs
+                            // the UString conversion whenever the rendering
+                            // is a std String value.
+                            if (stdStringShapedText(retStr))
+                                retStr = ustringFromStdText(retStr);
                     }
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && !isTNull(ret) && (!isNullType(ret.t) || isNullableCollapsedLocal(ret))) {
                     var payload = switch (stripWrap(ret).expr) {
                         case TLocal(v) if (borrowedLoopVarIds.exists(v.id)):
                             isTypeCopy(ret.t) ? "*" + retStr : ownedLoopItemCloneText(ret.t, retStr);
-                        case TConst(TString(_)): retStr + ".to_string()";
+                        case TConst(TString(_)): retStr + ".to_ustring()";
                         case _: retStr;
                     };
                     // Rust does not infer an integer literal inside Some from
                     // an Option<f64> return slot, so widen at this boundary.
                     if (StringTools.startsWith(returnTypeName, "Option<f") && isIntType(emittedType(ret)))
-                        payload = intToFloatText(payload);
+                        // A wrapped Int return (u32::wrapping_sub underflow) must widen through its signed i32 bits. (SignedIntFloatWiden)
+                        payload = intToFloatSignedText(payload, ret);
                     retStr = "Some(" + payload + ")";
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && isIntType(ret.t) && !isNullType(ret.t) && !isTNull(ret)) {
                     // An Int expression returned from a Null<Int> function
@@ -1989,7 +2088,7 @@ class RustExpr {
                     // wrapper. (ReturnSiteUnwrap)
                     if (nullableReadHoldsOption(ret) && nullableReadRendersOptionText(retStr)
                         && !isNullType(currentReturnType)
-                        && returnTypeName != "String"
+                        && returnTypeName != "String" && returnTypeName != "UString"
                         && !StringTools.startsWith(returnTypeName, "Option<")) {
                         retStr = isTypeCopy(ret.t)
                             ? "(" + retStr + ").unwrap()"
@@ -2145,11 +2244,14 @@ class RustExpr {
         if (parts.name == "add") {
             final part = expr(args[0]);
             out.push(indent(depth) + "if let Some(&unit) = " + buf + ".last() {");
-            // A Rust &str is always well-formed, so no part can open with
-            // the trail surrogate the contract would pair; the trail-start
-            // clause of stdlib/08 folds away.
+            // stdlib/08 keeps the trail-start clause: a part whose first
+            // unit is the trail of the held lead pairs with it (unit-at
+            // lowering feeds one UTF-16 unit per add), so only a part that
+            // strands the lead faults.
             out.push(indent(depth + 1) + "if unit >= 55296 && unit <= 56319 && !" + part + ".is_empty() {");
-            out.push(indent(depth + 2) + "return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from(unit) }") + ");");
+            out.push(indent(depth + 2) + "if !" + part + ".encode_utf16().next().map_or(false, |head| head >= 56320 && head <= 57343) {");
+            out.push(indent(depth + 3) + "return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from(unit) }") + ");");
+            out.push(indent(depth + 2) + "}");
             out.push(indent(depth + 1) + "}");
             out.push(indent(depth) + "}");
             out.push(indent(depth) + buf + ".extend(" + part + ".encode_utf16());");
@@ -2232,22 +2334,171 @@ class RustExpr {
         borrows through as_str.
     **/
     function exceptionMessageArg(arg:TypedExpr):String {
-        return stringViewArg(arg);
+        // The message-only constructor keeps a std &str slot (the payload
+        // enum renders its message with format!), so a literal stays a raw
+        // str literal and every other string expression converts to UTF-8
+        // once at the boundary.
+        final rendered = expr(arg);
+        if (!isStringType(arg.t))
+            return rendered;
+        return switch (stripWrap(arg).expr) {
+            case TConst(TString(s)): quoteString(s);
+            case _: isNullType(arg.t)
+                ? "(match &(" + rendered + ") { Some(v) => v.to_utf8_lossy(), None => String::new() })"
+                : "&(" + rendered + ").to_utf8_lossy()";
+        };
+    }
+
+    /**
+        A Haxe String expression whose Rust rendering is a std String value:
+        a format! result, a .name() enum label, a .to_string() display
+        value, a display block, or a from_utf16 decode. Every other String
+        rendering is already a UString producer.
+    **/
+    function stdStringShapedText(rendered:String):Bool {
+        return StringTools.endsWith(rendered, ".to_string()")
+            || StringTools.startsWith(rendered, "format!(")
+            || StringTools.startsWith(rendered, "{")
+            || rendered.indexOf("let mut out = String::new()") >= 0
+            || StringTools.endsWith(rendered, ".name()")
+            || rendered.indexOf("FPHelper::format_float") >= 0
+            // The test-platform extern shim renders as a runtime call
+            // returning a std String; every Haxe String slot needs the
+            // same conversion a format! result takes.
+            || StringTools.startsWith(rendered, "crate::runtime::test::current_test_id()");
+    }
+
+    /**
+        A '/static/ UStr literal: a borrowed &UStr slot that outlives the
+        call (a captured closure borrow) needs a '/static/ backing, which
+        the unit-array form provides. (StaticUstrLiteral)
+    **/
+    function isStringLiteralConst(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(TString(_)): true;
+            case _: false;
+        };
+    }
+
+    function staticUstrLiteral(s:String):String {
+        imports.requireType("runtime.UString", "UStr");
+        // Haxe charCodeAt yields full code points; the UStr storage is
+        // UTF-16 units, so astral code points encode as surrogate pairs.
+        final units:Array<String> = [];
+        for (i in 0...s.length) {
+            final c = s.charCodeAt(i);
+            if (c == null)
+                continue;
+            if (c >= 0x10000) {
+                final v = c - 0x10000;
+                units.push(Std.string(0xD800 + (v >> 10)));
+                units.push(Std.string(0xDC00 + (v & 0x3FF)));
+            } else {
+                units.push(Std.string(c));
+            }
+        }
+        return "UStr::new(&[" + units.join(",") + "])";
+    }
+
+    /**
+        Converts a std-String-shaped rendering into a UString value. The
+        .to_string() tail peels off first so From<&str> receives the
+        Display receiver; the finished String does not reach it.
+    **/
+    function ustringFromStdText(rendered:String):String {
+        imports.requireType("runtime.UString", "UString");
+        return "UString::from(format!(\"{}\", " + rendered + ").as_str())";
+    }
+
+    /**
+        A Haxe String value slot receives either a UString producer (which
+        takes .to_ustring()) or a std-String-shaped rendering, which wraps
+        through UString::from; String has no such method to call.
+    **/
+    /**
+        A nullable match's Some arm and its UString "null" None arm must
+        agree on one Rust type. A std-String-shaped inner rendering (a
+        float format, a .to_string()) converts through UString::from; a
+        rendering that already produces UString passes through.
+    **/
+    function nullableMatchArmText(rendered:String):String {
+        return stdStringShapedText(rendered) ? ustringFromStdText(rendered) : rendered;
+    }
+
+    /**
+        A &str slot receives a Haxe String. A std-String-shaped rendering
+        (a format! result, a display block, a .name() label) has no
+        as_ustr method, so it converts through UString::from first.
+    **/
+    function ustringViewShapedText(text:String):String {
+        return stdStringShapedText(text) ? ustringFromStdText(text) + ".as_ustr()" : text + ".as_ustr()";
+    }
+
+    /**
+        A nullable String slot takes the owned conversion: an already
+        converted rendering passes through, a std-String-shaped rendering
+        wraps through UString::from, a plain rendering converts with
+        .to_ustring().
+    **/
+    function nullableStringArgText(text:String):String {
+        if (StringTools.endsWith(text, ".to_ustring()"))
+            return text;
+        return stdStringShapedText(text) ? ustringFromStdText(text) : "(" + text + ").to_ustring()";
+    }
+
+    function ownedStringSlotText(text:String):String {
+        if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()")
+            || StringTools.startsWith(text, "UString::from("))
+            return text;
+        return stdStringShapedText(text) ? ustringFromStdText(text) : text + ".to_ustring()";
     }
 
     /**
         stringViewArg: a Rust &str slot takes a Haxe String. A string literal
         keeps its static borrowing, a borrowed parameter is already a view,
-        and every other String expression borrows through as_str.
+        and every other String expression borrows through as_str, unless its
+        rendering is a std String value (a format! result, a display block,
+        a .name() label), which converts through UString::from first.
     **/
     function stringViewArg(arg:TypedExpr):String {
         final rendered = expr(arg);
         if (!isStringType(arg.t))
             return rendered;
         return switch (stripWrap(arg).expr) {
-            case TConst(TString(_)): rendered;
-            case TLocal(v) if (isBorrowedParamLocal(v)): rendered;
-            case _: rendered + ".as_str()";
+            case TConst(TString(_)): "&(" + rendered + ")";
+            // A nullable parameter stores an Option<UString>, so a str view
+            // only fits a plain String parameter, which renders directly.
+            case TLocal(v) if (isBorrowedParamLocal(v) && !isNullType(arg.t)): rendered;
+            // A nullable string read borrows through the Option wrapper; a
+            // narrowed or collapsed local already renders the inner value,
+            // and a null-guarded ternary already collapsed both arms to the
+            // inner string, so neither re-wraps.
+            case _ if (isNullType(arg.t) && narrowedSubject(arg) == null
+                && !isNullableCollapsedLocal(arg) && !isNullGuardedTernary(arg)):
+                "(match &(" + rendered + ") { Some(v) => v.as_ustr(), None => UStr::new(&[]) })";
+            case _: stdStringShapedText(rendered) ? ustringFromStdText(rendered) + ".as_ustr()" : rendered + ".as_ustr()";
+        };
+    }
+
+    /**
+        stdStrViewArg: a native &str slot (an enum from_name lookup, the
+        runtime Fs module) takes std UTF-8 text (no UStr view). A string
+        literal already is a &'static str; a std-String-shaped rendering
+        borrows directly; every other String shape converts to the
+        borrowed UStr view, which both owned and borrowed values carry.
+    **/
+    function stdStrViewArg(arg:TypedExpr):String {
+        final rendered = expr(arg);
+        if (!isStringType(arg.t))
+            return rendered;
+        imports.requireType("runtime.UString", "UStr");
+        return switch (stripWrap(arg).expr) {
+            case TConst(TString(s)): staticUstrLiteral(s);
+            case _ if (isNullType(arg.t)):
+                '(match &(' + rendered + ') { Some(v) => v.as_ustr(), None => UStr::new(&[]) })';
+            case TLocal(v) if (isBorrowedLocal(v)): rendered;
+            case _: stdStringShapedText(rendered) ? "(" + ustringFromStdText(rendered) + ").as_ustr()"
+                : (StringTools.endsWith(rendered, ".as_ustr()") ? rendered : rendered + ".as_ustr()");
         };
     }
 
@@ -2288,6 +2539,27 @@ class RustExpr {
         }
     }
 
+    /**
+        The format spec a message-only conversion uses for the source error.
+        Every source (a declared payload enum, a message-only fault, or a
+        synthetic union whose Display formats the member fault; see
+        syntheticErrorDecls) renders its message through Display, so the
+        conversion reads the message body.
+    **/
+    function errorTextSpec(sourceName:Null<String>):String {
+        return "\"{}\"";
+    }
+
+    /** The element text an iterable Std.string rendering writes for one item. **/
+    function iterableItemText(element:Null<haxe.macro.Type>, raw:String):String {
+        return switch (PolicyQueries.stdStringCategory(element)) {
+            // The `as i32` pins untyped literal / range-loop receivers so
+            // `.to_ne_bytes()` has no ambiguous `{integer}` receiver (E0689).
+            case IsInt: "i32::from_ne_bytes(((" + raw + ") as i32).to_ne_bytes())";
+            case _: raw;
+        }
+    }
+
     function errorPropagationSuffix(c:Ref<ClassType>, cf:Ref<ClassField>, isStatic:Bool):String {
         if (!isFallible)
             return isFallibleCallee(c, cf, isStatic) ? ".unwrap()" : "";
@@ -2321,7 +2593,7 @@ class RustExpr {
             if (growth != null) {
                 for (item in growth)
                     if (item.calleeName == callee.name)
-                        return ".map_err(|e| " + targetName + "::" + item.variant + "(e))?";
+                        return ".map_err(|e| " + targetName + "::" + item.variant + "(Box::new(e)))?";
             }
             // A message-only exception declares no variants, so there is no
             // constructor to map into; it carries text, and the text is what
@@ -2331,14 +2603,12 @@ class RustExpr {
                 // The conversion names the exception type, so the call site
                 // must import it the same way a declared use would.
                 imports.requireType(messageOnlyModule, targetName);
-                // When the source error is also message-only its Display is
-                // the bare text; format with {} to keep the text through
-                // instead of wrapping it in a Debug struct name.
+                // Every source fault (message-only struct, declared payload
+                // enum, or synthetic union) carries its message through
+                // Display, so {} keeps the bare text through the conversion
+                // and skips wrapping it in a Debug struct name.
                 // (ExceptionFormatSpec)
-                final sourceModule = state.messageOnlyModuleFor(callee.name);
-                final sourceIsFaultUnion = StringTools.endsWith(callee.name, "Fault");
-                final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
-                return ".map_err(|e| " + targetName + "::new(&format!(\"" + formatSpec + "\", e)))?";
+                return ".map_err(|e| " + targetName + "::new(&format!(\"{}\", e)))?";
             }
             return "?";
         }
@@ -2361,10 +2631,9 @@ class RustExpr {
         final module = state.messageOnlyModuleFor(target);
         if (module != null) {
             imports.requireType(module, target);
-            final sourceModule = declaredName != null ? state.messageOnlyModuleFor(declaredName) : null;
-            final sourceIsFaultUnion = declaredName != null && StringTools.endsWith(declaredName, "Fault");
-            final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
-            return ".map_err(|e| " + target + "::new(&format!(\"" + formatSpec + "\", e)))?";
+            // Every source fault carries its message through Display, so {}
+            // keeps the bare text through the conversion. (ExceptionFormatSpec)
+            return ".map_err(|e| " + target + "::new(&format!(\"{}\", e)))?";
         }
         return "?";
     }
@@ -2806,8 +3075,8 @@ class RustExpr {
     /**
         dropFlagBreakPairs: within a `while (flag)` body whose flag only
         the loop condition observes, a store `flag = <pure const>`
-        immediately followed by `break` is dead — after the break the
-        condition never re-reads the flag — and is removed. Blocks and
+        immediately followed by `break` is dead (after the break the
+        condition never re-reads the flag) and is removed. Blocks and
         conditionals rebuild; every other shape keeps its statements.
         (LoopFlagBreakPairDrop)
     **/
@@ -3450,7 +3719,7 @@ class RustExpr {
                     final lenName = freshRegionName("__loop_len");
                     final guardName = freshRegionName("__loop_guard");
                     final subjText = expr(sliceSubj);
-                    // Hoist the lock into a guard bound before the loop so
+                    // Hoist the lock to a guard bound before the loop so
                     // the mutex is acquired once and held across every element
                     // access. The array's local id is removed from the shared-
                     // closure set and redirected through subst to the guard,
@@ -3477,7 +3746,8 @@ class RustExpr {
                     loopClose.push(indent(depth + 1) + iName + " += 1;");
                     loopClose.push(indent(depth) + "}");
                     // The guard is a std::sync::MutexGuard: it holds the lock
-                    // until the end of its lexical scope, not its last use, so
+                    // until the end of its lexical scope, and its last use may come
+                    // earlier, so
                     // a later lock() of the same mutex in this function would
                     // self-deadlock without an explicit drop. (LoopGuardScope)
                     loopClose.push(indent(depth) + "drop(" + guardName + ");");
@@ -3548,8 +3818,8 @@ class RustExpr {
         final loopName = readsIndex ? name : "_";
         final out:Array<String> = [];
         // Hoist every shared closure array/scalar read by the body to a
-        // loop-level guard so the mutex is acquired once instead of per
-        // element. The subst redirects the local during body generation and
+        // per-loop guard so the mutex is acquired once for all
+        // elements. The subst redirects the local during body generation and
         // is reverted after. The guard is declared `mut` so index writes and
         // pushes resolve through DerefMut. (LoopGuardHoist)
         final bodyGuardVars = collectSharedBodyGuards(loop.body);
@@ -3669,8 +3939,8 @@ class RustExpr {
 
     // Collect the shared closure array/scalar locals referenced by an indexed
     // loop body, in first-appearance order. Each is hoisted to a lock guard
-    // before the loop so the body reads and writes the guard instead of
-    // locking the mutex on every element access. (LoopGuardHoist)
+    // before the loop so the body reads and writes the guard and the
+    // mutex is locked once for the whole loop. (LoopGuardHoist)
     function collectSharedBodyGuards(body:Array<TypedExpr>):Array<TVar> {
         final seen:Map<Int, Bool> = [];
         final result:Array<TVar> = [];
@@ -3888,7 +4158,7 @@ class RustExpr {
                 + "))";
             case StringKey:
                 imports.require("std::sync::Arc");
-                "Arc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_str(), b.as_str()))";
+                "Arc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_ustr(), b.as_ustr()))";
             case StructKey(def, _):
                 final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
                 imports.requireType(def.module, cmpName);
@@ -3915,10 +4185,10 @@ class RustExpr {
         if (isStringType(arg.t)) {
             switch (stripWrap(arg).expr) {
                 case TConst(TString(_)):
-                    return "&(" + expr(arg) + ").to_string()";
+                    return "&(" + expr(arg) + ").to_ustring()";
                 case TLocal(v):
                     final pt = types.of(v.t, true);
-                    return pt == "&str" ? "&(" + expr(arg) + ").to_string()" : "&" + expr(arg);
+                    return pt == "&UStr" ? "&(" + expr(arg) + ").to_ustring()" : "&" + expr(arg);
                 case _:
                     return "&" + expr(arg);
             }
@@ -4106,7 +4376,7 @@ class RustExpr {
             if (!isTypeCopy(getNullInnerType(arg.t))) {
                 if (!StringTools.endsWith(argStr, ".clone()")
                     && !StringTools.endsWith(argStr, ".to_vec()")
-                    && !StringTools.endsWith(argStr, ".to_string()")) {
+                    && !StringTools.endsWith(argStr, ".to_ustring()")) {
                     argStr = argStr + ".clone()";
                 }
             }
@@ -4139,7 +4409,7 @@ class RustExpr {
             if (!isTypeCopy(getNullInnerType(arg.t))) {
                 if (!StringTools.endsWith(argStr, ".clone()")
                     && !StringTools.endsWith(argStr, ".to_vec()")
-                    && !StringTools.endsWith(argStr, ".to_string()")) {
+                    && !StringTools.endsWith(argStr, ".to_ustring()")) {
                     argStr = argStr + ".clone()";
                 }
             } else if (isIntType(getNullInnerType(arg.t)) && (parseIntLocals.exists(switch (stripWrap(arg).expr) {
@@ -4152,23 +4422,26 @@ class RustExpr {
             }
             return argStr;
         }
+        if (elementType != null && isStringType(elementType) && isStringType(arg.t)
+            && stdStringShapedText(argStr))
+            return ustringFromStdText(argStr);
         if (!isTypeCopy(arg.t)) {
             switch (stripWrap(arg).expr) {
                 // The base constant renderer emits a bare &str literal, so
                 // pushing one into a String array needs an owned conversion.
                 case TConst(TString(_)):
-                    argStr = argStr + ".to_string()";
+                    argStr = argStr + ".to_ustring()";
                 case TNew(_, _, _):
                 case TLocal(v) if (isBorrowedLocal(v)):
                     // The local holds a reference (a borrowed parameter).
                     // A String parameter is &str, which owns through
                     // to_string(); any other reference clones the referent
                     // so the array owns its element.
-                    argStr = isStringType(arg.t) ? argStr + ".to_string()" : "(*" + argStr + ").clone()";
+                    argStr = isStringType(arg.t) ? argStr + ".to_ustring()" : "(*" + argStr + ").clone()";
                 case TLocal(_) | TField(_) | TArray(_, _):
                     if (!StringTools.endsWith(argStr, ".clone()")
                         && !StringTools.endsWith(argStr, ".to_vec()")
-                        && !StringTools.endsWith(argStr, ".to_string()")) {
+                        && !StringTools.endsWith(argStr, ".to_ustring()")) {
                         argStr = argStr + ".clone()";
                     }
                 default:
@@ -4289,7 +4562,7 @@ class RustExpr {
     /**
         Wrap a boolean operand when its inner binary operator has lower
         precedence than the parent boolean operator: (a || b) && c must stay
-        (a || b) && c in Rust, where && binds tighter than || just like Haxe.
+        (a || b) && c in Rust, where && binds tighter than ||, matching Haxe.
         Does NOT double-wrap when the operand is already TParenthesis (the
         TParenthesis case in expr already renders its own parens).
         (BoolPrecedenceParens)
@@ -4385,17 +4658,17 @@ class RustExpr {
         return switch (stripWrap(r).expr) {
             // A literal is a &str while the Null target owns
             // Option<String>; clone does not exist on str.
-            case TConst(TString(_)): expr(r) + ".to_string()";
+            case TConst(TString(_)): expr(r) + ".to_ustring()";
             // A borrowed String parameter is a &str view; the owned
             // Option<String> slot converts its text once.
             case TLocal(v) if (isBorrowedLocal(v) && isStringType(r.t)):
                 final borrowed = expr(r);
-                StringTools.endsWith(borrowed, ".to_string()") ? borrowed : borrowed + ".to_string()";
+                StringTools.endsWith(borrowed, ".to_ustring()") ? borrowed : borrowed + ".to_ustring()";
             case _:
                 final s = expr(r);
                 if (!StringTools.endsWith(s, ".clone()")
                     && !StringTools.endsWith(s, ".to_vec()")
-                    && !StringTools.endsWith(s, ".to_string()")) {
+                    && !StringTools.endsWith(s, ".to_ustring()")) {
                     s + ".clone()";
                 } else {
                     s;
@@ -4591,7 +4864,8 @@ class RustExpr {
         // The fallback value stays plain (not Some-wrapped).
         final getText = expr(ifTrue);
         final fallback = isFloatType(emittedType(ifTrue)) && isIntType(emittedType(ifFalse))
-            ? intToFloatText(expr(ifFalse))
+            // The fallback Int may carry a wrapped u32 value; widen signed. (SignedIntFloatWiden)
+            ? intToFloatSignedText(expr(ifFalse), ifFalse)
             : expr(ifFalse);
         // The fallback must be a concrete non-null value so both arms of the
         // unwrapped ternary share the inner value type. A null literal keeps
@@ -4929,7 +5203,9 @@ class RustExpr {
                             return padded + "f32";
                         }
                         return padded + "f64";
-                    case TString(s): return quoteString(s);
+                    case TString(s):
+                        imports.requireType("runtime.UString", "UString");
+                        return "UString::from(" + quoteString(s) + ")";
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "None";
                     case TThis: return thisBindingName;
@@ -4951,7 +5227,7 @@ class RustExpr {
                 }
                 // A loop hoist redirects this shared variable to a lock
                 // guard bound outside the loop, so the guard outlives every
-                // element access instead of locking per element. (LoopGuardHoist)
+                // element access and the mutex is locked once per loop. (LoopGuardHoist)
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
@@ -4979,7 +5255,12 @@ class RustExpr {
                 // closure's own copy.
                 // (ClosureCaptureOwnedCopy)
                 if (captureOwnedStringCopies.exists(v.id))
-                    return RustImports.toSnakeCase(localName(v)) + ".as_str()";
+                    return RustImports.toSnakeCase(localName(v)) + ".as_ustr()";
+                // A binary64 accumulator narrows once per value read; the
+                // assignment target path above bypasses this so writes reach
+                // the wide storage. (FloatAccumulatorBinary64)
+                if (FloatPrecision.isF32() && f64AccumLocals.exists(v.id))
+                    return "(" + RustImports.toSnakeCase(localName(v)) + " as f32)";
                 return RustImports.toSnakeCase(localName(v));
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
@@ -4989,7 +5270,7 @@ class RustExpr {
                 final staticGuard = staticGuardOf(arr);
                 if (staticGuard != null) {
                     final base = staticGuard + "[" + staticIndex(idx) + "]";
-                    return !isTypeCopy(e.t) ? "(" + base + ").clone()" : base;
+                    return !isTypeCopy(e.t) && !renderingInPlaceMutatorReceiver ? "(" + base + ").clone()" : base;
                 }
                 final base = optionContainerIndexAccess(arr, idx, false);
                 // Reading a String element moves it out of the Vec, so a
@@ -4997,8 +5278,13 @@ class RustExpr {
                 // through arrayArgBorrow and skip the copy.
                 // Reads from an owned Haxe Array must not move its element out of
                 // the Rust Vec. Clone non-Copy values at the indexing boundary;
-                // this is the value semantics promised by Haxe arrays.
-                return !isTypeCopy(e.t) ? "(" + base + ").clone()" : base;
+                // this is the value semantics promised by Haxe arrays. A
+                // mutating method call through the indexed element is the
+                // exception: Haxe arrays are reference-semantic, so
+                // groups[i].push(x) must reach the storage inside the Vec;
+                // cloning here sends the mutation to a temporary and the
+                // original container never changes. (IndexedReceiverMutation)
+                return !isTypeCopy(e.t) && !renderingInPlaceMutatorReceiver ? "(" + base + ").clone()" : base;
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -5040,16 +5326,16 @@ class RustExpr {
                         var inner = if (isStringElem) {
                             switch (stripWrap(x).expr) {
                                 case TConst(TString(_)):
-                                    source + ".to_string()";
+                                    source + ".to_ustring()";
                                 case TLocal(v) if (isBorrowedParamLocal(v)):
-                                    source + ".to_string()";
+                                    source + ".to_ustring()";
                                 case _:
                                     source + ".clone()";
                             }
                         } else {
                             elemNeedsClone && !StringTools.endsWith(source, ".clone()") ? "(" + source + ").clone()" : source;
                         };
-                        if (elemFloat && isIntType(emittedType(x))) inner = intToFloatText(inner);
+                        if (elemFloat && isIntType(emittedType(x))) inner = intToFloatSignedText(inner, x);
                         // An i32-domain element in a business u32 array
                         // reinterprets its bits at the literal boundary.
                         if (!elemFloat && elemType != null && isIntType(elemType) && types.of(elemType, false) == "u32"
@@ -5303,7 +5589,7 @@ class RustExpr {
             case TLocal(v) if (v.id == value.id):
                 final noneExpr = trueIsNone ? ifTrue : ifFalse;
                 final noneText = expr(noneExpr);
-                final typedNoneText = isStringType(resultType) ? noneText + ".to_string()" : noneText;
+                final typedNoneText = isStringType(resultType) ? noneText + ".to_ustring()" : noneText;
                 final localName = RustImports.toSnakeCase(value.name);
                 return "match " + localName + " { None => " + typedNoneText + ", Some(ref " + localName + ") => " + localName + ".clone() }";
             case _:
@@ -5434,7 +5720,7 @@ class RustExpr {
                 switch (kind) {
                     case QCollection: en.name + "::ALL";
                     case QName: enumNameRead(args[0]);
-                    case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
+                    case QLookup: en.name + "::from_name(" + stdStrViewArg(args[1]) + ")";
                 }
         }
     }
@@ -5447,8 +5733,8 @@ class RustExpr {
     function enumNameRead(subject:TypedExpr):String {
         final rendered = expr(subject);
         return switch (PolicyQueries.enumQueryPlan(subject)) {
-            case EnumKindQuery(QLookup, _, _): rendered + ".unwrap().name().to_string()";
-            case _: rendered + ".name().to_string()";
+            case EnumKindQuery(QLookup, _, _): "UString::from(" + rendered + ".unwrap().name())";
+            case _: "UString::from(" + rendered + ".name())";
         };
     }
 
@@ -5737,7 +6023,10 @@ class RustExpr {
         catchVars.remove(parts.c.v.id);
         for (i in 0...arm.length) {
             final suffix = i == arm.length - 1 ? "," : "";
-            out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + arm[i] + suffix);
+            // A String-valued handler arm unifies with the body's owned
+            // String arms through UString::from. (CatchArmUString)
+            final armText = (arm.length == 1 && isStringType(parts.c.expr.t)) ? ustringFromStdText(arm[i]) : arm[i];
+            out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + armText + suffix);
         }
         out.push(indent(depth) + (isFallible ? "});" : "};"));
         return out;
@@ -5775,7 +6064,7 @@ class RustExpr {
             // Message variant (Haxe subclass assignment).
             final inner = freshRegionName("__caught");
             out.push(indent(depth) + "    Err(" + inner + ") => {");
-            out.push(indent(depth) + "            let " + catchName + " = " + conversion.fault + "::Message { " + conversion.field + ": " + inner + ".message.clone() };");
+            out.push(indent(depth) + "            let " + catchName + " = " + conversion.fault + "::Message { " + conversion.field + ": " + ustringFromStdText(inner + ".message.clone()") + " };");
             catchVars.set(c.v.id, true);
             final handler = blockLines(statementsOf(c.expr), depth + 3);
             catchVars.remove(c.v.id);
@@ -5823,7 +6112,10 @@ class RustExpr {
         catchVars.remove(parts.c.v.id);
         for (i in 0...arm.length) {
             final suffix = i == arm.length - 1 ? "," : "";
-            out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + arm[i] + suffix);
+            // A String-valued handler arm unifies with the body's owned
+            // String arms through UString::from. (CatchArmUString)
+            final armText = (arm.length == 1 && isStringType(parts.c.expr.t)) ? ustringFromStdText(arm[i]) : arm[i];
+            out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + armText + suffix);
         }
         out.push(indent(depth) + "};");
         return out;
@@ -6122,6 +6414,13 @@ class RustExpr {
                     && armText != "None" && !StringTools.startsWith(armText, "Some(")) {
                     armText = "Some(" + armText + ")";
                 }
+                // A String-valued match unifies its arms on UString; an arm
+                // rendering that ends in a std Display conversion (a
+                // Std.string on an enum arm) carries a bare std String, so it
+                // converts through UString::from like the sibling block arms.
+                if (isStringType(sw.t) && !isNullType(sw.t) && StringTools.endsWith(armText, ".to_string()")) {
+                    armText = ustringFromStdText(armText);
+                }
                 final suffix = i == arm.length - 1 ? "," : "";
                 out.push("    " + pattern + " => " + armText + suffix);
             }
@@ -6178,7 +6477,7 @@ class RustExpr {
                         }
                         value = expr(s);
                         if (isStringType(e.t) && isStringLiteral(s))
-                            value = value + ".to_string()";
+                            value = value + ".to_ustring()";
                 }
             }
         }
@@ -6188,7 +6487,7 @@ class RustExpr {
         }
         var valueText = value;
         if (value != null && isStringType(e.t) && isStringLiteral(e)) {
-            valueText = value + ".to_string()";
+            valueText = value + ".to_ustring()";
         }
         if (valueText != null && numericTarget != null)
             valueText = normalizeNumericBranch(e, numericTarget, valueText);
@@ -6587,9 +6886,11 @@ class RustExpr {
                     } else if (isNullableInterfaceType(f.type)) {
                         // NullableInterfaceFieldEq compares the trait objects
                         // inside Option without requiring PartialEq on them.
-                        parts.push(nullableInterfaceFieldEqText(l, r));
+                        parts.push(nullableInterfaceFieldEqText(l, r, isSharedIfaceType(f.type)));
                     } else if (isInterfaceType(f.type)) {
-                        parts.push(l + ".__haxe_type_name() == " + r + ".__haxe_type_name()");
+                        final lq = isSharedIfaceType(f.type) ? l + ".lock().unwrap()" : l;
+                        final rq = isSharedIfaceType(f.type) ? r + ".lock().unwrap()" : r;
+                        parts.push(lq + ".__haxe_type_name() == " + rq + ".__haxe_type_name()");
                     } else if (structFieldEq(f.type) != null) {
                         parts.push(structEqText(f.type, l, r));
                     }
@@ -6608,8 +6909,10 @@ class RustExpr {
     }
 
     /** Compare nullable interface fields by presence and dynamic Haxe type name. */
-    function nullableInterfaceFieldEqText(left:String, right:String):String {
-        return "match (&" + left + ", &" + right + ") { (Some(__left), Some(__right)) => __left.__haxe_type_name() == __right.__haxe_type_name(), (None, None) => true, _ => false }";
+    function nullableInterfaceFieldEqText(left:String, right:String, shared:Bool):String {
+        final lq = shared ? "__left.lock().unwrap()" : "__left";
+        final rq = shared ? "__right.lock().unwrap()" : "__right";
+        return "match (&" + left + ", &" + right + ") { (Some(__left), Some(__right)) => " + lq + ".__haxe_type_name() == " + rq + ".__haxe_type_name(), (None, None) => true, _ => false }";
     }
 
     function isTypeCopy(t:Type):Bool {
@@ -6656,8 +6959,8 @@ class RustExpr {
         if (!isStringType(e.t))
             return expr(e);
         return switch (stripWrap(e).expr) {
-            case TConst(TString(_)): expr(e) + ".to_string()";
-            case TLocal(v) if (isBorrowedLocal(v)): expr(e) + ".to_string()";
+            case TConst(TString(_)): expr(e) + ".to_ustring()";
+            case TLocal(v) if (isBorrowedLocal(v)): expr(e) + ".to_ustring()";
             case TLocal(_): expr(e) + ".clone()";
             case _: expr(e);
         };
@@ -6676,9 +6979,9 @@ class RustExpr {
                 var collapsedLeft = expr(l);
                 var collapsedRight = expr(r);
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
-                    collapsedLeft = intToFloatText(collapsedLeft);
+                    collapsedLeft = intToFloatSignedText(collapsedLeft, l);
                 else if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
-                    collapsedRight = intToFloatText(collapsedRight);
+                    collapsedRight = intToFloatSignedText(collapsedRight, r);
                 return collapsedLeft + " " + symbolOf(op) + " " + collapsedRight;
             case OpEq | OpNotEq if (nullableEnumComparedWithEnum(l.t, r.t) || nullableEnumComparedWithEnum(r.t, l.t)):
                 // A narrowed operand renders the dereferenced match binding
@@ -6744,7 +7047,19 @@ class RustExpr {
             case OpEq | OpNotEq if (isInterfaceType(l.t) || isInterfaceType(r.t)):
                 final left = expr(l);
                 final right = expr(r);
-                final eq = left + ".__haxe_type_name() == " + right + ".__haxe_type_name()";
+                // A shared interface handle opens its Mutex before the
+                // type-name read. (ClassHandleShare)
+                final lockL = isSharedIfaceType(l.t) ? left + ".lock().unwrap()" : left;
+                final lockR = isSharedIfaceType(r.t) ? right + ".lock().unwrap()" : right;
+                final eq = lockL + ".__haxe_type_name() == " + lockR + ".__haxe_type_name()";
+                return op == OpEq ? eq : "!(" + eq + ")";
+            // A shared-handle operand (a concrete implementor held as the
+            // shared Arc) compares by allocation identity: Haxe class
+            // equality is reference equality and the handle is the
+            // reference. (ClassHandleShare)
+            case OpEq | OpNotEq if (sharedHandleEqType(l.t) || sharedHandleEqType(r.t)):
+                imports.require("std::sync::Arc");
+                final eq = "Arc::ptr_eq(&(" + expr(l) + "), &(" + expr(r) + "))";
                 return op == OpEq ? eq : "!(" + eq + ")";
             // A struct whose fields cannot all derive PartialEq (for
             // example, an interface field lowers to Box<dyn Trait>) compares
@@ -6825,7 +7140,7 @@ class RustExpr {
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
                     if (hit)
-                        return "(match &(" + expr(guard.subject) + ") { Some(" + name + ") => " + right + ", None => false })";
+                        return "(match &(" + expr(guard.subject) + ") { Some(" + name + ") => " + boolOperand(r, right, OpBoolAnd, true) + ", None => false })";
                 }
                 final proven = provenNonNullLocal(l);
                 if (proven != null) {
@@ -6856,7 +7171,7 @@ class RustExpr {
                     final hit = narrowedSubject(guard.subject) != null;
                     optionNarrowings.pop();
                     if (hit)
-                        return "(match &(" + expr(guard.subject) + ") { None => true, Some(" + name + ") => " + right + " })";
+                        return "(match &(" + expr(guard.subject) + ") { None => true, Some(" + name + ") => " + boolOperand(r, right, OpBoolOr, true) + " })";
                 }
                 // A `||` chain of `== null` checks proves every checked
                 // local for the right operand: the chain is true when any
@@ -6948,14 +7263,20 @@ class RustExpr {
                     numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(collapsedTarget) ? "i32" : null,
                         collapsedTarget >= 0 && !i32Locals.exists(collapsedTarget));
                 } else if (isStringType(l.t) && !isNullType(l.t)) {
-                    switch (stripWrap(r).expr) {
-                        case TConst(TString(_)): expr(r) + ".to_string()";
+                    final rhsText = switch (stripWrap(r).expr) {
+                        case TConst(TString(_)): expr(r) + ".to_ustring()";
                         // A String parameter renders as &str in the callee;
                         // the element slot owns its text, so the assigned
                         // value converts on the way in.
-                        case TLocal(v) if (isBorrowedLocal(v)): expr(r) + ".to_string()";
+                        case TLocal(v) if (isBorrowedLocal(v)): expr(r) + ".to_ustring()";
                         default: expr(r);
-                    }
+                    };
+                    // A std-String-shaped rendering (a fromCharCode (if ...)
+                    // over from_utf16 decodes, a format! result) carries a
+                    // bare std String into the owned UString slot; it
+                    // converts through UString::from like any other owned
+                    // slot. (StdStringShapedAssign)
+                    stdStringShapedText(rhsText) ? ustringFromStdText(rhsText) : rhsText;
                 } else if (isOwnedVecType(l.t) && !isNullType(l.t) && borrowedArrayRead(r)) {
                     // An owned array local assigned a borrowed array
                     // parameter clones the referent; the local owns its
@@ -7052,14 +7373,23 @@ class RustExpr {
                     // appends that. (StringAppendStringify)
                     case OpAdd if (isStringType(l.t) && !isNullType(l.t) && !isNullType(r.t)
                         && (isIntType(r.t) || isFloatType(r.t) || isBoolType(r.t))):
-                        return assignTarget(l) + " += &(" + expr(r) + ").to_string()";
+                        return assignTarget(l) + " += &UString::from((" + expr(r) + ").to_string().as_str())";
                     case _:
                 }
                 // Haxe widens an Int operand in a Float compound assignment;
                 // Rust has no `f64 op= {integer}`, so the right side takes the
                 // same explicit Float cast ordinary Float operands use.
                 if (isFloatType(l.t) && isIntType(emittedType(r)))
-                    return assignTarget(l) + " " + symbolOf(inner) + "= " + intToFloatText(expr(r));
+                    // A wrapped Int operand widens through its signed i32 bits. (SignedIntFloatWiden)
+                    return assignTarget(l) + " " + symbolOf(inner) + "= " + intToFloatSignedText(expr(r), r);
+                // A binary64 accumulator widens each added operand; the
+                // storage does the accumulation the JVM performs in double.
+                // (FloatAccumulatorBinary64)
+                if (FloatPrecision.isF32() && (switch (stripWrap(l).expr) {
+                    case TLocal(v): f64AccumLocals.exists(v.id);
+                    case _: false;
+                }))
+                    return assignTarget(l) + " " + symbolOf(inner) + "= (" + expr(r) + ") as f64";
                 // A Null<Float> right operand lowers to Option<Float>; Haxe
                 // compound arithmetic uses the absent value's numeric zero,
                 // so extract it before the op-assign reaches the target. A
@@ -7077,8 +7407,16 @@ class RustExpr {
             case OpAdd if (isStringType(l.t) || isStringType(r.t)):
                 final parts:Array<TypedExpr> = [];
                 collectStringConcatOperands(e, parts);
-                final slots = [for (_ in parts) "{}"];
-                return "format!(\"" + slots.join("") + "\",\n            " + [for (part in parts) stringConcatOperand(part)].join(",\n            ") + "\n        )";
+                if (parts.length == 0)
+                    return "UString::new()";
+                final pushes = [];
+                for (part in parts) {
+                    if (isStringType(part.t))
+                        pushes.push("__s += " + stringViewArg(part) + ";");
+                    else
+                        pushes.push("__s += &(" + stdStringType(part.t, expr(part), false, part) + ");");
+                }
+                return "{ let mut __s = UString::new(); " + pushes.join(" ") + " __s }";
             case OpDiv if (StringTools.endsWith(operand(l, op, false), ".len()")):
                 // A length divided by a Haxe-Int divisor: the divisor widens to
                 // usize (T3, never truncates), the quotient is the target u32,
@@ -7108,7 +7446,7 @@ class RustExpr {
                 // (T7), which rounds identically to `as` without a cast.
                 // Haxe Int is signed, so a u32-domain operand reinterprets to
                 // i32 before the Float conversion; the unsigned decimal parse
-                // would read a wrapped negative as a huge positive.
+                // would read a wrapped negative as a very large positive.
                 final lStr = if (isIntType(l.t)) RustConversions.intToFloat(castSignedI32(l), real) else operand(l, op, false);
                 final rStr = if (isIntType(r.t)) RustConversions.intToFloat(castSignedI32(r), real) else operand(r, op, true);
                 return lStr + " " + symbolOf(op) + " " + rStr;
@@ -7219,9 +7557,9 @@ class RustExpr {
                 // Rust does not implicitly widen integer literals or Haxe
                 // Int expressions when the other comparison operand is Float.
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
-                    leftText = intToFloatText(leftText);
+                    leftText = intToFloatSignedText(leftText, l);
                 if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
-                    rightText = intToFloatText(rightText);
+                    rightText = intToFloatSignedText(rightText, r);
                 // An ordered comparison keeps both sides in one Rust integer
                 // type. When one operand renders in the signed i32 domain and
                 // the other in the business u32 domain, reinterpret the u32
@@ -7282,9 +7620,9 @@ class RustExpr {
                 // Haxe unifies Int and Float; widen Int comparison operands to
                 // Float when the other side is Float.
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
-                    left = intToFloatText(left);
+                    left = intToFloatSignedText(left, l);
                 if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
-                    right = intToFloatText(right);
+                    right = intToFloatSignedText(right, r);
                 // An i32-domain operand compared with a business u32 operand
                 // reinterprets its bits so both sides share the u32 domain.
                 if (isIntType(emittedType(l)) && isIntType(emittedType(r)) && !isFloatType(e.t)) {
@@ -7307,9 +7645,11 @@ class RustExpr {
     **/
     function stringOrderOperand(e:TypedExpr):String {
         return switch (stripWrap(e).expr) {
-            case TConst(TString(_)): expr(e);
+            // Every operand stays in the borrowed &UStr domain: Rust
+            // implements PartialOrd only between equal string types.
+            case TConst(TString(_)): expr(e) + ".as_ustr()";
             case TLocal(v) if (isBorrowedLocal(v)): expr(e);
-            case _: "(" + expr(e) + ").as_str()";
+            case _: "(" + ustringViewShapedText(expr(e)) + ")";
         };
     }
 
@@ -7839,6 +8179,7 @@ class RustExpr {
                 // original Int constant. Suffixing this literal prevents Rust
                 // method calls from leaving its numeric type ambiguous.
                 Std.string(v) + ".0" + (FloatPrecision.isF32() ? "f32" : "f64");
+            // A Math call treats its Int argument as a signed Haxe Int; a wrapped negative (u32::wrapping_sub underflow) must widen through the i32 bit reading; the u32 Display value would be wrong. (SignedMathFloatArg)
             case _ if (isIntType(emittedType(a))): intToFloatSignedText(expr(a), a);
             case _:
                 // A nullable local proven non-null by a guard holds the inner
@@ -7930,7 +8271,7 @@ class RustExpr {
         and stops at the first element, and a bound past the end clamps to the
         length. `lenVar` names the length binding and `boundVar` the bound,
         both in the signed domain, because the u32 Haxe Int domain turns a
-        negative position into a huge index. The caller binds the source of the
+        negative position into a very large index. The caller binds the source of the
         bound first so a call inside it runs once. (ArrayBoundClamping)
     **/
     function clampedArrayBound(lenVar:String, boundVar:String):String {
@@ -8145,7 +8486,7 @@ class RustExpr {
                 final rendered = staticRef(cls, name);
                 if (StaticFieldHelper.isArrayType(cf.get().type))
                     return rendered + ".to_vec()";
-                return StaticFieldHelper.isStringType(cf.get().type) ? rendered + ".to_string()" : rendered;
+                return StaticFieldHelper.isStringType(cf.get().type) ? rendered + ".to_ustring()" : rendered;
             case FEnum(e, ef):
                 final en = e.get();
                 imports.requireType(en.module, en.name);
@@ -8182,7 +8523,7 @@ class RustExpr {
                     // A direct array static read lowers to a Rust array
                     // `[T; N]`. Its length is a constant; reading it must not
                     // copy the whole table (RANGES.to_vec().len() copies N
-                    // elements just to count them). (StaticArrayIndexBorrow)
+                    // elements only to count them). (StaticArrayIndexBorrow)
                     final directPath = directArrayStaticReadPath(subj);
                     if (directPath != null)
                         return RustConversions.truncate(directPath + ".len()", "u32");
@@ -8215,8 +8556,8 @@ class RustExpr {
                     // target (stdlib/15), so it reads the u_string unit
                     // count ahead of the container paths below.
                     if (isString(subj)) {
-                        // A function-level hoisted String parameter reads the
-                        // precomputed count instead of rescanning. (StrParamHoist)
+                        // A String parameter hoisted to function scope reads the
+                        // precomputed count and skips the rescan. (StrParamHoist)
                         final hoisted = hoistedStrParamMatch(subj);
                         if (hoisted != null) {
                             final countText = hoisted.countTemp;
@@ -8295,7 +8636,13 @@ class RustExpr {
                 if (subjStr.indexOf(".as_ref().unwrap()") >= 0 && subjStr.indexOf("inline_object") >= 0)
                     Context.warning("FLD2 forced-as_ref src=" + (narrowed != null ? "narrowed" : proven != null ? "proven" : filled != null ? "filled" : fieldReceiverCarriesFallibleWrapper(subj) ? "fallible" : "plain") + " [" + subjStr.substr(0, subjStr.length > 70 ? 70 : subjStr.length) + "]", Context.currentPos());
 #end
-                final access = subjStr + "." + snake;
+                // A shared implementor receiver opens its Mutex before the
+                // field read so the read reaches the shared object.
+                // (ClassHandleShare)
+                final sharedFieldRecv = receiverNeedsSharedLock(subj);
+                if (sharedFieldRecv)
+                    imports.require("std::sync::Mutex");
+                final access = (sharedFieldRecv ? subjStr + ".lock().unwrap()" : subjStr) + "." + snake;
                 if (name != "length" && isRecursiveField(subj, name)) {
                     // A cursor-local receiver re-binds the recursive field
                     // value: the as_ref borrow maps to an owned clone so the
@@ -8310,7 +8657,7 @@ class RustExpr {
                     return "(" + access + ").as_ref()";
                 }
                 if (name != "length" && isConstructedStaticRead(subj) && StaticFieldHelper.isStringType(cf.get().type))
-                    return "(" + access + ").to_string()";
+                    return "(" + access + ").to_ustring()";
                 if (name != "length" && isConstructedStaticRead(subj) && !isTypeCopy(cf.get().type))
                     return "(" + access + ").clone()";
                 if (name != "length" && isNullType(cf.get().type)) {
@@ -8320,7 +8667,7 @@ class RustExpr {
                     // clones so the read produces an owned Option; the non-cloned form does not
                     // perform a move out of a reference. A method receiver keeps its
                     // borrow so mutations reach the original storage.
-                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && switch (subj.expr) {
+                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && switch (subj.expr) {
                         case TConst(TThis): true;
                         case _: isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()");
                     }) {
@@ -8329,9 +8676,9 @@ class RustExpr {
                     return access;
                 }
                 if (name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
-                    return isStringType(cf.get().type) ? "(" + access + ").to_string()" : "(" + access + ").clone()";
+                    return isStringType(cf.get().type) ? "(" + access + ").to_ustring()" : "(" + access + ").clone()";
                 }
-                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
+                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !isTypeCopy(cf.get().type)
                     && !RustDecl.isBorrowedByteField(imports.selfModule, name)
                     && switch (subj.expr) {
                         case TConst(TThis): true;
@@ -8344,7 +8691,7 @@ class RustExpr {
                 // field. Non-Copy fields must clone at the read site so the
                 // value slots that consume them receive an owned copy.
                 // Covers the borrowed-field-read family (E0507).
-                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
+                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !isTypeCopy(cf.get().type)
                     && (isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()"))) {
                     return "(" + access + ").clone()";
                 }
@@ -8357,6 +8704,20 @@ class RustExpr {
             case FClosure(_):
                 return fail(subj, "closure has no lowering");
         }
+    }
+
+    /**
+        In-place mutators rewrite the storage behind the receiver; a
+        Vec-indexed element receiver must not clone for them. By-value
+        consumers (finish, getBytes) still take a clone.
+        (IndexedReceiverMutation)
+    **/
+    function inPlaceMutatorName(name:String):Bool {
+        return switch (name) {
+            case "push" | "insert" | "pop" | "shift" | "unshift" | "remove" | "removeAt" | "splice" | "reverse" | "sort"
+                | "add" | "addChar" | "addByte" | "set" | "blit" | "fill" | "put" | "update": true;
+            case _: false;
+        };
     }
 
     function receiverText(subj:TypedExpr, cf:Null<Ref<ClassField>>):String {
@@ -8467,8 +8828,8 @@ class RustExpr {
         inside the with-closure: a clone applied outside would clone the
         returned Ref guard and tie it to the thread-local's lifetime.
         The Mutex family binds the guard to a named local inside a block and
-        clones there, so the guard drops at the end of the block instead of
-        living until the end of the enclosing statement. A statement that
+        clones there, so the guard drops at the end of the block and does
+        not live until the end of the enclosing statement. A statement that
         reads the same Mutex static twice (for example two elements of a
         vec![]) otherwise holds the first guard while the second lock() runs,
         which deadlocks the same thread. (MutexGuardStatementScope) */
@@ -8505,7 +8866,7 @@ class RustExpr {
 
     /** The guard read of a static field cloned to an owned value, or null
         when the expression is not a guard static read. Callers that need an
-        owned value must use this rather than appending ".clone()" to
+        owned value must use this and must not append ".clone()" to
         staticGuardOf: for the RefCell family the clone has to sit inside the
         with-closure. (RefCellStaticGuardScope) */
     function staticGuardCloneOf(e:TypedExpr):Null<String> {
@@ -9167,9 +9528,9 @@ class RustExpr {
             return rendered;
         if (StaticFieldHelper.isStringType(e.t)) {
             if (rendered.indexOf("&*") >= 0)
-                return rendered + ".to_string()";
-            return StringTools.endsWith(rendered, ".to_string()")
-                || StringTools.endsWith(rendered, ".clone()") ? rendered : rendered + ".to_string()";
+                return rendered + ".to_ustring()";
+            return StringTools.endsWith(rendered, ".to_ustring()")
+                || StringTools.endsWith(rendered, ".clone()") ? rendered : rendered + ".to_ustring()";
         }
         if (!isTypeCopy(e.t) && !StringTools.endsWith(rendered, ".clone()") && !StringTools.endsWith(rendered, ".to_vec()")) {
             return rendered + ".clone()";
@@ -9184,7 +9545,7 @@ class RustExpr {
         if (StaticFieldHelper.isArrayType(e.t))
             return rendered + ".to_vec()";
         if (StaticFieldHelper.isStringType(e.t) && !StringTools.endsWith(rendered, ".clone()")) {
-            return rendered + ".to_string()";
+            return rendered + ".to_ustring()";
         }
         // A nullable value pushed into a non-null static container unwraps
         // the Option; the null literal stays bare.
@@ -9277,7 +9638,7 @@ class RustExpr {
         // the generic shim import under the native name.
         switch (cls.module) {
             case "String":
-                return "String::" + RustImports.toSnakeCase(name);
+                return "UString::" + RustImports.toSnakeCase(name);
             case "Math":
                 // The f32 configuration renders the whole Math family from f32, the
                 // binary32 equivalent of every static (feature spec 23).
@@ -9491,12 +9852,17 @@ class RustExpr {
             return isNullType(args[0].t) ? "(" + subject + ").is_some()" : "true";
         final nameTest = "\"" + target.module + "." + target.name + "\"";
         // Haxe answers false for a null operand, so a nullable subject
-        // (Option storage) takes the match form instead of the direct
-        // method call the Option enum does not carry.
+        // (Option storage) takes the match form; the direct method call is
+        // one the Option enum does not carry.
         // (NullableIsOfTypeMatch)
-        if (isNullType(args[0].t))
-            return "match &(" + subject + ") { Some(v) => v.__haxe_type_name() == " + nameTest + ", None => false }";
-        return subject + ".__haxe_type_name() == " + nameTest;
+        if (isNullType(args[0].t)) {
+            final vq = isSharedIfaceType(getNullInnerType(args[0].t)) ? "v.lock().unwrap()" : "v";
+            return "match &(" + subject + ") { Some(v) => " + vq + ".__haxe_type_name() == " + nameTest + ", None => false }";
+        }
+        // A shared interface handle opens its Mutex before the name read.
+        // (ClassHandleShare)
+        final subjectRead = isSharedIfaceType(args[0].t) ? subject + ".lock().unwrap()" : subject;
+        return subjectRead + ".__haxe_type_name() == " + nameTest;
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0, optionLocal:Bool = false):String {
@@ -9508,8 +9874,8 @@ class RustExpr {
                 return "match "
                     + value
                     + " { Some(ref v) => "
-                    + stdStringType(inner, "v", false, origin, depth + 1)
-                    + ", None => \"null\".to_string() }";
+                    + nullableMatchArmText(stdStringType(inner, "v", false, origin, depth + 1))
+                    + ", None => UString::from(\"null\") }";
             case _:
         }
         // Context.follow unwraps Null<T> into T, so the switch below never
@@ -9535,8 +9901,8 @@ class RustExpr {
                     + " { Some("
                     + binding
                     + ") => "
-                    + stdStringType(inner, "v", false, origin, depth + 1, true)
-                    + ", None => \"null\".to_string() }";
+                    + nullableMatchArmText(stdStringType(inner, "v", false, origin, depth + 1, true))
+                    + ", None => UString::from(\"null\") }";
             case _:
         }
         // A local whose Rust storage renders as Option<T> (a null-initialized
@@ -9547,7 +9913,7 @@ class RustExpr {
                 final optionInner = getNullInnerType(origin.t);
                 final optionBinding = isTypeCopy(optionInner) ? "v" : "ref v";
                 return "match " + value + " { Some(" + optionBinding + ") => "
-                    + stdStringType(optionInner, "v", false, origin, depth + 1, true) + ", None => \"null\".to_string() }";
+                    + nullableMatchArmText(stdStringType(optionInner, "v", false, origin, depth + 1, true)) + ", None => UString::from(\"null\") }";
             case _:
         }
         return switch (PolicyQueries.stdStringCategory(t)) {
@@ -9556,19 +9922,19 @@ class RustExpr {
             case IsArray(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, "arr[" + index + "]", true, origin, depth + 1);
-                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let arr = ${value};\n        let n = arr.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
+                final item = iterableItemText(element, stdStringType(element, value + "[" + index + "]", true, origin, depth + 1));
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedSet(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, "set.at(" + index + ")", true, origin, depth + 1);
-                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let set = ${value};\n        let n = set.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
+                final item = iterableItemText(element, stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1));
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedMap(key, val):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final itemKey = stdStringType(key, "map.key_at(" + index + ")", true, origin, depth + 1);
-                final itemVal = stdStringType(val, "map.value_at(" + index + ")", true, origin, depth + 1);
-                '{\n        let mut out = String::new();\n        out.push(\'{\');\n        let map = ${value};\n        let n = map.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}={}", ${itemKey}, ${itemVal});\n            ${index} += 1;\n        }\n        out.push(\'}\');\n        out\n    }';
+                final itemKey = iterableItemText(key, stdStringType(key, value + ".key_at(" + index + ")", true, origin, depth + 1));
+                final itemVal = iterableItemText(val, stdStringType(val, value + ".value_at(" + index + ")", true, origin, depth + 1));
+                '{\n        let mut out = String::new();\n        out.push(\'{\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}={}", ${itemKey}, ${itemVal});\n            ${index} += 1;\n        }\n        out.push(\'}\');\n        out\n    }';
             case IsTypeParameter:
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
@@ -9578,30 +9944,21 @@ class RustExpr {
                 // emits a Result unwraps at the read site.
                 value + ".to_string()" + (instanceToStringFallible(t) ? ".unwrap()" : "");
             case IsMarkedAbstract(abs):
-                value + ".0.to_string()";
+                imports.requireType("runtime.UString", "UString");
+                return "UString::from(" + value + ".0.to_string().as_str())";
             case IsNull:
-                "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
+                // Both arms produce UString: Haxe's String is UString, and a
+                // mixed-arm match is one Rust type error regardless of the
+                // surrounding slot.
+                imports.requireType("runtime.UString", "UString");
+                "match " + value + " { Some(v) => UString::from(v.to_string().as_str()), None => UString::from(\"null\") }";
             case IsFloat:
                 inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
-            case IsBool:
-                inConcat ? value : "(" + value + ").to_string()";
-            case IsInt:
-                // A business-module Haxe Int is u32, so a negative Int stored
-                // as its two's-complement bits prints unsigned under a bare
-                // Display/to_string read. Reinterpret through the runtime
-                // helper; resident modules already render i32 and keep the
-                // direct read. A length read (usize) is already non-negative
-                // and stays plain. (RustIntStringSign)
-                if (RuntimeResidents.isResident(imports.selfModule)) {
-                    inConcat ? value : "(" + value + ").to_string()";
-                } else if (StringTools.startsWith(value, "usize::")
-                    || StringTools.endsWith(value, ".len()")
-                    || value.indexOf(".as_ref().map_or(0, |v| v.len())") >= 0) {
-                    inConcat ? value : "(" + value + ").to_string()";
-                } else {
-                    state.shimsUsed.set("std.IntText", true);
-                    "crate::runtime::int_text::IntText::int_text(" + value + ")";
-                }
+            case IsInt | IsBool:
+                if (inConcat)
+                    return value;
+                imports.requireType("runtime.UString", "UString");
+                return "UString::from((" + value + ").to_string().as_str())";
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
             case IsParameterlessEnum(en):
@@ -9611,7 +9968,11 @@ class RustExpr {
                 // to the reference and the deref applies to the returned
                 // &str. Parenthesize the deref so .name() reaches the
                 // enum value (E0308 expected String, found str).
-                (StringTools.startsWith(value, "*") ? "(" + value + ")" : value) + ".name()" + (inConcat ? "" : ".to_string()");
+                final receiver = StringTools.startsWith(value, "*") ? "(" + value + ")" : value;
+                if (inConcat)
+                    return receiver + ".name()";
+                imports.requireType("runtime.UString", "UString");
+                return "UString::from(" + receiver + ".name())";
             case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
             case IsPayloadEnum(_): value + ".to_string()";
             case IsUnsupported:
@@ -9746,7 +10107,9 @@ class RustExpr {
                     if (narrowed != null)
                         optionNarrowingHitCount++;
                     final receiverText = narrowed != null ? narrowed : expr(receiver);
-                    return receiverText + ".to_string()";
+                    // Haxe's String is UString, so the Display text converts
+                    // at the read site, and no std String leaks.
+                    return "UString::from((" + receiverText + ").to_string().as_str())";
                 }
                 final op = ValueTypeSupport.operatorOf(abs, field);
                 if (op != null) {
@@ -9778,7 +10141,7 @@ class RustExpr {
                 if (narrowed != null)
                     optionNarrowingHitCount++;
                 final receiver = narrowed != null ? narrowed : expr(subj);
-                return name == "toString" ? receiver + ".to_string()" : receiver
+                return name == "toString" ? "UString::from((" + receiver + ").to_string().as_str())" : receiver
                     + "."
                     + RustImports.toSnakeCase(name)
                     + "("
@@ -9899,10 +10262,10 @@ class RustExpr {
                 imports.requireType("std.Fs", "Fs");
                 final fsName = cf.get().name;
                 if (fsName == "mkdirSync" && args.length >= 1) {
-                    return "Fs::make_dirs(" + stringViewArg(args[0]) + ")";
+                    return "Fs::make_dirs(" + stdStrViewArg(args[0]) + ")";
                 }
                 if (fsName == "writeFileSync" && args.length >= 2) {
-                    return "Fs::write_text(" + stringViewArg(args[0]) + ", " + stringViewArg(args[1]) + ")";
+                    return "Fs::write_text(" + stdStrViewArg(args[0]) + ", " + stdStrViewArg(args[1]) + ")";
                 }
                 Context.error("file extern has no lowering for member " + fsName, fn.pos);
                 return "null";
@@ -9956,7 +10319,11 @@ class RustExpr {
                         // that lead and the map_err names it. The `?` or
                         // `.unwrap()` rides the ordinary fallibility rules.
                         final q = isFallible ? "?" : ".unwrap()";
-                        return "String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from("
+                        // toString returns Haxe String (UString); the buffer's
+                        // units decode straight into UString at the read site
+                        // (runtime side: UString::from_utf16).
+                        imports.requireType("runtime.UString", "UString");
+                        return "UString::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from("
                             + expr(subj) + "[" + expr(subj) + ".len() - 1]) }") + ")" + q;
                     }
                     if (name == "get_length" || name == "length") {
@@ -10006,25 +10373,26 @@ class RustExpr {
                         + "].to_vec()";
                 }
                 if (name == "getString" && args.length == 2 && isBytes(stripCast(subj))) {
-                    return "String::from_utf8_lossy(&"
+                    imports.requireType("runtime.UString", "UString");
+                    return "UString::from(String::from_utf8_lossy(&"
                         + expr(subj)
                         + "["
                         + castArg(args[0], "usize")
                         + ".."
                         + usizeIndex("(" + expr(args[0]) + " + " + expr(args[1]) + ")")
-                        + "]).into_owned()";
+                        + "]).into_owned().as_str())";
                 }
                 if (name == "charAt" && isString(stripCast(subj))) {
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
                     // Inside a hoisted per-character loop, the receiver's
                     // UTF-16 units already sit in a Vec; read the one-unit
-                    // slice from there instead of rescanning the UTF-8 source
+                    // slice from there and skip a rescan of the UTF-8 source
                     // (O(1) vs O(n) per character). (PerCharLoopUnits)
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
                         return "u_string::char_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
-                    // Function-level hoisted String parameter: read from the
+                    // String parameter hoisted to function scope: read from the
                     // precomputed unit vector (O(1) vs O(n)). (StrParamHoist)
                     final hoisted = hoistedStrParamMatch(subj);
                     if (hoisted != null)
@@ -10043,9 +10411,9 @@ class RustExpr {
                     // while an owned String local borrows through as_str.
                     final needle = if (isStringType(args[0].t)) {
                         switch (stripWrap(args[0]).expr) {
-                            case TConst(TString(_)): expr(args[0]);
+                            case TConst(TString(_)): expr(args[0]) + ".as_ustr()";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(args[0]);
-                            case _: "(" + expr(args[0]) + ").as_str()";
+                            case _: "(" + expr(args[0]) + ").as_ustr()";
                         };
                     } else {
                         expr(args[0]);
@@ -10068,8 +10436,21 @@ class RustExpr {
                     };
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
-                    return "u_string::find_from(&"
-                        + expr(subj)
+                    // The receiver may render as a std String (a format!
+                    // result or a .to_string() display path); those convert
+                    // to the owned Haxe form once, and the & borrow then
+                    // deref-coerces to &UStr. (IndexOfStdStringReceiver)
+                    final recvText = expr(subj);
+                    final stdRendered = StringTools.startsWith(recvText, "format!(")
+                        || StringTools.endsWith(recvText, ".to_string()")
+                        || StringTools.endsWith(recvText, ".to_utf8_lossy()")
+                        || StringTools.startsWith(recvText, "String::from_utf16");
+                    // format! goes through Display, which every string form
+                    // (std String, UString, &UStr) implements, so the
+                    // conversion does not depend on the receiver's render.
+                    final recvView = stdRendered ? "&UString::from(format!(\"{}\", " + recvText + ").as_str())" : "&(" + recvText + ")";
+                    return "u_string::find_from("
+                        + recvView
                         + ", "
                         + needle
                         + ", "
@@ -10080,12 +10461,12 @@ class RustExpr {
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
                     // Inside a hoisted per-character loop the receiver's units
-                    // already sit in a Vec; read the unit from there instead of
-                    // rescanning the UTF-8 source (O(1) vs O(n)). (PerCharLoopUnits)
+                    // already sit in a Vec; read the unit from there and skip a
+                    // rescan of the UTF-8 source (O(1) vs O(n)). (PerCharLoopUnits)
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
                         return "u_string::unit_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
-                    // A function-level hoisted String parameter reads from the
+                    // A String parameter hoisted to function scope reads from the
                     // precomputed unit vector (O(1) vs O(n) per access).
                     // (StrParamHoist)
                     final hoisted = hoistedStrParamMatch(subj);
@@ -10148,8 +10529,8 @@ class RustExpr {
                         // Inside a hoisted per-character loop, a one-unit
                         // substring(receiver, i, i + 1) reads the single unit
                         // at the walking index; lower it to the O(1) read from
-                        // the hoisted unit vector instead of rescanning the
-                        // UTF-8 source twice. (PerCharLoopUnits)
+                        // the hoisted unit vector; the UTF-8 source is then
+                        // read only once. (PerCharLoopUnits)
                         final perChar = perCharLoopMatch(subj, args[0]);
                         final startId = switch (stripWrap(args[0]).expr) {
                             case TLocal(v): v.id;
@@ -10210,7 +10591,7 @@ class RustExpr {
                             case TConst(TString(_)): true;
                             case _: false;
                         })
-                            r = r + ".to_string()";
+                            r = r + ".to_ustring()";
                         // A borrowed match binding as the value (index 1) of
                         // a nullable-V map wraps its cloned inner value in
                         // Some. The binding forms are matched exactly, so a
@@ -10334,7 +10715,7 @@ class RustExpr {
                     if (args.length > 1) {
                         final vExpr = if (isStringType(args[1].t)) {
                             switch (args[1].expr) {
-                                case TConst(TString(_)): expr(args[1]) + ".to_string()";
+                                case TConst(TString(_)): expr(args[1]) + ".to_ustring()";
                                 case _: expr(args[1]) + ".clone()";
                             }
                         } else {
@@ -10366,7 +10747,20 @@ class RustExpr {
                     return nullableMethodReceiver(subj, false) + "." + name + "(" + kExpr + ")";
                 }
                 if (name == "push") {
-                    return nullableMethodReceiver(subj, true) + ".push(" + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
+                    // An indexed element receiver must stay a place
+                    // expression: the mutation must reach the storage inside
+                    // the Vec and must not touch a cloned temporary. The flag covers only
+                    // the receiver itself: a push argument may contain an
+                    // indexed read of its own, which keeps its value clone.
+                    // A nullable wrapper in the receiver chain opens with
+                    // as_mut so the shared-borrow boundary cannot block the
+                    // mutation. (IndexedReceiverMutation)
+                    final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
+                    renderingInPlaceMutatorReceiver = true;
+                    final recv = nullableMethodReceiver(subj, true);
+                    renderingInPlaceMutatorReceiver = previousMutatorReceiver;
+                    final recvMut = StringTools.replace(recv, ".as_ref().unwrap()", ".as_mut().unwrap()");
+                    return recvMut + ".push(" + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
                 }
                 if (name == "join") {
                     if (isVecType(subj)) {
@@ -10385,18 +10779,27 @@ class RustExpr {
                         // form: its unwrap borrows the place itself.
                         final needsSplit = StringTools.contains(receiver, ".as_ref().unwrap()")
                             && !reusableReadText(stripRenderedParens(StringTools.replace(receiver, ".as_ref().unwrap()", "")));
+                        // The separator feeds std String::push_str, a &str
+                        // slot: a literal stays a raw str literal, every
+                        // other string expression converts to UTF-8 once.
+                        // The builder's out is std String for write!; the
+                        // Haxe String result converts once at the end.
+                        final sepText = !isStringType(args[0].t) ? renderedArgs : switch (stripWrap(args[0]).expr) {
+                            case TConst(TString(s)): quoteString(s);
+                            case _: "&(" + expr(args[0]) + ").to_utf8_lossy()";
+                        };
                         if (needsSplit) {
                             final tmp = freshRegionName("_jtmp");
                             final cloneExpr = StringTools.replace(receiver, ".as_ref().unwrap()", "");
                             return "{ let " + tmp + " = " + cloneExpr + "; let " + joined + " = " + tmp + ".as_ref().unwrap(); let mut out = String::new(); let n = "
                                 + joined + ".len(); let mut " + index + " = 0usize; while " + index + " < n { if " + index
-                                + " > 0 { out.push_str(&(" + renderedArgs + ")); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
-                                + index + " += 1; } out }";
+                                + " > 0 { out.push_str(" + sepText + "); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
+                                + index + " += 1; } UString::from(out.as_str()) }";
                         }
                         return "{ let " + joined + " = " + receiver + "; let mut out = String::new(); let n = "
                             + joined + ".len(); let mut " + index + " = 0usize; while " + index + " < n { if " + index
-                            + " > 0 { out.push_str(&(" + renderedArgs + ")); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
-                            + index + " += 1; } out }";
+                            + " > 0 { out.push_str(" + sepText + "); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
+                            + index + " += 1; } UString::from(out.as_str()) }";
                     }
                     return nullableMethodReceiver(subj, false) + ".join(" + renderedArgs + ")";
                 }
@@ -10419,7 +10822,7 @@ class RustExpr {
                 // stops at the first element, and a position past the end
                 // clamps to the length. Vec::insert panics on a usize index
                 // past the length, and the u32-domain Haxe Int wraps a
-                // negative position into a huge index, so the position is
+                // negative position into a very large index, so the position is
                 // clamped in the signed domain and then widened losslessly.
                 // (ArrayInsertClamping)
                 if (name == "insert" && isVecType(subj) && args.length == 2) {
@@ -10544,9 +10947,9 @@ class RustExpr {
                     // already render as &str.
                     final argStr = if (isStringType(args[0].t)) {
                         switch (stripWrap(args[0]).expr) {
-                            case TConst(TString(_)): expr(args[0]);
+                            case TConst(TString(_)): expr(args[0]) + ".as_ustr()";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(args[0]);
-                            case _: expr(args[0]) + ".as_str()";
+                            case _: expr(args[0]) + ".as_ustr()";
                         }
                     } else {
                         expr(args[0]);
@@ -10566,6 +10969,16 @@ class RustExpr {
                 }
                 final isMethodFallible = isFallibleCallee(c, cf, false);
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
+                final previousReceiverContext = renderingMethodReceiver;
+                renderingMethodReceiver = RustDecl.methodWritesReceiver(cf.get());
+                final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
+                renderingInPlaceMutatorReceiver = inPlaceMutatorName(cf.get().name);
+                final subjText = expr(subj);
+                renderingInPlaceMutatorReceiver = previousMutatorReceiver;
+                renderingMethodReceiver = previousReceiverContext;
+                final narrowed = narrowedSubject(subj);
+                if (narrowed != null)
+                    optionNarrowingHitCount++;
                 // A mutating method borrows the unwrapped receiver mutably:
                 // the trait-mutation table drives the interface-method calls,
                 // the receiver-writer list the concrete ones. The table is
@@ -10587,7 +11000,16 @@ class RustExpr {
                 // classifier, a cache). (SelfFieldReceiverBorrow)
                 final previousReceiverContext = renderingMethodReceiver;
                 renderingMethodReceiver = mutCall || isSelfRootedReceiver(subj);
-                final subjText = expr(subj);
+                var subjText = expr(subj);
+                // A fresh constructor of a shared implementor used directly
+                // as a receiver builds the shared handle inline, so the
+                // lock below reaches a real handle. (ClassHandleShare)
+                if (receiverNeedsSharedLock(subj)
+                    && switch (stripWrap(subj).expr) { case TNew(_): true; case _: false; }) {
+                    imports.require("std::sync::Arc");
+                    imports.require("std::sync::Mutex");
+                    subjText = "Arc::new(Mutex::new(" + subjText + "))";
+                }
                 renderingMethodReceiver = previousReceiverContext;
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
@@ -10595,6 +11017,13 @@ class RustExpr {
                 final forcingRead = mutCall ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
                 final subjStr = narrowed != null ? narrowed
                     : (receiverCarriesFallibleWrapper(subj) ? subjText + forcingRead : subjText);
+                // A shared interface handle (or a concrete implementor held
+                // as one) opens its Mutex before the call so the trait
+                // method reaches the shared object. (ClassHandleShare)
+                final sharedLocked = receiverNeedsSharedLock(subj);
+                if (sharedLocked)
+                    imports.require("std::sync::Mutex");
+                final lockedSubjStr = sharedLocked ? subjStr + ".lock().unwrap()" : subjStr;
                 // A by-value method on a shared (Mutex-guarded) receiver
                 // cannot move out of the guard: clone the referent through
                 // the guard and consume the clone. (SharedClosureArrays)
@@ -10603,7 +11032,7 @@ class RustExpr {
                     case _: false;
                 };
                 final throughGuardClone = receiverSharedLocal && RustDecl.methodConsumesSelf(cf.get());
-                final callReceiver = throughGuardClone ? subjText + ".clone()" : subjStr;
+                final callReceiver = throughGuardClone ? subjText + ".clone()" : lockedSubjStr;
                 final receiverOrderNeutral = narrowed == null && !throughGuardClone
                     && !receiverCarriesFallibleWrapper(subj) && isOrderNeutralArg(subj);
                 return callWithSiblingReadHoist(callReceiver + "." + snake, receiverOrderNeutral, cf.get().type, args, null, 0,
@@ -10680,11 +11109,16 @@ class RustExpr {
                         + value + ")");
                     final unwrapped = argument;
                     // Haxe's fromCharCode takes a scalar; a supplementary scalar
-                    // encodes as its surrogate pair. Rust's String is UTF-8 and
-                    // from_utf16 rejects an unpaired surrogate, so the pair is
-                    // built explicitly above the BMP while a BMP value keeps
-                    // the single-unit form. (FromCharCodeScalar)
-                    return "(if " + unwrapped + " > 0xFFFF { String::from_utf16(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]).unwrap() } else { String::from_utf16_lossy(&[" + unwrapped + " as u16]) })";
+                    // encodes as its surrogate pair, and a BMP scalar keeps the
+                    // single-unit form (including a LONE surrogate, which
+                    // Haxe/JS strings carry as an unpaired unit. A std String
+                    // decode (String::from_utf16) rejects the lone unit, so the
+                    // old rendering silently dropped the character; UString
+                    // stores raw UTF-16 units and keeps it. The rendering is
+                    // therefore a UString producer; no std-String shape applies.
+                    // (FromCharCodeScalar)
+                    imports.require("crate::runtime::u_string");
+                    return "(if " + unwrapped + " > 0xFFFF { u_string::from_units(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]) } else { u_string::from_units(&[" + unwrapped + " as u16]) })";
                 }
                 if (path == "std.UStringPlatform") {
                     // Cursor primitives of the resident UString walk, inlined
@@ -10699,19 +11133,24 @@ class RustExpr {
                         case "end":
                             return RustConversions.narrowI32("(" + expr(args[0]) + ").len()");
                         case "codeAt":
-                            // A char lowers to its Unicode scalar through
-                            // From<char> for u32, then narrows into the
-                            // resident i32 domain (values fit: scalars cap at
-                            // 0x10FFFF).
+                            // The lead UTF-16 unit widens through From<u16>
+                            // for u32, then narrows into the resident i32
+                            // domain.
                             return "i32::try_from(u32::from(" + "(" + expr(args[0]) + ")[" + castArg(args[1], "usize")
-                                + "..].chars().next().unwrap_or('\\0')" + ")).unwrap_or(0)";
+                                + "..].first().copied().unwrap_or(0)" + ")).unwrap_or(0)";
                         case "advance":
-                            return RustConversions.narrowI32("(" + castArg(args[1], "usize") + " + (" + expr(args[0]) + ")[" + castArg(args[1], "usize")
-                                + "..].chars().next().unwrap_or('\\0').len_utf8())");
+                            // A UStr cursor is a UTF-16 unit index, so the
+                            // advance steps exactly one unit. The old UTF-8
+                            // width walk skipped 2-3 units per astral lead
+                            // and overran the buffer, letting distinct keys
+                            // compare equal (SortedKeyDomain astral keys).
+                            return RustConversions.narrowI32("(" + castArg(args[1], "usize") + " + 1)");
                         case "substringBetween":
-                            return "(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "].to_string()";
+                            // UString's fields are private (E0423); build
+                            // through the borrowed slice form instead.
+                            return "UString::from(UStr::new(&(" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "]))";
                         case "fromCodePoint":
-                            return "char::from_u32(" + RustConversions.reinterpret(expr(args[0]), "u32") + ").unwrap_or('\\0').to_string()";
+                            return "UString::from(&char::from_u32(" + RustConversions.reinterpret(expr(args[0]), "u32") + ").unwrap_or('\\0').to_string())";
                         case _:
                     }
                 }
@@ -10733,26 +11172,28 @@ class RustExpr {
                         case "currentTestId":
                             return "crate::runtime::test::current_test_id()";
                         case "intToString":
-                            return "(" + expr(args[0]) + ").to_string()";
+                            return "UString::from((" + expr(args[0]) + ").to_string().as_str())";
                         case "floatToString":
-                            return "(" + expr(args[0]) + ").to_string()";
+                            return "UString::from((" + expr(args[0]) + ").to_string().as_str())";
                         case _:
                     }
                 }
                 if (path == "haxe.io.FPHelper") {
                     imports.requireType(cls.module, "FPHelper");
-                    // The f32 configuration converts the two 64-bit value edges to their
-                    // binary32 runtime variants; the 8-byte wire bit layout
-                    // is untouched (feature spec 23, ruling 7).
+                    // The f32 configuration converts the two 64-bit value edges to
+                    // their binary32 runtime variants and the two 32-bit value
+                    // edges to their numeric binary32 variants; the bit
+                    // reinterpretation pairs keep their wire semantics and are
+                    // not referenced here (feature spec 23, ruling 7).
                     final targetName = if (FloatPrecision.isF32()) {
                         if (name == "i64ToDouble")
                             "i64ToF32"
                         else if (name == "doubleToI64")
                             "f32ToI64"
                         else if (name == "i32ToFloat")
-                            "i32ToF32"
+                            "i32ToFloatF32"
                         else if (name == "floatToI32")
-                            "f32ToI32"
+                            "floatToI32F32"
                         else
                             name;
                     } else {
@@ -10830,7 +11271,7 @@ class RustExpr {
                 if ((path == "std.Process" || cls.module == "std.Process") && name == "args") {
                     // std.Process.args() reads the arguments of the test
                     // binary after its name (stdlib/17).
-                    return "std::env::args().skip(1).collect::<Vec<String>>()";
+                    return "std::env::args().skip(1).map(|__a| UString::from(__a.as_str())).collect::<Vec<UString>>()";
                 }
                 if ((path == "std.SortedMap" || cls.module == "std.SortedMap") && name == "builder") {
                     final kType = sortedKeyType(fn);
@@ -10870,8 +11311,15 @@ class RustExpr {
                     // builder omits.
                     state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
                     imports.require("crate::runtime::test_core");
+                    // The resident faces read a borrowed &UStr message: an
+                    // owned String rendering converts once, an absent message
+                    // is the empty UStr. (TestCoreUstrMessage)
                     final messageArg = function(idx:Int):String {
-                        return (args.length > idx && !isTNull(args[idx])) ? "&(" + expr(args[idx]) + ")" : "\"\"";
+                        if (!(args.length > idx && !isTNull(args[idx]))) {
+                            imports.requireType("runtime.UString", "UStr");
+                            return "UStr::new(&[])";
+                        }
+                        return stdStrViewArg(args[idx]);
                     };
                     if (name == "ok") {
                         final cond = expr(args[0]);
@@ -10923,7 +11371,7 @@ class RustExpr {
                                 case "Float":
                                     return "test_core::TestCore::test_core_equals_float(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
                                 case "String":
-                                    return "test_core::TestCore::test_core_equals_string(&(" + expr(expectedArg) + "), &(" + expr(actualArg) + "), " + msg
+                                    return "test_core::TestCore::test_core_equals_string(" + stdStrViewArg(expectedArg) + ", " + stdStrViewArg(actualArg) + ", " + msg
                                         + ")";
                                 case _:
                             }
@@ -10934,6 +11382,13 @@ class RustExpr {
                         imports.require("crate::tests::test_helper::*");
                         return fnName + "(&" + expr(expectedArg) + ", &" + expr(actualArg) + ", " + msg + ")";
                     }
+                }
+                // A native enum from_name lookup reads a &UStr name; the
+                // argument is a Haxe String value that converts to the
+                // borrowed view once here. (FromNameUstrArg)
+                if (cf.get().name == "from_name") {
+                    final parts = [for (a in args) stdStrViewArg(a)];
+                    return cls.name + "::from_name(" + parts.join(", ") + ")";
                 }
                 final isStaticFallible = isFallibleCallee(c, cf, true);
                 final q = isFallible ? (isStaticFallible ? errorPropagationSuffix(c, cf, true) : "") : (isStaticFallible ? ".unwrap()" : "");
@@ -10996,7 +11451,7 @@ class RustExpr {
                 // A class-static callee has typed parameters: when any of
                 // them is a mutable-reference position, the args must route
                 // through the standard pipeline so the position borrows
-                // instead of cloning. (MutableRefObjectParam)
+                // and no clone is made. (MutableRefObjectParam)
                 switch (stripWrap(fn).expr) {
                     case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
                         final positions = mutableParamPositions(cf.get());
@@ -11156,7 +11611,7 @@ class RustExpr {
         final previousOwnedStrings = captureOwnedStringCopies;
         currentCaptureClones = [for (v in captures) if (!sharedClosureArrays.exists(v.id) && !sharedClosureScalars.exists(v.id)) v.id => true];
         currentCaptureMut = captureMutatedCopies(f, captures);
-        captureOwnedStringCopies = [for (v in captures) if (captureCopySuffix(v) == ".to_string()") v.id => true];
+        captureOwnedStringCopies = [for (v in captures) if (captureCopySuffix(v) == ".to_ustring()") v.id => true];
         final copies = [for (v in captures) sharedClosureArrays.exists(v.id)
             ? "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
             // The prologue copy feeds the move capture by value and is only
@@ -11233,7 +11688,7 @@ class RustExpr {
     function captureCopySuffix(v:TVar):String {
         if (!isBorrowedLocal(v))
             return ".clone()";
-        return StringTools.startsWith(types.of(v.t, true), "&Vec") ? ".to_vec()" : ".to_string()";
+        return StringTools.startsWith(types.of(v.t, true), "&Vec") ? ".to_vec()" : ".to_ustring()";
     }
 
     /** Clone reusable non-Copy locals at a closure boundary before move capture. */
@@ -11584,6 +12039,43 @@ class RustExpr {
     /** Locals whose id the body never mentions in a TLocal read: the
         declaration only stores a value no one observes.
         (UnusedLocalNaming) */
+    /**
+        Marks every Float local whose only writes are compound additions
+        (`x += item`): those locals accumulate in binary64 storage and
+        narrow once per read, matching the JVM reference that sums Float
+        loops in double. A plain reassignment (`x = ...`) disqualifies the
+        local, because the stored f64 slot would take an f32 value without
+        a widening the assignment boundary does not apply. Parameters and
+        substitution-renamed locals stay out. (FloatAccumulatorBinary64)
+    **/
+    function scanFloatAccumulators(root:TypedExpr):Void {
+        final compoundTargets:Map<Int, Bool> = [];
+        final plainAssignTargets:Map<Int, Bool> = [];
+        function collect(node:TypedExpr):Void {
+            switch (node.expr) {
+                case TBinop(OpAssign, t, _):
+                    switch (stripWrap(t).expr) {
+                        case TLocal(v): plainAssignTargets.set(v.id, true);
+                        case _:
+                    }
+                case TBinop(OpAssignOp(OpAdd), t, v):
+                    switch (stripWrap(t).expr) {
+                        case TLocal(l):
+                            if (isFloatType(l.t) && !isNullType(l.t) && isFloatType(v.t)
+                                && !paramVarIds.exists(l.id) && !RustType.isTypeParam(l.t))
+                                compoundTargets.set(l.id, true);
+                        case _:
+                    }
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(node, collect);
+        }
+        collect(root);
+        for (id in compoundTargets.keys())
+            if (!plainAssignTargets.exists(id))
+                f64AccumLocals.set(id, true);
+    }
+
     function scanUnusedLocals(root:TypedExpr):Void {
         final counts:Map<Int, Int> = [];
         function walk(node:TypedExpr):Void {
@@ -12016,19 +12508,6 @@ class RustExpr {
                             final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
                             if (subject != null && containsEarlyExit(then))
                                 provenContinueSubjects.set(subjectTextOf(subject), true);
-                        case TBinop(OpNotEq, l, r):
-                            // `if (X != null) { ...X... }` proves X for the
-                            // guarded block: register the subject so the
-                            // guarded references render the inner value. The
-                            // containment test walks the AST field chain, so
-                            // rendering the block here would advance the
-                            // naming counters as a side effect.
-                            final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
-                            if (subject != null) {
-                                final chain = accessChainOf(subject);
-                                if (chain != null && containsAccess(then, chain))
-                                    provenContinueSubjects.set(subjectTextOf(subject), true);
-                            }
                         case _:
                     }
                 case _:
@@ -12105,7 +12584,7 @@ class RustExpr {
             return "(" + rendered + ").unwrap()";
         // A constructor fault reaching a message-only region has no variant to
         // map into: the region carries text and its catch arm reads that text,
-        // so the conversion formats the source error instead of a plain `?`.
+        // so the conversion formats the source error; a plain `?` would not.
         final target = blockClosureErrorName != null ? blockClosureErrorName : (localFunctionErrorName != null ? localFunctionErrorName : errorTypeName);
         final module = target != null ? state.messageOnlyModuleFor(target) : null;
         if (module != null && constructorErrorName(e) != target) {
@@ -12136,7 +12615,7 @@ class RustExpr {
             final constructorTarget = state.messageOnlyModuleFor(target);
             if (constructorTarget != null) {
                 imports.requireType(constructorTarget, target);
-                return ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+                return ".map_err(|e| " + target + "::new(&format!(" + errorTextSpec(declared.name) + ", e)))?";
             }
             return "?";
         }
@@ -12147,14 +12626,13 @@ class RustExpr {
         if (growth != null)
             for (item in growth)
                 if (item.calleeName == declared.name)
-                    return ".map_err(|e| " + target + "::" + item.variant + "(e))?";
+                    return ".map_err(|e| " + target + "::" + item.variant + "(Box::new(e)))?";
         final module = state.messageOnlyModuleFor(target);
         if (module != null) {
             imports.requireType(module, target);
-            final sourceModule = state.messageOnlyModuleFor(declared.name);
-            final sourceIsFaultUnion = StringTools.endsWith(declared.name, "Fault");
-            final formatSpec = (sourceModule != null || !sourceIsFaultUnion) ? "{}" : "{:?}";
-            return ".map_err(|e| " + target + "::new(&format!(\"" + formatSpec + "\", e)))?";
+            // Every source fault carries its message through Display, so {}
+            // keeps the bare text through the conversion. (ExceptionFormatSpec)
+            return ".map_err(|e| " + target + "::new(&format!(\"{}\", e)))?";
         }
         return "?";
     }
@@ -12282,7 +12760,7 @@ class RustExpr {
 
     function rustMapKey(e:TypedExpr):String {
         final rendered = expr(e);
-        return isStringType(e.t) || isStringLiteral(e) ? rendered + ".to_string()" : rendered;
+        return isStringType(e.t) || isStringLiteral(e) ? ownedStringSlotText(rendered) : rendered;
     }
 
     function isStringLiteral(e:TypedExpr):Bool {
@@ -12311,16 +12789,16 @@ class RustExpr {
             rendered = isTypeCopy(inner) ? "*((" + rendered + ").as_ref().unwrap())" : "(" + rendered + ").as_ref().unwrap().clone()";
         }
         return isStringType(e.t) ? switch (stripWrap(e).expr) {
-            case TConst(TString(_)): rendered + ".to_string()";
+            case TConst(TString(_)): rendered + ".to_ustring()";
             case _: rendered;
         } : rendered;
     }
 
     /**
         Constructor arguments (feature spec 27): a String parameter takes
-        &str, so a heap String argument borrows through .as_str() while a
+        &str, so a heap String argument borrows through .as_ustr() while a
         literal keeps its own static borrowing and a parameter of the
-        enclosing function is already &str (`.as_str()` on &str is
+        enclosing function is already &str (`.as_ustr()` on &str is
         unstable); every other parameter renders as the plain expression,
         the convention the resident tables already construct under.
     **/
@@ -12340,9 +12818,11 @@ class RustExpr {
         if (expected == null)
             return text;
         if (isStringType(expected) && isStringType(arg.t)) {
-            if (!StringTools.endsWith(text, ".to_string()"))
-                text += ".to_string()";
-            return text;
+            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone())"))
+                return text;
+            if (StringTools.startsWith(text, "UString::from("))
+                return text;
+            return ownedStringSlotText(text);
         }
         // ReadOnlyArray literals and direct static arrays are emitted as Rust
         // arrays, while an owned constructor slot is Vec<T>.
@@ -12370,7 +12850,7 @@ class RustExpr {
             && !StringTools.startsWith(text, "&")
             && !StringTools.endsWith(text, ".clone()")
             && !StringTools.endsWith(text, ".to_vec()")
-            && !StringTools.endsWith(text, ".to_string()")) {
+            && !StringTools.endsWith(text, ".to_ustring()")) {
             text = ownedReadCloneText(arg, text);
         }
         return text;
@@ -12458,6 +12938,19 @@ class RustExpr {
         for (i in 0...args.length) {
             final arg = args[i];
             var argStr = expr(arg);
+            // A String literal argument enters the value-type constructor's
+            // borrowed &UStr face; the owned literal rendering borrows once.
+            // (ValueTypeCtorUstrArg)
+            final isStringLiteralArg = switch (stripWrap(arg).expr) {
+                case TConst(TString(_)): true;
+                case _: false;
+            };
+            final knownNonStringParam = i < paramTypes.length && paramTypes[i] != null && !isStringType(paramTypes[i]);
+            if (!knownNonStringParam && isStringLiteralArg && !StringTools.endsWith(argStr, ".as_ustr()"))
+                switch (stripWrap(arg).expr) {
+                    case TConst(TString(s)): argStr = staticUstrLiteral(s);
+                    case _:
+                }
             // A proven-non-null nullable local feeding a non-null
             // constructor parameter unwraps the Option at the boundary so
             // the payload enters the slot; the payload clones because the
@@ -12547,8 +13040,8 @@ class RustExpr {
                     // renders as Option already, so it passes through. A
                     // non-Copy payload clones so the source stays usable.
                     final inner = getNullInnerType(pt);
-                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_string()"))
-                        out.push("Some(" + argStr + ".to_string())");
+                    if (isStringType(inner))
+                        out.push("Some(" + nullableStringArgText(argStr) + ")");
                     else if (isTypeCopy(inner))
                         out.push("Some(" + argStr + ")");
                     else
@@ -12601,9 +13094,9 @@ class RustExpr {
                         continue;
                     }
                     final inner = switch (stripWrap(arg).expr) {
-                        case TConst(TString(s)): quoteString(s) + ".to_string()";
+                        case TConst(TString(s)): "UString::from(" + quoteString(s) + ")";
                         case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
-                            StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
+                            nullableStringArgText(argStr);
                         case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
                             intToFloatSignedText(argStr);
                         case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isTypeCopy(getNullInnerType(pt))):
@@ -12631,10 +13124,10 @@ class RustExpr {
                 }
                 if (stringLikeType(pt) && stringLikeType(arg.t)) {
                     out.push(switch (stripWrap(arg).expr) {
-                        case TConst(TString(_)): argStr;
-                        case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
+                        case TConst(TString(_)): "&(" + argStr + ")";
+                        case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(UStr::new(&[]))";
                         case TLocal(v) if (isBorrowedParamLocal(v)): argStr;
-                        case _: argStr + ".as_str()";
+                        case _: ustringViewShapedText(argStr);
                     });
                     continue;
                 }
@@ -12737,7 +13230,7 @@ class RustExpr {
         return switch (v) {
             case VInt(x): isFloatType(t) ? intToFloatText(Std.string(x)) : Std.string(x);
             case VFloat(x): x;
-            case VString(x): quoteString(x) + ".to_string()";
+            case VString(x): "UString::from(" + quoteString(x) + ")";
             case VBool(x): x ? "true" : "false";
             case VNull: "None";
             case VEnum(e, f): e.get().name + "::" + RustImports.toSnakeCase(f.name);
@@ -13005,8 +13498,8 @@ class RustExpr {
             for (f in fields) {
                 var val = if (isStringType(f.expr.t)) {
                     switch (stripWrap(f.expr).expr) {
-                        case TConst(TString(_)): expr(f.expr) + ".to_string()";
-                        case TLocal(v) if (isBorrowedParamLocal(v)): expr(f.expr) + ".to_string()";
+                        case TConst(TString(_)): expr(f.expr) + ".to_ustring()";
+                        case TLocal(v) if (isBorrowedParamLocal(v)): expr(f.expr) + ".to_ustring()";
                         case _: expr(f.expr) + ".clone()";
                     }
                 } else {
@@ -13467,8 +13960,8 @@ class RustExpr {
         }
         // A local bound to a forwarded block literal carries the slot's Result
         // as well, so its declaration and its literal agree with the callee.
-        // This runs for every function, not only those with a fallible-block
-        // parameter: a function that merely passes a local to a fallible
+        // This runs for every function, including those without a fallible-block
+        // parameter: a function that only passes a local to a fallible
         // callee still needs that local's declaration rendered with the slot's
         // Result. The body is a TFunction wrapping the block; iterating the
         // TFunction only visits the block node, never the TVar statements
@@ -14144,6 +14637,74 @@ class RustExpr {
         return isInterfaceType(t) || (isNullType(t) && isInterfaceType(getNullInnerType(t)));
     }
 
+    /** Whether the type names a registered shared interface, directly or
+        through Null. (ClassHandleShare) */
+    function isSharedIfaceType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final inner = isNullType(t) ? getNullInnerType(t) : t;
+        return switch (Context.follow(inner)) {
+            case TInst(c, _): c.get().isInterface && RustDecl.isSharedInterface(c.get().module, c.get().name);
+            case _: false;
+        };
+    }
+
+    /** Whether the type is a concrete shared implementor, flattening Null
+        wrappers; used by the equality lowering. (ClassHandleShare) */
+    function sharedHandleEqType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final inner = isNullType(t) ? getNullInnerType(t) : t;
+        return isSharedImplementorType(inner);
+    }
+
+    /** Whether the type is a concrete class that implements a registered
+        shared interface (one interface hop is enough: the caches and
+        shapers of the tests implement the shared interface directly).
+        (ClassHandleShare) */
+    function isSharedImplementorType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                !cls.isInterface && Lambda.exists(cls.interfaces, i -> { final ic = i.t.get(); ic.isInterface && RustDecl.isSharedInterface(ic.module, ic.name); });
+            case _: false;
+        };
+    }
+
+    /** Whether reading through this expression must open the shared
+        Mutex first: the value is a shared interface handle or a concrete
+        implementor held as one, but self inside its own impl already
+        names the bare struct. (ClassHandleShare) */
+    function receiverNeedsSharedLock(e:TypedExpr):Bool {
+        if (isSharedIfaceType(e.t) || isSharedImplementorType(e.t))
+            return switch (stripWrap(e).expr) {
+                case TConst(TThis): false;
+                case _: true;
+            };
+        return false;
+    }
+
+    /** The shared-handle construction for an interface slot: a shared
+        implementor local is already an Arc, so the slot clones the handle
+        (Haxe reference semantics leave the source alive); any other
+        concrete value builds a fresh shared handle. (ClassHandleShare) */
+    function sharedSlotPayload(actual:TypedExpr, inner:String, slotType:String):String {
+        imports.require("std::sync::Arc");
+        imports.require("std::sync::Mutex");
+        final isHandle = switch (stripWrap(actual).expr) {
+            case TLocal(_): isSharedImplementorType(actual.t);
+            case _: false;
+        };
+        // A shared implementor local is itself a handle; the concrete-to-
+        // trait-object unsize cannot cross Arc::clone inference, so the
+        // clone annotates the slot type explicitly. (ClassHandleShare)
+        return isHandle
+            ? "{ let __shared_handle: " + slotType + " = " + inner + ".clone(); __shared_handle }"
+            : "Arc::new(Mutex::new(" + inner + "))";
+    }
+
     /**
         The payload of a Box<dyn Trait> construction. Non-Copy concrete
         locals clone before boxing so the source stays alive for later
@@ -14310,6 +14871,20 @@ class RustExpr {
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
         if (expected == null || actual == null)
             return rendered;
+        // A value entering a slot that names a shared concrete implementor
+        // wraps into the shared handle, so every binding of the class names
+        // one object; a value already typed as the implementor is itself a
+        // handle and clones. (ClassHandleShare)
+        if (!isNullType(expected) && isSharedImplementorType(expected)) {
+            imports.require("std::sync::Arc");
+            imports.require("std::sync::Mutex");
+            if (isSharedImplementorType(actual.t))
+                return switch (stripWrap(actual).expr) {
+                    case TLocal(_): "Arc::clone(&" + rendered + ")";
+                    case _: rendered;
+                };
+            return "Arc::new(Mutex::new(" + rendered + "))";
+        }
         // A non-null Haxe local initialized to null stores Option<T> until
         // assigned. At a non-null value boundary Haxe's declaration contract
         // requires its payload; Copy values may consume the Option, while
@@ -14372,7 +14947,7 @@ class RustExpr {
                 case _: false;
             };
             if (borrowedParam)
-                return rendered + ".to_string()";
+                return rendered + ".to_ustring()";
         }
         if (isNullType(expected) && !isNullType(actual.t)
             && isFloatType(getNullInnerType(expected)) && isIntType(emittedType(actual)))
@@ -14386,7 +14961,7 @@ class RustExpr {
                 case _: false;
             };
             if (borrowedParam)
-                return "match &(" + rendered + ") { Some(v) => Some(v.to_string()), None => None }";
+                return "match &(" + rendered + ") { Some(v) => Some(v.to_ustring()), None => None }";
         }
         // charCodeAt is represented as Option<u32>; crossing into a plain
         // value parameter applies Haxe's null-to-zero bridge exactly once.
@@ -14394,13 +14969,24 @@ class RustExpr {
             return rendered + ".unwrap_or(0)";
         }
         if (!isNullType(expected) && isInterfaceType(expected) && !isInterfaceType(actual.t)) {
+            #if boring_fold_debug
+            Context.warning("NNSHARE expected=" + Std.string(expected).substr(0, 40) + " shared=" + Std.string(isSharedIfaceType(expected)), Context.currentPos());
+            #end
+            // A registered shared interface builds a shared handle instead
+            // of an owning box, so the engine and the caller observe one
+            // object. (ClassHandleShare)
+            if (isSharedIfaceType(expected))
+                return sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(expected, false));
             return "Box::new(" + boxedInterfacePayload(actual, rendered) + ")";
         }
         // Haxe unifies an object-literal field value's type to the interface
         // even when the value is a concrete constructor. Recover the concrete
+        // even when the value is a concrete constructor. Recover the concrete
         // class from the expression node so the implementor still boxes into
         // the Box<dyn Trait> slot.
         if (!isNullType(expected) && isInterfaceType(expected) && isConcreteConstructor(actual)) {
+            if (isSharedIfaceType(expected))
+                return sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(expected, false));
             return "Box::new(" + boxedInterfacePayload(actual, rendered) + ")";
         }
         // An interface-typed reusable read (a field of an owned object)
@@ -14440,6 +15026,13 @@ class RustExpr {
             // Haxe reads a value into an interface slot and leaves the source
             // intact, so the box takes an owned clone of a reusable read. A
             // direct move would leave a later read of the same local empty.
+            if (isSharedIfaceType(expected)) {
+                // A shared slot clones the handle: the Option carries the
+                // same object the source binding names. (ClassHandleShare)
+                if (isInterfaceType(actual.t))
+                    return "Some(Arc::clone(&" + rendered + "))";
+                return "Some(" + sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(getNullInnerType(expected), false)) + ")";
+            }
             final boxed = normalizeConstructorResult(actual, rendered);
             final owned = isReusableOwnedRead(actual) && !isTypeCopy(actual.t)
                 && !StringTools.startsWith(boxed, "&") && !StringTools.endsWith(boxed, ".clone()")
@@ -14450,6 +15043,11 @@ class RustExpr {
         // interface even for a concrete constructor; recover the concrete
         // class so the implementor still boxes into the Option<Box<dyn Trait>>.
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && isConcreteConstructor(actual)) {
+            #if boring_fold_debug
+            Context.warning("CCSHARE expected=" + Std.string(expected).substr(0, 40) + " shared=" + Std.string(isSharedIfaceType(expected)), Context.currentPos());
+            #end
+            if (isSharedIfaceType(expected))
+                return "Some(" + sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(getNullInnerType(expected), false)) + ")";
             return "Some(Box::new(" + normalizeConstructorResult(actual, rendered) + "))";
         }
         if (!isInterfaceType(expected) && !isNullType(expected) && isFallibleConstructor(actual)) {
@@ -14624,6 +15222,7 @@ class RustExpr {
             var argStr = renderValueForType(pt, arg, expr(arg));
             localFunctionErrorName = savedBlockError;
             blockClosureErrorName = savedBlockClosure;
+
             // A by-value class parameter the callee mutates renders as a
             // mutable reference (Haxe class arguments are references: the
             // caller must observe the callee's writes). An argument whose
@@ -14858,8 +15457,8 @@ class RustExpr {
                     // renders as Option already, so it passes through. A
                     // non-Copy payload clones so the source stays usable.
                     final inner = getNullInnerType(pt);
-                    if (isStringType(inner) && !StringTools.endsWith(argStr, ".to_string()"))
-                        argStr = "Some(" + argStr + ".to_string())";
+                    if (isStringType(inner))
+                        argStr = "Some(" + nullableStringArgText(argStr) + ")";
                     else if (isTypeCopy(inner))
                         argStr = "Some(" + argStr + ")";
                     else
@@ -14897,9 +15496,9 @@ class RustExpr {
                         // already None or Some(...)
                     } else {
                         final inner = switch (stripWrap(arg).expr) {
-                            case TConst(TString(s)): quoteString(s) + ".to_string()";
+                            case TConst(TString(s)): "UString::from(" + quoteString(s) + ")";
                             case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
-                                StringTools.endsWith(argStr, ".to_string()") ? argStr : "(" + argStr + ").to_string()";
+                                nullableStringArgText(argStr);
                             case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
                                 // The Int argument may be the wrapped u32 decimal of a
                                 // negative Haxe Int; the sign comes from the i32 bits.
@@ -14932,9 +15531,17 @@ class RustExpr {
                         // String argument therefore specializes T as String,
                         // even when the source expression itself is a borrowed
                         // string parameter or a literal.
-                        argStr = "&(" + argStr + ").to_string()";
+                        argStr = "&(" + argStr + ").to_ustring()";
                     } else if (!borrowed && !StringTools.startsWith(argStr, "&")) {
                         argStr = "&(" + argStr + ")";
+                    }
+                } else if (isPassByRef(pt) && isStringType(pt) && isStringLiteralConst(arg)) {
+                    // A String literal at a borrowed &UStr parameter uses the
+                    // 'static unit-array view: a &-borrow of the owned temp
+                    // would not outlive a captured closure. (StrLiteralStaticView)
+                    switch (stripWrap(arg).expr) {
+                        case TConst(TString(s)): argStr = staticUstrLiteral(s);
+                        case _:
                     }
                 } else if (isPassByRef(pt)) {
                     final provenString = switch (stripWrap(arg).expr) {
@@ -14954,7 +15561,7 @@ class RustExpr {
                         && isArrayType(getNullInnerType(arg.t))
                         && isArrayType(pt);
                     if (provenString) {
-                        argStr = expr(arg) + ".as_deref().unwrap_or(\"\")";
+                        argStr = expr(arg) + ".as_deref().unwrap_or(UStr::new(&[]))";
                     } else if (nullableArrayParam) {
                         // A narrowed arg already renders as the match binding,
                         // a reference to the inner Vec; unwrapping it again
@@ -15017,7 +15624,7 @@ class RustExpr {
                         // storage: the table key is a String, so the literal
                         // converts once at the boundary.
                         // (AppliedReceiverParams)
-                        argStr = "&(" + argStr + ").to_string()";
+                        argStr = "&(" + argStr + ").to_ustring()";
                     }
                     if (stdTableReceiver && i < paramTypes.length
                         && isNumericScalarType(paramTypes[i])
@@ -15037,9 +15644,9 @@ class RustExpr {
                     if (!stdTableReceiver && stringLikeType(pt) && stringLikeType(arg.t)) {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
-                            case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
+                            case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(UStr::new(&[]))";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(arg);
-                            case _: expr(arg) + ".as_str()";
+                            case _: ustringViewShapedText(expr(arg));
                         };
                     }
                 } else if (isRecordValueType(arg.t) && switch (stripWrap(arg).expr) {
@@ -15065,7 +15672,7 @@ class RustExpr {
                     && !StringTools.startsWith(argStr, "&")
                     && !StringTools.endsWith(argStr, ".clone()")
                     && !StringTools.endsWith(argStr, ".to_vec()")
-                    && !StringTools.endsWith(argStr, ".to_string()")) {
+                    && !StringTools.endsWith(argStr, ".to_ustring()")) {
                     final provenEnum = switch (stripWrap(arg).expr) {
                         case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(arg.t)): true;
                         case _: false;
@@ -15245,7 +15852,7 @@ class RustExpr {
             return null;
         if (isPassByRef(pt) && stringLikeType(pt) && stringLikeType(arg.t)) {
             if (nullableStringViewArg(arg))
-                return {bind: hoistedOwnedText(arg, expr(arg)), usage: name + ".as_deref().unwrap_or(\"\")"};
+                return {bind: hoistedOwnedText(arg, expr(arg)), usage: name + ".as_deref().unwrap_or(UStr::new(&[]))"};
             switch (stripWrap(arg).expr) {
                 case TConst(_):
                     return null;
@@ -15254,11 +15861,11 @@ class RustExpr {
                     // through; the binding copies that shared borrow.
                     return {bind: argStr, usage: name};
                 case _:
-                    // renderCallArgs appended the `.as_str()` borrow to the
+                    // renderCallArgs appended the `.as_ustr()` borrow to the
                     // owned String value; the binding owns that value and
                     // the call site borrows the binding.
-                    final base = StringTools.endsWith(argStr, ".as_str()") ? argStr.substr(0, argStr.length - ".as_str()".length) : expr(arg);
-                    return {bind: hoistedOwnedText(arg, base), usage: name + ".as_str()"};
+                    final base = StringTools.endsWith(argStr, ".as_ustr()") ? argStr.substr(0, argStr.length - ".as_ustr()".length) : expr(arg);
+                    return {bind: hoistedOwnedText(arg, base), usage: name + ".as_ustr()"};
             }
         }
         // A bare local that lowers to a reference copies the borrow into the
@@ -15445,12 +16052,12 @@ class RustExpr {
                     case "Int": "u32";
                     case "Float": FloatPrecision.isF32() ? "f32" : "f64";
                     case "Bool": "bool";
-                    case "String": "string";
+                    case "String": "ustring";
                     case _: RustImports.toSnakeCase(a.get().name);
                 }
             case TInst(c, _):
                 switch (c.get().name) {
-                    case "String": "string";
+                    case "String": "ustring";
                     case "Bytes": "bytes";
                     case _: RustImports.toSnakeCase(c.get().name);
                 }
@@ -15467,9 +16074,14 @@ class RustExpr {
         // kind clones because the same local may be borrowed by the
         // actual argument of the same call.
         return switch (e.expr) {
-            case TConst(TNull): kind == "String" ? "None::<String>" : "None::<u32>";
+            case TConst(TNull):
+                if (kind == "String") {
+                    imports.requireType("runtime.UString", "UString");
+                    return "None::<UString>";
+                }
+                return "None::<u32>";
             case _ if (isNullType(e.t)): expr(e);
-            case TConst(TString(s)) if (kind == "String"): "Some(" + quoteString(s) + ".to_string())";
+            case TConst(TString(s)) if (kind == "String"): "Some(UString::from(" + quoteString(s) + "))";
             case TConst(TInt(i)) if (kind == "Int"): "Some(" + Std.string(i) + ")";
             case _: kind == "String" ? "Some(" + expr(e) + ".clone())" : "Some(" + expr(e) + ")";
         };
@@ -15498,10 +16110,10 @@ class RustExpr {
         // An owned non-Copy Vec field read renders with a whole-container
         // clone (`(self.keys).clone()`) so a value slot can own the Vec.
         // Indexing does not need that ownership: it reads one element and
-        // the caller clones just the element, so cloning the whole Vec
+        // the caller clones only the element, so cloning the whole Vec
         // before indexing copies N elements per lookup. Index the field in
         // place instead and let the element-read clone apply alone. This is
-        // the general form of a value read, not a per-table special case.
+        // the general form of a value read; no per-table special case applies.
         // (OwnedVecFieldIndexInPlace)
         if (!mutable) {
             final fieldPath = ownedVecFieldIndexPath(arr);
@@ -15573,7 +16185,7 @@ class RustExpr {
         default. A value element type fills its zero, a nullable element type
         fills None, a String fills the empty String. A non-nullable reference
         element type has no null literal in Rust, so it takes no guard and
-        keeps the plain write (which cannot grow in practice).
+        keeps the plain write (which cannot grow).
         (ArrayGrowthOnIndexWrite)
     **/
     function arrayGrowthDefault(element:Type):Null<String> {
@@ -15586,7 +16198,7 @@ class RustExpr {
         if (isBoolType(element))
             return "false";
         if (isStringType(element))
-            return "String::new()";
+            return "UString::new()";
         return null;
     }
 
@@ -15814,7 +16426,7 @@ class RustExpr {
         // (E0689). The annotated binding pins the u32 domain before the
         // byte round-trip, matching the range-loop-variable path. The
         // check names the loop variable directly (a TLocal in the
-        // ambiguous-receiver set) rather than the whole predicate, because
+        // ambiguous-receiver set) and leaves out the whole predicate, because
         // a conditional that renders a concrete local name (e.g. a
         // null-coalesced Float) would over-match and wrap a concrete
         // value. (AmbiguousIntReceiver)
@@ -16077,9 +16689,9 @@ class RustExpr {
     function conditionalBranchText(branch:TypedExpr, sibling:TypedExpr, resultType:Null<Type> = null):String {
         final text = expr(branch);
         if (resultType != null && isStringType(resultType)) {
-            if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
+            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
                 return text;
-            return text + ".to_string()";
+            return ownedStringSlotText(text);
         }
         if (isUStringCountText(text) && resolveExprType(sibling) == "i32") {
             return RustConversions.reinterpret(text, "i32");
@@ -16091,8 +16703,8 @@ class RustExpr {
             return text;
         }
         final siblingText = expr(sibling);
-        final ownedStringCall = StringTools.endsWith(siblingText, ".to_string()")
-            || StringTools.endsWith(siblingText, ".to_string()?")
+        final ownedStringCall = StringTools.endsWith(siblingText, ".to_ustring()")
+            || StringTools.endsWith(siblingText, ".to_ustring()?")
             || StringTools.endsWith(siblingText, ".to_string().unwrap()");
         return ownedStringCall ? text + ".to_string()" : text;
     }
@@ -16130,6 +16742,19 @@ class RustExpr {
             // concrete constructor's branch type to the interface, so the
             // concrete class is recovered from the expression node.
             if (isInterfaceType(inner) && (!isInterfaceType(branch.t) || isConcreteConstructor(branch))) {
+                // A shared interface slot takes the shared handle; Arc
+                // cannot use the Box-style as-cast, so the constructor
+                // pins the Arc type parameters instead. (ClassHandleShare)
+                if (isSharedIfaceType(inner)) {
+                    final ifaceName = switch (Context.follow(inner)) {
+                        case TInst(c, _): c.get().name;
+                        case _: "";
+                    };
+                    imports.require("std::sync::Arc");
+                    imports.require("std::sync::Mutex");
+                    return "Some({ let __shared_handle: Arc<Mutex<dyn " + ifaceName + ">> = Arc::new(Mutex::new("
+                        + normalizeConstructorResult(branch, coerced) + ")); __shared_handle })";
+                }
                 return "Some(Box::new(" + normalizeConstructorResult(branch, coerced) + ") as " + types.of(inner, false) + ")";
             }
             return "Some(" + coerced + ")";
@@ -16148,9 +16773,9 @@ class RustExpr {
             && !isInterfaceType(branch.t))
             return "Box::new(" + text + ") as " + types.of(getNullInnerType(resultType), false);
         if (resultType != null && isStringType(resultType)) {
-            if (StringTools.endsWith(text, ".to_string()") || StringTools.endsWith(text, ".clone()"))
+            if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
                 return text;
-            return text + ".to_string()";
+            return ownedStringSlotText(text);
         }
         // An owned Vec result slot that receives a borrowed array parameter
         // clones the referent, so both arms of the conditional carry one
