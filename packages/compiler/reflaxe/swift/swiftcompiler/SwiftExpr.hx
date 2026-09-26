@@ -2335,8 +2335,25 @@ class SwiftExpr {
                         case TLocal(v): optionalBindingLocals.exists(v.id);
                         case _: false;
                     };
-                    if (!isNullLeafType(declared) && !optionalBinding)
+                    if (!isNullLeafType(declared) && !optionalBinding) {
+                        // Observable signal at the fold site, not an error: the
+                        // fold itself is required (Swift rejects the comparison),
+                        // the warning only makes a silently weakened test visible
+                        // where it happens. (NonOptionalNilComparison)
+                        Context.warning(
+                            "NonOptionalNilComparison folded `"
+                            + (op == OpNotEq ? "!= null" : "== null")
+                            + "` to " + (op == OpNotEq ? "true" : "false")
+                            + "; subject is non-optional: "
+                            + (switch (stripWrap(subject).expr) {
+                                case TLocal(v): "local " + v.name;
+                                case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): "field " + cf.get().name;
+                                case _: Std.string(stripWrap(subject).expr).substr(0, 80);
+                            }),
+                            e.pos
+                        );
                         return op == OpNotEq ? "true" : "false";
+                    }
                 }
                 final lOperand = nullSide ? expr(l) : operand(l, op, false, true);
                 final rOperand = nullSide ? expr(r) : operand(r, op, true, true);
