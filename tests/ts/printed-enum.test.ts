@@ -7,7 +7,7 @@ describe("enum printed forms", () => {
   test("generated trees contain enum operands and badge member", () => {
     expect(read("reference/ts/gen/boring/PrintedEnumOps.ts")).toContain("kind");
     expect(read("reference/ts/gen/boring/PrintedEnumOps.ts")).toContain("PrintedBadge");
-    for (const f of ["reference/swift/gen/boring/PrintedEnumOps.swift", "reference/dart/gen/lib/boring/printed_enum_ops.dart", "reference/rust-gen/src/boring/printed_enum_ops.rs"]) expect(read(f)).toContain("PrintedMark");
+    for (const f of ["reference/swift/gen/boring/PrintedEnumOps.swift", "reference/dart/gen/lib/boring/printed_enum_ops.dart", "reference/rust/gen/boring/printed_enum_ops.rs"]) expect(read(f)).toContain("PrintedMark");
     expect(read("reference/kotlin/gen/boring/PrintedEnumOps.kt")).toContain("PrintedMark");
   });
   test("generated trees contain array enum constructors", () => {
@@ -16,7 +16,7 @@ describe("enum printed forms", () => {
       "reference/kotlin/gen/boring/PrintedEnumOps.kt",
       "reference/swift/gen/boring/PrintedEnumOps.swift",
       "reference/dart/gen/lib/boring/printed_enum_ops.dart",
-      "reference/rust-gen/src/boring/printed_enum_ops.rs",
+      "reference/rust/gen/boring/printed_enum_ops.rs",
     ]) {
       const content = read(f);
       expect(content).toContain("Trail");
