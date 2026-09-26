@@ -644,7 +644,7 @@ class RustDecl {
             ctorError = resolveErrorOwner(ctorData, cls);
         if (hasCtorThrow && ctorError != null)
             imports.requireType(ctorError.module, ctorError.name);
-        final ctorArgType = isStringRepresentation(info.representation) ? "&str" : representation;
+        final ctorArgType = isStringRepresentation(info.representation) ? "&UStr" : representation;
         lines.push("    pub fn new(value: "
             + ctorArgType
             + ")"
@@ -655,7 +655,7 @@ class RustDecl {
             for (line in expr.valueTypeConstructorBody(cls, ctorData))
                 lines.push("    " + line);
         }
-        final ctorValue = isStringRepresentation(info.representation) ? "value.to_string()" : "value";
+        final ctorValue = isStringRepresentation(info.representation) ? "value.to_ustring()" : "value";
         lines.push("        " + (hasCtorThrow ? "return Ok(Self(" + ctorValue + "));" : "return Self(" + ctorValue + ");"));
         lines.push("    }");
 
@@ -2366,6 +2366,12 @@ class RustDecl {
         final otherArgs = [
             for (a in f.args) {
                 var pType = paramType(a.type, f.field.name, a.name);
+                // A hand-rolled face spelling UString/UStr registers the
+                // runtime types the same way types.of does. (RawFaceImport)
+                if (pType.indexOf("UStr") >= 0)
+                    imports.requireType("runtime.UString", "UStr");
+                if (pType.indexOf("UString") >= 0)
+                    imports.requireType("runtime.UString", "UString");
                 if (argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
                 else if (argIsMutated(f.expr, a.name) && isMutableRefParamType(a.type)) pType = "&mut " + pType;
                 expr.setArgType(a.name, pType);
@@ -2485,7 +2491,7 @@ class RustDecl {
             return "u32";
         }
         if (funcName == "writeAscii") {
-            return "&str";
+            return "&UStr";
         }
         return types.of(t, true);
     }
@@ -2498,7 +2504,7 @@ class RustDecl {
         if (funcName == "readF64" || funcName == "readF32" || funcName == "readF16")
             return FloatPrecision.isF32() ? "f32" : "f64";
         if (funcName == "readAscii")
-            return "String";
+            return "UString";
         if (funcName == "remaining" || funcName == "consumed")
             return "u32";
         if (funcName == "ensureRemaining")
