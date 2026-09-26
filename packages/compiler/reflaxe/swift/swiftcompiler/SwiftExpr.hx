@@ -109,6 +109,16 @@ class SwiftExpr {
     /** Rendered constructor arguments available to defaults that read parameters. */
     var constructorParameterValues:Null<Map<String, String>> = null;
 
+    /**
+        Rendered call-site arguments per callee parameter name, active
+        while one call's coalescing defaults render. A registered
+        default that reads an earlier parameter is written for the
+        callee body, where that parameter is a local binding; the call
+        site has no such binding, so the read resolves against the
+        argument this call passes for it. (OmittedDefaultReads)
+    **/
+    var callParameterValues:Null<Map<String, String>> = null;
+
     final coalescingLocals:Map<Int, Bool> = [];
     var currentFuncReturnsOptional:Bool = false;
     var currentFuncReturnsFloat:Bool = false;
@@ -382,7 +392,8 @@ class SwiftExpr {
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
-            case CParameterRead(name): constructorParameterValues != null && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : name;
+            case CParameterRead(name): callParameterValues != null && callParameterValues.exists(name) ? callParameterValues.get(name) : (constructorParameterValues != null
+                && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : name);
             case CInstanceFieldRead(name): "self." + SwiftNameEscape.escape(name);
             case CLocalRead(name): name;
             case CFieldAccess(CParameterRead(staticPath), ""): constructorParameterValues != null && constructorParameterValues.exists(staticPath) ? constructorParameterValues.get(staticPath) : coalescingStaticFieldText(staticPath);
@@ -2907,7 +2918,15 @@ class SwiftExpr {
                             inoutTempCounter += 1;
                             final tempName = "inoutTmp" + inoutTempCounter;
                             reserveName(tempName);
-                            inoutTemps.push("var " + tempName + " = " + expr(a));
+                            // A bare array literal of integer literals
+                            // infers the 64-bit Int element (features/14:
+                            // Haxe Int is Int32), and an empty literal carries
+                            // no element type at all; the temporary names the
+                            // argument's container type so the inout slot
+                            // accepts it. (InoutTempContainerType)
+                            final literalHazard = isEmptyArrayDecl(a) || isIntLiteralArrayDecl(a) || isFloatLiteralArrayDecl(a);
+                            final tempAnnotation = literalHazard ? ": " + types.of(a.t) : "";
+                            inoutTemps.push("var " + tempName + tempAnnotation + " = " + expr(a));
                             "&" + tempName;
                     }
                 } else {
@@ -2937,14 +2956,31 @@ class SwiftExpr {
         final inner = stripWrap(subj);
         // A Haxe flow-narrowed local's expression type is already non-null
         // while its Swift declaration stays optional, so a narrowed subject
-        // still unwraps.
-        if (!optionalValued(subj) && !isNullLeafType(subj.t) && !optionalValued(inner) && !isNullLeafType(inner.t) && !isNarrowed(subj)) {
+        // still unwraps. A coalescing local is the opposite: its Swift
+        // declaration is plain while the Haxe type keeps the Null wrapper,
+        // so that wrapper must not unwrap here either.
+        // (CoalescingLocalPlainBinding)
+        if ((!optionalValued(subj) && !isNullLeafType(subj.t) && !optionalValued(inner) && !isNullLeafType(inner.t) && !isNarrowed(subj))
+            || plainBoundCoalescingLocal(inner)) {
             return expr(subj);
         }
         final base = expr(subj);
         return switch (inner.expr) {
             case TLocal(_): base + "!";
             case _: "(" + base + ")!";
+        };
+    }
+
+    /**
+        A local the coalescing machinery bound to a plain Swift value: the
+        Haxe type keeps the Null wrapper while the emitted declaration is
+        plain, so a value use neither unwraps nor nil-compares it.
+        (CoalescingLocalPlainBinding)
+    **/
+    function plainBoundCoalescingLocal(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): coalescingLocals.exists(v.id) || nonOptionalDeclared.exists(v.id);
+            case _: false;
         };
     }
 
@@ -3327,8 +3363,9 @@ class SwiftExpr {
                 }
                 if (module == "std.Process" && fName == "args") {
                     // std.Process.args() reads the arguments after the
-                    // program name (stdlib/17).
-                    return "Array(CommandLine.arguments.dropFirst())";
+                    // program name (stdlib/17). The Haxe result is an
+                    // Array, which lowers to TiqianArray.
+                    return "TiqianArray(Array(CommandLine.arguments.dropFirst()))";
                 }
                 if (module == "std.UStringPlatform") {
                     return ustringPlatformCall(fName, args, fn);
@@ -3587,17 +3624,22 @@ class SwiftExpr {
                     // the UTF-16 view, matching the Kotlin chunked(1) and
                     // the TypeScript native split("") shape.
                     // (StringSplitEmptyDelimiter)
+                    // Both forms yield a Haxe Array of String parts,
+                    // which lowers to TiqianArray; the bare Swift Array
+                    // the map produces would not convert into a let or
+                    // return slot of that container type.
+                    // (StringSplitContainer)
                     if (isEmptyDelimiterSplit(name, args))
-                        return types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
+                        return "TiqianArray(" + (types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
                             + receiverText(subj)
-                            + ".utf16).map { String(decoding: [$0], as: UTF16.self) }";
-                    return types.resident ? receiverText(subj)
+                            + ".utf16).map { String(decoding: [$0], as: UTF16.self) }") + ")";
+                    return "TiqianArray(" + (types.resident ? receiverText(subj)
                         + ".split(separator: "
                         + expr(args[0])
                         + ".first!, omittingEmptySubsequences: false).map { Array($0) }" : receiverText(subj)
                         + ".split(separator: "
                         + expr(args[0])
-                        + ", omittingEmptySubsequences: false).map { String($0) }";
+                        + ", omittingEmptySubsequences: false).map { String($0) }") + ")";
                 }
                 if (name == "push") {
                     final elemType = switch (subj.t) {
@@ -3662,25 +3704,32 @@ class SwiftExpr {
                     // synthesized null for an omitted end, which Haxe reads as
                     // the length. The Swift range subscript traps on a bound
                     // outside the array, so both bounds are clamped and the
-                    // omitted end becomes the count. (ArraySliceClamping)
+                    // omitted end becomes the count. The result is a
+                    // Haxe Array, which lowers to TiqianArray: the closure
+                    // returns that container, so the let or return slot's
+                    // declared type accepts it, not the bare Swift Array
+                    // the range subscript yields. (ArraySliceClamping)
                     final endOmitted = args.length < 2 || switch (stripWrap(args[1]).expr) {
                         case TConst(TNull): true;
                         case _: false;
                     };
                     final s = receiverText(subj);
                     final from = "Int(" + expr(args[0]) + ")";
+                    final wrapped = isUnitArrayTyped(subj);
+                    final open = wrapped ? "TiqianArray(Array(" : "Array(";
+                    final close = wrapped ? "))" : ")";
                     var body = "({ () in let _a = "
                         + s
                         + "; let _n = _a.count; let _f = "
                         + from
                         + "; let _s = _f < 0 ? max(_n + _f, 0) : min(_f, _n);";
                     if (endOmitted) {
-                        body += " return Array(_a[_s..<_n]) }())";
+                        body += " return " + open + "_a[_s..<_n]" + close + " }())";
                     } else {
                         body += " let _t = Int("
                             + expr(args[1])
                             + "); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n);"
-                            + " let _e = _e0 < _s ? _s : _e0; return Array(_a[_s..<_e]) }())";
+                            + " let _e = _e0 < _s ? _s : _e0; return " + open + "_a[_s..<_e]" + close + " }())";
                     }
                     return body;
                 }
@@ -3856,7 +3905,20 @@ class SwiftExpr {
         // (a null-checked Null<String>) force-unwraps at the boundary
         // exactly like any other non-optional call parameter.
         final callArgs = argTexts(fn, args).join(", ");
-        return helper + "(" + callArgs + ")";
+        final text = helper + "(" + callArgs + ")";
+        // The Fs.readDir helper returns a bare Swift array while the
+        // Haxe call's result is a Haxe Array, which lowers to
+        // TiqianArray; the boundary wraps the helper call in that
+        // container so a let slot's declared type accepts it.
+        // (FsReadDirContainer)
+        final ret = switch (Context.follow(fn.t)) {
+            case TFun(_, r): r;
+            case _: null;
+        };
+        if (ret != null && arrayElementType(ret) != null) {
+            return "TiqianArray(" + text + ")";
+        }
+        return text;
     }
 
     /**
@@ -4173,15 +4235,66 @@ class SwiftExpr {
             case TFun(v, _): [for (x in v) x.t];
             case _: [];
         };
-        return [for (i in 0...args.length) {
-            final p = i < ps.length ? ps[i] : null;
-            final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
-            d != null
-            && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
-                && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                p) + ")" : base[i];
-        }
+        final names = target == null ? [] : switch (Context.follow(target.t)) {
+            case TFun(v, _): [for (x in v) x.name];
+            case _: [];
+        };
+        final render = () -> [
+            for (i in 0...args.length) {
+                final p = i < ps.length ? ps[i] : null;
+                final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
+                d != null
+                && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
+                    && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
+                        p) + ")" : base[i];
+            }
         ];
+        final firstPass = render();
+        final substitutions = callParameterSubstitutions(target, names, args, firstPass);
+        if (substitutions == null) {
+            return firstPass;
+        }
+        // The second pass renders with the parameter map bound, so a
+        // materialized default that reads an earlier parameter resolves
+        // against the argument this call passes for it instead of the
+        // bare parameter name, which is not in scope at the call site.
+        // (OmittedDefaultReads)
+        final saved = callParameterValues;
+        callParameterValues = substitutions;
+        final secondPass = render();
+        callParameterValues = saved;
+        return secondPass;
+    }
+
+    /**
+        Rendered call-site text per callee parameter name, or null when
+        the call needs no substitution. Only a registered coalescing
+        default that reads a parameter of its own function needs the
+        map; every other call keeps the single pass. (OmittedDefaultReads)
+    **/
+    function callParameterSubstitutions(target:Null<{c:ClassType, n:String, t:Type}>, names:Array<String>, args:Array<TypedExpr>,
+            rendered:Array<String>):Null<Map<String, String>> {
+        if (target == null) {
+            return null;
+        }
+        var readsParameter = false;
+        for (i in 0...args.length) {
+            if (DefaultArgExpander.coalescingDefaultReadsParameter(target.c, target.n, i)) {
+                readsParameter = true;
+                break;
+            }
+        }
+        if (!readsParameter) {
+            return null;
+        }
+        final map:Map<String, String> = [];
+        for (i in 0...rendered.length) {
+            final name = i < names.length ? names[i] : null;
+            if (name != null && !map.exists(name)) {
+                map.set(name, rendered[i]);
+            }
+        }
+        return map;
     }
 
     /**
@@ -5189,7 +5302,10 @@ class SwiftExpr {
                     // literal, which Swift forbids inside an interpolation, so
                     // the leaf is hoisted into a let statement. Optional String
                     // leaves keep the describing form from interpolationLeaf.
-                    if (StringTools.endsWith(types.of(leaf.t), "?") && !isOptionalStringLeafType(leaf.t)) {
+                    // A coalescing local's declaration is plain, so its
+                    // Null-wrapped Haxe type must not read as optional here.
+                    // (CoalescingLocalPlainBinding)
+                    if (StringTools.endsWith(types.of(leaf.t), "?") && !plainBoundCoalescingLocal(leaf) && !isOptionalStringLeafType(leaf.t)) {
                         rendered = "(" + rendered + " == nil ? \"null\" : String(describing: " + rendered + "!))";
                         needsHoist = true;
                     }
