@@ -2413,8 +2413,8 @@ class RustExpr {
         stdStrViewArg: a native &str slot (an enum from_name lookup, the
         runtime Fs module) takes std UTF-8 text, not a UStr view. A string
         literal already is a &'static str; a std-String-shaped rendering
-        borrows directly; every other String shape converts through
-        to_utf8_lossy, which both UString and &UStr carry.
+        borrows directly; every other String shape converts to the
+        borrowed UStr view, which both owned and borrowed values carry.
     **/
     function stdStrViewArg(arg:TypedExpr):String {
         final rendered = expr(arg);
@@ -2424,7 +2424,8 @@ class RustExpr {
             case TConst(TString(_)): rendered + ".as_ustr()";
             case _ if (isNullType(arg.t)):
                 '(match &(' + rendered + ') { Some(v) => v.as_ustr(), None => UStr::new(&[]) })';
-            case _: StringTools.endsWith(rendered, ".as_ustr()") ? rendered : rendered + ".as_ustr()";
+            case _ if (types.of(arg.t, true) == "&UStr" || StringTools.endsWith(rendered, ".as_ustr()")): rendered;
+            case _: rendered + ".as_ustr()";
         };
     }
 
@@ -11138,7 +11139,7 @@ class RustExpr {
                 if ((path == "std.Process" || cls.module == "std.Process") && name == "args") {
                     // std.Process.args() reads the arguments of the test
                     // binary after its name (stdlib/17).
-                    return "std::env::args().skip(1).collect::<Vec<String>>()";
+                    return "std::env::args().skip(1).map(|__a| UString::from(__a.as_str())).collect::<Vec<UString>>()";
                 }
                 if ((path == "std.SortedMap" || cls.module == "std.SortedMap") && name == "builder") {
                     final kType = sortedKeyType(fn);
