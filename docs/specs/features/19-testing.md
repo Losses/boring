@@ -219,7 +219,7 @@ only these files.
   `BORING_TEST_RESULTS` when set; otherwise
   `out/test-results/<target>.jsonl` relative to the working directory
   of the test run, with `<target>` one of `haxe`, `ts`, `kotlin`,
-  `rust`.
+  `rust`, `swift`, `dart`.
 - **Format**: JSON Lines, UTF-8, one object per completed test, keys
   in fixed order:
   - pass: `{"id":"tests.VectorCodecTests.roundtrip","name":"tests.VectorCodecTests.roundtrip: encode then decode returns the input records","verdict":"pass"}`
