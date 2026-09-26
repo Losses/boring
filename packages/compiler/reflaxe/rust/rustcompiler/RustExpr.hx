@@ -14268,7 +14268,7 @@ class RustExpr {
         // trait-object unsize cannot cross Arc::clone inference, so the
         // clone annotates the slot type explicitly. (ClassHandleShare)
         return isHandle
-            ? "{ let __shared_handle: " + slotType + " = Arc::clone(&" + inner + "); __shared_handle }"
+            ? "{ let __shared_handle: " + slotType + " = " + inner + ".clone(); __shared_handle }"
             : "Arc::new(Mutex::new(" + inner + "))";
     }
 
@@ -16305,7 +16305,7 @@ class RustExpr {
                     };
                     imports.require("std::sync::Arc");
                     imports.require("std::sync::Mutex");
-                    return "Some({ let __shared_handle: Arc<Mutex<dyn " + ifaceName + "> = Arc::new(Mutex::new("
+                    return "Some({ let __shared_handle: Arc<Mutex<dyn " + ifaceName + ">> = Arc::new(Mutex::new("
                         + normalizeConstructorResult(branch, coerced) + ")); __shared_handle })";
                 }
                 return "Some(Box::new(" + normalizeConstructorResult(branch, coerced) + ") as " + types.of(inner, false) + ")";
