@@ -31,7 +31,7 @@ describe("StringTools conversions lowering", () => {
       "reference/ts/gen": "runtime.ts",
       "reference/kotlin/gen": path.join("runtime", "StringTools.kt"),
       "reference/kotlin-f32/gen": path.join("runtime", "StringTools.kt"),
-      "reference/rust-gen/src": path.join("runtime", "string_tools.rs"),
+      "reference/rust/gen": path.join("runtime", "string_tools.rs"),
       "reference/rust-f32-gen/src": path.join("runtime", "string_tools.rs"),
       "reference/swift/gen": "Runtime.swift",
       "reference/swift-f32/gen": "Runtime.swift",
@@ -60,7 +60,7 @@ describe("StringTools conversions lowering", () => {
       ["reference/kotlin/gen/boring/StringConvOps.kt", [".toString(16)", ".uppercase()", ".padStart(", ".lowercase()"]],
       ["reference/swift/gen/boring/StringConvOps.swift", ["String(UInt32(bitPattern: 10), radix: 16, uppercase: true)", ".uppercased()", "s.count <", ".lowercased()"]],
       ["reference/dart/gen/lib/boring/string_conv_ops.dart", [".toRadixString(16)", ".toUpperCase()", ".padLeft(", ".toLowerCase()"]],
-      ["reference/rust-gen/src/boring/string_conv_ops.rs", ["{:X}", "{:0w$X}", ".to_lowercase()", ".to_uppercase()"]],
+      ["reference/rust/gen/boring/string_conv_ops.rs", ["{:X}", "{:0w$X}", ".to_lowercase()", ".to_uppercase()"]],
     ] as const;
     for (const [file, fragments] of rows) {
       const content = fs.readFileSync(path.join(root, file), "utf8");

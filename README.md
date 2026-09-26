@@ -12,14 +12,14 @@ The trees under `reference/ts/src/`, `reference/kotlin/src/`, and
 `reference/rust/src/` are hand-written reference translations.
 Every tree decodes `tests/vectors/roundtrip.bin` to the same records and
 encodes those records back to the same bytes; the generated trees
-(`reference/ts/gen/`, `reference/kotlin/gen/`, `reference/rust-gen/src/`)
+(`reference/ts/gen/`, `reference/kotlin/gen/`, `reference/rust/gen/`)
 must reproduce that behavior against the same vectors. Reference
 translations and test tooling live in separate trees; every test suite
 and the shared vectors live under `tests/`.
 
 The root `package.json` is the bun workspace (member:
 `reference/ts`); the root `Cargo.toml` is the cargo workspace (members:
-`reference/rust`, `reference/rust-gen`). The Rust test suite carries no
+`reference/rust`, `reference/rust/gen`). The Rust test suite carries no
 manifest of its own: `reference/rust/Cargo.toml` wires it in through an
 explicit `[[test]]` path into `tests/`.
 
@@ -31,7 +31,7 @@ explicit `[[test]]` path into `tests/`.
 | `samples/` | Haxe capability samples for the translatable subset, including the subset standard library `samples/std/` |
 | `examples/` | generation entries (`ts.hxml`, `kotlin.hxml`, `rust.hxml`) and the reflaxe smoke file; each entry demonstrates package consumption |
 | `reference/ts/` | hand-written TypeScript reference translation (package `@boring/codec`); `reference/ts/gen/` is the gitignored reflaxe-generated tree |
-| `reference/rust/` | hand-written Rust reference translation; `reference/rust-gen/` holds the reflaxe-generated Rust crate (gitignored sources) |
+| `reference/rust/` | hand-written Rust reference translation; `reference/rust/gen/` holds the reflaxe-generated Rust crate (gitignored sources) |
 | `reference/kotlin/` | hand-written Kotlin reference translation; `reference/kotlin/gen/` is the gitignored reflaxe-generated tree |
 | `tests/` | Test suites per language plus the shared vectors |
 | `tools/` | ESLint plugin, doc-style checker, commit tool, git hooks, vector generator |
@@ -55,10 +55,12 @@ here; this repository needs none of them.
     nix develop -c bash -c "bun install"
     nix develop -c bash -c "bun run verify"
 
-`verify` regenerates the gitignored `reference/ts/gen`,
-`reference/kotlin/gen`, and `reference/rust-gen/src` trees through the
-reflaxe targets, then runs the TypeScript tests, the Haxe checks, the
-Kotlin checks, the interception suite, the Rust tests, ESLint, `tsc`,
+`verify` drives the bundle driver of feature spec 59 over the
+project file `boring.json` (gen, test, and compare for the haxe, ts,
+kotlin, dart, and rust bundles; the generated trees land in the gitignored
+`reference/<id>/gen` and `reference/<id>/gen-tests` directories), then
+runs the TypeScript tests, the Haxe checks, the Kotlin checks, the
+interception suite, the Rust tests, ESLint, `tsc`,
 the documentation style check, the vector regeneration, and the reflaxe
 smoke compile. See
 `AGENT.md` for the individual commands and the repository rules.
