@@ -886,6 +886,22 @@ class Compiler extends PluginCompiler<Compiler> {
                     lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
                 }
                 lines.push("}");
+                // The union derives only Debug; a message read or a
+                // message-only conversion needs the message text, and every
+                // member fault carries it through its own Display
+                // (t-muix2u8h-xtvt).
+                lines.push("impl std::fmt::Display for " + u.name + " {");
+                lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
+                lines.push("        match self {");
+                for (item in u.members) {
+                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final variant = variants != null && variants.exists(item.module + "::" + item.name)
+                        ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
+                    lines.push("            " + u.name + "::" + variant + "(value) => write!(formatter, \"{}\", value),");
+                }
+                lines.push("        }");
+                lines.push("    }");
+                lines.push("}");
                 for (target in u.members) {
                     final targetEmitted = state.payloadEnumModules.exists(target.module) ? state.payloadEnumModules.get(target.module) : target.module;
                     final targetPath = "crate::" + RustImports.moduleToRustPath(targetEmitted) + "::" + target.name;
