@@ -124,7 +124,7 @@ describe("value wrapper generated trees", () => {
     expect(rust).toContain("impl std::fmt::Display for FontFaceId");
     expect(rust).toContain("#[derive(Debug, Clone, PartialEq, Eq, Hash)]\npub struct FontFaceId(pub String);");
 
-    const rustF32 = read("reference/rust-f32-gen/src/boring/value_type_ops.rs");
+    const rustF32 = read("reference/rust-f32/gen/boring/value_type_ops.rs");
     expect(rustF32).toContain("#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub f32);");
     expect(rustF32).not.toContain("pub struct Ic(pub f32);\n\nimpl Eq");
   });

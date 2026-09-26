@@ -1,13 +1,15 @@
 # Haxe reference in-source f32 oracle test runner (features/44).
+# TestMainF32 lives in the bundle driver's derived gen-tests dir and
+# the js lands in the derived gen dir (feature spec 59).
 -lib reflaxe
 -cp packages/compiler
 -cp samples
--cp out/haxe
+-cp reference/haxe-f32/gen-tests
 -cp packages/registry/src
 --macro Intercept.run(['samples', 'packages/registry/src'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 -main TestMainF32
--js out/haxe/test-main-f32.js
+-js reference/haxe-f32/gen/test-main-f32.js
 -D analyzer-optimize
 -D boring_oracle
 -D float-precision=f32

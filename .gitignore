@@ -29,7 +29,12 @@ reference/dart/*.tar.gz
 reference/rust/*.crate
 reference/kotlin-f32/gen/
 reference/kotlin-f32/gen-tests/
-reference/rust-f32-gen/src/
+reference/kotlin-f32/build/
+reference/haxe-f32/gen/
+reference/haxe-f32/gen-tests/
+reference/rust-f32/gen/
+reference/rust-f32/gen-tests/
+reference/swift-f32/build/
 reference/swift/gen/
 reference/swift/gen-tests/
 reference/swift-f32/gen/
