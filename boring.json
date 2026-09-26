@@ -2,12 +2,6 @@
 // output directory (<outRoot>/<id>/gen and <outRoot>/<id>/gen-tests) and
 // every results path (<resultsDir>/<id>.jsonl) from this file; none of
 // them is named here.
-//
-// swift is deliberately absent: samples/tests/MutableBufFieldTests.hx
-// passes an array literal to a parameter lowered as inout, which breaks
-// `bun run gen:swift` at the base of this branch (a pre-existing corpus
-// defect, unrelated to the driver). The swift recipe stays in the
-// driver's recipe table; the bundle returns when that sample is fixed.
 {
   "outRoot": "reference",
   "resultsDir": "out/test-results",
@@ -53,6 +47,14 @@
       "id": "rust",
       "target": "rust",
       "rootsFile": "examples/rust.hxml"
+    },
+    {
+      "id": "swift",
+      "target": "swift",
+      "rootsFile": "examples/swift.hxml",
+      "build": {
+        "args": ["-swift-version", "5"]
+      }
     }
   ]
 }
