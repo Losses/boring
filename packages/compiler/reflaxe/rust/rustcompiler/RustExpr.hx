@@ -55,6 +55,11 @@ class RustExpr {
     // A field used as a method receiver remains borrowed; value reads clone
     // non-Copy fields unless this narrow receiver context applies.
     var renderingMethodReceiver:Bool = false;
+    // True only while rendering the receiver of an in-place mutating call
+    // (push/sort/... ): an indexed element receiver must stay a place
+    // expression so the mutation reaches the storage inside the Vec, while
+    // plain value reads keep the clone. (IndexedReceiverMutation)
+    var renderingInPlaceMutatorReceiver:Bool = false;
     var inTryClosure:Bool = false;
 
     final subst:Map<Int, String> = [];
@@ -4962,7 +4967,7 @@ class RustExpr {
                 final staticGuard = staticGuardOf(arr);
                 if (staticGuard != null) {
                     final base = staticGuard + "[" + staticIndex(idx) + "]";
-                    return !isTypeCopy(e.t) && !renderingMethodReceiver ? "(" + base + ").clone()" : base;
+                    return !isTypeCopy(e.t) && !renderingInPlaceMutatorReceiver ? "(" + base + ").clone()" : base;
                 }
                 final base = optionContainerIndexAccess(arr, idx, false);
                 // Reading a String element moves it out of the Vec, so a
@@ -4976,7 +4981,7 @@ class RustExpr {
                 // groups[i].push(x) must reach the storage inside the Vec;
                 // cloning here sends the mutation to a temporary and the
                 // original container never changes. (IndexedReceiverMutation)
-                return !isTypeCopy(e.t) && !renderingMethodReceiver ? "(" + base + ").clone()" : base;
+                return !isTypeCopy(e.t) && !renderingInPlaceMutatorReceiver ? "(" + base + ").clone()" : base;
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -8330,6 +8335,20 @@ class RustExpr {
         }
     }
 
+    /**
+        In-place mutators rewrite the storage behind the receiver; a
+        Vec-indexed element receiver must not clone for them. By-value
+        consumers (finish, getBytes) still take a clone.
+        (IndexedReceiverMutation)
+    **/
+    function inPlaceMutatorName(name:String):Bool {
+        return switch (name) {
+            case "push" | "insert" | "pop" | "shift" | "unshift" | "remove" | "removeAt" | "splice" | "reverse" | "sort"
+                | "add" | "addChar" | "addByte" | "set" | "blit" | "fill" | "put" | "update": true;
+            case _: false;
+        };
+    }
+
     function receiverText(subj:TypedExpr, cf:Null<Ref<ClassField>>):String {
         final previous = renderingMethodReceiver;
         renderingMethodReceiver = cf != null && RustDecl.methodWritesReceiver(cf.get());
@@ -10458,7 +10477,10 @@ class RustExpr {
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
                 final previousReceiverContext = renderingMethodReceiver;
                 renderingMethodReceiver = RustDecl.methodWritesReceiver(cf.get());
+                final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
+                renderingInPlaceMutatorReceiver = inPlaceMutatorName(cf.get().name);
                 final subjText = expr(subj);
+                renderingInPlaceMutatorReceiver = previousMutatorReceiver;
                 renderingMethodReceiver = previousReceiverContext;
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
