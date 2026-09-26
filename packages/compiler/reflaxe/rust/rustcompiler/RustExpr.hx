@@ -465,12 +465,12 @@ class RustExpr {
             case CString(s):
                 imports.requireType("runtime.UString", "UString");
                 final lit = "UString::from(" + quoteString(s) + ")";
-                // An Option slot owns the literal inside Some; a borrowed
-                // &UStr slot borrows the literal once. (CoalescingDefaultUstrView)
                 if (asOption)
                     return "Some(" + lit + ")";
-                return StringTools.startsWith(types.of(targetType, false), "Option") ? lit
-                    : (types.of(targetType, true) == "&UStr" ? lit + ".as_ustr()" : lit);
+                // A nested call argument enters a borrowed &UStr parameter
+                // face; a top-level default enters the owned unwrap slot.
+                // (CoalescingDefaultUstrView)
+                return nested ? staticUstrLiteral(s) : lit;
             case CBool(b): b ? "true" : "false";
             case CNull: "None";
             case CEmptyArray: "vec![]";
@@ -1236,7 +1236,11 @@ class RustExpr {
                 case CParameterRead(_): isStringType(DefaultArgExpander.withoutNull(site.valueExpr.t));
                 default: false;
             };
-            final defaultText = isStringDefault ? rawDefaultText + ".to_ustring()" : rawDefaultText;
+            // The closure returns the Option's inner value, so an owned
+            // String default drops the borrowed view the literal edge took.
+            final ownedDefault = StringTools.endsWith(rawDefaultText, ".as_ustr()")
+                ? rawDefaultText.substr(0, rawDefaultText.length - ".as_ustr()".length) : rawDefaultText;
+            final defaultText = isStringDefault ? rawDefaultText + ".to_ustring()" : ownedDefault;
             final combinator = defaultIsNull ? ".or_else(|| " : ".unwrap_or_else(|| ";
             // The rebound parameter only needs mutability when the body
             // assigns it again or a try block captures an assignment; the
@@ -2334,6 +2338,24 @@ class RustExpr {
     }
 
     /**
+        A '/static/ UStr literal: a borrowed &UStr slot that outlives the
+        call (a captured closure borrow) needs a '/static/ backing, which
+        the unit-array form provides. (StaticUstrLiteral)
+    **/
+    function isStringLiteralConst(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(TString(_)): true;
+            case _: false;
+        };
+    }
+
+    function staticUstrLiteral(s:String):String {
+        imports.requireType("runtime.UString", "UStr");
+        final units = [for (i in 0...s.length) Std.string(s.charCodeAt(i))];
+        return "UStr::new(&[" + units.join(",") + "])";
+    }
+
+    /**
         Converts a std-String-shaped rendering into a UString value. The
         .to_string() tail peels off first so the Display receiver, not the
         finished String, feeds From<&str>.
@@ -2424,12 +2446,14 @@ class RustExpr {
         final rendered = expr(arg);
         if (!isStringType(arg.t))
             return rendered;
+        imports.requireType("runtime.UString", "UStr");
         return switch (stripWrap(arg).expr) {
-            case TConst(TString(_)): rendered + ".as_ustr()";
+            case TConst(TString(s)): staticUstrLiteral(s);
             case _ if (isNullType(arg.t)):
                 '(match &(' + rendered + ') { Some(v) => v.as_ustr(), None => UStr::new(&[]) })';
             case TLocal(v) if (isBorrowedLocal(v)): rendered;
-            case _: StringTools.endsWith(rendered, ".as_ustr()") ? rendered : rendered + ".as_ustr()";
+            case _: stdStringShapedText(rendered) ? "(" + ustringFromStdText(rendered) + ").as_ustr()"
+                : (StringTools.endsWith(rendered, ".as_ustr()") ? rendered : rendered + ".as_ustr()");
         };
     }
 
@@ -6041,7 +6065,10 @@ class RustExpr {
         catchVars.remove(parts.c.v.id);
         for (i in 0...arm.length) {
             final suffix = i == arm.length - 1 ? "," : "";
-            out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + arm[i] + suffix);
+            // A String-valued handler arm unifies with the body's owned
+            // String arms through UString::from. (CatchArmUString)
+            final armText = (arm.length == 1 && isStringType(parts.c.expr.t)) ? ustringFromStdText(arm[i]) : arm[i];
+            out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + armText + suffix);
         }
         out.push(indent(depth) + "};");
         return out;
@@ -10271,13 +10298,14 @@ class RustExpr {
                         + "].to_vec()";
                 }
                 if (name == "getString" && args.length == 2 && isBytes(stripCast(subj))) {
-                    return "String::from_utf8_lossy(&"
+                    imports.requireType("runtime.UString", "UString");
+                    return "UString::from(String::from_utf8_lossy(&"
                         + expr(subj)
                         + "["
                         + castArg(args[0], "usize")
                         + ".."
                         + usizeIndex("(" + expr(args[0]) + " + " + expr(args[1]) + ")")
-                        + "]).into_owned()";
+                        + "]).into_owned().as_str())";
                 }
                 if (name == "charAt" && isString(stripCast(subj))) {
                     state.shimsUsed.set("std.UStringRT", true);
@@ -10844,7 +10872,7 @@ class RustExpr {
                     // already render as &str.
                     final argStr = if (isStringType(args[0].t)) {
                         switch (stripWrap(args[0]).expr) {
-                            case TConst(TString(_)): expr(args[0]);
+                            case TConst(TString(_)): expr(args[0]) + ".as_ustr()";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(args[0]);
                             case _: expr(args[0]) + ".as_ustr()";
                         }
@@ -11188,8 +11216,15 @@ class RustExpr {
                     // builder omits.
                     state.shimsUsed.set(RuntimeResidents.externsOf("runtime.TestCore")[0], true);
                     imports.require("crate::runtime::test_core");
+                    // The resident faces read a borrowed &UStr message: an
+                    // owned String rendering converts once, an absent message
+                    // is the empty UStr. (TestCoreUstrMessage)
                     final messageArg = function(idx:Int):String {
-                        return (args.length > idx && !isTNull(args[idx])) ? "&(" + expr(args[idx]) + ")" : "\"\"";
+                        if (!(args.length > idx && !isTNull(args[idx]))) {
+                            imports.requireType("runtime.UString", "UStr");
+                            return "UStr::new(&[])";
+                        }
+                        return stdStrViewArg(args[idx]);
                     };
                     if (name == "ok") {
                         final cond = expr(args[0]);
@@ -11241,7 +11276,7 @@ class RustExpr {
                                 case "Float":
                                     return "test_core::TestCore::test_core_equals_float(" + expr(expectedArg) + ", " + expr(actualArg) + ", " + msg + ")";
                                 case "String":
-                                    return "test_core::TestCore::test_core_equals_string(&(" + expr(expectedArg) + "), &(" + expr(actualArg) + "), " + msg
+                                    return "test_core::TestCore::test_core_equals_string(" + stdStrViewArg(expectedArg) + ", " + stdStrViewArg(actualArg) + ", " + msg
                                         + ")";
                                 case _:
                             }
@@ -12809,6 +12844,19 @@ class RustExpr {
         for (i in 0...args.length) {
             final arg = args[i];
             var argStr = expr(arg);
+            // A String literal argument enters the value-type constructor's
+            // borrowed &UStr face; the owned literal rendering borrows once.
+            // (ValueTypeCtorUstrArg)
+            final isStringLiteralArg = switch (stripWrap(arg).expr) {
+                case TConst(TString(_)): true;
+                case _: false;
+            };
+            final knownNonStringParam = i < paramTypes.length && paramTypes[i] != null && !isStringType(paramTypes[i]);
+            if (!knownNonStringParam && isStringLiteralArg && !StringTools.endsWith(argStr, ".as_ustr()"))
+                switch (stripWrap(arg).expr) {
+                    case TConst(TString(s)): argStr = staticUstrLiteral(s);
+                    case _:
+                }
             // A proven-non-null nullable local feeding a non-null
             // constructor parameter unwraps the Option at the boundary so
             // the payload enters the slot; the payload clones because the
@@ -14661,6 +14709,7 @@ class RustExpr {
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
         if (expected == null || actual == null)
             return rendered;
+
         // A non-null Haxe local initialized to null stores Option<T> until
         // assigned. At a non-null value boundary Haxe's declaration contract
         // requires its payload; Copy values may consume the Option, while
@@ -15288,6 +15337,14 @@ class RustExpr {
                     } else if (!borrowed && !StringTools.startsWith(argStr, "&")) {
                         argStr = "&(" + argStr + ")";
                     }
+                } else if (isPassByRef(pt) && isStringType(pt) && isStringLiteralConst(arg)) {
+                    // A String literal at a borrowed &UStr parameter uses the
+                    // 'static unit-array view: a &-borrow of the owned temp
+                    // would not outlive a captured closure. (StrLiteralStaticView)
+                    switch (stripWrap(arg).expr) {
+                        case TConst(TString(s)): argStr = staticUstrLiteral(s);
+                        case _:
+                    }
                 } else if (isPassByRef(pt)) {
                     final provenString = switch (stripWrap(arg).expr) {
                         case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(arg.t) && isStringType(pt)): true;
@@ -15819,7 +15876,12 @@ class RustExpr {
         // kind clones because the same local may be borrowed by the
         // actual argument of the same call.
         return switch (e.expr) {
-            case TConst(TNull): kind == "String" ? "None::<String>" : "None::<u32>";
+            case TConst(TNull):
+                if (kind == "String") {
+                    imports.requireType("runtime.UString", "UString");
+                    return "None::<UString>";
+                }
+                return "None::<u32>";
             case _ if (isNullType(e.t)): expr(e);
             case TConst(TString(s)) if (kind == "String"): "Some(UString::from(" + quoteString(s) + "))";
             case TConst(TInt(i)) if (kind == "Int"): "Some(" + Std.string(i) + ")";

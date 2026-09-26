@@ -1610,7 +1610,7 @@ fn byte_to_unit(s: &str, byte: usize) -> u32 {
 // call-site cast and does not pass through here.
 pub fn boundaries(s: &UStr) -> Vec<u32> {
     let mut out = Vec::new();
-    for unit in Graphemes::graphemes_boundaries(s.to_utf8_lossy().as_str()) {
+    for unit in Graphemes::graphemes_boundaries(s) {
         out.push(u32::try_from(unit).unwrap_or(0));
     }
     out
