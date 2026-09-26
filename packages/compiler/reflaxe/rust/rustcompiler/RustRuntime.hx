@@ -868,6 +868,18 @@ impl UString {
     }
 }
 
+impl UString {
+    /// UTF-16 units to an owned Haxe String, rejecting an unpaired
+    /// surrogate the same way String::from_utf16 does (the Err payload is
+    /// the unit index of the unpaired lead). (StringBufferFromUtf16)
+    pub fn from_utf16(units: &[u16]) -> Result<UString, usize> {
+        match String::from_utf16(units) {
+            Ok(_) => Ok(UString(units.to_vec())),
+            Err(e) => Err(e),
+        }
+    }
+}
+
 impl From<&str> for UString {
     fn from(s: &str) -> UString {
         UString(s.encode_utf16().collect())
