@@ -772,6 +772,10 @@ class SwiftExpr {
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
                     initText = intToFloatText(initText);
+                // features/18: the annotated read-only declaration converts
+                // its mutable initializer to the native value Array.
+                if (hasTypeAnnotation && StaticFieldHelper.isReadOnlyArrayType(v.t) && isMutableArrayType(init.t))
+                    initText = "Array(" + initText + ")";
                 if (unwrapNullableInitializer && !StringTools.endsWith(initText, "!"))
                     initText += "!";
                 if (swiftShadowedLocals.exists(v.id))
@@ -6050,6 +6054,14 @@ class SwiftExpr {
 
     function localDeclarationNeedsTypeAnnotation(t:Type, init:TypedExpr, hasCoalescing:Bool = false):Bool {
         return isEmptyArrayDecl(init)
+            // features/18: a read-only declaration bound to the mutable
+            // container annotates the native Array type; Swift inference
+            // would otherwise pin TiqianArray and reject later read-only
+            // consumption.
+            || (StaticFieldHelper.isReadOnlyArrayType(t) && switch (Context.follow(init.t)) {
+                case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
+                case _: false;
+            })
             || (isIntLeafType(t) && !mentionsRangeLoopVar(init))
             || isIntLiteralArrayDecl(init)
             || isBuilderCall(init)
