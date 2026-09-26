@@ -2390,6 +2390,24 @@ class RustExpr {
         }
     }
 
+    /**
+        The format spec a message-only conversion uses for the source error.
+        A declared payload enum renders its message through Display, so the
+        conversion reads the message body; a synthetic union derives only
+        Debug and keeps the Debug form.
+    **/
+    function errorTextSpec(sourceName:Null<String>):String {
+        return sourceName != null && !state.isSyntheticErrorType(sourceName) ? "\"{}\"" : "\"{:?}\"";
+    }
+
+    /** The element text an iterable Std.string rendering writes for one item. **/
+    function iterableItemText(element:Null<haxe.macro.Type>, raw:String):String {
+        return switch (PolicyQueries.stdStringCategory(element)) {
+            case IsInt: "i32::from_ne_bytes((" + raw + ").to_ne_bytes())";
+            case _: raw;
+        }
+    }
+
     function errorPropagationSuffix(c:Ref<ClassType>, cf:Ref<ClassField>, isStatic:Bool):String {
         if (!isFallible)
             return isFallibleCallee(c, cf, isStatic) ? ".unwrap()" : "";
@@ -2423,7 +2441,7 @@ class RustExpr {
             if (growth != null) {
                 for (item in growth)
                     if (item.calleeName == callee.name)
-                        return ".map_err(|e| " + targetName + "::" + item.variant + "(e))?";
+                        return ".map_err(|e| " + targetName + "::" + item.variant + "(Box::new(e)))?";
             }
             // A message-only exception declares no variants, so there is no
             // constructor to map into; it carries text, and the text is what
@@ -2433,7 +2451,7 @@ class RustExpr {
                 // The conversion names the exception type, so the call site
                 // must import it the same way a declared use would.
                 imports.requireType(messageOnlyModule, targetName);
-                return ".map_err(|e| " + targetName + "::new(&format!(\"{:?}\", e)))?";
+                return ".map_err(|e| " + targetName + "::new(&format!(" + errorTextSpec(callee.name) + ", e)))?";
             }
             return "?";
         }
@@ -2456,7 +2474,7 @@ class RustExpr {
         final module = state.messageOnlyModuleFor(target);
         if (module != null) {
             imports.requireType(module, target);
-            return ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+            return ".map_err(|e| " + target + "::new(&format!(" + errorTextSpec(declaredName) + ", e)))?";
         }
         return "?";
     }
@@ -9453,18 +9471,18 @@ class RustExpr {
             case IsArray(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
+                final item = iterableItemText(element, stdStringType(element, value + "[" + index + "]", true, origin, depth + 1));
                 '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedSet(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
+                final item = iterableItemText(element, stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1));
                 '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedMap(key, val):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final itemKey = stdStringType(key, value + ".key_at(" + index + ")", true, origin, depth + 1);
-                final itemVal = stdStringType(val, value + ".value_at(" + index + ")", true, origin, depth + 1);
+                final itemKey = iterableItemText(key, stdStringType(key, value + ".key_at(" + index + ")", true, origin, depth + 1));
+                final itemVal = iterableItemText(val, stdStringType(val, value + ".value_at(" + index + ")", true, origin, depth + 1));
                 '{\n        let mut out = String::new();\n        out.push(\'{\');\n        let n = ${value}.size();\n        let mut ${index} = 0;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}={}", ${itemKey}, ${itemVal});\n            ${index} += 1;\n        }\n        out.push(\'}\');\n        out\n    }';
             case IsTypeParameter:
                 state.memberPrintsTypeParam = true;
@@ -12053,7 +12071,7 @@ class RustExpr {
             final constructorTarget = state.messageOnlyModuleFor(target);
             if (constructorTarget != null) {
                 imports.requireType(constructorTarget, target);
-                return ".map_err(|e| " + target + "::new(&format!(\"{:?}\", e)))?";
+                return ".map_err(|e| " + target + "::new(&format!(" + errorTextSpec(declared.name) + ", e)))?";
             }
             return "?";
         }
@@ -12064,7 +12082,7 @@ class RustExpr {
         if (growth != null)
             for (item in growth)
                 if (item.calleeName == declared.name)
-                    return ".map_err(|e| " + target + "::" + item.variant + "(e))?";
+                    return ".map_err(|e| " + target + "::" + item.variant + "(Box::new(e)))?";
         final module = state.messageOnlyModuleFor(target);
         if (module != null) {
             imports.requireType(module, target);
