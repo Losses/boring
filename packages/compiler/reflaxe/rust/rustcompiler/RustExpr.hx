@@ -2470,7 +2470,9 @@ class RustExpr {
     /** The element text an iterable Std.string rendering writes for one item. **/
     function iterableItemText(element:Null<haxe.macro.Type>, raw:String):String {
         return switch (PolicyQueries.stdStringCategory(element)) {
-            case IsInt: "i32::from_ne_bytes((" + raw + ").to_ne_bytes())";
+            // The `as i32` pins untyped literal / range-loop receivers so
+            // `.to_ne_bytes()` has no ambiguous `{integer}` receiver (E0689).
+            case IsInt: "i32::from_ne_bytes(((" + raw + ") as i32).to_ne_bytes())";
             case _: raw;
         }
     }
