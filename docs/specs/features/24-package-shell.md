@@ -207,7 +207,7 @@ the shell.
   invalid-value rejection, the by-name runtime-import rejection, and
   the pinned Swift and Gradle manifest bytes.
 - The root `Cargo.toml` workspace declares the generated crates at
-  `reference/rust-gen/src` and `reference/rust-f32-gen/src`; their
+  `reference/rust/gen` and `reference/rust-f32-gen/src`; their
   emitted `Cargo.toml` files are the crate manifests `cargo test` uses.
 - `test:dart` appends `dart analyze --no-fatal-warnings` over the
   generated package: the step validates that the manifest loads and the
