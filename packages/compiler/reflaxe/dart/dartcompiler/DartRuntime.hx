@@ -160,8 +160,11 @@ List<String> processArgs() {
     /**
         Source of the test host entry. It holds the raise type of this
         language, the runner state behind a library-private variable with
-        one accessor, and the stdout edge; the consistency run redirects
-        stdout to the jsonl results file. The runtime import is prepended
+        one accessor, and the results-file edge: every record appends to
+        the file named by BORING_TEST_RESULTS, or
+        out/test-results/dart.jsonl when the variable is unset, the
+        contract the kotlin, rust and ts hosts already keep. The runtime
+        import is prepended
         by the compiler because its relative path depends on the output
         defines; TestCore compiles through the normal pipeline and
         appends after this host in the same library.
@@ -209,17 +212,38 @@ int timeoutBudgetMs() {
   return parsed != null && parsed > 0 ? parsed : 5000;
 }
 
+/// The results sink of the test entry (features/19): the file named by
+/// BORING_TEST_RESULTS, or out/test-results/dart.jsonl when the
+/// variable is unset or empty, the same contract as the kotlin, rust
+/// and ts hosts.
+String _resultsPath() {
+  final fromEnv = Platform.environment['BORING_TEST_RESULTS'];
+  return fromEnv != null && fromEnv.isNotEmpty
+      ? fromEnv
+      : 'out/test-results/dart.jsonl';
+}
+
+/// One record per call: the line appends to the results file and
+/// flushes, so a nonzero exit still leaves every written record on
+/// disk.
+void _writeResultLine(String line) {
+  final file = File(_resultsPath());
+  if (!file.parent.existsSync()) {
+    file.parent.createSync(recursive: true);
+  }
+  file.writeAsStringSync(line, mode: FileMode.append, flush: true);
+}
+
 /// Host edge of the test entry (features/19): the runner state, the
-/// raise of this language, and the stdout result edge. The result line
-/// carries its own newline; a write with no terminator keeps one record
-/// per line in the redirected results file. The return tells the runner
-/// whether the test failed, so the process exits nonzero on any
-/// failure.
+/// raise of this language, and the results-file edge. The result line
+/// carries its own newline; one append per record keeps one record per
+/// line in the results file. The return tells the runner whether the
+/// test failed, so the process exits nonzero on any failure.
 /// A test this target excludes (features/19): the entry does not run
 /// the body and writes the not-applicable record instead, so the id
 /// stays in the cross-target set.
 void recordNotApplicable(String id, String name) {
-  stdout.write(TestCore.notApplicableLine(id, name));
+  _writeResultLine(TestCore.notApplicableLine(id, name));
 }
 
 bool run(String id, String name, void Function() body) {
@@ -237,16 +261,16 @@ bool run(String id, String name, void Function() body) {
       throw TestFailure(
           'this test timed out after ' + budgetMs.toString() + 'ms');
     }
-    stdout.write(TestCore.resultLine(id, name, false, ''));
+    _writeResultLine(TestCore.resultLine(id, name, false, ''));
   } on TestFailure catch (e) {
     failed = true;
-    stdout.write(TestCore.resultLine(id, name, true, e.message));
+    _writeResultLine(TestCore.resultLine(id, name, true, e.message));
   } on runtime.BoringException catch (e) {
     failed = true;
-    stdout.write(TestCore.resultLine(id, name, true, e.message));
+    _writeResultLine(TestCore.resultLine(id, name, true, e.message));
   } catch (e) {
     failed = true;
-    stdout.write(TestCore.resultLine(id, name, true, e.toString()));
+    _writeResultLine(TestCore.resultLine(id, name, true, e.toString()));
   }
   _currentTestId = '';
   return failed;
