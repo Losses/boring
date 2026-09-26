@@ -41,7 +41,7 @@ describe("static fields generated trees", () => {
 	});
 
 	test("Rust uses Mutex guards and the direct constant lane", () => {
-		const content = read("reference/rust-gen/src/boring/static_state_ops.rs");
+		const content = read("reference/rust/gen/boring/static_state_ops.rs");
 		expect(content).toContain("pub static STATIC_STATE_OPS_CURRENT: Mutex<Option<String>> = Mutex::new(None);");
 		expect(content).toContain("static STATIC_STATE_OPS_SECTIONS: Mutex<Vec<String>> = Mutex::new(vec![]);");;
 		expect(content).toContain("pub const STATIC_STATE_OPS_LIMIT: u32 = 4096;");

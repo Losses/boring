@@ -13,7 +13,7 @@ const targetTrees = [
   "reference/kotlin/gen/boring/FnValuesOps.kt",
   "reference/swift/gen/boring/FnValuesOps.swift",
   "reference/dart/gen/lib/boring/fn_values_ops.dart",
-  "reference/rust-gen/src/boring/fn_values_ops.rs",
+  "reference/rust/gen/boring/fn_values_ops.rs",
 ];
 
 describe("first-class function value generated trees", () => {
@@ -43,7 +43,7 @@ describe("first-class function value generated trees", () => {
   });
 
   test("Rust uses one boxed representation and adapts indirect lengths", () => {
-    const rust = read("reference/rust-gen/src/boring/fn_values_ops.rs");
+    const rust = read("reference/rust/gen/boring/fn_values_ops.rs");
     expect(rust).toContain("pub style_at: Arc<dyn Fn(u32) -> String + Send + Sync>");
     expect(rust).toContain("pub resolver: Box<dyn NameResolver>");
     expect(rust).toContain("pub fn new(style_at: Arc<dyn Fn(u32) -> String + Send + Sync>, resolver: Box<dyn NameResolver>)");
@@ -54,7 +54,7 @@ describe("first-class function value generated trees", () => {
     expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> String =");
     expect(rust).not.toMatch(/(?:style_at|resolver): NameResolver/);
 
-    const rustTests = read("reference/rust-gen/src/tests/fn_values_tests.rs");
+    const rustTests = read("reference/rust/gen/tests/fn_values_tests.rs");
     expect(rustTests).toContain("Box::new(BuiltInNameResolver::new())");
   });
 
@@ -68,13 +68,13 @@ describe("first-class function value generated trees", () => {
   });
 
   test("Rust bounds every function-value position with Send and Sync", () => {
-    const rust = read("reference/rust-gen/src/boring/static_ref_ops.rs");
+    const rust = read("reference/rust/gen/boring/static_ref_ops.rs");
     expect(rust).toContain("pub fn static_ref_ops_take_fn(callback: Arc<dyn Fn(u32) -> String + Send + Sync>)");
     expect(rust).toContain("let r#fn: Arc<dyn Fn(u32) -> String + Send + Sync> = Arc::new(StaticRefOps::static_ref_ops_render);");
     expect(rust).toContain("pub fn static_ref_ops_return_fn() -> Arc<dyn Fn(u32) -> String + Send + Sync + 'static>");
     expect(rust).toContain("let cmp: Arc<dyn Fn(&str, &str) -> u32 + Send + Sync> = Arc::new(StaticRefStatics::static_ref_statics_compare_strings);");
 
-    const sortedTable = read("reference/rust-gen/src/runtime/sorted_table.rs");
+    const sortedTable = read("reference/rust/gen/runtime/sorted_table.rs");
     expect(sortedTable).toContain("pub fn sorted_table_map_builder<K: Clone, V: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>)");
     expect(sortedTable).toContain("pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>");
   });

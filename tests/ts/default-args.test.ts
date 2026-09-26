@@ -7,7 +7,7 @@ describe("default argument expansion generated tree", () => {
   const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
   const swiftGenDir = path.resolve(__dirname, "../../reference/swift/gen");
   const dartGenDir = path.resolve(__dirname, "../../reference/dart/gen");
-  const rustGenDir = path.resolve(__dirname, "../../reference/rust-gen/src");
+  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
 
   test("TS generated tree emits full-arity calls and clean method signatures", () => {
     const tsFile = path.join(tsGenDir, "boring/DefaultArgsOps.ts");

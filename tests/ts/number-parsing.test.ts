@@ -27,7 +27,7 @@ describe("number parsing renderings", () => {
     const dart = read("reference/dart/gen/lib/boring/number_parsing_ops.dart");
     expect(read("reference/dart/gen/runtime.dart")).not.toContain("NumberParsing");
     expect(dart).toContain("tryParse"); expect(dart).toContain("2147483647");
-    const rust = read("reference/rust-gen/src/boring/number_parsing_ops.rs");
+    const rust = read("reference/rust/gen/boring/number_parsing_ops.rs");
     expect(rust).toContain("u_string::parse_f64(&(value))"); expect(rust).toContain("u_string::parse_i32(&(value))");
     expect(rust).toContain("-> Option<i32>"); expect(rust).not.toContain("parse::<");
     expect(read("reference/rust-f32-gen/src/boring/number_parsing_ops.rs")).toContain("u_string::parse_f32(&(value))");

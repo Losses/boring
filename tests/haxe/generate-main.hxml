@@ -1,13 +1,15 @@
-# Generates out/haxe/TestMain.hx (docs/specs/features/19-testing.md).
+# Generates reference/haxe/gen-tests/TestMain.hx (docs/specs/features/19-testing.md).
 # Runs before tests/haxe/test-main.hxml so -main TestMain resolves on a
 # fresh tree: haxe caches classpath listings before --macro callbacks fire.
+# The output directory is the bundle driver's derived gen-tests dir for
+# the haxe bundle (feature spec 59): <outRoot>/haxe/gen-tests.
 -lib reflaxe
 -cp packages/compiler
 -cp samples
 -cp tests/haxe
 -cp packages/registry/src
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
---macro TestCollector.generate('out/haxe', ['samples/boring'])
+--macro TestCollector.generate('reference/haxe/gen-tests', ['samples/boring'])
 -main GenerateMain
--js out/haxe/generate-main.js
+-js reference/haxe/gen/generate-main.js
 -D boring_oracle

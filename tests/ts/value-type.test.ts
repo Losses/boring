@@ -116,7 +116,7 @@ describe("value wrapper generated trees", () => {
     expect(dart).toContain("static final Ic ZERO = Ic(0.0)");
     expect(dart).toContain("FontFaceId makeFontFaceId(String value)");
 
-    const rust = read("reference/rust-gen/src/boring/value_type_ops.rs");
+    const rust = read("reference/rust/gen/boring/value_type_ops.rs");
     expect(rust).toContain("#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub f64);");
     expect(rust).not.toContain("pub struct Ic(pub f64);\n\nimpl Eq");
     expect(rust).toContain("impl std::ops::Add for Ic");

@@ -36,7 +36,7 @@ describe("sorted key domains generated tree", () => {
   });
 
   test("Rust generated tree widens an int capacity bound without an error enum", () => {
-    const clusterTagsPath = path.resolve(__dirname, "../../reference/rust-gen/src/boring/cluster_tags.rs");
+    const clusterTagsPath = path.resolve(__dirname, "../../reference/rust/gen/boring/cluster_tags.rs");
     expect(fs.existsSync(clusterTagsPath)).toBe(true);
     const content = fs.readFileSync(clusterTagsPath, "utf8");
     expect(content).toContain("let capacity = usize::try_from(u32::from_ne_bytes((set.size()).to_ne_bytes())).unwrap_or(0);");

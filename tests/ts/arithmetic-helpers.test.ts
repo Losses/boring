@@ -5,7 +5,7 @@ import * as path from "node:path";
 describe("arithmetic helpers generated tree", () => {
   const tsGenDir = path.resolve(__dirname, "../../reference/ts/gen");
   const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
-  const rustGenDir = path.resolve(__dirname, "../../reference/rust-gen/src");
+  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
 
   test("No standalone Arithmetic or IntRange module is generated in any target", () => {
     expect(fs.existsSync(path.join(tsGenDir, "std/Arithmetic.ts"))).toBe(false);
