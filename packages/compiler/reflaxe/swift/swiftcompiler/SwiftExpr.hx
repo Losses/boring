@@ -891,8 +891,12 @@ class SwiftExpr {
                     case TLocal(_) | TField(_, _): assignmentValue(l, r);
                     case _: expr(r);
                 };
+                // Haxe promotes Int into Float compound arithmetic; Swift has
+                // no implicit conversion, so the Int right side widens first
+                // (numbers ruling).
+                final widened = isArithmeticOp(inner) && isFloatTyped(l) && isIntType(emittedType(r)) ? intToFloatText(rhs) : rhs;
                 return [
-                    indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + rhs
+                    indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + widened
                 ];
             case _:
                 final builderMutation = builderBackedMutationLines(e, depth);
@@ -1857,10 +1861,10 @@ class SwiftExpr {
                     }
                     return expr(coalescing.valueExpr);
                 }
-                final optional = optionalIf(c, t, f);
+                final optional = optionalIf(e, c, t, f);
                 if (optional != null)
                     return optional;
-                final guarded = guardedLookupIf(c, t, f);
+                final guarded = guardedLookupIf(e, c, t, f);
                 if (guarded != null)
                     return guarded;
                 final condition = expr(c);
@@ -1931,7 +1935,7 @@ class SwiftExpr {
 #end
     }
 
-    function optionalIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
+    function optionalIf(e:TypedExpr, c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
         var target:Null<TypedExpr> = null;
         switch (stripWrap(c).expr) {
             case TBinop(OpEq, left, right) | TBinop(OpNotEq, left, right):
@@ -1958,7 +1962,7 @@ class SwiftExpr {
         }
         final fallback = trueMatches ? ifFalse : ifTrue;
         emissionTrace("OPTIONAL_IF", expr(target));
-        return expr(target) + " ?? " + expr(fallback);
+        return expr(target) + " ?? " + coalescingFallbackText(fallback, e.t);
     }
 
     /**
@@ -2028,7 +2032,7 @@ class SwiftExpr {
         present, so nil-coalescing both keeps the check and drops the optional
         arm Swift rejects in a non-optional context.
     **/
-    function guardedLookupIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
+    function guardedLookupIf(e:TypedExpr, c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
         final guard = mapHasKey(c);
         if (guard == null) {
             return null;
@@ -2049,7 +2053,7 @@ class SwiftExpr {
             return expr(getCall);
         }
         emissionTrace("GUARD_LOOKUP", expr(getCall));
-        return expr(getCall) + " ?? " + expr(fallback);
+        return expr(getCall) + " ?? " + coalescingFallbackText(fallback, e.t);
     }
 
     function mapHasKey(e:TypedExpr):Null<{subject:TypedExpr, key:TypedExpr}> {
@@ -2261,7 +2265,12 @@ class SwiftExpr {
                 // Swift's `+=` needs the converted right side.
                 return assignTarget(l) + " += " + stdString(r, false);
             case OpAssignOp(inner):
-                return assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + expr(r);
+                final rhs = expr(r);
+                // Haxe promotes Int into Float compound arithmetic; Swift has
+                // no implicit conversion, so the Int right side widens first
+                // (numbers ruling).
+                final widened = isArithmeticOp(inner) && isFloatTyped(l) && isIntType(emittedType(r)) ? intToFloatText(rhs) : rhs;
+                return assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + widened;
             case OpAdd:
                 if (isUnitArrayTyped(e) && addLeafCount(e) >= 4) {
                     return splitConcat(e);
@@ -2434,6 +2443,24 @@ class SwiftExpr {
 
     function realType():String {
         return FloatPrecision.isF32() ? "Float" : "Double";
+    }
+
+    /**
+        The `??` fallback arm with an Int side widened when the merge type is
+        the module real: Haxe unifies the Int fallback with the Float lookup,
+        while Swift's `??` needs both sides of the same type.
+    **/
+    function coalescingFallbackText(fallback:TypedExpr, merged:Type):String {
+        final text = expr(fallback);
+        return isFloatLeafType(merged) && isIntType(emittedType(fallback)) ? intToFloatText(text) : text;
+    }
+
+    /** Only the arithmetic compound ops accept a widened operand. */
+    function isArithmeticOp(op:Binop):Bool {
+        return switch (op) {
+            case OpAdd | OpSub | OpMult | OpDiv | OpMod: true;
+            case _: false;
+        };
     }
 
     /** The operand text with an Int side of a Float operation widened. */
