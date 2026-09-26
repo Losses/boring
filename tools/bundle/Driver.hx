@@ -385,57 +385,11 @@ class Driver {
     // ------------------------------------------------------------------
 
     static function genDir(project:Project, bundle:Bundle):String {
-        final stated = statedOutput(project, bundle, bundle.target + "-output");
-        return stated != null ? stated : joinPath(joinPath(project.outRoot, bundle.id), "gen");
+        return joinPath(joinPath(project.outRoot, bundle.id), "gen");
     }
 
     static function genTestsDir(project:Project, bundle:Bundle):String {
-        final stated = statedOutput(project, bundle, bundle.target + "-test-output");
-        return stated != null ? stated : joinPath(joinPath(project.outRoot, bundle.id), "gen-tests");
-    }
-
-    /**
-        The output directory a bundle's roots file states for its
-        target through `-D <target>-output=<dir>`, when it states one.
-        The derived pattern stays the default; a stated define stands,
-        because a toolchain can force a bundle's tree out of it: the
-        rust f32 twin crate (feature spec 23) is excluded from the
-        cargo workspace and its roots file pins the output at
-        reference/rust-f32-gen/src, where a member build cannot reach
-        it. Every binary64 roots file states the derived value, so
-        honoring a stated define changes nothing for those bundles.
-    **/
-    static function statedOutput(project:Project, bundle:Bundle, define:String):Null<String> {
-        if (bundle.rootsFile == null) {
-            return null;
-        }
-        final path = resolveAgainst(project.root, bundle.rootsFile);
-        if (!exists(path)) {
-            return null;
-        }
-        var value:Null<String> = null;
-        var pendingD = false;
-        for (rawLine in readText(path).split("\n")) {
-            final line = StringTools.trim(rawLine);
-            if (line.length == 0 || StringTools.startsWith(line, "#")) {
-                continue;
-            }
-            var token:Null<String> = null;
-            if (pendingD) {
-                token = line;
-                pendingD = false;
-            } else if (line == "-D") {
-                pendingD = true;
-            } else if (StringTools.startsWith(line, "-D ")) {
-                token = StringTools.trim(line.substr(3));
-            } else if (StringTools.startsWith(line, "-D")) {
-                token = line.substr(2);
-            }
-            if (token != null && StringTools.startsWith(token, define + "=")) {
-                value = token.substr(define.length + 1);
-            }
-        }
-        return value;
+        return joinPath(joinPath(project.outRoot, bundle.id), "gen-tests");
     }
 
     static function buildDir(project:Project, bundle:Bundle):String {
@@ -653,24 +607,14 @@ class Driver {
                     step(project, bundle, "test", "run", "java",
                         ["-cp", libraryJar + ":" + testsJar].concat(bundle.run.args).concat(["TestMainKt"]), runEnv, null);
                 case "rust":
-                    // The crate root is the bundle's gen dir. When the
-                    // roots file pins the output outside the derived
-                    // tree — the f32 twin crate is excluded from the
-                    // cargo workspace and sits at reference/rust-f32-gen/src —
-                    // the crate is a guest of the workspace: cargo
-                    // reaches it through --manifest-path from the
-                    // project root, the form package.json's
-                    // test:rust-f32 uses, because a plain `cargo test`
-                    // would refuse the non-member crate.
-                    final derivedGen = joinPath(joinPath(project.outRoot, bundle.id), "gen");
-                    if (gen == derivedGen) {
-                        step(project, bundle, "test", "build", "cargo", ["test", "--no-run"].concat(bundle.build.args), bundle.build.env, gen);
-                        step(project, bundle, "test", "run", "cargo", ["test"].concat(bundle.run.args), runEnv, gen);
-                    } else {
-                        final manifest = joinPath(gen, "Cargo.toml");
-                        step(project, bundle, "test", "build", "cargo", ["test", "--no-run", "--manifest-path", manifest].concat(bundle.build.args), bundle.build.env, project.root);
-                        step(project, bundle, "test", "run", "cargo", ["test", "--manifest-path", manifest].concat(bundle.run.args), runEnv, project.root);
-                    }
+                    // The crate root is the bundle's derived gen dir.
+                    // The f32 twin crate is excluded from the cargo
+                    // workspace (feature spec 23), and cargo builds an
+                    // excluded crate from inside its own directory —
+                    // the form package.json's test:rust-f32 reaches
+                    // from the project root through --manifest-path.
+                    step(project, bundle, "test", "build", "cargo", ["test", "--no-run"].concat(bundle.build.args), bundle.build.env, gen);
+                    step(project, bundle, "test", "run", "cargo", ["test"].concat(bundle.run.args), runEnv, gen);
                 case "swift":
                     final module = swiftTestImport(project, bundle);
                     makeDirs(build);
@@ -772,9 +716,9 @@ class Driver {
         The main class of the haxe recipe's test build, read from the
         `haxe-test-main` define of the bundle's effective arguments.
         The binary64 reference entry is TestMain; the f32 oracle runner
-        (features/44) is generated as TestMainF32 into the directory
-        its roots file names, so the f32 bundle states the entry and
-        puts that directory on the build's classpaths itself.
+        (features/44) is generated as TestMainF32 into the bundle's
+        derived gen-tests directory, so the f32 bundle states the
+        entry.
     **/
     static function haxeTestMain(project:Project, bundle:Bundle):String {
         final main = defineValue(genArgs(project, bundle, false), "haxe-test-main");
