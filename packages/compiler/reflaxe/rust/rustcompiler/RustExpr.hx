@@ -2126,11 +2126,14 @@ class RustExpr {
         if (parts.name == "add") {
             final part = expr(args[0]);
             out.push(indent(depth) + "if let Some(&unit) = " + buf + ".last() {");
-            // A Rust &str is always well-formed, so no part can open with
-            // the trail surrogate the contract would pair; the trail-start
-            // clause of stdlib/08 folds away.
+            // stdlib/08 keeps the trail-start clause: a part whose first
+            // unit is the trail of the held lead pairs with it (unit-at
+            // lowering feeds one UTF-16 unit per add), so only a part that
+            // strands the lead faults.
             out.push(indent(depth + 1) + "if unit >= 55296 && unit <= 56319 && !" + part + ".is_empty() {");
-            out.push(indent(depth + 2) + "return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from(unit) }") + ");");
+            out.push(indent(depth + 2) + "if !" + part + ".encode_utf16().next().map_or(false, |head| head >= 56320 && head <= 57343) {");
+            out.push(indent(depth + 3) + "return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from(unit) }") + ");");
+            out.push(indent(depth + 2) + "}");
             out.push(indent(depth + 1) + "}");
             out.push(indent(depth) + "}");
             out.push(indent(depth) + buf + ".extend(" + part + ".encode_utf16());");
