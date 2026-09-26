@@ -192,6 +192,9 @@ class StaticFieldHelper {
         if (t == null)
             return false;
         return switch (t) {
+            // An optional read-only parameter carries Null<ReadOnlyArray<T>>;
+            // the wrapper strips so boundary checks see the abstract.
+            case TAbstract(a, [inner]) if (a.get().name == "Null" && a.get().pack.length == 0): isReadOnlyArrayType(inner);
             case TAbstract(a, _): final abs = a.get(); abs.name == "ReadOnlyArray" && (abs.pack.join(".") == "std" || abs.module == "std.ReadOnlyArray");
             case TType(d, _): final def = d.get(); def.name == "ReadOnlyArray" && (def.pack.join(".") == "std" || def.module == "std.ReadOnlyArray");
             case TLazy(f): isReadOnlyArrayType(f());
