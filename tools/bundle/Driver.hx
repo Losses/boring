@@ -585,7 +585,7 @@ class Driver {
                         buildArgs.push(root);
                     }
                     buildArgs = buildArgs.concat(bundle.build.args);
-                    buildArgs = buildArgs.concat(["-main", "TestMain", "-js", joinPath(gen, "test-main.js")]);
+                    buildArgs = buildArgs.concat(["-main", haxeTestMain(project, bundle), "-js", joinPath(gen, "test-main.js")]);
                     step(project, bundle, "test", "build", "haxe", buildArgs, bundle.build.env, null);
                     step(project, bundle, "test", "run", "bun", [joinPath(gen, "test-main.js")].concat(bundle.run.args), runEnv, null);
                 case "kotlin":
@@ -607,6 +607,12 @@ class Driver {
                     step(project, bundle, "test", "run", "java",
                         ["-cp", libraryJar + ":" + testsJar].concat(bundle.run.args).concat(["TestMainKt"]), runEnv, null);
                 case "rust":
+                    // The crate root is the bundle's derived gen dir.
+                    // The f32 twin crate is excluded from the cargo
+                    // workspace (feature spec 23), and cargo builds an
+                    // excluded crate from inside its own directory —
+                    // the form package.json's test:rust-f32 reaches
+                    // from the project root through --manifest-path.
                     step(project, bundle, "test", "build", "cargo", ["test", "--no-run"].concat(bundle.build.args), bundle.build.env, gen);
                     step(project, bundle, "test", "run", "cargo", ["test"].concat(bundle.run.args), runEnv, gen);
                 case "swift":
@@ -679,20 +685,44 @@ class Driver {
     }
 
     /**
+        The value of one `-D <name>=<value>` pair of an argument list,
+        when the list carries it.
+    **/
+    static function defineValue(args:Array<String>, name:String):Null<String> {
+        var i = 0;
+        while (i + 1 < args.length) {
+            if (args[i] == "-D" && StringTools.startsWith(args[i + 1], name + "=")) {
+                return args[i + 1].substr(name.length + 1);
+            }
+            i++;
+        }
+        return null;
+    }
+
+    /**
         The library module name of the swift recipe, read from the
         `swift-test-import` define of the bundle's effective arguments.
     **/
     static function swiftTestImport(project:Project, bundle:Bundle):String {
-        final args = genArgs(project, bundle, false);
-        var i = 0;
-        while (i + 1 < args.length) {
-            if (args[i] == "-D" && StringTools.startsWith(args[i + 1], "swift-test-import=")) {
-                return args[i + 1].substr("swift-test-import=".length);
-            }
-            i++;
+        final module = defineValue(genArgs(project, bundle, false), "swift-test-import");
+        if (module == null) {
+            fail('bundle "${bundle.id}": the swift recipe needs the library module name; pass -D swift-test-import=<module> in the bundle haxeArgs');
+            return "";
         }
-        fail('bundle "${bundle.id}": the swift recipe needs the library module name; pass -D swift-test-import=<module> in the bundle haxeArgs');
-        return "";
+        return module;
+    }
+
+    /**
+        The main class of the haxe recipe's test build, read from the
+        `haxe-test-main` define of the bundle's effective arguments.
+        The binary64 reference entry is TestMain; the f32 oracle runner
+        (features/44) is generated as TestMainF32 into the bundle's
+        derived gen-tests directory, so the f32 bundle states the
+        entry.
+    **/
+    static function haxeTestMain(project:Project, bundle:Bundle):String {
+        final main = defineValue(genArgs(project, bundle, false), "haxe-test-main");
+        return main == null ? "TestMain" : main;
     }
 
     static function actionCompare(project:Project):Void {
