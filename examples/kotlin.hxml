@@ -678,3 +678,5 @@ tests.TestApplicabilityProbeTests
 
 boring.DartNullPushOps
 tests.DartNullPushTests
+boring.IntFloatSignOps
+tests.IntFloatSignTests
