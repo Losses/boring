@@ -1734,7 +1734,27 @@ class Compiler extends PluginCompiler<Compiler> {
             for (item in set) {
                 if (item.module == pair.module && item.name == pair.name)
                     continue;
-                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(item.module), item.name);
+                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(item.module) + "::" + item.name, item.name);
+            }
+        }
+
+        // A declared-enum caller whose callee resolves to a synthetic union
+        // meets the whole union at its question-mark site. Register a wrapping
+        // growth variant for the union itself so the call site maps the union
+        // into the caller's enum with a real constructor instead of falling
+        // back to a From impl whose unrelated-fault arm cannot represent the
+        // payload (the panic behind rejects_shaper_clusters...).
+        for (entry in entries) {
+            final pair = state.funcErrorTypes.get(entry.key);
+            if (pair == null || state.isSyntheticErrorType(pair.name))
+                continue;
+            for (edge in entry.edges) {
+                final edgeEnum = state.funcErrorTypes.get(edge.callee);
+                if (edgeEnum == null || !state.isSyntheticErrorType(edgeEnum.name))
+                    continue;
+                if (edgeEnum.module == pair.module && edgeEnum.name == pair.name)
+                    continue;
+                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
             }
         }
 
@@ -1841,6 +1861,24 @@ class Compiler extends PluginCompiler<Compiler> {
                 state.syntheticErrorVariants.set(decl.name, variants);
             }
         }
+        // Union growth registration, re-run after the fourth propagation:
+        // that pass writes the callee unions into funcErrorTypes, so an edge
+        // read before it still sees the callee's declared error and the
+        // wrapping variant for the union itself is never registered.
+        for (entry in entries) {
+            final pair = state.funcErrorTypes.get(entry.key);
+            if (pair == null || state.isSyntheticErrorType(pair.name))
+                continue;
+            for (edge in entry.edges) {
+                final edgeEnum = state.funcErrorTypes.get(edge.callee);
+                if (edgeEnum == null || !state.isSyntheticErrorType(edgeEnum.name))
+                    continue;
+                if (edgeEnum.module == pair.module && edgeEnum.name == pair.name)
+                    continue;
+                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
+            }
+        }
+
         scanFallibleBlockParams(mtypes);
     }
 
