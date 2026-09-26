@@ -10467,15 +10467,16 @@ class RustExpr {
                         case "end":
                             return RustConversions.narrowI32("(" + expr(args[0]) + ").len()");
                         case "codeAt":
-                            // A char lowers to its Unicode scalar through
-                            // From<char> for u32, then narrows into the
-                            // resident i32 domain (values fit: scalars cap at
-                            // 0x10FFFF).
+                            // The lead UTF-16 unit widens through From<u16>
+                            // for u32, then narrows into the resident i32
+                            // domain.
                             return "i32::try_from(u32::from(" + "(" + expr(args[0]) + ")[" + castArg(args[1], "usize")
-                                + "..].chars().next().unwrap_or('\\0')" + ")).unwrap_or(0)";
+                                + "..].first().copied().unwrap_or(0)" + ")).unwrap_or(0)";
                         case "advance":
-                            return RustConversions.narrowI32("(" + castArg(args[1], "usize") + " + (" + expr(args[0]) + ")[" + castArg(args[1], "usize")
-                                + "..].chars().next().unwrap_or('\\0').len_utf8())");
+                            // The advance walks one UTF-16 unit and adds its
+                            // UTF-8 width (1/2/3 bytes for a BMP scalar).
+                            return RustConversions.narrowI32("(" + castArg(args[1], "usize") + " + {let _u = (" + expr(args[0]) + ")[" + castArg(args[1], "usize")
+                                + "..].first().copied().unwrap_or(0u16); 1 + ((_u as u32) > 0x7F) as usize + ((_u as u32) > 0x7FF) as usize})");
                         case "substringBetween":
                             return "UString((" + expr(args[0]) + ")[" + castArg(args[1], "usize") + ".." + castArg(args[2], "usize") + "].to_vec())";
                         case "fromCodePoint":
