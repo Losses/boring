@@ -86,6 +86,10 @@ class ParenFold {
                             k++;
                         if (StringTools.startsWith(ltrimInner, "{")
                             && !hasTopLevelComma(text, i + 1, close)
+                            // A brace block followed by `.m()` keeps its
+                            // parens: bare, the method binds to a trailing
+                            // cast type inside the block tail (ParenFold)
+                            && !(k < text.length && text.charAt(k) == ".")
                             && !foldChangesGrouping(text, i, close)) {
                             out.add(ltrimInner);
                             i = close + 1;
