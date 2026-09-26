@@ -239,6 +239,8 @@ impl IntText {
 ';
 
     public static final CONSOLE_SOURCE = '
+use crate::runtime::u_string::UStr;
+
 pub struct Console;
 
 impl Console {
@@ -272,6 +274,8 @@ impl Process {
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
+
+use crate::runtime::u_string::{UStr, UString};
 
 thread_local! {
     static SET_VALUES: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
@@ -338,7 +342,7 @@ impl Fs {
 
     pub fn read_text(path: &UStr) -> UString {
         let bytes = std::fs::read(path.to_utf8_lossy().as_str()).unwrap_or_else(|e| fail(path, e));
-        UString::from(String::from_utf8_lossy(&bytes).as_str())
+        UString::from(String::from_utf8_lossy(&bytes).into_owned().as_str())
     }
 
     pub fn write_text(path: &UStr, data: &UStr) {
@@ -368,7 +372,7 @@ impl Fs {
                 Ok(entry) => entry,
                 Err(e) => fail(path, e),
             };
-            names.push(UString::from(entry.file_name().to_string_lossy().as_str()));
+            names.push(UString::from(entry.file_name().to_string_lossy().into_owned().as_str()));
         }
         names
     }
