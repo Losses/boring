@@ -38,9 +38,16 @@ import js.Syntax;
     (`cargo test --no-run`) and the run step runs the whole command, so
     one `cargo test` executes per test action. The swift recipe reads
     the library module name from the `swift-test-import` define of the
-    bundle's effective arguments. The pack step resolves the host
-    compiler through `BORING_PACKAGE_TSC` / `BORING_PACKAGE_KOTLINC`
-    or from `PATH`.
+    bundle's effective arguments, compiles the library with
+    `-emit-module` so the test executable's `import` resolves, and
+    compiles every test source (the backend's entry is TestMain.swift).
+    swiftc has no package graph, so a tree that imports a SwiftPM-only
+    module (SystemPackage backs the std.Fs host edge) takes that module
+    from `BORING_SWIFT_SYSTEM_PACKAGE`, a directory holding the built
+    swiftmodule and its shared library; the run stops with the variable
+    named when the tree needs it and the variable is unset. The pack
+    step resolves the host compiler through `BORING_PACKAGE_TSC` /
+    `BORING_PACKAGE_KOTLINC` or from `PATH`.
 
     `compare` delegates to the consistency manager of spec 19: the
     driver compiles `tools/test-consistency/manager.hxml` from the
@@ -606,25 +613,69 @@ class Driver {
                     final module = swiftTestImport(project, bundle);
                     makeDirs(build);
                     final genFiles = [for (file in walkFiles(gen, ".swift")) joinPath(gen, file)];
+                    final testFiles = [for (file in walkFiles(genTests, ".swift")) joinPath(genTests, file)];
                     if (genFiles.length == 0) {
                         fail('bundle "${bundle.id}": no .swift sources under $gen; run gen first');
                     }
+                    if (testFiles.length == 0) {
+                        fail('bundle "${bundle.id}": no .swift sources under $genTests; run gen first');
+                    }
+                    final systemPackage = swiftSystemPackageDir(bundle, genFiles, testFiles);
+                    final importArgs = systemPackage == null ? [] : ["-I", systemPackage];
+                    // -emit-module writes <module>.swiftmodule beside the
+                    // library, which is what the executable's import reads.
                     step(project, bundle, "test", "build library", "swiftc",
-                        ["-emit-library"].concat(genFiles).concat(bundle.build.args)
+                        ["-emit-library", "-emit-module"].concat(importArgs).concat(genFiles).concat(bundle.build.args)
                             .concat(["-module-name", module, "-o", joinPath(build, "lib" + module + ".so")]),
                         bundle.build.env, null);
+                    // The backend names its entry TestMain.swift and the test
+                    // classes live beside it; every test source compiles into
+                    // the executable, the way the kotlin recipe does.
+                    final linkArgs = systemPackage == null ? [] : ["-L", systemPackage, "-lSystemPackage"];
                     step(project, bundle, "test", "build test executable", "swiftc",
-                        [joinPath(genTests, "main.swift")].concat(bundle.build.args)
-                            .concat(["-I", build, "-L", build, "-l" + module, "-o", joinPath(build, "test-runner")]),
+                        importArgs.concat(testFiles).concat(bundle.build.args)
+                            .concat(["-I", build, "-L", build, "-l" + module]).concat(linkArgs)
+                            .concat(["-o", joinPath(build, "test-runner")]),
                         bundle.build.env, null);
                     final runEnvSwift:Dynamic = Syntax.code("({...{0}})", runEnv);
                     final existing = Syntax.code("process.env.LD_LIBRARY_PATH || ''");
-                    Reflect.setField(runEnvSwift, "LD_LIBRARY_PATH", build + ":" + existing);
+                    final runPaths = systemPackage == null ? build : build + ":" + systemPackage;
+                    Reflect.setField(runEnvSwift, "LD_LIBRARY_PATH", runPaths + ":" + existing);
                     step(project, bundle, "test", "run", joinPath(build, "test-runner"), bundle.run.args, runEnvSwift, null);
                 default:
                     fail('bundle "${bundle.id}": target "${bundle.target}" has no recipe');
             }
         }
+    }
+
+    /**
+        The directory holding a prebuilt SystemPackage swiftmodule, when
+        the bundle's generated tree imports it. swiftc carries no package
+        graph: the SwiftPM-only module a std.Fs host edge imports is not
+        derivable from the compilation, so the environment names a built
+        module directory (BORING_SWIFT_SYSTEM_PACKAGE). Without it the
+        run stops with the variable named instead of a bare compiler
+        error. (SwiftModuleDependencies)
+    **/
+    static function swiftSystemPackageDir(bundle:Bundle, genFiles:Array<String>, testFiles:Array<String>):Null<String> {
+        var imports = false;
+        for (file in genFiles.concat(testFiles)) {
+            if (readText(file).indexOf("import SystemPackage") >= 0) {
+                imports = true;
+                break;
+            }
+        }
+        if (!imports) {
+            return null;
+        }
+        final fromEnv:String = Syntax.code("process.env.BORING_SWIFT_SYSTEM_PACKAGE || ''");
+        if (fromEnv.length == 0) {
+            fail('bundle "${bundle.id}": the generated tree imports SystemPackage, which the swift toolchain does not ship; build the module (e.g. from the apple/swift-system sources pinned by Package.resolved) and point BORING_SWIFT_SYSTEM_PACKAGE at the directory holding SystemPackage.swiftmodule and its shared library');
+        }
+        if (!exists(joinPath(fromEnv, "SystemPackage.swiftmodule"))) {
+            fail('bundle "${bundle.id}": BORING_SWIFT_SYSTEM_PACKAGE names $fromEnv, which holds no SystemPackage.swiftmodule');
+        }
+        return fromEnv;
     }
 
     /**

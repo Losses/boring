@@ -22,6 +22,7 @@ reference/haxe/gen-tests/
 # recipe's build directory and the artifacts the pack step writes next
 # to each generated tree.
 reference/kotlin/build/
+reference/swift/build/
 reference/kotlin/maven/
 reference/ts/*.tgz
 reference/dart/*.tar.gz
