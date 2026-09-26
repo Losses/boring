@@ -2364,6 +2364,14 @@ class SwiftExpr {
         // transparent; Swift needs the explicit conversion.
         if (isFloatLeafType(target) && isIntType(emittedType(inner)) && !isFloatTyped(inner))
             return intToFloatText(rendered);
+        // features/18: a Haxe Array<->ReadOnlyArray implicit cast crosses the
+        // mutable/immutable container boundary, and the two lower to different
+        // Swift types (TiqianArray vs the native value Array); the unify check
+        // below would accept the cast silently, so the container conversion
+        // renders first.
+        final container = arrayBoundaryText(inner, rendered, target);
+        if (container != null)
+            return container;
         if (Context.unify(inner.t, target)) {
             return rendered;
         }
@@ -2374,6 +2382,32 @@ class SwiftExpr {
                     case _: rendered;
                 }
             case _: rendered;
+        };
+    }
+
+    /**
+        The container conversion of an Array<->ReadOnlyArray boundary cast,
+        or null when the cast does not cross the mutable/immutable line
+        (features/18). Mutable Array lowers to TiqianArray while
+        ReadOnlyArray lowers to the native value Array, so the Haxe-level
+        implicit casts render as the Swift container initializers.
+    **/
+    function arrayBoundaryText(inner:TypedExpr, rendered:String, target:Type):Null<String> {
+        if (StaticFieldHelper.isReadOnlyArrayType(target)) {
+            if (isMutableArrayType(inner.t))
+                return "Array(" + rendered + ")";
+            return null;
+        }
+        if (isMutableArrayType(target) && StaticFieldHelper.isReadOnlyArrayType(inner.t))
+            return "TiqianArray(" + rendered + ")";
+        return null;
+    }
+
+    /** Whether the type is the mutable Haxe Array, which lowers to TiqianArray. */
+    function isMutableArrayType(t:Null<Type>):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
+            case _: false;
         };
     }
 
