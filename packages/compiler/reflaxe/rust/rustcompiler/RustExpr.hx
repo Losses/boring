@@ -58,7 +58,7 @@ class RustExpr {
     // Whether the enclosing function's receiver is a mutable self reference.
     // Set once at function-body entry; the receiver-rendering flag above is
     // narrower and is overridden around each receiver, so this separate flag
-    // keeps the function-level mutability available when lowering self as a
+    // keeps the mutability of the whole function available when lowering self as a
     // mutable reference argument. (SelfMutRefArgument)
     var currentFunctionMutatesSelf:Bool = false;
     // True only while rendering the receiver of an in-place mutating call
@@ -120,7 +120,7 @@ class RustExpr {
     // into. It is tracked separately from errorTypeName because rendering a
     // call's arguments retargets errorTypeName to the callee's own error, and
     // a constructor nested in that argument list must still convert into the
-    // region rather than into whatever the innermost argument pass set.
+    // region, and the innermost argument pass cannot re-route it.
     var blockClosureErrorName:Null<String> = null;
     var inGenericFunction:Bool = false;
     final borrowedLoopVarIds:Map<Int, Bool> = [];
@@ -235,7 +235,7 @@ class RustExpr {
     // that walks the loop and every receiver local whose UTF-16 units were
     // hoisted into a Vec before the loop; per-char reads of any of those
     // receivers at the walking index (plus indexOffset) lower against the
-    // vector instead of rescanning the UTF-8 string. indexOffset is the
+    // vector and skip a rescan of the UTF-8 string. indexOffset is the
     // constant added to the walking index to get the read index (0 for a
     // forward walk, -1 for a reverse walk that reads at i-1). receivers[0]
     // is the primary receiver (named by the loop condition); the rest are
@@ -2402,8 +2402,8 @@ class RustExpr {
 
     /**
         Converts a std-String-shaped rendering into a UString value. The
-        .to_string() tail peels off first so the Display receiver, not the
-        finished String, feeds From<&str>.
+        .to_string() tail peels off first so From<&str> receives the
+        Display receiver; the finished String does not reach it.
     **/
     function ustringFromStdText(rendered:String):String {
         imports.requireType("runtime.UString", "UString");
@@ -2413,7 +2413,7 @@ class RustExpr {
     /**
         A Haxe String value slot receives either a UString producer (which
         takes .to_ustring()) or a std-String-shaped rendering, which wraps
-        through UString::from instead of calling a method String has none of.
+        through UString::from; String has no such method to call.
     **/
     /**
         A nullable match's Some arm and its UString "null" None arm must
@@ -2456,7 +2456,7 @@ class RustExpr {
     /**
         stringViewArg: a Rust &str slot takes a Haxe String. A string literal
         keeps its static borrowing, a borrowed parameter is already a view,
-        and every other String expression borrows through as_str — unless its
+        and every other String expression borrows through as_str, unless its
         rendering is a std String value (a format! result, a display block,
         a .name() label), which converts through UString::from first.
     **/
@@ -2466,8 +2466,8 @@ class RustExpr {
             return rendered;
         return switch (stripWrap(arg).expr) {
             case TConst(TString(_)): "&(" + rendered + ")";
-            // A nullable parameter stores Option<UString>, not a str view;
-            // only a plain String parameter renders as a view directly.
+            // A nullable parameter stores an Option<UString>, so a str view
+            // only fits a plain String parameter, which renders directly.
             case TLocal(v) if (isBorrowedParamLocal(v) && !isNullType(arg.t)): rendered;
             // A nullable string read borrows through the Option wrapper; a
             // narrowed or collapsed local already renders the inner value,
@@ -2482,7 +2482,7 @@ class RustExpr {
 
     /**
         stdStrViewArg: a native &str slot (an enum from_name lookup, the
-        runtime Fs module) takes std UTF-8 text, not a UStr view. A string
+        runtime Fs module) takes std UTF-8 text (no UStr view). A string
         literal already is a &'static str; a std-String-shaped rendering
         borrows directly; every other String shape converts to the
         borrowed UStr view, which both owned and borrowed values carry.
@@ -2541,9 +2541,9 @@ class RustExpr {
 
     /**
         The format spec a message-only conversion uses for the source error.
-        Every source — a declared payload enum, a message-only fault, or a
-        synthetic union whose Display formats the member fault (see
-        syntheticErrorDecls) — renders its message through Display, so the
+        Every source (a declared payload enum, a message-only fault, or a
+        synthetic union whose Display formats the member fault; see
+        syntheticErrorDecls) renders its message through Display, so the
         conversion reads the message body.
     **/
     function errorTextSpec(sourceName:Null<String>):String {
@@ -2603,10 +2603,10 @@ class RustExpr {
                 // The conversion names the exception type, so the call site
                 // must import it the same way a declared use would.
                 imports.requireType(messageOnlyModule, targetName);
-                // Every source fault — message-only struct, declared payload
-                // enum, or synthetic union — carries its message through
+                // Every source fault (message-only struct, declared payload
+                // enum, or synthetic union) carries its message through
                 // Display, so {} keeps the bare text through the conversion
-                // instead of wrapping it in a Debug struct name.
+                // and skips wrapping it in a Debug struct name.
                 // (ExceptionFormatSpec)
                 return ".map_err(|e| " + targetName + "::new(&format!(\"{}\", e)))?";
             }
@@ -3075,8 +3075,8 @@ class RustExpr {
     /**
         dropFlagBreakPairs: within a `while (flag)` body whose flag only
         the loop condition observes, a store `flag = <pure const>`
-        immediately followed by `break` is dead — after the break the
-        condition never re-reads the flag — and is removed. Blocks and
+        immediately followed by `break` is dead (after the break the
+        condition never re-reads the flag) and is removed. Blocks and
         conditionals rebuild; every other shape keeps its statements.
         (LoopFlagBreakPairDrop)
     **/
@@ -3719,7 +3719,7 @@ class RustExpr {
                     final lenName = freshRegionName("__loop_len");
                     final guardName = freshRegionName("__loop_guard");
                     final subjText = expr(sliceSubj);
-                    // Hoist the lock into a guard bound before the loop so
+                    // Hoist the lock to a guard bound before the loop so
                     // the mutex is acquired once and held across every element
                     // access. The array's local id is removed from the shared-
                     // closure set and redirected through subst to the guard,
@@ -3746,7 +3746,8 @@ class RustExpr {
                     loopClose.push(indent(depth + 1) + iName + " += 1;");
                     loopClose.push(indent(depth) + "}");
                     // The guard is a std::sync::MutexGuard: it holds the lock
-                    // until the end of its lexical scope, not its last use, so
+                    // until the end of its lexical scope, and its last use may come
+                    // earlier, so
                     // a later lock() of the same mutex in this function would
                     // self-deadlock without an explicit drop. (LoopGuardScope)
                     loopClose.push(indent(depth) + "drop(" + guardName + ");");
@@ -3817,8 +3818,8 @@ class RustExpr {
         final loopName = readsIndex ? name : "_";
         final out:Array<String> = [];
         // Hoist every shared closure array/scalar read by the body to a
-        // loop-level guard so the mutex is acquired once instead of per
-        // element. The subst redirects the local during body generation and
+        // per-loop guard so the mutex is acquired once for all
+        // elements. The subst redirects the local during body generation and
         // is reverted after. The guard is declared `mut` so index writes and
         // pushes resolve through DerefMut. (LoopGuardHoist)
         final bodyGuardVars = collectSharedBodyGuards(loop.body);
@@ -3938,8 +3939,8 @@ class RustExpr {
 
     // Collect the shared closure array/scalar locals referenced by an indexed
     // loop body, in first-appearance order. Each is hoisted to a lock guard
-    // before the loop so the body reads and writes the guard instead of
-    // locking the mutex on every element access. (LoopGuardHoist)
+    // before the loop so the body reads and writes the guard and the
+    // mutex is locked once for the whole loop. (LoopGuardHoist)
     function collectSharedBodyGuards(body:Array<TypedExpr>):Array<TVar> {
         final seen:Map<Int, Bool> = [];
         final result:Array<TVar> = [];
@@ -4561,7 +4562,7 @@ class RustExpr {
     /**
         Wrap a boolean operand when its inner binary operator has lower
         precedence than the parent boolean operator: (a || b) && c must stay
-        (a || b) && c in Rust, where && binds tighter than || just like Haxe.
+        (a || b) && c in Rust, where && binds tighter than ||, matching Haxe.
         Does NOT double-wrap when the operand is already TParenthesis (the
         TParenthesis case in expr already renders its own parens).
         (BoolPrecedenceParens)
@@ -5226,7 +5227,7 @@ class RustExpr {
                 }
                 // A loop hoist redirects this shared variable to a lock
                 // guard bound outside the loop, so the guard outlives every
-                // element access instead of locking per element. (LoopGuardHoist)
+                // element access and the mutex is locked once per loop. (LoopGuardHoist)
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
@@ -7445,7 +7446,7 @@ class RustExpr {
                 // (T7), which rounds identically to `as` without a cast.
                 // Haxe Int is signed, so a u32-domain operand reinterprets to
                 // i32 before the Float conversion; the unsigned decimal parse
-                // would read a wrapped negative as a huge positive.
+                // would read a wrapped negative as a very large positive.
                 final lStr = if (isIntType(l.t)) RustConversions.intToFloat(castSignedI32(l), real) else operand(l, op, false);
                 final rStr = if (isIntType(r.t)) RustConversions.intToFloat(castSignedI32(r), real) else operand(r, op, true);
                 return lStr + " " + symbolOf(op) + " " + rStr;
@@ -7644,7 +7645,7 @@ class RustExpr {
     **/
     function stringOrderOperand(e:TypedExpr):String {
         return switch (stripWrap(e).expr) {
-            // Every operand lands in the borrowed &UStr domain: Rust
+            // Every operand stays in the borrowed &UStr domain: Rust
             // implements PartialOrd only between equal string types.
             case TConst(TString(_)): expr(e) + ".as_ustr()";
             case TLocal(v) if (isBorrowedLocal(v)): expr(e);
@@ -8178,7 +8179,7 @@ class RustExpr {
                 // original Int constant. Suffixing this literal prevents Rust
                 // method calls from leaving its numeric type ambiguous.
                 Std.string(v) + ".0" + (FloatPrecision.isF32() ? "f32" : "f64");
-            // A Math call treats its Int argument as a signed Haxe Int; a wrapped negative (u32::wrapping_sub underflow) must widen through the i32 bit reading, not the u32 Display value. (SignedMathFloatArg)
+            // A Math call treats its Int argument as a signed Haxe Int; a wrapped negative (u32::wrapping_sub underflow) must widen through the i32 bit reading; the u32 Display value would be wrong. (SignedMathFloatArg)
             case _ if (isIntType(emittedType(a))): intToFloatSignedText(expr(a), a);
             case _:
                 // A nullable local proven non-null by a guard holds the inner
@@ -8270,7 +8271,7 @@ class RustExpr {
         and stops at the first element, and a bound past the end clamps to the
         length. `lenVar` names the length binding and `boundVar` the bound,
         both in the signed domain, because the u32 Haxe Int domain turns a
-        negative position into a huge index. The caller binds the source of the
+        negative position into a very large index. The caller binds the source of the
         bound first so a call inside it runs once. (ArrayBoundClamping)
     **/
     function clampedArrayBound(lenVar:String, boundVar:String):String {
@@ -8522,7 +8523,7 @@ class RustExpr {
                     // A direct array static read lowers to a Rust array
                     // `[T; N]`. Its length is a constant; reading it must not
                     // copy the whole table (RANGES.to_vec().len() copies N
-                    // elements just to count them). (StaticArrayIndexBorrow)
+                    // elements only to count them). (StaticArrayIndexBorrow)
                     final directPath = directArrayStaticReadPath(subj);
                     if (directPath != null)
                         return RustConversions.truncate(directPath + ".len()", "u32");
@@ -8555,8 +8556,8 @@ class RustExpr {
                     // target (stdlib/15), so it reads the u_string unit
                     // count ahead of the container paths below.
                     if (isString(subj)) {
-                        // A function-level hoisted String parameter reads the
-                        // precomputed count instead of rescanning. (StrParamHoist)
+                        // A String parameter hoisted to function scope reads the
+                        // precomputed count and skips the rescan. (StrParamHoist)
                         final hoisted = hoistedStrParamMatch(subj);
                         if (hoisted != null) {
                             final countText = hoisted.countTemp;
@@ -8827,8 +8828,8 @@ class RustExpr {
         inside the with-closure: a clone applied outside would clone the
         returned Ref guard and tie it to the thread-local's lifetime.
         The Mutex family binds the guard to a named local inside a block and
-        clones there, so the guard drops at the end of the block instead of
-        living until the end of the enclosing statement. A statement that
+        clones there, so the guard drops at the end of the block and does
+        not live until the end of the enclosing statement. A statement that
         reads the same Mutex static twice (for example two elements of a
         vec![]) otherwise holds the first guard while the second lock() runs,
         which deadlocks the same thread. (MutexGuardStatementScope) */
@@ -8865,7 +8866,7 @@ class RustExpr {
 
     /** The guard read of a static field cloned to an owned value, or null
         when the expression is not a guard static read. Callers that need an
-        owned value must use this rather than appending ".clone()" to
+        owned value must use this and must not append ".clone()" to
         staticGuardOf: for the RefCell family the clone has to sit inside the
         with-closure. (RefCellStaticGuardScope) */
     function staticGuardCloneOf(e:TypedExpr):Null<String> {
@@ -9851,8 +9852,8 @@ class RustExpr {
             return isNullType(args[0].t) ? "(" + subject + ").is_some()" : "true";
         final nameTest = "\"" + target.module + "." + target.name + "\"";
         // Haxe answers false for a null operand, so a nullable subject
-        // (Option storage) takes the match form instead of the direct
-        // method call the Option enum does not carry.
+        // (Option storage) takes the match form; the direct method call is
+        // one the Option enum does not carry.
         // (NullableIsOfTypeMatch)
         if (isNullType(args[0].t)) {
             final vq = isSharedIfaceType(getNullInnerType(args[0].t)) ? "v.lock().unwrap()" : "v";
@@ -10107,7 +10108,7 @@ class RustExpr {
                         optionNarrowingHitCount++;
                     final receiverText = narrowed != null ? narrowed : expr(receiver);
                     // Haxe's String is UString, so the Display text converts
-                    // at the read site instead of leaking a std String.
+                    // at the read site, and no std String leaks.
                     return "UString::from((" + receiverText + ").to_string().as_str())";
                 }
                 final op = ValueTypeSupport.operatorOf(abs, field);
@@ -10386,12 +10387,12 @@ class RustExpr {
                     imports.require("crate::runtime::u_string");
                     // Inside a hoisted per-character loop, the receiver's
                     // UTF-16 units already sit in a Vec; read the one-unit
-                    // slice from there instead of rescanning the UTF-8 source
+                    // slice from there and skip a rescan of the UTF-8 source
                     // (O(1) vs O(n) per character). (PerCharLoopUnits)
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
                         return "u_string::char_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
-                    // Function-level hoisted String parameter: read from the
+                    // String parameter hoisted to function scope: read from the
                     // precomputed unit vector (O(1) vs O(n)). (StrParamHoist)
                     final hoisted = hoistedStrParamMatch(subj);
                     if (hoisted != null)
@@ -10460,12 +10461,12 @@ class RustExpr {
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
                     // Inside a hoisted per-character loop the receiver's units
-                    // already sit in a Vec; read the unit from there instead of
-                    // rescanning the UTF-8 source (O(1) vs O(n)). (PerCharLoopUnits)
+                    // already sit in a Vec; read the unit from there and skip a
+                    // rescan of the UTF-8 source (O(1) vs O(n)). (PerCharLoopUnits)
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
                         return "u_string::unit_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
-                    // A function-level hoisted String parameter reads from the
+                    // A String parameter hoisted to function scope reads from the
                     // precomputed unit vector (O(1) vs O(n) per access).
                     // (StrParamHoist)
                     final hoisted = hoistedStrParamMatch(subj);
@@ -10528,8 +10529,8 @@ class RustExpr {
                         // Inside a hoisted per-character loop, a one-unit
                         // substring(receiver, i, i + 1) reads the single unit
                         // at the walking index; lower it to the O(1) read from
-                        // the hoisted unit vector instead of rescanning the
-                        // UTF-8 source twice. (PerCharLoopUnits)
+                        // the hoisted unit vector; the UTF-8 source is then
+                        // read only once. (PerCharLoopUnits)
                         final perChar = perCharLoopMatch(subj, args[0]);
                         final startId = switch (stripWrap(args[0]).expr) {
                             case TLocal(v): v.id;
@@ -10748,7 +10749,7 @@ class RustExpr {
                 if (name == "push") {
                     // An indexed element receiver must stay a place
                     // expression: the mutation must reach the storage inside
-                    // the Vec, not a cloned temporary. The flag covers only
+                    // the Vec and must not touch a cloned temporary. The flag covers only
                     // the receiver itself: a push argument may contain an
                     // indexed read of its own, which keeps its value clone.
                     // A nullable wrapper in the receiver chain opens with
@@ -10821,7 +10822,7 @@ class RustExpr {
                 // stops at the first element, and a position past the end
                 // clamps to the length. Vec::insert panics on a usize index
                 // past the length, and the u32-domain Haxe Int wraps a
-                // negative position into a huge index, so the position is
+                // negative position into a very large index, so the position is
                 // clamped in the signed domain and then widened losslessly.
                 // (ArrayInsertClamping)
                 if (name == "insert" && isVecType(subj) && args.length == 2) {
@@ -11109,12 +11110,12 @@ class RustExpr {
                     final unwrapped = argument;
                     // Haxe's fromCharCode takes a scalar; a supplementary scalar
                     // encodes as its surrogate pair, and a BMP scalar keeps the
-                    // single-unit form — including a LONE surrogate, which
+                    // single-unit form (including a LONE surrogate, which
                     // Haxe/JS strings carry as an unpaired unit. A std String
                     // decode (String::from_utf16) rejects the lone unit, so the
                     // old rendering silently dropped the character; UString
                     // stores raw UTF-16 units and keeps it. The rendering is
-                    // therefore a UString producer, not a std-String shape.
+                    // therefore a UString producer; no std-String shape applies.
                     // (FromCharCodeScalar)
                     imports.require("crate::runtime::u_string");
                     return "(if " + unwrapped + " > 0xFFFF { u_string::from_units(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]) } else { u_string::from_units(&[" + unwrapped + " as u16]) })";
@@ -11450,7 +11451,7 @@ class RustExpr {
                 // A class-static callee has typed parameters: when any of
                 // them is a mutable-reference position, the args must route
                 // through the standard pipeline so the position borrows
-                // instead of cloning. (MutableRefObjectParam)
+                // and no clone is made. (MutableRefObjectParam)
                 switch (stripWrap(fn).expr) {
                     case TField(_, FStatic(c, cf)) | TField(_, FInstance(c, _, cf)):
                         final positions = mutableParamPositions(cf.get());
@@ -12583,7 +12584,7 @@ class RustExpr {
             return "(" + rendered + ").unwrap()";
         // A constructor fault reaching a message-only region has no variant to
         // map into: the region carries text and its catch arm reads that text,
-        // so the conversion formats the source error instead of a plain `?`.
+        // so the conversion formats the source error; a plain `?` would not.
         final target = blockClosureErrorName != null ? blockClosureErrorName : (localFunctionErrorName != null ? localFunctionErrorName : errorTypeName);
         final module = target != null ? state.messageOnlyModuleFor(target) : null;
         if (module != null && constructorErrorName(e) != target) {
@@ -13959,8 +13960,8 @@ class RustExpr {
         }
         // A local bound to a forwarded block literal carries the slot's Result
         // as well, so its declaration and its literal agree with the callee.
-        // This runs for every function, not only those with a fallible-block
-        // parameter: a function that merely passes a local to a fallible
+        // This runs for every function, including those without a fallible-block
+        // parameter: a function that only passes a local to a fallible
         // callee still needs that local's declaration rendered with the slot's
         // Result. The body is a TFunction wrapping the block; iterating the
         // TFunction only visits the block node, never the TVar statements
@@ -16109,10 +16110,10 @@ class RustExpr {
         // An owned non-Copy Vec field read renders with a whole-container
         // clone (`(self.keys).clone()`) so a value slot can own the Vec.
         // Indexing does not need that ownership: it reads one element and
-        // the caller clones just the element, so cloning the whole Vec
+        // the caller clones only the element, so cloning the whole Vec
         // before indexing copies N elements per lookup. Index the field in
         // place instead and let the element-read clone apply alone. This is
-        // the general form of a value read, not a per-table special case.
+        // the general form of a value read; no per-table special case applies.
         // (OwnedVecFieldIndexInPlace)
         if (!mutable) {
             final fieldPath = ownedVecFieldIndexPath(arr);
@@ -16184,7 +16185,7 @@ class RustExpr {
         default. A value element type fills its zero, a nullable element type
         fills None, a String fills the empty String. A non-nullable reference
         element type has no null literal in Rust, so it takes no guard and
-        keeps the plain write (which cannot grow in practice).
+        keeps the plain write (which cannot grow).
         (ArrayGrowthOnIndexWrite)
     **/
     function arrayGrowthDefault(element:Type):Null<String> {
@@ -16425,7 +16426,7 @@ class RustExpr {
         // (E0689). The annotated binding pins the u32 domain before the
         // byte round-trip, matching the range-loop-variable path. The
         // check names the loop variable directly (a TLocal in the
-        // ambiguous-receiver set) rather than the whole predicate, because
+        // ambiguous-receiver set) and leaves out the whole predicate, because
         // a conditional that renders a concrete local name (e.g. a
         // null-coalesced Float) would over-match and wrap a concrete
         // value. (AmbiguousIntReceiver)
