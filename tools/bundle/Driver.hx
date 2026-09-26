@@ -108,10 +108,11 @@ class Driver {
     }
 
     static function walkFilesInner(dir:String, prefix:String, suffix:String, out:Array<String>):Void {
-        if (!exists(dir)) {
+        final listDir = prefix.length == 0 ? dir : joinPath(dir, prefix);
+        if (!exists(listDir)) {
             return;
         }
-        final entries:Array<String> = Syntax.code("require('fs').readdirSync({0})", dir);
+        final entries:Array<String> = Syntax.code("require('fs').readdirSync({0})", listDir);
         for (entry in entries) {
             final full = prefix.length == 0 ? entry : prefix + "/" + entry;
             final absolute = joinPath(dir, full);
@@ -648,9 +649,16 @@ class Driver {
         final ids = [for (bundle in project.bundles) bundle.id].join(",");
         print('[compare] baseline ${project.baseline} over $ids');
         step(project, project.bundles[0], "compare", "manager build", "haxe", ["tools/test-consistency/manager.hxml"], null, repoRoot);
-        step(project, project.bundles[0], "compare", "manager run", "bun",
-            [joinPath(repoRoot, "out/test-consistency/manager.js"), "--dir", project.resultsDir, "--targets", ids, "--baseline", project.baseline],
-            null, project.root);
+        // The manager's matrix and divergence list are the compare
+        // result, so they print on success as well as failure.
+        final manager = runCommand("bun",
+            [joinPath(repoRoot, "out/test-consistency/manager.js"), "--dir=" + project.resultsDir, "--targets=" + ids, "--baseline=" + project.baseline],
+            project.root, null);
+        print(manager.output);
+        if (manager.code != 0) {
+            printErr('Error: action "compare" failed: the consistency manager exited with code ${manager.code}.');
+            exit(1);
+        }
     }
 
     /**
@@ -659,7 +667,8 @@ class Driver {
     **/
     static function repoRoot():String {
         final scriptPath:String = Syntax.code("process.argv[1] || ''");
-        return Syntax.code("require('path').resolve({0}, '..', '..')", scriptPath);
+        final scriptDir:String = Syntax.code("require('path').dirname({0})", scriptPath);
+        return Syntax.code("require('path').resolve({0}, '..', '..')", scriptDir);
     }
 
     static function actionVerify(project:Project, withPack:Bool):Void {
