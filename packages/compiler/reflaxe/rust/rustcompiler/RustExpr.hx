@@ -12016,19 +12016,6 @@ class RustExpr {
                             final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
                             if (subject != null && containsEarlyExit(then))
                                 provenContinueSubjects.set(subjectTextOf(subject), true);
-                        case TBinop(OpNotEq, l, r):
-                            // `if (X != null) { ...X... }` proves X for the
-                            // guarded block: register the subject so the
-                            // guarded references render the inner value. The
-                            // containment test walks the AST field chain, so
-                            // rendering the block here would advance the
-                            // naming counters as a side effect.
-                            final subject = isTNull(l) ? r : (isTNull(r) ? l : null);
-                            if (subject != null) {
-                                final chain = accessChainOf(subject);
-                                if (chain != null && containsAccess(then, chain))
-                                    provenContinueSubjects.set(subjectTextOf(subject), true);
-                            }
                         case _:
                     }
                 case _:
