@@ -32,6 +32,26 @@ class RustDecl {
     **/
     public static var mutatingTraitMethods:Map<String, Bool> = new Map();
 
+    /**
+        Interfaces whose interface-slot handles must be genuinely shared
+        (ClassHandleShare). Haxe object references are shared: when a
+        caller hands a stateful implementor (a cache, a shaper) to an
+        engine through an interface slot, the engine's writes must be
+        visible to the caller's later reads. Cloning into the slot breaks
+        that. Interfaces registered here lower their interface slots to
+        Arc<Mutex<dyn Trait>>, so the slot and the source binding share
+        one object. (ClassHandleShare)
+    **/
+    public static var sharedInterfaces:Map<String, Bool> = [
+        "org.tiqian.shaping.TextShaper::ITextShaper" => true,
+        "org.tiqian.layout.WidthIndependentAnnotationCache::WidthIndependentAnnotationCache" => true
+    ];
+
+    /** Whether the interface (module, name) lowers to a shared handle slot. */
+    public static function isSharedInterface(module:String, name:String):Bool {
+        return sharedInterfaces.exists(module + "::" + name);
+    }
+
     // Method names visited by the current bodyMutatesSelf recursion; breaks
     // self-call cycles when a mutating method transitively calls itself.
     static var mutationVisited:Map<String, Bool> = [];
@@ -167,10 +187,13 @@ class RustDecl {
                 lines.push("        self.clone_box()");
                 lines.push("    }");
                 lines.push("}");
-                // A trait object has no field layout to format; the type
-                // name carries the only stable debug identity, so a record
-                // that derives Debug over a Box<dyn Trait> field stays
-                // printable.
+            }
+            // A shared interface keeps the Debug impl for the trait object:
+            // Arc<Mutex<dyn X>> is Debug through it, so structs that derive
+            // Debug over the shared handle stay printable.
+            // (ClassHandleShare)
+            final isSharedIface = isSharedInterface(cls.module, cls.name);
+            if (isCloneIface || isSharedIface) {
                 lines.push("");
                 lines.push("impl std::fmt::Debug for dyn " + emittedName + " {");
                 lines.push("    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
@@ -2315,10 +2338,17 @@ class RustDecl {
                                 case TInst(c, _) if (c.get().name == "String" && StringTools.startsWith(init, "\"")): init + ".to_string()";
                                 case _: init;
                             };
+                            // A shared implementor field stores the shared
+                            // handle; the initializer wraps once here.
+                            // (ClassHandleShare)
+                            final sharedInit = sharedImplementorField(field.type)
+                                && !StringTools.startsWith(ownedInit, "Arc::new(Mutex::new(")
+                                && ownedInit != "Default::default()"
+                                && ownedInit != "None" ? "Arc::new(Mutex::new(" + ownedInit + "))" : ownedInit;
                             final fieldType = types.of(field.type);
                             final wrappedInit = StringTools.startsWith(fieldType, "Option<")
-                                && init != "None" && !StringTools.startsWith(ownedInit, "Some(")
-                                && !StringTools.startsWith(ownedInit, "match ") ? "Some(" + ownedInit + ")" : ownedInit;
+                                && init != "None" && !StringTools.startsWith(sharedInit, "Some(")
+                                && !StringTools.startsWith(sharedInit, "match ") ? "Some(" + sharedInit + ")" : sharedInit;
                             lines.push('            $sname: $wrappedInit,');
                         }
                     case _:
@@ -2457,6 +2487,22 @@ class RustDecl {
         return switch (t) {
             case TInst(c, _) if (c.get().module == "haxe.io.Bytes"): true;
             case TType(d, _) if (d.get().module == "haxe.io.Bytes"): true;
+            case _: false;
+        };
+    }
+
+    /** Whether the type names a concrete class implementing a registered
+        shared interface; such fields store the shared handle.
+        (ClassHandleShare) */
+    public static function sharedImplementorField(t:Type):Bool {
+        final inner = DefaultArgExpander.withoutNull(t);
+        return switch (Context.follow(inner)) {
+            case TInst(c, _):
+                final cc = c.get();
+                !cc.isInterface && Lambda.exists(cc.interfaces, i -> {
+                    final ic = i.t.get();
+                    ic.isInterface && isSharedInterface(ic.module, ic.name);
+                });
             case _: false;
         };
     }
