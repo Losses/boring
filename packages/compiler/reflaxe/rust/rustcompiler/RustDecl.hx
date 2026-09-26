@@ -2914,8 +2914,9 @@ lines.push("        }");
                 lines.push("    }");
             }
             if (use.lookup) {
-                lines.push('    pub fn from_name(name: &str) -> Option<${en.name}> {');
-                lines.push("        match name {");
+                imports.requireType("runtime.UString", "UStr");
+                lines.push('    pub fn from_name(name: &UStr) -> Option<${en.name}> {');
+                lines.push("        match name.to_utf8_lossy().as_str() {");
                 for (o in sorted)
                     lines.push('            "${o.name}" => Some(${en.name}::${RustImports.toUpperCamelCase(o.name)}),');
                 lines.push("            _ => None,");
