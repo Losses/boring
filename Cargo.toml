@@ -16,5 +16,5 @@ default-members = ["reference/rust", "reference/rust/gen"]
 # workspace root without being a member or an exclusion; the f32 twin
 # crate is excluded for the same reason: it stands as a crate of its
 # own once generated.
-exclude = ["out", "reference/rust-f32-gen/src"]
+exclude = ["out", "reference/rust-f32/gen"]
 resolver = "3"
