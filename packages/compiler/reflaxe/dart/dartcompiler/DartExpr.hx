@@ -921,9 +921,15 @@ class DartExpr {
                             case TLocal(v): nonNullLocals.exists(v.id) || flowPromotedNonNull.exists(v.id);
                             case _: false;
                         };
+                        // A function that declares a nullable return already
+                        // accepts null, so an assertion at its return can only
+                        // throw; every arm, including the optional-inferred
+                        // local one, is gated on a non-null return type.
+                        // (NullableReturnNoAssert)
                         return [
-                            indent(depth) + "return " + ((optionalValued(ret)
-                                || (!currentFunctionReturnsNullable && isNullLeafType(ret.t) && !isLocalExpr(ret)))
+                            indent(depth) + "return " + (!currentFunctionReturnsNullable
+                                && (optionalValued(ret)
+                                    || (isNullLeafType(ret.t) && !isLocalExpr(ret) && !isNullLiteral(ret)))
                                 && !nonNullReturn ? rendered
                                 + "!" : rendered)
                         ];
@@ -957,6 +963,12 @@ class DartExpr {
                 // a field access across the null check.
                 if (map == null && nullableValue(r) && !isNullLeafType(l.t))
                     rText = requiredValueText(r);
+                if (map == null) {
+                    final growth = arrayGrowthGuardLine(l, depth);
+                    if (growth != null) {
+                        return [growth, indent(depth) + assignTarget(l) + " = " + rText];
+                    }
+                }
                 final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
                 return [indent(depth) + target + rText];
             case TBinop(OpAssignOp(OpAdd), l, r) if (isStringTyped(l)):
@@ -979,10 +991,16 @@ class DartExpr {
     }
 
     function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int):Array<String> {
+        // Dart's flow promotion inside the if arm does not reach the
+        // else arm; snapshot the pre-if state so the else can restart.
+        final savedPromoted = flowPromotedNonNull.copy();
         final out = [indent(depth) + "if (" + conditionText(c) + ") {"];
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
         if (f != null) {
+            flowPromotedNonNull.clear();
+            for (k in savedPromoted.keys())
+                flowPromotedNonNull.set(k, savedPromoted.get(k));
             final elseStmts = statementsOf(f);
             if (elseStmts.length == 1) {
                 switch (stripWrap(elseStmts[0]).expr) {
@@ -1663,7 +1681,7 @@ class DartExpr {
         var rendered = expr(e);
         // A normalized local, or one cleared by a null guard, is already
         // non-null in the generated Dart flow.
-        if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
+        if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq && !isNullLiteral(e)) {
             rendered += "!";
             switch (stripWrap(e).expr) {
                 case TLocal(v): flowPromotedNonNull.set(v.id, true);
@@ -1819,7 +1837,8 @@ class DartExpr {
         // the typed AST has already unwrapped it for indexing/member access.
         // Dart does not promote repeated field reads, so assert at the
         // receiver boundary; a preceding field guard is insufficient.
-        final nullableSubject = PolicyQueries.isNullableType(subj.t) || switch (stripWrap(subj).expr) {
+        final inner = stripWrap(subj);
+        final nullableSubject = PolicyQueries.isNullableType(inner.t) || optionalValued(subj) || switch (inner.expr) {
             case TField(_, FInstance(_, _, ownerField)) | TField(_, FAnon(ownerField)):
                 PolicyQueries.isNullableType(ownerField.get().type);
             case _: false;
@@ -1972,7 +1991,7 @@ class DartExpr {
         argument as rendered.
     **/
     function requiredValueText(e:TypedExpr):String {
-        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e))
+        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e) || isNullLiteral(e))
             return expr(e);
         final text = expr(e);
         return switch (stripWrap(e).expr) {
@@ -1980,6 +1999,26 @@ class DartExpr {
                 flowPromotedNonNull.set(v.id, true);
                 text + "!";
             case _: "(" + text + ")!";
+        };
+    }
+
+    /**
+        The assertion of requiredValueText for an argument the call site
+        pre-rendered (the base of callArgTexts, the padded text of
+        constructorArgTexts). The pre-rendered text is the one that gets
+        emitted, so derive the assertion from it instead of rendering the
+        argument a second time: the first pass already recorded the local
+        into flowPromotedNonNull, and a second render of the same field
+        access would silently drop the receiver assertion.
+    **/
+    function requiredValueTextOf(preRendered:String, e:TypedExpr):String {
+        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e))
+            return preRendered;
+        return switch (stripWrap(e).expr) {
+            case TLocal(v):
+                flowPromotedNonNull.set(v.id, true);
+                preRendered + "!";
+            case _: "(" + preRendered + ")!";
         };
     }
 
@@ -2009,9 +2048,42 @@ class DartExpr {
         };
     }
 
+    /**
+        (GenericParamResolvedForArgs) A member of a generic class carries
+        its class type parameters unsubstituted, so the value parameter of
+        SortedMapTableBuilder.put reads as V rather than the nullable type
+        the receiver bound to it. An argument of such a parameter would then
+        look like one a non-null slot demands, and the unwrap it appends
+        throws on exactly the null the builder stores. The bound type is
+        the one the demand test must see.
+    **/
+    function resolveClassParamType(pt:Null<Type>, cls:ClassType, args:Array<Type>):Null<Type> {
+        if (pt == null || args.length == 0)
+            return pt;
+        return switch (Context.follow(pt)) {
+            case TInst(c, params) if (params.length == 0):
+                switch (c.get().kind) {
+                    case KTypeParameter(_):
+                        final name = c.get().name;
+                        var index = -1;
+                        for (i in 0...cls.params.length)
+                            if (cls.params[i].name == name)
+                                index = i;
+                        index >= 0 && index < args.length ? args[index] : pt;
+                    case _: pt;
+                }
+            case _: pt;
+        };
+    }
+
     function argTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
         final paramTypes:Array<Null<Type>> = switch (fn.expr) {
-            case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
+            case TField(_, FInstance(cls, classArgs, cf)):
+                switch (cf.get().type) {
+                    case TFun(fargs, _): [for (a in fargs) resolveClassParamType(a.t, cls.get(), classArgs)];
+                    case _: [for (_ in args) null];
+                }
+            case TField(_, FStatic(_, cf)):
                 switch (cf.get().type) {
                     case TFun(fargs, _): [for (a in fargs) a.t];
                     case _: [for (_ in args) null];
@@ -2050,14 +2122,19 @@ class DartExpr {
 
     /** A method receiver unwraps when the receiver expression is optional. */
     function receiverText(subj:TypedExpr):String {
-        final nullableField = switch (stripWrap(subj).expr) {
+        final inner = stripWrap(subj);
+        final nullableField = switch (inner.expr) {
             case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): PolicyQueries.isNullableType(cf.get().type);
             // A static field declared nullable (a mutable static
             // initialized with null) unwraps at the receiver.
             case TField(_, FStatic(_, cf)): isNullableStaticField(cf.get());
             case _: false;
         };
-        if ((!isNullLeafType(subj.t) && !optionalValued(subj) && !nullableField) || provenNonNull(subj)) {
+        final localNullable = switch (inner.expr) {
+            case TLocal(v): isNullLeafType(v.t);
+            case _: false;
+        };
+        if ((!isNullLeafType(inner.t) && !optionalValued(subj) && !nullableField && !localNullable) || provenNonNull(subj) || isNullLiteral(subj)) {
             return expr(subj);
         }
         final base = expr(subj);
@@ -2314,6 +2391,7 @@ class DartExpr {
         // re-render their operands (Math) must see the pre-call flow so
         // the `!` a fresh render needs is not suppressed.
         final savedNonNull = nonNullLocals.copy();
+        final savedFlow = flowPromotedNonNull.copy();
         final renderedArgs = callArgTexts(fn, args);
         final rendered = renderedArgs.join(", ");
         switch (fn.expr) {
@@ -2411,6 +2489,9 @@ class DartExpr {
                     nonNullLocals.clear();
                     for (k in savedNonNull.keys())
                         nonNullLocals.set(k, savedNonNull.get(k));
+                    flowPromotedNonNull.clear();
+                    for (k in savedFlow.keys())
+                        flowPromotedNonNull.set(k, savedFlow.get(k));
                     // Members with no bare-function form lower onto the
                     // core member of the argument.
                     switch (fName) {
@@ -2462,8 +2543,13 @@ class DartExpr {
                         final arg = stripWrap(args[0]);
                         switch (arg.expr) {
                             case TBinop(OpDiv, l, r) if (isIntTyped(l) && isIntTyped(r)):
-                                // Truncating division of two Ints.
-                                return expr(l) + " ~/ " + expr(r);
+                                // Truncating division of two Ints. The
+                                // operands must stay parenthesized: a bare
+                                // additive left child would otherwise bind
+                                // looser than ~/ and the fold would read
+                                // `a + (b ~/ 2)` instead of `(a + b) ~/ 2`
+                                // (StdIntTruncDivParens).
+                                return "(" + expr(l) + ") ~/ (" + expr(r) + ")";
                             case _:
                         }
                         return "(" + expr(args[0]) + ").truncate()";
@@ -2512,13 +2598,14 @@ class DartExpr {
                 if (module == "std.SortedMap" && fName == "builder") {
                     // The factory fixes only the comparator's key, so the
                     // value argument cannot infer; the call spells both.
-                    // Haxe's builder inference types the value as Null<V>
-                    // when the source reads through get() before put(); the
-                    // runtime table stores V and its get returns V?, so the
-                    // nullable wrapper is a type-parameter artifact that
-                    // breaks Dart's invariant generics at non-null params.
-                    return runtimeQualified("SortedTable.mapBuilder") + "<" + types.of(kTypeOf(fn)) + ", " + types.of(DefaultArgExpander.withoutNull(
-                        vTypeOf(fn))) + ">(" + sortedComparator(kTypeOf(fn), fn.pos) + ")";
+                    // The value type keeps the nullable wrapper Haxe
+                    // inferred: Dart generics are covariant, so the built
+                    // table still reaches a non-null target field, while
+                    // dropping the wrapper narrows put to a non-null
+                    // parameter and asserts on every nullable value pushed
+                    // into the builder. (BuilderValueKeepsNull)
+                    return runtimeQualified("SortedTable.mapBuilder") + "<" + types.of(kTypeOf(fn)) + ", " + types.of(
+                        vTypeOf(fn)) + ">(" + sortedComparator(kTypeOf(fn), fn.pos) + ")";
                 }
                 if (module == "runtime.SortedTable" && (fName == "mapBuilder" || fName == "builder")) {
                     // The map flavor fixes only the comparator's key, so
@@ -2672,8 +2759,31 @@ class DartExpr {
                     return body;
                 }
                 if (name == "indexOf" && args.length >= 1) {
-                    if (isStringSubject(subj))
-                        return receiverText(subj) + ".indexOf(" + renderedArgs[0] + ")";
+                    if (isStringSubject(subj)) {
+                        // Haxe String.indexOf searches forward from
+                        // startIndex and answers -1 when the needle is
+                        // absent; dropping the argument turns a
+                        // search-from call into a search-from-zero, so a
+                        // loop that advances its own start spins forever.
+                        // Dart's String.indexOf throws a RangeError for a
+                        // startIndex outside 0..length, where java.lang
+                        // String converges it into that range: a negative
+                        // start counts from 0 and a start past the length
+                        // is clamped to the length (an empty needle then
+                        // answers the length, as on the JVM), so the start
+                        // is bound once, clamped, and passed through.
+                        // The typer passes a synthesized null for an
+                        // omitted startIndex, which keeps the plain
+                        // one-argument call. (StringIndexOfStartKept)
+                        final end = args.length >= 2 && isNullLiteral(args[1]) ? 1 : renderedArgs.length;
+                        if (end == 1)
+                            return receiverText(subj) + ".indexOf(" + renderedArgs[0] + ")";
+                        return "(() { final _s = " + receiverText(subj)
+                            + "; final _n = " + renderedArgs[0]
+                            + "; final _st0 = " + renderedArgs[1]
+                            + "; final _st = _st0 < 0 ? 0 : (_st0 > _s.length ? _s.length : _st0);"
+                            + " return _s.indexOf(_n, _st); })()";
+                    }
                     final end = args.length >= 2 && isNullLiteral(args[1]) ? 1 : renderedArgs.length;
                     return receiverText(subj) + ".indexOf(" + renderedArgs.slice(0, end).join(", ") + ")";
                 }
@@ -3093,7 +3203,14 @@ class DartExpr {
             final p = i < ps.length ? ps[i] : null;
             final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
             if (d != null && p != null && isNullLiteral(args[i]))
-                defaultArgText(d, p);
+                // The caller's literal null passes through as null: the
+                // callee body materializes the coalescing (param ??
+                // default), so null is exactly the value that body is
+                // written to consume. Rendering the default text here
+                // would leak the callee's own parameter identifier
+                // (the CParameterRead default) into the caller's scope,
+                // where it does not exist.
+                "null";
             else if (d != null && p != null && isNullLeafType(args[i].t)) {
                 final isVNull = switch (d) { case VNull: true; default: false; };
                 if (isVNull && !isNullLeafType(p))
@@ -3118,7 +3235,10 @@ class DartExpr {
         // optional `locale`), so the call site must supply the default
         // explicitly. The padded texts are threaded into sibling-default
         // resolution so a later default reading an earlier omitted slot
-        // resolves to that slot's padded value.
+        // resolves to that slot's padded value. For slots the call passes
+        // explicitly the padded text is the slot's only render: the second
+        // loop must not render the argument again, or a receiver assertion
+        // the first pass already emitted (and promoted) is lost.
         final padded:Array<String> = [];
         for (i in 0...ps.length) {
             if (i >= args.length) {
@@ -3157,14 +3277,15 @@ class DartExpr {
                     default: false;
                 };
                 if (skipInline) {
-                    out.push(expr(args[i]));
+                    out.push(padded[i]);
                 } else {
                     final isVNull = switch (d) { case VNull: true; default: false; };
                     if (isVNull && !isNullLeafType(p)) {
                         // When the default is null and the parameter type is
                         // non-nullable, coalescing to null is a no-op in Dart;
-                        // apply the null assertion instead.
-                        requiredValueText(args[i]);
+                        // apply the null assertion instead, deriving it from
+                        // the slot's pre-rendered text.
+                        requiredValueTextOf(padded[i], args[i]);
                     } else {
                         // DartCtorCallSiblingDefault: a call-site wrapper applies
                         // the callee default to the passed argument. A default
@@ -3173,13 +3294,17 @@ class DartExpr {
                         // caller with differently named locals never emits the
                         // callee parameter name unbound. No configuration
                         // switch; the report maps this rule to its test.
-                        out.push("(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args, padded) + ")");
+                        out.push("(" + padded[i] + " ?? " + constructorDefaultText(d, p, cls, args, padded) + ")");
                     }
                 }
             } else {
-                var rendered = expr(args[i]);
+                // The slot was already rendered for the padded array above;
+                // reuse that text so a receiver assertion emitted in the
+                // first pass survives (a second render would see the local
+                // promoted and drop the "!").
+                var rendered = padded[i];
                 if (p != null && !isNullLiteral(args[i]) && nullableValue(args[i]) && !isNullLeafType(p))
-                    rendered = requiredValueText(args[i]);
+                    rendered = requiredValueTextOf(padded[i], args[i]);
                 out.push(isIntOrLongType(emittedType(args[i])) && p != null && isFloatType(p) ? intToFloatText(rendered) : rendered);
             }
         }
@@ -3189,6 +3314,57 @@ class DartExpr {
     function isArrayType(t:Type):Bool {
         return switch (Context.follow(DefaultArgExpander.withoutNull(t))) {
             case TInst(c, _) if (c.get().name == "Array"): true;
+            case _: false;
+        };
+    }
+
+    /** The element type of a Haxe Array, or null for any other shape. */
+    function arrayElementType(t:Type):Null<Type> {
+        return switch (Context.follow(DefaultArgExpander.withoutNull(t))) {
+            case TInst(c, params) if (c.get().name == "Array" && params.length > 0): params[0];
+            case _: null;
+        };
+    }
+
+    /**
+        (ArrayGrowthOnIndexWrite) A Haxe Array index write grows the array
+        when the index reaches past the end and fills the skipped slots with
+        the element type's default; a Dart List throws a RangeError instead.
+        The guard grows the list before the write. Only element types whose
+        Dart default is representable grow: a nullable element type fills
+        with null, a value type with its zero. The guard re-renders the array
+        and the index, so it fires only when both are side-effect free to
+        re-render. Returns null for every other target shape, leaving that
+        assignment to its own lowering.
+    **/
+    function arrayGrowthGuardLine(l:TypedExpr, depth:Int):Null<String> {
+        final target = switch (stripWrap(l).expr) {
+            case TArray(arr, index): {arr: arr, index: index};
+            case _: return null;
+        };
+        if (!stableGrowthOperand(target.arr) || !stableGrowthOperand(target.index))
+            return null;
+        final element = arrayElementType(target.arr.t);
+        if (element == null)
+            return null;
+        final fill = isNullLeafType(element) ? "null" : switch (types.of(element)) {
+            case "int" | "double": "0";
+            case "bool": "false";
+            case _: null;
+        };
+        if (fill == null)
+            return null;
+        final list = expr(target.arr);
+        final index = expr(target.index);
+        return indent(depth) + "while (" + list + ".length <= " + index + ") { " + list + ".add(" + fill + "); }";
+    }
+
+    /** Whether re-rendering an operand cannot run anything a second time. */
+    function stableGrowthOperand(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(_) | TConst(_) | TTypeExpr(_): true;
+            case TField(subj, _): stableGrowthOperand(subj);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stableGrowthOperand(inner);
             case _: false;
         };
     }
@@ -3933,13 +4109,23 @@ class DartExpr {
                     }
                 case PlainDecl(v, init):
                     out.push(indent(depth) + "final " + localName(v) + " = " + expr(init));
-                case OtherStatement(s, returnValue, _):
-                    // A Float-typed switch with an int literal arm types as
-                    // num in Dart; Haxe's Float unification promises double,
-                    // so widen the int arm.
-                    final armValue = returnValue != null ? returnValue : s;
-                    value = if (switchType != null && isFloatType(switchType) && isIntOrLongType(emittedType(armValue)))
-                        intToFloatText(expr(armValue)) else (returnValue != null ? expr(returnValue) : expr(s));
+                case OtherStatement(s, returnValue, isLast):
+                    if (isLast) {
+                        // A Float-typed switch with an int literal arm types
+                        // as num in Dart; Haxe's Float unification promises
+                        // double, so widen the int arm.
+                        final armValue = returnValue != null ? returnValue : s;
+                        value = if (switchType != null && isFloatType(switchType) && isIntOrLongType(emittedType(armValue)))
+                            intToFloatText(expr(armValue)) else (returnValue != null ? expr(returnValue) : expr(s));
+                    } else {
+                        // A case body may carry statements before its value
+                        // expression (a mutation, a guard check that throws);
+                        // each renders before the arm value and only the final
+                        // statement supplies the value
+                        // (DartSwitchArmStatements).
+                        for (l in stmtLines(s, depth + 1))
+                            out.push(l);
+                    }
                 case MissingInit(s):
                     Context.error("dart target: declaration without initializer has no lowering", s.pos);
             }
