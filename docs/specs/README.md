@@ -87,6 +87,7 @@ Every candidate translation is evaluated across four fixed axes:
 | 31 | [31-record-tostring-member.md](features/31-record-tostring-member.md) | Planned | The printed-form member: a `@:dataClass` class without an explicit `toString` gets one synthesized on every target and in stage 1, sharing the RecordStr assembly routine; amends 27's no-synthesized-members sentence. |
 | 50 | [50-math-min-max-nan.md](features/50-math-min-max-nan.md) | Planned | Cross-target NaN propagation and signed-zero semantics for `Math.min` and `Math.max`, including the Rust emission contract. |
 | 38 | [38-deferred-variable-declarations.md](features/38-deferred-variable-declarations.md) | Complete | Local declarations without initializer and the assignments that initialize them; statement-lowering guards must null-check the initializer. |
+| 59 | [59-bundle-driver.md](features/59-bundle-driver.md) | Planned | The layer above the compiler: one project file naming the bundles, one recipe per target holding the build and run commands the defines cannot derive, one driver with the gen, test, pack, compare and verify actions, and the three contract changes it depends on. |
 
 ### Macro specifications
 

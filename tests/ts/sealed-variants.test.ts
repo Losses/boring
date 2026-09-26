@@ -217,7 +217,7 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
   const kotlin = read("reference/kotlin/gen/boring/SealedVariantOps.kt");
   const swift = read("reference/swift/gen/boring/SealedVariantOps.swift");
   const dart = read("reference/dart/gen/lib/boring/sealed_variant_ops.dart");
-  const rust = read("reference/rust-gen/src/boring/sealed_variant_ops.rs");
+  const rust = read("reference/rust/gen/boring/sealed_variant_ops.rs");
 
   expect(kotlin).toContain("sealed interface DrawKind");
   expect(kotlin).toContain("val instance: NoneDrawKind = NoneDrawKind()");

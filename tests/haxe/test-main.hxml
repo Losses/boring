@@ -1,12 +1,14 @@
 # Haxe reference in-source test runner (docs/specs/features/19-testing.md).
+# TestMain lives in the bundle driver's derived gen-tests dir and the js
+# lands in the derived gen dir (feature spec 59).
 -lib reflaxe
 -cp packages/compiler
 -cp samples
--cp out/haxe
+-cp reference/haxe/gen-tests
 -cp packages/registry/src
 --macro Intercept.run(['samples', 'packages/registry/src'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 -main TestMain
--js out/haxe/test-main.js
+-js reference/haxe/gen/test-main.js
 -D analyzer-optimize
 -D boring_oracle

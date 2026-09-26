@@ -1,0 +1,6 @@
+# The bundle driver of feature spec 59, compiled to js and run with bun:
+#   haxe tools/bundle/driver.hxml
+#   bun out/bundle/driver.js <action> [<bundle id>...]
+-cp tools/bundle
+-main Driver
+-js out/bundle/driver.js
