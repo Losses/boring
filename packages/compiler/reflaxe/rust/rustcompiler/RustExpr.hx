@@ -12583,7 +12583,7 @@ class RustExpr {
             return "(" + rendered + ").unwrap()";
         // A constructor fault reaching a message-only region has no variant to
         // map into: the region carries text and its catch arm reads that text,
-        // so the conversion formats the source error instead of a plain `?`.
+        // so the conversion formats the source error where a plain `?` would fall short.
         final target = blockClosureErrorName != null ? blockClosureErrorName : (localFunctionErrorName != null ? localFunctionErrorName : errorTypeName);
         final module = target != null ? state.messageOnlyModuleFor(target) : null;
         if (module != null && constructorErrorName(e) != target) {
