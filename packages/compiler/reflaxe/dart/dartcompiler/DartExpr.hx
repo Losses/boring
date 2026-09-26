@@ -921,9 +921,15 @@ class DartExpr {
                             case TLocal(v): nonNullLocals.exists(v.id) || flowPromotedNonNull.exists(v.id);
                             case _: false;
                         };
+                        // A function that declares a nullable return already
+                        // accepts null, so an assertion at its return can only
+                        // throw; every arm, including the optional-inferred
+                        // local one, is gated on a non-null return type.
+                        // (NullableReturnNoAssert)
                         return [
-                            indent(depth) + "return " + ((optionalValued(ret)
-                                || (!currentFunctionReturnsNullable && isNullLeafType(ret.t) && !isLocalExpr(ret) && !isNullLiteral(ret)))
+                            indent(depth) + "return " + (!currentFunctionReturnsNullable
+                                && (optionalValued(ret)
+                                    || (isNullLeafType(ret.t) && !isLocalExpr(ret) && !isNullLiteral(ret)))
                                 && !nonNullReturn ? rendered
                                 + "!" : rendered)
                         ];
@@ -957,6 +963,12 @@ class DartExpr {
                 // a field access across the null check.
                 if (map == null && nullableValue(r) && !isNullLeafType(l.t))
                     rText = requiredValueText(r);
+                if (map == null) {
+                    final growth = arrayGrowthGuardLine(l, depth);
+                    if (growth != null) {
+                        return [growth, indent(depth) + assignTarget(l) + " = " + rText];
+                    }
+                }
                 final target = map == null ? assignTarget(l) + " = " : expr(map.receiver) + "[" + expr(map.key) + "] = ";
                 return [indent(depth) + target + rText];
             case TBinop(OpAssignOp(OpAdd), l, r) if (isStringTyped(l)):
@@ -2016,9 +2028,42 @@ class DartExpr {
         };
     }
 
+    /**
+        (GenericParamResolvedForArgs) A member of a generic class carries
+        its class type parameters unsubstituted, so the value parameter of
+        SortedMapTableBuilder.put reads as V rather than the nullable type
+        the receiver bound to it. An argument of such a parameter would then
+        look like one a non-null slot demands, and the unwrap it appends
+        throws on exactly the null the builder stores. The bound type is
+        the one the demand test must see.
+    **/
+    function resolveClassParamType(pt:Null<Type>, cls:ClassType, args:Array<Type>):Null<Type> {
+        if (pt == null || args.length == 0)
+            return pt;
+        return switch (Context.follow(pt)) {
+            case TInst(c, params) if (params.length == 0):
+                switch (c.get().kind) {
+                    case KTypeParameter(_):
+                        final name = c.get().name;
+                        var index = -1;
+                        for (i in 0...cls.params.length)
+                            if (cls.params[i].name == name)
+                                index = i;
+                        index >= 0 && index < args.length ? args[index] : pt;
+                    case _: pt;
+                }
+            case _: pt;
+        };
+    }
+
     function argTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
         final paramTypes:Array<Null<Type>> = switch (fn.expr) {
-            case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)):
+            case TField(_, FInstance(cls, classArgs, cf)):
+                switch (cf.get().type) {
+                    case TFun(fargs, _): [for (a in fargs) resolveClassParamType(a.t, cls.get(), classArgs)];
+                    case _: [for (_ in args) null];
+                }
+            case TField(_, FStatic(_, cf)):
                 switch (cf.get().type) {
                     case TFun(fargs, _): [for (a in fargs) a.t];
                     case _: [for (_ in args) null];
@@ -2528,13 +2573,14 @@ class DartExpr {
                 if (module == "std.SortedMap" && fName == "builder") {
                     // The factory fixes only the comparator's key, so the
                     // value argument cannot infer; the call spells both.
-                    // Haxe's builder inference types the value as Null<V>
-                    // when the source reads through get() before put(); the
-                    // runtime table stores V and its get returns V?, so the
-                    // nullable wrapper is a type-parameter artifact that
-                    // breaks Dart's invariant generics at non-null params.
-                    return runtimeQualified("SortedTable.mapBuilder") + "<" + types.of(kTypeOf(fn)) + ", " + types.of(DefaultArgExpander.withoutNull(
-                        vTypeOf(fn))) + ">(" + sortedComparator(kTypeOf(fn), fn.pos) + ")";
+                    // The value type keeps the nullable wrapper Haxe
+                    // inferred: Dart generics are covariant, so the built
+                    // table still reaches a non-null target field, while
+                    // dropping the wrapper narrows put to a non-null
+                    // parameter and asserts on every nullable value pushed
+                    // into the builder. (BuilderValueKeepsNull)
+                    return runtimeQualified("SortedTable.mapBuilder") + "<" + types.of(kTypeOf(fn)) + ", " + types.of(
+                        vTypeOf(fn)) + ">(" + sortedComparator(kTypeOf(fn), fn.pos) + ")";
                 }
                 if (module == "runtime.SortedTable" && (fName == "mapBuilder" || fName == "builder")) {
                     // The map flavor fixes only the comparator's key, so
@@ -3205,6 +3251,57 @@ class DartExpr {
     function isArrayType(t:Type):Bool {
         return switch (Context.follow(DefaultArgExpander.withoutNull(t))) {
             case TInst(c, _) if (c.get().name == "Array"): true;
+            case _: false;
+        };
+    }
+
+    /** The element type of a Haxe Array, or null for any other shape. */
+    function arrayElementType(t:Type):Null<Type> {
+        return switch (Context.follow(DefaultArgExpander.withoutNull(t))) {
+            case TInst(c, params) if (c.get().name == "Array" && params.length > 0): params[0];
+            case _: null;
+        };
+    }
+
+    /**
+        (ArrayGrowthOnIndexWrite) A Haxe Array index write grows the array
+        when the index reaches past the end and fills the skipped slots with
+        the element type's default; a Dart List throws a RangeError instead.
+        The guard grows the list before the write. Only element types whose
+        Dart default is representable grow: a nullable element type fills
+        with null, a value type with its zero. The guard re-renders the array
+        and the index, so it fires only when both are side-effect free to
+        re-render. Returns null for every other target shape, leaving that
+        assignment to its own lowering.
+    **/
+    function arrayGrowthGuardLine(l:TypedExpr, depth:Int):Null<String> {
+        final target = switch (stripWrap(l).expr) {
+            case TArray(arr, index): {arr: arr, index: index};
+            case _: return null;
+        };
+        if (!stableGrowthOperand(target.arr) || !stableGrowthOperand(target.index))
+            return null;
+        final element = arrayElementType(target.arr.t);
+        if (element == null)
+            return null;
+        final fill = isNullLeafType(element) ? "null" : switch (types.of(element)) {
+            case "int" | "double": "0";
+            case "bool": "false";
+            case _: null;
+        };
+        if (fill == null)
+            return null;
+        final list = expr(target.arr);
+        final index = expr(target.index);
+        return indent(depth) + "while (" + list + ".length <= " + index + ") { " + list + ".add(" + fill + "); }";
+    }
+
+    /** Whether re-rendering an operand cannot run anything a second time. */
+    function stableGrowthOperand(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(_) | TConst(_) | TTypeExpr(_): true;
+            case TField(subj, _): stableGrowthOperand(subj);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stableGrowthOperand(inner);
             case _: false;
         };
     }
