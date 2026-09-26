@@ -148,9 +148,30 @@ class RustType {
                     final emittedIn = state.payloadEnumModules.exists(payloadModule) ? state.payloadEnumModules.get(payloadModule) : cls.module;
                     imports.requireType(emittedIn, payloadName);
                     payloadName;
+                } else if (!cls.isInterface
+                    // A concrete implementor of a registered shared
+                    // interface is itself held as a shared handle, so every
+                    // binding of the class names one object.
+                    // (ClassHandleShare)
+                    && Lambda.exists(cls.interfaces, i -> {
+                        final ic = i.t.get();
+                        ic.isInterface && RustDecl.isSharedInterface(ic.module, ic.name);
+                    })) {
+                    imports.require("std::sync::Arc");
+                    imports.require("std::sync::Mutex");
+                    "Arc<Mutex<" + cls.name + ">>";
                 } else if (cls.isInterface) {
                     imports.requireType(cls.module, cls.name);
-                    "Box<dyn " + cls.name + ">";
+                    // A registered shared interface lowers its slot to an
+                    // Arc<Mutex<dyn Trait>>: the slot and the source binding
+                    // share one object, matching Haxe reference semantics.
+                    // (ClassHandleShare)
+                    if (RustDecl.isSharedInterface(cls.module, cls.name)) {
+                        imports.require("std::sync::Arc");
+                        imports.require("std::sync::Mutex");
+                        "Arc<Mutex<dyn " + cls.name + ">>";
+                    } else
+                        "Box<dyn " + cls.name + ">";
                 } else switch (pathOf(cls.pack, cls.name)) {
                     case "String":
                         imports.requireType("runtime.UString", "UString");
@@ -368,7 +389,14 @@ class RustType {
             case TInst(c, params):
                 final cls = c.get();
                 final n = cls.name;
-                if (isSortedTableBuilder(cls)) false else if (isContentEqSortedTable(cls)) {
+                if (isSortedTableBuilder(cls)) false else if (!cls.isInterface
+                    // A shared implementor lowers to Arc<Mutex<...>>, which
+                    // carries no PartialEq; the struct derives Clone only.
+                    // (ClassHandleShare)
+                    && Lambda.exists(cls.interfaces, i -> {
+                        final ic = i.t.get();
+                        ic.isInterface && RustDecl.isSharedInterface(ic.module, ic.name);
+                    })) false else if (isContentEqSortedTable(cls)) {
                     var all = true;
                     for (p in params)
                         if (!isPartialEqTypeDepth(p, visiting))
