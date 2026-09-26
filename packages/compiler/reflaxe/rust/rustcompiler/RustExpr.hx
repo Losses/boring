@@ -1854,7 +1854,12 @@ class RustExpr {
                             // display value) carries none of the UString
                             // methods the String return slot needs; it wraps
                             // through UString::from like any other owned slot.
-                            if (isStringType(ret.t) && stdStringShapedText(retStr))
+                            // The rendered value may itself be a non-String
+                            // Haxe value (Std.string on an enum renders
+                            // Display); the String return slot still needs
+                            // the UString conversion whenever the rendering
+                            // is a std String value.
+                            if (stdStringShapedText(retStr))
                                 retStr = ustringFromStdText(retStr);
                     }
                 } else if (StringTools.startsWith(returnTypeName, "Option<") && !isTNull(ret) && (!isNullType(ret.t) || isNullableCollapsedLocal(ret))) {
@@ -2220,6 +2225,10 @@ class RustExpr {
             || rendered.indexOf("let mut out = String::new()") >= 0
             || StringTools.endsWith(rendered, ".name()")
             || StringTools.startsWith(rendered, "String::from_utf16(")
+            // fromCharCode renders as a parenthesised (if ...) over two
+            // from_utf16 decodes, so the prefix check above misses it; an
+            // occurrence check catches the whole rendering.
+            || rendered.indexOf("String::from_utf16(") >= 0
             || rendered.indexOf("FPHelper::format_float") >= 0
             // The test-platform extern shim renders as a runtime call
             // returning a std String; every Haxe String slot needs the
@@ -2292,10 +2301,15 @@ class RustExpr {
             return rendered;
         return switch (stripWrap(arg).expr) {
             case TConst(TString(_)): "&(" + rendered + ")";
-            case TLocal(v) if (isBorrowedParamLocal(v)): rendered;
+            // A nullable parameter stores Option<UString>, not a str view;
+            // only a plain String parameter renders as a view directly.
+            case TLocal(v) if (isBorrowedParamLocal(v) && !isNullType(arg.t)): rendered;
             // A nullable string read borrows through the Option wrapper; a
-            // narrowed or collapsed local already renders the inner value.
-            case _ if (isNullType(arg.t) && narrowedSubject(arg) == null && !isNullableCollapsedLocal(arg)):
+            // narrowed or collapsed local already renders the inner value,
+            // and a null-guarded ternary already collapsed both arms to the
+            // inner string, so neither re-wraps.
+            case _ if (isNullType(arg.t) && narrowedSubject(arg) == null
+                && !isNullableCollapsedLocal(arg) && !isNullGuardedTernary(arg)):
                 "(match &(" + rendered + ") { Some(v) => v.as_ustr(), None => UStr::new(&[]) })";
             case _: stdStringShapedText(rendered) ? ustringFromStdText(rendered) + ".as_ustr()" : rendered + ".as_ustr()";
         };
@@ -6048,6 +6062,13 @@ class RustExpr {
                     && armText != "None" && !StringTools.startsWith(armText, "Some(")) {
                     armText = "Some(" + armText + ")";
                 }
+                // A String-valued match unifies its arms on UString; an arm
+                // rendering that ends in a std Display conversion (a
+                // Std.string on an enum arm) carries a bare std String, so it
+                // converts through UString::from like the sibling block arms.
+                if (isStringType(sw.t) && !isNullType(sw.t) && StringTools.endsWith(armText, ".to_string()")) {
+                    armText = ustringFromStdText(armText);
+                }
                 final suffix = i == arm.length - 1 ? "," : "";
                 out.push("    " + pattern + " => " + armText + suffix);
             }
@@ -6862,14 +6883,20 @@ class RustExpr {
                     numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(collapsedTarget) ? "i32" : null,
                         collapsedTarget >= 0 && !i32Locals.exists(collapsedTarget));
                 } else if (isStringType(l.t) && !isNullType(l.t)) {
-                    switch (stripWrap(r).expr) {
+                    final rhsText = switch (stripWrap(r).expr) {
                         case TConst(TString(_)): expr(r) + ".to_ustring()";
                         // A String parameter renders as &str in the callee;
                         // the element slot owns its text, so the assigned
                         // value converts on the way in.
                         case TLocal(v) if (isBorrowedLocal(v)): expr(r) + ".to_ustring()";
                         default: expr(r);
-                    }
+                    };
+                    // A std-String-shaped rendering (a fromCharCode (if ...)
+                    // over from_utf16 decodes, a format! result) carries a
+                    // bare std String into the owned UString slot; it
+                    // converts through UString::from like any other owned
+                    // slot. (StdStringShapedAssign)
+                    stdStringShapedText(rhsText) ? ustringFromStdText(rhsText) : rhsText;
                 } else if (isOwnedVecType(l.t) && !isNullType(l.t) && borrowedArrayRead(r)) {
                     // An owned array local assigned a borrowed array
                     // parameter clones the referent; the local owns its
