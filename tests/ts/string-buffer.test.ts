@@ -5,7 +5,7 @@ import * as path from "node:path";
 describe("string buffer generated tree", () => {
   const tsGenDir = path.resolve(__dirname, "../../reference/ts/gen");
   const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
-  const rustGenDir = path.resolve(__dirname, "../../reference/rust-gen/src");
+  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
 
   test("TS lowers StringBuf to primitive strings with inline pairing checks", () => {
     const tsFile = path.join(tsGenDir, "boring/StringBufOps.ts");

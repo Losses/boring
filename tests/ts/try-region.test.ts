@@ -12,7 +12,7 @@ describe("TTry catch-site lowering", () => {
   test("uses native typed catch forms on every target", () => {
     const ts = generated("reference/ts/gen/boring/TryOps.ts");
     const kotlin = generated("reference/kotlin/gen/boring/TryOps.kt");
-    const rust = generated("reference/rust-gen/src/boring/try_ops.rs");
+    const rust = generated("reference/rust/gen/boring/try_ops.rs");
     const swift = generated("reference/swift/gen/boring/TryOps.swift");
     const dart = generated("reference/dart/gen/lib/boring/try_ops.dart");
 

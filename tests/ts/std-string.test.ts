@@ -10,7 +10,7 @@ describe("Std.string lowering", () => {
       "reference/ts/gen",
       "reference/kotlin/gen",
       "reference/kotlin-f32/gen",
-      "reference/rust-gen/src",
+      "reference/rust/gen",
       "reference/rust-f32-gen/src",
       "reference/swift/gen",
       "reference/swift-f32/gen",
@@ -38,7 +38,7 @@ describe("Std.string lowering", () => {
   test("enum operands use each target constructor-name read", () => {
     const ts = fs.readFileSync(path.join(root, "reference/ts/gen/boring/StdStringOps.ts"), "utf8");
     const kotlin = fs.readFileSync(path.join(root, "reference/kotlin/gen/boring/StdStringOps.kt"), "utf8");
-    const rust = fs.readFileSync(path.join(root, "reference/rust-gen/src/boring/std_string_ops.rs"), "utf8");
+    const rust = fs.readFileSync(path.join(root, "reference/rust/gen/boring/std_string_ops.rs"), "utf8");
     const swift = fs.readFileSync(path.join(root, "reference/swift/gen/boring/StdStringOps.swift"), "utf8");
     const dart = fs.readFileSync(path.join(root, "reference/dart/gen/lib/boring/std_string_ops.dart"), "utf8");
 
@@ -50,7 +50,7 @@ describe("Std.string lowering", () => {
   });
 
   test("Rust standalone scalars use to_string", () => {
-    const content = fs.readFileSync(path.join(root, "reference/rust-gen/src/boring/std_string_ops.rs"), "utf8");
+    const content = fs.readFileSync(path.join(root, "reference/rust/gen/boring/std_string_ops.rs"), "utf8");
     expect(content).toContain("pub fn std_string_ops_int_value(value: u32) -> String {\n        return (value).to_string();");
   });
 
@@ -58,7 +58,7 @@ describe("Std.string lowering", () => {
     const rows = [
       ["reference/ts/gen/boring/StdStringOps.ts", 'let out = "["', "const n =", "for (let i = 0; i < n; i += 1)"],
       ["reference/kotlin/gen/boring/StdStringOps.kt", "StringBuilder()", "val n =", "while (i < n)"],
-      ["reference/rust-gen/src/boring/std_string_ops.rs", "String::new()", "let n =", 'write!(out, "{}"'],
+      ["reference/rust/gen/boring/std_string_ops.rs", "String::new()", "let n =", 'write!(out, "{}"'],
       ["reference/swift/gen/boring/StdStringOps.swift", 'var out = "["', "let n =", "while i < n"],
       ["reference/dart/gen/lib/boring/std_string_ops.dart", 'StringBuffer("[")', "final n =", "while (i < n)"],
     ] as const;

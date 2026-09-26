@@ -1,16 +1,20 @@
 # Root cargo workspace, symmetric with the bun workspace in package.json.
 # Member crates hold the language implementations; test suites live in
 # tests/ and are wired into crates through explicit [[test]] paths.
-# The generated crates carry their own emitted Cargo.toml at their src
-# root (feature spec 24); membership here stays the consumer's act.
-# The default members keep a plain `cargo test` on the f64 tree; the f32
-# twin crate (feature spec 23) runs through its own verification command.
+# The generated crates carry their own emitted Cargo.toml at their
+# output root (feature spec 24); membership here stays the consumer's
+# act. The f64 crate sits at the bundle driver's derived directory
+# reference/rust/gen (feature spec 59); the f32 twin crate (feature
+# spec 23) stays outside the workspace and runs through its own
+# verification command, so a plain `cargo test` needs no f32 tree.
 [workspace]
-members = ["reference/rust", "reference/rust-gen/src", "reference/rust-f32-gen/src"]
-default-members = ["reference/rust", "reference/rust-gen/src"]
+members = ["reference/rust", "reference/rust/gen"]
+default-members = ["reference/rust", "reference/rust/gen"]
 # Generated trees under out/ are build output, never members. The
 # runner-timeout probe (tests/timeout-probe/rust.hxml) emits one crate
 # there, and cargo refuses to build a package that sits under the
-# workspace root without being a member or an exclusion.
-exclude = ["out"]
+# workspace root without being a member or an exclusion; the f32 twin
+# crate is excluded for the same reason: it stands as a crate of its
+# own once generated.
+exclude = ["out", "reference/rust-f32-gen/src"]
 resolver = "3"
