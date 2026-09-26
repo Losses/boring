@@ -2523,8 +2523,13 @@ class DartExpr {
                         final arg = stripWrap(args[0]);
                         switch (arg.expr) {
                             case TBinop(OpDiv, l, r) if (isIntTyped(l) && isIntTyped(r)):
-                                // Truncating division of two Ints.
-                                return expr(l) + " ~/ " + expr(r);
+                                // Truncating division of two Ints. The
+                                // operands must stay parenthesized: a bare
+                                // additive left child would otherwise bind
+                                // looser than ~/ and the fold would read
+                                // `a + (b ~/ 2)` instead of `(a + b) ~/ 2`
+                                // (StdIntTruncDivParens).
+                                return "(" + expr(l) + ") ~/ (" + expr(r) + ")";
                             case _:
                         }
                         return "(" + expr(args[0]) + ").truncate()";
