@@ -387,7 +387,9 @@ class SwiftExpr {
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: types.optionalNone(targetType);
-            case CEmptyArray: "TiqianArray()";
+            // An empty read-only array default renders as the native literal;
+            // the declared type annotation gives Swift its element type.
+            case CEmptyArray: StaticFieldHelper.isReadOnlyArrayType(targetType) ? "[]" : "TiqianArray()";
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
@@ -813,6 +815,11 @@ class SwiftExpr {
                         var retText = returnValue(ret);
                         if (isIntType(emittedType(ret)) && currentReturnType != null && isFloatLeafType(currentReturnType))
                             retText = intToFloatText(retText);
+                        // features/18: a function returning ReadOnlyArray is the
+                        // decode boundary; the internal mutable container
+                        // converts to the native value Array at the return.
+                        if (currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) && isMutableArrayType(ret.t))
+                            retText = "Array(" + retText + ")";
                         final tryKw = containsThrowingCall(ret) ? "try " : "";
                         return [indent(depth) + "return " + tryKw + retText];
                 }
@@ -2967,6 +2974,11 @@ class SwiftExpr {
                     (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a))) && demandsValue ? expr(a) + "!" : expr(a);
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
+                // features/18: an Array argument reaching a ReadOnlyArray
+                // parameter crosses the container boundary the typer leaves
+                // implicit, so the conversion renders here.
+                if (pt != null && StaticFieldHelper.isReadOnlyArrayType(pt) && isMutableArrayType(a.t))
+                    t = "Array(" + t + ")";
                 t;
             }
         ];
@@ -4369,6 +4381,11 @@ class SwiftExpr {
             // explicit cast; Swift needs the widening conversion.
             if (p != null && isIntType(emittedType(args[i])) && isFloatLeafType(p))
                 text = intToFloatText(text);
+            // features/18: an Array argument reaching a ReadOnlyArray
+            // parameter crosses the container boundary the typer leaves
+            // implicit, so the conversion renders here.
+            if (p != null && StaticFieldHelper.isReadOnlyArrayType(p) && isMutableArrayType(args[i].t))
+                text = "Array(" + text + ")";
             rendered.push(text);
             if (i < names.length)
                 constructorParameterValues.set(names[i], text);
