@@ -465,9 +465,12 @@ class RustExpr {
             case CString(s):
                 imports.requireType("runtime.UString", "UString");
                 final lit = "UString::from(" + quoteString(s) + ")";
-                // A borrowed &UStr slot borrows the literal once: the owned
-                // form converts at the boundary. (CoalescingDefaultUstrView)
-                return types.of(targetType, true) == "&UStr" ? lit + ".as_ustr()" : lit;
+                // An Option slot owns the literal inside Some; a borrowed
+                // &UStr slot borrows the literal once. (CoalescingDefaultUstrView)
+                if (asOption)
+                    return "Some(" + lit + ")";
+                return StringTools.startsWith(types.of(targetType, false), "Option") ? lit
+                    : (types.of(targetType, true) == "&UStr" ? lit + ".as_ustr()" : lit);
             case CBool(b): b ? "true" : "false";
             case CNull: "None";
             case CEmptyArray: "vec![]";
@@ -1582,6 +1585,7 @@ class RustExpr {
                             // once here so later .as_ustr() reads bind.
                             // (StringLocalStorage)
                             if (stdStringShapedText(initStr)
+                                && !isNullType(v.t)
                                 && !StringTools.startsWith(initStr, "UString::from(")
                                 && !StringTools.endsWith(initStr, ".to_ustring()")
                                 && !StringTools.endsWith(initStr, ".clone()")
@@ -2424,8 +2428,8 @@ class RustExpr {
             case TConst(TString(_)): rendered + ".as_ustr()";
             case _ if (isNullType(arg.t)):
                 '(match &(' + rendered + ') { Some(v) => v.as_ustr(), None => UStr::new(&[]) })';
-            case _ if (types.of(arg.t, true) == "&UStr" || StringTools.endsWith(rendered, ".as_ustr()")): rendered;
-            case _: rendered + ".as_ustr()";
+            case TLocal(v) if (isBorrowedLocal(v)): rendered;
+            case _: StringTools.endsWith(rendered, ".as_ustr()") ? rendered : rendered + ".as_ustr()";
         };
     }
 
@@ -5948,7 +5952,10 @@ class RustExpr {
         catchVars.remove(parts.c.v.id);
         for (i in 0...arm.length) {
             final suffix = i == arm.length - 1 ? "," : "";
-            out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + arm[i] + suffix);
+            // A String-valued handler arm unifies with the body's owned
+            // String arms through UString::from. (CatchArmUString)
+            final armText = (arm.length == 1 && isStringType(parts.c.expr.t)) ? ustringFromStdText(arm[i]) : arm[i];
+            out.push(indent(depth) + "    Err(" + RustImports.toSnakeCase(localName(parts.c.v)) + ") => " + armText + suffix);
         }
         out.push(indent(depth) + (isFallible ? "});" : "};"));
         return out;
@@ -7547,7 +7554,9 @@ class RustExpr {
     **/
     function stringOrderOperand(e:TypedExpr):String {
         return switch (stripWrap(e).expr) {
-            case TConst(TString(_)): expr(e);
+            // Every operand lands in the borrowed &UStr domain: Rust
+            // implements PartialOrd only between equal string types.
+            case TConst(TString(_)): expr(e) + ".as_ustr()";
             case TLocal(v) if (isBorrowedLocal(v)): expr(e);
             case _: "(" + ustringViewShapedText(expr(e)) + ")";
         };

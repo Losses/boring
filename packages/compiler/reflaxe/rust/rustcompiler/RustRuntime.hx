@@ -7,6 +7,8 @@ package rustcompiler;
 **/
 class RustRuntime {
     public static final EXCEPTION_SOURCE = '
+use crate::runtime::u_string::UString;
+
 #[derive(Clone)]
 pub struct Exception;
 
