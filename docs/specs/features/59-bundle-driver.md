@@ -58,8 +58,8 @@ to run without it.
 - **Output directories.** One pattern for every target and every bundle:
   `<outRoot>/<id>/gen` and `<outRoot>/<id>/gen-tests`. A project file may not
   name them. Two sources for one path produce a compilation that writes to one
-  directory and a build that reads another, and the failure surfaces as a
-  compile of a stale tree; no configuration error marks the cause.
+  directory and a build that reads another, and the failure appears as a
+  compile of a stale tree, with no configuration error reported.
 - **Generation defines.** `<target>-output` and `<target>-test-output` from
   the two directories above; `float-precision=f32` when `precision` is `f32`;
   the target's runtime defines at their documented defaults, overridable
@@ -73,7 +73,8 @@ to run without it.
 
 ## The recipe
 
-One entry per target, in boring's own source, not in the project file. The
+One entry per target, written in boring's own source; the project file
+does not hold it. The
 recipe holds the parts the defines cannot express: the build command, the run
 command, and whether `pack` spawns a host toolchain.
 
@@ -88,8 +89,8 @@ command, and whether `pack` spawns a host toolchain.
 
 The recipe is data. A project changes a command by adding arguments through
 `build.args` and `run.args`, and the environment through `build.env` and
-`run.env`, because the flags a site needs — a compiler wrapper, a library
-path, a memory bound — are not derivable from the compilation.
+`run.env`, because the flags a site needs (a compiler wrapper, a library
+path, a memory bound) are not derivable from the compilation.
 
 ## The actions
 
@@ -168,5 +169,5 @@ divergence list alone.
   `<resultsDir>/<id>.jsonl`.
 - `boring compare` exits 0 for a consistent project and reads every bundle's
   results file; a missing file is a failure that names the bundle.
-- The driver runs boring's own corpus through one `boring.json`, and `verify`
+- The driver runs boring's own sample set through one `boring.json`, and `verify`
   is green, so `package.json` no longer chains the per-target scripts by hand.
