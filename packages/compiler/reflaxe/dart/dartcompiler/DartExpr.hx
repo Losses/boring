@@ -2734,8 +2734,31 @@ class DartExpr {
                     return body;
                 }
                 if (name == "indexOf" && args.length >= 1) {
-                    if (isStringSubject(subj))
-                        return receiverText(subj) + ".indexOf(" + renderedArgs[0] + ")";
+                    if (isStringSubject(subj)) {
+                        // Haxe String.indexOf searches forward from
+                        // startIndex and answers -1 when the needle is
+                        // absent; dropping the argument turns a
+                        // search-from call into a search-from-zero, so a
+                        // loop that advances its own start spins forever.
+                        // Dart's String.indexOf throws a RangeError for a
+                        // startIndex outside 0..length, where java.lang
+                        // String converges it into that range: a negative
+                        // start counts from 0 and a start past the length
+                        // is clamped to the length (an empty needle then
+                        // answers the length, as on the JVM), so the start
+                        // is bound once, clamped, and passed through.
+                        // The typer passes a synthesized null for an
+                        // omitted startIndex, which keeps the plain
+                        // one-argument call. (StringIndexOfStartKept)
+                        final end = args.length >= 2 && isNullLiteral(args[1]) ? 1 : renderedArgs.length;
+                        if (end == 1)
+                            return receiverText(subj) + ".indexOf(" + renderedArgs[0] + ")";
+                        return "(() { final _s = " + receiverText(subj)
+                            + "; final _n = " + renderedArgs[0]
+                            + "; final _st0 = " + renderedArgs[1]
+                            + "; final _st = _st0 < 0 ? 0 : (_st0 > _s.length ? _s.length : _st0);"
+                            + " return _s.indexOf(_n, _st); })()";
+                    }
                     final end = args.length >= 2 && isNullLiteral(args[1]) ? 1 : renderedArgs.length;
                     return receiverText(subj) + ".indexOf(" + renderedArgs.slice(0, end).join(", ") + ")";
                 }
