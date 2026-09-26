@@ -67,7 +67,6 @@
         "args": [
           "-lib", "reflaxe",
           "-cp", "packages/compiler",
-          "-cp", "out/haxe",
           "--macro", "Intercept.run(['samples', 'packages/registry/src'])",
           "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
           "-D", "analyzer-optimize",

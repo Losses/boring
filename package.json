@@ -12,7 +12,7 @@
     "test:rust": "cargo test",
     "test:intercept": "bun tests/interception/run.ts",
     "test:stage1:haxe": "rm -f out/test-results/haxe.jsonl && haxe tests/haxe/generate-main.hxml && haxe tests/haxe/test-main.hxml && BORING_TEST_RESULTS=$(pwd)/out/test-results/haxe.jsonl bun reference/haxe/gen/test-main.js",
-    "test:stage1:haxe-f32": "rm -f out/test-results/haxe-f32.jsonl && haxe tests/haxe/generate-main-f32.hxml && haxe tests/haxe/test-main-f32.hxml && BORING_TEST_RESULTS=$(pwd)/out/test-results/haxe-f32.jsonl bun out/haxe/test-main-f32.js",
+    "test:stage1:haxe-f32": "rm -f out/test-results/haxe-f32.jsonl && haxe tests/haxe/generate-main-f32.hxml && haxe tests/haxe/test-main-f32.hxml && BORING_TEST_RESULTS=$(pwd)/out/test-results/haxe-f32.jsonl bun reference/haxe-f32/gen/test-main-f32.js",
     "test:stage1:ts": "rm -f out/test-results/ts.jsonl && bun test reference/ts/gen-tests/",
     "test:stage1:kotlin": "rm -f out/test-results/kotlin.jsonl && mkdir -p out/kotlin && kotlinc -Xallow-kotlin-package $(find reference/kotlin/gen reference/kotlin/gen-tests -name '*.kt') -include-runtime -d out/kotlin/gen-tests.jar && java -cp out/kotlin/gen-tests.jar TestMainKt",
     "test:stage1:rust": "rm -f out/test-results/rust.jsonl && BORING_TEST_RESULTS=$(pwd)/out/test-results/rust.jsonl cargo test",
