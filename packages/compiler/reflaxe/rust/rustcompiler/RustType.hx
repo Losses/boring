@@ -152,7 +152,10 @@ class RustType {
                     imports.requireType(cls.module, cls.name);
                     "Box<dyn " + cls.name + ">";
                 } else switch (pathOf(cls.pack, cls.name)) {
-                    case "String": isParam ? "&str" : "String";
+                    case "String":
+                        imports.requireType("runtime.UString", "UString");
+                        imports.requireType("runtime.UString", "UStr");
+                        isParam ? "&UStr" : "UString";
                     // The buffer holds UTF-16 units; the pairing checks of
                     // stdlib/08 need the raw units, and String could not
                     // store an unpaired lead.
