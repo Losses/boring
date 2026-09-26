@@ -1317,6 +1317,13 @@ pub fn to_code_points(s: &UStr) -> Vec<u32> {
     out
 }
 
+/// Raw UTF-16 units to an owned Haxe String, with no validity check: a
+/// lone surrogate stays an unpaired unit, exactly as Haxe/JS strings
+/// carry it. (UStringFromUnits)
+pub fn from_units(units: &[u16]) -> UString {
+    UString(units.to_vec())
+}
+
 pub fn from_code_point(code: u32) -> UString {
     if code <= 0xFFFF {
         UString(vec![code as u16])

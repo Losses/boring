@@ -2240,11 +2240,6 @@ class RustExpr {
             || StringTools.startsWith(rendered, "{")
             || rendered.indexOf("let mut out = String::new()") >= 0
             || StringTools.endsWith(rendered, ".name()")
-            || StringTools.startsWith(rendered, "String::from_utf16(")
-            // fromCharCode renders as a parenthesised (if ...) over two
-            // from_utf16 decodes, so the prefix check above misses it; an
-            // occurrence check catches the whole rendering.
-            || rendered.indexOf("String::from_utf16(") >= 0
             || rendered.indexOf("FPHelper::format_float") >= 0
             // The test-platform extern shim renders as a runtime call
             // returning a std String; every Haxe String slot needs the
@@ -10555,11 +10550,16 @@ class RustExpr {
                         + value + ")");
                     final unwrapped = argument;
                     // Haxe's fromCharCode takes a scalar; a supplementary scalar
-                    // encodes as its surrogate pair. Rust's String is UTF-8 and
-                    // from_utf16 rejects an unpaired surrogate, so the pair is
-                    // built explicitly above the BMP while a BMP value keeps
-                    // the single-unit form. (FromCharCodeScalar)
-                    return "(if " + unwrapped + " > 0xFFFF { String::from_utf16(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]).unwrap() } else { String::from_utf16(&[" + unwrapped + " as u16]).unwrap_or_default() })";
+                    // encodes as its surrogate pair, and a BMP scalar keeps the
+                    // single-unit form — including a LONE surrogate, which
+                    // Haxe/JS strings carry as an unpaired unit. A std String
+                    // decode (String::from_utf16) rejects the lone unit, so the
+                    // old rendering silently dropped the character; UString
+                    // stores raw UTF-16 units and keeps it. The rendering is
+                    // therefore a UString producer, not a std-String shape.
+                    // (FromCharCodeScalar)
+                    imports.require("crate::runtime::u_string");
+                    return "(if " + unwrapped + " > 0xFFFF { u_string::from_units(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]) } else { u_string::from_units(&[" + unwrapped + " as u16]) })";
                 }
                 if (path == "std.UStringPlatform") {
                     // Cursor primitives of the resident UString walk, inlined
