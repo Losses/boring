@@ -372,10 +372,11 @@ public enum UString {
     /**
         Source of the test host emitted beside the runtime module. It
         holds the raise type of this language, the runner state, and the
-        result-line edge to stdout; the consistency run redirects stdout
-        to the jsonl results file. Assertion checks and canonical
-        formatting live in TestCore, appended after this host in this
-        same file.
+        results-file edge: every record appends to the file named by
+        BORING_TEST_RESULTS, or out/test-results/swift.jsonl when the
+        variable is unset, the contract the kotlin, rust and ts hosts
+        already keep. Assertion checks and canonical formatting live in
+        TestCore, appended after this host in this same file.
     **/
     public static final TEST_SOURCE = '
 
@@ -435,6 +436,68 @@ func boringTestElapsedMs(since start: ContinuousClock.Instant) -> Int {
     return Int(elapsed.components.seconds) * 1000 + Int(elapsed.components.attoseconds / 1_000_000_000_000_000)
 }
 
+/// The results sink of the test entry (features/19): the file named by
+/// BORING_TEST_RESULTS, or out/test-results/swift.jsonl when the
+/// variable is unset or empty, the same contract as the kotlin, rust
+/// and ts hosts.
+func boringTestResultsPath() -> String {
+    if let fromEnv = boringTestEnvText("BORING_TEST_RESULTS"), !fromEnv.isEmpty {
+        return fromEnv
+    }
+    return "out/test-results/swift.jsonl"
+}
+
+/// One directory level, existing or not. The platform calls match the
+/// ones the std.Env host edge uses; a level that already exists is not
+/// an error, so the walk only bridges a fresh tree to its first
+/// record.
+func boringTestMakeDir(_ dirPath: String) {
+    #if canImport(Glibc) || canImport(Darwin)
+    _ = mkdir(dirPath, 0777)
+    #elseif canImport(CRT)
+    _ = _mkdir(dirPath)
+    #endif
+}
+
+/// The parent directories of the results file, created on demand so
+/// the default path works on a fresh tree.
+func boringTestEnsureParentDirs(of path: String) {
+    var components = path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+    guard components.count > 1 else {
+        return
+    }
+    components.removeLast()
+    var partial = path.hasPrefix("/") ? "" : "."
+    for component in components {
+        if partial == "" {
+            partial = "/" + component
+        } else if partial == "." {
+            partial = component
+        } else {
+            partial = partial + "/" + component
+        }
+        boringTestMakeDir(partial)
+    }
+}
+
+/// One record per call: the line decodes to text, appends to the
+/// results file as UTF-8, and the fclose flushes, so a nonzero exit
+/// still leaves every written record on disk.
+func boringTestAppendResult(_ line: [UInt16]) {
+    let path = boringTestResultsPath()
+    boringTestEnsureParentDirs(of: path)
+    guard let fp = fopen(path, "a") else {
+        return
+    }
+    defer { _ = fclose(fp) }
+    let bytes = Array(decodeUnits(line).utf8)
+    bytes.withUnsafeBufferPointer { buffer in
+        if let base = buffer.baseAddress {
+            _ = fwrite(base, 1, buffer.count, fp)
+        }
+    }
+}
+
 /// The assertion failure of features/19: the canonical message in the
 /// resident unit-array ABI, converted to text only at the print edge.
 public struct TestFailure: Error {
@@ -453,7 +516,7 @@ public enum Test {
     private static var currentTestId: [UInt16] = []
 
     // Host edges of the test entry (features/19): the runner state, the
-    // raise of this language, and the stdout result edge. Assertion
+    // raise of this language, and the results-file edge. Assertion
     // checks and scalar formatting live in TestCore, appended after
     // this enum in this same file.
     public static func currentTestIdState() -> [UInt16] {
@@ -464,7 +527,7 @@ public enum Test {
     // the body and writes the not-applicable record instead, so the id
     // stays in the cross-target set.
     public static func recordNotApplicable(_ id: String, _ name: String) {
-        print(decodeUnits(TestCore.notApplicableLine(Array(id.utf16), Array(name.utf16))), terminator: "")
+        boringTestAppendResult(TestCore.notApplicableLine(Array(id.utf16), Array(name.utf16)))
     }
 
     public static func run(_ id: String, _ name: String, _ body: () throws -> Void) -> Bool {
@@ -473,8 +536,8 @@ public enum Test {
         Test.currentTestId = idUnits
         let budgetMs = boringTestTimeoutBudgetMs()
         let startedAt = ContinuousClock().now
-        // The result line carries its own newline; an empty terminator
-        // keeps one record per line in the redirected results file.
+        // The result line carries its own newline; one append per
+        // record keeps one record per line in the results file.
         do {
             try body()
             if boringTestElapsedMs(since: startedAt) >= budgetMs {
@@ -485,20 +548,20 @@ public enum Test {
                 let text = "this test timed out after " + String(budgetMs) + "ms"
                 throw TestFailure(message: Array(text.utf16))
             }
-            print(decodeUnits(TestCore.resultLine(idUnits, nameUnits, false, [])), terminator: "")
+            boringTestAppendResult(TestCore.resultLine(idUnits, nameUnits, false, []))
             Test.currentTestId = []
             return false
         } catch let error as TestFailure {
-            print(decodeUnits(TestCore.resultLine(idUnits, nameUnits, true, error.message)), terminator: "")
+            boringTestAppendResult(TestCore.resultLine(idUnits, nameUnits, true, error.message))
             Test.currentTestId = []
             return true
         } catch let error as BoringException {
-            print(decodeUnits(TestCore.resultLine(idUnits, nameUnits, true, Array(error.message.utf16))), terminator: "")
+            boringTestAppendResult(TestCore.resultLine(idUnits, nameUnits, true, Array(error.message.utf16)))
             Test.currentTestId = []
             return true
         } catch {
             let fallback = String(describing: error)
-            print(decodeUnits(TestCore.resultLine(idUnits, nameUnits, true, Array(fallback.utf16))), terminator: "")
+            boringTestAppendResult(TestCore.resultLine(idUnits, nameUnits, true, Array(fallback.utf16)))
             Test.currentTestId = []
             return true
         }
