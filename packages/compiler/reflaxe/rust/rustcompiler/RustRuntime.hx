@@ -14,8 +14,8 @@ impl Exception {
     // The haxe.Exception base carries a message string on other targets; the
     // rust marker form has no storage, so a message read lowers to the empty
     // string, matching the kotlin `?: ""` mapping.
-    pub fn get_message(&self) -> String {
-        String::new()
+    pub fn get_message(&self) -> UString {
+        UString::new()
     }
 }
 ';
@@ -81,6 +81,8 @@ impl BytesBuffer {
 ';
 
     public static final FP_HELPER_SOURCE = '
+use crate::runtime::u_string::UString;
+
 pub struct FPHelper;
 
 pub struct Int64Halves {
@@ -89,18 +91,18 @@ pub struct Int64Halves {
 }
 
 impl FPHelper {
-    pub fn format_float(v: f64) -> String {
-        if v.is_nan() { return "NaN".to_string(); }
-        if v == f64::INFINITY { return "Infinity".to_string(); }
-        if v == f64::NEG_INFINITY { return "-Infinity".to_string(); }
-        Self::format_float_text(v.to_string())
+    pub fn format_float(v: f64) -> UString {
+        if v.is_nan() { return UString::from("NaN"); }
+        if v == f64::INFINITY { return UString::from("Infinity"); }
+        if v == f64::NEG_INFINITY { return UString::from("-Infinity"); }
+        UString::from(Self::format_float_text(v.to_string()).as_str())
     }
 
-    pub fn format_float_f32(v: f32) -> String {
-        if v.is_nan() { return "NaN".to_string(); }
-        if v == f32::INFINITY { return "Infinity".to_string(); }
-        if v == f32::NEG_INFINITY { return "-Infinity".to_string(); }
-        Self::format_float_text(v.to_string())
+    pub fn format_float_f32(v: f32) -> UString {
+        if v.is_nan() { return UString::from("NaN"); }
+        if v == f32::INFINITY { return UString::from("Infinity"); }
+        if v == f32::NEG_INFINITY { return UString::from("-Infinity"); }
+        UString::from(Self::format_float_text(v.to_string()).as_str())
     }
 
     fn format_float_text(mut text: String) -> String {
@@ -1031,6 +1033,17 @@ impl Deref for UStr {
     fn deref(&self) -> &[u16] {
         self.as_slice()
     }
+}
+
+// Cross-form comparisons: business code compares a borrowed view with an
+// owned value (and vice versa) in char and prefix checks; the same unit
+// slice decides both directions.
+impl PartialOrd<UString> for UStr {
+    fn partial_cmp(&self, other: &UString) -> Option<std::cmp::Ordering> { self.as_slice().partial_cmp(other.0.as_slice()) }
+}
+
+impl PartialOrd<UStr> for UString {
+    fn partial_cmp(&self, other: &UStr) -> Option<std::cmp::Ordering> { self.0.as_slice().partial_cmp(other.as_slice()) }
 }
 
 impl fmt::Display for UString {
