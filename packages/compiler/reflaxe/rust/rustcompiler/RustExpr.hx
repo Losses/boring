@@ -2230,6 +2230,16 @@ class RustExpr {
         takes .to_ustring()) or a std-String-shaped rendering, which wraps
         through UString::from instead of calling a method String has none of.
     **/
+    /**
+        A nullable match's Some arm and its UString "null" None arm must
+        agree on one Rust type. A std-String-shaped inner rendering (a
+        float format, a .to_string()) converts through UString::from; a
+        rendering that already produces UString passes through.
+    **/
+    function nullableMatchArmText(rendered:String):String {
+        return stdStringShapedText(rendered) ? ustringFromStdText(rendered) : rendered;
+    }
+
     function ownedStringSlotText(text:String):String {
         if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()")
             || StringTools.startsWith(text, "UString::from("))
@@ -9276,7 +9286,7 @@ class RustExpr {
                 return "match "
                     + value
                     + " { Some(ref v) => "
-                    + stdStringType(inner, "v", false, origin, depth + 1)
+                    + nullableMatchArmText(stdStringType(inner, "v", false, origin, depth + 1))
                     + ", None => UString::from(\"null\") }";
             case _:
         }
@@ -9303,7 +9313,7 @@ class RustExpr {
                     + " { Some("
                     + binding
                     + ") => "
-                    + stdStringType(inner, "v", false, origin, depth + 1, true)
+                    + nullableMatchArmText(stdStringType(inner, "v", false, origin, depth + 1, true))
                     + ", None => UString::from(\"null\") }";
             case _:
         }
@@ -9315,7 +9325,7 @@ class RustExpr {
                 final optionInner = getNullInnerType(origin.t);
                 final optionBinding = isTypeCopy(optionInner) ? "v" : "ref v";
                 return "match " + value + " { Some(" + optionBinding + ") => "
-                    + stdStringType(optionInner, "v", false, origin, depth + 1, true) + ", None => UString::from(\"null\") }";
+                    + nullableMatchArmText(stdStringType(optionInner, "v", false, origin, depth + 1, true)) + ", None => UString::from(\"null\") }";
             case _:
         }
         return switch (PolicyQueries.stdStringCategory(t)) {
