@@ -9783,8 +9783,21 @@ class RustExpr {
                     };
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
-                    return "u_string::find_from(&"
-                        + expr(subj)
+                    // The receiver may render as a std String (a format!
+                    // result or a .to_string() display path); those convert
+                    // to the owned Haxe form once, and the & borrow then
+                    // deref-coerces to &UStr. (IndexOfStdStringReceiver)
+                    final recvText = expr(subj);
+                    final stdRendered = StringTools.startsWith(recvText, "format!(")
+                        || StringTools.endsWith(recvText, ".to_string()")
+                        || StringTools.endsWith(recvText, ".to_utf8_lossy()")
+                        || StringTools.startsWith(recvText, "String::from_utf16");
+                    // format! goes through Display, which every string form
+                    // (std String, UString, &UStr) implements, so the
+                    // conversion does not depend on the receiver's render.
+                    final recvView = stdRendered ? "&UString::from(format!(\"{}\", " + recvText + ").as_str())" : "&(" + recvText + ")";
+                    return "u_string::find_from("
+                        + recvView
                         + ", "
                         + needle
                         + ", "
