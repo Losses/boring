@@ -14,7 +14,6 @@ target/
 .DS_Store
 reference/kotlin/gen/
 reference/kotlin/gen-tests/
-reference/rust-gen/src/
 reference/rust/gen/
 reference/rust/gen-tests/
 reference/haxe/gen/
