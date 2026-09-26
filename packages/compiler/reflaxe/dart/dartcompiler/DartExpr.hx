@@ -2003,6 +2003,26 @@ class DartExpr {
     }
 
     /**
+        The assertion of requiredValueText for an argument the call site
+        pre-rendered (the base of callArgTexts, the padded text of
+        constructorArgTexts). The pre-rendered text is the one that gets
+        emitted, so derive the assertion from it instead of rendering the
+        argument a second time: the first pass already recorded the local
+        into flowPromotedNonNull, and a second render of the same field
+        access would silently drop the receiver assertion.
+    **/
+    function requiredValueTextOf(preRendered:String, e:TypedExpr):String {
+        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e))
+            return preRendered;
+        return switch (stripWrap(e).expr) {
+            case TLocal(v):
+                flowPromotedNonNull.set(v.id, true);
+                preRendered + "!";
+            case _: "(" + preRendered + ")!";
+        };
+    }
+
+    /**
         A registered coalescing value whose fallback side is non-null
         yields a non-null value: the rendered `param ?? default` reads as
         non-null in Dart's own flow whenever `default` is, so an unwrap
@@ -3183,7 +3203,14 @@ class DartExpr {
             final p = i < ps.length ? ps[i] : null;
             final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
             if (d != null && p != null && isNullLiteral(args[i]))
-                defaultArgText(d, p);
+                // The caller's literal null passes through as null: the
+                // callee body materializes the coalescing (param ??
+                // default), so null is exactly the value that body is
+                // written to consume. Rendering the default text here
+                // would leak the callee's own parameter identifier
+                // (the CParameterRead default) into the caller's scope,
+                // where it does not exist.
+                "null";
             else if (d != null && p != null && isNullLeafType(args[i].t)) {
                 final isVNull = switch (d) { case VNull: true; default: false; };
                 if (isVNull && !isNullLeafType(p))
@@ -3208,7 +3235,10 @@ class DartExpr {
         // optional `locale`), so the call site must supply the default
         // explicitly. The padded texts are threaded into sibling-default
         // resolution so a later default reading an earlier omitted slot
-        // resolves to that slot's padded value.
+        // resolves to that slot's padded value. For slots the call passes
+        // explicitly the padded text is the slot's only render: the second
+        // loop must not render the argument again, or a receiver assertion
+        // the first pass already emitted (and promoted) is lost.
         final padded:Array<String> = [];
         for (i in 0...ps.length) {
             if (i >= args.length) {
@@ -3247,14 +3277,15 @@ class DartExpr {
                     default: false;
                 };
                 if (skipInline) {
-                    out.push(expr(args[i]));
+                    out.push(padded[i]);
                 } else {
                     final isVNull = switch (d) { case VNull: true; default: false; };
                     if (isVNull && !isNullLeafType(p)) {
                         // When the default is null and the parameter type is
                         // non-nullable, coalescing to null is a no-op in Dart;
-                        // apply the null assertion instead.
-                        requiredValueText(args[i]);
+                        // apply the null assertion instead, deriving it from
+                        // the slot's pre-rendered text.
+                        requiredValueTextOf(padded[i], args[i]);
                     } else {
                         // DartCtorCallSiblingDefault: a call-site wrapper applies
                         // the callee default to the passed argument. A default
@@ -3263,13 +3294,17 @@ class DartExpr {
                         // caller with differently named locals never emits the
                         // callee parameter name unbound. No configuration
                         // switch; the report maps this rule to its test.
-                        out.push("(" + expr(args[i]) + " ?? " + constructorDefaultText(d, p, cls, args, padded) + ")");
+                        out.push("(" + padded[i] + " ?? " + constructorDefaultText(d, p, cls, args, padded) + ")");
                     }
                 }
             } else {
-                var rendered = expr(args[i]);
+                // The slot was already rendered for the padded array above;
+                // reuse that text so a receiver assertion emitted in the
+                // first pass survives (a second render would see the local
+                // promoted and drop the "!").
+                var rendered = padded[i];
                 if (p != null && !isNullLiteral(args[i]) && nullableValue(args[i]) && !isNullLeafType(p))
-                    rendered = requiredValueText(args[i]);
+                    rendered = requiredValueTextOf(padded[i], args[i]);
                 out.push(isIntOrLongType(emittedType(args[i])) && p != null && isFloatType(p) ? intToFloatText(rendered) : rendered);
             }
         }
