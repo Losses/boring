@@ -861,6 +861,59 @@ impl UStr {
     pub fn encode_utf16(&self) -> std::slice::Iter<u16> {
         self.0.iter()
     }
+
+    /// Trim Unicode whitespace from both ends (String.trim). Borrowed
+    /// receivers and owned UString (through Deref) both land here; the
+    /// result is an owned Haxe String. The u16 domain needs its own
+    /// whitespace table because char::from_u32 rejects surrogate halves.
+    pub fn trim(&self) -> UString {
+        let units = self.as_slice();
+        let is_ws = |u: u16| -> bool {
+            matches!(u, 0x09..=0x0D | 0x20 | 0x85 | 0xA0 | 0x1680
+                | 0x2000..=0x200A | 0x2028 | 0x2029 | 0x202F | 0x205F
+                | 0x3000 | 0xFEFF)
+        };
+        let mut start = 0;
+        let mut end = units.len();
+        while start < end && is_ws(units[start]) {
+            start += 1;
+        }
+        while end > start && is_ws(units[end - 1]) {
+            end -= 1;
+        }
+        UString(units[start..end].to_vec())
+    }
+
+    /// Index of the last occurrence of needle in the unit domain
+    /// (String.lastIndexOf). The scanner walks back over the haystack;
+    /// starts_with keeps the comparison off a bare slice ==, which the
+    /// emission pipeline rewrites (PIT-105).
+    pub fn rfind(&self, needle: &UStr) -> Option<usize> {
+        let hay = self.as_slice();
+        let nee = needle.as_slice();
+        if nee.len() > hay.len() {
+            return None;
+        }
+        if nee.is_empty() {
+            return Some(hay.len());
+        }
+        let mut i = hay.len() - nee.len();
+        loop {
+            if hay[i..].starts_with(nee) {
+                return Some(i);
+            }
+            if i == 0 {
+                return None;
+            }
+            i -= 1;
+        }
+    }
+
+    /// UTF-8 bytes of the text for byte-oriented sinks such as file
+    /// writes; unpaired surrogates degrade exactly like to_utf8_lossy.
+    pub fn as_bytes(&self) -> Vec<u8> {
+        self.to_utf8_lossy().into_bytes()
+    }
 }
 
 impl UString {
