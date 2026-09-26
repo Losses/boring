@@ -2302,8 +2302,8 @@ class RustDecl {
                                 && ownedInit != "None" ? "Arc::new(Mutex::new(" + ownedInit + "))" : ownedInit;
                             final fieldType = types.of(field.type);
                             final wrappedInit = StringTools.startsWith(fieldType, "Option<")
-                                && init != "None" && !StringTools.startsWith(ownedInit, "Some(")
-                                && !StringTools.startsWith(ownedInit, "match ") ? "Some(" + ownedInit + ")" : ownedInit;
+                                && init != "None" && !StringTools.startsWith(sharedInit, "Some(")
+                                && !StringTools.startsWith(sharedInit, "match ") ? "Some(" + sharedInit + ")" : sharedInit;
                             lines.push('            $sname: $wrappedInit,');
                         }
                     case _:
