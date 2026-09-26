@@ -556,7 +556,7 @@ pub fn split(s: &str, separator: &str) -> Vec<String> {
     let mut start = 0usize;
     let mut cursor = 0usize;
     while cursor + needle.len() <= source.len() {
-        if source[cursor..cursor + needle.len()] == needle[..] {
+        if &source[cursor..cursor + needle.len()] == needle {
             out.push(String::from_utf16_lossy(&source[start..cursor]));
             cursor += needle.len();
             start = cursor;
@@ -848,6 +848,19 @@ impl UStr {
     pub fn to_utf8(&self) -> Option<String> {
         String::from_utf16(&self.0).ok()
     }
+
+    /// Unicode lowercase of the text (String.toLowerCase). Borrowed
+    /// receivers (`&UStr`) and owned `UString` (through Deref) both land
+    /// here; the result is an owned Haxe String.
+    pub fn to_lowercase(&self) -> UString {
+        UString(self.to_utf8_lossy().to_lowercase().encode_utf16().collect())
+    }
+
+    /// The UTF-16 code units as an iterator (String.encodeUtf16). Mirrors
+    /// the UString inherent method so `&UStr` receivers resolve too.
+    pub fn encode_utf16(&self) -> std::slice::Iter<u16> {
+        self.0.iter()
+    }
 }
 
 impl UString {
@@ -875,7 +888,27 @@ impl UString {
     pub fn from_utf16(units: &[u16]) -> Result<UString, usize> {
         match String::from_utf16(units) {
             Ok(_) => Ok(UString(units.to_vec())),
-            Err(e) => Err(e),
+            Err(_) => {
+                // The declared Err payload is the unit index of the first
+                // unpaired surrogate; String::from_utf16 wraps that detail
+                // in FromUtf16Error, so rescan here to recover the index.
+                let mut i = 0;
+                while i < units.len() {
+                    let u = units[i];
+                    if u >= 0xD800 && u < 0xDC00 {
+                        if i + 1 < units.len() && units[i + 1] >= 0xDC00 && units[i + 1] < 0xE000 {
+                            i += 2;
+                            continue;
+                        }
+                        return Err(i);
+                    }
+                    if u >= 0xDC00 && u < 0xE000 {
+                        return Err(i);
+                    }
+                    i += 1;
+                }
+                Err(units.len())
+            }
         }
     }
 }
@@ -889,6 +922,12 @@ impl From<&str> for UString {
 impl From<&UStr> for UString {
     fn from(s: &UStr) -> UString {
         UString(s.as_slice().to_vec())
+    }
+}
+
+impl From<&String> for UString {
+    fn from(s: &String) -> UString {
+        UString::from(s.as_str())
     }
 }
 
@@ -914,7 +953,7 @@ impl fmt::Display for UString {
 
 impl fmt::Debug for UString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "UString("{}")", String::from_utf16_lossy(&self.0))
+        write!(f, "UString({:?})", String::from_utf16_lossy(&self.0))
     }
 }
 
@@ -926,7 +965,7 @@ impl fmt::Display for UStr {
 
 impl fmt::Debug for UStr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "UStr("{}")", String::from_utf16_lossy(&self.0))
+        write!(f, "UStr({:?})", String::from_utf16_lossy(&self.0))
     }
 }
 
@@ -996,12 +1035,12 @@ impl std::ops::AddAssign<&UString> for UString {
 }
 impl std::ops::AddAssign<&String> for UString {
     fn add_assign(&mut self, rhs: &String) {
-        self += rhs.as_str();
+        *self += rhs.as_str();
     }
 }
 impl std::ops::AddAssign<String> for UString {
     fn add_assign(&mut self, rhs: String) {
-        self += rhs.as_str();
+        *self += rhs.as_str();
     }
 }
 
@@ -1155,7 +1194,7 @@ pub fn split(s: &UStr, separator: &UStr) -> Vec<UString> {
     let mut start = 0usize;
     let mut cursor = 0usize;
     while cursor + needle.len() <= source.len() {
-        if source[cursor..cursor + needle.len()] == needle {
+        if &source[cursor..cursor + needle.len()] == needle {
             out.push(UString(source[start..cursor].to_vec()));
             cursor += needle.len();
             start = cursor;
@@ -1423,7 +1462,7 @@ pub fn find_from(s: &UStr, needle: &UStr, start: i32) -> i32 {
         return i32::try_from(start_unit).unwrap_or(-1);
     }
     for i in 0..=rest.len().saturating_sub(n.len()) {
-        if rest[i..i + n.len()] == n {
+        if &rest[i..i + n.len()] == n {
             return i32::try_from(u32::try_from(begin + i).unwrap_or(0)).unwrap_or(-1);
         }
     }
