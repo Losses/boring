@@ -1836,7 +1836,12 @@ class RustExpr {
                 // String expression in Some. Expressions that already carry
                 // the Null type lower to Option themselves, and TNull
                 // already renders None, so neither wraps again.
-                if (returnTypeName == "String") {
+                // A String function owns its value at the boundary. Haxe
+                // String renders as UString (and an abstract over String
+                // such as FontFaceId carries the same slot), while a
+                // Null<String> slot keeps its Option branch below.
+                final returnsOwnedString = returnTypeName == "String" || returnTypeName == "UString";
+                if (returnsOwnedString) {
                     switch (stripWrap(ret).expr) {
                         case TConst(TString(s)): retStr = s.length == 0 ? "UString::new()" : retStr + ".to_ustring()";
                         case TLocal(v) if (provenNonNullVarIds.exists(v.id) && isNullType(ret.t)):
@@ -1954,7 +1959,7 @@ class RustExpr {
                     // wrapper. (ReturnSiteUnwrap)
                     if (nullableReadHoldsOption(ret) && nullableReadRendersOptionText(retStr)
                         && !isNullType(currentReturnType)
-                        && returnTypeName != "String"
+                        && returnTypeName != "String" && returnTypeName != "UString"
                         && !StringTools.startsWith(returnTypeName, "Option<")) {
                         retStr = isTypeCopy(ret.t)
                             ? "(" + retStr + ").unwrap()"
@@ -2312,6 +2317,25 @@ class RustExpr {
                 && !isNullableCollapsedLocal(arg) && !isNullGuardedTernary(arg)):
                 "(match &(" + rendered + ") { Some(v) => v.as_ustr(), None => UStr::new(&[]) })";
             case _: stdStringShapedText(rendered) ? ustringFromStdText(rendered) + ".as_ustr()" : rendered + ".as_ustr()";
+        };
+    }
+
+    /**
+        stdStrViewArg: a native &str slot (an enum from_name lookup, the
+        runtime Fs module) takes std UTF-8 text, not a UStr view. A string
+        literal already is a &'static str; a std-String-shaped rendering
+        borrows directly; every other String shape converts through
+        to_utf8_lossy, which both UString and &UStr carry.
+    **/
+    function stdStrViewArg(arg:TypedExpr):String {
+        final rendered = expr(arg);
+        if (!isStringType(arg.t))
+            return rendered;
+        return switch (stripWrap(arg).expr) {
+            case TConst(TString(_)): rendered;
+            case _ if (isNullType(arg.t)):
+                '(match &(' + rendered + ') { Some(v) => v.to_utf8_lossy(), None => String::new() })';
+            case _: stdStringShapedText(rendered) ? '&(' + ustringFromStdText(rendered) + ').to_utf8_lossy()' : '&(' + rendered + ').to_utf8_lossy()';
         };
     }
 
@@ -5374,7 +5398,7 @@ class RustExpr {
                 switch (kind) {
                     case QCollection: en.name + "::ALL";
                     case QName: enumNameRead(args[0]);
-                    case QLookup: en.name + "::from_name(&(" + expr(args[1]) + "))";
+                    case QLookup: en.name + "::from_name(" + stdStrViewArg(args[1]) + ")";
                 }
         }
     }
@@ -9736,10 +9760,10 @@ class RustExpr {
                 imports.requireType("std.Fs", "Fs");
                 final fsName = cf.get().name;
                 if (fsName == "mkdirSync" && args.length >= 1) {
-                    return "Fs::make_dirs(" + stringViewArg(args[0]) + ")";
+                    return "Fs::make_dirs(" + stdStrViewArg(args[0]) + ")";
                 }
                 if (fsName == "writeFileSync" && args.length >= 2) {
-                    return "Fs::write_text(" + stringViewArg(args[0]) + ", " + stringViewArg(args[1]) + ")";
+                    return "Fs::write_text(" + stdStrViewArg(args[0]) + ", " + stdStrViewArg(args[1]) + ")";
                 }
                 Context.error("file extern has no lowering for member " + fsName, fn.pos);
                 return "null";
