@@ -1,6 +1,6 @@
 # Haxe reference in-source test runner (docs/specs/features/19-testing.md).
 # TestMain lives in the bundle driver's derived gen-tests dir and the js
-# lands in the derived gen dir (feature spec 59).
+# is written to the derived gen dir (feature spec 59).
 -lib reflaxe
 -cp packages/compiler
 -cp samples
