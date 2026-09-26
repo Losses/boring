@@ -953,7 +953,7 @@ impl fmt::Display for UString {
 
 impl fmt::Debug for UString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "UString("{}")", String::from_utf16_lossy(&self.0))
+        write!(f, "UString({:?})", String::from_utf16_lossy(&self.0))
     }
 }
 
@@ -965,7 +965,7 @@ impl fmt::Display for UStr {
 
 impl fmt::Debug for UStr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "UStr("{}")", String::from_utf16_lossy(&self.0))
+        write!(f, "UStr({:?})", String::from_utf16_lossy(&self.0))
     }
 }
 
