@@ -1133,8 +1133,7 @@ staged npm tree with the host `tsc`, so pin the compiler to the
 TypeScript the emit was written against (5.9.x; a newer standalone
 `tsc` reports different errors). If the staged tree fails with
 `TS2307: Cannot find module '../runtime/test.js'`, the emit-side
-staging is missing a runtime file - that is an emitter gap, not a
-project-file mistake.
+staging is missing a runtime file; the project file is not at fault.
 
 ### Starting a consumer project
 
@@ -1148,7 +1147,7 @@ own project file:
     bun out/bundle/driver.js compare --project /path/to/consumer/boring.json
 
 Every action except `compare` takes the bundle ids to run; an action
-named no bundle stops with an error instead of guessing. Paths inside
+named no bundle stops with an error; it never guesses. Paths inside
 the project file resolve against the directory holding the project
 file, so the driver, the consumer tree, and the boring checkout can
 sit apart. A consumer roots file owns its own classpaths and macro
