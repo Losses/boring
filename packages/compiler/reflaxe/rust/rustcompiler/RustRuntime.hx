@@ -7,6 +7,8 @@ package rustcompiler;
 **/
 class RustRuntime {
     public static final EXCEPTION_SOURCE = '
+use crate::runtime::u_string::UString;
+
 #[derive(Clone)]
 pub struct Exception;
 
@@ -14,8 +16,8 @@ impl Exception {
     // The haxe.Exception base carries a message string on other targets; the
     // rust marker form has no storage, so a message read lowers to the empty
     // string, matching the kotlin `?: ""` mapping.
-    pub fn get_message(&self) -> String {
-        String::new()
+    pub fn get_message(&self) -> UString {
+        UString::new()
     }
 }
 ';
@@ -81,6 +83,8 @@ impl BytesBuffer {
 ';
 
     public static final FP_HELPER_SOURCE = '
+use crate::runtime::u_string::UString;
+
 pub struct FPHelper;
 
 pub struct Int64Halves {
@@ -89,18 +93,18 @@ pub struct Int64Halves {
 }
 
 impl FPHelper {
-    pub fn format_float(v: f64) -> String {
-        if v.is_nan() { return "NaN".to_string(); }
-        if v == f64::INFINITY { return "Infinity".to_string(); }
-        if v == f64::NEG_INFINITY { return "-Infinity".to_string(); }
-        Self::format_float_text(v.to_string())
+    pub fn format_float(v: f64) -> UString {
+        if v.is_nan() { return UString::from("NaN"); }
+        if v == f64::INFINITY { return UString::from("Infinity"); }
+        if v == f64::NEG_INFINITY { return UString::from("-Infinity"); }
+        UString::from(Self::format_float_text(v.to_string()).as_str())
     }
 
-    pub fn format_float_f32(v: f32) -> String {
-        if v.is_nan() { return "NaN".to_string(); }
-        if v == f32::INFINITY { return "Infinity".to_string(); }
-        if v == f32::NEG_INFINITY { return "-Infinity".to_string(); }
-        Self::format_float_text(v.to_string())
+    pub fn format_float_f32(v: f32) -> UString {
+        if v.is_nan() { return UString::from("NaN"); }
+        if v == f32::INFINITY { return UString::from("Infinity"); }
+        if v == f32::NEG_INFINITY { return UString::from("-Infinity"); }
+        UString::from(Self::format_float_text(v.to_string()).as_str())
     }
 
     fn format_float_text(mut text: String) -> String {
@@ -239,11 +243,13 @@ impl IntText {
 ';
 
     public static final CONSOLE_SOURCE = '
+use crate::runtime::u_string::UStr;
+
 pub struct Console;
 
 impl Console {
-    pub fn log(message: &str) {
-        println!("{message}");
+    pub fn log(message: &UStr) {
+        println!("{}", message.to_utf8_lossy());
     }
 }
 ';
@@ -273,6 +279,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use crate::runtime::u_string::{UStr, UString};
+
 thread_local! {
     static SET_VALUES: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
     static REMOVED_KEYS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
@@ -281,31 +289,35 @@ thread_local! {
 pub struct Env;
 
 impl Env {
-    pub fn get(key: &str) -> Option<String> {
-        if REMOVED_KEYS.with(|removed| removed.borrow().contains(key)) {
+    pub fn get(key: &UStr) -> Option<UString> {
+        let host_key = key.to_utf8_lossy();
+        if REMOVED_KEYS.with(|removed| removed.borrow().contains(host_key.as_str())) {
             return None;
         }
-        if let Some(value) = SET_VALUES.with(|set| set.borrow().get(key).cloned()) {
-            return Some(value);
+        if let Some(value) = SET_VALUES.with(|set| set.borrow().get(host_key.as_str()).cloned()) {
+            return Some(UString::from(value.as_str()));
         }
-        std::env::var(key).ok()
+        std::env::var(host_key).ok().map(|v| UString::from(v.as_str()))
     }
 
-    pub fn set(key: &str, value: &str) {
+    pub fn set(key: &UStr, value: &UStr) {
+        let host_key = key.to_utf8_lossy();
         REMOVED_KEYS.with(|removed| {
-            removed.borrow_mut().remove(key);
+            removed.borrow_mut().remove(host_key.as_str());
         });
+        let host_value = value.to_utf8_lossy();
         SET_VALUES.with(|set| {
-            set.borrow_mut().insert(key.to_string(), value.to_string());
+            set.borrow_mut().insert(host_key, host_value);
         });
     }
 
-    pub fn remove(key: &str) {
+    pub fn remove(key: &UStr) {
+        let host_key = key.to_utf8_lossy();
         SET_VALUES.with(|set| {
-            set.borrow_mut().remove(key);
+            set.borrow_mut().remove(host_key.as_str());
         });
         REMOVED_KEYS.with(|removed| {
-            removed.borrow_mut().insert(key.to_string());
+            removed.borrow_mut().insert(host_key);
         });
     }
 }
@@ -321,54 +333,56 @@ impl Env {
     public static final FS_SOURCE = '
 pub struct Fs;
 
-fn fail(path: &str, error: std::io::Error) -> ! {
-    panic!("{}: {}", path, error);
+use crate::runtime::u_string::{UStr, UString};
+
+fn fail(path: &UStr, error: std::io::Error) -> ! {
+    panic!("{}: {}", path.to_utf8_lossy(), error);
 }
 
 impl Fs {
-    pub fn exists(path: &str) -> bool {
-        std::path::Path::new(path).exists()
+    pub fn exists(path: &UStr) -> bool {
+        std::path::Path::new(path.to_utf8_lossy().as_str()).exists()
     }
 
-    pub fn read_text(path: &str) -> String {
-        let bytes = std::fs::read(path).unwrap_or_else(|e| fail(path, e));
-        String::from_utf8_lossy(&bytes).into_owned()
+    pub fn read_text(path: &UStr) -> UString {
+        let bytes = std::fs::read(path.to_utf8_lossy().as_str()).unwrap_or_else(|e| fail(path, e));
+        UString::from(String::from_utf8_lossy(&bytes).into_owned().as_str())
     }
 
-    pub fn write_text(path: &str, data: &str) {
-        std::fs::write(path, data).unwrap_or_else(|e| fail(path, e));
+    pub fn write_text(path: &UStr, data: &UStr) {
+        std::fs::write(path.to_utf8_lossy().as_str(), data.as_bytes()).unwrap_or_else(|e| fail(path, e));
     }
 
-    pub fn append_text(path: &str, data: &str) {
+    pub fn append_text(path: &UStr, data: &UStr) {
         use std::io::Write;
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(path)
+            .open(path.to_utf8_lossy().as_str())
             .unwrap_or_else(|e| fail(path, e));
-        file.write_all(data.as_bytes())
+        file.write_all(&data.as_bytes())
             .unwrap_or_else(|e| fail(path, e));
     }
 
-    pub fn make_dirs(path: &str) {
-        std::fs::create_dir_all(path).unwrap_or_else(|e| fail(path, e));
+    pub fn make_dirs(path: &UStr) {
+        std::fs::create_dir_all(path.to_utf8_lossy().as_str()).unwrap_or_else(|e| fail(path, e));
     }
 
-    pub fn read_dir(path: &str) -> Vec<String> {
-        let entries = std::fs::read_dir(path).unwrap_or_else(|e| fail(path, e));
+    pub fn read_dir(path: &UStr) -> Vec<UString> {
+        let entries = std::fs::read_dir(path.to_utf8_lossy().as_str()).unwrap_or_else(|e| fail(path, e));
         let mut names = Vec::new();
         for entry in entries {
             let entry = match entry {
                 Ok(entry) => entry,
                 Err(e) => fail(path, e),
             };
-            names.push(entry.file_name().to_string_lossy().into_owned());
+            names.push(UString::from(entry.file_name().to_string_lossy().into_owned().as_str()));
         }
         names
     }
 
-    pub fn is_directory(path: &str) -> bool {
-        match std::fs::metadata(path) {
+    pub fn is_directory(path: &UStr) -> bool {
+        match std::fs::metadata(path.to_utf8_lossy().as_str()) {
             Ok(metadata) => metadata.is_dir(),
             Err(_) => false,
         }
@@ -873,6 +887,13 @@ impl UStr {
         UString(self.to_utf8_lossy().to_lowercase().encode_utf16().collect())
     }
 
+    /// Unicode uppercase of the text (String.toUpperCase). Mirrors
+    /// to_lowercase: borrowed receivers and owned UString (through
+    /// Deref) both land here; the result is an owned Haxe String.
+    pub fn to_uppercase(&self) -> UString {
+        UString(self.to_utf8_lossy().to_uppercase().encode_utf16().collect())
+    }
+
     /// The UTF-16 code units as an iterator (String.encodeUtf16). Mirrors
     /// the UString inherent method so `&UStr` receivers resolve too. Items
     /// are owned `u16`, matching the std String encode_utf16 item type.
@@ -1014,6 +1035,17 @@ impl Deref for UStr {
     fn deref(&self) -> &[u16] {
         self.as_slice()
     }
+}
+
+// Cross-form comparisons: business code compares a borrowed view with an
+// owned value (and vice versa) in char and prefix checks; the same unit
+// slice decides both directions.
+impl PartialOrd<UString> for UStr {
+    fn partial_cmp(&self, other: &UString) -> Option<std::cmp::Ordering> { self.as_slice().partial_cmp(other.0.as_slice()) }
+}
+
+impl PartialOrd<UStr> for UString {
+    fn partial_cmp(&self, other: &UStr) -> Option<std::cmp::Ordering> { self.0.as_slice().partial_cmp(other.as_slice()) }
 }
 
 impl fmt::Display for UString {
@@ -1576,7 +1608,7 @@ fn byte_to_unit(s: &str, byte: usize) -> u32 {
 // vector crosses whole from the resident i32 domain into the business
 // u32 domain, element by element. Every scalar operation keeps its
 // call-site cast and does not pass through here.
-pub fn boundaries(s: &str) -> Vec<u32> {
+pub fn boundaries(s: &UStr) -> Vec<u32> {
     let mut out = Vec::new();
     for unit in Graphemes::graphemes_boundaries(s) {
         out.push(u32::try_from(unit).unwrap_or(0));
