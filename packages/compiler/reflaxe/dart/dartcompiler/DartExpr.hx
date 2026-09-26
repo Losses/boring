@@ -4074,13 +4074,23 @@ class DartExpr {
                     }
                 case PlainDecl(v, init):
                     out.push(indent(depth) + "final " + localName(v) + " = " + expr(init));
-                case OtherStatement(s, returnValue, _):
-                    // A Float-typed switch with an int literal arm types as
-                    // num in Dart; Haxe's Float unification promises double,
-                    // so widen the int arm.
-                    final armValue = returnValue != null ? returnValue : s;
-                    value = if (switchType != null && isFloatType(switchType) && isIntOrLongType(emittedType(armValue)))
-                        intToFloatText(expr(armValue)) else (returnValue != null ? expr(returnValue) : expr(s));
+                case OtherStatement(s, returnValue, isLast):
+                    if (isLast) {
+                        // A Float-typed switch with an int literal arm types
+                        // as num in Dart; Haxe's Float unification promises
+                        // double, so widen the int arm.
+                        final armValue = returnValue != null ? returnValue : s;
+                        value = if (switchType != null && isFloatType(switchType) && isIntOrLongType(emittedType(armValue)))
+                            intToFloatText(expr(armValue)) else (returnValue != null ? expr(returnValue) : expr(s));
+                    } else {
+                        // A case body may carry statements before its value
+                        // expression (a mutation, a guard check that throws);
+                        // each renders before the arm value and only the final
+                        // statement supplies the value
+                        // (DartSwitchArmStatements).
+                        for (l in stmtLines(s, depth + 1))
+                            out.push(l);
+                    }
                 case MissingInit(s):
                     Context.error("dart target: declaration without initializer has no lowering", s.pos);
             }
