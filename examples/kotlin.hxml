@@ -675,3 +675,6 @@ tests.KotlinEntryProbeTests
 boring.IntDivisionOps
 tests.IntDivisionTests
 tests.TestApplicabilityProbeTests
+
+boring.DartNullPushOps
+tests.DartNullPushTests
