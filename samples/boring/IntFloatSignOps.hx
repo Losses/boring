@@ -6,7 +6,7 @@ import std.SortedMap;
     Regression support for the unsigned-relaxation family around
     intToFloatText: a wrapped Int (a - b with a < b renders
     u32::wrapping_sub on the Rust target) must widen to Float through its
-    signed i32 bits, so every context below reads -1.0, not 4294967295.0.
+    signed i32 bits, so every context below reads -1.0 and never 4294967295.0.
     (SignedIntFloatWiden)
 */
 class IntFloatSignOps {
