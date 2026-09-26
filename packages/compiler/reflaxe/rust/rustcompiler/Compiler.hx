@@ -43,10 +43,22 @@ class Compiler extends PluginCompiler<Compiler> {
         for (line in content.split("\n")) {
             var rest = line;
             while (rest.length > 280) {
+                // Break only at a top-level comma. The old cutter also
+                // took any space before the limit, which could land inside
+                // a slice, a cast, or a call like `.contains(`; the fold
+                // ParenFold.strip applies afterwards then reads the split
+                // group as a doubled-paren pair and peels it. A comma
+                // inside any bracket group is not top level, so `((..))`,
+                // `a..=b`, and method-call arguments survive the wrap.
+                // Without a fitting top-level comma the line stays long:
+                // wrapping serves the width limit, never the other way
+                // around. (ParenFold)
                 var quote = false;
                 var escaped = false;
                 var cut = -1;
-                for (i in 0...rest.length) {
+                var depth = 0;
+                var i = 0;
+                while (i < rest.length && i <= 280) {
                     final c = rest.charAt(i);
                     if (quote) {
                         if (escaped) escaped = false;
@@ -54,13 +66,18 @@ class Compiler extends PluginCompiler<Compiler> {
                         else if (c == '"') quote = false;
                     } else if (c == '"') {
                         quote = true;
-                    } else if (c == ',' || c == ' ') {
-                        if (i <= 280) cut = i;
+                    } else if (c == "(" || c == "[") {
+                        depth++;
+                    } else if (c == ")" || c == "]") {
+                        if (depth > 0) depth--;
+                    } else if (c == ',' && depth == 0) {
+                        cut = i;
                     }
+                    i++;
                 }
                 if (cut < 1)
                     break;
-                wrapped.push(rest.substr(0, cut + (rest.charAt(cut) == ',' ? 1 : 0)));
+                wrapped.push(rest.substr(0, cut + 1));
                 rest = StringTools.ltrim(rest.substr(cut + 1));
             }
             wrapped.push(rest);
