@@ -10268,13 +10268,18 @@ class RustExpr {
                 if (name == "push") {
                     // An indexed element receiver must stay a place
                     // expression: the mutation must reach the storage inside
-                    // the Vec, not a cloned temporary.
-                    // (IndexedReceiverMutation)
+                    // the Vec, not a cloned temporary. The flag covers only
+                    // the receiver itself: a push argument may contain an
+                    // indexed read of its own, which keeps its value clone.
+                    // A nullable wrapper in the receiver chain opens with
+                    // as_mut so the shared-borrow boundary cannot block the
+                    // mutation. (IndexedReceiverMutation)
                     final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
                     renderingInPlaceMutatorReceiver = true;
-                    final pushed = nullableMethodReceiver(subj, true) + ".push(" + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
+                    final recv = nullableMethodReceiver(subj, true);
                     renderingInPlaceMutatorReceiver = previousMutatorReceiver;
-                    return pushed;
+                    final recvMut = StringTools.replace(recv, ".as_ref().unwrap()", ".as_mut().unwrap()");
+                    return recvMut + ".push(" + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
                 }
                 if (name == "join") {
                     if (isVecType(subj)) {
