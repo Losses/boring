@@ -1740,7 +1740,8 @@ class Compiler extends PluginCompiler<Compiler> {
                 // A test-module fault stays inside the cfg(test) tree: growing
                 // a business union with a crate::tests payload makes every
                 // non-test build fail to resolve the variant. (TestFaultGrowth)
-                if (state.testModules.exists(item.module))
+                if (StringTools.startsWith(RustImports.moduleToRustPath(item.module), "tests::")
+                    || state.testModules.exists(item.module))
                     continue;
                 state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(item.module) + "::" + item.name, item.name);
             }
@@ -1765,7 +1766,8 @@ class Compiler extends PluginCompiler<Compiler> {
                 // A test-module fault stays inside the cfg(test) tree:
                 // growing a business union with a crate::tests payload makes
                 // every non-test build fail to resolve the variant. (TestFaultGrowth)
-                if (state.testModules.exists(edgeEnum.module))
+                if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
+                    || state.testModules.exists(edgeEnum.module))
                     continue;
                 state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
             }
@@ -1939,7 +1941,8 @@ class Compiler extends PluginCompiler<Compiler> {
                     continue;
                 if (edgeEnum.module == pair.module && edgeEnum.name == pair.name)
                     continue;
-                if (state.testModules.exists(edgeEnum.module))
+                if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
+                    || state.testModules.exists(edgeEnum.module))
                     continue;
                 state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
             }
