@@ -923,7 +923,7 @@ class DartExpr {
                         };
                         return [
                             indent(depth) + "return " + ((optionalValued(ret)
-                                || (!currentFunctionReturnsNullable && isNullLeafType(ret.t) && !isLocalExpr(ret)))
+                                || (!currentFunctionReturnsNullable && isNullLeafType(ret.t) && !isLocalExpr(ret) && !isNullLiteral(ret)))
                                 && !nonNullReturn ? rendered
                                 + "!" : rendered)
                         ];
@@ -979,10 +979,16 @@ class DartExpr {
     }
 
     function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int):Array<String> {
+        // Dart's flow promotion inside the if arm does not reach the
+        // else arm; snapshot the pre-if state so the else can restart.
+        final savedPromoted = flowPromotedNonNull.copy();
         final out = [indent(depth) + "if (" + conditionText(c) + ") {"];
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
         if (f != null) {
+            flowPromotedNonNull.clear();
+            for (k in savedPromoted.keys())
+                flowPromotedNonNull.set(k, savedPromoted.get(k));
             final elseStmts = statementsOf(f);
             if (elseStmts.length == 1) {
                 switch (stripWrap(elseStmts[0]).expr) {
@@ -1663,7 +1669,7 @@ class DartExpr {
         var rendered = expr(e);
         // A normalized local, or one cleared by a null guard, is already
         // non-null in the generated Dart flow.
-        if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq) {
+        if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq && !isNullLiteral(e)) {
             rendered += "!";
             switch (stripWrap(e).expr) {
                 case TLocal(v): flowPromotedNonNull.set(v.id, true);
@@ -1819,7 +1825,8 @@ class DartExpr {
         // the typed AST has already unwrapped it for indexing/member access.
         // Dart does not promote repeated field reads, so assert at the
         // receiver boundary; a preceding field guard is insufficient.
-        final nullableSubject = PolicyQueries.isNullableType(subj.t) || switch (stripWrap(subj).expr) {
+        final inner = stripWrap(subj);
+        final nullableSubject = PolicyQueries.isNullableType(inner.t) || optionalValued(subj) || switch (inner.expr) {
             case TField(_, FInstance(_, _, ownerField)) | TField(_, FAnon(ownerField)):
                 PolicyQueries.isNullableType(ownerField.get().type);
             case _: false;
@@ -1972,7 +1979,7 @@ class DartExpr {
         argument as rendered.
     **/
     function requiredValueText(e:TypedExpr):String {
-        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e))
+        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e) || isNullLiteral(e))
             return expr(e);
         final text = expr(e);
         return switch (stripWrap(e).expr) {
@@ -2050,14 +2057,19 @@ class DartExpr {
 
     /** A method receiver unwraps when the receiver expression is optional. */
     function receiverText(subj:TypedExpr):String {
-        final nullableField = switch (stripWrap(subj).expr) {
+        final inner = stripWrap(subj);
+        final nullableField = switch (inner.expr) {
             case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): PolicyQueries.isNullableType(cf.get().type);
             // A static field declared nullable (a mutable static
             // initialized with null) unwraps at the receiver.
             case TField(_, FStatic(_, cf)): isNullableStaticField(cf.get());
             case _: false;
         };
-        if ((!isNullLeafType(subj.t) && !optionalValued(subj) && !nullableField) || provenNonNull(subj)) {
+        final localNullable = switch (inner.expr) {
+            case TLocal(v): isNullLeafType(v.t);
+            case _: false;
+        };
+        if ((!isNullLeafType(inner.t) && !optionalValued(subj) && !nullableField && !localNullable) || provenNonNull(subj) || isNullLiteral(subj)) {
             return expr(subj);
         }
         final base = expr(subj);
@@ -2314,6 +2326,7 @@ class DartExpr {
         // re-render their operands (Math) must see the pre-call flow so
         // the `!` a fresh render needs is not suppressed.
         final savedNonNull = nonNullLocals.copy();
+        final savedFlow = flowPromotedNonNull.copy();
         final renderedArgs = callArgTexts(fn, args);
         final rendered = renderedArgs.join(", ");
         switch (fn.expr) {
@@ -2411,6 +2424,9 @@ class DartExpr {
                     nonNullLocals.clear();
                     for (k in savedNonNull.keys())
                         nonNullLocals.set(k, savedNonNull.get(k));
+                    flowPromotedNonNull.clear();
+                    for (k in savedFlow.keys())
+                        flowPromotedNonNull.set(k, savedFlow.get(k));
                     // Members with no bare-function form lower onto the
                     // core member of the argument.
                     switch (fName) {
