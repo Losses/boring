@@ -38,8 +38,37 @@ class Main {
         return Syntax.code("process.env[{0}] || null", key);
     }
 
-    static function checkMechanismCoverage(allIds:Array<String>):Bool {
-        final path = "tools/test-consistency/mechanism-coverage.json";
+    /**
+        The mechanism-coverage declaration of the project the results
+        directory belongs to, or null when no project up the chain
+        declares one. The nearest ancestor holding
+        tools/test-consistency/mechanism-coverage.json names the
+        project, and the file found is the file the check reads. A
+        consumer project's results directory sits outside every boring
+        checkout, so the walk finds nothing and the check is skipped
+        (feature spec 59); boring's own results directory resolves
+        inside the repository, so the gate keeps running there.
+    **/
+    static function findMechanismCoverage(resultsDir:String):Null<String> {
+        // Resolve to an absolute path so the walk starts at the results
+        // directory itself whatever the invocation named.
+        var dir:String = Syntax.code("require('path').resolve({0})", resultsDir);
+        final marker = "tools/test-consistency/mechanism-coverage.json";
+        while (true) {
+            final candidate:String = Syntax.code("require('path').join({0}, {1})", dir, marker);
+            if (exists(candidate)) {
+                return candidate;
+            }
+            final parent:String = Syntax.code("require('path').dirname({0})", dir);
+            if (parent == dir) {
+                break;
+            }
+            dir = parent;
+        }
+        return null;
+    }
+
+    static function checkMechanismCoverage(allIds:Array<String>, path:String):Bool {
         if (!exists(path)) {
             printErr('Error: Missing mechanism coverage file: $path\\n');
             return false;
@@ -133,7 +162,7 @@ class Main {
     public static function main() {
         var resultsDir = "out/test-results";
         var targets = ["kotlin", "haxe", "ts", "rust", "swift", "dart"];
-        final baselineTarget = "kotlin";
+        var baselineTarget = "kotlin";
 
         final args = getArgs();
         var i = 0;
@@ -146,6 +175,11 @@ class Main {
                 i++;
             } else if (StringTools.startsWith(arg, "--targets=")) {
                 targets = arg.substr(10).split(",");
+            } else if (StringTools.startsWith(arg, "--baseline=")) {
+                baselineTarget = arg.substr(11);
+            } else if (arg == "--baseline" && i + 1 < args.length) {
+                baselineTarget = args[i + 1];
+                i++;
             }
             i++;
         }
@@ -328,7 +362,18 @@ class Main {
         }
 
         print("");
-        final coverageOk = checkMechanismCoverage(allIds);
+        // The mechanism-coverage gate belongs to the project that owns
+        // the results directory: it runs only when that project declares
+        // its mechanisms through the coverage file, so a consumer's
+        // comparison is judged by the divergence list alone while
+        // boring's own runs keep the gate (feature spec 59).
+        final coveragePath = findMechanismCoverage(resultsDir);
+        var coverageOk = true;
+        if (coveragePath != null) {
+            coverageOk = checkMechanismCoverage(allIds, coveragePath);
+        } else {
+            print("Mechanism coverage: skipped; the results directory declares no mechanisms.");
+        }
         final allDivergences = divergences.concat(bothDivergences);
         if (allDivergences.length == 0 && coverageOk) {
             print('All ${targets.length} targets (${targets.join(", ")}) are 100% consistent across ${allIds.length} tests.');
