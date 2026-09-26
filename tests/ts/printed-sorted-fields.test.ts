@@ -8,7 +8,7 @@ const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
 const trees = [
   "reference/ts/gen/boring/PrintedSortedFields.ts",
   "reference/swift/gen/boring/PrintedSortedFields.swift",
-  "reference/rust-gen/src/boring/printed_sorted_fields.rs",
+  "reference/rust/gen/boring/printed_sorted_fields.rs",
   "reference/dart/gen/lib/boring/printed_sorted_fields.dart",
 ];
 
