@@ -2200,7 +2200,8 @@ class RustExpr {
             || StringTools.startsWith(rendered, "{")
             || rendered.indexOf("let mut out = String::new()") >= 0
             || StringTools.endsWith(rendered, ".name()")
-            || StringTools.startsWith(rendered, "String::from_utf16(");
+            || StringTools.startsWith(rendered, "String::from_utf16(")
+            || rendered.indexOf("FPHelper::format_float") >= 0;
     }
 
     /**
@@ -9260,7 +9261,7 @@ class RustExpr {
                     + value
                     + " { Some(ref v) => "
                     + stdStringType(inner, "v", false, origin, depth + 1)
-                    + ", None => \"null\".to_string() }";
+                    + ", None => UString::from(\"null\") }";
             case _:
         }
         // Context.follow unwraps Null<T> into T, so the switch below never
@@ -9287,7 +9288,7 @@ class RustExpr {
                     + binding
                     + ") => "
                     + stdStringType(inner, "v", false, origin, depth + 1, true)
-                    + ", None => \"null\".to_string() }";
+                    + ", None => UString::from(\"null\") }";
             case _:
         }
         // A local whose Rust storage renders as Option<T> (a null-initialized
@@ -9298,7 +9299,7 @@ class RustExpr {
                 final optionInner = getNullInnerType(origin.t);
                 final optionBinding = isTypeCopy(optionInner) ? "v" : "ref v";
                 return "match " + value + " { Some(" + optionBinding + ") => "
-                    + stdStringType(optionInner, "v", false, origin, depth + 1, true) + ", None => \"null\".to_string() }";
+                    + stdStringType(optionInner, "v", false, origin, depth + 1, true) + ", None => UString::from(\"null\") }";
             case _:
         }
         return switch (PolicyQueries.stdStringCategory(t)) {
@@ -9332,7 +9333,11 @@ class RustExpr {
                 imports.requireType("runtime.UString", "UString");
                 return "UString::from(" + value + ".0.to_string().as_str())";
             case IsNull:
-                "match " + value + " { Some(v) => v.to_string(), None => \"null\".to_string() }";
+                // Both arms produce UString: Haxe's String is UString, and a
+                // mixed-arm match is one Rust type error regardless of the
+                // surrounding slot.
+                imports.requireType("runtime.UString", "UString");
+                "match " + value + " { Some(v) => UString::from(v.to_string().as_str()), None => UString::from(\"null\") }";
             case IsFloat:
                 inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
             case IsInt | IsBool:
@@ -9700,8 +9705,11 @@ class RustExpr {
                         // that lead and the map_err names it. The `?` or
                         // `.unwrap()` rides the ordinary fallibility rules.
                         final q = isFallible ? "?" : ".unwrap()";
-                        return "String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from("
-                            + expr(subj) + "[" + expr(subj) + ".len() - 1]) }") + ")" + q;
+                        // toString returns Haxe String (UString), so the
+                        // decoded UTF-8 String converts at the read site.
+                        imports.requireType("runtime.UString", "UString");
+                        return "UString::from((String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from("
+                            + expr(subj) + "[" + expr(subj) + ".len() - 1]) }") + ")" + q + ").as_str())";
                     }
                     if (name == "get_length" || name == "length") {
                         return RustConversions.truncate(expr(subj) + ".len()", "u32");
