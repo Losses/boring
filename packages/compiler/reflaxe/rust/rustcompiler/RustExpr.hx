@@ -1507,6 +1507,17 @@ class RustExpr {
                         case TConst(TString(s)):
                             initStr = s.length == 0 ? "UString::new()" : initStr + ".to_ustring()";
                         case _:
+                            // A std-String-shaped rendering (a format! result, a
+                            // .to_string() display value) is not a UString
+                            // producer; the local's UString storage converts it
+                            // once here so later .as_ustr() reads bind.
+                            // (StringLocalStorage)
+                            if (stdStringShapedText(initStr)
+                                && !StringTools.startsWith(initStr, "UString::from(")
+                                && !StringTools.endsWith(initStr, ".to_ustring()")
+                                && !StringTools.endsWith(initStr, ".clone()")
+                                && !(StringTools.startsWith(initStr, "{") && initStr.indexOf("UString") >= 0))
+                                initStr = ustringFromStdText(initStr);
                     }
                 }
                 // A nullable local holds an Option; a non-null initializer
@@ -5739,7 +5750,7 @@ class RustExpr {
             // Message variant (Haxe subclass assignment).
             final inner = freshRegionName("__caught");
             out.push(indent(depth) + "    Err(" + inner + ") => {");
-            out.push(indent(depth) + "            let " + catchName + " = " + conversion.fault + "::Message { " + conversion.field + ": " + inner + ".message.clone() };");
+            out.push(indent(depth) + "            let " + catchName + " = " + conversion.fault + "::Message { " + conversion.field + ": " + ustringFromStdText(inner + ".message.clone()") + " };");
             catchVars.set(c.v.id, true);
             final handler = blockLines(statementsOf(c.expr), depth + 3);
             catchVars.remove(c.v.id);
