@@ -908,6 +908,13 @@ class RustDecl {
                 lines.push("    " + RustImports.toUpperCamelCase(o.name) + " { " + params + " },");
             }
         }
+        // Fault conversions registered while lowering fallible callees grow
+        // wrapping variants here too: the union payload the variant carries
+        // keeps propagating through a message function it does not declare.
+        final growth = state.enumGrowthFor(enumName);
+        if (growth != null)
+            for (item in growth)
+                lines.push("    " + item.variant + "(Box<" + item.calleePath + ">),");
         lines.push("}\n");
 
         // Display impl
@@ -932,6 +939,9 @@ class RustDecl {
                 lines.push("            }");
             }
         }
+        if (growth != null)
+            for (item in growth)
+                lines.push("            " + enumName + "::" + item.variant + "(inner) => write!(formatter, \"{:?}\", inner),");
         lines.push("        }");
         lines.push("    }");
         lines.push("}\n");
@@ -2827,7 +2837,7 @@ class RustDecl {
         final maxIndex = sorted.length > 0 ? sorted[sorted.length - 1].field.index + 1 : 0;
         if (growth != null) {
             for (item in growth)
-                lines.push("    " + item.variant + "(" + item.calleePath + "),");
+                lines.push("    " + item.variant + "(Box<" + item.calleePath + ">),");
         }
         lines.push("}");
         if (allPlain) {
