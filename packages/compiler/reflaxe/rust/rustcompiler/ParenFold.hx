@@ -281,9 +281,15 @@ class ParenFold {
         target follows the last top-level ` as `; its angle brackets are
         type syntax and carry no comparison. (OperatorPrecedenceGuard) */
     static function tightestTopLevelPrecedence(text:String):Int {
+        // The LOOSEST top-level operator decides whether stripping is safe:
+        // a group changes grouping whenever ANY top-level operator inside
+        // binds looser than (or as loose as) a neighbour outside. The
+        // previous maximum read let "(a == b || c) && d" fold to
+        // "a == b || c && d", which Rust parses as
+        // "a == (b || (c && d))". (ParenFoldLoosestGuard)
         var depth = 0;
         var inString = false;
-        var tightest = 0;
+        var loosest = 0;
         var i = 0;
         while (i < text.length) {
             final c = text.charAt(i);
@@ -311,21 +317,26 @@ class ParenFold {
                 }
                 final two = text.substr(i, 2);
                 if (BINARY_PRECEDENCE.exists(two) && two.length == 2) {
-                    if (BINARY_PRECEDENCE.get(two) > tightest)
-                        tightest = BINARY_PRECEDENCE.get(two);
+                    final p = BINARY_PRECEDENCE.get(two);
+                    if (loosest == 0 || p < loosest)
+                        loosest = p;
                     i += 2;
                     continue;
                 }
                 if (BINARY_PRECEDENCE.exists(c)) {
-                    if (unaryContextBefore(text, i))
-                        tightest = 10
-                    else if (BINARY_PRECEDENCE.get(c) > tightest)
-                        tightest = BINARY_PRECEDENCE.get(c);
+                    if (unaryContextBefore(text, i)) {
+                        if (loosest == 0 || 10 < loosest)
+                            loosest = 10;
+                    } else {
+                        final p = BINARY_PRECEDENCE.get(c);
+                        if (loosest == 0 || p < loosest)
+                            loosest = p;
+                    }
                 }
             }
             i++;
         }
-        return tightest;
+        return loosest;
     }
 
     static function matchParen(text:String, open:Int):Int {
