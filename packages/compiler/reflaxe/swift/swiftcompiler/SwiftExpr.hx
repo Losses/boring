@@ -160,6 +160,16 @@ class SwiftExpr {
     var nullablePutCounter:Int = 0;
 
     /**
+        Declarations of inout call arguments materialized into temporary
+        locals while the current call renders; the call wrapper folds them
+        into an immediately-invoked closure around the call text.
+    **/
+    var inoutTemps:Array<String> = [];
+
+    /** Fresh names for materialized inout temporaries. */
+    var inoutTempCounter:Int = 0;
+
+    /**
         Locals initialized from a SortedMap/SortedSet builder's `get`:
         Haxe treats the retrieved value as a reference into the builder, so a
         later mutation of the local must be written back to the builder.
@@ -2885,8 +2895,20 @@ class SwiftExpr {
                         case TLocal(_) | TField(_):
                             "&" + expr(a);
                         case _:
-                            Context.error("inout argument must be a local variable or field: " + Std.string(a.expr), a.pos);
-                            "&" + expr(a);
+                            // Swift requires an inout argument to be a
+                            // mutable lvalue; Haxe accepts any expression
+                            // there because the callee mutates its own
+                            // copy. The argument materializes into a fresh
+                            // var declared just before the call, and the
+                            // call passes its address. The fresh name goes
+                            // through reserveName so it can never shadow a
+                            // user identifier; the declaration is collected
+                            // and wrapped by the call wrapper.
+                            inoutTempCounter += 1;
+                            final tempName = "inoutTmp" + inoutTempCounter;
+                            reserveName(tempName);
+                            inoutTemps.push("var " + tempName + " = " + expr(a));
+                            "&" + tempName;
                     }
                 } else {
                     (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a))) && demandsValue ? expr(a) + "!" : expr(a);
@@ -3194,7 +3216,39 @@ class SwiftExpr {
         };
     }
 
+    /**
+        Call lowering entry: a call whose inout argument is not an lvalue
+        materializes that argument into a temporary local (argTexts), and
+        expression lowering has no statement outlet for its declaration, so
+        the call text is wrapped in an immediately-invoked closure carrying
+        the collected declarations — the same shape the hoisted
+        interpolation leaves use. Nested calls lower through this same
+        wrapper, so each call folds only its own temporaries into its own
+        text and an enclosing call never sees them.
+    **/
     function call(fn:TypedExpr, args:Array<TypedExpr>):String {
+        final savedTemps = inoutTemps;
+        inoutTemps = [];
+        final text = callText(fn, args);
+        final temps = inoutTemps;
+        inoutTemps = savedTemps;
+        if (temps.length == 0)
+            return text;
+        final decls = temps.join("; ");
+        if (!containsThrowingCall({expr: TCall(fn, args), pos: fn.pos, t: fn.t}))
+            return "{ " + decls + "; return " + text + " }()";
+        // A throwing call inside the closure needs its own try marker there
+        // (an enclosing statement's marker does not reach into the closure
+        // body), and the closure invocation is itself a throwing call, so
+        // it declares its return type and carries try at the call.
+        final ret = switch (Context.follow(fn.t)) {
+            case TFun(_, r): isVoidReturnType(r) ? "Void" : types.of(r);
+            case _: "Void";
+        };
+        return "try { () throws -> " + ret + " in " + decls + "; return try " + text + " }()";
+    }
+
+    function callText(fn:TypedExpr, args:Array<TypedExpr>):String {
         final int64CallText = int64Call(fn, args);
         if (int64CallText != null)
             return int64CallText;
