@@ -7,6 +7,8 @@ package rustcompiler;
 **/
 class RustRuntime {
     public static final EXCEPTION_SOURCE = '
+use crate::runtime::u_string::UString;
+
 #[derive(Clone)]
 pub struct Exception;
 
@@ -14,15 +16,18 @@ impl Exception {
     // The haxe.Exception base carries a message string on other targets; the
     // rust marker form has no storage, so a message read lowers to the empty
     // string, matching the kotlin `?: ""` mapping.
-    pub fn get_message(&self) -> String {
-        String::new()
+    pub fn get_message(&self) -> UString {
+        UString::new()
     }
 }
 ';
 
-    /** The Functional shim is precision-parameterized: sum_of_float
-        accumulates at the element Float's width, so the f32 mode binds
-        f32 and the f64 mode binds f64 (feature spec 23). */
+    /** The Functional shim is precision-parameterized: sum_of_float keeps
+        the element binding at the Float width (f32 mode binds f32, f64 mode
+        binds f64), but the accumulator is binary64 with one closing
+        narrowing, matching std.Functional.sumOfFloat on the JVM/Kotlin
+        reference (AccurateSum.of depends on it: thirty 16.0 advances must
+        total exactly 480; a binary32 accumulator yields 479.99982). */
     public static function functionalSource():String {
         final f = FloatPrecision.isF32() ? "f32" : "f64";
         return '
@@ -42,11 +47,11 @@ impl Functional {
     where
         F: FnMut(&T) -> $f,
     {
-        let mut total = 0.0;
+        let mut total = 0.0f64;
         for item in arr {
-            total += f(item);
+            total += f(item) as f64;
         }
-        total
+        total as $f
     }
 }
 ';
@@ -78,6 +83,8 @@ impl BytesBuffer {
 ';
 
     public static final FP_HELPER_SOURCE = '
+use crate::runtime::u_string::UString;
+
 pub struct FPHelper;
 
 pub struct Int64Halves {
@@ -86,18 +93,18 @@ pub struct Int64Halves {
 }
 
 impl FPHelper {
-    pub fn format_float(v: f64) -> String {
-        if v.is_nan() { return "NaN".to_string(); }
-        if v == f64::INFINITY { return "Infinity".to_string(); }
-        if v == f64::NEG_INFINITY { return "-Infinity".to_string(); }
-        Self::format_float_text(v.to_string())
+    pub fn format_float(v: f64) -> UString {
+        if v.is_nan() { return UString::from("NaN"); }
+        if v == f64::INFINITY { return UString::from("Infinity"); }
+        if v == f64::NEG_INFINITY { return UString::from("-Infinity"); }
+        UString::from(Self::format_float_text(v.to_string()).as_str())
     }
 
-    pub fn format_float_f32(v: f32) -> String {
-        if v.is_nan() { return "NaN".to_string(); }
-        if v == f32::INFINITY { return "Infinity".to_string(); }
-        if v == f32::NEG_INFINITY { return "-Infinity".to_string(); }
-        Self::format_float_text(v.to_string())
+    pub fn format_float_f32(v: f32) -> UString {
+        if v.is_nan() { return UString::from("NaN"); }
+        if v == f32::INFINITY { return UString::from("Infinity"); }
+        if v == f32::NEG_INFINITY { return UString::from("-Infinity"); }
+        UString::from(Self::format_float_text(v.to_string()).as_str())
     }
 
     fn format_float_text(mut text: String) -> String {
@@ -133,6 +140,19 @@ impl FPHelper {
 
     pub fn i32_to_float(v: i32) -> f64 {
         v as f64
+    }
+
+    // Numeric binary32 variants of the two 32-bit value edges: integer
+    // truncation toward zero and integer-to-real widening, matching the
+    // value semantics of float_to_i32/i32_to_float. The bit
+    // reinterpretation pair below keeps its wire semantics and is not
+    // referenced by the FPHelper lowering (feature spec 23).
+    pub fn float_to_i32_f32(v: f32) -> i32 {
+        v as i32
+    }
+
+    pub fn i32_to_float_f32(v: i32) -> f32 {
+        v as f32
     }
 
     pub fn f32_to_i32(v: f32) -> i32 {
@@ -236,11 +256,13 @@ impl IntText {
 ';
 
     public static final CONSOLE_SOURCE = '
+use crate::runtime::u_string::UStr;
+
 pub struct Console;
 
 impl Console {
-    pub fn log(message: &str) {
-        println!("{message}");
+    pub fn log(message: &UStr) {
+        println!("{}", message.to_utf8_lossy());
     }
 }
 ';
@@ -270,6 +292,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use crate::runtime::u_string::{UStr, UString};
+
 thread_local! {
     static SET_VALUES: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
     static REMOVED_KEYS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
@@ -278,31 +302,35 @@ thread_local! {
 pub struct Env;
 
 impl Env {
-    pub fn get(key: &str) -> Option<String> {
-        if REMOVED_KEYS.with(|removed| removed.borrow().contains(key)) {
+    pub fn get(key: &UStr) -> Option<UString> {
+        let host_key = key.to_utf8_lossy();
+        if REMOVED_KEYS.with(|removed| removed.borrow().contains(host_key.as_str())) {
             return None;
         }
-        if let Some(value) = SET_VALUES.with(|set| set.borrow().get(key).cloned()) {
-            return Some(value);
+        if let Some(value) = SET_VALUES.with(|set| set.borrow().get(host_key.as_str()).cloned()) {
+            return Some(UString::from(value.as_str()));
         }
-        std::env::var(key).ok()
+        std::env::var(host_key).ok().map(|v| UString::from(v.as_str()))
     }
 
-    pub fn set(key: &str, value: &str) {
+    pub fn set(key: &UStr, value: &UStr) {
+        let host_key = key.to_utf8_lossy();
         REMOVED_KEYS.with(|removed| {
-            removed.borrow_mut().remove(key);
+            removed.borrow_mut().remove(host_key.as_str());
         });
+        let host_value = value.to_utf8_lossy();
         SET_VALUES.with(|set| {
-            set.borrow_mut().insert(key.to_string(), value.to_string());
+            set.borrow_mut().insert(host_key, host_value);
         });
     }
 
-    pub fn remove(key: &str) {
+    pub fn remove(key: &UStr) {
+        let host_key = key.to_utf8_lossy();
         SET_VALUES.with(|set| {
-            set.borrow_mut().remove(key);
+            set.borrow_mut().remove(host_key.as_str());
         });
         REMOVED_KEYS.with(|removed| {
-            removed.borrow_mut().insert(key.to_string());
+            removed.borrow_mut().insert(host_key);
         });
     }
 }
@@ -318,54 +346,56 @@ impl Env {
     public static final FS_SOURCE = '
 pub struct Fs;
 
-fn fail(path: &str, error: std::io::Error) -> ! {
-    panic!("{}: {}", path, error);
+use crate::runtime::u_string::{UStr, UString};
+
+fn fail(path: &UStr, error: std::io::Error) -> ! {
+    panic!("{}: {}", path.to_utf8_lossy(), error);
 }
 
 impl Fs {
-    pub fn exists(path: &str) -> bool {
-        std::path::Path::new(path).exists()
+    pub fn exists(path: &UStr) -> bool {
+        std::path::Path::new(path.to_utf8_lossy().as_str()).exists()
     }
 
-    pub fn read_text(path: &str) -> String {
-        let bytes = std::fs::read(path).unwrap_or_else(|e| fail(path, e));
-        String::from_utf8_lossy(&bytes).into_owned()
+    pub fn read_text(path: &UStr) -> UString {
+        let bytes = std::fs::read(path.to_utf8_lossy().as_str()).unwrap_or_else(|e| fail(path, e));
+        UString::from(String::from_utf8_lossy(&bytes).into_owned().as_str())
     }
 
-    pub fn write_text(path: &str, data: &str) {
-        std::fs::write(path, data).unwrap_or_else(|e| fail(path, e));
+    pub fn write_text(path: &UStr, data: &UStr) {
+        std::fs::write(path.to_utf8_lossy().as_str(), data.as_bytes()).unwrap_or_else(|e| fail(path, e));
     }
 
-    pub fn append_text(path: &str, data: &str) {
+    pub fn append_text(path: &UStr, data: &UStr) {
         use std::io::Write;
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(path)
+            .open(path.to_utf8_lossy().as_str())
             .unwrap_or_else(|e| fail(path, e));
-        file.write_all(data.as_bytes())
+        file.write_all(&data.as_bytes())
             .unwrap_or_else(|e| fail(path, e));
     }
 
-    pub fn make_dirs(path: &str) {
-        std::fs::create_dir_all(path).unwrap_or_else(|e| fail(path, e));
+    pub fn make_dirs(path: &UStr) {
+        std::fs::create_dir_all(path.to_utf8_lossy().as_str()).unwrap_or_else(|e| fail(path, e));
     }
 
-    pub fn read_dir(path: &str) -> Vec<String> {
-        let entries = std::fs::read_dir(path).unwrap_or_else(|e| fail(path, e));
+    pub fn read_dir(path: &UStr) -> Vec<UString> {
+        let entries = std::fs::read_dir(path.to_utf8_lossy().as_str()).unwrap_or_else(|e| fail(path, e));
         let mut names = Vec::new();
         for entry in entries {
             let entry = match entry {
                 Ok(entry) => entry,
                 Err(e) => fail(path, e),
             };
-            names.push(entry.file_name().to_string_lossy().into_owned());
+            names.push(UString::from(entry.file_name().to_string_lossy().into_owned().as_str()));
         }
         names
     }
 
-    pub fn is_directory(path: &str) -> bool {
-        match std::fs::metadata(path) {
+    pub fn is_directory(path: &UStr) -> bool {
+        match std::fs::metadata(path.to_utf8_lossy().as_str()) {
             Ok(metadata) => metadata.is_dir(),
             Err(_) => false,
         }
@@ -429,7 +459,7 @@ pub fn run<F: FnOnce()>(id: &str, name: &str, body: F) {',
         '                // through the same path as a failed assertion: the fail',
         '                // line carries the timeout message and the raise travels',
         '                // on, so the runner reports the test as failed too.',
-        '                let msg = format!("this test timed out after {}ms", budget_ms);',
+        '                let msg = format!("this test timed out after {}ms (body took {}ms)", budget_ms, started_at.elapsed().as_millis());',
         '                record_result(id, name, "fail", Some(&msg));',
         '                std::panic::resume_unwind(Box::new(msg));',
         '            }',
@@ -452,13 +482,13 @@ pub fn run<F: FnOnce()>(id: &str, name: &str, body: F) {',
         'fn record_result(id: &str, name: &str, verdict: &str, message: Option<&str>) {',
         '    // The resident builds the record line; this module only writes it.',
         '    let json_line = if verdict == "not_applicable" {',
-        '        crate::runtime::test_core::TestCore::test_core_not_applicable_line(id, name)',
+        '        crate::runtime::test_core::TestCore::test_core_not_applicable_line(crate::runtime::u_string::UString::from(id).as_ustr(), crate::runtime::u_string::UString::from(name).as_ustr())',
         '    } else {',
         '        crate::runtime::test_core::TestCore::test_core_result_line(',
-        '            id,',
-        '            name,',
+        '            crate::runtime::u_string::UString::from(id).as_ustr(),',
+        '            crate::runtime::u_string::UString::from(name).as_ustr(),',
         '            verdict == "fail",',
-        '            message.unwrap_or(""),',
+        '            crate::runtime::u_string::UString::from(message.unwrap_or("")).as_ustr(),',
         '        )',
         '    };',
         '    let file_path = std::env::var("BORING_TEST_RESULTS").unwrap_or_else(|_| "out/test-results/rust.jsonl".to_string());',
@@ -466,7 +496,7 @@ pub fn run<F: FnOnce()>(id: &str, name: &str, body: F) {',
         '        let _ = std::fs::create_dir_all(parent);',
         '    }',
         '    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&file_path) {',
-        '        let _ = file.write_all(json_line.as_bytes());',
+        '        let _ = file.write_all(&json_line.as_bytes());',
         '    }',
         '}',
     ].join("\n");
@@ -570,7 +600,7 @@ pub fn split(s: &str, separator: &str) -> Vec<String> {
     let mut start = 0usize;
     let mut cursor = 0usize;
     while cursor + needle.len() <= source.len() {
-        if source[cursor..cursor + needle.len()] == needle[..] {
+        if &source[cursor..cursor + needle.len()] == needle {
             out.push(String::from_utf16_lossy(&source[start..cursor]));
             cursor += needle.len();
             start = cursor;
@@ -812,6 +842,772 @@ fn byte_to_unit(s: &str, byte: usize) -> u32 {
 ';
 
     /**
+        UString and UStr newtype definitions for the Rust target's unit-based
+        string storage (docs/specs/stdlib/10-unicode-string-access.md).
+        UString is the owned form, UStr the borrowed slice, matching
+        String/&str. Both Deref to [u16], so Index, len and slicing come
+        from the slice. This replaces the compiled runtime.UString unit
+        struct: the resident walk is folded into the ABI adapters below.
+    **/
+    public static final USTRING_TYPE_SOURCE = '
+// Haxe String storage: owned UTF-16 code units, the Rust target\'s
+// native string type. UString is the owned form, UStr is the borrowed
+// slice form, matching the String/&str relationship. Both Deref to
+// [u16], so s[i] reads a u16 unit, s.len() returns the unit count,
+// and s[a..b] yields a &[u16] slice — extra Index impls are not needed.
+//
+// Conversions to Rust String (UTF-8) are explicit and named:
+//   to_utf8_lossy() -> String     (always succeeds, replaces unpaired surrogates)
+//   to_utf8()       -> Option<String> (None on unpaired surrogates)
+
+use std::fmt;
+use std::ops::{Deref, DerefMut};
+
+#[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct UString(Vec<u16>);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
+pub struct UStr([u16]);
+
+impl UStr {
+    #[inline]
+    pub fn new<S: AsRef<[u16]> + ?Sized>(s: &S) -> &UStr {
+        unsafe { &*(s.as_ref() as *const [u16] as *const UStr) }
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[u16] {
+        &self.0
+    }
+
+    pub fn to_ustring(&self) -> UString {
+        UString(self.0.to_vec())
+    }
+
+    pub fn to_utf8_lossy(&self) -> String {
+        String::from_utf16_lossy(&self.0)
+    }
+
+    pub fn to_utf8(&self) -> Option<String> {
+        String::from_utf16(&self.0).ok()
+    }
+
+    /// Unicode lowercase of the text (String.toLowerCase). Borrowed
+    /// receivers (`&UStr`) and owned `UString` (through Deref) both land
+    /// here; the result is an owned Haxe String.
+    pub fn to_lowercase(&self) -> UString {
+        UString(self.to_utf8_lossy().to_lowercase().encode_utf16().collect())
+    }
+
+    /// Unicode uppercase of the text (String.toUpperCase). Mirrors
+    /// to_lowercase: borrowed receivers and owned UString (through
+    /// Deref) both land here; the result is an owned Haxe String.
+    pub fn to_uppercase(&self) -> UString {
+        UString(self.to_utf8_lossy().to_uppercase().encode_utf16().collect())
+    }
+
+    /// The UTF-16 code units as an iterator (String.encodeUtf16). Mirrors
+    /// the UString inherent method so `&UStr` receivers resolve too. Items
+    /// are owned `u16`, matching the std String encode_utf16 item type.
+    pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+        self.0.iter().copied()
+    }
+
+    /// Trim Unicode whitespace from both ends (String.trim). Borrowed
+    /// receivers and owned UString (through Deref) both land here; the
+    /// result is an owned Haxe String. The u16 domain needs its own
+    /// whitespace table because char::from_u32 rejects surrogate halves.
+    pub fn trim(&self) -> UString {
+        let units = self.as_slice();
+        let is_ws = |u: u16| -> bool {
+            matches!(u, 0x09..=0x0D | 0x20 | 0x85 | 0xA0 | 0x1680
+                | 0x2000..=0x200A | 0x2028 | 0x2029 | 0x202F | 0x205F
+                | 0x3000 | 0xFEFF)
+        };
+        let mut start = 0;
+        let mut end = units.len();
+        while start < end && is_ws(units[start]) {
+            start += 1;
+        }
+        while end > start && is_ws(units[end - 1]) {
+            end -= 1;
+        }
+        UString(units[start..end].to_vec())
+    }
+
+    /// Index of the last occurrence of needle in the unit domain
+    /// (String.lastIndexOf). The scanner walks back over the haystack;
+    /// starts_with keeps the comparison off a bare slice ==, which the
+    /// emission pipeline rewrites (PIT-105).
+    pub fn rfind(&self, needle: &UStr) -> Option<usize> {
+        let hay = self.as_slice();
+        let nee = needle.as_slice();
+        if nee.len() > hay.len() {
+            return None;
+        }
+        if nee.is_empty() {
+            return Some(hay.len());
+        }
+        let mut i = hay.len() - nee.len();
+        loop {
+            if hay[i..].starts_with(nee) {
+                return Some(i);
+            }
+            if i == 0 {
+                return None;
+            }
+            i -= 1;
+        }
+    }
+
+    /// UTF-8 bytes of the text for byte-oriented sinks such as file
+    /// writes; unpaired surrogates degrade exactly like to_utf8_lossy.
+    pub fn as_bytes(&self) -> Vec<u8> {
+        self.to_utf8_lossy().into_bytes()
+    }
+}
+
+impl UString {
+    pub fn new() -> UString {
+        UString(Vec::new())
+    }
+
+    pub fn as_ustr(&self) -> &UStr {
+        UStr::new(&self.0)
+    }
+
+    pub fn to_utf8_lossy(&self) -> String {
+        String::from_utf16_lossy(&self.0)
+    }
+
+    pub fn to_utf8(&self) -> Option<String> {
+        String::from_utf16(&self.0).ok()
+    }
+}
+
+impl UString {
+    /// UTF-16 units to an owned Haxe String, rejecting an unpaired
+    /// surrogate the same way String::from_utf16 does (the Err payload is
+    /// the unit index of the unpaired lead). (StringBufferFromUtf16)
+    pub fn from_utf16(units: &[u16]) -> Result<UString, usize> {
+        match String::from_utf16(units) {
+            Ok(_) => Ok(UString(units.to_vec())),
+            Err(_) => {
+                // The declared Err payload is the unit index of the first
+                // unpaired surrogate; String::from_utf16 wraps that detail
+                // in FromUtf16Error, so rescan here to recover the index.
+                let mut i = 0;
+                while i < units.len() {
+                    let u = units[i];
+                    if u >= 0xD800 && u < 0xDC00 {
+                        if i + 1 < units.len() && units[i + 1] >= 0xDC00 && units[i + 1] < 0xE000 {
+                            i += 2;
+                            continue;
+                        }
+                        return Err(i);
+                    }
+                    if u >= 0xDC00 && u < 0xE000 {
+                        return Err(i);
+                    }
+                    i += 1;
+                }
+                Err(units.len())
+            }
+        }
+    }
+}
+
+impl From<&str> for UString {
+    fn from(s: &str) -> UString {
+        UString(s.encode_utf16().collect())
+    }
+}
+
+impl From<&UStr> for UString {
+    fn from(s: &UStr) -> UString {
+        UString(s.as_slice().to_vec())
+    }
+}
+
+impl From<&String> for UString {
+    fn from(s: &String) -> UString {
+        UString::from(s.as_str())
+    }
+}
+
+impl Deref for UString {
+    type Target = UStr;
+    fn deref(&self) -> &UStr {
+        UStr::new(&self.0)
+    }
+}
+
+impl Deref for UStr {
+    type Target = [u16];
+    fn deref(&self) -> &[u16] {
+        self.as_slice()
+    }
+}
+
+// Cross-form comparisons: business code compares a borrowed view with an
+// owned value (and vice versa) in char and prefix checks; the same unit
+// slice decides both directions.
+impl PartialOrd<UString> for UStr {
+    fn partial_cmp(&self, other: &UString) -> Option<std::cmp::Ordering> { self.as_slice().partial_cmp(other.0.as_slice()) }
+}
+
+impl PartialOrd<UStr> for UString {
+    fn partial_cmp(&self, other: &UStr) -> Option<std::cmp::Ordering> { self.0.as_slice().partial_cmp(other.as_slice()) }
+}
+
+impl fmt::Display for UString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", String::from_utf16_lossy(&self.0))
+    }
+}
+
+impl fmt::Debug for UString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "UString({:?})", String::from_utf16_lossy(&self.0))
+    }
+}
+
+impl fmt::Display for UStr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", String::from_utf16_lossy(&self.0))
+    }
+}
+
+impl fmt::Debug for UStr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "UStr({:?})", String::from_utf16_lossy(&self.0))
+    }
+}
+
+impl PartialEq<UString> for &UStr {
+    fn eq(&self, other: &UString) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl PartialEq<&UStr> for UString {
+    fn eq(&self, other: &&UStr) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+// Resident ABI wrappers (i32 domain) for internal runtime callers
+// that compile through the std.UStringRT resident path.
+impl UString {
+    pub fn u_string_count(s: &UStr) -> i32 {
+        i32::try_from(count(s)).unwrap_or(0)
+    }
+    pub fn u_string_at(s: &UStr, index: i32) -> Option<i32> {
+        at(s, u32::try_from(index).unwrap_or(0)).map(|v| i32::try_from(v).unwrap_or(0))
+    }
+    pub fn u_string_slice(s: &UStr, from: i32, to: i32) -> UString {
+        slice(s, from, to)
+    }
+    pub fn u_string_to_code_points(s: &UStr) -> Vec<i32> {
+        to_code_points(s).iter().map(|v| i32::try_from(*v).unwrap_or(0)).collect()
+    }
+    pub fn u_string_from_code_point(code: i32) -> UString {
+        from_code_point(u32::try_from(code).unwrap_or(0))
+    }
+    pub fn u_string_from_code_points(codes: &Vec<i32>) -> UString {
+        let mut inner = Vec::with_capacity(codes.len());
+        for v in codes {
+            inner.push(u32::try_from(*v).unwrap_or(0));
+        }
+        from_code_points(&inner)
+    }
+}
+
+impl UString {
+    /// The UTF-16 code units of this string. UString stores units natively,
+    /// so this is the slice itself — no re-encoding. (String.encodeUtf16)
+    /// Items are owned `u16`, matching the std String encode_utf16 item type.
+    pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+        self.0.iter().copied()
+    }
+}
+
+// String append (Haxe String += operand) accepts a borrowed Haxe string,
+// a borrowed Rust str, and an owned std String.
+impl std::ops::AddAssign<&UStr> for UString {
+    fn add_assign(&mut self, rhs: &UStr) {
+        self.0.extend_from_slice(rhs.as_slice());
+    }
+}
+impl std::ops::AddAssign<&str> for UString {
+    fn add_assign(&mut self, rhs: &str) {
+        self.0.extend(rhs.encode_utf16());
+    }
+}
+impl std::ops::AddAssign<&UString> for UString {
+    fn add_assign(&mut self, rhs: &UString) {
+        self.0.extend_from_slice(rhs.as_slice());
+    }
+}
+impl std::ops::AddAssign<&String> for UString {
+    fn add_assign(&mut self, rhs: &String) {
+        *self += rhs.as_str();
+    }
+}
+impl std::ops::AddAssign<String> for UString {
+    fn add_assign(&mut self, rhs: String) {
+        *self += rhs.as_str();
+    }
+}
+
+// Cross-type comparison: a Haxe string compares against Rust str/String by
+// UTF-16 unit sequence, the same order the unit-based storage defines.
+impl PartialEq<UString> for UStr {
+    fn eq(&self, other: &UString) -> bool {
+        self.0 == other.0[..]
+    }
+}
+impl PartialEq<UStr> for UString {
+    fn eq(&self, other: &UStr) -> bool {
+        self.0[..] == other.0
+    }
+}
+impl PartialEq<str> for UStr {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other.encode_utf16().collect::<Vec<u16>>()[..]
+    }
+}
+impl PartialEq<UStr> for str {
+    fn eq(&self, other: &UStr) -> bool {
+        other == self
+    }
+}
+impl PartialEq<String> for UStr {
+    fn eq(&self, other: &String) -> bool {
+        self == other.as_str()
+    }
+}
+impl PartialEq<UStr> for String {
+    fn eq(&self, other: &UStr) -> bool {
+        other == self.as_str()
+    }
+}
+';
+
+    /**
+        Business ABI adapters over UString/UStr: Int arguments arrive
+        unsigned (u32) and results return u32. This is the unit-based
+        rewrite of the original u_string adapters. slice, substring,
+        and substr keep i32 bounds because negative bounds are part of
+        their clamping contract.
+    **/
+    public static final USTRING_ABI_SOURCE_NEW = '
+// Business ABI adapters: Int arguments arrive unsigned (u32), results
+// return u32. slice, substring, and substr keep i32 bounds because
+// negative bounds are part of their clamping contract.
+
+pub fn count(s: &UStr) -> u32 {
+    let mut i = 0u32;
+    let units = s.as_slice();
+    let mut pos = 0;
+    while pos < units.len() {
+        i += 1;
+        let cu = units[pos] as u32;
+        if cu >= 0xD800 && cu < 0xDC00 && pos + 1 < units.len() {
+            let lo = units[pos + 1] as u32;
+            if lo >= 0xDC00 && lo < 0xE000 {
+                pos += 2;
+                continue;
+            }
+        }
+        pos += 1;
+    }
+    i
+}
+
+// The String.length member counts UTF-16 code units on every target
+// (stdlib/15). With UStr storage in units, this is just the slice length.
+pub fn unit_count(s: &UStr) -> u32 {
+    u32::try_from(s.as_slice().len()).unwrap_or(0)
+}
+
+// The UTF-16 code-unit vector of a string, built once. Per-character
+// loops that read length and per-index units lower against this vector
+// instead of rescanning the source on every access.
+pub fn units(s: &UStr) -> Vec<u16> {
+    s.as_slice().to_vec()
+}
+
+// The single UTF-16 unit at `index` read from a precomputed unit vector,
+// the O(1) form of String.charCodeAt.
+pub fn unit_at_from(units: &[u16], index: u32) -> Option<u32> {
+    units.get(usize::try_from(index).unwrap_or(0)).map(|u| u32::from(*u))
+}
+
+// The single UTF-16 unit at `index` as an owned one-unit UString, the
+// O(1) form of String.charAt; an out-of-range index yields the empty
+// string, matching charAt past the end.
+pub fn char_at_from(units: &[u16], index: u32) -> UString {
+    let i = usize::try_from(index).unwrap_or(0);
+    if i < units.len() {
+        UString(units[i..i + 1].to_vec())
+    } else {
+        UString::new()
+    }
+}
+
+// The code-point read that std.UString.at lowers to: the index counts
+// characters and the value is one code point, so a surrogate pair
+// occupies one address and yields its combined code point.
+pub fn at(s: &UStr, index: u32) -> Option<u32> {
+    let mut remaining = index;
+    let units = s.as_slice();
+    let mut pos = 0;
+    while pos < units.len() {
+        if remaining == 0 {
+            let cu = units[pos] as u32;
+            if cu >= 0xD800 && cu < 0xDC00 && pos + 1 < units.len() {
+                let lo = units[pos + 1] as u32;
+                if lo >= 0xDC00 && lo < 0xE000 {
+                    return Some(((cu - 0xD800) << 10 | (lo - 0xDC00)) + 0x10000);
+                }
+            }
+            return Some(cu);
+        }
+        remaining -= 1;
+        let cu = units[pos] as u32;
+        if cu >= 0xD800 && cu < 0xDC00 && pos + 1 < units.len() {
+            let lo = units[pos + 1] as u32;
+            if lo >= 0xDC00 && lo < 0xE000 {
+                pos += 2;
+                continue;
+            }
+        }
+        pos += 1;
+    }
+    None
+}
+
+// The unit read that String.charCodeAt lowers to (stdlib spec 15): the
+// index counts UTF-16 code units, so each half of a surrogate pair
+// carries its own address and the value is the unit, never the combined
+// code point.
+pub fn unit_at(s: &UStr, index: u32) -> Option<u32> {
+    s.as_slice().get(usize::try_from(index).unwrap_or(0)).map(|u| u32::from(*u))
+}
+
+pub fn split(s: &UStr, separator: &UStr) -> Vec<UString> {
+    let source = s.as_slice();
+    let needle = separator.as_slice();
+    if needle.is_empty() {
+        let mut out = Vec::new();
+        for unit in source {
+            out.push(UString(vec![*unit]));
+        }
+        return out;
+    }
+    let mut out = Vec::new();
+    let mut start = 0usize;
+    let mut cursor = 0usize;
+    while cursor + needle.len() <= source.len() {
+        if &source[cursor..cursor + needle.len()] == needle {
+            out.push(UString(source[start..cursor].to_vec()));
+            cursor += needle.len();
+            start = cursor;
+        } else {
+            cursor += 1;
+        }
+    }
+    out.push(UString(source[start..].to_vec()));
+    out
+}
+
+pub fn slice(s: &UStr, from: i32, to: i32) -> UString {
+    let total = count(s);
+    let mut start = if from < 0 { 0u32 } else { u32::try_from(from).unwrap_or(0) };
+    if start > total {
+        start = total;
+    }
+    let mut stop = u32::try_from(to).unwrap_or(0);
+    if stop > total {
+        stop = total;
+    }
+    if to < 0 {
+        stop = 0u32;
+    }
+    if start >= stop {
+        return UString::new();
+    }
+    let mut ordinal = 0u32;
+    let mut start_cursor = 0usize;
+    let mut cursor = 0usize;
+    let units = s.as_slice();
+    while ordinal < stop {
+        if ordinal == start {
+            start_cursor = cursor;
+        }
+        ordinal += 1;
+        let cu = units[cursor] as u32;
+        if cu >= 0xD800 && cu < 0xDC00 && cursor + 1 < units.len() {
+            let lo = units[cursor + 1] as u32;
+            if lo >= 0xDC00 && lo < 0xE000 {
+                cursor += 2;
+                continue;
+            }
+        }
+        cursor += 1;
+    }
+    UString(s.as_slice()[start_cursor..cursor].to_vec())
+}
+
+pub fn to_code_points(s: &UStr) -> Vec<u32> {
+    let mut out = Vec::new();
+    let units = s.as_slice();
+    let mut pos = 0;
+    while pos < units.len() {
+        let cu = units[pos] as u32;
+        if cu >= 0xD800 && cu < 0xDC00 && pos + 1 < units.len() {
+            let lo = units[pos + 1] as u32;
+            if lo >= 0xDC00 && lo < 0xE000 {
+                out.push(((cu - 0xD800) << 10 | (lo - 0xDC00)) + 0x10000);
+                pos += 2;
+                continue;
+            }
+        }
+        out.push(cu);
+        pos += 1;
+    }
+    out
+}
+
+/// Raw UTF-16 units to an owned Haxe String, with no validity check: a
+/// lone surrogate stays an unpaired unit, exactly as Haxe/JS strings
+/// carry it. (UStringFromUnits)
+pub fn from_units(units: &[u16]) -> UString {
+    UString(units.to_vec())
+}
+
+pub fn from_code_point(code: u32) -> UString {
+    if code <= 0xFFFF {
+        UString(vec![code as u16])
+    } else if code <= 0x10FFFF {
+        let adjusted = code - 0x10000;
+        UString(vec![(0xD800 | (adjusted >> 10)) as u16, (0xDC00 | (adjusted & 0x3FF)) as u16])
+    } else {
+        UString(vec![0x003F]) // replacement character
+    }
+}
+
+pub fn from_code_points(codes: &Vec<u32>) -> UString {
+    let mut units = Vec::with_capacity(codes.len());
+    for code in codes {
+        if *code <= 0xFFFF {
+            units.push(*code as u16);
+        } else if *code <= 0x10FFFF {
+            let adjusted = code - 0x10000;
+            units.push((0xD800 | (adjusted >> 10)) as u16);
+            units.push((0xDC00 | (adjusted & 0x3FF)) as u16);
+        } else {
+            units.push(0x003F);
+        }
+    }
+    UString(units)
+}
+
+// substring keeps i32 bounds for the same clamping reason as slice:
+// negative bounds are part of the haxe substring contract.
+pub fn substring(s: &UStr, from: i32, to: i32) -> UString {
+    let units = s.as_slice();
+    let len = units.len() as u32;
+    let mut start = if from < 0 { 0u32 } else { u32::try_from(from).unwrap_or(0) };
+    let mut end = if to < 0 { 0u32 } else { u32::try_from(to).unwrap_or(0) };
+    if start > end {
+        let tmp = start;
+        start = end;
+        end = tmp;
+    }
+    if start >= len {
+        return UString::new();
+    }
+    if end > len {
+        end = len;
+    }
+    UString(units[start as usize..end as usize].to_vec())
+}
+
+pub fn substring_from(s: &UStr, from: i32) -> UString {
+    let units = s.as_slice();
+    let start = if from < 0 { 0u32 } else { u32::try_from(from).unwrap_or(0) };
+    if start as usize >= units.len() {
+        return UString::new();
+    }
+    UString(units[start as usize..].to_vec())
+}
+
+// substr: pos and len count units per the std contract.
+// A negative pos counts from the end; a negative len returns empty.
+pub fn substr(s: &UStr, pos: i32, len: Option<i32>) -> UString {
+    match len {
+        Some(l) if l < 0 => return UString::new(),
+        _ => {}
+    }
+    let units = s.as_slice();
+    let total = i64::try_from(units.len()).unwrap_or(0);
+    let start = if pos < 0 {
+        let back = i64::from(pos).saturating_neg();
+        if total > back { total - back } else { 0 }
+    } else {
+        if i64::from(pos) > total { total } else { i64::from(pos) }
+    };
+    let end = match len {
+        None => total,
+        Some(l) => {
+            let raw = start + i64::from(l);
+            if raw > total { total } else { raw }
+        }
+    };
+    if start >= end {
+        return UString::new();
+    }
+    UString(units[start as usize..end as usize].to_vec())
+}
+
+// Haxe Std.parseFloat lowers here.
+pub fn parse_f64(s: &UStr) -> f64 {
+    let t = s.to_utf8_lossy();
+    let t2 = trim_fixed(&t);
+    if !valid_decimal_token(t2.as_bytes()) {
+        return f64::NAN;
+    }
+    t2.parse::<f64>().unwrap_or(f64::NAN)
+}
+
+pub fn parse_f32(s: &UStr) -> f32 {
+    let t = s.to_utf8_lossy();
+    let t2 = trim_fixed(&t);
+    if !valid_decimal_token(t2.as_bytes()) {
+        return f32::NAN;
+    }
+    t2.parse::<f32>().unwrap_or(f32::NAN)
+}
+
+// Haxe Std.parseInt lowers here.
+pub fn parse_i32(s: &UStr) -> Option<i32> {
+    let t = s.to_utf8_lossy();
+    let t2 = trim_fixed(&t);
+    let b = t2.as_bytes();
+    let mut i = 0;
+    let negative = i < b.len() && b[i] == 0x2D;
+    if i < b.len() && (b[i] == 0x2B || b[i] == 0x2D) {
+        i += 1;
+    }
+    let hexadecimal = i + 1 < b.len() && b[i] == 0x30 && (b[i + 1] == 0x78 || b[i + 1] == 0x58);
+    if hexadecimal {
+        i += 2;
+    }
+    let start = i;
+    while i < b.len() {
+        let matched = if hexadecimal { b[i].is_ascii_hexdigit() } else { b[i].is_ascii_digit() };
+        if !matched {
+            break;
+        }
+        i += 1;
+    }
+    if i == start || i != b.len() {
+        return None;
+    }
+    let radix = if hexadecimal { 16u32 } else { 10u32 };
+    let magnitude = match u32::from_str_radix(&t2[start..], radix) {
+        Ok(value) => value,
+        Err(_) => return None,
+    };
+    let signed = if negative { -i64::from(magnitude) } else { i64::from(magnitude) };
+    i32::try_from(signed).ok()
+}
+
+// The whitespace set of the Haxe scanners.
+fn trim_fixed(s: &str) -> &str {
+    s.trim_matches(|c: char| c == \' \' || matches!(c, \'\\t\'..=\'\\r\'))
+}
+
+fn valid_decimal_token(b: &[u8]) -> bool {
+    let mut i = 0;
+    if i < b.len() && (b[i] == 0x2B || b[i] == 0x2D) {
+        i += 1;
+    }
+    let mut digits = 0;
+    while i < b.len() && b[i].is_ascii_digit() {
+        i += 1;
+        digits += 1;
+    }
+    if i < b.len() && b[i] == 0x2E {
+        i += 1;
+        while i < b.len() && b[i].is_ascii_digit() {
+            i += 1;
+            digits += 1;
+        }
+    } else if digits == 0 {
+        return false;
+    }
+    if digits == 0 {
+        return false;
+    }
+    if i < b.len() && (b[i] == 0x65 || b[i] == 0x45) {
+        i += 1;
+        if i < b.len() && (b[i] == 0x2B || b[i] == 0x2D) {
+            i += 1;
+        }
+        let mut exponent_digits = 0;
+        while i < b.len() && b[i].is_ascii_digit() {
+            i += 1;
+            exponent_digits += 1;
+        }
+        if exponent_digits == 0 {
+            return false;
+        }
+    }
+    i == b.len()
+}
+
+// String.indexOf with a start position (stdlib spec 15): the start and
+// the returned index both count UTF-16 code units.
+pub fn find_from(s: &UStr, needle: &UStr, start: i32) -> i32 {
+    let units = s.as_slice();
+    let n = needle.as_slice();
+    let start_unit = if start < 0 { 0u32 } else { u32::try_from(start).unwrap_or(u32::MAX) };
+    let begin = usize::try_from(start_unit).unwrap_or(units.len());
+    if begin >= units.len() {
+        return -1;
+    }
+    let rest = &units[begin..];
+    // naive search
+    if n.is_empty() {
+        return i32::try_from(start_unit).unwrap_or(-1);
+    }
+    if rest.len() >= n.len() {
+        for i in 0..=(rest.len() - n.len()) {
+            if &rest[i..i + n.len()] == n {
+                return i32::try_from(u32::try_from(begin + i).unwrap_or(0)).unwrap_or(-1);
+            }
+        }
+    }
+    -1
+}
+
+fn byte_to_unit(s: &str, byte: usize) -> u32 {
+    let mut units = 0u32;
+    for (b, c) in s.char_indices() {
+        if b >= byte {
+            break;
+        }
+        units += u32::try_from(c.len_utf16()).unwrap_or(0);
+    }
+    units
+}
+';
+
+    /**
         Business ABI adapter appended to the compiled runtime.Graphemes
         class in graphemes.rs
         (docs/specs/stdlib/11-grapheme-clusters.md). The boundary vector
@@ -825,7 +1621,7 @@ fn byte_to_unit(s: &str, byte: usize) -> u32 {
 // vector crosses whole from the resident i32 domain into the business
 // u32 domain, element by element. Every scalar operation keeps its
 // call-site cast and does not pass through here.
-pub fn boundaries(s: &str) -> Vec<u32> {
+pub fn boundaries(s: &UStr) -> Vec<u32> {
     let mut out = Vec::new();
     for unit in Graphemes::graphemes_boundaries(s) {
         out.push(u32::try_from(unit).unwrap_or(0));

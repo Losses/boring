@@ -56,6 +56,49 @@
       "build": {
         "args": ["-swift-version", "5"]
       }
+    },
+    {
+      "id": "haxe-f32",
+      "target": "haxe",
+      "precision": "f32",
+      "rootsFile": "tests/haxe/generate-main-f32.hxml",
+      "haxeArgs": ["-D", "haxe-test-main=TestMainF32"],
+      "build": {
+        "args": [
+          "-lib", "reflaxe",
+          "-cp", "packages/compiler",
+          "--macro", "Intercept.run(['samples', 'packages/registry/src'])",
+          "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+          "-D", "analyzer-optimize",
+          "-D", "boring_oracle",
+          "-D", "float-precision=f32"
+        ]
+      }
+    },
+    {
+      "id": "kotlin-f32",
+      "target": "kotlin",
+      "precision": "f32",
+      "rootsFile": "examples/kotlin-f32.hxml",
+      "build": {
+        "args": ["-Xallow-kotlin-package"]
+      }
+    },
+    {
+      "id": "rust-f32",
+      "target": "rust",
+      "precision": "f32",
+      "rootsFile": "examples/rust-f32.hxml"
+    },
+    {
+      "id": "swift-f32",
+      "target": "swift",
+      "precision": "f32",
+      "rootsFile": "examples/swift-f32.hxml",
+      "haxeArgs": ["-D", "swift-test-import=CodecF32"],
+      "build": {
+        "args": ["-swift-version", "5"]
+      }
     }
   ]
 }

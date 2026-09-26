@@ -70,7 +70,11 @@ class SwiftType {
                     case "Void": "Void";
                     case "Null": nullOptional(params[0], of);
                     case "haxe.ds.Map" if (params.length == 2): "[" + of(params[0]) + ": " + of(params[1]) + "]";
-                    case "std.ReadOnlyArray": "TiqianArray<" + of(params[0]) + ">";
+                    // features/18: read-only data crosses the Swift boundary as
+                    // the native value Array; a let binding is structurally
+                    // immutable, so no wrapper renders. Mutable Array keeps
+                    // TiqianArray.
+                    case "std.ReadOnlyArray": "[" + of(params[0]) + "]";
                     case "haxe.Int64": "Int64";
                     case _: of(abs.type);
                 }
@@ -166,7 +170,11 @@ class SwiftType {
                     case "Bool": "Bool";
                     case "Void": "Void";
                     case "Null": nullOptional(params2[0], t -> ofSubstituted(t, params, args));
-                    case "std.ReadOnlyArray": "TiqianArray<" + ofSubstituted(params2[0], params, args) + ">";
+                    // features/18: read-only data crosses the Swift boundary as
+                    // the native value Array; a let binding is structurally
+                    // immutable, so no wrapper renders. Mutable Array keeps
+                    // TiqianArray.
+                    case "std.ReadOnlyArray": "[" + ofSubstituted(params2[0], params, args) + "]";
                     case _: ofSubstituted(abs.type, params, args);
                 }
             case TInst(c, params2):

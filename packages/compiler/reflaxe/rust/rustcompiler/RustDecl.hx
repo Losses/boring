@@ -32,6 +32,26 @@ class RustDecl {
     **/
     public static var mutatingTraitMethods:Map<String, Bool> = new Map();
 
+    /**
+        Interfaces whose interface-slot handles must be shared
+        (ClassHandleShare). Haxe object references are shared: when a
+        caller hands a stateful implementor (a cache, a shaper) to an
+        engine through an interface slot, the engine's writes must be
+        visible to the caller's later reads. Cloning into the slot breaks
+        that. Interfaces registered here lower their interface slots to
+        Arc<Mutex<dyn Trait>>, so the slot and the source binding share
+        one object. (ClassHandleShare)
+    **/
+    public static var sharedInterfaces:Map<String, Bool> = [
+        "org.tiqian.shaping.TextShaper::ITextShaper" => true,
+        "org.tiqian.layout.WidthIndependentAnnotationCache::WidthIndependentAnnotationCache" => true
+    ];
+
+    /** Whether the interface (module, name) lowers to a shared handle slot. */
+    public static function isSharedInterface(module:String, name:String):Bool {
+        return sharedInterfaces.exists(module + "::" + name);
+    }
+
     // Method names visited by the current bodyMutatesSelf recursion; breaks
     // self-call cycles when a mutating method transitively calls itself.
     static var mutationVisited:Map<String, Bool> = [];
@@ -60,6 +80,26 @@ class RustDecl {
     }
 
     /** Widen an Int const val initializer to Float when the field type is Float. */
+    /** UTF-16 unit literal for a const UStr: the single code point below 0x10000
+        occupies one unit; a supplementary code point splits into lead and trail surrogates. */
+    static function u16ConstLiteral(s:String):String {
+        final out:Array<Int> = [];
+        for (i in 0...s.length) {
+            final code = s.charCodeAt(i);
+            if (code >= 0x10000) {
+                final c = code - 0x10000;
+                out.push(0xD800 + (c >> 10));
+                out.push(0xDC00 + (c & 0x3FF));
+            } else {
+                out.push(code);
+            }
+        }
+        if (out.length == 0) {
+            return "unsafe { &*(&[] as *const [u16] as *const crate::runtime::u_string::UStr) }";
+        }
+        return "unsafe { &*(&[" + [for (u in out) "0x" + StringTools.hex(u, 4) + "u16"].join(", ") + "] as *const [u16] as *const crate::runtime::u_string::UStr) }";
+    }
+
     function constValFloatInit(init:TypedExpr, fieldType:Type):String {
         final text = expr.rawExpression(init);
         if (expr.isIntType(expr.emittedType(init)) && expr.isFloatType(fieldType))
@@ -147,10 +187,13 @@ class RustDecl {
                 lines.push("        self.clone_box()");
                 lines.push("    }");
                 lines.push("}");
-                // A trait object has no field layout to format; the type
-                // name carries the only stable debug identity, so a record
-                // that derives Debug over a Box<dyn Trait> field stays
-                // printable.
+            }
+            // A shared interface keeps the Debug impl for the trait object:
+            // Arc<Mutex<dyn X>> is Debug through it, so structs that derive
+            // Debug over the shared handle stay printable.
+            // (ClassHandleShare)
+            final isSharedIface = isSharedInterface(cls.module, cls.name);
+            if (isCloneIface || isSharedIface) {
                 lines.push("");
                 lines.push("impl std::fmt::Debug for dyn " + emittedName + " {");
                 lines.push("    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
@@ -533,7 +576,7 @@ class RustDecl {
                         // use without its let binding (E0425).
                         lines.push('    let cmp_$fn = if a.$fn < b.$fn { -1 } else if a.$fn > b.$fn { 1 } else { 0 };');
                     case TInst(c, _) if (c.get().name == "String"):
-                        lines.push('    let cmp_$fn = SortedTable::sorted_table_compare_strings(a.$fn.as_str(), b.$fn.as_str());');
+                        lines.push('    let cmp_$fn = SortedTable::sorted_table_compare_strings(a.$fn.as_ustr(), b.$fn.as_ustr());');
                     case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
                         importElementComparator(c.get());
                         lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
@@ -624,7 +667,7 @@ class RustDecl {
             ctorError = resolveErrorOwner(ctorData, cls);
         if (hasCtorThrow && ctorError != null)
             imports.requireType(ctorError.module, ctorError.name);
-        final ctorArgType = isStringRepresentation(info.representation) ? "&str" : representation;
+        final ctorArgType = isStringRepresentation(info.representation) ? "&UStr" : representation;
         lines.push("    pub fn new(value: "
             + ctorArgType
             + ")"
@@ -635,7 +678,7 @@ class RustDecl {
             for (line in expr.valueTypeConstructorBody(cls, ctorData))
                 lines.push("    " + line);
         }
-        final ctorValue = isStringRepresentation(info.representation) ? "value.to_string()" : "value";
+        final ctorValue = isStringRepresentation(info.representation) ? "value.to_ustring()" : "value";
         lines.push("        " + (hasCtorThrow ? "return Ok(Self(" + ctorValue + "));" : "return Self(" + ctorValue + ");"));
         lines.push("    }");
 
@@ -675,7 +718,8 @@ class RustDecl {
         if (ValueTypeSupport.memberField(abs, "toString") != null) {
             final f = findFunc(funcFields, "toString");
             lines.push("");
-            lines.push("    fn to_string_value(&self) -> String {");
+            imports.requireType("runtime.UString", "UString");
+            lines.push("    fn to_string(&self) -> UString {");
             expr.setFallible(false);
             for (line in expr.valueTypeFunctionBody(cls, f, isStringRepresentation(info.representation) ? "self.0.clone()" : "self.0"))
                 lines.push("    " + line);
@@ -728,7 +772,7 @@ class RustDecl {
         lines.push("impl std::fmt::Display for " + info.name + " {");
         lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
         if (ValueTypeSupport.memberField(abs, "toString") != null)
-            lines.push("        write!(formatter, \"{}\", self.to_string_value())");
+            lines.push("        write!(formatter, \"{}\", self.to_string())");
         else
             lines.push("        write!(formatter, \"{}\", self.0)");
         lines.push("    }");
@@ -887,6 +931,13 @@ class RustDecl {
                 lines.push("    " + RustImports.toUpperCamelCase(o.name) + " { " + params + " },");
             }
         }
+        // Fault conversions registered while lowering fallible callees grow
+        // wrapping variants here too: the union payload the variant carries
+        // keeps propagating through a message function it does not declare.
+        final growth = state.enumGrowthFor(enumName);
+        if (growth != null)
+            for (item in growth)
+                lines.push("    " + item.variant + "(Box<" + item.calleePath + ">),");
         lines.push("}\n");
 
         // Display impl
@@ -911,6 +962,9 @@ class RustDecl {
                 lines.push("            }");
             }
         }
+        if (growth != null)
+            for (item in growth)
+                lines.push("            " + enumName + "::" + item.variant + "(inner) => write!(formatter, \"{:?}\", inner),");
         lines.push("        }");
         lines.push("    }");
         lines.push("}\n");
@@ -1198,10 +1252,10 @@ class RustDecl {
 
     /**
         Whether the parameter type lowers as a mutable object reference when
-        the body mutates it: a plain owned class instance, not one of the
-        borrowed primitives (Array, String, StringBuf, Bytes), not an
-        interface (trait objects carry their own mutation machinery), and
-        not an optional (Option storage mutates differently).
+        the body mutates it: a plain owned class instance and none of the
+        borrowed primitives (Array, String, StringBuf, Bytes); no
+        interface (trait objects carry their own mutation machinery) and
+        no optional (Option storage mutates differently).
         (MutableRefObjectParam)
     **/
     public static function isMutableRefParamType(t:Null<Type>):Bool {
@@ -1340,12 +1394,21 @@ class RustDecl {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
             final valStr = constValFloatInit(init, field.type);
             final typeStr = switch (field.type) {
-                case TInst(c, _) if (c.get().name == "String"): "&str";
+                case TInst(c, _) if (c.get().name == "String"): "&UStr";
                 case _: types.of(field.type);
             };
             // @:allow members use crate visibility so allowed cross-module references compile.
             final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
             final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
+            if (typeStr == "&UStr") {
+                imports.requireType("runtime.UString", "UStr");
+                final s = switch (init.expr) {
+                    case TConst(TString(s)): s;
+                    case _: throw "const String field must be a string literal: " + cls.name + "." + field.name;
+                };
+                final val = u16ConstLiteral(s);
+                return ['    ${vis}const ${name}: ${typeStr} = $val;'];
+            }
             return ['    ${vis}const ${name}: ${typeStr} = $valStr;'];
         }
         return [];
@@ -2200,10 +2263,15 @@ class RustDecl {
                 }
                 // A String parameter borrows as &str while the field owns
                 // a String; the initializer converts (feature spec 27).
+                // The unit-storage twin borrows as &UStr while the field
+                // owns a UString; to_ustring() converts the borrow.
                 final isStringParam = types.of(a.type, true) == "&str";
+                final isUStringParam = types.of(a.type, true) == "&UStr";
                 final isNullableStringParam = types.of(a.type, false) == "Option<String>";
                 if (isStringParam) {
                     lines.push('            $sname: ${sname}.to_string(),');
+                } else if (isUStringParam) {
+                    lines.push('            $sname: ${sname}.to_ustring(),');
                 } else if (isNullableStringParam) {
                     final localCoalescing = DefaultArgExpander.coalescingDefaultForLocalParam(cls, f.field.name, a.name, a.name);
                     final coalescing = localCoalescing != null ? localCoalescing : DefaultArgExpander.coalescingDefaultForParam(cls, f.field.name, a.name);
@@ -2270,10 +2338,17 @@ class RustDecl {
                                 case TInst(c, _) if (c.get().name == "String" && StringTools.startsWith(init, "\"")): init + ".to_string()";
                                 case _: init;
                             };
+                            // A shared implementor field stores the shared
+                            // handle; the initializer wraps once here.
+                            // (ClassHandleShare)
+                            final sharedInit = sharedImplementorField(field.type)
+                                && !StringTools.startsWith(ownedInit, "Arc::new(Mutex::new(")
+                                && ownedInit != "Default::default()"
+                                && ownedInit != "None" ? "Arc::new(Mutex::new(" + ownedInit + "))" : ownedInit;
                             final fieldType = types.of(field.type);
                             final wrappedInit = StringTools.startsWith(fieldType, "Option<")
-                                && init != "None" && !StringTools.startsWith(ownedInit, "Some(")
-                                && !StringTools.startsWith(ownedInit, "match ") ? "Some(" + ownedInit + ")" : ownedInit;
+                                && init != "None" && !StringTools.startsWith(sharedInit, "Some(")
+                                && !StringTools.startsWith(sharedInit, "match ") ? "Some(" + sharedInit + ")" : sharedInit;
                             lines.push('            $sname: $wrappedInit,');
                         }
                     case _:
@@ -2321,6 +2396,12 @@ class RustDecl {
         final otherArgs = [
             for (a in f.args) {
                 var pType = paramType(a.type, f.field.name, a.name);
+                // A hand-rolled face spelling UString/UStr registers the
+                // runtime types the same way types.of does. (RawFaceImport)
+                if (pType.indexOf("UStr") >= 0)
+                    imports.requireType("runtime.UString", "UStr");
+                if (pType.indexOf("UString") >= 0)
+                    imports.requireType("runtime.UString", "UString");
                 if (argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
                 else if (argIsMutated(f.expr, a.name) && isMutableRefParamType(a.type)) pType = "&mut " + pType;
                 expr.setArgType(a.name, pType);
@@ -2410,6 +2491,22 @@ class RustDecl {
         };
     }
 
+    /** Whether the type names a concrete class implementing a registered
+        shared interface; such fields store the shared handle.
+        (ClassHandleShare) */
+    public static function sharedImplementorField(t:Type):Bool {
+        final inner = DefaultArgExpander.withoutNull(t);
+        return switch (Context.follow(inner)) {
+            case TInst(c, _):
+                final cc = c.get();
+                !cc.isInterface && Lambda.exists(cc.interfaces, i -> {
+                    final ic = i.t.get();
+                    ic.isInterface && isSharedInterface(ic.module, ic.name);
+                });
+            case _: false;
+        };
+    }
+
     function hasInstanceField(cls:ClassType, name:String):Bool {
         for (field in cls.fields.get()) {
             switch (field.kind) {
@@ -2440,7 +2537,7 @@ class RustDecl {
             return "u32";
         }
         if (funcName == "writeAscii") {
-            return "&str";
+            return "&UStr";
         }
         return types.of(t, true);
     }
@@ -2453,7 +2550,7 @@ class RustDecl {
         if (funcName == "readF64" || funcName == "readF32" || funcName == "readF16")
             return FloatPrecision.isF32() ? "f32" : "f64";
         if (funcName == "readAscii")
-            return "String";
+            return "UString";
         if (funcName == "remaining" || funcName == "consumed")
             return "u32";
         if (funcName == "ensureRemaining")
@@ -2792,7 +2889,7 @@ class RustDecl {
         final maxIndex = sorted.length > 0 ? sorted[sorted.length - 1].field.index + 1 : 0;
         if (growth != null) {
             for (item in growth)
-                lines.push("    " + item.variant + "(" + item.calleePath + "),");
+                lines.push("    " + item.variant + "(Box<" + item.calleePath + ">),");
         }
         lines.push("}");
         if (allPlain) {
@@ -2869,8 +2966,9 @@ lines.push("        }");
                 lines.push("    }");
             }
             if (use.lookup) {
-                lines.push('    pub fn from_name(name: &str) -> Option<${en.name}> {');
-                lines.push("        match name {");
+                imports.requireType("runtime.UString", "UStr");
+                lines.push('    pub fn from_name(name: &UStr) -> Option<${en.name}> {');
+                lines.push("        match name.to_utf8_lossy().as_str() {");
                 for (o in sorted)
                     lines.push('            "${o.name}" => Some(${en.name}::${RustImports.toUpperCamelCase(o.name)}),');
                 lines.push("            _ => None,");
@@ -2915,7 +3013,7 @@ lines.push("        }");
                             case TInst(c, _) if (c.get().name == "String"):
                                 state.shimsUsed.set("std.SortedMap", true);
                                 imports.requireType("runtime.SortedTable", "SortedTable");
-                                cmpLines.push('    let cmp_$fieldSnake = SortedTable::sorted_table_compare_strings(a.$fieldSnake.as_str(), b.$fieldSnake.as_str());');
+                                cmpLines.push('    let cmp_$fieldSnake = SortedTable::sorted_table_compare_strings(a.$fieldSnake.as_ustr(), b.$fieldSnake.as_ustr());');
                                 cmpLines.push('    if cmp_$fieldSnake != 0 { return cmp_$fieldSnake; }');
                             case _:
                                 switch (f.type) {

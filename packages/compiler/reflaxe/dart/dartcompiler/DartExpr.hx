@@ -1395,10 +1395,20 @@ class DartExpr {
                 final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
                 // A null-guard ternary (`A == null ? default : A`) proves
                 // the guarded branch non-null; Dart still sees the nullable
-                // type, so unwrap the branch the guard protects.
+                // type, so unwrap the branch the guard protects. A has-guard
+                // ternary (`m.has(k) ? m.get(k) : default`) proves its
+                // value branch the same way: `get` is typed `Null<V>`, so
+                // the taken branch unwraps to keep the ternary non-null.
                 final guarded = nullGuardExpr(c);
-                final tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded) ? requiredValueText(t) : tText;
-                final fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded) ? requiredValueText(f) : fText;
+                final hasGuarded = hasGuardExpr(c);
+                var tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded) ? requiredValueText(t) : tText;
+                var fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded) ? requiredValueText(f) : fText;
+                if (hasGuarded != null) {
+                    if (isGuardedMapRead(t, hasGuarded))
+                        tFinal = requiredValueText(t);
+                    if (isGuardedMapRead(f, hasGuarded))
+                        fFinal = requiredValueText(f);
+                }
                 return "(" + conditionText(c) + " ? " + tFinal + " : " + fFinal + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
@@ -2013,7 +2023,7 @@ class DartExpr {
         The assertion of requiredValueText for an argument the call site
         pre-rendered (the base of callArgTexts, the padded text of
         constructorArgTexts). The pre-rendered text is the one that gets
-        emitted, so derive the assertion from it instead of rendering the
+        emitted, so derive the assertion from it and do not render the
         argument a second time: the first pass already recorded the local
         into flowPromotedNonNull, and a second render of the same field
         access would silently drop the receiver assertion.
@@ -2058,8 +2068,8 @@ class DartExpr {
     /**
         (GenericParamResolvedForArgs) A member of a generic class carries
         its class type parameters unsubstituted, so the value parameter of
-        SortedMapTableBuilder.put reads as V rather than the nullable type
-        the receiver bound to it. An argument of such a parameter would then
+        SortedMapTableBuilder.put reads as V even when the receiver bound
+        a nullable type to it. An argument of such a parameter would then
         look like one a non-null slot demands, and the unwrap it appends
         throws on exactly the null the builder stores. The bound type is
         the one the demand test must see.
@@ -2554,7 +2564,7 @@ class DartExpr {
                                 // operands must stay parenthesized: a bare
                                 // additive left child would otherwise bind
                                 // looser than ~/ and the fold would read
-                                // `a + (b ~/ 2)` instead of `(a + b) ~/ 2`
+                                // `a + (b ~/ 2)` where the intended grouping is `(a + b) ~/ 2`
                                 // (StdIntTruncDivParens).
                                 return "(" + expr(l) + ") ~/ (" + expr(r) + ")";
                             case _:
@@ -4406,6 +4416,39 @@ class DartExpr {
         };
     }
 
+    /**
+        The receiver and key of a has-guard condition (`m.has(k)` or a
+        map `m.exists(k)`), or null when the condition is not one. The
+        ternary renderer pairs this with the branch that reads the same
+        receiver and key through `get` to unwrap it.
+    **/
+    function hasGuardExpr(e:Null<TypedExpr>):Null<{receiver:TypedExpr, key:TypedExpr}> {
+        if (e == null)
+            return null;
+        return switch (stripWrap(e).expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, fa) if (fieldName(fa) == "has" || fieldName(fa) == "exists"):
+                        {receiver: subj, key: args[0]};
+                    case _: null;
+                }
+            case _: null;
+        };
+    }
+
+    /** Whether the branch reads the guarded map entry (a `get` call on the
+        same receiver with the same key, rendered-text comparison). **/
+    function isGuardedMapRead(branch:TypedExpr, guard:{receiver:TypedExpr, key:TypedExpr}):Bool {
+        return switch (stripWrap(branch).expr) {
+            case TCall(fn, args) if (args.length == 1):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, fa) if (fieldName(fa) == "get"):
+                        structurallySame(subj, guard.receiver) && structurallySame(args[0], guard.key);
+                    case _: false;
+                }
+            case _: false;
+        };
+    }
     /** Whether two expressions render to the same Dart text. */
     function structurallySame(a:TypedExpr, b:TypedExpr):Bool {
         return expr(a) == expr(b);

@@ -135,7 +135,7 @@ typedef Plan = {
     loop:LoopInterval,
     steps:Array<FusionStep>,
     readsIndex:Bool,
-    /** True when the fill appends with push rather than indexed stores. */
+    /** True when the fill appends with push and does not use indexed stores. */
     pushFill:Bool
 };
 #end
