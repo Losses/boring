@@ -55,6 +55,11 @@ class RustExpr {
     // A field used as a method receiver remains borrowed; value reads clone
     // non-Copy fields unless this narrow receiver context applies.
     var renderingMethodReceiver:Bool = false;
+    // True only while rendering the receiver of an in-place mutating call
+    // (push/sort/... ): an indexed element receiver must stay a place
+    // expression so the mutation reaches the storage inside the Vec, while
+    // plain value reads keep the clone. (IndexedReceiverMutation)
+    var renderingInPlaceMutatorReceiver:Bool = false;
     var inTryClosure:Bool = false;
 
     final subst:Map<Int, String> = [];
@@ -4962,7 +4967,7 @@ class RustExpr {
                 final staticGuard = staticGuardOf(arr);
                 if (staticGuard != null) {
                     final base = staticGuard + "[" + staticIndex(idx) + "]";
-                    return !isTypeCopy(e.t) ? "(" + base + ").clone()" : base;
+                    return !isTypeCopy(e.t) && !renderingInPlaceMutatorReceiver ? "(" + base + ").clone()" : base;
                 }
                 final base = optionContainerIndexAccess(arr, idx, false);
                 // Reading a String element moves it out of the Vec, so a
@@ -4970,8 +4975,13 @@ class RustExpr {
                 // through arrayArgBorrow and skip the copy.
                 // Reads from an owned Haxe Array must not move its element out of
                 // the Rust Vec. Clone non-Copy values at the indexing boundary;
-                // this is the value semantics promised by Haxe arrays.
-                return !isTypeCopy(e.t) ? "(" + base + ").clone()" : base;
+                // this is the value semantics promised by Haxe arrays. A
+                // mutating method call through the indexed element is the
+                // exception: Haxe arrays are reference-semantic, so
+                // groups[i].push(x) must reach the storage inside the Vec;
+                // cloning here sends the mutation to a temporary and the
+                // original container never changes. (IndexedReceiverMutation)
+                return !isTypeCopy(e.t) && !renderingInPlaceMutatorReceiver ? "(" + base + ").clone()" : base;
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -8286,7 +8296,7 @@ class RustExpr {
                     // clones so the read produces an owned Option; the non-cloned form does not
                     // perform a move out of a reference. A method receiver keeps its
                     // borrow so mutations reach the original storage.
-                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && switch (subj.expr) {
+                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && switch (subj.expr) {
                         case TConst(TThis): true;
                         case _: isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()");
                     }) {
@@ -8297,7 +8307,7 @@ class RustExpr {
                 if (name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
                     return isStringType(cf.get().type) ? "(" + access + ").to_ustring()" : "(" + access + ").clone()";
                 }
-                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
+                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !isTypeCopy(cf.get().type)
                     && !RustDecl.isBorrowedByteField(imports.selfModule, name)
                     && switch (subj.expr) {
                         case TConst(TThis): true;
@@ -8310,7 +8320,7 @@ class RustExpr {
                 // field. Non-Copy fields must clone at the read site so the
                 // value slots that consume them receive an owned copy.
                 // Covers the borrowed-field-read family (E0507).
-                if (name != "length" && !renderingMethodReceiver && !isTypeCopy(cf.get().type)
+                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !isTypeCopy(cf.get().type)
                     && (isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()"))) {
                     return "(" + access + ").clone()";
                 }
@@ -8323,6 +8333,20 @@ class RustExpr {
             case FClosure(_):
                 return fail(subj, "closure has no lowering");
         }
+    }
+
+    /**
+        In-place mutators rewrite the storage behind the receiver; a
+        Vec-indexed element receiver must not clone for them. By-value
+        consumers (finish, getBytes) still take a clone.
+        (IndexedReceiverMutation)
+    **/
+    function inPlaceMutatorName(name:String):Bool {
+        return switch (name) {
+            case "push" | "insert" | "pop" | "shift" | "unshift" | "remove" | "removeAt" | "splice" | "reverse" | "sort"
+                | "add" | "addChar" | "addByte" | "set" | "blit" | "fill" | "put" | "update": true;
+            case _: false;
+        };
     }
 
     function receiverText(subj:TypedExpr, cf:Null<Ref<ClassField>>):String {
@@ -10242,7 +10266,20 @@ class RustExpr {
                     return nullableMethodReceiver(subj, false) + "." + name + "(" + kExpr + ")";
                 }
                 if (name == "push") {
-                    return nullableMethodReceiver(subj, true) + ".push(" + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
+                    // An indexed element receiver must stay a place
+                    // expression: the mutation must reach the storage inside
+                    // the Vec, not a cloned temporary. The flag covers only
+                    // the receiver itself: a push argument may contain an
+                    // indexed read of its own, which keeps its value clone.
+                    // A nullable wrapper in the receiver chain opens with
+                    // as_mut so the shared-borrow boundary cannot block the
+                    // mutation. (IndexedReceiverMutation)
+                    final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
+                    renderingInPlaceMutatorReceiver = true;
+                    final recv = nullableMethodReceiver(subj, true);
+                    renderingInPlaceMutatorReceiver = previousMutatorReceiver;
+                    final recvMut = StringTools.replace(recv, ".as_ref().unwrap()", ".as_mut().unwrap()");
+                    return recvMut + ".push(" + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
                 }
                 if (name == "join") {
                     if (isVecType(subj)) {
@@ -10453,7 +10490,10 @@ class RustExpr {
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
                 final previousReceiverContext = renderingMethodReceiver;
                 renderingMethodReceiver = RustDecl.methodWritesReceiver(cf.get());
+                final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
+                renderingInPlaceMutatorReceiver = inPlaceMutatorName(cf.get().name);
                 final subjText = expr(subj);
+                renderingInPlaceMutatorReceiver = previousMutatorReceiver;
                 renderingMethodReceiver = previousReceiverContext;
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
