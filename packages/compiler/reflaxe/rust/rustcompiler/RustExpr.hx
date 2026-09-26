@@ -1593,6 +1593,21 @@ class RustExpr {
                 // (ForcingReadLocals).
                 if (initStr.indexOf(".unwrap_or(") >= 0 && !StringTools.startsWith(initStr, "if "))
                     forcingReadLocals.set(v.id, true);
+                // A local of a class implementing a registered shared
+                // interface holds the shared handle itself, so the local
+                // and every interface slot it enters name one object.
+                // (ClassHandleShare)
+                if (isSharedImplementorType(v.t) && !isTNull(init)
+                    && !StringTools.startsWith(initStr, "Arc::new(Mutex::new(")
+                    && !StringTools.startsWith(initStr, "Some(Arc::new(Mutex::new(")) {
+                    imports.require("std::sync::Arc");
+                    imports.require("std::sync::Mutex");
+                    final copyOfShared = switch (stripWrap(init).expr) {
+                        case TLocal(_) | TField(_, _): isSharedImplementorType(init.t);
+                        case _: false;
+                    };
+                    initStr = copyOfShared ? "Arc::clone(&" + initStr + ")" : "Arc::new(Mutex::new(" + initStr + "))";
+                }
                 if (isNullType(v.t) && !isTNull(init) && !StaticFieldHelper.isNullableType(init.t) && !lookupInit) {
                     initStr = "Some(" + initStr + ")";
                 }
@@ -6602,9 +6617,11 @@ class RustExpr {
                     } else if (isNullableInterfaceType(f.type)) {
                         // NullableInterfaceFieldEq compares the trait objects
                         // inside Option without requiring PartialEq on them.
-                        parts.push(nullableInterfaceFieldEqText(l, r));
+                        parts.push(nullableInterfaceFieldEqText(l, r, isSharedIfaceType(f.type)));
                     } else if (isInterfaceType(f.type)) {
-                        parts.push(l + ".__haxe_type_name() == " + r + ".__haxe_type_name()");
+                        final lq = isSharedIfaceType(f.type) ? l + ".lock().unwrap()" : l;
+                        final rq = isSharedIfaceType(f.type) ? r + ".lock().unwrap()" : r;
+                        parts.push(lq + ".__haxe_type_name() == " + rq + ".__haxe_type_name()");
                     } else if (structFieldEq(f.type) != null) {
                         parts.push(structEqText(f.type, l, r));
                     }
@@ -6623,8 +6640,10 @@ class RustExpr {
     }
 
     /** Compare nullable interface fields by presence and dynamic Haxe type name. */
-    function nullableInterfaceFieldEqText(left:String, right:String):String {
-        return "match (&" + left + ", &" + right + ") { (Some(__left), Some(__right)) => __left.__haxe_type_name() == __right.__haxe_type_name(), (None, None) => true, _ => false }";
+    function nullableInterfaceFieldEqText(left:String, right:String, shared:Bool):String {
+        final lq = shared ? "__left.lock().unwrap()" : "__left";
+        final rq = shared ? "__right.lock().unwrap()" : "__right";
+        return "match (&" + left + ", &" + right + ") { (Some(__left), Some(__right)) => " + lq + ".__haxe_type_name() == " + rq + ".__haxe_type_name(), (None, None) => true, _ => false }";
     }
 
     function isTypeCopy(t:Type):Bool {
@@ -6759,7 +6778,11 @@ class RustExpr {
             case OpEq | OpNotEq if (isInterfaceType(l.t) || isInterfaceType(r.t)):
                 final left = expr(l);
                 final right = expr(r);
-                final eq = left + ".__haxe_type_name() == " + right + ".__haxe_type_name()";
+                // A shared interface handle opens its Mutex before the
+                // type-name read. (ClassHandleShare)
+                final lockL = isSharedIfaceType(l.t) ? left + ".lock().unwrap()" : left;
+                final lockR = isSharedIfaceType(r.t) ? right + ".lock().unwrap()" : right;
+                final eq = lockL + ".__haxe_type_name() == " + lockR + ".__haxe_type_name()";
                 return op == OpEq ? eq : "!(" + eq + ")";
             // A shared-handle operand (a concrete implementor held as the
             // shared Arc) compares by allocation identity: Haxe class
@@ -9523,9 +9546,14 @@ class RustExpr {
         // (Option storage) takes the match form instead of the direct
         // method call the Option enum does not carry.
         // (NullableIsOfTypeMatch)
-        if (isNullType(args[0].t))
-            return "match &(" + subject + ") { Some(v) => v.__haxe_type_name() == " + nameTest + ", None => false }";
-        return subject + ".__haxe_type_name() == " + nameTest;
+        if (isNullType(args[0].t)) {
+            final vq = isSharedIfaceType(getNullInnerType(args[0].t)) ? "v.lock().unwrap()" : "v";
+            return "match &(" + subject + ") { Some(v) => " + vq + ".__haxe_type_name() == " + nameTest + ", None => false }";
+        }
+        // A shared interface handle opens its Mutex before the name read.
+        // (ClassHandleShare)
+        final subjectRead = isSharedIfaceType(args[0].t) ? subject + ".lock().unwrap()" : subject;
+        return subjectRead + ".__haxe_type_name() == " + nameTest;
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0, optionLocal:Bool = false):String {
@@ -10616,7 +10644,16 @@ class RustExpr {
                 // classifier, a cache). (SelfFieldReceiverBorrow)
                 final previousReceiverContext = renderingMethodReceiver;
                 renderingMethodReceiver = mutCall || isSelfRootedReceiver(subj);
-                final subjText = expr(subj);
+                var subjText = expr(subj);
+                // A fresh constructor of a shared implementor used directly
+                // as a receiver builds the shared handle inline, so the
+                // lock below reaches a real handle. (ClassHandleShare)
+                if (receiverNeedsSharedLock(subj)
+                    && switch (stripWrap(subj).expr) { case TNew(_): true; case _: false; }) {
+                    imports.require("std::sync::Arc");
+                    imports.require("std::sync::Mutex");
+                    subjText = "Arc::new(Mutex::new(" + subjText + "))";
+                }
                 renderingMethodReceiver = previousReceiverContext;
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
@@ -14220,14 +14257,19 @@ class RustExpr {
         implementor local is already an Arc, so the slot clones the handle
         (Haxe reference semantics leave the source alive); any other
         concrete value builds a fresh shared handle. (ClassHandleShare) */
-    function sharedSlotPayload(actual:TypedExpr, inner:String):String {
+    function sharedSlotPayload(actual:TypedExpr, inner:String, slotType:String):String {
         imports.require("std::sync::Arc");
         imports.require("std::sync::Mutex");
         final isHandle = switch (stripWrap(actual).expr) {
             case TLocal(_): isSharedImplementorType(actual.t);
             case _: false;
         };
-        return isHandle ? "Arc::clone(&" + inner + ")" : "Arc::new(Mutex::new(" + inner + "))";
+        // A shared implementor local is itself a handle; the concrete-to-
+        // trait-object unsize cannot cross Arc::clone inference, so the
+        // clone annotates the slot type explicitly. (ClassHandleShare)
+        return isHandle
+            ? "{ let __shared_handle: " + slotType + " = Arc::clone(&" + inner + "); __shared_handle }"
+            : "Arc::new(Mutex::new(" + inner + "))";
     }
 
     /**
@@ -14501,7 +14543,7 @@ class RustExpr {
             // of an owning box, so the engine and the caller observe one
             // object. (ClassHandleShare)
             if (isSharedIfaceType(expected))
-                return sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered));
+                return sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(expected, false));
             return "Box::new(" + boxedInterfacePayload(actual, rendered) + ")";
         }
         // Haxe unifies an object-literal field value's type to the interface
@@ -14511,7 +14553,7 @@ class RustExpr {
         // the Box<dyn Trait> slot.
         if (!isNullType(expected) && isInterfaceType(expected) && isConcreteConstructor(actual)) {
             if (isSharedIfaceType(expected))
-                return sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered));
+                return sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(expected, false));
             return "Box::new(" + boxedInterfacePayload(actual, rendered) + ")";
         }
         // An interface-typed reusable read (a field of an owned object)
@@ -14556,7 +14598,7 @@ class RustExpr {
                 // same object the source binding names. (ClassHandleShare)
                 if (isInterfaceType(actual.t))
                     return "Some(Arc::clone(&" + rendered + "))";
-                return "Some(" + sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered)) + ")";
+                return "Some(" + sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(getNullInnerType(expected), false)) + ")";
             }
             final boxed = normalizeConstructorResult(actual, rendered);
             final owned = isReusableOwnedRead(actual) && !isTypeCopy(actual.t)
@@ -14572,7 +14614,7 @@ class RustExpr {
             Context.warning("CCSHARE expected=" + Std.string(expected).substr(0, 40) + " shared=" + Std.string(isSharedIfaceType(expected)), Context.currentPos());
             #end
             if (isSharedIfaceType(expected))
-                return "Some(" + sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered)) + ")";
+                return "Some(" + sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(getNullInnerType(expected), false)) + ")";
             return "Some(Box::new(" + normalizeConstructorResult(actual, rendered) + "))";
         }
         if (!isInterfaceType(expected) && !isNullType(expected) && isFallibleConstructor(actual)) {
@@ -16253,6 +16295,19 @@ class RustExpr {
             // concrete constructor's branch type to the interface, so the
             // concrete class is recovered from the expression node.
             if (isInterfaceType(inner) && (!isInterfaceType(branch.t) || isConcreteConstructor(branch))) {
+                // A shared interface slot takes the shared handle; Arc
+                // cannot use the Box-style as-cast, so the constructor
+                // pins the Arc type parameters instead. (ClassHandleShare)
+                if (isSharedIfaceType(inner)) {
+                    final ifaceName = switch (Context.follow(inner)) {
+                        case TInst(c, _): c.get().name;
+                        case _: "";
+                    };
+                    imports.require("std::sync::Arc");
+                    imports.require("std::sync::Mutex");
+                    return "Some({ let __shared_handle: Arc<Mutex<dyn " + ifaceName + "> = Arc::new(Mutex::new("
+                        + normalizeConstructorResult(branch, coerced) + ")); __shared_handle })";
+                }
                 return "Some(Box::new(" + normalizeConstructorResult(branch, coerced) + ") as " + types.of(inner, false) + ")";
             }
             return "Some(" + coerced + ")";
