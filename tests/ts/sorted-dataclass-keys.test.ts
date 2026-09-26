@@ -18,7 +18,7 @@ describe("sorted dataClass key generated trees", () => {
   }`);
     expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain(`val isEmpty: Boolean get() = get_isEmpty()`);
     expect(read("swift/gen/boring/SortedDataClassKeysOps.swift")).toContain(`var isEmpty: Bool { get_isEmpty() }`);
-    expect(read("rust-gen/src/boring/sorted_data_class_keys_ops.rs")).toContain(`pub fn get_is_empty(&self) -> bool {
+    expect(read("rust/gen/boring/sorted_data_class_keys_ops.rs")).toContain(`pub fn get_is_empty(&self) -> bool {
         return self.start == self.end;
     }`);
     expect(read("dart/gen/lib/boring/sorted_data_class_keys_ops.dart")).toContain(`bool get isEmpty => get_isEmpty();`);
@@ -36,13 +36,13 @@ describe("sorted dataClass key generated trees", () => {
     expect(read("kotlin/gen/boring/SortedDataClassKeysOps.kt")).toContain("arrayMutations");
     expect(read("swift/gen/boring/SortedDataClassKeysOps.swift")).toContain("arrayMutations");
     expect(read("dart/gen/lib/boring/sorted_data_class_keys_ops.dart")).toContain("arrayMutations");
-    expect(read("rust-gen/src/boring/sorted_data_class_keys_ops.rs")).toContain("array_mutations");
+    expect(read("rust/gen/boring/sorted_data_class_keys_ops.rs")).toContain("array_mutations");
     for (const file of [
       "ts/gen/boring/SortedDataClassKeysOps.ts",
       "kotlin/gen/boring/SortedDataClassKeysOps.kt",
       "swift/gen/boring/SortedDataClassKeysOps.swift",
       "dart/gen/lib/boring/sorted_data_class_keys_ops.dart",
-      "rust-gen/src/boring/sorted_data_class_keys_ops.rs",
+      "rust/gen/boring/sorted_data_class_keys_ops.rs",
     ]) {
       expect(read(file)).toContain(file.includes("rust") ? "nullable_mutation" : "nullableMutation");
     }
@@ -53,7 +53,7 @@ describe("sorted dataClass key generated trees", () => {
       ["ts/gen/boring/SortedDataClassKeysOps.ts", "export function compareRubySpan"],
       ["kotlin/gen/boring/SortedDataClassKeysOps.kt", "fun compareRubySpan"],
       ["swift/gen/boring/SortedDataClassKeysOps.swift", "func compareRubySpan"],
-      ["rust-gen/src/boring/sorted_data_class_keys_ops.rs", "pub fn compare_ruby_span"],
+      ["rust/gen/boring/sorted_data_class_keys_ops.rs", "pub fn compare_ruby_span"],
       ["dart/gen/lib/boring/sorted_data_class_keys_ops.dart", "int compareRubySpan"]
     ] as const;
     for (const [file, marker] of targets) {
@@ -64,10 +64,10 @@ describe("sorted dataClass key generated trees", () => {
     }
     expect(comparator("ts/gen/boring/SortedDataClassKeysOps.ts", "export function compareTextRange")).toContain("a.start");
     expect(comparator("kotlin/gen/boring/SortedDataClassKeysOps.kt", "fun compareTextRange")).toContain("a.start");
-    expect(comparator("rust-gen/src/boring/sorted_data_class_keys_ops.rs", "pub fn compare_text_range")).toContain("cmp_start");
+    expect(comparator("rust/gen/boring/sorted_data_class_keys_ops.rs", "pub fn compare_text_range")).toContain("cmp_start");
     expect(read("ts/gen/boring/PrintedEnumOps.ts")).toContain("PrintedBadgemarkOrder");
     expect(read("kotlin/gen/boring/PrintedEnumOps.kt")).toContain("PrintedBadgemarkOrder");
     expect(read("dart/gen/lib/boring/printed_enum_ops.dart")).toContain("PrintedBadgemarkOrder");
-    expect(read("rust-gen/src/boring/printed_enum_ops.rs")).toContain("printed_badge_mark_order");
+    expect(read("rust/gen/boring/printed_enum_ops.rs")).toContain("printed_badge_mark_order");
   });
 });
