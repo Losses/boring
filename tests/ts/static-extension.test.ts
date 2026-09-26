@@ -100,10 +100,10 @@ describe("top-level and extension function lowering", () => {
   });
 
   test("Rust uses an inherent impl only for the owned receiver", () => {
-    const fileLevel = read("reference/rust-gen/src/boring/file_level_ops.rs");
-    const fileConsumer = read("reference/rust-gen/src/boring/file_level_consumer.rs");
-    const extensions = read("reference/rust-gen/src/boring/extension_ops.rs");
-    const extensionConsumer = read("reference/rust-gen/src/boring/extension_consumer.rs");
+    const fileLevel = read("reference/rust/gen/boring/file_level_ops.rs");
+    const fileConsumer = read("reference/rust/gen/boring/file_level_consumer.rs");
+    const extensions = read("reference/rust/gen/boring/extension_ops.rs");
+    const extensionConsumer = read("reference/rust/gen/boring/extension_consumer.rs");
 
     expect(fileLevel).toContain("pub fn public_value(value: u32) -> u32");
     expect(fileLevel).toContain("fn private_value(value: u32) -> u32");

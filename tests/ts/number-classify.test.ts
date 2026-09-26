@@ -5,7 +5,7 @@ import * as path from "node:path";
 describe("number classification generated tree", () => {
   const tsFile = path.resolve(__dirname, "../../reference/ts/gen/boring/NumberClassifyOps.ts");
   const kotlinFile = path.resolve(__dirname, "../../reference/kotlin/gen/boring/NumberClassifyOps.kt");
-  const rustFile = path.resolve(__dirname, "../../reference/rust-gen/src/boring/number_classify_ops.rs");
+  const rustFile = path.resolve(__dirname, "../../reference/rust/gen/boring/number_classify_ops.rs");
   const swiftFile = path.resolve(__dirname, "../../reference/swift/gen/boring/NumberClassifyOps.swift");
   const dartFile = path.resolve(__dirname, "../../reference/dart/gen/lib/boring/number_classify_ops.dart");
 

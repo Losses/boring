@@ -17,10 +17,11 @@
 -D ts-output=reference/ts/gen
 -D ts-test-output=reference/ts/gen-tests
 -D ts-test-runner=bun
--D runtime-import=@boring/runtime
+-D runtime-import=./runtime
 -D runtime-emit=.
-# The repository resolves the runtime by name through tsconfig.json
-# paths, so the package shell stays off (feature spec 24).
+# The runtime import is relative, so the tree is self-contained and the
+# package shell accepts it (feature spec 24); with runtime-emit set the
+# emitter computes per-file relative paths anyway.
 -D package-shell=none
 boring.ArraySliceOps
 boring.BinaryReader

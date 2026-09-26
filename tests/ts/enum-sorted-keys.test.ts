@@ -27,7 +27,7 @@ describe("enum sorted key generated trees", () => {
     return rank(a) - rank(b)
 }`);
     expect(read("dart/gen/lib/boring/enum_sorted_keys_ops.dart")).toContain("int compareEnumTier(EnumTier a, EnumTier b) => a.index.compareTo(b.index);");
-    expect(read("rust-gen/src/boring/enum_sorted_keys_ops.rs")).toContain(`pub fn compare_enum_tier(a: &EnumTier, b: &EnumTier) -> i32 {
+    expect(read("rust/gen/boring/enum_sorted_keys_ops.rs")).toContain(`pub fn compare_enum_tier(a: &EnumTier, b: &EnumTier) -> i32 {
     if a == b { return 0; }
     fn rank(v: &EnumTier) -> i32 {
         match v {

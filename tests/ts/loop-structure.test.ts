@@ -57,8 +57,8 @@ const SOURCE_TREES: readonly SourceTree[] = [
     checkForHeads: false,
   },
   {
-    label: "reference/rust-gen/src",
-    directory: import.meta.dir + "/../../reference/rust-gen/src",
+    label: "reference/rust/gen",
+    directory: import.meta.dir + "/../../reference/rust/gen",
     pattern: "**/*.rs",
     lambdaTokens: ["|"],
     checkForHeads: false,
