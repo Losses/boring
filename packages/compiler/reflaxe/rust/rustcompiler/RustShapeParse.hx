@@ -10,7 +10,7 @@ class RustShapeParse {
 
     /** Method suffixes that preserve Option-ness of their receiver. */
     static final preservingSuffixes:Array<String> = [
-        ".clone()", ".to_string()", ".to_owned()", ".as_str()", ".as_ref()",
+        ".clone()", ".to_string()", ".to_owned()", ".as_ustr()", ".as_ref()",
         ".to_vec()", ".to_uppercase()", ".to_lowercase()",
     ];
 
