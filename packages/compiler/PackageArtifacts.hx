@@ -148,7 +148,7 @@ class PackageArtifacts {
         absent from the tarball, so a module importing it cannot
         typecheck; leaving it in the stage fails the whole pack with a
         missing-module error instead. The closure is what keeps the
-        compile set consistent with the exclusion — the runtime test
+        compile set consistent with the exclusion: the runtime test
         entry, and the test helpers that call into it.
     **/
     static function npmCompileSet(excluded:Array<String>):Array<{path:String, content:String}> {

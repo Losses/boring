@@ -14,7 +14,7 @@ import js.Syntax;
         bun out/bundle/driver.js compare
         bun out/bundle/driver.js verify [--with-pack]
 
-    Every generated tree lands under `<outRoot>/<id>/gen` and
+    Every generated tree is written under `<outRoot>/<id>/gen` and
     `<outRoot>/<id>/gen-tests`, derived from the project file and never
     named by it; the results file of a bundle is
     `<resultsDir>/<id>.jsonl`. The generation defines derive from the
@@ -420,7 +420,7 @@ class Driver {
     /**
         The haxe arguments of one generation. Order: the classpaths, the
         target defaults, the roots file, the project's arguments, the
-        bundle's arguments, then the derived defines — haxe keeps the
+        bundle's arguments, then the derived defines; haxe keeps the
         last value of a repeated define, so the derived output
         directories win over anything the roots file states, and the
         roots file wins over the driver's defaults.
@@ -610,7 +610,7 @@ class Driver {
                     // The crate root is the bundle's derived gen dir.
                     // The f32 twin crate is excluded from the cargo
                     // workspace (feature spec 23), and cargo builds an
-                    // excluded crate from inside its own directory —
+                    // excluded crate from inside its own directory;
                     // the form package.json's test:rust-f32 reaches
                     // from the project root through --manifest-path.
                     step(project, bundle, "test", "build", "cargo", ["test", "--no-run"].concat(bundle.build.args), bundle.build.env, gen);
@@ -660,7 +660,7 @@ class Driver {
         graph: the SwiftPM-only module a std.Fs host edge imports is not
         derivable from the compilation, so the environment names a built
         module directory (BORING_SWIFT_SYSTEM_PACKAGE). Without it the
-        run stops with the variable named instead of a bare compiler
+        run stops with the variable named and without a bare compiler
         error. (SwiftModuleDependencies)
     **/
     static function swiftSystemPackageDir(bundle:Bundle, genFiles:Array<String>, testFiles:Array<String>):Null<String> {
