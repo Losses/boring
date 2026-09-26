@@ -2220,7 +2220,11 @@ class RustExpr {
             || rendered.indexOf("let mut out = String::new()") >= 0
             || StringTools.endsWith(rendered, ".name()")
             || StringTools.startsWith(rendered, "String::from_utf16(")
-            || rendered.indexOf("FPHelper::format_float") >= 0;
+            || rendered.indexOf("FPHelper::format_float") >= 0
+            // The test-platform extern shim renders as a runtime call
+            // returning a std String; every Haxe String slot needs the
+            // same conversion a format! result takes.
+            || StringTools.startsWith(rendered, "crate::runtime::test::current_test_id()");
     }
 
     /**
