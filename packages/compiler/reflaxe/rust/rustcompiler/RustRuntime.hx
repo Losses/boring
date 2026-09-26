@@ -142,6 +142,19 @@ impl FPHelper {
         v as f64
     }
 
+    // Numeric binary32 variants of the two 32-bit value edges: integer
+    // truncation toward zero and integer-to-real widening, matching the
+    // value semantics of float_to_i32/i32_to_float. The bit
+    // reinterpretation pair below keeps its wire semantics and is not
+    // referenced by the FPHelper lowering (feature spec 23).
+    pub fn float_to_i32_f32(v: f32) -> i32 {
+        v as i32
+    }
+
+    pub fn i32_to_float_f32(v: i32) -> f32 {
+        v as f32
+    }
+
     pub fn f32_to_i32(v: f32) -> i32 {
         i32::from_ne_bytes(v.to_bits().to_ne_bytes())
     }
