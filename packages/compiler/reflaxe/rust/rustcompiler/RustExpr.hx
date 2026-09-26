@@ -10558,8 +10558,8 @@ class RustExpr {
                     // stores raw UTF-16 units and keeps it. The rendering is
                     // therefore a UString producer, not a std-String shape.
                     // (FromCharCodeScalar)
-                    imports.requireType("runtime.UString", "UString");
-                    return "(if " + unwrapped + " > 0xFFFF { UString(vec![0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]) } else { UString(vec![" + unwrapped + " as u16]) })";
+                    imports.require("crate::runtime::u_string");
+                    return "(if " + unwrapped + " > 0xFFFF { u_string::from_units(&[0xD800 + ((" + unwrapped + " - 0x10000) >> 10) as u16, 0xDC00 + ((" + unwrapped + " - 0x10000) & 0x3FF) as u16]) } else { u_string::from_units(&[" + unwrapped + " as u16]) })";
                 }
                 if (path == "std.UStringPlatform") {
                     // Cursor primitives of the resident UString walk, inlined
