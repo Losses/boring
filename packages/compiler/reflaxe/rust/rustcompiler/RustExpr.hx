@@ -462,7 +462,9 @@ class RustExpr {
             case CFloat(s):
                 final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
                 FloatPrecision.isF32() ? padded + "f32" : padded;
-            case CString(s): "UString::from(" + quoteString(s) + ")";
+            case CString(s):
+                imports.requireType("runtime.UString", "UString");
+                "UString::from(" + quoteString(s) + ")";
             case CBool(b): b ? "true" : "false";
             case CNull: "None";
             case CEmptyArray: "vec![]";
@@ -1048,7 +1050,9 @@ class RustExpr {
                 case TAbstract(a, _) if (a.get().name == "Bool"): "false";
                 case TAbstract(a, _) if (a.get().name == "Int"): "0";
                 case TAbstract(a, _) if (a.get().name == "Float"): "0.0";
-                case TInst(c, _) if (c.get().name == "String"): "UString::new()";
+                case TInst(c, _) if (c.get().name == "String"):
+                    imports.requireType("runtime.UString", "UString");
+                    "UString::new()";
                 case TAbstract(a, _) if (a.get().name == "Null"): "None";
                 case TType(_, _): null;
                 case _: null;
@@ -2328,6 +2332,7 @@ class RustExpr {
         finished String, feeds From<&str>.
     **/
     function ustringFromStdText(rendered:String):String {
+        imports.requireType("runtime.UString", "UString");
         return "UString::from(format!(\"{}\", " + rendered + ").as_str())";
     }
 
@@ -2413,10 +2418,10 @@ class RustExpr {
         if (!isStringType(arg.t))
             return rendered;
         return switch (stripWrap(arg).expr) {
-            case TConst(TString(_)): rendered;
+            case TConst(TString(_)): rendered + ".as_ustr()";
             case _ if (isNullType(arg.t)):
-                '(match &(' + rendered + ') { Some(v) => v.to_utf8_lossy(), None => String::new() })';
-            case _: stdStringShapedText(rendered) ? '&(' + ustringFromStdText(rendered) + ').to_utf8_lossy()' : '&(' + rendered + ').to_utf8_lossy()';
+                '(match &(' + rendered + ') { Some(v) => v.as_ustr(), None => UStr::new(&[]) })';
+            case _: StringTools.endsWith(rendered, ".as_ustr()") ? rendered : rendered + ".as_ustr()";
         };
     }
 
@@ -14950,6 +14955,7 @@ class RustExpr {
             var argStr = renderValueForType(pt, arg, expr(arg));
             localFunctionErrorName = savedBlockError;
             blockClosureErrorName = savedBlockClosure;
+
             // A by-value class parameter the callee mutates renders as a
             // mutable reference (Haxe class arguments are references: the
             // caller must observe the callee's writes). An argument whose
