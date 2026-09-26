@@ -387,7 +387,11 @@ class SwiftExpr {
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: types.optionalNone(targetType);
-            case CEmptyArray: "TiqianArray()";
+            // An empty read-only array default renders as the native literal;
+            // the declared type annotation gives Swift its element type. An
+            // optional parameter carries Null<ReadOnlyArray<T>>, so the Null
+            // wrapper strips before the read-only check.
+            case CEmptyArray: StaticFieldHelper.isReadOnlyArrayType(DefaultArgExpander.withoutNull(targetType)) ? "[]" : "TiqianArray()";
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
@@ -768,6 +772,10 @@ class SwiftExpr {
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
                     initText = intToFloatText(initText);
+                // features/18: the annotated read-only declaration converts
+                // its mutable initializer to the native value Array.
+                if (hasTypeAnnotation && StaticFieldHelper.isReadOnlyArrayType(v.t) && isMutableArrayType(init.t))
+                    initText = "Array(" + initText + ")";
                 if (unwrapNullableInitializer && !StringTools.endsWith(initText, "!"))
                     initText += "!";
                 if (swiftShadowedLocals.exists(v.id))
@@ -813,6 +821,11 @@ class SwiftExpr {
                         var retText = returnValue(ret);
                         if (isIntType(emittedType(ret)) && currentReturnType != null && isFloatLeafType(currentReturnType))
                             retText = intToFloatText(retText);
+                        // features/18: a function returning ReadOnlyArray is the
+                        // decode boundary; the internal mutable container
+                        // converts to the native value Array at the return.
+                        if (currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) && isMutableArrayType(ret.t))
+                            retText = "Array(" + retText + ")";
                         final tryKw = containsThrowingCall(ret) ? "try " : "";
                         return [indent(depth) + "return " + tryKw + retText];
                 }
@@ -878,8 +891,12 @@ class SwiftExpr {
                     case TLocal(_) | TField(_, _): assignmentValue(l, r);
                     case _: expr(r);
                 };
+                // Haxe promotes Int into Float compound arithmetic; Swift has
+                // no implicit conversion, so the Int right side widens first
+                // (numbers ruling).
+                final widened = isArithmeticOp(inner) && isFloatTyped(l) && isIntType(emittedType(r)) ? intToFloatText(rhs) : rhs;
                 return [
-                    indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + rhs
+                    indent(depth) + assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + tryKw + widened
                 ];
             case _:
                 final builderMutation = builderBackedMutationLines(e, depth);
@@ -1844,10 +1861,10 @@ class SwiftExpr {
                     }
                     return expr(coalescing.valueExpr);
                 }
-                final optional = optionalIf(c, t, f);
+                final optional = optionalIf(e, c, t, f);
                 if (optional != null)
                     return optional;
-                final guarded = guardedLookupIf(c, t, f);
+                final guarded = guardedLookupIf(e, c, t, f);
                 if (guarded != null)
                     return guarded;
                 final condition = expr(c);
@@ -1918,7 +1935,7 @@ class SwiftExpr {
 #end
     }
 
-    function optionalIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
+    function optionalIf(e:TypedExpr, c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
         var target:Null<TypedExpr> = null;
         switch (stripWrap(c).expr) {
             case TBinop(OpEq, left, right) | TBinop(OpNotEq, left, right):
@@ -1945,7 +1962,7 @@ class SwiftExpr {
         }
         final fallback = trueMatches ? ifFalse : ifTrue;
         emissionTrace("OPTIONAL_IF", expr(target));
-        return expr(target) + " ?? " + expr(fallback);
+        return expr(target) + " ?? " + coalescingFallbackText(fallback, e.t);
     }
 
     /**
@@ -2015,7 +2032,7 @@ class SwiftExpr {
         present, so nil-coalescing both keeps the check and drops the optional
         arm Swift rejects in a non-optional context.
     **/
-    function guardedLookupIf(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
+    function guardedLookupIf(e:TypedExpr, c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
         final guard = mapHasKey(c);
         if (guard == null) {
             return null;
@@ -2036,7 +2053,7 @@ class SwiftExpr {
             return expr(getCall);
         }
         emissionTrace("GUARD_LOOKUP", expr(getCall));
-        return expr(getCall) + " ?? " + expr(fallback);
+        return expr(getCall) + " ?? " + coalescingFallbackText(fallback, e.t);
     }
 
     function mapHasKey(e:TypedExpr):Null<{subject:TypedExpr, key:TypedExpr}> {
@@ -2248,7 +2265,12 @@ class SwiftExpr {
                 // Swift's `+=` needs the converted right side.
                 return assignTarget(l) + " += " + stdString(r, false);
             case OpAssignOp(inner):
-                return assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + expr(r);
+                final rhs = expr(r);
+                // Haxe promotes Int into Float compound arithmetic; Swift has
+                // no implicit conversion, so the Int right side widens first
+                // (numbers ruling).
+                final widened = isArithmeticOp(inner) && isFloatTyped(l) && isIntType(emittedType(r)) ? intToFloatText(rhs) : rhs;
+                return assignTarget(l) + " " + symbolOf(inner, l, r) + "= " + widened;
             case OpAdd:
                 if (isUnitArrayTyped(e) && addLeafCount(e) >= 4) {
                     return splitConcat(e);
@@ -2364,6 +2386,14 @@ class SwiftExpr {
         // transparent; Swift needs the explicit conversion.
         if (isFloatLeafType(target) && isIntType(emittedType(inner)) && !isFloatTyped(inner))
             return intToFloatText(rendered);
+        // features/18: a Haxe Array<->ReadOnlyArray implicit cast crosses the
+        // mutable/immutable container boundary, and the two lower to different
+        // Swift types (TiqianArray vs the native value Array); the unify check
+        // below would accept the cast silently, so the container conversion
+        // renders first.
+        final container = arrayBoundaryText(inner, rendered, target);
+        if (container != null)
+            return container;
         if (Context.unify(inner.t, target)) {
             return rendered;
         }
@@ -2377,6 +2407,32 @@ class SwiftExpr {
         };
     }
 
+    /**
+        The container conversion of an Array<->ReadOnlyArray boundary cast,
+        or null when the cast does not cross the mutable/immutable line
+        (features/18). Mutable Array lowers to TiqianArray while
+        ReadOnlyArray lowers to the native value Array, so the Haxe-level
+        implicit casts render as the Swift container initializers.
+    **/
+    function arrayBoundaryText(inner:TypedExpr, rendered:String, target:Type):Null<String> {
+        if (StaticFieldHelper.isReadOnlyArrayType(target)) {
+            if (isMutableArrayType(inner.t))
+                return "Array(" + rendered + ")";
+            return null;
+        }
+        if (isMutableArrayType(target) && StaticFieldHelper.isReadOnlyArrayType(inner.t))
+            return "TiqianArray(" + rendered + ")";
+        return null;
+    }
+
+    /** Whether the type is the mutable Haxe Array, which lowers to TiqianArray. */
+    function isMutableArrayType(t:Null<Type>):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
+            case _: false;
+        };
+    }
+
     /** The module real's Swift name; Int sides of Float operations widen to it. */
     function isNullConstant(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
@@ -2387,6 +2443,24 @@ class SwiftExpr {
 
     function realType():String {
         return FloatPrecision.isF32() ? "Float" : "Double";
+    }
+
+    /**
+        The `??` fallback arm with an Int side widened when the merge type is
+        the module real: Haxe unifies the Int fallback with the Float lookup,
+        while Swift's `??` needs both sides of the same type.
+    **/
+    function coalescingFallbackText(fallback:TypedExpr, merged:Type):String {
+        final text = expr(fallback);
+        return isFloatLeafType(merged) && isIntType(emittedType(fallback)) ? intToFloatText(text) : text;
+    }
+
+    /** Only the arithmetic compound ops accept a widened operand. */
+    function isArithmeticOp(op:Binop):Bool {
+        return switch (op) {
+            case OpAdd | OpSub | OpMult | OpDiv | OpMod: true;
+            case _: false;
+        };
     }
 
     /** The operand text with an Int side of a Float operation widened. */
@@ -2933,6 +3007,11 @@ class SwiftExpr {
                     (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a))) && demandsValue ? expr(a) + "!" : expr(a);
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
+                // features/18: an Array argument reaching a ReadOnlyArray
+                // parameter crosses the container boundary the typer leaves
+                // implicit, so the conversion renders here.
+                if (pt != null && StaticFieldHelper.isReadOnlyArrayType(pt) && isMutableArrayType(a.t))
+                    t = "Array(" + t + ")";
                 t;
             }
         ];
@@ -4335,6 +4414,11 @@ class SwiftExpr {
             // explicit cast; Swift needs the widening conversion.
             if (p != null && isIntType(emittedType(args[i])) && isFloatLeafType(p))
                 text = intToFloatText(text);
+            // features/18: an Array argument reaching a ReadOnlyArray
+            // parameter crosses the container boundary the typer leaves
+            // implicit, so the conversion renders here.
+            if (p != null && StaticFieldHelper.isReadOnlyArrayType(p) && isMutableArrayType(args[i].t))
+                text = "Array(" + text + ")";
             rendered.push(text);
             if (i < names.length)
                 constructorParameterValues.set(names[i], text);
@@ -5997,6 +6081,14 @@ class SwiftExpr {
 
     function localDeclarationNeedsTypeAnnotation(t:Type, init:TypedExpr, hasCoalescing:Bool = false):Bool {
         return isEmptyArrayDecl(init)
+            // features/18: a read-only declaration bound to the mutable
+            // container annotates the native Array type; Swift inference
+            // would otherwise pin TiqianArray and reject later read-only
+            // consumption.
+            || (StaticFieldHelper.isReadOnlyArrayType(t) && switch (Context.follow(init.t)) {
+                case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
+                case _: false;
+            })
             || (isIntLeafType(t) && !mentionsRangeLoopVar(init))
             || isIntLiteralArrayDecl(init)
             || isBuilderCall(init)

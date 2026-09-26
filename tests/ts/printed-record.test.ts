@@ -47,7 +47,7 @@ const memberTrees: MemberTree[] = [
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
-    file: "reference/rust-f32-gen/src/boring/printed_record.rs",
+    file: "reference/rust-f32/gen/boring/printed_record.rs",
     signature: "pub fn to_string(&self) -> String",
     fields: ["self.count", "self.ratio", "self.inner"],
   },

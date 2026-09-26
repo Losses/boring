@@ -80,6 +80,26 @@ class RustDecl {
     }
 
     /** Widen an Int const val initializer to Float when the field type is Float. */
+    /** UTF-16 unit literal for a const UStr: the single code point below 0x10000
+        occupies one unit; a supplementary code point splits into lead and trail surrogates. */
+    static function u16ConstLiteral(s:String):String {
+        final out:Array<Int> = [];
+        for (i in 0...s.length) {
+            final code = s.charCodeAt(i);
+            if (code >= 0x10000) {
+                final c = code - 0x10000;
+                out.push(0xD800 + (c >> 10));
+                out.push(0xDC00 + (c & 0x3FF));
+            } else {
+                out.push(code);
+            }
+        }
+        if (out.length == 0) {
+            return "unsafe { &*(&[] as *const [u16] as *const crate::runtime::u_string::UStr) }";
+        }
+        return "unsafe { &*(&[" + [for (u in out) "0x" + StringTools.hex(u, 4) + "u16"].join(", ") + "] as *const [u16] as *const crate::runtime::u_string::UStr) }";
+    }
+
     function constValFloatInit(init:TypedExpr, fieldType:Type):String {
         final text = expr.rawExpression(init);
         if (expr.isIntType(expr.emittedType(init)) && expr.isFloatType(fieldType))
@@ -556,7 +576,7 @@ class RustDecl {
                         // use without its let binding (E0425).
                         lines.push('    let cmp_$fn = if a.$fn < b.$fn { -1 } else if a.$fn > b.$fn { 1 } else { 0 };');
                     case TInst(c, _) if (c.get().name == "String"):
-                        lines.push('    let cmp_$fn = SortedTable::sorted_table_compare_strings(a.$fn.as_str(), b.$fn.as_str());');
+                        lines.push('    let cmp_$fn = SortedTable::sorted_table_compare_strings(a.$fn.as_ustr(), b.$fn.as_ustr());');
                     case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
                         importElementComparator(c.get());
                         lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
@@ -647,7 +667,7 @@ class RustDecl {
             ctorError = resolveErrorOwner(ctorData, cls);
         if (hasCtorThrow && ctorError != null)
             imports.requireType(ctorError.module, ctorError.name);
-        final ctorArgType = isStringRepresentation(info.representation) ? "&str" : representation;
+        final ctorArgType = isStringRepresentation(info.representation) ? "&UStr" : representation;
         lines.push("    pub fn new(value: "
             + ctorArgType
             + ")"
@@ -658,7 +678,7 @@ class RustDecl {
             for (line in expr.valueTypeConstructorBody(cls, ctorData))
                 lines.push("    " + line);
         }
-        final ctorValue = isStringRepresentation(info.representation) ? "value.to_string()" : "value";
+        final ctorValue = isStringRepresentation(info.representation) ? "value.to_ustring()" : "value";
         lines.push("        " + (hasCtorThrow ? "return Ok(Self(" + ctorValue + "));" : "return Self(" + ctorValue + ");"));
         lines.push("    }");
 
@@ -698,7 +718,8 @@ class RustDecl {
         if (ValueTypeSupport.memberField(abs, "toString") != null) {
             final f = findFunc(funcFields, "toString");
             lines.push("");
-            lines.push("    fn to_string_value(&self) -> String {");
+            imports.requireType("runtime.UString", "UString");
+            lines.push("    fn to_string(&self) -> UString {");
             expr.setFallible(false);
             for (line in expr.valueTypeFunctionBody(cls, f, isStringRepresentation(info.representation) ? "self.0.clone()" : "self.0"))
                 lines.push("    " + line);
@@ -751,7 +772,7 @@ class RustDecl {
         lines.push("impl std::fmt::Display for " + info.name + " {");
         lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
         if (ValueTypeSupport.memberField(abs, "toString") != null)
-            lines.push("        write!(formatter, \"{}\", self.to_string_value())");
+            lines.push("        write!(formatter, \"{}\", self.to_string())");
         else
             lines.push("        write!(formatter, \"{}\", self.0)");
         lines.push("    }");
@@ -910,6 +931,13 @@ class RustDecl {
                 lines.push("    " + RustImports.toUpperCamelCase(o.name) + " { " + params + " },");
             }
         }
+        // Fault conversions registered while lowering fallible callees grow
+        // wrapping variants here too: the union payload the variant carries
+        // keeps propagating through a message function it does not declare.
+        final growth = state.enumGrowthFor(enumName);
+        if (growth != null)
+            for (item in growth)
+                lines.push("    " + item.variant + "(Box<" + item.calleePath + ">),");
         lines.push("}\n");
 
         // Display impl
@@ -934,6 +962,9 @@ class RustDecl {
                 lines.push("            }");
             }
         }
+        if (growth != null)
+            for (item in growth)
+                lines.push("            " + enumName + "::" + item.variant + "(inner) => write!(formatter, \"{:?}\", inner),");
         lines.push("        }");
         lines.push("    }");
         lines.push("}\n");
@@ -1363,12 +1394,21 @@ class RustDecl {
             final init = StaticFieldHelper.validatedInitializer(field, cls);
             final valStr = constValFloatInit(init, field.type);
             final typeStr = switch (field.type) {
-                case TInst(c, _) if (c.get().name == "String"): "&str";
+                case TInst(c, _) if (c.get().name == "String"): "&UStr";
                 case _: types.of(field.type);
             };
             // @:allow members use crate visibility so allowed cross-module references compile.
             final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
             final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
+            if (typeStr == "&UStr") {
+                imports.requireType("runtime.UString", "UStr");
+                final s = switch (init.expr) {
+                    case TConst(TString(s)): s;
+                    case _: throw "const String field must be a string literal: " + cls.name + "." + field.name;
+                };
+                final val = u16ConstLiteral(s);
+                return ['    ${vis}const ${name}: ${typeStr} = $val;'];
+            }
             return ['    ${vis}const ${name}: ${typeStr} = $valStr;'];
         }
         return [];
@@ -2223,10 +2263,15 @@ class RustDecl {
                 }
                 // A String parameter borrows as &str while the field owns
                 // a String; the initializer converts (feature spec 27).
+                // The unit-storage twin borrows as &UStr while the field
+                // owns a UString; to_ustring() converts the borrow.
                 final isStringParam = types.of(a.type, true) == "&str";
+                final isUStringParam = types.of(a.type, true) == "&UStr";
                 final isNullableStringParam = types.of(a.type, false) == "Option<String>";
                 if (isStringParam) {
                     lines.push('            $sname: ${sname}.to_string(),');
+                } else if (isUStringParam) {
+                    lines.push('            $sname: ${sname}.to_ustring(),');
                 } else if (isNullableStringParam) {
                     final localCoalescing = DefaultArgExpander.coalescingDefaultForLocalParam(cls, f.field.name, a.name, a.name);
                     final coalescing = localCoalescing != null ? localCoalescing : DefaultArgExpander.coalescingDefaultForParam(cls, f.field.name, a.name);
@@ -2351,6 +2396,12 @@ class RustDecl {
         final otherArgs = [
             for (a in f.args) {
                 var pType = paramType(a.type, f.field.name, a.name);
+                // A hand-rolled face spelling UString/UStr registers the
+                // runtime types the same way types.of does. (RawFaceImport)
+                if (pType.indexOf("UStr") >= 0)
+                    imports.requireType("runtime.UString", "UStr");
+                if (pType.indexOf("UString") >= 0)
+                    imports.requireType("runtime.UString", "UString");
                 if (argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
                 else if (argIsMutated(f.expr, a.name) && isMutableRefParamType(a.type)) pType = "&mut " + pType;
                 expr.setArgType(a.name, pType);
@@ -2486,7 +2537,7 @@ class RustDecl {
             return "u32";
         }
         if (funcName == "writeAscii") {
-            return "&str";
+            return "&UStr";
         }
         return types.of(t, true);
     }
@@ -2499,7 +2550,7 @@ class RustDecl {
         if (funcName == "readF64" || funcName == "readF32" || funcName == "readF16")
             return FloatPrecision.isF32() ? "f32" : "f64";
         if (funcName == "readAscii")
-            return "String";
+            return "UString";
         if (funcName == "remaining" || funcName == "consumed")
             return "u32";
         if (funcName == "ensureRemaining")
@@ -2838,7 +2889,7 @@ class RustDecl {
         final maxIndex = sorted.length > 0 ? sorted[sorted.length - 1].field.index + 1 : 0;
         if (growth != null) {
             for (item in growth)
-                lines.push("    " + item.variant + "(" + item.calleePath + "),");
+                lines.push("    " + item.variant + "(Box<" + item.calleePath + ">),");
         }
         lines.push("}");
         if (allPlain) {
@@ -2915,8 +2966,9 @@ lines.push("        }");
                 lines.push("    }");
             }
             if (use.lookup) {
-                lines.push('    pub fn from_name(name: &str) -> Option<${en.name}> {');
-                lines.push("        match name {");
+                imports.requireType("runtime.UString", "UStr");
+                lines.push('    pub fn from_name(name: &UStr) -> Option<${en.name}> {');
+                lines.push("        match name.to_utf8_lossy().as_str() {");
                 for (o in sorted)
                     lines.push('            "${o.name}" => Some(${en.name}::${RustImports.toUpperCamelCase(o.name)}),');
                 lines.push("            _ => None,");
@@ -2961,7 +3013,7 @@ lines.push("        }");
                             case TInst(c, _) if (c.get().name == "String"):
                                 state.shimsUsed.set("std.SortedMap", true);
                                 imports.requireType("runtime.SortedTable", "SortedTable");
-                                cmpLines.push('    let cmp_$fieldSnake = SortedTable::sorted_table_compare_strings(a.$fieldSnake.as_str(), b.$fieldSnake.as_str());');
+                                cmpLines.push('    let cmp_$fieldSnake = SortedTable::sorted_table_compare_strings(a.$fieldSnake.as_ustr(), b.$fieldSnake.as_ustr());');
                                 cmpLines.push('    if cmp_$fieldSnake != 0 { return cmp_$fieldSnake; }');
                             case _:
                                 switch (f.type) {
