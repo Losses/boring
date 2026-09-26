@@ -52,6 +52,7 @@
       "id": "swift",
       "target": "swift",
       "rootsFile": "examples/swift.hxml",
+      "haxeArgs": ["-D", "swift-test-import=Codec"],
       "build": {
         "args": ["-swift-version", "5"]
       }
