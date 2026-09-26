@@ -1843,7 +1843,7 @@ class RustExpr {
                             // A null-checked Null<String> local owns its
                             // text; the view unwrap yields the value the
                             // guard proved present.
-                            retStr = "(" + retStr + ").as_deref().unwrap_or(\"\").to_ustring()";
+                            retStr = "(" + retStr + ").as_deref().unwrap_or(UStr::new(&[])).to_ustring()";
                         case TLocal(v) if (isBorrowedLocal(v) && !StringTools.endsWith(retStr, ".to_ustring()")):
                             // A borrowed String parameter renders as &str; the
                             // owned String return slot converts it once.
@@ -2185,7 +2185,19 @@ class RustExpr {
         borrows through as_str.
     **/
     function exceptionMessageArg(arg:TypedExpr):String {
-        return stringViewArg(arg);
+        // The message-only constructor keeps a std &str slot (the payload
+        // enum renders its message with format!), so a literal stays a raw
+        // str literal and every other string expression converts to UTF-8
+        // once at the boundary.
+        final rendered = expr(arg);
+        if (!isStringType(arg.t))
+            return rendered;
+        return switch (stripWrap(arg).expr) {
+            case TConst(TString(s)): quoteString(s);
+            case _: isNullType(arg.t)
+                ? "(match &(" + rendered + ") { Some(v) => v.to_utf8_lossy(), None => String::new() })"
+                : "&(" + rendered + ").to_utf8_lossy()";
+        };
     }
 
     /**
@@ -2239,6 +2251,10 @@ class RustExpr {
         return switch (stripWrap(arg).expr) {
             case TConst(TString(_)): "&(" + rendered + ")";
             case TLocal(v) if (isBorrowedParamLocal(v)): rendered;
+            // A nullable string read borrows through the Option wrapper; a
+            // narrowed or collapsed local already renders the inner value.
+            case _ if (isNullType(arg.t) && narrowedSubject(arg) == null && !isNullableCollapsedLocal(arg)):
+                "(match &(" + rendered + ") { Some(v) => v.as_ustr(), None => UStr::new(&[]) })";
             case _: stdStringShapedText(rendered) ? ustringFromStdText(rendered) + ".as_ustr()" : rendered + ".as_ustr()";
         };
     }
@@ -9705,11 +9721,12 @@ class RustExpr {
                         // that lead and the map_err names it. The `?` or
                         // `.unwrap()` rides the ordinary fallibility rules.
                         final q = isFallible ? "?" : ".unwrap()";
-                        // toString returns Haxe String (UString), so the
-                        // decoded UTF-8 String converts at the read site.
+                        // toString returns Haxe String (UString); the buffer's
+                        // units decode straight into UString at the read site
+                        // (runtime side: UString::from_utf16).
                         imports.requireType("runtime.UString", "UString");
-                        return "UString::from((String::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from("
-                            + expr(subj) + "[" + expr(subj) + ".len() - 1]) }") + ")" + q + ").as_str())";
+                        return "UString::from_utf16(" + expr(subj) + ".as_slice()).map_err(|_| " + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from("
+                            + expr(subj) + "[" + expr(subj) + ".len() - 1]) }") + ")" + q;
                     }
                     if (name == "get_length" || name == "length") {
                         return RustConversions.truncate(expr(subj) + ".len()", "u32");
@@ -9815,8 +9832,21 @@ class RustExpr {
                     };
                     state.shimsUsed.set("std.UStringRT", true);
                     imports.require("crate::runtime::u_string");
-                    return "u_string::find_from(&"
-                        + expr(subj)
+                    // The receiver may render as a std String (a format!
+                    // result or a .to_string() display path); those convert
+                    // to the owned Haxe form once, and the & borrow then
+                    // deref-coerces to &UStr. (IndexOfStdStringReceiver)
+                    final recvText = expr(subj);
+                    final stdRendered = StringTools.startsWith(recvText, "format!(")
+                        || StringTools.endsWith(recvText, ".to_string()")
+                        || StringTools.endsWith(recvText, ".to_utf8_lossy()")
+                        || StringTools.startsWith(recvText, "String::from_utf16");
+                    // format! goes through Display, which every string form
+                    // (std String, UString, &UStr) implements, so the
+                    // conversion does not depend on the receiver's render.
+                    final recvView = stdRendered ? "&UString::from(format!(\"{}\", " + recvText + ").as_str())" : "&(" + recvText + ")";
+                    return "u_string::find_from("
+                        + recvView
                         + ", "
                         + needle
                         + ", "
@@ -10126,18 +10156,27 @@ class RustExpr {
                         // form: its unwrap borrows the place itself.
                         final needsSplit = StringTools.contains(receiver, ".as_ref().unwrap()")
                             && !reusableReadText(stripRenderedParens(StringTools.replace(receiver, ".as_ref().unwrap()", "")));
+                        // The separator feeds std String::push_str, a &str
+                        // slot: a literal stays a raw str literal, every
+                        // other string expression converts to UTF-8 once.
+                        // The builder's out is std String for write!; the
+                        // Haxe String result converts once at the end.
+                        final sepText = !isStringType(args[0].t) ? renderedArgs : switch (stripWrap(args[0]).expr) {
+                            case TConst(TString(s)): quoteString(s);
+                            case _: "&(" + expr(args[0]) + ").to_utf8_lossy()";
+                        };
                         if (needsSplit) {
                             final tmp = freshRegionName("_jtmp");
                             final cloneExpr = StringTools.replace(receiver, ".as_ref().unwrap()", "");
                             return "{ let " + tmp + " = " + cloneExpr + "; let " + joined + " = " + tmp + ".as_ref().unwrap(); let mut out = String::new(); let n = "
                                 + joined + ".len(); let mut " + index + " = 0usize; while " + index + " < n { if " + index
-                                + " > 0 { out.push_str(&(" + renderedArgs + ")); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
-                                + index + " += 1; } out }";
+                                + " > 0 { out.push_str(" + sepText + "); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
+                                + index + " += 1; } UString::from(out.as_str()) }";
                         }
                         return "{ let " + joined + " = " + receiver + "; let mut out = String::new(); let n = "
                             + joined + ".len(); let mut " + index + " = 0usize; while " + index + " < n { if " + index
-                            + " > 0 { out.push_str(&(" + renderedArgs + ")); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
-                            + index + " += 1; } out }";
+                            + " > 0 { out.push_str(" + sepText + "); } let _ = write!(out, \"{}\", " + joined + "[" + index + "]); "
+                            + index + " += 1; } UString::from(out.as_str()) }";
                     }
                     return nullableMethodReceiver(subj, false) + ".join(" + renderedArgs + ")";
                 }
@@ -12356,7 +12395,7 @@ class RustExpr {
                 if (stringLikeType(pt) && stringLikeType(arg.t)) {
                     out.push(switch (stripWrap(arg).expr) {
                         case TConst(TString(_)): "&(" + argStr + ")";
-                        case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
+                        case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(UStr::new(&[]))";
                         case TLocal(v) if (isBorrowedParamLocal(v)): argStr;
                         case _: argStr + ".as_ustr()";
                     });
@@ -14670,7 +14709,7 @@ class RustExpr {
                         && isArrayType(getNullInnerType(arg.t))
                         && isArrayType(pt);
                     if (provenString) {
-                        argStr = expr(arg) + ".as_deref().unwrap_or(\"\")";
+                        argStr = expr(arg) + ".as_deref().unwrap_or(UStr::new(&[]))";
                     } else if (nullableArrayParam) {
                         // A narrowed arg already renders as the match binding,
                         // a reference to the inner Vec; unwrapping it again
@@ -14753,7 +14792,7 @@ class RustExpr {
                     if (!stdTableReceiver && stringLikeType(pt) && stringLikeType(arg.t)) {
                         argStr = switch (stripWrap(arg).expr) {
                             case TConst(TString(_)): argStr;
-                            case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(\"\")";
+                            case _ if (nullableStringViewArg(arg)): "(" + expr(arg) + ").as_deref().unwrap_or(UStr::new(&[]))";
                             case TLocal(v) if (isBorrowedParamLocal(v)): expr(arg);
                             case _: expr(arg) + ".as_ustr()";
                         };
@@ -14961,7 +15000,7 @@ class RustExpr {
             return null;
         if (isPassByRef(pt) && stringLikeType(pt) && stringLikeType(arg.t)) {
             if (nullableStringViewArg(arg))
-                return {bind: hoistedOwnedText(arg, expr(arg)), usage: name + ".as_deref().unwrap_or(\"\")"};
+                return {bind: hoistedOwnedText(arg, expr(arg)), usage: name + ".as_deref().unwrap_or(UStr::new(&[]))"};
             switch (stripWrap(arg).expr) {
                 case TConst(_):
                     return null;
