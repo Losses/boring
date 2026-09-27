@@ -1,4 +1,4 @@
-// boring's own bundle project (feature spec 59). The driver derives every
+// boring's own Haxe build and test project (feature spec 59). The driver derives every
 // output directory (<outRoot>/<id>/gen and <outRoot>/<id>/gen-tests) and
 // every results path (<resultsDir>/<id>.jsonl) from this file; none of
 // them is named here.

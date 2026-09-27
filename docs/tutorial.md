@@ -980,17 +980,25 @@ Fields of a target configuration:
 
 For example, `"sourceSets": { "tests": { "types": ["app.Main"],
 "discover": [{ "root": "src", "packages": ["app.tests"], "suffix":
-"Test" }] } }` selects `app.Main` and direct `.hx` modules in
-`src/app/tests` whose names end in `Test`. The driver sorts discovered module
-paths before passing them to Haxe. `packages` adds all direct modules of
+"Test" }] } }` selects `app.Main` and `.hx` modules directly under
+`src/app/tests/` whose names end in `Test`. The driver sorts discovered
+module paths before passing them to Haxe. `packages` adds direct modules of
 each listed package through `haxe.macro.Compiler.include`; it does not
-recurse into child packages. The compiler rejects a missing package.
-The driver rejects unknown source-set names, duplicate entries, empty
-selections, discovery directories with no matching modules, and discovery
-roots that leave the project directory.
-`rootsFile` continues to work and can be used with a source set.
+recurse into child packages. A discovery directory must contain a matching
+module. The driver rejects unknown source-set names, duplicate entries,
+invalid module paths, and absolute or parent discovery roots.
 
-A complete example, abbreviated from boring's own `boring.json`:
+A configuration's `rootsFile` replaces the project-level `rootsFile` when
+present. The driver includes the selected HXML, then appends the named
+`sourceSet`'s package macros and module roots. Either field also works alone.
+The `roots` command writes a source set to an HXML file for direct Haxe
+entry points; it does not include a configuration's `rootsFile`.
+
+These entries come from boring's current `boring.json`. The file has more
+configurations and does not declare `sourceSets`. Boring's `examples/*.hxml`
+entries retain explicit, target-specific root lists. A new project can use
+`sourceSets` where its source selection fits the package, type, or discovery
+rules:
 
     {
       // Where every generated tree goes: reference/haxe/gen,
@@ -1002,35 +1010,22 @@ A complete example, abbreviated from boring's own `boring.json`:
       // compare reads this configuration's results as the reference.
       "baseline": "kotlin",
       // Passed as -cp to every configuration's generation compile.
-      "sourceRoots": ["samples", "packages/registry/src"],
+      "sourceRoots": ["samples", "packages/registry/src", "packages/driver/src"],
       "bundles": [
-        {
-          "id": "haxe",
-          "target": "haxe",
-          "rootsFile": "tests/haxe/generate-main.hxml",
-          "build": {
-            "args": ["-lib", "reflaxe", "-cp", "packages/compiler"]
-          }
-        },
         {
           "id": "ts",
           "target": "ts",
           "rootsFile": "examples/ts.hxml",
-          "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
+          "package": { "name": "boring-codec", "version": "0.1.0" }
         },
         {
           "id": "kotlin",
           "target": "kotlin",
           "rootsFile": "examples/kotlin.hxml",
-          "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
-        },
-        {
-          "id": "swift",
-          "target": "swift",
-          "rootsFile": "examples/swift.hxml",
-          "haxeArgs": ["-D", "swift-test-import=Codec"],
-          "build": { "args": ["-swift-version", "5"] }
+          "build": { "args": ["-Xallow-kotlin-package"] },
+          "package": { "name": "boring-codec", "version": "0.1.0" }
         }
+        // Other configurations omitted.
       ]
     }
 
@@ -1061,7 +1056,7 @@ file. The stock Haxe target uses the output paths in its roots HXML.
   direct generation and driver packaging report the same license.
 - **The results path.** `<resultsDir>/<id>.jsonl` for each testable configuration.
 
-### The recipes, and why a project patches only `build` and `run`
+### Target recipes and project command settings
 
 One recipe per target holds the parts the defines cannot express, and
 the recipes live in boring's own source, never in the project file:
@@ -1075,12 +1070,10 @@ the recipes live in boring's own source, never in the project file:
 | `swift` | `swiftc`: the library, then the test executable against it | the executable | nothing |
 | `dart` | none | `dart <gen-tests>/main.dart` | nothing |
 
-A project shapes a step through `build.args`, `run.args`,
-`build.env`, and `run.env`. That is the whole override scope, and
-that scope is deliberate: the values a site needs (a compiler wrapper, a
-library path, a memory bound, a per-test timeout budget) cannot be
-derived from the compilation, so they ride the command line or the
-environment. Boring's own `boring.json` patches the haxe configuration's
+A project adds arguments and environment variables to a recipe through
+`build` and `run`. It can specify a separate command with `afterGen` when
+generated code must run to write an artifact. Boring's own `boring.json` adds
+the haxe configuration's
 build arguments this way, and the swift configuration passes
 `-D swift-test-import=<module>` through `haxeArgs` because the swift
 recipe reads the library module name from that define. The recipe also
@@ -1091,7 +1084,7 @@ copy in the project file. The driver reads the chain in haxe's own
 order, and a later define wins; `haxeArgs` always overrides the
 chain.
 
-### The five actions
+### Run the project commands
 
 Each action is one command from the project root:
 
@@ -1100,23 +1093,41 @@ Each action is one command from the project root:
     boring pack <id>...
     boring compare
     boring verify [--with-pack]
+    boring roots <sourceSet> --output <file>
 
-`gen` compiles each named configuration through the target's generation
-defines, leaves the two directories, then runs `afterGen` when configured.
-`test` runs each named testable
-configuration's generated output through the recipe's build and run steps and
-writes `<resultsDir>/<id>.jsonl`; explicitly naming a configuration with
-`test: false` is an error. `pack` runs generation with artifact defines and
-the configured `afterGen`; it requires `package` on every named configuration.
-`compare` reads each
-comparison-enabled configuration's results file and applies the `features/19`
-comparison rules with `baseline` as the reference. The baseline must be
-testable and comparison-enabled. `compare: true` requires `test: true`.
-`verify` runs `gen` for every configuration, then `test` for each
-testable configuration, then `compare`, and stops at the first failure;
-`--with-pack` appends `pack` for configurations that declare `package`.
-Exit status is 0 when every action the invocation ran succeeded, and a
-failure names the configuration and the action.
+Use `gen <id>` to compile one target configuration. The driver reads its
+`rootsFile`, adds any selected `sourceSet`, and writes translated code under
+`<outRoot>/<id>/gen` and generated tests under
+`<outRoot>/<id>/gen-tests`. A stock Haxe configuration takes its JavaScript
+output path from its roots HXML. If the configuration declares `afterGen`,
+the driver runs that command after Haxe succeeds.
+
+Run `test <id>` after `gen <id>`. The driver builds and runs the generated
+tests with the target's recipe and writes `<resultsDir>/<id>.jsonl`. It
+removes any older result first. Setting `"test": false` makes an explicit
+`test` request fail for that id.
+
+Use `compare` after the required tests have written their result files. It
+reads configurations with `"compare": true` and checks their test IDs,
+outcomes, and failure messages against `baseline` using `features/19`.
+Missing result files fail the command. `compare` defaults to the value of
+`test`, so `"compare": false` leaves generation and testing enabled while
+excluding that result from baseline comparison. The baseline must have both
+`test` and `compare` enabled.
+
+Use `verify` to run `gen` for every configuration, `test` for those with
+tests, and then `compare`. The command stops on the first failure.
+`verify --with-pack` also packages configurations that declare `package`
+after comparison succeeds.
+
+Use `pack <id>` to rerun Haxe generation with package defines. It also runs
+`afterGen` when configured. The configuration must declare `package.name`
+and `package.version`; the compiler writes the distribution artifacts.
+
+Use `roots <sourceSet> --output <file>` to write the source set's package
+macros and module roots to an HXML include. This command does not run Haxe
+or add a configuration's `rootsFile`. It replaces the requested file through
+a sibling temporary file.
 
 Boring's four f32 configurations use `compare: false` because their current
 test ID sets and applicability differ from the binary64 baseline. `verify`
@@ -1125,6 +1136,8 @@ until the tests converge.
 
 `--project <file>` (or `--project=<file>`) names a project file at
 another path; the default is `boring.json` in the working directory.
+Relative paths inside it, including `--output`, resolve from the directory
+containing that file.
 
 ### The results contract
 
@@ -1185,18 +1198,12 @@ root, run it against the project file:
     boring compare --project /path/to/consumer/boring.json
     boring roots tests --project /path/to/consumer/boring.json --output engine-haxe/targets/classes.hxml
 
-`gen`, `test` and `pack` take configuration ids; an action
-named no id stops with an error. `compare` uses the project's
-comparison-enabled configurations; `verify` generates every configuration,
-tests the testable ones, then compares the comparison-enabled ones. Paths inside
-the project file resolve against the directory holding the project
-file, so the driver, the consumer tree, and the boring checkout can
-sit apart. A consumer roots file owns its own classpaths and macro
-calls, exactly like boring's `examples/ts.hxml` does: the driver adds
-only the classpaths of `sourceRoots` and the derived defines, so
-macros that read files by path (the pinned Unicode data, the test
-collector) resolve relative to the project root, because the driver
-runs Haxe steps there.
+`gen`, `test` and `pack` require configuration ids. Paths in the project file
+and the `roots` output path resolve against the directory containing
+`boring.json`, so the driver can run a project in another checkout. The driver
+passes `sourceRoots` as Haxe classpaths, includes the effective `rootsFile`,
+adds the selected `sourceSet`, and appends target defines. Haxe runs from the
+project root, so macros that read relative paths use that root.
 
 ### Known pitfalls
 
@@ -1214,12 +1221,9 @@ runs Haxe steps there.
   the budget per configuration through the run step's environment:
   `"run": { "env": { "BORING_TEST_TIMEOUT_MS": "60000" } }`. Boring's
   own suite and tiqian both hit this with long-running cases.
-- Every target toolchain the invoked configurations need must be on
-  `PATH`. A shell that lacks one stops the run with an error such as
-  `Executable not found in $PATH: "dart"`; the tiqian development
-  shell originally shipped without `dart` and `kotlinc` and hit
-  exactly that. Enter boring's `nix develop` (it carries the
-  toolchains) or install the missing compilers before running the
+- Every invoked target needs its build and run tools on `PATH`. For example,
+  `test dart` needs `dart`, and `test kotlin` needs `kotlinc` and `java`.
+  Enter a development shell that provides the tools before running the
   driver.
 - The generated trees sit inside gitignored directories
   (`reference/<id>/gen` and `reference/<id>/gen-tests` for boring

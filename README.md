@@ -57,20 +57,19 @@ here; this repository needs none of them.
     nix develop -c bash -c "bun install"
     nix develop -c bash -c "bun run verify"
 
-`verify` drives the project driver of feature spec 59 over the
-project file `boring.json` (gen, test, and compare for the haxe, ts,
-kotlin, dart, rust, and swift target configurations; the generated trees are written to the gitignored
-`reference/<id>/gen` and `reference/<id>/gen-tests` directories), then
-runs the TypeScript tests, the Haxe checks, the Kotlin checks, the
-interception suite, the Rust tests, ESLint, `tsc`,
-the documentation style check, the vector regeneration, and the reflaxe
-smoke compile. See
-`AGENT.md` for the individual commands and the repository rules.
+`bun run verify` first runs `boring verify` over this repository's
+`boring.json`. That command generates all ten target configurations, tests
+them, and compares the six binary64 configurations with Kotlin as the
+baseline. The four f32 configurations run tests but have `compare: false`.
+Generated code goes under the gitignored `reference/<id>/gen` and
+`reference/<id>/gen-tests` directories. The script then runs repository
+tests, cross-target driver checks, linting, type checking, documentation
+checks, vector regeneration, and a reflaxe smoke compile. See `AGENT.md`
+for the individual commands and repository rules.
 
-The project driver itself (its `boring.json` project file, the five
-actions `gen / test / pack / compare / verify`, and the recipes behind
-them) is documented in the *Project driver* section of
-[docs/tutorial.md](docs/tutorial.md).
+The `boring` command also supports `gen <id>`, `test <id>`, `compare`,
+`pack <id>`, and `roots <sourceSet> --output <file>`. The [project driver
+tutorial](docs/tutorial.md) explains the inputs and results of each command.
 
 ## Data comparison and commits
 
