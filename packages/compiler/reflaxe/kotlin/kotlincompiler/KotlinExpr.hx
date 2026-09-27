@@ -761,7 +761,7 @@ class KotlinExpr {
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
             case TVar(v, init) if (init != null):
                 final kw = mutated.exists(v.id) ? "var" : "val";
-#if boring_fold_debug
+#if kotlin_fold_debug
                 if (mutated.exists(v.id))
                     emissionTrace("MUTDECL", localName(v), Context.currentPos());
 #end
@@ -840,7 +840,7 @@ class KotlinExpr {
                     initText = extractAtDecl ? intToFloatText("(" + initText + ")!!") : intToFloatText(initText);
                     return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
                 }
-#if boring_fold_debug
+#if kotlin_fold_debug
                 if (extractAtDecl)
                     emissionTrace("DECL", initText, e.pos);
 #end
@@ -920,7 +920,7 @@ class KotlinExpr {
                         var retText = expr(ret);
                         functionTypeExpected = wasFunctionTypeExpected;
                         if (rendersNullable(ret) && !isNullType(currentReturnType) && !currentReturnAllowsNullable) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                             emissionTrace("RETURN", retText, ret.pos);
 #end
                             retText = hardenAppend(retText, "!!");
@@ -1374,7 +1374,7 @@ class KotlinExpr {
                 // still extracts; the safe-call form yields Int? and Kotlin
                 // rejects it as a range endpoint (NonNullRangeBound).
                 if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                     emissionTrace("LOOP_BOUND", expr(subj), subj.pos);
 #end
                     return expr(subj) + "?." + suffix + "!!";
@@ -2151,7 +2151,7 @@ class KotlinExpr {
         if (isIntOrLongType(emittedType(r)) && isFloatType(l.t))
             value = intToFloatText(value);
         if (!isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!")) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("ASSIGN", value, r.pos);
 #end
             value = hardenAppend(value, "!!");
@@ -2475,7 +2475,7 @@ class KotlinExpr {
                 // (ComparisonOperandProof)
                 final lp = proofFor(cl);
                 final rp = proofFor(cr);
-#if boring_fold_debug
+#if kotlin_fold_debug
                 Sys.stderr().writeString("CONDPROOF-CMP locals=" + lp.locals.concat(rp.locals).join(",") + "\n");
 #end
                 return {thenPath: {locals: lp.locals.concat(rp.locals), fields: lp.fields.concat(rp.fields)}, elsePath: empty()};
@@ -2583,7 +2583,7 @@ class KotlinExpr {
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj)))) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
             addProofExpr(subj);
@@ -2630,7 +2630,7 @@ class KotlinExpr {
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
         if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
             return "!!.";
@@ -3306,7 +3306,7 @@ class KotlinExpr {
         if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull && !widenedExtracted
             && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("OPERAND proven=" + (provenNonNull(e) || guardProofBefore(e)) + " id=" + (switch (stripWrap(e).expr) { case TLocal(v): Std.string(v.id); case _: "f"; }) + " nullInit=" + nullInit, rendered, e.pos);
 #end
             rendered = hardenAppend(rendered, "!!");
@@ -4369,7 +4369,7 @@ class KotlinExpr {
                     // A receiver whose rendered value is nullable unwraps so
                     // the captured `_s` is a plain String; a non-null String
                     // needs no assertion. (CharCodeAtReceiverExtraction)
-#if boring_fold_debug
+#if kotlin_fold_debug
                     if (rendersNullable(subj))
                         emissionTrace("CHARCODE", expr(subj), subj.pos);
 #end
@@ -4815,13 +4815,13 @@ class KotlinExpr {
             if (!isNullInitialized(a))
                 addProofExpr(a);
             if (provenNonNull(a) || guardProofBefore(a)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                 emissionTrace("ARG_ASSERT", text, a.pos);
 #end
                 return hardenAppend(text, "!!");
             }
             else {
-#if boring_fold_debug
+#if kotlin_fold_debug
                 emissionTrace("ARG_ELVIS", text, a.pos);
 #end
                 return hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
@@ -4868,13 +4868,13 @@ class KotlinExpr {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     if (provenNonNull(a) || guardProofBefore(a)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                         emissionTrace("CTOR_ASSERT", text, a.pos);
 #end
                         hardenAppend(text, "!!");
                     }
                     else {
-#if boring_fold_debug
+#if kotlin_fold_debug
                         emissionTrace("CTOR_ELVIS", text, a.pos);
 #end
                         hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
@@ -4924,7 +4924,7 @@ class KotlinExpr {
         if (extractedNonNullFieldRead(e))
             return false;
         final effectiveProven = smartCastable && proven;
-#if boring_fold_debug
+#if kotlin_fold_debug
         Sys.stderr().writeString("REQNONNULL [" + rendered + "]"
             + " isNullType=" + (isNullType(e.t) && !effectiveProven)
             + " isNullableType=" + (PolicyQueries.isNullableType(e.t) && !effectiveProven)
@@ -5356,7 +5356,7 @@ class KotlinExpr {
     }
 
     public function localName(v:TVar):String {
-#if boring_fold_debug
+#if kotlin_fold_debug
         if (v.name == "faceTop")
             Sys.stderr().writeString("FACELOCAL id=" + v.id + "\n");
 #end
