@@ -1016,14 +1016,14 @@ rules:
           "id": "ts",
           "target": "ts",
           "rootsFile": "examples/ts.hxml",
-          "package": { "name": "boring-codec", "version": "0.1.0" }
+          "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
         },
         {
           "id": "kotlin",
           "target": "kotlin",
           "rootsFile": "examples/kotlin.hxml",
           "build": { "args": ["-Xallow-kotlin-package"] },
-          "package": { "name": "boring-codec", "version": "0.1.0" }
+          "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
         }
         // Other configurations omitted.
       ]
