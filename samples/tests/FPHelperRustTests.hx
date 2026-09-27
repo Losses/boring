@@ -11,7 +11,7 @@ class FPHelperRustTests {
     public static function valueOf():Void {
         #if rust_output
         // i32ToFloat is a bit reinterpretation (like TS/Dart/Kotlin), so
-        // i32ToFloat(42) is the denormal whose raw bits are 42, not 42.0;
+        // i32ToFloat(42) is the denormal whose raw bits are 42 (never 42.0);
         // the round-trip through floatToI32 must reproduce those bits.
         Test.equals(42, FPHelper.floatToI32(FPHelperRustOps.valueOf(42)));
         #end
