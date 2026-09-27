@@ -784,6 +784,78 @@ class PolicyQueries {
         return entries.join(";");
     }
 
+    /**
+        Unification fallback for the exact-signature structTypedefs lookup.
+
+        An object-literal field expression may carry one more Null wrapper
+        than the typedef field it unifies with: `map.get(key)` on a
+        `Map<String, Null<String>>` is `Null<Null<String>>`, so the literal
+        `{ renderFontFamily: map.has(k) ? map.get(k) : null }` keeps a
+        `Null<Null<String>>` field type on its anonymous structure even though
+        Haxe accepts it against a `Null<String>` typedef field. The printed
+        signature of that inflated type differs from the registered one and
+        the exact lookup misses. Match by identical field-name sets where
+        every literal field type unifies with the typedef field type; keep the
+        strict miss when two registered typedefs fit equally well.
+    **/
+    public static function matchStructTypedefByUnification(anon:Ref<AnonType>, registry:Map<String, {module:String, name:String}>):Null<{module:String, name:String}> {
+        final lit = anon.get();
+        final litTypes = [for (f in lit.fields) f.name => f.type];
+        var best:Null<{module:String, name:String}> = null;
+        for (entry in registry) {
+            final tdefAnon = typedefAnonFields(entry);
+            if (tdefAnon == null)
+                continue;
+            final fields = tdefAnon.get().fields;
+            if (fields.length != lit.fields.length)
+                continue;
+            var ok = true;
+            for (f in fields) {
+                final litType = litTypes.get(f.name);
+                if (litType == null || !Context.unify(litType, f.type)) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok)
+                continue;
+            if (best != null)
+                return null;
+            best = entry;
+        }
+        return best;
+    }
+
+    static function typedefAnonFields(entry:{module:String, name:String}):Null<Ref<AnonType>> {
+        var found:Null<Type> = null;
+        try {
+            for (t in Context.getModule(entry.module)) {
+                switch (t) {
+                    case TType(def, _) if (def.get().name == entry.name):
+                        found = t;
+                    case _:
+                }
+            }
+        } catch (_:Any) {
+            return null;
+        }
+        if (found == null)
+            return null;
+        var cur = found;
+        for (_ in 0...16) {
+            cur = Context.follow(cur);
+            switch (cur) {
+                case TType(def, _):
+                    cur = def.get().type;
+                case TAnonymous(an):
+                    return an;
+                case _:
+                    return null;
+            }
+        }
+        return null;
+    }
+
     public static function isStringSubject(e:TypedExpr):Bool {
         return switch (Context.follow(ExpressionPredicates.stripCast(e).t)) {
             case TInst(c, _): c.get().name == "String";
