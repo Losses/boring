@@ -98,6 +98,9 @@ class TsExpr {
     /** Variables whose init is nullable but should be narrowed with ! */
     final nullableBindings:Map<Int, Bool> = [];
 
+    /** Locals that are optional parameters, whose TS type carries undefined. */
+    final optionalParamLocals:Map<Int, Bool> = [];
+
     final hiddenNames:Map<Int, String> = [];
     var hiddenCounter:Int = 0;
     var hoistCounter:Int = 0;
@@ -391,6 +394,11 @@ class TsExpr {
         };
         activeLoopParseHoists = null;
         parseHelperOrdinal = 0;
+        optionalParamLocals.clear();
+        for (a in f.args) {
+            if (a.opt && a.tvar != null)
+                optionalParamLocals.set(a.tvar.id, true);
+        }
 
         prepareLocals(f.expr);
         return blockLines(statementsOf(f.expr), 2);
@@ -412,7 +420,7 @@ class TsExpr {
             return expr(ret);
         }
         final rendered = expr(ret);
-        return PolicyQueries.isNullableType(ret.t) && !StringTools.endsWith(rendered, "!") ? rendered + "!" : rendered;
+        return (PolicyQueries.isNullableType(ret.t) || argCarriesNull(ret)) && !StringTools.endsWith(rendered, "!") ? rendered + "!" : rendered;
     }
 
     /** Body lowering shared by value-wrapper member functions. */
@@ -1406,7 +1414,7 @@ class TsExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
-                return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
+                return map == null ? assignTarget(l) + " = " + fieldAssignmentRhs(l, r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
             case OpAssignOp(inner):
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpAdd:
@@ -2549,6 +2557,10 @@ class TsExpr {
             case TFun(p, _): [for (x in p) x.t];
             case _: [];
         };
+        final paramOpts = target == null ? [] : switch (Context.follow(target.type)) {
+            case TFun(p, _): [for (x in p) x.opt];
+            case _: [];
+        };
         return [
             for (i in 0...args.length) {
                 final expected = i < typesOf.length ? typesOf[i] : null;
@@ -2559,14 +2571,113 @@ class TsExpr {
                     + expr(args[i])
                     + " ?? "
                     + defaultArgText(d, expected)
-                    + ")" else expr(args[i]);
+                    + ")" else requiredArgText(args[i], expected, trailingOptionalAt(paramOpts, i));
             }
         ];
+    }
+
+    /**
+        Whether the target parameter at `i` renders with the optional `?`
+        (and therefore accepts undefined). A front-optional parameter is
+        optional in Haxe but rendered required in TypeScript (a required
+        parameter cannot follow an optional one), so the trailing-optional
+        rule is what the emitted signature actually carries.
+    **/
+    function trailingOptionalAt(paramOpts:Array<Bool>, i:Int):Bool {
+        for (j in i...paramOpts.length) {
+            if (!paramOpts[j])
+                return false;
+        }
+        return true;
+    }
+
+    /**
+        Renders a call argument that is not covered by a coalescing default.
+        When the argument's TypeScript type carries a null or undefined
+        component the target parameter does not accept, the non-null
+        assertion restates the Haxe narrowing (the call compiles only when
+        Haxe proved the value non-null) and satisfies the strict reading.
+        The `!` is erased at runtime, so it never changes behavior.
+        (RequiredArgUnwrap)
+    **/
+    function requiredArgText(a:TypedExpr, expected:Null<Type>, targetOpt:Bool):String {
+        final rendered = expr(a);
+        if (StringTools.endsWith(rendered, "!"))
+            return rendered;
+        final hasNull = argCarriesNull(a);
+        final hasUndefined = argCarriesUndefined(a);
+        final targetAcceptsNull = expected != null && isNullType(expected);
+        final targetAcceptsUndefined = targetOpt;
+        if ((hasNull && !targetAcceptsNull) || (hasUndefined && !targetAcceptsUndefined))
+            return "(" + rendered + ")!";
+        return rendered;
+    }
+
+    /**
+        Whether an argument's rendered TypeScript type can carry null. The
+        Haxe type alone is not enough: a runtime method (e.g. SortedTable.get)
+        renders nullable even when the Haxe return type is non-null, so the
+        shape is walked for nullable leaves (a nullable field read, a ternary
+        with a nullable branch). (RequiredArgNullShape)
+    **/
+    function argCarriesNull(e:TypedExpr):Bool {
+        if (isNullType(e.t) || isNullLiteral(e))
+            return true;
+        return switch (stripWrap(e).expr) {
+            case TIf(_, t, f) if (f != null): argCarriesNull(t) || argCarriesNull(f);
+            case TField(_, FInstance(_, _, cf)): isNullType(cf.get().type);
+            case TField(_, FAnon(cf)): isNullType(cf.get().type);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): argCarriesNull(inner);
+            case _: false;
+        };
+    }
+
+    /**
+        Whether an argument's rendered TypeScript type can carry undefined,
+        which comes from optional parameters (the `?` on the declaration).
+        A ternary with an optional-parameter branch inherits it.
+        (RequiredArgUndefinedShape)
+    **/
+    function argCarriesUndefined(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): optionalParamLocals.exists(v.id);
+            case TIf(_, t, f) if (f != null): argCarriesUndefined(t) || argCarriesUndefined(f);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): argCarriesUndefined(inner);
+            case _: false;
+        };
+    }
+
+    /**
+        Renders the right-hand side of a field assignment (`this.f = v`). A
+        field never carries undefined in its declared TypeScript type, so an
+        optional-parameter value (which does) is unwrapped; a nullable value
+        is unwrapped when the field is declared non-null. The `!` is erased at
+        runtime, so behavior is unchanged. (FieldAssignmentUnwrap)
+    **/
+    function fieldAssignmentRhs(l:TypedExpr, r:TypedExpr):String {
+        final rendered = expr(r);
+        if (StringTools.endsWith(rendered, "!"))
+            return rendered;
+        final fieldType = switch (stripWrap(l).expr) {
+            case TField(_, FInstance(_, _, cf)): cf.get().type;
+            case _: null;
+        };
+        if (fieldType == null)
+            return rendered;
+        final needsNull = argCarriesNull(r) && !isNullType(fieldType);
+        final needsUndefined = argCarriesUndefined(r);
+        if (needsNull || needsUndefined)
+            return "(" + rendered + ")!";
+        return rendered;
     }
 
     function constructorArgTexts(cls:ClassType, args:Array<TypedExpr>):Array<String> {
         final ps = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
             case TFun(p, _): [for (x in p) x.t];
+            case _: [];
+        };
+        final paramOpts = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(p, _): [for (x in p) x.opt];
             case _: [];
         };
         final rendered = [for (i in 0...args.length) {
@@ -2579,7 +2690,7 @@ class TsExpr {
             + expr(args[i])
             + " ?? "
             + constructorDefaultText(d, p, cls, args)
-            + ")" : expr(args[i]);
+            + ")" : requiredArgText(args[i], p, trailingOptionalAt(paramOpts, i));
         }
         ];
         // A call may omit parameters that the emitted signature renders as
@@ -3491,8 +3602,11 @@ class TsExpr {
                     scopedLocalNames.set(v.id, count == 1 ? v.name : v.name + count);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
-                // Mark nullable bindings for non-null assertion
-                if (init != null && PolicyQueries.isNullableType(stripWrap(init).t) && !PolicyQueries.isNullableType(v.t)) {
+                // Mark nullable bindings for non-null assertion. A bare null
+                // literal init (a Haxe `var x:T = null` that later narrows)
+                // carries a non-Null-abstract type, so the literal is checked
+                // explicitly alongside the Null<T> type test.
+                if (init != null && (PolicyQueries.isNullableType(stripWrap(init).t) || isNullLiteral(init)) && !PolicyQueries.isNullableType(v.t)) {
                     nullableBindings.set(v.id, true);
                 }
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
