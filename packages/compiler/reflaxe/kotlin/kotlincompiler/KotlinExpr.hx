@@ -1631,6 +1631,12 @@ class KotlinExpr {
                 // Number & Comparable<*>, which cannot satisfy a Float result.
                 final branchThen = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(thenText) : thenText;
                 final branchElse = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(elseText) : elseText;
+                // A widened arm renders a Float value inside the if: the
+                // rendered if expression is Float, so an outer widening at
+                // an argument or assignment boundary would repeat the
+                // conversion. (WideningIdempotence)
+                if (branchThen != thenText || branchElse != elseText)
+                    floatRenderedBinops.set(Std.string(e.pos), true);
                 return "(if (" + condition + ") " + branchThen + " else " + branchElse + ")";
             case TSwitch(_, _, _):
                 return switchExpression(e);
