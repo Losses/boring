@@ -5023,6 +5023,8 @@ class DartExpr {
                 "FileSystemEntity.isDirectorySync(" + p + ")";
             case "deleteFile":
                 "File(" + p + ").deleteSync()";
+            case "rename":
+                "File(" + p + ").renameSync(" + expr(args[1]) + ")";
             case _:
                 fail(fn, "std.Fs has no lowering for member " + name);
                 "null";

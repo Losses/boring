@@ -956,6 +956,7 @@ Fields of the project object:
 | `resultsDir` | no | Directory the per-configuration results files are written to. Default `out/test-results`. |
 | `baseline` | yes | The `id` of a comparison-enabled configuration `compare` treats as the baseline. |
 | `sourceRoots` | yes | Classpaths of the project's Haxe sources, passed as `-cp`. |
+| `sourceSets` | no | Named source selections with `packages`, `types`, and `discover` lists. |
 | `rootsFile` | no | An hxml file listing the root types to compile, passed as an include. A configuration may override it with its own `rootsFile`. |
 | `haxeArgs` | no | Extra haxe arguments applied to every configuration. |
 | `bundles` | yes | A non-empty array of target configurations. The field name remains for compatibility. |
@@ -966,6 +967,7 @@ Fields of a target configuration:
 | --- | --- | --- |
 | `id` | yes | Unique in the file. It is also the results file stem and the output directory name. |
 | `target` | yes | One of `haxe`, `ts`, `kotlin`, `rust`, `swift`, `dart`. |
+| `sourceSet` | no | Name of a source set; its roots are added to any `rootsFile` roots. |
 | `precision` | no | `f32`, or absent for binary64. |
 | `test` | no | `false` for a generation-only configuration; defaults to `true`. |
 | `compare` | no | `false` to keep generation and testing while excluding this configuration from baseline comparison; defaults to the value of `test`. |
@@ -975,6 +977,18 @@ Fields of a target configuration:
 | `build` | no | `{ "args": [...], "env": {...} }`, added to the recipe's build step. |
 | `run` | no | `{ "args": [...], "env": {...} }`, added to the recipe's run step. |
 | `package` | no | `{ "name": "...", "version": "...", "license": "..." }`, the `features/24` and `features/25` identity. `name` and `version` are required for `pack`; optional `license` must be a nonempty string. |
+
+For example, `"sourceSets": { "tests": { "types": ["app.Main"],
+"discover": [{ "root": "src", "packages": ["app.tests"], "suffix":
+"Test" }] } }` selects `app.Main` and direct `.hx` modules in
+`src/app/tests` whose names end in `Test`. The driver sorts discovered module
+paths before passing them to Haxe. `packages` adds all direct modules of
+each listed package through `haxe.macro.Compiler.include`; it does not
+recurse into child packages. The compiler rejects a missing package.
+The driver rejects unknown source-set names, duplicate entries, empty
+selections, discovery directories with no matching modules, and discovery
+roots that leave the project directory.
+`rootsFile` continues to work and can be used with a source set.
 
 A complete example, abbreviated from boring's own `boring.json`:
 
@@ -1169,6 +1183,7 @@ root, run it against the project file:
     boring gen <id>... --project /path/to/consumer/boring.json
     boring test <id>... --project /path/to/consumer/boring.json
     boring compare --project /path/to/consumer/boring.json
+    boring roots tests --project /path/to/consumer/boring.json --output engine-haxe/targets/classes.hxml
 
 `gen`, `test` and `pack` take configuration ids; an action
 named no id stops with an error. `compare` uses the project's

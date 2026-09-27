@@ -33,4 +33,7 @@ extern class Fs {
 
     /** Delete a regular file. Raises on failure. */
     public static function deleteFile(path:String):Void;
+
+    /** Rename a path, replacing an existing regular file destination. Raises on failure. */
+    public static function rename(from:String, to:String):Void;
 }

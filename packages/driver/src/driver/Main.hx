@@ -144,7 +144,54 @@ class Main {
     static function genArgs(project:Project, bundle:Bundle, pack:Bool):Array<String> {
         final packageTsc = pack && bundle.target == "ts" ? resolvePackTool("BORING_PACKAGE_TSC", "tsc", bundle) : null;
         final packageKotlinc = pack && bundle.target == "kotlin" ? resolvePackTool("BORING_PACKAGE_KOTLINC", "kotlinc", bundle) : null;
-        return Plan.genArgs(project, bundle, pack, genDir(project, bundle), genTestsDir(project, bundle), packageTsc, packageKotlinc);
+        return Plan.genArgs(project, bundle, pack, genDir(project, bundle), genTestsDir(project, bundle), packageTsc, packageKotlinc,
+            discoverSourceTypes(project, bundle.sourceSet));
+    }
+
+    static function discoverSourceTypes(project:Project, setName:String):Array<String> {
+        final selected = Plan.sourceSet(project, setName);
+        if (selected == null) return [];
+        final found:Array<String> = [];
+        for (rule in selected.discover) {
+            for (pack in rule.packages) {
+                final directory = resolveAgainst(project.root, joinPath(rule.root, pack.split(".").join("/")));
+                if (!exists(directory) || !Host.isDirectory(directory)) {
+                    fail('source set "$setName": discover directory does not exist: $directory');
+                    return [];
+                }
+                final entries:Array<String> = [];
+                for (entry in Host.readDir(directory)) {
+                    if (!Host.isDirectory(joinPath(directory, entry))) entries.push(entry);
+                }
+                final matches = Plan.discoverTypes(pack, rule.suffix, entries);
+                if (matches.length == 0) {
+                    fail('source set "$setName": no modules ending in "${rule.suffix}" under $directory');
+                    return [];
+                }
+                for (typePath in matches) found.push(typePath);
+            }
+        }
+        return Plan.sortedUnique(found);
+    }
+
+    static function actionRoots(project:Project, setName:String, outputPath:String):Void {
+        final selected = Plan.sourceSet(project, setName);
+        if (selected == null) {
+            fail('unknown source set "$setName"');
+            return;
+        }
+        final output = resolveAgainst(project.root, outputPath);
+        makeDirs(Host.dirname(output));
+        final contents = Plan.rootsContents(selected, discoverSourceTypes(project, setName));
+        var suffix = 0;
+        var temporary = output + ".tmp-" + suffix;
+        while (exists(temporary)) {
+            suffix++;
+            temporary = output + ".tmp-" + suffix;
+        }
+        Host.writeText(temporary, contents);
+        Host.rename(temporary, output);
+        print('[roots] $setName -> $output');
     }
 
     /**
@@ -460,6 +507,7 @@ class Main {
         final rawArgs = Host.args();
         var projectPath = "boring.json";
         var withPack = false;
+        var outputPath = "";
         final rest:Array<String> = [];
         var i = 0;
         while (i < rawArgs.length) {
@@ -482,11 +530,22 @@ class Main {
                 i++;
                 continue;
             }
+            if (arg == "--output") {
+                if (i + 1 >= rawArgs.length) fail("--output needs a file path");
+                outputPath = rawArgs[i + 1];
+                i += 2;
+                continue;
+            }
+            if (StringTools.startsWith(arg, "--output=")) {
+                outputPath = arg.substr("--output=".length);
+                i++;
+                continue;
+            }
             rest.push(arg);
             i++;
         }
         if (rest.length == 0) {
-            printErr("Usage: boring <gen|test|pack|compare|verify> [<target configuration id>...] [--project <file>] [--with-pack]");
+            printErr("Usage: boring <gen|test|pack|compare|verify|roots> [<id>...] [--project <file>] [--with-pack] [--output <file>]");
             exit(2);
             return;
         }
@@ -498,6 +557,14 @@ class Main {
             idIndex++;
         }
         final project = loadProject(projectPath);
+        if (action == "roots") {
+            if (ids.length != 1) fail("roots needs exactly one source set name");
+            if (outputPath == "") fail("roots needs --output <file>");
+            actionRoots(project, ids[0], outputPath);
+            print("bundle driver: ok");
+            return;
+        }
+        if (outputPath != "") fail("--output is only accepted by roots");
         final known:Array<String> = [];
         for (bundle in project.bundles) known.push(bundle.id);
         if (action == "gen") {
@@ -514,7 +581,7 @@ class Main {
         } else if (action == "verify") {
             actionVerify(project, withPack);
         } else {
-            fail('unknown action "$action"; the actions are gen, test, pack, compare, verify');
+            fail('unknown action "$action"; the actions are gen, test, pack, compare, verify, roots');
         }
         print("bundle driver: ok");
     }
