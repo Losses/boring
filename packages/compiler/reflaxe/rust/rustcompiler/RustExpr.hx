@@ -13517,7 +13517,16 @@ class RustExpr {
                 case _: fail(e, "assignment target has no Rust lowering");
             };
         }, (subj, kind, _) -> switch (kind) {
-            case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + RustImports.toSnakeCase(cf.get().name);
+            case Instance(_, cf) | Anonymous(cf):
+                // (IndexElementFieldWrite) A field assignment through an array
+                // element must reach the element in place, through the mutable
+                // index path, so the field write acts on the Vec element rather
+                // than a value-read clone that is dropped.
+                final subjText = switch (stripWrap(subj).expr) {
+                    case TArray(arr, idx): optionContainerIndexAccess(arr, idx, true);
+                    case _: expr(subj);
+                };
+                subjText + "." + RustImports.toSnakeCase(cf.get().name);
         },
             v -> {
             // A shared closure scalar writes through the dereferenced guard;
