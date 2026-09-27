@@ -134,25 +134,17 @@ impl FPHelper {
         else { format!("{}e{}{}", mantissa, if sci >= 0 { "+" } else { "" }, sci) }
     }
 
+    // The two 64-bit FPHelper value edges carry the binary32 bit pattern,
+    // like every other backend: floatToI32 reads the f32 bit pattern
+    // instead of truncating toward zero, and i32ToFloat reinterprets
+    // the i32 as raw binary32 bits instead of widening numerically
+    // (feature spec 23; FpText round-trips compare bit patterns).
     pub fn float_to_i32(v: f64) -> i32 {
-        v as i32
+        (v as f32).to_bits() as i32
     }
 
     pub fn i32_to_float(v: i32) -> f64 {
-        v as f64
-    }
-
-    // Numeric binary32 variants of the two 32-bit value edges: integer
-    // truncation toward zero and integer-to-real widening, matching the
-    // value semantics of float_to_i32/i32_to_float. The bit
-    // reinterpretation pair below keeps its wire semantics and is not
-    // referenced by the FPHelper lowering (feature spec 23).
-    pub fn float_to_i32_f32(v: f32) -> i32 {
-        v as i32
-    }
-
-    pub fn i32_to_float_f32(v: i32) -> f32 {
-        v as f32
+        f32::from_bits(v as u32) as f64
     }
 
     pub fn f32_to_i32(v: f32) -> i32 {
