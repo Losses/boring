@@ -2371,10 +2371,10 @@ class SwiftExpr {
                         case _: false;
                     };
                     if (!isNullLeafType(declared) && !optionalBinding) {
-                        // Observable signal at the fold site, not an error: the
-                        // fold itself is required (Swift rejects the comparison),
-                        // the warning only makes a silently weakened test visible
-                        // where it happens. (NonOptionalNilComparison)
+                        // Observable signal at the fold site; the fold itself is
+                        // required (Swift rejects the comparison), and the warning
+                        // brings a silently weakened test into view where it
+                        // happens. (NonOptionalNilComparison)
                         Context.warning(
                             "NonOptionalNilComparison folded `"
                             + (op == OpNotEq ? "!= null" : "== null")
