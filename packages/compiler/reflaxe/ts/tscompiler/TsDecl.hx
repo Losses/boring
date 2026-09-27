@@ -80,7 +80,7 @@ class TsDecl {
                 final capName = f.field.name.charAt(0).toUpperCase() + f.field.name.substr(1);
                 final aliasName = '${cls.name}${capName}Fn';
                 final args = [
-                    for (a in f.args) paramText(cls, f, a, true)
+                    for (a in f.args) paramText(cls, f, a)
                 ].join(", ");
                 final ret = types.of(f.ret);
                 typeAliases.push('export type $aliasName = ($args) => $ret;');
@@ -580,15 +580,6 @@ class TsDecl {
             return '${a.name}: ${types.of(a.type)} = null';
         }
         if (isTrailingOptional(cls, f, a.index)) {
-            // A nullable-typed optional parameter takes the null default
-            // initializer instead of the question mark: Haxe folds an omitted
-            // argument to null, and the question-mark rendering admits
-            // undefined, which the body's null comparisons cannot narrow
-            // away. The initializer also runs for an omitted argument, so the
-            // observable value is the same null Haxe hands the body.
-            // (OptionalNullDefaultParam)
-            if (!inTypeAlias && PolicyQueries.isNullableType(a.type))
-                return '${a.name}: ${types.of(a.type)} = null';
             return '${a.name}?: ${types.of(a.type)}';
         }
         return '${a.name}: ${types.of(a.type)}';
@@ -602,6 +593,27 @@ class TsDecl {
             }
         }
         return true;
+    }
+
+    /**
+        A trailing optional parameter the signature renders as `name?: T | null`
+        admits undefined, which Haxe never hands the body (an omitted argument
+        folds to null). The body-top normalization restates that fold, so the
+        strict reading sees the declared `T | null` and the body's own null
+        comparisons keep narrowing. (OptionalNullableBodyNormalization)
+    **/
+    function optionalNullNormalizations(cls:ClassType, f:ClassFuncData, indent:String):Array<String> {
+        final out:Array<String> = [];
+        for (a in f.args) {
+            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null)
+                continue;
+            if (!isTrailingOptional(cls, f, a.index))
+                continue;
+            if (!PolicyQueries.isNullableType(a.type))
+                continue;
+            out.push(indent + '${a.name} = ${a.name} ?? null;');
+        }
+        return out;
     }
 
     function funcDecl(cls:ClassType, f:ClassFuncData):Array<String> {
@@ -621,7 +633,7 @@ class TsDecl {
             expr.reserveName(a.name);
         }
         final ret = types.of(f.ret);
-        final body = decodeBoundaryBody(cls, f);
+        final body = optionalNullNormalizations(cls, f, "    ").concat(decodeBoundaryBody(cls, f));
         // A function whose StringBuf parameter is mutated in the body
         // threads the mutated buffer back through the return value (the
         // TypeScript target erases StringBuf to an immutable string). The
@@ -657,7 +669,7 @@ class TsDecl {
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final vis = f.field.isPublic ? "export " : "";
         final head = '${vis}function ${f.field.name}$genericStr($args): $ret {';
-        final body = decodeBoundaryBody(cls, f);
+        final body = optionalNullNormalizations(cls, f, "").concat(decodeBoundaryBody(cls, f));
         return [head].concat(body).concat(["}"]);
     }
 
