@@ -686,3 +686,7 @@ boring.DartNullPushOps
 tests.DartNullPushTests
 boring.IntFloatSignOps
 tests.IntFloatSignTests
+
+# R1 warn-zero regression samples (one mechanism each)
+boring.FlowPromotedDedupe
+boring.GuardTernaryDeadFallback
