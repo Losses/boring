@@ -2553,8 +2553,18 @@ class KotlinExpr {
             case _:
         }
         if (!provenNonNull(subj) && !guardProofBefore(subj) && !guardedNonNullTernary(subj)
-            && (isNullType(subj.t) || isNullableRenderedField(subj)))
+            && (isNullType(subj.t) || isNullableRenderedField(subj))
+            && !extractedNonNullFieldRead(subj))
             return "?.";
+        // A field read whose Haxe type the typer widened to Null<T> only
+        // because the receiver is nullable yields the declared non-null
+        // property value once the receiver renders through an extraction:
+        // the extraction or plain-dot receiver already renders non-null, so
+        // the read needs neither a safe call nor an extraction of its own.
+        // (DeclaredFieldNonNull)
+        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)
+            && extractedNonNullFieldRead(subj))
+            return ".";
         // A safe-navigation hop widens the value produced by the whole
         // receiver chain.  The typed AST records that widened intermediate
         // field as non-null, so inspect the chain root as well; otherwise a
@@ -2609,7 +2619,27 @@ class KotlinExpr {
         var current = stripWrap(e);
         while (true) {
             switch (current.expr) {
-                case TField(subject, _):
+                case TField(subject, fa):
+                    // A hop whose own rendering extracts the subject
+                    // yields a non-null value, so the safe call must not
+                    // propagate past it. `instanceField` extracts with
+                    // `!!.` when a non-null declared property is read on
+                    // an unproven nullable subject, and the
+                    // (SafeCallHopHardening) rule hardens the same way
+                    // after an earlier safe-call hop.
+                    // (DeclaredFieldNonNull)
+                    final hopExtracted = switch (fa) {
+                        case FInstance(_, _, cf):
+                            final hopField = cf.get();
+                            fieldName(fa) != "length"
+                                && hopField.kind.match(FVar(_, _)) && !isNullType(hopField.type)
+                                && ((isNullType(subject.t) && !provenNonNull(subject) && !guardProofBefore(subject))
+                                    || (nullableChainHop(subject) && !guardProofBefore(subject)));
+                        case _:
+                            false;
+                    };
+                    if (hopExtracted)
+                        return false;
                     if ((isNullType(subject.t) || isNullableRenderedField(subject)) && nullableAccess(subject) == "?.") {
                         // A dominating condition can prove the chain root even
                         // when the intermediate field remains nullable in the
@@ -2622,6 +2652,34 @@ class KotlinExpr {
                     return false;
             }
         }
+    }
+
+    /**
+        True for a field read whose Haxe type the typer widened to Null<T>
+        only because the receiver is nullable, while the field itself
+        declares a non-null Kotlin property and the receiver renders through
+        an extraction. The extraction already rejects a null receiver, so
+        the read yields the declared non-null value: the widened Haxe type
+        must not force a safe call or a second extraction.
+        (DeclaredFieldNonNull)
+    **/
+    function extractedNonNullFieldRead(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TField(recv, FInstance(c, _, cf)):
+                final field = cf.get();
+                // (see comment below)
+                // a regular non-null declared property; the length/size
+                // lowering keeps the safe call and stays nullable.
+                // (DeclaredFieldNonNull)
+                field.name != "length"
+                    && field.kind.match(FVar(_, _))
+                    && !isNullType(field.type)
+                    && !nullableRenderedField(c.get(), field)
+                    && isNullType(recv.t)
+                    && !provenNonNull(recv) && !guardProofBefore(recv);
+            case _:
+                false;
+        };
     }
 
     function isNullableReferenceType(t:Null<Type>):Bool {
@@ -2642,8 +2700,15 @@ class KotlinExpr {
         context does not widen it back to non-null.
     **/
     function rendersNullable(e:TypedExpr):Bool {
-        if (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+        if (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e)) {
+            // A field read the typer widened to Null<T> because the
+            // receiver is nullable renders with the receiver extraction,
+            // so its value is the declared non-null property type.
+            // (DeclaredFieldNonNull)
+            if (extractedNonNullFieldRead(e))
+                return false;
             return true;
+        }
         // A null-initialized subject reads plain once the flow proves it
         // present: the proof wins over the storage shape.
         // (NullInitRespectsProof)
@@ -3155,7 +3220,12 @@ class KotlinExpr {
         // of a non-null Haxe value keeps its extraction.
         // (ConcatenationNullableArgument)
         final keepsNull = nullableArgument && isNullType(e.t) && !proven;
-        if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull
+        // A field read the typer widened to Null<T> whose rendering already
+        // extracts the receiver and reads a non-null declared property
+        // (`recv!!.member`) is non-null text: the operand needs no
+        // extraction of its own. (DeclaredFieldNonNull)
+        final widenedExtracted = extractedNonNullFieldRead(e);
+        if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull && !widenedExtracted
             && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
 #if boring_fold_debug
@@ -4766,6 +4836,12 @@ class KotlinExpr {
         if (smartCastable && proven)
             return false;
         if (StringTools.endsWith(rendered, "!!") || rendered.indexOf("?: throw") >= 0)
+            return false;
+        // A field read the typer widened to Null<T> whose rendering already
+        // extracts the receiver and reads a non-null declared property
+        // (`recv!!.member`) is non-null text: a second extraction or elvis
+        // would warn as redundant. (DeclaredFieldNonNull)
+        if (extractedNonNullFieldRead(e))
             return false;
         final effectiveProven = smartCastable && proven;
 #if boring_fold_debug
