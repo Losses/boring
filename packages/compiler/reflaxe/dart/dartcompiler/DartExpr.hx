@@ -1404,8 +1404,13 @@ class DartExpr {
                 return functionLiteral(f);
             case TIf(c, t, f) if (f != null):
                 final coalescing = coalescingSiteFor(e);
-                if (coalescing != null)
+                if (coalescing != null) {
+                    final probe = renderedNonNullValue(coalescing.valueExpr);
+                    dbgLog("coalescing probe=" + probe + " valueExpr=" + valueShape(coalescing.valueExpr) + " rendered=" + expr(coalescing.valueExpr));
+                    if (probe)
+                        return expr(coalescing.valueExpr);
                     return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
+                }
                 final guarded = nullGuardExpr(c);
                 final hasGuarded = hasGuardExpr(c);
                 // The condition renders before the branches: it is the
@@ -3285,6 +3290,13 @@ class DartExpr {
                 final isVNull = switch (d) { case VNull: true; default: false; };
                 if (isVNull && !isNullLeafType(p))
                     requiredValueText(args[i]);
+                else if (guardTernaryNonNull(args[i]))
+                    // The argument is a null-guard ternary whose both arms
+                    // dart reads non-null (the taken branch unwraps, the
+                    // default branch is a typed non-null value), so the
+                    // call-site fallback never executes.
+                    // (GuardTernaryArgNonNull)
+                    expr(args[i]);
                 else
                     "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
             } else
@@ -3356,6 +3368,11 @@ class DartExpr {
                         // apply the null assertion instead, deriving it from
                         // the slot's pre-rendered text.
                         requiredValueTextOf(padded[i], args[i]);
+                    } else if (guardTernaryNonNull(args[i])) {
+                        // A guard ternary whose arms dart reads non-null
+                        // makes the call-site fallback dead.
+                        // (GuardTernaryArgNonNull)
+                        out.push(padded[i]);
                     } else {
                         // DartCtorCallSiblingDefault: a call-site wrapper applies
                         // the callee default to the passed argument. A default
@@ -4503,6 +4520,73 @@ class DartExpr {
             case _: false;
         };
     }
+    /** TEMP diagnostic logger (removed before landing). */
+    function dbgLog(s:String):Void {
+        try {
+            final f = sys.io.File.append("/tmp/warnstd/dbg.log");
+            f.writeString(s + "\n");
+            f.close();
+        } catch (_:Dynamic) {}
+    }
+
+    /** TEMP shape dumper for diagnostics. */
+    function valueShape(e:TypedExpr):String {
+        return switch (e.expr) {
+            case TLocal(_): "Local";
+            case TField(_, _): "Field";
+            case TIf(_, _, f) if (f != null): "TIf";
+            case TBinop(op, l, r): "Binop(" + Std.string(op) + "," + valueShape(l) + "," + valueShape(r) + ")";
+            case TParenthesis(x): "Paren(" + valueShape(x) + ")";
+            case TCast(x, _): "Cast(" + valueShape(x) + ")";
+            case TMeta(_, x): "Meta(" + valueShape(x) + ")";
+            case TConst(_): "Const";
+            case _: Std.string(e.expr).substr(0, 24);
+        };
+    }
+
+    /** TEMP: whether the rendered value of a coalescing is flow non-null. */
+    function renderedNonNullValue(e:TypedExpr):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TIf(c, t, f) if (f != null):
+                final g = nullGuardExpr(c);
+                if (g == null) {
+                    dbgLog("  TIf guard=null cond=" + valueShape(c));
+                    false;
+                } else {
+                    final taken = isNotNullGuard(c) ? t : f;
+                    final other = isNotNullGuard(c) ? f : t;
+                    final same = structurallySame(taken, g);
+                    final otherNullable = PolicyQueries.isNullableType(other.t);
+                    dbgLog("  TIf same=" + same + " otherNullable=" + otherNullable + " otherShape=" + valueShape(other));
+                    same && !otherNullable;
+                }
+            case _:
+                dbgLog("  nonTIf shape=" + valueShape(inner));
+                false;
+        };
+    }
+    /**
+        Whether an argument renders as a null-guard ternary whose result
+        dart's own flow reads non-null: the guarded branch the renderer
+        unwraps (`x != null ? x! : y`) cannot produce null, and the other
+        branch carries a typed non-null value. (GuardTernaryArgNonNull)
+    **/
+    function guardTernaryNonNull(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TIf(c, t, f) if (f != null):
+                final g = nullGuardExpr(c);
+                if (g == null)
+                    false;
+                else {
+                    final taken = isNotNullGuard(c) ? t : f;
+                    final other = isNotNullGuard(c) ? f : t;
+                    structurallySame(taken, g) && !nullableValue(other);
+                }
+            case _: false;
+        };
+    }
+
     /**
         Whether two expressions render to the same Dart text. The probe
         render must not leave flow notes behind: it runs out of program
