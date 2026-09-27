@@ -65,6 +65,11 @@ the documentation style check, the vector regeneration, and the reflaxe
 smoke compile. See
 `AGENT.md` for the individual commands and the repository rules.
 
+The bundle driver itself (its `boring.json` project file, the five
+actions `gen / test / pack / compare / verify`, and the recipes behind
+them) is documented in the *Bundle driver* section of
+[docs/tutorial.md](docs/tutorial.md).
+
 ## Data comparison and commits
 
 Comparing outputs across languages uses the AST (the Haxe implementation
