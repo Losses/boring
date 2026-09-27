@@ -35,9 +35,12 @@ function run(script: string): number {
 }
 
 function median(values: number[]): number {
+  if (values.length === 0) throw new Error("median of an empty sample");
   values.sort((a, b) => a - b);
   const middle = Math.floor(values.length / 2);
-  return values.length % 2 === 0 ? Math.round((values[middle - 1] + values[middle]) / 2) : values[middle];
+  const upper = values[middle];
+  if (upper === undefined) throw new Error("median index out of range");
+  return values.length % 2 === 0 ? Math.round(((values[middle - 1] ?? upper) + upper) / 2) : upper;
 }
 
 const entries = scripts.map((script) => {
