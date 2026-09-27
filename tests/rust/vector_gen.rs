@@ -184,3 +184,44 @@ fn sort_by_code_point_is_stable_on_equal_keys() {
         }
     }
 }
+
+#[cfg(test)]
+mod protocol_regressions {
+    //! Stage1-P1 regressions from the tiqian canonical cutover: the generated
+    //! printed form for a Bytes payload must compile and render the Debug
+    //! shape, and a field-initialized BytesBuffer must construct through the
+    //! runtime type (no Default-dependent literal).
+
+    use boring_codec_gen::{BufferHolder, BytesFrame};
+    use boring_codec_gen::boring::data_class_string_compare::compare_data_class_string_compare;
+
+    #[test]
+    fn field_initialized_bytes_buffer_constructs_and_writes() {
+        let mut holder = BufferHolder::new();
+        holder.write_byte(0xAB);
+        assert_eq!(holder.finish(), vec![0xAB]);
+    }
+
+    #[test]
+    fn bytes_payload_prints_with_debug_shape() {
+        let frame = BytesFrame::Frame { data: vec![0xDE, 0xAD] };
+        assert_eq!(frame.to_string(), "Frame(data=[222, 173])");
+    }
+
+    #[test]
+    fn data_class_string_comparator_uses_the_resident() {
+        let a = boring_codec_gen::boring::data_class_string_compare::DataClassStringCompare {
+            label: String::from("a"),
+            order: 1,
+        };
+        let b = boring_codec_gen::boring::data_class_string_compare::DataClassStringCompare {
+            label: String::from("b"),
+            order: 1,
+        };
+        assert_eq!(
+            compare_data_class_string_compare(&a, &b),
+            -(compare_data_class_string_compare(&b, &a))
+        );
+        assert_eq!(compare_data_class_string_compare(&a, &a), 0);
+    }
+}
