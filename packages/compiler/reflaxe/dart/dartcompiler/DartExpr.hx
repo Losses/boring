@@ -1406,7 +1406,6 @@ class DartExpr {
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null) {
                     final probe = renderedNonNullValue(coalescing.valueExpr);
-                    dbgLog("coalescing probe=" + probe + " valueExpr=" + valueShape(coalescing.valueExpr) + " rendered=" + expr(coalescing.valueExpr));
                     if (probe)
                         return expr(coalescing.valueExpr);
                     return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
@@ -4547,30 +4546,6 @@ class DartExpr {
             case _: false;
         };
     }
-    /** TEMP diagnostic logger (removed before landing). */
-    function dbgLog(s:String):Void {
-        try {
-            final f = sys.io.File.append("/tmp/warnstd/dbg.log");
-            f.writeString(s + "\n");
-            f.close();
-        } catch (_:Dynamic) {}
-    }
-
-    /** TEMP shape dumper for diagnostics. */
-    function valueShape(e:TypedExpr):String {
-        return switch (e.expr) {
-            case TLocal(_): "Local";
-            case TField(_, _): "Field";
-            case TIf(_, _, f) if (f != null): "TIf";
-            case TBinop(op, l, r): "Binop(" + Std.string(op) + "," + valueShape(l) + "," + valueShape(r) + ")";
-            case TParenthesis(x): "Paren(" + valueShape(x) + ")";
-            case TCast(x, _): "Cast(" + valueShape(x) + ")";
-            case TMeta(_, x): "Meta(" + valueShape(x) + ")";
-            case TConst(_): "Const";
-            case _: Std.string(e.expr).substr(0, 24);
-        };
-    }
-
     /** TEMP: whether the rendered value of a coalescing is flow non-null. */
     function renderedNonNullValue(e:TypedExpr):Bool {
         final inner = stripWrap(e);
@@ -4578,18 +4553,15 @@ class DartExpr {
             case TIf(c, t, f) if (f != null):
                 final g = nullGuardExpr(c);
                 if (g == null) {
-                    dbgLog("  TIf guard=null cond=" + valueShape(c));
                     false;
                 } else {
                     final taken = isNotNullGuard(c) ? t : f;
                     final other = isNotNullGuard(c) ? f : t;
                     final same = structurallySame(taken, g);
                     final otherNullable = PolicyQueries.isNullableType(other.t);
-                    dbgLog("  TIf same=" + same + " otherNullable=" + otherNullable + " otherShape=" + valueShape(other));
                     same && !otherNullable;
                 }
             case _:
-                dbgLog("  nonTIf shape=" + valueShape(inner));
                 false;
         };
     }
