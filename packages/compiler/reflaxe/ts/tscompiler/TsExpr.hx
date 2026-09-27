@@ -2571,9 +2571,24 @@ class TsExpr {
                     + expr(args[i])
                     + " ?? "
                     + defaultArgText(d, expected)
-                    + ")" else requiredArgText(args[i], expected, i < paramOpts.length ? paramOpts[i] : false);
+                    + ")" else requiredArgText(args[i], expected, trailingOptionalAt(paramOpts, i));
             }
         ];
+    }
+
+    /**
+        Whether the target parameter at `i` renders with the optional `?`
+        (and therefore accepts undefined). A front-optional parameter is
+        optional in Haxe but rendered required in TypeScript (a required
+        parameter cannot follow an optional one), so the trailing-optional
+        rule is what the emitted signature actually carries.
+    **/
+    function trailingOptionalAt(paramOpts:Array<Bool>, i:Int):Bool {
+        for (j in i...paramOpts.length) {
+            if (!paramOpts[j])
+                return false;
+        }
+        return true;
     }
 
     /**
@@ -2589,11 +2604,8 @@ class TsExpr {
         final rendered = expr(a);
         if (StringTools.endsWith(rendered, "!"))
             return rendered;
-        final hasNull = isNullType(a.t) || isNullLiteral(a);
-        final hasUndefined = switch (stripWrap(a).expr) {
-            case TLocal(v): optionalParamLocals.exists(v.id);
-            case _: false;
-        };
+        final hasNull = argCarriesNull(a);
+        final hasUndefined = argCarriesUndefined(a);
         final targetAcceptsNull = expected != null && isNullType(expected);
         final targetAcceptsUndefined = targetOpt;
         if ((hasNull && !targetAcceptsNull) || (hasUndefined && !targetAcceptsUndefined))
@@ -2601,9 +2613,47 @@ class TsExpr {
         return rendered;
     }
 
+    /**
+        Whether an argument's rendered TypeScript type can carry null. The
+        Haxe type alone is not enough: a runtime method (e.g. SortedTable.get)
+        renders nullable even when the Haxe return type is non-null, so the
+        shape is walked for nullable leaves (a nullable field read, a ternary
+        with a nullable branch). (RequiredArgNullShape)
+    **/
+    function argCarriesNull(e:TypedExpr):Bool {
+        if (isNullType(e.t) || isNullLiteral(e))
+            return true;
+        return switch (stripWrap(e).expr) {
+            case TIf(_, t, f) if (f != null): argCarriesNull(t) || argCarriesNull(f);
+            case TField(_, FInstance(_, _, cf)): isNullType(cf.get().type);
+            case TField(_, FAnon(cf)): isNullType(cf.get().type);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): argCarriesNull(inner);
+            case _: false;
+        };
+    }
+
+    /**
+        Whether an argument's rendered TypeScript type can carry undefined,
+        which comes from optional parameters (the `?` on the declaration).
+        A ternary with an optional-parameter branch inherits it.
+        (RequiredArgUndefinedShape)
+    **/
+    function argCarriesUndefined(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): optionalParamLocals.exists(v.id);
+            case TIf(_, t, f) if (f != null): argCarriesUndefined(t) || argCarriesUndefined(f);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): argCarriesUndefined(inner);
+            case _: false;
+        };
+    }
+
     function constructorArgTexts(cls:ClassType, args:Array<TypedExpr>):Array<String> {
         final ps = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
             case TFun(p, _): [for (x in p) x.t];
+            case _: [];
+        };
+        final paramOpts = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(p, _): [for (x in p) x.opt];
             case _: [];
         };
         final rendered = [for (i in 0...args.length) {
@@ -2616,7 +2666,7 @@ class TsExpr {
             + expr(args[i])
             + " ?? "
             + constructorDefaultText(d, p, cls, args)
-            + ")" : expr(args[i]);
+            + ")" : requiredArgText(args[i], p, trailingOptionalAt(paramOpts, i));
         }
         ];
         // A call may omit parameters that the emitted signature renders as
