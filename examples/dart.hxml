@@ -689,3 +689,5 @@ boring.IntFloatSignOps
 tests.IntFloatSignTests
 
 tests.DriverPlanTests
+
+tests.SharedHandleTests
