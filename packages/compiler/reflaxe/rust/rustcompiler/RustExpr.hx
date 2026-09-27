@@ -9953,6 +9953,8 @@ class RustExpr {
                 imports.requireType("runtime.UString", "UString");
                 "match " + value + " { Some(v) => UString::from(v.to_string().as_str()), None => UString::from(\"null\") }";
             case IsFloat:
+                if (!inConcat)
+                    state.shimsUsed.set("haxe.io.FPHelper", true);
                 inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
             case IsInt | IsBool:
                 if (inConcat)
@@ -11266,12 +11268,15 @@ class RustExpr {
                 }
                 if ((cls.module == "std.Process" || (cls.pack.join(".") == "std" && cls.name == "Process")) && name == "exit") {
                     imports.require("std::process::exit");
-                    return "exit(" + renderedArgs + ")";
+                    return "exit(" + RustConversions.reinterpret(expr(args[0]), "i32") + ")";
                 }
                 if ((path == "std.Process" || cls.module == "std.Process") && name == "args") {
                     // std.Process.args() reads the arguments of the test
                     // binary after its name (stdlib/17).
                     return "std::env::args().skip(1).map(|__a| UString::from(__a.as_str())).collect::<Vec<UString>>()";
+                }
+                if ((path == "std.Process" || cls.module == "std.Process") && name == "platform") {
+                    return "UString::from(if cfg!(target_os = \"macos\") { \"darwin\" } else if cfg!(target_os = \"windows\") { \"windows\" } else { \"linux\" })";
                 }
                 if ((path == "std.SortedMap" || cls.module == "std.SortedMap") && name == "builder") {
                     final kType = sortedKeyType(fn);

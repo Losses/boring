@@ -23,6 +23,8 @@
     "test:kotlin-f32": "mkdir -p out/kotlin-f32 && kotlinc -Xallow-kotlin-package $(find reference/kotlin-f32/gen reference/kotlin-f32/gen-tests -name '*.kt') tests/kotlin/MainF32.kt -include-runtime -d out/kotlin-f32/tests.jar && rm -f out/test-results/kotlin-f32.jsonl && BORING_TEST_RESULTS=$(pwd)/out/test-results/kotlin-f32.jsonl java -cp out/kotlin-f32/tests.jar TestMainKt && java -cp out/kotlin-f32/tests.jar MainF32Kt",
     "test:stage1:dart": "rm -f out/test-results/dart.jsonl && mkdir -p out/test-results && dart run reference/dart/gen-tests/main.dart",
     "test:consistency": "haxe tools/test-consistency/manager.hxml && bun out/test-consistency/manager.js",
+    "test:driver:cross-target": "bun tests/driver/cross-target.ts",
+    "test:driver:cli-cross-target": "bun tests/driver/cli-cross-target.ts",
     "perf:baseline": "bun tools/perf/measure.ts --write",
     "perf:check": "bun tools/perf/measure.ts --check",
     "lint": "eslint .",
@@ -43,7 +45,7 @@
     "check:reflaxe": "haxe -lib reflaxe -cp examples -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
-    "verify": "haxe tools/bundle/driver.hxml && bun out/bundle/driver.js verify && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:dart && bun run test:rust && haxe packages/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe",
+    "verify": "boring verify && bun run test && bun run test:driver:cross-target && bun run test:driver:cli-cross-target && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:dart && bun run test:rust && haxe packages/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe"
   },
   "devDependencies": {
     "@boring/codec": "workspace:*",
