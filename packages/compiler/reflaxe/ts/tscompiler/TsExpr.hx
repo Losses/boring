@@ -123,6 +123,17 @@ class TsExpr {
     var currentLocalName:Null<String> = null;
     var currentFuncReturnsNullable:Bool = false;
 
+    /** Whether the function being lowered returns Array<T>. */
+    var currentFuncReturnsArray:Bool = false;
+
+    /**
+        Depth of Array<T> consumption slots being rendered. A data table
+        emits as Int32Array (spec 20); only a consumption slot whose static
+        type is Array<T> receives an Array.from copy, decided at the slot
+        rather than at every use of the table.
+    **/
+    var arraySlotDepth:Int = 0;
+
     /**
         Variant switch arms narrow their subject to one variant; a nested
         `Std.string(subject)` then re-checks `kind` against every variant,
@@ -389,6 +400,10 @@ class TsExpr {
             case TFun(_, ret): PolicyQueries.isNullableType(ret);
             case _: false;
         };
+        currentFuncReturnsArray = switch (f.field.type) {
+            case TFun(_, ret): isArraySlotType(ret);
+            case _: false;
+        };
         activeLoopParseHoists = null;
         parseHelperOrdinal = 0;
 
@@ -403,6 +418,15 @@ class TsExpr {
         spelling (features/04).
     **/
     function returnValue(ret:TypedExpr):String {
+        final outerSlot = arraySlotDepth;
+        if (currentFuncReturnsArray)
+            arraySlotDepth++;
+        final rendered = returnValueBody(ret);
+        arraySlotDepth = outerSlot;
+        return rendered;
+    }
+
+    function returnValueBody(ret:TypedExpr):String {
         switch (stripWrap(ret).expr) {
             case TConst(TNull):
                 return expr(ret);
@@ -442,6 +466,10 @@ class TsExpr {
             case TFun(_, ret): PolicyQueries.isNullableType(ret);
             case _: false;
         };
+        currentFuncReturnsArray = switch (f.field.type) {
+            case TFun(_, ret): isArraySlotType(ret);
+            case _: false;
+        };
         if (f.args.length > 0)
             bindLocalName(f.args[0].tvar, f.args[0].name);
         prepareLocals(f.expr);
@@ -477,6 +505,10 @@ class TsExpr {
         currentLocalName = null;
         currentFuncReturnsNullable = switch (f.field.type) {
             case TFun(_, ret): PolicyQueries.isNullableType(ret);
+            case _: false;
+        };
+        currentFuncReturnsArray = switch (f.field.type) {
+            case TFun(_, ret): isArraySlotType(ret);
             case _: false;
         };
         prepareLocals(f.expr);
@@ -530,7 +562,7 @@ class TsExpr {
                 final kw = mutated.exists(v.id) ? "let" : "const";
                 var initText = switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
-                    default: expr(init);
+                    default: withArraySlot(isArraySlotType(v.t), () -> expr(init));
                 };
                 // Add non-null assertion when init is nullable but variable type is not
                 if (nullableBindings.exists(v.id)) {
@@ -1234,9 +1266,15 @@ class TsExpr {
                 }
                 return localName(v);
             case TArray(arr, idx):
+                final table = dataTableStatic(arr);
+                if (table != null)
+                    return staticRef(table.cls, table.name) + "[" + expr(idx) + "]!";
                 final mapReceiver = mapBackingReceiver(arr);
                 return mapReceiver == null ? expr(arr) + "[" + expr(idx) + "]!" : expr(mapReceiver) + ".get(" + expr(idx) + ")!";
             case TBinop(op, l, r):
+                final assignOp = switch (op) { case OpAssign | OpAssignOp(_): true; case _: false; };
+                if (assignOp && isArraySlotType(stripCast(l).t))
+                    return withArraySlot(true, () -> binop(e, op, l, r));
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
                 return unop(e, op, subj);
@@ -1251,7 +1289,7 @@ class TsExpr {
             case TArrayDecl(elems):
                 return "[" + [for (x in elems) expr(x)].join(", ") + "]";
             case TCall(fn, args):
-                return call(fn, args);
+                return renderCall(fn, args);
             case TNew(c, params, args):
                 return newExpr(c, params, args);
             case TMeta(_, inner):
@@ -1543,14 +1581,116 @@ class TsExpr {
         }
     }
 
+    /**
+        The static data table this expression names, if any. The length
+        read and computed index reads are native on the emitted Int32Array
+        (feature spec 20: indexed reads yield number), so they bypass the
+        general-position Array.from conversion in field(), which would copy
+        the whole table on every access inside a loop.
+    **/
+    function dataTableStatic(e:TypedExpr):Null<{ cls:ClassType, name:String }> {
+        final target = stripCast(e);
+        return switch (target.expr) {
+            case TField(_, FStatic(c, cf)) if (DataTableHelper.isDataTableField(cf.get())):
+                { cls: c.get(), name: cf.get().name };
+            case _: null;
+        };
+    }
+
+    /** Haxe Array<T> slot type, per PolicyQueries' lazy-type discipline. */
+    function isArraySlotType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (t) {
+            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1): isArraySlotType(params[0]);
+            case TInst(c, _) if (c.get().pack.length == 0 && c.get().name == "Array"): true;
+            case TLazy(f): isArraySlotType(f());
+            case _: false;
+        };
+    }
+
+    /** Renders inside one Array<T> slot when the slot is active. */
+    function withArraySlot<T>(on:Bool, render:Void -> T):T {
+        final outer = arraySlotDepth;
+        if (on)
+            arraySlotDepth++;
+        final rendered = render();
+        arraySlotDepth = outer;
+        return rendered;
+    }
+
+    /**
+        A call renders with an Array<T> slot active only when one of its
+        arguments is a data table and that argument's formal parameter is
+        typed Array<T>. Without formal typing the conversion is refused at
+        compile time instead of guessed.
+    **/
+    function renderCall(fn:TypedExpr, args:Array<TypedExpr>):String {
+        final outer = arraySlotDepth;
+        arraySlotDepth = 0;
+        final rendered = withArraySlot(callNeedsArraySlot(fn, args), () -> call(fn, args));
+        arraySlotDepth = outer;
+        return rendered;
+    }
+
+    function callNeedsArraySlot(fn:TypedExpr, args:Array<TypedExpr>):Bool {
+        var hasTableArg = false;
+        for (a in args) {
+            if (a != null && dataTableStatic(a) != null)
+                hasTableArg = true;
+        }
+        if (!hasTableArg)
+            return false;
+        final fun = stripCast(fn);
+        final formal:Null<Array<Null<Type>>> = switch (fun.expr) {
+            case TField(_, FStatic(_, cf)): formalArgsOf(cf.get());
+            case TField(_, FInstance(_, _, cf)): formalArgsOf(cf.get());
+            case TField(_, FClosure(_, cf)): formalArgsOf(cf.get());
+            case _: null;
+        };
+        if (formal == null)
+            Context.error("data table argument at a call site with no formal parameter typing; cannot decide the Array.from conversion", Context.currentPos());
+        for (i in 0...args.length) {
+            if (args[i] != null && dataTableStatic(args[i]) != null && i < formal.length && isArraySlotType(formal[i]))
+                return true;
+        }
+        return false;
+    }
+
+    function formalArgsOf(cf:ClassField):Null<Array<Null<Type>>> {
+        return switch (cf.type) {
+            case TLazy(f): formalArgsOfType(f());
+            case TFun(fargs, _): [for (a in fargs) a.t];
+            case _: null;
+        };
+    }
+
+    function formalArgsOfType(t:Type):Null<Array<Null<Type>>> {
+        return switch (t) {
+            case TFun(fargs, _): [for (a in fargs) a.t];
+            case _: null;
+        };
+    }
+
     function field(subj:TypedExpr, fa:FieldAccess):String {
         switch (fa) {
             case FStatic(c, cf):
                 final cls = c.get();
                 notePrivateAccess(cls, cf.get());
                 final rendered = staticRef(cls, cf.get().name);
-                return DataTableHelper.isDataTableField(cf.get())
-                    && !RuntimeResidents.isResident(cls.module) ? "Array.from(" + rendered + ")" : rendered;
+                if (!DataTableHelper.isDataTableField(cf.get()) || RuntimeResidents.isResident(cls.module))
+                    return rendered;
+                // Site-level conversion: the table emits as Int32Array, and
+                // only a slot typed Array<T> gets an Array.from copy. A use
+                // outside any classified slot is a compile error, not a
+                // silent guess (length and index reads lower directly and
+                // never reach this branch).
+                if (arraySlotDepth > 0)
+                    return "Array.from(" + rendered + ")";
+                Context.error("data table " + cls.module + "." + cf.get().name
+                    + " is consumed at a site whose slot type is not Array<T>;"
+                    + " no site typing to decide the Array.from conversion", subj.pos);
+                return rendered;
             case FEnum(en, ef):
                 final enumDef = en.get();
                 if (isValueEnum(enumDef))
@@ -1584,6 +1724,11 @@ class TsExpr {
             case TLocal(v) if (name == "length" && boundSubst.exists(v.id)):
                 return boundSubst.get(v.id);
             case _:
+        }
+        if (name == "length") {
+            final table = dataTableStatic(target);
+            if (table != null)
+                return staticRef(table.cls, table.name) + ".length";
         }
         final folded = foldedExceptionMessage(target, name);
         if (folded != null)
