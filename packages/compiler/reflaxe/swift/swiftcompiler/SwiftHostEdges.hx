@@ -34,6 +34,7 @@ class SwiftHostEdges {
         "Fs.makeDirs",
         "Fs.readDir",
         "Fs.deleteFile",
+        "Fs.rename",
         "Process.run",
         "Process.exit",
         "Process.platform"
@@ -53,6 +54,7 @@ class SwiftHostEdges {
             case "Fs.makeDirs": "boringFsMakeDirs";
             case "Fs.readDir": "boringFsReadDir";
             case "Fs.deleteFile": "boringFsDeleteFile";
+            case "Fs.rename": "boringFsRename";
             case "Process.run": "boringProcessRun";
             case "Process.exit": "boringProcessExit";
             case "Process.platform": "boringProcessPlatform";
@@ -63,7 +65,7 @@ class SwiftHostEdges {
     /** Whether the helper throws on failure (features/06 mapping). */
     public static function throws(key:String):Bool {
         return switch (key) {
-            case "Fs.readText" | "Fs.writeText" | "Fs.appendText" | "Fs.makeDirs" | "Fs.readDir" | "Fs.deleteFile": true;
+            case "Fs.readText" | "Fs.writeText" | "Fs.appendText" | "Fs.makeDirs" | "Fs.readDir" | "Fs.deleteFile" | "Fs.rename": true;
             case _: false;
         };
     }
@@ -94,6 +96,7 @@ class SwiftHostEdges {
             case "Fs.makeDirs": FS_MAKE_DIRS;
             case "Fs.readDir": FS_READ_DIR;
             case "Fs.deleteFile": FS_DELETE_FILE;
+            case "Fs.rename": FS_RENAME;
             case "Process.run": PROCESS_RUN;
             case "Process.exit": PROCESS_EXIT;
             case "Process.platform": PROCESS_PLATFORM;
@@ -289,6 +292,29 @@ private func boringFsDeleteFile(_ path: String) throws {
     } catch {
         throw BoringException(message: path + ": " + String(describing: error))
     }
+    #else
+    throw BoringException(message: "std.Fs is not available on this host")
+    #endif
+}
+';
+
+    static final FS_RENAME = '
+private func boringFsRename(_ from: String, _ to: String) throws {
+    #if canImport(Glibc)
+    let result = from.withCString { source in to.withCString { target in Glibc.rename(source, target) } }
+    if result != 0 { throw BoringException(message: from + " -> " + to + ": rename failed") }
+    #elseif canImport(Darwin)
+    let result = from.withCString { source in to.withCString { target in Darwin.rename(source, target) } }
+    if result != 0 { throw BoringException(message: from + " -> " + to + ": rename failed") }
+    #elseif canImport(WinSDK)
+    let source = Array(from.utf16) + [UInt16(0)]
+    let target = Array(to.utf16) + [UInt16(0)]
+    let result = source.withUnsafeBufferPointer { s in
+        target.withUnsafeBufferPointer { t in
+            MoveFileExW(s.baseAddress, t.baseAddress, DWORD(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+        }
+    }
+    if result == 0 { throw BoringException(message: from + " -> " + to + ": rename failed") }
     #else
     throw BoringException(message: "std.Fs is not available on this host")
     #endif

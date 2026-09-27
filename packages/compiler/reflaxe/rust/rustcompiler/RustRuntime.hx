@@ -424,6 +424,11 @@ impl Fs {
     pub fn delete_file(path: &UStr) {
         std::fs::remove_file(path.to_utf8_lossy().as_str()).unwrap_or_else(|e| fail(path, e));
     }
+
+    pub fn rename(from: &UStr, to: &UStr) {
+        std::fs::rename(from.to_utf8_lossy().as_str(), to.to_utf8_lossy().as_str())
+            .unwrap_or_else(|e| fail(from, e));
+    }
 }
 ';
 

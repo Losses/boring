@@ -3,6 +3,82 @@ package driver;
 
 /** Computes generation arguments and action participants from validated data. */
 class Plan {
+    public static function sortedUnique(values:Array<String>):Array<String> {
+        final sorted:Array<String> = [];
+        for (value in values) {
+            var duplicate = false;
+            for (prior in sorted) if (prior == value) duplicate = true;
+            if (!duplicate) sorted.push(value);
+        }
+        var index = 1;
+        while (index < sorted.length) {
+            final value = sorted[index];
+            var slot = index;
+            while (slot > 0 && sorted[slot - 1] > value) {
+                sorted[slot] = sorted[slot - 1];
+                slot--;
+            }
+            sorted[slot] = value;
+            index++;
+        }
+        return sorted;
+    }
+
+    static function moduleName(value:String):Bool {
+        if (value == "") return false;
+        for (index in 0...value.length) {
+            final code = value.charCodeAt(index);
+            final letter = (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code == 95;
+            final digit = code >= 48 && code <= 57;
+            if (!letter && (!digit || index == 0)) return false;
+        }
+        return true;
+    }
+
+    /** Maps one direct directory listing to module roots in stable order. */
+    public static function discoverTypes(pack:String, suffix:String, entries:Array<String>):Array<String> {
+        final types:Array<String> = [];
+        for (entry in entries) {
+            if (entry.length <= 3 || entry.substr(entry.length - 3) != ".hx") continue;
+            final module = entry.substr(0, entry.length - 3);
+            if (!moduleName(module) || module.length < suffix.length
+                || module.substr(module.length - suffix.length) != suffix) continue;
+            types.push(pack + "." + module);
+        }
+        return sortedUnique(types);
+    }
+
+    public static function sourceSet(project:Project, name:String):Null<SourceSet> {
+        for (set in project.sourceSets) if (set.name == name) return set;
+        return null;
+    }
+
+    public static function sourceArgs(set:SourceSet, discovered:Array<String>):Array<String> {
+        final args:Array<String> = [];
+        for (pack in set.packages) {
+            args.push("--macro");
+            args.push("haxe.macro.Compiler.include('" + pack + "', false, null, null, true)");
+        }
+        for (typePath in sortedUnique(set.types.concat(discovered))) args.push(typePath);
+        return args;
+    }
+
+    public static function rootsContents(set:SourceSet, discovered:Array<String>):String {
+        final args = sourceArgs(set, discovered);
+        var contents = "";
+        var index = 0;
+        while (index < args.length) {
+            if (args[index] == "--macro") {
+                contents += "--macro " + args[index + 1] + "\n";
+                index += 2;
+            } else {
+                contents += args[index] + "\n";
+                index++;
+            }
+        }
+        return contents;
+    }
+
     static function addStep(steps:Array<ExecutionStep>, name:String, command:String, args:Array<String>, cwd:String, env:Array<EnvVar>):Void {
         final step:ExecutionStep = {name: name, command: command, args: args.copy(), cwd: cwd, env: env.copy()};
         steps.push(step);
@@ -93,7 +169,7 @@ class Plan {
         directories win over anything the roots file states, and the
         roots file wins over the driver's defaults.
     **/
-    public static function genArgs(project:Project, bundle:Bundle, pack:Bool, genDir:String, genTestsDir:String, packageTsc:Null<String>, packageKotlinc:Null<String>):Array<String> {
+    public static function genArgs(project:Project, bundle:Bundle, pack:Bool, genDir:String, genTestsDir:String, packageTsc:Null<String>, packageKotlinc:Null<String>, discoveredTypes:Array<String>):Array<String> {
         final args:Array<String> = [];
         for (root in project.sourceRoots) {
             args.push("-cp");
@@ -112,6 +188,10 @@ class Plan {
         }
         for (arg in bundle.haxeArgs) {
             args.push(arg);
+        }
+        final selected = sourceSet(project, bundle.sourceSet);
+        if (selected != null) {
+            for (arg in sourceArgs(selected, discoveredTypes)) args.push(arg);
         }
         if (bundle.target != "haxe") {
             args.push("-D");

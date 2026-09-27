@@ -52,6 +52,7 @@ extern class Fs {
 	static function readDir(path:String):Array<String>;
 	static function isDirectory(path:String):Bool;
 	static function deleteFile(path:String):Void;
+	static function rename(from:String, to:String):Void;
 }
 
 extern class Env {
@@ -79,7 +80,11 @@ extern class Env {
 applies the listed environment entries, and captures both output streams.
 It returns the exit code even when the child exits with failure. Host errors
 while starting or waiting for the child raise the target exception mapping.
-`deleteFile` removes a regular file and raises on failure. `std.Console.log`
+`deleteFile` removes a regular file and raises on failure. `rename` moves a
+path and replaces an existing regular file destination where the host supports
+that operation. It raises when the host cannot complete the rename. A caller
+can write a sibling temporary file and rename it into place for an atomic
+replacement on hosts that support atomic rename. `std.Console.log`
 writes a line to standard output; `std.Console.error` writes one to standard
 error on every target.
 
