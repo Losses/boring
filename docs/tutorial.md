@@ -1059,7 +1059,13 @@ derived from the compilation, so they ride the command line or the
 environment. Boring's own `boring.json` patches the haxe bundle's
 build arguments this way, and the swift bundle passes
 `-D swift-test-import=<module>` through `haxeArgs` because the swift
-recipe reads the library module name from that define.
+recipe reads the library module name from that define. The recipe also
+accepts the define from the bundle's `rootsFile` include chain (the
+same file the generation command feeds haxe), so a project whose
+target entries already state `-D swift-test-import=<module>` needs no
+copy in the project file. The driver reads the chain in haxe's own
+order, and a later define wins; `haxeArgs` always overrides the
+chain.
 
 ### The five actions
 
