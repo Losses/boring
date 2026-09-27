@@ -213,8 +213,7 @@ class RustEmissionState {
         rule. Every other function derives fallibility from `funcErrorEnums`.
     **/
     public static function runtimeShimIsFallible(name:String):Bool {
-        return name == "readU16" || name == "readU32" || name == "readF64" || name == "readAscii" || name == "ensureRemaining" || name == "decode"
-            || name == "encode";
+        return name == "readU16" || name == "readU32" || name == "readF64" || name == "readAscii" || name == "ensureRemaining";
     }
 
     /** Types reachable at test assertion call sites for type-guided helpers. */
