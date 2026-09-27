@@ -2570,7 +2570,7 @@ class SwiftExpr {
         // features/18: an assignment whose slot and value sit on opposite
         // sides of the mutable/immutable container line (a constructor body
         // storing a mutable Array parameter into a ReadOnlyArray field, say)
-        // crosses the boundary without a Haxe-level cast, so the container
+        // crosses the boundary with no explicit cast in the Haxe source, so the container
         // conversion renders here the same way it does for casts and
         // declarations. The merged type of a sanctioned coalescing ternary
         // unifies to the read-only slot type, so the boundary reads the
@@ -3101,7 +3101,7 @@ class SwiftExpr {
                 // implicit, so the conversion renders here. An empty literal
                 // drops the untyped container and infers from the slot. An
                 // optional source maps so the Optional wraps the converted
-                // container, not the mutable one; a sanctioned coalescing
+                // container (the mutable container stays inside the Optional); a sanctioned coalescing
                 // ternary merges to the non-null Haxe type while its Swift
                 // render stays optional, so the site's underlying parameter
                 // read decides. (ReadOnlyAssignBoundary)
