@@ -12,6 +12,8 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import ExpressionBlockNorm;
+import ConstantFold;
+import ConstantFold.FoldedReal;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
@@ -1472,6 +1474,19 @@ class KotlinExpr {
         return FloatPrecision.isF32() && addWidth ? s + "f" : s;
     }
 
+    /** Render a folded real through the module-real NaN/infinity constants (spec 23). */
+    function foldedRealText(folded:FoldedReal):String {
+        return switch (folded) {
+            case FRNan: FloatPrecision.isF32() ? "Float.NaN" : "Double.NaN";
+            case FRPosInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
+            case FRNegInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
+            case FRZero(negative): floatLiteral(negative ? "-0.0" : "0.0");
+            // Unreachable: kotlinc never reports the min-subnormal literal
+            // spelling as a diagnostic, so floatDivision never yields it.
+            case FRLeastNonzero: "0.0";
+        };
+    }
+
     function expr(e:TypedExpr):String {
         final int64Expr = int64Expression(e);
         if (int64Expr != null)
@@ -1514,6 +1529,14 @@ class KotlinExpr {
                     return expr(receiver) + "?.get(" + expr(idx) + ")";
                 }
                 return expr(receiver) + "[" + expr(idx) + "]";
+            case TBinop(OpDiv, l, r):
+                // A literal/literal division with a literal zero divisor folds
+                // to its IEEE quotient; kotlinc reports the unfolded spelling
+                // as "division by zero". (ConstantFold)
+                final foldedDivision = ConstantFold.floatDivision(l, r);
+                if (foldedDivision != null)
+                    return foldedRealText(foldedDivision);
+                return binop(e, OpDiv, l, r);
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
