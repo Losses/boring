@@ -38,6 +38,17 @@ class TypeCheckHelper {
         return isSubtype(actual, target);
     }
 
+    /** A nullable static type whose unwrapped class is the target or its
+        subclass: Std.isOfType then equals a native nil test on the value,
+        because only null can make the check fail. */
+    public static function nullableClassIsTarget(value:TypedExpr, target:ClassType):Bool {
+        if (!PolicyQueries.isNullableType(value.t) && !ExpressionPredicates.isNullExpr(value)) {
+            return false;
+        }
+        final actual = classOfType(value.t);
+        return actual != null && isSubtype(actual, target);
+    }
+
     static function isSubtype(actual:ClassType, target:ClassType):Bool {
         if (actual.module == target.module && actual.name == target.name) {
             return true;
