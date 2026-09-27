@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 const root = process.cwd();
 const ledgerPath = join(root, "packages/compiler/semantic-exceptions.json");
