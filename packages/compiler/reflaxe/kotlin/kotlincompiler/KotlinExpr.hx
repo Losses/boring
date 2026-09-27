@@ -5708,6 +5708,10 @@ class KotlinExpr {
                 "Files.isDirectory(Paths.get(" + p + "))";
             case "deleteFile":
                 "Files.delete(Paths.get(" + p + "))";
+            case "rename":
+                imports.require("java.nio.file.StandardCopyOption");
+                "Files.move(Paths.get(" + p + "), Paths.get(" + expr(args[1])
+                + "), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)";
             case _:
                 Context.error("std.Fs has no lowering for member " + name, fn.pos);
                 "null";

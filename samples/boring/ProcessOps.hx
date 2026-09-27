@@ -25,7 +25,16 @@ class ProcessOps {
         final path = Process.cwd() + "/boring-process-probe.txt";
         Fs.writeText(path, "working");
         Fs.deleteFile(path);
-        return !Fs.exists(path);
+        if (Fs.exists(path)) {
+            return false;
+        }
+        final source = Process.cwd() + "/boring-process-probe-source.txt";
+        Fs.writeText(source, "new content");
+        Fs.writeText(path, "old content");
+        Fs.rename(source, path);
+        final replaced = !Fs.exists(source) && Fs.readText(path) == "new content";
+        Fs.deleteFile(path);
+        return replaced && !Fs.exists(path);
     }
 
     public static function consoleProbe():Void {
