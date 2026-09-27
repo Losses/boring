@@ -1412,6 +1412,26 @@ class DartExpr {
                 }
                 final guarded = nullGuardExpr(c);
                 final hasGuarded = hasGuardExpr(c);
+                // Decision before rendering (DecisionBeforeRender): whether
+                // each branch is the guard-proven read is a pure predicate
+                // over the AST. It runs before any branch text exists, so
+                // the structural probes cannot observe promotions the
+                // branch render just wrote, and their own probe renders
+                // cannot shift a later unwrap decision. Each branch then
+                // renders exactly once and the unwrap derives from that
+                // pre-rendered text (requiredValueTextOf), instead of
+                // requiredValueText re-rendering the branch and racing the
+                // promotion note its first render left behind.
+                final tGuardProven = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded);
+                final fGuardProven = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded);
+                final tMapRead = hasGuarded != null && isGuardedMapRead(t, hasGuarded);
+                final fMapRead = hasGuarded != null && isGuardedMapRead(f, hasGuarded);
+                // A null-guard ternary (`A == null ? default : A`) proves
+                // the guarded branch non-null; Dart still sees the nullable
+                // type, so unwrap the branch the guard protects. A has-guard
+                // ternary (`m.has(k) ? m.get(k) : default`) proves its
+                // value branch the same way: `get` is typed `Null<V>`, so
+                // the taken branch unwraps to keep the ternary non-null.
                 // The condition renders before the branches: it is the
                 // first thing dart evaluates, and any flow note it leaves
                 // (a promoted local) is the state the arms start from. A
@@ -1423,20 +1443,10 @@ class DartExpr {
                 // double, so widen the int branch.
                 final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
                 final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
-                // A null-guard ternary (`A == null ? default : A`) proves
-                // the guarded branch non-null; Dart still sees the nullable
-                // type, so unwrap the branch the guard protects. A has-guard
-                // ternary (`m.has(k) ? m.get(k) : default`) proves its
-                // value branch the same way: `get` is typed `Null<V>`, so
-                // the taken branch unwraps to keep the ternary non-null.
-                var tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded) ? requiredValueText(t) : tText;
-                var fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded) ? requiredValueText(f) : fText;
-                if (hasGuarded != null) {
-                    if (isGuardedMapRead(t, hasGuarded))
-                        tFinal = requiredValueText(t);
-                    if (isGuardedMapRead(f, hasGuarded))
-                        fFinal = requiredValueText(f);
-                }
+                // The unwrap predicate mirrors requiredValueText's skip
+                // conditions; only the render is reused, not repeated.
+                final tFinal = unwrapDecided(t, tGuardProven || tMapRead) ? requiredValueTextOf(tText, t) : tText;
+                final fFinal = unwrapDecided(f, fGuardProven || fMapRead) ? requiredValueTextOf(fText, f) : fText;
                 return "(" + condText + " ? " + tFinal + " : " + fFinal + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
@@ -2111,6 +2121,16 @@ class DartExpr {
                 preRendered + "!";
             case _: "(" + preRendered + ")!";
         };
+    }
+
+    /**
+        Whether a decided branch actually takes the unwrap: mirrors
+        requiredValueText's skip conditions (pure reads only), so the
+        ternary renderer can decide before rendering and apply the
+        unwrap to the one pre-rendered text. (DecisionBeforeRender)
+    **/
+    function unwrapDecided(e:TypedExpr, decided:Bool):Bool {
+        return decided && nullableValue(e) && !provenNonNull(e) && !coalescingYieldsNonNull(e) && !isNullLiteral(e);
     }
 
     /**
