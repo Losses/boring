@@ -2564,12 +2564,34 @@ class TsExpr {
         };
         final returns = (name == "writeText" || name == "appendText" || name == "makeDirs") ? false : true;
         final body = (name == "isDirectory")
-            ? "return (fs.statSync(p) as HostFsModule" + upper + ").isDirectory() as boolean;"
+            ? "return fs.statSync(p).isDirectory();"
             : (returns ? "return fs." + member + retCast + ";" : "fs." + member + ";");
+        // The module alias is a named structural type whose members return
+        // exact values: under noUncheckedIndexedAccess an index-signature
+        // record types every member as possibly undefined, and the strict
+        // package stage rejects the call (TS2722).
+        final moduleAlias = switch (name) {
+            case "exists": "{ existsSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string) => boolean;";
+            case "readText": "{ readFileSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string, options: string) => string;";
+            case "writeText": "{ writeFileSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string, data: string, options: string) => void;";
+            case "appendText": "{ appendFileSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string, data: string, options: string) => void;";
+            case "makeDirs": "{ mkdirSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string, options: Record<string, boolean>) => unknown;";
+            case "readDir": "{ readdirSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string) => string[];";
+            case "isDirectory": "{ statSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string) => HostFsStat" + upper + ";";
+            case _: "";
+        };
+        final statAlias = (name == "isDirectory")
+            ? " type HostFsStat" + upper + " = { isDirectory: HostFsFnIsDirectoryStat }; type HostFsFnIsDirectoryStat = () => boolean;"
+            : "";
         final helper = imports.fsHelper(name,
             "type HostFsModule"
             + upper
-            + " = Record<string, (...args: unknown[]) => unknown>;"
+            + " = "
+            + moduleAlias
+            + "; type HostModuleLoader"
+            + upper
+            + " = (id: string) => unknown;"
+            + statAlias
             + " const fs"
             + upper
             + " = ("
@@ -2577,8 +2599,10 @@ class TsExpr {
             + ")"
             + retType
             + " => { const host = globalThis as Record<string, unknown>;"
-            + " const probe = (host[\"process\"] as Record<string, unknown> | undefined)?.getBuiltinModule;"
-            + " const fs = typeof probe === \"function\" ? probe(\"node:fs\") as HostFsModule"
+            + " const probe = (host[\"process\"] as Record<string, unknown> | undefined)?.getBuiltinModule as HostModuleLoader"
+            + upper
+            + " | undefined;"
+            + " const fs = probe !== undefined ? probe(\"node:fs\") as HostFsModule"
             + upper
             + " : null; if (fs === null) { throw new Error("
             + tsStringLiteral(FS_UNAVAILABLE)
