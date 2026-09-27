@@ -5945,10 +5945,13 @@ class SwiftExpr {
                         final receiver = mapBackingReceiver(arr);
                         switch (stripWrap(receiver == null ? arr : receiver).expr) {
                             case TLocal(v):
-                                if (isClassInstanceType(v.t)) {
+
+                                if (isClassInstanceType(v.t) && !isBytesLeafType(v.t)) {
                                     // A class instance's subscript writes target
                                     // the referenced object, not the binding; the
                                     // local can stay let. Bytes lowers to the
+                                    // native [UInt8] value array and keeps var.
+                                    // (ValueArrayBindingVar) Bytes lowers to the
                                     // native [UInt8] value array and keeps var.
                                     if (v.name != "`") {
                                         mutatedNames.set(v.name, true);
@@ -5991,13 +5994,17 @@ class SwiftExpr {
                                         // value array: add/addChar write the binding
                                         // itself and require var.
                                         markMutated(v);
-                                    } else if (isClassInstanceType(v.t)) {
+
+                                    } else if (isClassInstanceType(v.t) && !isBytesLeafType(v.t)) {
                                         // A class instance's method calls (push,
                                         // pop, set, ...) mutate the referenced
                                         // object, not the binding; keep the name
                                         // marker so parameter shadow emission is
                                         // byte-identical, but the local can stay
                                         // let. Bytes follows to a class shape but
+                                        // lowers to the native [UInt8] value
+                                        // array, so it stays in the var camp.
+                                        // (ValueArrayBindingVar) Bytes follows to a class shape but
                                         // lowers to the native [UInt8] value array,
                                         // so it stays in the var camp.
                                         if (v.name != "`") {
