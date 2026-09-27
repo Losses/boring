@@ -876,8 +876,13 @@ class KotlinExpr {
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
                 final out = [indent(depth) + "if (" + condition + ") {"];
+                // Arms render in their own dominance scope: an assertion
+                // inside one arm must not suppress a sibling read.
+                // (ExtractionSuppressesRepeat)
+                final armExtractions = extractionSnapshot();
                 for (l in blockLines(statementsOf(t), depth + 1))
                     out.push(l);
+                restoreExtractions(armExtractions);
                 final afterThen = proofSnapshot();
                 restoreProofs(base);
                 final afterElse = if (f != null) {
@@ -885,6 +890,7 @@ class KotlinExpr {
                     out.push(indent(depth) + "} else {");
                     for (l in blockLines(statementsOf(f), depth + 1))
                         out.push(l);
+                    restoreExtractions(armExtractions);
                     proofSnapshot();
                 } else {
                     addProofs(conditionProofs(c).elsePath);
@@ -899,8 +905,12 @@ class KotlinExpr {
                 return out;
             case TWhile(c, b, true):
                 final out = [indent(depth) + "while (" + expr(c) + ") {"];
+                // A loop body may run zero times: its assertions never
+                // dominate reads after the loop. (ExtractionSuppressesRepeat)
+                final bodyExtractions = extractionSnapshot();
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
+                restoreExtractions(bodyExtractions);
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(_, _, false):
@@ -1343,8 +1353,13 @@ class KotlinExpr {
                                 }
                                 if (!readsIndex) {
                                     final out = [indent(depth) + "for (" + localName(item) + " in " + expr(array) + ") {"];
+                                    // Zero-iteration scope: body assertions
+                                    // never dominate later reads.
+                                    // (ExtractionSuppressesRepeat)
+                                    final loopExtractions = extractionSnapshot();
                                     for (l in blockLines(loop.body.slice(1), depth + 1))
                                         out.push(l);
+                                    restoreExtractions(loopExtractions);
                                     out.push(indent(depth) + "}");
                                     return out;
                                 }
@@ -1360,8 +1375,12 @@ class KotlinExpr {
         final out = [
             indent(depth) + "for (" + name + " in " + startStr + " until " + boundStr + ") {"
         ];
+        // Zero-iteration scope: body assertions never dominate later
+        // reads. (ExtractionSuppressesRepeat)
+        final loopExtractions = extractionSnapshot();
         for (l in blockLines(loop.body, depth + 1))
             out.push(l);
+        restoreExtractions(loopExtractions);
         out.push(indent(depth) + "}");
         return out;
     }
@@ -1596,7 +1615,13 @@ class KotlinExpr {
             case TEnumIndex(_):
                 return fail(e, "enum index only lowers inside a variant switch");
             case TFunction(f):
-                return functionLiteral(f);
+                // A lambda body may run after (or without) the enclosing
+                // statement: render it in its own dominance scope.
+                // (ExtractionSuppressesRepeat)
+                final fnExtractions = extractionSnapshot();
+                final fnText = functionLiteral(f);
+                restoreExtractions(fnExtractions);
+                return fnText;
             case TIf(c, t, f) if (f != null):
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null) {
@@ -1619,11 +1644,16 @@ class KotlinExpr {
                 final condition = expr(c);
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
+                // Arms render in their own dominance scope.
+                // (ExtractionSuppressesRepeat)
+                final armExtractions = extractionSnapshot();
                 final thenText = expr(t);
+                restoreExtractions(armExtractions);
                 final afterThen = proofSnapshot();
                 restoreProofs(base);
                 addProofs(conditionProofs(c).elsePath);
                 final elseText = expr(f);
+                restoreExtractions(armExtractions);
                 final afterElse = proofSnapshot();
                 restoreProofs(intersectProofs(base, afterThen, afterElse));
                 // Haxe promotes nullable Float branches with integer literals
@@ -1868,7 +1898,11 @@ class KotlinExpr {
                 if (variantKey != null)
                     enumVariantExpressions.set(variantKey, ef.name);
             }
+            // Each when arm renders in its own dominance scope.
+            // (ExtractionSuppressesRepeat)
+            final armExtractions = extractionSnapshot();
             final arm = armLines(c.expr, sw.t);
+            restoreExtractions(armExtractions);
             // The `is` pattern smart-casts the subject to the variant, so
             // payload captures read as properties on it. Arms separate by
             // newline; Kotlin `when` takes no comma between arms.
@@ -1971,9 +2005,13 @@ class KotlinExpr {
             out.push(l);
         }
         out.push(indent(depth) + "} catch (" + varName + ": " + varType + ") {");
+        // The catch arm runs only when the body threw: render it in its
+        // own dominance scope. (ExtractionSuppressesRepeat)
+        final catchExtractions = extractionSnapshot();
         catchVars.set(c.v.id, true);
         final handler = blockLines(statementsOf(c.expr), depth + 1);
         catchVars.remove(c.v.id);
+        restoreExtractions(catchExtractions);
         for (l in handler) {
             out.push(l);
         }
@@ -2369,6 +2407,28 @@ class KotlinExpr {
                 }
             case _:
         }
+    }
+
+    /** Dominance scope for extraction suppression: a branch arm or lambda
+        body renders in its own frame, so an assertion printed inside it
+        never suppresses a read in a sibling arm or after the join, where
+        the assertion may not have executed. (ExtractionSuppressesRepeat) */
+    function extractionSnapshot():{locals:Map<Int, Bool>, fields:Map<String, Bool>} {
+        final l:Map<Int, Bool> = [], f:Map<String, Bool> = [];
+        for (k in extractedLocals.keys())
+            l.set(k, true);
+        for (k in extractedFields.keys())
+            f.set(k, true);
+        return {locals: l, fields: f};
+    }
+
+    function restoreExtractions(s:{locals:Map<Int, Bool>, fields:Map<String, Bool>}):Void {
+        extractedLocals.clear();
+        extractedFields.clear();
+        for (k in s.locals.keys())
+            extractedLocals.set(k, true);
+        for (k in s.fields.keys())
+            extractedFields.set(k, true);
     }
 
     function updateLocalProof(v:TVar, init:TypedExpr):Void {
@@ -3163,6 +3223,19 @@ class KotlinExpr {
         };
     }
 
+    /** The stable local a subject chain is rooted at, or null. */
+    function subjectRootLocal(e:TypedExpr):Null<TVar> {
+        var root = stripWrap(e);
+        while (true) {
+            switch (root.expr) {
+                case TLocal(v): return v;
+                case TField(subject, _): root = stripWrap(subject);
+                case _: return null;
+            }
+        }
+        return null;
+    }
+
     function isStringType(t:Type):Bool {
         if (t == null)
             return false;
@@ -3537,6 +3610,20 @@ class KotlinExpr {
             case TLocal(_): true;
             case _: false;
         };
+        // Kotlin smart-casts a stable receiver from the first printed `!!`
+        // for the rest of the scope, so a subject an emission of this same
+        // read already extracted reads through a plain dot; a second
+        // assertion would warn as redundant. The registry is consulted
+        // before any rendering and is written only by the emission that
+        // actually prints the assertion. (ExtractionSuppressesRepeat)
+        final root = subjectRootLocal(subj);
+        final alreadyExtracted = root != null && !mutated.exists(root.id)
+            && switch (stripWrap(subj).expr) {
+                case TLocal(v): extractedLocals.exists(v.id);
+                case _: (fieldAccessKey(subj) != null && extractedFields.exists(fieldAccessKey(subj)));
+            };
+        if (alreadyExtracted)
+            return expr(subj) + "." + KotlinNameEscape.escape(name);
         final access = if (isProperty && fieldType != null && !isNullType(fieldType)
             && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
             "!!.";
@@ -3550,14 +3637,13 @@ class KotlinExpr {
             && rendersNullable(subj)) {
             "!!.";
         } else {
-            final decided = nullableAccess(subj);
-            // The null-init branch of nullableAccess used to register on
-            // the decision path; the write belongs to the emission that
-            // actually prints the assertion. (PureAccessDecision)
-            if (decided == "!!.")
-                addProofExpr(subj);
-            decided;
+            nullableAccess(subj);
         };
+        // Register only the emission that actually prints the assertion:
+        // the write must not happen on the decision path, which queries
+        // also traverse. (PureAccessDecision)
+        if (access == "!!.")
+            addProofExpr(subj);
         return expr(subj) + access + KotlinNameEscape.escape(name);
     }
 
