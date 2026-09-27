@@ -23,6 +23,9 @@
 -D package-test=vector_gen:../../../tests/rust/vector_gen.rs
 boring.BinaryReader
 boring.BinaryWriter
+boring.DataClassStringCompare
+boring.BufferHolder
+boring.BytesFrame
 boring.Int64Ops
 boring.ValuePassingOps
 boring.BytesOps
