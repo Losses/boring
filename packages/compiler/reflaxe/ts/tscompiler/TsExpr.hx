@@ -2060,8 +2060,8 @@ class TsExpr {
                 if (cls.module == "std.Env" || cls.pack.join(".") + "." + cls.name == "std.Env") {
                     return envCall(fName, args, fn);
                 }
-                if ((cls.module == "std.Process" || cls.pack.join(".") + "." + cls.name == "std.Process") && fName == "args") {
-                    return processArgs(fn);
+                if (cls.module == "std.Process" || cls.pack.join(".") + "." + cls.name == "std.Process") {
+                    return processCall(fName, args, fn);
                 }
                 if ((cls.name == "Functional"
                     || cls.name == "__functional_shim"
@@ -2397,6 +2397,7 @@ class TsExpr {
             case "makeDirs": "mkdirSync(p, { recursive: true })";
             case "readDir": "readdirSync(p)";
             case "isDirectory": "statSync(p).isDirectory()";
+            case "deleteFile": "unlinkSync(p)";
             case _:
                 Context.error("std.Fs has no lowering for member " + name, fn.pos);
                 return "null";
@@ -2450,6 +2451,29 @@ class TsExpr {
     /** std.Process.args() reads process.argv.slice(2) lazily (stdlib/17). */
     function processArgs(fn:TypedExpr):String {
         return "((typeof process !== \"undefined\" && process.argv ? process.argv : []).slice(2))";
+    }
+
+    function processCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        return switch (name) {
+            case "exit": "process.exit(" + expr(args[0]) + ")";
+            case "args": processArgs(fn);
+            case "cwd": "process.cwd()";
+            case "platform": "(process.platform === \"darwin\" ? \"darwin\" : process.platform === \"win32\" ? \"windows\" : \"linux\")";
+            case "run":
+                imports.type("std.Process", "ProcessEnv");
+                final helper = imports.fsHelper("processRun",
+                    "const fsProcessRun = (command: string, args: string[], cwd: string, env: ProcessEnv[]) => { "
+                    + "const loader = typeof require === \"function\" ? require : null; const child = loader ? loader(\"node:child_process\") : null; "
+                    + "if (child === null) throw new Error(\"std.Process is not available on this host\"); "
+                    + "const variables = { ...process.env }; for (const entry of env) variables[entry.name] = entry.value; "
+                    + "const result = child.spawnSync(command, args, { cwd, env: variables, encoding: \"utf8\" }); "
+                    + "if (result.error) throw result.error; "
+                    + "return { code: result.status ?? 1, stdout: result.stdout ?? \"\", stderr: result.stderr ?? \"\" }; };");
+                helper + "(" + [for (a in args) expr(a)].join(", ") + ")";
+            case _:
+                Context.error("std.Process has no lowering for member " + name, fn.pos);
+                "null";
+        };
     }
 
     /** A double-quoted TypeScript string literal. */

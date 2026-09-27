@@ -914,6 +914,13 @@ class DartDecl {
         final name = dartMemberName(f.field);
         if (topLevel) {
             claimTopLevel(name, f.field.pos);
+            if (name == "main" && f.args.length == 0) {
+                // A regular Dart entry receives arguments directly. Store
+                // them for std.Process.args in any generated module.
+                imports.platformHost();
+                return ["void main(List<String> args) {", "  platform_host.storeArgs(args);"]
+                    .concat(expr.functionBody(cls, f, 1)).concat(["}"]);
+            }
             final head = '${types.of(f.ret)} $name$genericStr${paramList(cls, f)} {';
             return [head].concat(expr.functionBody(cls, f, 1)).concat(["}"]);
         }

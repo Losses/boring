@@ -35,7 +35,7 @@ class SwiftFallibility {
     static final escaping:Map<String, Map<String, Bool>> = [];
 
     /** The std.Fs operations whose failure raises (stdlib/17). */
-    static final THROWING_FS_OPS = ["readText", "writeText", "appendText", "makeDirs", "readDir"];
+    static final THROWING_FS_OPS = ["readText", "writeText", "appendText", "makeDirs", "readDir", "deleteFile"];
 
     static final bodies:Array<{key:String, body:TypedExpr}> = [];
 
@@ -216,6 +216,10 @@ class SwiftFallibility {
                     infect(infections, absorbed, "haxe.Exception");
                     return;
                 }
+                if (cls.module == "std.Process" && name == "run") {
+                    infect(infections, absorbed, "haxe.Exception");
+                    return;
+                }
                 final callee = escaping.exists(routedFuncKey(cls.module, cls.name, name, true)) ? escaping.get(routedFuncKey(cls.module, cls.name, name, true)) : null;
                 if (callee != null) {
                     for (domain in callee.keys()) {
@@ -303,6 +307,9 @@ class SwiftFallibility {
         }
         if (cls.module == "std.Fs") {
             return THROWING_FS_OPS.indexOf(name) >= 0;
+        }
+        if (cls.module == "std.Process" && name == "run") {
+            return true;
         }
         final routed = routedModule(cls.module, name);
         final cname = routed == cls.module ? cls.name : residentClassName(routed);
