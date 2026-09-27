@@ -5840,7 +5840,6 @@ class SwiftExpr {
                         }
                     }
                 case _:
-                case _:
             }
             if (!skipIter)
                 haxe.macro.TypedExprTools.iter(node, countReads);
