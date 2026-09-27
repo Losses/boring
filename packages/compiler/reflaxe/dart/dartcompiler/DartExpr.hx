@@ -1678,16 +1678,33 @@ class DartExpr {
             case OpAssignOp(inner):
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpBoolAnd:
-                final guarded = nullGuardLocal(l);
-                if (guarded != null && isNotNullGuard(l)) {
-                    final wasProven = nonNullLocals.exists(guarded.id);
-                    nonNullLocals.set(guarded.id, true);
-                    final right = operand(r, op, true);
-                    if (!wasProven)
-                        nonNullLocals.remove(guarded.id);
-                    return operand(l, op, false) + " && " + right;
+                // The chain flattens and renders left to right with each
+                // leading null guard promoting its local for the whole
+                // remainder of the chain: dart's own promotion from
+                // `pending != null && ...` reaches every later operand,
+                // so the unwraps those operands would add report no
+                // effect. The old single-pair form lost the promotion at
+                // the left-associative nesting boundary.
+                // (AndChainGuardPromotion)
+                final chainOps:Array<TypedExpr> = [];
+                flattenBoolAnd(l, chainOps);
+                flattenBoolAnd(r, chainOps);
+                final promotedVars:Array<{v:TVar, wasProven:Bool}> = [];
+                final parts:Array<String> = [];
+                for (i in 0...chainOps.length) {
+                    for (j in 0...i) {
+                        final gv = nullGuardLocal(chainOps[j]);
+                        if (gv != null && isNotNullGuard(chainOps[j]) && !mutated.exists(gv.id) && !nonNullLocals.exists(gv.id)) {
+                            nonNullLocals.set(gv.id, true);
+                            promotedVars.push({v: gv, wasProven: false});
+                        }
+                    }
+                    parts.push(operand(chainOps[i], op, i > 0));
                 }
-                return operand(l, op, false) + " && " + operand(r, op, true);
+                for (p in promotedVars)
+                    if (!p.wasProven)
+                        nonNullLocals.remove(p.v.id);
+                return parts.join(" && ");
             case OpAdd:
                 if (isStringTyped(e)) {
                     return templateLiteral(l, r);
@@ -4439,6 +4456,16 @@ class DartExpr {
         return switch (stripWrap(e).expr) {
             case TBinop(OpNotEq, _, _): true;
             case _: false;
+        };
+    }
+
+    /** Flatten a boolean-and chain into its operands, left to right. */
+    function flattenBoolAnd(e:TypedExpr, into:Array<TypedExpr>):Void {
+        return switch (stripWrap(e).expr) {
+            case TBinop(OpBoolAnd, l, r):
+                flattenBoolAnd(l, into);
+                flattenBoolAnd(r, into);
+            case _: into.push(stripWrap(e));
         };
     }
 
