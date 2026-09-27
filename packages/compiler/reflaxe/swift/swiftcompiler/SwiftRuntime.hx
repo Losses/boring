@@ -674,5 +674,9 @@ extension TiqianArray: Equatable where Element: Equatable {
     public static func == (lhs: TiqianArray<Element>, rhs: TiqianArray<Element>) -> Bool { return lhs.items == rhs.items }
 }
 ';
+
+    static final ARRAY_MARKER = "/// Reference-semantics array:";
+    public static final ARRAY_SOURCE = TEST_SOURCE.substr(TEST_SOURCE.indexOf(ARRAY_MARKER));
+    public static final TEST_HOST_SOURCE = TEST_SOURCE.substr(0, TEST_SOURCE.indexOf(ARRAY_MARKER));
 }
 #end

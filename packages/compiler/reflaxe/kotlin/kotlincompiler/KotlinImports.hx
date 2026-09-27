@@ -105,6 +105,10 @@ class KotlinImports {
         if (module == "Std" || module == "Math" || module == "String" || module == "haxe.Int64" || module == "haxe.Exception") {
             return;
         }
+        if (module == "std.Process" && (name == "ProcessEnv" || name == "ProcessResult")) {
+            require("std." + name);
+            return;
+        }
         if (SHIM_MODULES.exists(module)) {
             final runtimePackage = RuntimeConfig.requireImportName("module " + module);
             state.shimsUsed.set(module, true);
