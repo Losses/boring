@@ -704,8 +704,53 @@ class KotlinExpr {
         return PolicyQueries.statementsOf(e);
     }
 
+    /** The statement-position shift/pop lowering of (NullArmStatementFold):
+        the array receiver and which member, or null elsewhere. **/
+    function arrayPopShift(fn:TypedExpr):Null<{subj:TypedExpr, member:String}> {
+        return switch (stripWrap(fn).expr) {
+            case TField(subj, FInstance(c, _, cf)):
+                final member = cf.get().name;
+                if (c.get().name == "Array" && (member == "pop" || member == "shift")) {subj: subj, member: member};
+                else null;
+            case _:
+                null;
+        };
+    }
+
+    /**
+        True when the rendered arm is the null literal, directly or as the
+        single expression of a block: the arm carries no value and the
+        statement-position if can drop it. (NullArmStatementFold)
+    **/
+    function isNullLiteralArm(e:Null<TypedExpr>):Bool {
+        if (e == null)
+            return false;
+        return switch (stripWrap(e).expr) {
+            case TConst(TNull): true;
+            case TBlock(b) if (b.length == 1): stripWrap(b[0]).expr.match(TConst(TNull));
+            case _: false;
+        };
+    }
+
     function stmtLines(e:TypedExpr, depth:Int):Array<String> {
         switch (e.expr) {
+            // A statement-position if whose one arm is the null literal
+            // carries no value: rendering both arms turns the if into a
+            // Kotlin expression whose value is discarded and warns
+            // "expression is unused". Emit a single-branch statement.
+            // (NullArmStatementFold)
+            case TIf(c, t, f) if (f != null && isNullLiteralArm(t)):
+                return ["if (!(" + expr(c) + ")) " + expr(f)];
+            case TIf(c, t, f) if (t != null && isNullLiteralArm(f)):
+                return ["if (" + expr(c) + ") " + expr(t)];
+            // A statement-position shift/pop discards the removed element:
+            // emit the guarded removal as a statement, not as the if-else
+            // expression whose unused value warns "expression is unused".
+            // (NullArmStatementFold)
+            case TCall(fn, args) if (args.length == 0 && arrayPopShift(fn) != null):
+                final ps = arrayPopShift(fn);
+                final tail = ps.member == "pop" ? expr(ps.subj) + ".lastIndex" : "0";
+                return ["if (!(" + expr(ps.subj) + ".isEmpty())) " + expr(ps.subj) + ".removeAt(" + tail + ")"];
             case TVar(v, init) if (init != null && isTryRegion(init)):
                 final parts = tryRegionParts(init);
                 if (regionTailValue(statementsOf(parts.body)) == null) {
@@ -2664,22 +2709,55 @@ class KotlinExpr {
         (DeclaredFieldNonNull)
     **/
     function extractedNonNullFieldRead(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
             case TField(recv, FInstance(c, _, cf)):
-                final field = cf.get();
-                // (see comment below)
-                // a regular non-null declared property; the length/size
-                // lowering keeps the safe call and stays nullable.
-                // (DeclaredFieldNonNull)
-                field.name != "length"
-                    && field.kind.match(FVar(_, _))
-                    && !isNullType(field.type)
-                    && !nullableRenderedField(c.get(), field)
-                    && isNullType(recv.t)
-                    && !provenNonNull(recv) && !guardProofBefore(recv);
+                memberReadNonNull(c, cf, recv);
+            // A getter-property read the typer lowers to a nullary call:
+            // the call's field is the accessor member, and the Kotlin
+            // side renders it as the declared property.
+            // (DeclaredFieldNonNull)
+            case TCall(fn, args) if (args.length == 0):
+                switch (stripWrap(fn).expr) {
+                    case TField(recv, FInstance(c, _, cf)):
+                        memberReadNonNull(c, cf, recv);
+                    case _:
+                        false;
+                }
             case _:
                 false;
         };
+    }
+
+    /**
+        The shared test of (DeclaredFieldNonNull) for one member read: the
+        member declares a non-null Kotlin property (a regular val field or
+        a non-Null getter property, never the length/size lowering), the
+        receiver is a nullable-typed local the renderer extracts, and no
+        dominating proof already narrowed it.
+    **/
+    function memberReadNonNull(c:Ref<ClassType>, cf:Ref<ClassField>, recv:TypedExpr):Bool {
+        final field = cf.get();
+        if (isNullType(field.type))
+            return false;
+        var propertyName = field.name;
+        if (!field.kind.match(FVar(_, _))) {
+            if (StringTools.startsWith(propertyName, "get_")) {
+                propertyName = propertyName.substr(4);
+            } else {
+                return false;
+            }
+        }
+        if (propertyName == "length")
+            return false;
+        for (prop in c.get().fields.get()) {
+            final pf = prop;
+            if (pf.name == propertyName)
+                return !isNullType(pf.type) && !nullableRenderedField(c.get(), pf)
+                    && isNullType(recv.t) && !provenNonNull(recv) && !guardProofBefore(recv);
+        }
+        return !isNullType(field.type) && !nullableRenderedField(c.get(), field)
+            && isNullType(recv.t) && !provenNonNull(recv) && !guardProofBefore(recv);
     }
 
     function isNullableReferenceType(t:Null<Type>):Bool {
@@ -3905,7 +3983,9 @@ class KotlinExpr {
                 // unit, so the pair goes through Character.toChars. A BMP
                 // value (surrogate range included) keeps the single-char
                 // form the existing callers rely on. (FromCharCodeScalar)
-                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")).toString() else ((" + unwrapped + ").toChar()).toString())";
+                // String(...) already yields a String: only the Char arm
+                // needs the conversion. (RedundantToStringFold)
+                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")) else ((" + unwrapped + ").toChar()).toString())";
             case _:
                 return null;
         }
