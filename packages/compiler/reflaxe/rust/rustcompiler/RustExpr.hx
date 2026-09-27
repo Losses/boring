@@ -7596,11 +7596,15 @@ class RustExpr {
                     else if (isIntType(emittedType(l)) && isIntType(emittedType(r))
                         && !leftI32 && !rightI32 && !leftUsize && !rightUsize) {
                         if (!leftLiteral && !~/^\d+$/.match(leftText))
-                            leftText = RustConversions.reinterpret(leftText, "i32");
+                            leftText = ambiguousIntReceiver(l)
+                                ? "{ let v: u32 = " + leftText + "; i32::from_ne_bytes(v.to_ne_bytes()) }"
+                                : RustConversions.reinterpret(leftText, "i32");
                         else if (StringTools.endsWith(leftText, "u32"))
                             leftText = RustConversions.reinterpret(leftText, "i32");
                         if (!rightLiteral && !~/^\d+$/.match(rightText))
-                            rightText = RustConversions.reinterpret(rightText, "i32");
+                            rightText = ambiguousIntReceiver(r)
+                                ? "{ let v: u32 = " + rightText + "; i32::from_ne_bytes(v.to_ne_bytes()) }"
+                                : RustConversions.reinterpret(rightText, "i32");
                         else if (StringTools.endsWith(rightText, "u32"))
                             rightText = RustConversions.reinterpret(rightText, "i32");
                     }
@@ -9956,11 +9960,32 @@ class RustExpr {
                 if (!inConcat)
                     state.shimsUsed.set("haxe.io.FPHelper", true);
                 inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
-            case IsInt | IsBool:
-                if (inConcat)
-                    return value;
-                imports.requireType("runtime.UString", "UString");
-                return "UString::from((" + value + ").to_string().as_str())";
+            case IsBool:
+                inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
+            case IsInt:
+                // A business-module Haxe Int is u32, so a negative Int stored
+                // as its two's-complement bits prints unsigned under a bare
+                // Display/to_string read. Reinterpret through the runtime
+                // helper; resident modules already render i32 and keep the
+                // direct read. A length read (usize) is already non-negative
+                // and stays plain. (RustIntStringSign)
+                if (RuntimeResidents.isResident(imports.selfModule)) {
+                    inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
+                } else if (StringTools.startsWith(value, "usize::")
+                    || StringTools.endsWith(value, ".len()")
+                    || value.indexOf(".as_ref().map_or(0, |v| v.len())") >= 0) {
+                    inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
+                } else if (rendersSignedIntExpr(origin) || i32LocalDomain(origin) || isClosureParam(origin)) {
+                    // A signed-domain value (an indexOf result, a unary negation,
+                    // an fpHelper i32, an i32 local, or a closure parameter typed
+                    // i32 in the fn signature) reads its signed int through a
+                    // direct to_string. int_text expects u32 and would not
+                    // type-check these. (SignedIntString)
+                    inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
+                } else {
+                    state.shimsUsed.set("std.IntText", true);
+                    ustringFromStdText("crate::runtime::int_text::IntText::int_text(" + value + ")");
+                }
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
             case IsParameterlessEnum(en):
@@ -16609,6 +16634,14 @@ class RustExpr {
             case TLocal(v): rangeLoopVars.exists(v.id) || ambiguousIntReceiverLocals.exists(v.id);
             case TIf(_, _, f) if (f != null): true;
             case TArray(_, _): true;
+            case TBinop(OpShl, l, _):
+                // A shift whose LHS is a bare Int literal (e.g. 1 << u32)
+                // leaves the result ambiguous because the literal carries
+                // no concrete integer type. (AmbiguousIntReceiver)
+                switch (stripWrap(l).expr) {
+                    case TConst(TInt(_)): true;
+                    case _: false;
+                };
             case _: false;
         };
     }
