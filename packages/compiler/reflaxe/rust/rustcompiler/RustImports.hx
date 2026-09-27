@@ -62,6 +62,10 @@ class RustImports {
             require(runtimePackage + "::sorted_table::" + sortedClass);
             return;
         }
+        if (module == "std.Process" && (name == "ProcessEnv" || name == "ProcessResult")) {
+            require("crate::std::process::" + name);
+            return;
+        }
         if (SHIM_MODULES.exists(module)) {
             final runtimePackage = RuntimeConfig.requireImportName("module " + module);
             state.shimsUsed.set(module, true);

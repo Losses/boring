@@ -144,6 +144,9 @@ object FPHelper {
     fun log(message: String) {
         println(message)
     }
+    fun error(message: String) {
+        System.err.println(message)
+    }
 }
 ";
 
@@ -160,6 +163,30 @@ object Process {
 
     fun exit(code: Int) {
         exitProcess(code)
+    }
+
+    fun cwd(): String = System.getProperty(\"user.dir\")
+
+    fun platform(): String {
+        val name = System.getProperty(\"os.name\").lowercase()
+        return if (name.contains(\"mac\")) \"darwin\" else if (name.contains(\"win\")) \"windows\" else \"linux\"
+    }
+
+    fun run(command: String, args: MutableList<String>, cwd: String, env: MutableList<std.ProcessEnv>): std.ProcessResult {
+        val builder = ProcessBuilder(listOf(command) + args)
+        builder.directory(java.io.File(cwd))
+        for (entry in env) builder.environment()[entry.name] = entry.value
+        val child = builder.start()
+        var stdout = \"\"
+        var stderr = \"\"
+        val outThread = Thread { stdout = child.inputStream.bufferedReader().readText() }
+        val errThread = Thread { stderr = child.errorStream.bufferedReader().readText() }
+        outThread.start()
+        errThread.start()
+        val code = child.waitFor()
+        outThread.join()
+        errThread.join()
+        return std.ProcessResult(code = code, stdout = stdout, stderr = stderr)
     }
 }
 ";

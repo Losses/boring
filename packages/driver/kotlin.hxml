@@ -1,0 +1,14 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp samples
+-cp samples/haxe
+-cp packages/registry/src
+-cp packages/driver/src
+--macro Intercept.run(['samples', 'packages/registry/src', 'packages/driver/src'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/driver/kotlin/gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+driver.Main
