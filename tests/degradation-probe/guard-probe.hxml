@@ -1,0 +1,6 @@
+# DegradedLvalueGuard place-path probe: RC=0 prints GUARD-PROBE-OK, any
+# mismatch fails the compilation (nonzero RC). See GuardProbe.hx.
+-cp ../../packages/compiler
+-cp .
+--macro GuardProbe.check()
+--no-output

@@ -55,24 +55,68 @@ class AssignTargetPlan {
     }
 
     /**
-        The assignment-target boundary is an lvalue site. A target whose
-        rendered text still carries an owned-conversion suffix or a
-        whole-value wrapper is a degradation decision made on the rendered
-        shape instead of the site; the write would land on a temporary and
-        be silently dropped. The site does not degrade silently: refuse the
-        generation here with the site position. (DegradedLvalueGuard)
+        The assignment-target boundary is an lvalue site. A degradation
+        decision made on the rendered shape only loses the write silently
+        when the conversion is the place-path's value-producing step: the
+        write would land in the fresh value instead of the original slot.
+        A conversion that only feeds a place path is legitimate: Rust's
+        interior mutability reads *`x.lock().unwrap()` and *`c.borrow_mut()` write
+        through, so the guard masks those readers and only refuses a
+        place-terminal or mid-path conversion that no top-level deref
+        rescues, with the site position. (DegradedLvalueGuard)
     **/
-    public static function assertLvalueSite(e:TypedExpr, text:String):String {
+
+    /**
+        Interior-mutability and lock readers produce a place (a guard
+        that deref-coerces), so they never make the target a fresh value
+        and are masked before the conversion check.
+    **/
+    public static final placePathReaders:Array<String> = [
+        "lock().unwrap()", "try_lock().unwrap()",
+        "borrow().unwrap()", "borrow_mut().unwrap()",
+        "borrow()", "borrow_mut()"
+    ];
+
+    /**
+        Returns the conversion suffix found at a place-path terminal or
+        mid-path position (a lost-write shape), or null when the target
+        is a plain place. Pure text predicate so it is probeable without
+        a TypedExpr. (DegradedLvalueGuard)
+    **/
+    public static function lvalueConversionHit(text:String):Null<String> {
+        var masked = text;
+        for (reader in placePathReaders)
+            masked = StringTools.replace(masked, reader, "\x01");
+        final derefed = StringTools.startsWith(masked, "*");
         for (suffix in lvalueConversionSuffixes) {
-            if (StringTools.endsWith(text, suffix))
-                Context.error("assignment target renders with an owned conversion suffix ("
-                    + suffix + "); the write would land on a temporary and be silently dropped", e.pos);
+            var at = masked.indexOf(suffix);
+            while (at >= 0) {
+                if (at + suffix.length == masked.length) {
+                    if (!derefed)
+                        return suffix;
+                } else {
+                    final next = masked.charCodeAt(at + suffix.length);
+                    if (next == ".".code || next == "[".code)
+                        return suffix;
+                }
+                final next2 = masked.indexOf(suffix, at + 1);
+                if (next2 <= at) break;
+                at = next2;
+            }
         }
         for (wrapper in lvalueConversionWrappers) {
-            if (topLevelWrapped(text, wrapper))
-                Context.error("assignment target is wrapped by a fresh-value conversion ("
-                    + wrapper + " ...); the write would land on the temporary and be silently dropped", e.pos);
+            if (topLevelWrapped(masked, wrapper) && !derefed)
+                return wrapper;
         }
+        return null;
+    }
+
+    /** Reports a degraded lvalue at generation time. (DegradedLvalueGuard) */
+    public static function assertLvalueSite(e:TypedExpr, text:String):String {
+        final hit = lvalueConversionHit(text);
+        if (hit != null)
+            Context.error("assignment target carries a place-terminal conversion ("
+                + hit + "); the write would land on the converted temporary and be silently dropped", e.pos);
         return text;
     }
 
@@ -83,7 +127,6 @@ class AssignTargetPlan {
         if (text.charCodeAt(text.length - 1) != ")".code)
             return false;
         var depth = 0;
-        final open = prefix.charCodeAt(prefix.length - 1);
         for (i in (prefix.length - 1)...text.length) {
             final c = text.charCodeAt(i);
             if (c == "(".code) depth++;
