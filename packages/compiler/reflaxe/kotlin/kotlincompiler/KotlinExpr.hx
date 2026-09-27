@@ -99,6 +99,12 @@ class KotlinExpr {
     /** Enum locals narrowed to a constructor by the active switch arm. */
     final enumVariants:Map<Int, String> = [];
 
+    /** Binop expressions whose rendered operands already widened to Float,
+        so the rendered result is Float and an outer widening at a call or
+        assignment boundary would repeat the conversion. Keyed by source
+        position. (WideningIdempotence) */
+    final floatRenderedBinops:Map<String, Bool> = [];
+
     final enumVariantExpressions:Map<String, String> = [];
 
     var hiddenCounter:Int = 0;
@@ -484,6 +490,7 @@ class KotlinExpr {
         extractedLocals.clear();
         extractedFields.clear();
         declaredNullableInitLocals.clear();
+        floatRenderedBinops.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
         // Fuse declaration-plus-assignment pairs before the mutation scan.
@@ -570,6 +577,7 @@ class KotlinExpr {
         extractedLocals.clear();
         extractedFields.clear();
         declaredNullableInitLocals.clear();
+        floatRenderedBinops.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
         scanLocals(f.expr);
@@ -3246,6 +3254,12 @@ class KotlinExpr {
                 }
                 final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
                 final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
+                // Mixed Int/Float arithmetic renders both operands widened,
+                // so the rendered result is already Float: an outer
+                // widening at an argument or assignment boundary would
+                // repeat the conversion. (WideningIdempotence)
+                if (leftFinal != leftText || rightFinal != rightText)
+                    floatRenderedBinops.set(Std.string(e.pos), true);
                 return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpBoolOr:
                 // Kotlin's flow analysis treats a evaluated-false left
@@ -4826,7 +4840,11 @@ class KotlinExpr {
 #end
                 return hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
             }
-        } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) return intToFloatText(text); else return text;
+        } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) {
+            // (WideningIdempotence) a Float-rendered binop needs no second
+            // conversion at the argument boundary.
+            return floatRenderedBinops.exists(Std.string(a.pos)) ? text : intToFloatText(text);
+        } else return text;
     }
 
     /**
@@ -4879,7 +4897,9 @@ class KotlinExpr {
 #end
                         hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
                     }
-                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text) else text;
+                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) {
+                    floatRenderedBinops.exists(Std.string(a.pos)) ? text : intToFloatText(text);
+                } else text;
             }
         ];
     }
