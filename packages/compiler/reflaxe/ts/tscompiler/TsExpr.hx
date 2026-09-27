@@ -2424,7 +2424,7 @@ class TsExpr {
             + name.substring(1)
             + " = ("
             + params
-            + ") => { const fs = typeof require === \"function\" ? require(\"node:fs\") : null; if (fs === null) { throw new Error("
+            + ") => { const fs = typeof globalThis.require === \"function\" ? globalThis.require(\"node:fs\") : null; if (fs === null) { throw new Error("
             + tsStringLiteral(FS_UNAVAILABLE)
             + "); } return fs."
             + member
