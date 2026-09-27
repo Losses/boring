@@ -826,6 +826,13 @@ class SwiftExpr {
                         // converts to the native value Array at the return.
                         if (currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) && isMutableArrayType(ret.t))
                             retText = "Array(" + retText + ")";
+                        // features/18: an array-literal return into a read-only
+                        // slot drops the mutable container wrapper: the slot
+                        // type drives the literal's element inference, which a
+                        // merged ternary or an empty literal's monomorph hides
+                        // from the type check above. (ReadOnlyAssignBoundary)
+                        if (currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType))
+                            retText = new EReg("TiqianArray\\(\\[([^\\[\\]]*)\\]\\)", "g").replace(retText, "[$1]");
                         final tryKw = containsThrowingCall(ret) ? "try " : "";
                         return [indent(depth) + "return " + tryKw + retText];
                 }
@@ -1167,7 +1174,7 @@ class SwiftExpr {
         for (s in stmts.slice(0, stmts.length - 1))
             for (line in stmtLines(s, 1))
                 out.push(line);
-        out.push(indent(1) + "return " + expr(stmts[stmts.length - 1]));
+        out.push(indent(1) + "return " + readOnlyReturnText(expr(stmts[stmts.length - 1])));
         out.push("})()");
         return out.join("\n");
     }
@@ -2479,6 +2486,18 @@ class SwiftExpr {
     function coalescingFallbackText(fallback:TypedExpr, merged:Type):String {
         final text = expr(fallback);
         return isFloatLeafType(merged) && isIntType(emittedType(fallback)) ? intToFloatText(text) : text;
+    }
+
+    /**
+        A return value into a read-only slot renders array literals as the
+        native container: the slot type drives the literal's element
+        inference, which a merged ternary or an empty literal's monomorph
+        hides from the Haxe type check. (ReadOnlyAssignBoundary)
+    **/
+    function readOnlyReturnText(t:String):String {
+        if (currentReturnType == null || !StaticFieldHelper.isReadOnlyArrayType(currentReturnType))
+            return t;
+        return new EReg("TiqianArray\\(\\[([^\\[\\]]*)\\]\\)", "g").replace(t, "[$1]");
     }
 
     /** Only the arithmetic compound ops accept a widened operand. */
