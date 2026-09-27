@@ -644,3 +644,6 @@ boring.IntFloatSignOps
 tests.IntFloatSignTests
 
 tests.DriverPlanTests
+boring.NullInflatedLiteralOps
+tests.NullInflatedLiteralOpsTests
+
