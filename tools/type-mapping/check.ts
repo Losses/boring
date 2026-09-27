@@ -12,8 +12,7 @@ export const rowCells = (line: string): string[] => line.split("|").map((cell) =
 /** Checks the `Int` row of the features/14 fixed mapping table. */
 export const checkIntRow = (mapping: string): void => {
   const row = mapping.split("\n").find((line) => line.startsWith("| `Int` |"));
-  if (row === undefined) fail("features/14: the mapping table has no `Int` row");
-  const cells = rowCells(row);
+  const cells = rowCells(row ?? fail("features/14: the mapping table has no `Int` row"));
   if (cells.length !== 4) fail(`features/14: the Int row has ${cells.length} cells, expected 4`);
   if (cells[1] !== "`u32` (`i32` inside resident runtime modules)")
     fail(`features/14: the Int row Rust cell is ${JSON.stringify(cells[1])}`);
