@@ -31,13 +31,16 @@ export const checkResidentStatement = (label: string, text: string, residentNeed
   checkFragment(label, text, businessNeedle);
 };
 
-export const checkAll = (files: {
+/** The spec files the mapping check reads, keyed by their role. */
+export interface MappingCheckFiles {
   mapping: string;
   numeric: string;
   sortedTables: string;
   unicodeAccess: string;
   graphemes: string;
-}): void => {
+}
+
+export const checkAll = (files: MappingCheckFiles): void => {
   checkIntRow(files.mapping);
   checkFragment("features/07", files.numeric,
     "Code points are represented as `Int` in Haxe, `u32` in Rust, `number` in TypeScript, and `Int` in Kotlin.");
