@@ -2574,7 +2574,7 @@ class KotlinExpr {
         // The nullable-type fallback extracts only when no dominating
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
-        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+        if (isNullType(subj.t) && !(provenNonNull(subj) && smartCastableSubject(subj)) && !guardProofBefore(subj)) {
 #if boring_fold_debug
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
@@ -3352,7 +3352,7 @@ class KotlinExpr {
             case _: false;
         };
         final access = if (isProperty && fieldType != null && !isNullType(fieldType)
-            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+            && isNullType(subj.t) && !(provenNonNull(subj) && smartCastableSubject(subj)) && !guardProofBefore(subj)) {
             "!!.";
         } else if (!provenNonNull(subj) && !guardProofBefore(subj)
             // A safe-call hop earlier in the receiver chain leaves the
@@ -4758,10 +4758,7 @@ class KotlinExpr {
         // or a reassigned binding keeps its extraction even when the
         // program's control flow proves the value present.
         // (NonNullArgumentExtraction)
-        final smartCastable = switch (stripWrap(e).expr) {
-            case TLocal(v): !mutated.exists(v.id);
-            case _: false;
-        };
+        final smartCastable = smartCastableSubject(e);
         final proven = valueProvenNonNull(e) || provenNonNull(e) || guardProofBefore(e);
         if (smartCastable && proven)
             return false;
@@ -4785,6 +4782,20 @@ class KotlinExpr {
             || nullableChainHop(e)
             || rendersNullable(e)
             || rendered.indexOf("?.") >= 0;
+    }
+
+    /**
+        Whether Kotlin smart-casts a proven-non-null subject. A val-like local
+        and a final (val) property smart-cast; a var property or a reassigned
+        binding does not, so its read must keep the force extraction even when
+        the enclosing guard proved it present. (VarFieldSmartCast)
+    **/
+    function smartCastableSubject(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): !mutated.exists(v.id);
+            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) | TField(_, FStatic(_, cf)): cf.get().isFinal;
+            case _: false;
+        };
     }
 
     /**
