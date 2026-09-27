@@ -80,7 +80,7 @@ class TsDecl {
                 final capName = f.field.name.charAt(0).toUpperCase() + f.field.name.substr(1);
                 final aliasName = '${cls.name}${capName}Fn';
                 final args = [
-                    for (a in f.args) paramText(cls, f, a)
+                    for (a in f.args) paramText(cls, f, a, true)
                 ].join(", ");
                 final ret = types.of(f.ret);
                 typeAliases.push('export type $aliasName = ($args) => $ret;');
@@ -570,7 +570,7 @@ class TsDecl {
         optional one, and callers always pass it. Constant defaults
         (VEnum/VInt/VFloat) materialize at every call site and stay required.
     **/
-    function paramText(cls:ClassType, f:ClassFuncData, a:ClassFuncArg):String {
+    function paramText(cls:ClassType, f:ClassFuncData, a:ClassFuncArg, inTypeAlias = false):String {
         final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
         if (coalescing != null) {
             // Spec 51 rules 4 and 5: an omitted argument and an explicit null
@@ -580,6 +580,15 @@ class TsDecl {
             return '${a.name}: ${types.of(a.type)} = null';
         }
         if (isTrailingOptional(cls, f, a.index)) {
+            // A nullable-typed optional parameter takes the null default
+            // initializer instead of the question mark: Haxe folds an omitted
+            // argument to null, and the question-mark rendering admits
+            // undefined, which the body's null comparisons cannot narrow
+            // away. The initializer also runs for an omitted argument, so the
+            // observable value is the same null Haxe hands the body.
+            // (OptionalNullDefaultParam)
+            if (!inTypeAlias && PolicyQueries.isNullableType(a.type))
+                return '${a.name}: ${types.of(a.type)} = null';
             return '${a.name}?: ${types.of(a.type)}';
         }
         return '${a.name}: ${types.of(a.type)}';
