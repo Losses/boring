@@ -98,6 +98,7 @@ class DartExpr {
     // the analyzer flags them. Function-scoped; cleared at each body.
     // (FlowPromotedDedup)
     final flowPromotedNonNull:Map<Int, Bool> = [];
+    var probeTextEmitted:Bool = false;
 
     /** Optional parameters materialized by default expansion. */
     final nonNullOptionalParams:Map<Int, Bool> = [];
@@ -2513,14 +2514,39 @@ class DartExpr {
         if (inlineMapCall != null) {
             return inlineMapCall;
         }
-        // callArgTexts pre-renders every argument to resolve defaults,
-        // which marks nullable locals non-null in the flow. Members that
-        // re-render their operands (Math) must see the pre-call flow so
-        // the `!` a fresh render needs is not suppressed.
-        final savedNonNull = nonNullLocals.copy();
+        // (EmittedChannelRegistry) callArgTexts pre-renders every argument to
+        // resolve defaults and records the nullable locals it unwraps. For the
+        // inline-lowered special cases below that record is a probe render:
+        // its text is discarded, the special case re-renders the argument, and
+        // only the second render's text is emitted. Registry writes belong to
+        // the emitting render, so the keys the pre-render added are rolled back
+        // here; callSpecial re-applies them for the handlers that do emit the
+        // pre-rendered text.
         final savedFlow = flowPromotedNonNull.copy();
         final renderedArgs = callArgTexts(fn, args);
+        final probeAdded = [for (k in flowPromotedNonNull.keys()) if (!savedFlow.exists(k)) k];
+        for (k in probeAdded)
+            flowPromotedNonNull.remove(k);
+        final outerProbeFlag = probeTextEmitted;
+        probeTextEmitted = false;
         final rendered = renderedArgs.join(", ");
+        final emitted = callSpecial(fn, args, renderedArgs, rendered);
+        final consumed = probeTextEmitted;
+        probeTextEmitted = outerProbeFlag;
+        if (consumed)
+            for (k in probeAdded)
+                flowPromotedNonNull.set(k, true);
+        return emitted;
+    }
+
+    /**
+        The inline-lowered special cases of call, dispatched with the
+        pre-rendered argument texts. A handler that emits renderedArgs or
+        rendered marks probeTextEmitted so call re-applies the pre-render's
+        promotions; a handler that re-renders its arguments leaves it false,
+        and its own renders are the emitted ones that write the registry.
+    **/
+    function callSpecial(fn:TypedExpr, args:Array<TypedExpr>, renderedArgs:Array<String>, rendered:String):String {
         switch (fn.expr) {
             case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "copy" && isArrayType(subj.t)):
                 return receiverText(subj) + ".toList()";
@@ -2551,6 +2577,7 @@ class DartExpr {
                     && cls.name == "StringTools"
                     && (fName == "startsWith" || fName == "endsWith")
                     && args.length == 2) {
+                    probeTextEmitted = true;
                     return renderedArgs[0] + "." + fName + "(" + renderedArgs[1] + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "StringTools") {
@@ -2559,9 +2586,11 @@ class DartExpr {
                     // into the runtime module, mirroring the Kotlin target.
                     // The inline-lowered ones (hex, trim, startsWith,
                     // endsWith) are handled before this point.
+                    probeTextEmitted = true;
                     return runtimeQualified("StringTools." + fName) + "(" + rendered + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
+                    probeTextEmitted = true;
                     return renderedArgs[0] + ".contains(" + renderedArgs[1] + ")";
                 }
                 final markedField = findStaticField(cls, fName);
@@ -2571,8 +2600,10 @@ class DartExpr {
                         if (markedField.isPublic) {
                             imports.useExtension(module);
                         }
+                        probeTextEmitted = true;
                         return renderedArgs[0] + "." + nativeName + "(" + renderedArgs.slice(1).join(", ") + ")";
                     }
+                    probeTextEmitted = true;
                     return qualifiedRef(module, nativeName) + "(" + rendered + ")";
                 }
                 if (module == "std.UStringPlatform") {
@@ -2604,21 +2635,14 @@ class DartExpr {
                     return testPlatformCall(fName, args, fn);
                 }
                 if (module == "std.UStringRT") {
+                    probeTextEmitted = true;
                     return runtimeQualified("UString." + fName) + "(" + rendered + ")";
                 }
                 if (module == "std.Graphemes") {
+                    probeTextEmitted = true;
                     return runtimeQualified("Graphemes." + fName) + "(" + rendered + ")";
                 }
                 if (module == "Math") {
-                    // callArgTexts marked the nullable operands non-null
-                    // while resolving defaults; restore the pre-call flow
-                    // so a fresh render keeps the `!` it needs.
-                    nonNullLocals.clear();
-                    for (k in savedNonNull.keys())
-                        nonNullLocals.set(k, savedNonNull.get(k));
-                    flowPromotedNonNull.clear();
-                    for (k in savedFlow.keys())
-                        flowPromotedNonNull.set(k, savedFlow.get(k));
                     // Members with no bare-function form lower onto the
                     // core member of the argument.
                     switch (fName) {
@@ -2853,9 +2877,11 @@ class DartExpr {
                     return "Uint8List.fromList(" + receiverText(subj) + ")";
                 }
                 if (name == "push") {
+                    probeTextEmitted = true;
                     return receiverText(subj) + ".add(" + rendered + ")";
                 }
                 if (name == "join") {
+                    probeTextEmitted = true;
                     return receiverText(subj) + ".join(" + rendered + ")";
                 }
                 if (name == "slice" && (args.length == 1 || args.length == 2)) {
@@ -2903,8 +2929,11 @@ class DartExpr {
                         // omitted startIndex, which keeps the plain
                         // one-argument call. (StringIndexOfStartKept)
                         final end = args.length >= 2 && isNullLiteral(args[1]) ? 1 : renderedArgs.length;
-                        if (end == 1)
+                        if (end == 1) {
+                            probeTextEmitted = true;
                             return receiverText(subj) + ".indexOf(" + renderedArgs[0] + ")";
+                        }
+                        probeTextEmitted = true;
                         return "(() { final _s = " + receiverText(subj)
                             + "; final _n = " + renderedArgs[0]
                             + "; final _st0 = " + renderedArgs[1]
@@ -2912,6 +2941,7 @@ class DartExpr {
                             + " return _s.indexOf(_n, _st); })()";
                     }
                     final end = args.length >= 2 && isNullLiteral(args[1]) ? 1 : renderedArgs.length;
+                    probeTextEmitted = true;
                     return receiverText(subj) + ".indexOf(" + renderedArgs.slice(0, end).join(", ") + ")";
                 }
                 // Haxe Array members Dart's List names differently or
@@ -2946,6 +2976,7 @@ class DartExpr {
                             final r = receiverText(subj);
                             return r + ".setAll(0, " + r + ".reversed.toList())";
                         case "unshift" if (args.length == 1):
+                            probeTextEmitted = true;
                             return receiverText(subj) + ".insert(0, " + rendered + ")";
                         case "insert" if (args.length == 2):
                             // Haxe bounds the position before the list sees
@@ -3038,14 +3069,17 @@ class DartExpr {
                 // A private method renders under its `_`-prefixed Dart
                 // name (feature spec 27); the special cases above are
                 // public library APIs.
+                probeTextEmitted = true;
                 return receiverText(subj) + "." + memberName(owner.get().module, cf, subj.pos) + "(" + rendered + ")";
             case TField(_, FEnum(en, ef)):
                 return enumConstruct(en.get(), ef, args);
             case TConst(TSuper):
                 // Constructors lower through constructorParts; this arm
                 // only serves the analysis fallback.
+                probeTextEmitted = true;
                 return "super(" + rendered + ")";
             case _:
+                probeTextEmitted = true;
                 return expr(fn) + "(" + rendered + ")";
         }
     }
