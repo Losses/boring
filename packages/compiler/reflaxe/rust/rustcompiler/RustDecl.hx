@@ -44,7 +44,11 @@ class RustDecl {
     **/
     public static var sharedInterfaces:Map<String, Bool> = [
         "org.tiqian.shaping.TextShaper::ITextShaper" => true,
-        "org.tiqian.layout.WidthIndependentAnnotationCache::WidthIndependentAnnotationCache" => true
+        "org.tiqian.layout.WidthIndependentAnnotationCache::WidthIndependentAnnotationCache" => true,
+        // The samples regression module locks the shared-handle lowering:
+        // a stateful implementor crossing an interface slot stays one
+        // object. (ClassHandleShare)
+        "tests.SharedHandleTests::ISharedHandleCounter" => true
     ];
 
     /** Whether the interface (module, name) lowers to a shared handle slot. */
