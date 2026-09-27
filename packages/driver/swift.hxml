@@ -1,0 +1,15 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp samples/haxe
+-cp packages/registry/src
+-cp packages/driver/src
+--macro Intercept.run(['samples', 'packages/registry/src', 'packages/driver/src'])
+--macro swiftcompiler.Compiler.use()
+-D swift-output=out/driver/swift/gen
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none
+driver.Main

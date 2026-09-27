@@ -4050,8 +4050,8 @@ class KotlinExpr {
                 if (cls.module == "std.Env") {
                     return envCall(name, args, fn);
                 }
-                if (cls.module == "std.Process" && name == "args") {
-                    return processArgs(fn);
+                if (cls.module == "std.Process") {
+                    return processCall(name, args, fn);
                 }
                 if (KotlinTestBinding.isTestPlatformExtern(cls.module)) {
                     // Host edges of the resident runtime.TestCore, inlined
@@ -5109,7 +5109,7 @@ class KotlinExpr {
     }
 
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {
-        final typeName = resolveTypeName(e.t);
+        final typeName = resolveTypeName(e.t, e.pos);
         final fieldTypes = switch (Context.follow(e.t)) {
             case TType(def, _):
                 final anon = switch (Context.follow(def.get().type)) {
@@ -5135,7 +5135,7 @@ class KotlinExpr {
         return typeName + "(" + parts.join(", ") + ")";
     }
 
-    function resolveTypeName(t:Type):String {
+    function resolveTypeName(t:Type, pos:haxe.macro.Expr.Position):String {
         return switch (t) {
             case TType(def, _):
                 final d = def.get();
@@ -5144,14 +5144,14 @@ class KotlinExpr {
             case TAnonymous(anon):
                 final match = state.structTypedefs.get(KotlinDecl.structureSignature(anon));
                 if (match == null) {
-                    Context.error("anonymous structure literal has no matching named typedef", Context.currentPos());
+                    Context.error("anonymous structure literal has no matching named typedef", pos);
                     null;
                 } else {
                     imports.requireType(match.module, match.name);
                     match.name;
                 }
             case _:
-                Context.error("object literal must be typed by a named typedef before translation", Context.currentPos());
+                Context.error("object literal must be typed by a named typedef before translation", pos);
                 null;
         }
     }
@@ -5706,6 +5706,8 @@ class KotlinExpr {
                 "Files.newDirectoryStream(Paths.get(" + p + ")).use { s -> s.map { it.fileName.toString() }.toMutableList() }";
             case "isDirectory":
                 "Files.isDirectory(Paths.get(" + p + "))";
+            case "deleteFile":
+                "Files.delete(Paths.get(" + p + "))";
             case _:
                 Context.error("std.Fs has no lowering for member " + name, fn.pos);
                 "null";
@@ -5742,6 +5744,22 @@ class KotlinExpr {
         imports.require(runtimePackage + ".Process");
         state.processArgsReferenced = true;
         return "Process.args()";
+    }
+
+    function processCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        final runtimePackage = RuntimeConfig.requireImportName("module std.Process");
+        state.shimsUsed.set("std.Process", true);
+        imports.require(runtimePackage + ".Process");
+        return switch (name) {
+            case "exit": "Process.exit(" + expr(args[0]) + ")";
+            case "args": processArgs(fn);
+            case "cwd": "Process.cwd()";
+            case "platform": "Process.platform()";
+            case "run": "Process.run(" + [for (a in args) expr(a)].join(", ") + ")";
+            case _:
+                Context.error("std.Process has no lowering for member " + name, fn.pos);
+                "null";
+        };
     }
 }
 #end

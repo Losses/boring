@@ -17,10 +17,14 @@
       url = "github:NixOS/nixpkgs/nixos-24.05";
       flake = false;
     };
+    swift-system = {
+      url = "github:apple/swift-system/0b30161977799fd949f7f6848586b82ff6764f73";
+      flake = false;
+    };
   };
 
   outputs =
-    { self, nixpkgs, rust-overlay, reflaxe, nixpkgs-libxml2 }:
+    { self, nixpkgs, rust-overlay, reflaxe, nixpkgs-libxml2, swift-system }:
     let
       systems = [
         "x86_64-linux"
@@ -87,13 +91,91 @@
             libdispatch = "${swiftDist}/usr/lib/swift/linux";
           };
         };
+      mkSwiftSystem =
+        pkgs:
+        let
+          useLinuxSwift = pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64;
+          swiftToolchain = if useLinuxSwift then mkLinuxSwift pkgs else pkgs.swift;
+          swiftCommand = if pkgs.stdenv.hostPlatform.isDarwin then "/usr/bin/swift" else "${swiftToolchain}/bin/swift";
+          swiftcCommand = if pkgs.stdenv.hostPlatform.isDarwin then "/usr/bin/swiftc" else "${swiftToolchain}/bin/swiftc";
+          librarySuffix = if pkgs.stdenv.hostPlatform.isDarwin then "dylib" else "so";
+        in
+        pkgs.stdenvNoCC.mkDerivation {
+          pname = "boring-swift-system";
+          version = "1.6.6";
+          src = swift-system;
+          nativeBuildInputs = [ pkgs.clang ] ++ (if pkgs.stdenv.hostPlatform.isDarwin then [ ] else [ swiftToolchain ]);
+          dontConfigure = true;
+          buildPhase = ''
+            runHook preBuild
+            export HOME="$TMPDIR/home"
+            mkdir -p "$HOME"
+            ${if pkgs.stdenv.hostPlatform.isDarwin then "unset DEVELOPER_DIR; export CC=/usr/bin/clang; export SDKROOT=$(/usr/bin/xcrun --sdk macosx --show-sdk-path)" else ""}
+            ${swiftCommand} build --package-path . --build-path "$TMPDIR/swift-system-build" --target SystemPackage
+            runHook postBuild
+          '';
+          installPhase = ''
+            runHook preInstall
+            mkdir -p "$out"
+            cp -R Sources/CSystem/include/. "$out/"
+            module=$(find "$TMPDIR/swift-system-build" -name SystemPackage.swiftmodule -print -quit)
+            if [ -z "$module" ]; then
+              echo "swift-system: SystemPackage.swiftmodule was not built" >&2
+              exit 1
+            fi
+            cp "$module" "$out/SystemPackage.swiftmodule"
+            buildDir="$(dirname "$(dirname "$module")")"
+            ${swiftcCommand} -emit-library "$buildDir"/SystemPackage.build/*.o "$buildDir"/CSystem.build/*.o -o "$out/libSystemPackage.${librarySuffix}"
+            runHook postInstall
+          '';
+        };
     in
     {
-      packages = forAllSystems (pkgs:
-        if pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64 then
-          { swift-toolchain = (mkLinuxSwift pkgs).passthru.swiftDist; default = mkLinuxSwift pkgs; }
+      packages = forAllSystems (
+        pkgs:
+        let
+          driver = pkgs.stdenvNoCC.mkDerivation {
+            pname = "boring-driver";
+            version = "0.0.1";
+            src = self;
+            nativeBuildInputs = [ pkgs.haxe pkgs.makeWrapper ];
+            dontConfigure = true;
+            buildPhase = ''
+              runHook preBuild
+              mkdir -p out/driver
+              haxe packages/driver/driver.hxml
+              runHook postBuild
+            '';
+            installPhase = ''
+              runHook preInstall
+              mkdir -p "$out/bin" "$out/share/boring"
+              cp out/driver/driver.js "$out/share/boring/driver.js"
+              makeWrapper "${pkgs.bun}/bin/bun" "$out/bin/boring" \
+                --add-flags "$out/share/boring/driver.js"
+              runHook postInstall
+            '';
+          };
+        in
+        {
+          inherit driver;
+          swift-system = mkSwiftSystem pkgs;
+          default =
+            if pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64
+            then mkLinuxSwift pkgs
+            else pkgs.swift;
+        }
+        // (if pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64 then
+          { swift-toolchain = (mkLinuxSwift pkgs).passthru.swiftDist; }
         else
-          { default = pkgs.swift; });
+          { })
+      );
+      apps = forAllSystems (pkgs: {
+        boring = {
+          type = "app";
+          program = "${self.packages.${pkgs.stdenv.hostPlatform.system}.driver}/bin/boring";
+        };
+        default = self.apps.${pkgs.stdenv.hostPlatform.system}.boring;
+      });
       devShells = forAllSystems (
         pkgs:
         let
@@ -125,6 +207,8 @@
               with pkgs; [
                 haxe
                 bun
+                self.packages.${pkgs.stdenv.hostPlatform.system}.driver
+                self.packages.${pkgs.stdenv.hostPlatform.system}.swift-system
                 nodejs_22
                 git
                 rustToolchain
@@ -138,14 +222,23 @@
               export HAXELIB_PATH="$PWD/.haxelib"
               mkdir -p "$HAXELIB_PATH"
               haxelib dev reflaxe "${reflaxe}" >/dev/null
-              haxelib dev boring "$PWD" >/dev/null
+              if [ -f "$PWD/haxelib.json" ] && [ -d "$PWD/packages/compiler" ]; then
+                boring_source="$PWD"
+              else
+                boring_source="${self.outPath}"
+              fi
+              haxelib dev boring "$boring_source" >/dev/null
+              export BORING_SWIFT_SYSTEM_PACKAGE="${self.packages.${pkgs.stdenv.hostPlatform.system}.swift-system}"
               # boring's haxelib.json declares a dependency on "format";
-              # install the pinned libraries so fresh checkouts compile.
-              # Idempotent: reports "already installed" with exit 0. An
-              # offline install fails silently here and surfaces later as
-              # the library-specific haxe error.
-              haxelib install format 3.8.0 >/dev/null 2>&1 || true
-              haxelib install formatter 1.18.0 >/dev/null 2>&1 || true
+              # install the pinned library versions so fresh checkouts compile.
+              if ! haxelib install format 3.8.0 >/dev/null; then
+                echo "boring devShell: failed to install haxelib format 3.8.0" >&2
+                exit 1
+              fi
+              if ! haxelib install formatter 1.18.0 >/dev/null; then
+                echo "boring devShell: failed to install haxelib formatter 1.18.0" >&2
+                exit 1
+              fi
               # A linked Swift binary resolves libswiftCore through its
               # RUNPATH, and libswiftCore loads libdispatch from another
               # store path the binary RUNPATH does not cover; generated

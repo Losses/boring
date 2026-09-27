@@ -1,6 +1,7 @@
 package tests;
 
 import boring.PlatformOps;
+import boring.ProcessOps;
 import std.Env;
 import std.Fs;
 import std.Path;
@@ -19,6 +20,11 @@ import tests.PlatformModulesTestSupport;
  * observable everywhere and the five targets agree.
  */
 class PlatformModulesTests {
+    @:test("std.Process runs a child with cwd and environment and std.Fs deletes its output", except = ["haxe"])
+    public static function childProcessAndDelete():Void {
+        Test.equals(true, ProcessOps.hostProbe());
+    }
+
     @:test("std.Fs write append and read round-trip")
     public static function fsRoundTrip():Void {
         PlatformModulesTestSupport.ensureDir();
