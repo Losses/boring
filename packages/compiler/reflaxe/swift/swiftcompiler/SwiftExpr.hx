@@ -1427,7 +1427,15 @@ class SwiftExpr {
                                     for (l in blockLines(gb.prefix, depth + 1))
                                         out.push(l);
                                     out.push(indent(depth + 1) + "let " + localName(gb.entryVar) + " = " + expr(gb.entryInit));
-                                    out.push(indent(depth + 1) + "var " + localName(gb.bucketVar) + " = " + expr(gb.getCall) + " ?? "
+                                    // The bucket is a class instance: append and
+                                    // the put-back mutate the referenced object,
+                                    // not the binding. The plain assignment in the
+                                    // matched miss branch is consumed by this
+                                    // restructure, so the emitted text never
+                                    // reassigns the local and let is safe; a
+                                    // reassignment elsewhere would fail the
+                                    // swiftc compile gate loudly.
+                                    out.push(indent(depth + 1) + "let " + localName(gb.bucketVar) + " = " + expr(gb.getCall) + " ?? "
                                         + types.of(gb.bucketVar.t) + "()");
                                     out.push(indent(depth + 1) + localName(gb.bucketVar) + ".append(" + expr(gb.valArg) + ")");
                                     out.push(indent(depth + 1) + expr(gb.builderSubj) + ".put(" + expr(gb.keyArg) + ", " + localName(gb.bucketVar) + ")");
@@ -1469,8 +1477,14 @@ class SwiftExpr {
             for (l in blockLines(gb.prefix, depth + 1))
                 out.push(l);
             out.push(indent(depth + 1) + "let " + localName(gb.entryVar) + " = " + expr(gb.entryInit));
+            // The bucket is a class instance: append and the put-back
+            // mutate the referenced object, not the binding. The plain
+            // assignment in the matched miss branch is consumed by this
+            // restructure, so the emitted text never reassigns the local
+            // and let is safe; a reassignment elsewhere would fail the
+            // swiftc compile gate loudly.
             out.push(indent(depth + 1)
-                + "var "
+                + "let "
                 + localName(gb.bucketVar)
                 + " = "
                 + expr(gb.getCall)
@@ -1713,7 +1727,10 @@ class SwiftExpr {
 
         final arrName = localName(alloc.arr);
         final out:Array<String> = [];
-        out.push(indent(depth) + "var " + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
+        // A class instance's append/reserveCapacity mutate the referenced
+        // object, not the binding; only a genuine reassignment of the
+        // local requires var.
+        out.push(indent(depth) + (mutated.exists(alloc.arr.id) ? "var " : "let ") + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
             + strideValue(loop.bound) + ", by: 1) {");
@@ -5842,7 +5859,17 @@ class SwiftExpr {
                     case TArray(arr, _):
                         final receiver = mapBackingReceiver(arr);
                         switch (stripWrap(receiver == null ? arr : receiver).expr) {
-                            case TLocal(v): markMutated(v);
+                            case TLocal(v):
+                                if (isClassInstanceType(v.t)) {
+                                    // A class instance's subscript writes target
+                                    // the referenced object, not the binding; the
+                                    // local can stay let.
+                                    if (v.name != "`") {
+                                        mutatedNames.set(v.name, true);
+                                    }
+                                } else {
+                                    markMutated(v);
+                                }
                             case _:
                         }
                     case _:
@@ -5872,7 +5899,25 @@ class SwiftExpr {
                             || n == "push" || n == "pop" || n == "shift" || n == "unshift" || n == "splice" || n == "set" || n == "insert";
                         if (mutates) {
                             switch (stripWrap(subj).expr) {
-                                case TLocal(v): markMutated(v);
+                                case TLocal(v):
+                                    if (isStringBuf(subj)) {
+                                        // StringBuf lowers to the native [UInt16]
+                                        // value array: add/addChar write the binding
+                                        // itself and require var.
+                                        markMutated(v);
+                                    } else if (isClassInstanceType(v.t)) {
+                                        // A class instance's method calls (push,
+                                        // pop, set, ...) mutate the referenced
+                                        // object, not the binding; keep the name
+                                        // marker so parameter shadow emission is
+                                        // byte-identical, but the local can stay
+                                        // let.
+                                        if (v.name != "`") {
+                                            mutatedNames.set(v.name, true);
+                                        }
+                                    } else {
+                                        markMutated(v);
+                                    }
                                 case _:
                             }
                         }
