@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -171,4 +171,53 @@ test("package license must be a nonempty string when declared", () => {
   const result = run(file, ["compare"]);
   expect(result.code).toBe(1);
   expect(result.output).toContain('bundle "reference": package license must not be empty');
+});
+
+test("sourceSet compiles listed types and direct package members", () => {
+  const { dir, file } = fixture({
+    sourceRoots: ["src"],
+    sourceSets: { core: { packages: ["demo"], types: ["Named"],
+      discover: [{ root: "src", packages: ["demo"], suffix: "Test" }] } },
+    bundles: [{ id: "reference", target: "haxe", sourceSet: "core", rootsFile: "classes.hxml",
+      haxeArgs: ["-js", "out/main.js", "--dce", "no"] }],
+  });
+  mkdirSync(join(dir, "src", "demo", "nested"), { recursive: true });
+  writeFileSync(join(dir, "src", "Named.hx"), "class Named { public static function value():Int return 1; }\n");
+  writeFileSync(join(dir, "src", "demo", "Direct.hx"), "package demo; class Direct { public static function value():Int return 2; }\n");
+  writeFileSync(join(dir, "src", "demo", "ZTest.hx"), "package demo; class ZTest { public static function value():Int return 4; }\n");
+  writeFileSync(join(dir, "src", "demo", "ATest.hx"), "package demo; class ATest { public static function value():Int return 5; }\n");
+  writeFileSync(join(dir, "src", "demo", "nested", "Nested.hx"), "package demo.nested; class Nested { public static function value():Int return 3; }\n");
+  const rootsFile = join(dir, "classes.hxml");
+  writeFileSync(rootsFile, "stale\n");
+  const roots = run(file, ["roots", "core", "--output", "classes.hxml"]);
+  expect(roots.code).toBe(0);
+  expect(readFileSync(rootsFile, "utf8")).toBe("--macro haxe.macro.Compiler.include('demo', false, null, null, true)\nNamed\ndemo.ATest\ndemo.ZTest\n");
+  expect(readdirSync(dir).filter((name) => name.startsWith("classes.hxml.tmp-"))).toEqual([]);
+  const result = run(file, ["gen", "reference"]);
+  expect(result.code).toBe(0);
+  const output = readFileSync(join(dir, "out", "main.js"), "utf8");
+  expect(output).toContain("Named");
+  expect(output).toContain("demo_Direct");
+  expect(output).toContain("demo_ATest");
+  expect(output).not.toContain("demo_nested_Nested");
+});
+
+test("sourceSet rejects an unknown name", () => {
+  const { file } = fixture({ bundles: [{ id: "reference", target: "ts", sourceSet: "missing" }] });
+  const result = run(file, ["gen", "reference"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain('bundle "reference": unknown source set "missing"');
+});
+
+test("sourceSet discovery rejects an empty matching directory", () => {
+  const { dir, file } = fixture({
+    sourceSets: { core: { discover: [{ root: "src", packages: ["demo"], suffix: "Test" }] } },
+    bundles: [{ id: "reference", target: "ts", sourceSet: "core" }],
+  });
+  mkdirSync(join(dir, "src", "demo"), { recursive: true });
+  writeFileSync(join(dir, "src", "demo", "Helper.hx"), "package demo; class Helper {}\n");
+  const result = run(file, ["roots", "core", "--output", "classes.hxml"]);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain('source set "core": no modules ending in "Test"');
+  expect(readdirSync(dir).filter((name) => name.startsWith("classes.hxml"))).toEqual([]);
 });

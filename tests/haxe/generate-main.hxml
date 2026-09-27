@@ -8,8 +8,10 @@
 -cp samples
 -cp tests/haxe
 -cp packages/registry/src
+-cp packages/driver/src
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro TestCollector.generate('reference/haxe/gen-tests', ['samples/boring'])
 -main GenerateMain
+tests.DriverPlanTests
 -js reference/haxe/gen/generate-main.js
 -D boring_oracle

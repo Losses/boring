@@ -7,8 +7,10 @@ import registry.JsonException;
 
 /** Parses the project file without host I/O or reflection. */
 class Config {
-    static final PROJECT_FIELDS = ["outRoot", "resultsDir", "baseline", "sourceRoots", "rootsFile", "haxeArgs", "bundles"];
-    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "build", "run", "package", "test", "compare", "afterGen"];
+    static final PROJECT_FIELDS = ["outRoot", "resultsDir", "baseline", "sourceRoots", "sourceSets", "rootsFile", "haxeArgs", "bundles"];
+    static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen"];
+    static final SOURCE_SET_FIELDS = ["packages", "types", "discover"];
+    static final DISCOVER_FIELDS = ["root", "packages", "suffix"];
     static final STEP_FIELDS = ["args", "env"];
     static final COMMAND_FIELDS = ["command", "args", "env"];
     static final PACKAGE_FIELDS = ["name", "version", "license"];
@@ -129,6 +131,97 @@ class Config {
         return result;
     }
 
+    static function validModulePath(path:String):Bool {
+        if (path == "") return false;
+        var segmentStart = true;
+        for (index in 0...path.length) {
+            final code = path.charCodeAt(index);
+            if (code == 46) {
+                if (segmentStart) return false;
+                segmentStart = true;
+                continue;
+            }
+            final letter = (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code == 95;
+            final digit = code >= 48 && code <= 57;
+            if (!letter && (!digit || segmentStart)) return false;
+            segmentStart = false;
+        }
+        return !segmentStart;
+    }
+
+    static function sourcePaths(fields:Array<JsonField>, key:String, name:String):Array<String> {
+        final paths = strings(fields, key, 'boring.json: source set "$name"');
+        final seen:Array<String> = [];
+        for (path in paths) {
+            if (!validModulePath(path)) fail('boring.json: source set "$name": $key entry "$path" must be a nonempty dotted Haxe path');
+            if (seen.indexOf(path + "") >= 0) fail('boring.json: source set "$name": duplicate $key entry "$path"');
+            seen.push(path);
+        }
+        return paths;
+    }
+
+    static function validRelativeRoot(root:String):Bool {
+        if (root == "" || root.charAt(0) == "/") return false;
+        for (part in root.split("/")) {
+            if (part == "" || part == "." || part == "..") return false;
+            for (index in 0...part.length) {
+                final code = part.charCodeAt(index);
+                final letter = (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+                final digit = code >= 48 && code <= 57;
+                if (!letter && !digit && code != 95 && code != 45 && code != 46) return false;
+            }
+        }
+        return true;
+    }
+
+    static function discoverRules(fields:Array<JsonField>, name:String):Array<Discovery> {
+        final rules:Array<Discovery> = [];
+        if (!has(fields, "discover")) return rules;
+        final values = array(field(fields, "discover"), 'boring.json: source set "$name": field "discover"');
+        for (entry in values) {
+            final where = 'boring.json: source set "$name": discover';
+            final ruleFields = fieldsOf(entry, where);
+            checkFields(ruleFields, DISCOVER_FIELDS, where);
+            final root = requiredString(ruleFields, "root", where);
+            if (!validRelativeRoot(root)) fail('$where: root "$root" must be a nonempty project-relative directory');
+            if (!has(ruleFields, "packages")) fail('$where: field "packages" must name at least one package');
+            final packages = sourcePaths(ruleFields, "packages", name);
+            if (packages.length == 0) fail('$where: field "packages" must name at least one package');
+            final suffix = requiredString(ruleFields, "suffix", where);
+            if (!validModulePath(suffix) || suffix.indexOf(".") >= 0) {
+                fail('$where: suffix "$suffix" must be a nonempty Haxe identifier');
+            }
+            for (prior in rules) {
+                if (prior.root == root && prior.suffix == suffix) {
+                    for (pack in packages) if (prior.packages.indexOf(pack + "") >= 0) {
+                        fail('$where: duplicate package "$pack" for root "$root" and suffix "$suffix"');
+                    }
+                }
+            }
+            rules.push({root: root, packages: packages, suffix: suffix});
+        }
+        return rules;
+    }
+
+    static function parseSourceSets(fields:Array<JsonField>):Array<SourceSet> {
+        final sets:Array<SourceSet> = [];
+        if (!has(fields, "sourceSets")) return sets;
+        final entries = fieldsOf(field(fields, "sourceSets"), 'boring.json: field "sourceSets"');
+        for (entry in entries) {
+            final name = entry.name;
+            if (name == "") fail('boring.json: source set name must not be empty');
+            for (set in sets) if (set.name == name) fail('boring.json: duplicate source set "$name"');
+            final values = fieldsOf(entry.value, 'boring.json: source set "$name"');
+            checkFields(values, SOURCE_SET_FIELDS, 'boring.json: source set "$name"');
+            final packages = sourcePaths(values, "packages", name);
+            final types = sourcePaths(values, "types", name);
+            final discover = discoverRules(values, name);
+            if (packages.length == 0 && types.length == 0 && discover.length == 0) fail('boring.json: source set "$name" needs at least one package, type, or discover rule');
+            sets.push({name: name, packages: packages, types: types, discover: discover});
+        }
+        return sets;
+    }
+
     static function env(fields:Array<JsonField>, where:String):Array<EnvVar> {
         if (!has(fields, "env")) return [];
         final values = fieldsOf(field(fields, "env"), '$where: field "env"');
@@ -187,6 +280,7 @@ class Config {
         final rootsFile = rootsFileValue == null ? "" : rootsFileValue + "";
         if (!has(fields, "sourceRoots")) fail('boring.json: missing required field "sourceRoots" (an array of classpaths)');
         final sourceRoots = strings(fields, "sourceRoots", "boring.json");
+        final sourceSets = parseSourceSets(fields);
         if (!has(fields, "bundles")) fail('boring.json: missing required field "bundles" (a non-empty array)');
         final entries = array(field(fields, "bundles"), 'boring.json: field "bundles"');
         if (entries.length == 0) fail('boring.json: field "bundles" must hold at least one bundle');
@@ -237,11 +331,20 @@ class Config {
             }
             final bundleRootsValue = optionalString(values, "rootsFile", 'boring.json: bundle "$id"');
             final bundleRoots = bundleRootsValue == null ? "" : bundleRootsValue + "";
+            final sourceSetValue = optionalString(values, "sourceSet", 'boring.json: bundle "$id"');
+            final sourceSet = sourceSetValue == null ? "" : sourceSetValue + "";
+            if (has(values, "sourceSet")) {
+                if (sourceSet == "") fail('boring.json: bundle "$id": sourceSet must not be empty');
+                var foundSet = false;
+                for (set in sourceSets) if (set.name == sourceSet) foundSet = true;
+                if (!foundSet) fail('boring.json: bundle "$id": unknown source set "$sourceSet"');
+            }
             final bundle:Bundle = {
                 id: id, target: target, precision: precision == null ? "" : precision + "", hasTests: hasTests,
                 hasComparison: hasComparison,
                 haxeArgs: strings(values, "haxeArgs", 'boring.json: bundle "$id"'),
                 rootsFile: bundleRoots,
+                sourceSet: sourceSet,
                 build: step(values, "build", 'boring.json: bundle "$id"'),
                 run: runOverride,
                 afterGen: command(values, 'boring.json: bundle "$id"'),
@@ -255,7 +358,7 @@ class Config {
         final project:Project = {
             path: projectPath, root: root, outRoot: outRoot,
             resultsDir: resultsDir == null ? "out/test-results" : resultsDir,
-            baseline: baseline, sourceRoots: sourceRoots, rootsFile: rootsFile,
+            baseline: baseline, sourceRoots: sourceRoots, sourceSets: sourceSets, rootsFile: rootsFile,
             haxeArgs: strings(fields, "haxeArgs", "boring.json"), bundles: bundles
         };
         return project;

@@ -34,6 +34,7 @@ target configuration; the JSON field retains its existing name for compatibility
 | `resultsDir` | no | Directory the per-configuration results files are written to. Default `out/test-results`. |
 | `baseline` | yes | The `id` of a configuration that participates in comparison. |
 | `sourceRoots` | yes | Classpaths of the consumer's Haxe sources, passed as `-cp`. |
+| `sourceSets` | no | Named source selections. Each value may contain `packages`, `types`, and `discover`; at least one must select a source. |
 | `rootsFile` | no | An hxml file listing the root types to compile, passed as an include. |
 | `haxeArgs` | no | Extra haxe arguments applied to every configuration. |
 | `bundles` | yes | Non-empty array of target configuration objects. The field name remains for compatibility. |
@@ -44,6 +45,7 @@ A target configuration object:
 | --- | --- | --- |
 | `id` | yes | Unique in the file. It is also the results file stem and the output directory name. |
 | `target` | yes | One of `haxe`, `ts`, `kotlin`, `rust`, `swift`, `dart`. |
+| `sourceSet` | no | Name of one entry in `sourceSets`; its roots are added to the roots HXML when both are present. |
 | `precision` | no | `f32`, or absent for binary64. |
 | `haxeArgs` | no | Extra haxe arguments for this configuration, appended after the project's. |
 | `test` | no | `false` for a generation-only configuration; defaults to `true`. |
@@ -56,6 +58,19 @@ A target configuration object:
 A project file that carries an unknown field stops the run and names the
 field. A silent ignore turns a misspelled override into a step that appears
 to run without it.
+
+A source set has the form `{ "packages": ["app.core"], "types":
+["app.Main"], "discover": [{ "root": "src", "packages": ["app.tests"],
+"suffix": "Test" }] }`. Each package is passed through
+`haxe.macro.Compiler.include` with recursion disabled and strict package
+checking. Each type is passed as a Haxe module root. A discovery rule scans
+only the named package directories directly beneath its project-relative
+`root`, selects `.hx` modules whose names end in `suffix`, and passes the
+resulting roots in sorted order. The directory must exist and contain at
+least one matching module. Empty names,
+invalid Haxe paths, duplicate entries, unknown source-set references, and
+parent or absolute discovery paths are errors. `rootsFile` remains accepted;
+its roots and the source set's roots are combined.
 
 ## What the driver derives
 
@@ -153,6 +168,10 @@ remains to be verified beyond that fixture.
   results remain available for separate review until those tests converge.
 - Exit status is 0 when every action the invocation ran succeeded. A failure
   names the configuration and the action.
+- `boring roots <sourceSet> --project <file> --output <path>` writes the
+  same package macros and module roots as an HXML include. It replaces the
+  output through a sibling temporary file and rename. Projects with direct
+  HXML entry points can generate one roots include from `boring.json`.
 
 ## Results sink on every target
 

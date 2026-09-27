@@ -34,6 +34,18 @@ class PlatformModulesTests {
         Test.equals(true, Fs.isDirectory(PlatformModulesTestSupport.DIR));
     }
 
+    @:test("std.Fs rename replaces an existing file")
+    public static function fsRenameReplace():Void {
+        PlatformModulesTestSupport.ensureDir();
+        final source = PlatformModulesTestSupport.textPath("rename-source");
+        final destination = PlatformModulesTestSupport.textPath("rename-destination");
+        Fs.writeText(source, "new content");
+        Fs.writeText(destination, "old content");
+        Fs.rename(source, destination);
+        Test.equals(false, Fs.exists(source));
+        Test.equals("new content", Fs.readText(destination));
+    }
+
     @:test("std.Fs makeDirs creates a nested directory")
     public static function fsMakeDirs():Void {
         PlatformModulesTestSupport.ensureDir();

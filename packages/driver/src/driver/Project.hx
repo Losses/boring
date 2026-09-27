@@ -7,6 +7,7 @@ typedef Project = {
     resultsDir:String,
     baseline:String,
     sourceRoots:Array<String>,
+    sourceSets:Array<SourceSet>,
     rootsFile:String,
     haxeArgs:Array<String>,
     bundles:Array<Bundle>
