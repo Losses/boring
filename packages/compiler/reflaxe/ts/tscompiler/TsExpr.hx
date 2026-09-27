@@ -420,7 +420,7 @@ class TsExpr {
             return expr(ret);
         }
         final rendered = expr(ret);
-        return PolicyQueries.isNullableType(ret.t) && !StringTools.endsWith(rendered, "!") ? rendered + "!" : rendered;
+        return (PolicyQueries.isNullableType(ret.t) || argCarriesNull(ret)) && !StringTools.endsWith(rendered, "!") ? rendered + "!" : rendered;
     }
 
     /** Body lowering shared by value-wrapper member functions. */
