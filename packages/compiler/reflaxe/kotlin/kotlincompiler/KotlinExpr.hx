@@ -704,8 +704,53 @@ class KotlinExpr {
         return PolicyQueries.statementsOf(e);
     }
 
+    /** The statement-position shift/pop lowering of (NullArmStatementFold):
+        the array receiver and which member, or null elsewhere. **/
+    function arrayPopShift(fn:TypedExpr):Null<{subj:TypedExpr, member:String}> {
+        return switch (stripWrap(fn).expr) {
+            case TField(subj, FInstance(c, _, cf)):
+                final member = cf.get().name;
+                if (c.get().name == "Array" && (member == "pop" || member == "shift")) {subj: subj, member: member};
+                else null;
+            case _:
+                null;
+        };
+    }
+
+    /**
+        True when the rendered arm is the null literal, directly or as the
+        single expression of a block: the arm carries no value and the
+        statement-position if can drop it. (NullArmStatementFold)
+    **/
+    function isNullLiteralArm(e:Null<TypedExpr>):Bool {
+        if (e == null)
+            return false;
+        return switch (stripWrap(e).expr) {
+            case TConst(TNull): true;
+            case TBlock(b) if (b.length == 1): stripWrap(b[0]).expr.match(TConst(TNull));
+            case _: false;
+        };
+    }
+
     function stmtLines(e:TypedExpr, depth:Int):Array<String> {
         switch (e.expr) {
+            // A statement-position if whose one arm is the null literal
+            // carries no value: rendering both arms turns the if into a
+            // Kotlin expression whose value is discarded and warns
+            // "expression is unused". Emit a single-branch statement.
+            // (NullArmStatementFold)
+            case TIf(c, t, f) if (f != null && isNullLiteralArm(t)):
+                return ["if (!(" + expr(c) + ")) " + expr(f)];
+            case TIf(c, t, f) if (t != null && isNullLiteralArm(f)):
+                return ["if (" + expr(c) + ") " + expr(t)];
+            // A statement-position shift/pop discards the removed element:
+            // emit the guarded removal as a statement, not as the if-else
+            // expression whose unused value warns "expression is unused".
+            // (NullArmStatementFold)
+            case TCall(fn, args) if (args.length == 0 && arrayPopShift(fn) != null):
+                final ps = arrayPopShift(fn);
+                final tail = ps.member == "pop" ? expr(ps.subj) + ".lastIndex" : "0";
+                return ["if (!(" + expr(ps.subj) + ".isEmpty())) " + expr(ps.subj) + ".removeAt(" + tail + ")"];
             case TVar(v, init) if (init != null && isTryRegion(init)):
                 final parts = tryRegionParts(init);
                 if (regionTailValue(statementsOf(parts.body)) == null) {
@@ -716,7 +761,7 @@ class KotlinExpr {
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
             case TVar(v, init) if (init != null):
                 final kw = mutated.exists(v.id) ? "var" : "val";
-#if boring_fold_debug
+#if kotlin_fold_debug
                 if (mutated.exists(v.id))
                     emissionTrace("MUTDECL", localName(v), Context.currentPos());
 #end
@@ -795,7 +840,7 @@ class KotlinExpr {
                     initText = extractAtDecl ? intToFloatText("(" + initText + ")!!") : intToFloatText(initText);
                     return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
                 }
-#if boring_fold_debug
+#if kotlin_fold_debug
                 if (extractAtDecl)
                     emissionTrace("DECL", initText, e.pos);
 #end
@@ -875,7 +920,7 @@ class KotlinExpr {
                         var retText = expr(ret);
                         functionTypeExpected = wasFunctionTypeExpected;
                         if (rendersNullable(ret) && !isNullType(currentReturnType) && !currentReturnAllowsNullable) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                             emissionTrace("RETURN", retText, ret.pos);
 #end
                             retText = hardenAppend(retText, "!!");
@@ -1329,7 +1374,7 @@ class KotlinExpr {
                 // still extracts; the safe-call form yields Int? and Kotlin
                 // rejects it as a range endpoint (NonNullRangeBound).
                 if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                     emissionTrace("LOOP_BOUND", expr(subj), subj.pos);
 #end
                     return expr(subj) + "?." + suffix + "!!";
@@ -2106,7 +2151,7 @@ class KotlinExpr {
         if (isIntOrLongType(emittedType(r)) && isFloatType(l.t))
             value = intToFloatText(value);
         if (!isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!")) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("ASSIGN", value, r.pos);
 #end
             value = hardenAppend(value, "!!");
@@ -2430,7 +2475,7 @@ class KotlinExpr {
                 // (ComparisonOperandProof)
                 final lp = proofFor(cl);
                 final rp = proofFor(cr);
-#if boring_fold_debug
+#if kotlin_fold_debug
                 Sys.stderr().writeString("CONDPROOF-CMP locals=" + lp.locals.concat(rp.locals).join(",") + "\n");
 #end
                 return {thenPath: {locals: lp.locals.concat(rp.locals), fields: lp.fields.concat(rp.fields)}, elsePath: empty()};
@@ -2538,7 +2583,7 @@ class KotlinExpr {
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj)))) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
             addProofExpr(subj);
@@ -2585,7 +2630,7 @@ class KotlinExpr {
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
         if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
             return "!!.";
@@ -2664,22 +2709,55 @@ class KotlinExpr {
         (DeclaredFieldNonNull)
     **/
     function extractedNonNullFieldRead(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
             case TField(recv, FInstance(c, _, cf)):
-                final field = cf.get();
-                // (see comment below)
-                // a regular non-null declared property; the length/size
-                // lowering keeps the safe call and stays nullable.
-                // (DeclaredFieldNonNull)
-                field.name != "length"
-                    && field.kind.match(FVar(_, _))
-                    && !isNullType(field.type)
-                    && !nullableRenderedField(c.get(), field)
-                    && isNullType(recv.t)
-                    && !provenNonNull(recv) && !guardProofBefore(recv);
+                memberReadNonNull(c, cf, recv);
+            // A getter-property read the typer lowers to a nullary call:
+            // the call's field is the accessor member, and the Kotlin
+            // side renders it as the declared property.
+            // (DeclaredFieldNonNull)
+            case TCall(fn, args) if (args.length == 0):
+                switch (stripWrap(fn).expr) {
+                    case TField(recv, FInstance(c, _, cf)):
+                        memberReadNonNull(c, cf, recv);
+                    case _:
+                        false;
+                }
             case _:
                 false;
         };
+    }
+
+    /**
+        The shared test of (DeclaredFieldNonNull) for one member read: the
+        member declares a non-null Kotlin property (a regular val field or
+        a non-Null getter property, never the length/size lowering), the
+        receiver is a nullable-typed local the renderer extracts, and no
+        dominating proof already narrowed it.
+    **/
+    function memberReadNonNull(c:Ref<ClassType>, cf:Ref<ClassField>, recv:TypedExpr):Bool {
+        final field = cf.get();
+        if (isNullType(field.type))
+            return false;
+        var propertyName = field.name;
+        if (!field.kind.match(FVar(_, _))) {
+            if (StringTools.startsWith(propertyName, "get_")) {
+                propertyName = propertyName.substr(4);
+            } else {
+                return false;
+            }
+        }
+        if (propertyName == "length")
+            return false;
+        for (prop in c.get().fields.get()) {
+            final pf = prop;
+            if (pf.name == propertyName)
+                return !isNullType(pf.type) && !nullableRenderedField(c.get(), pf)
+                    && isNullType(recv.t) && !provenNonNull(recv) && !guardProofBefore(recv);
+        }
+        return !isNullType(field.type) && !nullableRenderedField(c.get(), field)
+            && isNullType(recv.t) && !provenNonNull(recv) && !guardProofBefore(recv);
     }
 
     function isNullableReferenceType(t:Null<Type>):Bool {
@@ -3228,7 +3306,7 @@ class KotlinExpr {
         if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull && !widenedExtracted
             && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("OPERAND proven=" + (provenNonNull(e) || guardProofBefore(e)) + " id=" + (switch (stripWrap(e).expr) { case TLocal(v): Std.string(v.id); case _: "f"; }) + " nullInit=" + nullInit, rendered, e.pos);
 #end
             rendered = hardenAppend(rendered, "!!");
@@ -3905,7 +3983,9 @@ class KotlinExpr {
                 // unit, so the pair goes through Character.toChars. A BMP
                 // value (surrogate range included) keeps the single-char
                 // form the existing callers rely on. (FromCharCodeScalar)
-                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")).toString() else ((" + unwrapped + ").toChar()).toString())";
+                // String(...) already yields a String: only the Char arm
+                // needs the conversion. (RedundantToStringFold)
+                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")) else ((" + unwrapped + ").toChar()).toString())";
             case _:
                 return null;
         }
@@ -4289,7 +4369,7 @@ class KotlinExpr {
                     // A receiver whose rendered value is nullable unwraps so
                     // the captured `_s` is a plain String; a non-null String
                     // needs no assertion. (CharCodeAtReceiverExtraction)
-#if boring_fold_debug
+#if kotlin_fold_debug
                     if (rendersNullable(subj))
                         emissionTrace("CHARCODE", expr(subj), subj.pos);
 #end
@@ -4735,13 +4815,13 @@ class KotlinExpr {
             if (!isNullInitialized(a))
                 addProofExpr(a);
             if (provenNonNull(a) || guardProofBefore(a)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                 emissionTrace("ARG_ASSERT", text, a.pos);
 #end
                 return hardenAppend(text, "!!");
             }
             else {
-#if boring_fold_debug
+#if kotlin_fold_debug
                 emissionTrace("ARG_ELVIS", text, a.pos);
 #end
                 return hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
@@ -4788,13 +4868,13 @@ class KotlinExpr {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     if (provenNonNull(a) || guardProofBefore(a)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                         emissionTrace("CTOR_ASSERT", text, a.pos);
 #end
                         hardenAppend(text, "!!");
                     }
                     else {
-#if boring_fold_debug
+#if kotlin_fold_debug
                         emissionTrace("CTOR_ELVIS", text, a.pos);
 #end
                         hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
@@ -4844,7 +4924,7 @@ class KotlinExpr {
         if (extractedNonNullFieldRead(e))
             return false;
         final effectiveProven = smartCastable && proven;
-#if boring_fold_debug
+#if kotlin_fold_debug
         Sys.stderr().writeString("REQNONNULL [" + rendered + "]"
             + " isNullType=" + (isNullType(e.t) && !effectiveProven)
             + " isNullableType=" + (PolicyQueries.isNullableType(e.t) && !effectiveProven)
@@ -5276,7 +5356,7 @@ class KotlinExpr {
     }
 
     public function localName(v:TVar):String {
-#if boring_fold_debug
+#if kotlin_fold_debug
         if (v.name == "faceTop")
             Sys.stderr().writeString("FACELOCAL id=" + v.id + "\n");
 #end

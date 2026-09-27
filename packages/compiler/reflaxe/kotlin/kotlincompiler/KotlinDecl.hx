@@ -10,6 +10,7 @@ import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
 import TestApplicability;
+import reflaxe.kotlin.KotlinTestMeta;
 import ComparatorPlan;
 import ComparatorPlan.ComparatorFieldKind;
 import ValueTypeSupport.ValueTypeOperator;
@@ -1478,7 +1479,7 @@ class KotlinDecl {
             // record instead, so the id stays in the cross-target set
             // (feature spec 19).
             return [
-                "    @boring.test.Test",
+                KotlinTestMeta.annotationUsage,
                 '    fun ${KotlinNameEscape.escape(f.field.name)}() {',
                 '        Test.recordNotApplicable("${escapeKotlinString(id)}", "${escapeKotlinString(runnerName)}")',
                 "    }"
@@ -1489,7 +1490,7 @@ class KotlinDecl {
         expr.setTestRunnerLambda(false);
         final indented = body.map(l -> "            " + l);
         return [
-            "    @boring.test.Test",
+            KotlinTestMeta.annotationUsage,
             '    fun ${KotlinNameEscape.escape(f.field.name)}() {',
             '        Test.run("${escapeKotlinString(id)}", "${escapeKotlinString(runnerName)}") {',
         ].concat(indented).concat(["        }", "    }"]);
