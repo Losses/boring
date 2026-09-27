@@ -1867,7 +1867,16 @@ class SwiftExpr {
                             final valueText = expr(coalescing.valueExpr);
                             if (StringTools.startsWith(StringTools.ltrim(valueText), "(if ("))
                                 return valueText;
-                            return valueText + " ?? " + coalescingDefaultText(value, coalescing.valueExpr.t);
+                            final defaultText = coalescingDefaultText(value, coalescing.valueExpr.t);
+                            // A mutable-container LHS read converts to the
+                            // native container when the sanctioned default is
+                            // the native array literal: the ?? needs both
+                            // sides of one type. (ReadOnlyAssignBoundary)
+                            final lhs = isMutableArrayType(coalescing.valueExpr.t)
+                                && StringTools.startsWith(defaultText, "[")
+                                ? "(" + valueText + ").map { Array($0) }"
+                                : valueText;
+                            return lhs + " ?? " + defaultText;
                         }
                     }
                     return expr(coalescing.valueExpr);
@@ -3045,9 +3054,26 @@ class SwiftExpr {
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
                 // features/18: an Array argument reaching a ReadOnlyArray
                 // parameter crosses the container boundary the typer leaves
-                // implicit, so the conversion renders here.
-                if (pt != null && StaticFieldHelper.isReadOnlyArrayType(pt) && isMutableArrayType(a.t))
-                    t = "Array(" + t + ")";
+                // implicit, so the conversion renders here. An empty literal
+                // drops the untyped container and infers from the slot. An
+                // optional source maps so the Optional wraps the converted
+                // container, not the mutable one; a sanctioned coalescing
+                // ternary merges to the non-null Haxe type while its Swift
+                // render stays optional, so the site's underlying parameter
+                // read decides. (ReadOnlyAssignBoundary)
+                if (pt != null && StaticFieldHelper.isReadOnlyArrayType(pt)) {
+                    if (t == "TiqianArray([])")
+                        t = "[]";
+                    else if (isMutableArrayType(a.t) && !StringTools.contains(t, ".map { Array($0) }")) {
+                        final source = switch (coalescingSiteFor(a)) {
+                            case null: a;
+                            case site: site.valueExpr;
+                        };
+                        t = isNullLeafType(a.t) || (source != a && isNullLeafType(source.t))
+                            ? "(" + t + ").map { Array($0) }"
+                            : "Array(" + t + ")";
+                    }
+                }
                 t;
             }
         ];
@@ -4360,8 +4386,13 @@ class SwiftExpr {
                 final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
                 d != null
                 && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
-                    && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                        p) + ")" : base[i];
+                    && !nilMergeChainNonOptional(expr(args[i])) ? (isMutableArrayType(args[i].t)
+                        // A mutable-container nil merge into a read-only
+                        // parameter maps the conversion on the Optional so
+                        // both ?? sides stay native. (ReadOnlyAssignBoundary)
+                        && StaticFieldHelper.isReadOnlyArrayType(p)
+                        ? "(" + expr(args[i]) + ".map { Array($0) } ?? " + defaultArgText(d, p) + ")"
+                        : "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")") : base[i];
             }
         ];
         final firstPass = render();
@@ -4444,17 +4475,27 @@ class SwiftExpr {
             var text = d != null
                 && p != null
                 && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
-                && !nilMergeChainNonOptional(expr(args[i])) ? "(" + expr(args[i]) + " ?? " + defaultArgText(d,
-                    p) + ")" : p != null && !isNullLeafType(p) && optionalValued(args[i]) ? expr(args[i]) + "!" : expr(args[i]);
+                && !nilMergeChainNonOptional(expr(args[i])) ? (isMutableArrayType(args[i].t)
+                    // Same read-only nil-merge conversion as callArgTexts.
+                    // (ReadOnlyAssignBoundary)
+                    && StaticFieldHelper.isReadOnlyArrayType(p)
+                    ? "(" + expr(args[i]) + ".map { Array($0) } ?? " + defaultArgText(d, p) + ")"
+                    : "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")") : p != null && !isNullLeafType(p) && optionalValued(args[i]) ? expr(args[i]) + "!" : expr(args[i]);
             // Haxe promotes an Int argument into a Float field without an
             // explicit cast; Swift needs the widening conversion.
             if (p != null && isIntType(emittedType(args[i])) && isFloatLeafType(p))
                 text = intToFloatText(text);
             // features/18: an Array argument reaching a ReadOnlyArray
             // parameter crosses the container boundary the typer leaves
-            // implicit, so the conversion renders here.
-            if (p != null && StaticFieldHelper.isReadOnlyArrayType(p) && isMutableArrayType(args[i].t))
-                text = "Array(" + text + ")";
+            // implicit, so the conversion renders here. An empty literal
+            // drops the untyped container and infers from the slot. The
+            // mapped nil merge above already crossed it.
+            if (p != null && StaticFieldHelper.isReadOnlyArrayType(p)) {
+                if (text == "TiqianArray([])")
+                    text = "[]";
+                else if (isMutableArrayType(args[i].t) && !StringTools.contains(text, ".map { Array($0) }"))
+                    text = "Array(" + text + ")";
+            }
             rendered.push(text);
             if (i < names.length)
                 constructorParameterValues.set(names[i], text);
