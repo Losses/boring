@@ -177,6 +177,23 @@ written spec localizes a disagreement: the first differing field
 identifies the encoder stage that failed. This boundary is a prerequisite
 for unit tests that stay useful across four languages.
 
+## Debugging and evidence
+
+Compiler debugging is evidence first. Before a single line changes, produce
+the code-generation call stack: the Haxe construct that was compiled, the
+emitter function and line that rendered it, the generated text the target
+compiler or runtime rejected, and the failing site it reported. Those four
+steps are the evidence; a report that misses one has gathered none.
+
+A guess is not a diagnosis. A symptom that resembles a known defect stays a
+hypothesis until the call stack names the emitting site. When the stack
+cannot be produced, the report names the step that is missing and where the
+attempt stopped.
+
+Every reading records the generator revision it was produced with: the
+checkout path and its commit. A reading taken from another revision is not
+evidence about the current tree.
+
 ## Commits
 
 Commit messages follow Conventional Commits 1.0.0, in English. The only
