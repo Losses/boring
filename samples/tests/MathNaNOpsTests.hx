@@ -60,4 +60,18 @@ class MathNaNOpsTests {
         MathNaNTestSupport.assertPositiveZero(MathNaNOps.maxOf(Math.NEGATIVE_INFINITY, 0.0), "max -infinity, +0");
         Test.equals(9.0, MathNaNOps.maxInts(4, 9), "max widens Int operands");
     }
+
+    @:test("literal constant edges keep NaN, both infinities, and the f32 flush values")
+    public static function foldedConstantEdges():Void {
+        MathNaNTestSupport.assertNaN(MathNaNOps.constantNan(), "0.0 / 0.0 is NaN");
+        Test.equals(Math.POSITIVE_INFINITY, MathNaNOps.constantPosInf(), "1.0 / 0.0 is +infinity");
+        Test.equals(Math.NEGATIVE_INFINITY, MathNaNOps.constantNegInf(), "-1.0 / 0.0 is -infinity");
+        // 1e300 is finite in binary64 and flushes to +infinity in binary32.
+        // The threshold stays representable in binary32 so the comparison
+        // itself never flushes.
+        Test.equals(true, MathNaNOps.constantOverflow() > 3e38, "1e300 exceeds the binary32 range");
+        // 1e-300 is nonzero in binary64 and flushes to +zero in binary32.
+        Test.equals(true, MathNaNOps.constantUnderflow() >= 0.0, "1e-300 never goes negative");
+        Test.equals(true, MathNaNOps.constantUnderflow() < 1e-38, "1e-300 stays below the binary32 normal range");
+    }
 }
