@@ -11180,20 +11180,20 @@ class RustExpr {
                 }
                 if (path == "haxe.io.FPHelper") {
                     imports.requireType(cls.module, "FPHelper");
-                    // The f32 configuration converts the two 64-bit value edges to
-                    // their binary32 runtime variants and the two 32-bit value
-                    // edges to their numeric binary32 variants; the bit
-                    // reinterpretation pairs keep their wire semantics and are
-                    // not referenced here (feature spec 23, ruling 7).
+                    // The f32 configuration converts the two 64-bit value edges
+                    // to their binary32 runtime variants and routes the two
+                    // 32-bit value edges to the bit-semantics f32 pair: like
+                    // TS/Dart/Kotlin, floatToI32 and i32ToFloat always operate
+                    // on the binary32 bit pattern (feature spec 23, ruling 7).
                     final targetName = if (FloatPrecision.isF32()) {
                         if (name == "i64ToDouble")
                             "i64ToF32"
                         else if (name == "doubleToI64")
                             "f32ToI64"
                         else if (name == "i32ToFloat")
-                            "i32ToFloatF32"
+                            "i32ToF32"
                         else if (name == "floatToI32")
-                            "floatToI32F32"
+                            "f32ToI32"
                         else
                             name;
                     } else {
