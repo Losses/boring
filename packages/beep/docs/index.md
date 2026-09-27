@@ -15,6 +15,7 @@ Beep is a statically typed language with an embeddable source compiler and virtu
 - [Lexer and complete expression grammar](09-lexer-expression-grammar.md)
 - [Opcode and bytecode reference](10-opcode-reference.md)
 - [Embedding ABI data layouts](11-abi-data-layouts.md)
+- [Compiler architecture and implementation references](12-compiler-architecture-and-references.md)
 - [Implementation plan](implementation-plan.md)
 
 The topic documents are normative as a set. A topic document owns the behavior named by its title. The Wren reference map records adopted and changed behavior with pinned source links. Product choices confirmed by the owner are stated as rules in the relevant topic documents.
