@@ -5153,7 +5153,9 @@ class KotlinExpr {
                 imports.requireType(d.module, d.name);
                 d.name;
             case TAnonymous(anon):
-                final match = state.structTypedefs.get(KotlinDecl.structureSignature(anon));
+                var match = state.structTypedefs.get(KotlinDecl.structureSignature(anon));
+                if (match == null)
+                    match = PolicyQueries.matchStructTypedefByUnification(anon, state.structTypedefs);
                 if (match == null) {
                     Context.error("anonymous structure literal has no matching named typedef", pos);
                     null;
