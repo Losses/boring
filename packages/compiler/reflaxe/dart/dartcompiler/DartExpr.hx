@@ -1440,7 +1440,8 @@ class DartExpr {
                 final condText = conditionText(c);
                 // A Float-typed ternary with an int literal branch types
                 // as num in Dart; Haxe's Float unification promises
-                // double, so widen the int branch.
+                // double, so widen the int branch. Each branch runs only
+                // when taken: its emissions must not write the register.
                 final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
                 final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
                 // The unwrap predicate mirrors requiredValueText's skip
@@ -2091,6 +2092,21 @@ class DartExpr {
         unwrap. Optional parameters and untyped parameters keep the
         argument as rendered.
     **/
+    /**
+        Whether this exact local was already asserted earlier in the same
+        dominating flow (the register is written only where `!` was
+        emitted, and frames end at if-arms, loops, closures and catch
+        arms), and no assignment anywhere in the function can kill the
+        promotion. A second assertion there reports no effect.
+        (FlowPromotedRequiredDedup)
+    **/
+    function flowPromotedLocal(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): !mutated.exists(v.id) && flowPromotedNonNull.exists(v.id);
+            case _: false;
+        };
+    }
+
     function requiredValueText(e:TypedExpr):String {
         if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e) || isNullLiteral(e))
             return expr(e);
@@ -3857,14 +3873,26 @@ class DartExpr {
             return fail(c.expr, "try region catch type is not an exception class");
         }
         final out = [indent(depth) + "try {"];
+        final savedTryPromoted = flowPromotedNonNull.copy();
         for (l in blockLines(statementsOf(body), depth + 1))
             out.push(l);
         out.push(catchHeaderLine(c, clsName, depth));
         catchVars.set(c.v.id, true);
+        // The try body's promotions do not reach the catch arm: dart
+        // restarts flow at the arm from the pre-try state, because the
+        // exception could have been thrown anywhere in the body.
+        // (CatchArmPromotionReset)
+        flowPromotedNonNull.clear();
+        for (k in savedTryPromoted.keys())
+            flowPromotedNonNull.set(k, savedTryPromoted.get(k));
         final handler = blockLines(statementsOf(c.expr), depth + 1);
         catchVars.remove(c.v.id);
         for (l in handler)
             out.push(l);
+        // Nothing asserted inside the body survives the merge either.
+        flowPromotedNonNull.clear();
+        for (k in savedTryPromoted.keys())
+            flowPromotedNonNull.set(k, savedTryPromoted.get(k));
         out.push(indent(depth) + "}");
         return out;
     }
