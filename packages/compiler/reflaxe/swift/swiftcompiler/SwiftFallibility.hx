@@ -35,7 +35,7 @@ class SwiftFallibility {
     static final escaping:Map<String, Map<String, Bool>> = [];
 
     /** The std.Fs operations whose failure raises (stdlib/17). */
-    static final THROWING_FS_OPS = ["readText", "writeText", "appendText", "makeDirs", "readDir", "deleteFile"];
+    static final THROWING_FS_OPS = ["readText", "writeText", "appendText", "makeDirs", "readDir", "deleteFile", "rename"];
 
     static final bodies:Array<{key:String, body:TypedExpr}> = [];
 

@@ -6,6 +6,7 @@ typedef Bundle = {
     precision:String,
     haxeArgs:Array<String>,
     rootsFile:String,
+    sourceSet:String,
     build:StepOverride,
     run:StepOverride,
     packageName:String,

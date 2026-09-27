@@ -27,6 +27,22 @@ class Host {
         #end
     }
 
+    public static function writeText(path:String, contents:String):Void {
+        #if js
+        Syntax.code("require('fs').writeFileSync({0}, {1})", path, contents);
+        #else
+        std.Fs.writeText(path, contents);
+        #end
+    }
+
+    public static function rename(from:String, to:String):Void {
+        #if js
+        Syntax.code("require('fs').renameSync({0}, {1})", from, to);
+        #else
+        std.Fs.rename(from, to);
+        #end
+    }
+
     public static function makeDirs(path:String):Void {
         #if js
         Syntax.code("require('fs').mkdirSync({0}, {recursive: true})", path);

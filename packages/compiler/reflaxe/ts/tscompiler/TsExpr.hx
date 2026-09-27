@@ -2398,11 +2398,12 @@ class TsExpr {
             case "readDir": "readdirSync(p)";
             case "isDirectory": "statSync(p).isDirectory()";
             case "deleteFile": "unlinkSync(p)";
+            case "rename": "renameSync(p, d)";
             case _:
                 Context.error("std.Fs has no lowering for member " + name, fn.pos);
                 return "null";
         }
-        final params = (name == "writeText" || name == "appendText") ? "p: string, d: string" : "p: string";
+        final params = (name == "writeText" || name == "appendText" || name == "rename") ? "p: string, d: string" : "p: string";
         final helper = imports.fsHelper(name,
             "const fs"
             + name.charAt(0).toUpperCase()
