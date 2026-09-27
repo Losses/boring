@@ -225,3 +225,20 @@ mod protocol_regressions {
         assert_eq!(compare_data_class_string_compare(&a, &a), 0);
     }
 }
+
+    #[test]
+    fn data_class_string_comparator_uses_the_resident() {
+        let a = boring_codec_gen::boring::data_class_string_compare::DataClassStringCompare {
+            label: String::from("a"),
+            order: 1,
+        };
+        let b = boring_codec_gen::boring::data_class_string_compare::DataClassStringCompare {
+            label: String::from("b"),
+            order: 1,
+        };
+        assert_eq!(
+            compare_data_class_string_compare(&a, &b),
+            compare_data_class_string_compare(&b, &a).neg()
+        );
+        assert_eq!(compare_data_class_string_compare(&a, &a), 0);
+    }
