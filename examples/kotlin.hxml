@@ -686,3 +686,5 @@ tests.DriverPlanTests
 boring.NullInflatedLiteralOps
 tests.NullInflatedLiteralOpsTests
 
+
+tests.SharedHandleTests
