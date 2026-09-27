@@ -1243,7 +1243,7 @@ class TsExpr {
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                return mapReceiver == null ? expr(arr) + "[" + expr(idx) + "]!" : expr(mapReceiver) + ".get(" + expr(idx) + ")!";
+                return mapReceiver == null ? receiverText(arr) + "[" + expr(idx) + "]!" : expr(mapReceiver) + ".get(" + expr(idx) + ")!";
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -1429,18 +1429,26 @@ class TsExpr {
                 if (leftEnum != null && rightEnum == null) {
                     final value = expr(r);
                     // Haxe: null == EnumValue is false; guard the nullable side.
-                    if (PolicyQueries.isNullableType(r.t))
+                    // The guard evaluates the subject twice, and TypeScript
+                    // cannot narrow a second fresh evaluation from the first,
+                    // so the dereferencing occurrence keeps its own non-null
+                    // assertion (both runtimes throw on a null deref).
+                    if (PolicyQueries.isNullableType(r.t)) {
+                        final deref = StringTools.endsWith(value, "!") ? value : value + "!";
                         return op == OpEq
-                            ? "(" + value + " !== null && " + value + ".kind === \"" + leftEnum.name + "\")"
-                            : "(" + value + " === null || " + value + ".kind !== \"" + leftEnum.name + "\")";
+                            ? "(" + value + " !== null && " + deref + ".kind === \"" + leftEnum.name + "\")"
+                            : "(" + value + " === null || " + deref + ".kind !== \"" + leftEnum.name + "\")";
+                    }
                     return value + ".kind " + sym + ' "${leftEnum.name}"';
                 }
                 if (rightEnum != null && leftEnum == null) {
                     final value = expr(l);
-                    if (PolicyQueries.isNullableType(l.t))
+                    if (PolicyQueries.isNullableType(l.t)) {
+                        final deref = StringTools.endsWith(value, "!") ? value : value + "!";
                         return op == OpEq
-                            ? "(" + value + " !== null && " + value + ".kind === \"" + rightEnum.name + "\")"
-                            : "(" + value + " === null || " + value + ".kind !== \"" + rightEnum.name + "\")";
+                            ? "(" + value + " !== null && " + deref + ".kind === \"" + rightEnum.name + "\")"
+                            : "(" + value + " === null || " + deref + ".kind !== \"" + rightEnum.name + "\")";
+                    }
                     return value + ".kind " + sym + ' "${rightEnum.name}"';
                 }
                 return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
@@ -1605,6 +1613,20 @@ class TsExpr {
         if (PolicyQueries.isNullableType(subj.t) && !StringTools.endsWith(base, "!"))
             return base + "!." + name;
         return base + "." + name;
+    }
+
+    /**
+        Renders a receiver for a member call or an element-access base.
+        When the receiver's Haxe type still includes null while Haxe reads
+        the member straight off it, both runtimes throw on a null receiver,
+        so the assertion only restates the Haxe contract. (NullableReceiverUnwrap,
+        call and element-access variants)
+    **/
+    function receiverText(subj:TypedExpr):String {
+        final base = expr(subj);
+        if (PolicyQueries.isNullableType(subj.t) && !StringTools.endsWith(base, "!"))
+            return base + "!";
+        return base;
     }
 
     function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
@@ -2140,7 +2162,7 @@ class TsExpr {
                 final name = cf.get().name;
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
                 if (getterProperty != null && args.length == 0)
-                    return expr(subj) + "." + getterProperty;
+                    return receiverText(subj) + "." + getterProperty;
                 if (isStringSubject(subj)) {
                     if (name == "toLowerCase")
                         return expr(subj) + ".toLowerCase()";
@@ -2333,7 +2355,7 @@ class TsExpr {
                         case _:
                     }
                 }
-                return expr(subj) + "." + name + "(" + rendered + ")";
+                return receiverText(subj) + "." + name + "(" + rendered + ")";
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
                 final fName = cf.get().name;
