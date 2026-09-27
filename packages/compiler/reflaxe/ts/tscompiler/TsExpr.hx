@@ -1257,7 +1257,12 @@ class TsExpr {
             case TObjectDecl(fields):
                 return objectLiteral(fields, false);
             case TArrayDecl(elems):
-                return "[" + [for (x in elems) expr(x)].join(", ") + "]";
+                // The Haxe array carries one element type; an element whose
+                // rendered TypeScript type carries null (a runtime get, a
+                // nullable member read) is unwrapped so the array literal
+                // keeps the Haxe element type. The assertion is erased at
+                // runtime. (ArrayElementUnwrap)
+                return "[" + [for (x in elems) arrayElementText(x)].join(", ") + "]";
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -1465,8 +1470,24 @@ class TsExpr {
                 }
                 return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
             case _:
-                return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+                return relationalOperand(l) + " " + symbolOf(op) + " " + relationalOperand(r);
         }
+    }
+
+    /**
+        A relational comparison against a nullable operand would carry null
+        into the comparison. Haxe's abstract Int comparison never produces a
+        silent coercion from a null operand on this target, so the non-null
+        assertion restates the Haxe contract; the assertion is erased when
+        TypeScript is stripped and never changes behavior. (RelationalOperandUnwrap)
+    **/
+    function relationalOperand(e:TypedExpr):String {
+        final rendered = operand(e, OpGte, false);
+        if (StringTools.endsWith(rendered, "!"))
+            return rendered;
+        if (PolicyQueries.isNullableType(e.t) || argCarriesNull(e))
+            return "(" + rendered + ")!";
+        return rendered;
     }
 
     function operand(e:TypedExpr, parent:Binop, isRight:Bool):String {
@@ -2688,12 +2709,20 @@ class TsExpr {
         is unwrapped when the field is declared non-null. The `!` is erased at
         runtime, so behavior is unchanged. (FieldAssignmentUnwrap)
     **/
+    function arrayElementText(e:TypedExpr):String {
+        final rendered = expr(e);
+        if (StringTools.endsWith(rendered, "!"))
+            return rendered;
+        return argCarriesNull(e) ? "(" + rendered + ")!" : rendered;
+    }
+
     function fieldAssignmentRhs(l:TypedExpr, r:TypedExpr):String {
         final rendered = expr(r);
         if (StringTools.endsWith(rendered, "!"))
             return rendered;
         final fieldType = switch (stripWrap(l).expr) {
             case TField(_, FInstance(_, _, cf)): cf.get().type;
+            case TLocal(v): v.t;
             case _: null;
         };
         if (fieldType == null)
