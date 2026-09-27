@@ -1380,8 +1380,12 @@ class SwiftExpr {
     // counts units; business modules need .utf16.count to keep index
     // loops aligned with the UTF-16 indexing ABI.
     if (isStringSubject(subj) && !types.resident)
-        return "Int32(" + receiverText(subj) + ".utf16.count)";
-    return "Int32(" + receiverText(subj) + ".count)";
+        return "Int32(" + receiverText(stripCast(subj)) + ".utf16.count)";
+    // The receiver strips the typer's projection cast for the same reason
+    // TArray does: indexing/counting never crosses the mutable line, and the
+    // Null<ReadOnlyArray> -> Array unwrap cast must not become a container
+    // conversion. (ReadOnlyIndexReceiver)
+    return "Int32(" + receiverText(stripCast(subj)) + ".count)";
             case _: expr(e);
         };
     }
@@ -1771,7 +1775,14 @@ class SwiftExpr {
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                final read = mapReceiver == null ? receiverText(arr) + "[Int(" + narrowedText(idx) + ")]" : expr(mapReceiver) + "[" + narrowedText(idx) + "]";
+                // The receiver strips the typer's projection cast: indexing a
+                // Null<ReadOnlyArray> field inserts an unsafe cast onto the
+                // underlying Array, and rendering that cast as the container
+                // conversion would wrap the native value Array in TiqianArray
+                // for a value read that never crosses the mutable line.
+                // (ReadOnlyIndexReceiver)
+                final receiver = mapReceiver == null ? stripCast(arr) : arr;
+                final read = mapReceiver == null ? receiverText(receiver) + "[Int(" + narrowedText(idx) + ")]" : expr(mapReceiver) + "[" + narrowedText(idx) + "]";
                 // haxe.io.Bytes reads carry UInt8 elements; the Haxe
                 // access widens to Int.
                 return mapReceiver == null && isBytesType(arr) ? "Int32(" + read + ")" : read;
@@ -2416,8 +2427,14 @@ class SwiftExpr {
     **/
     function arrayBoundaryText(inner:TypedExpr, rendered:String, target:Type):Null<String> {
         if (StaticFieldHelper.isReadOnlyArrayType(target)) {
-            if (isMutableArrayType(inner.t))
+            if (isMutableArrayType(inner.t)) {
+                // An optional slot keeps its Optional and maps the container
+                // conversion inside; a plain slot converts directly.
+                // (ReadOnlyAssignBoundary)
+                if (isNullLeafType(target))
+                    return "(" + rendered + ").map { Array($0) }";
                 return "Array(" + rendered + ")";
+            }
             return null;
         }
         if (isMutableArrayType(target) && StaticFieldHelper.isReadOnlyArrayType(inner.t))
@@ -2497,6 +2514,22 @@ class SwiftExpr {
         var rendered = expr(value);
         if (isIntType(emittedType(value)) && isFloatTyped(target))
             rendered = intToFloatText(rendered);
+        // features/18: an assignment whose slot and value sit on opposite
+        // sides of the mutable/immutable container line (a constructor body
+        // storing a mutable Array parameter into a ReadOnlyArray field, say)
+        // crosses the boundary without a Haxe-level cast, so the container
+        // conversion renders here the same way it does for casts and
+        // declarations. The merged type of a sanctioned coalescing ternary
+        // unifies to the read-only slot type, so the boundary reads the
+        // underlying parameter's declared type through the site.
+        // (ReadOnlyAssignBoundary)
+        final source = switch (coalescingSiteFor(value)) {
+            case null: value;
+            case site: site.valueExpr;
+        };
+        final container = arrayBoundaryText(source, rendered, target.t);
+        if (container != null)
+            rendered = container;
         return optionalValued(value) && !StringTools.endsWith(rendered, "!") && !isNullLeafType(target.t) ? rendered + "!" : rendered;
     }
 
@@ -2787,11 +2820,14 @@ class SwiftExpr {
                 return previous;
         }
         if (name == "length") {
+            // Same projection-cast strip as TArray/count: a length read never
+            // crosses the mutable line. (ReadOnlyIndexReceiver)
+            final receiver = stripCast(subj);
             if (isStringBuf(subj))
-                return "Int32(" + receiverText(subj) + ".count)";
+                return "Int32(" + receiverText(receiver) + ".count)";
             if (isStringSubject(subj) && !types.resident)
-                return "Int32(" + receiverText(subj) + ".utf16.count)";
-            return "Int32(" + receiverText(subj) + ".count)";
+                return "Int32(" + receiverText(receiver) + ".utf16.count)";
+            return "Int32(" + receiverText(receiver) + ".count)";
         }
         return receiverText(subj) + "." + SwiftNameEscape.escape(name);
     }
