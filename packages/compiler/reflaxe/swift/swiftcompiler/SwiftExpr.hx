@@ -12,6 +12,8 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import ExpressionBlockNorm;
+import ConstantFold;
+import ConstantFold.FoldedReal;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
@@ -1810,7 +1812,21 @@ class SwiftExpr {
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
-                    case TFloat(f): return floatLiteral(f);
+                    case TFloat(f):
+                        // A literal the target precision cannot represent folds
+                        // to the value its runtime conversion yields; swiftc
+                        // reports the unfolded spelling as underflow/overflow
+                        // during conversion. (ConstantFold)
+                        final foldedLiteral = ConstantFold.outOfRangeLiteral(f, FloatPrecision.isF32());
+                        if (foldedLiteral == null)
+                            return floatLiteral(f);
+                        return switch (foldedLiteral) {
+                            case FRPosInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
+                            case FRNegInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
+                            case FRZero(negative): floatLiteral(negative ? "-0.0" : "0.0");
+                            case FRNan: floatLiteral(f);
+                            case FRLeastNonzero: FloatPrecision.isF32() ? "Float.leastNonzeroMagnitude" : "Double.leastNonzeroMagnitude";
+                        };
                     case TString(s):
                         // The resident ABI carries strings as unit arrays
                         // (docs/specs/features/08-strings-and-unicode.md); business modules keep the
