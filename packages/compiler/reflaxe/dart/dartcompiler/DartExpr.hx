@@ -977,6 +977,11 @@ class DartExpr {
                 // interpolate the right side. The left stays a plain
                 // `s = s + ...` so the accumulator's type is preserved.
                 return [indent(depth) + assignTarget(l) + " = " + templateLiteral(l, r)];
+            case TBinop(OpAssignOp(OpMod), l, r) if (isIntTyped(l)):
+                // Statement-position Int %= narrows through the truncated
+                // remainder too; Dart's compound %= would keep the
+                // Euclidean modulo for a negative dividend.
+                return [indent(depth) + assignTarget(l) + " = (" + assignTarget(l) + ").remainder(" + expr(r) + ")"];
             case TBinop(OpAssignOp(inner), l, r):
                 return [indent(depth) + assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r)];
             case _:
@@ -1625,6 +1630,13 @@ class DartExpr {
                 // interpolate the right side. The left stays a plain
                 // `s = s + ...` so the accumulator's type is preserved.
                 return assignTarget(l) + " = " + templateLiteral(l, r);
+            case OpAssignOp(OpMod) if (isIntTyped(l)):
+                // Dart's compound %= keeps the Euclidean modulo, while the
+                // Haxe Int %= narrows through the truncated remainder; the
+                // compound spelling rewrites onto int.remainder so negative
+                // dividends keep the parity the plain binop already has.
+                final target = assignTarget(l);
+                return target + " = (" + target + ").remainder(" + expr(r) + ")";
             case OpAssignOp(inner):
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpBoolAnd:
