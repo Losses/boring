@@ -9926,8 +9926,15 @@ class RustExpr {
             case IsArray(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = iterableItemText(element, stdStringType(element, value + "[" + index + "]", true, origin, depth + 1));
-                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
+                final item = iterableItemText(element, stdStringType(element, "arr[" + index + "]", true, origin, depth + 1));
+                // A nested array element read is a place expression whose
+                // value is an owned Vec; binding it by value moves it out
+                // of the parent container (E0507). Bind by reference at
+                // depth > 0 so the element stays inside the parent.
+                // (NestedArrayElementMove)
+                final bind = depth > 0 ? &&final bind = depth > 0 ? "&" + value : value;
+                '{\n        let mut out = String::new();\n        out.push('[');\n        let arr = ${bind};\n        let n = arr.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(
+); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(']');\n        out\n    }';
             case IsSortedSet(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
