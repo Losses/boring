@@ -2600,7 +2600,11 @@ class KotlinExpr {
 #if kotlin_fold_debug
             emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
-            addProofExpr(subj);
+            // Decision only: no registration here. nullableAccess is also
+            // consulted as a pure query (rendersNullable, nullableChainHop),
+            // and a write on that path would let a probe render register a
+            // proof before the real emission decides. The emission sites
+            // that actually print "!!." register instead. (PureAccessDecision)
             return "!!.";
         }
         // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
@@ -3145,9 +3149,14 @@ class KotlinExpr {
 
     function fieldAccessKey(e:TypedExpr):Null<String> {
         return switch (stripWrap(e).expr) {
-            case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
+            case TField(receiver, FInstance(_, _, cf)) | TField(receiver, FAnon(cf)):
                 switch (stripWrap(receiver).expr) {
-                    case TLocal(_) | TConst(TThis): "field:" + expr(e);
+                    // The key is built from the typed AST, not from rendered
+                    // text: expr() here would render the read and its nested
+                    // emissions would write the very registries a decision on
+                    // this key is about to consult. (PureAccessDecision)
+                    case TLocal(v): "field:" + v.id + "." + cf.get().name;
+                    case TConst(TThis): "field:this." + cf.get().name;
                     case _: null;
                 }
             case _: null;
@@ -3519,19 +3528,35 @@ class KotlinExpr {
             case FVar(_, _): true;
             case _: false;
         };
+        // The whole decision runs before any rendering: a probe that renders
+        // the subject would let its nested emissions write the very proof
+        // and extraction registries this decision consults. The pure
+        // rendersNullable walk replaces the old rendered-text probe.
+        // (PureAccessDecision)
+        final bareSubject = switch (stripWrap(subj).expr) {
+            case TLocal(_): true;
+            case _: false;
+        };
         final access = if (isProperty && fieldType != null && !isNullType(fieldType)
             && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
             "!!.";
-        } else if (!provenNonNull(subj) && !guardProofBefore(subj)
+        } else if (!provenNonNull(subj) && !guardProofBefore(subj) && !bareSubject
             // A safe-call hop earlier in the receiver chain leaves the
             // value nullable regardless of the Haxe type (the hop itself
             // was an emitter safety choice); the Haxe member read would
-            // NPE there, so this hop hardens with !!.
+            // NPE there, so this hop hardens with !!. A bare local never
+            // renders a safe call, matching the old rendered-text probe.
             // (SafeCallHopHardening)
-            && StringTools.contains(expr(subj), "?.")) {
+            && rendersNullable(subj)) {
             "!!.";
         } else {
-            nullableAccess(subj);
+            final decided = nullableAccess(subj);
+            // The null-init branch of nullableAccess used to register on
+            // the decision path; the write belongs to the emission that
+            // actually prints the assertion. (PureAccessDecision)
+            if (decided == "!!.")
+                addProofExpr(subj);
+            decided;
         };
         return expr(subj) + access + KotlinNameEscape.escape(name);
     }
