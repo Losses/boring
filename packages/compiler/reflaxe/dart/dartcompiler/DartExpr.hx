@@ -832,6 +832,18 @@ class DartExpr {
             case TVar(v, init) if (init != null):
                 if (isNonNullNormalization(init) && !isNullLeafType(v.t))
                     nonNullLocals.set(v.id, true);
+                // (DeclarationPromotion) dart promotes a local whose
+                // initializer cannot carry null: the declared nullable
+                // annotation does not matter, the promoted type holds from
+                // the declaration until a possibly-null assignment, and a
+                // later assignment in the function kills it. A second "!"
+                // after such a declaration reports no effect. Minimal probe:
+                // /tmp/warnstd/promo/t5.dart P1 (t9.dart P10: reassignment
+                // kills it, hence the mutated guard).
+                if (!mutated.exists(v.id) && !isNullLeafType(init.t)
+                    && !optionalValued(init) && !nullableValue(init)
+                    && !isNullLiteral(init))
+                    flowPromotedNonNull.set(v.id, true);
                 final kw = mutated.exists(v.id) ? "var" : "final";
                 final coalescing = coalescingSiteFor(init);
                 // One initializer cannot carry its type to Dart's
@@ -891,6 +903,15 @@ class DartExpr {
                     return lines;
                 }
                 final lines = ifLines(c, t, f, depth);
+                // (GuardReturnPromotion) `if (x == null)` whose then arm
+                // always exits promotes x for every statement after the if:
+                // the null path never reaches them. The mutated guard mirrors
+                // a later assignment killing the promotion. Minimal probes:
+                // /tmp/warnstd/promo/t5.dart P2/P7/P8, t9.dart P9 (not-null
+                // guard with a terminating else arm).
+                if (guarded != null && f == null && !isNotNullGuard(c)
+                    && !mutated.exists(guarded.id) && branchTerminates(t))
+                    flowPromotedNonNull.set(guarded.id, true);
                 // A null-defaulting branch promotes its local after the branch.
                 if (guarded != null && f == null && !isNotNullGuard(c))
                     nonNullLocals.set(guarded.id, true);
@@ -2186,6 +2207,11 @@ class DartExpr {
         access would silently drop the receiver assertion.
     **/
     function requiredValueTextOf(preRendered:String, e:TypedExpr):String {
+        // An emitting render asserted this local already (the arm scopes
+        // roll back the conditional ones), so a second "!" would report
+        // no effect. (FlowPromotedRequiredDedup)
+        if (flowPromotedLocal(e))
+            return preRendered;
         if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e))
             return preRendered;
         return switch (stripWrap(e).expr) {
@@ -4585,6 +4611,24 @@ class DartExpr {
     function isNonNullNormalization(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TIf(c, _, f) if (f != null): nullGuardLocal(c) != null;
+            case _: false;
+        };
+    }
+
+    /**
+        (GuardReturnPromotion) Whether a branch exits on every path by
+        return or throw, so a null guard paired with this branch promotes
+        the guarded local for the statements that follow. Only the last
+        statement of the branch is inspected: guards rendered by this
+        backend end in a return.
+    **/
+    function branchTerminates(e:TypedExpr):Bool {
+        final stmts = statementsOf(e);
+        if (stmts.length == 0)
+            return false;
+        return switch (stripWrap(stmts[stmts.length - 1]).expr) {
+            case TReturn(_): true;
+            case TThrow(_): true;
             case _: false;
         };
     }
