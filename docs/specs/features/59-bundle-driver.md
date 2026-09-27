@@ -14,12 +14,11 @@ it, consumers had to state their target configurations and toolchain commands
 in separate scripts, including boring's own `package.json`. The driver now
 reads that information from one project file and runs the sequence.
 
-This specification defines the package's contract.
-The package exposes a `boring` command on `PATH`. It defines one project file
-that names target configurations, one recipe per target that holds what the
-defines cannot derive, one driver with a fixed action set, and the three contract changes the driver
-depends on (the results sink on every target, a parameterized baseline, and a
-scoped mechanism-coverage check).
+The package exposes a `boring` command on `PATH`. Its project file names target
+configurations, and its recipes provide the build and run commands that Haxe
+defines cannot determine. The driver also supplies a common results path,
+selects the baseline for comparison, and applies mechanism coverage when the
+project provides the coverage file.
 
 ## The project file
 
@@ -45,7 +44,7 @@ A target configuration object:
 | --- | --- | --- |
 | `id` | yes | Unique in the file. It is also the results file stem and the output directory name. |
 | `target` | yes | One of `haxe`, `ts`, `kotlin`, `rust`, `swift`, `dart`. |
-| `sourceSet` | no | Name of one entry in `sourceSets`; its roots are added to the roots HXML when both are present. |
+| `sourceSet` | no | Name of one entry in `sourceSets`; its roots are added to the Haxe invocation when a roots HXML is also present. |
 | `precision` | no | `f32`, or absent for binary64. |
 | `haxeArgs` | no | Extra haxe arguments for this configuration, appended after the project's. |
 | `test` | no | `false` for a generation-only configuration; defaults to `true`. |
@@ -59,18 +58,28 @@ A project file that carries an unknown field stops the run and names the
 field. A silent ignore turns a misspelled override into a step that appears
 to run without it.
 
-A source set has the form `{ "packages": ["app.core"], "types":
-["app.Main"], "discover": [{ "root": "src", "packages": ["app.tests"],
-"suffix": "Test" }] }`. Each package is passed through
-`haxe.macro.Compiler.include` with recursion disabled and strict package
-checking. Each type is passed as a Haxe module root. A discovery rule scans
-only the named package directories directly beneath its project-relative
-`root`, selects `.hx` modules whose names end in `suffix`, and passes the
-resulting roots in sorted order. The directory must exist and contain at
-least one matching module. Empty names,
-invalid Haxe paths, duplicate entries, unknown source-set references, and
-parent or absolute discovery paths are errors. `rootsFile` remains accepted;
-its roots and the source set's roots are combined.
+A source set selects Haxe modules in three ways. `packages` passes each named
+package to `haxe.macro.Compiler.include` with recursion disabled. `types`
+passes named modules directly. A `discover` rule scans the direct `.hx` files
+under `<root>/<package path>`, selects filenames ending in `suffix`, and sorts
+the module names before passing them to Haxe. For example:
+
+    "sourceSets": {
+      "tests": {
+        "types": ["app.Main"],
+        "discover": [{ "root": "src", "packages": ["app.tests"], "suffix": "Test" }]
+      }
+    }
+
+The example selects `app.Main` and matching modules under
+`src/app/tests/`. Each discovery directory must exist and contain a matching
+module. The parser rejects invalid module paths, duplicate entries, unknown
+source-set names, and discovery roots that are absolute or contain `..`.
+For a configuration, the driver first includes its `rootsFile`, or the
+project-level `rootsFile` when there is no override. It then adds the selected
+source set's package macros and module roots. A configuration can use either
+mechanism alone or both together. Boring's own `boring.json` currently uses
+`rootsFile` and does not declare `sourceSets`.
 
 ## What the driver derives
 
@@ -93,7 +102,8 @@ its roots and the source set's roots are combined.
   consumer's license from boring's own repository license. A roots HXML
   that sets `package-license` should agree with `package.license` to avoid
   contradictory metadata in direct generation and driver packaging.
-- **The results path.** `<resultsDir>/<id>.jsonl` for each testable configuration.
+- **The results path.** `<resultsDir>/<id>.jsonl` for each configuration with
+  `test: true`; `compare` reads only configurations with `compare: true`.
 
 ## The recipe
 
@@ -104,7 +114,7 @@ command, and whether `pack` spawns a host toolchain.
 
 | Target | Build | Run | Pack spawns |
 | --- | --- | --- | --- |
-| `haxe` | `haxe` over the reference entry | `bun` on the emitted js | nothing |
+| `haxe` | `haxe` compiles generated test sources to JavaScript | `bun` runs the emitted JavaScript | nothing |
 | `ts` | none; `bun` transpiles | `bun test <gen-tests>` | `tsc` |
 | `kotlin` | `kotlinc`: library jar from `<gen>`, then a tests jar against it | `java -cp <both jars> TestMainKt` | `kotlinc` |
 | `rust` | `cargo test` in the crate root | `cargo test` | nothing |
@@ -139,75 +149,73 @@ complete command plans, diagnostics, and comparison rules; a CLI fixture runs
 the same inputs. Real toolchain execution on each translated entrypoint
 remains to be verified beyond that fixture.
 
-## The actions
+## Commands and their results
 
     boring gen <id>...
     boring test <id>...
     boring pack <id>...
     boring compare
     boring verify [--with-pack]
+    boring roots <sourceSet> --output <file>
 
-- `gen` compiles each named configuration's sources through the target's generation
-  defines and leaves the two directories. It then runs `afterGen`, if set;
-  a failed command fails `gen`.
-- `test` runs each named testable configuration's `gen` output through the
-  recipe's build and run steps and leaves `<resultsDir>/<id>.jsonl`. An explicit
-  request for a configuration with `test: false` fails and names its id.
-- `pack` runs each named configuration's generation with the artifact defines,
-  runs `afterGen` if set, and requires `package` on every named configuration.
-- `compare` reads `<resultsDir>/<id>.jsonl` for each comparison-enabled configuration, passes the
-  baseline's id as the baseline, and applies spec 19's comparison rules.
-- `verify` is `gen` for every configuration, then `test` for testable
-  configurations, then `compare`, in that order, stopping at the first action
-  that fails. `--with-pack` appends `pack` for configurations with `package`.
-- The `baseline` id must name a testable, comparison-enabled configuration.
-  `compare: true` requires `test: true`. A configuration with `compare: false`
-  still runs `gen` and `test` but is excluded from `compare`.
-  Boring's four f32 configurations currently use this setting because their
-  test applicability and ID sets differ from the binary64 baseline. Their
-  results remain available for separate review until those tests converge.
-- Exit status is 0 when every action the invocation ran succeeded. A failure
-  names the configuration and the action.
-- `boring roots <sourceSet> --project <file> --output <path>` writes the
-  same package macros and module roots as an HXML include. It replaces the
-  output through a sibling temporary file and rename. Projects with direct
-  HXML entry points can generate one roots include from `boring.json`.
+`gen` takes one or more configuration ids. It runs Haxe with the selected
+roots and target defines, writing translated code to
+`<outRoot>/<id>/gen` and generated tests to `<outRoot>/<id>/gen-tests`.
+For `target: haxe`, the roots HXML selects the JavaScript output. If the
+configuration has `afterGen`, `gen` runs that command from the project root
+after Haxe succeeds. A failed `afterGen` fails `gen`.
+
+`test` takes one or more ids whose `test` field is true. It uses code from a
+prior `gen`, runs the target's build and test commands, and writes
+`<resultsDir>/<id>.jsonl`. It removes an old result before running. An
+explicit `test` request for `test: false` fails with the id named.
+
+`compare` reads existing result files for configurations with `compare: true`
+and checks their test IDs, outcomes, and failure messages against `baseline`
+using spec 19's rules. The baseline must have `test: true` and
+`compare: true`; a configuration cannot set `compare: true` with
+`test: false`. A missing result file fails comparison. Boring's four f32
+configurations currently use `compare: false` because their test IDs and
+applicability differ from the binary64 baseline. Their tests still run.
+
+`verify` runs `gen` for every configuration, then `test` for those with
+`test: true`, then `compare`. It stops at the first failure. With
+`--with-pack`, it also runs `pack` for configurations that declare `package`
+after comparison succeeds.
+
+`pack` takes one or more ids with `package.name` and `package.version`. It
+reruns generation with packaging defines and runs `afterGen` when configured.
+An explicit request for a configuration without `package` fails before any
+generation starts. The compiler writes the target's distribution artifacts.
+
+`roots` takes one source-set name and `--output <file>`. It writes that set's
+package macros and module roots as an HXML include, replacing the requested
+file through a sibling temporary file. It does not add a configuration's
+`rootsFile` or run Haxe. The command is for direct HXML entry points that
+need the same source selection as `boring.json`.
+
+Paths in the project file and `--output` resolve from the directory containing
+`boring.json`. The CLI defaults to `./boring.json` and also accepts
+`--project <file>` or `--project=<file>`. Successful commands exit 0;
+generation, execution, comparison, and configuration errors exit nonzero.
 
 ## Results sink on every target
 
-Spec 19's location rule names `haxe`, `ts`, `kotlin` and `rust` as the values
-of `<target>`. The emitter today matches that list: `KotlinRuntime.hx`,
-`RustRuntime.hx` and `TsRuntime.hx` read `BORING_TEST_RESULTS`, while the
-`dart` and `swift` configurations print their records to standard output and rely on
-the caller redirecting it. That is why boring's own `test:dart` and
-`test:swift` scripts carry a shell redirection and why a driver cannot collect
-results through one contract.
-
-Under this specification every target reads `BORING_TEST_RESULTS` and falls
-back to `out/test-results/<target>.jsonl`. The `dart` and `swift` emitters are
-brought into that rule. The default path keeps spec 19's `<target>` value; the
-driver always sets the variable, so the default is only a fallback for a
-  hand-run target configuration.
+The generated test runners read `BORING_TEST_RESULTS` to select the JSON Lines
+file they write. The driver sets it to `<resultsDir>/<id>.jsonl` for each
+`test` invocation. A runner started outside the driver uses
+`out/test-results/<target>.jsonl` when the variable is unset. A configuration
+with `test: false` does not produce a test results file.
 
 ## The baseline is a parameter
 
-The consistency manager fixes the baseline target name to `kotlin` and accepts
-the target list through `--targets`. A project whose baseline configuration is named
-`kotlin-f32` therefore cannot hand its results file to the manager without
-renaming it, and two configurations of one target (a `kotlin-f32` and a `kotlin-f64`)
-cannot both be compared in one run.
-
-`--baseline=<name>` joins `--dir` and `--targets`, defaulting to `kotlin`. The
-driver passes the project's `baseline`.
+The `baseline` field names a configuration that has both tests and comparison
+enabled. The driver compares the results files by configuration id, so a
+project can include two precision settings for one translation target without
+renaming their files. The standalone consistency manager also accepts
+`--baseline=<name>` alongside `--dir` and `--targets`; its default is `kotlin`.
 
 ## Mechanism coverage is scoped to the project that declares it
-
-Spec 19's manager ends every run with the mechanism-coverage check, which
-reads `tools/test-consistency/mechanism-coverage.json` relative to the working
-directory and requires every listed boring mechanism to be probed by a test id
-of the run. A consumer project's ids do not carry boring's probe names, so the
-manager exits nonzero with zero divergences: the exit status no longer means
-what spec 19 says it means.
 
 The comparison code searches the results directory and its parent directories
 for `tools/test-consistency/mechanism-coverage.json`. It runs the coverage
@@ -221,8 +229,9 @@ divergence list alone.
 - A project file with one testable configuration per target drives `gen`, `test`
   and `compare`; `verify` exits 0 on a consistent project and, when one
   configuration's verdict is perturbed, exits nonzero naming that id.
-- Adding a configuration is one array entry: no file outside the project file changes,
-  and the two derived directories appear under `<outRoot>/<id>/`.
+- A configuration using a shared `sourceSet` can be added through one array
+  entry. A configuration with a distinct `rootsFile` also needs that HXML.
+  Translated targets write derived directories under `<outRoot>/<id>/`.
 - `boring pack` on a `ts` configuration writes `dist` with `.js` and `.d.ts` and the
   `.tgz`; on a `kotlin` configuration it writes the Maven directory with the jar, the
   pom and the `.sha1` files.
