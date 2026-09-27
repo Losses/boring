@@ -52,7 +52,8 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-libxml2": "nixpkgs-libxml2",
         "reflaxe": "reflaxe",
-        "rust-overlay": "rust-overlay"
+        "rust-overlay": "rust-overlay",
+        "swift-system": "swift-system"
       }
     },
     "rust-overlay": {
@@ -72,6 +73,23 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "swift-system": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1784232161,
+        "narHash": "sha256-lyreYu1Wwsqrvio3Y+FU28K0BmmiIMvKyCbqsF+oLZA=",
+        "owner": "apple",
+        "repo": "swift-system",
+        "rev": "0b30161977799fd949f7f6848586b82ff6764f73",
+        "type": "github"
+      },
+      "original": {
+        "owner": "apple",
+        "repo": "swift-system",
+        "rev": "0b30161977799fd949f7f6848586b82ff6764f73",
         "type": "github"
       }
     }

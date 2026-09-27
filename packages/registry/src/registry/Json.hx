@@ -28,6 +28,50 @@ class Json {
         };
     }
 
+    public static function objectFields(value:JsonValue):Null<Array<JsonField>> {
+        return switch (value) {
+            case JObject(fields): fields;
+            case JArray(_): null;
+            case JString(_): null;
+            case JNumber(_): null;
+            case JBool(_): null;
+            case JNull: null;
+        };
+    }
+
+    public static function arrayValues(value:JsonValue):Null<Array<JsonValue>> {
+        return switch (value) {
+            case JObject(_): null;
+            case JArray(values): values;
+            case JString(_): null;
+            case JNumber(_): null;
+            case JBool(_): null;
+            case JNull: null;
+        };
+    }
+
+    public static function stringValue(value:JsonValue):Null<String> {
+        return switch (value) {
+            case JObject(_): null;
+            case JArray(_): null;
+            case JString(text): text;
+            case JNumber(_): null;
+            case JBool(_): null;
+            case JNull: null;
+        };
+    }
+
+    public static function boolValue(value:JsonValue):Null<Bool> {
+        return switch (value) {
+            case JObject(_): null;
+            case JArray(_): null;
+            case JString(_): null;
+            case JNumber(_): null;
+            case JBool(result): result;
+            case JNull: null;
+        };
+    }
+
     static function findField(fields:Array<JsonField>, name:String):JsonValue {
         for (i in 0...fields.length)
             if (fields[i].name == name)

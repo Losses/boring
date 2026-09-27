@@ -32,7 +32,11 @@ class SwiftHostEdges {
         "Fs.writeText",
         "Fs.appendText",
         "Fs.makeDirs",
-        "Fs.readDir"
+        "Fs.readDir",
+        "Fs.deleteFile",
+        "Process.run",
+        "Process.exit",
+        "Process.platform"
     ];
 
     /** The Swift file-scope helper behind each key. */
@@ -48,6 +52,10 @@ class SwiftHostEdges {
             case "Fs.appendText": "boringFsAppendText";
             case "Fs.makeDirs": "boringFsMakeDirs";
             case "Fs.readDir": "boringFsReadDir";
+            case "Fs.deleteFile": "boringFsDeleteFile";
+            case "Process.run": "boringProcessRun";
+            case "Process.exit": "boringProcessExit";
+            case "Process.platform": "boringProcessPlatform";
             default: "boringUnknownEdge";
         };
     }
@@ -55,7 +63,7 @@ class SwiftHostEdges {
     /** Whether the helper throws on failure (features/06 mapping). */
     public static function throws(key:String):Bool {
         return switch (key) {
-            case "Fs.readText" | "Fs.writeText" | "Fs.appendText" | "Fs.makeDirs" | "Fs.readDir": true;
+            case "Fs.readText" | "Fs.writeText" | "Fs.appendText" | "Fs.makeDirs" | "Fs.readDir" | "Fs.deleteFile": true;
             case _: false;
         };
     }
@@ -67,7 +75,7 @@ class SwiftHostEdges {
 
     public static function needsFoundationEssentials(key:String):Bool {
         return switch (key) {
-            case "Fs.exists" | "Fs.isDirectory" | "Fs.readText" | "Fs.writeText" | "Fs.makeDirs" | "Fs.readDir": true;
+            case "Fs.exists" | "Fs.isDirectory" | "Fs.readText" | "Fs.writeText" | "Fs.makeDirs" | "Fs.readDir" | "Fs.deleteFile": true;
             case _: false;
         }
     }
@@ -85,9 +93,39 @@ class SwiftHostEdges {
             case "Fs.appendText": FS_APPEND_TEXT;
             case "Fs.makeDirs": FS_MAKE_DIRS;
             case "Fs.readDir": FS_READ_DIR;
+            case "Fs.deleteFile": FS_DELETE_FILE;
+            case "Process.run": PROCESS_RUN;
+            case "Process.exit": PROCESS_EXIT;
+            case "Process.platform": PROCESS_PLATFORM;
             default: null;
         };
     }
+
+    static final PROCESS_EXIT = '
+private func boringProcessExit(_ code: Int32) -> Never {
+    #if canImport(Darwin)
+    Darwin.exit(code)
+    #elseif canImport(Glibc)
+    Glibc.exit(code)
+    #elseif canImport(CRT)
+    CRT.exit(code)
+    #else
+    fatalError("std.Process.exit is not available on this host")
+    #endif
+}
+';
+
+    static final PROCESS_PLATFORM = '
+private func boringProcessPlatform() -> String {
+    #if os(macOS)
+    return "darwin"
+    #elseif os(Windows)
+    return "windows"
+    #else
+    return "linux"
+    #endif
+}
+';
 
     static final ENV_GET = '
 private func boringEnvGet(_ key: String) -> String? {
@@ -239,6 +277,65 @@ private func boringFsReadDir(_ path: String) throws -> [String] {
     }
     #else
     throw BoringException(message: "std.Fs is not available on this host")
+    #endif
+}
+';
+
+    static final FS_DELETE_FILE = '
+private func boringFsDeleteFile(_ path: String) throws {
+    #if canImport(FoundationEssentials) || canImport(Darwin)
+    do {
+        try FileManager.default.removeItem(atPath: path)
+    } catch {
+        throw BoringException(message: path + ": " + String(describing: error))
+    }
+    #else
+    throw BoringException(message: "std.Fs is not available on this host")
+    #endif
+}
+';
+
+    static final PROCESS_RUN = '
+private func boringProcessRun(_ command: String, _ args: TiqianArray<String>, _ cwd: String, _ env: TiqianArray<ProcessEnv>) throws -> ProcessResult {
+    #if canImport(Foundation)
+    let fm = FileManager.default
+    let task = Foundation.Process()
+    var variables = ProcessInfo.processInfo.environment
+    for entry in env { variables[entry.name] = entry.value }
+    task.environment = variables
+    task.currentDirectoryURL = URL(fileURLWithPath: cwd, isDirectory: true)
+    var executable = command
+    if !command.contains("/") && !command.contains("\\\\") {
+        let separator: Character = variables["PATH"]?.contains(";") == true ? ";" : ":"
+        for directory in (variables["PATH"] ?? "").split(separator: separator) {
+            let candidate = URL(fileURLWithPath: String(directory), isDirectory: true).appendingPathComponent(command).path
+            if fm.isExecutableFile(atPath: candidate) { executable = candidate; break }
+        }
+    }
+    task.executableURL = URL(fileURLWithPath: executable)
+    task.arguments = args.items
+    let stdoutURL = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let stderrURL = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    guard fm.createFile(atPath: stdoutURL.path, contents: nil), fm.createFile(atPath: stderrURL.path, contents: nil) else {
+        throw BoringException(message: command + ": output file creation failed")
+    }
+    defer { try? fm.removeItem(at: stdoutURL); try? fm.removeItem(at: stderrURL) }
+    do {
+        let stdoutHandle = try FileHandle(forWritingTo: stdoutURL)
+        let stderrHandle = try FileHandle(forWritingTo: stderrURL)
+        defer { stdoutHandle.closeFile(); stderrHandle.closeFile() }
+        task.standardOutput = stdoutHandle
+        task.standardError = stderrHandle
+        try task.run()
+        task.waitUntilExit()
+        return ProcessResult(code: task.terminationStatus,
+            stdout: String(decoding: try Data(contentsOf: stdoutURL), as: UTF8.self),
+            stderr: String(decoding: try Data(contentsOf: stderrURL), as: UTF8.self))
+    } catch {
+        throw BoringException(message: command + ": " + String(describing: error))
+    }
+    #else
+    throw BoringException(message: "std.Process is not available on this host")
     #endif
 }
 ';

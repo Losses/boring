@@ -926,17 +926,20 @@ Test discipline follows `features/07`: floating-point fields in vectors
 assign dyadic rationals, and comparisons read decoded floats without
 arithmetic on them.
 
-## The bundle driver (feature spec 59)
+## The project driver (feature spec 59)
 
 Two groups of functionality sit above one compilation. The in-source
-test bundle (`features/19`) compiles a project's tests into each
+test runner (`features/19`) compiles a project's tests into each
 target's own test runner, and the distribution package
 (`features/24`, `features/25`) writes the manifest and the install
 artifact of the generated tree. Before feature spec 59 every consumer
 wrote that layer by hand: one script per target per action, the
 toolchain command repeated in each, and the results path spelled three
-different ways. The bundle driver replaces that layer with one project
-file and one entry point.
+different ways. The driver is a delivered package under `packages/driver/`.
+Its `boring` command reads one project file.
+Each entry in the project's `bundles` array identifies a translation target,
+precision, and optional actions. This section calls an entry a target
+configuration; the JSON key retains its existing name for compatibility.
 
 ### The project file: `boring.json`
 
@@ -950,25 +953,28 @@ Fields of the project object:
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `outRoot` | yes | Directory every generated tree of the project lives under. |
-| `resultsDir` | no | Directory the per-bundle results files are written to. Default `out/test-results`. |
-| `baseline` | yes | The `id` of the bundle `compare` treats as the baseline. |
+| `resultsDir` | no | Directory the per-configuration results files are written to. Default `out/test-results`. |
+| `baseline` | yes | The `id` of a comparison-enabled configuration `compare` treats as the baseline. |
 | `sourceRoots` | yes | Classpaths of the project's Haxe sources, passed as `-cp`. |
-| `rootsFile` | no | An hxml file listing the root types to compile, passed as an include. A bundle may override it with its own `rootsFile`. |
-| `haxeArgs` | no | Extra haxe arguments applied to every bundle. |
-| `bundles` | yes | A non-empty array of bundle objects. |
+| `rootsFile` | no | An hxml file listing the root types to compile, passed as an include. A configuration may override it with its own `rootsFile`. |
+| `haxeArgs` | no | Extra haxe arguments applied to every configuration. |
+| `bundles` | yes | A non-empty array of target configurations. The field name remains for compatibility. |
 
-Fields of a bundle object:
+Fields of a target configuration:
 
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `id` | yes | Unique in the file. It is also the results file stem and the output directory name. |
 | `target` | yes | One of `haxe`, `ts`, `kotlin`, `rust`, `swift`, `dart`. |
 | `precision` | no | `f32`, or absent for binary64. |
-| `haxeArgs` | no | Extra haxe arguments for this bundle, appended after the project's. |
-| `rootsFile` | no | The bundle's own roots file, replacing the project's. |
+| `test` | no | `false` for a generation-only configuration; defaults to `true`. |
+| `compare` | no | `false` to keep generation and testing while excluding this configuration from baseline comparison; defaults to the value of `test`. |
+| `afterGen` | no | `{ "command": "...", "args": [...], "env": {...} }`, run from the project root after generation, including generation by `pack`; `command` is required. |
+| `haxeArgs` | no | Extra haxe arguments for this configuration, appended after the project's. |
+| `rootsFile` | no | The configuration's own roots file, replacing the project's. |
 | `build` | no | `{ "args": [...], "env": {...} }`, added to the recipe's build step. |
 | `run` | no | `{ "args": [...], "env": {...} }`, added to the recipe's run step. |
-| `package` | no | `{ "name": "...", "version": "..." }`, the `features/24` and `features/25` identity. Required by the `pack` action. |
+| `package` | no | `{ "name": "...", "version": "...", "license": "..." }`, the `features/24` and `features/25` identity. `name` and `version` are required for `pack`; optional `license` must be a nonempty string. |
 
 A complete example, abbreviated from boring's own `boring.json`:
 
@@ -979,9 +985,9 @@ A complete example, abbreviated from boring's own `boring.json`:
       "outRoot": "reference",
       // Where <id>.jsonl result files go. Default: out/test-results.
       "resultsDir": "out/test-results",
-      // compare reads this bundle's results as the reference.
+      // compare reads this configuration's results as the reference.
       "baseline": "kotlin",
-      // Passed as -cp to every bundle's generation compile.
+      // Passed as -cp to every configuration's generation compile.
       "sourceRoots": ["samples", "packages/registry/src"],
       "bundles": [
         {
@@ -996,13 +1002,13 @@ A complete example, abbreviated from boring's own `boring.json`:
           "id": "ts",
           "target": "ts",
           "rootsFile": "examples/ts.hxml",
-          "package": { "name": "boring-codec", "version": "0.1.0" }
+          "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
         },
         {
           "id": "kotlin",
           "target": "kotlin",
           "rootsFile": "examples/kotlin.hxml",
-          "package": { "name": "boring-codec", "version": "0.1.0" }
+          "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
         },
         {
           "id": "swift",
@@ -1016,26 +1022,30 @@ A complete example, abbreviated from boring's own `boring.json`:
 
 ### What the driver derives
 
-The driver derives every path and define from the project file; a
-project states none of them itself.
+The driver derives translated-target paths and defines from the project
+file. The stock Haxe target uses the output paths in its roots HXML.
 
-- **Output directories.** One pattern for every target and every
-  bundle: `<outRoot>/<id>/gen` and `<outRoot>/<id>/gen-tests`. A
-  project file may not name them. Two sources writing one path produce
-  a compile of a stale tree, and the failure then shows up in a test
-  run far from its cause.
-- **Generation defines.** `<target>-output` and
+- **Output directories.** One pattern for every translated target
+  configuration: `<outRoot>/<id>/gen` and `<outRoot>/<id>/gen-tests`. A
+  project file may not name them. For `target: haxe`, the roots HXML owns
+  `-js` and any test output paths; update it if the configuration id or
+  `outRoot` changes.
+- **Generation defines.** For translated targets, `<target>-output` and
   `<target>-test-output` point at the two directories above;
   `float-precision=f32` joins them when `precision` is `f32`; the
   target's runtime defines join at their documented defaults and stay
-  overridable through `haxeArgs`. The bundle's `id` picks the output
+  overridable through `haxeArgs`. The configuration's `id` picks the output
   directory, so the id takes part in every derived define.
-- **Manifest and artifact defines.** From `package`:
-  `package-name`, `package-version`, and `package-shell=emit`. On
-  the `pack` action only, `package-artifacts=emit` joins, plus
+- **Manifest and artifact defines.** On `pack`, the driver passes
+  `package-name`, `package-version`, and optional `package-license` from
+  `package`. It also passes `package-shell=emit` and
+  `package-artifacts=emit`, plus
   `package-tsc=<executable>` on the `ts` target or
-  `package-kotlinc=<executable>` on the `kotlin` target.
-- **The results path.** `<resultsDir>/<id>.jsonl` for every bundle.
+  `package-kotlinc=<executable>` on the `kotlin` target. The driver does not
+  infer a consumer's license from boring's own MIT license. Keep any
+  `package-license` in a roots HXML consistent with `package.license` so
+  direct generation and driver packaging report the same license.
+- **The results path.** `<resultsDir>/<id>.jsonl` for each testable configuration.
 
 ### The recipes, and why a project patches only `build` and `run`
 
@@ -1056,11 +1066,11 @@ A project shapes a step through `build.args`, `run.args`,
 that scope is deliberate: the values a site needs (a compiler wrapper, a
 library path, a memory bound, a per-test timeout budget) cannot be
 derived from the compilation, so they ride the command line or the
-environment. Boring's own `boring.json` patches the haxe bundle's
-build arguments this way, and the swift bundle passes
+environment. Boring's own `boring.json` patches the haxe configuration's
+build arguments this way, and the swift configuration passes
 `-D swift-test-import=<module>` through `haxeArgs` because the swift
 recipe reads the library module name from that define. The recipe also
-accepts the define from the bundle's `rootsFile` include chain (the
+accepts the define from the configuration's `rootsFile` include chain (the
 same file the generation command feeds haxe), so a project whose
 target entries already state `-D swift-test-import=<module>` needs no
 copy in the project file. The driver reads the chain in haxe's own
@@ -1071,24 +1081,33 @@ chain.
 
 Each action is one command from the project root:
 
-    bun out/bundle/driver.js gen <id>...
-    bun out/bundle/driver.js test <id>...
-    bun out/bundle/driver.js pack <id>...
-    bun out/bundle/driver.js compare
-    bun out/bundle/driver.js verify [--with-pack]
+    boring gen <id>...
+    boring test <id>...
+    boring pack <id>...
+    boring compare
+    boring verify [--with-pack]
 
-`gen` compiles each named bundle through the target's generation
-defines and leaves the two directories. `test` runs each named
-bundle's generated output through the recipe's build and run steps and
-writes `<resultsDir>/<id>.jsonl`. `pack` runs the generation with the
-artifact defines and requires `package` on every named bundle; a
-bundle without one is rejected. `compare` reads every bundle's results
-file and applies the `features/19` comparison rules with the
-`baseline` bundle as the reference. `verify` runs `gen` for every
-bundle, then `test` for every bundle, then `compare`, and stops at
-the first failure; `--with-pack` appends `pack` for every bundle.
+`gen` compiles each named configuration through the target's generation
+defines, leaves the two directories, then runs `afterGen` when configured.
+`test` runs each named testable
+configuration's generated output through the recipe's build and run steps and
+writes `<resultsDir>/<id>.jsonl`; explicitly naming a configuration with
+`test: false` is an error. `pack` runs generation with artifact defines and
+the configured `afterGen`; it requires `package` on every named configuration.
+`compare` reads each
+comparison-enabled configuration's results file and applies the `features/19`
+comparison rules with `baseline` as the reference. The baseline must be
+testable and comparison-enabled. `compare: true` requires `test: true`.
+`verify` runs `gen` for every configuration, then `test` for each
+testable configuration, then `compare`, and stops at the first failure;
+`--with-pack` appends `pack` for configurations that declare `package`.
 Exit status is 0 when every action the invocation ran succeeded, and a
-failure names the bundle and the action.
+failure names the configuration and the action.
+
+Boring's four f32 configurations use `compare: false` because their current
+test ID sets and applicability differ from the binary64 baseline. `verify`
+still generates and tests them; their results can be reviewed separately
+until the tests converge.
 
 `--project <file>` (or `--project=<file>`) names a project file at
 another path; the default is `boring.json` in the working directory.
@@ -1100,14 +1119,14 @@ Every target writes its test records as JSON Lines to
 environment variable `BORING_TEST_RESULTS` first and falls back to
 `out/test-results/<target>.jsonl` when the variable is unset. The
 driver always sets the variable, so all six targets collect their
-results through one contract; the fallback exists for a bundle run by
+results through one contract; the fallback exists for a configuration run by
 hand outside the driver.
 
 ### `compare`, the baseline, and mechanism coverage
 
 The consistency manager of `features/19` fixed the baseline target
 name to `kotlin` and read the target list from `--targets`. A
-project with two bundles of one target, a `kotlin-f32` and a
+project with two configurations of one target, a `kotlin-f32` and a
 `kotlin-f64`, could hold one comparison run. The manager accepts
 `--baseline=<name>` (default `kotlin`) next to `--dir` and
 `--targets`, and the driver passes the project's `baseline` field.
@@ -1115,10 +1134,10 @@ project with two bundles of one target, a `kotlin-f32` and a
 The manager's run ends with the mechanism-coverage check, which reads
 `tools/test-consistency/mechanism-coverage.json` and requires every
 listed boring mechanism to appear among the test ids of the run. A
-consumer project's ids carry other names, so the check belongs to the
-project that owns the results directory: it runs only when that
-project declares its mechanisms through the coverage file, and a
-consumer's comparison is judged by the divergence list alone.
+consumer project's ids carry other names, so the comparison code searches
+the results directory and its parent directories for that coverage file. It
+runs the coverage check only when it finds the file; a consumer project
+outside the boring repository is judged by the divergence list alone.
 
 ### `pack` and the host toolchains
 
@@ -1126,11 +1145,11 @@ On the `ts` and `kotlin` targets, `pack` spawns the host
 toolchain. The executable resolves through `BORING_PACKAGE_TSC` and
 `BORING_PACKAGE_KOTLINC` first, then from `PATH`:
 
-    BORING_PACKAGE_TSC=/path/to/tsc bun out/bundle/driver.js pack ts
-    BORING_PACKAGE_KOTLINC=/path/to/kotlinc bun out/bundle/driver.js pack kotlin
+    BORING_PACKAGE_TSC=/path/to/tsc boring pack ts
+    BORING_PACKAGE_KOTLINC=/path/to/kotlinc boring pack kotlin
 
-A bundle without a `package` object is rejected before anything
-compiles, with the bundle named:
+A configuration without a `package` object is rejected before anything
+compiles, with its id named:
 
     Error: bundle "dart": the pack action requires a package (name and version) on every named bundle
 
@@ -1143,42 +1162,44 @@ staging is missing a runtime file; the project file is not at fault.
 
 ### Starting a consumer project
 
-The driver ships inside a boring checkout, under `tools/bundle`. A
-consumer compiles it once to JavaScript and then runs it against its
-own project file:
+The `boring` command ships with the driver package. A development shell that
+includes that package puts the command on `PATH`. From the consumer's project
+root, run it against the project file:
 
-    haxe tools/bundle/driver.hxml
-    bun out/bundle/driver.js gen <id>... --project /path/to/consumer/boring.json
-    bun out/bundle/driver.js test <id>... --project /path/to/consumer/boring.json
-    bun out/bundle/driver.js compare --project /path/to/consumer/boring.json
+    boring gen <id>... --project /path/to/consumer/boring.json
+    boring test <id>... --project /path/to/consumer/boring.json
+    boring compare --project /path/to/consumer/boring.json
 
-Every action except `compare` takes the bundle ids to run; an action
-named no bundle stops with an error; it never guesses. Paths inside
+`gen`, `test` and `pack` take configuration ids; an action
+named no id stops with an error. `compare` uses the project's
+comparison-enabled configurations; `verify` generates every configuration,
+tests the testable ones, then compares the comparison-enabled ones. Paths inside
 the project file resolve against the directory holding the project
 file, so the driver, the consumer tree, and the boring checkout can
 sit apart. A consumer roots file owns its own classpaths and macro
 calls, exactly like boring's `examples/ts.hxml` does: the driver adds
 only the classpaths of `sourceRoots` and the derived defines, so
 macros that read files by path (the pinned Unicode data, the test
-collector) still resolve relative to the working directory the driver
-is invoked from.
+collector) resolve relative to the project root, because the driver
+runs Haxe steps there.
 
 ### Known pitfalls
 
 - A fresh clone or a fresh git worktree carries no `.haxelib`
-  directory, and the generation compile then fails with
-  `Type not found : Intercept`. Enter `nix develop` in the boring
-  checkout first; shell entry registers the `boring` and `reflaxe`
-  haxelibs, which creates the directory.
+  directory, and a generation compile can fail with
+  `Type not found : Intercept`. Boring's own `nix develop` shell registers
+  its compiler and reflaxe inputs. A consumer project must prepare the
+  compiler and reflaxe revisions it uses in its own Haxe environment;
+  installing the driver executable does not select a compiler revision.
 - The generated runners apply a per-test timeout budget of 5000 ms
   (`BORING_TEST_TIMEOUT_MS`, milliseconds); a case that outruns the
   budget is recorded as a timeout, which shows up on the wall clock as
   roughly six seconds for the case. The driver sets no budget of its
   own, so `compare` reports the divergence unless the project raises
-  the budget per bundle through the run step's environment:
+  the budget per configuration through the run step's environment:
   `"run": { "env": { "BORING_TEST_TIMEOUT_MS": "60000" } }`. Boring's
   own suite and tiqian both hit this with long-running cases.
-- Every target toolchain the invoked bundles need must be on
+- Every target toolchain the invoked configurations need must be on
   `PATH`. A shell that lacks one stops the run with an error such as
   `Executable not found in $PATH: "dart"`; the tiqian development
   shell originally shipped without `dart` and `kotlinc` and hit

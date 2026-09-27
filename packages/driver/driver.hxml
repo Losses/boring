@@ -1,0 +1,5 @@
+-cp packages/driver/src
+-cp packages/registry/src
+-cp samples
+-main driver.Main
+-js out/driver/driver.js

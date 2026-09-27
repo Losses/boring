@@ -3547,6 +3547,14 @@ class SwiftExpr {
                         return "try! (" + expr(args[1]) + ").write(toFile: " + expr(args[0]) + ", atomically: true, encoding: .utf8)";
                     }
                 }
+                if (module == "std.Console") {
+                    if (fName == "log") return "print(" + expr(args[0]) + ")";
+                    if (fName == "error") {
+                        imports.foundation();
+                        return "FileHandle.standardError.write(Data((" + expr(args[0]) + " + \"\\n\").utf8))";
+                    }
+                    return fail(fn, "std.Console." + fName + " has no Swift lowering");
+                }
                 if (module == "std.Env" || module == "std.Fs") {
                     return platformModuleCall(module, fName, args, fn);
                 }
@@ -3555,6 +3563,24 @@ class SwiftExpr {
                     // program name (stdlib/17). The Haxe result is an
                     // Array, which lowers to TiqianArray.
                     return "TiqianArray(Array(CommandLine.arguments.dropFirst()))";
+                }
+                if (module == "std.Process" && fName == "exit") {
+                    imports.hostEdge("Process.exit");
+                    return "boringProcessExit(" + expr(args[0]) + ")";
+                }
+                if (module == "std.Process" && fName == "cwd") {
+                    imports.foundation();
+                    return "FileManager.default.currentDirectoryPath";
+                }
+                if (module == "std.Process" && fName == "platform") {
+                    imports.hostEdge("Process.platform");
+                    return "boringProcessPlatform()";
+                }
+                if (module == "std.Process" && fName == "run") {
+                    imports.foundation();
+                    imports.hostEdge("Process.run");
+                    imports.runtime("BoringException");
+                    return "boringProcessRun(" + argTexts(fn, args).join(", ") + ")";
                 }
                 if (module == "std.UStringPlatform") {
                     return ustringPlatformCall(fName, args, fn);

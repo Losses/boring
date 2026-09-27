@@ -1,0 +1,10 @@
+{
+  "outRoot": "out",
+  "resultsDir": "results",
+  "baseline": "baseline",
+  "sourceRoots": [],
+  "bundles": [
+    { "id": "baseline", "target": "ts" },
+    { "id": "other", "target": "ts" }
+  ]
+}
