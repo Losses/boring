@@ -1414,7 +1414,7 @@ class TsExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
-                return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
+                return map == null ? assignTarget(l) + " = " + fieldAssignmentRhs(l, r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
             case OpAssignOp(inner):
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpAdd:
@@ -2645,6 +2645,30 @@ class TsExpr {
             case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): argCarriesUndefined(inner);
             case _: false;
         };
+    }
+
+    /**
+        Renders the right-hand side of a field assignment (`this.f = v`). A
+        field never carries undefined in its declared TypeScript type, so an
+        optional-parameter value (which does) is unwrapped; a nullable value
+        is unwrapped when the field is declared non-null. The `!` is erased at
+        runtime, so behavior is unchanged. (FieldAssignmentUnwrap)
+    **/
+    function fieldAssignmentRhs(l:TypedExpr, r:TypedExpr):String {
+        final rendered = expr(r);
+        if (StringTools.endsWith(rendered, "!"))
+            return rendered;
+        final fieldType = switch (stripWrap(l).expr) {
+            case TField(_, FInstance(_, _, cf)): cf.get().type;
+            case _: null;
+        };
+        if (fieldType == null)
+            return rendered;
+        final needsNull = argCarriesNull(r) && !isNullType(fieldType);
+        final needsUndefined = argCarriesUndefined(r);
+        if (needsNull || needsUndefined)
+            return "(" + rendered + ")!";
+        return rendered;
     }
 
     function constructorArgTexts(cls:ClassType, args:Array<TypedExpr>):Array<String> {
