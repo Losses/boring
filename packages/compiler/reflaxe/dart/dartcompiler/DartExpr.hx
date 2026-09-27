@@ -1025,10 +1025,16 @@ class DartExpr {
     }
 
     function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int):Array<String> {
-        // Dart's flow promotion inside the if arm does not reach the
-        // else arm; snapshot the pre-if state so the else can restart.
-        final savedPromoted = flowPromotedNonNull.copy();
+        // Dart's flow promotion inside the if arm does not reach the else
+        // arm; the pre-if state is snapshotted so the else can restart.
+        // The snapshot is taken AFTER the condition renders: the condition
+        // is evaluated on every path through the statement, so a promotion
+        // it records (an operand `x!`, a null guard) holds in both arms and
+        // after the merge — snapshotting before the render rolled those
+        // back at the merge, a later `x!` on the same local re-emitted and
+        // dart read it as redundant. (ConditionRenderPromotionSurvives)
         final out = [indent(depth) + "if (" + conditionText(c) + ") {"];
+        final savedPromoted = flowPromotedNonNull.copy();
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
         if (f != null) {
