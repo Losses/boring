@@ -1416,7 +1416,19 @@ class TsExpr {
                 final map = mapAssignment(l);
                 return map == null ? assignTarget(l) + " = " + fieldAssignmentRhs(l, r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
             case OpAssignOp(inner):
-                return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
+                // A compound assignment reads the element before writing it.
+                // Under noUncheckedIndexedAccess the read side carries
+                // undefined; the non-null assertion restates the dense-array
+                // contract already carried by every element read on this
+                // target (Haxe Int-typed arrays read OOB as null and throw
+                // on the arithmetic, which the assertion mirrors).
+                final elemRead = switch (stripWrap(l).expr) {
+                    case TArray(arr, idx): receiverText(arr) + "[" + expr(idx) + "]!";
+                    case _: null;
+                };
+                return elemRead == null
+                    ? assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r)
+                    : assignTarget(l) + " = " + elemRead + " " + symbolOf(inner) + " " + expr(r);
             case OpAdd:
                 if (isStringLeaf(l)) {
                     return templateLiteral(l, r);
