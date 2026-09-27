@@ -1279,7 +1279,7 @@ class TsExpr {
                     // for TypeScript, so every recognized site renders `p ?? E`.
                     return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
                 }
-                return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
+                return guardedTernaryText(c, t, f);
             case TBlock(stmts):
                 return blockExpression(stmts);
             case _:
@@ -2826,6 +2826,70 @@ class TsExpr {
             case _: false;
         };
 
+    /**
+        A collection get whose Haxe guard already proved the key present
+        (m.has(k) / m.exists(k)) or whose null comparison picked the
+        non-null branch still renders with a nullable type, because the
+        collection edge is typed Null<T>. The guarded branch takes the
+        non-null assertion, which restates the Haxe narrowing; the ! is
+        erased at runtime. (GuardedGetUnwrap)
+    **/
+    function guardedTernaryText(c:TypedExpr, t:TypedExpr, f:TypedExpr):String {
+        final g = getGuardSite(c);
+        return "(" + expr(c) + " ? "
+            + guardedBranchText(g, t, g != null && g.thenNonNull) + " : "
+            + guardedBranchText(g, f, g != null && !g.thenNonNull) + ")";
+    }
+
+    function guardedBranchText(g:Null<{recv:String, key:String, thenNonNull:Bool}>, branch:TypedExpr, assertNonNull:Bool):String {
+        final rendered = expr(branch);
+        if (g == null || !assertNonNull || StringTools.endsWith(rendered, "!"))
+            return rendered;
+        final b = stripWrap(branch);
+        switch (b.expr) {
+            case TCall(fn, [arg]):
+                final site = getCallSite(fn, "get", arg);
+                if (site != null && site.recv == g.recv && site.key == g.key)
+                    return rendered + "!";
+            case _:
+        }
+        return rendered;
+    }
+
+    function getGuardSite(c:TypedExpr):Null<{recv:String, key:String, thenNonNull:Bool}> {
+        final e = stripWrap(c);
+        switch (e.expr) {
+            case TCall(fn, [arg]):
+                final has = getCallSite(fn, "has", arg);
+                if (has != null)
+                    return {recv: has.recv, key: has.key, thenNonNull: true};
+                final exists = getCallSite(fn, "exists", arg);
+                if (exists != null)
+                    return {recv: exists.recv, key: exists.key, thenNonNull: true};
+            case TBinop(op, l, r) if (op == OpEq || op == OpNotEq):
+                final getSide = if (isNullLiteral(l)) r else if (isNullLiteral(r)) l else null;
+                if (getSide != null) {
+                    final gs = stripWrap(getSide);
+                    switch (gs.expr) {
+                        case TCall(fn, [arg]):
+                            final site = getCallSite(fn, "get", arg);
+                            if (site != null)
+                                return {recv: site.recv, key: site.key, thenNonNull: op == OpNotEq};
+                        case _:
+                    }
+                }
+            case _:
+        }
+        return null;
+    }
+
+    function getCallSite(fn:TypedExpr, name:String, arg:TypedExpr):Null<{recv:String, key:String}> {
+        return switch (stripWrap(fn).expr) {
+            case TField(obj, FInstance(_, _, cf)) if (cf.get().name == name):
+                {recv: expr(obj), key: expr(arg)};
+            case _: null;
+        };
+    }
     /** True when an expression is provably non-null at runtime, so a `?? default` wrap is unreachable. */
     function provablyNonNull(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
