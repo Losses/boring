@@ -1827,6 +1827,14 @@ class SwiftExpr {
                                 case TLocal(_): t + "!";
                                 case _: "(" + t + ")!";
                             };
+                        // features/18: an element whose literal slot is a
+                        // read-only array crosses the container line when the
+                        // element expression is a mutable Array; the typer
+                        // leaves that coercion implicit inside the literal, so
+                        // the literal's element type drives the conversion
+                        // here. (ReadOnlyLiteralElement)
+                        if (elemType != null && StaticFieldHelper.isReadOnlyArrayType(elemType) && isMutableArrayType(x.t))
+                            t = "Array(" + t + ")";
                         t;
                     }
                 ];
@@ -3088,9 +3096,13 @@ class SwiftExpr {
                             case null: a;
                             case site: site.valueExpr;
                         };
-                        t = isNullLeafType(a.t) || (source != a && isNullLeafType(source.t))
-                            ? "(" + t + ").map { Array($0) }"
-                            : "Array(" + t + ")";
+                        // A value the render above already force-unwrapped is
+                        // the container itself, so the conversion wraps it; the
+                        // optional mapping applies only while an Optional still
+                        // wraps the container. (ReadOnlyAssignBoundary)
+                        final stillOptional = !StringTools.endsWith(t, "!")
+                            && (isNullLeafType(a.t) || (source != a && isNullLeafType(source.t)));
+                        t = stillOptional ? "(" + t + ").map { Array($0) }" : "Array(" + t + ")";
                     }
                 }
                 t;
