@@ -1409,7 +1409,13 @@ class DartExpr {
                     final probe = renderedNonNullValue(coalescing.valueExpr);
                     if (probe)
                         return expr(coalescing.valueExpr);
-                    return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
+                    // The default arm runs only on null; its renders must
+                    // not leave promotions behind. (BooleanArmFlowScope)
+                    final valueText = expr(coalescing.valueExpr);
+                    final coalesceFlow = flowPromotedNonNull.copy();
+                    final defaultText = coalescingDefaultTextFor(coalescing);
+                    restoreFlowSnapshot(coalesceFlow);
+                    return valueText + " ?? " + defaultText;
                 }
                 final guarded = nullGuardExpr(c);
                 final hasGuarded = hasGuardExpr(c);
@@ -1443,12 +1449,18 @@ class DartExpr {
                 // as num in Dart; Haxe's Float unification promises
                 // double, so widen the int branch. Each branch runs only
                 // when taken: its emissions must not write the register.
+                // dart promotes a local from `x!` only where the `!` is
+                // unconditionally evaluated, so the promotions the branch
+                // renders record are rolled back once both branch texts
+                // exist. (BooleanArmFlowScope)
+                final branchFlow = flowPromotedNonNull.copy();
                 final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
                 final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
                 // The unwrap predicate mirrors requiredValueText's skip
                 // conditions; only the render is reused, not repeated.
                 final tFinal = unwrapDecided(t, tGuardProven || tMapRead) ? requiredValueTextOf(tText, t) : tText;
                 final fFinal = unwrapDecided(f, fGuardProven || fMapRead) ? requiredValueTextOf(fText, f) : fText;
+                restoreFlowSnapshot(branchFlow);
                 return "(" + condText + " ? " + tFinal + " : " + fFinal + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
@@ -1702,6 +1714,12 @@ class DartExpr {
                 flattenBoolAnd(r, chainOps);
                 final promotedVars:Array<{v:TVar, wasProven:Bool}> = [];
                 final parts:Array<String> = [];
+                // An operand's `!` promotes only where it is unconditionally
+                // evaluated; the chain's own operand renders record their
+                // promotions for later operands in this chain and are rolled
+                // back at the chain boundary. (BooleanArmFlowScope)
+                final chainFlow = flowPromotedNonNull.copy();
+                var headFlow:Null<Map<Int, Bool>> = null;
                 for (i in 0...chainOps.length) {
                     for (j in 0...i) {
                         final gv = nullGuardLocal(chainOps[j]);
@@ -1711,10 +1729,20 @@ class DartExpr {
                         }
                     }
                     parts.push(operand(chainOps[i], op, i > 0));
+                    if (i == 0) {
+                        // The first operand runs on every path through the
+                        // chain, so its promotions survive past the chain;
+                        // the later operands run only conditionally and
+                        // theirs die at the chain boundary (dart promotes
+                        // from `x!` only where the `!` is unconditionally
+                        // evaluated). (BooleanArmFlowScope)
+                        headFlow = flowPromotedNonNull.copy();
+                    }
                 }
                 for (p in promotedVars)
                     if (!p.wasProven)
                         nonNullLocals.remove(p.v.id);
+                restoreFlowSnapshot(headFlow == null ? chainFlow : headFlow);
                 return parts.join(" && ");
             case OpAdd:
                 if (isStringTyped(e)) {
@@ -1758,6 +1786,21 @@ class DartExpr {
                     case _: "<";
                 };
                 return cmp + " " + cmpOp + " 0";
+            case OpBoolOr:
+                // The right operand runs only when the left answered false,
+                // so the promotions the operand renders record must not
+                // outlive the operator: dart promotes a local from `x!`
+                // only where the `!` is unconditionally evaluated.
+                // (BooleanArmFlowScope)
+                final orFlow = flowPromotedNonNull.copy();
+                final orL = operand(l, op, false);
+                final leftFlow = flowPromotedNonNull.copy();
+                final orR = operand(r, op, true);
+                // The left operand runs on every path, the right only when
+                // the left answered false, so only the left's promotions
+                // survive past the operator. (BooleanArmFlowScope)
+                restoreFlowSnapshot(leftFlow == null ? orFlow : leftFlow);
+                return orL + " || " + orR;
             case _:
                 final lStr = operand(l, op, false);
                 final rStr = operand(r, op, true);
@@ -2108,7 +2151,20 @@ class DartExpr {
         };
     }
 
+    /** Restores the promotion registry to a snapshot (BooleanArmFlowScope). */
+    function restoreFlowSnapshot(saved:Map<Int, Bool>):Void {
+        flowPromotedNonNull.clear();
+        for (k in saved.keys())
+            flowPromotedNonNull.set(k, saved.get(k));
+    }
+
     function requiredValueText(e:TypedExpr):String {
+        // An emitting render asserted this local non-null already and the
+        // assert is on every path to here (the arm scopes roll back the
+        // conditional ones), so dart holds the promotion and a second "!"
+        // would report no effect. (FlowPromotedRequiredDedup)
+        if (flowPromotedLocal(e))
+            return expr(e);
         if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e) || isNullLiteral(e))
             return expr(e);
         final text = expr(e);
