@@ -1,0 +1,9 @@
+# Display identity for every commit in this repository.
+#
+# Background-agent runs committed a handful of changes with a placeholder git
+# identity (agent/captain/losses @local). Reassign them to the repository owner
+# so git log, shortlog and blame show one author. The objects keep their
+# original author fields; only the display changes.
+LOSSES Don <1384036+Losses@users.noreply.github.com> <agent@local>
+LOSSES Don <1384036+Losses@users.noreply.github.com> <captain@local>
+LOSSES Don <1384036+Losses@users.noreply.github.com> <losses@local>
