@@ -5672,6 +5672,15 @@ class KotlinExpr {
                 // type so callers can widen it to Float.
                 return Context.getType("Int");
             case TIf(_, t, f):
+                // A Float-typed if renders Float: Int arms are widened to
+                // Float at render time, and Float arms already render Float.
+                // Report Float so an outer widening boundary (return,
+                // assignment, argument) does not re-wrap. A nullable arm
+                // (e.g. Float? ?: 0) makes Kotlin infer Number and
+                // Comparable, not Float, so keep the arm type there.
+                // (WideningIdempotence)
+                if (isFloatType(e.t) && !rendersNullable(e))
+                    return Context.getType("Float");
                 final tt = emittedType(t);
                 return tt != null ? tt : emittedType(f);
             case TBinop(OpDiv, l, r) if (isIntDivision(e)):
@@ -5687,8 +5696,16 @@ class KotlinExpr {
                 // float-precision=f32 and float-precision=f64 comparisons.
                 return switch (op) {
                     case OpAdd | OpSub | OpMult | OpDiv | OpMod:
+                        // A mixed Int/Float arithmetic binop widens the Int
+                        // side to Float at render time, so the rendered
+                        // result is Float even when the left operand is Int.
+                        // Report Float so an outer widening boundary does not
+                        // re-wrap. (WideningIdempotence)
                         final lt = emittedType(l);
-                        lt != null ? lt : emittedType(r);
+                        final rt = emittedType(r);
+                        if (lt != null && isFloatType(lt)) return lt;
+                        if (rt != null && isFloatType(rt)) return rt;
+                        lt != null ? lt : rt;
                     case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
                         final lt = emittedType(l);
                         lt != null ? lt : emittedType(r);
