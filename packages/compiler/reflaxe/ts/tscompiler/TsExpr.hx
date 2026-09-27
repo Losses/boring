@@ -2571,7 +2571,7 @@ class TsExpr {
                     + expr(args[i])
                     + " ?? "
                     + defaultArgText(d, expected)
-                    + ")" else requiredArgText(args[i], expected, trailingOptionalAt(paramOpts, i));
+                    + ")" else requiredArgText(args[i], expected, trailingOptionalAt(paramOpts, i) && !isNullType(expected));
             }
         ];
     }
@@ -2690,7 +2690,7 @@ class TsExpr {
             + expr(args[i])
             + " ?? "
             + constructorDefaultText(d, p, cls, args)
-            + ")" : requiredArgText(args[i], p, trailingOptionalAt(paramOpts, i));
+            + ")" : requiredArgText(args[i], p, trailingOptionalAt(paramOpts, i) && !isNullType(p));
         }
         ];
         // A call may omit parameters that the emitted signature renders as
