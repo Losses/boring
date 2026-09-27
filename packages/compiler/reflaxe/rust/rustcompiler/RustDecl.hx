@@ -127,6 +127,11 @@ class RustDecl {
                 "(" + value + ").to_string()";
             case TInst(c, _) if (c.get().name == "String"):
                 "(" + value + ").clone()";
+            // haxe.io.Bytes has no Display (spec 34 labeled form still
+            // applies); the growth variants already lean on Debug for
+            // payloads without one.
+            case TInst(c, _) if (c.get().pack.join(".") == "haxe.io" && c.get().name == "Bytes"):
+                'format!("{:?}", ' + value + ')';
             case _:
                 "(" + value + ").to_string()";
         };
