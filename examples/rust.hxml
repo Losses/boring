@@ -38,6 +38,7 @@ boring.GlyphMetrics
 std.ReadOnlyArray
 boring.VectorCodec
 boring.VectorError
+boring.EncodeProbe
 boring.VectorException
 boring.ValueError
 boring.ValueException
