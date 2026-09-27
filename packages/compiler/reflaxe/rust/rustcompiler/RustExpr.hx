@@ -9932,9 +9932,8 @@ class RustExpr {
                 // of the parent container (E0507). Bind by reference at
                 // depth > 0 so the element stays inside the parent.
                 // (NestedArrayElementMove)
-                final bind = depth > 0 ? &&final bind = depth > 0 ? "&" + value : value;
-                '{\n        let mut out = String::new();\n        out.push('[');\n        let arr = ${bind};\n        let n = arr.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(
-); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(']');\n        out\n    }';
+                final bind = depth > 0 ? "&" + value : value;
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let arr = ${bind};\n        let n = arr.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedSet(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
@@ -9991,7 +9990,7 @@ class RustExpr {
                     inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
                 } else {
                     state.shimsUsed.set("std.IntText", true);
-                    ustringFromStdText("crate::runtime::int_text::IntText::int_text(" + value + ")");
+                    inConcat ? value : ustringFromStdText("crate::runtime::int_text::IntText::int_text(" + value + ")");
                 }
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
@@ -13619,7 +13618,9 @@ class RustExpr {
                 imports.requireType(d.module, d.name);
                 d.name;
             case TAnonymous(anon):
-                final match = state.structTypedefs.get(RustDecl.structureSignature(anon));
+                var match = state.structTypedefs.get(RustDecl.structureSignature(anon));
+                if (match == null)
+                    match = PolicyQueries.matchStructTypedefByUnification(anon, state.structTypedefs);
                 if (match == null) {
                     Context.error("anonymous structure literal has no matching named typedef", Context.currentPos());
                     null;
