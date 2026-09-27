@@ -387,8 +387,8 @@ class Driver {
     // ------------------------------------------------------------------
 
     /**
-        The derived paths resolve against the project root, not the
-        driver's working directory: a driver compiled in one checkout
+        The derived paths resolve against the project root (the
+        driver's working directory is unused): a driver compiled in one checkout
         runs a project file that names another (the generation step
         already runs there, through the step command's working
         directory), so every consumer of these paths agrees on where
