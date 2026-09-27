@@ -1588,7 +1588,15 @@ class TsExpr {
         final folded = foldedExceptionMessage(target, name);
         if (folded != null)
             return folded;
-        return expr(subj) + "." + name;
+        final base = expr(subj);
+        // The receiver's rendered TypeScript type still includes null
+        // while Haxe reads the member straight off it: both runtimes throw
+        // on a null receiver, so the assertion only restates the Haxe
+        // contract and satisfies the strict reading.
+        // (NullableReceiverUnwrap)
+        if (PolicyQueries.isNullableType(subj.t) && !StringTools.endsWith(base, "!"))
+            return base + "!." + name;
+        return base + "." + name;
     }
 
     function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
