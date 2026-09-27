@@ -703,3 +703,5 @@ tests.NullInflatedLiteralOpsTests
 
 boring.TestLitEdgeOps
 tests.TestLitEdgeTests
+
+tests.SharedHandleTests
