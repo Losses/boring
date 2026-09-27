@@ -540,8 +540,11 @@ class TsExpr {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
-                // Add non-null assertion when init is nullable but variable type is not
-                if (nullableBindings.exists(v.id)) {
+                // Add non-null assertion when init is nullable but variable type is not.
+                // A lowering that already ends in an extraction keeps a single
+                // assertion: stacking a second one renders a double assertion,
+                // which the lint subset rejects without changing semantics.
+                if (nullableBindings.exists(v.id) && initText.charAt(initText.length - 1) != "!") {
                     initText = initText + "!";
                 }
                 return [
@@ -686,6 +689,8 @@ class TsExpr {
     function blockLines(stmts:Array<TypedExpr>, depth:Int):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = regroupLoops(stmts);
+        stmts = fuseOverwrittenLiteralInits(stmts);
+        stmts = dropDeadLiteralDecls(stmts);
         if (stmts.length > 1) {
             var i = 0;
             while (i + 1 < stmts.length) {
@@ -806,6 +811,122 @@ class TsExpr {
             case TConst(_): true;
             case _: false;
         };
+    }
+
+    /**
+        True when the expression is side-effect free, so a declaration
+        initialized with it may be fused with (or dropped ahead of) a
+        following establishing assignment without observable change.
+    **/
+    function isPureExpr(e:TypedExpr):Bool {
+        return switch (stripCast(e).expr) {
+            case TConst(_) | TField(_) | TLocal(_): true;
+            case _: false;
+        };
+    }
+
+    function isLocalId(e:TypedExpr, varId:Int):Bool {
+        return switch (e.expr) {
+            case TLocal(w): w.id == varId;
+            case _: false;
+        };
+    }
+
+    /**
+        Fuses a pure-initialized declaration whose next statement is a
+        plain assignment establishing the local (no read of it happens
+        first) into that assignment. Keeping the dead initializer as a
+        separate binding renders as a useless assignment, and keeping the
+        declaration uninitialized renders as a let that is only assigned
+        once, which the lint subset also rejects; the fused single
+        declaration preserves the observable values either way.
+    **/
+    function fuseOverwrittenLiteralInits(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final out:Array<TypedExpr> = [];
+        var i = 0;
+        while (i < stmts.length) {
+            var fused = false;
+            if (i + 1 < stmts.length) {
+                switch (stmts[i].expr) {
+                    case TVar(v, init) if (init != null && isPureExpr(init)):
+                        switch (stmts[i + 1].expr) {
+                            case TBinop(OpAssign, t, rhs) if (isLocalId(stripCast(t), v.id) && assignsBeforeRead(stmts[i + 1], v.id)):
+                                out.push({expr: TVar(v, rhs), pos: stmts[i].pos, t: stmts[i].t});
+                                // The establishing assignment is gone; when no
+                                // other statement reassigns the local the
+                                // declaration no longer needs let.
+                                var otherAssign = false;
+                                for (s in stmts) {
+                                    if (s != stmts[i + 1] && reassignsVar(s, v.id)) {
+                                        otherAssign = true;
+                                        break;
+                                    }
+                                }
+                                if (!otherAssign) {
+                                    mutated.remove(v.id);
+                                }
+                                fused = true;
+                            case _:
+                        }
+                    case _:
+                }
+            }
+            if (!fused)
+                out.push(stmts[i]);
+            i += fused ? 2 : 1;
+        }
+        return out;
+    }
+
+    /** Plain assignment, compound assignment, or in/decrement of the local. */
+    function reassignsVar(e:TypedExpr, varId:Int):Bool {
+        var found = false;
+        function walk(x:TypedExpr) {
+            if (found)
+                return;
+            switch (x.expr) {
+                case TBinop(OpAssign | OpAssignOp(_), t, _) | TUnop(OpIncrement | OpDecrement, _, t):
+                    if (isLocalId(stripCast(t), varId))
+                        found = true;
+                case _:
+                }
+            TypedExprTools.iter(x, walk);
+        }
+        walk(e);
+        return found;
+    }
+
+    /**
+        Drops declarations of locals whose initializer is a pure literal,
+        which are never reassigned and never read in the block: the
+        lowering materialized them for a value it ended up not using
+        (constant-folded positions, folded switches), and the lint subset
+        flags the leftover binding as unused.
+    **/
+    function dropDeadLiteralDecls(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final reads = new Map<Int, Bool>();
+        for (s in stmts)
+            markVarReads(s, reads);
+        final out:Array<TypedExpr> = [];
+        var changed = false;
+        for (s in stmts) {
+            switch (s.expr) {
+                case TVar(v, init) if (init != null && isLiteralExpr(init) && !mutated.exists(v.id) && !reads.exists(v.id)):
+                    changed = true;
+                    continue;
+                case _:
+            }
+            out.push(s);
+        }
+        return changed ? out : stmts;
+    }
+
+    function markVarReads(e:TypedExpr, reads:Map<Int, Bool>):Void {
+        switch (e.expr) {
+            case TLocal(w): reads.set(w.id, true);
+            case _:
+        }
+        TypedExprTools.iter(e, function(x) markVarReads(x, reads));
     }
 
     function safeTryInitialization(v:TVar, next:TypedExpr):Bool {
@@ -1814,8 +1935,12 @@ class TsExpr {
     }
 
     function runtimeFloatString(value:String, inConcat:Bool):String {
+        // The resident is only referenced on the non-concat arm; registering
+        // it for the concat arm emits an import nothing uses.
+        if (inConcat)
+            return value;
         imports.runtime("formatFloatRuntime");
-        return inConcat ? value : "formatFloatRuntime(" + value + ")";
+        return "formatFloatRuntime(" + value + ")";
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
@@ -2405,6 +2530,7 @@ class TsExpr {
     **/
     function fsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
         final rendered = [for (a in args) expr(a)];
+        final upper = name.charAt(0).toUpperCase() + name.substring(1);
         final member = switch (name) {
             case "exists": "existsSync(p)";
             case "readText": 'readFileSync(p, "utf8")';
@@ -2418,17 +2544,47 @@ class TsExpr {
                 return "null";
         }
         final params = (name == "writeText" || name == "appendText") ? "p: string, d: string" : "p: string";
+        // The host probe goes through process.getBuiltinModule, which Node
+        // and Bun expose on globalThis without a node: import, and which a
+        // bare require cannot reach in ESM evaluation. The access is spelled
+        // through structural aliases because the strict package stage
+        // typechecks the generated tree without DOM/Node globals.
+        final upper = name.charAt(0).toUpperCase() + name.substring(1);
+        final retType = switch (name) {
+            case "exists" | "isDirectory": ": boolean";
+            case "readText": ": string";
+            case "readDir": ": string[]";
+            case _: "";
+        };
+        final retCast = switch (name) {
+            case "exists" | "isDirectory": " as boolean";
+            case "readText": " as string";
+            case "readDir": " as string[]";
+            case _: "";
+        };
+        final returns = (name == "writeText" || name == "appendText" || name == "makeDirs") ? false : true;
+        final body = (name == "isDirectory")
+            ? "return (fs.statSync(p) as HostFsModule" + upper + ").isDirectory() as boolean;"
+            : (returns ? "return fs." + member + retCast + ";" : "fs." + member + ";");
         final helper = imports.fsHelper(name,
-            "const fs"
-            + name.charAt(0).toUpperCase()
-            + name.substring(1)
+            "type HostFsModule"
+            + upper
+            + " = Record<string, (...args: unknown[]) => unknown>;"
+            + " const fs"
+            + upper
             + " = ("
             + params
-            + ") => { const fs = typeof globalThis.require === \"function\" ? globalThis.require(\"node:fs\") : null; if (fs === null) { throw new Error("
+            + ")"
+            + retType
+            + " => { const host = globalThis as Record<string, unknown>;"
+            + " const probe = (host[\"process\"] as Record<string, unknown> | undefined)?.getBuiltinModule;"
+            + " const fs = typeof probe === \"function\" ? probe(\"node:fs\") as HostFsModule"
+            + upper
+            + " : null; if (fs === null) { throw new Error("
             + tsStringLiteral(FS_UNAVAILABLE)
-            + "); } return fs."
-            + member
-            + "; };");
+            + "); } "
+            + body
+            + " };");
         return helper + "(" + rendered.join(", ") + ")";
     }
 
@@ -3203,6 +3359,14 @@ class TsExpr {
         };
     }
 
+    /** The Int value of a constant integer argument, or null when it is not one. */
+    function constIntOf(e:TypedExpr):Null<Int> {
+        return switch (stripCast(e).expr) {
+            case TConst(TInt(v)): v;
+            case _: null;
+        };
+    }
+
     function stringBufFaultThrow(depth:Int, unit:String):String {
         return indent(depth) + 'throw new UStringException({ kind: "UnpairedSurrogate", unit: ' + unit + " });";
     }
@@ -3225,14 +3389,26 @@ class TsExpr {
             lines.push(indent(depth) + buf + " += " + part + ";");
         } else {
             final u = expr(args[0]);
-            lines.push(indent(depth) + "if (" + u + " >= 56320 && " + u + " <= 57343) {");
-            lines.push(indent(depth + 1) + "if (!(" + tail + " >= 55296 && " + tail + " <= 56319)) {");
-            lines.push(stringBufFaultThrow(depth + 2, u));
-            lines.push(indent(depth + 1) + "}");
-            lines.push(indent(depth) + "} else if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
-            lines.push(stringBufFaultThrow(depth + 1, tail));
-            lines.push(indent(depth) + "}");
-            lines.push(indent(depth) + buf + " += String.fromCharCode(" + u + ");");
+            final unitConst = constIntOf(args[0]);
+            // A literal unit outside the low-surrogate range can never
+            // enter the first arm, so emitting it would render a constant
+            // condition the lint subset rejects; the tail check alone
+            // keeps the guard's observable behavior.
+            if (unitConst != null && !(unitConst >= 56320 && unitConst <= 57343)) {
+                lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
+                lines.push(stringBufFaultThrow(depth + 1, tail));
+                lines.push(indent(depth) + "}");
+                lines.push(indent(depth) + buf + " += String.fromCharCode(" + u + ");");
+            } else {
+                lines.push(indent(depth) + "if (" + u + " >= 56320 && " + u + " <= 57343) {");
+                lines.push(indent(depth + 1) + "if (!(" + tail + " >= 55296 && " + tail + " <= 56319)) {");
+                lines.push(stringBufFaultThrow(depth + 2, u));
+                lines.push(indent(depth + 1) + "}");
+                lines.push(indent(depth) + "} else if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
+                lines.push(stringBufFaultThrow(depth + 1, tail));
+                lines.push(indent(depth) + "}");
+                lines.push(indent(depth) + buf + " += String.fromCharCode(" + u + ");");
+            }
         }
         return lines;
     }
