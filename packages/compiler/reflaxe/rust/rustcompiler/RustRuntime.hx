@@ -63,6 +63,12 @@ pub struct BytesBuffer {
     bytes: Vec<u8>,
 }
 
+impl Default for BytesBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BytesBuffer {
     pub fn new() -> Self {
         Self { bytes: Vec::new() }
