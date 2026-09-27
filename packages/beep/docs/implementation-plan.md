@@ -10,22 +10,22 @@ This plan maps implementation work to topic specifications and pinned Wren sourc
 2. Implement associated equality grammar and solver fixtures in 02-types-and-inference.md.
 3. Implement bytecode layout and opcode table in 10-opcode-reference.md, with VM integration in 05-vm-bytecode.md.
 4. Implement the host ABI in 11-abi-data-layouts.md and 07-modules-embedding.md.
-4. Implement source manager, scanner, parser and diagnostics.
-5. Implement module graph and declaration collection.
-6. Implement name/access resolution, type checker, generic solver, projection normalization and CFG analyses.
-7. Build typed IR and deterministic bytecode encoder.
-8. Build verifier and mutation suite before enabling bytecode load.
-9. Implement synchronous interpreter, class model and closures.
-10. Implement mark-sweep collector and typed handles.
-11. Implement compile transaction, embedding API and foreign ABI.
-12. Implement standard library and cross-target conformance suite.
-13. Harden parser, solver, verifier, allocator and limits; publish release ABI/version.
+5. Implement source manager, scanner, parser and diagnostics.
+6. Implement module graph and declaration collection.
+7. Implement name/access resolution, type checker, generic solver, projection normalization and CFG analyses.
+8. Build typed IR and deterministic bytecode encoder.
+9. Build verifier and mutation suite before enabling bytecode load.
+10. Implement synchronous interpreter, class model and closures.
+11. Implement mark-sweep collector and typed handles.
+12. Implement compile transaction, embedding API and foreign ABI.
+13. Implement standard library and cross-target conformance suite.
+14. Harden parser, solver, verifier, allocator and limits; publish release ABI/version.
 
 ## 3. Work packages
 
 ### Source and parser
 
-Wren anchors: wren_compiler.c Parser, tokenizer, parsePrecedence, methodCall, endCompiler. Preserve Pratt expression structure and signature syntax. Add SourceBuffer, source spans, AST, pattern nodes and recovery diagnostics. Implement every grammar production in 01-language.md. Tests cover token goldens, grammar fixtures, malformed UTF-8, nested comments, interpolation, line endings, precedence, and bounded fuzzing. Gate: each production has positive and negative parser tests.
+Architecture and ownership rules: 12-compiler-architecture-and-references.md sections 3-5. Grammar: 01-language.md and 09-lexer-expression-grammar.md. Wren anchors: wren_compiler.c Parser, tokenizer, parsePrecedence, methodCall, endCompiler. Preserve Pratt expression structure and signature syntax. Tests cover token goldens, AST node/span goldens, every grammar production, malformed UTF-8, nested comments, interpolation, line endings, precedence, and bounded fuzzing. Gate: each production has positive and negative parser tests.
 
 ### Module graph and declarations
 
@@ -33,7 +33,7 @@ Wren anchors: WrenResolveModuleFn/WrenLoadModuleFn in include/wren.h; wrenCompil
 
 ### Type checker and inference
 
-Wren anchors: local/module resolution and methodCall/signature parsing in wren_compiler.c; dynamic class lookup in wren_vm.h as replaced baseline. Implement 02-types-and-inference.md constraint structures, generation, solve phases, projection normalization, CFG assignment and diagnostics. Test order independence, principal solutions, variance, bounds, defaults, arity selection, projections and exhaustiveness. Gate: typed IR has no unresolved non-quantified variable.
+Phase and symbol/type table contracts: 12-compiler-architecture-and-references.md sections 3, 5, and 6. Typing and solving rules: 02-types-and-inference.md. Wren anchors: local/module resolution and methodCall/signature parsing in wren_compiler.c; dynamic class lookup in wren_vm.h as the replaced baseline. Implement constraint structures, generation, solve phases, projection normalization, CFG assignment and diagnostics. Test order independence, principal solutions, variance, bounds, defaults, arity selection, projections and exhaustiveness. Gate: typed HIR has no unresolved non-quantified variable.
 
 ### Typed IR and bytecode
 
