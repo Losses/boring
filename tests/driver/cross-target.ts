@@ -6,7 +6,7 @@ type TestRecord = { id: string; verdict: string };
 type CommandResult = { code: number; output: string };
 
 const targets = ["haxe", "ts", "kotlin", "rust", "swift", "dart"];
-const expected = ["tests.DriverPlanTests.hostPlatform", "tests.DriverPlanTests.parse", "tests.DriverPlanTests.generation", "tests.DriverPlanTests.swiftLibrary", "tests.DriverPlanTests.invalidConfig", "tests.DriverPlanTests.comparison", "tests.DriverPlanTests.testCommands", "tests.DriverPlanTests.packAndEnvironment"];
+const expected = ["tests.DriverPlanTests.hostPlatform", "tests.DriverPlanTests.parse", "tests.DriverPlanTests.generation", "tests.DriverPlanTests.swiftLibrary", "tests.DriverPlanTests.invalidConfig", "tests.DriverPlanTests.sourceSets", "tests.DriverPlanTests.comparison", "tests.DriverPlanTests.testCommands", "tests.DriverPlanTests.packAndEnvironment"];
 const resultsDir = mkdtempSync(join(tmpdir(), "boring-driver-probes-"));
 const projectFile = resolve(`.driver-probes-${process.pid}.json`);
 const projectText = readFileSync("boring.json", "utf8").split("\n")

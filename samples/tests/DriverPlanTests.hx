@@ -27,8 +27,8 @@ class DriverPlanTests {
 
     @:test("driver parses target configurations consistently")
     public static function parse():Void {
-        final project = Config.parse('{"outRoot":"out","baseline":"baseline","sourceRoots":["src"],"haxeArgs":["-D","shared=1"],"bundles":[{"id":"baseline","target":"ts","precision":"f32","haxeArgs":["-D","local=2"]},{"id":"header","target":"ts","test":false},{"id":"alternate","target":"ts","compare":false}]}', "boring.json", "/project");
-        if (project.bundles.length != 3 || project.bundles[0].id != "baseline" || !project.bundles[0].hasTests || project.bundles[1].hasTests || !project.bundles[2].hasTests || project.bundles[2].hasComparison) {
+        final project = Config.parse('{"outRoot":"out","baseline":"baseline","sourceRoots":["src"],"sourceSets":{"core":{"packages":["demo.core"],"types":["demo.Entry"]}},"haxeArgs":["-D","shared=1"],"bundles":[{"id":"baseline","target":"ts","precision":"f32","sourceSet":"core","haxeArgs":["-D","local=2"]},{"id":"header","target":"ts","test":false},{"id":"alternate","target":"ts","compare":false}]}', "boring.json", "/project");
+        if (project.bundles.length != 3 || project.bundles[0].id != "baseline" || project.bundles[0].sourceSet != "core" || project.sourceSets.length != 1 || !project.bundles[0].hasTests || project.bundles[1].hasTests || !project.bundles[2].hasTests || project.bundles[2].hasComparison) {
             throw new DriverException(InvalidConfig("driver configuration differs"));
         }
         if (Plan.testable(project.bundles).length != 2 || Plan.comparable(project.bundles).length != 1 || Plan.packable(project.bundles).length != 0) {
@@ -38,9 +38,9 @@ class DriverPlanTests {
 
     @:test("driver plans generation arguments consistently")
     public static function generation():Void {
-        final project = Config.parse('{"outRoot":"out","baseline":"baseline","sourceRoots":["src"],"haxeArgs":["-D","shared=1"],"bundles":[{"id":"baseline","target":"ts","precision":"f32","haxeArgs":["-D","local=2"]},{"id":"header","target":"ts","test":false}]}', "boring.json", "/project");
-        final args = Plan.genArgs(project, project.bundles[0], false, "/project/out/baseline/gen", "/project/out/baseline/gen-tests", null, null);
-        final expected = ["-cp", "src", "-D", "ts-test-runner=bun", "-D", "shared=1", "-D", "local=2", "-D", "ts-output=/project/out/baseline/gen", "-D", "ts-test-output=/project/out/baseline/gen-tests", "-D", "float-precision=f32"];
+        final project = Config.parse('{"outRoot":"out","baseline":"baseline","sourceRoots":["src"],"sourceSets":{"core":{"packages":["demo.core"],"types":["demo.Entry"]}},"haxeArgs":["-D","shared=1"],"bundles":[{"id":"baseline","target":"ts","precision":"f32","sourceSet":"core","haxeArgs":["-D","local=2"]},{"id":"header","target":"ts","test":false}]}', "boring.json", "/project");
+        final args = Plan.genArgs(project, project.bundles[0], false, "/project/out/baseline/gen", "/project/out/baseline/gen-tests", null, null, []);
+        final expected = ["-cp", "src", "-D", "ts-test-runner=bun", "-D", "shared=1", "-D", "local=2", "--macro", "haxe.macro.Compiler.include('demo.core', false, null, null, true)", "demo.Entry", "-D", "ts-output=/project/out/baseline/gen", "-D", "ts-test-output=/project/out/baseline/gen-tests", "-D", "float-precision=f32"];
         if (args.copy().join("\n") != expected.join("\n")) {
             throw new DriverException(InvalidConfig("driver generation arguments differ: " + args.copy().join(" ")));
         }
@@ -87,6 +87,55 @@ class DriverPlanTests {
         }
         if (message != 'boring.json: bundle "bad": compare=true requires test=true') {
             throw new DriverException(InvalidConfig("driver compare/test diagnostic differs: " + message));
+        }
+    }
+
+    @:test("driver validates named source sets consistently")
+    public static function sourceSets():Void {
+        final head = '{"outRoot":"out","baseline":"main","sourceRoots":[],"bundles":[{"id":"main","target":"ts"';
+        final tail = '}]}';
+        final prefix = '{"outRoot":"out","baseline":"main","sourceRoots":[],"sourceSets":';
+        final suffix = ',"bundles":[{"id":"main","target":"ts"}]}';
+        final invalids:Array<String> = [
+            head + ',"sourceSet":"missing"' + tail,
+            head + ',"sourceSet":""' + tail,
+            prefix + '{"core":{"types":["demo.Entry"]},"core":{"types":["demo.Other"]}}' + suffix,
+            prefix + '{"core":{"types":["demo.Entry","demo.Entry"]}}' + suffix,
+            prefix + '{"core":{}}' + suffix,
+            prefix + '{"core":{"packages":["demo.core;unsafe"]}}' + suffix,
+            prefix + '{"core":{"discover":[{"root":"../src","packages":["demo"],"suffix":"Test"}]}}' + suffix,
+            prefix + '{"core":{"discover":[{"root":"src","packages":["demo"],"suffix":"Test"},{"root":"src","packages":["demo"],"suffix":"Test"}]}}' + suffix
+        ];
+        final messages:Array<String> = [
+            'boring.json: bundle "main": unknown source set "missing"',
+            'boring.json: bundle "main": sourceSet must not be empty',
+            'boring.json: duplicate source set "core"',
+            'boring.json: source set "core": duplicate types entry "demo.Entry"',
+            'boring.json: source set "core" needs at least one package, type, or discover rule',
+            'boring.json: source set "core": packages entry "demo.core;unsafe" must be a nonempty dotted Haxe path',
+            'boring.json: source set "core": discover: root "../src" must be a nonempty project-relative directory',
+            'boring.json: source set "core": discover: duplicate package "demo" for root "src" and suffix "Test"'
+        ];
+        for (index in 0...invalids.length) {
+            var actual = "";
+            try {
+                Config.parse(invalids[index], "boring.json", "/project");
+            } catch (error:DriverException) {
+                actual = Diagnostic.describe(error.fault);
+            }
+            if (actual != messages[index]) {
+                throw new DriverException(InvalidConfig("source set diagnostic differs: " + actual));
+            }
+        }
+        final discovered = Plan.discoverTypes("demo", "Test", ["ZTest.hx", "Helper.hx", "ATest.hx", "bad.nameTest.hx", "MTest.hx"]);
+        if (discovered.copy().join(",") != "demo.ATest,demo.MTest,demo.ZTest") {
+            throw new DriverException(InvalidConfig("driver discovery selection differs: " + discovered.copy().join(",")));
+        }
+        final valid = Config.parse(prefix + '{"core":{"packages":["demo"],"types":["Named"],"discover":[{"root":"src","packages":["demo"],"suffix":"Test"}]}}' + ',"bundles":[{"id":"main","target":"ts","sourceSet":"core"}]}',
+            "boring.json", "/project");
+        final roots = Plan.rootsContents(valid.sourceSets[0], discovered);
+        if (roots != "--macro haxe.macro.Compiler.include('demo', false, null, null, true)\nNamed\ndemo.ATest\ndemo.MTest\ndemo.ZTest\n") {
+            throw new DriverException(InvalidConfig("driver roots file differs: " + roots));
         }
     }
 
@@ -146,7 +195,7 @@ class DriverPlanTests {
         final config = '{"outRoot":"out","baseline":"ts","sourceRoots":[],"bundles":['
             + '{"id":"ts","target":"ts","package":{"name":"demo","version":"1.0.0","license":"MPL-2.0"}}]}';
         final project = Config.parse(config, "boring.json", "/project");
-        final args = Plan.genArgs(project, project.bundles[0], true, "/project/gen", "/project/gen-tests", "/usr/bin/tsc", null);
+        final args = Plan.genArgs(project, project.bundles[0], true, "/project/gen", "/project/gen-tests", "/usr/bin/tsc", null, []);
         if (args.indexOf("package-name=demo") < 0 || args.indexOf("package-version=1.0.0") < 0
             || args.indexOf("package-license=MPL-2.0") < 0
             || args.indexOf("package-artifacts=emit") < 0 || args.indexOf("package-tsc=/usr/bin/tsc") < 0) {
@@ -155,7 +204,7 @@ class DriverPlanTests {
         final noLicense = Config.parse('{"outRoot":"out","baseline":"ts","sourceRoots":[],"bundles":['
             + '{"id":"ts","target":"ts","package":{"name":"demo","version":"1.0.0"}}]}',
             "boring.json", "/project");
-        final argsWithoutLicense = Plan.genArgs(noLicense, noLicense.bundles[0], true, "/project/gen", "/project/gen-tests", "/usr/bin/tsc", null);
+        final argsWithoutLicense = Plan.genArgs(noLicense, noLicense.bundles[0], true, "/project/gen", "/project/gen-tests", "/usr/bin/tsc", null, []);
         for (arg in argsWithoutLicense) {
             if (arg.indexOf("package-license=") == 0) throw new DriverException(InvalidConfig("driver inferred a package license"));
         }
