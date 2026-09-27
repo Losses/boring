@@ -194,6 +194,7 @@ mod protocol_regressions {
 
     use boring_codec_gen::{BufferHolder, BytesFrame};
     use boring_codec_gen::boring::data_class_string_compare::compare_data_class_string_compare;
+    use boring_codec_gen::runtime::u_string::UString;
 
     #[test]
     fn field_initialized_bytes_buffer_constructs_and_writes() {
@@ -211,11 +212,11 @@ mod protocol_regressions {
     #[test]
     fn data_class_string_comparator_uses_the_resident() {
         let a = boring_codec_gen::boring::data_class_string_compare::DataClassStringCompare {
-            label: String::from("a"),
+            label: UString::from("a"),
             order: 1,
         };
         let b = boring_codec_gen::boring::data_class_string_compare::DataClassStringCompare {
-            label: String::from("b"),
+            label: UString::from("b"),
             order: 1,
         };
         assert_eq!(
@@ -225,20 +226,3 @@ mod protocol_regressions {
         assert_eq!(compare_data_class_string_compare(&a, &a), 0);
     }
 }
-
-    #[test]
-    fn data_class_string_comparator_uses_the_resident() {
-        let a = boring_codec_gen::boring::data_class_string_compare::DataClassStringCompare {
-            label: String::from("a"),
-            order: 1,
-        };
-        let b = boring_codec_gen::boring::data_class_string_compare::DataClassStringCompare {
-            label: String::from("b"),
-            order: 1,
-        };
-        assert_eq!(
-            compare_data_class_string_compare(&a, &b),
-            compare_data_class_string_compare(&b, &a).neg()
-        );
-        assert_eq!(compare_data_class_string_compare(&a, &a), 0);
-    }
