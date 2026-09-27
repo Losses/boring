@@ -98,6 +98,9 @@ class TsExpr {
     /** Variables whose init is nullable but should be narrowed with ! */
     final nullableBindings:Map<Int, Bool> = [];
 
+    /** Locals that are optional parameters, whose TS type carries undefined. */
+    final optionalParamLocals:Map<Int, Bool> = [];
+
     final hiddenNames:Map<Int, String> = [];
     var hiddenCounter:Int = 0;
     var hoistCounter:Int = 0;
@@ -391,6 +394,11 @@ class TsExpr {
         };
         activeLoopParseHoists = null;
         parseHelperOrdinal = 0;
+        optionalParamLocals.clear();
+        for (a in f.args) {
+            if (a.opt && a.tvar != null)
+                optionalParamLocals.set(a.tvar.id, true);
+        }
 
         prepareLocals(f.expr);
         return blockLines(statementsOf(f.expr), 2);
@@ -2549,6 +2557,10 @@ class TsExpr {
             case TFun(p, _): [for (x in p) x.t];
             case _: [];
         };
+        final paramOpts = target == null ? [] : switch (Context.follow(target.type)) {
+            case TFun(p, _): [for (x in p) x.opt];
+            case _: [];
+        };
         return [
             for (i in 0...args.length) {
                 final expected = i < typesOf.length ? typesOf[i] : null;
@@ -2559,9 +2571,34 @@ class TsExpr {
                     + expr(args[i])
                     + " ?? "
                     + defaultArgText(d, expected)
-                    + ")" else expr(args[i]);
+                    + ")" else requiredArgText(args[i], expected, i < paramOpts.length ? paramOpts[i] : false);
             }
         ];
+    }
+
+    /**
+        Renders a call argument that is not covered by a coalescing default.
+        When the argument's TypeScript type carries a null or undefined
+        component the target parameter does not accept, the non-null
+        assertion restates the Haxe narrowing (the call compiles only when
+        Haxe proved the value non-null) and satisfies the strict reading.
+        The `!` is erased at runtime, so it never changes behavior.
+        (RequiredArgUnwrap)
+    **/
+    function requiredArgText(a:TypedExpr, expected:Null<Type>, targetOpt:Bool):String {
+        final rendered = expr(a);
+        if (StringTools.endsWith(rendered, "!"))
+            return rendered;
+        final hasNull = isNullType(a.t) || isNullLiteral(a);
+        final hasUndefined = switch (stripWrap(a).expr) {
+            case TLocal(v): optionalParamLocals.exists(v.id);
+            case _: false;
+        };
+        final targetAcceptsNull = expected != null && isNullType(expected);
+        final targetAcceptsUndefined = targetOpt;
+        if ((hasNull && !targetAcceptsNull) || (hasUndefined && !targetAcceptsUndefined))
+            return "(" + rendered + ")!";
+        return rendered;
     }
 
     function constructorArgTexts(cls:ClassType, args:Array<TypedExpr>):Array<String> {
@@ -3491,8 +3528,11 @@ class TsExpr {
                     scopedLocalNames.set(v.id, count == 1 ? v.name : v.name + count);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
-                // Mark nullable bindings for non-null assertion
-                if (init != null && PolicyQueries.isNullableType(stripWrap(init).t) && !PolicyQueries.isNullableType(v.t)) {
+                // Mark nullable bindings for non-null assertion. A bare null
+                // literal init (a Haxe `var x:T = null` that later narrows)
+                // carries a non-Null-abstract type, so the literal is checked
+                // explicitly alongside the Null<T> type test.
+                if (init != null && (PolicyQueries.isNullableType(stripWrap(init).t) || isNullLiteral(init)) && !PolicyQueries.isNullableType(v.t)) {
                     nullableBindings.set(v.id, true);
                 }
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):
