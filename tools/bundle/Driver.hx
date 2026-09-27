@@ -38,7 +38,9 @@ import js.Syntax;
     (`cargo test --no-run`) and the run step runs the whole command, so
     one `cargo test` executes per test action. The swift recipe reads
     the library module name from the `swift-test-import` define of the
-    bundle's effective arguments, compiles the library with
+    bundle's effective arguments, or of the roots file include chain
+    that the same generation command compiles through, and compiles
+    the library with
     `-emit-module` so the test executable's `import` resolves, and
     compiles every test source (the backend's entry is TestMain.swift).
     swiftc has no package graph, so a tree that imports a SwiftPM-only
@@ -384,20 +386,28 @@ class Driver {
     // Derivation
     // ------------------------------------------------------------------
 
+    /**
+        The derived paths resolve against the project root, not the
+        driver's working directory: a driver compiled in one checkout
+        runs a project file that names another (the generation step
+        already runs there, through the step command's working
+        directory), so every consumer of these paths agrees on where
+        the trees live.
+    **/
     static function genDir(project:Project, bundle:Bundle):String {
-        return joinPath(joinPath(project.outRoot, bundle.id), "gen");
+        return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "gen"));
     }
 
     static function genTestsDir(project:Project, bundle:Bundle):String {
-        return joinPath(joinPath(project.outRoot, bundle.id), "gen-tests");
+        return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "gen-tests"));
     }
 
     static function buildDir(project:Project, bundle:Bundle):String {
-        return joinPath(joinPath(project.outRoot, bundle.id), "build");
+        return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "build"));
     }
 
     static function resultsPath(project:Project, bundle:Bundle):String {
-        return joinPath(project.resultsDir, bundle.id + ".jsonl");
+        return resolveAgainst(project.root, joinPath(project.resultsDir, bundle.id + ".jsonl"));
     }
 
     /**
@@ -700,13 +710,87 @@ class Driver {
     }
 
     /**
+        The value of one `-D <name>=<value>` pair on the bundle's
+        roots file include chain, when the chain carries it. The roots
+        file is what the generation command feeds haxe, so a define it
+        pulls in is as effective as one in `haxeArgs`; a project whose
+        target entries already state `swift-test-import` needs no
+        copy in the project file. Include lines resolve against the
+        project root, where the generation command runs, with the
+        including file's own directory as fallback; a later define
+        wins, matching haxe's own last-value rule.
+    **/
+    static function rootsFileDefine(project:Project, bundle:Bundle, name:String):Null<String> {
+        final rootsFile = bundle.rootsFile != null ? bundle.rootsFile : project.rootsFile;
+        if (rootsFile == null) {
+            return null;
+        }
+        return hxmlDefineValue(resolveAgainst(project.root, rootsFile), name, [], project.root);
+    }
+
+    static function hxmlDefineValue(path:String, name:String, seen:Array<String>, base:String):Null<String> {
+        if (seen.indexOf(path) >= 0 || !exists(path)) {
+            return null;
+        }
+        seen.push(path);
+        var found:Null<String> = null;
+        for (rawLine in readText(path).split("\n")) {
+            final line = hxmlStripComment(rawLine);
+            final tokens = line.length == 0 ? [] : ~/\s+/.split(line);
+            if (tokens.length == 0) {
+                continue;
+            }
+            if (tokens[0] == "-D" || tokens[0] == "--define") {
+                // One hxml line carries the pair haxe sees: -D plus one
+                // name=value token; the JSON haxeArgs form splits them.
+                if (StringTools.startsWith(tokens[1], name + "=")) {
+                    found = tokens[1].substr(name.length + 1);
+                } else if (tokens[1] == name && tokens.length >= 3) {
+                    found = tokens.slice(2).join(" ");
+                }
+                continue;
+            }
+            if (tokens.length == 1 && !StringTools.startsWith(tokens[0], "-")) {
+                // haxe resolves an include against its working
+                // directory, which is the project root here; the
+                // including file's own directory is the fallback for
+                // entries written the other way.
+                var included = hxmlDefineValue(resolveAgainst(base, tokens[0]), name, seen, base);
+                if (included == null) {
+                    included = hxmlDefineValue(resolveAgainst(directoryOf(path), tokens[0]), name, seen, base);
+                }
+                if (included != null) {
+                    found = included;
+                }
+            }
+        }
+        return found;
+    }
+
+    static function hxmlStripComment(line:String):String {
+        final cut = line.indexOf("#");
+        return StringTools.trim(cut < 0 ? line : line.substr(0, cut));
+    }
+
+    static function directoryOf(path:String):String {
+        final cut = path.lastIndexOf("/");
+        return cut < 0 ? "." : path.substr(0, cut);
+    }
+
+    /**
         The library module name of the swift recipe, read from the
-        `swift-test-import` define of the bundle's effective arguments.
+        `swift-test-import` define of the bundle's effective
+        arguments, or of the roots file include chain that the same
+        command compiles through.
     **/
     static function swiftTestImport(project:Project, bundle:Bundle):String {
         final module = defineValue(genArgs(project, bundle, false), "swift-test-import");
         if (module == null) {
-            fail('bundle "${bundle.id}": the swift recipe needs the library module name; pass -D swift-test-import=<module> in the bundle haxeArgs');
+            final fromRoots = rootsFileDefine(project, bundle, "swift-test-import");
+            if (fromRoots != null) {
+                return fromRoots;
+            }
+            fail('bundle "${bundle.id}": the swift recipe needs the library module name; put -D swift-test-import=<module> in the bundle haxeArgs, or in the roots file chain that the bundle compiles through');
             return "";
         }
         return module;
