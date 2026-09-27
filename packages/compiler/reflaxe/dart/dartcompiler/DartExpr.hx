@@ -895,9 +895,16 @@ class DartExpr {
                     nonNullLocals.set(guarded.id, true);
                 return lines;
             case TWhile(c, b, true):
+                // Promotions recorded inside the body die at the back edge:
+                // dart restarts each iteration from the pre-loop state.
+                // (PromotionMergeReset)
+                final savedLoopPromoted = flowPromotedNonNull.copy();
                 final out = [indent(depth) + "while (" + conditionText(c) + ") {"];
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
+                flowPromotedNonNull.clear();
+                for (k in savedLoopPromoted.keys())
+                    flowPromotedNonNull.set(k, savedLoopPromoted.get(k));
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(_, _, false):
@@ -1023,6 +1030,12 @@ class DartExpr {
             for (l in blockLines(elseStmts, depth + 1))
                 out.push(l);
         }
+        // The promotion a branch recorded dies at the merge point: dart
+        // restarts from the pre-if state after the statement.
+        // (PromotionMergeReset)
+        flowPromotedNonNull.clear();
+        for (k in savedPromoted.keys())
+            flowPromotedNonNull.set(k, savedPromoted.get(k));
         out.push(indent(depth) + "}");
         return out;
     }
@@ -1393,6 +1406,14 @@ class DartExpr {
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null)
                     return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
+                final guarded = nullGuardExpr(c);
+                final hasGuarded = hasGuardExpr(c);
+                // The condition renders before the branches: it is the
+                // first thing dart evaluates, and any flow note it leaves
+                // (a promoted local) is the state the arms start from. A
+                // branch rendered first marks its locals promoted and
+                // wrongly strips the condition's own unwraps.
+                final condText = conditionText(c);
                 // A Float-typed ternary with an int literal branch types
                 // as num in Dart; Haxe's Float unification promises
                 // double, so widen the int branch.
@@ -1404,8 +1425,6 @@ class DartExpr {
                 // ternary (`m.has(k) ? m.get(k) : default`) proves its
                 // value branch the same way: `get` is typed `Null<V>`, so
                 // the taken branch unwraps to keep the ternary non-null.
-                final guarded = nullGuardExpr(c);
-                final hasGuarded = hasGuardExpr(c);
                 var tFinal = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded) ? requiredValueText(t) : tText;
                 var fFinal = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded) ? requiredValueText(f) : fText;
                 if (hasGuarded != null) {
@@ -1414,7 +1433,7 @@ class DartExpr {
                     if (isGuardedMapRead(f, hasGuarded))
                         fFinal = requiredValueText(f);
                 }
-                return "(" + conditionText(c) + " ? " + tFinal + " : " + fFinal + ")";
+                return "(" + condText + " ? " + tFinal + " : " + fFinal + ")";
             case TBlock(stmts):
                 return blockExpression(stmts);
             case _:
@@ -1569,6 +1588,20 @@ class DartExpr {
     }
 
     function functionLiteral(f:TFunc):String {
+        // A closure body starts from a clean promotion slate: dart does
+        // not carry the enclosing function's `!` promotions into a
+        // closure over a captured local, so the outer flow notes must
+        // not suppress unwraps inside. (ClosurePromotionReset)
+        final savedClosurePromoted = flowPromotedNonNull.copy();
+        flowPromotedNonNull.clear();
+        final result = functionLiteralInner(f);
+        flowPromotedNonNull.clear();
+        for (k in savedClosurePromoted.keys())
+            flowPromotedNonNull.set(k, savedClosurePromoted.get(k));
+        return result;
+    }
+
+    function functionLiteralInner(f:TFunc):String {
         final required:Array<String> = [];
         final optional:Array<String> = [];
         var optionalStarted = false;
@@ -1710,7 +1743,15 @@ class DartExpr {
         var rendered = expr(e);
         // A normalized local, or one cleared by a null guard, is already
         // non-null in the generated Dart flow.
-        if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && parent != OpEq && parent != OpNotEq && !isNullLiteral(e)) {
+        // A local asserted '!' earlier in the same flow is promoted by
+        // dart's own analysis; a second assertion in that flow reports
+        // no effect. Consulted only here, at the comparison-operand
+        // boundary where the duplicates occur. (FlowPromotedOperandDedup)
+        final flowPromotedDup = switch (stripWrap(e).expr) {
+            case TLocal(v): flowPromotedNonNull.exists(v.id);
+            case _: false;
+        };
+        if ((isNullLeafType(e.t) || optionalValued(e)) && !provenNonNull(e) && !flowPromotedDup && parent != OpEq && parent != OpNotEq && !isNullLiteral(e)) {
             rendered += "!";
             switch (stripWrap(e).expr) {
                 case TLocal(v): flowPromotedNonNull.set(v.id, true);
@@ -4369,6 +4410,7 @@ class DartExpr {
         };
     }
 
+
     function isNonNullNormalization(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TIf(c, _, f) if (f != null): nullGuardLocal(c) != null;
@@ -4461,9 +4503,19 @@ class DartExpr {
             case _: false;
         };
     }
-    /** Whether two expressions render to the same Dart text. */
+    /**
+        Whether two expressions render to the same Dart text. The probe
+        render must not leave flow notes behind: it runs out of program
+        order, and a promotion it records would wrongly suppress a real
+        unwrap later in the same statement. (StructuralProbeNoSideEffect)
+    **/
     function structurallySame(a:TypedExpr, b:TypedExpr):Bool {
-        return expr(a) == expr(b);
+        final savedPromoted = flowPromotedNonNull.copy();
+        final same = expr(a) == expr(b);
+        flowPromotedNonNull.clear();
+        for (k in savedPromoted.keys())
+            flowPromotedNonNull.set(k, savedPromoted.get(k));
+        return same;
     }
 
     function scanLocals(e:TypedExpr):Void {
