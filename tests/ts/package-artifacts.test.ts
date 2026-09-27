@@ -172,6 +172,9 @@ describe("package artifact emission", () => {
       fs.writeFileSync(path.join(consumerRoot, "package.json"), '{"name":"consumer","private":true}\n');
       const install = Bun.spawn(["npm", "install", "--no-audit", "--no-fund", artifact], {
         cwd: consumerRoot,
+        // An isolated cache keeps the consumer install off the host's
+        // shared npm cache, which other processes may have polluted.
+        env: { ...process.env, npm_config_cache: path.join(root, "npm-cache") },
         stdout: "pipe",
         stderr: "pipe",
       });
