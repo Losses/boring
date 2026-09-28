@@ -70,7 +70,7 @@ returned. That case could pass even if the return boundary copied the array.
 The coordinator required a retained mutable alias to the original container,
 mutation after the producer returned, and a view observation after that
 mutation. The authored fixture now includes that sequence. Its runtime result
-is still pending.
+is recorded in the accepted focused delivery below.
 
 This omission concerns test discrimination: the test must place the observable
 mutation after the boundary whose storage behavior it claims to establish.
@@ -89,3 +89,57 @@ Additional general instructions would not establish compliance. Acceptance requi
 the corrected runner's actual paths, parsed child outcomes, required stage
 membership, authored expected values and failure propagation. Record those
 results before judging the guidance effective or completing P11.
+
+### Accepted focused delivery and evaluation
+
+The coordinator accepts the eight-file fixture after exact-file integration
+and an independent replay. The executor's corrected attempt is
+`out/view-lifetime-contract/runs/view-cCrHOe9D` in its assigned checkout.
+The integration attempt is `out/view-lifetime-contract/runs/view-u0hXIZQZ`;
+outer commands, stdout, stderr and numeric statuses are retained in
+`out/view-lifetime-root-qa/review-p09d__zd`. Copied file hashes and the
+coordinator's structured review are recorded in
+`view-lifetime-integrated-files.json` and `root-view-lifetime-review.json`.
+
+Haxe compilation and execution, Swift generation, native compilation and native
+execution each exited normally with status zero and complete capture. All five
+child stderr streams are empty. The raw outputs of both runtimes match the
+independently authored lines:
+
+| Observation | Expected and observed value |
+| --- | --- |
+| Source binding reassigned after creating the view | `rebind=123` |
+| View returned from a producer whose local scope ends | `escaped=56` |
+| Original mutable alias changes an element | `local-mutation=42` |
+| Producer reassigns the binding and mutates the replacement | `combined=123` |
+| Retained original alias changes an element after the producer returns | `boundary=564:1494` |
+
+The integration review checked all 162 input hashes against both the recorded
+before/after sets and the current files. The loaded boring path names the
+integration checkout. Seven required stage identities are present once each.
+Runtime declarations occur once each, and the ordinary output has no test host.
+Direct documentation-style and ESLint commands both exited zero; style had no
+hits. The fixture retains its original failed attempts in the executor checkout.
+
+The final delivery review removed output normalization that silently discarded
+duplicate labels, required missing raw streams to fail, added the actual probe
+implementation to input hashes, and checked the loaded compiler path. The
+coordinator rejected a proposed first-line path check because retained haxelib
+output began with a blank line. The corrected check uses the actual path.
+The executor's style-output pipelines also failed to preserve the checker's
+status; the coordinator used direct checks for acceptance.
+
+The guidance helped the executor identify the source contract and distinguish
+binding, container and element identity. The coordinator supplied the decisive
+post-return mutation case and required corrections to evidence handling. These
+interventions limit the outcome: P11 establishes a completed guided exercise,
+with independent delivery review. It does not establish reliable unaided
+execution of the documented method. The executor withdrew its broader E
+coverage claim and its unsupported claim that the JS/Bun instruction was
+ambiguous. The admitted typed console entry was a concrete discovery during
+fixture construction.
+
+No compiler repair was needed for these cases. Their results do not prove
+exhaustive storage-lifetime safety, complete J migration, or other targets'
+behavior. The fixture is part of the candidate awaiting P09's full Boring and
+fixed-version Tiqian verification; those programme gates remain open.
