@@ -1298,10 +1298,10 @@ class KotlinDecl {
     }
 
     /**
-        InterfaceOverrideReturnType preserves the interface return type for
-        an implementation reached through an inherited class or interface.
+        An override preserves the interface return type for an implementation
+        reached through an inherited class or interface.
         Safe-call bodies can render nullable expressions, but Kotlin override
-        declarations must retain their inherited non-null type.
+        declarations must retain their inherited non-null return type.
     **/
     function isInterfaceMethod(cls:ClassType, f:ClassFuncData):Bool {
         return inheritsInterfaceMethod(cls, f.field.name);
@@ -1373,8 +1373,10 @@ class KotlinDecl {
         // body may contain a nullable receiver whose fallback is proven
         // non-null by the expression renderer, so widening the override
         // would violate Kotlin's invariant return type rule.
+        // One prepared artifact serves the return-shape decision and the body.
+        final artifact = expr.prepareSource(cls, f, FunctionBody);
         final mayWidenSafeCallReturn = !isInterfaceMethod(cls, f);
-        if (mayWidenSafeCallReturn && expr.bodyUsesSafeCallReturns(f) && !StringTools.endsWith(retType, "?"))
+        if (mayWidenSafeCallReturn && expr.returnWidening(artifact, cls, f, mayWidenSafeCallReturn) && !StringTools.endsWith(retType, "?"))
             retType = retType + "?";
         final ret = retType == "Unit" ? "" : ": " + retType;
         // Zero-argument toString and hashCode override kotlin.Any's members;
@@ -1399,7 +1401,7 @@ class KotlinDecl {
 
         final boundary = StaticFieldHelper.isReadOnlyArrayType(f.ret);
         expr.setDecodeBoundary(boundary);
-        final body = expr.functionBody(cls, f, mayWidenSafeCallReturn);
+        final body = expr.bodyFrom(artifact, cls, f, mayWidenSafeCallReturn);
         expr.setDecodeBoundary(false);
 
         return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
@@ -1434,7 +1436,7 @@ class KotlinDecl {
         }
         final boundary = StaticFieldHelper.isReadOnlyArrayType(f.ret);
         expr.setDecodeBoundary(boundary);
-        final body = expr.functionBody(cls, f);
+        final body = expr.bodyFrom(expr.prepareSource(cls, f, FunctionBody), cls, f, true);
         expr.setDecodeBoundary(false);
         return [head].concat(body).concat(["}"]);
     }
@@ -1449,7 +1451,7 @@ class KotlinDecl {
     **/
     public function flushEntryDecl(cls:ClassType, f:ClassFuncData):Array<String> {
         expr.resetLocalNames();
-        final body = expr.functionBody(cls, f);
+        final body = expr.bodyFrom(expr.prepareSource(cls, f, FunctionBody), cls, f, true);
         return ['    fun ${KotlinNameEscape.escape(f.field.name)}() {'].concat(body.map(l -> "    " + l)).concat(["    }"]);
     }
 
@@ -1486,7 +1488,7 @@ class KotlinDecl {
             ];
         }
         expr.setTestRunnerLambda(true);
-        final body = expr.functionBody(cls, f);
+        final body = expr.bodyFrom(expr.prepareSource(cls, f, FunctionBody), cls, f, true);
         expr.setTestRunnerLambda(false);
         final indented = body.map(l -> "            " + l);
         return [
