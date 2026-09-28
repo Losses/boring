@@ -24,3 +24,7 @@ same-named parameter owned by another declaration must remain distinct. Rerun
 the full A3 procedure after revising the probe; retain all target stage results
 and the selected input hashes. The 41-row admission run remains separate
 evidence and cannot substitute for this blocked Swift procedure.
+
+The isolated fixture still carries old generic names. Rename them for their
+observed comparison behavior before integration, including paths and runner
+references, so the coordinator's terminology scan remains clear.

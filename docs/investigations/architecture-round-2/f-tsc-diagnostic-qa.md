@@ -38,3 +38,7 @@ The existing runner proves separate child streams on failure, including a
 large output case, and keeps source mapping for repeated direct calls. It also
 checks that sidecars do not enter the npm archive. The broader fixed Boring
 and Tiqian regressions remain required after candidate integration.
+
+The isolated fixture still carries an old generic directory name. Rename it
+for its diagnostic purpose and update all references before integration; the
+coordinator's terminology scan must remain clear.
