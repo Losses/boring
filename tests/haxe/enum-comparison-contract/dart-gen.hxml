@@ -1,0 +1,21 @@
+# Static Dart generation of the enum comparison contract module.
+# Run from the repository root; the caller supplies the output tree so
+# every attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/enum-comparison-contract/dart-gen.hxml \
+#     -D dart-output=out/enum-comparison-contract/runs/<run>/dart-gen
+# The runner generates this tree for inspection only. No Dart stage
+# compiles or executes it, so it carries no runtime claim.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/enum-comparison-contract
+-cp samples
+--macro Intercept.run(['tests/haxe/enum-comparison-contract'])
+--macro dartcompiler.Compiler.use()
+-D dart-output=out/enum-comparison-contract/runs/dart-gen
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+enumcontract.EnumContractSubject
+runtime.UString
+runtime.SortedTable
