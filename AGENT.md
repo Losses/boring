@@ -202,11 +202,17 @@ results inform revisions to the internal guidance.
 
 ## Debugging and evidence
 
-Compiler debugging is evidence first. Before a single line changes, produce
+Compiler debugging is evidence first. Before changing an implementation, trace
+the failure through the stages that ran. For a generated-code failure, produce
 the code-generation call stack: the Haxe construct that was compiled, the
 emitter function and line that rendered it, the generated text the target
-compiler or runtime rejected, and the failing site it reported. Those four
-steps are the evidence; a report that misses one has gathered none.
+compiler or runtime rejected, and the failing site it reported. A complete
+generated-code diagnosis requires all four steps.
+
+For a failure before emission, identify the responsible phase, its inputs,
+and the diagnostic or incorrect decision. Mark later stages as not reached.
+Separate an observation harness failure from a failure of the source operation
+being investigated, preserving the evidence for each attempted configuration.
 
 A guess is not a diagnosis. A symptom that resembles a known defect stays a
 hypothesis until the call stack names the emitting site. When the stack
