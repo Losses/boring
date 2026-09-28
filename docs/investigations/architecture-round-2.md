@@ -9,14 +9,14 @@ Swift implementation. The input checkpoint is
 of implementation acceptance. The
 [policy architecture](../compiler-policy-architecture.md) defines responsibilities.
 
-| Package | Executor route | Current delivery |
+| Package | Initial executor route | Requested delivery |
 | --- | --- | --- |
 | A: Value and declaration representation | Claude Code, BigModel GLM 5.3 Flash | Five-target owners, typed interfaces, adapters, removal list, first implementation batch |
 | B: Flow and evaluation | Goose, local Qwen | Fact scope and invalidation, effects, joins, sequencing, consumer query contracts |
 | C: Identity and writable places | Claude Code, BigModel GLM 5.3 Flash | Source identity authority, sharing policy, place paths, representation dependencies |
 | F: Diagnostics and evidence | Goose, local Qwen | Occurrence and decision evidence, output mapping, child capture, layered acceptance |
 
-Each route has two authorized concurrent workers. Current assignments inspect
+Each route has two authorized concurrent workers. The initial assignments inspect
 source and propose concrete interfaces; compiler writes have not been assigned.
 The coordinator accepts shared interfaces before issuing exact file ownership.
 Cross-review pairs workers from different platforms. Packages D and E follow
@@ -111,3 +111,44 @@ a first place-policy batch that can proceed independently of unresolved class
 identity semantics. Its dependency is the reviewed representation/evaluation
 interface, with assigned backend ownership. The unfinished Swift pilot remains
 a migration task and does not prevent this design work.
+
+## Intermediate review and execution assignments
+
+The coordinator published the reviewed
+[policy interface contracts](../compiler-policy-contracts.md) while the workers
+continued bounded observations. The three execution worktrees use `e45c74b7`
+as their checkout base; later guidance commits do not change their compiler
+input implicitly. No new compiler migration is accepted at this stage.
+
+| Worker | Current responsibility | Acceptance state |
+| --- | --- | --- |
+| Claude Code, GLM, first worker | Implement the bundle driver's child evidence capture, with focused tests. | Candidate implementation and tests exist; review and verification remain open. |
+| Claude Code, GLM, second worker | Reproduce paired Haxe JS and Rust place observations with a durable runner. | Manual outcomes are retained with evidence gaps; the replay runner requires correction. |
+| Goose, Qwen, first worker | Compare concrete Kotlin and Rust condition producers, callers, and other fact-store writers. | Revised design distinctions are retained; whole-function equivalence is rejected. |
+| Goose, Qwen, second worker | Review and repair the classifier observation fixture delivered by GLM. | Snapshot review is recorded; repaired fixture execution and acceptance remain open. |
+
+The review exposed the following distinctions. The contracts and analysis
+method own the resulting rules; this table records why they were needed.
+
+| Observed review problem | General distinction and response |
+| --- | --- |
+| B's revised proposal preserved a sibling field fact because its full access path differed. | Access identity and alias independence differ. Require dependency evidence before preserving facts after a possibly aliasing write. |
+| B proposed one equivalent condition table for Kotlin and Rust before comparing their rules and callers. | Sharing overlapping syntax recognition does not establish identical branch facts or target permissions. The next task compares bounded producers and their consumers. |
+| C's replay runner reused native output paths across variants and gated execution by file existence. | An artifact's presence does not establish that its producer succeeded for this attempt. Require per-variant outputs and explicit status-dependent execution. |
+| C's stage list was populated by the same function that recorded completed stages. | A completion check needs an independent expected case set; it cannot detect work omitted by its own traversal. |
+| A's reviewer treated caught helper exceptions as preserved failed run attempts. | An exception within one probe and a failed process attempt have different identities. Review both independently. |
+| Several diagnostic runners replaced fixed output files on retries. | A successful later attempt cannot reconstruct an earlier failure. Preserve the gap and obtain fresh evidence with exclusive run allocation. |
+
+The original briefs already required separate streams, attempt retention,
+stage identity, and actual consumer integration. Repeating those requirements
+alone did not prevent these failures. The next execution tasks name the exact
+counterexample and require the durable runner itself to execute before its
+results support acceptance. The coordinator also stops report-format revisions
+that add no evidence and assigns bounded caller comparisons when a general
+design report leaves an implementation assumption unresolved.
+
+An observation fixture establishes only its recorded phase. A macro that reads
+types and exits early does not establish normal compilation. A paired native
+result requires matching authored input, case defines, successful compilation,
+and the resulting artifact. These checks improve diagnosis; they do not replace
+the later Boring matrix or the required fixed-revision Tiqian regression.
