@@ -93,9 +93,9 @@ Every candidate translation is evaluated across four fixed axes:
 | 29 | [29-first-class-function-values.md](features/29-first-class-function-values.md) | Planned | Function-typed values in every storage position: the verified renderings on all five targets, Rust boxed function storage, and static function fields with capture-free initializers. |
 | 30 | [30-static-fields.md](features/30-static-fields.md) | Planned | Static fields in every declared form: declarations with initializers on all five targets, static assignment from own and other classes, container mutation, and the Rust mutex static. |
 | 31 | [31-record-tostring-member.md](features/31-record-tostring-member.md) | Planned | The printed-form member: a `@:dataClass` class without an explicit `toString` gets one synthesized on every target and in stage 1, sharing the RecordStr assembly routine; amends 27's no-synthesized-members sentence. |
-| 50 | [50-math-min-max-nan.md](features/50-math-min-max-nan.md) | Planned | Cross-target NaN propagation and signed-zero semantics for `Math.min` and `Math.max`, including the Rust emission contract. |
+| 50 | [50-math-min-max-nan.md](features/50-math-min-max-nan.md) | Planned | Cross-target NaN propagation and signed-zero semantics for `Math.min` and `Math.max`, including the Rust emission specification. |
 | 38 | [38-deferred-variable-declarations.md](features/38-deferred-variable-declarations.md) | Complete | Local declarations without initializer and the assignments that initialize them; statement-lowering guards must null-check the initializer. |
-| 59 | [59-bundle-driver.md](features/59-bundle-driver.md) | Planned | The layer above the compiler: one project file naming the bundles, one recipe per target holding the build and run commands the defines cannot derive, one driver with the gen, test, pack, compare and verify actions, and the three contract changes it depends on. |
+| 59 | [59-bundle-driver.md](features/59-bundle-driver.md) | Planned | The layer above the compiler: one project file naming the bundles, one recipe per target holding the build and run commands the defines cannot derive, one driver with the gen, test, pack, compare and verify actions, and the three prerequisite changes it depends on. |
 
 ### Macro specifications
 
@@ -115,9 +115,9 @@ Every candidate translation is evaluated across four fixed axes:
 | 03 | [03-haxe-exception.md](stdlib/03-haxe-exception.md) | Complete | Standard exception hierarchy and stack trace handling. |
 | 04 | [04-haxe-ds-vector.md](stdlib/04-haxe-ds-vector.md) | Complete | Fixed-length dense vector structures. |
 | 05 | [05-haxe-int64.md](stdlib/05-haxe-int64.md) | Complete | 64-bit integer representations and emulated arithmetic. |
-| 06 | [06-std-modules.md](stdlib/06-std-modules.md) | Complete | The subset's std modules, reserved namespaces, and the runtime package contract. |
-| 07 | [07-sorted-keyed-tables.md](stdlib/07-sorted-keyed-tables.md) | Complete | Immutable sorted keyed collections std.SortedMap and std.SortedSet: ordering contract and per-platform shapes. |
-| 08 | [08-string-buffer.md](stdlib/08-string-buffer.md) | Complete | Buffered string construction: per-platform mutable accumulators and the code-unit length contract. |
+| 06 | [06-std-modules.md](stdlib/06-std-modules.md) | Complete | The subset's std modules, reserved namespaces, and the runtime package specification. |
+| 07 | [07-sorted-keyed-tables.md](stdlib/07-sorted-keyed-tables.md) | Complete | Immutable sorted keyed collections std.SortedMap and std.SortedSet: ordering rule and per-platform shapes. |
+| 08 | [08-string-buffer.md](stdlib/08-string-buffer.md) | Complete | Buffered string construction: per-platform mutable accumulators and the code-unit length rule. |
 | 09 | [09-inline-arithmetic-helpers.md](stdlib/09-inline-arithmetic-helpers.md) | Complete | Sanctioned static inline helpers for range checks, clamping, and two-field range values. |
 | 10 | [10-unicode-string-access.md](stdlib/10-unicode-string-access.md) | Complete | std.UString: code-point-addressed access for strings beyond the ASCII tier. |
 | 11 | [11-grapheme-clusters.md](stdlib/11-grapheme-clusters.md) | Complete | std.Graphemes: extended grapheme cluster iteration over code-point content. |

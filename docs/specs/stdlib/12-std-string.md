@@ -18,7 +18,7 @@ parameterless amendment of `docs/specs/features/01-enums-and-pattern-matching.md
 the constructor-name reads are the same reads as
 `docs/specs/features/28-enum-value-queries.md` rules for `Type.enumConstructor`.
 
-## Contract
+## Std.string behavior
 
 Haxe `Std.string(value)` returns the string form of `value`. This
 specification defines the conversion over the operand's content (principle 1):
@@ -119,8 +119,7 @@ renders as `0`. The reformat is one string operation on the native
 result; no target reimplements shortest-digit generation.
 
 4. The operand domain check runs where the operand type is known, in every
-   target's `Std.string` arm, with the one named error of the Contract
-   section. The check and the lowering ship in one change on all five targets
+   target's `Std.string` arm, with the one named error of the Std.string behavior section. The check and the lowering ship in one change on all five targets
    (principle 2: the restriction names its provided replacement, the source
    `toString` call, in the same specification).
 
@@ -167,7 +166,7 @@ result; no target reimplements shortest-digit generation.
 
 - `samples/boring/StdStringOps.hx`: concatenations and standalone conversions
   over a `String`, an `Int`, a `Float` (values whose shortest forms agree
-  across targets, per the Contract), a `Bool`, and `FloatWidth` constructors;
+  across targets, per the rendering rule), a `Bool`, and `FloatWidth` constructors;
   an enum conversion compared against its constructor name. Array rows: an
   `Array<Int>`, an `Array<String>`, an `Array<Float>` (shortest-form-agreeing
   values), an `Array<Bool>`, an `Array<FloatWidth>`, an empty array, a

@@ -7,7 +7,7 @@ Beep is a statically typed language with an embeddable source compiler and virtu
 - [Language overview and grammar](01-language.md)
 - [Type system and inference](02-types-and-inference.md)
 - [Classes, methods, closures, and patterns](03-objects-and-control.md)
-- [Errors and standard library contracts](04-errors-and-library.md)
+- [Errors and standard library behavior](04-errors-and-library.md)
 - [Virtual machine and bytecode](05-vm-bytecode.md)
 - [Memory management](06-memory.md)
 - [Modules and embedding API](07-modules-embedding.md)

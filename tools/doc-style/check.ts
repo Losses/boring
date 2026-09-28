@@ -80,6 +80,9 @@ const SOURCE_EXTENSIONS: ReadonlySet<string> = new Set([
   ".ts",
 ]);
 const TARGET_GLOB = "**/*.{dart,hxml,hx,kt,md,nix,rs,sh,swift,toml,ts}";
+// The file-name ban scans every non-excluded path, independent of the
+// content-scan extension set.
+const PATH_GLOB = "**/*";
 const EXCLUDED_PARTS: ReadonlySet<string> = new Set([
   ".git",
   "gen",
@@ -145,6 +148,9 @@ const BANNED_TERMS: ReadonlyArray<BannedTerm> = [
   { match: "battery", tag: "coinage" },
   { match: "mutation probe", tag: "coinage" },
   { match: "prose style", tag: "coinage" },
+  // ambiguous agreement label with no single referent
+  { match: "contract", tag: "coinage" },
+  { match: "contracts", tag: "coinage" },
   // access-control metaphors
   { match: "gatekeep", tag: "metaphor" },
   { match: "gatekeeper", tag: "metaphor" },
@@ -362,6 +368,38 @@ export function matchedTerms(line: string): ReadonlyArray<BannedTerm> {
   );
 }
 
+// The file-name ban stays limited to the ambiguous agreement label; the
+// other banned terms still apply to comment and document content.
+const PATH_BANNED: ReadonlySet<string> = new Set(["contract", "contracts"]);
+
+// A path can carry a term as a hyphen-joined unit or as a CamelCase hump.
+// Word boundaries miss the hump, so each segment is split into case and
+// character tokens before the term matchers run on the spaced token list.
+export function scanPath(path: string): ReadonlyArray<StyleHit> {
+  const seen = new Set<string>();
+  const hits: StyleHit[] = [];
+  for (const segment of path.split(/[\/\\]/)) {
+    const tokens = segment
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+      .split(/[^A-Za-z0-9]+/);
+    for (const term of matchedTerms(tokens.join(" "))) {
+      if (!PATH_BANNED.has(term.match)) continue;
+      if (!seen.has(term.match)) {
+        seen.add(term.match);
+        hits.push({
+          file: path,
+          line: 0,
+          tag: term.tag,
+          token: term.match,
+          text: path,
+        });
+      }
+    }
+  }
+  return hits;
+}
+
 function blankText(text: string): string[] {
   return Array.from(text, (character) => (character === "\n" ? "\n" : " "));
 }
@@ -560,6 +598,18 @@ async function scanTargetDir(cwd: string): Promise<string[]> {
   return entries;
 }
 
+async function scanPathTargets(cwd: string): Promise<string[]> {
+  const entries: string[] = [];
+  try {
+    for await (const entry of new Glob(PATH_GLOB).scan({ cwd, absolute: true })) {
+      if (!excludedTarget(entry)) entries.push(entry);
+    }
+  } catch {
+    console.error(`skip ${cwd}: directory not readable`);
+  }
+  return entries;
+}
+
 export type CliOptions = {
   readonly text?: string;
   readonly file?: string;
@@ -648,6 +698,7 @@ export async function main(args: ReadonlyArray<string>): Promise<number> {
     const path = resolve(options.file);
     try {
       const content = await Bun.file(path).text();
+      hits.push(...scanPath(shownPath(path)));
       for (const hit of scanText(content, shownPath(path))) {
         hits.push(hit);
       }
@@ -661,6 +712,28 @@ export async function main(args: ReadonlyArray<string>): Promise<number> {
       hits.push(hit);
     }
   } else {
+    const pathDirs: string[] = [];
+    const pathFiles: string[] = [];
+    if (options.paths.length === 0) {
+      pathDirs.push(REPO_ROOT);
+    } else {
+      for (const arg of options.paths) {
+        const resolved = resolve(arg);
+        try {
+          const stat = await Bun.file(resolved).stat();
+          if (stat.isDirectory()) pathDirs.push(resolved);
+          else pathFiles.push(resolved);
+        } catch {
+          console.error(`skip ${resolved}: file not found`);
+        }
+      }
+    }
+    const pathTargets: string[] = [];
+    for (const dir of pathDirs) pathTargets.push(...(await scanPathTargets(dir)));
+    for (const file of pathFiles) pathTargets.push(file);
+    for (const path of [...new Set(pathTargets)].sort()) {
+      hits.push(...scanPath(shownPath(path)));
+    }
     for (const target of await readTargets(options.paths)) {
       const extension = extname(target.path);
       const text = SOURCE_EXTENSIONS.has(extension)
@@ -673,7 +746,11 @@ export async function main(args: ReadonlyArray<string>): Promise<number> {
   }
 
   for (const hit of hits) {
-    console.log(`${hit.file}:${hit.line}: [${hit.tag}] ${hit.token}: ${hit.text}`);
+    if (hit.line === 0) {
+      console.log(`${hit.file} (path): [${hit.tag}] ${hit.token}: ${hit.text}`);
+    } else {
+      console.log(`${hit.file}:${hit.line}: [${hit.tag}] ${hit.token}: ${hit.text}`);
+    }
   }
   console.log();
   console.log(`hits: ${hits.length}.`);

@@ -7,12 +7,12 @@ work across TypeScript, Kotlin, Rust, Swift, and Dart on 2026-09-28. The current
 Swift work is preserved as an unfinished checkpoint with
 [explicit follow-up](investigations/architecture-round-1/swift-checkpoint-todo.md).
 This document defines the target responsibilities and the work boundaries.
-It is a design contract; the corresponding infrastructure is not complete.
+It is a design record; the corresponding infrastructure is not complete.
 
 The coordinator owns architecture, semantic decisions, task briefs, reviews,
 and acceptance. Claude Code and Goose own implementation and test changes.
 Each executor receives the exact source revision, relevant repository rules,
-interface contract, file ownership, test obligations, and durable handoff path.
+interface specification, file ownership, test obligations, and durable handoff path.
 Record the CLI, actual model, and provider independently.
 
 ## Layers and dependency rules
@@ -24,13 +24,13 @@ Separate policy selection from the operations that realize its result.
 
 | Layer | Owned decisions and outputs | Permitted dependencies |
 | --- | --- | --- |
-| Source contract and normalization | Accepted source forms, specified semantics, rewrite input/output guarantees, source occurrence | Source specifications and typed source; no target text |
+| Source specification and normalization | Accepted source forms, specified semantics, rewrite input/output guarantees, source occurrence | Source specifications and typed source; no target text |
 | Semantic facts | Declaration identity, value identity, null and initialization facts, effect dependencies, flow joins and invalidation | Normalized source, symbol and control-flow information; no target spelling |
 | Target representation policy | Storage, parameter/body/return representation, object sharing, numeric width, error and container representation | Semantic facts and declared target capabilities |
-| Operation and boundary policy | Conversions, argument/default operations, writable-place operations, evaluation sequencing, branch result agreement | Actual produced representation, destination contract, relevant flow/effect facts |
+| Operation and boundary policy | Conversions, argument/default operations, writable-place operations, evaluation sequencing, branch result agreement | Actual produced representation, destination requirement, relevant flow/effect facts |
 | Target construction | Structured values, places, statements, exits, temporaries, declarations, and helper calls | Selected plans and prepared operands; target syntax rules |
 | Printing and diagnostic export | Text, precedence, escaping, source ranges and decision explanations | Completed target structure and retained provenance |
-| Platform integration | Extern signatures, helper declarations, imports, module closure, output artifacts | Declared platform contracts and selected target dependencies |
+| Platform integration | Extern signatures, helper declarations, imports, module closure, output artifacts | Declared platform specifications and selected target dependencies |
 
 Each fact has one authoritative producer, a scope, consumers, and invalidation
 rules. A source type can constrain representation selection without certifying
@@ -56,9 +56,9 @@ actual output representation. Printing cannot recover semantic facts by parsing
 its own output. Diagnostic export consumes provenance and never selects a
 semantic operation.
 
-## Contracts required for each policy
+## Interface requirements for each policy
 
-The [policy interface contracts](compiler-policy-contracts.md) record accepted
+The [policy interface decisions](compiler-policy-interfaces.md) record accepted
 record distinctions and finite presence rules. Package proposals must satisfy
 them before their implementation is assigned.
 
@@ -95,11 +95,11 @@ implementation assignment requires an accepted brief and exact file ownership.
 
 | Package | Policy responsibility | Dependencies and expected delivery |
 | --- | --- | --- |
-| A: Value and declaration representation | Stable declaration/body storage, produced values, destination requirements, conversions and defaults | Existing semantic rulings; shared input/result contracts, target adapters, removal inventory; includes unfinished Swift array work |
+| A: Value and declaration representation | Stable declaration/body storage, produced values, destination requirements, conversions and defaults | Existing semantic rulings; shared input/result interfaces, target adapters, removal inventory; includes unfinished Swift array work |
 | B: Flow and evaluation | Binding identity, invalidation, branch/loop/exception joins, operand effects, evaluation order | Normalized source identities; scoped fact queries and sequencing plans consumed by A, C, and D |
-| C: Identity and writable places | Alias visibility, object sharing, container lifetime, original assignment location through projections | Source identity rules and B's effect facts; explicit place and sharing contracts replacing name lists and rendered-path guesses |
+| C: Identity and writable places | Alias visibility, object sharing, container lifetime, original assignment location through projections | Source identity rules and B's effect facts; explicit place and sharing rules replacing name lists and rendered-path guesses |
 | D: Control-flow results | Branch values, return/assignment/discard intent, reachable exits, structured joins | A's representation facts and B's flow facts; target construction that preserves nested scopes without rewriting return text |
-| E: Intrinsics and platform contracts | Numeric/string domains, selected helper signatures, replacement-call results, imports and module closure | Source operation specifications and A's representation interface; declared operation results and target legality |
+| E: Intrinsics and platform integration | Numeric/string domains, selected helper signatures, replacement-call results, imports and module closure | Source operation specifications and A's representation interface; declared operation results and target legality |
 | F: Evidence and diagnostics | Occurrence lineage, policy decision records, source mapping, child output retention, layered conformance | Shared identity/result interfaces; observation consumers that expose decisions without participating in selection |
 
 A, B, C, E, and F can begin interface design and inventory concurrently. D's
@@ -111,16 +111,16 @@ Use separate task worktrees or exact nonoverlapping file ownership. Shared
 policy modules also have one writer. Cross-package interface changes return to
 the coordinator before dependent implementations change. Independent modules,
 fixtures, and target integrations can proceed concurrently after their input
-contracts agree. Heavy compiler and consumer test runs share a measured
+interfaces agree. Heavy compiler and consumer test runs share a measured
 resource budget and fixed candidate schedule.
 
 ## Cross-review and acceptance
 
 Claude Code reviews Goose deliveries and Goose reviews Claude Code deliveries
 where both routes are available. The coordinator resolves disagreements against
-source contracts and actual code. Record execution deviations, missing guidance,
+source specifications and actual code. Record execution deviations, missing guidance,
 ambiguous authority, and insufficient verification separately. Revise the owning
-document when the contract or instruction is deficient.
+document when the requirement or instruction is deficient.
 
 Each policy migration must show where its facts originate, how every migrated
 consumer uses them, which duplicate decisions were removed, and which paths
@@ -152,7 +152,7 @@ into the architecture branch.
 ## Programme completion
 
 The earlier first-cycle criteria remain required evidence. The expanded work
-also requires accepted policy contracts, a five-target migration inventory,
+also requires accepted policy decisions, a five-target migration inventory,
 verified removal of duplicate decisions in each required migration,
 cross-platform executor review, and integration regression evidence. Scheduling
 an unresolved item records outstanding work. Open items
