@@ -610,6 +610,7 @@ class SwiftDecl {
         if (v.isStatic && DataTableHelper.isDataTableField(field)) {
             final elems = DataTableHelper.getDataTableElements(field.expr());
             if (elems != null) {
+                imports.runtime("TiqianArray");
                 return ["    public static let "
                     + SwiftNameEscape.escape(field.name)
                     + ": TiqianArray<Int32> = TiqianArray(["
