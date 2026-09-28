@@ -10,6 +10,14 @@ The Kotlin tree is present under `reference/kotlin/`. The Kotlin rulings in thes
 
 A later compilation and generation stage produces or verifies target code against these specifications. Without written specifications, unit tests inherit ad hoc translation choices, and disagreements in emitted bytes cannot be localized to a single design decision. Each specification document serves as the single location where a translation decision is defined and justified.
 
+## Compiler analysis method
+
+[Compiler problem analysis](../compiler-problem-analysis.md) defines the method
+for investigating translation problems and assigning repairs to compiler
+responsibilities. Read it with the relevant semantic specification and the
+[translator implementation standard](style/02-translator-implementation-standard.md)
+before changing a translation mechanism.
+
 ## Classification
 
 Specifications are organized into six categories:
