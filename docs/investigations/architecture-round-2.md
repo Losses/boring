@@ -152,3 +152,9 @@ types and exits early does not establish normal compilation. A paired native
 result requires matching authored input, case defines, successful compilation,
 and the resulting artifact. These checks improve diagnosis; they do not replace
 the later Boring matrix or the required fixed-revision Tiqian regression.
+
+The next compiler batch is the
+[canonical source-container foundation](architecture-round-2/a-source-container-facts.md).
+Its worktree is pinned independently while the observation runners finish
+review. The brief specifies source identity, alias and outer-null distinctions,
+the initial adapters, and the remaining comparator consumer migration.
