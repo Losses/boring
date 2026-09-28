@@ -234,3 +234,23 @@ The first argument grows before the sequence stabilizes. An implementation
 must explain how its expansion decision handles this transition; adding an
 exception for this record would leave the analysis rule unverified. The
 executor owns the corresponding compiler observation and general correction.
+
+### Host references and type substitution
+
+The executor observed unequal exposed macro references while investigating
+finite generic recursion. Treat nominal declaration identity and parameter
+substitution as separate obligations. Typed source module, package and name
+identify an ordinary named declaration within a compilation; actual arguments
+remain separate. A type parameter additionally requires its owning binder and
+parameter index. Source positions and target names cannot supply that owner.
+
+The coordinator verified that the Nix environment uses Haxe 4.3.7 and inspected
+its installed `TypeTools.hx`. The public substitution method calls the compiler
+operation `apply_params`. The corresponding
+[Haxe 4.3.7 macro implementation](https://github.com/HaxeFoundation/haxe/blob/4.3.7/src/macro/macroApi.ml#L2079)
+uses a non-physical type comparison for parameter normalization before applying
+the substitution. Unequal macro wrapper references therefore do not establish
+a failure of that operation. Record the public API's actual substituted field
+before replacing it; a replacement must preserve every type form its consumers
+require. This source inspection establishes the API path. The executor's
+recursive fixture results remain pending.
