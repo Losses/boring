@@ -1,0 +1,8 @@
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/haxe/comparison-plan
+-main comparisonplan.ComparisonPlanProbe
+--macro comparisonplan.ComparisonPlanProbe.run()
+--interp

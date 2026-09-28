@@ -9,6 +9,10 @@ import RuntimeResidents;
 import ExpressionPredicates;
 import EnumQueryExpander;
 import StructuralKeyValidator;
+import SourceComparisonAnalysis;
+import SourceComparisonAnalysis.SourceComparisonRequest;
+import SourceComparisonAnalysis.SourceComparisonShape;
+import SourceComparisonAnalysis.SourceComparisonPlanResult;
 
 enum KeyDomain {
     IntKey;
@@ -185,45 +189,46 @@ class PolicyQueries {
     }
 
     public static function isDataClassFieldKey(t:Type):Bool {
-        return switch (t) {
-            case TAbstract(a, params): a.get()
-                    .name == "Int" || (a.get()
-                    .name == "Null" && params.length == 1 && isDataClassFieldKey(params[0])) || (a.get().pack.join(".") == "std"
-                    && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
-            case TEnum(_, _): true;
-            case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
-            case TLazy(f): isDataClassFieldKey(f());
-            case _: switch (Context.follow(t)) {
-                    case TAbstract(a, params): a.get()
-                            .name == "Int" || (a.get()
-                            .name == "Null" && params.length == 1 && isDataClassFieldKey(params[0])) || (a.get().pack.join(".") == "std"
-                            && a.get().name == "ReadOnlyArray" && params.length == 1 && isDataClassFieldKey(params[0]));
-                    case TEnum(_, _): true;
-                    case TInst(c, _): c.get().name == "String" || c.get().meta.has(":dataClass");
-                    case _: false;
-                };
+        return isSortedKeyShape(SourceComparisonAnalysis.analyzeShape(t));
+    }
+
+    static function isSortedKeyShape(shape:SourceComparisonShape):Bool {
+        return switch (shape) {
+            case IntShape | StringShape | EnumShape(_, _): true;
+            case NullableShape(inner) | SequenceShape(inner): isSortedKeyShape(inner);
+            case RecordShape(record):
+                switch (SourceComparisonAnalysis.comparisonPlan(record, SortedKey)) {
+                    case ComparisonPlanReady(_): true;
+                    case ComparisonPlanFailed(_, _, _): false;
+                    case ComparisonPlanUnresolved(path, reason):
+                        Context.error("dataClass key comparison analysis incomplete at " + path + ": " + reason, Context.currentPos());
+                        false;
+                }
+            case _: false;
         };
     }
 
+    static function validateDataClassRecord(declaration:Ref<ClassType>, arguments:Array<Type>, pos:haxe.macro.Expr.Position):Array<ClassField> {
+        final cls = declaration.get();
+        final record = SourceComparisonAnalysis.analyzeRecord(declaration, arguments);
+        switch (SourceComparisonAnalysis.comparisonPlan(record, SortedKey)) {
+            case ComparisonPlanReady(_):
+            case ComparisonPlanFailed(path, reason, sourceType):
+                final detail = sourceType == null
+                    ? "comparison analysis could not establish a finite plan: " + reason
+                    : "unsupported type " + Std.string(sourceType) + " (" + reason + ")";
+                Context.error("dataClass key " + cls.name + " field " + path + " " + detail, pos);
+            case ComparisonPlanUnresolved(path, reason):
+                Context.error("dataClass key " + cls.name + " field " + path + " comparison analysis incomplete: " + reason, pos);
+        }
+        return [for (field in record.fields) field.field];
+    }
+
     public static function validateDataClassField(root:ClassType, field:ClassField, path:String):Void {
-        if (switch (field.kind) {
-                case FVar(read, write): read.match(AccCall) && write.match(AccNever);
-                case _: false;
-            })
+        if (!SourceComparisonAnalysis.isStoredField(field))
             return;
         if (!isDataClassFieldKey(field.type)) {
             Context.error("dataClass key " + root.name + " field " + path + " has unsupported type " + field.type, field.pos);
-            return;
-        }
-        switch (Context.follow(field.type)) {
-            case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                for (f in c.get().fields.get())
-                    if (switch (f.kind) {
-                            case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                            case _: false;
-                        })
-                        validateDataClassField(root, f, path + "." + f.name);
-            case _:
         }
     }
 
@@ -244,20 +249,12 @@ class PolicyQueries {
                         p);
                     IntKey;
                 }
-            case TInst(c, _):
+            case TInst(c, arguments):
                 final cls = c.get();
                 if (cls.name == "String") {
                     StringKey;
                 } else if (cls.meta.has(":dataClass")) {
-                    final fields = [
-                        for (f in cls.fields.get())
-                            if (switch (f.kind) {
-                                    case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                                    case _: false;
-                                }) f
-                    ];
-                    for (f in fields)
-                        validateDataClassField(cls, f, f.name);
+                    final fields = validateDataClassRecord(c, arguments, p);
                     DataClassKey(cls, fields);
                 } else {
                     Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys",
