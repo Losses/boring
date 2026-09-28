@@ -44,3 +44,21 @@ stages for mapped, unmapped, invalid metadata and invalid Haxe cases. The
 documentation style check had zero hits. This accepts the focused TypeScript
 diagnostic batch for integration; it does not establish full diagnostic
 coverage or the final Boring and Tiqian regression result.
+
+## Kotlin target compilation after the second consumer repair
+
+The Kotlin writer's second focused attempt `attempt-Cr55yxrt` retained
+generation, 27 output assertions, two mutation controls, and matching selected
+input hashes. Independent review found that the production prepared root and
+the emitter query agree on the nested guarded read. It also checked the
+default-parameter entry decision, body-local write ownership, and name-state
+restoration in that attempt.
+
+The coordinator then compiled the generated Kotlin and received exit one.
+`LocalPresenceOps.kt:102` calls deprecated `String.toUpperCase()` in the new
+defaulted nullable parameter case; the target compiler reports that call as
+an error. The separate `producedCall` case uses `uppercase()`. The writer has
+the exact failure and owns the correction. The passing output assertions
+remain source and printer observations, while Kotlin target conformance is
+currently contradicted by the compiler result. The new fixture also retains
+two vaguely named interfaces that must be renamed before integration.
