@@ -15,7 +15,7 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
-. "$HERE/../test/stage-check.sh"
+. "$HERE/../../../support/stage-check.sh"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
 cd "$ROOT" || exit 1
 if [ "${IN_NIX_SHELL:-}" = "" ]; then
@@ -123,7 +123,7 @@ input_manifest() {
 	local output=$1 listing="$RUN/input-files.list"
 	{
 		find packages/compiler tests/haxe/source-container-policy -type f -print0
-		printf '%s\0' README.md
+		printf '%s\0' README.md tests/support/stage-check.sh
 	} | sort -z >"$listing" || return 1
 	xargs -0 sha256sum <"$listing" >"$output" || return 1
 }
@@ -203,7 +203,8 @@ identity_step kotlinc-version kotlinc -version
 identity_step swiftc-version swiftc --version
 identity_step dart-version dart --version
 identity_step resolved-boring-library haxelib path boring
-identity_step authored-source-hashes sha256sum tests/haxe/source-container-policy/gen/*.hxml \
+identity_step authored-source-hashes sha256sum tests/support/stage-check.sh \
+	tests/haxe/source-container-policy/gen/*.hxml \
 	tests/haxe/source-container-policy/gen/*.sh tests/haxe/source-container-policy/native/*.sh \
 	tests/haxe/source-container-policy/native/expected/* tests/haxe/source-container-policy/scp/*.hx \
 	tests/haxe/source-container-policy/scp/face/*.hx tests/haxe/source-container-policy/run.hxml
