@@ -191,6 +191,27 @@ ordinary calls. The existing scalar direct-key and anonymous-structure paths
 remain separate consumers to review when a selected operation is shared with
 them. A record-only change cannot establish their migration.
 
+### Four-target inventory review
+
+The later read-only inventory and independent review distinguished static
+emitter paths from completed target behavior. Use these cases to set the first
+gate for each adapter, before claiming a semantic defect or a successful
+migration:
+
+| Target | Source finding and first discriminator |
+| --- | --- |
+| TypeScript | A generic field can reach a body branch that emits no comparison, but the declaration capability gate may suppress the whole helper first. Generate `Box<Int>` as a sorted key and typecheck the output; inspect the resident helper only if one was emitted. |
+| Kotlin | The nullable Int branch compares decimal text, so values 2 and 10 are a direct ordering discriminator. `Null<ReadOnlyArray<Enum>>` also reaches two emissions of the same enum helper name. Compile the generated tree before the runtime ordering check. |
+| Rust | Record Int fields compare unsigned business storage, while a scalar Int key site reinterprets that storage as signed. Establish whether negative values belong to the accepted business subset before using `-1` and 0 as a runtime discriminator. |
+| Dart | A nested data class comparator inside a nullable read-only array is printed without the module-qualified helper reference used by other arms. Place the child in another module and analyze the generated Dart tree. |
+
+These adapter probes leave the source comparison domain unchanged.
+Keep TypeScript's declaration gate and key-site request as separate decisions;
+a missing helper is different from a helper that silently skips a field.
+Kotlin declaration and expression files remain reserved by the B2 consumer
+handoff. The shared source interface has one owner; the disjoint target
+adapters can proceed in parallel only after that interface is accepted.
+
 Preserve payload-enum behavior while its source ruling is unresolved. Source
 admission, target comparator availability and ordinary object identity remain
 separate queries. Include ordinary reference classes as controls whenever a
