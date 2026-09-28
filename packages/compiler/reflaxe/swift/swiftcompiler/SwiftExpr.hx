@@ -11,6 +11,12 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import SourceComparisonAnalysis;
+import SourceComparisonAnalysis.SourceRecordNode;
+import SourceComparisonAnalysis.SourceComparisonShape;
+import swiftcompiler.SwiftComparisonPlan;
+import swiftcompiler.SwiftComparisonPlan.SwiftComparisonPlanResult;
+import SourceComparisonAnalysis.SourceComparisonRequest;
 import ExpressionBlockNorm;
 import ConstantFold;
 import ConstantFold.FoldedReal;
@@ -1414,8 +1420,8 @@ class SwiftExpr {
         return switch (stripWrap(e).expr) {
             case TConst(TInt(_)): "Int32(" + expr(e) + ")";
             case TField(subj, fa) if (fieldName(fa) == "length"):
-                // A String length is the UTF-16 code-unit count (the Haxe
-                // String.length rule) and never Swift's grapheme-cluster count.
+                // Haxe String.length counts UTF-16 code units. Swift's String.count
+                // counts grapheme clusters.
                 // Resident modules render String as [UInt16], where .count already
                 // counts units; business modules need .utf16.count to keep index
                 // loops aligned with the UTF-16 indexing ABI.
@@ -4611,12 +4617,83 @@ class SwiftExpr {
                 imports.value(def.module, cmpName);
                 cmpName;
             case DataClassKey(cls, _):
-                final cmpName = "compare" + cls.name;
+                final record:Null<SourceRecordNode> = switch (SourceComparisonAnalysis.analyzeShape(kType)) {
+                    case RecordShape(record): record;
+                    case _: null;
+                };
+                final selectedArguments = record == null ? [for (parameter in cls.params) parameter.t] : record.arguments;
+                final declaration = record == null ? SourceComparisonAnalysis.declarationReference(cls) : record.declarationRef;
+                final cmpName = switch (SwiftComparisonPlan.select(declaration, selectedArguments, SortedKey)) {
+                    case SwiftComparisonPlanReady(plan): plan.name;
+                    case SwiftComparisonPlanFailed(path, reason, _):
+                        Context.error("Swift sorted key comparison plan failed at " + path + ": " + reason, pos);
+                        "compare" + cls.name;
+                    case SwiftComparisonPlanUnresolved(path, reason):
+                        Context.error("Swift sorted key comparison analysis incomplete at " + path + ": " + reason, pos);
+                        "compare" + cls.name;
+                };
                 imports.value(cls.module, cmpName);
-                cmpName;
+                final schema = switch (SwiftComparisonPlan.selectSchema(declaration, SortedKey)) {
+                    case SwiftComparisonPlanReady(plan): plan;
+                    case _: null;
+                };
+                final evidence = schema == null ? [] : [for (index in schema.requiredArguments)
+                    "compareArgument" + index + ": " + comparisonWitness(selectedArguments[index], pos)];
+                evidence.length == 0 ? cmpName : "{ lhs, rhs in " + cmpName + "(lhs, rhs, " + evidence.join(", ") + ") }";
             case EnumKey(en):
                 imports.value(en.module, "compare" + en.name);
                 "compare" + en.name;
+        };
+    }
+
+    function comparisonWitness(type:Type, pos:haxe.macro.Expr.Position):String {
+        final facts = SourceContainerAnalysis.analyze(type);
+        return switch (facts.wrapper) {
+            case ExplicitOuterNull(inner):
+                final child = comparisonWitness(inner, pos);
+                "{ lhs, rhs in if lhs == nil && rhs != nil { return -1 }; if lhs != nil && rhs == nil { return 1 }; if let l = lhs, let r = rhs { return " + child + "(l, r) }; return 0 }";
+            case WrapperUnresolved(_): Context.error("Swift comparator evidence requires a resolved generic argument", pos); "";
+            case NoExplicitWrapper: switch (facts.face) {
+                case ReadOnlyArrayFace(element):
+                    final child = comparisonWitness(element, pos);
+                    "{ lhs, rhs in var i = 0; while i < lhs.count && i < rhs.count { let c = " + child + "(lhs[i], rhs[i]); if c != 0 { return c }; i += 1 }; if lhs.count < rhs.count { return -1 }; if lhs.count > rhs.count { return 1 }; return 0 }";
+                case MutableArray(_): Context.error("mutable arrays cannot supply sorted-key comparison evidence", pos); "";
+                case UnresolvedSource(_): Context.error("Swift comparator evidence requires a resolved generic argument", pos); "";
+                case OtherSourceType: switch (facts.resolvedType) {
+                    case TAbstract(reference, _):
+                        final abs = reference.get();
+                        if (abs.name == "Int" && abs.module == "StdTypes") {
+                            imports.runtime("SortedTable"); "SortedTable.compareInts";
+                        } else if (abs.name == "Float" || abs.name == "Bool") {
+                            Context.error("generic sorted-key evidence does not support " + abs.name, pos); "";
+                        } else Context.error("generic sorted-key evidence has no Swift operation", pos);
+                    case TInst(reference, arguments):
+                        final cls = reference.get();
+                        if (cls.name == "String" && cls.pack.length == 0) {
+                            imports.runtime("compareUnitOrder"); "compareUnitOrder";
+                        } else if (cls.meta.has(":dataClass")) {
+                            final plan = switch (SwiftComparisonPlan.select(reference, arguments, SortedKey)) {
+                                case SwiftComparisonPlanReady(selected): selected;
+                                case SwiftComparisonPlanFailed(path, reason, _): Context.error("Swift comparator witness failed at " + path + ": " + reason, pos); null;
+                                case SwiftComparisonPlanUnresolved(path, reason): Context.error("Swift comparator witness is incomplete at " + path + ": " + reason, pos); null;
+                            };
+                            final schema = switch (SwiftComparisonPlan.selectSchema(reference, SortedKey)) {
+                                case SwiftComparisonPlanReady(selected): selected;
+                                case _: null;
+                            };
+                            if (plan == null) "" else {
+                                imports.value(cls.module, plan.name);
+                                final evidence = schema == null ? [] : [for (index in schema.requiredArguments)
+                                    "compareArgument" + index + ": " + comparisonWitness(arguments[index], pos)];
+                                "{ lhs, rhs in " + plan.name + "(lhs, rhs" + (evidence.length == 0 ? "" : ", " + evidence.join(", ")) + ") }";
+                            }
+                        } else Context.error("generic sorted-key evidence has no Swift operation", pos);
+                    case TEnum(reference, _):
+                        imports.value(reference.get().module, "compare" + reference.get().name);
+                        "compare" + reference.get().name;
+                    case _: Context.error("generic sorted-key evidence has no Swift operation", pos); "";
+                }
+            }
         };
     }
 
@@ -5366,8 +5443,8 @@ class SwiftExpr {
 
     /**
         A previous read on a folded exception uses the Swift runtime's
-        nullable cause link, preserving the Haxe chaining rule for the generated
-        exception class (features/06 previous chaining).
+        nullable cause link. Generated exception classes retain Haxe previous
+        chaining (features/06 previous chaining).
     **/
     function foldedExceptionPrevious(subj:TypedExpr):Null<String> {
         switch (Context.follow(subj.t)) {
@@ -6800,9 +6877,9 @@ class SwiftExpr {
     }
 
     /**
-        True for the empty string literal, the `split` separator whose haxe
-        rule is one element per UTF-16 code unit and never a platform
-        pattern match.
+        True for the empty string literal. A `split` with an empty separator
+        returns one element per UTF-16 code unit, independent of platform
+        pattern matching.
     **/
     function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {
         if (name != "split" || args.length != 1)

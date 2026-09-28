@@ -1,0 +1,11 @@
+case	expected	rule
+int-ordinary	unequal=AB#size2;AB#size2|swapped=BA#size2;BA#size2|equal=size1atB	16 kind 1 Int compares as integer values; A is the smaller value in both observations; equal operands leave one entry with the last put (16 equality clause, features/27 ruling 1)
+int-extremes	minMax=AB#size2;AB#size2|maxMin=BA#size2;BA#size2|equal=size1atB	16 kind 1 Int compares as integer values over the signed 32-bit domain, so -2147483648 sorts before 2147483647 in both operand orders
+array-order	singleton=AB#size2;AB#size2|swapped=BA#size2;BA#size2|equalCollection=size1atB|prefix=AB#size2;AB#size2|prefixSwapped=BA#size2;BA#size2|firstUnequal=AB#size2;AB#size2|firstUnequalSwapped=BA#size2;BA#size2	16 kind 5 ReadOnlyArray<Int> compares element-wise in index order, the first unequal element states the direction, and the shorter array sorts first
+nullable-order	absentAbsent=size1atB|absentPresent=AB#size2;AB#size2|presentAbsent=BA#size2;BA#size2|presentEqual=size1atB|presentUnequal=AB#size2;AB#size2|presentUnequalSwapped=BA#size2;BA#size2	16 kind 6 Null<T> puts a null value before every non-null value and equal nulls compare equal; two present values compare by the collection rule of 16 kind 5
+string-order	equal=size1atB|ascii=AB#size2;AB#size2|asciiSwapped=BA#size2;BA#size2|astral=AB#size2;AB#size2|astralSwapped=BA#size2;BA#size2	16 kind 2 String compares in UTF-16 code unit order (spec 07); U+10000 carries the leading surrogate 0xD800, which sorts before the single unit 0xE000, so the scalar-value order would give the opposite direction
+nullable-int-order	twoTen=AB#size2;AB#size2|minusTwoOne=AB#size2;AB#size2
+mixed-sign-array-order	AB#size2;AB#size2
+shared-enum-helpers	first=AB;second=AB
+same-short-record-helpers	left=AB;right=AB
+parameter-composition	direct=AB;unused=AB;nested=AB;nullable=NV;sequence=AB

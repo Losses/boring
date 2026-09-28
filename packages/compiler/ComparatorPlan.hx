@@ -2,8 +2,8 @@
 import haxe.macro.Type;
 
 /**
-    Shared field classification for the per-target dataClassComparator
-    printers. `entries` filters the comparable fields of a `:dataClass`
+    Legacy shared field classification for target dataClassComparator
+    adapters outside the Swift migration. `entries` filters the comparable fields of a `:dataClass`
     exactly as the five Decl copies did and peels the nullable and
     ReadOnlyArray layers once. The two strictness flags reproduce each
     target's own ReadOnlyArray detection at the outer arm and the inner
