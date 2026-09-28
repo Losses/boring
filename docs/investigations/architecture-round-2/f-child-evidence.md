@@ -25,6 +25,11 @@ child execution module under `tools/bundle/`, add tests under
 project configuration and target recipes retain their accepted behavior.
 No other work package writes these files during F1.
 
+F1 captures commands invoked through `step`. The direct consistency-manager
+execution in `actionCompare` remains outside this batch and retains its current
+console behavior. Document that exclusion beside the option; an F1 run does
+not establish complete evidence for the compare action.
+
 Use named, typed records and typed host API declarations for new logic. Existing
 driver typing issues remain explicit surrounding work; they do not authorize
 new untyped result records. Keep child execution and evidence serialization
@@ -51,6 +56,11 @@ For every `step` invocation, retain:
   certify which compiler source a package resolver actually loaded.
 
 Retain child streams without losing bytes through text decoding and re-encoding.
+The captured execution must request buffer output from the host process API.
+It cannot recover original bytes by wrapping the existing UTF-8 `runCommand`
+result. Execute each command once, retain its raw buffers, and decode a copy
+only for console presentation. The captured result uses a typed record with
+separate status, signal, error, and completeness fields.
 Use the repository's standard JSON facilities for the record. Do not serialize
 the inherited environment or credentials. Record relevant declared override key
 names if needed; effective compiler input provenance remains a separate task.
@@ -84,12 +94,20 @@ Do not run a language platform matrix for this tooling batch's focused checks.
 5. A child observes argv containing spaces, its cwd, and an explicit environment
    override. Captured and uncaptured execution must observe the same inputs.
 6. Non-ASCII and non-UTF8 bytes in both streams survive byte comparison. Exercise
-   partial-output/error handling against the selected capture implementation.
+   buffer exhaustion with a child that emits beyond the configured capture
+   limit. Retain partial streams and the host error, and mark capture incomplete.
 7. A forced capture-write failure cannot report complete evidence or return a
    successful driver result under enabled capture.
 8. Exercise the actual `Driver.step` integration through a small project or
    dedicated test entry. Testing only the new helper cannot prove successful
    output is retained by the driver or failure exit still occurs.
+
+The focused suite compiles the driver from its checkout in the pinned Nix
+environment. It must run in a clean checkout with no existing generated driver.
+Use external filesystem conditions to force capture-write failure; production
+code needs no test-only failure switch. Host API declarations must preserve
+buffers as opaque values and distinguish exclusive directory creation from
+recursive directory creation, which cannot establish a fresh run by itself.
 
 Build the driver in the pinned Nix environment, run focused tests, and apply
 format, typing, lint, and wording checks relevant to the changed files. Preserve
