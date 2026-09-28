@@ -79,3 +79,22 @@ A target's ability to emit an operation does not widen the sorted-key domain of
 standard library spec 16. Kotlin's helper prepass currently reclassifies fields
 independently of the shared comparator body plan; both must eventually consume
 one decision. Completing the three initial adapters does not complete that work.
+
+## Pinned host API review
+
+The coordinator inspected Haxe 4.3.7's installed standard library during A2
+review. `std/haxe/macro/Type.hx` declares `TMono` through a nullable type
+reference and `TLazy` through a delayed type computation.
+`std/haxe/macro/TypeTools.hx` implements alias argument substitution in
+`applyTypeParameters` and rejects unequal argument counts; its traversal
+helpers also distinguish unresolved monomorphs from resolved ones.
+`std/haxe/macro/Context.hx` states the typing-phase precondition for `follow`
+and describes the `onAfterTyping` callback, including additional callback
+invocations when new types are defined.
+
+This is API evidence from the pinned installation. It does not establish the
+behavior of the new analyzer or each Boring caller. The
+[source resolution contract](../../compiler-policy-contracts.md#source-analysis-phase-and-resolution)
+now makes unresolved state, coherent resolution, permitted host resolution,
+and resource exhaustion explicit. The implementation must verify these rules
+on real typed inputs before its source facts support target migration.
