@@ -90,12 +90,14 @@ independent reviewers inspect a recorded snapshot or an integrated revision.
 
 The A and C diagnostic fixtures are integrated at `5eb3429b`; their
 [acceptance record](investigations/architecture-round-2/observation-acceptance.md)
-limits the claims to observed classifier and assignment behavior. A2 implements
-the source-container analysis and its three initial query adapters. F1
-implements child execution evidence in the bundle driver. Both remain under
-review. A3's comparator design awaits the independent consumer audit and the
-accepted A2 interface before compiler writes are assigned. These tasks do not
-complete P08's mechanism migration or P09's regression requirements.
+limits the claims to observed classifier and assignment behavior. A2's
+source-container analysis and three query adapters are integrated at `f104e3bf`;
+F1's child execution evidence is integrated at `8a2a9c6a`. Their delivery
+reviews retain the limits of the focused checks. A3 has an accepted consumer
+audit and is collecting runtime comparison evidence before compiler migration.
+F2 consolidates stage membership for two fixtures; D1 repairs Swift ordinary
+runtime declaration dependencies; B1 observes actual flow consumers. These
+tasks do not complete P08's mechanism migration or P09's regression requirements.
 
 The fixed Tiqian input remains `8504d230228e8206689a2049bbb84b671c1f079a`.
 The previous validation checkout was absent during the latest environment

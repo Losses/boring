@@ -19,7 +19,9 @@ The printed run directory under `out/place-contract/runs/` holds, per stage:
 or native input and output to its digest, so a runtime result traces to the
 artifact that produced it. `summary.txt` collects the status table, the
 diagnostic checks, and the verdict. Earlier run directories are never
-rewritten.
+rewritten. Stage membership is checked by the shared
+`tests/support/stage-check.sh`, which the runner sources and names in its
+`authored-source-hashes` identity record.
 
 Every Rust case owns `case-<label>/` with its own `rust-gen`, rlib, and
 harness. A stage runs only when its producer stage exited zero in the same

@@ -26,7 +26,7 @@ if [ "${IN_NIX_SHELL:-}" = "" ]; then
 	exit 1
 fi
 # shellcheck disable=SC1091
-. "$HERE/test/stage-check.sh"
+. "$HERE/../../support/stage-check.sh"
 EVIDENCE=out/place-contract
 ALLOC_PARENT="$EVIDENCE/runs"
 mkdir -p "$ALLOC_PARENT" || exit 1
@@ -143,7 +143,8 @@ identity() {
 	identity_step haxe-version haxe --version
 	identity_step bun-version bun --version
 	identity_step rustc-version rustc --version
-	identity_step authored-source-hashes sha256sum tests/haxe/place-contract/*.hxml \
+	identity_step authored-source-hashes sha256sum tests/support/stage-check.sh \
+		tests/haxe/place-contract/*.hxml \
 		tests/haxe/place-contract/*.sh tests/haxe/place-contract/native/*.rs \
 		tests/haxe/place-contract/place/*.hx tests/haxe/place-contract/place/rejected/*.hx
 	if [ "$IDENTITY_FAILURES" != "0" ]; then
