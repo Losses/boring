@@ -74,12 +74,36 @@ been exercised.
 ## Todo and dependencies
 
 Current status: round 2 policy work is running on independent branch
-`arch/agent-guided-governance`, based on
+`arch/agent-guided-governance`, originally based on
 `e3b8bab39ac2da0e17e9d04e031f03bd39290274`. The
 [round 1 record](investigations/architecture-round-1.md) retains the initial
 investigation and Swift decisions. The
 [round 2 record](investigations/architecture-round-2.md) records the current
 policy assignments and corrective reviews.
+
+### Reading the task labels and current delivery
+
+Letters A–F name compiler responsibilities in the
+[policy architecture](compiler-policy-architecture.md). A number after a
+letter names a bounded batch inside that responsibility. Platform coverage
+and completion state are recorded separately. P00–P12 below are programme
+gates. The round 1 A/B/C investigation labels are historical names and do not
+replace the round 2 policy packages.
+
+This snapshot records the state on 2026-09-28. A committed checkpoint makes
+code reviewable; it does not mean its consumers or regression gate passed.
+
+| Package | Reviewable code and current boundary | Next acceptance step |
+| --- | --- | --- |
+| A: types, values, and representation | The Swift array pilot is an unfinished checkpoint at `e5e21854`; shared source-container facts are integrated at `f104e3bf`. A3 finite comparison admission is being corrected in an isolated worktree after an exact binder-identity collision and a legal expanding alias were found. | Establish finite alias and binder identity contracts, then migrate comparison consumers across the five targets. |
+| B: flow and evaluation | B1's focused observation fixture is integrated. B2 source-local presence analysis and 167 authored observations are published as an isolated candidate at `6fc46587` on `arch/policy-b-local-presence`; no Kotlin consumer uses it yet. The source module is 1,732 lines, so ownership and decomposition remain part of review. | Verify property setter effects, then connect and test every Kotlin local-proof consumer. |
+| C: identity and writable places | Classifier and place observation fixtures are integrated at `5eb3429b`; they do not implement the place migration. | Establish place identity and writeback through target lowering. |
+| D: control-flow results | The source/target result contract is documented; the policy migration has not begun. | Start after the A and B interfaces required by branch and return construction are accepted. |
+| E: intrinsics and platform contracts | Swift ordinary-array runtime dependency correction is integrated at `f3a8955a`; broader numeric, string, and module contracts remain open. | Validate target operation and helper closure across the affected languages. |
+| F: evidence and diagnostics | Child execution evidence is integrated at `8a2a9c6a`, and shared stage membership verification at `d873da91`. Source mapping and the full diagnostic contract remain open. | Connect policy decisions to source occurrences and preserve layered verdicts. |
+
+The fixed Tiqian revision is prepared, but the full Boring and Tiqian
+candidate gates have not run. P08–P10 and P12 remain open for that reason.
 
 The owner selected shared alias visibility for ordinary read-only arrays.
 The unfinished Swift checkpoint is `e5e21854`. P07's prepared-value design
