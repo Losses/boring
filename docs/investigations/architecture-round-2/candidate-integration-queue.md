@@ -27,6 +27,16 @@ consumers have separate active native tasks: TypeScript
 checkout and must supply target compilation and runtime evidence before
 integration. Dart remains unassigned until an execution slot is free.
 
+The three active checkouts each edit the `ComparatorPlan` row in
+`SemanticPassRegistry.hx`; integration must combine that row from actual
+remaining callers. The registry currently searches entire Haxe file contents
+for a module name. Swift's only remaining `ComparatorPlan` text is a comment
+in `SwiftComparisonPlan.hx`, yet the registry still lists Swift. Thus this
+check can pass without a real consumer. Before accepting the four remaining
+target migrations, review actual imports and calls, remove targets that no
+longer consume the legacy module, and add a discriminator that fails when a
+listed target contains the name only in comments.
+
 An earlier attempt to launch the TypeScript writer through Claude Code was
 rejected by the outer approval review because the configured BigModel service
 would receive private source without authorization recognized in this session.
