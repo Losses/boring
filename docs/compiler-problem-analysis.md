@@ -173,6 +173,16 @@ that continually expands its arguments. State the traversal's termination
 argument and how unresolved obligations reach consumers. A repeated name or
 arbitrary depth limit cannot establish source rejection.
 
+Review a termination claim against the transition that produces the next
+instance. Growth observed in several concrete arguments does not establish
+that the same dependency can keep growing: a parameter may be replaced by a
+constant or supplied from another parameter that later stabilizes. Include a
+finite sequence that grows before reaching a repeated instance, alongside
+permutations and continual expansion. Explain why the decision holds for every
+admitted transition. Keep an incomplete analysis distinct from a source-rule
+violation in the result type and through its consumers; different diagnostic
+wording alone does not provide that distinction.
+
 ## Investigation and repair procedure
 
 ### Establish the authority of each claim
