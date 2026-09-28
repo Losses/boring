@@ -1,0 +1,11 @@
+# Focused source container fact check.
+# Run from the repository root; the caller supplies the output path so every
+# attempt writes into its own evidence directory:
+#   nix develop -c haxe tests/haxe/source-container-policy/run.hxml \
+#     -js out/source-container-policy/<run>/check.js
+#   nix develop -c bun out/source-container-policy/<run>/check.js
+-cp packages/compiler
+-cp tests/haxe/source-container-policy
+-cp samples
+-main scp.Main
+-D source-container-check

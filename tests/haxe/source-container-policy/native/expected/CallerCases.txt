@@ -1,0 +1,3 @@
+sumDirect=6
+sumReadOnlyDirect=0
+names=annbo

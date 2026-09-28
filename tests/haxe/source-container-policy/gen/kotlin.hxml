@@ -1,0 +1,17 @@
+# Kotlin generation of the container caller cases.
+# Run from the repository root:
+#   nix develop -c haxe tests/haxe/source-container-policy/gen/kotlin.hxml \
+#     -D kotlin-output=out/source-container-policy/<run>/kotlin/gen \
+#     -D kotlin-test-output=out/source-container-policy/<run>/kotlin/gen-tests
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/source-container-policy
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/source-container-policy'])
+--macro kotlincompiler.Compiler.use()
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+scp.CallerCases
