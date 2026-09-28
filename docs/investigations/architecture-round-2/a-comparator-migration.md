@@ -424,15 +424,30 @@ The earlier review's claim that the growing type arguments make a Swift
 comparator impossible was therefore incorrect. For the source request,
 `Expand<T>` has no demanded parameter operation: its record reference never
 uses `T` as a comparable value. The finite source summary may admit it.
-Target realization still has to represent a call to the resident comparator
-at the substituted argument type and emit a legal body. The current
-`SwiftRecordOrder` plan names a nested concrete plan; that operation form
-does not express this recursive call. Assign a target realization diagnostic
-to the missing operation if it cannot be constructed, distinct from the
-source key-admission diagnostic.
+The current declaration schema already carries a back reference to the same
+resident comparator for this empty-evidence edge. A macro-only probe observed
+`SwiftRecordOrder` with that back reference and an empty required-argument
+list; the printer can emit the recursive call. This establishes that the
+operation form represents the edge, while whole-module emission remains
+unproved for this example. The concrete `select` entry instead recursively
+expands `Expand<ReadOnlyArray<T>>` in `analyzeRecord` and overflows before the
+resident body can be emitted. Replace that concrete expansion with the
+finite admission method above; do not invent a new target operation solely
+for this empty-evidence recursion.
 
-Use the probe as a discriminator for operation vocabulary, with normal and
-optimized target compilation plus finite runtime values. An uninhabited
+Demanded nested parameters have a separate target composition defect. A
+bounded Haxe-to-Swift probe generated resident comparators for `Box<T>` and
+holders containing `Box<Int>`, `Box<ReadOnlyArray<T>>` and
+`ArrayBox<ReadOnlyArray<T>>`. Haxe generation passed, but Swift rejected all
+three nested calls because the required `compareArgument0` was omitted.
+The printer currently forwards evidence only when an actual argument is a
+direct parent binder. A concrete or composite argument needs a composed
+operation with its own target dependencies. Report a target realization
+failure if that operation cannot be constructed; keep it distinct from a
+source key-admission failure.
+
+Use the Swift compiler probe as a discriminator for target legality, with
+normal and optimized compilation plus finite runtime values. An uninhabited
 non-null recursive field proves only that its Swift type declaration is
 legal; it supplies no runtime case. Do not infer target impossibility from
 an infinite sequence of concrete type spellings without checking whether a
