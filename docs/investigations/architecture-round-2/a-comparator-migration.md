@@ -201,3 +201,36 @@ that planned helper identities, names, imports and native operand types agree.
 An unresolved target naming limitation must remain visible even when source
 identity is correctly represented. Remove the legacy strictness flags and
 duplicate classification owner only after their last target consumer migrates.
+
+## Interface checkpoint review
+
+An independent review examined a frozen implementation checkpoint based on
+`f3a8955a`. Its findings are static; the active implementation has subsequent
+changes and requires its own verification. Acceptance remains open for:
+
+- Helper symbol scope: a record-local helper counter can produce duplicate
+  declarations at file scope. Use two records in one source module with the same
+  enum field type to distinguish an invalid redeclaration from legal overloads.
+- Instantiation agreement: admitting `SortedMap<P<Int>, String>` from actual
+  type arguments requires a generated comparator for that same request.
+  Analysis of an unconstrained declaration `P<T>` cannot establish it.
+- Request identity: sorted-key admission and optional equality capability
+  must remain distinguishable at adapter boundaries as well as inside the
+  source planner.
+- Termination reasoning: an observed increase in actual type arguments is
+  insufficient evidence of indefinite expansion. The coordinator challenged
+  the review's initial proof and assigned a separate analysis of the transition.
+
+The termination challenge is symbolic, with no native execution claim. For a
+record `R<A, B>` whose next field is `Null<R<Box<B>, Box<Box<Int>>>>`, starting
+at `R<Int, Int>` produces argument pairs:
+
+1. `(Int, Int)`.
+2. `(Box<Int>, Box<Box<Int>>)`.
+3. `(Box<Box<Box<Int>>>, Box<Box<Int>>)`.
+4. The same pair as step 3.
+
+The first argument grows before the sequence stabilizes. An implementation
+must explain how its expansion decision handles this transition; adding an
+exception for this record would leave the analysis rule unverified. The
+executor owns the corresponding compiler observation and general correction.
