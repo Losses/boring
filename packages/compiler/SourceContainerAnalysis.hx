@@ -63,19 +63,19 @@ class SourceContainerAnalysis {
                                     outerNull = inner;
                                 current = inner;
                             case _:
-                                return resolved(outerNull, OtherSourceType);
+                                return resolved(outerNull, OtherSourceType, current);
                         }
                     } else if (isReadOnlyDeclaration(abs) && params.length == 1) {
-                        return resolved(outerNull, ReadOnlyArrayFace(params[0]));
+                        return resolved(outerNull, ReadOnlyArrayFace(params[0]), current);
                     } else {
-                        return resolved(outerNull, OtherSourceType);
+                        return resolved(outerNull, OtherSourceType, current);
                     }
                 case TInst(classRef, params):
                     final cls = classRef.get();
                     if (isArrayDeclaration(cls) && params.length == 1) {
-                        return resolved(outerNull, MutableArray(params[0]));
+                        return resolved(outerNull, MutableArray(params[0]), current);
                     } else {
-                        return resolved(outerNull, OtherSourceType);
+                        return resolved(outerNull, OtherSourceType, current);
                     }
                 case TType(aliasRef, params):
                     var repeated = false;
@@ -119,14 +119,14 @@ class SourceContainerAnalysis {
                         current = referenced;
                     }
                 case _:
-                    return resolved(outerNull, OtherSourceType);
+                    return resolved(outerNull, OtherSourceType, current);
             }
         }
         return unresolved(NullTypeInput, outerWrapper(outerNull, NullTypeInput));
     }
 
-    static function resolved(outerNull:Null<Type>, face:SourceContainerFace):SourceContainerFacts {
-        return {wrapper: outerNull == null ? NoExplicitWrapper : ExplicitOuterNull(outerNull), face: face};
+    static function resolved(outerNull:Null<Type>, face:SourceContainerFace, resolvedType:Type):SourceContainerFacts {
+        return {wrapper: outerNull == null ? NoExplicitWrapper : ExplicitOuterNull(outerNull), face: face, resolvedType: resolvedType};
     }
 
     static function outerWrapper(outerNull:Null<Type>, reason:UnresolvedReason):SourceNullWrapper {
@@ -134,7 +134,7 @@ class SourceContainerAnalysis {
     }
 
     static function unresolved(reason:UnresolvedReason, wrapper:SourceNullWrapper):SourceContainerFacts {
-        return {wrapper: wrapper, face: UnresolvedSource(reason)};
+        return {wrapper: wrapper, face: UnresolvedSource(reason), resolvedType: null};
     }
 
     static function sameArguments(left:Array<Type>, right:Array<Type>):Bool {
@@ -285,5 +285,9 @@ typedef SourceContainerFacts = {
 
     /** Source container declaration the written type names. */
     final face:SourceContainerFace;
+
+    /** Fully resolved terminal type for non-container source analysis. Null
+        only when the resolution itself is unresolved. */
+    final resolvedType:Null<Type>;
 }
 #end

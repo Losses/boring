@@ -1,0 +1,14 @@
+field-order	first,second
+parameter-schema-operations	ComparedParameter=ready:0[value:ParameterShape(0)]|IgnoredParameter=ready:[value:IntShape]|NestedParameter=ready:0[value:RecordUse(Box,args=1)]|NullableParameter=ready:0[value:NullableShape(ParameterShape(0))]|SequenceParameter=ready:0[value:SequenceShape(ParameterShape(0))]
+nested-binder-owner-and-operation	same-name=true:owner=0:foreign=null:foreign-own=0:foreign-as-outer=null:foreign-as-schema-argument=null:selected=record-parameter:0:parent-slot:0
+finite-box-nesting	Complete>Complete>RecordShape(SourceRecordNode)
+finite-argument-permutation	ready:true
+finite-growth-stabilizes	ready:true
+flat-25-record-chain	ready:true
+changing-argument-expansion	analysis-incomplete:true
+computed-field-excluded	first,second
+same-short-name-identities	true>Same>Same
+float-key-and-capability	ready:true|sorted=analysis-failed:value:Float is outside the sorted-key domain:no-type|admitted=false
+bool-key-and-capability	ready:true|sorted=analysis-failed:value:Bool is outside the sorted-key domain:no-type|admitted=false
+alias-int-shape	Int
+alias-sequence-shape	Sequence

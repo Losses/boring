@@ -1,0 +1,27 @@
+# Focused Swift generation of the comparison fixture.
+# Run from the repository root; the caller supplies the output tree so every
+# attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/comparison-runtime-observation/hxml/swift.hxml \
+#     -D swift-output=out/comparison-runtime-observation/runs/<run>/swift-gen
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/haxe/comparison-runtime-observation
+--macro Intercept.run(['tests/haxe/comparison-runtime-observation'])
+--macro swiftcompiler.Compiler.use()
+-D swift-output=out/comparison-runtime-observation/current/swift-gen
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none
+comparison.ComparisonObserve
+comparison.ParameterCompositionCases
+std.ReadOnlyArray
+std.SortedMap
+runtime.SortedTable
+# The emitted test host names runtime.TestCore, and its Kotlin host source
+# calls FPHelper, so the two modules ride in the entry list and the generated
+# tree compiles as a whole. They carry no observation case.
+runtime.TestCore
+std.FpText
