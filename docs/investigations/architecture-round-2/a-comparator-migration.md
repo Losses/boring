@@ -361,3 +361,51 @@ helper. Its final behavior remains subject to the pending ordering/equality
 ruling. Generic enum rendering and cross-module target names have separate
 existing limits. These findings cannot justify changing the source domain or
 treating a target realization failure as unsupported source syntax.
+
+### Finite source admission
+
+The source rule for sorted record keys is
+[spec 16](../../specs/stdlib/16-dataclass-sorted-keys.md). Admission is a
+request-specific question about stored fields. It can be summarized over
+declarations without constructing every concrete generic instantiation.
+
+For each reachable declaration and comparison request, retain a finite set of
+parameter slots whose operations are required, plus finite unsupported and
+unresolved obligation sites. A stored field contributes its own requirement.
+`Null<T>` and `ReadOnlyArray<T>` forward the requirement of `T`. For a nested
+`S<A, B>`, inspect only the actual arguments in the slots that S requires.
+An unused argument does not impose a comparison operation on its type.
+
+Start every declaration's set empty, then repeatedly add requirements exposed
+by its stored fields and nested declaration edges. The sets only grow and
+contain slots from finitely many declarations. Under finite field-type
+resolution, this iteration reaches a fixed point after at most one new fact
+per slot followed by a stable pass. Store diagnostic sites and edges without
+appending unbounded path strings. Reconstruct a field path when reporting a
+failure, with a cycle boundary in the explanation.
+
+The summary answers source admission. Keep the finite declaration schema and
+its actual type-argument terms for operation construction. Swift and the other
+targets then compose typed evidence and choose their own legal comparator
+representation. Target compilation and runtime behavior remain separate
+checks; growth of concrete type arguments alone does not prove a resident
+generic comparator impossible.
+
+The first fixtures must make demand propagation observable. A recursive
+`Swap<A, B>` with only a next field has no parameter demand, so it cannot test
+the fixed point. Add a stored `value:A`: the next edge swaps A and B and
+eventually requires both. A recursive field using `Array<T>` must reject when
+its argument becomes demanded; the same unused argument supplies no source
+ordering obligation. Include the finite-growth example, a chain beyond the
+former test-only node limit, reversed field order and mutual recursion.
+Check a production entry without an injected budget. A budgeted probe only
+shows how an incomplete analysis is reported.
+
+The proof depends on finite resolution of each declaration's field terms.
+Inspect transparent aliases and lazy host types for expanding resolution
+cycles before relying on that premise. A generated binder marker must be
+identified through its owner and slot, since a user-authored anonymous field
+can repeat a generated spelling. Keep `SortedKey` and
+`OptionalEqualityCapability` as distinct requests; a concrete sorted key
+does not grant equality conformance to every instantiation of its generic
+declaration.
