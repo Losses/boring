@@ -1,0 +1,14 @@
+# Focused source-local presence fact check.
+# The check runs as the compile-time step of this compile, so its streams and
+# exit status are the compiler process's own. Run from the repository root,
+# with the output path supplied per attempt:
+#   nix develop -c haxe tests/haxe/local-presence-contract/run.hxml \
+#     > out/local-presence-contract/<run>/check-stdout.txt \
+#     2> out/local-presence-contract/<run>/check-stderr.txt
+# The exit status carries the verdict; a nonzero status is a failed check.
+-cp packages/compiler
+-cp tests/haxe/local-presence-contract
+-main lpc.Main
+--macro lpc.Checker.run()
+--interp
+-D local-presence-check
