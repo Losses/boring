@@ -7,7 +7,7 @@ set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
-. "$HERE/stage-check.sh"
+. "$HERE/../../../support/stage-check.sh"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

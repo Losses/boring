@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
-# Exact stage membership check for the place contract runner.
+# Exact stage membership check shared by the fixture runners.
 #
 # stage_check <status.tsv> <expected-stages.txt> <findings output>
 #
 # The status table carries one row per recorded stage, tab separated, with
 # the stage id in the first field and a header line named `stage`. The
-# expected file carries one stage id per line. The check reports, in the
-# findings file: a declared stage with no row, a declared stage with more
-# than one row, and a recorded stage whose id is not a declared line.
-# Comparison is by whole field or whole line, so a prefix such as `rustc`
-# never satisfies `rustc-R1`. The function returns nonzero when any of the
-# three findings is present.
+# expected file carries one stage id per line. The check reports a declared
+# stage with no row, a declared stage with more than one row, and a recorded
+# stage whose id is not a declared line. Comparison is by whole field or
+# whole line, so a prefix such as `rustc` never satisfies `rustc-R1`. The
+# function returns nonzero when any of the three findings is present.
+#
+# The fixture runners source this file and name it in their provenance
+# records. It takes explicit path inputs only and reads no caller globals.
+# It checks stage identity membership only: it does not establish that
+# expected stages were declared independently, that artifacts came from
+# successful producers, or that native semantics passed.
+
 stage_check() {
 	local status=$1 expected=$2 findings=$3
 	: >"$findings"
