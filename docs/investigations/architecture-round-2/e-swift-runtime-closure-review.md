@@ -86,9 +86,19 @@ hunks fails the formatter check. They carry no intended semantic change.
 
 ## Remaining acceptance boundaries
 
-An independent Goose source review is running against a 122-file hash-checked
-snapshot matching the compiler handover. Its findings will supplement this
-coordinator review. It is not yet a completed independent acceptance result.
+Goose completed an independent source review against the 122-file hash-checked
+snapshot matching the compiler handover. The report is
+`goose-swift-closure-review-report.md`. It confirms declaration ownership and
+identifies an additional unregistered producer: `SwiftDecl.varDecl` emits a
+static Int data table directly and returns before type mapping or runtime
+dependency registration. The coordinator confirmed that source path.
+
+The report predicts missing runtime declarations when this table is the sole
+runtime dependency. That consequence still needs generation and native evidence.
+The coordinator assigned the counterexample and correction to the existing
+Swift declaration owner. This finding extends the producer inventory and keeps
+complete ordinary-runtime closure unaccepted. It does not change the four
+measured integration outcomes above.
 
 The unfinished Swift prepared-value and boundary work remains open, as do the
 newly observed comparator defects. Existing branded mutable-array and exception

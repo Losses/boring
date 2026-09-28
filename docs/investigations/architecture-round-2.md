@@ -286,3 +286,15 @@ consumer; the remaining four target adapters follow interface acceptance.
 The task replaces independent capability and emission traversals and requires
 compositional integer, nullable and sequence operations. Payload-enum semantics
 remain unchanged pending the source ruling.
+
+The [integer operation review](architecture-round-2/a-integer-operation-review.md)
+separates source ordering, target storage and required boundary adaptation.
+The coordinator rejected a proposed helper reuse that would retain a numeric
+cast forbidden by repository rules. The analysis method now requires checking
+the helper's actual contract and dependency declarations before reuse.
+
+Early A3 review also found a proposed recursive-type guard that would reject
+finite generic nesting. The coordinator returned that guard to its execution
+owner and requested the distinguishing case. The method now requires an
+instance-aware termination argument. This is review feedback on an unfinished
+implementation, with its correction still awaiting verification.
