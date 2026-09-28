@@ -12,6 +12,8 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import ExpressionBlockNorm;
+import ConstantFold;
+import ConstantFold.FoldedReal;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
@@ -786,6 +788,11 @@ class SwiftExpr {
             case TVar(v, _):
                 // A declaration without initializer: definite
                 // initialization assigns it on every path before use.
+                // A local this pass proves unmentioned renders nothing:
+                // a bare var-name-type line would trade one diagnostic
+                // for another. (UnusedLocalNaming)
+                if (swiftUnusedLocals.exists(v.id))
+                    return [];
                 return [indent(depth) + "var " + localName(v) + ": " + types.of(v.t)];
             case TBlock(stmts):
                 final out = [indent(depth) + "do {"];
@@ -868,6 +875,16 @@ class SwiftExpr {
             case TUnop(OpDecrement, _, subj):
                 return [indent(depth) + expr(subj) + " -= 1"];
             case TBinop(OpAssign, l, r):
+                // The binding's declaration already rendered as an underscore
+                // discard (UnusedLocalNaming); the assignment keeps the right
+                // side's evaluation and discards the store.
+                // (WriteTargetIsNotRead)
+                switch (stripWrap(l).expr) {
+                    case TLocal(v) if (swiftUnusedLocals.exists(v.id)):
+                        final discardTry = containsThrowingCall(r) ? "try " : "";
+                        return [indent(depth) + "_ = " + discardTry + assignmentValue(l, r)];
+                    case _:
+                }
                 // A sanctioned coalescing conditional renders as its value
                 // read alone: the throwing default was hoisted into the
                 // normalization binding, so the throw the syntax tree
@@ -919,7 +936,24 @@ class SwiftExpr {
     }
 
     function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int):Array<String> {
-        final out = [indent(depth) + "if " + conditionText(c) + " {"];
+        // A condition the emitter folded to its constant renders the live
+        // branch alone; the dead branch would earn a will-never-be-executed
+        // diagnostic. Each branch keeps its own side effects.
+        // (FoldedConditionArm)
+        final folded = conditionText(c);
+        if (folded == "true" || folded == "false") {
+            final takeTrue = folded == "true";
+            final foldedSnapshot = saveNarrowed();
+            applyNarrowed(c, takeTrue);
+            var out:Array<String> = [];
+            if (takeTrue)
+                out = out.concat(blockLines(statementsOf(t), depth));
+            else if (f != null)
+                out = out.concat(blockLines(statementsOf(f), depth));
+            restoreNarrowed(foldedSnapshot);
+            return out;
+        }
+        final out = [indent(depth) + "if " + folded + " {"];
         final trueSnapshot = saveNarrowed();
         applyNarrowed(c, true);
         for (l in blockLines(statementsOf(t), depth + 1))
@@ -1427,7 +1461,15 @@ class SwiftExpr {
                                     for (l in blockLines(gb.prefix, depth + 1))
                                         out.push(l);
                                     out.push(indent(depth + 1) + "let " + localName(gb.entryVar) + " = " + expr(gb.entryInit));
-                                    out.push(indent(depth + 1) + "var " + localName(gb.bucketVar) + " = " + expr(gb.getCall) + " ?? "
+                                    // The bucket is a class instance: append and
+                                    // the put-back mutate the referenced object,
+                                    // not the binding. The plain assignment in the
+                                    // matched miss branch is consumed by this
+                                    // restructure, so the emitted text never
+                                    // reassigns the local and let is safe; a
+                                    // reassignment elsewhere would fail the
+                                    // swiftc compile gate loudly.
+                                    out.push(indent(depth + 1) + "let " + localName(gb.bucketVar) + " = " + expr(gb.getCall) + " ?? "
                                         + types.of(gb.bucketVar.t) + "()");
                                     out.push(indent(depth + 1) + localName(gb.bucketVar) + ".append(" + expr(gb.valArg) + ")");
                                     out.push(indent(depth + 1) + expr(gb.builderSubj) + ".put(" + expr(gb.keyArg) + ", " + localName(gb.bucketVar) + ")");
@@ -1469,8 +1511,14 @@ class SwiftExpr {
             for (l in blockLines(gb.prefix, depth + 1))
                 out.push(l);
             out.push(indent(depth + 1) + "let " + localName(gb.entryVar) + " = " + expr(gb.entryInit));
+            // The bucket is a class instance: append and the put-back
+            // mutate the referenced object, not the binding. The plain
+            // assignment in the matched miss branch is consumed by this
+            // restructure, so the emitted text never reassigns the local
+            // and let is safe; a reassignment elsewhere would fail the
+            // swiftc compile gate loudly.
             out.push(indent(depth + 1)
-                + "var "
+                + "let "
                 + localName(gb.bucketVar)
                 + " = "
                 + expr(gb.getCall)
@@ -1713,7 +1761,10 @@ class SwiftExpr {
 
         final arrName = localName(alloc.arr);
         final out:Array<String> = [];
-        out.push(indent(depth) + "var " + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
+        // A class instance's append/reserveCapacity mutate the referenced
+        // object, not the binding; only a genuine reassignment of the
+        // local requires var.
+        out.push(indent(depth) + (mutated.exists(alloc.arr.id) ? "var " : "let ") + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
             + strideValue(loop.bound) + ", by: 1) {");
@@ -1761,7 +1812,21 @@ class SwiftExpr {
             case TConst(c):
                 switch (c) {
                     case TInt(v): return Std.string(v);
-                    case TFloat(f): return floatLiteral(f);
+                    case TFloat(f):
+                        // A literal the target precision cannot represent folds
+                        // to the value its runtime conversion yields; swiftc
+                        // reports the unfolded spelling as underflow/overflow
+                        // during conversion. (ConstantFold)
+                        final foldedLiteral = ConstantFold.outOfRangeLiteral(f, FloatPrecision.isF32());
+                        if (foldedLiteral == null)
+                            return floatLiteral(f);
+                        return switch (foldedLiteral) {
+                            case FRPosInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
+                            case FRNegInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
+                            case FRZero(negative): floatLiteral(negative ? "-0.0" : "0.0");
+                            case FRNan: floatLiteral(f);
+                            case FRLeastNonzero: FloatPrecision.isF32() ? "Float.leastNonzeroMagnitude" : "Double.leastNonzeroMagnitude";
+                        };
                     case TString(s):
                         // The resident ABI carries strings as unit arrays
                         // (docs/specs/features/08-strings-and-unicode.md); business modules keep the
@@ -1903,6 +1968,18 @@ class SwiftExpr {
                 if (guarded != null)
                     return guarded;
                 final condition = expr(c);
+                // A condition the emitter already folded to its constant
+                // renders the live arm alone; the dead arm would earn a
+                // will-never-be-executed diagnostic from Swift.
+                // (FoldedConditionArm)
+                if (condition == "true" || condition == "false") {
+                    final takeTrue = condition == "true";
+                    final foldedSnapshot = saveNarrowed();
+                    applyNarrowed(c, takeTrue);
+                    final armText = ternaryBranch(takeTrue ? t : f, e);
+                    restoreNarrowed(foldedSnapshot);
+                    return armText;
+                }
                 final trueSnapshot = saveNarrowed();
                 applyNarrowed(c, true);
                 final trueText = ternaryBranch(t, e);
@@ -3220,7 +3297,15 @@ class SwiftExpr {
             return "false";
         }
         final known = TypeCheckHelper.knownIsOfType(args[0], target);
-        return known != null ? (known ? "true" : "false") : expr(args[0]) + " is " + expr(args[1]);
+        if (known != null)
+            return known ? "true" : "false";
+        // A nullable static type whose unwrapped class is the target or its
+        // subclass decides the check except for null, and nil compares false:
+        // the nil check reports exactly Std.isOfType's result, without the
+        // optional-vs-type 'is' test Swift flags. (NullableIsOfTypeNilCheck)
+        if (TypeCheckHelper.nullableClassIsTarget(args[0], target))
+            return expr(args[0]) + " != nil";
+        return expr(args[0]) + " is " + expr(args[1]);
     }
 
     function stdStringType(t:Type, value:String, inConcat:Bool, origin:TypedExpr, depth:Int = 0):String {
@@ -3790,10 +3875,20 @@ class SwiftExpr {
                         case TConst(TNull): "0";
                         case _: "Int(" + expr(args[1]) + ")";
                     };
+                    // The start-offset clamp exists for a negative runtime
+                    // offset; a start the compiler already knows is zero or a
+                    // non-negative constant never takes it, and Swift flags
+                    // the branch as dead. A variable start keeps the clamp.
+                    // (StringIndexOfDeadClamp)
+                    final startClamp = switch (stripWrap(args[1]).expr) {
+                        case TConst(TNull): "";
+                        case TConst(TInt(n)): n >= 0 ? "" : "; if i < 0 { i = 0 }";
+                        case _: "; if i < 0 { i = 0 }";
+                    };
                     return "Int32({ () -> Int in let h = Array(" + tryKw + s
                         + ".utf16); let n = Array(" + expr(args[0])
                         + ".utf16); var i = " + startText
-                        + "; if i < 0 { i = 0 }; while i + n.count <= h.count { if Array(h[i..<(i + n.count)]) == n { return i }; i += 1 }; return -1 }())";
+                        + startClamp + "; while i + n.count <= h.count { if Array(h[i..<(i + n.count)]) == n { return i }; i += 1 }; return -1 }())";
                 }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
@@ -5714,18 +5809,40 @@ class SwiftExpr {
         swiftShadowedLocals.clear();
         final declNames:Map<Int, String> = [];
         final readCounts:Map<Int, Int> = [];
+        final nullLiteralInits:Map<Int, Bool> = [];
         function countReads(node:TypedExpr):Void {
+            var skipIter = false;
             switch (node.expr) {
-                case TVar(v, _):
+                case TVar(v, init):
                     if (!readCounts.exists(v.id)) {
                         readCounts.set(v.id, 0);
                         declNames.set(v.id, v.name);
                     }
+                    // A null-literal initializer keeps the declared binding
+                    // optional; the emitter's NonOptionalNilComparison fold
+                    // does not fire for it, so its null comparisons stay
+                    // real reads.
+                    nullLiteralInits.set(v.id, init != null && init.expr.match(TConst(TNull)));
                 case TLocal(v):
                     readCounts.set(v.id, (readCounts.exists(v.id) ? readCounts.get(v.id) : 0) + 1);
+                case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
+                    // The emitter folds a null comparison whose subject's
+                    // binding is non-optional into its constant
+                    // (NonOptionalNilComparison); the folded comparison
+                    // renders no read of the binding, so it must not keep
+                    // the binding alive here. (FoldedNullCompareRead)
+                    final subject = isNullConstant(l) ? r : (isNullConstant(r) ? l : null);
+                    if (subject != null) {
+                        switch (stripWrap(subject).expr) {
+                            case TLocal(v) if (!isNullLeafType(v.t) && !nullLiteralInits.get(v.id)):
+                                skipIter = true;
+                            case _:
+                        }
+                    }
                 case _:
             }
-            haxe.macro.TypedExprTools.iter(node, countReads);
+            if (!skipIter)
+                haxe.macro.TypedExprTools.iter(node, countReads);
         }
         countReads(e);
         for (id in readCounts.keys())
@@ -5842,7 +5959,21 @@ class SwiftExpr {
                     case TArray(arr, _):
                         final receiver = mapBackingReceiver(arr);
                         switch (stripWrap(receiver == null ? arr : receiver).expr) {
-                            case TLocal(v): markMutated(v);
+                            case TLocal(v):
+
+                                if (isClassInstanceType(v.t) && !isBytesLeafType(v.t)) {
+                                    // A class instance's subscript writes target
+                                    // the referenced object, not the binding; the
+                                    // local can stay let. Bytes lowers to the
+                                    // native [UInt8] value array and keeps var.
+                                    // (ValueArrayBindingVar) Bytes lowers to the
+                                    // native [UInt8] value array and keeps var.
+                                    if (v.name != "`") {
+                                        mutatedNames.set(v.name, true);
+                                    }
+                                } else {
+                                    markMutated(v);
+                                }
                             case _:
                         }
                     case _:
@@ -5872,7 +6003,31 @@ class SwiftExpr {
                             || n == "push" || n == "pop" || n == "shift" || n == "unshift" || n == "splice" || n == "set" || n == "insert";
                         if (mutates) {
                             switch (stripWrap(subj).expr) {
-                                case TLocal(v): markMutated(v);
+                                case TLocal(v):
+                                    if (isStringBuf(subj)) {
+                                        // StringBuf lowers to the native [UInt16]
+                                        // value array: add/addChar write the binding
+                                        // itself and require var.
+                                        markMutated(v);
+
+                                    } else if (isClassInstanceType(v.t) && !isBytesLeafType(v.t)) {
+                                        // A class instance's method calls (push,
+                                        // pop, set, ...) mutate the referenced
+                                        // object, not the binding; keep the name
+                                        // marker so parameter shadow emission is
+                                        // byte-identical, but the local can stay
+                                        // let. Bytes follows to a class shape but
+                                        // lowers to the native [UInt8] value
+                                        // array, so it stays in the var camp.
+                                        // (ValueArrayBindingVar) Bytes follows to a class shape but
+                                        // lowers to the native [UInt8] value array,
+                                        // so it stays in the var camp.
+                                        if (v.name != "`") {
+                                            mutatedNames.set(v.name, true);
+                                        }
+                                    } else {
+                                        markMutated(v);
+                                    }
                                 case _:
                             }
                         }
