@@ -83,9 +83,9 @@ this plan. Earlier investigations are leads that require revision checks.
 - [x] P04: Assign three bounded investigation tasks from that baseline:
   A, architecture and recent fixes; B, verification and cost; C, documentation
   usability and upstream compiler references.
-- [ ] P05: Review A, B, and C; reconcile their evidence and publish the initial
+- [x] P05: Review A, B, and C; reconcile their evidence and publish the initial
   responsibility map, missing contracts, and ordered mechanism work list.
-- [ ] P06: Update existing internal guidance from the investigation findings.
+- [x] P06: Update existing internal guidance from the investigation findings.
   Record unresolved semantic rulings separately from implementation choices.
 - [ ] P07: Select the first mechanism and write a complete implementation brief,
   test matrix, file ownership list, and migration acceptance criteria.
