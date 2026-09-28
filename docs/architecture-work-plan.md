@@ -153,7 +153,7 @@ work and must not claim complete runtime naming conformance.
   revisions, preserving logs, generated-output identity, and warning results.
 - [ ] P10: Classify review failures, revise the appropriate documents, and
   publish the first round's acceptance and reflection record.
-- [ ] P11: Give an agent a related extension task using the revised documents.
+- [x] P11: Give an agent a related extension task using the revised documents.
   Assess its reasoning, implementation, and verification against the same
   standards. Apply required checks to any further code changes.
 - [ ] P12: Publish the programme review, accepted revisions, evidence gaps,
@@ -168,9 +168,10 @@ freezing the final P09 candidate when its dependencies permit. This allows
 the follow-up fixture or repair to share the final full verification run.
 P10's final reflection and P12 still require that verification evidence.
 The [storage-lifetime exercise](investigations/architecture-round-1/x-guidance-evaluation.md)
-is assigned to Goose at `db1bb984`, with an initial reasoning review before
-fixture implementation. It evaluates the revised guidance while broader J
-work continues; completion and acceptance remain pending.
+was assigned to Goose at `db1bb984`, with an initial reasoning review before
+fixture implementation. Its focused fixture and guidance evaluation are accepted
+after integration replay, with the required coordinator interventions recorded.
+Broader J work and P09's full candidate verification remain open.
 
 ## First investigation assignments
 
