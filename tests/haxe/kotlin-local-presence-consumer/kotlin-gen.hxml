@@ -1,0 +1,17 @@
+# Generate the focused Kotlin local-presence modules into a private output tree.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/kotlin-local-presence-consumer
+-cp samples
+--macro Intercept.run(['tests/haxe/kotlin-local-presence-consumer'])
+--macro kotlinlocalpresence.LocalPresenceFactProbe.run()
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/kotlin-local-presence-consumer/kotlin-gen
+-D kotlin-local-presence-trace=out/kotlin-local-presence-consumer/production-use-facts.tsv
+-D kotlin-local-presence-root-trace=out/kotlin-local-presence-consumer/prepared-root-facts.tsv
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+kotlinlocalpresence.LocalPresenceOps
+kotlinlocalpresence.LocalPresenceEnumOps
