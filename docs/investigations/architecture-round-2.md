@@ -259,3 +259,10 @@ different directory depths; those callers require their own resolved paths.
 The analysis method now requires explicit rule-domain and runner-path checks.
 These checks address the observed mistakes; their inclusion does not establish
 acceptance of the pending fixtures or shared helper delivery.
+
+The coordinator subsequently reviewed and integrated the
+[F2 stage membership delivery](architecture-round-2/f-stage-membership-review.md).
+Two existing fixtures now consume one implementation and retain their existing
+native failures. The report records the focused checks and the limits of this
+shared responsibility. B1 flow observation is assigned to GLM in an independent
+checkout at `41d67cad`; its child commands use the existing F1 capture caller.

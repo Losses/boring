@@ -33,7 +33,10 @@ and a forced monomorph, and a null input).
 into frozen candidate and baseline trees. The baseline is copied from the
 candidate, then restores `StaticFieldHelper.hx` from the base revision and
 removes `SourceContainerAnalysis.hx`. Both trees and every fixture/runner
-input are hashed before and after the attempt. Usage:
+input are hashed before and after the attempt. Stage membership is checked
+by the shared `tests/support/stage-check.sh`, which the runner sources and
+which the `input_manifest` and `authored-source-hashes` identity record
+include outside the fixture directory. Usage:
 
 ```
 nix develop -c bash tests/haxe/source-container-policy/gen/run.sh
