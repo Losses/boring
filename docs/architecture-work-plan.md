@@ -283,6 +283,22 @@ artifact locations. Test the exact candidate that is proposed for acceptance.
 Keep the candidate fixed while expensive checks run. New work forms a later
 candidate with its own evidence.
 
+For a dirty checkout, record the actual bytes consumed by the check. Git index
+blob identities describe indexed content; they cannot establish the identity
+of unstaged working files. Hash the relevant working files, record symbolic
+link targets without following them outside the assigned inputs, and verify
+the input identities after execution. Concurrent implementation work requires
+an immutable input copy or an exclusive verification interval. A changed input
+invalidates a claim about a single candidate even if the command succeeded.
+
+Create an exclusive directory for each verification attempt. Retain its
+configuration, transformed inputs, command arguments, separate output streams,
+numeric statuses and produced artifacts. Preserve partial records when a stage
+fails. A retry may replace a convenient active configuration only after the
+previous attempt's inputs and outputs have been retained. Expected stage and
+test lists come from the task's obligations and source configuration. Establish
+these expectations independently, then compare them with the actual execution.
+
 For consumer verification, trace the complete HXML include structure and all
 explicit compiler, standard-library and runtime paths. A correct haxelib mapping
 does not replace this check. Record actual loaded module paths during generation

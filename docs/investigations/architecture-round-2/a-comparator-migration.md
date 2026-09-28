@@ -43,6 +43,13 @@ would also change the decision used by `SwiftType.usesIdentityEquality` and
 `SwiftExpr`. Preserve that consumer's behavior unless a separate verified
 semantic correction requires a change.
 
+Spec 16 also says that unsupported records have no generated comparator. The
+existing Swift capability therefore needs a separate conformance decision;
+preserving its equality consumer during extraction does not establish that
+the current comparator domain satisfies the specification. Record this
+disagreement explicitly and test equality selection separately before changing
+the capability contract. The sorted-key domain remains unchanged.
+
 ## One selected plan for helpers and body
 
 A target comparison plan names the operations its body will perform and the
@@ -78,6 +85,32 @@ actual type arguments distinguish an instantiated record; a short class name
 cannot distinguish declarations in different modules. Detect an active cycle
 separately from a previously completed dependency. An unresolved source type
 or target dependency cannot be represented as a completed comparison plan.
+
+## Comparison semantics compose through field shapes
+
+A scalar comparison operation retains its specified ordering when used inside
+a nullable field, a collection element or a nested record. Plan construction
+must compose those operations. Independently selecting a collection strategy
+and a scalar strategy does not prove that the collection applies the scalar's
+ordering rule.
+
+Static inspection at `8e106066` provides two cases for the next executor to
+reproduce. In `SwiftDecl.dataClassComparator` and `nullableArrayComparator`,
+the default collection-element branch emits a positive result for unequal
+elements. If an admitted `ReadOnlyArray<Int>` reaches this branch, singleton
+values `[1]` and `[2]` would compare positive in both directions. Scalar and
+nullable integer branches also emit subtraction, which requires checking
+extreme values against the target integer range. These observations identify
+emission risks; this review did not generate or execute either case.
+
+For each target, verify sign reversal when operands are exchanged, zero exactly
+when the specified equality holds, and transitivity on selected ordered triples.
+Include integer limits, null ordering, unequal singleton collections, equal
+prefixes, enum constructor order and strings whose UTF-16 order differs from
+Unicode scalar order. Cite the source rule for each accepted form. Trace any
+failure through source admission, the selected plan and the emitted operation
+before assigning its repair. Preserve correct baseline behavior; record a
+reproduced semantic correction separately from structural extraction.
 
 ## Concrete migration sites
 
