@@ -12,6 +12,8 @@ import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
 import ExpressionBlockNorm;
+import ConstantFold;
+import ConstantFold.FoldedReal;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
 import PolicyQueries.StdStringCategory;
@@ -98,6 +100,12 @@ class KotlinExpr {
 
     /** Enum locals narrowed to a constructor by the active switch arm. */
     final enumVariants:Map<Int, String> = [];
+
+    /** Binop expressions whose rendered operands already widened to Float,
+        so the rendered result is Float and an outer widening at a call or
+        assignment boundary would repeat the conversion. Keyed by source
+        position. (WideningIdempotence) */
+    final floatRenderedBinops:Map<String, Bool> = [];
 
     final enumVariantExpressions:Map<String, String> = [];
 
@@ -484,6 +492,7 @@ class KotlinExpr {
         extractedLocals.clear();
         extractedFields.clear();
         declaredNullableInitLocals.clear();
+        floatRenderedBinops.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
         // Fuse declaration-plus-assignment pairs before the mutation scan.
@@ -570,6 +579,7 @@ class KotlinExpr {
         extractedLocals.clear();
         extractedFields.clear();
         declaredNullableInitLocals.clear();
+        floatRenderedBinops.clear();
         enumVariants.clear();
         registerNonNullDefaultParams(cls, f);
         scanLocals(f.expr);
@@ -704,8 +714,53 @@ class KotlinExpr {
         return PolicyQueries.statementsOf(e);
     }
 
+    /** The statement-position shift/pop lowering of (NullArmStatementFold):
+        the array receiver and which member, or null elsewhere. **/
+    function arrayPopShift(fn:TypedExpr):Null<{subj:TypedExpr, member:String}> {
+        return switch (stripWrap(fn).expr) {
+            case TField(subj, FInstance(c, _, cf)):
+                final member = cf.get().name;
+                if (c.get().name == "Array" && (member == "pop" || member == "shift")) {subj: subj, member: member};
+                else null;
+            case _:
+                null;
+        };
+    }
+
+    /**
+        True when the rendered arm is the null literal, directly or as the
+        single expression of a block: the arm carries no value and the
+        statement-position if can drop it. (NullArmStatementFold)
+    **/
+    function isNullLiteralArm(e:Null<TypedExpr>):Bool {
+        if (e == null)
+            return false;
+        return switch (stripWrap(e).expr) {
+            case TConst(TNull): true;
+            case TBlock(b) if (b.length == 1): stripWrap(b[0]).expr.match(TConst(TNull));
+            case _: false;
+        };
+    }
+
     function stmtLines(e:TypedExpr, depth:Int):Array<String> {
         switch (e.expr) {
+            // A statement-position if whose one arm is the null literal
+            // carries no value: rendering both arms turns the if into a
+            // Kotlin expression whose value is discarded and warns
+            // "expression is unused". Emit a single-branch statement.
+            // (NullArmStatementFold)
+            case TIf(c, t, f) if (f != null && isNullLiteralArm(t)):
+                return ["if (!(" + expr(c) + ")) " + expr(f)];
+            case TIf(c, t, f) if (t != null && isNullLiteralArm(f)):
+                return ["if (" + expr(c) + ") " + expr(t)];
+            // A statement-position shift/pop discards the removed element:
+            // emit the guarded removal as a statement, not as the if-else
+            // expression whose unused value warns "expression is unused".
+            // (NullArmStatementFold)
+            case TCall(fn, args) if (args.length == 0 && arrayPopShift(fn) != null):
+                final ps = arrayPopShift(fn);
+                final tail = ps.member == "pop" ? expr(ps.subj) + ".lastIndex" : "0";
+                return ["if (!(" + expr(ps.subj) + ".isEmpty())) " + expr(ps.subj) + ".removeAt(" + tail + ")"];
             case TVar(v, init) if (init != null && isTryRegion(init)):
                 final parts = tryRegionParts(init);
                 if (regionTailValue(statementsOf(parts.body)) == null) {
@@ -716,7 +771,7 @@ class KotlinExpr {
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
             case TVar(v, init) if (init != null):
                 final kw = mutated.exists(v.id) ? "var" : "val";
-#if boring_fold_debug
+#if kotlin_fold_debug
                 if (mutated.exists(v.id))
                     emissionTrace("MUTDECL", localName(v), Context.currentPos());
 #end
@@ -795,7 +850,7 @@ class KotlinExpr {
                     initText = extractAtDecl ? intToFloatText("(" + initText + ")!!") : intToFloatText(initText);
                     return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
                 }
-#if boring_fold_debug
+#if kotlin_fold_debug
                 if (extractAtDecl)
                     emissionTrace("DECL", initText, e.pos);
 #end
@@ -823,8 +878,13 @@ class KotlinExpr {
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
                 final out = [indent(depth) + "if (" + condition + ") {"];
+                // Arms render in their own dominance scope: an assertion
+                // inside one arm must not suppress a sibling read.
+                // (ExtractionSuppressesRepeat)
+                final armExtractions = extractionSnapshot();
                 for (l in blockLines(statementsOf(t), depth + 1))
                     out.push(l);
+                restoreExtractions(armExtractions);
                 final afterThen = proofSnapshot();
                 restoreProofs(base);
                 final afterElse = if (f != null) {
@@ -832,6 +892,7 @@ class KotlinExpr {
                     out.push(indent(depth) + "} else {");
                     for (l in blockLines(statementsOf(f), depth + 1))
                         out.push(l);
+                    restoreExtractions(armExtractions);
                     proofSnapshot();
                 } else {
                     addProofs(conditionProofs(c).elsePath);
@@ -846,8 +907,12 @@ class KotlinExpr {
                 return out;
             case TWhile(c, b, true):
                 final out = [indent(depth) + "while (" + expr(c) + ") {"];
+                // A loop body may run zero times: its assertions never
+                // dominate reads after the loop. (ExtractionSuppressesRepeat)
+                final bodyExtractions = extractionSnapshot();
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
+                restoreExtractions(bodyExtractions);
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(_, _, false):
@@ -875,7 +940,7 @@ class KotlinExpr {
                         var retText = expr(ret);
                         functionTypeExpected = wasFunctionTypeExpected;
                         if (rendersNullable(ret) && !isNullType(currentReturnType) && !currentReturnAllowsNullable) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                             emissionTrace("RETURN", retText, ret.pos);
 #end
                             retText = hardenAppend(retText, "!!");
@@ -1290,8 +1355,13 @@ class KotlinExpr {
                                 }
                                 if (!readsIndex) {
                                     final out = [indent(depth) + "for (" + localName(item) + " in " + expr(array) + ") {"];
+                                    // Zero-iteration scope: body assertions
+                                    // never dominate later reads.
+                                    // (ExtractionSuppressesRepeat)
+                                    final loopExtractions = extractionSnapshot();
                                     for (l in blockLines(loop.body.slice(1), depth + 1))
                                         out.push(l);
+                                    restoreExtractions(loopExtractions);
                                     out.push(indent(depth) + "}");
                                     return out;
                                 }
@@ -1307,8 +1377,12 @@ class KotlinExpr {
         final out = [
             indent(depth) + "for (" + name + " in " + startStr + " until " + boundStr + ") {"
         ];
+        // Zero-iteration scope: body assertions never dominate later
+        // reads. (ExtractionSuppressesRepeat)
+        final loopExtractions = extractionSnapshot();
         for (l in blockLines(loop.body, depth + 1))
             out.push(l);
+        restoreExtractions(loopExtractions);
         out.push(indent(depth) + "}");
         return out;
     }
@@ -1329,7 +1403,7 @@ class KotlinExpr {
                 // still extracts; the safe-call form yields Int? and Kotlin
                 // rejects it as a range endpoint (NonNullRangeBound).
                 if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                     emissionTrace("LOOP_BOUND", expr(subj), subj.pos);
 #end
                     return expr(subj) + "?." + suffix + "!!";
@@ -1427,6 +1501,19 @@ class KotlinExpr {
         return FloatPrecision.isF32() && addWidth ? s + "f" : s;
     }
 
+    /** Render a folded real through the module-real NaN/infinity constants (spec 23). */
+    function foldedRealText(folded:FoldedReal):String {
+        return switch (folded) {
+            case FRNan: FloatPrecision.isF32() ? "Float.NaN" : "Double.NaN";
+            case FRPosInfinity: FloatPrecision.isF32() ? "Float.POSITIVE_INFINITY" : "Double.POSITIVE_INFINITY";
+            case FRNegInfinity: FloatPrecision.isF32() ? "Float.NEGATIVE_INFINITY" : "Double.NEGATIVE_INFINITY";
+            case FRZero(negative): floatLiteral(negative ? "-0.0" : "0.0");
+            // Unreachable: kotlinc never reports the min-subnormal literal
+            // spelling as a diagnostic, so floatDivision never yields it.
+            case FRLeastNonzero: "0.0";
+        };
+    }
+
     function expr(e:TypedExpr):String {
         final int64Expr = int64Expression(e);
         if (int64Expr != null)
@@ -1469,6 +1556,14 @@ class KotlinExpr {
                     return expr(receiver) + "?.get(" + expr(idx) + ")";
                 }
                 return expr(receiver) + "[" + expr(idx) + "]";
+            case TBinop(OpDiv, l, r):
+                // A literal/literal division with a literal zero divisor folds
+                // to its IEEE quotient; kotlinc reports the unfolded spelling
+                // as "division by zero". (ConstantFold)
+                final foldedDivision = ConstantFold.floatDivision(l, r);
+                if (foldedDivision != null)
+                    return foldedRealText(foldedDivision);
+                return binop(e, OpDiv, l, r);
             case TBinop(op, l, r):
                 return binop(e, op, l, r);
             case TUnop(op, post, subj):
@@ -1543,7 +1638,13 @@ class KotlinExpr {
             case TEnumIndex(_):
                 return fail(e, "enum index only lowers inside a variant switch");
             case TFunction(f):
-                return functionLiteral(f);
+                // A lambda body may run after (or without) the enclosing
+                // statement: render it in its own dominance scope.
+                // (ExtractionSuppressesRepeat)
+                final fnExtractions = extractionSnapshot();
+                final fnText = functionLiteral(f);
+                restoreExtractions(fnExtractions);
+                return fnText;
             case TIf(c, t, f) if (f != null):
                 final coalescing = coalescingSiteFor(e);
                 if (coalescing != null) {
@@ -1566,11 +1667,16 @@ class KotlinExpr {
                 final condition = expr(c);
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
+                // Arms render in their own dominance scope.
+                // (ExtractionSuppressesRepeat)
+                final armExtractions = extractionSnapshot();
                 final thenText = expr(t);
+                restoreExtractions(armExtractions);
                 final afterThen = proofSnapshot();
                 restoreProofs(base);
                 addProofs(conditionProofs(c).elsePath);
                 final elseText = expr(f);
+                restoreExtractions(armExtractions);
                 final afterElse = proofSnapshot();
                 restoreProofs(intersectProofs(base, afterThen, afterElse));
                 // Haxe promotes nullable Float branches with integer literals
@@ -1578,6 +1684,12 @@ class KotlinExpr {
                 // Number & Comparable<*>, which cannot satisfy a Float result.
                 final branchThen = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(thenText) : thenText;
                 final branchElse = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(elseText) : elseText;
+                // A widened arm renders a Float value inside the if: the
+                // rendered if expression is Float, so an outer widening at
+                // an argument or assignment boundary would repeat the
+                // conversion. (WideningIdempotence)
+                if (branchThen != thenText || branchElse != elseText)
+                    floatRenderedBinops.set(Std.string(e.pos), true);
                 return "(if (" + condition + ") " + branchThen + " else " + branchElse + ")";
             case TSwitch(_, _, _):
                 return switchExpression(e);
@@ -1809,7 +1921,11 @@ class KotlinExpr {
                 if (variantKey != null)
                     enumVariantExpressions.set(variantKey, ef.name);
             }
+            // Each when arm renders in its own dominance scope.
+            // (ExtractionSuppressesRepeat)
+            final armExtractions = extractionSnapshot();
             final arm = armLines(c.expr, sw.t);
+            restoreExtractions(armExtractions);
             // The `is` pattern smart-casts the subject to the variant, so
             // payload captures read as properties on it. Arms separate by
             // newline; Kotlin `when` takes no comma between arms.
@@ -1912,9 +2028,13 @@ class KotlinExpr {
             out.push(l);
         }
         out.push(indent(depth) + "} catch (" + varName + ": " + varType + ") {");
+        // The catch arm runs only when the body threw: render it in its
+        // own dominance scope. (ExtractionSuppressesRepeat)
+        final catchExtractions = extractionSnapshot();
         catchVars.set(c.v.id, true);
         final handler = blockLines(statementsOf(c.expr), depth + 1);
         catchVars.remove(c.v.id);
+        restoreExtractions(catchExtractions);
         for (l in handler) {
             out.push(l);
         }
@@ -2106,7 +2226,7 @@ class KotlinExpr {
         if (isIntOrLongType(emittedType(r)) && isFloatType(l.t))
             value = intToFloatText(value);
         if (!isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!")) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("ASSIGN", value, r.pos);
 #end
             value = hardenAppend(value, "!!");
@@ -2312,6 +2432,28 @@ class KotlinExpr {
         }
     }
 
+    /** Dominance scope for extraction suppression: a branch arm or lambda
+        body renders in its own frame, so an assertion printed inside it
+        never suppresses a read in a sibling arm or after the join, where
+        the assertion may not have executed. (ExtractionSuppressesRepeat) */
+    function extractionSnapshot():{locals:Map<Int, Bool>, fields:Map<String, Bool>} {
+        final l:Map<Int, Bool> = [], f:Map<String, Bool> = [];
+        for (k in extractedLocals.keys())
+            l.set(k, true);
+        for (k in extractedFields.keys())
+            f.set(k, true);
+        return {locals: l, fields: f};
+    }
+
+    function restoreExtractions(s:{locals:Map<Int, Bool>, fields:Map<String, Bool>}):Void {
+        extractedLocals.clear();
+        extractedFields.clear();
+        for (k in s.locals.keys())
+            extractedLocals.set(k, true);
+        for (k in s.fields.keys())
+            extractedFields.set(k, true);
+    }
+
     function updateLocalProof(v:TVar, init:TypedExpr):Void {
         if (!isNullType(v.t))
             return;
@@ -2430,7 +2572,7 @@ class KotlinExpr {
                 // (ComparisonOperandProof)
                 final lp = proofFor(cl);
                 final rp = proofFor(cr);
-#if boring_fold_debug
+#if kotlin_fold_debug
                 Sys.stderr().writeString("CONDPROOF-CMP locals=" + lp.locals.concat(rp.locals).join(",") + "\n");
 #end
                 return {thenPath: {locals: lp.locals.concat(rp.locals), fields: lp.fields.concat(rp.fields)}, elsePath: empty()};
@@ -2538,10 +2680,14 @@ class KotlinExpr {
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject && (provenNonNull(subj) || guardProofBefore(subj)))) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
-            addProofExpr(subj);
+            // Decision only: no registration here. nullableAccess is also
+            // consulted as a pure query (rendersNullable, nullableChainHop),
+            // and a write on that path would let a probe render register a
+            // proof before the real emission decides. The emission sites
+            // that actually print "!!." register instead. (PureAccessDecision)
             return "!!.";
         }
         // The typer wraps an implicit Null<T> unwrap in TCast; the cast's
@@ -2553,8 +2699,18 @@ class KotlinExpr {
             case _:
         }
         if (!provenNonNull(subj) && !guardProofBefore(subj) && !guardedNonNullTernary(subj)
-            && (isNullType(subj.t) || isNullableRenderedField(subj)))
+            && (isNullType(subj.t) || isNullableRenderedField(subj))
+            && !extractedNonNullFieldRead(subj))
             return "?.";
+        // A field read whose Haxe type the typer widened to Null<T> only
+        // because the receiver is nullable yields the declared non-null
+        // property value once the receiver renders through an extraction:
+        // the extraction or plain-dot receiver already renders non-null, so
+        // the read needs neither a safe call nor an extraction of its own.
+        // (DeclaredFieldNonNull)
+        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)
+            && extractedNonNullFieldRead(subj))
+            return ".";
         // A safe-navigation hop widens the value produced by the whole
         // receiver chain.  The typed AST records that widened intermediate
         // field as non-null, so inspect the chain root as well; otherwise a
@@ -2575,7 +2731,7 @@ class KotlinExpr {
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
         if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
             return "!!.";
@@ -2609,7 +2765,27 @@ class KotlinExpr {
         var current = stripWrap(e);
         while (true) {
             switch (current.expr) {
-                case TField(subject, _):
+                case TField(subject, fa):
+                    // A hop whose own rendering extracts the subject
+                    // yields a non-null value, so the safe call must not
+                    // propagate past it. `instanceField` extracts with
+                    // `!!.` when a non-null declared property is read on
+                    // an unproven nullable subject, and the
+                    // (SafeCallHopHardening) rule hardens the same way
+                    // after an earlier safe-call hop.
+                    // (DeclaredFieldNonNull)
+                    final hopExtracted = switch (fa) {
+                        case FInstance(_, _, cf):
+                            final hopField = cf.get();
+                            fieldName(fa) != "length"
+                                && hopField.kind.match(FVar(_, _)) && !isNullType(hopField.type)
+                                && ((isNullType(subject.t) && !provenNonNull(subject) && !guardProofBefore(subject))
+                                    || (nullableChainHop(subject) && !guardProofBefore(subject)));
+                        case _:
+                            false;
+                    };
+                    if (hopExtracted)
+                        return false;
                     if ((isNullType(subject.t) || isNullableRenderedField(subject)) && nullableAccess(subject) == "?.") {
                         // A dominating condition can prove the chain root even
                         // when the intermediate field remains nullable in the
@@ -2622,6 +2798,67 @@ class KotlinExpr {
                     return false;
             }
         }
+    }
+
+    /**
+        True for a field read whose Haxe type the typer widened to Null<T>
+        only because the receiver is nullable, while the field itself
+        declares a non-null Kotlin property and the receiver renders through
+        an extraction. The extraction already rejects a null receiver, so
+        the read yields the declared non-null value: the widened Haxe type
+        must not force a safe call or a second extraction.
+        (DeclaredFieldNonNull)
+    **/
+    function extractedNonNullFieldRead(e:TypedExpr):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TField(recv, FInstance(c, _, cf)):
+                memberReadNonNull(c, cf, recv);
+            // A getter-property read the typer lowers to a nullary call:
+            // the call's field is the accessor member, and the Kotlin
+            // side renders it as the declared property.
+            // (DeclaredFieldNonNull)
+            case TCall(fn, args) if (args.length == 0):
+                switch (stripWrap(fn).expr) {
+                    case TField(recv, FInstance(c, _, cf)):
+                        memberReadNonNull(c, cf, recv);
+                    case _:
+                        false;
+                }
+            case _:
+                false;
+        };
+    }
+
+    /**
+        The shared test of (DeclaredFieldNonNull) for one member read: the
+        member declares a non-null Kotlin property (a regular val field or
+        a non-Null getter property, never the length/size lowering), the
+        receiver is a nullable-typed local the renderer extracts, and no
+        dominating proof already narrowed it.
+    **/
+    function memberReadNonNull(c:Ref<ClassType>, cf:Ref<ClassField>, recv:TypedExpr):Bool {
+        final field = cf.get();
+        if (isNullType(field.type))
+            return false;
+        var propertyName = field.name;
+        if (!field.kind.match(FVar(_, _))) {
+            if (StringTools.startsWith(propertyName, "get_")) {
+                propertyName = propertyName.substr(4);
+            } else {
+                return false;
+            }
+        }
+        if (propertyName == "length")
+            return false;
+        for (prop in c.get().fields.get()) {
+            final pf = prop;
+            if (pf.name == propertyName)
+                return !isNullType(pf.type) && !nullableRenderedField(c.get(), pf)
+                    && isNullType(recv.t) && !provenNonNull(recv) && !guardProofBefore(recv);
+        }
+        return !isNullType(field.type) && !nullableRenderedField(c.get(), field)
+            && isNullType(recv.t) && !provenNonNull(recv) && !guardProofBefore(recv);
     }
 
     function isNullableReferenceType(t:Null<Type>):Bool {
@@ -2642,8 +2879,15 @@ class KotlinExpr {
         context does not widen it back to non-null.
     **/
     function rendersNullable(e:TypedExpr):Bool {
-        if (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e))
+        if (isNullType(e.t) && !provenNonNull(e) && !guardProofBefore(e)) {
+            // A field read the typer widened to Null<T> because the
+            // receiver is nullable renders with the receiver extraction,
+            // so its value is the declared non-null property type.
+            // (DeclaredFieldNonNull)
+            if (extractedNonNullFieldRead(e))
+                return false;
             return true;
+        }
         // A null-initialized subject reads plain once the flow proves it
         // present: the proof wins over the storage shape.
         // (NullInitRespectsProof)
@@ -2988,13 +3232,31 @@ class KotlinExpr {
 
     function fieldAccessKey(e:TypedExpr):Null<String> {
         return switch (stripWrap(e).expr) {
-            case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
+            case TField(receiver, FInstance(_, _, cf)) | TField(receiver, FAnon(cf)):
                 switch (stripWrap(receiver).expr) {
-                    case TLocal(_) | TConst(TThis): "field:" + expr(e);
+                    // The key is built from the typed AST, not from rendered
+                    // text: expr() here would render the read and its nested
+                    // emissions would write the very registries a decision on
+                    // this key is about to consult. (PureAccessDecision)
+                    case TLocal(v): "field:" + v.id + "." + cf.get().name;
+                    case TConst(TThis): "field:this." + cf.get().name;
                     case _: null;
                 }
             case _: null;
         };
+    }
+
+    /** The stable local a subject chain is rooted at, or null. */
+    function subjectRootLocal(e:TypedExpr):Null<TVar> {
+        var root = stripWrap(e);
+        while (true) {
+            switch (root.expr) {
+                case TLocal(v): return v;
+                case TField(subject, _): root = stripWrap(subject);
+                case _: return null;
+            }
+        }
+        return null;
     }
 
     function isStringType(t:Type):Bool {
@@ -3103,6 +3365,12 @@ class KotlinExpr {
                 }
                 final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
                 final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
+                // Mixed Int/Float arithmetic renders both operands widened,
+                // so the rendered result is already Float: an outer
+                // widening at an argument or assignment boundary would
+                // repeat the conversion. (WideningIdempotence)
+                if (leftFinal != leftText || rightFinal != rightText)
+                    floatRenderedBinops.set(Std.string(e.pos), true);
                 return leftFinal + " " + symbolOf(op) + " " + rightFinal;
             case OpBoolOr:
                 // Kotlin's flow analysis treats a evaluated-false left
@@ -3155,10 +3423,15 @@ class KotlinExpr {
         // of a non-null Haxe value keeps its extraction.
         // (ConcatenationNullableArgument)
         final keepsNull = nullableArgument && isNullType(e.t) && !proven;
-        if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull
+        // A field read the typer widened to Null<T> whose rendering already
+        // extracts the receiver and reads a non-null declared property
+        // (`recv!!.member`) is non-null text: the operand needs no
+        // extraction of its own. (DeclaredFieldNonNull)
+        final widenedExtracted = extractedNonNullFieldRead(e);
+        if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull && !widenedExtracted
             && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
-#if boring_fold_debug
+#if kotlin_fold_debug
             emissionTrace("OPERAND proven=" + (provenNonNull(e) || guardProofBefore(e)) + " id=" + (switch (stripWrap(e).expr) { case TLocal(v): Std.string(v.id); case _: "f"; }) + " nullInit=" + nullInit, rendered, e.pos);
 #end
             rendered = hardenAppend(rendered, "!!");
@@ -3351,20 +3624,49 @@ class KotlinExpr {
             case FVar(_, _): true;
             case _: false;
         };
+        // The whole decision runs before any rendering: a probe that renders
+        // the subject would let its nested emissions write the very proof
+        // and extraction registries this decision consults. The pure
+        // rendersNullable walk replaces the old rendered-text probe.
+        // (PureAccessDecision)
+        final bareSubject = switch (stripWrap(subj).expr) {
+            case TLocal(_): true;
+            case _: false;
+        };
+        // Kotlin smart-casts a stable receiver from the first printed `!!`
+        // for the rest of the scope, so a subject an emission of this same
+        // read already extracted reads through a plain dot; a second
+        // assertion would warn as redundant. The registry is consulted
+        // before any rendering and is written only by the emission that
+        // actually prints the assertion. (ExtractionSuppressesRepeat)
+        final root = subjectRootLocal(subj);
+        final alreadyExtracted = root != null && !mutated.exists(root.id)
+            && switch (stripWrap(subj).expr) {
+                case TLocal(v): extractedLocals.exists(v.id);
+                case _: (fieldAccessKey(subj) != null && extractedFields.exists(fieldAccessKey(subj)));
+            };
+        if (alreadyExtracted)
+            return expr(subj) + "." + KotlinNameEscape.escape(name);
         final access = if (isProperty && fieldType != null && !isNullType(fieldType)
             && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
             "!!.";
-        } else if (!provenNonNull(subj) && !guardProofBefore(subj)
+        } else if (!provenNonNull(subj) && !guardProofBefore(subj) && !bareSubject
             // A safe-call hop earlier in the receiver chain leaves the
             // value nullable regardless of the Haxe type (the hop itself
             // was an emitter safety choice); the Haxe member read would
-            // NPE there, so this hop hardens with !!.
+            // NPE there, so this hop hardens with !!. A bare local never
+            // renders a safe call, matching the old rendered-text probe.
             // (SafeCallHopHardening)
-            && StringTools.contains(expr(subj), "?.")) {
+            && rendersNullable(subj)) {
             "!!.";
         } else {
             nullableAccess(subj);
         };
+        // Register only the emission that actually prints the assertion:
+        // the write must not happen on the decision path, which queries
+        // also traverse. (PureAccessDecision)
+        if (access == "!!.")
+            addProofExpr(subj);
         return expr(subj) + access + KotlinNameEscape.escape(name);
     }
 
@@ -3835,7 +4137,9 @@ class KotlinExpr {
                 // unit, so the pair goes through Character.toChars. A BMP
                 // value (surrogate range included) keeps the single-char
                 // form the existing callers rely on. (FromCharCodeScalar)
-                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")).toString() else ((" + unwrapped + ").toChar()).toString())";
+                // String(...) already yields a String: only the Char arm
+                // needs the conversion. (RedundantToStringFold)
+                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")) else ((" + unwrapped + ").toChar()).toString())";
             case _:
                 return null;
         }
@@ -4219,7 +4523,7 @@ class KotlinExpr {
                     // A receiver whose rendered value is nullable unwraps so
                     // the captured `_s` is a plain String; a non-null String
                     // needs no assertion. (CharCodeAtReceiverExtraction)
-#if boring_fold_debug
+#if kotlin_fold_debug
                     if (rendersNullable(subj))
                         emissionTrace("CHARCODE", expr(subj), subj.pos);
 #end
@@ -4665,18 +4969,22 @@ class KotlinExpr {
             if (!isNullInitialized(a))
                 addProofExpr(a);
             if (provenNonNull(a) || guardProofBefore(a)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                 emissionTrace("ARG_ASSERT", text, a.pos);
 #end
                 return hardenAppend(text, "!!");
             }
             else {
-#if boring_fold_debug
+#if kotlin_fold_debug
                 emissionTrace("ARG_ELVIS", text, a.pos);
 #end
                 return hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
             }
-        } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) return intToFloatText(text); else return text;
+        } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) {
+            // (WideningIdempotence) a Float-rendered binop needs no second
+            // conversion at the argument boundary.
+            return floatRenderedBinops.exists(Std.string(a.pos)) ? text : intToFloatText(text);
+        } else return text;
     }
 
     /**
@@ -4718,18 +5026,20 @@ class KotlinExpr {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     if (provenNonNull(a) || guardProofBefore(a)) {
-#if boring_fold_debug
+#if kotlin_fold_debug
                         emissionTrace("CTOR_ASSERT", text, a.pos);
 #end
                         hardenAppend(text, "!!");
                     }
                     else {
-#if boring_fold_debug
+#if kotlin_fold_debug
                         emissionTrace("CTOR_ELVIS", text, a.pos);
 #end
                         hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
                     }
-                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) intToFloatText(text) else text;
+                } else if (isIntOrLongType(emittedType(a)) && isFloatExpectedType(expected)) {
+                    floatRenderedBinops.exists(Std.string(a.pos)) ? text : intToFloatText(text);
+                } else text;
             }
         ];
     }
@@ -4767,8 +5077,14 @@ class KotlinExpr {
             return false;
         if (StringTools.endsWith(rendered, "!!") || rendered.indexOf("?: throw") >= 0)
             return false;
+        // A field read the typer widened to Null<T> whose rendering already
+        // extracts the receiver and reads a non-null declared property
+        // (`recv!!.member`) is non-null text: a second extraction or elvis
+        // would warn as redundant. (DeclaredFieldNonNull)
+        if (extractedNonNullFieldRead(e))
+            return false;
         final effectiveProven = smartCastable && proven;
-#if boring_fold_debug
+#if kotlin_fold_debug
         Sys.stderr().writeString("REQNONNULL [" + rendered + "]"
             + " isNullType=" + (isNullType(e.t) && !effectiveProven)
             + " isNullableType=" + (PolicyQueries.isNullableType(e.t) && !effectiveProven)
@@ -5200,7 +5516,7 @@ class KotlinExpr {
     }
 
     public function localName(v:TVar):String {
-#if boring_fold_debug
+#if kotlin_fold_debug
         if (v.name == "faceTop")
             Sys.stderr().writeString("FACELOCAL id=" + v.id + "\n");
 #end
@@ -5490,6 +5806,15 @@ class KotlinExpr {
                 // type so callers can widen it to Float.
                 return Context.getType("Int");
             case TIf(_, t, f):
+                // A Float-typed if renders Float: Int arms are widened to
+                // Float at render time, and Float arms already render Float.
+                // Report Float so an outer widening boundary (return,
+                // assignment, argument) does not re-wrap. A nullable arm
+                // (e.g. Float? ?: 0) makes Kotlin infer Number and
+                // Comparable, not Float, so keep the arm type there.
+                // (WideningIdempotence)
+                if (isFloatType(e.t) && !rendersNullable(e))
+                    return Context.getType("Float");
                 final tt = emittedType(t);
                 return tt != null ? tt : emittedType(f);
             case TBinop(OpDiv, l, r) if (isIntDivision(e)):
@@ -5505,8 +5830,16 @@ class KotlinExpr {
                 // float-precision=f32 and float-precision=f64 comparisons.
                 return switch (op) {
                     case OpAdd | OpSub | OpMult | OpDiv | OpMod:
+                        // A mixed Int/Float arithmetic binop widens the Int
+                        // side to Float at render time, so the rendered
+                        // result is Float even when the left operand is Int.
+                        // Report Float so an outer widening boundary does not
+                        // re-wrap. (WideningIdempotence)
                         final lt = emittedType(l);
-                        lt != null ? lt : emittedType(r);
+                        final rt = emittedType(r);
+                        if (lt != null && isFloatType(lt)) return lt;
+                        if (rt != null && isFloatType(rt)) return rt;
+                        lt != null ? lt : rt;
                     case OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte:
                         final lt = emittedType(l);
                         lt != null ? lt : emittedType(r);
