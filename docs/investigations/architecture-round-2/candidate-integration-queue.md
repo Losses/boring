@@ -30,6 +30,8 @@ That command was not retried. The native tasks above do not use that route.
 The current [A probe review](a3-probe-review.md),
 [B consumer review](b-kotlin-consumer-qa.md), and
 [F diagnostic review](f-tsc-diagnostic-qa.md) give the exact observed failures.
+The [first repair review](candidate-repair-review.md) records the later
+focused results, independent objections, and corrective assignments.
 Writers must preserve those failing assertions until the production behavior
 passes them. A passing fixture procedure with declared target failures
 remains an observation and cannot serve as target conformance evidence.
