@@ -16,8 +16,8 @@ of implementation acceptance. The
 | C: Identity and writable places | Claude Code, BigModel GLM 5.3 Flash | Source identity authority, sharing policy, place paths, representation dependencies |
 | F: Diagnostics and evidence | Goose, local Qwen | Occurrence and decision evidence, output mapping, child capture, layered acceptance |
 
-Each route has two authorized concurrent workers. The initial assignments inspect
-source and propose concrete interfaces; compiler writes have not been assigned.
+Each route has two authorized concurrent workers. The initial assignments inspected
+source and proposed concrete interfaces before compiler writes were assigned.
 The coordinator accepts shared interfaces before issuing exact file ownership.
 Cross-review pairs workers from different platforms. Packages D and E follow
 their dependencies and remain in the programme.
@@ -112,7 +112,7 @@ identity semantics. Its dependency is the reviewed representation/evaluation
 interface, with assigned backend ownership. The unfinished Swift pilot remains
 a migration task and does not prevent this design work.
 
-## Intermediate review and execution assignments
+## Earlier intermediate review and execution assignments
 
 The coordinator published the reviewed
 [policy interface contracts](../compiler-policy-contracts.md) while the workers
@@ -120,7 +120,7 @@ continued bounded observations. The three execution worktrees use `e45c74b7`
 as their checkout base; later guidance commits do not change their compiler
 input implicitly. No new compiler migration is accepted at this stage.
 
-| Worker | Current responsibility | Acceptance state |
+| Worker | Responsibility at that review | Acceptance state at that review |
 | --- | --- | --- |
 | Claude Code, GLM, first worker | Implement the bundle driver's child evidence capture, with focused tests. | Candidate implementation and tests exist; review and verification remain open. |
 | Claude Code, GLM, second worker | Reproduce paired Haxe JS and Rust place observations with a durable runner. | Manual outcomes are retained with evidence gaps; the replay runner requires correction. |
@@ -172,3 +172,26 @@ The next consumer design is
 It separates source field analysis, sorted-key admission, target comparison
 planning and declaration dependencies, with a removal inventory for all five
 targets. The independent caller audit precedes exact implementation ownership.
+
+
+## Current execution and consumer preparation
+
+Two GLM workers now own A2 source-container implementation and F1 child evidence
+capture. One Goose worker audits the five-target comparator consumers for A3;
+the other reviews a frozen F1 snapshot independently. A3 implementation waits
+for its input contract and consumer audit. Each changing implementation has one
+writer. Earlier assignment tables retain their historical review state.
+
+The coordinator recreated a locked Tiqian checkout at `8504d230` after finding
+that the earlier validation checkout was absent. The existing setup script
+copied 248 local data files; source hashes before and after the copy agree,
+and every target hash matches. The setup evidence is retained in the round's
+external evidence under `tiqian-setup-qu2v5_9t`. The original checkout's tracked
+files were not modified. The copied data's producing engine revision is unknown.
+
+The derived configurations from tasks P and W need reconstruction in the new
+checkout. Preserve their full generation and test obligations, compiler-path
+checks, separate engine and protocol comparisons, and common protocol test
+roots. Those earlier preparations were static inputs; a reconstructed mapping
+requires its own checks before generation or native execution can establish
+regression evidence. The coordinator has not launched the full Tiqian matrix.
