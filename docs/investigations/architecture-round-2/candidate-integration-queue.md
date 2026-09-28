@@ -16,6 +16,17 @@ started fresh tasks: comparison thread
 work before acceptance. The writers run focused checks; the coordinator owns
 serial target compilation.
 
+On coordinator revision `3fb8c565`, the corrected Kotlin local presence
+consumer joined the TypeScript diagnostic batch and the finite comparison
+analysis with its Swift consumer. Their focused evidence is recorded in the
+[repair review](candidate-repair-review.md). The remaining comparison
+consumers have separate active native tasks: TypeScript
+`01a0ea54-2e13-7050-a331-09b0538cfe1a`, Kotlin
+`01a0ea54-67b1-7f50-b146-33918a4ec839`, and Rust
+`01a0ea54-79f7-7a13-a349-6ebe6c8aa996`. Each task owns a separate
+checkout and must supply target compilation and runtime evidence before
+integration. Dart remains unassigned until an execution slot is free.
+
 An earlier attempt to launch the TypeScript writer through Claude Code was
 rejected by the outer approval review because the configured BigModel service
 would receive private source without authorization recognized in this session.
