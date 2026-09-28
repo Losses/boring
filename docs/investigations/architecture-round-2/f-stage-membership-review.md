@@ -64,3 +64,38 @@ were not accepted. Other active observation fixtures retain their separate
 implementations until their owners adopt this reviewed shared dependency.
 Child capture, expected-stage declaration, input retention, and semantic
 evaluation still need their own explicit consumers and removal decisions.
+
+### Follow-up boundary from the B and C deliveries
+
+Later B and C fixture reviews found repeated orchestration defects despite
+reuse of the child recorder and membership checker. B's first replay still
+used fixed generation directories and parsed a JSON exit status with a text
+pattern. C's first delivered caller could replace a missing recorded stream
+with an empty file; its output normalization discarded repeated labels. The
+coordinator requested corrections while retaining the valid bounded runtime
+observations. These findings concern fixture verdicts and reproducibility;
+they do not establish new compiler failures.
+
+The shared capture and membership owners leave a third reusable responsibility:
+interpreting captured results and deciding which dependent stages may execute.
+The next consolidation proposal must distinguish these outcomes:
+
+| Outcome | Required evidence and authority |
+| --- | --- |
+| Capture is usable | Structured recorder result, retained required streams and no capture error |
+| Producer succeeded | Usable capture and the actual producer's successful termination for this attempt |
+| Expected observation occurred | Fixture-specific assertion, which can deliberately expect a failed compilation |
+| Source contract holds | Independently specified behavior established by the required compilation and execution stages |
+
+An expected compiler rejection cannot supply an executable artifact to a later
+runtime stage. A successful observation procedure cannot turn a native failure
+into language conformance. Missing capture cannot be represented as empty output.
+Keep these distinctions in the result type and dependency decisions.
+
+Any implementation proposal must reuse the existing recorder and membership
+owner, name the duplicated caller decisions it will remove, and preserve each
+fixture's authored semantic assertions. It must account for attempt-local
+outputs and the actual input identities those callers consume. Start with the
+demonstrated common decisions; a new general execution framework requires
+additional consumer evidence. This section records a follow-up design boundary,
+and assigns no new writer or acceptance prerequisite to the current repairs.
