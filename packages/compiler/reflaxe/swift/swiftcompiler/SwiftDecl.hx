@@ -13,6 +13,9 @@ import ComparatorPlan.ComparatorFieldKind;
 import ValueTypeSupport.ValueTypeInfo;
 import ValueTypeSupport.ValueTypeOperator;
 import NameConversion;
+import swiftcompiler.SwiftArrayBoundary.SwiftArrayPreparedOperand;
+import swiftcompiler.SwiftParameterPlan.SwiftParameterDefaultMode;
+import swiftcompiler.SwiftParameterPlan;
 
 /**
     Declaration lowering: classes, variant enums, and record typedefs
@@ -607,9 +610,11 @@ class SwiftDecl {
         if (v.isStatic && DataTableHelper.isDataTableField(field)) {
             final elems = DataTableHelper.getDataTableElements(field.expr());
             if (elems != null) {
-                return [
-                    "    public static let " + SwiftNameEscape.escape(field.name) + ": TiqianArray<Int32> = TiqianArray([" + renderDataTableElements(elems) + "])"
-                ];
+                return ["    public static let "
+                    + SwiftNameEscape.escape(field.name)
+                    + ": TiqianArray<Int32> = TiqianArray(["
+                    + renderDataTableElements(elems)
+                    + "])"];
             }
         }
         if (v.isStatic && isFunctionType(field.type)) {
@@ -637,14 +642,32 @@ class SwiftDecl {
             // the value is a compile-time fixture, so force the fault and
             // let a failure trap at load (stdlib/08/27).
             var rendered = expr.containsThrowingCall(init) ? "try! " + initText : initText;
-            // features/18: a read-only field initialized from a mutable array
-            // crosses the container boundary; Swift renders the two as
-            // different types, so the conversion names the native Array.
-            if (StaticFieldHelper.isReadOnlyArrayType(field.type) && switch (Context.follow(init.t)) {
-                case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
-                case _: false;
-            })
-                rendered = "Array(" + rendered + ")";
+            if (StaticFieldHelper.isReadOnlyArrayType(field.type)) {
+                final isEmpty = switch (init.expr) {
+                    case TArrayDecl(elements): elements.length == 0;
+                    case _: false;
+                };
+                final isNull = switch (init.expr) {
+                    case TConst(TNull): true;
+                    case _: false;
+                };
+                final storage = SwiftArrayBoundary.sourceStorage(init.t, isEmpty, isNull);
+                final optionality = isNull ? SwiftArrayBoundary.SwiftArrayOptionality.OptionalOperand : SwiftArrayBoundary.SwiftArrayOptionality.RequiredOperand;
+                final operand:SwiftArrayPreparedOperand = {
+                    text: rendered,
+                    sourceType: init.t,
+                    storage: storage,
+                    optionality: optionality,
+                    presenceFact: isNull ? SwiftArrayBoundary.SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayBoundary.SwiftArrayPresenceFact.LiteralProvenPresent
+                };
+                final plan = SwiftArrayBoundary.prepare(operand, field.type);
+                if (plan == null) {
+                    Context.error("read-only array initializer has no prepared storage decision", init.pos);
+                } else {
+                    final elementText = plan.elementType == null ? null : types.of(plan.elementType);
+                    rendered = SwiftArrayBoundary.render(plan, operand.text, elementText);
+                }
+            }
             // A non-null Haxe field initialized to null becomes an implicitly
             // unwrapped optional: the declaration admits the nil start while
             // reads stay plain, matching the Haxe null-until-assigned idiom.
@@ -654,16 +677,9 @@ class SwiftDecl {
                 case _: false;
             };
             final typeText = nullInit && !StringTools.endsWith(declaredType, "?") ? declaredType + "!" : declaredType;
-            return ["    "
-                + vis
-                + "static "
-                + kw
-                + " "
-                + SwiftNameEscape.escape(field.name)
-                + ": "
-                + typeText
-                + " = "
-                + rendered];
+            return [
+                "    " + vis + "static " + kw + " " + SwiftNameEscape.escape(field.name) + ": " + typeText + " = " + rendered
+            ];
         }
         // The Haxe typer places instance field defaults in the
         // constructor, so the declaration stays bare and the init
@@ -686,10 +702,13 @@ class SwiftDecl {
         // @:allow members use Swift internal visibility so allowed cross-class calls compile.
         final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
         final deferred = deferredConstructorFields.exists(field.name);
-        return [
-            "    " + vis + (deferred ? "var " : kw + " ") + SwiftNameEscape.escape(field.name) + ": "
-                + types.of(field.type) + (deferred ? "! = nil" : "")
-        ];
+        return ["    "
+            + vis
+            + (deferred ? "var " : kw + " ")
+            + SwiftNameEscape.escape(field.name)
+            + ": "
+            + types.of(field.type)
+            + (deferred ? "! = nil" : "")];
     }
 
     /**
@@ -733,8 +752,7 @@ class SwiftDecl {
     // itself, and a loop or branch nests its assignments further down.
     static function collectAssignedInstanceFields(e:TypedExpr, result:Map<String, Bool>):Void {
         switch (e.expr) {
-            case TBinop(OpAssign, {expr: TField({expr: TConst(TThis)}, access)}, _)
-                | TBinop(OpAssignOp(_), {expr: TField({expr: TConst(TThis)}, access)}, _):
+            case TBinop(OpAssign, {expr: TField({expr: TConst(TThis)}, access)}, _) | TBinop(OpAssignOp(_), {expr: TField({expr: TConst(TThis)}, access)}, _):
                 switch (access) {
                     case FInstance(_, _, field): result.set(field.get().name, true);
                     case _:
@@ -766,9 +784,16 @@ class SwiftDecl {
         // A Swift computed property cannot rethrow; the backing getter is a
         // compile-time fixture accessor, so force the fault at the access.
         final getterThrows = SwiftFallibility.isThrowing(cls.module, cls.name, getter, false);
-        return [
-            "    " + vis + "var " + SwiftNameEscape.escape(field.name) + ": " + types.of(field.type) + " { " + (getterThrows ? "try! " : "") + getter + "() }"
-        ];
+        return ["    "
+            + vis
+            + "var "
+            + SwiftNameEscape.escape(field.name)
+            + ": "
+            + types.of(field.type)
+            + " { "
+            + (getterThrows ? "try! " : "")
+            + getter
+            + "() }"];
     }
 
     function renderDataTableElements(elems:Array<Int>):String {
@@ -906,28 +931,24 @@ class SwiftDecl {
                 // parameter's implicit null. Swift resolves an omitted
                 // argument through the signature default, so all three
                 // render; a constant converts through coalescingOf.
-                final registered = allowDefaults ? DefaultArgExpander.defaultAt(cls, f.field.name, a.index) : null;
-                final coalescing = registered == null ? null : DefaultArgExpander.coalescingOf(registered);
-                final readsParam = coalescing != null && DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name);
-                final throwsDefault = coalescing != null && expr.coalescingDefaultThrows(coalescing);
-                final baseType = coalescing != null ? DefaultArgExpander.coalescingParameterType(coalescing, a.type) : a.type;
+                final decision = SwiftParameterPlan.forArgument(cls, f.field.name, a.name, a.index, a.type, allowDefaults);
+                final coalescing = decision.coalescingValue;
                 // When the default reads an earlier parameter or can throw,
                 // Swift cannot carry the expression in the signature: a
                 // default argument expression cannot reference other
                 // parameters and cannot throw. The parameter takes an
                 // Optional type with a nil default and the body normalizes
                 // it (coalescingBodyNormalizationLines).
-                final parameterType = (readsParam || throwsDefault || (coalescing != null && expr.coalescingDefaultReferencesPrivate(coalescing))) ? makeOptional(baseType) : baseType;
                 final escaping = switch (Context.follow(a.type)) {
                     case TFun(_, _): "@escaping ";
                     case _: "";
                 };
-                final defaultText = if (coalescing != null) {
-                    if (readsParam || throwsDefault || expr.coalescingDefaultReferencesPrivate(coalescing))
-                        " = nil"
-                    else
-                        " = " + expr.coalescingDefaultText(coalescing, a.type);
-                } else "";
+                final parameterType = decision.parameterType;
+                final defaultText = switch (decision.defaultMode) {
+                    case NoParameterDefault: "";
+                    case OptionalNilBodyDefault: " = nil";
+                    case NativeValueDefault: " = " + expr.coalescingDefaultText(coalescing, a.type);
+                };
                 if (SwiftInoutParams.isMutatingParam(cls.module, cls.name, f.field.name, a.name, a.index)) {
                     if (coalescing != null) {
                         Context.error("inout parameter cannot have a default value: " + a.name, f.field.pos);
@@ -938,15 +959,6 @@ class SwiftDecl {
                 }
             }
         ].join(", ") + ")";
-    }
-
-    /** Wraps a Haxe type in Null<T> to produce a Swift optional. */
-    function makeOptional(t:Type):Type {
-        final nullAbst = switch (Context.getType("Null")) {
-            case TAbstract(a, _): a;
-            case _: return t;
-        };
-        return TAbstract(nullAbst, [t]);
     }
 
     /**
@@ -1031,22 +1043,23 @@ class SwiftDecl {
     function coalescingBodyNormalizationLines(cls:ClassType, f:ClassFuncData):Array<String> {
         final out:Array<String> = [];
         for (a in f.args) {
-            final coalescing = DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index);
+            final decision = SwiftParameterPlan.forArgument(cls, f.field.name, a.name, a.index, a.type);
+            final coalescing = decision.coalescingValue;
             if (coalescing == null)
                 continue;
-            if (expr.coalescingDefaultThrows(coalescing)) {
+            if (decision.throwsDefault) {
                 out.push("        " + (expr.parameterIsMutated(a.name) ? "var" : "let") + " " + SwiftNameEscape.escape(a.name) + " = ("
                     + SwiftNameEscape.escape(a.name) + " == nil ? try " + expr.coalescingDefaultText(coalescing, a.type) + " : "
                     + SwiftNameEscape.escape(a.name) + "!);");
                 continue;
             }
-            if (expr.coalescingDefaultReferencesPrivate(coalescing)) {
+            if (decision.referencesPrivateMember) {
                 final keyword = expr.parameterIsMutated(a.name) ? "var" : "let";
                 out.push("        " + keyword + " " + SwiftNameEscape.escape(a.name) + " = " + SwiftNameEscape.escape(a.name) + " ?? "
                     + expr.coalescingDefaultText(coalescing, a.type) + ";");
                 continue;
             }
-            if (!DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name))
+            if (!decision.readsParameter)
                 continue;
             final defaultText = expr.coalescingDefaultText(coalescing, a.type);
             // The normalized shadow is assigned once, so keep it immutable.
@@ -1059,12 +1072,7 @@ class SwiftDecl {
         return out;
     }
 
-    /**
-        features/18: a function returning ReadOnlyArray is a decode
-        boundary. Array is a value type in Swift and a let binding
-        binding is structurally immutable, so no read-only wrappers render; the flag
-        only keeps the boundary visible to the expression layer.
-    **/
+    /** Marks a function return whose ReadOnlyArray result is a decode boundary. */
     function decodeBoundaryBody(cls:ClassType, f:ClassFuncData, depth:Int = 2):Array<String> {
         final boundary = StaticFieldHelper.isReadOnlyArrayType(f.ret);
         expr.setDecodeBoundary(boundary);
