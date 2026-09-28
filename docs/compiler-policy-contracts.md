@@ -199,6 +199,20 @@ including effects incurred while evaluating the condition. Sequential evaluation
 transforms the current environment. A join combines alternative reachable exits.
 These operations have different inputs and cannot replace one another.
 
+One evaluation transfer owns assignment effects, operand order and abrupt
+exits in every expression context. Statement and condition consumers derive
+their answers from that transfer. An assignment used as an argument must update
+the same binding fact as an assignment used as a statement. Sequencing retains
+earlier operands' abrupt exits and evaluates later operands only on reachable
+normal paths. A condition exposes its true and false paths in addition to those
+exits; converting it to a Boolean value must preserve short-circuit evaluation.
+
+Presence joins and explanation joins are separate. Two present values remain
+present even when different rules established them. An absent map entry means
+unknown unless an explicit scope invariant supplies another interpretation.
+Abstract revisits during loop analysis preserve occurrence identity; they do
+not create a second occurrence of the same source node.
+
 | Condition | Input to the right operand | True exit | False exit |
 | --- | --- | --- | --- |
 | `A && B` | True exit of `A` | True exit of `B` | Join of false exits from `A` and `B` |
