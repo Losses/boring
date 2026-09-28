@@ -11,7 +11,7 @@ is not restricted to literals or to strings known to be valid. Both
 predicates are in the shared domain only for a `Float` operand. An `Int` or a
 nullable integer result from `Std.parseInt` is not a valid operand for them.
 
-## Contract
+## Parsing behavior
 
 `Std.parseFloat(s)` trims leading and trailing exactly these six characters: space,
 `\t`, `\n`, `\v` (U+000B), `\f` (U+000C), and `\r`, and parses the whole
@@ -64,7 +64,7 @@ and false for finite values and infinities. `Math.isFinite(x)` returns true
 exactly when the `Float` is neither an IEEE NaN nor an infinity. Neither
 predicate performs conversion, and neither treats a failed integer parse as a
 NaN. These failure results are
-part of the shared contract; target-specific exception behavior does not
+part of the shared parsing behavior; target-specific exception behavior does not
 alter them. Parser callers inside the domain must be able to distinguish
 failure without a thrown exception.
 
@@ -76,20 +76,20 @@ failure without a thrown exception.
 | Kotlin | No cross-target numeric reader is specified yet. The target's nullable parse functions provide the needed non-throwing failure channel once grammar validation is added. |
 | Swift | No cross-target numeric reader is specified yet. The target's failable initializers provide the needed non-throwing failure channel once grammar validation is added. |
 | Dart | No cross-target numeric reader is specified yet. The target's `tryParse` functions provide the needed non-throwing failure channel once grammar validation is added. |
-| Rust | No cross-target numeric reader is specified yet. `parse` provides a non-panicking error channel, but its accepted grammar and result type must be constrained to this contract. |
+| Rust | No cross-target numeric reader is specified yet. `parse` provides a non-panicking error channel, but its accepted grammar and result type must be constrained to this specification's grammar and failure result. |
 
 ## Judgment
 
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
-| Validate the complete token, then use one native numeric conversion | One scan plus the target conversion; no exception is used for an expected miss. | The grammar and failure result are explicit and identical on every target. | The validator is the one shared-domain boundary; native arithmetic remains native. | The call site shows parsing while the contract explains the guard. |
+| Validate the complete token, then use one native numeric conversion | One scan plus the target conversion; no exception is used for an expected miss. | The grammar and failure result are explicit and identical on every target. | The validator is the one shared-domain boundary; native arithmetic remains native. | The call site shows parsing while the grammar ruling explains the guard. |
 | Call each target's permissive parser directly | Often one call. | Partial tokens, prefixes, whitespace, and overflow differ by target. | Every caller would need its own post-checks. | A short expression hides incompatible failure behavior. |
 | Construct a regular expression inline at each call site | Rejected: Kotlin's `Pattern.compile` has no process-wide cache, so every call recompiles the pattern. | No ambiguity benefit. | Duplicates validation work. | Hides the performance cost. |
-| Throw on invalid input | No nullable result allocation on some targets. | Expected invalid input becomes exception control flow. | Callers duplicate recovery logic and lose the Haxe result type. | It contradicts `Null<Int>` and the NaN failure contract. |
+| Throw on invalid input | No nullable result allocation on some targets. | Expected invalid input becomes exception control flow. | Callers duplicate recovery logic and lose the Haxe result type. | It contradicts `Null<Int>` and the NaN failure rule. |
 
 ## Ruling
 
-1. Both parsers perform the Contract grammar check before conversion and
+1. Both parsers perform the accepted-token grammar check before conversion and
    accept only a complete trimmed token. The check rejects any unconsumed
    character, including a valid-looking prefix followed by invalid text.
    It also rejects integer overflow before a target conversion can wrap. The

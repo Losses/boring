@@ -18,7 +18,7 @@ static function of a class named after the Kotlin file, receiver as
 the first parameter, and marks the declaration; the port's call sites
 stay plain static calls.
 
-Two facts force a declaration-side contract. Haxe typing rewrites the
+Two facts force a declaration-side ruling. Haxe typing rewrites the
 member-call syntax `e.method(a, b)` of a `using` static extension into
 the plain static call `Module.method(e, a, b)` before the generator
 runs, so extension-ness is not recoverable at the typed call site. And
@@ -27,7 +27,7 @@ Kotlin file facade (`UnicodeNumber` is a real object;
 `SourceInteractionBoundaries` is a file facade), so flattening cannot
 be inferred from shape.
 
-## Source-side contract
+## Source-side ruling
 
 The markers are metadata on static function declarations:
 

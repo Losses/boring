@@ -500,14 +500,14 @@ pub fn run<F: FnOnce()>(id: &str, name: &str, body: F) {',
         render haxe Int as u32 while the resident class renders i32, and
         Null and Array results have no call-site cast machinery, so the
         adapters cast once here. substring, substr, and the unit-to-byte
-        helper keep their P3 contract: the UTF-16 unit bounds of the
+        helper keep their P3 requirement: the UTF-16 unit bounds of the
         haxe substring and substr members lower into them directly.
     **/
     public static final USTRING_ABI_SOURCE = '
 // Business ABI adapters over the resident UString class: Int arguments
 // arrive unsigned (u32) and results return u32; the class works in i32.
 // slice and substring keep i32 bounds because negative bounds are part
-// of their clamping contract. The class lives in this same module, so
+// of their clamping rule. The class lives in this same module, so
 // the adapters name it directly without an import.
 pub fn count(s: &str) -> u32 {
     u32::try_from(UString::u_string_count(s)).unwrap_or(0)
@@ -629,7 +629,7 @@ pub fn from_code_points(codes: &Vec<u32>) -> String {
 }
 
 // substring keeps i32 bounds for the same clamping reason as slice:
-// negative bounds are part of the haxe substring contract.
+// negative bounds are part of the haxe substring rule.
 pub fn substring(s: &str, from: i32, to: i32) -> String {
     let mut start = if from < 0 { 0u32 } else { u32::try_from(from).unwrap_or(0) };
     let mut end = if to < 0 { 0u32 } else { u32::try_from(to).unwrap_or(0) };
@@ -652,7 +652,7 @@ pub fn substring_from(s: &str, from: i32) -> String {
 // UTF-16 unit sequence: the position and the length count units, and
 // the two unit bounds convert to byte boundaries through unit_index
 // before the slice. A negative pos counts from the end of the unit
-// sequence per the std contract. A negative len is unspecified in the
+// sequence per the std rule. A negative len is unspecified in the
 // std (std/String.hx), so this runtime returns the empty string,
 // matching the JavaScript target, and features/08 rules the shared
 // domain to non-negative len values.
@@ -782,7 +782,7 @@ fn valid_decimal_token(b: &[u8]) -> bool {
 }
 
 // UTF-16 unit boundary to byte boundary, the index space of the haxe
-// substring and substr contracts. A bound that falls inside a
+// substring and substr rules. A bound that falls inside a
 // surrogate pair moves to the far side: `from` advances past the pair,
 // `to` retreats before it, so a Rust slice never splits a pair; the
 // subset only produces code-point-aligned bounds, where every target
@@ -1192,12 +1192,12 @@ impl PartialEq<UStr> for String {
         unsigned (u32) and results return u32. This is the unit-based
         rewrite of the original u_string adapters. slice, substring,
         and substr keep i32 bounds because negative bounds are part of
-        their clamping contract.
+        their clamping rule.
     **/
     public static final USTRING_ABI_SOURCE_NEW = '
 // Business ABI adapters: Int arguments arrive unsigned (u32), results
 // return u32. slice, substring, and substr keep i32 bounds because
-// negative bounds are part of their clamping contract.
+// negative bounds are part of their clamping rule.
 
 pub fn count(s: &UStr) -> u32 {
     let mut i = 0u32;
@@ -1408,7 +1408,7 @@ pub fn from_code_points(codes: &Vec<u32>) -> UString {
 }
 
 // substring keeps i32 bounds for the same clamping reason as slice:
-// negative bounds are part of the haxe substring contract.
+// negative bounds are part of the haxe substring rule.
 pub fn substring(s: &UStr, from: i32, to: i32) -> UString {
     let units = s.as_slice();
     let len = units.len() as u32;
@@ -1437,7 +1437,7 @@ pub fn substring_from(s: &UStr, from: i32) -> UString {
     UString(units[start as usize..].to_vec())
 }
 
-// substr: pos and len count units per the std contract.
+// substr: pos and len count units per the std rule.
 // A negative pos counts from the end; a negative len returns empty.
 pub fn substr(s: &UStr, pos: i32, len: Option<i32>) -> UString {
     match len {

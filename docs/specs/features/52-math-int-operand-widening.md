@@ -85,7 +85,7 @@ problem is not decided by this specification.
    or substitute a target-specific constant. This keeps the generated call
    shape consistent across all five targets.
 
-## Contract examples
+## Behavior examples
 
 For each input, every target must preserve the following call/result shape;
 only the target syntax in the product column differs. These three input rows

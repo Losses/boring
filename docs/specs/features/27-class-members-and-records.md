@@ -42,7 +42,7 @@ core classes into a module whose remaining sources are hand-written
 Kotlin, and those sources read fields with property syntax, compare
 records with `==`, copy them with `.copy(range = ...)`, and match printed
 records such as `TextRange(start=0, end=1)` against recorded expectation
-files. The printed form belongs to the behavior contract.
+files. The printed form belongs to the specified behavior.
 
 This specification rules all five source targets (ts, kotlin, swift,
 dart, rust) together: one feature, five lowerings, no target left with a

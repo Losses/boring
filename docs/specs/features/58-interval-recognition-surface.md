@@ -1,4 +1,4 @@
-# Feature spec 58: Interval recognition contract
+# Feature spec 58: Interval recognition
 
 ## Scope
 
@@ -44,7 +44,7 @@ cond        = TBinop(OpLt, stripParentheses(left), right)
 left        = TLocal(counter)
 ```
 
-## Contract examples
+## Behavior examples
 
 | Shape | Required behavior |
 | --- | --- |

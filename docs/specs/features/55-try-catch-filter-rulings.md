@@ -19,7 +19,7 @@ exception runtime.
 | Kotlin | `packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx:1368-1387` | Emits typed `catch (x: Class)` through the expression-shaped `try` renderer. |
 | Rust | `packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:2640-2698` | Has no same-named statement renderer; a fallible region and `Result` carry the body, handler, and error path. |
 | Catch binding state | Dart `:2815-2817`, TypeScript `:2434-2436`, Swift `:2992-2994`, and Kotlin `:1376-1378` | Target renderers register the catch variable while rendering the handler and remove it afterward. |
-| Swift value-arm modifier | `packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:3024-3037` | `containsThrowingCall` controls `try` on value-producing arms; this is an expression-shape concern around the same filter contract. |
+| Swift value-arm modifier | `packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:3024-3037` | `containsThrowingCall` controls `try` on value-producing arms; this is an expression-shape concern around the same filter ruling. |
 
 ## Semantics ruling
 
@@ -53,7 +53,7 @@ exception runtime.
    with the source-visible type. Maps such as `catchVars`, including the
    registration shown at Dart `:2815-2817`, TypeScript `:2434-2436`, Swift
    `:2992-2994`, and Kotlin `:1376-1378`, are implementation details and are
-   not part of the cross-target contract.
+   not part of the cross-target specification.
 
 5. Rust may represent the same operation without a native try/catch
    statement. A fallible region must carry successful values as `Ok` and
@@ -70,7 +70,7 @@ exception runtime.
    propagation ruling. The current value-arm handling is at
    `packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:3024-3037`.
 
-## Contract examples
+## Behavior examples
 
 | Source behavior | Required result |
 | --- | --- |
@@ -85,6 +85,6 @@ exception runtime.
 
 This specification does not prescribe catch-header spelling, exception class
 layout, variable-map names, Swift `try` placement beyond its relationship to
-this contract, or a native exception mechanism for Rust. It does not broaden
+this specification, or a native exception mechanism for Rust. It does not broaden
 the number of catches, change Haxe subclass relations, or require identical
 source and generated control-flow shapes.

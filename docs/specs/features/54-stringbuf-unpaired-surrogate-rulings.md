@@ -2,7 +2,7 @@
 
 ## Scope
 
-This specification rules the mutation contract for `StringBuf.add` and
+This specification rules the mutation behavior for `StringBuf.add` and
 `StringBuf.addChar` when UTF-16 surrogate units are involved. It covers the
 shared mutation recognition, the four pairing faults, the `UnpairedSurrogate`
 payload, and the capability-dependent Rust lowering. It does not prescribe
@@ -24,7 +24,7 @@ target syntax or replace the target-specific buffer and exception renderers.
 
 1. Haxe source behavior is target-dependent at the handbook level for
    ill-formed UTF-16. For this compiler subset, `StringBuf.add` and
-   `StringBuf.addChar` have one contract: every checked mutation must preserve
+   `StringBuf.addChar` have one rule: every checked mutation must preserve
    surrogate pairing at the boundary, and a rejected mutation raises the
    `std.UStringException` exception family with an `UnpairedSurrogate(unit)`
    payload. This ruling is semantic; the target spelling remains local to the
@@ -55,7 +55,7 @@ target syntax or replace the target-specific buffer and exception renderers.
    `isFallible` capability, `Err` carrying the same
    `UnpairedSurrogate { unit }` payload is the equivalent observable fault;
    when it does not, the subset must reject the operation. Silently weakening the
-   contract is not conforming. The capability gate and error path are at
+   rule is not conforming. The capability gate and error path are at
    `packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:862-871`.
    Because Rust `&str` is well-formed, its `add` input cannot begin with an
    unpaired trail UTF-16 unit, so the trail-start branch may be folded only
@@ -70,7 +70,7 @@ target syntax or replace the target-specific buffer and exception renderers.
    remain target responsibilities. The current shared recognition boundary is
    `packages/compiler/PolicyQueries.hx:525`.
 
-## Contract examples
+## Behavior examples
 
 | Operation and boundary | Required result |
 | --- | --- |

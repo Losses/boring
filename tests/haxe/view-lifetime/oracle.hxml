@@ -1,0 +1,10 @@
+# Haxe oracle of the view-lifetime fixture. The runner passes -js with the
+# per-attempt output file; Bun executes the generated JS. It compiles the same
+# case sources as the Swift generation and prints one labeled line per case;
+# the native Swift run must print the identical labeled lines.
+-lib boring
+-cp packages/compiler
+-cp samples
+-cp tests/haxe/view-lifetime
+--macro Intercept.run(['samples', 'tests/haxe/view-lifetime'])
+-main ViewLifetimeOracle

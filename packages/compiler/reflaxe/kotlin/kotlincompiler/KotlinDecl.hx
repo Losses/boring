@@ -1298,10 +1298,10 @@ class KotlinDecl {
     }
 
     /**
-        InterfaceOverrideReturnContract preserves the interface return type for
+        InterfaceOverrideReturnType preserves the interface return type for
         an implementation reached through an inherited class or interface.
         Safe-call bodies can render nullable expressions, but Kotlin override
-        declarations must retain their inherited non-null contract.
+        declarations must retain their inherited non-null type.
     **/
     function isInterfaceMethod(cls:ClassType, f:ClassFuncData):Bool {
         return inheritsInterfaceMethod(cls, f.field.name);
@@ -1369,7 +1369,7 @@ class KotlinDecl {
         // A body whose returns call a method on an unproven nullable receiver
         // renders with the safe-call form, so the kotlin result is nullable
         // even though the Haxe signature is not; widen the rendered return.
-        // An interface method has a fixed Kotlin return contract. Its Haxe
+        // An interface method has a fixed Kotlin return type. Its Haxe
         // body may contain a nullable receiver whose fallback is proven
         // non-null by the expression renderer, so widening the override
         // would violate Kotlin's invariant return type rule.
