@@ -93,12 +93,43 @@ identifies an additional unregistered producer: `SwiftDecl.varDecl` emits a
 static Int data table directly and returns before type mapping or runtime
 dependency registration. The coordinator confirmed that source path.
 
-The report predicts missing runtime declarations when this table is the sole
-runtime dependency. That consequence still needs generation and native evidence.
-The coordinator assigned the counterexample and correction to the existing
-Swift declaration owner. This finding extends the producer inventory and keeps
-complete ordinary-runtime closure unaccepted. It does not change the four
-measured integration outcomes above.
+The coordinator assigned that counterexample to the existing Swift declaration
+owner. The executor isolated an ordinary static array of 65 Int constants with
+an empty source entry point and no test discovery. An overlay omitting only the
+new dependency registration generated the same static class as the candidate,
+but emitted no `Runtime.swift`. Its captured native compile failed because
+`TiqianArray` was unavailable. The candidate registered the dependency through
+`imports.runtime` at the data-table producer and returned the expected length,
+`65`, after native compilation.
+
+The retained discriminating attempt is
+`out/a3-comparison-plan/runs/run-LdDj5LWY` in the executor checkout. The source
+repair and three fixture files are documented in
+`luna-a3-e-static-table-followup.md`. The existing runtime-closure runner now
+includes this case, so its replay is independent of the pending comparison-plan
+migration. Its output-path handling also accepts an absolute attempt root.
+
+The coordinator integrated the exact delegated compiler hunk and four fixture
+and runner files, retaining their identities in
+`e-static-table-integrated-files.json`. Integration replay evidence is at
+`out/e-static-table-root-qa/review-y3wo1igs`. The existing EvidenceProbe captured
+the complete runtime-closure runner: normal exit zero, complete capture, no
+evidence error and empty child stderr. All 170 selected input hashes match
+before and after. The actual boring library path names the integration checkout.
+The previous native observations remain `5`, `4`, `7` and a passing test-host
+verdict; the new static-table observation is `65`. This capture records the
+whole sequential runner; the executor's earlier attempt supplies separate
+records for the discriminating generation and native stages.
+
+During assignment, the coordinator incorrectly described the older E runner
+as already using the shared stage protocol. The executor inspected the file
+and corrected that assumption. The agreed delivery extends the existing runner
+and uses the shared probe externally. This avoids requiring unrelated runner
+replacement to integrate the dependency repair.
+
+This additional producer now has generation and native evidence. Complete
+ordinary-runtime closure remains unaccepted; the measured cases do not cover
+every array-producing operation or every target configuration.
 
 The unfinished Swift prepared-value and boundary work remains open, as do the
 newly observed comparator defects. Existing branded mutable-array and exception
