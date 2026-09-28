@@ -4933,11 +4933,13 @@ class RustExpr {
         // dereferences for Copy inners and clones for the owned kinds. A
         // nullable interface result keeps the Option shape, so the binding
         // read wraps in Some.
+        var narrowedBindingArm = false;
         if (narrowedText == name) {
             final innerType = getNullInnerType(info.subject.t);
             narrowedText = isTypeCopy(innerType) ? "*" + name : "(*" + name + ").clone()";
             if (nullableResult && isInterfaceType(innerType))
                 narrowedText = "Some(" + narrowedText + ")";
+            narrowedBindingArm = !StringTools.startsWith(narrowedText, "Some(");
         } else if (narrowedText == "(*" + name + ").clone()"
             && nullableResult && isInterfaceType(getNullInnerType(info.subject.t))) {
             // A narrowed field read renders the dereference and clone at the
@@ -5002,7 +5004,7 @@ class RustExpr {
                 case _: RustShape.ShapeUnknown;
             };
         }
-        final armThen = armShapeOf(narrowedBranch, narrowedText);
+        final armThen = narrowedBindingArm ? RustShape.ShapeBare : armShapeOf(narrowedBranch, narrowedText);
         final armElse = armShapeOf(noneBranch, noneText);
         if ((armThen == RustShape.ShapeOption || armThen == RustShape.ShapeBare)
             && (armElse == RustShape.ShapeOption || armElse == RustShape.ShapeBare)
@@ -13542,9 +13544,44 @@ class RustExpr {
         }, (e, _) -> fail(e, "assignment target has no Rust lowering: " + Std.string(e.expr)));
     }
 
+    /** The declared field types of a named structure typedef, resolved
+        through its module so module-private typedefs resolve too; the
+        anonymous literal type can inflate non-null fields to Null.
+        (NullableFieldSomeWrap) */
+    function declaredStructFieldTypes(moduleName:String, typeName:String):Null<Map<String, Type>> {
+        final moduleTypes = try Context.getModule(moduleName) catch (_:Dynamic) return null;
+        for (mt in moduleTypes) {
+            final followed = Context.follow(mt);
+            final def = switch (followed) {
+                case TType(t, _): t.get();
+                case _: continue;
+            };
+            if (def.name == typeName)
+                return objectFieldTypes(followed);
+        }
+        return null;
+    }
+
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {
         final typeName = resolveTypeName(e.t);
         final fieldTypes = objectFieldTypes(e.t);
+        // The matched named typedef carries the authoritative field types:
+        // the anonymous literal type can inflate a non-null field to Null
+        // when the typer unifies it with a nullable sibling, while the Rust
+        // struct keeps the declared slot. (NullableFieldSomeWrap)
+        final namedFieldTypes = switch (Context.follow(e.t)) {
+            case TType(_): null;
+            case _:
+                final anon = switch (Context.follow(e.t)) {
+                    case TAnonymous(a): a;
+                    case _: null;
+                };
+                if (anon == null) null else {
+                    final match = state.structTypedefs.get(RustDecl.structureSignature(anon));
+                    final chosen = match != null ? match : PolicyQueries.matchStructTypedefByUnification(anon, state.structTypedefs);
+                    chosen == null ? null : declaredStructFieldTypes(chosen.module, chosen.name);
+                }
+        };
         final parts = [
             for (f in fields) {
                 var val = if (isStringType(f.expr.t)) {
@@ -13572,6 +13609,41 @@ class RustExpr {
                     if (isIntType(fieldType) && types.of(fieldType, false) == "u32"
                         && !StringTools.startsWith(val, "u32::") && rendersSignedIntArg(f.expr, val))
                         val = RustConversions.reinterpret(val, "u32");
+                    // A nullable field slot receives Some(...) when the
+                    // initializer is a non-null value: the anonymous-array
+                    // element rule applies the same wrap, and the struct
+                    // literal must match the declared Option field type.
+                    // The typer unifies a non-null initializer to the
+                    // nullable anonymous field type, so the authoritative
+                    // slot is the matched named typedef's field type: only
+                    // a truly nullable named slot wraps. (NullableFieldSomeWrap)
+                    final slotType = namedFieldTypes != null && namedFieldTypes.exists(f.name)
+                        ? namedFieldTypes.get(f.name) : fieldType;
+                    // A value whose rendered form is already Option-shaped
+                    // (a get-tail, a Some(...), an Option-slot local) or a
+                    // try-operator payload (expr? renders the bare value)
+                    // must not wrap again. The declared type of the value —
+                    // the local's slot, the class field, the function return
+                    // — decides payload vs Option: the typer reports the
+                    // unified nullable field type at this boundary, which
+                    // would otherwise suppress or mis-apply the wrap.
+                    // (NullableFieldSomeWrap)
+                    final valueExpr = stripWrap(f.expr);
+                    final exprDeclaredNullable = switch (valueExpr.expr) {
+                        case TLocal(v): StaticFieldHelper.isNullableType(v.t);
+                        case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)):
+                            StaticFieldHelper.isNullableType(cf.get().type);
+                        case TCall(fn, _):
+                            switch (fn.t) {
+                                case TFun(_, ret): StaticFieldHelper.isNullableType(ret);
+                                case _: StaticFieldHelper.isNullableType(f.expr.t);
+                            }
+                        case _: StaticFieldHelper.isNullableType(f.expr.t);
+                    };
+                    if (slotType != null && StaticFieldHelper.isNullableType(slotType) && !isTNull(f.expr)
+                        && !exprDeclaredNullable && !StringTools.endsWith(val, "?")
+                        && RustShapeParse.shapeOf(val) != RustShape.ShapeOption)
+                        val = "Some(" + val + ")";
                 }
                 RustImports.toSnakeCase(f.name) + ": " + val;
             }
