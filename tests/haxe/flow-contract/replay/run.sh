@@ -358,4 +358,3 @@ if [ "$membershipState" != "ok" ] || [ "$compareStatus" -ne 0 ]; then
     exit 1
 fi
 exit 0
-

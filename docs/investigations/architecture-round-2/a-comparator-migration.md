@@ -409,3 +409,31 @@ can repeat a generated spelling. Keep `SortedKey` and
 `OptionalEqualityCapability` as distinct requests; a concrete sorted key
 does not grant equality conformance to every instantiation of its generic
 declaration.
+
+### Recursive target realization discriminator
+
+An independent Swift 6.2.4 probe tested a resident generic comparator for
+`Expand<T>` whose optional next field has type `Expand<Array<T>>`. Its body
+calls the same comparator with the next values, so the recursive call uses a
+deeper type argument. Type checking, ordinary compilation, optimized
+compilation and finite runtime controls all passed. A control with three levels
+also returned the expected equal and opposite ordering results. The probe
+does not prove that the current Boring emitter produces this representation.
+
+The earlier review's claim that the growing type arguments make a Swift
+comparator impossible was therefore incorrect. For the source request,
+`Expand<T>` has no demanded parameter operation: its record reference never
+uses `T` as a comparable value. The finite source summary may admit it.
+Target realization still has to represent a call to the resident comparator
+at the substituted argument type and emit a legal body. The current
+`SwiftRecordOrder` plan names a nested concrete plan; that operation form
+does not express this recursive call. Assign a target realization diagnostic
+to the missing operation if it cannot be constructed, distinct from the
+source key-admission diagnostic.
+
+Use the probe as a discriminator for operation vocabulary, with normal and
+optimized target compilation plus finite runtime values. An uninhabited
+non-null recursive field proves only that its Swift type declaration is
+legal; it supplies no runtime case. Do not infer target impossibility from
+an infinite sequence of concrete type spellings without checking whether a
+single generic resident body can express the recursion.
