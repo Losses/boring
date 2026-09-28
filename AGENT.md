@@ -177,6 +177,22 @@ written spec localizes a disagreement: the first differing field
 identifies the encoder stage that failed. This boundary is a prerequisite
 for unit tests that stay useful across four languages.
 
+## Compiler analysis method
+
+Before diagnosing a translation failure, adding language support, or changing
+compiler structure, read [Compiler problem analysis](docs/compiler-problem-analysis.md)
+with the relevant feature specification and
+[translator implementation standard](docs/specs/style/02-translator-implementation-standard.md).
+Use its stages and semantic dimensions to find the earliest incorrect
+decision, identify the general rule, compare the five targets, and assign the
+repair to the responsibility that owns the required facts. Retain the compact
+analysis record in the change description or a linked investigation document.
+
+For coordinated architecture work, follow the
+[compiler architecture work plan](docs/architecture-work-plan.md). It defines
+task ownership, required briefs, verification evidence, and how execution
+results inform revisions to the internal guidance.
+
 ## Debugging and evidence
 
 Compiler debugging is evidence first. Before a single line changes, produce
