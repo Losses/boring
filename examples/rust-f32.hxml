@@ -9,7 +9,8 @@
 -cp packages/compiler/reflaxe/rust
 -cp samples
 -cp packages/registry/src
---macro Intercept.run(['samples', 'packages/registry/src'])
+-cp packages/driver/src
+--macro Intercept.run(['samples', 'packages/registry/src', 'packages/driver/src'])
 --macro haxe.macro.Compiler.keep('registry.Core')
 --macro haxe.macro.Compiler.keep('registry.Json')
 --macro haxe.macro.Compiler.keep('registry.Semver')
@@ -649,3 +650,8 @@ boring.DartNullPushOps
 tests.DartNullPushTests
 boring.IntFloatSignOps
 tests.IntFloatSignTests
+
+tests.DriverPlanTests
+boring.NullInflatedLiteralOps
+tests.NullInflatedLiteralOpsTests
+

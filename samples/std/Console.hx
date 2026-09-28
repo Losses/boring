@@ -7,4 +7,5 @@ package std;
 @:native("console")
 extern class Console {
     static function log(message:String):Void;
+    static function error(message:String):Void;
 }

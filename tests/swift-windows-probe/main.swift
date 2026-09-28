@@ -18,6 +18,7 @@
 // - CreateDirectoryW (Microsoft Learn)
 // - FindFirstFileW / FindNextFileW / FindClose and WIN32_FIND_DATAW
 //   (Microsoft Learn)
+// - MoveFileExW and MOVEFILE_REPLACE_EXISTING (Microsoft Learn)
 // - _access (Microsoft Learn)
 
 // ---------------------------------------------------------------------
@@ -34,6 +35,8 @@ let INVALID_FILE_ATTRIBUTES: DWORD = 0xFFFF_FFFF
 let FILE_ATTRIBUTE_DIRECTORY: DWORD = 0x10
 let ERROR_ALREADY_EXISTS: DWORD = 183
 let ERROR_NO_MORE_FILES: DWORD = 18
+let MOVEFILE_REPLACE_EXISTING: DWORD = 1
+let MOVEFILE_WRITE_THROUGH: DWORD = 8
 
 struct SECURITY_ATTRIBUTES {}
 
@@ -57,6 +60,9 @@ func GetFileAttributesW(_ name: LPCWSTR?) -> DWORD {
     return INVALID_FILE_ATTRIBUTES
 }
 func CreateDirectoryW(_ name: LPCWSTR?, _ attrs: UnsafePointer<SECURITY_ATTRIBUTES>?) -> BOOL {
+    return 0
+}
+func MoveFileExW(_ source: LPCWSTR?, _ target: LPCWSTR?, _ flags: DWORD) -> BOOL {
     return 0
 }
 func GetLastError() -> DWORD {
@@ -230,6 +236,18 @@ private func boringFsReadDir(_ path: String) throws -> [String] {
     return names
 }
 
+// std.Fs.rename, WinSDK arm (MoveFileExW replaces a regular file).
+private func boringFsRename(_ from: String, _ to: String) throws {
+    let source = Array(from.utf16) + [UInt16(0)]
+    let target = Array(to.utf16) + [UInt16(0)]
+    let result = source.withUnsafeBufferPointer { s in
+        target.withUnsafeBufferPointer { t in
+            MoveFileExW(s.baseAddress, t.baseAddress, DWORD(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+        }
+    }
+    if result == 0 { throw BoringException(message: from + " -> " + to + ": rename failed") }
+}
+
 // Referencing every probe helper keeps the type checker over the whole
 // file; the calls never run (the stubs return failure sentinels).
 let _probe = { () -> Void in
@@ -240,6 +258,7 @@ let _probe = { () -> Void in
     _ = boringFsIsDirectory("C:\\probe")
     _ = try? boringFsMakeDirs("C:\\probe\\a\\b")
     _ = try? boringFsReadDir("C:\\probe")
+    _ = try? boringFsRename("C:\\probe.tmp", "C:\\probe")
 }
 _ = _probe
 print("windows-probe-typecheck-ok")

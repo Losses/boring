@@ -6,6 +6,7 @@
 -cp samples
 -cp reference/haxe/gen-tests
 -cp packages/registry/src
+-cp packages/driver/src
 --macro Intercept.run(['samples', 'packages/registry/src'])
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 -main TestMain

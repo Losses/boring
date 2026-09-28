@@ -344,6 +344,8 @@ class Compiler extends PluginCompiler<Compiler> {
                 : "";
             PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "Runtime.swift"),
                 StringTools.trim(SwiftRuntime.SOURCE)
+                + "\n"
+                + StringTools.trim(SwiftRuntime.ARRAY_SOURCE)
                 + ustringPrelude
                 + "\n"
                 + residentParts.join("\n\n")
@@ -360,7 +362,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     }
                 }
                 PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "Test.swift"),
-                    StringTools.trim(SwiftRuntime.TEST_SOURCE)
+                    StringTools.trim(SwiftRuntime.TEST_HOST_SOURCE)
                     + "\n"
                     + testResidentParts.join("\n\n")
                     + "\n");
