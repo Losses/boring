@@ -36,6 +36,28 @@ describe("data tables TypeScript generation and behavior", () => {
     expect(source.includes("static TEXT_UNITS")).toBe(false);
   });
 
+  test("PayloadTextTable emits direct length and index reads, no per-access Array.from", () => {
+    // The length read and computed index reads are native on Int32Array
+    // (feature spec 20); each Array.from(TEXT_UNITS) would copy the whole
+    // table per loop iteration (quadratic blowup, see fix/ts-typed-array-access).
+    const source = readFileSync(join(GEN_DIR, "PayloadTextTable.ts"), "utf8");
+    expect(source.includes("Array.from(TEXT_UNITS)")).toBe(false);
+    expect(source.includes("while (index < TEXT_UNITS.length)")).toBe(true);
+    expect(source.includes("TEXT_UNITS[index]!")).toBe(true);
+  });
+
+  test("PayloadTextTable full decode loop finishes within bounded time and memory", () => {
+    // Runtime half of the regression evidence: the .length + [i] loop over
+    // the table must complete in finite time with no per-access conversion.
+    const before = process.memoryUsage().rss;
+    const t0 = performance.now();
+    const text = PayloadTextTable.text();
+    const elapsedMs = performance.now() - t0;
+    expect(text.length).toBe(186);
+    expect(elapsedMs).toBeLessThan(5000);
+    expect(process.memoryUsage().rss).toBeLessThan(before + 64 * 1024 * 1024);
+  }, 5000);
+
   test("ScriptEvidenceTable.classify operates correctly on generated tree", () => {
     expect(ScriptEvidenceTable.classify(0x0020)).toBe(1);
     expect(ScriptEvidenceTable.classify(0x007e)).toBe(1);

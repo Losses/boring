@@ -1,6 +1,7 @@
 package tests;
 
 import boring.PlatformOps;
+import boring.ProcessOps;
 import std.Env;
 import std.Fs;
 import std.Path;
@@ -19,6 +20,11 @@ import tests.PlatformModulesTestSupport;
  * observable everywhere and the five targets agree.
  */
 class PlatformModulesTests {
+    @:test("std.Process runs a child with cwd and environment and std.Fs deletes its output", except = ["haxe"])
+    public static function childProcessAndDelete():Void {
+        Test.equals(true, ProcessOps.hostProbe());
+    }
+
     @:test("std.Fs write append and read round-trip")
     public static function fsRoundTrip():Void {
         PlatformModulesTestSupport.ensureDir();
@@ -26,6 +32,18 @@ class PlatformModulesTests {
         Test.equals("firstsecond", PlatformOps.writeAppendRead(path, "first", "second"));
         Test.equals(true, Fs.exists(path));
         Test.equals(true, Fs.isDirectory(PlatformModulesTestSupport.DIR));
+    }
+
+    @:test("std.Fs rename replaces an existing file")
+    public static function fsRenameReplace():Void {
+        PlatformModulesTestSupport.ensureDir();
+        final source = PlatformModulesTestSupport.textPath("rename-source");
+        final destination = PlatformModulesTestSupport.textPath("rename-destination");
+        Fs.writeText(source, "new content");
+        Fs.writeText(destination, "old content");
+        Fs.rename(source, destination);
+        Test.equals(false, Fs.exists(source));
+        Test.equals("new content", Fs.readText(destination));
     }
 
     @:test("std.Fs makeDirs creates a nested directory")

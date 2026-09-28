@@ -127,6 +127,11 @@ class RustDecl {
                 "(" + value + ").to_string()";
             case TInst(c, _) if (c.get().name == "String"):
                 "(" + value + ").clone()";
+            // haxe.io.Bytes has no Display (spec 34 labeled form still
+            // applies); the growth variants already lean on Debug for
+            // payloads without one.
+            case TInst(c, _) if (c.get().pack.join(".") == "haxe.io" && c.get().name == "Bytes"):
+                'format!("{:?}", ' + value + ')';
             case _:
                 "(" + value + ").to_string()";
         };
@@ -2804,6 +2809,13 @@ class RustDecl {
         }
         final runnerName = desc != null ? id + ": " + desc : id;
         final snake = RustImports.toSnakeCase(f.field.name);
+        // A test entry always lowers to testlib::run / testlib::record_not_applicable,
+        // so the import is unconditional. Light the TestCore extern so the test
+        // runtime emits alongside the entry points; a bundle without the extern
+        // would otherwise leave the import dangling (E0432) instead of emitting
+        // the runtime the call needs. (TestEntryEmitsRuntime)
+        final testExtern = RuntimeResidents.externsOf("runtime.TestCore")[0];
+        state.shimsUsed.set(testExtern, true);
         imports.require("crate::runtime::test as testlib");
         if (TestApplicability.isExcluded(f.field, "rust")) {
             // The test declares this target in its except argument: the

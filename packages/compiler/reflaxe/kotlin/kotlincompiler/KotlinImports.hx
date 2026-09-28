@@ -105,6 +105,10 @@ class KotlinImports {
         if (module == "Std" || module == "Math" || module == "String" || module == "haxe.Int64" || module == "haxe.Exception") {
             return;
         }
+        if (module == "std.Process" && (name == "ProcessEnv" || name == "ProcessResult")) {
+            require("std." + name);
+            return;
+        }
         if (SHIM_MODULES.exists(module)) {
             final runtimePackage = RuntimeConfig.requireImportName("module " + module);
             state.shimsUsed.set(module, true);
@@ -112,6 +116,13 @@ class KotlinImports {
             return;
         }
         if (RuntimeResidents.isResident(module)) {
+            // Requiring a type from a resident module is what the emission
+            // gate treats as usage (emitResidentModule walks the module's
+            // externs against shimsUsed): light the fronting externs here
+            // so the resident emits with its importers.
+            for (externModule in RuntimeResidents.externsOf(module)) {
+                state.shimsUsed.set(externModule, true);
+            }
             // Residents live in the runtime package, test residents in
             // its test subpackage. A file already inside the target
             // package needs no import; business code reaches them
