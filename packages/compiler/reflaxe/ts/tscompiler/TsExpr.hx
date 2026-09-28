@@ -394,11 +394,7 @@ class TsExpr {
         };
         activeLoopParseHoists = null;
         parseHelperOrdinal = 0;
-        optionalParamLocals.clear();
-        for (a in f.args) {
-            if (a.opt && a.tvar != null)
-                optionalParamLocals.set(a.tvar.id, true);
-        }
+        registerOptionalParams(cls, f);
 
         prepareLocals(f.expr);
         return blockLines(statementsOf(f.expr), 2);
@@ -469,10 +465,42 @@ class TsExpr {
         the super call moves first. Subclasses of haxe.Exception also
         stamp this.name with the class name (stdlib/03).
     **/
+    /**
+        Registers which optional-parameter locals can still carry undefined
+        in the body about to render. Coalescing-defaulted parameters carry a
+        null initializer and body-normalized ones fold undefined away, so
+        neither registers. Both the function and the constructor entry call
+        this; a stale map from a previous body would wrap assignments that
+        the strict profile reads clean. (OptionalParamRegistration)
+    **/
+    function registerOptionalParams(cls:ClassType, f:ClassFuncData):Void {
+        optionalParamLocals.clear();
+        for (ai in 0...f.args.length) {
+            final a = f.args[ai];
+            if (!a.opt || a.tvar == null)
+                continue;
+            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null)
+                continue;
+            if (isNullType(a.tvar.t)) {
+                var trailing = true;
+                for (j in ai...f.args.length) {
+                    if (!DefaultArgExpander.isOptionalDefaultAt(cls, f.field.name, f.args[j].index)) {
+                        trailing = false;
+                        break;
+                    }
+                }
+                if (trailing)
+                    continue;
+            }
+            optionalParamLocals.set(a.tvar.id, true);
+        }
+    }
+
     public function constructorBody(cls:ClassType, className:String, f:ClassFuncData, isException:Bool):Array<String> {
         if (f.expr == null) {
             Context.error("constructor has no body to lower", f.field.pos);
         }
+        registerOptionalParams(cls, f);
         // Constructors use the same common expansions and statement pipeline
         // as ordinary functions. In particular, comprehensions and pipeline
         // calls become statement sequences before TypeScript expression
@@ -2751,7 +2779,7 @@ class TsExpr {
                     + expr(args[i])
                     + " ?? "
                     + defaultArgText(d, expected)
-                    + ")" else requiredArgText(args[i], expected, trailingOptionalAt(paramOpts, i) && !isNullType(expected));
+                    + ")" else requiredArgText(args[i], expected, trailingOptionalAt(paramOpts, i));
             }
         ];
     }
@@ -2844,6 +2872,13 @@ class TsExpr {
         };
         if (fieldType == null)
             return rendered;
+        // A recognized coalescing site renders p ?? E with a sanctioned
+        // non-null default, so the rendered value is already non-null and a
+        // null-unwrap assertion would only bolt a pin-breaking wrapper onto
+        // constructor field assignments. A null default still carries null.
+        final coalescing = coalescingSiteFor(r);
+        if (coalescing != null && coalescingDefaultTextFor(coalescing) != "null")
+            return rendered;
         final needsNull = argCarriesNull(r) && !isNullType(fieldType);
         final needsUndefined = argCarriesUndefined(r);
         if (needsNull || needsUndefined)
@@ -2870,7 +2905,7 @@ class TsExpr {
             + expr(args[i])
             + " ?? "
             + constructorDefaultText(d, p, cls, args)
-            + ")" : requiredArgText(args[i], p, trailingOptionalAt(paramOpts, i) && !isNullType(p));
+            + ")" : requiredArgText(args[i], p, trailingOptionalAt(paramOpts, i));
         }
         ];
         // A call may omit parameters that the emitted signature renders as
