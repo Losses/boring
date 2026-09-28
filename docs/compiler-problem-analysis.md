@@ -195,6 +195,15 @@ construct, the emitter function and line, generated text, and the target's
 failing site. For a wrong result, include expected and actual behavior and
 the operation that exposes the difference.
 
+Verify the complete compiler input path when testing a consumer checkout.
+A package-manager mapping establishes one source of inputs. Recursively inspect
+included HXML files, explicit class paths, macro source directories, standard
+library shadows, and runtime source roots for references to another compiler
+checkout. Record the driver's revision separately. Preserve the consumer's
+working directory when deriving a validation configuration; a project file's
+location may determine that directory. Where available, retain compiler module
+loading output to confirm the paths actually selected by the generation run.
+
 Reduce the input while retaining relevant effects, aliases, null states, and
 control flow. Add an isolated reproducer under the repository's test layout;
 preserve the source whose failure prompted the investigation. Cite the
