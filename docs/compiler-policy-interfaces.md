@@ -24,6 +24,24 @@ remain under review.
 | Presence evidence | Flow analysis at a specific use, with dependencies and invalidation | The exact subject/read, environment, fact lifetime, and applicable proof; no independent rendered-text inference |
 | Conversion plan | A pure decision consuming prepared value and destination | Required operand operations, result storage/presence, and the guarantees needed by the next consumer |
 
+### Current named APIs and consumers
+
+This inventory describes coordinator revision `96e37538`. It distinguishes a
+typed result that exists in the tree from a target consumer that uses it.
+Refresh the inventory when a candidate is integrated.
+
+| Producer or existing query | Concrete result | Current consumer and limit |
+| --- | --- | --- |
+| `SourceContainerAnalysis.analyze` | `SourceContainerFacts`, with wrapper, container face, resolved type and unresolved reason | `StaticFieldHelper` queries these facts; this does not select every target's value storage. |
+| `SourceLocalPresenceAnalysis.prepare` | `SourceLocalPresenceFacts`, with per-use `SourceUseFacts` and expression results | The 167-row local presence fixture exercises the source analysis. No target emitter in this revision consumes this prepared result; the Kotlin adapter is an isolated candidate. |
+| `ComparatorPlan.entries` | Legacy `ComparatorEntry` list and `ComparatorFieldKind` | TypeScript, Kotlin and Dart declaration emitters call it. Swift and Rust files still import it. The proposed finite source comparison analysis and Swift operation selector remain outside the coordinator revision. |
+| `SourceOriginTrace.beforeRewrites` and `SourceOriginFragment` | Source occurrence spans alongside generated TypeScript text | The TypeScript expression, declaration and module emitters compose these fragments into an optional sidecar. The integrated package tsc path still calls the general child runner and has no source diagnostic resolution. |
+
+The [candidate integration queue](investigations/architecture-round-2/candidate-integration-queue.md)
+names the independent A, B and F acceptance work. An API's existence is
+evidence of a producer, while each migration still needs a named consumer,
+removed duplicate decision, and target compilation and behavior result.
+
 Source classification cannot populate actual produced storage. A target can
 produce several storage forms for the same source type, including helper-native
 collections and its ordinary runtime wrapper. Its producer vocabulary must
