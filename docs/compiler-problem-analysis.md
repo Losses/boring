@@ -370,6 +370,20 @@ exit cannot establish coverage. Distinguish source typing, synthetic macro
 inputs, Boring generation, target compilation, and runtime execution in each
 record. A result at one stage establishes only that stage's observation.
 
+Adapters to a shared verifier must preserve the observations being checked.
+Derive expected identities from the declaration and recorded identities from
+the actual records. Filling missing rows from the expected list, selecting only
+the first duplicate, or omitting unexpected rows prevents the shared checker
+from detecting those defects.
+
+When checking a verifier's rejection behavior, start from a complete input that
+passes the same production entry point. Change one relevant condition and
+retain the other obligations. Confirm that rejection names the changed
+condition; an unrelated missing stage cannot prove a runtime-failure check.
+Exercise serialization and adapters as well as isolated predicates. Keep these
+synthetic inputs separate from actual compiler evidence, and retain the passing
+control beside each family of failing cases.
+
 Record commands, revisions, results, and gaps. A source-text search or an
 existing path in an exception record cannot substitute for executing the
 behavior that record claims to verify. A check that only repeats the
