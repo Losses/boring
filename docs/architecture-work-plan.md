@@ -224,6 +224,12 @@ artifact locations. Test the exact candidate that is proposed for acceptance.
 Keep the candidate fixed while expensive checks run. New work forms a later
 candidate with its own evidence.
 
+For consumer verification, trace the complete HXML include structure and all
+explicit compiler, standard-library and runtime paths. A correct haxelib mapping
+does not replace this check. Record actual loaded module paths during generation
+where the compiler supports it. Preserve the consumer working directory and
+input semantics when deriving configuration files for a candidate checkout.
+
 Use focused reproductions and contract tests for early feedback. Apply affected
 target compilation and execution checks, then every gate required by the
 implementation standard and repository instructions. Follow with the required
