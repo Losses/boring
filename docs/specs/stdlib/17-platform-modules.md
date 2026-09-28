@@ -18,7 +18,7 @@ runtime file carries one: the backing expression (a host call, a lazy
 host load, or a throwing stub) is emitted into the calling file, at the
 call site or, when a target ruling fixes that shape, as the top-level
 lowering the call site invokes. A file that never
-calls `std.Fs` never mentions a host API, so the general-entry contract of
+calls `std.Fs` never mentions a host API, so the general-entry requirement of
 spec 06 is untouched and `tests/ts/runtime-entry.test.ts` keeps scanning
 an unchanged entry.
 
@@ -220,7 +220,7 @@ The Swift chain moves from bare `swiftc` invocations to SwiftPM:
 4. `std.Process.args()` probes `CommandLine.arguments` availability in the
    same migration.
 
-## Failure contract
+## Failure behavior
 
 Failures raise the target's `haxe.Exception` mapping (spec 03) with the
 path and the host error text in the message. An unmapped capability on a

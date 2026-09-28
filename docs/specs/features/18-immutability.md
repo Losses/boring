@@ -55,7 +55,7 @@ length and elements observes the current contents. Conversion itself evaluates
 its source once and preserves the lifetime of the shared storage.
 
 The read-only interface provides no slot mutation API. Element values retain
-their own declared identity and mutability contracts; converting the container
+their own declared identity and mutability rules; converting the container
 does not clone its elements. A requested independent copy uses an explicit
 copy operation. The mutable source retains its permitted write operations.
 
@@ -216,22 +216,22 @@ read-only-typed value.
 
 | Candidate | performance | ambiguity | redundancy | readability |
 | --- | --- | --- | --- | --- |
-| Haxe C1 (Abstract) | Abstracts erase after typing; reads inline to plain array accesses with zero runtime cost. | The abstract name states the read-only contract at every declaration site. | One abstract serves every element type through its parameter. | `ReadOnlyArray<T>` reads as a type that exposes no mutating members. |
-| Haxe C2 (Metadata) | Metadata checks run at compilation with no runtime cost. | The contract lives in an annotation a reader can miss at the use site. | A rejection row and its test cases duplicate what the type system states. | Mutation errors appear as interception reports at generation time. |
-| Haxe C3 (Wrapper) | Every read passes through a method call; inline mitigates but the declaration cost stays. | The contract is explicit in the class shape. | One wrapper instance per collection at runtime. | Getter chains lengthen every access expression. |
-| TS C1 (readonly + frozen boundary) | One pass over the decoded payload calls `Object.freeze(` on each object at the boundary; reads afterward are plain property loads with no wrapper. | The type layer rejects mutation at compile time and the frozen objects reject it at runtime; the two state one contract. | One `Object.freeze(` call per object; no per-access machinery. | `readonly GlyphMetricsRecord[]` states the contract in the signature. |
-| TS C2 (readonly only) | No runtime enforcement cost. | JavaScript consumers without the types mutate freely; the contract holds only inside checked TypeScript. | Least code of the three. | The signature promises a guarantee the runtime does not keep. |
+| Haxe C1 (Abstract) | Abstracts erase after typing; reads inline to plain array accesses with zero runtime cost. | The abstract name states the read-only guarantee at every declaration site. | One abstract serves every element type through its parameter. | `ReadOnlyArray<T>` reads as a type that exposes no mutating members. |
+| Haxe C2 (Metadata) | Metadata checks run at compilation with no runtime cost. | The guarantee lives in an annotation a reader can miss at the use site. | A rejection row and its test cases duplicate what the type system states. | Mutation errors appear as interception reports at generation time. |
+| Haxe C3 (Wrapper) | Every read passes through a method call; inline mitigates but the declaration cost stays. | The guarantee is explicit in the class shape. | One wrapper instance per collection at runtime. | Getter chains lengthen every access expression. |
+| TS C1 (readonly + frozen boundary) | One pass over the decoded payload calls `Object.freeze(` on each object at the boundary; reads afterward are plain property loads with no wrapper. | The type layer rejects mutation at compile time and the frozen objects reject it at runtime; the two state one guarantee. | One `Object.freeze(` call per object; no per-access machinery. | `readonly GlyphMetricsRecord[]` states the guarantee in the signature. |
+| TS C2 (readonly only) | No runtime enforcement cost. | JavaScript consumers without the types mutate freely; the guarantee holds only inside checked TypeScript. | Least code of the three. | The signature promises a guarantee the runtime does not keep. |
 | TS C3 (Copy-on-read) | Every read allocates a copy; a traversal over n records allocates n copies. | Copy semantics differ from reference semantics, changing identity comparisons. | A copy per access multiplies allocations by access count. | Readers cannot tell whether they hold the original or a copy. |
-| Kotlin C1 (List view) | The fill keeps the array initializer cost profile; `asList()` wraps the backing array with one small view object and no copy; reads go through the `List` interface, which the JIT inlines to direct indexing at monomorphic call sites. | The `List` return type states the read-only contract; `add`/`remove` fail at runtime with the platform's own exception. | One view object per collection. | `List<GlyphMetrics>` is the standard Kotlin read-only type. |
-| Kotlin C2 (MutableList) | Identical construction cost. | The signature invites mutation; nothing states the contract. | None. | Consumers cannot tell decoded data from scratch storage. |
-| Kotlin C3 (Wrapper) | Reads pass through delegation; one wrapper instance per collection. | The contract is explicit but nonstandard. | A parallel type duplicates the platform interface. | A custom name replaces the interface every Kotlin reader knows. |
-| Rust C1 (Borrows) | Borrows compile to pointers; no wrapper, no runtime check, zero cost. | The `&` in every signature states the contract, and the compiler proves it. | No additional types. | Borrow syntax is the language's own read-only statement. |
-| Rust C2 (Wrapper struct) | Reads add a method call that inlines away; construction moves data into the wrapper. | The type name states the contract. | A parallel type wraps what a borrow states. | An extra layer around standard slice syntax. |
-| Rust C3 (compile_error! shims) | No runtime cost; the error is a compile-time constant. | The named message states exactly which lowering is forbidden. | Shims exist only to fail; they are generated, never called. | The error text names the violated contract at the offending line. |
+| Kotlin C1 (List view) | The fill keeps the array initializer cost profile; `asList()` wraps the backing array with one small view object and no copy; reads go through the `List` interface, which the JIT inlines to direct indexing at monomorphic call sites. | The `List` return type states the read-only guarantee; `add`/`remove` fail at runtime with the platform's own exception. | One view object per collection. | `List<GlyphMetrics>` is the standard Kotlin read-only type. |
+| Kotlin C2 (MutableList) | Identical construction cost. | The signature invites mutation; nothing states the guarantee. | None. | Consumers cannot tell decoded data from scratch storage. |
+| Kotlin C3 (Wrapper) | Reads pass through delegation; one wrapper instance per collection. | The guarantee is explicit but nonstandard. | A parallel type duplicates the platform interface. | A custom name replaces the interface every Kotlin reader knows. |
+| Rust C1 (Borrows) | Borrows compile to pointers; no wrapper, no runtime check, zero cost. | The `&` in every signature states the guarantee, and the compiler proves it. | No additional types. | Borrow syntax is the language's own read-only statement. |
+| Rust C2 (Wrapper struct) | Reads add a method call that inlines away; construction moves data into the wrapper. | The type name states the guarantee. | A parallel type wraps what a borrow states. | An extra layer around standard slice syntax. |
+| Rust C3 (compile_error! shims) | No runtime cost; the error is a compile-time constant. | The named message states exactly which lowering is forbidden. | Shims exist only to fail; they are generated, never called. | The error text names the violated guarantee at the offending line. |
 
 ## Ruling
 
-Ordinary array conversions follow the shared-storage contract above. The
+Ordinary array conversions follow the shared-storage guarantee above. The
 following recipes govern decoded data and its read-only consumption. Each
 platform enforces that protection at the earliest point it can state:
 
@@ -270,7 +270,7 @@ and tests assert its class, never a message string.
   decoded vector throw `TypeError`, that field assignment on a decoded
   record throws `TypeError`, and that the JSON boundary output is frozen the
   same way.
-- The Kotlin read-only contract is enforced at compile time: `decode` returns
+- The Kotlin read-only guarantee is enforced at compile time: `decode` returns
   `List<GlyphMetrics>`, which carries no `add` or `remove`, and
   `tests/kotlin/Main.kt` consuming the decoded value through that type is
   the proof. The runtime `UnsupportedOperationException` of the underlying

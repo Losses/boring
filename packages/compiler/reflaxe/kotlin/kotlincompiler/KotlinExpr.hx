@@ -482,8 +482,8 @@ class KotlinExpr {
         };
         // Keep the expression nullable only when the declaration widened its
         // Kotlin return type for a safe-call result. An interface override
-        // keeps the fixed non-null contract, so the return still extracts
-        // (FixedContractSafeCallReturn).
+        // keeps the fixed non-null type, so the return still extracts
+        // (FixedTypeSafeCallReturn).
         currentReturnAllowsNullable = allowNullableReturn && bodyUsesSafeCallReturns(f);
         nonNullLocals.clear();
         nullInitializedLocals.clear();
@@ -1844,7 +1844,7 @@ class KotlinExpr {
         // A nested function or lambda declares its own return type in TFunc.t
         // and emits that declaration as the literal result annotation, so the
         // returns in its body are judged against the declaration and never against the
-        // enclosing member contract. Without the swap a `return null` inside a
+        // enclosing member type. Without the swap a `return null` inside a
         // Null<T>-returning literal inherits the outer non-null return type and
         // hardens to `return null!!`. (NestedFunctionNullableReturn)
         final savedReturnType = currentReturnType;
@@ -1852,7 +1852,7 @@ class KotlinExpr {
         currentReturnType = f.t;
         // A literal never widens its annotation: it emits the declared type
         // verbatim, so a non-null declaration keeps extracting its returns.
-        // (FixedContractSafeCallReturn)
+        // (FixedTypeSafeCallReturn)
         currentReturnAllowsNullable = false;
         final body = blockLines(statementsOf(f.expr), 1).join("\n");
         currentReturnType = savedReturnType;
@@ -3620,7 +3620,7 @@ class KotlinExpr {
         // Nullable receivers call methods safely. A nullable receiver reading
         // a non-null property still needs extraction so the property access
         // keeps its declared Kotlin type. This distinction covers Null<T>
-        // toString calls without weakening ordinary field contracts.
+        // toString calls without weakening ordinary field types.
         final isProperty = cf != null && switch (cf.get().kind) {
             case FVar(_, _): true;
             case _: false;
@@ -4155,7 +4155,7 @@ class KotlinExpr {
         index 0, so each shape searches the sublist its start index bounds
         and the `indexOf` result is offset back into the receiver's own
         numbering.
-        The haxe contract clamps the start index before the sublist exists: a
+        The haxe std rule clamps the start index before the sublist exists: a
         negative `from` counts from the end, an index at or past the end
         searches the whole array forwards (or reports a miss) and one before
         the start reports a miss, which keeps the sublist bounds valid.
@@ -4711,7 +4711,7 @@ class KotlinExpr {
                     return subjText + access + "let { _a -> " + body + " }";
                 }
                 if (name == "split" && mutableArrayAccess && isString(stripCast(subj))) {
-                    // The haxe std contract gives an empty delimiter one
+                    // The haxe std rule gives an empty delimiter one
                     // element per UTF-16 code unit, which is what the
                     // JavaScript target produces; the platform split seeds a
                     // leading and a trailing empty string around the units
@@ -4721,7 +4721,7 @@ class KotlinExpr {
                     return expr(subj) + ".split(" + renderedArgs + ").toMutableList()";
                 }
                 // A string receiver outside a mutable array binding takes the
-                // general path below, which keeps the same unit contract for
+                // general path below, which keeps the same unit behavior for
                 // the empty delimiter.
                 if (name == "split" && isString(stripCast(subj)) && isEmptyDelimiterSplit(name, args))
                     return expr(subj) + nullableAccess(subj) + "chunked(1).toMutableList()";
@@ -5012,7 +5012,7 @@ class KotlinExpr {
                 if (registered != null && expected != null && isNullLiteral(a)) {
                     constructorDefaultText(registered, expected, cls, args);
                 } else if (isNullLiteral(a)) {
-                    // Preserve literal null for nullable contracts and
+                    // Preserve literal null for nullable declarations and
                     // equality/assertion expected values.
                     text;
                 } else if (registered != null && expected != null && requiresNonNullCallArgument(a, text)) {
@@ -5510,7 +5510,7 @@ class KotlinExpr {
 
     /** Adopts an interface-declared parameter name for this variable: the
         override signature and every body reference render with the
-        supertype name, so Kotlin's named-argument contract holds.
+        supertype name, so Kotlin's named-argument rule holds.
         (OverrideAdoptsInterfaceNames) */
     public function adoptParamName(v:TVar, name:String):Void {
         localNames.set(v.id, KotlinNameEscape.escape(name));
@@ -5637,7 +5637,7 @@ class KotlinExpr {
 
     /**
      * True for the empty string literal, the `split` separator whose haxe
-     * contract is one element per UTF-16 code unit and never a platform
+     * rule is one element per UTF-16 code unit and never a platform
      * pattern match.
      */
     function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {

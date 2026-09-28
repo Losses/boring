@@ -32,7 +32,7 @@ The first twelve rows use the reflected or direct bitwise algorithm selected
 by `refin`; `refout` controls final reflection when it differs from
 `refin`. Results are masked to the declared width. CRC-1 is deliberately the
 byte-sum special case, reduced modulo 256 by the implementation's compatibility
-contract (it is not a polynomial width-one implementation).
+rule (it is not a polynomial width-one implementation).
 
 ## Incremental semantics
 

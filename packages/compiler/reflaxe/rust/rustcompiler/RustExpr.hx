@@ -131,7 +131,7 @@ class RustExpr {
     // reference semantics of Haxe Array captures. (SharedClosureArrays)
     final sharedClosureArrays:Map<Int, Bool> = [];
     // Scalar locals (Int/Float/Bool) written inside a named local function
-    // lowered as Arc<dyn Fn>. The Fn contract forbids assigning a captured
+    // lowered as Arc<dyn Fn>. The Fn rule forbids assigning a captured
     // binding, so the scalar shares through Arc<Mutex> like the array family.
     // (SharedClosureScalars)
     final sharedClosureScalars:Map<Int, Bool> = [];
@@ -6702,7 +6702,7 @@ class RustExpr {
         // Nullable container indexing can arrive through a typed field or an
         // abstracted receiver whose macro type is no longer Null<T>, while
         // its emitted Rust type remains Option<Vec<_>>. Use the emitted type
-        // as the boundary contract so every index path extracts the container
+        // as the boundary rule so every index path extracts the container
         // before applying Vec indexing.
         if (rendersRustFallibleWrapper(subj.t) && !isNullableCollapsedLocal(subj))
             return true;
@@ -7970,7 +7970,7 @@ class RustExpr {
     function operand(e:TypedExpr, parent:Binop, isRight:Bool):String {
         var rendered = expr(e);
         // Null<Int> is represented as Option<u32>. Haxe permits it to enter
-        // numeric expressions; the target contract uses zero for the absent
+        // numeric expressions; the target rule uses zero for the absent
         // value, consistently at every arithmetic operand boundary.
         if (isNullType(e.t) || isStringCharCodeAtCall(e)) {
             switch (stripWrap(e).expr) {
@@ -11405,7 +11405,7 @@ class RustExpr {
                 final calleeResident = cls.module == "std.UStringRT" ? callerResident : RuntimeResidents.isResidentAbi(cls.module);
                 if (calleeResident) {
                     // Resident runtime modules render haxe Int as i32
-                    // (their clamping contracts carry negative values),
+                    // (their clamping rules carry negative values),
                     // while business expressions render u32; every Int
                     // parameter casts once at the call boundary.
                     signedPositions = intParamPositions(cf.get().type);
@@ -11789,7 +11789,7 @@ class RustExpr {
         }
         for (id in counts.keys()) {
             // One capturing closure with a proved write already breaks the
-            // snapshot-clone contract when the outer scope reads the
+            // snapshot-clone rule when the outer scope reads the
             // binding after the closure runs; the shared form is required
             // at any capture count. (SharedClosureArrays)
             if (counts.get(id) < 1 || !mutated.exists(id))
@@ -12337,7 +12337,7 @@ class RustExpr {
 
     /**
         Scalar locals assigned inside a named local function lower as
-        Arc<dyn Fn>, and the Fn contract forbids assigning a captured
+        Arc<dyn Fn>, and the Fn rule forbids assigning a captured
         binding. Each such scalar shares through Arc<Mutex> so the writes
         stay visible through the shared referent.
         (SharedClosureScalars)
@@ -12358,7 +12358,7 @@ class RustExpr {
                                 return;
                             case TLocal(v):
                                 // Any captured-and-reassigned binding needs
-                                // the shared referent: the Fn contract
+                                // the shared referent: the Fn rule
                                 // forbids assigning a captured binding of
                                 // every type; the earlier rule covered scalars only.
                                 // (SharedClosureScalars)
@@ -13484,7 +13484,7 @@ class RustExpr {
         },
             v -> {
             // A shared closure scalar writes through the dereferenced guard;
-            // the Mutex supplies the interior mutability the Fn contract
+            // the Mutex supplies the interior mutability the Fn rule
             // forbids on captured bindings (SharedClosureScalars).
             final name = RustImports.toSnakeCase(localName(v));
             sharedClosureScalars.exists(v.id) ? "*" + name + ".lock().unwrap()" : name;
@@ -14310,7 +14310,7 @@ class RustExpr {
         final suffix = "]";
         if (elements.length == 0 || (elements.length == 1 && elements[0] == ""))
             return prefix + suffix;
-        // Small arrays stay on one ruled single line (the array-root contract);
+        // Small arrays stay on one ruled single line (the array-root rule);
         // larger literals emit one deterministic element per line, which keeps
         // big data tables readable and bounds every generated line.
         final single = prefix + elements.join(", ") + suffix;
@@ -14886,7 +14886,7 @@ class RustExpr {
             return "Arc::new(Mutex::new(" + rendered + "))";
         }
         // A non-null Haxe local initialized to null stores Option<T> until
-        // assigned. At a non-null value boundary Haxe's declaration contract
+        // assigned. At a non-null value boundary Haxe's declaration rule
         // requires its payload; Copy values may consume the Option, while
         // owned values clone the proven payload so later Haxe reads remain
         // available.
@@ -16089,7 +16089,7 @@ class RustExpr {
 
     /**
      * Nullable container indexing policy: Haxe permits indexing a nullable
-     * container after its runtime null contract has been established. Rust
+     * container after its null test has been established. Rust
      * still sees Option<T>, so extract T only when the typed receiver remains
      * a Rust fallible wrapper. Non-nullable containers retain direct indexing.
      * The mutable form is used only for indexed assignment.
@@ -16132,7 +16132,7 @@ class RustExpr {
         }
         // Nullable container indexing can lose the Null abstract in macro
         // type following while the emitted receiver remains Option<Vec<T>>.
-        // Use the emitted Rust boundary contract so indexing never targets
+        // Use the emitted Rust boundary rule so indexing never targets
         // the Option itself (NullableContainerIndexing).
         final emittedReceiverType = arr.t == null ? "" : types.of(arr.t, false);
         final emittedOptionContainer = StringTools.startsWith(emittedReceiverType, "Option<");

@@ -2,7 +2,7 @@
  * Commit message validation per Conventional Commits v1.0.0.
  * https://www.conventionalcommits.org/en/v1.0.0/
  *
- * The rules below are the repository contract enforced by
+ * The rules below are the repository's commit message rules enforced by
  * `tools/commit/commit.ts` and by the commit-msg git hook. Every violation
  * reports the rule name and the offending line so the caller can fix the
  * message without reading the standard.
