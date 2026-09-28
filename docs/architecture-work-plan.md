@@ -100,7 +100,7 @@ code reviewable; it does not mean its consumers or regression gate passed.
 | C: identity and writable places | Classifier and place observation fixtures are integrated at `5eb3429b`; they do not implement the place migration. | Establish place identity and writeback through target lowering. |
 | D: control-flow results | The source/target result contract is documented; the policy migration has not begun. | Start after the A and B interfaces required by branch and return construction are accepted. |
 | E: intrinsics and platform contracts | Swift ordinary-array runtime dependency correction is integrated at `f3a8955a`; broader numeric, string, and module contracts remain open. | Validate target operation and helper closure across the affected languages. |
-| F: evidence and diagnostics | Child execution evidence is integrated at `8a2a9c6a`, and shared stage membership verification at `d873da91`. Source mapping and the full diagnostic contract remain open. | Connect policy decisions to source occurrences and preserve layered verdicts. |
+| F: evidence and diagnostics | Child execution evidence is integrated at `8a2a9c6a`, shared stage membership verification at `d873da91`, and the first TypeScript source-occurrence fragment path at `8a9a8c49`. Its focused fixture preserves generated TypeScript bytes and maps unchanged direct call statements; other output resolves as Unmapped. | Connect child `tsc` diagnostics to those occurrences, extend provenance through more lowering paths, and preserve layered verdicts. |
 
 The fixed Tiqian revision is prepared, but the full Boring and Tiqian
 candidate gates have not run. P08–P10 and P12 remain open for that reason.
