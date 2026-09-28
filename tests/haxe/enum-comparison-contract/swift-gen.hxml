@@ -1,0 +1,22 @@
+# Static Swift generation of the enum comparison contract module.
+# Run from the repository root; the caller supplies the output tree so
+# every attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/enum-comparison-contract/swift-gen.hxml \
+#     -D swift-output=out/enum-comparison-contract/runs/<run>/swift-gen
+# The runner generates this tree for inspection only. No Swift stage
+# compiles or executes it, so it carries no runtime claim.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp tests/haxe/enum-comparison-contract
+-cp samples
+--macro Intercept.run(['tests/haxe/enum-comparison-contract'])
+--macro swiftcompiler.Compiler.use()
+-D swift-output=out/enum-comparison-contract/runs/swift-gen
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none
+enumcontract.EnumContractSubject
+runtime.UString
+runtime.SortedTable
