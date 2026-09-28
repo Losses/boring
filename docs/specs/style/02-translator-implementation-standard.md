@@ -39,7 +39,13 @@ A mechanism that exists as parallel copies in several target printers (the same 
 
 **Step 1, consolidate.** The majority body moves into a new or existing shared module. Each copy becomes a delegation that keeps its declared signature (static or instance, per the target's existing call shape), so call sites in the target printer do not change.
 
-**Step 2, verify.** All eight generation trees regenerate. Every target the change does not touch must remain byte-identical: the manifest diff is empty. The touched targets keep their suites green. `bun run test:consistency` passes with fresh producer runs. `bun run check:docs` and the Haxe formatter pass on the touched compiler files.
+**Step 2, verify.** Regenerate every configuration declared in `boring.json`,
+including its numeric-precision variants. Every target the change does not
+touch must remain byte-identical: the manifest diff is empty. The touched
+targets keep their suites green. `bun run test:consistency` passes with fresh
+producer runs. That command compares existing result files; generation and
+test execution must precede it for the candidate being reviewed.
+`bun run check:docs` and the Haxe formatter pass on the touched compiler files.
 
 The field key policy consolidation is the reference example. `PolicyQueries.hx` holds `canEmitDataClassComparator`, `isDataClassFieldKey`, `isStructKeyCandidate`, and `isFieldKeyCandidate`; the five `*Type.hx` and `*Decl.hx` copies delegate to it. Its Step 0 comparison classified the Kotlin switch arm order as verdict (ii) (disjoint constructors, equal output) and the Dart `static` qualifier as verdict (i) (invocation shape, same boolean returned). No verdict (iii) row existed, so no owner ruling was required.
 
@@ -60,7 +66,13 @@ A shared mechanism with per-target variation uses one of five shapes. A variatio
 1. Generated code compiles without warnings on every target: kotlinc, rustc, the TypeScript compiler, the Dart analyzer, and the Swift type-checker. A translation that produces a warning is an emitter defect with the same severity as a translation that produces wrong output.
 2. Warning suppression markers are banned in generated trees: no `@Suppress` or `@SuppressWarnings` (Kotlin), no `#[allow]` (Rust), no `@ts-ignore`, `@ts-expect-error`, or `eslint-disable` marker (TypeScript), no `// ignore:` comment (Dart). The emitter produces code that does not warn.
 3. Acceptance for any emitter change counts the warning lines in the target suite output that name files under the generated trees; the count is zero. A change that replaces a warning with a suppression marker fails acceptance.
-4. Cross-target behavior is held by `bun run test:consistency`: it runs the shared test set on all six runners (haxe, TypeScript, Kotlin, Rust, Swift, Dart) over fresh producer output and requires equal results. Consistency verifies the covered tests; divergences outside the covered tests are found by the Step 0 comparison of the consolidation procedure, which is why Step 0 reads every copy before any editing.
+4. Cross-target behavior is checked by `bun run test:consistency`: it compares
+   recorded outcomes from the shared test set on six runners (Haxe, TypeScript,
+   Kotlin, Rust, Swift, Dart) and requires equal results. Obtain those records
+   from fresh generation and test execution before comparison. Consistency
+   verifies the covered tests; divergences outside the covered tests are found
+   by the Step 0 comparison of the consolidation procedure, which is why Step 0
+   reads every copy before any editing.
 
 ## Fix location
 
