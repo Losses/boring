@@ -15,8 +15,8 @@ class MathNaNOps {
 
     // Literal-only constant edges (constant folding, warning-zero H1): the
     // operands are all literals, so every target can render the result as its
-    // own NaN/infinity constant instead of an operation the toolchains warn
-    // about (kotlinc "division by zero"; swiftc literal conversion
+    // own NaN/infinity constant, avoiding literal operations that the
+    // toolchains warn about (kotlinc "division by zero"; swiftc conversion
     // underflow/overflow).
     public static function constantNan():Float
         return 0.0 / 0.0;
