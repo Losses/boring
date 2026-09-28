@@ -13,6 +13,8 @@ import TestApplicability;
 import ComparatorPlan;
 import ComparatorPlan.ComparatorFieldKind;
 import ValueTypeSupport.ValueTypeInfo;
+import SourceOriginFragment;
+import SourceOriginFragment.SourceOriginSpan;
 
 /**
     Declaration lowering: classes, variant enums, and record typedefs
@@ -67,7 +69,7 @@ class TsDecl {
     // Classes
     // ------------------------------------------------------------------
 
-    public function classDecl(cls:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
+    public function classDecl(cls:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):SourceOriginFragment {
         if (cls.isInterface) {
             final typeAliases:Array<String> = [];
             final members:Array<String> = [];
@@ -96,7 +98,7 @@ class TsDecl {
             for (m in members)
                 lines.push(m);
             lines.push("}");
-            return lines.join("\n");
+            return SourceOriginFragment.plain(lines.join("\n"));
         }
 
         if (cls.superClass != null && exceptionDepth(cls) == 0) {
@@ -112,7 +114,7 @@ class TsDecl {
             extractedParts.push(extractedFuncDecl(cls, f).join("\n"));
         }
         if (varFields.length == 0 && ordinaryFuncs.length == 0) {
-            return extractedParts.join("\n\n");
+            return SourceOriginFragment.plain(extractedParts.join("\n\n"));
         }
 
         final tableLines:Array<String> = [];
@@ -126,6 +128,7 @@ class TsDecl {
         }
 
         final lines:Array<String> = [];
+        final methodSpans:Array<SourceOriginSpan> = [];
         // The implements clause names every interface; a cross-module
         // interface needs its import recorded here, exactly like a
         // field-type reference does. Same-module interfaces emit no import.
@@ -167,7 +170,17 @@ class TsDecl {
             sep = true;
             for (l in accessorDeclFor(cls, f))
                 lines.push(l);
-            for (l in funcDecl(cls, f))
+            final methodFragment = funcDecl(cls, f);
+            final methodBase = SourceOriginFragment.utf16Length(lines.join("\n")) + (lines.length > 0 ? 1 : 0);
+            for (span in methodFragment.spans) {
+                methodSpans.push({
+                    start: methodBase + span.start,
+                    end: methodBase + span.end,
+                    origin: span.origin,
+                    unmappedReason: span.unmappedReason
+                });
+            }
+            for (l in methodFragment.text.split("\n"))
                 lines.push(l);
         }
 
@@ -176,7 +189,17 @@ class TsDecl {
         final classPart = prefix + lines.join("\n");
         final comparator = cls.meta.has(":dataClass") && TsType.canEmitDataClassComparator(cls) ? dataClassComparator(cls) : "";
         final fullPart = comparator == "" ? classPart : classPart + "\n\n" + comparator;
-        return extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + fullPart : fullPart;
+        final leading = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" : "";
+        final spans = [
+            for (span in methodSpans)
+                {
+                    start: SourceOriginFragment.utf16Length(leading) + SourceOriginFragment.utf16Length(prefix) + span.start,
+                    end: SourceOriginFragment.utf16Length(leading) + SourceOriginFragment.utf16Length(prefix) + span.end,
+                    origin: span.origin,
+                    unmappedReason: span.unmappedReason
+                }
+        ];
+        return new SourceOriginFragment(leading + fullPart, spans);
     }
 
     function dataClassComparator(cls:ClassType):String {
@@ -616,7 +639,7 @@ class TsDecl {
         return out;
     }
 
-    function funcDecl(cls:ClassType, f:ClassFuncData):Array<String> {
+    function funcDecl(cls:ClassType, f:ClassFuncData):SourceOriginFragment {
         final args = [
             for (a in f.args) paramText(cls, f, a)
         ].join(", ");
@@ -627,13 +650,17 @@ class TsDecl {
                 expr.reserveName(a.name);
             }
             final body = expr.constructorBody(cls, cls.name, f, isException(cls));
-            return ['  constructor($args) {'].concat(body).concat(["  }"]);
+            return SourceOriginFragment.plain(['  constructor($args) {'].concat(body).concat(["  }"]).join("\n"));
         }
         for (a in f.args) {
             expr.reserveName(a.name);
         }
         final ret = types.of(f.ret);
-        final body = optionalNullNormalizations(cls, f, "    ").concat(decodeBoundaryBody(cls, f));
+        final bodyPrefix = optionalNullNormalizations(cls, f, "    ");
+        final bodyFragment = SourceOriginFragment.join([
+            SourceOriginFragment.plain(bodyPrefix.join("\n")),
+            decodeBoundaryBodyFragment(cls, f)
+        ], bodyPrefix.length > 0 ? "\n" : "");
         // A function whose StringBuf parameter is mutated in the body
         // threads the mutated buffer back through the return value (the
         // TypeScript target erases StringBuf to an immutable string). The
@@ -641,7 +668,9 @@ class TsDecl {
         // `return out;`; call sites reassign the argument.
         final mutatedBufParam = mutatedStringBufParam(cls, f);
         final retText = mutatedBufParam != null ? "string" : ret;
-        final bodyText = mutatedBufParam != null ? body.concat(["    return " + mutatedBufParam + ";"]) : body;
+        final completeBody = mutatedBufParam != null
+            ? SourceOriginFragment.join([bodyFragment, SourceOriginFragment.plain("    return " + mutatedBufParam + ";")], bodyFragment.text.length > 0 ? "\n" : "")
+            : bodyFragment;
         // @:allow members omit TypeScript visibility so they are public.
         // A private member another class in the same module accesses (Haxe
         // same-module private access) also emits public.
@@ -654,7 +683,11 @@ class TsDecl {
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final head = '  $vis ${stat}${f.field.name}$genericStr($args): $retText {';
-        return [head].concat(bodyText).concat(["  }"]);
+        final methodParts:Array<SourceOriginFragment> = [SourceOriginFragment.plain(head)];
+        if (completeBody.text.length > 0)
+            methodParts.push(completeBody);
+        methodParts.push(SourceOriginFragment.plain("  }"));
+        return SourceOriginFragment.join(methodParts, "\n");
     }
 
     function extractedFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
@@ -698,9 +731,14 @@ class TsDecl {
         boundary; its fill stores and return value are frozen.
     **/
     function decodeBoundaryBody(cls:ClassType, f:ClassFuncData):Array<String> {
+        final text = decodeBoundaryBodyFragment(cls, f).text;
+        return text.length == 0 ? [] : text.split("\n");
+    }
+
+    function decodeBoundaryBodyFragment(cls:ClassType, f:ClassFuncData):SourceOriginFragment {
         final boundary = StaticFieldHelper.isReadOnlyArrayType(f.ret);
         expr.setDecodeBoundary(boundary);
-        final body = expr.functionBody(cls, f);
+        final body = expr.functionBodyFragment(cls, f);
         expr.setDecodeBoundary(false);
         return body;
     }
