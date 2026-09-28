@@ -107,6 +107,12 @@ integrated at `cde5e97c`, with its source ruling still pending. B1 observes actu
 flow consumers through the existing child-evidence recorder. These tasks do
 not complete P08's mechanism migration or P09's regression requirements.
 
+B1's replay verdict is undergoing negative-control verification. The next
+[local-presence migration](investigations/architecture-round-2/b-local-presence-migration.md)
+has a coordinator-owned source-fact and Kotlin consumer contract. Its writer
+uses a separate pinned checkout; shared comparison analysis, B1's replay tools
+and other target adapters remain outside that writer's ownership.
+
 The fixed Tiqian input remains `8504d230228e8206689a2049bbb84b671c1f079a`.
 The previous validation checkout was absent during the latest environment
 check; its loss has no established cause. A new locked checkout at the same

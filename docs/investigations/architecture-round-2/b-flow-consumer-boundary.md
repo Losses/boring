@@ -88,3 +88,9 @@ The resulting implementation brief must name the authoritative fact producers,
 invalidation owners, real consumers and old decisions to remove. Field aliasing,
 captured writes, loop exits and other targets remain programme obligations after
 this bounded batch. A null-syntax extraction alone does not complete package B.
+
+The coordinator's [local-presence migration contract](b-local-presence-migration.md)
+defines the next implementation boundary. It includes constructor and nested
+function entry points, a prepared-function lifecycle, conservative effects and
+the transition from mixed source and target proof stores. The external design
+reports are investigation inputs; they do not replace that reviewed contract.
