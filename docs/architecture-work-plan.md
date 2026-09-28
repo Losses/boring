@@ -149,6 +149,9 @@ their original scope; neither the copied inputs nor the new checkout establish
 a fresh regression result. Recreate and review the derived compiler paths and
 comparison groups before running the final candidate. Retain all 12 generation
 and 11 target-test obligations, including the protocol test-root union.
+The existing derived Tiqian files identify an older Boring revision; the
+[preparation review](investigations/architecture-round-2/tiqian-preparation-review.md)
+records why they must be refreshed after the architecture candidate is fixed.
 
 The current candidate must use `ReadOnlyArray` for J's new runtime view and
 all references to it. Existing branded mutable-array and exception types remain
