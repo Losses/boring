@@ -217,3 +217,8 @@ Repeated omissions in status, stream and input-identity recording motivate that
 review. It must identify a bounded common implementation and concrete consumers
 before another infrastructure change is assigned. No compiler writer has yet
 been assigned the broader A3 comparison-plan migration.
+
+The coordinator's [B1 flow consumer review](architecture-round-2/b-flow-consumer-boundary.md)
+identifies Kotlin's source-position evidence and its declaration/body consumers.
+It defines a bounded next observation batch. No runtime defect or package B
+compiler migration is accepted by that static review.
