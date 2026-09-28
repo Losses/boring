@@ -9,10 +9,12 @@ array_only="$attempt/array-only"
 scalar_array_only="$attempt/scalar-array-only"
 with_tests="$attempt/with-tests"
 tests="$attempt/tests"
+static_data_array_only="$attempt/static-data-array-only"
 
 haxe tests/haxe/swift-runtime-closure/main.hxml -D "swift-output=$ordinary"
 haxe tests/haxe/swift-runtime-closure/array-only.hxml -D "swift-output=$array_only"
 haxe tests/haxe/swift-runtime-closure/scalar-array-only.hxml -D "swift-output=$scalar_array_only"
+haxe tests/haxe/swift-runtime-closure/static-data-array-only.hxml -D "swift-output=$static_data_array_only"
 haxe tests/haxe/swift-runtime-closure/test.hxml \
   -D "swift-output=$with_tests" \
   -D "swift-test-output=$tests"
@@ -47,12 +49,24 @@ scalar_result=$("$attempt/scalar-array-only-check")
 test "$scalar_result" = 7
 printf 'scalar array expression: %s\n' "$scalar_result"
 
+swiftc "$static_data_array_only/Runtime.swift" \
+  "$static_data_array_only/StaticDataArrayOnly.swift" \
+  "$static_data_array_only/std/UStringException.swift" \
+  "$static_data_array_only/std/UStringFault.swift" \
+  tests/haxe/swift-runtime-closure/native-static-data-array-only.swift \
+  -o "$attempt/static-data-array-only-check"
+static_data_array_only_result=$("$attempt/static-data-array-only-check")
+test "$static_data_array_only_result" = 65
+printf 'ordinary static data Array: %s\n' "$static_data_array_only_result"
+
 test "$(rg -c '^public final class TiqianArray<' "$ordinary/Runtime.swift")" = 1
 test "$(rg -c '^public final class ReadOnlyArray<' "$ordinary/Runtime.swift")" = 1
 test "$(rg -c '^public final class TiqianArray<' "$array_only/Runtime.swift")" = 1
 test "$(rg -c '^public final class ReadOnlyArray<' "$array_only/Runtime.swift")" = 1
 test "$(rg -c '^public final class TiqianArray<' "$scalar_array_only/Runtime.swift")" = 1
 test "$(rg -c '^public final class ReadOnlyArray<' "$scalar_array_only/Runtime.swift")" = 1
+test "$(rg -c '^public final class TiqianArray<' "$static_data_array_only/Runtime.swift")" = 1
+test "$(rg -c '^public final class ReadOnlyArray<' "$static_data_array_only/Runtime.swift")" = 1
 test "$(rg -c '^public final class TiqianArray<' "$with_tests/Runtime.swift")" = 1
 test "$(rg -c '^public final class ReadOnlyArray<' "$with_tests/Runtime.swift")" = 1
 test_host_count=$(rg -c '^public final class (TiqianArray|ReadOnlyArray)<' "$with_tests/Test.swift" || printf '0')
@@ -66,7 +80,7 @@ swiftc "$with_tests/Runtime.swift" \
   "$tests/closureFixture/ClosureTests.swift" \
   "$tests/TestMain.swift" \
   -o "$attempt/test-check"
-BORING_TEST_RESULTS="$PWD/$attempt/results.jsonl" \
+BORING_TEST_RESULTS="$attempt/results.jsonl" \
   "$attempt/test-check"
 rg -q '"verdict":"pass"' "$attempt/results.jsonl"
 printf 'attempt: %s\n' "$attempt"
