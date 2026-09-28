@@ -2,10 +2,12 @@
 
 ## Status and objective
 
-This is the coordinator's design for the next package A consumer migration.
-Implementation requires the A2 source analyzer's accepted interface and the
-bounded five-target caller audit. No A3 compiler writer is assigned by this
-document. Completing A2's three adapters leaves this migration outstanding.
+This is the coordinator's design for the package A comparison migration.
+A2's bounded source foundation and the five-target caller audit are accepted.
+Luna owns the shared analysis and first Swift consumer in a separate checkout
+at `f3a8955a`. Implementation and focused verification are in progress. The
+remaining four target adapters require an accepted shared-interface checkpoint
+and their own file assignments before implementation.
 
 The current `ComparatorPlan` shares field classification with TypeScript,
 Kotlin, and Dart. Swift and Rust import it but retain inline classification.
@@ -166,3 +168,36 @@ Tests and cross-review can proceed independently in pinned checkouts. Shared
 interface changes return to the coordinator before downstream edits. The
 coherent candidate must satisfy the programme's Boring and fixed-version
 Tiqian verification; these focused cases do not replace that requirement.
+
+## Remaining target adapter boundaries
+
+The coordinator rechecked these consumers at `1bee18f9`. The table is an
+implementation inventory; it assigns no additional writer. Each target must
+consume the shared source fields and required operations, then select legal
+target operations and their declaration dependencies. Copying the Swift
+printer or retaining an independent raw-type classifier cannot complete an
+adapter migration.
+
+| Target | Current consumers and required target decisions |
+| --- | --- |
+| TypeScript | `TsDecl.dataClassComparator` uses `ComparatorPlan.entries(false, false)` plus independent helper preparation and `nullableArrayComparator`. `TsType.canEmitDataClassComparator` delegates to `PolicyQueries`; `TsExpr.sortedComparator` names the selected declaration. Migrate those decisions together and retain the UTF-16 string contract. |
+| Kotlin | `KotlinDecl.dataClassComparator` uses `entries(true, true)` and emits a comparator for every data class. Its nullable scalar branch can compare decimal strings for Int fields. Plan numeric ordering, immutable versus mutable nullable extraction, helper ownership and declaration eligibility; keep `KotlinExpr.sortedComparator` references coherent. |
+| Rust | `RustDecl.dataClassComparator` retains its own stored-field and raw-type traversal, including separate scalar, nullable and element operations. Plan borrowing and enum patterns from target representation. Int ordering must decode the signed source value from business storage without introducing forbidden casts. Review `RustExpr.sortedComparator` and the existing numeric helper before reuse. |
+| Dart | `DartDecl.dataClassComparator` uses `entries(false, false)` and independently checks nested comparator capability in several branches. Plan nullable, element and nested operations once, retaining module qualification and `DartExpr.sortedComparator` references. |
+
+Each assignment must inventory references from builder creation as well as
+ordinary calls. The existing scalar direct-key and anonymous-structure paths
+remain separate consumers to review when a selected operation is shared with
+them. A record-only change cannot establish their migration.
+
+Preserve payload-enum behavior while its source ruling is unresolved. Source
+admission, target comparator availability and ordinary object identity remain
+separate queries. Include ordinary reference classes as controls whenever a
+capability migration touches general equality selection.
+
+The migration's source tests cover actual argument substitution, aliases,
+computed fields and declaration identity. Target tests additionally establish
+that planned helper identities, names, imports and native operand types agree.
+An unresolved target naming limitation must remain visible even when source
+identity is correctly represented. Remove the legacy strictness flags and
+duplicate classification owner only after their last target consumer migrates.
