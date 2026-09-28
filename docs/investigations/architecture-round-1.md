@@ -312,11 +312,13 @@ it does not constitute a passing conformance test.
 
 ## Consumer preflight after recovery
 
-Task G2 confirmed the recreated Tiqian checkout at
-`8504d230228e8206689a2049bbb84b671c1f079a` uses the actual candidate compiler
-path after a shell-hook override.
-The driver remains the Tiqian flake's `304ed70c` package. A generation-only
-compatibility task now tests that pairing before any expensive suite.
+Task G2 confirmed a candidate haxelib mapping after a shell-hook override in
+the recreated Tiqian checkout at
+`8504d230228e8206689a2049bbb84b671c1f079a`. O revision 2 subsequently found
+explicit backend and sample paths still selecting the old export. The mapping
+alone therefore does not establish the compiler inputs used by generation.
+The driver remains the Tiqian flake's `304ed70c` package. Generation compatibility
+remains untested.
 
 The executor copied 244 local golden files and four Unicode input files using
 Tiqian's setup command. Source and destination SHA-256 manifests match. Their
@@ -401,3 +403,86 @@ observations above; they do not constitute acceptance of a fully frozen
 candidate. The later full verification must keep the complete candidate unchanged as
 the existing work plan requires. No compiler rerun was needed to inspect this
 documentation-only difference.
+
+## Successful child diagnostics
+
+Task N prepared an external capture helper under
+`out/architecture-child-capture/`. It records child arguments, executable
+identity, working directory, timings, statuses, and separate raw output streams.
+The coordinator inspected the synthetic records and the unchanged driver's
+success and failure records. A successful fake compiler warning is absent from
+the driver's transcript and present in the child record. This confirms the
+diagnostic loss identified by B and demonstrates a bounded capture route.
+
+Review returned three helper defects to the executor: canonicalizing an
+executable path could change dispatch through a symbolic link; stopping a reader
+after a forwarding error could leave the child blocked; and re-raising a signal
+with the wrapper's handler still installed could prevent termination. The
+corrected synthetic checks cover these cases, large concurrent streams, exact
+arguments, and interruption. They establish helper behavior within that domain.
+They do not establish complete capture for a future platform suite.
+
+The helper does not classify warnings. Future acceptance requires records for
+every expected compiler invocation, complete streams, and review of diagnostic
+lines that name generated files. Absolute tool paths and package-local command
+resolution require separate route checks. The driver's existing output buffer
+limit also remains in force. No full verification ran, and the current checkout
+still lacks the package-local TypeScript compiler needed by that command.
+
+The existing brief already required argument and status preservation. These
+delivery defects called for implementation corrections and discriminating
+checks, without adding another general rule to the analysis method. The
+proposed full-run recipe was separately corrected to stop on preparation
+failure and preserve earlier evidence directories.
+
+## Consumer input identity review
+
+Task O inventories twelve Tiqian bundles at the fixed revision: eight engine
+bundles, three protocol test bundles, and the stock-Haxe C-header generator.
+Eleven have tests enabled. The driver compares enabled outputs against its
+configured baseline, but the engine and protocol test identifier domains have
+not yet been shown to match. Full driver verification also excludes optional
+packaging and several product build checks. A later candidate must name its
+required consumer checks from the affected interfaces and representations.
+
+O revision 2 and coordinator source review found backend, standard-library
+shadow, sample, and macro-directory references into `.haxelib/boring/git` in
+the HXML include structure. Hashes of the sampled files match the pinned
+consumer export; a recursive content comparison was not performed.
+The candidate's package parameters do not replace these target class paths.
+This finding corrects G2's broader inference from its haxelib observation;
+actual module selection still requires a compiler execution record.
+
+The driver derives its working directory from the project file's directory.
+Placing a derived project under an output subdirectory would change relative
+source paths. Moving all output paths would also affect the C-header generator,
+whose source names a fixed destination. [Task P](architecture-round-1/p-consumer-inputs.md)
+therefore prepares a project at the owned Tiqian root and preserves its outputs
+while replacing compiler input paths in derived HXML files. Preparation is
+authorized; generation remains subject to task I's unresolved review rejection.
+
+This was a missing verification requirement in the earlier preflight brief.
+The analysis method now requires tracing every compiler input source, preserving
+the consumer working directory, and checking actual loaded modules where
+available. P will exercise the revised preparation requirement across all twelve
+bundles. Static path agreement will remain distinct from observed compiler
+module resolution and regression evidence.
+
+P prepared the twelve derived HXML files and the project at the consumer root.
+The coordinator inspected every transformation diff: the project changes only
+the twelve roots-file values; flattened HXML changes consist of candidate path
+substitutions and a leading verbose flag. Output paths, protocol-C commands,
+and ordinary consumer arguments remain intact. The retained manifest records
+included HXML hashes, candidate source hashes, package mappings, and the pinned
+driver executable. Tracked Tiqian changes remain empty. These findings accept
+the static configuration preparation only.
+
+The first preparation attempt left provisional files without a complete status
+record. The executor preserved their inventory and moved those owned files to
+a separate attempt directory before completing the final preparation. Its
+earlier termination status remains unknown. Review also returned an incorrect
+direct-Haxe launch proposal, an assumption about haxelib output ordering, and
+shell assertions that did not stop on failure. The proposed generation recipe
+requires separate review; no generation ran. Successful verbose compiler output
+must use the child capture route established by N before it can support a
+module-origin claim.

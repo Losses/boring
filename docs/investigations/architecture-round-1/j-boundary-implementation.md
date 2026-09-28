@@ -137,6 +137,9 @@ change requires its own file ownership and acceptance brief.
 
 Tiqian generation compatibility is a prerequisite for the later consumer suite.
 Its driver and effective haxelib compiler are separate recorded identities.
+Verify the HXML include paths and explicit backend and runtime class paths as
+well. Tiqian's existing HXML files refer to `.haxelib/boring/git` directly;
+overriding `-lib boring` alone does not establish candidate backend identity.
 The current compatibility command awaits approval after automatic review
 rejected it; no Tiqian regression result has been established. Follow the work
 plan's full consumer verification requirement after compatibility succeeds.
