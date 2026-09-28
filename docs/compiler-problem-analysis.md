@@ -304,6 +304,13 @@ an unimplemented shared behavior remains an unmet requirement on that target.
 An excluded test or an unconditional successful assertion cannot establish
 conformance. Keep focused backend evidence distinct from shared-suite results.
 
+An observation tool must establish that it visited the intended inputs. Define
+the expected case identities independently of the traversal, then compare that
+set with the retained observations. An empty result or a successful process
+exit cannot establish coverage. Distinguish source typing, synthetic macro
+inputs, Boring generation, target compilation, and runtime execution in each
+record. A result at one stage establishes only that stage's observation.
+
 Record commands, revisions, results, and gaps. A source-text search or an
 existing path in an exception record cannot substitute for executing the
 behavior that record claims to verify. A check that only repeats the
