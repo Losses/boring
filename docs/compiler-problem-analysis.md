@@ -219,6 +219,14 @@ as unknown and a proposed explanation as a hypothesis. For an architecture
 review without an executable failure, report the inspected dependency and
 the contract it lacks; do not claim a reproduced runtime defect.
 
+Before generation, map each requested semantic case to the authored values that
+exercise it. Check where each relevant state occurs. For example, comparing a
+record with a `Null<ReadOnlyArray<Int>>` field requires present record objects
+whose fields hold the selected null or collection values. Passing null as the
+record key exercises a different boundary. Review this mapping before native
+execution; correct process capture and a complete case-name list cannot repair
+a fixture that tests the wrong subject.
+
 ### 2. Find the earliest incorrect decision
 
 Follow the construct through normalization, analysis, representation,
