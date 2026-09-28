@@ -31,7 +31,7 @@ driver generation command is excluded. A Nix shell hook may rebuild the ignored
 class-name list through the existing roots action; record any such setup action
 separately. Preserve the actual driver executable and avoid global configuration.
 
-## Transformation contract
+## Transformation rule
 
 Keep the project file at the Tiqian root: the driver derives its working
 directory from that file's location. Preserve the original project fields,

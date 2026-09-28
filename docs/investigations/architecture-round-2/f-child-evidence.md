@@ -13,7 +13,7 @@ That prevents the parent invocation's output from proving the absence of
 warnings in successful child commands.
 
 Implement structured child evidence independently of compiler semantics and
-source mapping. The broader diagnostic contract remains package F work. No
+source mapping. The broader diagnostic requirement remains package F work. No
 compiler emitter or Tiqian source change belongs in this batch.
 
 Claude Code reviewed the brief and currently implements the batch. Goose reviews

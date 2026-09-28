@@ -35,7 +35,7 @@ correctness or the absence of regressions outside the tested domain.
 
 ## Roles and authority
 
-The coordinator investigates, designs contracts, writes task instructions and
+The coordinator investigates, designs interfaces, writes task instructions and
 repository documentation, assigns work, reviews changes, runs verification,
 and records acceptance decisions. Implementation and test code are written by
 execution agents. A rejected implementation returns to its execution owner with
@@ -95,12 +95,12 @@ code reviewable; it does not mean its consumers or regression gate passed.
 
 | Package | Reviewable code and current boundary | Next acceptance step |
 | --- | --- | --- |
-| A: types, values, and representation | The Swift array pilot is an unfinished checkpoint at `e5e21854`; shared source-container facts are integrated at `f104e3bf`. A3 finite comparison admission is being corrected in an isolated worktree after an exact binder-identity collision and a legal expanding alias were found. | Establish finite alias and binder identity contracts, then migrate comparison consumers across the five targets. |
-| B: flow and evaluation | B1's focused observation fixture is integrated. B2 source-local presence analysis and 167 authored observations are integrated as a checkpoint at `887d51e1`, with a style correction at `2a4502b0`; no Kotlin consumer uses it yet. The source module is 1,732 lines, so ownership and decomposition remain part of review. | Connect and test every Kotlin local-proof consumer; review source module ownership. |
+| A: types, values, and representation | The Swift array pilot is an unfinished checkpoint at `e5e21854`; shared source-container facts are integrated at `f104e3bf`. The isolated admission fixture matches 41 authored rows. The latest A3 macro probe instead stops on a generic type representation mismatch, before Swift generation and execution; see the [probe review](investigations/architecture-round-2/a3-probe-review.md). | Resolve the A3 mismatch, rerun its full procedure, then migrate and verify comparison consumers across the five targets. |
+| B: flow and evaluation | B1's focused observation fixture is integrated. B2 source-local presence analysis and 167 authored observations are integrated as a checkpoint at `887d51e1`, with a style correction at `2a4502b0`. An unintegrated Kotlin consumer candidate still emits an unnecessary safe call in a nested guarded read; its fixture fails that assertion. | Correct the nested function consumer and remaining proof boundaries; rerun the Kotlin fixture and independently review its generated output before integration. |
 | C: identity and writable places | Classifier and place observation fixtures are integrated at `5eb3429b`; they do not implement the place migration. | Establish place identity and writeback through target lowering. |
-| D: control-flow results | The source/target result contract is documented; the policy migration has not begun. | Start after the A and B interfaces required by branch and return construction are accepted. |
-| E: intrinsics and platform contracts | Swift ordinary-array runtime dependency correction is integrated at `f3a8955a`; broader numeric, string, and module contracts remain open. | Validate target operation and helper closure across the affected languages. |
-| F: evidence and diagnostics | Child execution evidence is integrated at `8a2a9c6a`, shared stage membership verification at `d873da91`, and the first TypeScript source-occurrence fragment path at `8a9a8c49`. Its focused fixture preserves generated TypeScript bytes and maps unchanged direct call statements; other output resolves as Unmapped. | Connect child `tsc` diagnostics to those occurrences, extend provenance through more lowering paths, and preserve layered verdicts. |
+| D: control-flow results | The source/target result specification is documented; the policy migration has not begun. | Start after the A and B interfaces required by branch and return construction are accepted. |
+| E: intrinsics and platform integration | Swift ordinary-array runtime dependency correction is integrated at `f3a8955a`; broader numeric, string, and module specifications remain open. | Validate target operation and helper closure across the affected languages. |
+| F: evidence and diagnostics | Child execution evidence is integrated at `8a2a9c6a`, shared stage membership verification at `d873da91`, and the first TypeScript source-occurrence fragment path at `8a9a8c49`. The second diagnostic batch passed its current focused runner, but [independent review](investigations/architecture-round-2/f-tsc-diagnostic-qa.md) found untested path, sidecar, and successful child evidence boundaries. | Correct and test those boundaries before integrating the second batch; then extend provenance through more lowering paths and preserve layered verdicts. |
 
 The fixed Tiqian revision is prepared, but the full Boring and Tiqian
 candidate gates have not run. P08–P10 and P12 remain open for that reason.
@@ -126,7 +126,7 @@ D1 assignment name remains in the evidence paths.
 
 A3's five-target runtime comparison observations now inform a shared comparison
 plan and its first Swift consumer, assigned to Luna at `f3a8955a`. Four other
-target migrations follow the reviewed interface. The enum contract fixture is
+target migrations follow the reviewed interface. The enum-comparison fixture is
 integrated at `cde5e97c`, with its source ruling still pending. B1 observes actual
 flow consumers through the existing child-evidence recorder. These tasks do
 not complete P08's mechanism migration or P09's regression requirements.
@@ -136,7 +136,7 @@ and all 18 production-entry controls. Its two target nonconformance observations
 remain recorded in the [B1 review](investigations/architecture-round-2/b-flow-consumer-boundary.md).
 The next
 [local-presence migration](investigations/architecture-round-2/b-local-presence-migration.md)
-has a coordinator-owned source-fact and Kotlin consumer contract. Its writer
+has a coordinator-owned source-fact and Kotlin consumer specification. Its writer
 uses a separate pinned checkout; shared comparison analysis, B1's replay tools
 and other target adapters remain outside that writer's ownership.
 
@@ -167,7 +167,7 @@ work and must not claim complete runtime naming conformance.
   A, architecture and recent fixes; B, verification and cost; C, documentation
   usability and upstream compiler references.
 - [x] P05: Review A, B, and C; reconcile their evidence and publish the initial
-  responsibility map, missing contracts, and ordered mechanism work list.
+  responsibility map, missing requirements, and ordered mechanism work list.
 - [x] P06: Update existing internal guidance from the investigation findings.
   Record unresolved semantic rulings separately from implementation choices.
 - [x] P07: Select the first mechanism and write a complete implementation brief,
@@ -176,11 +176,11 @@ work and must not claim complete runtime naming conformance.
   includes the owner's shared-storage ruling, runtime representation, and
   fair comparisons between generation runs with identical inputs. The reopened
   review mapped expression producers to actual target representation owners
-  and accepted the common conditional/default result contract.
-  The [prepared-value design](investigations/architecture-round-1/j-representation-contract.md)
+  and accepted the common conditional/default result specification.
+  The [prepared-value design](investigations/architecture-round-1/j-prepared-value-design.md)
   records the reviewed responsibilities, concrete integration owners, phased
   implementation, and acceptance conditions for each producer family.
-- [ ] P08: Delegate reproduction and contract tests, then implementation.
+- [ ] P08: Delegate reproduction and behavior tests, then implementation.
   Independently review both before accepting a candidate.
 - [ ] P09: Run the candidate's required Boring checks and Tiqian checks on fixed
   revisions, preserving logs, generated-output identity, and warning results.
@@ -213,7 +213,7 @@ Broader J work and P09's full candidate verification remain open.
 Inspect recent fixes and their current implementations. Cover all five targets
 and the shared layer. Classify each finding by compiler responsibility and
 semantic dimension from the analysis method. Group by the missing fact or
-contract; distinguish an observed failure from a static architectural concern.
+requirement; distinguish an observed failure from a static architectural concern.
 
 Deliver a table of mechanisms, source locations, evidence, affected targets,
 fact producers and consumers, and proposed ownership. For each target, use an
@@ -248,7 +248,7 @@ targets. Record every missing instruction, ambiguous ownership decision, and
 assumption required to proceed. Propose changes to the owning documents.
 
 Compare relevant mechanisms in official Haxe compiler sources and Reflaxe
-transpilers. Record upstream revision, source location, phase contract, and
+transpilers. Record upstream revision, source location, phase rule, and
 target constraints. Explain which idea applies to Boring and what additional
 facts Rust or another target requires. A strategy class or smaller file alone
 does not establish semantic separation.
@@ -261,18 +261,18 @@ the organization or popularity of another compiler.
 
 Select the first mechanism after the investigations. Swift mutable and read-only
 array conversion is a candidate from earlier inspection. Confirm it against the
-chosen revision and compare the corresponding contract on every target.
-Selection criteria are repeated failures, a clear missing contract, a bounded
+chosen revision and compare the corresponding specification on every target.
+Selection criteria are repeated failures, a clear missing specification, a bounded
 set of consumers, discriminating tests, and feasible integration verification.
 
 For that candidate, inspect arguments, returns, local initialization, assignment,
 literal elements, optional containers, and already-converted expressions.
 Require preservation of evaluation count, order, null behavior, and aliasing
-where the source contract requires it. Use these dimensions to derive cases;
+where the source specification requires it. Use these dimensions to derive cases;
 the candidate remains provisional until its evidence has been reviewed.
 
 Separate analysis tasks can investigate numbers, strings, flow facts, identity,
-and output structure concurrently. Implementation order follows actual contract
+and output structure concurrently. Implementation order follows actual requirement
 dependencies. For example, an ownership change may depend on representation
 decisions; a conversion may depend on established flow facts. Resolve those
 dependencies before assigning edits to the same consumer.
@@ -291,8 +291,8 @@ Every execution task records:
    documentation versions the agent must read.
 3. Observed evidence, hypotheses, unknowns, and the governing semantic ruling.
 4. Scope, allowed files, excluded responsibilities, and dependencies on other
-   tasks, facts, or contracts.
-5. The contract to establish: input domain, preconditions, output guarantee,
+   tasks, facts, or interfaces.
+5. The specification to establish: input domain, preconditions, output guarantee,
    fact ownership and lifetime, invalidation, and unsupported cases.
 6. Expected target comparison and the proposed general rule. Permit the agent
    to challenge the design with evidence before implementing a contradiction.
@@ -356,7 +356,7 @@ does not replace this check. Record actual loaded module paths during generation
 where the compiler supports it. Preserve the consumer working directory and
 input semantics when deriving configuration files for a candidate checkout.
 
-Use focused reproductions and contract tests for early feedback. Apply affected
+Use focused reproductions and behavior tests for early feedback. Apply affected
 target compilation and execution checks, then every gate required by the
 implementation standard and repository instructions. Follow with the required
 Tiqian platform matrix. Document the actual scope of that matrix before launch.
@@ -407,7 +407,7 @@ does not prove that the instructions were deficient. Preserve the original
 brief revision so retrospective edits cannot obscure what the agent received.
 
 Evaluate revised guidance on a related case with different syntax or a different
-boundary. Observe whether the next agent finds the responsible contract, avoids
+boundary. Observe whether the next agent finds the responsible requirement, avoids
 the previous special case, proposes relevant counterexamples, and produces
 verifiable evidence. Record coordinator interventions and recurring omissions.
 Compare outcomes with their task difficulty and model configuration; a single

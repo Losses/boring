@@ -11,7 +11,7 @@ that consume it. A shared null-comparison recognizer supplies syntax facts.
 Presence at a later use additionally depends on branch outcomes, reachable
 incoming paths, assignments, and effects on the observed value.
 
-The [policy contracts](../../compiler-policy-contracts.md) already distinguish
+The [policy decisions](../../compiler-policy-interfaces.md) already distinguish
 access identity, alias dependencies, lexical scope, flow validity and target
 extraction. This review identifies actual consumers for the next bounded
 observation batch.
@@ -28,7 +28,7 @@ All expression functions in this table are in
 | `nullGuardPositionsInBlock` | Collects ranges for block rendering and excludes comparisons within call arguments. Its collection rules differ from `scanNullGuards`; similar result maps do not establish equivalent producers. |
 | `blockLines` | Combines the block's ranges with enclosing ranges, renders statements, then restores the previous maps. A scope boundary alone cannot determine whether an outer value's earlier presence fact survived writes. |
 | `guardProofBefore` | Accepts a recorded comparison in the same file whose end position precedes the use. That relation establishes textual order. The supplied record carries no branch outcome, dominance or effect dependency. |
-| `functionBody` | Uses `bodyUsesSafeCallReturns` to set `currentReturnAllowsNullable`, alongside a separate interface return constraint. Expression lowering and declaration lowering therefore need a consistent produced-value contract. |
+| `functionBody` | Uses `bodyUsesSafeCallReturns` to set `currentReturnAllowsNullable`, alongside a separate interface return constraint. Expression lowering and declaration lowering therefore need a consistent produced-value requirement. |
 
 `KotlinDecl` also calls `bodyUsesSafeCallReturns` when selecting a rendered
 method's return type. A repair must review both declaration and expression
@@ -89,23 +89,23 @@ invalidation owners, real consumers and old decisions to remove. Field aliasing,
 captured writes, loop exits and other targets remain programme obligations after
 this bounded batch. A null-syntax extraction alone does not complete package B.
 
-The coordinator's [local-presence migration contract](b-local-presence-migration.md)
+The coordinator's [local-presence migration specification](b-local-presence-migration.md)
 defines the next implementation boundary. It includes constructor and nested
 function entry points, a prepared-function lifecycle, conservative effects and
 the transition from mixed source and target proof stores. The external design
-reports are investigation inputs; they do not replace that reviewed contract.
+reports are investigation inputs; they do not replace that reviewed specification.
 
 ## Accepted bounded observation and verdict delivery
 
-The delegated fixture under `tests/haxe/flow-contract/` now supplies two source
-groups: normalized A cases with 25 authored outputs, and stable C cases with
+The delegated fixture under `tests/haxe/flow/` now supplies two source
+groups: normalized cases with 25 authored outputs, and stable-local cases with
 six. The replay uses the shared child recorder and membership checker. Its
 fixture-specific interpretation lives in `replay/verdict.ts`; consolidating
 that responsibility across callers remains the follow-up recorded in the
 [membership review](f-stage-membership-review.md).
 
 The accepted worker attempt is
-`out/flow-contract/replay-1790604435600-1800373` in the isolated
+`replay-1790604435600-1800373` in the isolated
 `policy-b-flow-observation` checkout at `41d67cad`. The coordinator verified
 28 unique stage records, the terminal membership record, complete child
 captures, and all 758 recorded input hashes against the unchanged checkout.
@@ -120,7 +120,7 @@ The bounded results are:
 
 The procedure reports two retained nonconformance observations and zero
 unexpected failures. Its successful exit establishes that bounded observation
-contract. Target conformance still requires resolving the two observations.
+requirement. Target conformance still requires resolving the two observations.
 The other three native targets remain unmeasured by this fixture, and final
 candidate Boring and Tiqian checks remain open.
 

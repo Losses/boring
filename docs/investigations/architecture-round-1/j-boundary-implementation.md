@@ -3,7 +3,7 @@
 ## Status and purpose
 
 The owner selected shared alias visibility for ordinary read-only conversion.
-Feature 18 now states that contract. This revised brief includes the Swift
+Feature 18 now states that ruling. This revised brief includes the Swift
 representation and runtime changes required to preserve it. A single assigned
 executor may implement the scope below after recording its starting revision.
 
@@ -34,9 +34,9 @@ requirement are distinct. Current local rendering combines those decisions
 without recording the conversion result. Other consumers independently make
 similar decisions; some detect prior conversion by inspecting generated text.
 
-## Design contract
+## Design record
 
-The [prepared-value contract](j-representation-contract.md) records the producer
+The [prepared-value design](j-prepared-value-design.md) records the producer
 design review after the conditional-result failures. Independent review approved
 phased implementation on 2026-09-28. Follow its phase assignments and review
 conditions. It specifies declaration stability, expression producer coverage,
@@ -54,12 +54,12 @@ The existing mutable wrapper and exception names remain inventoried migration
 work. Acceptance of J establishes no complete runtime naming conformance.
 Fresh array construction may allocate fresh backing storage; conversion of an
 existing mutable value must retain its storage. Preserve existing element
-identity and equality contracts, optional values, and storage lifetime.
+identity and equality rules, optional values, and storage lifetime.
 
 Update both ordinary and substituted type rendering. Audit generated field
 comparisons, runtime algorithms, module visibility, and public Swift signatures
 that currently require native arrays. Name every required adapter and its
-source contract before implementing it. Decode-specific protection remains
+source specification before implementing it. Decode-specific protection remains
 governed by feature 18. Runtime view construction cannot substitute for a
 separately specified mutation protection. Reverse read-only-to-mutable conversions
 retain their existing source acceptance and require separate analysis if this
@@ -74,7 +74,7 @@ Prepare a target-owned decision before rendering a conversion. It records:
 5. The selected operation, required operand evaluation, and result representation.
 
 Use a small typed result with explicit alternatives and an immutable result
-contract. Document the producer of each fact. An AST type is insufficient when
+type. Document the producer of each fact. An AST type is insufficient when
 a previous conversion or narrowing has changed the emitted representation.
 Record a completed conversion so a later consumer can use its result directly.
 
@@ -86,7 +86,7 @@ cannot be cached as the binding's permanent value state. The parameter
 declaration producer must also provide its selected representation to body
 lowering, including whether a default has already supplied a required value.
 Assignment, branch exit, and captured mutation must respect each fact's
-invalidation contract.
+invalidation rule.
 
 The operand producer returns emitted text with its established representation.
 Use the following provenance requirements when reviewing that producer:
@@ -95,7 +95,7 @@ Use the following provenance requirements when reviewing that producer:
 | --- | --- |
 | Primitive local, field, or parameter read | The declaration's target mapping and any applicable flow fact agree with the selected read operation. |
 | Literal construction | The selected construction determines storage and contextual element type. |
-| Completed conversion | The conversion's result contract supplies the representation for the next consumer. |
+| Completed conversion | The conversion's result type supplies the representation for the next consumer. |
 | Guarded extraction | The valid guard applies to this operand and the selected extraction produces a required value. |
 | Default selection or branch merge | The selected lowering reconciles both alternatives and preserves lazy evaluation; the existence of default metadata alone proves no materialization. |
 
@@ -136,7 +136,7 @@ while leaving its consumers responsible for independent conversion decisions.
 One executor owns this compiler change. The initial file set is:
 
 - `packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx` for
-  the focused representation and conversion contract.
+  the focused representation and conversion specification.
 - `SwiftExpr.hx` in that directory for preparation and expression consumers.
 - `SwiftDecl.hx` in that directory for static fields and declaration consumers.
 - `SwiftType.hx` for ordinary and substituted container types.
@@ -148,7 +148,7 @@ One executor owns this compiler change. The initial file set is:
 
 Use an actual Haxe oracle and the generated Swift program on the same source
 observations. Keep these focused fixtures outside shared sample discovery.
-Ordinary aliasing is a shared contract; target exclusions cannot classify it
+Ordinary aliasing is a shared rule; target exclusions cannot classify it
 as inapplicable because another backend has not implemented it. Empty
 assertions on another target do not supply semantic evidence.
 
@@ -186,7 +186,7 @@ scalar probe that distinguishes the existing Haxe and Swift behaviors: a
 retained mutable alias updates both the visible element and length. Include an accepted
 reference-element case that distinguishes copying container slots from copying
 element objects. Its expectation requires an applicable element-identity
-contract; report a missing contract before claiming semantic completion.
+rule; report a missing ruling before claiming semantic completion.
 Use an ordinary class element with mutable state to exercise reference identity;
 a data-class value record does not establish that case. Existing interface
 identity fixtures provide a separate source of evidence for reference equality.
@@ -231,13 +231,13 @@ plan's full consumer verification requirement after compatibility succeeds.
 
 ## Delivery and coordinator review
 
-Deliver the decision contract, consumer migration table, changed-file list,
+Deliver the decision specification, consumer migration table, changed-file list,
 fixed candidate identity, commands with statuses, retained logs and manifests,
 and remaining gaps. The coordinator independently checks at least one ordinary
 case and one interaction not singled out by the initial diagnostics.
 
 Review asks whether later consumers still need to rediscover facts or recognize
-emitted text. Return such a delivery to the executor with the violated contract.
+emitted text. Return such a delivery to the executor with the violated rule.
 Record whether each failure came from missing guidance, ambiguous authority,
 an execution deviation, or insufficient verification. Update the existing
 method only where the review exposes a missing general instruction.

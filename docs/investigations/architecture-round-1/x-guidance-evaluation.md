@@ -14,7 +14,7 @@ brief, and its review record. The purpose is to assess whether those documents
 help an agent derive a related case without reproducing J's implementation
 mistakes. Record coordinator interventions separately from independent reasoning.
 
-## Question and contract
+## Question and validation criteria
 
 Investigate an ordinary read-only view when the mutable source binding is
 later assigned a different array and when the original local scope ends.
@@ -23,7 +23,7 @@ Haxe oracle. Distinguish a variable binding, a container, and its elements.
 Identify the representation decision that must preserve the original storage's
 lifetime. No new semantic ruling is delegated to this task.
 
-Before editing, provide the source-contract argument, the producer and consumers
+Before editing, provide the source-language semantic basis, the producer and consumers
 of the relevant storage fact, the applicable target comparison, and a test
 that could disprove the proposed explanation. Identify what copying slots,
 sharing the container, or following a reassigned binding would each produce.
@@ -32,10 +32,10 @@ State any source construct whose acceptance remains unverified.
 ## Scope and evidence
 
 The assigned implementation is a new focused fixture under
-`tests/haxe/view-lifetime-contract/` in its independent task checkout.
+`tests/haxe/view-lifetime/` in its independent task checkout.
 Use the existing child-evidence probe and shared stage membership checker.
-Outputs belong under `out/view-lifetime-contract/` in separate attempt
-directories. The executor submits the source-contract argument and
+Outputs belong under `out/view-lifetime/` in separate attempt
+directories. The executor submits the source-language semantic basis and
 counterexamples for coordinator review before writing the fixture. Do not edit
 compiler code unless the coordinator reviews a demonstrated failure and assigns
 the responsible files. No shared sample exclusions or expected-value changes
@@ -54,7 +54,7 @@ the final fixed candidate before its full Boring and Tiqian verification.
 
 ## Evaluation
 
-Assess whether the executor found the governing contract, kept source binding
+Assess whether the executor found the governing source-language rule, kept source binding
 and storage identity distinct, traced fact ownership, selected discriminating
 observations, and preserved evidence. Classify omissions as missing guidance,
 ambiguous authority, execution deviations, or verification failures with
@@ -74,7 +74,7 @@ is recorded in the accepted focused delivery below.
 
 This omission concerns test discrimination: the test must place the observable
 mutation after the boundary whose storage behavior it claims to establish.
-The oracle verifies expectations derived from the source contract; agreement
+The oracle verifies expectations derived from the source-language semantic basis; agreement
 between two observed outputs alone cannot determine those expectations.
 
 The first proposed runner also violated existing execution requirements. It
@@ -82,7 +82,7 @@ resolved the repository root to `tests`, parsed structured probe JSON with
 spacing-dependent text patterns, omitted stage identities from unreached rows,
 and recorded some failed checks without making them affect its verdict. The
 coordinator cancelled that write before execution and supplied a correction
-brief using the existing probe and stage-check contracts.
+brief using the existing probe and stage-check procedures.
 
 These runner failures are execution deviations from documented requirements.
 Additional general instructions would not establish compliance. Acceptance requires
@@ -94,8 +94,9 @@ results before judging the guidance effective or completing P11.
 
 The coordinator accepts the eight-file fixture after exact-file integration
 and an independent replay. The executor's corrected attempt is
-`out/view-lifetime-contract/runs/view-cCrHOe9D` in its assigned checkout.
-The integration attempt is `out/view-lifetime-contract/runs/view-u0hXIZQZ`;
+`view-cCrHOe9D` in its assigned checkout. The integration attempt is
+`view-u0hXIZQZ`; both run IDs identify retained historical output in the
+respective checkouts.
 outer commands, stdout, stderr and numeric statuses are retained in
 `out/view-lifetime-root-qa/review-p09d__zd`. Copied file hashes and the
 coordinator's structured review are recorded in
@@ -129,7 +130,7 @@ output began with a blank line. The corrected check uses the actual path.
 The executor's style-output pipelines also failed to preserve the checker's
 status; the coordinator used direct checks for acceptance.
 
-The guidance helped the executor identify the source contract and distinguish
+The guidance helped the executor identify the source-language semantic basis and distinguish
 binding, container and element identity. The coordinator supplied the decisive
 post-return mutation case and required corrections to evidence handling. These
 interventions limit the outcome: P11 establishes a completed guided exercise,

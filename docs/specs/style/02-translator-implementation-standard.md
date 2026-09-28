@@ -59,7 +59,7 @@ A shared mechanism with per-target variation uses one of five shapes. A variatio
 4. **Default with named override.** The shared module defines one named step of its algorithm with a default implementation, and a target replaces that step by name. The override replaces the step; it may not re-run or skip surrounding steps.
 5. **Separate mechanisms.** When Step 0 returns verdict (iii) and the owner keeps both behaviors, the targets keep two independent mechanisms with their own names. Presenting them as one shared mechanism with a hidden branch is banned.
 
-**Exception ledger (ruled; implementation pending).** Every standing exception registers at compile time in a `SemanticException` registry with an identifier, the mechanism, the target, the reason, and the fixture that verifies it. The registration contract rejects missing, duplicate, and unknown identifiers. The continuous-integration artifact `out/semantic-pass-exceptions.json` carries the exception count and its delta against a baseline; an increase requires a new fixture and an owner ruling. A count that keeps growing is the signal that the abstraction boundary sits in the wrong place.
+**Exception ledger (ruled; implementation pending).** Every standing exception registers at compile time in a `SemanticException` registry with an identifier, the mechanism, the target, the reason, and the fixture that verifies it. The registration rule rejects missing, duplicate, and unknown identifiers. The continuous-integration artifact `out/semantic-pass-exceptions.json` carries the exception count and its delta against a baseline; an increase requires a new fixture and an owner ruling. A count that keeps growing is the signal that the abstraction boundary sits in the wrong place.
 
 ## Emission quality
 

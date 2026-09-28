@@ -253,7 +253,7 @@ public func substrUnits(_ s: String, _ pos: Int32, _ len: Int32?) -> String {
     return String(decoding: u[f...], as: UTF16.self)
 }
 
-/// The resident unit-array reading of the same substr contract.
+/// The resident unit-array reading of the same substr rule.
 public func substrUnitsArray(_ s: [UInt16], _ pos: Int32, _ len: Int32?) -> [UInt16] {
     let count = Int32(s.count)
     var from = pos < 0 ? count + pos : pos
@@ -309,7 +309,7 @@ public enum UString {
     }
 
     /// The character at `index`; nil when the position is negative or at
-    /// least the character count (the query-miss contract of stdlib/10).
+    /// least the character count (the query-miss rule of stdlib/10).
     public static func at(_ units: [UInt16], _ index: Int32) -> Int32? {
         if index < 0 {
             return nil
@@ -513,7 +513,7 @@ extension ReadOnlyArray: Equatable where Element: Equatable {
         holds the raise type of this language, the runner state, and the
         results-file edge: every record appends to the file named by
         BORING_TEST_RESULTS, or out/test-results/swift.jsonl when the
-        variable is unset, the contract the kotlin, rust and ts hosts
+        variable is unset, the default the kotlin, rust and ts hosts
         already keep. Assertion checks and canonical formatting live in
         TestCore, appended after this host in this same file.
     **/
@@ -577,7 +577,7 @@ func boringTestElapsedMs(since start: ContinuousClock.Instant) -> Int {
 
 /// The results sink of the test entry (features/19): the file named by
 /// BORING_TEST_RESULTS, or out/test-results/swift.jsonl when the
-/// variable is unset or empty, the same contract as the kotlin, rust
+/// variable is unset or empty, the same default as the kotlin, rust
 /// and ts hosts.
 func boringTestResultsPath() -> String {
     if let fromEnv = boringTestEnvText("BORING_TEST_RESULTS"), !fromEnv.isEmpty {

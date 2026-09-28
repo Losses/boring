@@ -4,7 +4,7 @@
 
 This specification rules four translation shapes observed in the five target
 compilers: Rust constructor ownership, do-while loops, nullable loop counters,
-and wrapped interval bounds. It is a shape contract and does not request changes to
+and wrapped interval bounds. It is a shape ruling and does not request changes to
 source samples, tests, or compiler implementation in this document.
 
 ## Current verification
@@ -56,10 +56,10 @@ at lines 407-414.
    predicate. A bare bound, `cast(n, Int)`, and `(n:Int)` must therefore be
    treated as equivalent. This equivalence must not extend to algebraic
    expressions: `n + 1` is a distinct boundary and must remain distinct. The
-   oracle output `[3,3,3,4]` is the contract evidence for the three equivalent
+   oracle output `[3,3,3,4]` is the evidence for the three equivalent
    forms and the arithmetic boundary.
 
-## Contract examples
+## Behavior examples
 
 | Shape | Required behavior |
 | --- | --- |

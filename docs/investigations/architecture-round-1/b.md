@@ -15,7 +15,7 @@ Required deliverables:
    its Boring dependency. Distinguish all Haxe target runners from additional
    platform/FFI checks. Identify what must be established before launching them.
 3. A semantic-change to test-layer matrix for conversions, flow facts, numbers,
-   strings, sharing, and printing. Name existing suites and uncovered contracts.
+   strings, sharing, and printing. Name existing suites and uncovered requirements.
 4. Evidence identity and stale-output risks; what the consistency checker
    actually compares; warning collection; baseline vs candidate comparisons.
 5. A concrete staged execution procedure for a Swift array-conversion change

@@ -5,15 +5,15 @@
 The owner approved shared storage for ordinary read-only arrays. J's Swift
 implementation remains under review. The owner challenged the repeated
 corrective cycle; compiler and fixture writes are held for a complete
-expression-producer contract review. J supplies the producer inventory and a
-separate executor reviews the contract. P07 has been reopened. The latest
+expression-producer design review. J supplies the producer inventory and a
+separate executor reviews the design. P07 has been reopened. The latest
 conditional-lowering edit is unverified. The coordinator checked the focused r10
 capture: its twenty-six observations match, all recorded command statuses are
 zero, and Swift compiler stderr is empty. This run includes the `ReadOnlyArray`
 naming correction and the nullable reassignment reproduction. Review returned
 a nullable-default fact contradiction and reused-output risk to J; r10 does
 not establish correctness for those untested conditions or subsequent changes.
-Full migration, contract checks, and platform verification remain open.
+Full migration, requirement checks, and platform verification remain open.
 All ten baseline configurations have fresh generated manifests. Tiqian's
 comparison domains have prepared separate validation inputs whose acceptance
 has not been tested. Native execution has resumed after a service interruption.
@@ -63,9 +63,9 @@ Three native Luna agents received separate read-only assignments:
 
 | Task | Responsibility | Required report |
 | --- | --- | --- |
-| A | Compare recurring mechanisms across the five targets and select candidate contracts | Mechanism matrix, evidence, priorities, and guidance findings |
+| A | Compare recurring mechanisms across the five targets and select candidate rules | Mechanism matrix, evidence, priorities, and guidance findings |
 | B | Inspect Boring and Tiqian verification entry points and artifact identity | Required checks, change-to-test matrix, cost evidence, and execution procedure |
-| C | Exercise the guidance on two cases and inspect upstream compiler contracts | Reasoning records, pinned primary references, and document revisions |
+| C | Exercise the guidance on two cases and inspect upstream compiler rules | Reasoning records, pinned primary references, and document revisions |
 
 The runtime evidence directory for this session is
 `/tmp/boring-architecture-round1`. Its `boring/` and `tiqian/` directories are
@@ -105,7 +105,7 @@ baseline remains separate work for an execution agent. Earlier style results
 from the original Boring worktree apply to a different compiler baseline.
 
 Before implementation begins, the coordinator must accept the responsibility
-map, identify a mechanism's governing contracts, and write the implementation
+map, identify a mechanism's governing requirements, and write the implementation
 brief. Before Tiqian verification, the assigned executor must establish an
 isolated consumer workspace and prove which Boring revision its actual
 generation command uses.
@@ -125,16 +125,16 @@ that comment does not supply the missing normative requirement.
 
 The coordinator returned A for revision, requesting exact normative citations,
 separate implementation observations and inferences, and a complete five-target
-comparison for the proposed conversion contract. The original report remains
+comparison for the proposed conversion specification. The original report remains
 in the session evidence directory as `reports/a.md`; the revision is requested
 as `reports/a-v2.md`.
 
 This failure shows both an incorrect report claim and a guidance opportunity.
-The original brief required governing contracts, but did not require checking
+The original brief required the governing requirements, but did not require checking
 whether the cited specification actually covered the named target. The analysis
 method now includes that requirement explicitly. Report A revision 2 tests the
 immediate correction; a later task must test whether the instruction generalizes
-to a different contract without coordinator prompting.
+to a different requirement without coordinator prompting.
 
 Report B revision 1 correctly distinguished the consumer pin and the current
 compiler baseline, and identified discarded successful compiler output in
@@ -149,7 +149,7 @@ Report C revision 1 substituted Boring's own Kotlin and Rust targets for the
 requested independent Reflaxe implementations. It disclosed the missing
 external commit IDs but incorrectly described the substituted comparison as
 meeting the task. The coordinator requested concrete official Haxe backend
-contracts and two independent Reflaxe implementations with immutable source
+behavior and two independent Reflaxe implementations with immutable source
 references. The plan now states how partial evidence affects task completion.
 
 ## Accepted static findings from revision 2
@@ -175,17 +175,17 @@ timing. Task [D](architecture-round-1/d-observation.md) collects observations
 before any semantic change is selected.
 
 The coordinator also checked the revision identities and representative
-producer/consumer functions in C revision 2. The following upstream contracts
+producer/consumer functions in C revision 2. The following upstream rules
 are relevant architectural references:
 
-| Source | Inspected contract | Application and limit |
+| Source | Inspected behavior | Application and limit |
 | --- | --- | --- |
 | [Haxe default argument pass](https://github.com/HaxeFoundation/haxe/blob/e0b355c6be312c1b17382603f018cf52522ec651/src/filters/defaultArguments.ml#L45) and [C# overload generation](https://github.com/HaxeFoundation/haxe/blob/e0b355c6be312c1b17382603f018cf52522ec651/src/generators/gencs.ml#L156) | A scheduled typed-expression pass prepares nullable arguments and entry defaults; the backend separately constructs optional-argument overloads. | Separate source adaptation from target calling conventions. Kotlin can use different target syntax while retaining explicit source decisions. |
 | [Reflaxe/C++ conversion entry](https://github.com/SomeRanDev/reflaxe.CPP/blob/e07ab05a32ab9d2e2717ad9bc7d1c4e18f88927b/src/cxxcompiler/subcompilers/Expressions.hx#L528) | Conversion receives both the actual expression and expected destination type before selecting memory-representation changes. | A destination-aware boundary is useful precedent. Its pointer and optional policies do not determine Boring semantics. |
 | [Reflaxe Rust representation decision](https://github.com/fullofcaffeine/reflaxe.rust/blob/b4975cb3bc0039cfabf498e455cbab4e36de58de/src/reflaxe/rust/analyze/RepresentationPlan.hx#L688) and [output iterator](https://github.com/fullofcaffeine/reflaxe.rust/blob/b4975cb3bc0039cfabf498e455cbab4e36de58de/src/reflaxe/rust/RustOutputIterator.hx#L34) | The planner constructs immutable representation decisions; later code transforms target nodes and then prints them. | Explicit facts can serve several consumers. The other compiler's ownership policies and runtime requirements need independent review before reuse. |
 
 These are source observations at immutable revisions, with no upstream build
-or correctness evaluation. They support contracts between responsibilities;
+or correctness evaluation. They support the interfaces between responsibilities;
 they do not prescribe a whole-compiler rewrite or establish that each upstream
 implementation satisfies every architectural criterion.
 
@@ -234,7 +234,7 @@ summary in `AGENT.md` after checking the actual `package.json` command.
 Task F extends the conversion survey with representative paths across all five
 targets. This remains a sampled architecture survey, with runtime behavior and
 uninspected forms explicitly unresolved. The coordinator checked the shared
-predicate implementation, the string-unit contract, and Rust argument-order
+predicate implementation, the string-unit rule, and Rust argument-order
 classification against the cited code.
 
 | Mechanism | Facts that must have a defined producer | Target responsibility | Next useful evidence |
@@ -266,13 +266,13 @@ The resulting work order is:
    Swift array conversion remains the first investigation, with task D supplying
    legality, effect, and alias observations. Resolve any semantic decision
    required by the selected change before implementing it.
-2. Prepare numeric conversion and operand-evaluation contracts independently.
+2. Prepare numeric conversion and operand-evaluation specifications independently.
    Their facts also support later string and null-flow work. Parallel reading
    and test design are possible, while each backend retains one writer.
 3. Apply established evaluation facts to string operations and null proofs.
    Source domains and invalidation rules must precede helper consolidation.
 4. Carry branch result and exit intent into target structure after the relevant
-   flow and evaluation contracts exist. Keep target precedence policies local.
+   flow and evaluation specifications exist. Keep target precedence policies local.
 
 The coordinator has accepted the initial responsibility map and verification
 design for planning. It has not accepted an implementation, a new semantic
@@ -281,7 +281,7 @@ ruling, or a full runtime coverage claim.
 ## Follow-up review and environment recovery
 
 In task D, the coordinator found an observation harness that asserted the Haxe
-result as the expected result before the alias contract had been decided.
+result as the expected result before the alias ruling had been decided.
 The brief already prohibited that choice. The coordinator classified it as an
 execution deviation and required independent observations, without adding a
 duplicate prohibition to the method. Review also required fresh output after
@@ -392,14 +392,14 @@ did not duplicate those rules. A new preparation environment may require a new
 plan; immutable data alone does not justify reusing stale facts.
 
 Task L assessed the pending alias policy across five targets. A shared-view
-contract would require attention to Swift value storage and Rust owned versus
-borrowed positions. A snapshot contract would require explicit ordinary
+design would require attention to Swift value storage and Rust owned versus
+borrowed positions. A snapshot design would require explicit ordinary
 conversion behavior in targets whose representations currently admit sharing.
 Rejecting writes through retained aliases requires source alias and effect
 analysis beyond a local conversion decision. These are static design impacts,
 with no measured cost or additional target-runtime observations. The coordinator
 corrected a conclusion that conflated shared semantics with shared machinery:
-one source contract can require different target implementations.
+one source ruling can require different target implementations.
 
 Task K implements a bounded recorder for the existing probes. Early coordinator
 review found missing enforcement of recorded identity, incomplete input hashing,
@@ -513,7 +513,7 @@ module-origin claim.
 
 The owner selected ordinary read-only conversion that keeps viewing the same
 array: a later write through the mutable alias remains visible. Feature 18 now
-states this source contract separately from its decoded-data protection rules.
+states this source ruling separately from its decoded-data protection rules.
 The owner also authorized one Tiqian Swift f32 generation and an ordinary Git
 push for the independent branch after GitButler could not support that linked
 worktree. Commit `483974d6` was pushed to `arch/agent-guided-governance` without
@@ -540,7 +540,7 @@ ordinary and substituted type mappings, runtime view, declaration consumers,
 and expression conversions must agree on shared storage. Brief J now assigns
 `SwiftType` and `SwiftRuntime` in addition to the decision module, `SwiftExpr`,
 and `SwiftDecl`. Reference-element tests use ordinary class instances whose
-identity contract is independently supported. Decode protection and ordinary
+identity rule is independently supported. Decode protection and ordinary
 view construction remain separate responsibilities.
 
 The revised brief also requires matching fixture inputs when comparing
@@ -563,7 +563,7 @@ ownership and will review focused evidence before scheduling full candidate
 verification. Task S separately observes the scalar ordinary-alias case on
 the four other generated targets using isolated outputs and fixed relevant
 inputs. These observations will locate remaining implementation gaps without
-changing their source contract.
+changing their source ruling.
 
 ## Other target observations and consumer scope
 
@@ -584,7 +584,7 @@ typed-AST dump or branch instrumentation.
 
 The Rust result identifies a responsibility conflict: preserving availability
 of an owned source by cloning changes the required container identity. A target
-ownership decision must satisfy the source alias contract before it selects a
+ownership decision must satisfy the source alias ruling before it selects a
 copy, borrow, or shared representation. Adding a special condition for this
 fixture would leave the same conflict in other positions. Rust repair requires
 its own representation analysis and is outside the current Swift assignment.
@@ -630,7 +630,7 @@ required fact does not establish that the caller produced that fact.
 
 The brief already distinguishes source types, actual target representation,
 and destination requirements. These findings are execution deviations from
-that contract. The corrective assignment requires an operand-lowering result
+that specification. The corrective assignment requires an operand-lowering result
 whose text and representation come from the same operation. An ordinary
 source-to-target type mapping can establish representation only for the
 primitive lowering that guarantees that mapping. Completed conversions and
@@ -721,7 +721,7 @@ Swift observations matched the stated expectations, including direct argument
 evaluation order, reference-slot replacement, optional elements, guarded fields,
 constructor and enum arguments, branches, and basic coalescing. The Swift
 compiler's captured stderr was empty. The new Bun test file also passed ESLint.
-This is focused evidence only; J's full migration and contract tests remain
+This is focused evidence only; J's full migration and interface tests remain
 incomplete.
 
 The coordinator recorded the eleven compiler/fixture input hashes and copied
@@ -830,7 +830,7 @@ Review nevertheless found that the registered-default expression producer
 still returns required-value facts in its nullable fallback paths, despite
 the parameter plan preserving nullable body types. J must establish source
 acceptance and correct that producer or demonstrate why the path is excluded.
-This is an incomplete application of the existing decision contract.
+This is an incomplete application of the existing decision rule.
 
 The subsequent nullable-default fixture is accepted by the Haxe oracle and
 the interception pass. Its omitted and explicit-null calls return `nil`; its
@@ -851,7 +851,7 @@ to the conditional producer's representation handoff. Review requires one
 structural nil-merge decision, valid branch polarity, one operand preparation,
 and facts describing the actual result. The call-site migration inventory
 was insufficient to establish that each expression producer honored that
-contract. This finding extends the implementation review; the method already
+requirement. This finding extends the implementation review; the method already
 requires explicit fact ownership and producer-consumer agreement.
 
 Further inspection of the same r13 output found the same contradiction in
@@ -867,7 +867,7 @@ common destination representation while preserving conditional evaluation.
 
 ## Delivery process correction
 
-The subsequent [upstream contract review](architecture-round-1/upstream-contract-evidence.md)
+The subsequent [upstream compiler review](architecture-round-1/upstream-compiler-evidence.md)
 records concrete TypeScript, Kotlin, Rust, and shared fixes through `cc9957dd`.
 It distinguishes merge chronology from new implementation work and maps each
 observed decision to the fact and responsibility required for a general rule.
@@ -884,7 +884,7 @@ failure to apply them.
 The coordinator reopened P07 and held compiler and fixture writes. The
 implementation owner must map accepted expression families to their actual
 representation producers, binding facts, flow facts, and conversion consumers.
-A separate executor reviews the proposed contract and its acceptance invariants
+A separate executor reviews the proposed design and its acceptance invariants
 before further implementation. Existing passing observations remain bounded
 evidence; they do not certify unobserved intermediate representations. The
 lifetime exercise and full Boring and Tiqian gates remain required after this
@@ -892,9 +892,9 @@ design review. This correction changes the work order and acceptance process;
 it does not reduce the programme's completion criteria.
 
 The subsequent independent review accepted the completed producer inventory
-and concrete contract for phased implementation. The coordinator recorded
+and concrete design for phased implementation. The coordinator recorded
 producer-specific acceptance conditions and the J1 through J4 work sequence in
-the prepared-value contract, accepted P07, and assigned J1 to the implementation
+the prepared-value design, accepted P07, and assigned J1 to the implementation
 owner. J1 covers declaration/read agreement and direct producer results.
 Conditional/default composition and block/switch/try results retain explicit
 later phases. The current candidate has no implementation acceptance. Each

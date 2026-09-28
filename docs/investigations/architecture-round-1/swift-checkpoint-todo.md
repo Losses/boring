@@ -12,7 +12,7 @@ The executable baseline is `e3b8bab39ac2da0e17e9d04e031f03bd39290274`.
 The checkpoint adds a `ReadOnlyArray` runtime view, a finite array conversion
 planner, parameter representation planning, consumer changes, and focused
 fixtures. The later J1 assignment made no further changes before it was stopped.
-The [prepared-value design](j-representation-contract.md) remains the design
+The [prepared-value design](j-prepared-value-design.md) remains the design
 input for the cross-target policy work.
 
 Historical focused runs passed subsets of the fixtures. The r10 capture has

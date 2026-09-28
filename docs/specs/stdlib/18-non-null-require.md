@@ -15,7 +15,7 @@ stage 1 Haxe reference build. The only consumer is the record member
 synthesis of feature spec 31 (`samples/std/RecordShape.hx`,
 `nullableStdStringValue`).
 
-## Contract
+## Require behavior
 
 `Std.string` rejects an operand typed `Null<T>` on every target
 (stdlib spec 12; the owner's terminal ruling). The rejection applies to
@@ -64,13 +64,13 @@ needs).
 1. A nullable collection or enum record field renders through the null
    comparison ternary of the member synthesis: a null field prints
    `null`, a present field prints the `Std.string` form of the field
-   read narrowed per the Contract table. This replaces the
+   read narrowed per the Require behavior table. This replaces the
    sentence of feature spec 33 ruling 4 that stopped the compilation
    for a nullable collection field.
 2. stdlib spec 12 gains: the `Null<T>` operand rejection applies to
    operands whose position lies in the source roots; operands of the
    member synthesis carry unknown positions and render through the
-   null comparison ternary narrowed per the Contract table.
+   null comparison ternary narrowed per the Require behavior table.
 
 ## Samples and tests
 

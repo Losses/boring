@@ -1,0 +1,10 @@
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp tests/haxe/ts-source-origin
+-cp samples
+--macro Intercept.run(['tests/haxe/ts-source-origin'])
+--macro tscompiler.Compiler.use()
+-D package-shell=none
+-main OriginExtra

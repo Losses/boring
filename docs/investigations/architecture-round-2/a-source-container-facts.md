@@ -12,7 +12,7 @@ The assigned implementation scope is one shared source-container analysis
 module, the three container queries in `StaticFieldHelper`, and focused tests.
 The coordinator's executor brief records exact worktree and file ownership.
 Feature 18 and standard library spec 06 establish the read-only source face.
-The [policy contracts](../../compiler-policy-contracts.md) retain ownership of
+The [policy decisions](../../compiler-policy-interfaces.md) retain ownership of
 target storage, presence, permissions, and conversion decisions.
 
 ## Authoritative source result
@@ -26,7 +26,7 @@ The absence of an explicit outer wrapper does not prove runtime presence.
 
 Recognize declarations by their source identity. A foreign declaration sharing
 the name `ReadOnlyArray` remains distinct; a transparent alias resolving to the
-reserved declaration has its container contract. Inspect actual compiler-typed
+reserved declaration has its container requirement. Inspect actual compiler-typed
 identity; a display string cannot establish it. Resolve genuine lazy
 handles through the pinned macro API and retain unresolved state explicitly.
 Classifying the outer container requires no recursive element classification.
@@ -94,7 +94,7 @@ invocations when new types are defined.
 
 This is API evidence from the pinned installation. It does not establish the
 behavior of the new analyzer or each Boring caller. The
-[source resolution contract](../../compiler-policy-contracts.md#source-analysis-phase-and-resolution)
+[source resolution rules](../../compiler-policy-interfaces.md#source-analysis-phase-and-resolution)
 now makes unresolved state, coherent resolution, permitted host resolution,
 and resource exhaustion explicit. The implementation must verify these rules
 on real typed inputs before its source facts support target migration.

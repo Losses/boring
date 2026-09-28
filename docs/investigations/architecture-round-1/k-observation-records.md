@@ -19,7 +19,7 @@ Preserve earlier probe source and output. Do not edit tracked files, generated
 files, existing expectations, source semantics, or the Tiqian checkout. No
 commits, full test matrices, or driver changes belong to this task.
 
-## Record contract
+## Record schema
 
 Each run gets a new directory. Reject a requested run directory that already
 exists. Record the checkout path, full commit, relevant local changes, active

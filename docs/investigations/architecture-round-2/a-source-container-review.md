@@ -74,7 +74,7 @@ regression remain required for the programme's accepted candidate.
 The observation runner is a bounded fixture tool. It is not accepted as a
 general verification framework: identity declarations are added by their
 execution helper, and its shell persistence operations do not provide the
-structured capture-failure contract of `ChildEvidence`. Future common tooling
+structured capture-failure specification of `ChildEvidence`. Future common tooling
 must retain those distinctions. This review inspected the actual successful
 captures and expected stage set of the delivered attempt.
 

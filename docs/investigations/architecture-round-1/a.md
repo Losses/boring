@@ -12,7 +12,7 @@ Required deliverables:
    behavior, string units, identity/sharing, evaluation effects, and printing.
    For each target provide an inspected location and explicit status, or mark
    it not inspected. Prioritize depth for the most consequential mechanisms.
-2. Three highest-priority mechanism findings with producer/consumer contracts,
+2. Three highest-priority mechanism findings with producer/consumer interfaces,
    violated architectural criteria, and counterexamples worth testing.
 3. Inspect Swift mutable/read-only array conversion across calls, returns,
    assignments, literals, and optionals. Decide whether it remains a sound
@@ -23,6 +23,6 @@ Required deliverables:
    how a later task could test whether each change improved agent reasoning.
 
 Avoid a list of isolated suspicious lines. Explain common causes and the
-smallest explicit contract that serves the affected family of programs.
+smallest explicit requirement that serves the affected family of programs.
 Do not invent runtime results or prescribe an architecture solely to shorten
 files. Target roughly 200-350 report lines with precise citations.

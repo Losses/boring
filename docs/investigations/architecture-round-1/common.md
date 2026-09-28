@@ -38,7 +38,7 @@ Do not assume conversation history. Ask the coordinator for missing evidence.
 
 Reports use English and distinguish observed code, inferred risk, reproduced
 failure, proposed design, and missing evidence. Every finding names the exact
-file and line, governing contract, fact owner, consumers, and test that could
+file and line, governing source-language rule or architecture decision, fact owner, consumers, and test that could
 disprove the explanation. Do not report static inspection as a runtime failure.
 Separate target syntax from shared semantics and target representation.
 

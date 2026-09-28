@@ -1761,7 +1761,7 @@ class TsExpr {
         // The receiver's rendered TypeScript type still includes null
         // while Haxe reads the member straight off it: both runtimes throw
         // on a null receiver, so the assertion only restates the Haxe
-        // contract and satisfies the strict reading.
+        // type and satisfies the strict reading.
         // (NullableReceiverUnwrap)
         if (PolicyQueries.isNullableType(subj.t) && !StringTools.endsWith(base, "!"))
             return base + "!." + name;
@@ -2316,7 +2316,7 @@ class TsExpr {
                     if (name == "exists" && args.length == 1)
                         return expr(subj) + ".has(" + expr(args[0]) + ")";
                     if (name == "get" && args.length == 1)
-                        // haxe.ds.Map.get carries the Null<V> contract, so
+                        // haxe.ds.Map.get carries the Null<V> type, so
                         // an absent key reads as null. The native Map reads it
                         // as undefined, and the target compares null with the
                         // strict operators, so the lookup normalizes the
@@ -2328,7 +2328,7 @@ class TsExpr {
                     if (name == "set" && args.length == 2)
                         return expr(subj) + ".set(" + expr(args[0]) + ", " + expr(args[1]) + ")";
                     // The native Map deletes a key through delete. The Haxe
-                    // member name remove carries the same contract (returns
+                    // member name remove carries the same type (returns
                     // whether the key was present).
                     if (name == "remove" && args.length == 1)
                         return expr(subj) + ".delete(" + expr(args[0]) + ")";
@@ -2490,7 +2490,7 @@ class TsExpr {
                     // index 0. Dropping the null selects the
                     // one-argument overload: indexOf searches from the
                     // start and lastIndexOf from the last element index,
-                    // which is what the haxe contract does with the
+                    // which is what the haxe std rule does with the
                     // omitted argument (features/08 ruling 8).
                     switch (stripWrap(args[1]).expr) {
                         case TConst(TNull):

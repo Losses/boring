@@ -23,7 +23,7 @@ The migration has four distinct decisions:
 | Decision | Authoritative input | Output and consumer |
 | --- | --- | --- |
 | Stored source fields | Typed declaration, instantiated field types, source stored-field rule | Ordered field identities and canonical source shapes for every later decision |
-| Sorted-key admission | Those source shapes and standard library spec 16 | Accepted key contract or the specified field-path diagnostic |
+| Sorted-key admission | Those source shapes and standard library spec 16 | Accepted key rule or the specified field-path diagnostic |
 | Target comparison planning | Source shapes, required comparison semantics, target operations and declaration representation | A complete comparison plan, or an explicit missing target capability |
 | Target declaration closure | The selected comparison plan | Helper declarations, imports and body operations needed by that same plan |
 
@@ -51,7 +51,7 @@ existing Swift capability therefore needs a separate conformance decision;
 preserving its equality consumer during extraction does not establish that
 the current comparator domain satisfies the specification. Record this
 disagreement explicitly and test equality selection separately before changing
-the capability contract. The sorted-key domain remains unchanged.
+the capability interface. The sorted-key domain remains unchanged.
 
 ## One selected plan for helpers and body
 
@@ -124,7 +124,7 @@ reproduced semantic correction separately from structural extraction.
 | TypeScript declaration generator | Move enum helper preparation and body field decisions to the selected plan; verify and remove the unused `rawArrayElement` helper. |
 | Kotlin declaration generator | Replace the raw field helper prepass, `rawArrayElement`, and body reclassification with plan consumption. Account for nullable field extraction and helper references together. |
 | Rust declaration generator | Replace inline source classification and nullable collection classification; preserve borrowing, enum patterns and module imports as target operations. |
-| Swift declaration/type generators | Replace inline field classification and duplicated capability traversal; preserve the equality consumer's explicit decision contract. |
+| Swift declaration/type generators | Replace inline field classification and duplicated capability traversal; preserve the equality consumer's explicit decision requirement. |
 | Dart declaration generator | Use planned nullable/collection/nested-record operations and helper requirements; retain qualified module references and remove verified unused classification helpers. |
 
 This table names the migration responsibilities. The executor brief must name
@@ -145,7 +145,7 @@ properties, field-order changes, and unsupported sorted-key fields. Additional
 nesting forms require a cited source rule before entering the accepted domain.
 Test same-short-name records from distinct modules and recursive dependencies
 without equating the two cases. Observe the first production query in the
-admitted phase, as required by the source-resolution contract.
+admitted phase, as required by the source-resolution rules.
 
 An acyclic identity test can use two distinct declarations named `Point`:
 `A.Point` has a stored `B.Point` field, and `B.Point` has only an `Int` field.
@@ -158,7 +158,7 @@ locations and corrections to the external audit. In particular, TypeScript's
 and Dart's `rawArrayElement` definitions have no caller beyond self-recursion
 at the checkpoint. Their presence cannot establish a live nullable-array path.
 
-Preserve direct-form behavior where the source contract is already satisfied.
+Preserve direct-form behavior where the source specification is already satisfied.
 Alias identity corrections, missing helper repairs, or altered source-domain
 behavior have separate expected results and explicit rationale. A byte-equal
 subset cannot support a claim of equivalence for changed paths.
@@ -181,7 +181,7 @@ adapter migration.
 
 | Target | Current consumers and required target decisions |
 | --- | --- |
-| TypeScript | `TsDecl.dataClassComparator` uses `ComparatorPlan.entries(false, false)` plus independent helper preparation and `nullableArrayComparator`. `TsType.canEmitDataClassComparator` delegates to `PolicyQueries`; `TsExpr.sortedComparator` names the selected declaration. Migrate those decisions together and retain the UTF-16 string contract. |
+| TypeScript | `TsDecl.dataClassComparator` uses `ComparatorPlan.entries(false, false)` plus independent helper preparation and `nullableArrayComparator`. `TsType.canEmitDataClassComparator` delegates to `PolicyQueries`; `TsExpr.sortedComparator` names the selected declaration. Migrate those decisions together and retain the UTF-16 string rule. |
 | Kotlin | `KotlinDecl.dataClassComparator` uses `entries(true, true)` and emits a comparator for every data class. Its nullable scalar branch can compare decimal strings for Int fields. Plan numeric ordering, immutable versus mutable nullable extraction, helper ownership and declaration eligibility; keep `KotlinExpr.sortedComparator` references coherent. |
 | Rust | `RustDecl.dataClassComparator` retains its own stored-field and raw-type traversal, including separate scalar, nullable and element operations. Plan borrowing and enum patterns from target representation. Int ordering must decode the signed source value from business storage without introducing forbidden casts. Review `RustExpr.sortedComparator` and the existing numeric helper before reuse. |
 | Dart | `DartDecl.dataClassComparator` uses `entries(false, false)` and independently checks nested comparator capability in several branches. Plan nullable, element and nested operations once, retaining module qualification and `DartExpr.sortedComparator` references. |
@@ -337,7 +337,7 @@ parameter requirement is instantiated with the complete actual argument:
 | A parameter unused by the callee | Supply no operation for that parameter |
 
 Select this evidence and its dependencies before printing. Resident nested
-calls and concrete key adapters consume the same operation-selection contract.
+calls and concrete key adapters consume the same operation-selection interface.
 A printer must not repeat raw-type classification to repair missing plan data.
 An unresolved required operation cannot disappear from a call's argument list.
 
@@ -445,7 +445,7 @@ operations across it. `Grow` has no direct demand on `T`, so the nested
 direct demand that reaches its recursive `Array<T>` argument and must still
 reject. Verify these conclusions with pinned host and admission probes before
 consumer migration. Neither a depth cap nor a blanket recursive-alias failure
-meets this contract.
+meets this requirement.
 
 An independent pinned host probe also showed that a source-authored anonymous
 field whose name exactly equals the first generated binder marker can make a

@@ -1,6 +1,6 @@
 # A and E: Integer comparison operation boundary
 
-## Reviewed contract
+## Reviewed specification
 
 The GLM review at `8a2a9c6a` separates source ordering from target storage.
 Feature 07 gives Haxe Int its signed 32-bit domain. Standard library

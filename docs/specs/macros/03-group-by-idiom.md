@@ -21,7 +21,7 @@ The Kotlin source construct returns an insertion-ordered map. The port
 accepts key order in its place: every site that iterates the product
 reads groups in ascending key order, and a site that depends on
 first-seen order rewrites its source during the port. This ruling was chosen over an insertion-ordered product because
-`std.SortedMap` is the only keyed collection with a ruled contract, and
+`std.SortedMap` is the only keyed collection with ruled semantics, and
 building a second map semantics for 7 sites adds a runtime module without
 verification value.
 

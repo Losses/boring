@@ -2,7 +2,7 @@
 
 ## Decision and scope
 
-This is the coordinator's implementation contract, based on source inspection
+This is the coordinator's implementation specification, based on source inspection
 at `02fce867`. The preceding external design reports remain unaccepted. They
 identified useful consumers but contained incorrect transfer rules, incomplete
 function entry coverage and an unsupported expansion into field alias analysis.
@@ -13,7 +13,7 @@ paths. Kotlin retains storage, promotion, extraction and produced-value decision
 Other target adapters and field alias analysis remain programme obligations.
 This assignment does not establish acceptance of package B as a whole.
 
-## Shared analysis contract
+## Shared analysis specification
 
 The analysis input is one prepared function body, its parameters and a summary
 of captured bindings that may be assigned. The result owns the body identity,
@@ -36,12 +36,12 @@ equate a query about `x.field` with presence of its root binding `x`.
 Establish presence from a justified source producer or an evaluated guard.
 An explicit null remains absent through a contextual non-null annotation.
 A constructed object, literal or array has its applicable source guarantee;
-an unknown call result requires its producer contract before gaining a fact.
+an unknown call result requires its producer rule before gaining a fact.
 Target nonoptional storage can make a native read legal independently of this
 source analysis. Keep that target decision explicit.
 
 Apply the short-circuit transfer table in
-[the policy contracts](../../compiler-policy-contracts.md). Evaluate operands
+[the policy decisions](../../compiler-policy-interfaces.md). Evaluate operands
 in source order, propagate their effects and retain both reachable exits.
 Only supported comparisons against the null literal refine these facts.
 Do not infer presence from an arbitrary inequality or from the order of source
@@ -87,7 +87,7 @@ Review every entry below, including context restoration on exit:
 | Entry | Required responsibility |
 | --- | --- |
 | `KotlinDecl.funcDecl` | Prepare before `bodyUsesSafeCallReturns`; pass the same artifact to `functionBody` |
-| `extractedFuncDecl`, `flushEntryDecl`, `testFuncDecl` | Create their own artifact and preserve existing declaration and test-wrapper contracts |
+| `extractedFuncDecl`, `flushEntryDecl`, `testFuncDecl` | Create their own artifact and preserve existing declaration and test-wrapper requirements |
 | `valueTypeFunctionBody` | Preserve parameter naming and use the member's prepared context |
 | `initBlockStatements`, `valueTypeConstructorBody` | Analyze constructor operations and preserve the origin of operations selected for emission |
 | `functionLiteral`, `functionLiteralNamed` | Enter a separate body context and restore the enclosing context afterwards |
@@ -103,7 +103,7 @@ promotion; the target language defines the actual conditions.
 
 The first shared domain is locals. Inventory the remaining field consumers and
 keep their transition explicit. A field-path fact requires its own invalidation
-contract; deferring alias analysis cannot justify treating different paths as
+rule; deferring alias analysis cannot justify treating different paths as
 disjoint. Do not expand the shared domain by copying the mixed `nonNullFields`
 store into it. Remove local source-position proofs and duplicated local
 simulation only after every local consumer uses the new result. Syntactic
@@ -128,8 +128,8 @@ Use independent source cases to verify skippable and dominating guards,
 assignment after a guard, a writing right operand of a short-circuit condition,
 reachable joins with exiting arms, loop-header invalidation, captured writes
 through calls, and separate nested-function contexts. Include a nullable field
-behind a present root to detect root/field proof conflation. Test ordinary and
-fixed-contract returns so declaration shape agrees with body operations.
+behind a present root to detect root/field proof conflation. Test ordinary returns and the interface
+methods with a fixed non-null return type so declaration shape agrees with body operations.
 
 Observations of the analysis may establish facts on paths whose dereference
 would be undefined. Native tests must use source-defined inputs and outcomes.
@@ -150,7 +150,7 @@ and the null arm join to unknown. Returning from a nested arm does not remove
 the outer null arm. A use inside a guard's true arm, however, has the guard's
 presence fact even when the incoming loop fact was unknown.
 
-These trace errors violate the existing transfer contract. The correction is
+These trace errors violate the existing transfer rule. The correction is
 to derive each use from its actual incoming edges and independently verify
 the expected facts before implementing consumers. Repeating the correct join
 rule beside an incorrect trace does not establish an implementation design.
@@ -167,7 +167,7 @@ remain within the assigned local domain.
 ## Addendum review and implementation boundary
 
 The revised checkpoint still derived presence from a declared non-null result
-or binding type, with those predicates renamed as producer contracts. A reason
+or binding type, with those predicates renamed as producer rules. A reason
 label needs an applicable source rule and its premises. Reference parameters
 and calls remain unknown when their declarations supply no such guarantee.
 Local reads transfer the current environment fact, including absence.
@@ -196,7 +196,7 @@ delivered. The draft updated assignment facts in its statement handler but
 omitted that update in its expression handler. Its condition handler evaluated
 both short-circuit operands without carrying the left outcome. Operand-list
 evaluation also discarded abrupt exits. These are failures of the shared
-evaluation contract across consumers.
+evaluation rule across consumers.
 
 The correction assigns those decisions to one evaluation transfer and derives
 statement and condition results from it. Controls must place the same write

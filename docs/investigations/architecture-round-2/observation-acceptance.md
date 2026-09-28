@@ -18,8 +18,8 @@ Swift checkpoint described in the round index.
 
 | Fixture | Final retained run in its worker checkout | Result and limit |
 | --- | --- | --- |
-| `tests/haxe/classifier-contract` | `out/classifier-contract/run-20260928-042332-rIcP9W` | Source-type probe and ordinary Haxe compile both exit 0. The independent label list has 57 entries: 25 cases and 32 comparator observations. No Boring target generation is established. |
-| `tests/haxe/place-contract` | `out/place-contract/runs/place-HncKKQ` | All 48 expected stages have distinct records. Four downstream stages are marked unreached after Rust compile failures. The runner records observations; exit 0 does not mean target equivalence. |
+| `tests/haxe/classifier` | `run-20260928-042332-rIcP9W` | Source-type probe and ordinary Haxe compile both exit 0. The independent label list has 57 entries: 25 cases and 32 comparator observations. No Boring target generation is established. |
+| `tests/haxe/place` | `place-HncKKQ` | All 48 expected stages have distinct records. Four downstream stages are marked unreached after Rust compile failures. The runner records observations; exit 0 does not mean target equivalence. |
 
 The coordinator independently verified 15 classifier input hashes, 14 place
 identity hashes, and 55 place input/output hash records. The final place stage
@@ -74,4 +74,4 @@ formatting tool is available.
 The next work consumes these fixtures as evidence. Source-container analysis
 proceeds in A2. Place design must retain the original evaluated receiver and
 index through an effectful RHS and establish writeback to the intended storage.
-The contracts distinguish that logical place from a target physical address.
+The rulings distinguish that logical place from a target physical address.

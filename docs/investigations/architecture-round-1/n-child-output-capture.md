@@ -17,7 +17,7 @@ is `/tmp/boring-architecture-round1/reports/n.md`. Do not edit tracked driver,
 compiler, test, package, or configuration files. Do not touch Tiqian, retry its
 rejected generation, commit, or run a full verification matrix.
 
-## Capture contract
+## Capture protocol
 
 Provide a scoped launcher that resolves each selected real executable before
 adding its capture wrappers to the child search path. Keep changes local to

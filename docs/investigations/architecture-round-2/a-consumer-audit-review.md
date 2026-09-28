@@ -21,7 +21,7 @@ Paths in this table are relative to `packages/compiler/`.
 | Kotlin nullable helper preparation | `reflaxe/kotlin/kotlincompiler/KotlinDecl.hx:395` | This is a live caller of `rawArrayElement`. Replace its decision together with the body and helper references. |
 | Rust nullable classification | `reflaxe/rust/rustcompiler/RustDecl.hx:523` | This live caller and inline field classification must consume the shared source result and target comparison plan. |
 | Swift nullable classification | `reflaxe/swift/swiftcompiler/SwiftDecl.hx:352` | Replace its `SwiftType.rawArrayElement` query together with inline field classification. |
-| Swift equality | `reflaxe/swift/swiftcompiler/SwiftType.hx:342`, `reflaxe/swift/swiftcompiler/SwiftExpr.hx:2442` | Comparator capability influences the choice of equality operator. Keep its contract separate from sorted-key admission. |
+| Swift equality | `reflaxe/swift/swiftcompiler/SwiftType.hx:342`, `reflaxe/swift/swiftcompiler/SwiftExpr.hx:2442` | Comparator capability influences the choice of equality operator. Keep its ruling separate from sorted-key admission. |
 
 `TsDecl.rawArrayElement` at line 278 and `DartDecl.rawArrayElement` at line 448
 have no caller beyond self-recursion at this checkpoint. The external report

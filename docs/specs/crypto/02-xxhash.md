@@ -1,6 +1,6 @@
 # Crypto spec 02: XXH64 and XXH3-128
 
-## API and streaming contract
+## API and streaming behavior
 
 `Xxh64.make(data, seed)` is the one-shot form. `new Xxh64(seed)` followed by
 any number of `update` calls and `digest()` is equivalent to one-shot hashing

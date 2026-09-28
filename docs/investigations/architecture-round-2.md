@@ -1,4 +1,4 @@
-# Architecture round 2: Policy contracts and parallel migration
+# Architecture round 2: Policy decisions and parallel migration
 
 ## Fixed input and assignments
 
@@ -12,7 +12,7 @@ of implementation acceptance. The
 | Package | Initial executor route | Requested delivery |
 | --- | --- | --- |
 | A: Value and declaration representation | Claude Code, BigModel GLM 5.3 Flash | Five-target owners, typed interfaces, adapters, removal list, first implementation batch |
-| B: Flow and evaluation | Goose, local Qwen | Fact scope and invalidation, effects, joins, sequencing, consumer query contracts |
+| B: Flow and evaluation | Goose, local Qwen | Fact scope and invalidation, effects, joins, sequencing, consumer query interfaces |
 | C: Identity and writable places | Claude Code, BigModel GLM 5.3 Flash | Source identity authority, sharing policy, place paths, representation dependencies |
 | F: Diagnostics and evidence | Goose, local Qwen | Occurrence and decision evidence, output mapping, child capture, layered acceptance |
 
@@ -32,7 +32,7 @@ was reproduced in this review.
 | --- | --- | --- |
 | `3cbb20c7632d7b9b7f4ea7b71f0d932c230ee839`, 2026-09-05 | Adds shared literal tests and `ExpressionPredicates.isVarAssigned`, which scans syntactic local writes. | A useful shared syntactic query has a bounded guarantee. It does not supply a program-point non-null proof, dominance, alias invalidation, or effect analysis. Package B must name the additional fact owners. |
 | `5db75f321e75489ae09bbcf5675638ffe9532ddb`, 2026-09-06 | Adds `asciiFoldCallText` to `ExpressionPredicates`, accepting rendered receiver text and producing a target call string. | The shared module now combines analysis with text construction. Record the placement violation and assign operation selection and target construction to their respective owners. Moving this helper alone cannot satisfy the broader policy migration. |
-| `5d53294258acf5537646c7e4e289e30ea0fadd48`, 2026-09-06 | Adds `AssignTargetPlan.assignTarget`, dispatching AST forms through rendering callbacks that return strings. | Shared dispatch removes repeated syntax matching. Its interface still carries no proof that the rendered path denotes the original writable location. Package C must establish that contract before treating assignment planning as complete. |
+| `5d53294258acf5537646c7e4e289e30ea0fadd48`, 2026-09-06 | Adds `AssignTargetPlan.assignTarget`, dispatching AST forms through rendering callbacks that return strings. | Shared dispatch removes repeated syntax matching. Its interface still carries no proof that the rendered path denotes the original writable location. Package C must establish that requirement before treating assignment planning as complete. |
 | `e0aa16a5`, `f1609ccf`, 2026-09-27 upstream history | Adds and refines checks for conversion fragments in rendered assignment paths. | These later repairs identify the need for place identity through projections and reader operations. They provide cases for the explicit place model and its tests. They are not integrated into the fixed checkpoint by this review. |
 
 The useful distinction is between sharing a dispatch algorithm and establishing
@@ -76,7 +76,7 @@ bounded revision. The original report and corrective brief are retained as
 | Presence was proposed as `at(expression)` returning a proof-kind enum. | Require the relevant flow environment, read occurrence, and dependency/invalidation context. An expression alone cannot establish that an earlier proof remains valid. |
 | Native default placement was described as making body storage required. | Retain signature, default placement, normalization, and actual body optionality separately. Existing Swift parameter planning already documents this requirement. |
 | Helper branch differences were treated as source rejection, and zero warnings were attributed to an unmeasured baseline. | Trace actual callers and accepted source before claiming a domain difference. Record warning observations from real runs. Static inspection cannot supply either execution result. |
-| Missing Dart-specific decode recipe text was treated as absence of the ordinary read-only contract. | Apply feature 18's explicit all-target ordinary conversion rule. Keep decode protection and ordinary alias visibility separate. |
+| Missing Dart-specific decode recipe text was treated as absence of the ordinary read-only ruling. | Apply feature 18's explicit all-target ordinary conversion rule. Keep decode protection and ordinary alias visibility separate. |
 
 The brief had already required explicit produced facts, stable declarations,
 flow ownership, and evidence limits. These failures are primarily deviations
@@ -115,7 +115,7 @@ a migration task and does not prevent this design work.
 ## Earlier intermediate review and execution assignments
 
 The coordinator published the reviewed
-[policy interface contracts](../compiler-policy-contracts.md) while the workers
+[policy interface decisions](../compiler-policy-interfaces.md) while the workers
 continued bounded observations. The three execution worktrees use `e45c74b7`
 as their checkout base; later guidance commits do not change their compiler
 input implicitly. No new compiler migration is accepted at this stage.
@@ -127,7 +127,7 @@ input implicitly. No new compiler migration is accepted at this stage.
 | Goose, Qwen, first worker | Compare concrete Kotlin and Rust condition producers, callers, and other fact-store writers. | Revised design distinctions are retained; whole-function equivalence is rejected. |
 | Goose, Qwen, second worker | Review and repair the classifier observation fixture delivered by GLM. | Snapshot review is recorded; repaired fixture execution and acceptance remain open. |
 
-The review exposed the following distinctions. The contracts and analysis
+The review exposed the following distinctions. The decisions and analysis
 method own the resulting rules; this table records why they were needed.
 
 | Observed review problem | General distinction and response |
@@ -179,7 +179,7 @@ targets. The independent caller audit precedes exact implementation ownership.
 Two GLM workers now own A2 source-container implementation and F1 child evidence
 capture. One Goose worker audits the five-target comparator consumers for A3;
 the other reviews a frozen F1 snapshot independently. A3 implementation waits
-for its input contract and consumer audit. Each changing implementation has one
+for its input interface and consumer audit. Each changing implementation has one
 writer. Earlier assignment tables retain their historical review state.
 
 The coordinator recreated a locked Tiqian checkout at `8504d230` after finding
@@ -274,7 +274,7 @@ responsibility belongs to package E. The review explains the declaration and
 expression-producer dependencies, the additional scalar-result counterexample,
 and the remaining verification obligations.
 
-The [enum contract review](architecture-round-2/a-enum-contract-review.md)
+The [enum comparison review](architecture-round-2/a-enum-comparison-review.md)
 accepts a reproducible fixture after shared-checker adoption and an integration
 run. It records the unresolved specification conflict and preserves the
 distinction between five-target generation and two-target execution.
@@ -291,7 +291,7 @@ The [integer operation review](architecture-round-2/a-integer-operation-review.m
 separates source ordering, target storage and required boundary adaptation.
 The coordinator rejected a proposed helper reuse that would retain a numeric
 cast forbidden by repository rules. The analysis method now requires checking
-the helper's actual contract and dependency declarations before reuse.
+the helper's actual interface and dependency declarations before reuse.
 
 Early A3 review also found a proposed recursive-type guard that would reject
 finite generic nesting. The coordinator returned that guard to its execution

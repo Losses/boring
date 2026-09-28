@@ -9,7 +9,7 @@ platform renders its native mutable string accumulator; the mechanism is the
 per-platform routing of `docs/specs/stdlib/06-std-modules.md`, the same
 pattern as `std.SortedMap` in `docs/specs/stdlib/07-sorted-keyed-tables.md`.
 
-## Contract
+## Buffer behavior
 
 - `new StringBuf()` creates an empty buffer.
 - `add(part:String):Void` appends a string. When the current content

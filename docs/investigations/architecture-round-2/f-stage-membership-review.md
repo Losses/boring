@@ -31,7 +31,7 @@ file hashes and removals are in `f2-integrated-files.json`.
 | --- | --- |
 | Shell syntax for the shared file and three callers | Four zero statuses |
 | Existing membership test through the shared file | Zero status; detects a duplicate, a missing stage, and a prefix that is not the requested identity |
-| Place fixture, `out/place-contract/runs/place-IV5QGh` | 48 unique recorded stages equal the expected set; existing native failures retain explicit dependent stages that were not reached |
+| Place fixture, attempt `place-IV5QGh` | 48 unique recorded stages equal the expected set; existing native failures retain explicit dependent stages that were not reached |
 | Source-container fixture, `out/source-container-policy/gen-ThvI7V` | 87 unique recorded stages equal the expected set; all 27 source-fact rows pass |
 | Source-container input identity | 143 before/after entries agree and match the files read by the coordinator; the shared checker is included |
 | Changed-file documentation and comment style | Zero hits |
@@ -59,7 +59,7 @@ execution, and both runners executed directly instead. These corrections apply
 the analysis method's existing path and process-outcome requirements.
 
 The coordinator limited consolidation to the equivalent membership algorithm.
-Earlier proposals to combine different identity and child-capture contracts
+Earlier proposals to combine different identity and child-capture interfaces
 were not accepted. Other active observation fixtures retain their separate
 implementations until their owners adopt this reviewed shared dependency.
 Child capture, expected-stage declaration, input retention, and semantic
@@ -85,7 +85,7 @@ The next consolidation proposal must distinguish these outcomes:
 | Capture is usable | Structured recorder result, retained required streams and no capture error |
 | Producer succeeded | Usable capture and the actual producer's successful termination for this attempt |
 | Expected observation occurred | Fixture-specific assertion, which can deliberately expect a failed compilation |
-| Source contract holds | Independently specified behavior established by the required compilation and execution stages |
+| Source ruling holds | Independently specified behavior established by the required compilation and execution stages |
 
 An expected compiler rejection cannot supply an executable artifact to a later
 runtime stage. A successful observation procedure cannot turn a native failure

@@ -25,7 +25,7 @@ class StringUnitTests {
         Test.equals("cdef", "abcdef".substring(2));
     }
 
-    // Spec 15 contracts charCodeAt over UTF-16 code units, so the two
+    // Spec 15 defines charCodeAt over UTF-16 code units, so the two
     // units of a surrogate pair are separate addresses and neither one
     // is the code point. A receiver that walks code points answers the
     // code point at the pair's first index and misses the second unit.
@@ -83,7 +83,7 @@ class StringUnitTests {
     public static function splitEmptyDelimiterSurrogates():Void {
         final astral = UString.fromCodePoint(0x1F600);
         final text = "a" + astral + "b";
-        // Spec 15 contracts s.length as the UTF-16 code unit count on every
+        // Spec 15 defines s.length as the UTF-16 code unit count on every
         // target, so the astral pair counts as two units here too.
         Test.equals(4, text.length);
 

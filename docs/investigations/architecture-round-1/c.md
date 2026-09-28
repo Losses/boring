@@ -1,4 +1,4 @@
-# C: Guidance usability and upstream contracts, revision 1 transcription
+# C: Guidance usability and upstream rules, revision 1 transcription
 
 This repository copy corrects wording from the issued brief. Its task scope
 is unchanged; the session evidence directory retains the issued original.
@@ -15,7 +15,7 @@ Required deliverables:
 2. Browse primary source code for the official Haxe compiler and at least two
    Reflaxe transpilers. Pin inspected commit IDs and cite precise source URLs.
    Compare concrete normalization, analysis, conversion, printing, or pass
-   contracts relevant to your cases. Explain applicability and limits for
+   rules relevant to your cases. Explain applicability and limits for
    Boring, including Rust's representation/ownership needs.
 3. Propose actionable edits to the existing analysis method and implementation
    standard. Distinguish architectural invariants from one project's layout.

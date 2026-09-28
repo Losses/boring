@@ -163,7 +163,7 @@ List<String> processArgs() {
         one accessor, and the results-file edge: every record appends to
         the file named by BORING_TEST_RESULTS, or
         out/test-results/dart.jsonl when the variable is unset, the
-        contract the kotlin, rust and ts hosts already keep. The runtime
+        default the kotlin, rust and ts hosts already keep. The runtime
         import is prepended
         by the compiler because its relative path depends on the output
         defines; TestCore compiles through the normal pipeline and
@@ -214,7 +214,7 @@ int timeoutBudgetMs() {
 
 /// The results sink of the test entry (features/19): the file named by
 /// BORING_TEST_RESULTS, or out/test-results/dart.jsonl when the
-/// variable is unset or empty, the same contract as the kotlin, rust
+/// variable is unset or empty, the same default as the kotlin, rust
 /// and ts hosts.
 String _resultsPath() {
   final fromEnv = Platform.environment['BORING_TEST_RESULTS'];

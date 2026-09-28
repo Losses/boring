@@ -157,7 +157,7 @@ values and whose `toString` returns the value). Erasing these abstracts to
 aliases breaks their members, their equality, their validation, and the
 Kotlin regeneration of the ported files.
 
-### Source-side contract
+### Source-side ruling
 
 The marker is metadata on a single-field abstract whose representation is
 one of `Int`, `Float`, `Bool`, and `String`:
