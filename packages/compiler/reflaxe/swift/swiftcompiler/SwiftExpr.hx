@@ -1511,12 +1511,11 @@ class SwiftExpr {
             for (l in blockLines(gb.prefix, depth + 1))
                 out.push(l);
             out.push(indent(depth + 1) + "let " + localName(gb.entryVar) + " = " + expr(gb.entryInit));
-            // The bucket is a class instance: append and the put-back
-            // mutate the referenced object, not the binding. The plain
-            // assignment in the matched miss branch is consumed by this
-            // restructure, so the emitted text never reassigns the local
-            // and let is safe; a reassignment elsewhere would fail the
-            // swiftc compile gate loudly.
+            // The bucket is a class instance. Append and put-back update
+            // the referenced object. This restructure consumes the plain
+            // assignment in the matched miss branch, leaving the local
+            // binding unchanged, so let is valid. swiftc reports any other
+            // reassignment during compilation.
             out.push(indent(depth + 1)
                 + "let "
                 + localName(gb.bucketVar)
@@ -1761,9 +1760,9 @@ class SwiftExpr {
 
         final arrName = localName(alloc.arr);
         final out:Array<String> = [];
-        // A class instance's append/reserveCapacity mutate the referenced
-        // object, not the binding; only a genuine reassignment of the
-        // local requires var.
+        // append and reserveCapacity update the object referenced by this
+        // class instance. Use var when the local binding receives a
+        // different array.
         out.push(indent(depth) + (mutated.exists(alloc.arr.id) ? "var " : "let ") + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
@@ -5962,12 +5961,11 @@ class SwiftExpr {
                             case TLocal(v):
 
                                 if (isClassInstanceType(v.t) && !isBytesLeafType(v.t)) {
-                                    // A class instance's subscript writes target
-                                    // the referenced object, not the binding; the
-                                    // local can stay let. Bytes lowers to the
-                                    // native [UInt8] value array and keeps var.
-                                    // (ValueArrayBindingVar) Bytes lowers to the
-                                    // native [UInt8] value array and keeps var.
+                                    // Subscript writes update the referenced
+                                    // object and leave the local binding unchanged.
+                                    // This class-instance local can stay let. Bytes
+                                    // uses native [UInt8] value storage and stays
+                                    // var. (ValueArrayBindingVar)
                                     if (v.name != "`") {
                                         mutatedNames.set(v.name, true);
                                     }
@@ -6012,16 +6010,13 @@ class SwiftExpr {
 
                                     } else if (isClassInstanceType(v.t) && !isBytesLeafType(v.t)) {
                                         // A class instance's method calls (push,
-                                        // pop, set, ...) mutate the referenced
-                                        // object, not the binding; keep the name
-                                        // marker so parameter shadow emission is
-                                        // byte-identical, but the local can stay
-                                        // let. Bytes follows to a class shape but
-                                        // lowers to the native [UInt8] value
-                                        // array, so it stays in the var camp.
-                                        // (ValueArrayBindingVar) Bytes follows to a class shape but
-                                        // lowers to the native [UInt8] value array,
-                                        // so it stays in the var camp.
+                                        // pop, set, ...) update the referenced
+                                        // object and leave the binding unchanged.
+                                        // Preserve the name marker for parameter
+                                        // shadow emission; the local can stay let.
+                                        // Bytes has a class-shaped source type and
+                                        // uses native [UInt8] value storage, so it
+                                        // stays var. (ValueArrayBindingVar)
                                         if (v.name != "`") {
                                             mutatedNames.set(v.name, true);
                                         }

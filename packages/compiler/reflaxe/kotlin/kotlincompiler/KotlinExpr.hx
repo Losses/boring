@@ -753,9 +753,10 @@ class KotlinExpr {
                 return ["if (!(" + expr(c) + ")) " + expr(f)];
             case TIf(c, t, f) if (t != null && isNullLiteralArm(f)):
                 return ["if (" + expr(c) + ") " + expr(t)];
-            // A statement-position shift/pop discards the removed element:
-            // emit the guarded removal as a statement, not as the if-else
-            // expression whose unused value warns "expression is unused".
+            // A statement-position shift/pop discards the removed element.
+            // Emit the guarded removal in a single-branch if statement.
+            // Kotlin treats the two-arm if as an expression and warns
+            // "expression is unused" when its value is discarded.
             // (NullArmStatementFold)
             case TCall(fn, args) if (args.length == 0 && arrayPopShift(fn) != null):
                 final ps = arrayPopShift(fn);
@@ -3234,10 +3235,10 @@ class KotlinExpr {
         return switch (stripWrap(e).expr) {
             case TField(receiver, FInstance(_, _, cf)) | TField(receiver, FAnon(cf)):
                 switch (stripWrap(receiver).expr) {
-                    // The key is built from the typed AST, not from rendered
-                    // text: expr() here would render the read and its nested
-                    // emissions would write the very registries a decision on
-                    // this key is about to consult. (PureAccessDecision)
+                    // The key uses the typed AST structure. Calling expr()
+                    // here would render the read and its nested emissions
+                    // would write the registries this decision consults.
+                    // (PureAccessDecision)
                     case TLocal(v): "field:" + v.id + "." + cf.get().name;
                     case TConst(TThis): "field:this." + cf.get().name;
                     case _: null;
@@ -5810,8 +5811,8 @@ class KotlinExpr {
                 // Float at render time, and Float arms already render Float.
                 // Report Float so an outer widening boundary (return,
                 // assignment, argument) does not re-wrap. A nullable arm
-                // (e.g. Float? ?: 0) makes Kotlin infer Number and
-                // Comparable, not Float, so keep the arm type there.
+                // (e.g. Float? ?: 0) has a Number/Comparable type; retain
+                // the arm type reported by the typed AST.
                 // (WideningIdempotence)
                 if (isFloatType(e.t) && !rendersNullable(e))
                     return Context.getType("Float");
