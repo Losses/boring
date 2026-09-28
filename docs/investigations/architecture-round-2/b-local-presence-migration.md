@@ -163,3 +163,28 @@ guard facts remain source-flow facts even while their implementation stays in
 Kotlin; removing mixed proof snapshots must preserve their field portion until
 that responsibility migrates. These interface and transition obligations
 remain within the assigned local domain.
+
+## Addendum review and implementation boundary
+
+The revised checkpoint still derived presence from a declared non-null result
+or binding type, with those predicates renamed as producer contracts. A reason
+label needs an applicable source rule and its premises. Reference parameters
+and calls remain unknown when their declarations supply no such guarantee.
+Local reads transfer the current environment fact, including absence.
+
+The coordinator returned concrete controls for explicit null assignment,
+unknown call results, and two different present values joining to present.
+Closure creation and closure invocation require separate effect transfers.
+Capture facts need a complete enclosing assignment analysis; the first bounded
+implementation may enter captures as unknown while that input is unavailable.
+
+The context-restoration example also returned before restoring the successful
+path. Every scoped entry must restore state on both normal and exceptional
+completion. Return-shape planning must consume the target storage decisions
+that rendering will use. Move required decisions into preparation when their
+current implementation computes them during printing.
+
+Pure analysis and independent fixtures remain assigned. Kotlin consumer
+migration waits for those concrete facts and the corrected preparation inputs.
+The next delivery is implementation evidence against these controls; another
+general design report does not satisfy that boundary.

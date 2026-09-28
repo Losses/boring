@@ -99,3 +99,21 @@ outputs and the actual input identities those callers consume. Start with the
 demonstrated common decisions; a new general execution framework requires
 additional consumer evidence. This section records a follow-up design boundary,
 and assigns no new writer or acceptance prerequisite to the current repairs.
+
+### A3 caller review
+
+Static review of the unintegrated A3 `comparison-plan/run.ts` found another
+instance of this responsibility. Its capture helper marks a nonzero child
+outcome unsuccessful, but records that status failure only when no expected
+stdout was supplied. Runtime callers ignore the returned boolean, and the
+final procedure status depends on the failure list. A child that prints the
+expected text before failing can therefore escape the final failure decision.
+The reviewed attempt's 17 recorded child outcomes remain valid observations;
+this finding concerns the caller's behavior for other outcomes.
+
+The correction requires one decision that accounts for capture, termination,
+and authored output together. Exercise it through the actual procedure with a
+passing control and a child that prints the same expected bytes before exiting
+nonzero. Preserve both records and assert the procedure's final status. Apply
+the same distinction to generation dependencies: executing a dependent stage
+requires successful production of its artifacts in the current attempt.
