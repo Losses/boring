@@ -5,6 +5,11 @@ import haxe.macro.Context;
 import haxe.macro.Type;
 import StructuralKeyValidator;
 import PolicyQueries;
+import SourceComparisonAnalysis;
+import SourceComparisonAnalysis.SourceComparisonRequest;
+import SourceComparisonAnalysis.SourceComparisonShape;
+import swiftcompiler.SwiftComparisonPlan;
+import swiftcompiler.SwiftComparisonPlan.SwiftComparisonPlanResult;
 
 /**
     Type mapping from the translatable Haxe subset to Swift, per
@@ -328,12 +333,13 @@ class SwiftType {
         return PolicyQueries.classifyKey(t, pos);
     }
 
-    static function validateDataClassField(cls:ClassType, field:ClassField, path:String):Void {
-        PolicyQueries.validateDataClassField(cls, field, path);
-    }
-
-    public static function canEmitDataClassComparator(cls:ClassType):Bool {
-        return comparatorFieldsSupported(cls, []);
+    public static function canEmitOptionalDataClassEquality(cls:ClassType, ?arguments:Array<Type>):Bool {
+        final applied = arguments == null ? [for (parameter in cls.params) parameter.t] : arguments;
+        return switch (SwiftComparisonPlan.select(SourceComparisonAnalysis.declarationReference(cls), applied, OptionalEqualityCapability)) {
+            case SwiftComparisonPlanReady(_): true;
+            case SwiftComparisonPlanFailed(_, _, _): false;
+            case SwiftComparisonPlanUnresolved(path, reason): Context.error("Swift optional equality analysis incomplete at " + path + ": " + reason, cls.pos); false;
+        };
     }
 
     /**
@@ -347,92 +353,24 @@ class SwiftType {
         if (t == null) {
             return false;
         }
-        return switch (Context.follow(t)) {
-            case TInst(c, _):
-                final cls = c.get();
+        // Identity equality is a general class-reference property. Keep that
+        // query on resolved source type facts; comparison shapes intentionally
+        // cover only the subset needed by structural ordering.
+        final resolved = SourceContainerAnalysis.analyze(t).resolvedType;
+        return switch (resolved) {
+            case TInst(classRef, arguments):
+                final cls = classRef.get();
                 if (cls.kind != KNormal) {
                     false;
                 } else switch (pathOf(cls.pack, cls.name)) {
                     case "String" | "std.StringBuf" | "StringBuf" | "Array" | "haxe.io.Bytes": false;
-                    case _: !(cls.meta.has(":dataClass") && canEmitDataClassComparator(cls));
+                    case _:
+                        // Equality follows the generic declaration body.
+                        // A sorted-key use site does not specialize equality.
+                        if (!cls.meta.has(":dataClass")) true else !canEmitOptionalDataClassEquality(cls);
                 }
             case _: false;
         };
-    }
-
-    /**
-        The element type when `t` is a raw ReadOnlyArray (checked before
-        Context.follow, which erases the abstract to Array). Nullable
-        collections need this raw check: the Null arm's followed inner
-        type is Array and would otherwise lose the array shape.
-    **/
-    public static function rawArrayElement(t:Type):Null<Type> {
-        return switch (t) {
-            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
-            case TLazy(f): rawArrayElement(f());
-            case _: null;
-        }
-    }
-
-    /**
-        Whether every non-computed field of the data class has a
-        comparison arm in SwiftDecl.dataClassComparator. The direct arms
-        compare Int, Float, Bool, String, enums, and nested data classes;
-        the ReadOnlyArray arm compares elements with an arm or an
-        Equatable scalar through `!=`; the Null arm compares its inner
-        operand with the same arms, unwrapping an array shape before the
-        follow. A class with a field no arm covers gets no comparator,
-        since the emitted body would silently ignore that field, and a
-        nested data class recurses with a visited set so a rendered
-        comparator never references a comparator that was skipped; a
-        reference cycle has no orderable rendering and fails.
-    **/
-    static function comparatorFieldsSupported(cls:ClassType, visited:Array<String>):Bool {
-        if (visited.indexOf(cls.name) >= 0) {
-            return false;
-        }
-        visited.push(cls.name);
-        for (f in cls.fields.get()) {
-            final isStoredVar = switch (f.kind) {
-                case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                case _: false;
-            };
-            if (isStoredVar && !comparatorFieldSupported(f.type, visited)) {
-                visited.pop();
-                return false;
-            }
-        }
-        visited.pop();
-        return true;
-    }
-
-    static function comparatorFieldSupported(t:Type, visited:Array<String>):Bool {
-        return switch (t) {
-            case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
-                final inner = rawArrayElement(params[0]);
-                comparableOperandSupported(inner == null ? params[0] : inner, visited);
-            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1):
-                comparableOperandSupported(params[0], visited);
-            case _: comparableOperandSupported(t, visited);
-        };
-    }
-
-    /** One comparand of the comparison arms: a scalar with an arm, an enum, a String, or a nested data class whose own comparator is itself emittable. */
-    static function comparableOperandSupported(t:Type, visited:Array<String>):Bool {
-        return switch (Context.follow(t)) {
-            case TAbstract(a, _): a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool";
-            case TInst(c, _): c.get().name == "String" || comparatorDataClassSupported(c.get(), visited);
-            case TEnum(_, _): true;
-            case _: false;
-        }
-    }
-
-    static function comparatorDataClassSupported(cls:ClassType, visited:Array<String>):Bool {
-        return cls.meta.has(":dataClass") && comparatorFieldsSupported(cls, visited);
-    }
-
-    static function isDataClassFieldKey(t:Type):Bool {
-        return PolicyQueries.isDataClassFieldKey(t);
     }
 
     static function validateStructDef(def:DefType, pos:haxe.macro.Expr.Position, visited:Array<String>):Array<ClassField> {
