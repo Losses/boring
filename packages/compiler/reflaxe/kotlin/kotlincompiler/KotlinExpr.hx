@@ -2730,7 +2730,7 @@ class KotlinExpr {
         // The nullable-type fallback extracts only when no dominating
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
-        if (isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+        if (isNullType(subj.t) && !(provenNonNull(subj) && smartCastableSubject(subj)) && !guardProofBefore(subj)) {
 #if kotlin_fold_debug
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
@@ -3648,7 +3648,7 @@ class KotlinExpr {
         if (alreadyExtracted)
             return expr(subj) + "." + KotlinNameEscape.escape(name);
         final access = if (isProperty && fieldType != null && !isNullType(fieldType)
-            && isNullType(subj.t) && !provenNonNull(subj) && !guardProofBefore(subj)) {
+            && isNullType(subj.t) && !(provenNonNull(subj) && smartCastableSubject(subj)) && !guardProofBefore(subj)) {
             "!!.";
         } else if (!provenNonNull(subj) && !guardProofBefore(subj) && !bareSubject
             // A safe-call hop earlier in the receiver chain leaves the
@@ -4354,8 +4354,8 @@ class KotlinExpr {
                 if (cls.module == "std.Env") {
                     return envCall(name, args, fn);
                 }
-                if (cls.module == "std.Process" && name == "args") {
-                    return processArgs(fn);
+                if (cls.module == "std.Process") {
+                    return processCall(name, args, fn);
                 }
                 if (KotlinTestBinding.isTestPlatformExtern(cls.module)) {
                     // Host edges of the resident runtime.TestCore, inlined
@@ -5068,10 +5068,7 @@ class KotlinExpr {
         // or a reassigned binding keeps its extraction even when the
         // program's control flow proves the value present.
         // (NonNullArgumentExtraction)
-        final smartCastable = switch (stripWrap(e).expr) {
-            case TLocal(v): !mutated.exists(v.id);
-            case _: false;
-        };
+        final smartCastable = smartCastableSubject(e);
         final proven = valueProvenNonNull(e) || provenNonNull(e) || guardProofBefore(e);
         if (smartCastable && proven)
             return false;
@@ -5101,6 +5098,20 @@ class KotlinExpr {
             || nullableChainHop(e)
             || rendersNullable(e)
             || rendered.indexOf("?.") >= 0;
+    }
+
+    /**
+        Whether Kotlin smart-casts a proven-non-null subject. A val-like local
+        and a final (val) property smart-cast; a var property or a reassigned
+        binding does not, so its read must keep the force extraction even when
+        the enclosing guard proved it present. (VarFieldSmartCast)
+    **/
+    function smartCastableSubject(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): !mutated.exists(v.id);
+            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) | TField(_, FStatic(_, cf)): cf.get().isFinal;
+            case _: false;
+        };
     }
 
     /**
@@ -5425,7 +5436,7 @@ class KotlinExpr {
     }
 
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {
-        final typeName = resolveTypeName(e.t);
+        final typeName = resolveTypeName(e.t, e.pos);
         final fieldTypes = switch (Context.follow(e.t)) {
             case TType(def, _):
                 final anon = switch (Context.follow(def.get().type)) {
@@ -5451,23 +5462,25 @@ class KotlinExpr {
         return typeName + "(" + parts.join(", ") + ")";
     }
 
-    function resolveTypeName(t:Type):String {
+    function resolveTypeName(t:Type, pos:haxe.macro.Expr.Position):String {
         return switch (t) {
             case TType(def, _):
                 final d = def.get();
                 imports.requireType(d.module, d.name);
                 d.name;
             case TAnonymous(anon):
-                final match = state.structTypedefs.get(KotlinDecl.structureSignature(anon));
+                var match = state.structTypedefs.get(KotlinDecl.structureSignature(anon));
+                if (match == null)
+                    match = PolicyQueries.matchStructTypedefByUnification(anon, state.structTypedefs);
                 if (match == null) {
-                    Context.error("anonymous structure literal has no matching named typedef", Context.currentPos());
+                    Context.error("anonymous structure literal has no matching named typedef", pos);
                     null;
                 } else {
                     imports.requireType(match.module, match.name);
                     match.name;
                 }
             case _:
-                Context.error("object literal must be typed by a named typedef before translation", Context.currentPos());
+                Context.error("object literal must be typed by a named typedef before translation", pos);
                 null;
         }
     }
@@ -6039,6 +6052,12 @@ class KotlinExpr {
                 "Files.newDirectoryStream(Paths.get(" + p + ")).use { s -> s.map { it.fileName.toString() }.toMutableList() }";
             case "isDirectory":
                 "Files.isDirectory(Paths.get(" + p + "))";
+            case "deleteFile":
+                "Files.delete(Paths.get(" + p + "))";
+            case "rename":
+                imports.require("java.nio.file.StandardCopyOption");
+                "Files.move(Paths.get(" + p + "), Paths.get(" + expr(args[1])
+                + "), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)";
             case _:
                 Context.error("std.Fs has no lowering for member " + name, fn.pos);
                 "null";
@@ -6075,6 +6094,22 @@ class KotlinExpr {
         imports.require(runtimePackage + ".Process");
         state.processArgsReferenced = true;
         return "Process.args()";
+    }
+
+    function processCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        final runtimePackage = RuntimeConfig.requireImportName("module std.Process");
+        state.shimsUsed.set("std.Process", true);
+        imports.require(runtimePackage + ".Process");
+        return switch (name) {
+            case "exit": "Process.exit(" + expr(args[0]) + ")";
+            case "args": processArgs(fn);
+            case "cwd": "Process.cwd()";
+            case "platform": "Process.platform()";
+            case "run": "Process.run(" + [for (a in args) expr(a)].join(", ") + ")";
+            case _:
+                Context.error("std.Process has no lowering for member " + name, fn.pos);
+                "null";
+        };
     }
 }
 #end
