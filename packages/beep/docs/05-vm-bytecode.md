@@ -16,7 +16,7 @@ Primitive values may be immediate: Bool, Byte, Int, Float, Unit. Heap objects in
 
 Instance layout is class id, inherited fields, local fields in declaration order, and optional opaque host payload. Verifier checks field offsets/types. Collector traces Beep fields from class metadata and excludes host payload bytes. Option/Result have explicit tag and typed payload. Invalid tag/type combinations are VMFault. No source null/undefined exists.
 
-## 4. Dispatch and opcode contract
+## 4. Dispatch and opcode behavior
 
 Compiler emits resolved method symbol and signature id. Virtual calls use verified class method table. Static/final/private calls may use direct slots. super starts at direct base. One name/arity has one signature, following Wren.
 

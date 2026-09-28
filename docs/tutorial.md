@@ -430,7 +430,7 @@ lookups are `get(key):Null<V>` and `has(key):Bool`, comparison-based,
 found by binary search.
 
 The subset holds no hash maps: `haxe.ds.Map` and its implementations are
-rejected (`V13 HashMapCollection`). Ordering is the contract; an
+rejected (`V13 HashMapCollection`). Ordering is the rule; an
 immutable comparison-based table needs no hash function and no
 per-platform hash discipline, and no hash order is observable on any
 target. The structure serves the dominant consumer shape the audit
@@ -455,7 +455,7 @@ Sorting goes through a named strategy of the sort runtime. The set
 starts with `byCodePoint`; a new sorting need is a new named strategy
 and a specification amendment to `features/17`. Every strategy on every
 platform is ascending, in place, and stable; stability is the identity
-contract that makes the six trees produce the same output array.
+guarantee that makes the six trees produce the same output array.
 
 Performance ground: the comparator-free numeric sort is the fastest sort
 primitive JavaScript exposes, so the TypeScript runtime tiers it with an
@@ -635,7 +635,7 @@ sequence is seven code points, eleven UTF-16 units, and one cluster, so
 no storage unit and no code-point count answers what a reader sees.
 
 `std.Graphemes.count`, `at`, `slice`, and `parts` answer over clusters,
-with the same clamping and null-miss contracts as `std.UString`. One
+with the same clamping and null-miss rules as `std.UString`. One
 generated table and one rule walk serve all six targets, built from a
 fixed Unicode release with the official conformance file as a
 compile-time gate, so the same input segments identically on every host
@@ -647,7 +647,7 @@ then indexes the array in constant time.
 `std.StringBuf` is the buffered string builder: `add` appends a string,
 `addChar` appends one UTF-16 code unit, `length` reports the code-unit
 count, `toString` returns the content. Every target renders its native
-mutable accumulator behind the contract. Surrogate pairing is checked on
+mutable accumulator behind the specification. Surrogate pairing is checked on
 every target: appending a trail surrogate with no preceding lead,
 appending a lead or a plain unit while an unpaired lead waits, and
 calling `toString` over a dangling lead each throw `UStringException`
@@ -1093,14 +1093,14 @@ failure names the bundle and the action.
 `--project <file>` (or `--project=<file>`) names a project file at
 another path; the default is `boring.json` in the working directory.
 
-### The results contract
+### The results interface
 
 Every target writes its test records as JSON Lines to
 `<resultsDir>/<id>.jsonl`. Each generated runner reads the
 environment variable `BORING_TEST_RESULTS` first and falls back to
 `out/test-results/<target>.jsonl` when the variable is unset. The
 driver always sets the variable, so all six targets collect their
-results through one contract; the fallback exists for a bundle run by
+results through one interface; the fallback exists for a bundle run by
 hand outside the driver.
 
 ### `compare`, the baseline, and mechanism coverage

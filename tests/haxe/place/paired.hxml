@@ -1,0 +1,9 @@
+# Paired Haxe runner entry for the place module.
+# Run from the repository root:
+#   nix develop -c haxe tests/haxe/place/paired.hxml
+# The output path is supplied by the caller so every attempt writes into
+# its own run directory:
+#   ... -js out/place/runs/<run>/paired.js
+-cp tests/haxe/place
+-cp samples
+-main place.PlaceStaticMain

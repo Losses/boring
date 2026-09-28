@@ -1,0 +1,21 @@
+# Static Kotlin generation of the enum comparison module.
+# Run from the repository root; the caller supplies the output tree so
+# every attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/enum-comparison/kotlin-gen.hxml \
+#     -D kotlin-output=out/enum-comparison/runs/<run>/kotlin-gen
+# The runner generates this tree for inspection only. No Kotlin stage
+# compiles or executes it, so it carries no runtime claim.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/enum-comparison
+-cp samples
+--macro Intercept.run(['tests/haxe/enum-comparison'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/enum-comparison/runs/kotlin-gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+enumcomparison.EnumComparisonSubject
+runtime.UString
+runtime.SortedTable

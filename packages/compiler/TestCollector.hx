@@ -50,7 +50,7 @@ class TestCollector {
         // typing pass, every module is already complete and getModule returns
         // it without forcing a re-entry into the typer. The generated files are
         // still written to disk before haxe exits, so the two-invocation
-        // contract (generate-main.hxml then test-main.hxml) is preserved.
+        // order (generate-main.hxml then test-main.hxml) is preserved.
         final testDirs = ["samples/tests"].concat(extraTestDirs);
         Context.onAfterTyping(function(_modules:Array<ModuleType>) {
             final tests:Array<{

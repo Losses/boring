@@ -14,7 +14,7 @@ const fixtures = {
   ].join("\n"),
   sortedTables: "the call boundary converts between the resident `i32` domain and the business unsigned domain.",
   unicodeAccess: "The resident class renders\n  haxe Int as i32 with byte cursors, while business modules render u32,",
-  graphemes: "resident modules render\n  haxe Int as i32 because the clamping contracts carry negative values,\n  while business modules render u32.",
+  graphemes: "resident modules render\n  haxe Int as i32 because the clamping rules carry negative values,\n  while business modules render u32.",
 };
 
 describe("rowCells", () => {

@@ -14,7 +14,7 @@ boundary.
 | --- | --- | --- |
 | Default completion | `packages/compiler/DefaultArgExpander.hx:1534` | `omittedCallDefaults(modulePath, fieldName, explicitCount)` completes omitted calls. |
 | Default registration | `packages/compiler/DefaultArgExpander.hx:123-147` | Coalescing and optional-without-value registrations use `VNull`. |
-| Completion contract | `docs/specs/features/22-default-argument-expansion.md:24-33` | Completion is trailing and a null argument at a registered default position materializes the registered form. |
+| Default completion rule | `docs/specs/features/22-default-argument-expansion.md:24-33` | Completion is trailing and a null argument at a registered default position materializes the registered form. |
 | Coalescing evaluation | `docs/specs/features/22-default-argument-expansion.md:89-94` | The existing text states the omission-only evaluation rule for coalescing defaults. |
 
 The generation probe reported in `/tmp/dispatch-state/boring-probe-gap47-r1.report.md`,
@@ -69,7 +69,7 @@ rows `[4,4,2,0,1]`, `[-4,-4,nan,0,1]`, and `[0,0,0,0,1]`.
    `None => selected` matching form, Swift `locale ?? selected`, and Dart
    `locale ?? selected`, as observed in the probe report at lines 63-68.
 
-## Contract examples
+## Behavior examples
 
 | Haxe source call pair | Required product relationship | Haxe oracle relationship |
 | --- | --- | --- |

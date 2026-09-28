@@ -50,7 +50,7 @@ export const checkAll = (files: MappingCheckFiles): void => {
   checkResidentStatement("stdlib/10", files.unicodeAccess,
     "haxe Int as i32 with byte cursors", "while business modules render u32");
   checkResidentStatement("stdlib/11", files.graphemes,
-    "haxe Int as i32 because the clamping contracts carry negative values", "while business modules render u32");
+    "haxe Int as i32 because the clamping rules carry negative values", "while business modules render u32");
 };
 
 if (import.meta.main) {

@@ -1,6 +1,6 @@
 package boring;
 
-/** Boundary shapes for the shared counted-loop recognition contract. */
+/** Boundary shapes for the shared counted-loop recognition rule. */
 class IntervalSurfaceOps {
     public static function doWhileTrip():Int {
         var i = 1;

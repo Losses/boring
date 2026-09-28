@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 /**
- * Entry-point contract of the runtime package.
+ * Entry-point expectation of the runtime package.
  *
  * The general entry must stay loadable in a browser: no `node:` import
  * specifier and no test helper in it. The test entry owns the

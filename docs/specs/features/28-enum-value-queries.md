@@ -27,7 +27,7 @@ before any of the three calls compiles.
 
 ## Haxe construct
 
-The three calls and their Haxe contracts, quoted from the standard library
+The three calls and their Haxe behavior, quoted from the standard library
 `Type.hx`:
 
 - `Type.allEnums(e)` returns every constructor of `e` that requires no

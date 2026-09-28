@@ -1,0 +1,18 @@
+# Focused Rust generation of the rejected direct payload-enum key probe.
+# Run from the repository root; the caller supplies the output tree so
+# every attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/enum-comparison/reject-rust-gen.hxml \
+#     -D rust-output=out/enum-comparison/runs/<run>/reject-gen
+# The compilation must stop with the payload-key diagnostic, so no output
+# tree survives the attempt.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/enum-comparison
+-cp samples
+--macro Intercept.run(['tests/haxe/enum-comparison'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+enumcomparison.rejected.RejectPayloadEnumKey

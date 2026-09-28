@@ -28,7 +28,7 @@ typedef ValueTypeInfo = {
 
     Haxe stores the executable side of an abstract in a synthetic
     `KAbstractImpl` class. Keeping the recognition here means all five
-    targets validate exactly the same source contract and keep ordinary
+    targets validate exactly the same source rule and keep ordinary
     abstracts on their existing erasure path.
 **/
 class ValueTypeSupport {

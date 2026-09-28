@@ -17,10 +17,10 @@ semantic rulings. The implementation standard governs consolidation, target
 variation, and acceptance. This method supplies the analysis required to apply
 those rules. Existing owner rulings and validation requirements still apply.
 
-The stages below describe responsibilities and their contracts. The current
+The stages below describe responsibilities and their interfaces. The current
 compiler combines some of them in the same modules. For each investigation,
 record where they occur today and where the proposed change belongs. A small
-structured result can establish a missing contract before a larger migration.
+structured result can establish a missing requirement before a larger migration.
 Add an abstraction when the existing model cannot express the required facts.
 
 ## Analyze both stages and semantic dimensions
@@ -34,13 +34,13 @@ flow, container representation, argument evaluation, and borrowing at once.
 
 | Responsibility | Input and decision | Required result |
 | --- | --- | --- |
-| Source contract | Accepted Haxe constructs and boring specifications | Observable behavior, accepted domain, and diagnostics for unsupported input |
+| Source specification | Accepted Haxe constructs and boring specifications | Observable behavior, accepted domain, and diagnostics for unsupported input |
 | Normalization | Typed Haxe expressions and registered source rewrites | Defined expression forms with preserved evaluation order, scope, and source positions |
 | Semantic analysis | Normalized expressions and control flow | Facts about types, initialization, nullability, effects, identity, and use of values |
 | Target representation | Semantic facts and target capabilities | Explicit storage, parameter, return, container, error, and ownership representations |
 | Target lowering | Representations and source operations | Legal target operations, explicit conversions, temporary bindings, and control flow |
 | Printing | Target structure and naming decisions | Text with correct precedence, escaping, declarations, and formatting |
-| Platform integration | Declared extern and runtime contracts | Consistent symbols, signatures, imports, runtime dependencies, and output files |
+| Platform integration | Declared extern and runtime specifications | Consistent symbols, signatures, imports, runtime dependencies, and output files |
 
 Analysis may need several passes or a fixed point across functions. State its
 dependencies and convergence condition. A syntax printer consumes completed
@@ -92,14 +92,14 @@ the rule's preconditions explain its broader applicability.
    may manage layout state, but it must not establish non-null proofs or
    change ownership decisions. Repeated printing of the same prepared input
    must preserve its semantic result.
-4. **Rewrites have explicit contracts.** State the accepted input form,
+4. **Rewrites have explicit specifications.** State the accepted input form,
    output form, required earlier passes, facts invalidated, and permitted
    repetition. If repeated application is allowed, verify idempotence or
    document the iteration and its termination condition. Every entry that
    admits the same construct must satisfy the same preconditions.
 5. **Control flow remains structural until printing.** Represent whether a
    branch returns, assigns, or discards a value. Replacing generated `return`
-   text does not provide a contract for nested functions or branches.
+   text does not provide a specification for nested functions or branches.
 6. **Optimizations preserve a valid general translation.** Prove the
    conditions for moving, removing, or duplicating evaluation. A failed
    optional match retains the general translation. A required lowering that
@@ -109,7 +109,7 @@ the rule's preconditions explain its broader applicability.
    semantics in shared analysis. Keep borrowing, storage choices, and target
    legality in the target mechanisms that own them. Use the implementation
    standard's declared variation forms when sharing an algorithm.
-8. **Application integration uses declared contracts.** Standard library
+8. **Application integration uses declared specifications.** Standard library
    symbols and registered extern bindings can select known implementations.
    Consumer class names cannot serve as evidence of sharing, mutability, or
    ownership. Express such requirements through the accepted semantic model,
@@ -132,7 +132,7 @@ and remove superseded decisions as each path moves to the new representation.
 
 Pattern matching is a normal compiler mechanism. A rule is general when its
 conditions express semantic requirements and its result preserves the source
-contract. Recognizing integer division by operand types, a standard library
+specification. Recognizing integer division by operand types, a standard library
 call by its resolved symbol, or a loop by a proven invariant can satisfy this
 test. The number of branches or files does not establish correctness.
 
@@ -150,7 +150,7 @@ required facts, an output guarantee, and behavior when no rule applies. Define
 how competing matches are resolved and how composed rewrites terminate. Use
 explicit precedence or disjoint conditions for alternatives; use dependencies
 for sequential transformations. Moving a conditional into a class preserves
-its original assumptions until those contracts are addressed.
+its original assumptions until those requirements are addressed.
 
 Group failures by the fact or operation that is missing. Similar function
 names can implement different target mechanisms. Different diagnostics can
@@ -204,7 +204,7 @@ observation pending an applicable authority.
 
 When a specification covers some targets, mark the remaining targets as
 unruled or identify another applicable ruling. For example, a target's use of
-a value array does not by itself establish when the source contract requires
+a value array does not by itself establish when the source specification requires
 a snapshot, which aliases must remain visible, or whether element objects are
 copied. State those questions before changing conversion behavior.
 
@@ -232,7 +232,7 @@ forms. Record source acceptance and target compilation separately from runtime
 results. Use the same authored operation for the source oracle and target run;
 a native harness may expose its result without implementing the conversion.
 
-### 1. Record the observation and source contract
+### 1. Record the observation and source specification
 
 Record the checkout, commit, local changes relevant to the result, target,
 toolchain versions, defines, generation command, and test command. For a
@@ -264,7 +264,7 @@ preserve the source whose failure prompted the investigation. Cite the
 specification that defines expected behavior. Record a missing observation
 as unknown and a proposed explanation as a hypothesis. For an architecture
 review without an executable failure, report the inspected dependency and
-the contract it lacks; do not claim a reproduced runtime defect.
+the requirement it lacks; do not claim a reproduced runtime defect.
 
 Before generation, map each requested semantic case to the authored values that
 exercise it. Check where each relevant state occurs. For example, comparing a
@@ -287,7 +287,7 @@ establish responsibilities: a backend's normalization pass may clean target
 text while a source normalization pass rewrites typed expressions.
 
 The target compiler's diagnostic identifies an observation point. Continue
-back through the producers until the violated contract is found. If the
+back through the producers until the violated rule is found. If the
 required decision is correct and only spelling or precedence is wrong, the
 repair belongs in printing. If a printer must guess a storage type, inspect
 the representation decision and the data passed to the printer.
@@ -323,14 +323,14 @@ Name the responsible stage and module, downstream consumers, and analysis
 that must be recomputed after a rewrite.
 
 Choose the smallest change that expresses the general rule. Use an existing
-mechanism when its contract is sufficient. Introduce a structured plan or
+mechanism when its specification is sufficient. Introduce a structured plan or
 target node when a required distinction is missing. State how the old path is
 removed or adapted. A whole-compiler rewrite is unnecessary when one defined
 boundary can carry the needed facts.
 
 For several interacting changes, migrate one semantic mechanism through its
 producers and consumers, verify it, and then extend the scope. Select examples
-from different targets to check that the proposed shared contract supports
+from different targets to check that the proposed shared design supports
 their different representations.
 
 ### 5. Verify the rule and its limits
@@ -348,17 +348,17 @@ Choose tests that could disprove the explanation:
 - Observable effects that expose repeated or reordered evaluation, including
   mutations and exceptions where relevant.
 
-Test analysis facts or plans when they are the changed contract. Compile and
+Test analysis facts or plans when they are the changed requirement. Compile and
 execute freshly generated output on affected targets. Apply the implementation
 standard's cross-target consistency, warning, and consolidation requirements.
-Compare behavior against the specified contract; the Haxe runner has the oracle
+Compare behavior against the specification; the Haxe runner has the oracle
 role defined in the design principles. Compare generated bytes where the
 consolidation procedure requires unchanged output. Measure runtime or compiler
 cost before making a performance claim.
 
 Trace how each new fixture enters the test runner and any other build that
 discovers its directory automatically. A focused target harness needs explicit
-registration and a stated scope. Applicability follows the semantic contract:
+registration and a stated scope. Applicability follows the semantic ruling:
 an unimplemented shared behavior remains an unmet requirement on that target.
 An excluded test or an unconditional successful assertion cannot establish
 conformance. Keep focused backend evidence distinct from shared-suite results.
@@ -393,7 +393,7 @@ When a rule claims to cover arbitrary user declarations, include an accepted
 declaration whose name has no implementation registration. Adding a fixture's
 name to a compiler policy table verifies that table entry. It does not verify
 that the stated semantic preconditions select the rule for other declarations.
-Standard library and extern registrations retain their specified contracts.
+Standard library and extern registrations retain their specified rules.
 
 ### 6. Review and retain the reasoning
 
@@ -404,13 +404,13 @@ migrated scope. Record remaining violations with their affected paths.
 
 Update a semantic specification in the same change when its ruling changes.
 For an implementation correction, cite the existing ruling and describe the
-corrected contract. Keep the following compact record in the change description
+corrected specification. Keep the following compact record in the change description
 or a linked investigation document. Scale detail to the mechanism; an ordinary
 printing correction can answer it in a few sentences.
 
 ```text
 Observation: revision, configuration, reproducer, expected and actual result
-Contract: exact specification section, covered targets/forms, semantic dimensions
+Spec reference: exact specification section, covered targets/forms, semantic dimensions
 Authority gaps: implementation assumptions, missing rulings, unresolved behavior
 First incorrect decision: stage, function, input facts, and output
 Target comparison: evidence and status for each of the five targets
@@ -430,9 +430,9 @@ Remaining work: unverified claims and retained legacy paths
 | Dart changes a later assertion after an expression was inspected twice | Does a query or a preliminary render modify analysis state? | Separate fact production from queries and pass the prepared result to printing. |
 | TypeScript changes how often a loop bound is evaluated | What evaluation count does the normalized loop require, and is moving the bound valid? | Carry evaluation requirements and effect facts into loop lowering. |
 | Several targets remove return text to obtain a statement switch | How should each branch deliver its result, including nested control flow? | Represent the result use structurally before printing the target switch. |
-| A new consumer interface needs another entry in a sharing table | Which identity and aliasing contract requires shared storage? | Derive the representation from semantic facts or an explicit validated declaration. |
+| A new consumer interface needs another entry in a sharing table | Which identity and aliasing ruling requires shared storage? | Derive the representation from semantic facts or an explicit validated declaration. |
 
 These examples identify questions and candidate corrections. Reproduce the
 relevant behavior and inspect current code before selecting an implementation.
-Successful analysis connects the observed failure to a contract, a responsible
+Successful analysis connects the observed failure to a requirement, a responsible
 stage, a general rule, and evidence that tests the rule's limits.
