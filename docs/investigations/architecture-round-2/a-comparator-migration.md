@@ -254,3 +254,41 @@ a failure of that operation. Record the public API's actual substituted field
 before replacing it; a replacement must preserve every type form its consumers
 require. This source inspection establishes the API path. The executor's
 recursive fixture results remain pending.
+
+### Generic declaration and concrete request
+
+The coordinator accepts the following design direction for the next interface
+checkpoint. Implementation acceptance remains open.
+
+A declaration schema describes stored fields and the operations required from
+its type parameters. Each obligation identifies the owning binder and parameter
+slot. A concrete key request supplies actual arguments and checks whether they
+provide the required source operations. Target realization then chooses legal
+function signatures, references, forwarding adapters and dependencies.
+
+One resident generic comparator owns the field comparison body. A key site can
+provide typed comparator functions through a forwarding adapter. Passing those
+functions preserves the resident body requirement; copying its field traversal
+into each key site would violate that requirement. Nested records, absence and
+read-only sequences compose the selected operations. A parameter unused by
+stored fields creates no comparison obligation.
+
+The existing declaration emission phase may provide this schema without a new
+global request registry. Add collection or scheduling only when a named consumer
+requires information unavailable at its current phase. An internal evidence
+parameter may require changes to generated generic callers; establish the
+affected call graph and external API boundary before declaring that propagation
+impossible.
+
+Ordering evidence does not establish equality capability. Preserve current
+equality selection and conformance behavior while designing this interface.
+Removing a generated equality member pending a future plan is a behavior change.
+A concrete `P<Int>` request cannot justify conformance for every `P<T>`.
+
+The schema separates declaration analysis from instantiated graph expansion.
+It does not establish termination of every obligation solver or target compiler.
+An expanding type graph alone cannot prove that a finite generic implementation
+is impossible. Report source admission, analysis completeness and target
+realizability separately. Verify direct, irrelevant and nested parameters,
+multiple instantiations, recursive dependencies and ordinary equality before
+accepting the shared interface for the remaining target adapters.
