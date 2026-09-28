@@ -60,3 +60,32 @@ observations, and preserved evidence. Classify omissions as missing guidance,
 ambiguous authority, execution deviations, or verification failures with
 specific evidence. A passing fixture alone does not establish successful use
 of the method.
+
+### Interim observations from the assigned exercise
+
+The executor's first reasoning record distinguished binding, container and
+element identity and derived the reassignment and escaped-view expectations.
+Its initial sharing case mutated the original array before the producer
+returned. That case could pass even if the return boundary copied the array.
+The coordinator required a retained mutable alias to the original container,
+mutation after the producer returned, and a view observation after that
+mutation. The authored fixture now includes that sequence. Its runtime result
+is still pending.
+
+This omission concerns test discrimination: the test must place the observable
+mutation after the boundary whose storage behavior it claims to establish.
+The oracle verifies expectations derived from the source contract; agreement
+between two observed outputs alone cannot determine those expectations.
+
+The first proposed runner also violated existing execution requirements. It
+resolved the repository root to `tests`, parsed structured probe JSON with
+spacing-dependent text patterns, omitted stage identities from unreached rows,
+and recorded some failed checks without making them affect its verdict. The
+coordinator cancelled that write before execution and supplied a correction
+brief using the existing probe and stage-check contracts.
+
+These runner failures are execution deviations from documented requirements.
+Additional general instructions would not establish compliance. Acceptance requires
+the corrected runner's actual paths, parsed child outcomes, required stage
+membership, authored expected values and failure propagation. Record those
+results before judging the guidance effective or completing P11.
