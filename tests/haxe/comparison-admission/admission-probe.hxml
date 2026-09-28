@@ -1,0 +1,10 @@
+# Focused finite source admission check. The entry under test reads the
+# declaration phase only, so the Swift target class path is absent on purpose.
+-lib reflaxe
+-cp packages/compiler
+-cp samples
+-cp tests/haxe/comparison-admission-contract
+-main admission.AdmissionProbe
+--macro include('admission')
+--macro admission.AdmissionProbe.run()
+--interp
