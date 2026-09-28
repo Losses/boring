@@ -179,6 +179,13 @@ the accepted source form and each target's actual result. Keep those results
 separate from a conformance test's required expectation. Use a demonstrated
 disagreement to support the semantic decision process.
 
+At a conversion boundary, vary source nullability, destination nullability,
+and established flow facts independently. Cover the applicable plain-to-plain,
+plain-to-optional, optional-to-optional, and guarded optional-to-required
+forms. Record source acceptance and target compilation separately from runtime
+results. Use the same authored operation for the source oracle and target run;
+a native harness may expose its result without implementing the conversion.
+
 ### 1. Record the observation and source contract
 
 Record the checkout, commit, local changes relevant to the result, target,
