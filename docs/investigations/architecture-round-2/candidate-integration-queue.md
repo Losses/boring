@@ -1,23 +1,31 @@
-# A, B, and F candidate integration queue
+# Comparison, local presence, and TypeScript diagnostic integration queue
 
 This queue applies to the three isolated candidate checkouts inspected on
 2026-09-28. Each writer owns only its existing checkout. The coordinator owns
 the Boring integration checkout and copies accepted files selectively after
 independent review. The original Boring checkout remains outside this work.
 
-No writer is currently running. The coordinator prepared a scoped F execution
-prompt, but the outer approval review rejected launching Claude Code against
-the configured external BigModel service because the trusted user messages
-did not explicitly authorize sending this repository's source to that
-destination. The rejected action was not retried through another command.
-External execution remains pending the user's explicit authorization; local
-inspection and verification can continue.
+On 2026-09-28, the coordinator started three native Codex writer tasks in
+separate checkouts. A follow-up sent while they were active caused all three
+turns to fail with `codex_tool_results_incomplete` before any edits. Resuming
+those threads failed with the same tool-delivery error. The coordinator then
+started fresh tasks: comparison thread
+`01a0ea33-cdc8-74c0-bae8-d75c5cb7a9af`, Kotlin local presence thread
+`01a0ea33-f338-75d1-809d-2f6a4b17ab14`, and TypeScript diagnostic thread
+`01a0ea34-1804-7472-8b8d-f35565a451dd`. Check live status and delivered
+work before acceptance. The writers run focused checks; the coordinator owns
+serial target compilation.
+
+An earlier attempt to launch the TypeScript writer through Claude Code was
+rejected by the outer approval review because the configured BigModel service
+would receive private source without authorization recognized in this session.
+That command was not retried. The native tasks above do not use that route.
 
 | Writer assignment | Immediate repair | Required focused evidence | Independent reviewer |
 | --- | --- | --- | --- |
-| A: comparison analysis and Swift consumer | Replace the raw type-string expectation in the generic schema probe with binder owner, slot, and selected-operation assertions. Preserve finite admission of recursive aliases. | Full admission and A3 procedures with input hashes, negative controls, Swift generation, compilation, and execution. | F reviewer checks the macro and target stage verdicts. |
-| B: Kotlin local presence consumer | Enter the nested literal's own source facts while rendering its body. Restore outer emitter state and keep guarded local reads direct. | Generation, 21 output assertions, mutation control, Kotlin compilation and execution, warning inspection, and occurrence checks through transformations. | A reviewer checks source occurrence identity and Kotlin output. |
-| F: nested TypeScript diagnostics | Correct relative stage paths, retain successful child command evidence, and reject malformed or escaping sidecar ranges. | Real tsc cases for absolute and relative output roots, successful output streams, mapped and unmapped failures, malformed metadata, and retained child status. | B reviewer checks path safety and raw child evidence. |
+| Comparison analysis and Swift consumer | Replace the raw type-string expectation in the generic schema probe with binder owner, slot, and selected-operation assertions. Preserve finite admission of recursive aliases. | Full admission and A3 procedures with input hashes, negative controls, Swift generation, compilation, and execution. | TypeScript diagnostic reviewer checks the macro and target stage verdicts. |
+| Kotlin local presence consumer | Enter the nested literal's own source facts while rendering its body. Restore outer emitter state and keep guarded local reads direct. | Generation, 21 output assertions, mutation control, Kotlin compilation and execution, warning inspection, and occurrence checks through transformations. | Comparison reviewer checks source occurrence identity and Kotlin output. |
+| Nested TypeScript diagnostics | Correct relative stage paths, retain successful child command evidence, and reject malformed or escaping sidecar ranges. | Real tsc cases for absolute and relative output roots, successful output streams, mapped and unmapped failures, malformed metadata, and retained child status. | Kotlin local presence reviewer checks path safety and raw child evidence. |
 
 The current [A probe review](a3-probe-review.md),
 [B consumer review](b-kotlin-consumer-qa.md), and
