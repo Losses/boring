@@ -163,6 +163,15 @@ comments, observed results, and inferred requirements separately. A comment
 that cites a feature number does not establish that the specification rules
 the commented behavior. Read the cited text before relying on it.
 
+Read the enclosing heading, definitions, exclusions, and amendments with each
+quoted sentence. Write the rule's domain beside the case under investigation.
+For example, an equality rule under a parameterless-enum amendment does not
+establish equality for enums with payloads. A restriction on direct sorted
+keys applies to fields inside record keys only when a rule establishes that
+relationship. Confirm overlapping domains before declaring two rules in
+conflict. A runtime disagreement outside a cited rule's domain remains an
+observation pending an applicable authority.
+
 When a specification covers some targets, mark the remaining targets as
 unruled or identify another applicable ruling. For example, a target's use of
 a value array does not by itself establish when the source contract requires
@@ -210,6 +219,14 @@ checkout. Record the driver's revision separately. Preserve the consumer's
 working directory when deriving a validation configuration; a project file's
 location may determine that directory. Where available, retain compiler module
 loading output to confirm the paths actually selected by the generation run.
+
+Before launching a new runner, resolve its working directory, repository root,
+shared helper paths, and output parent to absolute paths and check them against
+the assigned checkout. Script directories at different depths need different
+relative paths. Record the actual child cwd in the attempt. If an expected
+output is absent, inspect that cwd and the command's resolved output path
+before attributing the absence to process or filesystem behavior. Preserve a
+mislocated attempt with its original path and command metadata.
 
 Reduce the input while retaining relevant effects, aliases, null states, and
 control flow. Add an isolated reproducer under the repository's test layout;
