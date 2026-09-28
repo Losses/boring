@@ -188,3 +188,25 @@ Pure analysis and independent fixtures remain assigned. Kotlin consumer
 migration waits for those concrete facts and the corrected preparation inputs.
 The next delivery is implementation evidence against these controls; another
 general design report does not satisfy that boundary.
+
+## Initial source review
+
+The coordinator inspected the first pure-analysis draft before its tests were
+delivered. The draft updated assignment facts in its statement handler but
+omitted that update in its expression handler. Its condition handler evaluated
+both short-circuit operands without carrying the left outcome. Operand-list
+evaluation also discarded abrupt exits. These are failures of the shared
+evaluation contract across consumers.
+
+The correction assigns those decisions to one evaluation transfer and derives
+statement and condition results from it. Controls must place the same write
+in different expression contexts and verify skipped operands, retained abrupt
+exits, and reachable joins. The review separately rejected an indexed read
+classified as collection construction, joins that discarded presence when
+only its explanation differed, and invocation guarantees inferred without
+complete enclosing assignment information.
+
+The reviewed draft remains unaccepted.
+The executor retains implementation ownership and must return actual focused
+test evidence. Kotlin consumers remain outside the released implementation
+boundary until those source facts pass review.
