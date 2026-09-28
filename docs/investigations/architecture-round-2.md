@@ -222,3 +222,9 @@ The coordinator's [B1 flow consumer review](architecture-round-2/b-flow-consumer
 identifies Kotlin's source-position evidence and its declaration/body consumers.
 It defines a bounded next observation batch. No runtime defect or package B
 compiler migration is accepted by that static review.
+
+The coordinator has reviewed the [A2 source-container delivery](architecture-round-2/a-source-container-review.md)
+and copied its source foundation and focused fixtures for integration checks.
+The review records three passing native targets, two retained native failures,
+and the distinct baseline and candidate alias diagnostics. Luna has handed over
+A2 and now owns the separate Swift ordinary-runtime dependency correction.
