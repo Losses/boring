@@ -35,6 +35,50 @@ source type and target capabilities. Every initializer and assignment must
 satisfy that selection. A value conversion result never overwrites the stable
 declaration record. A null initializer supplies absence to the selected storage.
 
+## Source analysis phase and resolution
+
+Source facts retain the phase at which the compiler can establish them. A typed
+handle can still contain a pending monomorph or a lazy computation. An unknown
+container identity differs from a resolved scalar or foreign declaration.
+A public predicate returning false must have a stated treatment of unresolved
+input; it cannot silently turn a phase dependency into source rejection.
+
+Resolve transparent aliases with their actual type arguments. For a monomorph,
+inspect whether its reference has a resolved type before classifying that type.
+For a lazy type, use the pinned compiler API at an admitted phase. Preserve
+wrappers needed by the source contract before a normalization can erase them.
+A synthetic handle failure has its own evidence identity; it does not prove
+that an ordinary source declaration is unsupported.
+
+One result must describe one coherent resolution. Container identity, outer
+nullability, and element type must agree on the resolved input. Repeating
+independent traversals to populate related fields needs evidence that they
+observe the same resolution; a single normalization traversal can provide that
+agreement directly. Keep unknown wrapper state distinct from an established
+absence of an explicit wrapper. Neither state establishes runtime presence.
+
+The host compiler can resolve or memoize its own type handles during analysis.
+This differs from changing Boring's flow facts or selected target storage.
+The analysis contract names the admitted host resolution and its phase. It must
+preserve Boring's semantic state and return stable facts once its input is
+resolved. A claim that a lazy query never changes any compiler state is too broad.
+
+| Situation | Required treatment |
+| --- | --- |
+| A monomorph has no resolved type | Retain unresolved state and the responsible phase. |
+| A monomorph resolves to an array | Classify that declaration through the same source identity rule as a direct array. |
+| A generic alias is instantiated | Substitute the supplied arguments before deriving its element facts. |
+| A recursive resolution revisits an active input | Terminate with explicit cycle or unresolved evidence. A short declaration name cannot identify the active input. |
+| A resource bound stops a long finite chain | Record resource exhaustion separately from unsupported source; the integration must still handle accepted source through an admitted phase or general path. |
+| A query is cached before its input resolves | Include validity and invalidation in the cache contract. An unresolved result cannot become a permanent negative fact. |
+
+These rules apply to the facts production boundary. Downstream pure policies
+consume the established result and do not repeat host type resolution while
+selecting target operations. Tests observe actual production queries before
+auxiliary probes force the same handles, then check the resolved result. Keep
+the compiler revision, phase, original handle form, and resolution operation
+separate from display strings.
+
 ## Presence and literal states
 
 These states describe one prepared occurrence:
