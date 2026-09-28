@@ -701,3 +701,5 @@ tests.DriverPlanTests
 boring.NullInflatedLiteralOps
 tests.NullInflatedLiteralOpsTests
 
+boring.TestLitEdgeOps
+tests.TestLitEdgeTests
