@@ -6,6 +6,15 @@ This specification rules the implementation of the translators themselves: where
 
 The five targets are Kotlin, Rust, Dart, TypeScript, and Swift. The shared compiler layer is the flat module set under `packages/compiler/`. Each target printer lives under `packages/compiler/reflaxe/<target>/<target>compiler/`.
 
+## Analysis method
+
+[Compiler problem analysis](../../compiler-problem-analysis.md) defines how to
+identify the earliest incorrect decision, compare the semantic mechanism
+across targets, and validate a general repair. Its stages distinguish source
+analysis, target representation, lowering, and printing within the ownership
+and consolidation rules below. Use its analysis record when applying this
+standard to a compiler change.
+
 ## Layer ownership
 
 Compiler source divides into two kinds of code by what it produces.
