@@ -107,6 +107,8 @@ target observations.
 
 The fixed Tiqian revision is prepared, but the full Boring and Tiqian
 candidate gates have not run. P08–P10 and P12 remain open for that reason.
+The [candidate integration queue](investigations/architecture-round-2/candidate-integration-queue.md)
+assigns the next A, B, and F repairs and independent reviews.
 
 The owner selected shared alias visibility for ordinary read-only arrays.
 The unfinished Swift checkpoint is `e5e21854`. P07's prepared-value design
