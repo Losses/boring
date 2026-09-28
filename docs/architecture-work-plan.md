@@ -70,8 +70,10 @@ Current status: the first investigation round is running on independent branch
 `arch/agent-guided-governance`, based on
 `e3b8bab39ac2da0e17e9d04e031f03bd39290274`. See the
 [round 1 record](investigations/architecture-round-1.md) for version evidence,
-ownership, and assignments. No compiler implementation task has started under
-this plan. Earlier investigations are leads that require revision checks.
+ownership, and assignments. The owner has selected shared alias visibility for
+ordinary read-only arrays. Brief J now includes the required Swift type and
+runtime scope and is ready for executor assignment. Earlier investigations are
+leads that require revision checks.
 
 - [x] P00: Establish the coordinator role and create the programme goal.
 - [x] P01: Verify basic availability of Luna, Goose, and Claude Code routes;
@@ -87,10 +89,11 @@ this plan. Earlier investigations are leads that require revision checks.
   responsibility map, missing contracts, and ordered mechanism work list.
 - [x] P06: Update existing internal guidance from the investigation findings.
   Record unresolved semantic rulings separately from implementation choices.
-- [ ] P07: Select the first mechanism and write a complete implementation brief,
+- [x] P07: Select the first mechanism and write a complete implementation brief,
   test matrix, file ownership list, and migration acceptance criteria.
   [Swift array boundary brief](investigations/architecture-round-1/j-boundary-implementation.md)
-  is drafted; its semantic ruling and resulting file scope remain pending.
+  includes the owner's shared-storage ruling, runtime representation, and
+  fair comparisons between generation runs with identical inputs.
 - [ ] P08: Delegate reproduction and contract tests, then implementation.
   Independently review both before accepting a candidate.
 - [ ] P09: Run the candidate's required Boring checks and Tiqian checks on fixed

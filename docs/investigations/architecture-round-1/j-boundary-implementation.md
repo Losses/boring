@@ -2,9 +2,10 @@
 
 ## Status and purpose
 
-This implementation brief is pending semantic review. Do not start compiler
-edits until the owner has ruled on ordinary read-only conversion aliasing and
-the coordinator has incorporated that ruling into the acceptance cases.
+The owner selected shared alias visibility for ordinary read-only conversion.
+Feature 18 now states that contract. This revised brief includes the Swift
+representation and runtime changes required to preserve it. A single assigned
+executor may implement the scope below after recording its starting revision.
 
 The executable baseline is `e3b8bab39ac2da0e17e9d04e031f03bd39290274` in the
 owned `boring-wt-architecture` worktree. Record its current documentation
@@ -34,6 +35,22 @@ without recording the conversion result. Other consumers independently make
 similar decisions; some detect prior conversion by inspecting generated text.
 
 ## Design contract
+
+Lower `ReadOnlyArray<T>` to a public read-only view retaining the exact existing
+`TiqianArray<T>` object. Forward count, indexed reads and iteration to that
+storage. Keep the backing object private and expose no mutable slot API.
+Fresh array construction may allocate fresh backing storage; conversion of an
+existing mutable value must retain its storage. Preserve existing element
+identity and equality contracts, optional values, and storage lifetime.
+
+Update both ordinary and substituted type rendering. Audit generated field
+comparisons, runtime algorithms, module visibility, and public Swift signatures
+that currently require native arrays. Name every required adapter and its
+source contract before implementing it. Decode-specific protection remains
+governed by feature 18. Runtime view construction cannot substitute for a
+separately specified mutation protection. Reverse read-only-to-mutable conversions
+retain their existing source acceptance and require separate analysis if this
+representation change affects them.
 
 Prepare a target-owned decision before rendering a conversion. It records:
 
@@ -83,13 +100,16 @@ One executor owns this compiler change. The initial file set is:
   the focused representation and conversion contract.
 - `SwiftExpr.hx` in that directory for preparation and expression consumers.
 - `SwiftDecl.hx` in that directory for static fields and declaration consumers.
+- `SwiftType.hx` for ordinary and substituted container types.
+- `SwiftRuntime.hx` for shared storage, the public read-only view, and required
+  collection or conditional equality operations.
 - Named regression fixtures under `samples/boring/` and `samples/tests/`,
   plus relevant verification files under `tests/` when needed.
 
 The coordinator owns specifications and guidance. No other executor writes
-these compiler files concurrently. Runtime representation or source-contract
-changes resulting from the owner ruling require an updated file list before
-implementation starts. Every added file must serve a named responsibility.
+these compiler files concurrently. Additional runtime registration or import
+files require a named need and an updated file assignment before editing.
+Every added file must serve a named responsibility.
 
 Inventory and migrate locals, static and instance fields, assignments, returns,
 casts, nested literals, function arguments, constructor arguments, defaults,
@@ -112,19 +132,29 @@ order. Counting the operand's spelling in generated text is supplementary
 evidence. Add a case where conversion interacts with another argument's effect
 or a throwing operation when the source subset accepts that form.
 
-Alias expectations follow the pending ruling. Retain the scalar probe that
-distinguishes the existing Haxe and Swift behaviors. Include an accepted
+Alias expectations follow feature 18's ordinary conversion ruling. Retain the
+scalar probe that distinguishes the existing Haxe and Swift behaviors: a
+retained mutable alias updates both the visible element and length. Include an accepted
 reference-element case that distinguishes copying container slots from copying
 element objects. Its expectation requires an applicable element-identity
 contract; report a missing contract before claiming semantic completion.
+Use an ordinary class element with mutable state to exercise reference identity;
+a data-class value record does not establish that case. Existing interface
+identity fixtures provide a separate source of evidence for reference equality.
 Tests must exercise generated target code.
 Do not repair expected values, input programs, or generated output to hide a
 translator failure.
 
 Run focused fixtures during implementation. At a fixed candidate, collect fresh
 generation manifests and target diagnostics, then perform the required Boring
-verification once. Other targets must preserve their generated outputs unless
-the approved semantic change explicitly includes them. Preserve successful
+verification once. Compare baseline and candidate generation with identical
+source fixtures for each target. Preserve unaffected output for the unchanged
+common fixture set; review explicitly named fixture additions separately. An
+older manifest from a smaller fixture set cannot establish an unexpected output
+change. Swift-only runtime regressions may provide focused evidence, but they
+do not establish all-target conformance. Record ordinary aliasing gaps on other
+targets without weakening their tests or silently changing their implementation.
+Preserve successful
 compiler output because the current bundle driver discards it. Require zero
 warnings attributed to generated files and no suppression markers.
 
@@ -140,8 +170,10 @@ Its driver and effective haxelib compiler are separate recorded identities.
 Verify the HXML include paths and explicit backend and runtime class paths as
 well. Tiqian's existing HXML files refer to `.haxelib/boring/git` directly;
 overriding `-lib boring` alone does not establish candidate backend identity.
-The current compatibility command awaits approval after automatic review
-rejected it; no Tiqian regression result has been established. Follow the work
+One approved compatibility generation succeeded at Boring `483974d6` and
+Tiqian `8504d230`, with actual candidate module paths captured. It establishes
+generation compatibility for that pair only; no Tiqian regression result has
+been established. The new implementation needs its own candidate evidence. Follow the work
 plan's full consumer verification requirement after compatibility succeeds.
 
 ## Delivery and coordinator review

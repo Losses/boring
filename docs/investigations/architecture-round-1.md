@@ -486,3 +486,43 @@ shell assertions that did not stop on failure. The proposed generation recipe
 requires separate review; no generation ran. Successful verbose compiler output
 must use the child capture route established by N before it can support a
 module-origin claim.
+
+## Owner ruling and approved generation
+
+The owner selected ordinary read-only conversion that keeps viewing the same
+array: a later write through the mutable alias remains visible. Feature 18 now
+states this source contract separately from its decoded-data protection rules.
+The owner also authorized one Tiqian Swift f32 generation and an ordinary Git
+push for the independent branch after GitButler could not support that linked
+worktree. Commit `483974d6` was pushed to `arch/agent-guided-governance` without
+merging or forcing an update.
+
+Task Q ran that single generation at Boring `483974d6` and Tiqian `8504d230`.
+The pinned driver and Haxe child returned zero. The child took about 37.3
+seconds and produced 291 Swift implementation files and 124 Swift test files.
+The coordinator inspected the child status and verbose parse records for the
+candidate `Intercept`, `SwiftType`, `SwiftExpr`, runtime, and sample modules.
+The parse log contains no path into the old Boring export. This supports the
+bounded generation compatibility claim for this recorded pair.
+
+The capture retained 136 Haxe `NonOptionalNilComparison` warnings at Tiqian
+source locations even though driver stderr was empty. No Swift compilation,
+native test, packaging, or full consumer suite ran. The generated-Swift warning
+gate remains untested. Inputs matched the prepared hashes immediately before
+launch; post-run tracked status was unchanged. The record does not contain a
+second hash pass over all 709 candidate inputs after generation. An unrelated
+extra newline in the observation brief was preserved and recorded.
+
+Task R identified the representation scope required by the ruling. Swift's
+ordinary and substituted type mappings, runtime view, declaration consumers,
+and expression conversions must agree on shared storage. Brief J now assigns
+`SwiftType` and `SwiftRuntime` in addition to the decision module, `SwiftExpr`,
+and `SwiftDecl`. Reference-element tests use ordinary class instances whose
+identity contract is independently supported. Decode protection and ordinary
+view construction remain separate responsibilities.
+
+The revised brief also requires matching fixture inputs when comparing
+baseline and candidate output. New shared fixtures can expose another target's
+existing semantic gap; a Swift-focused check cannot establish all-target
+conformance. Rust's ordinary alias behavior remains a separate unverified
+requirement. These limits are carried into implementation acceptance.
