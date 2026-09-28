@@ -38,6 +38,18 @@ what an earlier operation produced. A presence proof and the target operation
 that reads a narrowed value remain separate. A writable place identifies a
 location; converting a value does not preserve a writable location automatically.
 
+Identity, lifetime, and write permission are independent facts. A read-only
+view can retain shared storage while forbidding stores through that view.
+Wrapping a reference does not by itself establish an independent object.
+A place reached through a value-type intermediate can require explicit
+writeback. Introducing a temporary is correct only when its storage relationship,
+evaluation order, and any writeback preserve the source operation.
+
+Shared fact records retain the scope of the governing rule. A representation
+rule for Rust records retains its target scope when its data moves into a
+shared module. An unresolved
+requirement remains unresolved until its authority is established.
+
 Pure policy queries do not render expressions, allocate temporary identifiers,
 or change flow state. Target construction consumes a decision and reports its
 actual output representation. Printing cannot recover semantic facts by parsing
@@ -45,6 +57,10 @@ its own output. Diagnostic export consumes provenance and never selects a
 semantic operation.
 
 ## Contracts required for each policy
+
+The [policy interface contracts](compiler-policy-contracts.md) record accepted
+record distinctions and finite presence rules. Package proposals must satisfy
+them before their implementation is assigned.
 
 Before implementation, the task brief supplies:
 
@@ -70,6 +86,9 @@ runtime storage. Conversely, target syntax differences do not justify five
 independent definitions of source identity or evaluation order.
 
 ## Parallel work packages
+
+The [round 2 record](investigations/architecture-round-2.md) identifies the
+active executor assignments, fixed input, and historical review evidence.
 
 The initial packages below are design and migration responsibilities. An
 implementation assignment requires an accepted brief and exact file ownership.
@@ -134,8 +153,9 @@ into the architecture branch.
 
 The earlier first-cycle criteria remain required evidence. The expanded work
 also requires accepted policy contracts, a five-target migration inventory,
-reviewed removal or explicit scheduling of the identified duplicate decisions,
-cross-platform executor review, and integration regression evidence. Open items
+verified removal of duplicate decisions in each required migration,
+cross-platform executor review, and integration regression evidence. Scheduling
+an unresolved item records outstanding work. Open items
 cannot be declared complete through an empty adapter or a passing original
 example. The coordinator records the exact supported scope and unresolved work
 at each integration checkpoint.
