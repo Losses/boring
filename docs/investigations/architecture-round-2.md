@@ -166,3 +166,9 @@ records the accepted diagnostic fixtures, concrete paired outcomes, and retained
 evidence gaps. The second GLM worker has handed over C and started the A2
 source-container implementation in its separately pinned checkout. F1 remains
 in revision and independent snapshot review.
+
+The next consumer design is
+[A3 comparator planning](architecture-round-2/a-comparator-migration.md).
+It separates source field analysis, sorted-key admission, target comparison
+planning and declaration dependencies, with a removal inventory for all five
+targets. The independent caller audit precedes exact implementation ownership.
