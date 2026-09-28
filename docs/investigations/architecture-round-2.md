@@ -273,3 +273,16 @@ Its historical D1 assignment name is retained in external evidence; its actual
 responsibility belongs to package E. The review explains the declaration and
 expression-producer dependencies, the additional scalar-result counterexample,
 and the remaining verification obligations.
+
+The [enum contract review](architecture-round-2/a-enum-contract-review.md)
+accepts a reproducible fixture after shared-checker adoption and an integration
+run. It records the unresolved specification conflict and preserves the
+distinction between five-target generation and two-target execution.
+
+A3 implementation is now assigned to Luna in a separate checkout at
+`f3a8955a`. Its reviewed interface separates instantiated source facts, required
+comparison operations and selected Swift operations. Swift is the first
+consumer; the remaining four target adapters follow interface acceptance.
+The task replaces independent capability and emission traversals and requires
+compositional integer, nullable and sequence operations. Payload-enum semantics
+remain unchanged pending the source ruling.
