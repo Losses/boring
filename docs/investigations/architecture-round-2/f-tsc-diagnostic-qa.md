@@ -16,10 +16,18 @@ The second rerun used the TypeScript executable installed in the coordinator
 checkout, as specified in the executor handoff. The candidate source was
 unchanged between the two runs.
 
+A separate real tsc probe used a relative output root and retained
+`relative-qa-qw1MhniL`. Haxe exited one after the intended TS2345 at
+generated line 11, column 28. The staged selection file identifies source
+occurrence `DiagnosticSubject.DiagnosticSubject.run#000005` at source line
+10, and the origin sidecar exists beside the generated tree. The reported
+resolution is instead `Unmapped` with a staged path treated as the sidecar
+key. This reproduces the relative-path defect with actual compiler output.
+
 ## Required corrections before integration
 
 1. `relativeStagePath` mixes a relative stage prefix with absolute diagnostic
-   paths. Exercise a relative `ts-output` directory in the real runner and
+   paths. Add the reproduced relative `ts-output` case to the real runner and
    require the same source occurrence as the absolute directory case.
 2. `runPackageTsc` returns immediately on success and removes the stage later.
    The successful child command's status and separate streams need retained

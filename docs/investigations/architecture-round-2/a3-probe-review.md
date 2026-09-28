@@ -9,6 +9,11 @@ argument `TAnonymous(<anonymous>)`. All later Swift generation, compilation,
 and execution stages were recorded as not attempted. No target behavior follows
 from this run.
 
+The coordinator also reran the separate admission entry on the same candidate
+worktree. Attempt `run-Qmz7fliY` exited zero; its three recorded stages exited
+zero, its expected difference file and probe stderr are empty, and the
+authored table has 41 rows. That result covers the admission table only.
+
 `GenericNested<T>` stores `Box<T>`. The schema builder records a reusable
 `Box` declaration and carries its actual type argument. In the current Haxe
 macro process the argument prints as a named type parameter owned by

@@ -6,7 +6,10 @@ passed, while the nested guarded local read failed. The generated nested
 function tests value != null and then emits a safe call followed by a
 non-null assertion. The authored expectation is a direct value.read call.
 This is a failed consumer migration assertion even though the existing
-Kotlin compilation and execution report succeeded.
+Kotlin compilation and execution report succeeded. The coordinator reran
+that compilation and execution: the process exited zero and printed the
+authored pass marker, while the compiler warned about the unnecessary safe
+call at generated line 85.
 
 The emitter's TFunction branch calls functionLiteral while the outer
 prepared body remains active. functionLiteral changes the return type but
@@ -20,7 +23,10 @@ literal.
 Acceptance requires a fresh generation, the normal checker and its mutation
 control, Kotlin compilation and execution, and an inspection of compiler
 warnings. Keep the direct guarded-read assertion; weakening it would hide the
-failure. Review the remaining source queries with no consumer, the default
+failure. The current mutation control exits zero, but it mutates only the
+ordinary presentLocal method. Add a control for the nested guarded read so
+the failed location has an independent detection check. Review the remaining
+source queries with no consumer, the default
 parameter entry rule, and occurrence identity through fusion, loop, and
 trailing-block transformations. Reproduce the payload enum defect against
 baseline bytes before treating the candidate's passing enum checks as a fix.
