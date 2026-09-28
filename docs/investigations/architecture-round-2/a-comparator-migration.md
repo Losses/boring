@@ -5,7 +5,8 @@
 This is the coordinator's design for the package A comparison migration.
 A2's bounded source foundation and the five-target caller audit are accepted.
 Luna owns the shared analysis and first Swift consumer in a separate checkout
-at `f3a8955a`. Implementation and focused verification are in progress. The
+at `f3a8955a`. The candidate implementation and focused evidence are delivered;
+independent source and verification reviews are in progress. The
 remaining four target adapters require an accepted shared-interface checkpoint
 and their own file assignments before implementation.
 
@@ -292,3 +293,44 @@ is impossible. Report source admission, analysis completeness and target
 realizability separately. Verify direct, irrelevant and nested parameters,
 multiple instantiations, recursive dependencies and ordinary equality before
 accepting the shared interface for the remaining target adapters.
+
+### Composition and completion of generic evidence
+
+The delivered candidate requires another interface review before integration.
+Coordinator source inspection found that `SwiftDecl.emitComparisonOperation`
+forwards nested evidence only when an actual argument is a direct parent
+binder. An unmatched argument produces an empty string and is omitted. This
+does not supply the operation needed by a nested `Box<Int>` or
+`Box<ReadOnlyArray<T>>`. This is a static finding; native reproduction remains
+assigned to the executor after independent review.
+
+Represent evidence substitution as operation composition. A nested callee's
+parameter requirement is instantiated with the complete actual argument:
+
+| Actual argument | Required evidence |
+| --- | --- |
+| Parent parameter `T` | Reference the operation supplied for that owning binder and slot |
+| Concrete `Int` | Select the source integer operation and its target realization |
+| `ReadOnlyArray<T>` or `Null<T>` | Compose the collection or absence operation with the supplied parameter operation |
+| `Box<T>` | Reference the resident record comparator with its own composed arguments |
+| A parameter unused by the callee | Supply no operation for that parameter |
+
+Select this evidence and its dependencies before printing. Resident nested
+calls and concrete key adapters consume the same operation-selection contract.
+A printer must not repeat raw-type classification to repair missing plan data.
+An unresolved required operation cannot disappear from a call's argument list.
+
+Graph allocation and graph completion are separate states. Creating a
+placeholder allows a recursive reference to exist; it does not establish the
+final set of required parameter operations. Derive requirements over the
+reachable declarations until the finite obligation sets are stable, or supply
+another justified completion rule. A consumer cannot use the initially empty
+requirements of an unfinished dependency as its final result. The argument
+substitutions on recursive references participate in that derivation.
+
+Verification must exercise combinations at the consumer boundary: repeated
+and permuted binders, concrete arguments inside a generic declaration, nested
+collection or absence arguments, and recursive dependencies whose requirement
+is discovered after a reference is installed. Passing isolated examples for
+each shape does not establish that their composition is implemented. The
+production analysis termination obligation remains separate and open.
