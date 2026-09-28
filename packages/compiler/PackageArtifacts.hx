@@ -1,6 +1,53 @@
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
+import haxe.macro.Expr.Position;
 import reflaxe.output.OutputManager;
+
+private typedef PackageToolResult = {
+	final exitCode:Int;
+	final stdout:String;
+	final stderr:String;
+}
+
+private typedef PackageTscPosition = {
+	final line:Int;
+	final column:Int;
+}
+
+private typedef PackageTscRange = {
+	final file:String;
+	final start:PackageTscPosition;
+	final end:PackageTscPosition;
+}
+
+private typedef PackageTscSpan = {
+	final status:String;
+	final generated:PackageTscRange;
+	final source:Null<{
+		final occurrenceId:String;
+		final file:String;
+		final start:Int;
+		final end:Int;
+	}>;
+	final reason:Null<String>;
+}
+
+private typedef PackageTscSidecar = {
+	final output:String;
+	final defaultResolution:String;
+	final spans:Array<PackageTscSpan>;
+}
+
+private typedef PackageTscLocation = {
+	final file:String;
+	final line:Int;
+	final column:Int;
+}
+
+private typedef PackageTscResolution = {
+	final summary:String;
+	final position:Null<Position>;
+}
 
 /**
     Package artifact packing shared by the target compilers (feature
@@ -130,7 +177,7 @@ class PackageArtifacts {
         // bodies probe. The declared shapes stay optional so a browser
         // build typechecks the same files.
         sys.io.File.saveContent(haxe.io.Path.join([stage, "host.d.ts"]), HOST_DECLARATIONS);
-        runTool("package-tsc", tsc, ["-p", stage]);
+        runPackageTsc(tsc, stage, outputDir);
         final files:Array<{name:String, data:haxe.io.Bytes}> = [{name: "package.json", data: haxe.io.Bytes.ofString(manifest)},];
         for (distPath in walkFiles(haxe.io.Path.join([stage, "dist"]))) {
             files.push({name: "dist/" + distPath, data: sys.io.File.getBytes(haxe.io.Path.join([stage, "dist", distPath]))});
@@ -366,7 +413,7 @@ class PackageArtifacts {
     // ------------------------------------------------------------------
 
     /**
-        The executable one compiled target needs, or null after an error.
+    The executable one compiled target needs, or null after an error.
         The artifact of that target is build output, so packing it without
         the tool is impossible; the message names the define that
         supplies the executable.
@@ -402,6 +449,184 @@ class PackageArtifacts {
         if (code != 0) {
             Context.fatalError(label + " failed with exit code " + code + ":\n" + command + " " + args.join(" ") + "\n" + output, Context.currentPos());
         }
+    }
+
+    static function runPackageTsc(command:String, stage:String, outputDir:String):Void {
+        final args = ["-p", stage];
+        final result = captureTsc(command, args, stage);
+        // Preserve both child streams for successful commands as well.
+        Sys.stdout().writeString(result.stdout);
+        Sys.stderr().writeString(result.stderr);
+        if (result.exitCode == 0) {
+            return;
+        }
+        final location = firstTscLocation(result.stdout, result.stderr);
+        final resolution = resolveTscLocation(stage, outputDir, location);
+        final message = "package-tsc failed with exit code " + result.exitCode + ":\n"
+            + command + " " + args.join(" ") + "\n"
+            + "source resolution: " + resolution.summary + "\n"
+            + "child stdout and stderr were forwarded unchanged on their respective process streams";
+        Context.fatalError(message, resolution.position == null ? Context.currentPos() : resolution.position);
+    }
+
+    static function captureTsc(command:String, args:Array<String>, stage:String):PackageToolResult {
+        final stdoutPath = haxe.io.Path.join([stage, ".package-tsc-stdout"]);
+        final stderrPath = haxe.io.Path.join([stage, ".package-tsc-stderr"]);
+        sys.io.File.saveContent(stdoutPath, "");
+        sys.io.File.saveContent(stderrPath, "");
+        // Keep the external compiler's two pipes on separate files. This
+        // avoids blocking one pipe while the other fills without relying
+        // on threads inside Haxe macro evaluation.
+        final shellScript = 'command="$1"; stdout_path="$2"; stderr_path="$3"; shift 3; "$$command" "$$@" >"$$stdout_path" 2>"$$stderr_path"';
+        final shellArgs = ["-c", shellScript, "package-tsc-capture", command, stdoutPath, stderrPath].concat(args);
+        var proc:sys.io.Process = null;
+        try {
+            proc = new sys.io.Process("/bin/sh", shellArgs);
+        } catch (e:Dynamic) {
+            Context.fatalError("package-tsc could not start: " + command + " (" + Std.string(e) + ")", Context.currentPos());
+        }
+        final shellStdout = proc.stdout.readAll().toString();
+        final shellStderr = proc.stderr.readAll().toString();
+        final code = proc.exitCode();
+        proc.close();
+        final stdout = sys.io.File.getContent(stdoutPath) + shellStdout;
+        final stderr = sys.io.File.getContent(stderrPath) + shellStderr;
+        return {exitCode: code, stdout: stdout, stderr: stderr};
+    }
+
+    static function firstTscLocation(stdout:String, stderr:String):Null<PackageTscLocation> {
+        final pattern = ~/^(.+\.ts)\((\d+),(\d+)\): error TS\d+:/;
+        for (stream in [stderr, stdout]) {
+            for (line in stream.split("\n")) {
+                if (pattern.match(line)) {
+                    return {
+                        file: pattern.matched(1),
+                        line: Std.parseInt(pattern.matched(2)) ?? 0,
+                        column: Std.parseInt(pattern.matched(3)) ?? 0
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
+    static function resolveTscLocation(stage:String, outputDir:String, location:Null<PackageTscLocation>):PackageTscResolution {
+        if (location == null) {
+            return {summary: "Unmapped (tsc emitted no parseable file location)", position: null};
+        }
+        final relative = relativeStagePath(stage, location.file);
+        if (relative == null) {
+            return {summary: "Unmapped (diagnostic file is outside .package-npm-stage): " + location.file + ":" + location.line + ":" + location.column, position: null};
+        }
+        final sidecarEntry = entries.filter(entry -> entry.path == relative + ".origins.json")[0];
+        if (sidecarEntry == null) {
+            return {summary: "Unmapped (no recorded sidecar for " + relative + "):" + location.line + ":" + location.column, position: null};
+        }
+        final sidecarPath = haxe.io.Path.join([outputDir, relative + ".origins.json"]);
+        var sidecar:PackageTscSidecar;
+        try {
+            sidecar = cast haxe.Json.parse(sys.io.File.getContent(sidecarPath));
+        } catch (e:Dynamic) {
+            return {summary: "Unmapped (invalid source origin sidecar)", position: null};
+        }
+        if (sidecar == null || !Std.isOfType(sidecar.output, String) || !Std.isOfType(sidecar.defaultResolution, String)
+            || !Std.isOfType(sidecar.spans, Array)) {
+            return {summary: "Unmapped (invalid source origin sidecar)", position: null};
+        }
+        if (sidecar.output != relative) {
+            return {summary: "Unmapped (sidecar output path does not match staged source " + relative + ")", position: null};
+        }
+        var span:Null<PackageTscSpan> = null;
+        for (candidate in sidecar.spans) {
+            if (candidate == null || candidate.generated == null || candidate.generated.start == null || candidate.generated.end == null
+                || !Std.isOfType(candidate.generated.file, String) || !Std.isOfType(candidate.generated.start.line, Int)
+                || !Std.isOfType(candidate.generated.start.column, Int) || !Std.isOfType(candidate.generated.end.line, Int)
+                || !Std.isOfType(candidate.generated.end.column, Int)) {
+                return {summary: "Unmapped (invalid source origin span)", position: null};
+            }
+            if (containsPosition(candidate.generated, location)) {
+                span = candidate;
+                break;
+            }
+        }
+        if (span == null || span.status != "mapped" || span.source == null) {
+            final reason = span == null ? sidecar.defaultResolution : (span.reason == null ? "Unmapped" : span.reason);
+            return {summary: "Unmapped (" + reason + ") at " + relative + ":" + location.line + ":" + location.column, position: null};
+        }
+        final source = span.source;
+        if (span.generated.file != relative || !safeRelativePath(span.generated.file)
+            || span.generated.start.line < 1 || span.generated.start.column < 1
+            || span.generated.end.line < 1 || span.generated.end.column < 1
+            || !coordinateBefore(span.generated.start, span.generated.end)
+            || !validGeneratedRange(outputDir, span.generated)
+            || !Std.isOfType(source.file, String) || !safeRelativePath(source.file)
+            || !Std.isOfType(source.start, Int) || !Std.isOfType(source.end, Int)
+            || !Std.isOfType(source.occurrenceId, String) || source.occurrenceId == ""
+            || source.start < 0 || source.end <= source.start
+            || !sys.FileSystem.exists(source.file) || sys.FileSystem.isDirectory(source.file)
+            || !withinRoot(Sys.getCwd(), source.file)
+            || source.end > sys.io.File.getContent(source.file).length) {
+            return {summary: "Unmapped (invalid source origin span)", position: null};
+        }
+        final position = Context.makePosition({file: source.file, min: source.start, max: source.end});
+        return {
+            summary: "Mapped to " + source.file + ":" + source.start + "-" + source.end + " occurrence " + source.occurrenceId,
+            position: position
+        };
+    }
+
+    static function containsPosition(range:PackageTscRange, location:PackageTscLocation):Bool {
+        final afterStart = location.line > range.start.line || (location.line == range.start.line && location.column >= range.start.column);
+        final beforeEnd = location.line < range.end.line || (location.line == range.end.line && location.column < range.end.column);
+        return afterStart && beforeEnd;
+    }
+
+    static function coordinateBefore(start:PackageTscPosition, end:PackageTscPosition):Bool {
+        return start.line < end.line || (start.line == end.line && start.column < end.column);
+    }
+
+    static function validGeneratedRange(outputDir:String, range:PackageTscRange):Bool {
+        final path = haxe.io.Path.join([outputDir, range.file]);
+        if (!withinRoot(outputDir, path) || !sys.FileSystem.exists(path) || sys.FileSystem.isDirectory(path)) return false;
+        final lines = sys.io.File.getContent(path).split("\n");
+        for (point in [range.start, range.end]) {
+            if (point.line > lines.length || point.column > lines[point.line - 1].length + 1) return false;
+        }
+        return true;
+    }
+
+    static function withinRoot(root:String, path:String):Bool {
+        final fullRoot = normalizePath(sys.FileSystem.fullPath(root));
+        final fullPath = normalizePath(sys.FileSystem.fullPath(path));
+        return StringTools.startsWith(fullPath, fullRoot + "/");
+    }
+
+    static function safeRelativePath(path:String):Bool {
+        if (path == "" || haxe.io.Path.isAbsolute(path) || StringTools.contains(path, "\\") || StringTools.contains(path, ":")) {
+            return false;
+        }
+        for (part in path.split("/")) {
+            if (part == "" || part == "." || part == "..") return false;
+        }
+        return true;
+    }
+
+    static function relativeStagePath(stage:String, diagnosticPath:String):Null<String> {
+        final normalizedStage = normalizePath(haxe.io.Path.isAbsolute(stage) ? stage : haxe.io.Path.join([Sys.getCwd(), stage]));
+        final prefix = StringTools.endsWith(normalizedStage, "/") ? normalizedStage : normalizedStage + "/";
+        final candidates = haxe.io.Path.isAbsolute(diagnosticPath)
+            ? [normalizePath(diagnosticPath)]
+            : [normalizePath(haxe.io.Path.join([Sys.getCwd(), diagnosticPath])), normalizePath(haxe.io.Path.join([normalizedStage, diagnosticPath]))];
+        for (candidate in candidates) {
+            if (StringTools.startsWith(candidate, prefix)) {
+                return candidate.substring(prefix.length);
+            }
+        }
+        return null;
+    }
+
+    static function normalizePath(path:String):String {
+        return StringTools.replace(haxe.io.Path.normalize(path), "\\", "/");
     }
 
     /**

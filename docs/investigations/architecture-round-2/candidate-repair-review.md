@@ -25,3 +25,22 @@ revision. The fixed Tiqian checkout at `8504d230228e8206689a2049bbb84b671c1f079a
 requires refreshed derived inputs for that revision, followed by all twelve
 generation and eleven target-test obligations. P08, P09, P10, and P12 remain
 open.
+
+## TypeScript diagnostic correction and integration replay
+
+The diagnostic writer added controls whose source metadata names an existing
+outside file through both a parent traversal and an in-root symbolic link.
+The retained candidate run `attempt-ZADFuflw` records the target file's
+existence, the two `Unmapped` results, separate child streams, numeric stage
+statuses, an exit-zero runner verdict, and identical selected input hashes.
+An independent reviewer checked those files and the production path guard.
+
+The coordinator copied the accepted `PackageArtifacts.hx` and the renamed
+`ts-package-diagnostic-resolution` fixture into the integration checkout.
+Their key file hashes matched the frozen candidate. The coordinator reran the
+real `tsc` procedure there; `attempt-xqZUD99J` has runner exit zero, matching
+selected input hashes, two successful Haxe stages, and expected nonzero Haxe
+stages for mapped, unmapped, invalid metadata and invalid Haxe cases. The
+documentation style check had zero hits. This accepts the focused TypeScript
+diagnostic batch for integration; it does not establish full diagnostic
+coverage or the final Boring and Tiqian regression result.
