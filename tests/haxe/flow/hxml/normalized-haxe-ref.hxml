@@ -1,0 +1,10 @@
+# The normalized group, Haxe reference run. Run from the repository root:
+# haxe tests/haxe/flow/hxml/normalized-haxe-ref.hxml
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp samples
+-cp tests/haxe/flow
+--macro Intercept.run(['samples', 'tests/haxe/flow'])
+-main flow.normalized.FlowMain
+-js out/flow/normalized/haxe/flow-main.js

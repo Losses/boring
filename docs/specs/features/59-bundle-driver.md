@@ -18,7 +18,7 @@ repeated in each and the results path written three different ways.
 
 This specification rules that layer. It defines one project file that names
 the bundles, one recipe per target that holds what the defines cannot derive,
-one driver with a fixed action set, and the three contract changes the driver
+one driver with a fixed action set, and the three prerequisite changes the driver
 depends on (the results sink on every target, a parameterized baseline, and a
 scoped mechanism-coverage check).
 
@@ -191,7 +191,7 @@ of `<target>`. The emitter today matches that list: `KotlinRuntime.hx`,
 `dart` and `swift` bundles print their records to standard output and rely on
 the caller redirecting it. That is why boring's own `test:dart` and
 `test:swift` scripts carry a shell redirection and why a driver cannot collect
-results through one contract.
+results through one result-file location rule.
 
 Under this specification every target reads `BORING_TEST_RESULTS` and falls
 back to `out/test-results/<target>.jsonl`. The `dart` and `swift` emitters are

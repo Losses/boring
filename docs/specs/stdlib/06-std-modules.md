@@ -146,7 +146,7 @@ The runtime package exposes two entry points.
 
 - **General entry**: `@boring/runtime` on TypeScript, package
   `boring.runtime` on Kotlin, the runtime crate root on Rust. It holds
-  every runtime declaration a program in a browser can load. Contract:
+  every runtime declaration a program in a browser can load. Requirement:
   no `node:` import specifier and no host process API anywhere in the
   entry. `tests/ts/runtime-entry.test.ts` scans the emitted file each
   test run.
@@ -165,7 +165,7 @@ one emitted tree (directory `test/` under the runtime root). The
 TypeScript target needs the split at module resolution: a browser that
 imports the general entry must never transitively resolve `node:fs`.
 
-## Error contract
+## Failure reporting
 
 Two failure sites, each inside its own visibility:
 
@@ -211,7 +211,7 @@ package.
 - `tests/reference/ts/generated-tree.test.ts` imports the generated tree through
   the `@boring/runtime` specifier resolved by `tsconfig.json` `paths`,
   which is the same wiring a bring-your-own consumer uses.
-- `tests/ts/runtime-entry.test.ts` enforces the entry-point contract:
+- `tests/ts/runtime-entry.test.ts` enforces the entry-point requirement:
   the emitted general entry contains no `node:` specifier and no test
   helper, the test entry owns both, business code imports only the
   general entry, and test code imports `Test` only from the test entry.

@@ -1,0 +1,20 @@
+# Focused TypeScript generation of the enum comparison module.
+# Run from the repository root; the caller supplies the output tree so
+# every attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/enum-comparison/ts-gen.hxml \
+#     -D ts-output=out/enum-comparison/runs/<run>/ts-gen
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp tests/haxe/enum-comparison
+-cp samples
+--macro Intercept.run(['tests/haxe/enum-comparison'])
+--macro tscompiler.Compiler.use()
+-D ts-output=out/enum-comparison/runs/ts-gen
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none
+enumcomparison.EnumComparisonSubject
+runtime.UString
+runtime.SortedTable

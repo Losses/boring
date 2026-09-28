@@ -19,7 +19,7 @@ hyphenation normalizations call `toLowerCase` on language tags and words
 `Hyphenation.kt`). Haxe holds no infix hexadecimal literal spelling, so the
 port cannot avoid the standard function.
 
-## Contract
+## Conversion behavior
 
 `StringTools.hex(value:Int, ?digits:Int):String` returns the uppercase
 hexadecimal form of a non-negative `Int`, built from the low nibble up
@@ -75,8 +75,8 @@ forms.
    `{ let s = String(v, radix: 16, uppercase: true); return s.count < Int(d) ? String(repeating: "0", count: Int(d) - s.count) + s : s }()`,
    which converts once and allocates one padding string at most. The Swift
    initializer takes `uppercase: true` because its radix form without the
-   flag yields lowercase digits, which the uppercase return contract of the
-   Contract section rules out; the digits argument renders through `Int`
+   flag yields lowercase digits, which the uppercase return rule of the
+   Conversion behavior section rules out; the digits argument renders through `Int`
    because Swift's count members hold `Int` while the argument carries the
    Haxe `Int` width. The Rust padded form renders the width inline as
    `format!("{:0w$X}", v, w = usize::try_from(d).unwrap_or_default())`;
@@ -84,7 +84,7 @@ forms.
    `usize::try_from` (negative or wider than `usize`) lowers to no padding.
 
 2. The domain check runs where the arguments are typed, in every target's
-   `StringTools.hex` arm, with the named error of the Contract section. The
+   `StringTools.hex` arm, with the named error of the Conversion behavior section. The
    check and the lowerings ship in one change on all five targets.
 
 3. The case conversions lower to the target's native spelling at the call

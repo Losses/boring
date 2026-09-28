@@ -134,7 +134,7 @@ class DartDecl {
                 // the public Dart property facade (.x), so the interface
                 // must declare the getter; the accessor method itself is
                 // private in the implementation and is not part of the
-                // interface contract.
+                // interface.
                 if (StringTools.startsWith(f.field.name, "get_")) {
                     final propName = f.field.name.substring("get_".length);
                     var matched:ClassField = null;

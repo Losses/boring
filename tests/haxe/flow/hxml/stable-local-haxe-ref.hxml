@@ -1,0 +1,10 @@
+# The stable-local group, Haxe reference run. Run from the repository root:
+# haxe tests/haxe/flow/hxml/stable-local-haxe-ref.hxml
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp samples
+-cp tests/haxe/flow
+--macro Intercept.run(['samples', 'tests/haxe/flow'])
+-main flow.stable.FlowMain
+-js out/flow/stable-local/haxe/flow-main.js

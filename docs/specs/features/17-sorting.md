@@ -4,7 +4,7 @@
 
 This specification rules sorting. Comparator sort is banned in codec code and generated code (`docs/specs/features/09-iterators.md`, `V02 FunctionalIteration` in `docs/specs/style/01-haxe-style-standard.md`), so the library provides the exit itself: a sort runtime with a fixed set of named strategies. Codec code calls a named strategy; it never writes a comparator, a key selector, or a hand-rolled sort loop. The sorting needs of the downstream consumers are fixed and few, so the strategy set is small and each strategy is a named function with a concrete key. Adding a strategy is a specification amendment, so the set cannot grow silently.
 
-The spec defines the strategy set, the Haxe API, the per-platform bodies, the stability contract that fixes behavior across languages, and the structure tests that keep comparator sorting out of codec code.
+The spec defines the strategy set, the Haxe API, the per-platform bodies, the stability rule that fixes behavior across languages, and the structure tests that keep comparator sorting out of codec code.
 
 ## Haxe construct
 
@@ -35,7 +35,7 @@ class VectorSort {
 Two rules bind every strategy:
 
 1. **Named key, concrete type.** A strategy names the record type and the key; there is no key-selector parameter. A function value at the strategy boundary would reintroduce the closure allocation and the review burden the comparator ban removed.
-2. **In place, ascending, stable.** The function sorts the given array and returns that array. Stability is the cross-language contract: for equal keys, output order equals input order, so every implementation produces the identical array without sharing code.
+2. **In place, ascending, stable.** The function sorts the given array and returns that array. Stability is the cross-language rule: for equal keys, output order equals input order, so every implementation produces the identical array without sharing code.
 
 ## Current translations
 
@@ -149,7 +149,7 @@ fun vectorSortByCodePoint(records: MutableList<GlyphMetrics>): MutableList<Glyph
 1. The sort runtime is the only legal sorting path in codec code and generated code. A call to a named strategy of `VectorSort` translates to the platform function; the Haxe body is the semantic reference and is never translated. The comparator ban of `docs/specs/features/09-iterators.md` and the `V02` rejection both point here as the exit.
 2. The JavaScript body is Candidate 2. The performance values decide: the comparator-free numeric sort is the fastest sort primitive JavaScript exposes, the insertion tier removes all allocation from the small case, and the fallback tier keeps the function total. Candidate 1 is the fallback tier's algorithm, so the fallback stays exercised through the same identity suite once a strategy with unbounded keys joins the set; `byCodePoint` keys stay in the scalar value domain and never reach the fallback.
 3. Rust and Kotlin reuse the platform stable sort, per the standing values: the platform implementations are already the fastest stable sorts available on those trees, so the runtime adds no algorithm of its own.
-4. Every strategy on every platform is ascending, in place, and stable. Stability is the identity contract: for the same input array, the four trees produce the same output array, verified by the test hooks below without shared code.
+4. Every strategy on every platform is ascending, in place, and stable. Stability is the cross-target output-equality rule: for the same input array, the four trees produce the same output array, verified by the test hooks below without shared code.
 5. A new sorting need is a new named strategy and a specification amendment to this file. The set starts with `byCodePoint` because that is the one need the downstream consumers have named.
 6. The `sortedBy` expansion of `docs/specs/macros/01-functional-idiom-expansion.md` is the one exception to the named-strategy set: its comparator is generated from the key expression at expansion time and never exists as a source value, so the "no key-selector parameter" boundary of rule 1 holds at the source level while the generated code carries the platform sort with the inlined key. The sort is stable, ascending, and returns a new array on every platform, including the haxe stage-1 shim.
 

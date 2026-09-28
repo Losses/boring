@@ -2998,7 +2998,7 @@ lines.push("        }");
                 final structStr = [deriveAttr, 'pub struct ${def.name} {', fieldLines.join("\n"), "}"].join("\n");
 
                 if (isStructKeyCandidate(fields)) {
-                    // The comparator matches the resident table contract,
+                    // The comparator matches the resident table signature,
                     // fn(&K, &K) -> i32: integer and boolean fields use the
                     // trichotomy directly, string fields reuse the resident
                     // string walk, nested structures call their comparator.

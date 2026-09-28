@@ -1415,7 +1415,7 @@ class SwiftExpr {
             case TConst(TInt(_)): "Int32(" + expr(e) + ")";
             case TField(subj, fa) if (fieldName(fa) == "length"):
                 // A String length is the UTF-16 code-unit count (the Haxe
-                // String.length contract) and never Swift's grapheme-cluster count.
+                // String.length rule) and never Swift's grapheme-cluster count.
                 // Resident modules render String as [UInt16], where .count already
                 // counts units; business modules need .utf16.count to keep index
                 // loops aligned with the UTF-16 indexing ABI.
@@ -5366,7 +5366,7 @@ class SwiftExpr {
 
     /**
         A previous read on a folded exception uses the Swift runtime's
-        nullable cause link, preserving the Haxe chaining contract for the generated
+        nullable cause link, preserving the Haxe chaining rule for the generated
         exception class (features/06 previous chaining).
     **/
     function foldedExceptionPrevious(subj:TypedExpr):Null<String> {
@@ -6801,7 +6801,7 @@ class SwiftExpr {
 
     /**
         True for the empty string literal, the `split` separator whose haxe
-        contract is one element per UTF-16 code unit and never a platform
+        rule is one element per UTF-16 code unit and never a platform
         pattern match.
     **/
     function isEmptyDelimiterSplit(name:String, args:Array<TypedExpr>):Bool {

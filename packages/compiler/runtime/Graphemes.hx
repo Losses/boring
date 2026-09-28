@@ -14,7 +14,7 @@ import std.UStringRT;
     The five public operations decode the string to code points once,
     walk them with runtime.GraphemeWalk, and track the storage position
     in UTF-16 units so substring extraction stays on the unit positions
-    of the haxe string contract (docs/specs/features/08-strings-and-
+    of the haxe string rule (docs/specs/features/08-strings-and-
     unicode.md, String index access ruling).
 **/
 @:build(reflaxe.unicode.GraphemeData.tableField("TABLE"))
@@ -127,7 +127,7 @@ class Graphemes {
         and each interior entry is the unit position where one cluster
         ends and the next begins. A string of n clusters carries n + 1
         entries; the empty string carries the single entry 0. The unit
-        positions are the positions of the haxe string contract, the
+        positions are the positions of the haxe string rule, the
         same positions `at` and `slice` extract substrings from.
     **/
     public static function boundaries(s:String):Array<Int> {

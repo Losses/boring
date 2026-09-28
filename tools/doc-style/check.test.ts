@@ -7,6 +7,7 @@ import {
   matchedTerms,
   parseCliArgs,
   readTargets,
+  scanPath,
   scanText,
 } from "./check.ts";
 
@@ -29,6 +30,18 @@ describe("matchedTerms", () => {
 
   test("keeps plain engineering vocabulary out of the hits", () => {
     const hits = matchedTerms("The decoder reads the record and returns six fields.");
+    expect(hits).toEqual([]);
+  });
+
+  test("detects the banned agreement label in both forms", () => {
+    const singular = matchedTerms("The module states the contract for the read.");
+    expect(singular.map((hit) => hit.match)).toEqual(["contract"]);
+    const plural = matchedTerms("The spec keeps two contracts for the codec.");
+    expect(plural.map((hit) => hit.match)).toEqual(["contracts"]);
+  });
+
+  test("keeps camelCase identifiers holding the label out of the hits", () => {
+    const hits = matchedTerms("The EnumContractSubject keeps the read.");
     expect(hits).toEqual([]);
   });
 
@@ -93,6 +106,17 @@ describe("scanText", () => {
       "fixture.md",
     );
     expect(hits).toEqual([]);
+  });
+
+  test("detects the banned label in document text for both forms", () => {
+    const hits = scanText(
+      "The module states the contract for the read.\nThe spec keeps two contracts.\n",
+      "fixture.md",
+    );
+    expect(hits.map((hit) => [hit.line, hit.token, hit.tag])).toEqual([
+      [1, "contract", "coinage"],
+      [2, "contracts", "coinage"],
+    ]);
   });
 });
 
@@ -171,6 +195,15 @@ describe("extractComments", () => {
     const hits = scanText(extractComments(source, ".sh"), "fixture.sh");
     expect(hits.map((hit) => [hit.line, hit.token])).toEqual([[2, "cram"]]);
   });
+
+  test("detects the banned label in source comments of both forms", () => {
+    const rust = "// The reader keeps the contract for the read.\nfn main() {}\n";
+    const rustHits = scanText(extractComments(rust, ".rs"), "fixture.rs");
+    expect(rustHits.map((hit) => [hit.line, hit.token])).toEqual([[1, "contract"]]);
+    const haxe = "/* The reader keeps two contracts for the read. */";
+    const haxeHits = scanText(extractComments(haxe, ".hx"), "fixture.hx");
+    expect(haxeHits.map((hit) => [hit.line, hit.token])).toEqual([[1, "contracts"]]);
+  });
 });
 
 describe("readTargets", () => {
@@ -189,6 +222,25 @@ describe("readTargets", () => {
       "guide.md",
       "src/main.hx",
     ]);
+  });
+});
+
+describe("scanPath", () => {
+  test("reports a banned directory or basename and accepts a clear path", () => {
+    expect(scanPath("tests/haxe/source-contract/run.sh").map((hit) => [hit.line, hit.token])).toEqual([[0, "contract"]]);
+    expect(scanPath("tests/haxe/source-origin/run.sh")).toEqual([]);
+  });
+
+  test("reports a banned CamelCase basename and dedupes repeated segments", () => {
+    expect(scanPath("tests/haxe/enum-comparison/EnumContractSubject.hx").map((hit) => [hit.line, hit.token])).toEqual([[0, "contract"]]);
+    const repeated = scanPath("out/flow-contract/hxml/group-a-contract.hxml");
+    expect(repeated.map((hit) => [hit.line, hit.token])).toEqual([[0, "contract"]]);
+    expect(scanPath("out/flow-results/NormalizedValues.txt")).toEqual([]);
+  });
+
+  test("bans only the agreement label in file names and reaches content-excluded extensions", () => {
+    expect(scanPath("samples/boring/IntervalSurfaceOps.hx")).toEqual([]);
+    expect(scanPath("tests/haxe/flow/replay/expected/foo-contract.json").map((hit) => [hit.line, hit.token])).toEqual([[0, "contract"]]);
   });
 });
 
@@ -229,5 +281,18 @@ describe("CLI support", () => {
 
     expect(await main(["--file", validFile])).toBe(0);
     expect(await main(["--file", invalidFile])).toBe(1);
+  });
+
+  test("main checks eligible filenames during directory scans and explicit files", async () => {
+    const dir = mkdtempSync(resolve(import.meta.dir, ".path-fixture-"));
+    temporaryPaths.push(dir);
+    const namedFile = resolve(dir, "source-contract.md");
+    const clearFile = resolve(dir, "source-origin.md");
+    writeFileSync(namedFile, "Plain text.\n");
+    writeFileSync(clearFile, "Plain text.\n");
+
+    expect(await main([dir])).toBe(1);
+    expect(await main(["--file", namedFile])).toBe(1);
+    expect(await main(["--file", clearFile])).toBe(0);
   });
 });

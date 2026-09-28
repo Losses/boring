@@ -18,7 +18,7 @@
  * Neither pass repairs or falls back; a rejection means the source changes
  * or the specification changes.
  *
- * The rejection table is the contract; every row here has a row there:
+ * The rejection table is complete; every row here has a row there:
  *   V01 IteratorLoop       for subject that is not an integer range     [pass 1]
  *   V02 FunctionalIteration Lambda, array method callbacks, comparator sort [pass 1]
  *   V03 Reflection         Reflect and Type module calls                [pass 1]
@@ -992,7 +992,7 @@ class Intercept {
     /**
      * V18. The Rust runtime addresses String as UTF-8 bytes while the other
      * three sides address UTF-16 code units, so index operations carry an
-     * ASCII-bounded contract. The check fires only on subjects that resolve
+     * ASCII-bounded rule. The check fires only on subjects that resolve
      * to a string literal, where non-ASCII content is a compile-time fact;
      * runtime-built strings stay under the consistency harness.
      */

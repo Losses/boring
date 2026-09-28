@@ -220,7 +220,7 @@ for code points U+0000..U+007F and diverge everywhere else.
    haxe string positions, UTF-16 code units, on every target. The
    guaranteed domain is in-range bounds on code-point boundaries, where
    every target returns the same string. Out-of-range bounds follow the
-   haxe clamping contract on TypeScript and Rust, and Kotlin keeps its
+   haxe clamping rule on TypeScript and Rust, and Kotlin keeps its
    platform exception, so out-of-range calls sit outside the shared
    domain. A bound inside a surrogate pair cannot return a lone unit on
    Rust, where a String holds valid UTF-8: the start bound advances
@@ -243,7 +243,7 @@ for code points U+0000..U+007F and diverge everywhere else.
    | `lastIndexOf` | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering | ASCII tier only; no evidenced cross-target lowering |
 
    This makes the four calls consistent: `substring` and `substr` are the lowered
-   character operations with their haxe UTF-16 position contracts, while the two
+   character operations with their haxe UTF-16 position rules, while the two
    search calls are not admitted for non-ASCII content until a corresponding
    `std.UString` lowering is specified.
 8. **An omitted optional position lowers to the one-argument call.**
@@ -258,7 +258,7 @@ for code points U+0000..U+007F and diverge everywhere else.
    null would fail the generated tree's own typechecking; the
    one-argument overload carries the same meaning, the search from
    the start.
-9. **`String.substr` carries the from-the-end position contract on
+9. **`String.substr` carries the from-the-end position rule on
    every target.** The bounds are UTF-16 code units. A negative `pos`
    counts from the end of the unit sequence (`length + pos`, clamped
    to 0), an omitted or null `?len` runs to the end of the string, a

@@ -18,10 +18,10 @@ population: build once, then read.
 
 Hash-based maps are deliberately absent. An immutable comparison-based
 table needs no hash function, no seeding, and no per-platform hash discipline;
-ordering is the contract. If a mutable keyed cache ever enters the
+ordering is the rule. If a mutable keyed cache ever enters the
 subset, its hashing rules get their own amendment at that time.
 
-## Contract
+## Table behavior
 
 `std.SortedMap<K, V>` and `std.SortedSet<K>` are immutable sorted
 collections:
@@ -117,7 +117,7 @@ injects the compiled `runtime.SortedTable` class and builds
 it, so the intercepted JavaScript exercises the one implementation;
 no handwritten copy remains. The resident enters each target behind
 the same `runtime-import` and `runtime-emit` defines as the rest of
-the runtime package, with the same missing-define error contract.
+the runtime package, with the same missing-define error rule.
 
 ## Samples and tests
 
@@ -173,6 +173,6 @@ No hand-written table ships in the generated business tree.
 
 ## Parameterless enum keys
 
-Parameterless enums are supported sorted keys. Their ordering is declaration order: the first constructor in the Haxe source compares before the next constructor, regardless of insertion order. A comparison returns zero if and only if both values are the same constructor, and therefore satisfies the `SortedTableCompare<K>` contract on every target.
+Parameterless enums are supported sorted keys. Their ordering is declaration order: the first constructor in the Haxe source compares before the next constructor, regardless of insertion order. A comparison returns zero if and only if both values are the same constructor, and therefore satisfies the ordering rule required of a `SortedTableCompare<K>` comparator on every target.
 
 Enums with payloads remain outside the sorted key domain. Specification 07 does not define structural equality for payload enum values, so the five target implementations cannot guarantee consistent ordering and equality. The compiler rejects such keys with the common diagnostic: “parameterless enums are supported; enums with payloads are not keys”.

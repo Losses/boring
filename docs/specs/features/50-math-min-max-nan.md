@@ -6,7 +6,7 @@ This specification rules the two-argument `Math.min(a, b)` and
 `Math.max(a, b)` calls for `Float` and `Int` operands on all five generated
 targets: TypeScript, Kotlin, Swift, Dart, and Rust. Integer operands are
 widened to the target's real type at the call site under the existing numeric
-tower contract (feature spec 07); this specification rules the resulting
+tower specification (feature spec 07); this specification rules the resulting
 floating-point operation, including NaN, infinities, and signed zero.
 
 ## Current verification
@@ -44,7 +44,7 @@ defect.
    | `max` | `-0` | `+0` | `+0` |
    | `max` | `+0` | `-0` | `+0` |
 
-3. The infinity and signed-zero edges are contract cases. For each operation
+3. The infinity and signed-zero edges are required edge cases. For each operation
    and operand order, the required results are:
 
    | Operation | First operand | Second operand | Required result |
@@ -82,15 +82,15 @@ including signed zero, for both f64 and the f32 precision configuration.
 | Target | Required product |
 | --- | --- |
 | TypeScript | Retain the native `Math.min`/`Math.max` calls. JavaScript's Math oracle supplies NaN propagation and signed-zero selection. |
-| Kotlin | Retain the target's `Math.min`/`Math.max` or `kotlin.math.min`/`max` mapping only where the selected overload is verified to match the oracle, including signed zero. An unverified overload requires an explicit NaN-aware comparison form so the contract remains unchanged. |
+| Kotlin | Retain the target's `Math.min`/`Math.max` or `kotlin.math.min`/`max` mapping only where the selected overload is verified to match the oracle, including signed zero. An unverified overload requires an explicit NaN-aware comparison form so the NaN and signed-zero behavior remains unchanged. |
 | Swift | Retain native `min`/`max` only as a verified floating-point lowering with the oracle's NaN and signed-zero behavior; otherwise use an explicit NaN-aware branch. The `Float`/`Double` argument widening remains mandatory. |
 | Dart | Retain `dart:math` `math.min`/`math.max` only as a verified floating-point lowering with the oracle's NaN and signed-zero behavior; otherwise use an explicit NaN-aware branch. |
-| Rust | Replace the current bare `real::min`/`real::max` call with an implementation that first detects either NaN and returns NaN, then applies an ordered operation that preserves the signed-zero table. An explicit NaN-check branch is permitted and preferred when it makes the contract visible. The implementation must not depend on `f32::min`, `f32::max`, `f64::min`, or `f64::max` returning NaN, because those functions return the other operand for a NaN input. |
+| Rust | Replace the current bare `real::min`/`real::max` call with an implementation that first detects either NaN and returns NaN, then applies an ordered operation that preserves the signed-zero table. An explicit NaN-check branch is permitted and preferred when it makes the NaN behavior visible. The implementation must not depend on `f32::min`, `f32::max`, `f64::min`, or `f64::max` returning NaN, because those functions return the other operand for a NaN input. |
 
 No target may evaluate an operand more than once while implementing the
 explicit form. Integer arguments must be widened before the selected native
 operation or branch; target-specific integer shortcuts are outside this
-contract.
+specification.
 
 ## Fixtures
 
@@ -125,7 +125,7 @@ through all five targets and requires identical observable results.
   separate proposal.
 - This does not introduce a runtime abstraction layer that hides native
   target operations.
-- This does not amend the existing Int widening contract.
+- This does not amend the existing Int widening specification.
 
 ## Performance note
 

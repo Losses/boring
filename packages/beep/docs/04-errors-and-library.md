@@ -1,4 +1,4 @@
-# Errors and standard library contracts
+# Errors and standard library behavior
 
 ## 1. Error model
 

@@ -33,11 +33,11 @@ Wren anchors: WrenResolveModuleFn/WrenLoadModuleFn in include/wren.h; wrenCompil
 
 ### Type checker and inference
 
-Phase and symbol/type table contracts: 12-compiler-architecture-and-references.md sections 3, 5, and 6. Typing and solving rules: 02-types-and-inference.md. Wren anchors: local/module resolution and methodCall/signature parsing in wren_compiler.c; dynamic class lookup in wren_vm.h as the replaced baseline. Implement constraint structures, generation, solve phases, projection normalization, CFG assignment and diagnostics. Test order independence, principal solutions, variance, bounds, defaults, arity selection, projections and exhaustiveness. Gate: typed HIR has no unresolved non-quantified variable.
+Phase and symbol/type table specifications: 12-compiler-architecture-and-references.md sections 3, 5, and 6. Typing and solving rules: 02-types-and-inference.md. Wren anchors: local/module resolution and methodCall/signature parsing in wren_compiler.c; dynamic class lookup in wren_vm.h as the replaced baseline. Implement constraint structures, generation, solve phases, projection normalization, CFG assignment and diagnostics. Test order independence, principal solutions, variance, bounds, defaults, arity selection, projections and exhaustiveness. Gate: typed HIR has no unresolved non-quantified variable.
 
 ### Typed IR and bytecode
 
-Wren anchors: ObjFn/FnDebug/CallFrame in wren_value.h; opcode definitions in wren_opcodes.h; disassembly in wren_debug.c. Specify each field/opcode stack contract. Typed IR retains source/type/method/substitution/witness identity. Gate: schema review before opcode values and loader exposure.
+Wren anchors: ObjFn/FnDebug/CallFrame in wren_value.h; opcode definitions in wren_opcodes.h; disassembly in wren_debug.c. Specify each field/opcode stack layout. Typed IR retains source/type/method/substitution/witness identity. Gate: schema review before opcode values and loader exposure.
 
 ### Compiler and verifier
 

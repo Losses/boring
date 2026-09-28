@@ -1,0 +1,11 @@
+# Haxe reference run of the original flow cases. The output runs under bun and holds the
+# expected result of every case. Run from the repository root:
+# haxe tests/haxe/flow/haxe-ref.hxml
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp samples
+-cp tests/haxe/flow
+--macro Intercept.run(['samples', 'tests/haxe/flow'])
+-main flow.FlowMain
+-js out/flow/haxe/flow-main.js
