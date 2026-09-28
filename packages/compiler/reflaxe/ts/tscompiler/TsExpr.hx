@@ -98,6 +98,9 @@ class TsExpr {
     /** Variables whose init is nullable but should be narrowed with ! */
     final nullableBindings:Map<Int, Bool> = [];
 
+    /** Locals that are optional parameters, whose TS type carries undefined. */
+    final optionalParamLocals:Map<Int, Bool> = [];
+
     final hiddenNames:Map<Int, String> = [];
     var hiddenCounter:Int = 0;
     var hoistCounter:Int = 0;
@@ -391,6 +394,7 @@ class TsExpr {
         };
         activeLoopParseHoists = null;
         parseHelperOrdinal = 0;
+        registerOptionalParams(cls, f);
 
         prepareLocals(f.expr);
         return blockLines(statementsOf(f.expr), 2);
@@ -412,7 +416,7 @@ class TsExpr {
             return expr(ret);
         }
         final rendered = expr(ret);
-        return PolicyQueries.isNullableType(ret.t) && !StringTools.endsWith(rendered, "!") ? rendered + "!" : rendered;
+        return (PolicyQueries.isNullableType(ret.t) || argCarriesNull(ret)) && !StringTools.endsWith(rendered, "!") ? rendered + "!" : rendered;
     }
 
     /** Body lowering shared by value-wrapper member functions. */
@@ -461,10 +465,42 @@ class TsExpr {
         the super call moves first. Subclasses of haxe.Exception also
         stamp this.name with the class name (stdlib/03).
     **/
+    /**
+        Registers which optional-parameter locals can still carry undefined
+        in the body about to render. Coalescing-defaulted parameters carry a
+        null initializer and body-normalized ones fold undefined away, so
+        neither registers. Both the function and the constructor entry call
+        this; a stale map from a previous body would wrap assignments that
+        the strict profile reads clean. (OptionalParamRegistration)
+    **/
+    function registerOptionalParams(cls:ClassType, f:ClassFuncData):Void {
+        optionalParamLocals.clear();
+        for (ai in 0...f.args.length) {
+            final a = f.args[ai];
+            if (!a.opt || a.tvar == null)
+                continue;
+            if (DefaultArgExpander.coalescingDefaultAt(cls, f.field.name, a.index) != null)
+                continue;
+            if (isNullType(a.tvar.t)) {
+                var trailing = true;
+                for (j in ai...f.args.length) {
+                    if (!DefaultArgExpander.isOptionalDefaultAt(cls, f.field.name, f.args[j].index)) {
+                        trailing = false;
+                        break;
+                    }
+                }
+                if (trailing)
+                    continue;
+            }
+            optionalParamLocals.set(a.tvar.id, true);
+        }
+    }
+
     public function constructorBody(cls:ClassType, className:String, f:ClassFuncData, isException:Bool):Array<String> {
         if (f.expr == null) {
             Context.error("constructor has no body to lower", f.field.pos);
         }
+        registerOptionalParams(cls, f);
         // Constructors use the same common expansions and statement pipeline
         // as ordinary functions. In particular, comprehensions and pipeline
         // calls become statement sequences before TypeScript expression
@@ -532,8 +568,11 @@ class TsExpr {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: expr(init);
                 };
-                // Add non-null assertion when init is nullable but variable type is not
-                if (nullableBindings.exists(v.id)) {
+                // Add non-null assertion when init is nullable but variable type is not.
+                // A lowering that already ends in an extraction keeps a single
+                // assertion: stacking a second one renders a double assertion,
+                // which the lint subset rejects without changing semantics.
+                if (nullableBindings.exists(v.id) && initText.charAt(initText.length - 1) != "!") {
                     initText = initText + "!";
                 }
                 return [
@@ -678,6 +717,8 @@ class TsExpr {
     function blockLines(stmts:Array<TypedExpr>, depth:Int):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = regroupLoops(stmts);
+        stmts = fuseOverwrittenLiteralInits(stmts);
+        stmts = dropDeadLiteralDecls(stmts);
         if (stmts.length > 1) {
             var i = 0;
             while (i + 1 < stmts.length) {
@@ -798,6 +839,122 @@ class TsExpr {
             case TConst(_): true;
             case _: false;
         };
+    }
+
+    /**
+        True when the expression is side-effect free, so a declaration
+        initialized with it may be fused with (or dropped ahead of) a
+        following establishing assignment without observable change.
+    **/
+    function isPureExpr(e:TypedExpr):Bool {
+        return switch (stripCast(e).expr) {
+            case TConst(_) | TField(_) | TLocal(_): true;
+            case _: false;
+        };
+    }
+
+    function isLocalId(e:TypedExpr, varId:Int):Bool {
+        return switch (e.expr) {
+            case TLocal(w): w.id == varId;
+            case _: false;
+        };
+    }
+
+    /**
+        Fuses a pure-initialized declaration whose next statement is a
+        plain assignment establishing the local (no read of it happens
+        first) into that assignment. Keeping the dead initializer as a
+        separate binding renders as a useless assignment, and keeping the
+        declaration uninitialized renders as a let that is only assigned
+        once, which the lint subset also rejects; the fused single
+        declaration preserves the observable values either way.
+    **/
+    function fuseOverwrittenLiteralInits(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final out:Array<TypedExpr> = [];
+        var i = 0;
+        while (i < stmts.length) {
+            var fused = false;
+            if (i + 1 < stmts.length) {
+                switch (stmts[i].expr) {
+                    case TVar(v, init) if (init != null && isPureExpr(init)):
+                        switch (stmts[i + 1].expr) {
+                            case TBinop(OpAssign, t, rhs) if (isLocalId(stripCast(t), v.id) && assignsBeforeRead(stmts[i + 1], v.id)):
+                                out.push({expr: TVar(v, rhs), pos: stmts[i].pos, t: stmts[i].t});
+                                // The establishing assignment is gone; when no
+                                // other statement reassigns the local the
+                                // declaration no longer needs let.
+                                var otherAssign = false;
+                                for (s in stmts) {
+                                    if (s != stmts[i + 1] && reassignsVar(s, v.id)) {
+                                        otherAssign = true;
+                                        break;
+                                    }
+                                }
+                                if (!otherAssign) {
+                                    mutated.remove(v.id);
+                                }
+                                fused = true;
+                            case _:
+                        }
+                    case _:
+                }
+            }
+            if (!fused)
+                out.push(stmts[i]);
+            i += fused ? 2 : 1;
+        }
+        return out;
+    }
+
+    /** Plain assignment, compound assignment, or in/decrement of the local. */
+    function reassignsVar(e:TypedExpr, varId:Int):Bool {
+        var found = false;
+        function walk(x:TypedExpr) {
+            if (found)
+                return;
+            switch (x.expr) {
+                case TBinop(OpAssign | OpAssignOp(_), t, _) | TUnop(OpIncrement | OpDecrement, _, t):
+                    if (isLocalId(stripCast(t), varId))
+                        found = true;
+                case _:
+                }
+            TypedExprTools.iter(x, walk);
+        }
+        walk(e);
+        return found;
+    }
+
+    /**
+        Drops declarations of locals whose initializer is a pure literal,
+        which are never reassigned and never read in the block: the
+        lowering materialized them for a value it ended up not using
+        (constant-folded positions, folded switches), and the lint subset
+        flags the leftover binding as unused.
+    **/
+    function dropDeadLiteralDecls(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        final reads = new Map<Int, Bool>();
+        for (s in stmts)
+            markVarReads(s, reads);
+        final out:Array<TypedExpr> = [];
+        var changed = false;
+        for (s in stmts) {
+            switch (s.expr) {
+                case TVar(v, init) if (init != null && isLiteralExpr(init) && !mutated.exists(v.id) && !reads.exists(v.id)):
+                    changed = true;
+                    continue;
+                case _:
+            }
+            out.push(s);
+        }
+        return changed ? out : stmts;
+    }
+
+    function markVarReads(e:TypedExpr, reads:Map<Int, Bool>):Void {
+        switch (e.expr) {
+            case TLocal(w): reads.set(w.id, true);
+            case _:
+        }
+        TypedExprTools.iter(e, function(x) markVarReads(x, reads));
     }
 
     function safeTryInitialization(v:TVar, next:TypedExpr):Bool {
@@ -1271,7 +1428,7 @@ class TsExpr {
                     // for TypeScript, so every recognized site renders `p ?? E`.
                     return expr(coalescing.valueExpr) + " ?? " + coalescingDefaultTextFor(coalescing);
                 }
-                return "(" + expr(c) + " ? " + expr(t) + " : " + expr(f) + ")";
+                return guardedTernaryText(c, t, f);
             case TBlock(stmts):
                 return blockExpression(stmts);
             case _:
@@ -1406,7 +1563,7 @@ class TsExpr {
         switch (op) {
             case OpAssign:
                 final map = mapAssignment(l);
-                return map == null ? assignTarget(l) + " = " + expr(r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
+                return map == null ? assignTarget(l) + " = " + fieldAssignmentRhs(l, r) : expr(map.receiver) + ".set(" + expr(map.key) + ", " + expr(r) + ")";
             case OpAssignOp(inner):
                 return assignTarget(l) + " " + symbolOf(inner) + "= " + expr(r);
             case OpAdd:
@@ -1588,7 +1745,15 @@ class TsExpr {
         final folded = foldedExceptionMessage(target, name);
         if (folded != null)
             return folded;
-        return expr(subj) + "." + name;
+        final base = expr(subj);
+        // The receiver's rendered TypeScript type still includes null
+        // while Haxe reads the member straight off it: both runtimes throw
+        // on a null receiver, so the assertion only restates the Haxe
+        // contract and satisfies the strict reading.
+        // (NullableReceiverUnwrap)
+        if (PolicyQueries.isNullableType(subj.t) && !StringTools.endsWith(base, "!"))
+            return base + "!." + name;
+        return base + "." + name;
     }
 
     function getterOnlyPropertyName(owner:ClassType, accessorName:String):Null<String> {
@@ -1798,8 +1963,12 @@ class TsExpr {
     }
 
     function runtimeFloatString(value:String, inConcat:Bool):String {
+        // The resident is only referenced on the non-concat arm; registering
+        // it for the concat arm emits an import nothing uses.
+        if (inConcat)
+            return value;
         imports.runtime("formatFloatRuntime");
-        return inConcat ? value : "formatFloatRuntime(" + value + ")";
+        return "formatFloatRuntime(" + value + ")";
     }
 
     function hasInstanceToString(cls:ClassType):Bool {
@@ -2389,6 +2558,7 @@ class TsExpr {
     **/
     function fsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
         final rendered = [for (a in args) expr(a)];
+        final upper = name.charAt(0).toUpperCase() + name.substring(1);
         final member = switch (name) {
             case "exists": "existsSync(p)";
             case "readText": 'readFileSync(p, "utf8")';
@@ -2402,17 +2572,71 @@ class TsExpr {
                 return "null";
         }
         final params = (name == "writeText" || name == "appendText") ? "p: string, d: string" : "p: string";
+        // The host probe goes through process.getBuiltinModule, which Node
+        // and Bun expose on globalThis without a node: import, and which a
+        // bare require cannot reach in ESM evaluation. The access is spelled
+        // through structural aliases because the strict package stage
+        // typechecks the generated tree without DOM/Node globals.
+        final upper = name.charAt(0).toUpperCase() + name.substring(1);
+        final retType = switch (name) {
+            case "exists" | "isDirectory": ": boolean";
+            case "readText": ": string";
+            case "readDir": ": string[]";
+            case _: "";
+        };
+        final retCast = switch (name) {
+            case "exists" | "isDirectory": " as boolean";
+            case "readText": " as string";
+            case "readDir": " as string[]";
+            case _: "";
+        };
+        final returns = (name == "writeText" || name == "appendText" || name == "makeDirs") ? false : true;
+        final body = (name == "isDirectory")
+            ? "return fs.statSync(p).isDirectory();"
+            : (returns ? "return fs." + member + retCast + ";" : "fs." + member + ";");
+        // The module alias is a named structural type whose members return
+        // exact values: under noUncheckedIndexedAccess an index-signature
+        // record types every member as possibly undefined, and the strict
+        // package stage rejects the call (TS2722).
+        final moduleAlias = switch (name) {
+            case "exists": "{ existsSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string) => boolean;";
+            case "readText": "{ readFileSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string, options: string) => string;";
+            case "writeText": "{ writeFileSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string, data: string, options: string) => void;";
+            case "appendText": "{ appendFileSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string, data: string, options: string) => void;";
+            case "makeDirs": "{ mkdirSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string, options: Record<string, boolean>) => unknown;";
+            case "readDir": "{ readdirSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string) => string[];";
+            case "isDirectory": "{ statSync: HostFsFn" + upper + " }; type HostFsFn" + upper + " = (p: string) => HostFsStat" + upper + ";";
+            case _: "";
+        };
+        final statAlias = (name == "isDirectory")
+            ? " type HostFsStat" + upper + " = { isDirectory: HostFsFnIsDirectoryStat }; type HostFsFnIsDirectoryStat = () => boolean;"
+            : "";
         final helper = imports.fsHelper(name,
-            "const fs"
-            + name.charAt(0).toUpperCase()
-            + name.substring(1)
+            "type HostFsModule"
+            + upper
+            + " = "
+            + moduleAlias
+            + "; type HostModuleLoader"
+            + upper
+            + " = (id: string) => unknown;"
+            + statAlias
+            + " const fs"
+            + upper
             + " = ("
             + params
-            + ") => { const fs = typeof require === \"function\" ? require(\"node:fs\") : null; if (fs === null) { throw new Error("
+            + ")"
+            + retType
+            + " => { const host = globalThis as Record<string, unknown>;"
+            + " const probe = (host[\"process\"] as Record<string, unknown> | undefined)?.getBuiltinModule as HostModuleLoader"
+            + upper
+            + " | undefined;"
+            + " const fs = probe !== undefined ? probe(\"node:fs\") as HostFsModule"
+            + upper
+            + " : null; if (fs === null) { throw new Error("
             + tsStringLiteral(FS_UNAVAILABLE)
-            + "); } return fs."
-            + member
-            + "; };");
+            + "); } "
+            + body
+            + " };");
         return helper + "(" + rendered.join(", ") + ")";
     }
 
@@ -2541,6 +2765,10 @@ class TsExpr {
             case TFun(p, _): [for (x in p) x.t];
             case _: [];
         };
+        final paramOpts = target == null ? [] : switch (Context.follow(target.type)) {
+            case TFun(p, _): [for (x in p) x.opt];
+            case _: [];
+        };
         return [
             for (i in 0...args.length) {
                 final expected = i < typesOf.length ? typesOf[i] : null;
@@ -2551,14 +2779,120 @@ class TsExpr {
                     + expr(args[i])
                     + " ?? "
                     + defaultArgText(d, expected)
-                    + ")" else expr(args[i]);
+                    + ")" else requiredArgText(args[i], expected, trailingOptionalAt(paramOpts, i));
             }
         ];
+    }
+
+    /**
+        Whether the target parameter at `i` renders with the optional `?`
+        (and therefore accepts undefined). A front-optional parameter is
+        optional in Haxe but rendered required in TypeScript (a required
+        parameter cannot follow an optional one), so the trailing-optional
+        rule is what the emitted signature actually carries.
+    **/
+    function trailingOptionalAt(paramOpts:Array<Bool>, i:Int):Bool {
+        for (j in i...paramOpts.length) {
+            if (!paramOpts[j])
+                return false;
+        }
+        return true;
+    }
+
+    /**
+        Renders a call argument that is not covered by a coalescing default.
+        When the argument's TypeScript type carries a null or undefined
+        component the target parameter does not accept, the non-null
+        assertion restates the Haxe narrowing (the call compiles only when
+        Haxe proved the value non-null) and satisfies the strict reading.
+        The `!` is erased at runtime, so it never changes behavior.
+        (RequiredArgUnwrap)
+    **/
+    function requiredArgText(a:TypedExpr, expected:Null<Type>, targetOpt:Bool):String {
+        final rendered = expr(a);
+        if (StringTools.endsWith(rendered, "!"))
+            return rendered;
+        final hasNull = argCarriesNull(a);
+        final hasUndefined = argCarriesUndefined(a);
+        final targetAcceptsNull = expected != null && isNullType(expected);
+        final targetAcceptsUndefined = targetOpt;
+        if ((hasNull && !targetAcceptsNull) || (hasUndefined && !targetAcceptsUndefined))
+            return "(" + rendered + ")!";
+        return rendered;
+    }
+
+    /**
+        Whether an argument's rendered TypeScript type can carry null. The
+        Haxe type alone is not enough: a runtime method (e.g. SortedTable.get)
+        renders nullable even when the Haxe return type is non-null, so the
+        shape is walked for nullable leaves (a nullable field read, a ternary
+        with a nullable branch). (RequiredArgNullShape)
+    **/
+    function argCarriesNull(e:TypedExpr):Bool {
+        if (isNullType(e.t) || isNullLiteral(e))
+            return true;
+        return switch (stripWrap(e).expr) {
+            case TIf(_, t, f) if (f != null): argCarriesNull(t) || argCarriesNull(f);
+            case TField(_, FInstance(_, _, cf)): isNullType(cf.get().type);
+            case TField(_, FAnon(cf)): isNullType(cf.get().type);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): argCarriesNull(inner);
+            case _: false;
+        };
+    }
+
+    /**
+        Whether an argument's rendered TypeScript type can carry undefined,
+        which comes from optional parameters (the `?` on the declaration).
+        A ternary with an optional-parameter branch inherits it.
+        (RequiredArgUndefinedShape)
+    **/
+    function argCarriesUndefined(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): optionalParamLocals.exists(v.id);
+            case TIf(_, t, f) if (f != null): argCarriesUndefined(t) || argCarriesUndefined(f);
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): argCarriesUndefined(inner);
+            case _: false;
+        };
+    }
+
+    /**
+        Renders the right-hand side of a field assignment (`this.f = v`). A
+        field never carries undefined in its declared TypeScript type, so an
+        optional-parameter value (which does) is unwrapped; a nullable value
+        is unwrapped when the field is declared non-null. The `!` is erased at
+        runtime, so behavior is unchanged. (FieldAssignmentUnwrap)
+    **/
+    function fieldAssignmentRhs(l:TypedExpr, r:TypedExpr):String {
+        final rendered = expr(r);
+        if (StringTools.endsWith(rendered, "!"))
+            return rendered;
+        final fieldType = switch (stripWrap(l).expr) {
+            case TField(_, FInstance(_, _, cf)): cf.get().type;
+            case _: null;
+        };
+        if (fieldType == null)
+            return rendered;
+        // A recognized coalescing site renders p ?? E with a sanctioned
+        // non-null default, so the rendered value is already non-null and a
+        // null-unwrap assertion would only bolt a pin-breaking wrapper onto
+        // constructor field assignments. A null default still carries null.
+        final coalescing = coalescingSiteFor(r);
+        if (coalescing != null && coalescingDefaultTextFor(coalescing) != "null")
+            return rendered;
+        final needsNull = argCarriesNull(r) && !isNullType(fieldType);
+        final needsUndefined = argCarriesUndefined(r);
+        if (needsNull || needsUndefined)
+            return "(" + rendered + ")!";
+        return rendered;
     }
 
     function constructorArgTexts(cls:ClassType, args:Array<TypedExpr>):Array<String> {
         final ps = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
             case TFun(p, _): [for (x in p) x.t];
+            case _: [];
+        };
+        final paramOpts = cls.constructor == null ? [] : switch (Context.follow(cls.constructor.get().type)) {
+            case TFun(p, _): [for (x in p) x.opt];
             case _: [];
         };
         final rendered = [for (i in 0...args.length) {
@@ -2571,7 +2905,7 @@ class TsExpr {
             + expr(args[i])
             + " ?? "
             + constructorDefaultText(d, p, cls, args)
-            + ")" : expr(args[i]);
+            + ")" : requiredArgText(args[i], p, trailingOptionalAt(paramOpts, i));
         }
         ];
         // A call may omit parameters that the emitted signature renders as
@@ -2707,6 +3041,70 @@ class TsExpr {
             case _: false;
         };
 
+    /**
+        A collection get whose Haxe guard already proved the key present
+        (m.has(k) / m.exists(k)) or whose null comparison picked the
+        non-null branch still renders with a nullable type, because the
+        collection edge is typed Null<T>. The guarded branch takes the
+        non-null assertion, which restates the Haxe narrowing; the ! is
+        erased at runtime. (GuardedGetUnwrap)
+    **/
+    function guardedTernaryText(c:TypedExpr, t:TypedExpr, f:TypedExpr):String {
+        final g = getGuardSite(c);
+        return "(" + expr(c) + " ? "
+            + guardedBranchText(g, t, g != null && g.thenNonNull) + " : "
+            + guardedBranchText(g, f, g != null && !g.thenNonNull) + ")";
+    }
+
+    function guardedBranchText(g:Null<{recv:String, key:String, thenNonNull:Bool}>, branch:TypedExpr, assertNonNull:Bool):String {
+        final rendered = expr(branch);
+        if (g == null || !assertNonNull || StringTools.endsWith(rendered, "!"))
+            return rendered;
+        final b = stripWrap(branch);
+        switch (b.expr) {
+            case TCall(fn, [arg]):
+                final site = getCallSite(fn, "get", arg);
+                if (site != null && site.recv == g.recv && site.key == g.key)
+                    return rendered + "!";
+            case _:
+        }
+        return rendered;
+    }
+
+    function getGuardSite(c:TypedExpr):Null<{recv:String, key:String, thenNonNull:Bool}> {
+        final e = stripWrap(c);
+        switch (e.expr) {
+            case TCall(fn, [arg]):
+                final has = getCallSite(fn, "has", arg);
+                if (has != null)
+                    return {recv: has.recv, key: has.key, thenNonNull: true};
+                final exists = getCallSite(fn, "exists", arg);
+                if (exists != null)
+                    return {recv: exists.recv, key: exists.key, thenNonNull: true};
+            case TBinop(op, l, r) if (op == OpEq || op == OpNotEq):
+                final getSide = if (isNullLiteral(l)) r else if (isNullLiteral(r)) l else null;
+                if (getSide != null) {
+                    final gs = stripWrap(getSide);
+                    switch (gs.expr) {
+                        case TCall(fn, [arg]):
+                            final site = getCallSite(fn, "get", arg);
+                            if (site != null)
+                                return {recv: site.recv, key: site.key, thenNonNull: op == OpNotEq};
+                        case _:
+                    }
+                }
+            case _:
+        }
+        return null;
+    }
+
+    function getCallSite(fn:TypedExpr, name:String, arg:TypedExpr):Null<{recv:String, key:String}> {
+        return switch (stripWrap(fn).expr) {
+            case TField(obj, FInstance(_, _, cf)) if (cf.get().name == name):
+                {recv: expr(obj), key: expr(arg)};
+            case _: null;
+        };
+    }
     /** True when an expression is provably non-null at runtime, so a `?? default` wrap is unreachable. */
     function provablyNonNull(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
@@ -3084,6 +3482,14 @@ class TsExpr {
         };
     }
 
+    /** The Int value of a constant integer argument, or null when it is not one. */
+    function constIntOf(e:TypedExpr):Null<Int> {
+        return switch (stripCast(e).expr) {
+            case TConst(TInt(v)): v;
+            case _: null;
+        };
+    }
+
     function stringBufFaultThrow(depth:Int, unit:String):String {
         return indent(depth) + 'throw new UStringException({ kind: "UnpairedSurrogate", unit: ' + unit + " });";
     }
@@ -3106,14 +3512,26 @@ class TsExpr {
             lines.push(indent(depth) + buf + " += " + part + ";");
         } else {
             final u = expr(args[0]);
-            lines.push(indent(depth) + "if (" + u + " >= 56320 && " + u + " <= 57343) {");
-            lines.push(indent(depth + 1) + "if (!(" + tail + " >= 55296 && " + tail + " <= 56319)) {");
-            lines.push(stringBufFaultThrow(depth + 2, u));
-            lines.push(indent(depth + 1) + "}");
-            lines.push(indent(depth) + "} else if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
-            lines.push(stringBufFaultThrow(depth + 1, tail));
-            lines.push(indent(depth) + "}");
-            lines.push(indent(depth) + buf + " += String.fromCharCode(" + u + ");");
+            final unitConst = constIntOf(args[0]);
+            // A literal unit outside the low-surrogate range can never
+            // enter the first arm, so emitting it would render a constant
+            // condition the lint subset rejects; the tail check alone
+            // keeps the guard's observable behavior.
+            if (unitConst != null && !(unitConst >= 56320 && unitConst <= 57343)) {
+                lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
+                lines.push(stringBufFaultThrow(depth + 1, tail));
+                lines.push(indent(depth) + "}");
+                lines.push(indent(depth) + buf + " += String.fromCharCode(" + u + ");");
+            } else {
+                lines.push(indent(depth) + "if (" + u + " >= 56320 && " + u + " <= 57343) {");
+                lines.push(indent(depth + 1) + "if (!(" + tail + " >= 55296 && " + tail + " <= 56319)) {");
+                lines.push(stringBufFaultThrow(depth + 2, u));
+                lines.push(indent(depth + 1) + "}");
+                lines.push(indent(depth) + "} else if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
+                lines.push(stringBufFaultThrow(depth + 1, tail));
+                lines.push(indent(depth) + "}");
+                lines.push(indent(depth) + buf + " += String.fromCharCode(" + u + ");");
+            }
         }
         return lines;
     }
@@ -3483,8 +3901,11 @@ class TsExpr {
                     scopedLocalNames.set(v.id, count == 1 ? v.name : v.name + count);
                 }
                 PolicyQueries.noteFpInt64Init(v, init, fpInt64Halves);
-                // Mark nullable bindings for non-null assertion
-                if (init != null && PolicyQueries.isNullableType(stripWrap(init).t) && !PolicyQueries.isNullableType(v.t)) {
+                // Mark nullable bindings for non-null assertion. A bare null
+                // literal init (a Haxe `var x:T = null` that later narrows)
+                // carries a non-Null-abstract type, so the literal is checked
+                // explicitly alongside the Null<T> type test.
+                if (init != null && (PolicyQueries.isNullableType(stripWrap(init).t) || isNullLiteral(init)) && !PolicyQueries.isNullableType(v.t)) {
                     nullableBindings.set(v.id, true);
                 }
             case TBinop(OpAssign, t, _) | TBinop(OpAssignOp(_), t, _):

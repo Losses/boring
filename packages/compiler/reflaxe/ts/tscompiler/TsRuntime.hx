@@ -44,7 +44,7 @@ export function formatFloatRuntime(v: number): string {
   if (v === Infinity) return "Infinity";
   if (v === -Infinity) return "-Infinity";
   if (Object.is(v, -0) || v === 0) return "0";
-  let text = String(v).replace("E", "e");
+  const text = String(v).replace("E", "e");
   return text.replace(".0e", "e");
 }
 
