@@ -2,9 +2,11 @@
 
 ## Scope
 
-This specification rules the translation of read-only data: values whose
-contents no consumer may change after construction, with the failure of a
-mutation attempt reported at the earliest point each platform can state it.
+This specification rules read-only interfaces and protected decoded data.
+An ordinary read-only array interface permits reads of shared storage. Its
+mutable aliases may still change that storage. The decode boundaries specified
+below additionally protect constructed data, with a mutation attempt reported
+at the earliest point each platform can state it.
 Decoded vector data is the reference case: `VectorCodec.decode` and the JSON
 boundary return records that downstream code reads and never writes. In the
 current codebase, the read-only record types appear in TypeScript as the
@@ -43,6 +45,24 @@ Enforcement therefore lives in the Haxe type system and needs no additional
 rejection row. The abstract is a compile-time construct: it erases before
 any target sees it, and the generator reads the abstract type as the signal
 for the read-only lowering below.
+
+### Ordinary array conversion
+
+Converting an ordinary `Array<T>` to `ReadOnlyArray<T>` retains the same
+container storage. Subsequent slot replacement, insertion, or removal through
+a retained mutable alias is visible through the read-only value. Reading its
+length and elements observes the current contents. Conversion itself evaluates
+its source once and preserves the lifetime of the shared storage.
+
+The read-only interface provides no slot mutation API. Element values retain
+their own declared identity and mutability contracts; converting the container
+does not clone its elements. A requested independent copy uses an explicit
+copy operation. The mutable source retains its permitted write operations.
+
+This rule applies to every accepted conversion position, including stored
+values, parameters, returns, nested elements, and optional values. Each target
+must choose a representation that preserves these observations. The decoded
+data construction and protection rules below retain their specified scope.
 
 ## Current translations
 
@@ -136,8 +156,9 @@ program runs.
 
 ### Haxe Candidate 1: Read-only abstract over Array (selected)
 
-The `ReadOnlyArray<T>` abstract above: compile-time enforcement, zero runtime
-cost, erases on every target.
+The `ReadOnlyArray<T>` abstract above enforces its interface during source
+typing and erases after typing. Target storage may require runtime support to
+preserve the ordinary conversion's shared storage and lifetime.
 
 ### Haxe Candidate 2: Metadata marker with interception row
 
@@ -210,8 +231,9 @@ read-only-typed value.
 
 ## Ruling
 
-Read-only data crosses the pipeline as a contract carried by the types
-on every platform, and each platform enforces it at the earliest point it can state:
+Ordinary array conversions follow the shared-storage contract above. The
+following recipes govern decoded data and its read-only consumption. Each
+platform enforces that protection at the earliest point it can state:
 
 - Haxe source exposes decoded collections as the `ReadOnlyArray<T>` abstract
   and decoded records as all-`final` typedefs. The abstract provides the
