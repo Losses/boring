@@ -168,6 +168,17 @@ for consolidation, but it cannot resolve a disagreement about intended source
 semantics. Follow the implementation standard's owner-ruling procedure for an
 unresolved behavioral divergence.
 
+For an upstream implementation comparison, record the repository, immutable
+revision, file and function, input facts, output guarantee, and downstream
+consumer. State a limit on applying the design to Boring. An architectural
+description can identify a path to inspect; verify the actual implementation
+before treating that path as evidence.
+
+When intended behavior is unresolved, an observational probe can still record
+the accepted source form and each target's actual result. Keep those results
+separate from a conformance test's required expectation. Use a demonstrated
+disagreement to support the semantic decision process.
+
 ### 1. Record the observation and source contract
 
 Record the checkout, commit, local changes relevant to the result, target,
@@ -191,6 +202,11 @@ Follow the construct through normalization, analysis, representation,
 lowering, and printing. At each relevant boundary, record the input, facts
 available, decision taken, and output. Locate the first point where a fact
 is incorrect, disappears, or cannot be represented.
+
+Name each boundary's concrete representation, such as typed Haxe expressions,
+prepared decisions, target nodes, or generated text. Pass names alone do not
+establish responsibilities: a backend's normalization pass may clean target
+text while a source normalization pass rewrites typed expressions.
 
 The target compiler's diagnostic identifies an observation point. Continue
 back through the producers until the violated contract is found. If the
