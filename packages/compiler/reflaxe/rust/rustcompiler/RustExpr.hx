@@ -13630,6 +13630,12 @@ class RustExpr {
                     // (NullableFieldSomeWrap)
                     final valueExpr = stripWrap(f.expr);
                     final exprDeclaredNullable = switch (valueExpr.expr) {
+                        // A literal constant is never a declared-nullable slot:
+                        // the typer unifies it to the nullable anonymous field
+                        // type, so reading the unified expression type here
+                        // would report the field's Null wrapper as the value's
+                        // own declaration and suppress the wrap. (NullableFieldSomeWrap)
+                        case TConst(t) if (t != TNull): false;
                         case TLocal(v): StaticFieldHelper.isNullableType(v.t);
                         case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)):
                             StaticFieldHelper.isNullableType(cf.get().type);
