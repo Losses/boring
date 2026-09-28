@@ -228,3 +228,34 @@ and copied its source foundation and focused fixtures for integration checks.
 The review records three passing native targets, two retained native failures,
 and the distinct baseline and candidate alias diagnostics. Luna has handed over
 A2 and now owns the separate Swift ordinary-runtime dependency correction.
+
+## Review of investigation boundaries
+
+A2 was committed at `f104e3bf` after the coordinator's integration run. The
+bounded source foundation is accepted with the limits in its delivery review;
+the remaining comparison, representation, and full-consumer work stays open.
+
+The enum comparison fixture at `8a2a9c6a` records a conflict within standard
+library specification 16: tag-only comparison returns zero for records holding
+`Value(1)` and `Value(2)`, while their `RecordEq.eq` result is false in both
+TypeScript and Rust. The recorded map retains one slot after both insertions.
+The source ruling remains pending. Direct payload-enum key rejection is a
+separate domain observation and does not by itself rule admission of fields
+inside record keys.
+
+The coordinator requested corrections to the investigation before acceptance.
+The report cited a parameterless-enum amendment as authority for payload enum
+equality, and claimed complete attempt retention despite preliminary commands
+that reused output paths and truncated combined streams. Its corrected report
+must retain the measured divergence, state the unresolved equality domain, and
+disclose the capture limits. Historical output remains unchanged.
+
+Two runner reviews also exposed path-depth assumptions. The A3 comparison
+runner resolved its root to the checkout's `tests/` directory and then searched
+for its failed attempts under the repository root. The coordinator found four
+retained attempts at the actual output path and assigned a root-path correction.
+The shared membership extraction copied one helper path into callers at
+different directory depths; those callers require their own resolved paths.
+The analysis method now requires explicit rule-domain and runner-path checks.
+These checks address the observed mistakes; their inclusion does not establish
+acceptance of the pending fixtures or shared helper delivery.
