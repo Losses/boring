@@ -3,8 +3,8 @@
 ## Status and scope
 
 This batch establishes a source-analysis foundation for package A. Its isolated
-implementation checkout is based on `c762b8ed`; compiler implementation has not
-started. It does not complete the prepared-value, comparator, or Swift boundary
+implementation checkout is based on `c762b8ed`; the executor has started the
+assigned implementation after handing over the C observation fixture. It does not complete the prepared-value, comparator, or Swift boundary
 migrations. Those obligations remain in the
 [policy architecture](../../compiler-policy-architecture.md).
 

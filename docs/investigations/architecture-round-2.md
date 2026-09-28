@@ -158,3 +158,11 @@ The next compiler batch is the
 Its worktree is pinned independently while the observation runners finish
 review. The brief specifies source identity, alias and outer-null distinctions,
 the initial adapters, and the remaining comparator consumer migration.
+
+## Observation handover
+
+The [A and C observation acceptance](architecture-round-2/observation-acceptance.md)
+records the accepted diagnostic fixtures, concrete paired outcomes, and retained
+evidence gaps. The second GLM worker has handed over C and started the A2
+source-container implementation in its separately pinned checkout. F1 remains
+in revision and independent snapshot review.

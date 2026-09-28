@@ -1,0 +1,14 @@
+# Focused compile-time observation of source container classification.
+# It compiles the shared helpers and the Swift helper module into the macro
+# runtime, types the declarations in tests/haxe/classifier-contract/contract,
+# and prints one record per case. No target emitter runs and no tree is
+# written. Run through the pinned toolchain:
+#   nix develop -c bash tests/haxe/classifier-contract/run.sh
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/haxe/classifier-contract
+-main ClassifierProbe
+--macro ClassifierProbe.run()
+--interp
