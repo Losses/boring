@@ -1,5 +1,16 @@
 package std;
 
+typedef ProcessEnv = {
+    final name:String;
+    final value:String;
+};
+
+typedef ProcessResult = {
+    final code:Int;
+    final stdout:String;
+    final stderr:String;
+};
+
 /**
  * Typed extern for the process object available when the JS output runs
  * under bun. It keeps the test runner free of Dynamic and of code
@@ -14,4 +25,13 @@ extern class Process {
 
     /** The program arguments after the program name. */
     static function args():Array<String>;
+
+    /** The current working directory. */
+    static function cwd():String;
+
+    /** The host operating system: linux, darwin, or windows. */
+    static function platform():String;
+
+    /** Run a child process and collect its output. */
+    static function run(command:String, args:Array<String>, cwd:String, env:Array<ProcessEnv>):ProcessResult;
 }
