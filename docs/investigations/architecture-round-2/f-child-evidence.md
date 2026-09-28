@@ -2,6 +2,10 @@
 
 ## Purpose and scope
 
+The coordinator has integrated the reviewed F1 delivery and passed focused
+integration verification. The [delivery review](f-child-evidence-review.md) records its
+evidence and limits. The brief below retains the original assignment.
+
 This is the first independent implementation candidate for package F. The
 coordinator inspected `tools/bundle/Driver.hx`: `runCommand` joins stdout and
 stderr, while `step` reports only a failure tail and discards successful output.
