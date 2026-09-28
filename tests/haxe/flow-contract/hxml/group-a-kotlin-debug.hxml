@@ -1,0 +1,15 @@
+# Group A (normalized cases) Kotlin generation. Run from the repository root:
+# haxe tests/haxe/flow-contract/hxml/group-a-kotlin.hxml
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp samples
+-cp tests/haxe/flow-contract
+--macro Intercept.run(['samples', 'tests/haxe/flow-contract'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/flow-contract/group-a/kotlin-debug
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+-D kotlin_fold_debug
+flow.normalized.FlowMain

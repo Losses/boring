@@ -1,0 +1,6 @@
+skippedComparisonGuard.flag.true.null=absent
+skippedComparisonGuard.flag.true.box3=w:3
+skippedComparisonGuard.flag.false.box3=w:3
+dominatingComparisonGuard.null=absent
+dominatingComparisonGuard.box3=w:3
+hostBits.unitFloatIsOne=true
