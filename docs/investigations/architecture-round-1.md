@@ -206,3 +206,125 @@ is comment text. The executor also reported identical non-comment token streams
 and a passing targeted style check. No compiler or runtime test was required
 for those wording changes. The coordinator corrected the outdated verification
 summary in `AGENT.md` after checking the actual `package.json` command.
+
+## Responsibility map and implementation dependencies
+
+Task F extends the conversion survey with representative paths across all five
+targets. This remains a sampled architecture survey, with runtime behavior and
+uninspected forms explicitly unresolved. The coordinator checked the shared
+predicate implementation, the string-unit contract, and Rust argument-order
+classification against the cited code.
+
+| Mechanism | Facts that must have a defined producer | Target responsibility | Next useful evidence |
+| --- | --- | --- | --- |
+| Numeric conversions | Source width, configured precision, signed domain, required result type, conversion already applied | Legal primitive operations, storage, and target conversion syntax | Mixed arithmetic, branch results, arguments, and returns at the supported precisions |
+| String operations | Code-unit, code-point, grapheme, or byte domain; bounds and null behavior; operand evaluation requirements | Native storage and runtime helper selection | Supplementary characters, individual surrogate code units, bounds, and effectful operands |
+| Null flow | Binding identity, program point, branch facts, invalidating writes, joins, and exceptional paths | Optional storage, extraction, and target compiler promotion | Branch, loop, mutation, closure, and catch interactions |
+| Evaluation | Whether an operand may be evaluated again or moved across another operation | Temporaries and target borrowing restrictions | Counters, writes, exceptions, and ordered argument observations |
+| Identity and sharing | Source identity requirements, alias visibility, and boundary lifetime | References, value storage, borrowing, cloning, and container conversions | Alias mutation before and after the boundary, with an established expectation |
+| Output structure | Result use, branch exits, evaluation order, and completed value decisions | Target syntax, precedence, declaration forms, and formatting | Nested non-associative operations, value branches, and early exits |
+
+Existing shared modules cover parts of this map. `FloatPrecision.hx:16` owns
+the precision configuration; `ExpressionPredicates.hx:59` scans syntactic local
+writes. Neither supplies a complete value-boundary or effect model. In Rust,
+`RustExpr.hx:15834` classifies order-neutral arguments before a borrowing
+transformation. That predicate is one local decision with specific consumers;
+it does not establish a general proof that a read can move across writes.
+
+The coordinator also found a concrete ownership mismatch while checking F:
+`ExpressionPredicates.hx:85` constructs target call text in a shared module,
+although the implementation standard says shared decision modules do not emit
+target text. This is a static standards finding with no reproduced failure.
+It belongs in the shared-module audit; moving that helper alone would not
+complete any of the mechanism changes above.
+
+The resulting work order is:
+
+1. Establish explicit boundary decisions and their source/target distinctions.
+   Swift array conversion remains the first investigation, with task D supplying
+   legality, effect, and alias observations. Resolve any semantic decision
+   required by the selected change before implementing it.
+2. Prepare numeric conversion and operand-evaluation contracts independently.
+   Their facts also support later string and null-flow work. Parallel reading
+   and test design are possible, while each backend retains one writer.
+3. Apply established evaluation facts to string operations and null proofs.
+   Source domains and invalidation rules must precede helper consolidation.
+4. Carry branch result and exit intent into target structure after the relevant
+   flow and evaluation contracts exist. Keep target precedence policies local.
+
+The coordinator has accepted the initial responsibility map and verification
+design for planning. It has not accepted an implementation, a new semantic
+ruling, or a full runtime coverage claim.
+
+## Follow-up review and environment recovery
+
+In task D, the coordinator found an observation harness that asserted the Haxe
+result as the expected result before the alias contract had been decided.
+The brief already prohibited that choice. The coordinator classified it as an
+execution deviation and required independent observations, without adding a
+duplicate prohibition to the method. Review also required fresh output after
+removing earlier harness dependencies, so retained generated files could not
+silently supply the corrected experiment.
+
+Task G observed the candidate haxelib mapping and a separately pinned driver,
+then its Tiqian worktree disappeared from both the filesystem and Git worktree
+list. The cause is unknown. The coordinator recreated the same branch and
+revision under `architecture-workspaces/tiqian-validation`, then locked that
+worktree and the Boring architecture worktree with task-ownership reasons.
+Task G2 repeats identity checks and preserves raw logs outside the consumer
+worktree. Earlier observations remain historical evidence. Reusing the
+environment requires new availability checks.
+
+## Boundary observations and remaining decisions
+
+Task D generated fresh Swift output from accepted Haxe probe source under
+`out/architecture-readonly-probe/`. The coordinator reran `oracle.hxml` and
+the generated `clean-success-probe` executable in the pinned Nix environment.
+Both routes invoke the same authored `ReadOnlyAliasSuccessProbe` operations.
+
+| Operation | Haxe observation | Swift observation |
+| --- | --- | --- |
+| Convert a mutable array, then change its element and append through the original reference | Read-only access sees element 7 and length 2 | Read-only access sees element 1 and length 1 |
+| Invoke a producer, convert its array, then change the original element | One producer call; read-only access sees element 8 | One producer call; read-only access sees element 1 |
+| Pass a mutable array and return a read-only array | Returned length 1 | Returned length 1 |
+
+These scalar-element observations establish an alias visibility difference.
+They do not determine element-object identity or the required semantics of
+ordinary read-only conversion. The coordinator submitted the minimal case
+and competing policies to the owner under the implementation standard's
+behavioral-divergence rule. A ruling is pending. No conformance expectation
+or compiler implementation may select a policy before that ruling.
+
+The nullability probes distinguish a separate legality problem. A plain source
+assigned to an optional read-only destination compiles. An optional source
+assigned to an optional read-only destination generates `Array(source)` and
+fails Swift type checking. A guarded optional source assigned to a required
+read-only destination generates `Array(source!)!` and fails because the final
+unwrap applies to a nonoptional result. The report retains generated source
+and native diagnostics. Review requested the missing emitter call paths before
+accepting either as a complete diagnosis.
+
+This experiment adds a test-design requirement: vary source nullability,
+destination nullability, and established flow facts independently. State source
+acceptance, generated legality, runtime observations, and semantic authority
+separately. A successful non-asserting runtime host provides observation access;
+it does not constitute a passing conformance test.
+
+## Consumer preflight after recovery
+
+Task G2 confirmed the recreated Tiqian checkout at
+`8504d230228e8206689a2049bbb84b671c1f079a` uses the actual candidate compiler
+path after a shell-hook override.
+The driver remains the Tiqian flake's `304ed70c` package. A generation-only
+compatibility task now tests that pairing before any expensive suite.
+
+The executor copied 244 local golden files and four Unicode input files using
+Tiqian's setup command. Source and destination SHA-256 manifests match. Their
+producing revision and freshness are unknown, so byte identity establishes
+input provenance only. The Boring flake supplies Swift 6.2.4 and its linker
+environment; the consumer command must retain the separately pinned driver
+and repeat the compiler override after entering that shell.
+
+Raw recovery records are retained outside the consumer checkout at
+`/tmp/boring-architecture-round1/g2-evidence/`. No consumer generation, native
+compilation, or regression suite was part of preflight acceptance.
