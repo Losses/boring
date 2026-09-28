@@ -62,3 +62,24 @@ the exact failure and owns the correction. The passing output assertions
 remain source and printer observations, while Kotlin target conformance is
 currently contradicted by the compiler result. The new fixture also retains
 two vaguely named interfaces that must be renamed before integration.
+
+## Kotlin correction and coordinator replay
+
+The writer replaced the deprecated String call, renamed the two fixture
+interfaces to `NullableTextReader` and `RequiredTextRenderer`, and added an
+ordinary nullable String receiver case. The source and production traces
+distinguish that case from a defaulted parameter: the former emits
+`value?.uppercase()`, while the latter emits `value.uppercase()` after the
+target entry establishes a required value. The handwritten JVM runner checks
+both null and non-null calls as well as omitted and explicit defaults.
+
+Independent review of the final candidate is recorded in
+`/tmp/boring-b-kotlin-nullable-review.md`. The coordinator copied only the
+three Kotlin compiler files and the renamed focused fixture into revision
+`4581308d`, then reran the real Kotlin procedure at
+`out/kotlin-local-presence-consumer/attempt-0iKpZdp2`. Generation, 28 output
+assertions, two mutation controls, Kotlin compilation, and JVM execution all
+exited zero. The JVM printed `KOTLIN LOCAL PRESENCE PASS`, and the selected
+input hashes matched before and after. This accepts the focused consumer
+repair for integration; broader Kotlin behavior and fixed Tiqian regressions
+remain open.
