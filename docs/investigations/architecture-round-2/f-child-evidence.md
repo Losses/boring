@@ -12,9 +12,9 @@ Implement structured child evidence independently of compiler semantics and
 source mapping. The broader diagnostic contract remains package F work. No
 compiler emitter or Tiqian source change belongs in this batch.
 
-The executor is Goose. A Claude Code worker reviews this brief and the delivery.
-The coordinator assigns an isolated implementation worktree after that brief
-review. Source baseline is the published unfinished checkpoint `e5e21854`;
+Claude Code reviewed the brief and currently implements the batch. Goose reviews
+the delivery. The coordinator assigned an isolated implementation worktree after
+the brief review. Source baseline is the published unfinished checkpoint `e5e21854`;
 later documentation commits can carry this brief without changing compiler code.
 
 ## Ownership
