@@ -110,11 +110,23 @@ identity retains the binding or evaluated object and every supported projection.
 `value`. An unsupported projection yields an unknown identity. Rendered text
 and source offsets cannot establish identity or control-flow dominance.
 
+Distinct access paths do not establish disjoint storage. If `x.left` and
+`x.right` can refer to the same object, a write through either path can
+invalidate facts about the other's fields. Keep access identity separate from
+the alias dependencies used for invalidation. Preserving a sibling fact after
+a write requires evidence that the write cannot affect that fact's dependencies.
+
 Fact validity and lexical visibility have separate lifetimes. Leaving a nested
 scope removes its local bindings; it does not undo writes to outer bindings or
 objects. A join consumes the exit environments of reachable incoming paths.
 Restoring an entry snapshot after a branch is valid only for facts whose
 dependencies remain unchanged along every relevant path.
+
+Control exits retain their destinations. A `continue` contributes to the
+selected loop's next iteration; a `break` contributes to the exit of its
+enclosing construct. Returns and throws have their own destinations. A helper
+that reports only whether a statement falls through cannot by itself supply
+the environments for these different destinations.
 
 | Situation | Required analysis distinction |
 | --- | --- |
@@ -170,3 +182,10 @@ the existing helpers and their callers are compared. It does not complete
 produced-value or boundary migration. Each target migration must replace named
 reconstruction sites and connect actual producers to consumers. Unused shared
 records and adapters that still guess from contextual types remain incomplete.
+
+An equivalence claim compares the existing producers and their actual callers.
+Similar function names or overlapping cases do not establish the same rule.
+Record wrapper handling, result ordering, branch placement, and other writers
+of each consumed fact store. Share only the decisions established as equivalent
+in a preservation batch. Changed joins, effects, or accepted proof conditions
+belong to an explicitly verified correctness change.
