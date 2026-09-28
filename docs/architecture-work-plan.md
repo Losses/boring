@@ -167,8 +167,10 @@ Schedule the P11 guidance exercise after P08's focused acceptance and before
 freezing the final P09 candidate when its dependencies permit. This allows
 the follow-up fixture or repair to share the final full verification run.
 P10's final reflection and P12 still require that verification evidence.
-The planned [storage-lifetime exercise](investigations/architecture-round-1/x-guidance-evaluation.md)
-defines the next guidance evaluation; it is not yet assigned for implementation.
+The [storage-lifetime exercise](investigations/architecture-round-1/x-guidance-evaluation.md)
+is assigned to Goose at `db1bb984`, with an initial reasoning review before
+fixture implementation. It evaluates the revised guidance while broader J
+work continues; completion and acceptance remain pending.
 
 ## First investigation assignments
 
@@ -278,6 +280,11 @@ the evidence supports a bounded correction.
 An agent's summary is a claim to inspect. Acceptance requires reviewing the
 actual changes and evidence. Additional reproductions or code corrections are
 assigned to an execution agent; the coordinator can run existing checks.
+
+Report length targets serve review readability. State whether a limit is a
+delivery constraint or a preferred size. Once the required evidence and claims
+are complete, avoid repeated wording revisions to meet a preferred line
+count. Preserve substantive uncertainty and hand the result to the reviewer.
 
 Preserve the assigned scope when evidence is difficult to obtain. A missing
 external reference is an incomplete requirement; substituting the repository's
