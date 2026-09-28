@@ -8,8 +8,12 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
-import ComparatorPlan;
-import ComparatorPlan.ComparatorFieldKind;
+import SourceComparisonAnalysis;
+import SourceComparisonAnalysis.SourceComparisonRequest;
+import swiftcompiler.SwiftComparisonPlan;
+import swiftcompiler.SwiftComparisonPlan.SwiftComparisonPlanResult;
+import swiftcompiler.SwiftComparisonPlan.SwiftRecordPlan;
+import swiftcompiler.SwiftComparisonPlan.SwiftComparisonOperation;
 import ValueTypeSupport.ValueTypeInfo;
 import ValueTypeSupport.ValueTypeOperator;
 import NameConversion;
@@ -144,10 +148,22 @@ class SwiftDecl {
         for (f in extractedFuncs) {
             extractedParts.push(extractedFuncDecl(module, cls, f).join("\n"));
         }
-        final shouldEmitComparator = cls.meta.has(":dataClass") && SwiftType.canEmitDataClassComparator(cls);
+        final selectedComparator:Null<SwiftRecordPlan> = if (cls.meta.has(":dataClass")) switch (SwiftComparisonPlan.select(SourceComparisonAnalysis.declarationReference(cls),
+                [for (parameter in cls.params) parameter.t], OptionalEqualityCapability)) {
+            case SwiftComparisonPlanReady(plan): plan;
+            case SwiftComparisonPlanFailed(_, _, _): null;
+            case SwiftComparisonPlanUnresolved(path, reason): Context.error("Swift comparator analysis incomplete at " + path + ": " + reason, cls.pos); null;
+        } else null;
+        final sortedComparator:Null<SwiftRecordPlan> = if (cls.meta.has(":dataClass")) switch (SwiftComparisonPlan.selectSchema(SourceComparisonAnalysis.declarationReference(cls), SortedKey)) {
+            case SwiftComparisonPlanReady(plan): plan;
+            case SwiftComparisonPlanFailed(_, _, _): null;
+            case SwiftComparisonPlanUnresolved(path, reason): Context.error("Swift sorted comparator analysis incomplete at " + path + ": " + reason, cls.pos); null;
+        } else null;
+        final comparatorPlan = sortedComparator == null ? selectedComparator : sortedComparator;
+        final shouldEmitComparator = selectedComparator != null;
         if (varFields.length == 0 && ordinaryFuncs.length == 0) {
             final emptyClass = extractedParts.join("\n\n");
-            return shouldEmitComparator ? emptyClass + "\n\n" + dataClassComparator(cls) : emptyClass;
+            return comparatorPlan != null ? emptyClass + "\n\n" + dataClassComparator(comparatorPlan) : emptyClass;
         }
 
         final staticsOnly = isStaticsOnly(varFields, ordinaryFuncs);
@@ -222,18 +238,19 @@ class SwiftDecl {
             }
         }
 
-        if (shouldEmitComparator && !staticsOnly) {
+        if (selectedComparator != null && !staticsOnly) {
             // Swift classes do not receive synthesized Equatable conformance;
             // route the native operator through the generated value comparator.
+            final equalityType = cls.name + (cls.params.length == 0 ? "" : "<" + [for (parameter in cls.params) parameter.name].join(", ") + ">");
             lines.push("");
-            lines.push("    public static func == (lhs: " + cls.name + ", rhs: " + cls.name + ") -> Bool {");
-            lines.push("        return compare" + cls.name + "(lhs, rhs) == 0");
+            lines.push("    public static func == (lhs: " + equalityType + ", rhs: " + equalityType + ") -> Bool {");
+            lines.push("        return " + selectedComparator.name + "(lhs, rhs) == 0");
             lines.push("    }");
         }
         lines.push("}");
         final classPart = lines.join("\n");
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
-        return shouldEmitComparator ? result + "\n\n" + dataClassComparator(cls) : result;
+        return comparatorPlan != null ? result + "\n\n" + dataClassComparator(comparatorPlan) : result;
     }
 
     /** Emits a marked abstract as a value-semantic Swift struct. */
@@ -333,191 +350,103 @@ class SwiftDecl {
         return lines.join("\n");
     }
 
-    function dataClassComparator(cls:ClassType):String {
-        final lines = [
-            "public func compare" + cls.name + "(_ a: " + cls.name + ", _ b: " + cls.name + ") -> Int32 {"
-        ];
-        for (f in [
-            for (x in cls.fields.get())
-                if (switch (x.kind) {
-                        case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                        case _: false;
-                    }) x
-        ]) {
-            switch (f.type) {
-                case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
-                    lines.push("    if a." + f.name + " == nil && b." + f.name + " != nil { return -1 }");
-                    lines.push("    if a." + f.name + " != nil && b." + f.name + " == nil { return 1 }");
-                    lines.push("    if let av = a." + f.name + ", let bv = b." + f.name + " {");
-                    switch (SwiftType.rawArrayElement(params[0])) {
-                        case null:
-                            switch (Context.follow(params[0])) {
-                                case TAbstract(ia, _) if (ia.get().name == "Int"): lines.push("        if av != bv { return av - bv }");
-                                case TAbstract(ia, _) if (ia.get().name == "Float"):
-                                    lines.push("        if av < bv { return -1 }");
-                                    lines.push("        if av > bv { return 1 }");
-                                case TAbstract(ia, _) if (ia.get().name == "Bool"): lines.push("        if av != bv { return av ? 1 : -1 }");
-                                case TInst(sc,
-                                    _) if (sc.get()
-                                        .meta.has(":dataClass")): lines.push("        let cmp" + f.name + " = compare" + sc.get().name + "(av, bv); if cmp"
-                                        + f.name + " != 0 { return cmp" + f.name + " }");
-                                case TInst(sc,
-                                    _) if (sc.get()
-                                        .name == "String"): lines.push("        let cmp" + f.name + " = compareUnitOrder(av, bv); if cmp" + f.name
-                                        + " != 0 { return cmp" + f.name + " }");
-                                case TEnum(e, _):
-                                    final en = e.get();
-                                    final orderName = cls.name + f.name + "Order";
-                                    lines.unshift("    func "
-                                        + orderName
-                                        + "(_ v: "
-                                        + en.name
-                                        + ") -> Int32 {\n        switch v {\n"
-                                        + [
-                                            for (ef in en.constructs)
-                                                "        case ." + lowerFirst(ef.name) + ": return " + ef.index
-                                        ].join("\n") + "\n        }\n    }");
-                                    lines.push("        if " + orderName + "(av) != " + orderName + "(bv) { return " + orderName + "(av) - " + orderName
-                                        + "(bv) }");
-                                case _:
-                            }
-                        case element:
-                            nullableArrayComparator(lines, cls, f.name, element);
-                    }
-                    lines.push("    }");
-                    continue;
-                case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1):
-                    lines.push("    var i" + f.name + " = 0");
-                    lines.push("    while i" + f.name + " < a." + f.name + ".count && i" + f.name + " < b." + f.name + ".count {");
-                    switch (Context.follow(params[0])) {
-                        case TInst(sc,
-                            _) if (sc.get()
-                                .name == "String"): lines.push("        let cmp = compareUnitOrder(a." + f.name + "[i" + f.name + "], b." + f.name + "[i"
-                                + f.name + "]); if cmp != 0 { return cmp }");
-                        case TEnum(e, _):
-                            final en = e.get();
-                            final orderName = cls.name + f.name + "ElementOrder";
-                            lines.unshift("    func "
-                                + orderName
-                                + "(_ v: "
-                                + en.name
-                                + ") -> Int32 {\n        switch v {\n"
-                                + [
-                                    for (ef in en.constructs)
-                                        "        case ." + lowerFirst(ef.name) + (switch (ef.type) {
-                                            case TFun(args, _): args.length > 0 ? "(" + [for (_ in args) "_"].join(", ") + ")" : "";
-                                            case _: "";
-                                        }) + ": return " + ef.index
-                                ].join("\n") + "\n        }\n    }");
-                            lines.push("        let cmp = " + orderName + "(a." + f.name + "[i" + f.name + "]) - " + orderName + "(b." + f.name + "[i"
-                                + f.name + "]); if cmp != 0 { return cmp }");
-                        case TInst(c,
-                            _) if (c.get()
-                                .meta.has(":dataClass")): lines.push("        let cmp = compare" + c.get().name + "(a." + f.name + "[i" + f.name + "], b."
-                                + f.name + "[i" + f.name + "]); if cmp != 0 { return cmp }");
-                        case _: lines.push("        if a." + f.name + "[i" + f.name + "] != b." + f.name + "[i" + f.name + "] { return 1 }");
-                    }
-                    lines.push("        i" + f.name + " += 1");
-                    lines.push("    }");
-                    lines.push("    if a."
-                        + f.name
-                        + ".count != b."
-                        + f.name
-                        + ".count { return Int32(a."
-                        + f.name
-                        + ".count - b."
-                        + f.name
-                        + ".count) }");
-                    continue;
-                default:
+    function findFunc(funcFields:Array<ClassFuncData>, name:String):ClassFuncData {
+        return PolicyQueries.findFunc(funcFields, name, "value type member is missing: " + name);
+    }
+
+    function dataClassComparator(plan:SwiftRecordPlan):String {
+        final cls = plan.source.source.declaration;
+        for (dependency in plan.dependencies)
+            imports.runtime(dependency);
+        final genericParams = [for (parameter in cls.params) parameter.name];
+        final genericClause = genericParams.length == 0 ? "" : "<" + genericParams.join(", ") + ">";
+        final typeName = cls.name + (genericParams.length == 0 ? "" : "<" + genericParams.join(", ") + ">");
+        final lines:Array<String> = [];
+        for (helper in plan.enumHelpers) {
+            imports.type(helper.declaration.module, helper.declaration.name);
+            final enumType = helper.declaration.name + (helper.arguments.length == 0 ? "" : "<" + [for (argument in helper.arguments) types.of(argument)].join(", ") + ">");
+            lines.push("    func " + helper.name + "(_ value: " + enumType + ") -> Int32 {");
+            lines.push("        switch value {");
+            for (constructor in helper.constructors) {
+                final payload = switch (constructor.type) {
+                    case TFun(args, _): args.length == 0 ? "" : "(" + [for (_ in args) "_"].join(", ") + ")";
+                    case _: "";
+                };
+                lines.push("        case ." + lowerFirst(constructor.name) + payload + ": return " + constructor.index);
             }
-            switch (Context.follow(f.type)) {
-                case TAbstract(a, _) if (a.get().name == "Int"):
-                    lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " - b." + f.name + " }");
-                case TAbstract(a, _) if (a.get().name == "Float"):
-                    lines.push("    if a." + f.name + " < b." + f.name + " { return -1 }");
-                    lines.push("    if a." + f.name + " > b." + f.name + " { return 1 }");
-                case TAbstract(a, _) if (a.get().name == "Bool"):
-                    lines.push("    if a." + f.name + " != b." + f.name + " { return a." + f.name + " ? 1 : -1 }");
-                case TEnum(e, _):
-                    final en = e.get();
-                    lines.push("    if a." + f.name + " != b." + f.name + " { return Int32(" + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name
-                        + f.name + "Order(b." + f.name + ")) }");
-                    lines.unshift("    func "
-                        + cls.name
-                        + f.name
-                        + "Order(_ v: "
-                        + en.name
-                        + ") -> Int32 {\n        switch v {\n"
-                        + [
-                            for (ef in en.constructs)
-                                "        case ." + lowerFirst(ef.name) + (switch (ef.type) {
-                                    case TFun(args, _): args.length > 0 ? "(" + [for (_ in args) "_"].join(", ") + ")" : "";
-                                    case _: "";
-                                }) + ": return " + ef.index
-                        ].join("\n") + "\n        }\n    }");
-                case TInst(c, _) if (c.get().name == "String"):
-                    lines.push("    let cmp" + f.name + " = compareUnitOrder(a." + f.name + ", b." + f.name + "); if cmp" + f.name + " != 0 { return cmp"
-                        + f.name + " }");
-                case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                    lines.push("    let cmp" + f.name + " = compare" + c.get().name + "(a." + f.name + ", b." + f.name + "); if cmp" + f.name
-                        + " != 0 { return cmp" + f.name + " }");
-                case _:
-            }
+            lines.push("        }");
+            lines.push("    }");
+        }
+        final evidenceParams = [for (index in plan.requiredArguments) "compareArgument" + index + ": (" + genericParams[index] + ", " + genericParams[index] + ") -> Int32"];
+        lines.push((cls.isPrivate ? "private" : "public") + " func " + plan.name + genericClause + "(_ a: " + typeName + ", _ b: " + typeName
+            + (evidenceParams.length == 0 ? "" : ", " + evidenceParams.join(", ")) + ") -> Int32 {");
+        final localIndex = [0];
+        for (field in plan.fields) {
+            emitComparisonOperation(plan, field.operation, "a." + SwiftNameEscape.escape(field.field.name), "b." + SwiftNameEscape.escape(field.field.name), "    ", lines, localIndex);
         }
         lines.push("    return 0");
         lines.push("}");
         return lines.join("\n");
     }
 
-    function findFunc(funcFields:Array<ClassFuncData>, name:String):ClassFuncData {
-        return PolicyQueries.findFunc(funcFields, name, "value type member is missing: " + name);
+    function emitComparisonOperation(owner:SwiftRecordPlan, operation:SwiftComparisonOperation, left:String, right:String, indent:String, lines:Array<String>, localIndex:Array<Int>):Void {
+        switch (operation) {
+            case SwiftIntegerOrder:
+                lines.push(indent + "if " + left + " < " + right + " { return -1 }");
+                lines.push(indent + "if " + left + " > " + right + " { return 1 }");
+            case SwiftFloatOrder:
+                lines.push(indent + "if " + left + " < " + right + " { return -1 }");
+                lines.push(indent + "if " + left + " > " + right + " { return 1 }");
+            case SwiftBooleanOrder:
+                lines.push(indent + "if " + left + " != " + right + " { return " + left + " ? 1 : -1 }");
+            case SwiftParameterOrder(index):
+                final comparison = allocateComparisonLocal(localIndex);
+                lines.push(indent + "let " + comparison + " = compareArgument" + index + "(" + left + ", " + right + ")");
+                lines.push(indent + "if " + comparison + " != 0 { return " + comparison + " }");
+            case SwiftUtf16StringOrder:
+                final comparison = allocateComparisonLocal(localIndex);
+                lines.push(indent + "let " + comparison + " = compareUnitOrder(" + left + ", " + right + ")");
+                lines.push(indent + "if " + comparison + " != 0 { return " + comparison + " }");
+            case SwiftEnumOrdinalOrder(helper, _, _):
+                final leftOrder = allocateComparisonLocal(localIndex);
+                final rightOrder = allocateComparisonLocal(localIndex);
+                lines.push(indent + "let " + leftOrder + " = " + helper + "(" + left + ")");
+                lines.push(indent + "let " + rightOrder + " = " + helper + "(" + right + ")");
+                lines.push(indent + "if " + leftOrder + " < " + rightOrder + " { return -1 }");
+                lines.push(indent + "if " + leftOrder + " > " + rightOrder + " { return 1 }");
+            case SwiftRecordOrder(record, arguments):
+                final comparison = allocateComparisonLocal(localIndex);
+                final evidence:Array<String> = [for (index in record.requiredArguments) {
+                    final parentIndex = index < arguments.length ? SourceComparisonAnalysis.schemaParameterIndex(arguments[index], owner.source.source.arguments) : null;
+                    parentIndex == null ? "" : "compareArgument" + index + ": compareArgument" + parentIndex;
+                }].filter(value -> value != "");
+                lines.push(indent + "let " + comparison + " = " + record.name + "(" + left + ", " + right
+                    + (evidence.length == 0 ? "" : ", " + evidence.join(", ")) + ")");
+                lines.push(indent + "if " + comparison + " != 0 { return " + comparison + " }");
+            case SwiftNullBeforePresent(child):
+                lines.push(indent + "if " + left + " == nil && " + right + " != nil { return -1 }");
+                lines.push(indent + "if " + left + " != nil && " + right + " == nil { return 1 }");
+                final leftValue = allocateComparisonLocal(localIndex);
+                final rightValue = allocateComparisonLocal(localIndex);
+                lines.push(indent + "if let " + leftValue + " = " + left + ", let " + rightValue + " = " + right + " {");
+                emitComparisonOperation(owner, child, leftValue, rightValue, indent + "    ", lines, localIndex);
+                lines.push(indent + "}");
+            case SwiftLexicographic(child):
+                final index = allocateComparisonLocal(localIndex);
+                lines.push(indent + "var " + index + " = 0");
+                lines.push(indent + "while " + index + " < " + left + ".count && " + index + " < " + right + ".count {");
+                emitComparisonOperation(owner, child, left + "[" + index + "]", right + "[" + index + "]", indent + "    ", lines, localIndex);
+                lines.push(indent + "    " + index + " += 1");
+                lines.push(indent + "}");
+                lines.push(indent + "if " + left + ".count < " + right + ".count { return -1 }");
+                lines.push(indent + "if " + left + ".count > " + right + ".count { return 1 }");
+        }
     }
 
-    /**
-        The element-wise compare lines for a nullable collection field
-        inside the `if let` bindings. The locals av/bv hold the present
-        arrays; the semantics mirror the non-null ReadOnlyArray arm:
-        compare in index order, then by length.
-    **/
-    function nullableArrayComparator(lines:Array<String>, cls:ClassType, field:String, element:Type):Void {
-        lines.push("        var i" + field + " = 0");
-        lines.push("        while i" + field + " < av.count && i" + field + " < bv.count {");
-        switch (Context.follow(element)) {
-            case TInst(sc, _) if (sc.get().name == "String"):
-                lines.push("            let cmp = compareUnitOrder(av[i" + field + "], bv[i" + field + "]); if cmp != 0 { return cmp }");
-            case TEnum(e, _):
-                final en = e.get();
-                final orderName = cls.name + field + "ElementOrder";
-                lines.unshift("    func "
-                    + orderName
-                    + "(_ v: "
-                    + en.name
-                    + ") -> Int32 {\n        switch v {\n"
-                    + [
-                        for (ef in en.constructs)
-                            "        case ." + lowerFirst(ef.name) + (switch (ef.type) {
-                                case TFun(args, _): args.length > 0 ? "(" + [for (_ in args) "_"].join(", ") + ")" : "";
-                                case _: "";
-                            }) + ": return " + ef.index
-                    ].join("\n") + "\n        }\n    }");
-                lines.push("            let cmp = "
-                    + orderName
-                    + "(av[i"
-                    + field
-                    + "]) - "
-                    + orderName
-                    + "(bv[i"
-                    + field
-                    + "]); if cmp != 0 { return cmp }");
-            case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                lines.push("            let cmp = compare" + c.get().name + "(av[i" + field + "], bv[i" + field + "]); if cmp != 0 { return cmp }");
-            case _:
-                lines.push("            if av[i" + field + "] != bv[i" + field + "] { return 1 }");
-        }
-        lines.push("            i" + field + " += 1");
-        lines.push("        }");
-        lines.push("        if av.count != bv.count { return Int32(av.count - bv.count) }");
+    static function allocateComparisonLocal(localIndex:Array<Int>):String {
+        final result = "_compareLocal" + localIndex[0];
+        localIndex[0] += 1;
+        return result;
     }
 
     function swiftOperatorName(op:ValueTypeOperator):String {
