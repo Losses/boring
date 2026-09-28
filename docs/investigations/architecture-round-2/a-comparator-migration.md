@@ -334,3 +334,30 @@ collection or absence arguments, and recursive dependencies whose requirement
 is discovered after a reference is installed. Passing isolated examples for
 each shape does not establish that their composition is implemented. The
 production analysis termination obligation remains separate and open.
+
+### Independent review and declaration entry points
+
+The independent schema review confirmed the two static defects above. The
+coordinator corrected its predicted recursive diagnostic after tracing each
+declaration's separate preparation entry. Consider `A<T>` with stored fields
+`value:T` and `b:B<T>`, and `B<U>` with stored field `a:A<U>`.
+
+Selection starting at A finalizes the nested B requirement while A still has
+an empty requirement set. A later acquires its direct parameter requirement,
+but its nested B plan retains the empty set. A's resident body therefore omits
+an evidence argument when calling B. Preparing B independently produces a
+required parameter in B's resident signature. The mismatch crosses two
+preparation entries; the review's predicted undefined parameter inside B was
+incorrect for these actual callers.
+
+Requirements must be consistent for every entry into the same recursive
+declaration component. Verify each resident signature against every call that
+references it, including calls selected from another root. A completed local
+traversal does not establish that consistency. Reverse the entry declaration
+and field order in the discriminator, preserving the same source obligations.
+
+The review also found a payload-enum witness that references an ungenerated
+helper. Its final behavior remains subject to the pending ordering/equality
+ruling. Generic enum rendering and cross-module target names have separate
+existing limits. These findings cannot justify changing the source domain or
+treating a target realization failure as unsupported source syntax.
