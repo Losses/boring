@@ -351,3 +351,53 @@ process creation. It retained the earlier preflight-only authorization limit
 despite the subsequent generation assignment. The coordinator requested
 explicit authorization for the bounded generation command. No generation
 result or consumer regression evidence exists from those attempts.
+
+## Independent task-brief review
+
+Task M reviewed brief J against actual Swift paths. The coordinator confirmed
+that `argTexts` prepares ordinary arguments, `callArgTexts` may render again
+for defaults, and `enumConstruct` directly renders enum payloads. The latter
+was absent from H's consumer inventory. It is a static coverage gap; source
+acceptance and a generated failure for that family remain untested.
+
+J now names enum payloads, preparation timing and invalidation, separate query
+and runtime-effect checks, a concrete successful-output capture requirement,
+and an accepted reference-element case. Existing source/target type distinctions
+and query-purity rules already prohibited several related mistakes, so review
+did not duplicate those rules. A new preparation environment may require a new
+plan; immutable data alone does not justify reusing stale facts.
+
+Task L assessed the pending alias policy across five targets. A shared-view
+contract would require attention to Swift value storage and Rust owned versus
+borrowed positions. A snapshot contract would require explicit ordinary
+conversion behavior in targets whose representations currently admit sharing.
+Rejecting writes through retained aliases requires source alias and effect
+analysis beyond a local conversion decision. These are static design impacts,
+with no measured cost or additional target-runtime observations. The coordinator
+corrected a conclusion that conflated shared semantics with shared machinery:
+one source contract can require different target implementations.
+
+Task K implements a bounded recorder for the existing probes. Early coordinator
+review found missing enforcement of recorded identity, incomplete input hashing,
+and failure to invalidate results when inputs change. Those requirements were
+already explicit in its brief; the executor is correcting the implementation.
+No new general prohibition was added for those deviations.
+
+K's fresh `k-record-01` run now retains command arguments, working directories,
+timings, stdout, stderr, exit statuses, source hashes, and four generated-file
+manifests under `out/architecture-readonly-probe/recording/runs/`. All four Swift
+generations returned zero. The scalar and plain-to-optional programs compiled
+and ran; the optional-source and guarded-source cases returned native compiler
+status 1 and have skipped runtime records. The coordinator inspected the new
+command records and outputs. They agree with the earlier observations and
+provide the generation and status records that were previously missing.
+
+Compiler and sample hashes, authored input hashes, HEAD `d01298f3`, compiler
+status, and toolchain identity stayed stable. During the recording, the
+coordinator edited the analysis-method Markdown file. The recorder therefore
+sets `worktree_status_stable` and its aggregate `comparison_valid` to false.
+Those fields remain unchanged. The retained commands support the bounded
+observations above; they do not constitute acceptance of a fully frozen
+candidate. The later full verification must keep the complete candidate unchanged as
+the existing work plan requires. No compiler rerun was needed to inspect this
+documentation-only difference.

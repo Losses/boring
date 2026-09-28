@@ -48,6 +48,16 @@ contract. Document the producer of each fact. An AST type is insufficient when
 a previous conversion or narrowing has changed the emitted representation.
 Record a completed conversion so a later consumer can use its result directly.
 
+State when preparation occurs relative to the first operand rendering. Queries
+that prepare facts cannot call `expr` to discover those facts. Operand lowering
+may produce both text and its established representation once; subsequent
+consumers use that result. Argument default substitution must have a defined
+preparation environment. Reuse a plan only while that environment and its flow
+facts remain valid; changed substitutions require an explicit new preparation.
+Test query repeatability and state preservation separately from runtime operand
+evaluation. Repeated compiler rendering alone does not prove repeated runtime
+evaluation.
+
 The renderer consumes that decision and one prepared operand. It does not infer
 conversion state from `TiqianArray([])`, `.map { Array($0) }`, a trailing `!`,
 or another generated fragment. Empty literals carry their identity and required
@@ -83,7 +93,10 @@ implementation starts. Every added file must serve a named responsibility.
 
 Inventory and migrate locals, static and instance fields, assignments, returns,
 casts, nested literals, function arguments, constructor arguments, defaults,
-coalescing, and branch results. Record each consumer as migrated, delegated to
+enum payload construction, coalescing, and branch results. Enum construction
+uses `enumConstruct`, which directly renders payloads and bypasses ordinary
+argument conversion. Verify source acceptance through interception before
+classifying a proposed payload case as supported. Record each consumer as migrated, delegated to
 another listed consumer, or outside the supported source domain with evidence.
 Do not silently defer `SwiftDecl` while claiming a complete boundary mechanism.
 
@@ -100,8 +113,11 @@ evidence. Add a case where conversion interacts with another argument's effect
 or a throwing operation when the source subset accepts that form.
 
 Alias expectations follow the pending ruling. Retain the scalar probe that
-distinguishes the existing Haxe and Swift behaviors, and explicitly state the
-coverage of reference elements. Tests must exercise generated target code.
+distinguishes the existing Haxe and Swift behaviors. Include an accepted
+reference-element case that distinguishes copying container slots from copying
+element objects. Its expectation requires an applicable element-identity
+contract; report a missing contract before claiming semantic completion.
+Tests must exercise generated target code.
 Do not repair expected values, input programs, or generated output to hide a
 translator failure.
 
@@ -111,6 +127,13 @@ verification once. Other targets must preserve their generated outputs unless
 the approved semantic change explicitly includes them. Preserve successful
 compiler output because the current bundle driver discards it. Require zero
 warnings attributed to generated files and no suppression markers.
+
+Select a working capture route before the full command: either record child
+tool output before the driver receives it, or use reviewed driver changes that
+persist each step's output. An outer redirect alone is insufficient. Validate
+the selected route with a successful command that writes to both streams and
+a failing command whose status and diagnostics must survive. Any driver code
+change requires its own file ownership and acceptance brief.
 
 Tiqian generation compatibility is a prerequisite for the later consumer suite.
 Its driver and effective haxelib compiler are separate recorded identities.
