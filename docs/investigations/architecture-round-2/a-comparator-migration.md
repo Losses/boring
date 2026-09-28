@@ -433,9 +433,11 @@ declaration.
 
 The pinned Haxe 4.3.7 host accepts
 `typedef Grow<T> = Null<Box<Grow<Array<T>>>>` with a data-class `Box<V>`
-whose stored field has type `V`. Current eager alias substitution in
-`SourceContainerAnalysis` overflows before the declaration fixed point can
-inspect that field. The host rejects a separate unguarded mutual alias cycle;
+whose stored field has type `V`. One `SourceContainerAnalysis` query resolves
+the outer `Null` and stops at `Box`. The comparison walk can then re-enter
+`Grow` through `Box.value` before its declaration fixed point closes the edge.
+Locate the repeated entry in that walk before changing the shared container
+query. The host rejects a separate unguarded mutual alias cycle;
 that rejection does not cover `Grow`. Model an alias application as a finite
 declaration edge with symbolic arguments, and transfer only demanded parameter
 operations across it. `Grow` has no direct demand on `T`, so the nested
