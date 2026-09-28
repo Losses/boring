@@ -139,3 +139,27 @@ stage checker; the B1 replay's verdict repair remains independently owned.
 Do not write another capture implementation or enlarge the expected-failure
 set to hide a changed consumer. Full candidate Boring and fixed Tiqian checks
 remain required after integration.
+
+## First interface review
+
+The executor's checkpoint against `0fb5d1fa` preserves the intended shared
+source analysis and Kotlin preparation owners. Consumer changes remain pending
+review. The coordinator found contradictions between the stated rules and the
+checkpoint's own traces: after an outer null guard, the surviving non-null arm
+and the null arm join to unknown. Returning from a nested arm does not remove
+the outer null arm. A use inside a guard's true arm, however, has the guard's
+presence fact even when the incoming loop fact was unknown.
+
+These trace errors violate the existing transfer contract. The correction is
+to derive each use from its actual incoming edges and independently verify
+the expected facts before implementing consumers. Repeating the correct join
+rule beside an incorrect trace does not establish an implementation design.
+
+The review also required concrete inputs for inherited capture facts and for
+return-shape prediction before printing. A prepared artifact's method name
+alone does not specify those inputs. Presence of a constructed result and the
+effects of executing its constructor are separate decisions. Retained field
+guard facts remain source-flow facts even while their implementation stays in
+Kotlin; removing mixed proof snapshots must preserve their field portion until
+that responsibility migrates. These interface and transition obligations
+remain within the assigned local domain.
