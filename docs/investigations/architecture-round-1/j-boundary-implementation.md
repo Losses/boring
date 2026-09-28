@@ -36,9 +36,22 @@ similar decisions; some detect prior conversion by inspecting generated text.
 
 ## Design contract
 
-Lower `ReadOnlyArray<T>` to a public read-only view retaining the exact existing
+The [prepared-value contract](j-representation-contract.md) records the producer
+design review after the conditional-result failures. Independent review approved
+phased implementation on 2026-09-28. Follow its phase assignments and review
+conditions. It specifies declaration stability, expression producer coverage,
+branch/default composition, and the required interactions for acceptance.
+
+Lower `ReadOnlyArray<T>` to a public Swift type named `ReadOnlyArray<T>`,
+retaining the exact existing
 `TiqianArray<T>` object. Forward count, indexed reads and iteration to that
 storage. Keep the backing object private and expose no mutable slot API.
+Apply the implementation standard's runtime naming rule to the declaration,
+type mappings, conversion rendering, and fixtures. Record the existing mutable
+wrapper's branded name separately with its compatibility obligations.
+J's naming acceptance covers the new view and every reference to that view.
+The existing mutable wrapper and exception names remain inventoried migration
+work. Acceptance of J establishes no complete runtime naming conformance.
 Fresh array construction may allocate fresh backing storage; conversion of an
 existing mutable value must retain its storage. Preserve existing element
 identity and equality contracts, optional values, and storage lifetime.
@@ -64,6 +77,32 @@ Use a small typed result with explicit alternatives and an immutable result
 contract. Document the producer of each fact. An AST type is insufficient when
 a previous conversion or narrowing has changed the emitted representation.
 Record a completed conversion so a later consumer can use its result directly.
+
+Keep expression results, binding representations, and flow facts distinct.
+A null initializer describes that expression's value; a nullable array binding
+still has a declared container representation when present. Reads use that
+binding representation and the flow facts valid at the read. Initializer facts
+cannot be cached as the binding's permanent value state. The parameter
+declaration producer must also provide its selected representation to body
+lowering, including whether a default has already supplied a required value.
+Assignment, branch exit, and captured mutation must respect each fact's
+invalidation contract.
+
+The operand producer returns emitted text with its established representation.
+Use the following provenance requirements when reviewing that producer:
+
+| Operand operation | Evidence for the returned representation |
+| --- | --- |
+| Primitive local, field, or parameter read | The declaration's target mapping and any applicable flow fact agree with the selected read operation. |
+| Literal construction | The selected construction determines storage and contextual element type. |
+| Completed conversion | The conversion's result contract supplies the representation for the next consumer. |
+| Guarded extraction | The valid guard applies to this operand and the selected extraction produces a required value. |
+| Default selection or branch merge | The selected lowering reconciles both alternatives and preserves lazy evaluation; the existence of default metadata alone proves no materialization. |
+
+Keep operation selection and its returned facts together. A separate predictor
+that guesses what a later renderer will select creates a second decision owner.
+An unavailable optional optimization must retain the valid general lowering.
+If accepted source has no valid lowering, report the missing rule for review.
 
 State when preparation occurs relative to the first operand rendering. Queries
 that prepare facts cannot call `expr` to discover those facts. Operand lowering
@@ -103,8 +142,15 @@ One executor owns this compiler change. The initial file set is:
 - `SwiftType.hx` for ordinary and substituted container types.
 - `SwiftRuntime.hx` for shared storage, the public read-only view, and required
   collection or conditional equality operations.
-- Named regression fixtures under `samples/boring/` and `samples/tests/`,
-  plus relevant verification files under `tests/` when needed.
+- Focused Haxe fixtures, HXML entries, native harness, and a Bun-discovered
+  `.test.ts` entry under `tests/swift-readonly-boundary/`. This separate directory
+  avoids the existing SwiftPM vector target rooted at `tests/swift`.
+
+Use an actual Haxe oracle and the generated Swift program on the same source
+observations. Keep these focused fixtures outside shared sample discovery.
+Ordinary aliasing is a shared contract; target exclusions cannot classify it
+as inapplicable because another backend has not implemented it. Empty
+assertions on another target do not supply semantic evidence.
 
 The coordinator owns specifications and guidance. No other executor writes
 these compiler files concurrently. Additional runtime registration or import
@@ -126,6 +172,9 @@ For each applicable position, vary plain and optional sources and destinations,
 including a guarded optional source reaching a required destination. Include
 empty and nonempty values, absent and present optional values, nested elements,
 and default selection. Distinguish omitted arguments from explicit null.
+Vary optional containers independently from optional elements: include both
+`Null<ReadOnlyArray<T>>` and a present `ReadOnlyArray<Null<T>>` containing mixed
+null and non-null elements.
 
 Use runtime counters and ordered observations to test evaluation count and
 order. Counting the operand's spelling in generated text is supplementary
@@ -141,6 +190,10 @@ contract; report a missing contract before claiming semantic completion.
 Use an ordinary class element with mutable state to exercise reference identity;
 a data-class value record does not establish that case. Existing interface
 identity fixtures provide a separate source of evidence for reference equality.
+Require both an element-field update through the original object and replacement
+of its array slot with a different object after conversion. The first checks
+element sharing; the second distinguishes shared container slots from a copied
+container that still refers to the same elements.
 Tests must exercise generated target code.
 Do not repair expected values, input programs, or generated output to hide a
 translator failure.

@@ -11,7 +11,8 @@ import PolicyQueries;
     docs/specs/features/07-numeric-tower.md and the stdlib rulings: Int is Int32 and
     Float is Double (numbers ruling), haxe.io.Bytes is the byte array
     (stdlib/01), haxe.io.BytesBuffer is the runtime growth class
-    (stdlib/02), ReadOnlyArray is a let-bound Array (features/18). The
+    (stdlib/02), ReadOnlyArray is a read-only reference view over TiqianArray
+    (features/18). The
     resident string ABI (docs/specs/features/08-strings-and-unicode.md) renders String as Array<UInt16>
     inside resident modules; business modules keep native String and
     convert once at the resident boundary.
@@ -70,11 +71,11 @@ class SwiftType {
                     case "Void": "Void";
                     case "Null": nullOptional(params[0], of);
                     case "haxe.ds.Map" if (params.length == 2): "[" + of(params[0]) + ": " + of(params[1]) + "]";
-                    // features/18: read-only data crosses the Swift boundary as
-                    // the native value Array; a let binding is structurally
-                    // immutable, so no wrapper renders. Mutable Array keeps
-                    // TiqianArray.
-                    case "std.ReadOnlyArray": "[" + of(params[0]) + "]";
+                    // The read-only view has reference storage so ordinary
+                    // conversion retains mutable-alias visibility.
+                    case "std.ReadOnlyArray":
+                        imports.runtime("ReadOnlyArray");
+                        "ReadOnlyArray<" + of(params[0]) + ">";
                     case "haxe.Int64": "Int64";
                     case _: of(abs.type);
                 }
@@ -102,7 +103,11 @@ class SwiftType {
                         "SortedMapTable<" + of(params[0]) + ", " + of(DefaultArgExpander.withoutNull(params[1])) + ">";
                     case "std.SortedMapBuilder":
                         imports.runtime("SortedMapTableBuilder");
-                        "SortedMapTableBuilder<" + of(params[0]) + ", " + of(DefaultArgExpander.withoutNull(params[1])) + ">";
+                        "SortedMapTableBuilder<"
+                        + of(params[0])
+                        + ", "
+                        + of(DefaultArgExpander.withoutNull(params[1]))
+                        + ">";
                     case "std.SortedSet":
                         imports.runtime("SortedSetTable");
                         "SortedSetTable<" + of(params[0]) + ">";
@@ -138,7 +143,11 @@ class SwiftType {
                 imports.type(en.module, en.name);
                 en.name;
             case TFun(args, ret):
-                "(" + [for (arg in args) of(arg.t)].join(", ") + ")" + (isThrowingThunkType(args.length, ret) ? " throws" : "") + " -> " + of(ret);
+                "(" + [for (arg in args) of(arg.t)].join(", ")
+                    + ")"
+                    + (isThrowingThunkType(args.length, ret) ? " throws" : "")
+                    + " -> "
+                    + of(ret);
             case TAnonymous(_):
                 Context.error("anonymous structure types must be named typedefs before translation", Context.currentPos());
                 null;
@@ -170,11 +179,9 @@ class SwiftType {
                     case "Bool": "Bool";
                     case "Void": "Void";
                     case "Null": nullOptional(params2[0], t -> ofSubstituted(t, params, args));
-                    // features/18: read-only data crosses the Swift boundary as
-                    // the native value Array; a let binding is structurally
-                    // immutable, so no wrapper renders. Mutable Array keeps
-                    // TiqianArray.
-                    case "std.ReadOnlyArray": "[" + ofSubstituted(params2[0], params, args) + "]";
+                    case "std.ReadOnlyArray":
+                        imports.runtime("ReadOnlyArray");
+                        "ReadOnlyArray<" + ofSubstituted(params2[0], params, args) + ">";
                     case _: ofSubstituted(abs.type, params, args);
                 }
             case TInst(c, params2):
@@ -210,8 +217,11 @@ class SwiftType {
                 imports.type(en.module, en.name);
                 en.name;
             case TFun(args2, ret):
-                "(" + [for (arg in args2) ofSubstituted(arg.t, params, args)].join(", ") + ")"
-                    + (isThrowingThunkType(args2.length, ret) ? " throws" : "") + " -> " + ofSubstituted(ret, params, args);
+                "(" + [for (arg in args2) ofSubstituted(arg.t, params, args)].join(", ")
+                    + ")"
+                    + (isThrowingThunkType(args2.length, ret) ? " throws" : "")
+                    + " -> "
+                    + ofSubstituted(ret, params, args);
             case TLazy(f): ofSubstituted(f(), params, args);
             case _: fail(t);
         }

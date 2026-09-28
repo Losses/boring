@@ -1,5 +1,27 @@
 # Architecture investigation, round 1
 
+## Current status
+
+The owner approved shared storage for ordinary read-only arrays. J's Swift
+implementation remains under review. The owner challenged the repeated
+corrective cycle; compiler and fixture writes are held for a complete
+expression-producer contract review. J supplies the producer inventory and a
+separate executor reviews the contract. P07 has been reopened. The latest
+conditional-lowering edit is unverified. The coordinator checked the focused r10
+capture: its twenty-six observations match, all recorded command statuses are
+zero, and Swift compiler stderr is empty. This run includes the `ReadOnlyArray`
+naming correction and the nullable reassignment reproduction. Review returned
+a nullable-default fact contradiction and reused-output risk to J; r10 does
+not establish correctness for those untested conditions or subsequent changes.
+Full migration, contract checks, and platform verification remain open.
+All ten baseline configurations have fresh generated manifests. Tiqian's
+comparison domains have prepared separate validation inputs whose acceptance
+has not been tested. Native execution has resumed after a service interruption.
+Y reproduced the nullable binding failure against preserved compiler inputs.
+J now owns the correction; X's reviewed design awaits fixture ownership.
+The chronological sections
+below retain earlier findings and their original evidence limits.
+
 ## Baseline and ownership
 
 The owner requested an independent worktree on 2026-09-27. This programme uses
@@ -28,7 +50,7 @@ queried. Its `flake.lock` pins Boring
 was at `80445d9198b23017bf8c9e32e0eeb0586c0fdc04` with unrelated local changes.
 Its `.haxelib/boring/git/.boring-flake-revision` recorded that same Boring pin.
 The source exports used for investigation contain the remote commits, excluding
-local changes. No Tiqian build has been run for this programme.
+local changes. No Tiqian build had run at this initial inventory stage.
 
 The selected Boring baseline includes a warning-fix merge with changes to
 TypeScript, Kotlin, Swift, Dart, and shared helpers. Earlier observations from
@@ -65,10 +87,10 @@ investigation was started through that channel. The coordinator assigned B to
 native Luna and explicitly allowed read-only shell searches and one report
 file. The investigation scope and acceptance requirements stayed the same.
 
-## Current status and remaining evidence
+## Initial environment and style checks
 
-The independent baseline and three investigation assignments are established.
-Reports are pending review. The independent worktree's `nix develop`
+The independent baseline and three investigation assignments were established.
+Reports were pending review at this stage. The independent worktree's `nix develop`
 environment reported Haxe 4.3.7, Bun 1.3.13, rustc 1.98.0, kotlinc-jvm 2.4.10
 with JRE 21.0.12, Dart 3.13.0, and Swift 6.2.4 on Linux x86_64. The probe used
 each tool's version command and retained output in `toolchains.log`; it did
@@ -426,8 +448,8 @@ The helper does not classify warnings. Future acceptance requires records for
 every expected compiler invocation, complete streams, and review of diagnostic
 lines that name generated files. Absolute tool paths and package-local command
 resolution require separate route checks. The driver's existing output buffer
-limit also remains in force. No full verification ran, and the current checkout
-still lacks the package-local TypeScript compiler needed by that command.
+limit also remains in force. No full verification ran. At the time of N, the
+checkout lacked the package-local TypeScript compiler needed by that command.
 
 The existing brief already required argument and status preservation. These
 delivery defects called for implementation corrections and discriminating
@@ -524,5 +546,375 @@ view construction remain separate responsibilities.
 The revised brief also requires matching fixture inputs when comparing
 baseline and candidate output. New shared fixtures can expose another target's
 existing semantic gap; a Swift-focused check cannot establish all-target
-conformance. Rust's ordinary alias behavior remains a separate unverified
-requirement. These limits are carried into implementation acceptance.
+conformance. Rust's ordinary alias behavior requires separate evidence,
+recorded below. These limits are carried into implementation acceptance.
+
+An independent review of the revised brief added three concrete requirements:
+dedicated fixture registration outside shared sample discovery, separate
+container-slot replacement and element-field mutation checks, and optional
+element coverage independent of optional containers. Coordinator review also
+found that `tests/swift` is an existing SwiftPM target directory. The dedicated
+fixture directory is therefore `tests/swift-readonly-boundary`, with a Bun test
+entry and an actual Haxe oracle. Target exclusions and unconditional successful
+assertions cannot substitute for another backend's conformance evidence.
+
+J has one assigned compiler and test writer. The coordinator retains document
+ownership and will review focused evidence before scheduling full candidate
+verification. Task S separately observes the scalar ordinary-alias case on
+the four other generated targets using isolated outputs and fixed relevant
+inputs. These observations will locate remaining implementation gaps without
+changing their source contract.
+
+## Other target observations and consumer scope
+
+S ran the same scalar alias operation against an exact `e3b8bab3` source
+archive. After conversion, the mutable source's first element becomes 7 and
+its length becomes 2. The Haxe oracle and the TypeScript, Kotlin, and Dart
+hosts reported 702. Rust reported 101, retaining the old element and length.
+The coordinator inspected all retained output values and Rust's generated
+`let readonly = (mutable).clone()` statement. This establishes a Rust
+disagreement for that operation. Coordinator source review found the matching
+local-initializer branch in `RustExpr.stmtLines`: a non-Copy destination and a
+source recorded in `readsAfterDeclaration` select a clone. The producer,
+`scanReadsAfter`, searches the function body for another occurrence outside
+the declaration. Its name does not establish statement-order analysis. This
+probe has subsequent source uses and satisfies that predicate. The branch
+selection is inferred from source and generated output; the run retained no
+typed-AST dump or branch instrumentation.
+
+The Rust result identifies a responsibility conflict: preserving availability
+of an owned source by cloning changes the required container identity. A target
+ownership decision must satisfy the source alias contract before it selects a
+copy, borrow, or shared representation. Adding a special condition for this
+fixture would leave the same conflict in other positions. Rust repair requires
+its own representation analysis and is outside the current Swift assignment.
+
+These are bounded observations. TypeScript ran under Bun without a separate
+typecheck. Kotlin compiled the generated probe and its native host; compilation
+of all generated Kotlin files had failed on an unrelated runtime dependency.
+Rust also emitted four warnings from generated runtime code. The evidence
+does not establish complete target or generated-library conformance.
+
+S initially included its oracle's printing entry in every target generation,
+which introduced standard-library I/O dependencies before alias code could be
+emitted. Corrected configurations keep the authored alias operation and use
+native observation hosts. The analysis method already permitted that separation,
+so the correction addresses execution of the existing guidance. The coordinator
+also clarified an overly restrictive attempt limit that had stopped diagnosed
+configuration repairs. The work plan now requires briefs to name what a limit
+counts and whether bounded harness corrections are allowed.
+
+T inspected Tiqian's authored Apple package and callers. That frontend consumes
+a Kotlin/Native framework; the inspected sources do not import the generated
+Boring Swift module. Coordinator inspection confirmed the binary package
+boundary and its list-builder calls, together with a generated Swift protocol
+whose return type currently uses a native array. J therefore needs direct
+generated-module compilation and runtime evidence. Apple framework checks
+require a demonstrated path from the change to that separate binary API.
+T's report was corrected to use P's candidate-aware project for future driver
+verification. O's unresolved engine/protocol comparison-domain issue remains.
+
+The required Bun dependencies are now installed through `--frozen-lockfile`.
+The package and lockfile hashes are unchanged; local ESLint 10.9.1 and
+TypeScript 5.9.3 are available. This setup ran no generation or full suite.
+
+## Implementation review in progress
+
+The first J decision module returned a read-only result representation for an
+unsupported operand and could report a required result while retaining an
+optional operand. Coordinator review rejected both states. A later revision
+introduced explicit unsupported results. The review then found consumers
+deriving supposedly prepared storage from the original AST type, despite an
+interface that accepted a prepared-storage argument. Naming a field after a
+required fact does not establish that the caller produced that fact.
+
+The brief already distinguishes source types, actual target representation,
+and destination requirements. These findings are execution deviations from
+that contract. The corrective assignment requires an operand-lowering result
+whose text and representation come from the same operation. An ordinary
+source-to-target type mapping can establish representation only for the
+primitive lowering that guarantees that mapping. Completed conversions and
+flow narrowing must carry their own results.
+
+Review also found assignment and argument paths substituting an underlying
+source for an entire coalescing expression. That substitution can omit fallback
+evaluation while retaining optionality inferred from the original expression.
+The executor acknowledged that the old route still needed migration. Acceptance
+requires the complete operation, including default selection and effects, to
+survive operand preparation. These are provisional implementation findings;
+the focused candidate has not been accepted or fully verified.
+
+An initial optional-element literal produced a Swift element-type mismatch.
+Changing the fixture to typed allocation and insertion permits separate alias
+observations but does not resolve the accepted literal's lowering failure.
+The executor was instructed to preserve the original case and its diagnostic.
+The existing prohibition on changing source fixtures to conceal translator
+defects applies; no additional semantic exception is introduced.
+
+## Consumer comparison configuration
+
+V resolved O's comparison-domain question by inspecting Tiqian `8504d230` and
+its pinned driver `304ed70c`. The project uses one `kotlin-f32` engine baseline
+for every test-enabled bundle. The driver requires identical test IDs. Engine
+roots include `CoreBoundaryTest`, while protocol roots include `RevisionTest`
+and omit the engine test class. The protocol targets also differ from one
+another: TypeScript roots `CanonicalTest`, Rust omits it and `RevisionTest`,
+and Kotlin omits `CanonicalTest` and `SnapshotTableBinaryTest`. Coordinator
+inspection confirmed these root lists and the comparison's missing-ID rules.
+
+These static inputs predict missing-ID errors if the original full verification
+reaches comparison with the configured test sets. No full run has demonstrated
+that result. Exclusion metadata applies only to loaded test methods and cannot
+create records for absent roots. Adding exclusions solely because coverage is
+missing would misstate semantic applicability.
+
+Consumer verification therefore needs explicit engine and protocol comparison
+domains, retaining all original generation and target-test obligations. The
+protocol group also needs an agreed test-ID universe. A derived validation
+configuration must preserve working-directory and output-path behavior,
+including the protocol C header writer. The comparison plan remains under
+review; no Tiqian source or project configuration was changed by V, and no
+consumer regression pass is claimed.
+
+W prepared two derived projects in the isolated Tiqian checkout: eight engine
+bundles with the existing engine baseline, and three protocol test bundles
+with a TypeScript protocol baseline plus the unchanged C header writer. The
+three protocol HXMLs now name the same eight existing test classes. No exclusion
+was added. Coordinator review confirmed the retained output paths and C writer
+and inspected the added Rust test roots. Tiqian's tracked files are unchanged.
+These inputs retain all twelve generation and eleven test obligations. Their
+protocol root union still needs source acceptance, generated-ID, and execution
+evidence before the proposed comparison can be accepted.
+
+## Fixed baseline generation
+
+U generated all ten configurations from the exact `e3b8bab3` archive. Every
+generation driver and Haxe child completed successfully. The first capture
+validator incorrectly treated a separate successful `haxe --version` call as
+an extra generation. That harness failure was preserved; completed Haxe and
+TypeScript generations were verified and reused, and only the eight remaining
+configurations were subsequently run. No native build or test ran.
+
+The coordinator independently checked all 3,765 generated files against the
+ten retained manifests and found no hash mismatches. The resumed child records
+show successful, complete generation and metadata calls. Sampled module logs
+resolve interception and Swift compilation to the archived source. U records
+1,024 unchanged tracked inputs. The generated files provide baseline comparison
+evidence; they establish no runtime or warning conformance.
+
+TypeScript's generated file list contains absolute output paths. A comparison
+between different output roots cannot satisfy raw byte equality for that list.
+The planned comparison must preserve and verify complete baseline copies before
+reusing the same output paths for a fixed candidate. Review rejected U's first
+candidate recipe because overriding haxelib left explicit backend paths in the
+archive's HXML unchanged. This repeats a provenance error already covered by
+the work plan and P's findings. The correction requires candidate-aware include
+paths and observed loaded modules, with identical common source inputs and
+output paths. No candidate comparison has run.
+
+## Executor interruption and preserved handoff
+
+All three native Luna sessions stopped with a service usage-limit error before
+J's final delivery. The coordinator retained the unfinished compiler changes
+and ran the existing focused Bun test. It passed: seventeen Haxe and generated
+Swift observations matched the stated expectations, including direct argument
+evaluation order, reference-slot replacement, optional elements, guarded fields,
+constructor and enum arguments, branches, and basic coalescing. The Swift
+compiler's captured stderr was empty. The new Bun test file also passed ESLint.
+This is focused evidence only; J's full migration and contract tests remain
+incomplete.
+
+The coordinator recorded the eleven compiler/fixture input hashes and copied
+the twenty focused output and log files into an independent handoff directory,
+checking copied bytes. Review identified a remaining lifetime question in
+`localArrayBoundaryResults`: the declaration caches a result's storage kind,
+including a null literal, while later assignments do not update that record.
+A nullable read-only binding initialized to null, assigned an array, and then
+used under a guard is a proposed discriminator. This is a static concern that
+still requires an executor's reproduction.
+
+The previously configured local Goose worker started X's read-only design
+phase with provider `custom_local`, model `qwen`, and session `20260928_1`.
+It connects to the configured local endpoint and retains tool approval mode.
+Its explicit brief supplies repository instructions and the relevant review
+context. Native and external execution routes remain separate identities;
+neither the route change nor the focused pass establishes final acceptance.
+
+## Runtime naming review
+
+The owner rejected the new runtime name `TiqianReadOnlyArray`: Tiqian is a
+consumer of Boring, and public runtime types should name their semantics
+without a product brand prefix. The executor changed the new Swift type to
+`ReadOnlyArray` in its declaration, type mappings, default construction, and
+conversion rendering. Coordinator search found no remaining old-name references
+in the Swift compiler or focused fixtures. The later r10 focused generation and
+native compilation use the corrected name. Earlier captured outputs keep their original names
+and remain evidence about their recorded inputs.
+
+The coordinator had accepted the provisional name without reviewing its public
+API meaning. The implementation standard now owns the runtime naming rule,
+and J's brief supplies the required type name. The existing `TiqianArray`
+name is a separate migration concern whose declarations, consumers, and
+compatibility obligations require inventory. Existing implementation names
+provide evidence of current behavior; they do not establish naming authority.
+
+The subsequent five-target inventory found the existing public support types
+`TiqianArray` and `BoringException` in Swift, and `BoringException` in Dart.
+The former uses the consumer's brand and the latter the compiler's brand.
+Both conflict with the owner's naming rule. The other inspected targets use
+unbranded array and exception representations. Source class names and domain
+package paths are distinct from names selected by runtime emission. A future
+migration must update declarations, mappings, construction, and public typed
+references together. Native name conflicts require explicit qualification or
+namespace decisions; renaming must preserve the mutable wrapper's reference
+semantics and the exception representation's stored fields.
+
+The rename occurred before Y's first diagnostic generation. Y must hash the
+renamed compiler inputs and identify earlier source readings as preceding
+that change. Compiler behavior changes remain deferred until its reproduction
+is preserved. This keeps naming correction and diagnostic identity explicit.
+
+## Expanded fixture and guidance review
+
+J's first default-argument test invoked the generated Swift API with a handwritten
+`nil` argument. The current generator instead materializes the Haxe explicit-null
+call as an empty array argument and uses a native default for omission. Review
+required Haxe wrapper callers so the test exercises the actual call translation.
+The corrected fixture produced twenty-three matching Haxe and Swift observations,
+including the original direct nullable-element local literal and separate
+return and field-assignment cases. Coordinator inspection confirmed those raw
+runtime rows and the generated call forms in the retained r4 output.
+
+The generated callee still applies `??` to its nonoptional parameter, and Swift
+reports an unreachable fallback. Runtime success does not satisfy the emission
+quality requirement. Feature 22's Kotlin and Swift product section explicitly
+records their native-default implementation as a deviation from feature 51.
+That existing deviation is separate from J's required handoff of the parameter's
+actual representation to expression lowering. The latter must preserve the
+default operation appropriate to the selected declaration and its current facts.
+
+X's local Goose and native Luna design reports both derive binding reassignment
+from feature 18. Review found insufficient lifetime discriminators: retaining
+a mutable alias can keep storage alive independently of the read-only view.
+The revised design separates a factory returning only the view from mutation
+through an escaped alias. Goose's report also required two corrections to
+expected scalar values. These are test-design and execution findings; the
+existing method already requires discriminating observations and fact lifetimes.
+The coordinator requested revisions without adding each missed example as a
+new normative rule. X implementation and execution remain pending.
+
+Y's Haxe oracle returned `null-reassigned=21:2:2109`, status zero. The same
+source's Swift generation returned status one at the required consumer call
+inside the non-null branch: `array boundary has no prepared storage decision`.
+The diagnostic names `NullReassignOps.hx:15`; the failure originates at
+`SwiftExpr.lowerArrayBoundary:2601` in the preserved source. No generated tree
+was created and native compilation was not reached. The verbose log loaded the
+owned compiler. The coordinator copied and verified all 117 compiler files
+before returning write ownership to J. The proposed stale-initializer cache
+failure now has an accepted-source reproduction; the planned correction
+separates expression results, binding representations, and scoped flow facts.
+
+Review of the proposed parameter plan found another invalid implication:
+selecting a native default was treated as proof of presence, although registered
+null defaults preserve an optional parameter type. Entry normalization can also
+make the body binding differ from the signature parameter. The method's explicit
+fact criterion now requires a stated rule for implications across semantic
+dimensions and a record of legal combinations for finite decision models.
+Apply that record to declaration and normalization decisions so each returned
+fact has a valid producer.
+
+The r10 handoff passed twenty-six focused observations, with empty Swift
+compiler stderr and passing formatting, ESLint, and documentation checks.
+The coordinator verified its current source hashes and command status files.
+Review nevertheless found that the registered-default expression producer
+still returns required-value facts in its nullable fallback paths, despite
+the parameter plan preserving nullable body types. J must establish source
+acceptance and correct that producer or demonstrate why the path is excluded.
+This is an incomplete application of the existing decision contract.
+
+The subsequent nullable-default fixture is accepted by the Haxe oracle and
+the interception pass. Its omitted and explicit-null calls return `nil`; its
+present call returns `present:1`. In r11, Swift compilation rejects a local
+`ReadOnlyArray<Int32>?` initialized with `values ?? nil`, whose produced type
+is `TiqianArray<Int32>?`. The generated expression is missing the container
+conversion. After the first fact correction, r13 retains the same compilation
+failure. The review therefore also requires tracing the conversion selector
+and consumer; a corrected fact declaration alone is insufficient.
+
+The executor's selector trace subsequently disproved the type-wrapper
+hypothesis: the destination is recognized, and `lowerArrayBoundary` is
+entered. The registered-default site is absent. The ordinary `optionalIf`
+producer renders `values ?? nil`, while operand preparation classifies the
+contextually typed conditional as an existing read-only view. The planner
+therefore selects `KeepPreparedArray` for mutable storage. The repair belongs
+to the conditional producer's representation handoff. Review requires one
+structural nil-merge decision, valid branch polarity, one operand preparation,
+and facts describing the actual result. The call-site migration inventory
+was insufficient to establish that each expression producer honored that
+contract. This finding extends the implementation review; the method already
+requires explicit fact ownership and producer-consumer agreement.
+
+Further inspection of the same r13 output found the same contradiction in
+the existing non-null coalescing and ordinary conditional cases. Their local
+bindings are inferred as `TiqianArray` while preparation records a read-only
+view. The tests only read collection operations available on both types, so
+matching runtime observations did not distinguish the representations. The
+executor must strengthen those existing cases with a consumer whose parameter
+requires `ReadOnlyArray`, then make conditional lowering supply the actual
+result representation. A pure-null-fallback special case would leave this
+common defect in place. The selected repair normalizes branch results to a
+common destination representation while preserving conditional evaluation.
+
+## Delivery process correction
+
+The subsequent [upstream contract review](architecture-round-1/upstream-contract-evidence.md)
+records concrete TypeScript, Kotlin, Rust, and shared fixes through `cc9957dd`.
+It distinguishes merge chronology from new implementation work and maps each
+observed decision to the fact and responsibility required for a general rule.
+The fixed compiler baseline remains unchanged.
+
+The owner challenged the slow progression through successive fixture failures.
+The coordinator had identified producer-consumer agreement as a requirement,
+but did not make a complete producer inventory and concrete representation
+handoff a prerequisite for implementation. The brief already states that a
+contextual AST type cannot establish emitted representation and that branch
+alternatives must be reconciled. Repeating those rules does not resolve the
+failure to apply them.
+
+The coordinator reopened P07 and held compiler and fixture writes. The
+implementation owner must map accepted expression families to their actual
+representation producers, binding facts, flow facts, and conversion consumers.
+A separate executor reviews the proposed contract and its acceptance invariants
+before further implementation. Existing passing observations remain bounded
+evidence; they do not certify unobserved intermediate representations. The
+lifetime exercise and full Boring and Tiqian gates remain required after this
+design review. This correction changes the work order and acceptance process;
+it does not reduce the programme's completion criteria.
+
+The subsequent independent review accepted the completed producer inventory
+and concrete contract for phased implementation. The coordinator recorded
+producer-specific acceptance conditions and the J1 through J4 work sequence in
+the prepared-value contract, accepted P07, and assigned J1 to the implementation
+owner. J1 covers declaration/read agreement and direct producer results.
+Conditional/default composition and block/switch/try results retain explicit
+later phases. The current candidate has no implementation acceptance. Each
+phase requires review before the next assignment; full verification follows
+the completed mechanism and lifetime exercise.
+
+The owner then requested a checkpoint of the current Swift implementation and
+parallel architecture work across all targets. J1 stopped with no additional
+edits or active child processes. The
+[checkpoint TODO](architecture-round-1/swift-checkpoint-todo.md) records known
+failures and verification gaps. The
+[policy architecture](../compiler-policy-architecture.md) defines the expanded
+layers, work packages, integration ownership, and cross-review requirements.
+The unfinished checkpoint does not represent implementation acceptance.
+
+The independent harness review found that the default output directories are
+reused without rejecting old generated files. A repeatability comparison can
+therefore include stale output. J must give each test fresh output directories
+and preserve prior captures. A separate diagnostic checks the flow claim that
+assignment invalidates prior narrowing across a conditional branch. That
+claim remains unverified until the accepted source and resulting behavior are
+recorded. The handoff and initial harness report also miscounted r10's rows as
+twenty-seven; the raw runtime log contains twenty-six.
