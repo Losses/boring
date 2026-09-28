@@ -2,9 +2,11 @@
 
 ## Status and prerequisites
 
-This is a planned follow-up to J. Begin implementation only after the
-coordinator accepts J's focused delivery and assigns fixture ownership.
-Record that candidate's revision and relevant file hashes before work. The
+The coordinator assigned this exercise to Goose at `db1bb984` after accepting
+the ordinary shared-view runtime observations. The expanded architecture work
+allows this investigation to proceed while J's full prepared-value migration
+remains open. The exercise establishes no prior acceptance of that migration.
+Record the candidate's revision and relevant file hashes before work. The
 coordinator owns this brief; a different executor from J owns the follow-up.
 
 Read the analysis method, implementation standard, feature 18, the revised J
@@ -29,10 +31,12 @@ State any source construct whose acceptance remains unverified.
 
 ## Scope and evidence
 
-The initial permitted implementation is a focused fixture extension under
-`tests/swift-readonly-boundary/`, with exact file ownership assigned after J.
-Use J's existing registration and evidence capture where applicable. Outputs
-remain under its ignored output tree in a separate run directory. Do not edit
+The assigned implementation is a new focused fixture under
+`tests/haxe/view-lifetime-contract/` in its independent task checkout.
+Use the existing child-evidence probe and shared stage membership checker.
+Outputs belong under `out/view-lifetime-contract/` in separate attempt
+directories. The executor submits the source-contract argument and
+counterexamples for coordinator review before writing the fixture. Do not edit
 compiler code unless the coordinator reviews a demonstrated failure and assigns
 the responsible files. No shared sample exclusions or expected-value changes
 may conceal a missing target behavior.
