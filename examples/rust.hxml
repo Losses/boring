@@ -49,6 +49,7 @@ boring.ValueRecord
 boring.PrivateHolder
 boring.NullBoolStyle
 boring.NullBoolTernaryOps
+boring.NullBoolEmphasisOps
 tests.NullBoolTernaryTests
 boring.VectorSort
 boring.ScriptEvidenceTable
