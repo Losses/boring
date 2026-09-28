@@ -92,6 +92,9 @@ replace the round 2 policy packages.
 
 This snapshot records the state on 2026-09-28. A committed checkpoint makes
 code reviewable; it does not mean its consumers or regression gate passed.
+The [fixture naming integration review](investigations/architecture-round-2/fixture-naming-integration-review.md)
+records the focused checks after the terminology change and their remaining
+target observations.
 
 | Package | Reviewable code and current boundary | Next acceptance step |
 | --- | --- | --- |
