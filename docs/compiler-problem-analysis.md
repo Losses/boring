@@ -230,6 +230,13 @@ Cite code or tests for each conclusion. Include ordinary methods,
 constructors, static initializers, and nested functions where they admit the
 construct. A failure in Rust does not establish that another target is correct.
 
+Derive the consumer inventory from typed-expression dispatch and actual call
+paths as well as source-language labels. A class constructor, enum payload,
+function value, and ordinary method may take different argument paths in one
+backend. A list headed "calls and constructors" does not prove those paths
+share the same conversion decision. Mark untested source acceptance separately
+from a path found through static inspection.
+
 Compare the source guarantee first, then each target's representation needs.
 Determine whether the common cause is missing analysis, lost representation
 information, inconsistent pass order, an invalid optimization, or a printing
