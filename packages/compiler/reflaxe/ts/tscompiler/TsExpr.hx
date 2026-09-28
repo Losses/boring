@@ -23,6 +23,8 @@ import FusionPlan.FusionStep;
 import VarFusionPlan;
 import ValueTypeSupport;
 import ValueTypePlan;
+import SourceOriginFragment;
+import SourceOriginTrace;
 
 /**
     Statement and expression lowering from the Haxe typed AST to
@@ -379,9 +381,15 @@ class TsExpr {
     // ------------------------------------------------------------------
 
     public function functionBody(cls:ClassType, f:ClassFuncData):Array<String> {
+        final text = functionBodyFragment(cls, f).text;
+        return text.length == 0 ? [] : text.split("\n");
+    }
+
+    public function functionBodyFragment(cls:ClassType, f:ClassFuncData):SourceOriginFragment {
         if (f.expr == null) {
             Context.error("function field has no body to lower", f.field.pos);
         }
+        final originTrace = SourceOriginTrace.beforeRewrites(f.expr, cls.module, cls.name, f.field.name);
         DefaultArgExpander.completeRootExpr(cls, f.field.name, f.expr);
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
@@ -397,7 +405,8 @@ class TsExpr {
         registerOptionalParams(cls, f);
 
         prepareLocals(f.expr);
-        return blockLines(statementsOf(f.expr), 2);
+        final lines = blockLines(statementsOf(f.expr), 2, originTrace);
+        return originTrace.fragment(lines);
     }
 
     /**
@@ -554,7 +563,7 @@ class TsExpr {
         return PolicyQueries.statementsOf(e);
     }
 
-    function stmtLines(e:TypedExpr, depth:Int):Array<String> {
+    function stmtLines(e:TypedExpr, depth:Int, originTrace:Null<SourceOriginTrace> = null, originLineIndex:Int = -1):Array<String> {
         switch (e.expr) {
             case TVar(v, init) if (init != null && isTryRegion(init)):
                 return tryBindingLines(v, init, depth);
@@ -653,7 +662,10 @@ class TsExpr {
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
             case _:
-                return [indent(depth) + expr(e) + ";"];
+                final rendered = indent(depth) + expr(e) + ";";
+                if (originTrace != null)
+                    originTrace.noteDirectCall(e, originLineIndex, rendered);
+                return [rendered];
         }
     }
 
@@ -714,7 +726,7 @@ class TsExpr {
         return out.join("\n");
     }
 
-    function blockLines(stmts:Array<TypedExpr>, depth:Int):Array<String> {
+    function blockLines(stmts:Array<TypedExpr>, depth:Int, originTrace:Null<SourceOriginTrace> = null):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = regroupLoops(stmts);
         stmts = fuseOverwrittenLiteralInits(stmts);
@@ -826,7 +838,7 @@ class TsExpr {
                 i += 1;
                 continue;
             }
-            for (l in stmtLines(stmts[i], depth))
+            for (l in stmtLines(stmts[i], depth, originTrace, out.length))
                 out.push(l);
             clearHoistsAt(hoists, i);
             i += 1;
