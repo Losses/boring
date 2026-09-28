@@ -1443,13 +1443,12 @@ class DartExpr {
                 // Decision before rendering (DecisionBeforeRender): whether
                 // each branch is the guard-proven read is a pure predicate
                 // over the AST. It runs before any branch text exists, so
-                // the structural probes cannot observe promotions the
-                // branch render just wrote, and their own probe renders
-                // cannot shift a later unwrap decision. Each branch then
-                // renders exactly once and the unwrap derives from that
-                // pre-rendered text (requiredValueTextOf), instead of
-                // requiredValueText re-rendering the branch and racing the
-                // promotion note its first render left behind.
+                // structural probes cannot observe promotions recorded
+                // during branch rendering. The probes also leave promotion
+                // state unchanged for later unwrap decisions. Each branch
+                // renders once, and the unwrap uses its saved text through
+                // requiredValueTextOf. A second requiredValueText render
+                // would read changed promotion state.
                 final tGuardProven = guarded != null && isNotNullGuard(c) && structurallySame(t, guarded);
                 final fGuardProven = guarded != null && !isNotNullGuard(c) && structurallySame(f, guarded);
                 final tMapRead = hasGuarded != null && isGuardedMapRead(t, hasGuarded);
@@ -1478,7 +1477,7 @@ class DartExpr {
                 final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
                 final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
                 // The unwrap predicate mirrors requiredValueText's skip
-                // conditions; only the render is reused, not repeated.
+                // conditions; the saved rendering is used once.
                 final tFinal = unwrapDecided(t, tGuardProven || tMapRead) ? requiredValueTextOf(tText, t) : tText;
                 final fFinal = unwrapDecided(f, fGuardProven || fMapRead) ? requiredValueTextOf(fText, f) : fText;
                 restoreFlowSnapshot(branchFlow);

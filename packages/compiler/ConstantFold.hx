@@ -33,8 +33,8 @@ enum FoldedReal {
     last-bit difference between the folded literal and the runtime-computed
     value in the f32 configuration; only the non-finite and zero edges are
     exact by definition. The sign of a zero divisor is ignored (0.0 and
-    -0.0 divisors both fold to the same quotient sign); the corpus carries
-    no negative-zero divisor literal.
+    -0.0 divisors both fold to the same quotient sign); the test inputs
+    contain no literal divisor that represents negative zero.
 **/
 class ConstantFold {
     /** Fold a literal/literal float division with a literal zero divisor. */
