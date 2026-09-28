@@ -5,6 +5,14 @@ This queue applies to the three isolated candidate checkouts inspected on
 the Boring integration checkout and copies accepted files selectively after
 independent review. The original Boring checkout remains outside this work.
 
+No writer is currently running. The coordinator prepared a scoped F execution
+prompt, but the outer approval review rejected launching Claude Code against
+the configured external BigModel service because the trusted user messages
+did not explicitly authorize sending this repository's source to that
+destination. The rejected action was not retried through another command.
+External execution remains pending the user's explicit authorization; local
+inspection and verification can continue.
+
 | Writer assignment | Immediate repair | Required focused evidence | Independent reviewer |
 | --- | --- | --- | --- |
 | A: comparison analysis and Swift consumer | Replace the raw type-string expectation in the generic schema probe with binder owner, slot, and selected-operation assertions. Preserve finite admission of recursive aliases. | Full admission and A3 procedures with input hashes, negative controls, Swift generation, compilation, and execution. | F reviewer checks the macro and target stage verdicts. |
