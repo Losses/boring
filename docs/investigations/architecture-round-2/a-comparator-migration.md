@@ -431,6 +431,28 @@ can repeat a generated spelling. Keep `SortedKey` and
 does not grant equality conformance to every instantiation of its generic
 declaration.
 
+The pinned Haxe 4.3.7 host accepts
+`typedef Grow<T> = Null<Box<Grow<Array<T>>>>` with a data-class `Box<V>`
+whose stored field has type `V`. Current eager alias substitution in
+`SourceContainerAnalysis` overflows before the declaration fixed point can
+inspect that field. The host rejects a separate unguarded mutual alias cycle;
+that rejection does not cover `Grow`. Model an alias application as a finite
+declaration edge with symbolic arguments, and transfer only demanded parameter
+operations across it. `Grow` has no direct demand on `T`, so the nested
+`Array<T>` does not by itself justify source rejection; `Chain<T>` has a
+direct demand that reaches its recursive `Array<T>` argument and must still
+reject. Verify these conclusions with pinned host and admission probes before
+consumer migration. Neither a depth cap nor a blanket recursive-alias failure
+meets this contract.
+
+An independent pinned host probe also showed that a source-authored anonymous
+field whose name exactly equals the first generated binder marker can make a
+record falsely pass source admission. A registry of generated names cannot
+establish token provenance. Use the owning declaration's typed parameter and
+slot, or another non-forgeable compiler identity that survives substitution;
+retain an exact-name collision fixture. This identity result is a source
+admission gate, independent of target comparator printing.
+
 ### Recursive target realization discriminator
 
 An independent Swift 6.2.4 probe tested a resident generic comparator for
