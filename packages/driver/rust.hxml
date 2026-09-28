@@ -1,0 +1,17 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp samples/haxe
+-cp packages/registry/src
+-cp packages/driver/src
+--macro Intercept.run(['samples', 'packages/registry/src', 'packages/driver/src'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/driver/rust/gen
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+-D package-name=boring-driver
+-D package-license=MIT
+driver.Main
+runtime.SortedTable
