@@ -82,6 +82,11 @@ the rule's preconditions explain its broader applicability.
    loop facts account for repeated execution; closure analysis accounts for
    captured mutation. A source position comparison cannot establish that a
    check executes on every path to a use.
+   Check the full input domain of every consumer before replacing its query.
+   A specialized analysis may omit cases that remain meaningful to a broader
+   query. For example, a comparable-record result cannot replace ordinary
+   class identity classification. Retain those decisions and add controls
+   outside the specialized analysis's domain.
 3. **Queries preserve semantic state.** Inspecting an expression or comparing
    two expressions must not change the facts used by later lowering. Printing
    may manage layout state, but it must not establish non-null proofs or
