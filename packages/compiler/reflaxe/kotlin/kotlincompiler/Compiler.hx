@@ -7,6 +7,7 @@ import PolicyQueries;
 import TestApplicability;
 import TestClassEntries;
 import TestClassFlush;
+import reflaxe.kotlin.KotlinTestMeta;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
 import reflaxe.PluginCompiler;
 import reflaxe.ReflectCompiler;
@@ -303,9 +304,10 @@ class Compiler extends PluginCompiler<Compiler> {
         if ((hasAnyKey(state.testClasses) || hasAnyKey(state.testEntryClasses)) && kotlinTestOutput != null) {
             generateTestHelper(kotlinTestOutput, kotlinOutput);
             generateTestMain(kotlinTestOutput, kotlinOutput);
-            // Kotlin reserves the `kotlin` package for its own standard library, so
-            // the emitted test annotation lives in a boring-owned package instead.
-            final annotContent = "package boring.test\n\n@Target(AnnotationTarget.FUNCTION)\nannotation class Test\n";
+            // Kotlin reserves the kotlin package for its own standard library,
+            // so the emitted test annotation lives in the runtime's own package
+            // instead; the coordinates are shared through KotlinTestMeta.
+            final annotContent = KotlinTestMeta.annotationContent;
             final annotRel = kotlinTestOutput + "/tests/TestAnnotations.kt";
             final annotSave = computeRelativePath(kotlinOutput, annotRel);
             PackageArtifacts.saveTreeFile(output, annotSave, annotContent);

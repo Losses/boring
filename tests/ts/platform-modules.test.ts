@@ -20,16 +20,18 @@ function readGenerated(relative: string): string {
 }
 
 describe("std.Fs lowering", () => {
-  test("node:fs loads lazily through require inside each call body", () => {
+  test("node:fs loads lazily through the host module probe inside each call body", () => {
     const source = readGenerated("boring/PlatformOps.ts");
-    expect(source).toContain('require("node:fs")');
+    expect(source).toContain('probe("node:fs")');
+    expect(source).toContain('globalThis as Record<string, unknown>');
+    expect(source).toContain(".getBuiltinModule");
     // The loader probe and the fs access share one body per call; no
     // top-level node: import specifier appears.
     expect(source).not.toMatch(/^import .* from "node:/m);
     expect(source).not.toMatch(/from "node:fs"/);
   });
 
-  test("a host without require raises the fixed unavailability message", () => {
+  test("a host without the module probe raises the fixed unavailability message", () => {
     const source = readGenerated("boring/PlatformOps.ts");
     expect(source).toContain('throw new Error("std.Fs is not available on this host")');
   });
