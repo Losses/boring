@@ -1,5 +1,7 @@
 import haxe.Json;
 import js.Syntax;
+import ChildEvidence.ChildEnvironment;
+import ChildEvidence.ChildEvidenceError;
 
 /**
     The bundle driver of feature spec 59.
@@ -57,7 +59,15 @@ import js.Syntax;
     results directory, every bundle id, and the project's baseline.
 **/
 class Driver {
-    static final TOP_LEVEL_FIELDS:Array<String> = ["outRoot", "resultsDir", "baseline", "sourceRoots", "rootsFile", "haxeArgs", "bundles"];
+    static final TOP_LEVEL_FIELDS:Array<String> = [
+        "outRoot",
+        "resultsDir",
+        "baseline",
+        "sourceRoots",
+        "rootsFile",
+        "haxeArgs",
+        "bundles"
+    ];
     static final BUNDLE_FIELDS:Array<String> = ["id", "target", "precision", "haxeArgs", "rootsFile", "build", "run", "package"];
     static final STEP_FIELDS:Array<String> = ["args", "env"];
     static final PACKAGE_FIELDS:Array<String> = ["name", "version"];
@@ -145,13 +155,12 @@ class Driver {
                 Reflect.setField(env, field, Reflect.field(envExtra, field));
             }
         }
-        final proc:Dynamic = Syntax.code(
-            "require('child_process').spawnSync({0}, {1}, {cwd: {2}, env: {3}, encoding: 'utf8', maxBuffer: 1024 * 1024 * 64})",
+        final proc:Dynamic = Syntax.code("require('child_process').spawnSync({0}, {1}, {cwd: {2}, env: {3}, encoding: 'utf8', maxBuffer: 1024 * 1024 * 64})",
             cmd, args, cwd, env);
         if (proc.error != null) {
             return {code: -1, output: Std.string(proc.error)};
         }
-        final code = proc.status == null ? -1 : (proc.status:Int);
+        final code = proc.status == null ? -1 : (proc.status : Int);
         final output = (proc.stdout == null ? "" : proc.stdout) + (proc.stderr == null ? "" : proc.stderr);
         return {code: code, output: output};
     }
@@ -517,17 +526,61 @@ class Driver {
     static function step(project:Project, bundle:Bundle, action:String, stepName:String, cmd:String, args:Array<String>, env:Dynamic, cwd:Null<String>):Void {
         final workDir = cwd == null ? project.root : cwd;
         print('  $ ' + cmd + " " + args.join(" "));
+        if (ChildEvidence.enabled()) {
+            // The captured spawn requests buffer output and retains the raw
+            // streams; the text below is a decoded copy for the console
+            // tail, which stays identical to the uncaptured presentation.
+            try {
+                final execution = ChildEvidence.execute({bundle: bundle.id, action: action, step: stepName}, cmd, args, workDir, declaredOverrides(env));
+                if (!execution.succeeded()) {
+                    reportStepFailure(bundle.id, action, stepName, cmd, args, execution.combinedText(), execution.reportedCode());
+                    exit(1);
+                }
+            } catch (problem:ChildEvidenceError) {
+                reportEvidenceFailure(problem);
+            }
+            return;
+        }
         final result = runCommand(cmd, args, workDir, env);
         if (result.code != 0) {
-            printErr('Error: bundle "${bundle.id}", action "$action", step "$stepName" failed with exit code ${result.code}.');
-            printErr('  command: $cmd ${args.join(" ")}');
-            printErr("  --- output (tail) ---");
-            final lines = result.output.split("\n");
-            final tail = lines.length > 40 ? lines.slice(lines.length - 40) : lines;
-            for (line in tail) {
-                printErr("  " + line);
-            }
+            reportStepFailure(bundle.id, action, stepName, cmd, args, result.output, result.code);
             exit(1);
+        }
+    }
+
+    /**
+        The legacy environment override form of the project file, translated
+        at this boundary into the typed form the capture module takes. The
+        module never sees the untyped bag.
+    **/
+    static function declaredOverrides(env:Dynamic):ChildEnvironment {
+        var environment = ChildEnvironment.inherited();
+        if (env != null) {
+            for (name in Reflect.fields(env)) {
+                environment = environment.withOverride(name, Std.string(Reflect.field(env, name)));
+            }
+        }
+        return environment;
+    }
+
+    /** The failure the driver reports when evidence capture itself fails. */
+    static function reportEvidenceFailure(problem:ChildEvidenceError):Void {
+        printErr("Error: child evidence: " + problem.message);
+        if (problem.detail.length > 0) {
+            printErr("  detail: " + problem.detail);
+        }
+        exit(1);
+    }
+
+    /** The failure tail the driver has always shown for a failed step. */
+    static function reportStepFailure(bundleId:String, action:String, stepName:String, cmd:String, args:Array<String>, output:String, code:Int):Void {
+        printErr('Error: bundle "$bundleId", action "$action", step "$stepName" failed with exit code $code.');
+        printErr('  command: $cmd ${args.join(" ")}');
+        printErr("  --- output (tail) ---");
+        final lines = output.split("\n");
+        final tail = lines.length > 40 ? lines.slice(lines.length - 40) : lines;
+        for (line in tail) {
+            printErr("  " + line);
         }
     }
 
@@ -614,8 +667,8 @@ class Driver {
                         genFiles.concat(bundle.build.args).concat(["-include-runtime", "-d", libraryJar]), bundle.build.env, null);
                     step(project, bundle, "test", "build tests jar", "kotlinc",
                         ["-cp", libraryJar].concat(testFiles).concat(bundle.build.args).concat(["-d", testsJar]), bundle.build.env, null);
-                    step(project, bundle, "test", "run", "java",
-                        ["-cp", libraryJar + ":" + testsJar].concat(bundle.run.args).concat(["TestMainKt"]), runEnv, null);
+                    step(project, bundle, "test", "run", "java", ["-cp", libraryJar + ":" + testsJar].concat(bundle.run.args).concat(["TestMainKt"]), runEnv,
+                        null);
                 case "rust":
                     // The crate root is the bundle's derived gen dir.
                     // The f32 twin crate is excluded from the cargo
@@ -641,16 +694,20 @@ class Driver {
                     // -emit-module writes <module>.swiftmodule beside the
                     // library, which is what the executable's import reads.
                     step(project, bundle, "test", "build library", "swiftc",
-                        ["-emit-library", "-emit-module"].concat(importArgs).concat(genFiles).concat(bundle.build.args)
-                            .concat(["-module-name", module, "-o", joinPath(build, "lib" + module + ".so")]),
+                        ["-emit-library", "-emit-module"].concat(importArgs)
+                        .concat(genFiles)
+                        .concat(bundle.build.args)
+                        .concat(["-module-name", module, "-o", joinPath(build, "lib" + module + ".so")]),
                         bundle.build.env, null);
                     // The backend names its entry TestMain.swift and the test
                     // classes live beside it; every test source compiles into
                     // the executable, the way the kotlin recipe does.
                     final linkArgs = systemPackage == null ? [] : ["-L", systemPackage, "-lSystemPackage"];
                     step(project, bundle, "test", "build test executable", "swiftc",
-                        importArgs.concat(testFiles).concat(bundle.build.args)
-                            .concat(["-I", build, "-L", build, "-l" + module]).concat(linkArgs)
+                        importArgs.concat(testFiles)
+                            .concat(bundle.build.args)
+                            .concat(["-I", build, "-L", build, "-l" + module])
+                            .concat(linkArgs)
                             .concat(["-o", joinPath(build, "test-runner")]),
                         bundle.build.env, null);
                     final runEnvSwift:Dynamic = Syntax.code("({...{0}})", runEnv);
@@ -816,9 +873,12 @@ class Driver {
         step(project, project.bundles[0], "compare", "manager build", "haxe", ["tools/test-consistency/manager.hxml"], null, repoRoot);
         // The manager's matrix and divergence list are the compare
         // result, so they print on success as well as failure.
-        final manager = runCommand("bun",
-            [joinPath(repoRoot, "out/test-consistency/manager.js"), "--dir=" + project.resultsDir, "--targets=" + ids, "--baseline=" + project.baseline],
-            project.root, null);
+        final manager = runCommand("bun", [
+            joinPath(repoRoot, "out/test-consistency/manager.js"),
+            "--dir=" + project.resultsDir,
+            "--targets=" + ids,
+            "--baseline=" + project.baseline
+        ], project.root, null);
         print(manager.output);
         if (manager.code != 0) {
             printErr('Error: action "compare" failed: the consistency manager exited with code ${manager.code}.');
@@ -886,6 +946,14 @@ class Driver {
         final action = rest.shift();
         final ids = rest;
         final project = loadProject(projectPath);
+        // Evidence capture reads the project identity once and allocates one
+        // fresh run directory for the whole invocation; without the setting
+        // it holds nothing and the driver behaves as before.
+        try {
+            ChildEvidence.begin(project.path);
+        } catch (problem:ChildEvidenceError) {
+            reportEvidenceFailure(problem);
+        }
         switch (action) {
             case "gen":
                 if (ids.length == 0) {
