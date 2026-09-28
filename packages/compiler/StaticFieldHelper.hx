@@ -1,6 +1,7 @@
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import SourceContainerAnalysis;
 
 /**
     Shared rules for feature 30 static field declarations.
@@ -188,29 +189,52 @@ class StaticFieldHelper {
         };
     }
 
+    /**
+        Whether the written type names the reserved read-only array source
+        face. The read-only query keeps its wider optional scope: an explicit
+        outer `Null<ReadOnlyArray<T>>` wrapper counts, because boundary
+        checks written against the wrapper must still see the read-only face.
+        Source identity and alias resolution come from
+        `SourceContainerAnalysis`; this adapter adds no recognition of its
+        own. Its legacy boolean maps an unresolved face to `false`; that
+        answer does not prove a resolved non-container. Production callers
+        consume typed class fields or expression types after Haxe typing.
+    **/
     public static function isReadOnlyArrayType(t:Null<Type>):Bool {
-        if (t == null)
-            return false;
-        return switch (t) {
-            // An optional read-only parameter carries Null<ReadOnlyArray<T>>;
-            // the wrapper strips so boundary checks see the abstract.
-            case TAbstract(a, [inner]) if (a.get().name == "Null" && a.get().pack.length == 0): isReadOnlyArrayType(inner);
-            case TAbstract(a, _): final abs = a.get(); abs.name == "ReadOnlyArray" && (abs.pack.join(".") == "std" || abs.module == "std.ReadOnlyArray");
-            case TType(d, _): final def = d.get(); def.name == "ReadOnlyArray" && (def.pack.join(".") == "std" || def.module == "std.ReadOnlyArray");
-            case TLazy(f): isReadOnlyArrayType(f());
+        final facts = SourceContainerAnalysis.analyze(t);
+        return switch (facts.face) {
+            case ReadOnlyArrayFace(_): true;
             case _: false;
         };
     }
 
+    /**
+        The element type of the written container when the spelling carries
+        no explicit outer `Null` wrapper. Both built-in containers qualify.
+        A nullable payload stays inside the element type and is available
+        through the analyzer's typed result for later consumers; this legacy
+        query does not widen to optional containers. `null` also represents an
+        unresolved input or a resolved non-container, so callers that need to
+        distinguish those states must use `SourceContainerAnalysis.analyze`.
+    **/
     public static function arrayElementType(t:Null<Type>):Null<Type> {
-        if (t == null)
+        final facts = SourceContainerAnalysis.analyze(t);
+        if (!matchesNoExplicitWrapper(facts)) {
             return null;
-        return switch (t) {
-            case TInst(c, params) if (c.get().name == "Array" && params.length > 0): params[0];
-            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length > 0): params[0];
-            case TType(d, params) if (d.get().name == "ReadOnlyArray" && params.length > 0): params[0];
-            case TLazy(f): arrayElementType(f());
+        }
+        return switch (facts.face) {
+            case MutableArray(element): element;
+            case ReadOnlyArrayFace(element): element;
             case _: null;
+        };
+    }
+
+    /** Whether the written spelling names the container with no explicit
+        outer `Null` wrapper. */
+    static function matchesNoExplicitWrapper(facts:SourceContainerAnalysis.SourceContainerFacts):Bool {
+        return switch (facts.wrapper) {
+            case NoExplicitWrapper: true;
+            case _: false;
         };
     }
 
@@ -251,12 +275,21 @@ class StaticFieldHelper {
         };
     }
 
+    /**
+        Whether the written type names the built-in mutable `Array` with no
+        explicit outer `Null` wrapper. Recognition is by declaration
+        identity from `SourceContainerAnalysis`, so a foreign declaration
+        that shares the name `Array` stays distinct. Its legacy boolean maps
+        an unresolved face or wrapper to `false`; callers must establish the
+        typed-analysis phase before interpreting that result as a non-array.
+    **/
     public static function isArrayType(t:Null<Type>):Bool {
-        if (t == null) {
+        final facts = SourceContainerAnalysis.analyze(t);
+        if (!matchesNoExplicitWrapper(facts)) {
             return false;
         }
-        return switch (t) {
-            case TInst(c, _): c.get().name == "Array";
+        return switch (facts.face) {
+            case MutableArray(_): true;
             case _: false;
         };
     }
