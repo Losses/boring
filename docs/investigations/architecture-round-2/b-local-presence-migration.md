@@ -210,3 +210,38 @@ The reviewed draft remains unaccepted.
 The executor retains implementation ownership and must return actual focused
 test evidence. Kotlin consumers remain outside the released implementation
 boundary until those source facts pass review.
+
+## Source-analysis checkpoint review
+
+The later pure source-analysis candidate is integrated as checkpoint
+`887d51e1`, with final wording correction `2a4502b0`. Its focused Haxe fixture
+reports 167 observed rows against 167 authored expectations on the integrated
+revision. Independent reviews found and returned four transfer boundaries:
+Boolean value joins, construction after an abrupt operand, catch reachability,
+and writes after assignment-right evaluation. A repeated physical AST node
+also needed a sticky ambiguity result. Each has an authored discriminator;
+mutations that restored those faulty rules failed their discriminators. A
+separate one-sided join mutation remains beyond this fixture's reach.
+
+The final read-only review raised a possible property-setter effect gap. A
+pinned Haxe 4.3.7 probe showed that ordinary and compound property assignments
+enter the analysis as setter calls whose argument contains the right-side
+expression. The call transfer invalidates captured facts after evaluating that
+argument. The tested post-setter reads were `Unknown`, and the source runtime
+confirmed the setter changed the captured value. The original static concern
+does not apply to those forms. Catch-type matching and ordinary-source reuse
+of one physical typed node remain separate precision boundaries.
+
+The executor reported style success before its final wording edits. Checking
+the committed candidate found seven style hits; an execution agent corrected
+those comments, and the coordinator reran the exact style command on the
+integrated bytes with zero hits. The existing verification rule already
+requires a new check when inputs change. Future handoffs must report the
+post-edit input identity beside each result so a previous success cannot be
+mistaken for evidence about later bytes.
+
+This checkpoint has no Kotlin consumer. The 1,732-line analysis module also
+requires an ownership and decomposition review before this batch can stand as
+the maintainable implementation requested by the owner. Focused source facts
+do not establish Kotlin generation, native behavior, warning acceptance, or
+the required Boring and fixed Tiqian regressions.
