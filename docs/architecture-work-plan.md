@@ -107,7 +107,10 @@ integrated at `cde5e97c`, with its source ruling still pending. B1 observes actu
 flow consumers through the existing child-evidence recorder. These tasks do
 not complete P08's mechanism migration or P09's regression requirements.
 
-B1's replay verdict is undergoing negative-control verification. The next
+B1's bounded observation fixture and replay verdict passed coordinator review
+and all 18 production-entry controls. Its two target nonconformance observations
+remain recorded in the [B1 review](investigations/architecture-round-2/b-flow-consumer-boundary.md).
+The next
 [local-presence migration](investigations/architecture-round-2/b-local-presence-migration.md)
 has a coordinator-owned source-fact and Kotlin consumer contract. Its writer
 uses a separate pinned checkout; shared comparison analysis, B1's replay tools
