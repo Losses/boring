@@ -63,6 +63,18 @@ A shared mechanism with per-target variation uses one of five shapes. A variatio
 
 ## Emission quality
 
+### Runtime names
+
+Name generated runtime types and operations by their semantics. Public names
+carry no product brand prefix, including the compiler's brand or a consuming
+application's brand. The ordinary read-only array view is `ReadOnlyArray<T>`.
+Use the target's module or namespace facilities to resolve name conflicts.
+Review new runtime declarations together with type mappings and generated
+signatures. An existing branded name does not authorize new branded names;
+record existing names as migration work with their compatibility obligations.
+
+### Acceptance
+
 1. Generated code compiles without warnings on every target: kotlinc, rustc, the TypeScript compiler, the Dart analyzer, and the Swift type-checker. A translation that produces a warning is an emitter defect with the same severity as a translation that produces wrong output.
 2. Warning suppression markers are banned in generated trees: no `@Suppress` or `@SuppressWarnings` (Kotlin), no `#[allow]` (Rust), no `@ts-ignore`, `@ts-expect-error`, or `eslint-disable` marker (TypeScript), no `// ignore:` comment (Dart). The emitter produces code that does not warn.
 3. Acceptance for any emitter change counts the warning lines in the target suite output that name files under the generated trees; the count is zero. A change that replaces a warning with a suppression marker fails acceptance.

@@ -26,6 +26,12 @@ import VarFusionPlan;
 import ValueTypeSupport;
 import ValueTypePlan;
 import ValueTypeSupport.ValueTypeOperator;
+import swiftcompiler.SwiftArrayBoundary.SwiftArrayOptionality;
+import swiftcompiler.SwiftArrayBoundary.SwiftArrayPresenceFact;
+import swiftcompiler.SwiftArrayBoundary.SwiftArrayPreparedOperand;
+import swiftcompiler.SwiftArrayBoundary.SwiftArrayStorage;
+import swiftcompiler.SwiftParameterPlan.SwiftParameterDecision;
+import swiftcompiler.SwiftParameterPlan.SwiftParameterDefaultMode;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Swift.
@@ -130,6 +136,7 @@ class SwiftExpr {
 
     /** Local declarations that `localName` may rename; parameters stay raw. */
     final localDeclIds:Map<Int, Bool> = [];
+
     // Locals whose binding the full method body never reads: their
     // declarations take the underscore name Swift treats as intentionally
     // unused. (UnusedLocalNaming)
@@ -142,6 +149,11 @@ class SwiftExpr {
     // wrapper or a null-literal initializer): their reads compare against
     // nil live. (NonOptionalNilComparison)
     final optionalBindingLocals:Map<Int, Bool> = [];
+
+    /** Stable Swift container representation selected by each local declaration. */
+    final localArrayBindingStorages:Map<Int, SwiftArrayStorage> = [];
+
+    final parameterPlansByLocal:Map<Int, SwiftParameterDecision> = [];
 
     /** Local function bodies by variable id, for call-site fallibility. */
     final localFunctions:Map<Int, TypedExpr> = [];
@@ -257,105 +269,66 @@ class SwiftExpr {
         };
     }
 
-    /**
-        Whether a sanctioned default needs the `try` marker anywhere, so it
-        cannot render in Swift's default-argument position (a default
-        argument expression cannot throw) nor on the right side of `??`
-        (that autoclosure cannot throw). The signature side and the body
-        side both read this one predicate over the value shape, so the
-        routing special cases cannot make them disagree. Static calls and
-        constructors route through the fallibility table the way call
-        sites do; an instance-method default carries no receiver class in
-        the value shape, so only its nested values are examined.
-    **/
-    public function coalescingDefaultThrows(value:DefaultArgExpander.CoalescingDefaultValue):Bool {
-        return switch (value) {
-            case CStaticCall(modulePath, className, methodName, args): coalescingStaticTargetThrows(modulePath, className,
-                    methodName) || coalescingArgsThrow(args);
-            case CConstructorCall(modulePath, className, args): SwiftFallibility.isThrowing(modulePath, className, "new", false) || coalescingArgsThrow(args);
-            case CMethodCall(receiver, _, args): coalescingDefaultThrows(receiver) || coalescingArgsThrow(args);
-            case CFieldAccess(receiver, _): coalescingDefaultThrows(receiver);
-            case CConditional(c, t, f): coalescingDefaultThrows(c) || coalescingDefaultThrows(t) || coalescingDefaultThrows(f);
-            case CBinaryOp(_, left, right): coalescingDefaultThrows(left) || coalescingDefaultThrows(right);
-            case _: false;
+    /** Lower the selected registered default once and return its output facts. */
+    function lowerCoalescingExpression(site:{
+        parameter:String,
+        defaultExpr:TypedExpr,
+        valueExpr:TypedExpr,
+        value:DefaultArgExpander.CoalescingDefaultValue
+    }):{
+        text:String,
+        materialized:Bool,
+        sourceType:Null<Type>,
+        storage:SwiftArrayStorage,
+        optionality:SwiftArrayOptionality,
+        presenceFact:SwiftArrayPresenceFact
+    } {
+        final value = site.value;
+        final valueText = expr(site.valueExpr);
+        final parameterPlan = switch (stripWrap(site.valueExpr).expr) {
+            case TLocal(v): parameterPlansByLocal.get(v.id);
+            case _: null;
         };
-    }
-
-    /**
-        Whether a sanctioned default mentions a private static member.
-        Swift requires a default argument value to be at least as
-        accessible as the function that carries it, so a public signature
-        may not reference a private helper. Such defaults move into the
-        body, where the private access is legal.
-    **/
-    public function coalescingDefaultReferencesPrivate(value:DefaultArgExpander.CoalescingDefaultValue):Bool {
-        return switch (value) {
-            case CStaticCall(modulePath, className, methodName, args):
-                coalescingStaticTargetPrivate(modulePath, className, methodName) || coalescingArgsPrivate(args);
-            case CConstructorCall(_, _, args): coalescingArgsPrivate(args);
-            case CMethodCall(receiver, _, args): coalescingDefaultReferencesPrivate(receiver) || coalescingArgsPrivate(args);
-            case CFieldAccess(receiver, _): coalescingDefaultReferencesPrivate(receiver);
-            case CConditional(c, t, f): coalescingDefaultReferencesPrivate(c) || coalescingDefaultReferencesPrivate(t) || coalescingDefaultReferencesPrivate(f);
-            case CBinaryOp(_, left, right): coalescingDefaultReferencesPrivate(left) || coalescingDefaultReferencesPrivate(right);
-            case _: false;
-        };
-    }
-
-    function coalescingArgsPrivate(args:Array<DefaultArgExpander.CoalescingDefaultValue>):Bool {
-        for (a in args) {
-            if (coalescingDefaultReferencesPrivate(a))
-                return true;
+        final sourceType = parameterPlan == null ? site.valueExpr.t : parameterPlan.sourceType;
+        final sourceStorage = parameterPlan == null ? SwiftArrayBoundary.sourceStorage(sourceType) : parameterPlan.bodyStorage;
+        final canProduceNull = DefaultArgExpander.coalescingCanBeNull(value);
+        if (parameterPlan != null && parameterPlan.bodyOptionality == SwiftArrayOptionality.RequiredOperand) {
+            return {
+                text: valueText,
+                materialized: false,
+                sourceType: sourceType,
+                storage: parameterPlan.bodyStorage,
+                optionality: parameterPlan.bodyOptionality,
+                presenceFact: parameterPlan.bodyPresenceFact
+            };
         }
-        return false;
-    }
-
-    function coalescingStaticTargetPrivate(modulePath:String, className:String, methodName:String):Bool {
-        final resolved = try {
-            Context.getType(modulePath + "." + className);
-        } catch (_:Dynamic) {
-            null;
-        };
-        return switch (resolved) {
-            case TInst(c, _):
-                var found = false;
-                for (f in c.get().statics.get()) {
-                    if (f.name == methodName) {
-                        found = !f.isPublic && !f.meta.has(":allow");
-                        break;
-                    }
-                }
-                found;
-            case _: false;
-        };
-    }
-
-    /**
-        Resolves the class a sanctioned static call names and asks the
-        same routing the call-site arm uses, so a default and its call
-        twin can never disagree on the `try` marker. The expander only
-        builds `CStaticCall` from a resolved class reference, so the
-        reconstructed path resolves; the fallback covers an unresolved
-        path without failing the build.
-    **/
-    function coalescingStaticTargetThrows(modulePath:String, className:String, methodName:String):Bool {
-        final resolved = try {
-            Context.getType(modulePath + "." + className);
-        } catch (_:Dynamic) {
-            null;
-        };
-        return switch (resolved) {
-            case TInst(c, _): SwiftFallibility.staticCallThrows(c.get(), methodName);
-            case TAbstract(a, _):
-                // The expander builds `CStaticCall` from class references
-                // only, so an abstract is a defensive shape: a value type's
-                // constructor ask routes through its own metadata, anything
-                // else falls to the fallibility table under the routed module.
-                final abs = a.get();
-                if (ValueTypeSupport.isMarkedAbstract(abs) && methodName == ValueTypeSupport.constructorName(abs)) {
-                    return ValueTypeSupport.constructorThrows(abs);
-                }
-                SwiftFallibility.routedCallThrows(modulePath, className, methodName, true);
-            case _: SwiftFallibility.routedCallThrows(modulePath, className, methodName, true);
+        if (SwiftParameterPlan.coalescingDefaultThrows(value)) {
+            return {
+                text: throwingCoalescingText(value, valueText, site.valueExpr.t),
+                materialized: true,
+                sourceType: sourceType,
+                storage: sourceStorage,
+                optionality: canProduceNull ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand,
+                presenceFact: canProduceNull ? SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayPresenceFact.DefaultMaterializedPresent
+            };
+        }
+        if (ternaryNonNullBothArms(site.valueExpr)) {
+            return {
+                text: valueText,
+                materialized: false,
+                sourceType: sourceType,
+                storage: sourceStorage,
+                optionality: SwiftArrayOptionality.RequiredOperand,
+                presenceFact: SwiftArrayPresenceFact.BranchValuesRequired
+            };
+        }
+        return {
+            text: valueText + " ?? " + coalescingDefaultText(value, site.valueExpr.t),
+            materialized: true,
+            sourceType: sourceType,
+            storage: sourceStorage,
+            optionality: canProduceNull ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand,
+            presenceFact: canProduceNull ? SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayPresenceFact.DefaultMaterializedPresent
         };
     }
 
@@ -372,15 +345,6 @@ class SwiftExpr {
         return "(" + valueText + " == nil ? try " + coalescingDefaultText(value, targetType) + " : " + valueText + "!)";
     }
 
-    function coalescingArgsThrow(args:Array<DefaultArgExpander.CoalescingDefaultValue>):Bool {
-        for (a in args) {
-            if (coalescingDefaultThrows(a)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /** Renders a sanctioned default in Swift's native parameter context. */
     public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
@@ -389,17 +353,20 @@ class SwiftExpr {
             case CString(s): quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: types.optionalNone(targetType);
-            // An empty read-only array default renders as the native literal;
-            // the declared type annotation gives Swift its element type. An
-            // optional parameter carries Null<ReadOnlyArray<T>>, so the Null
-            // wrapper strips before the read-only check.
-            case CEmptyArray: StaticFieldHelper.isReadOnlyArrayType(DefaultArgExpander.withoutNull(targetType)) ? "[]" : "TiqianArray()";
+            case CEmptyArray:
+                if (StaticFieldHelper.isReadOnlyArrayType(DefaultArgExpander.withoutNull(targetType))) {
+                    final element = StaticFieldHelper.arrayElementType(DefaultArgExpander.withoutNull(targetType));
+                    element == null ?throw new haxe.Exception("read-only empty default is missing its element type"):"ReadOnlyArray<" + types.of(element) +
+                    ">()";
+                } else {
+                    "TiqianArray()";
+                }
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
             case CNegativeInfinity: FloatPrecision.isF32() ? "-Float.infinity" : "-Double.infinity";
             case CEnum(enumRef, enumField): types.of(Type.TEnum(enumRef, [])) + "." + SwiftDecl.lowerFirst(enumField.name);
             case CParameterRead(name): callParameterValues != null && callParameterValues.exists(name) ? callParameterValues.get(name) : (constructorParameterValues != null
-                && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : name);
+                    && constructorParameterValues.exists(name) ? constructorParameterValues.get(name) : name);
             case CInstanceFieldRead(name): "self." + SwiftNameEscape.escape(name);
             case CLocalRead(name): name;
             case CFieldAccess(CParameterRead(staticPath), ""): constructorParameterValues != null && constructorParameterValues.exists(staticPath) ? constructorParameterValues.get(staticPath) : coalescingStaticFieldText(staticPath);
@@ -419,12 +386,13 @@ class SwiftExpr {
                     case CNull: true;
                     case _: false;
                 };
-                if (endOmitted)
-                    types.resident ? "Array(" + s + "[max(0, Int(" + start + "))...])" : "String(decoding: " + s + ".utf16.dropFirst(Int(max(0, " + start + "))), as: UTF16.self)";
-                else if (types.resident)
-                    "Array(" + s + "[Int(" + start + ")..<Int(" + coalescingDefaultText(args[1], targetType) + ")])";
-                else
-                    "substringUnits(" + s + ", " + start + ", " + coalescingDefaultText(args[1], targetType) + ")";
+                if (endOmitted) types.resident ? "Array(" + s + "[max(0, Int(" + start + "))...])" : "String(decoding: "
+                    + s
+                    + ".utf16.dropFirst(Int(max(0, "
+                    + start
+                    + "))), as: UTF16.self)"; else if (types.resident) "Array(" + s + "[Int(" + start + ")..<Int("
+                    + coalescingDefaultText(args[1],
+                        targetType) + ")])"; else "substringUnits(" + s + ", " + start + ", " + coalescingDefaultText(args[1], targetType) + ")";
             case CMethodCall(receiver, methodName, args):
                 coalescingDefaultText(receiver, targetType)
                 + "."
@@ -451,7 +419,7 @@ class SwiftExpr {
                 imports.value(modulePath, className);
                 className
                 + "("
-                                + completeCoalescingCallArgs(modulePath, "new", className, args, targetType).join(", ")
+                + completeCoalescingCallArgs(modulePath, "new", className, args, targetType).join(", ")
                 + ")";
         };
     }
@@ -759,26 +727,27 @@ class SwiftExpr {
                 final annotation = hasTypeAnnotation ? ": " + (optionalNullAnnotation ? types.of(localType) + "?" : types.of(localType)) : "";
                 final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation
                     && !optionalNullAnnotation;
-                var initText = switch (init.expr) {
+                final arrayBoundary = SwiftArrayBoundary.isBoundary(init.t, v.t);
+                var boundaryResult:Null<SwiftArrayPreparedOperand> = null;
+                var initText = if (arrayBoundary) {
+                    boundaryResult = lowerArrayBoundary(init, v.t);
+                    boundaryResult.text;
+                } else switch (init.expr) {
                     case TFunction(fn): functionLiteralNamed(v.name, fn);
                     default: {
                             final narrowedInit = isNarrowedLocalRead(init);
                             if (narrowedInit)
                                 nonOptionalInferred.set(v.id, true);
                             var rendered = narrowedInit ? narrowedLocalText(init) : expr(init);
-                            if (optionalValued(init) && hasTypeAnnotation && !narrowedInit
-                                && !isNullLeafType(v.t) && !optionalNullAnnotation && !StringTools.endsWith(rendered, "!"))
+                            if (optionalValued(init) && hasTypeAnnotation && !narrowedInit && !isNullLeafType(v.t) && !optionalNullAnnotation
+                                && !StringTools.endsWith(rendered, "!"))
                                 rendered += "!";
                             rendered;
                         }
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
                     initText = intToFloatText(initText);
-                // features/18: the annotated read-only declaration converts
-                // its mutable initializer to the native value Array.
-                if (hasTypeAnnotation && StaticFieldHelper.isReadOnlyArrayType(v.t) && isMutableArrayType(init.t))
-                    initText = "Array(" + initText + ")";
-                if (unwrapNullableInitializer && !StringTools.endsWith(initText, "!"))
+                if (unwrapNullableInitializer && !arrayBoundary && !StringTools.endsWith(initText, "!"))
                     initText += "!";
                 if (swiftShadowedLocals.exists(v.id))
                     return [];
@@ -825,21 +794,10 @@ class SwiftExpr {
                     case TSwitch(_, _, _):
                         return switchReturn(inner, depth);
                     case _:
-                        var retText = returnValue(ret);
+                        final readOnlyReturn = currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType);
+                        var retText = readOnlyReturn ? arrayBoundaryText(ret, currentReturnType) : returnValue(ret);
                         if (isIntType(emittedType(ret)) && currentReturnType != null && isFloatLeafType(currentReturnType))
                             retText = intToFloatText(retText);
-                        // features/18: a function returning ReadOnlyArray is the
-                        // decode boundary; the internal mutable container
-                        // converts to the native value Array at the return.
-                        if (currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) && isMutableArrayType(ret.t))
-                            retText = "Array(" + retText + ")";
-                        // features/18: an array-literal return into a read-only
-                        // slot drops the mutable container wrapper: the slot
-                        // type drives the literal's element inference, which a
-                        // merged ternary or an empty literal's monomorph hides
-                        // from the type check above. (ReadOnlyAssignBoundary)
-                        if (currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType))
-                            retText = new EReg("TiqianArray\\(\\[([^\\[\\]]*)\\]\\)", "g").replace(retText, "[$1]");
                         final tryKw = containsThrowingCall(ret) ? "try " : "";
                         return [indent(depth) + "return " + tryKw + retText];
                 }
@@ -1054,7 +1012,8 @@ class SwiftExpr {
         if (!isNullExpr(other))
             return;
         switch (stripWrap(target).expr) {
-            case TLocal(_) | TField(_, _): out.push(stripWrap(target));
+            case TLocal(_) | TField(_, _):
+                out.push(stripWrap(target));
             case _:
         }
     }
@@ -1067,7 +1026,8 @@ class SwiftExpr {
     function addNarrowedFact(f:TypedExpr):Void {
         final inner = stripWrap(f);
         switch (inner.expr) {
-            case TLocal(v): narrowedLocals.set(v.id, true);
+            case TLocal(v):
+                narrowedLocals.set(v.id, true);
             case _:
                 for (a in narrowedAccess) {
                     if (sameAccess(a, inner))
@@ -1079,6 +1039,16 @@ class SwiftExpr {
 
     /** A guard clause that leaves the block keeps its negated facts after it. */
     function absorbNarrowing(s:TypedExpr):Void {
+        // A write replaces the value whose prior non-null test justified an
+        // unwrap. Drop that flow fact before considering whether this same
+        // assignment copies a separately narrowed value.
+        switch (stripWrap(s).expr) {
+            case TBinop(OpAssign | OpAssignOp(_), target, _):
+                invalidateNarrowing(target);
+            case TVar(v, _):
+                narrowedLocals.remove(v.id);
+            case _:
+        }
         switch (stripWrap(s).expr) {
             case TIf(c, body, els) if (els == null && escapesBlock(body)):
                 for (f in truthFacts(c, false))
@@ -1087,6 +1057,22 @@ class SwiftExpr {
                 narrowedLocals.set(v.id, true);
             case TBinop(OpAssign, {expr: TLocal(v)}, r) if (matchNarrowedAccess(r) && isNullableLocal(v)):
                 narrowedLocals.set(v.id, true);
+            case _:
+        }
+    }
+
+    function invalidateNarrowing(target:TypedExpr):Void {
+        final inner = stripWrap(target);
+        switch (inner.expr) {
+            case TLocal(v):
+                narrowedLocals.remove(v.id);
+            case TField(_, _):
+                var i = narrowedAccess.length - 1;
+                while (i >= 0) {
+                    if (sameAccess(narrowedAccess[i], inner))
+                        narrowedAccess.splice(i, 1);
+                    i--;
+                }
             case _:
         }
     }
@@ -1208,7 +1194,10 @@ class SwiftExpr {
         for (s in stmts.slice(0, stmts.length - 1))
             for (line in stmtLines(s, 1))
                 out.push(line);
-        out.push(indent(1) + "return " + readOnlyReturnText(expr(stmts[stmts.length - 1])));
+        final value = stmts[stmts.length - 1];
+        var valueText = currentReturnType != null
+            && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) ? arrayBoundaryText(value, currentReturnType) : expr(value);
+        out.push(indent(1) + "return " + valueText);
         out.push("})()");
         return out.join("\n");
     }
@@ -1240,24 +1229,24 @@ class SwiftExpr {
                                                 && isCompoundAssignTarget(stmts[i + 2], base)
                                                 && !restMentionsLocal(base.id, stmts, i + 3)
                                                 && !restMentionsLocal(index.id, stmts, i + 3)) {
-                                                    final subst = new Map<Int, TypedExpr>();
-                                                    subst.set(base.id, baseInit);
-                                                    subst.set(index.id, indexInit);
-                                                    out.push(substituteLocals(stmts[i + 2], subst));
-                                                    i += 3;
-                                                    fused = true;
-                                                }
+                                                final subst = new Map<Int, TypedExpr>();
+                                                subst.set(base.id, baseInit);
+                                                subst.set(index.id, indexInit);
+                                                out.push(substituteLocals(stmts[i + 2], subst));
+                                                i += 3;
+                                                fused = true;
+                                            }
                                         case _:
                                     }
                                     if (!fused
                                         && isCompoundAssignTarget(stmts[i + 1], base)
                                         && !restMentionsLocal(base.id, stmts, i + 2)) {
-                                            final subst = new Map<Int, TypedExpr>();
-                                            subst.set(base.id, baseInit);
-                                            out.push(substituteLocals(stmts[i + 1], subst));
-                                            i += 2;
-                                            fused = true;
-                                        }
+                                        final subst = new Map<Int, TypedExpr>();
+                                        subst.set(base.id, baseInit);
+                                        out.push(substituteLocals(stmts[i + 1], subst));
+                                        i += 2;
+                                        fused = true;
+                                    }
                                 }
                             case _:
                         }
@@ -1307,10 +1296,13 @@ class SwiftExpr {
         var found = false;
         function scan(node:TypedExpr) {
             switch (node.expr) {
-                case TLocal(v): if (v.id == id) found = true;
+                case TLocal(v):
+                    if (v.id == id)
+                        found = true;
                 case _:
             }
-            if (!found) TypedExprTools.iter(node, scan);
+            if (!found)
+                TypedExprTools.iter(node, scan);
         }
         scan(e);
         return found;
@@ -1415,18 +1407,18 @@ class SwiftExpr {
         return switch (stripWrap(e).expr) {
             case TConst(TInt(_)): "Int32(" + expr(e) + ")";
             case TField(subj, fa) if (fieldName(fa) == "length"):
-    // A String length is the UTF-16 code-unit count (the Haxe
-    // String.length contract) and never Swift's grapheme-cluster count.
-    // Resident modules render String as [UInt16], where .count already
-    // counts units; business modules need .utf16.count to keep index
-    // loops aligned with the UTF-16 indexing ABI.
-    if (isStringSubject(subj) && !types.resident)
-        return "Int32(" + receiverText(stripCast(subj)) + ".utf16.count)";
-    // The receiver strips the typer's projection cast for the same reason
-    // TArray does: indexing/counting never crosses the mutable line, and the
-    // Null<ReadOnlyArray> -> Array unwrap cast must not become a container
-    // conversion. (ReadOnlyIndexReceiver)
-    return "Int32(" + receiverText(stripCast(subj)) + ".count)";
+                // A String length is the UTF-16 code-unit count (the Haxe
+                // String.length contract) and never Swift's grapheme-cluster count.
+                // Resident modules render String as [UInt16], where .count already
+                // counts units; business modules need .utf16.count to keep index
+                // loops aligned with the UTF-16 indexing ABI.
+                if (isStringSubject(subj) && !types.resident)
+                    return "Int32(" + receiverText(stripCast(subj)) + ".utf16.count)";
+                // The receiver strips the typer's projection cast for the same reason
+                // TArray does: indexing/counting never crosses the mutable line, and the
+                // Null<ReadOnlyArray> -> Array unwrap cast must not become a container
+                // conversion. (ReadOnlyIndexReceiver)
+                return "Int32(" + receiverText(stripCast(subj)) + ".count)";
             case _: expr(e);
         };
     }
@@ -1636,8 +1628,7 @@ class SwiftExpr {
         return switch (stripWrap(e).expr) {
             case TCall(fn, [key]):
                 switch (stripWrap(fn).expr) {
-                    case TField(subject, fa) if (fieldName(fa) == "get" && isSortedBuilderSubject(subject)
-                            && isSortedBuilderClass(subject.t)):
+                    case TField(subject, fa) if (fieldName(fa) == "get" && isSortedBuilderSubject(subject) && isSortedBuilderClass(subject.t)):
                         {builder: subject, key: key};
                     case _: null;
                 }
@@ -1673,7 +1664,18 @@ class SwiftExpr {
                 if (cf.get().name == "put" && args.length == 2 && isSortedBuilderSubject(subj) && optionalValued(args[1])):
                 nullablePutCounter += 1;
                 final name = "np" + nullablePutCounter;
-                [indent(depth) + "if let " + name + " = " + expr(args[1]) + " { " + expr(subj) + ".put(" + expr(args[0]) + ", " + name + ") }"];
+                [indent(depth)
+                    + "if let "
+                    + name
+                    + " = "
+                    + expr(args[1])
+                    + " { "
+                    + expr(subj)
+                    + ".put("
+                    + expr(args[0])
+                    + ", "
+                    + name
+                    + ") }"];
             case _: null;
         };
     }
@@ -1698,10 +1700,19 @@ class SwiftExpr {
                                 final discard = isDiscardedCall(e) ? "_ = " : "";
                                 nullablePutCounter += 1;
                                 final name = "np" + nullablePutCounter;
-                                [
-                                    indent(depth) + discard + tryKw + expr(e),
-                                    indent(depth) + "if let " + name + " = " + localName(v) + " { " + expr(src.builder) + ".put(" + expr(src.key) + ", " + name + ") }"
-                                ];
+                                [indent(depth) + discard + tryKw + expr(e),
+                                    indent(depth)
+                                    + "if let "
+                                    + name
+                                    + " = "
+                                    + localName(v)
+                                    + " { "
+                                    + expr(src.builder)
+                                    + ".put("
+                                    + expr(src.key)
+                                    + ", "
+                                    + name
+                                    + ") }"];
                             case _: null;
                         }
                     case _: null;
@@ -1729,7 +1740,24 @@ class SwiftExpr {
                 final valText = assignmentValue(l, r);
                 // Only one branch runs, so the value is evaluated once
                 // whichever way the bounds check falls.
-                [indent(depth) + "if " + idxText + " < " + arrText + ".count { " + arrText + "[" + idxText + "] = " + tryKw + valText + " } else { " + arrText + ".append(" + tryKw + valText + ") }"];
+                [indent(depth)
+                    + "if "
+                    + idxText
+                    + " < "
+                    + arrText
+                    + ".count { "
+                    + arrText
+                    + "["
+                    + idxText
+                    + "] = "
+                    + tryKw
+                    + valText
+                    + " } else { "
+                    + arrText
+                    + ".append("
+                    + tryKw
+                    + valText
+                    + ") }"];
             case _: null;
         };
     }
@@ -1763,7 +1791,12 @@ class SwiftExpr {
         // append and reserveCapacity update the object referenced by this
         // class instance. Use var when the local binding receives a
         // different array.
-        out.push(indent(depth) + (mutated.exists(alloc.arr.id) ? "var " : "let ") + arrName + " = TiqianArray<" + types.of(alloc.elem) + ">()");
+        out.push(indent(depth)
+            + (mutated.exists(alloc.arr.id) ? "var " : "let ")
+            + arrName
+            + " = TiqianArray<"
+            + types.of(alloc.elem)
+            + ">()");
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
             + strideValue(loop.bound) + ", by: 1) {");
@@ -1847,13 +1880,16 @@ class SwiftExpr {
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
                 // The receiver strips the typer's projection cast: indexing a
-                // Null<ReadOnlyArray> field inserts an unsafe cast onto the
-                // underlying Array, and rendering that cast as the container
-                // conversion would wrap the native value Array in TiqianArray
-                // for a value read that never crosses the mutable line.
+                // Null<ReadOnlyArray> field inserts an unsafe cast into the
+                // read-only view path. Rendering that projection as a new
+                // mutable container would change storage for a value read
+                // that never crosses the mutable line.
                 // (ReadOnlyIndexReceiver)
                 final receiver = mapReceiver == null ? stripCast(arr) : arr;
-                final read = mapReceiver == null ? receiverText(receiver) + "[Int(" + narrowedText(idx) + ")]" : expr(mapReceiver) + "[" + narrowedText(idx) + "]";
+                final read = mapReceiver == null ? receiverText(receiver) + "[Int(" + narrowedText(idx) + ")]" : expr(mapReceiver)
+                    + "["
+                    + narrowedText(idx)
+                    + "]";
                 // haxe.io.Bytes reads carry UInt8 elements; the Haxe
                 // access widens to Int.
                 return mapReceiver == null && isBytesType(arr) ? "Int32(" + read + ")" : read;
@@ -1877,7 +1913,8 @@ class SwiftExpr {
                 final elemFloat = isFloatLeafType(elemType);
                 final renderedElems = [
                     for (x in elems) {
-                        var t = expr(x);
+                        var t = elemType != null
+                            && StaticFieldHelper.isReadOnlyArrayType(elemType) ? arrayBoundaryText(x, elemType) : expr(x);
                         if (elemFloat && isIntType(emittedType(x))) t = intToFloatText(t);
                         // A non-optional element type rejects a nullable
                         // element; the element unwraps at the literal. A
@@ -1885,20 +1922,11 @@ class SwiftExpr {
                         // the bang binds to the whole value, and a null
                         // literal has no value to unwrap.
                         // (ArrayLiteralElementDemand)
-                        if (elemType != null && !isNullLeafType(elemType) && optionalValued(x) && !isNullLiteral(x)
-                            && !StringTools.endsWith(t, "!"))
-                            t = switch (stripWrap(x).expr) {
+                        if (elemType != null && !isNullLeafType(elemType) && optionalValued(x) && !isNullLiteral(x) && !StringTools.endsWith(t,
+                            "!")) t = switch (stripWrap(x).expr) {
                                 case TLocal(_): t + "!";
                                 case _: "(" + t + ")!";
                             };
-                        // features/18: an element whose literal slot is a
-                        // read-only array crosses the container line when the
-                        // element expression is a mutable Array; the typer
-                        // leaves that coercion implicit inside the literal, so
-                        // the literal's element type drives the conversion
-                        // here. (ReadOnlyLiteralElement)
-                        if (elemType != null && StaticFieldHelper.isReadOnlyArrayType(elemType) && isMutableArrayType(x.t))
-                            t = "Array(" + t + ")";
                         t;
                     }
                 ];
@@ -1908,7 +1936,7 @@ class SwiftExpr {
                 // the protocol members; the interface element type is carried
                 // explicitly so the existential stays in the array.
                 final body = isInterfaceType(elemType) ? "(" + inner + " as [" + types.of(elemType) + "])" : inner;
-                return "TiqianArray(" + body + ")";
+                return elemType == null ? "TiqianArray(" + body + ")" : "TiqianArray<" + types.of(elemType) + ">(" + body + ")";
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -1931,35 +1959,8 @@ class SwiftExpr {
                 return functionLiteral(f);
             case TIf(c, t, f) if (f != null):
                 final coalescing = coalescingSiteFor(e);
-                if (coalescing != null) {
-                    if (currentLocalName != null && currentClass != null && currentField != null) {
-                        final value = DefaultArgExpander.coalescingDefaultForLocalParam(currentClass, currentField, currentLocalName, coalescing.parameter);
-                        if (value != null) {
-                            if (coalescingDefaultThrows(value)) {
-                                return throwingCoalescingText(value, expr(coalescing.valueExpr), coalescing.valueExpr.t);
-                            }
-                            emissionTrace("COALESCE_DEFAULT", expr(coalescing.valueExpr));
-                            // If the value expression already handles the
-                            // nil case via a ternary, the extra coalescing
-                            // is redundant: the ternary result is always
-                            // non-optional. (RedundantCoalescingSkip)
-                            final valueText = expr(coalescing.valueExpr);
-                            if (StringTools.startsWith(StringTools.ltrim(valueText), "(if ("))
-                                return valueText;
-                            final defaultText = coalescingDefaultText(value, coalescing.valueExpr.t);
-                            // A mutable-container LHS read converts to the
-                            // native container when the sanctioned default is
-                            // the native array literal: the ?? needs both
-                            // sides of one type. (ReadOnlyAssignBoundary)
-                            final lhs = isMutableArrayType(coalescing.valueExpr.t)
-                                && StringTools.startsWith(defaultText, "[")
-                                ? "(" + valueText + ").map { Array($0) }"
-                                : valueText;
-                            return lhs + " ?? " + defaultText;
-                        }
-                    }
-                    return expr(coalescing.valueExpr);
-                }
+                if (coalescing != null)
+                    return lowerCoalescingExpression(coalescing).text;
                 final optional = optionalIf(e, c, t, f);
                 if (optional != null)
                     return optional;
@@ -2041,15 +2042,27 @@ class SwiftExpr {
     }
 
     public static function emissionTrace(tag:String, text:String):Void {
-#if boring_fold_debug
+        #if boring_fold_debug
         Sys.stderr().writeString("KTRACE " + tag + " [" + text + "]\n");
-#end
+        #end
     }
 
     function optionalIf(e:TypedExpr, c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
+        final site = optionalIfSite(c, ifTrue, ifFalse);
+        if (site == null)
+            return null;
+        final targetText = expr(site.target);
+        emissionTrace("OPTIONAL_IF", targetText);
+        return targetText + " ?? " + coalescingFallbackText(site.fallback, e.t);
+    }
+
+    /** Shared structural decision for nil-merge lowering and array boundaries. */
+    function optionalIfSite(c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<{target:TypedExpr, fallback:TypedExpr}> {
         var target:Null<TypedExpr> = null;
+        var comparison:Null<Binop> = null;
         switch (stripWrap(c).expr) {
-            case TBinop(OpEq, left, right) | TBinop(OpNotEq, left, right):
+            case TBinop(op, left, right) if (op == OpEq || op == OpNotEq):
+                comparison = op;
                 if (isNullExpr(right)) {
                     target = optionalGuardTarget(left);
                 } else if (isNullExpr(left)) {
@@ -2071,9 +2084,12 @@ class SwiftExpr {
         if (trueMatches == falseMatches) {
             return null;
         }
+        // The target arm must be selected by the non-null outcome of the
+        // comparison; otherwise a nil-merge would change the original branch.
+        if ((comparison == OpNotEq) != trueMatches)
+            return null;
         final fallback = trueMatches ? ifFalse : ifTrue;
-        emissionTrace("OPTIONAL_IF", expr(target));
-        return expr(target) + " ?? " + coalescingFallbackText(fallback, e.t);
+        return {target: target, fallback: fallback};
     }
 
     /**
@@ -2093,8 +2109,7 @@ class SwiftExpr {
     /** A `receiver.get(k)`/`receiver.at(i)` lookup is stable across a guard and its arm. */
     function isStableLookupCall(fn:TypedExpr):Bool {
         return switch (stripWrap(fn).expr) {
-            case TField(subj, FInstance(_, _, cf)):
-                (cf.get().name == "get" || cf.get().name == "at") && isStableAccess(subj);
+            case TField(subj, FInstance(_, _, cf)): (cf.get().name == "get" || cf.get().name == "at") && isStableAccess(subj);
             case _: false;
         };
     }
@@ -2124,8 +2139,7 @@ class SwiftExpr {
             case [TField(sa, fa), TField(sb, fb)]: fieldName(fa) == fieldName(fb) && sameAccess(sa, sb);
             case [TIdent(na), TIdent(nb)]: na == nb;
             case [TConst(ca), TConst(cb)]: Type.enumEq(ca, cb);
-            case [TCall(fa, aa), TCall(fb, ab)]:
-                isStableLookupCall(fa) && aa.length == ab.length && sameAccess(fa, fb) && sameAccessAll(aa, ab);
+            case [TCall(fa, aa), TCall(fb, ab)]: isStableLookupCall(fa) && aa.length == ab.length && sameAccess(fa, fb) && sameAccessAll(aa, ab);
             case _: false;
         };
     }
@@ -2183,8 +2197,7 @@ class SwiftExpr {
         return switch (stripWrap(e).expr) {
             case TCall(fn, [key]):
                 switch (stripWrap(fn).expr) {
-                    case TField(subject, fa) if (fieldName(fa) == "get"
-                            && sameAccess(subject, guard.subject) && sameAccess(key, guard.key)):
+                    case TField(subject, fa) if (fieldName(fa) == "get" && sameAccess(subject, guard.subject) && sameAccess(key, guard.key)):
                         stripWrap(e);
                     case _: null;
                 }
@@ -2240,7 +2253,10 @@ class SwiftExpr {
                     case _: value;
                 };
                 final text = optionalExpr(resolved);
-                abs.name + "(" + (isIntType(emittedType(resolved)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(text) : text) + ")";
+                abs.name
+                + "("
+                + (isIntType(emittedType(resolved)) && ValueTypeSupport.isFloatRepresentation(abs) ? intToFloatText(text) : text)
+                + ")";
         };
     }
 
@@ -2451,18 +2467,12 @@ class SwiftExpr {
                         // required (Swift rejects the comparison), and the warning
                         // brings a silently weakened test into view where it
                         // happens. (NonOptionalNilComparison)
-                        Context.warning(
-                            "NonOptionalNilComparison folded `"
-                            + (op == OpNotEq ? "!= null" : "== null")
-                            + "` to " + (op == OpNotEq ? "true" : "false")
-                            + "; subject is non-optional: "
-                            + (switch (stripWrap(subject).expr) {
+                        Context.warning("NonOptionalNilComparison folded `" + (op == OpNotEq ? "!= null" : "== null") + "` to "
+                            + (op == OpNotEq ? "true" : "false") + "; subject is non-optional: " + (switch (stripWrap(subject).expr) {
                                 case TLocal(v): "local " + v.name;
                                 case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): "field " + cf.get().name;
                                 case _: Std.string(stripWrap(subject).expr).substr(0, 80);
-                            }),
-                            e.pos
-                        );
+                            }), e.pos);
                         return op == OpNotEq ? "true" : "false";
                     }
                 }
@@ -2509,6 +2519,8 @@ class SwiftExpr {
         coercions stay transparent.
     **/
     function castText(inner:TypedExpr, target:Type):String {
+        if (SwiftArrayBoundary.isBoundary(inner.t, target))
+            return arrayBoundaryText(inner, target);
         final rendered = expr(inner);
         // Haxe unifies Int with Float, so an Int operand in a Float cast is
         // transparent; Swift needs the explicit conversion.
@@ -2516,12 +2528,9 @@ class SwiftExpr {
             return intToFloatText(rendered);
         // features/18: a Haxe Array<->ReadOnlyArray implicit cast crosses the
         // mutable/immutable container boundary, and the two lower to different
-        // Swift types (TiqianArray vs the native value Array); the unify check
+        // Swift types (TiqianArray vs the ReadOnlyArray view); the unify check
         // below would accept the cast silently, so the container conversion
         // renders first.
-        final container = arrayBoundaryText(inner, rendered, target);
-        if (container != null)
-            return container;
         if (Context.unify(inner.t, target)) {
             return rendered;
         }
@@ -2539,24 +2548,179 @@ class SwiftExpr {
         The container conversion of an Array<->ReadOnlyArray boundary cast,
         or null when the cast does not cross the mutable/immutable line
         (features/18). Mutable Array lowers to TiqianArray while
-        ReadOnlyArray lowers to the native value Array, so implicit casts on the Haxe side render as the Swift container
-        initializers.
+        ReadOnlyArray lowers to a reference view over TiqianArray, so implicit
+        casts on the Haxe side render as the Swift view initializer.
     **/
-    function arrayBoundaryText(inner:TypedExpr, rendered:String, target:Type):Null<String> {
-        if (StaticFieldHelper.isReadOnlyArrayType(target)) {
-            if (isMutableArrayType(inner.t)) {
-                // An optional slot keeps its Optional and maps the container
-                // conversion inside; a plain slot converts directly.
-                // (ReadOnlyAssignBoundary)
-                if (isNullLeafType(target))
-                    return "(" + rendered + ").map { Array($0) }";
-                return "Array(" + rendered + ")";
+    function arrayBoundaryText(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null, destinationOptionalOverride:Null<Bool> = null):String
+        return lowerArrayBoundary(inner, target, actualOptional, destinationOptionalOverride).text;
+
+    /**
+        Render one boundary and retain its actual result facts. For direct
+        expressions the storage producer is SwiftType's Haxe Array or
+        ReadOnlyArray mapping: locals, fields, parameters, calls, branches,
+        and collection constructors preserve that declared container type.
+        Empty and null literals have their own producer identity. A completed
+        boundary returns the plan's result representation so a consumer need
+        not guess from its rendered text.
+    **/
+    function lowerArrayBoundary(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null,
+            destinationOptionalOverride:Null<Bool> = null):SwiftArrayPreparedOperand {
+        if (!SwiftArrayBoundary.isBoundary(inner.t, target))
+            return fail(inner, "array boundary renderer called for a non-boundary");
+        final defaultSite = coalescingSiteFor(inner);
+        if (defaultSite == null) {
+            switch (inner.expr) {
+                case TIf(condition, whenTrue, whenFalse):
+                    return lowerArrayConditionalBoundary(inner, condition, whenTrue, whenFalse, target, destinationOptionalOverride);
+                case _:
             }
-            return null;
         }
-        if (isMutableArrayType(target) && StaticFieldHelper.isReadOnlyArrayType(inner.t))
-            return "TiqianArray(" + rendered + ")";
-        return null;
+        final operand:SwiftArrayPreparedOperand = if (defaultSite != null) {
+            final lowered = lowerCoalescingExpression(defaultSite);
+            {
+                text: lowered.text,
+                sourceType: lowered.sourceType,
+                storage: lowered.storage,
+                optionality: lowered.optionality,
+                presenceFact: lowered.presenceFact
+            };
+        } else {
+            final guardedOptional = guardedOptionalBoundaryOperand(inner, target);
+            if (guardedOptional != null) {
+                guardedOptional;
+            } else {
+                prepareArrayOperand(inner, actualOptional);
+            }
+        };
+        final plan = SwiftArrayBoundary.prepare(operand, target, destinationOptionalOverride);
+        if (plan == null)
+            return fail(inner, "array boundary has no prepared storage decision");
+        if (plan.elementType == null)
+            return fail(inner, "array boundary is missing its element type");
+        final elementText = types.of(plan.elementType);
+        return {
+            text: SwiftArrayBoundary.render(plan, operand.text, elementText),
+            sourceType: target,
+            storage: plan.resultStorage,
+            optionality: plan.resultOptionality,
+            presenceFact: plan.presenceFact
+        };
+    }
+
+    /** Lower both lazy arms to one destination representation before rendering the conditional. */
+    function lowerArrayConditionalBoundary(inner:TypedExpr, condition:TypedExpr, whenTrue:TypedExpr, whenFalse:TypedExpr,
+            target:Type, destinationOptionalOverride:Null<Bool>):SwiftArrayPreparedOperand {
+        final nilMerge = optionalIfSite(condition, whenTrue, whenFalse);
+        if (nilMerge != null) {
+            final targetValue = lowerArrayBoundary(nilMerge.target, target, null, destinationOptionalOverride);
+            final fallbackValue = lowerArrayBoundary(nilMerge.fallback, target, null, destinationOptionalOverride);
+            final text = targetValue.optionality == SwiftArrayOptionality.RequiredOperand
+                ? targetValue.text
+                : targetValue.text + " ?? " + fallbackValue.text;
+            final optionality = targetValue.optionality == SwiftArrayOptionality.OptionalOperand
+                && fallbackValue.optionality == SwiftArrayOptionality.OptionalOperand
+                ? SwiftArrayOptionality.OptionalOperand
+                : SwiftArrayOptionality.RequiredOperand;
+            final storage = targetValue.storage == SwiftArrayStorage.NullArrayValue ? fallbackValue.storage : targetValue.storage;
+            return {
+                text: text,
+                sourceType: inner.t,
+                storage: storage,
+                optionality: optionality,
+                presenceFact: optionality == SwiftArrayOptionality.OptionalOperand
+                    ? SwiftArrayPresenceFact.NoPresenceProof
+                    : SwiftArrayPresenceFact.BranchValuesRequired
+            };
+        }
+
+        final trueValue = lowerArrayBoundary(whenTrue, target, null, destinationOptionalOverride);
+        final falseValue = lowerArrayBoundary(whenFalse, target, null, destinationOptionalOverride);
+        final optionality = trueValue.optionality == SwiftArrayOptionality.OptionalOperand
+            || falseValue.optionality == SwiftArrayOptionality.OptionalOperand
+            ? SwiftArrayOptionality.OptionalOperand
+            : SwiftArrayOptionality.RequiredOperand;
+        if (optionality == SwiftArrayOptionality.OptionalOperand && destinationOptionalOverride == false)
+            return fail(inner, "optional conditional array result cannot satisfy a required boundary");
+        final storage = trueValue.storage == SwiftArrayStorage.NullArrayValue ? falseValue.storage : trueValue.storage;
+        return {
+            text: conditionText(condition) + " ? " + trueValue.text + " : " + falseValue.text,
+            sourceType: inner.t,
+            storage: storage,
+            optionality: optionality,
+            presenceFact: optionality == SwiftArrayOptionality.OptionalOperand
+                ? SwiftArrayPresenceFact.NoPresenceProof
+                : SwiftArrayPresenceFact.BranchValuesRequired
+        };
+    }
+
+    /**
+        Prepare the source of a structural null merge before its contextual
+        result type can hide the source storage. The shared nil-merge decision
+        guarantees one stable target arm and a nil fallback, so lowering the
+        target preserves branch behavior and evaluates it once.
+    **/
+    function guardedOptionalBoundaryOperand(inner:TypedExpr, target:Type):Null<SwiftArrayPreparedOperand> {
+        final nilMerge = switch (inner.expr) {
+            case TIf(condition, whenTrue, whenFalse): optionalIfSite(condition, whenTrue, whenFalse);
+            case _: null;
+        };
+        if (nilMerge == null || !isNullExpr(nilMerge.fallback))
+            return null;
+        final source = nilMerge.target;
+        if (!SwiftArrayBoundary.isOptionalArrayType(source.t)
+            || SwiftArrayBoundary.sourceStorage(source.t) != SwiftArrayStorage.MutableArrayWrapper
+            || !SwiftArrayBoundary.isBoundary(source.t, target))
+            return null;
+        return prepareArrayOperand(source);
+    }
+
+    /** Prepare one operand's rendered text and actual representation facts together. */
+    function prepareArrayOperand(e:TypedExpr, actualOptional:Null<Bool> = null):SwiftArrayPreparedOperand {
+        final isOptional = actualOptional == null ? arrayOperandOptionality(e) : actualOptional;
+        final recorded = switch (stripWrap(e).expr) {
+            case TLocal(v): localArrayBindingStorages.get(v.id);
+            case _: null;
+        };
+        return {
+            text: arrayOperandText(e),
+            sourceType: e.t,
+            storage: recorded == null ? SwiftArrayBoundary.sourceStorage(e.t, isEmptyArrayDecl(e), isNullLiteral(e)) : recorded,
+            optionality: isOptional ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand,
+            presenceFact: arrayOperandPresenceFact(e)
+        };
+    }
+
+    /** Actual optionality of the value the current Swift expression lowering produces. */
+    function arrayOperandOptionality(e:TypedExpr):Bool {
+        if (isNarrowed(e))
+            return false;
+        if (ternaryNonNullBothArms(e))
+            return false;
+        switch (stripWrap(e).expr) {
+            case TLocal(v) if (parameterPlansByLocal.exists(v.id)):
+                return parameterPlansByLocal.get(v.id).bodyOptionality == SwiftArrayOptionality.OptionalOperand;
+            case _:
+        }
+        if (isNullLeafType(e.t) && isNonOptionalDeclared(e))
+            return false;
+        return optionalValued(e) || isNullLeafType(e.t);
+    }
+
+    function arrayOperandPresenceFact(e:TypedExpr):SwiftArrayPresenceFact {
+        if (isNarrowed(e))
+            return SwiftArrayPresenceFact.GuardProvenPresent;
+        if (ternaryNonNullBothArms(e))
+            return SwiftArrayPresenceFact.BranchValuesRequired;
+        switch (stripWrap(e).expr) {
+            case TLocal(v) if (parameterPlansByLocal.exists(v.id)):
+                return parameterPlansByLocal.get(v.id).bodyPresenceFact;
+            case _:
+        }
+        if (!SwiftArrayBoundary.isOptionalArrayType(e.t))
+            return SwiftArrayPresenceFact.SourceTypeRequired;
+        if (isNonOptionalDeclared(e))
+            return SwiftArrayPresenceFact.DefaultMaterializedPresent;
+        return SwiftArrayPresenceFact.NoPresenceProof;
     }
 
     /** Whether the type is the mutable Haxe Array, which lowers to TiqianArray. */
@@ -2595,11 +2759,8 @@ class SwiftExpr {
         inference, which a merged ternary or an empty literal's monomorph
         hides from the Haxe type check. (ReadOnlyAssignBoundary)
     **/
-    function readOnlyReturnText(t:String):String {
-        if (currentReturnType == null || !StaticFieldHelper.isReadOnlyArrayType(currentReturnType))
-            return t;
-        return new EReg("TiqianArray\\(\\[([^\\[\\]]*)\\]\\)", "g").replace(t, "[$1]");
-    }
+    function arrayOperandText(e:TypedExpr):String
+        return isNarrowed(e) ? narrowedText(e) : expr(e);
 
     /** Only the arithmetic compound ops accept a widened operand. */
     function isArithmeticOp(op:Binop):Bool {
@@ -2640,6 +2801,8 @@ class SwiftExpr {
         so mixed operators on one tier always wrap on the right.
     **/
     function assignmentValue(target:TypedExpr, value:TypedExpr):String {
+        if (SwiftArrayBoundary.isBoundary(value.t, target.t))
+            return arrayBoundaryText(value, target.t);
         var rendered = expr(value);
         if (isIntType(emittedType(value)) && isFloatTyped(target))
             rendered = intToFloatText(rendered);
@@ -2652,13 +2815,6 @@ class SwiftExpr {
         // unifies to the read-only slot type, so the boundary reads the
         // underlying parameter's declared type through the site.
         // (ReadOnlyAssignBoundary)
-        final source = switch (coalescingSiteFor(value)) {
-            case null: value;
-            case site: site.valueExpr;
-        };
-        final container = arrayBoundaryText(source, rendered, target.t);
-        if (container != null)
-            rendered = container;
         return optionalValued(value) && !StringTools.endsWith(rendered, "!") && !isNullLeafType(target.t) ? rendered + "!" : rendered;
     }
 
@@ -2669,10 +2825,11 @@ class SwiftExpr {
                     final text = expr(a);
                     if (!optionalValued(a) || StringTools.endsWith(text, "!"))
                         text;
-                    else switch (stripWrap(a).expr) {
-                        case TLocal(_): text + "!";
-                        case _: "(" + text + ")!";
-                    }
+                    else
+                        switch (stripWrap(a).expr) {
+                            case TLocal(_): text + "!";
+                            case _: "(" + text + ")!";
+                        }
                 };
         };
     }
@@ -2693,9 +2850,9 @@ class SwiftExpr {
             case TCall(_, _) if (isNullLeafType(ret.t)): currentFuncReturnsOptional ? expr(ret) : expr(ret) + "!";
             case TLocal(v) if (currentFuncReturnsOptional): expr(ret);
             case TLocal(v) if (optionalAnnotated.exists(v.id) || (optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id))): {
-                final text = expr(ret);
-                StringTools.endsWith(text, "!") ? text : text + "!";
-            };
+                    final text = expr(ret);
+                    StringTools.endsWith(text, "!") ? text : text + "!";
+                };
             case TLocal(_):
                 switch (Context.follow(ret.t)) {
                     case TAbstract(a, _) if (a.get().name == "Float"): realType() + "(" + expr(ret) + ")";
@@ -2748,7 +2905,8 @@ class SwiftExpr {
     function operand(e:TypedExpr, parent:Binop, isRight:Bool, suppressUnwrap:Bool = false):String {
         final rendered = switch (stripWrap(e).expr) {
             case TConst(TNull): expr(e);
-            case _: !suppressUnwrap && (isLocalOptional(e) || isNarrowed(e)
+            case _: !suppressUnwrap && (isLocalOptional(e)
+                    || isNarrowed(e)
                     || (isStringCharCodeAt(e) && !types.resident)) ? "(" + expr(e) + ")!" : expr(e);
         };
         switch (stripWrap(e).expr) {
@@ -3140,7 +3298,9 @@ class SwiftExpr {
                 final a = args[i];
                 final pt = i < paramTypes.length ? paramTypes[i] : null;
                 final demandsValue = pt != null && !isNullLeafType(pt);
-                var t = if (SwiftInoutParams.isMutatingCallArg(fn, i)) {
+                var t = if (pt != null && StaticFieldHelper.isReadOnlyArrayType(pt) && !SwiftInoutParams.isMutatingCallArg(fn, i)) {
+                    arrayBoundaryText(a, pt);
+                } else if (SwiftInoutParams.isMutatingCallArg(fn, i)) {
                     switch (stripWrap(a).expr) {
                         case TLocal(_) | TField(_):
                             "&" + expr(a);
@@ -3169,35 +3329,10 @@ class SwiftExpr {
                             "&" + tempName;
                     }
                 } else {
-                    (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a))) && demandsValue ? expr(a) + "!" : expr(a);
+                    (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a)))
+                    && demandsValue ? expr(a) + "!" : expr(a);
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
-                // features/18: an Array argument reaching a ReadOnlyArray
-                // parameter crosses the container boundary the typer leaves
-                // implicit, so the conversion renders here. An empty literal
-                // drops the untyped container and infers from the slot. An
-                // optional source maps so the Optional wraps the converted
-                // container (the mutable container stays inside the Optional); a sanctioned coalescing
-                // ternary merges to the non-null Haxe type while its Swift
-                // render stays optional, so the site's underlying parameter
-                // read decides. (ReadOnlyAssignBoundary)
-                if (pt != null && StaticFieldHelper.isReadOnlyArrayType(pt)) {
-                    if (t == "TiqianArray([])")
-                        t = "[]";
-                    else if (isMutableArrayType(a.t) && !StringTools.contains(t, ".map { Array($0) }")) {
-                        final source = switch (coalescingSiteFor(a)) {
-                            case null: a;
-                            case site: site.valueExpr;
-                        };
-                        // A value the render above already force-unwrapped is
-                        // the container itself, so the conversion wraps it; the
-                        // optional mapping applies only while an Optional still
-                        // wraps the container. (ReadOnlyAssignBoundary)
-                        final stillOptional = !StringTools.endsWith(t, "!")
-                            && (isNullLeafType(a.t) || (source != a && isNullLeafType(source.t)));
-                        t = stillOptional ? "(" + t + ").map { Array($0) }" : "Array(" + t + ")";
-                    }
-                }
                 t;
             }
         ];
@@ -3225,7 +3360,11 @@ class SwiftExpr {
         // declaration is plain while the Haxe type keeps the Null wrapper,
         // so that wrapper must not unwrap here either.
         // (CoalescingLocalPlainBinding)
-        if ((!optionalValued(subj) && !isNullLeafType(subj.t) && !optionalValued(inner) && !isNullLeafType(inner.t) && !isNarrowed(subj))
+        if ((!optionalValued(subj)
+            && !isNullLeafType(subj.t)
+            && !optionalValued(inner)
+            && !isNullLeafType(inner.t)
+            && !isNarrowed(subj))
             || plainBoundCoalescingLocal(inner)) {
             return expr(subj);
         }
@@ -3280,7 +3419,8 @@ class SwiftExpr {
         // A local declared with a non-null Haxe type but a nil initializer
         // binds an optional Swift value; `optionalValued` sees the annotation
         // even though the Haxe flow type stays plain.
-        final unwrap = !narrowsInSwitch && !StringTools.endsWith(rendered, "!")
+        final unwrap = !narrowsInSwitch
+            && !StringTools.endsWith(rendered, "!")
             && ((!fromSource && nullable) || (optionalValued(arg) && !isNullLeafType(arg.t)));
         final value = !unwrap ? rendered : switch (stripWrap(arg).expr) {
             case TLocal(_): rendered + "!";
@@ -3341,9 +3481,9 @@ class SwiftExpr {
                     + "."
                     + ValueTypeSupport.representationFieldName(abs)
                     + ")";
-            case IsFloat: imports.runtime("formatFloatRuntime"); depth > 0 ? "\"\\(" + value + ")\"" : "String(decoding: formatFloatRuntime("
-                    + value
-                    + "), as: UTF16.self)";
+            case IsFloat:
+                imports.runtime("formatFloatRuntime");
+                depth > 0 ? "\"\\(" + value + ")\"" : "String(decoding: formatFloatRuntime(" + value + "), as: UTF16.self)";
             case IsInt | IsBool: depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
             case IsTypeParameter:
                 types.resident ? "Array(String(describing: " + value + ").utf16)" : (inConcat ? value : "String(describing: " + value + ")");
@@ -3762,8 +3902,7 @@ class SwiftExpr {
                         case "sumOfInt":
                             return sumOfIntCall(args, fn);
                         case "forEach":
-                            if (args.length == 2)
-                                return expr(args[0]) + ".forEach(" + expr(args[1]) + ")";
+                            if (args.length == 2) return expr(args[0]) + ".forEach(" + expr(args[1]) + ")";
                         case _:
                     }
                 }
@@ -3850,7 +3989,10 @@ class SwiftExpr {
                     return "String(decoding: " + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1])
                         + ")], as: UTF8.self)";
                 }
-                if (name == "indexOf" && isUnitArrayTyped(subj) && !isStringSubject(subj) && args.length >= 1
+                if (name == "indexOf"
+                    && isUnitArrayTyped(subj)
+                    && !isStringSubject(subj)
+                    && args.length >= 1
                     && (args.length == 1 || isNullLiteral(args[1]))) {
                     // Haxe Array.indexOf lowers onto the TiqianArray member,
                     // which reports the -1 miss the subset uses.
@@ -3858,7 +4000,8 @@ class SwiftExpr {
                 }
                 if (name == "lastIndexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
-                    return "Int32(" + s + ".lastIndex(of: " + optionalExpr(args[0]) + ".first!).map { " + s + ".distance(from: " + s + ".startIndex, to: $0) } ?? -1)";
+                    return "Int32(" + s + ".lastIndex(of: " + optionalExpr(args[0]) + ".first!).map { " + s + ".distance(from: " + s
+                        + ".startIndex, to: $0) } ?? -1)";
                 }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 2) {
                     // The two-argument form keeps the start offset: the
@@ -3884,10 +4027,15 @@ class SwiftExpr {
                         case TConst(TInt(n)): n >= 0 ? "" : "; if i < 0 { i = 0 }";
                         case _: "; if i < 0 { i = 0 }";
                     };
-                    return "Int32({ () -> Int in let h = Array(" + tryKw + s
-                        + ".utf16); let n = Array(" + expr(args[0])
-                        + ".utf16); var i = " + startText
-                        + startClamp + "; while i + n.count <= h.count { if Array(h[i..<(i + n.count)]) == n { return i }; i += 1 }; return -1 }())";
+                    return "Int32({ () -> Int in let h = Array("
+                        + tryKw
+                        + s
+                        + ".utf16); let n = Array("
+                        + expr(args[0])
+                        + ".utf16); var i = "
+                        + startText
+                        + startClamp
+                        + "; while i + n.count <= h.count { if Array(h[i..<(i + n.count)]) == n { return i }; i += 1 }; return -1 }())";
                 }
                 if (name == "indexOf" && isStringSubject(subj) && args.length >= 1) {
                     final s = receiverText(subj);
@@ -3913,16 +4061,20 @@ class SwiftExpr {
                     // return slot of that container type.
                     // (StringSplitContainer)
                     if (isEmptyDelimiterSplit(name, args))
-                        return "TiqianArray(" + (types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
-                            + receiverText(subj)
-                            + ".utf16).map { String(decoding: [$0], as: UTF16.self) }") + ")";
-                    return "TiqianArray(" + (types.resident ? receiverText(subj)
-                        + ".split(separator: "
-                        + expr(args[0])
-                        + ".first!, omittingEmptySubsequences: false).map { Array($0) }" : receiverText(subj)
-                        + ".split(separator: "
-                        + expr(args[0])
-                        + ", omittingEmptySubsequences: false).map { String($0) }") + ")";
+                        return "TiqianArray("
+                            + (types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
+                                + receiverText(subj)
+                                + ".utf16).map { String(decoding: [$0], as: UTF16.self) }")
+                            + ")";
+                    return "TiqianArray("
+                        + (types.resident ? receiverText(subj)
+                            + ".split(separator: "
+                            + expr(args[0])
+                            + ".first!, omittingEmptySubsequences: false).map { Array($0) }" : receiverText(subj)
+                            + ".split(separator: "
+                            + expr(args[0])
+                            + ", omittingEmptySubsequences: false).map { String($0) }")
+                        + ")";
                 }
                 if (name == "push") {
                     final elemType = switch (subj.t) {
@@ -4009,9 +4161,7 @@ class SwiftExpr {
                     if (endOmitted) {
                         body += " return " + open + "_a[_s..<_n]" + close + " }())";
                     } else {
-                        body += " let _t = Int("
-                            + expr(args[1])
-                            + "); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n);"
+                        body += " let _t = Int(" + expr(args[1]) + "); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n);"
                             + " let _e = _e0 < _s ? _s : _e0; return " + open + "_a[_s..<_e]" + close + " }())";
                     }
                     return body;
@@ -4489,11 +4639,15 @@ class SwiftExpr {
             case TFun(fargs, _): [for (a in fargs) a.t];
             case _: [for (_ in args) null];
         };
-        final parts = [for (i in 0...args.length) {
-            final a = args[i];
-            final pt = i < paramTypes.length ? paramTypes[i] : null;
-            pt != null && !isNullLeafType(pt) && optionalValued(a) ? expr(a) + "!" : expr(a);
-        }];
+        final parts = [
+            for (i in 0...args.length) {
+                final a = args[i];
+                final pt = i < paramTypes.length ? paramTypes[i] : null;
+                pt != null
+            && StaticFieldHelper.isReadOnlyArrayType(pt) ? arrayBoundaryText(a,
+                pt) : pt != null && !isNullLeafType(pt) && optionalValued(a) ? expr(a) + "!" : expr(a);
+            }
+        ];
         final names = payloadNames(ef);
         final labeled = [];
         for (i in 0...parts.length) {
@@ -4526,15 +4680,31 @@ class SwiftExpr {
             for (i in 0...args.length) {
                 final p = i < ps.length ? ps[i] : null;
                 final d = target == null ? null : DefaultArgExpander.defaultAt(target.c, target.n, i);
-                d != null
-                && p != null && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
-                    && !nilMergeChainNonOptional(expr(args[i])) ? (isMutableArrayType(args[i].t)
-                        // A mutable-container nil merge into a read-only
-                        // parameter maps the conversion on the Optional so
-                        // both ?? sides stay native. (ReadOnlyAssignBoundary)
-                        && StaticFieldHelper.isReadOnlyArrayType(p)
-                        ? "(" + expr(args[i]) + ".map { Array($0) } ?? " + defaultArgText(d, p) + ")"
-                        : "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")") : base[i];
+                if (p != null && StaticFieldHelper.isReadOnlyArrayType(p)) {
+                    if (d != null && isNullLiteral(args[i]))
+                        defaultArgText(d, p);
+                    else {
+                        final prepared = lowerArrayBoundary(args[i], p, null, true);
+                        if (d != null && isNullLeafType(args[i].t) && prepared.optionality == SwiftArrayOptionality.OptionalOperand)
+                            "("
+                            + prepared.text
+                            + " ?? "
+                            + defaultArgText(d, p)
+                            + ")";
+                        else
+                            prepared.text;
+                    }
+                } else if (d != null && p != null && isNullLiteral(args[i])) {
+                    defaultArgText(d, p);
+                } else if (d != null
+                    && p != null
+                    && isNullLeafType(args[i].t)
+                    && !ternaryNonNullBothArms(args[i])
+                    && !nilMergeChainNonOptional(expr(args[i]))) {
+                    "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
+                } else {
+                    base[i];
+                }
             }
         ];
         final firstPass = render();
@@ -4593,8 +4763,7 @@ class SwiftExpr {
     **/
     function ternaryNonNullBothArms(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
-            case TIf(_, t, f) if (f != null):
-                !isNullLeafType(t.t) && !isNullLiteral(t) && !isNullLeafType(f.t) && !isNullLiteral(f);
+            case TIf(_, t, f) if (f != null): !isNullLeafType(t.t) && !isNullLiteral(t) && !isNullLeafType(f.t) && !isNullLiteral(f);
             case _: false;
         }
     }
@@ -4614,30 +4783,37 @@ class SwiftExpr {
         for (i in 0...args.length) {
             final p = i < ps.length ? ps[i] : null;
             final d = DefaultArgExpander.defaultAt(cls, "new", i);
-            var text = d != null
+            var text = if (p != null && StaticFieldHelper.isReadOnlyArrayType(p)) {
+                if (d != null && isNullLiteral(args[i]))
+                    defaultArgText(d, p);
+                else {
+                    final prepared = lowerArrayBoundary(args[i], p, null, true);
+                    if (d != null && isNullLeafType(args[i].t) && prepared.optionality == SwiftArrayOptionality.OptionalOperand)
+                        "("
+                        + prepared.text
+                        + " ?? "
+                        + defaultArgText(d, p)
+                        + ")"
+                    else
+                        prepared.text;
+                }
+            } else if (d != null && p != null && isNullLiteral(args[i])) {
+                defaultArgText(d, p);
+            } else if (d != null
                 && p != null
-                && isNullLiteral(args[i]) ? defaultArgText(d, p) : d != null && p != null && isNullLeafType(args[i].t) && !ternaryNonNullBothArms(args[i])
-                && !nilMergeChainNonOptional(expr(args[i])) ? (isMutableArrayType(args[i].t)
-                    // Same read-only nil-merge conversion as callArgTexts.
-                    // (ReadOnlyAssignBoundary)
-                    && StaticFieldHelper.isReadOnlyArrayType(p)
-                    ? "(" + expr(args[i]) + ".map { Array($0) } ?? " + defaultArgText(d, p) + ")"
-                    : "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")") : p != null && !isNullLeafType(p) && optionalValued(args[i]) ? expr(args[i]) + "!" : expr(args[i]);
+                && isNullLeafType(args[i].t)
+                && !ternaryNonNullBothArms(args[i])
+                && !nilMergeChainNonOptional(expr(args[i]))) {
+                "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
+            } else if (p != null && !isNullLeafType(p) && optionalValued(args[i])) {
+                expr(args[i]) + "!";
+            } else {
+                expr(args[i]);
+            };
             // Haxe promotes an Int argument into a Float field without an
             // explicit cast; Swift needs the widening conversion.
             if (p != null && isIntType(emittedType(args[i])) && isFloatLeafType(p))
                 text = intToFloatText(text);
-            // features/18: an Array argument reaching a ReadOnlyArray
-            // parameter crosses the container boundary the typer leaves
-            // implicit, so the conversion renders here. An empty literal
-            // drops the untyped container and infers from the slot. The
-            // mapped nil merge above already crossed it.
-            if (p != null && StaticFieldHelper.isReadOnlyArrayType(p)) {
-                if (text == "TiqianArray([])")
-                    text = "[]";
-                else if (isMutableArrayType(args[i].t) && !StringTools.contains(text, ".map { Array($0) }"))
-                    text = "Array(" + text + ")";
-            }
             rendered.push(text);
             if (i < names.length)
                 constructorParameterValues.set(names[i], text);
@@ -4651,7 +4827,6 @@ class SwiftExpr {
             case TConst(TNull): true;
             case _: false;
         };
-
 
     function defaultArgText(v:DefaultArgExpander.DefaultArgValue, t:Type):String
         return switch (v) {
@@ -5202,8 +5377,7 @@ class SwiftExpr {
         switch (Context.follow(subj.t)) {
             case TInst(c, _):
                 final cls = c.get();
-                if (SwiftDecl.isException(cls)
-                    || (cls.pack.join(".") == "haxe" && cls.name == "Exception")) {
+                if (SwiftDecl.isException(cls) || (cls.pack.join(".") == "haxe" && cls.name == "Exception")) {
                     return expr(stripCast(subj)) + ".cause";
                 }
                 return null;
@@ -5389,7 +5563,10 @@ class SwiftExpr {
                     // write arm keeps all its writes. (MultiStatementArm)
                     if (value != null)
                         out.push(indent(depth) + value);
-                    value = returnValue != null ? expr(returnValue) : expr(s);
+                    value = returnValue != null ? currentReturnType != null
+                        && StaticFieldHelper.isReadOnlyArrayType(currentReturnType)
+                        && SwiftArrayBoundary.isBoundary(returnValue.t,
+                            currentReturnType) ? arrayBoundaryText(returnValue, currentReturnType) : expr(returnValue) : expr(s);
                 case MissingInit(s):
                     Context.error("swift target: declaration without initializer has no lowering", s.pos);
             }
@@ -5608,7 +5785,9 @@ class SwiftExpr {
                     // A coalescing local's declaration is plain, so its
                     // Null-wrapped Haxe type must not read as optional here.
                     // (CoalescingLocalPlainBinding)
-                    if (StringTools.endsWith(types.of(leaf.t), "?") && !plainBoundCoalescingLocal(leaf) && !isOptionalStringLeafType(leaf.t)) {
+                    if (StringTools.endsWith(types.of(leaf.t), "?")
+                        && !plainBoundCoalescingLocal(leaf)
+                        && !isOptionalStringLeafType(leaf.t)) {
                         rendered = "(" + rendered + " == nil ? \"null\" : String(describing: " + rendered + "!))";
                         needsHoist = true;
                     }
@@ -5788,8 +5967,7 @@ class SwiftExpr {
                 // fallibility comes from the per-body resolution. A
                 // parameter of the thunk type carries the harness callback
                 // fault instead; the emitted type is `() throws -> Void`.
-                return localFunctionThrows.exists(v.id)
-                    || (!localFunctions.exists(v.id) && SwiftType.isThrowingThunk(v.t));
+                return localFunctionThrows.exists(v.id) || (!localFunctions.exists(v.id) && SwiftType.isThrowingThunk(v.t));
             case _:
                 return false;
         }
@@ -5894,13 +6072,13 @@ class SwiftExpr {
             if (total > 0 && total == inside)
                 swiftShadowedLocals.set(id, true);
         }
-#if boring_fold_debug
+        #if boring_fold_debug
         if (debugOwner != null)
             for (id in boundIds.keys())
-                Sys.stderr().writeString("SHAREDUMP " + debugOwner + " id=" + id + " forcount=" + boundIds.get(id)
-                    + " total=" + (readCounts.exists(id) ? readCounts.get(id) : 0)
-                    + " inside=" + (readsInBound.exists(id) ? readsInBound.get(id) : 0) + "\n");
-#end
+                Sys.stderr()
+                    .writeString("SHAREDUMP " + debugOwner + " id=" + id + " forcount=" + boundIds.get(id) + " total="
+                        + (readCounts.exists(id) ? readCounts.get(id) : 0) + " inside=" + (readsInBound.exists(id) ? readsInBound.get(id) : 0) + "\n");
+        #end
     }
 
     function scanLocals(e:TypedExpr):Void {
@@ -5916,15 +6094,16 @@ class SwiftExpr {
                 PolicyQueries.noteDeclaredLocalName(v, usedNames, false);
                 final coalescing = coalescingSiteFor(init);
                 final coalescingValue = coalescing == null ? null : (currentLocalName != null ? DefaultArgExpander.coalescingDefaultForLocalParam(currentClass,
-                    currentField, currentLocalName, coalescing.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
+                    currentField, currentLocalName,
+                    coalescing.parameter) : DefaultArgExpander.coalescingDefaultForParam(currentClass, currentField, coalescing.parameter));
                 final localType = coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue, v.t) : v.t;
+                final bindingStorage = SwiftArrayBoundary.sourceStorage(localType);
+                if (bindingStorage != SwiftArrayStorage.OtherArrayStorage)
+                    localArrayBindingStorages.set(v.id, bindingStorage);
                 final hasTypeAnnotation = init != null && localDeclarationNeedsTypeAnnotation(v.t, init, coalescing != null);
                 if (hasTypeAnnotation && isNullLeafType(localType))
                     optionalAnnotated.set(v.id, true);
-                final unwrapNullableInitializer = init != null && isNullLeafType(init.t)
-                    && coalescing == null
-                    && !isNullLeafType(v.t)
-                    && hasTypeAnnotation;
+                final unwrapNullableInitializer = init != null && isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation;
                 if (init != null && isNonOptionalStringCharCodeAt(init)) {
                     nonOptionalInferred.set(v.id, true);
                 } else if (init != null && isNullLeafType(init.t) && coalescing == null && !unwrapNullableInitializer) {
@@ -5959,7 +6138,6 @@ class SwiftExpr {
                         final receiver = mapBackingReceiver(arr);
                         switch (stripWrap(receiver == null ? arr : receiver).expr) {
                             case TLocal(v):
-
                                 if (isClassInstanceType(v.t) && !isBytesLeafType(v.t)) {
                                     // Subscript writes update the referenced
                                     // object and leave the local binding unchanged.
@@ -5998,7 +6176,13 @@ class SwiftExpr {
                     case TField(subj, FInstance(_, _, cf)):
                         final n = cf.get().name;
                         final mutates = (isStringBuf(subj) && (n == "add" || n == "addChar"))
-                            || n == "push" || n == "pop" || n == "shift" || n == "unshift" || n == "splice" || n == "set" || n == "insert";
+                            || n == "push"
+                            || n == "pop"
+                            || n == "shift"
+                            || n == "unshift"
+                            || n == "splice"
+                            || n == "set"
+                            || n == "insert";
                         if (mutates) {
                             switch (stripWrap(subj).expr) {
                                 case TLocal(v):
@@ -6007,7 +6191,6 @@ class SwiftExpr {
                                         // value array: add/addChar write the binding
                                         // itself and require var.
                                         markMutated(v);
-
                                     } else if (isClassInstanceType(v.t) && !isBytesLeafType(v.t)) {
                                         // A class instance's method calls (push,
                                         // pop, set, ...) update the referenced
@@ -6111,13 +6294,9 @@ class SwiftExpr {
         for (a in f.args) {
             if (a.tvar == null)
                 continue;
-            final registered = DefaultArgExpander.defaultAt(cls, f.field.name, a.index);
-            if (registered == null)
-                continue;
-            final coalescing = DefaultArgExpander.coalescingOf(registered);
-            if (DefaultArgExpander.coalescingReadsParamForParam(cls, f.field.name, a.name) || coalescingDefaultThrows(coalescing))
-                continue;
-            if (!isNullLeafType(DefaultArgExpander.coalescingParameterType(coalescing, a.type)))
+            final decision = SwiftParameterPlan.forArgument(cls, f.field.name, a.name, a.index, a.type);
+            parameterPlansByLocal.set(a.tvar.id, decision);
+            if (isNullLeafType(a.type) && decision.bodyOptionality == SwiftArrayOptionality.RequiredOperand)
                 nonOptionalDeclared.set(a.tvar.id, true);
         }
     }
@@ -6355,8 +6534,7 @@ class SwiftExpr {
     }
 
     function localDeclarationNeedsTypeAnnotation(t:Type, init:TypedExpr, hasCoalescing:Bool = false):Bool {
-        return isEmptyArrayDecl(init)
-            // features/18: a read-only declaration bound to the mutable
+        return isEmptyArrayDecl(init) // features/18: a read-only declaration bound to the mutable
             // container annotates the native Array type; Swift inference
             // would otherwise pin TiqianArray and reject later read-only
             // consumption.
@@ -6385,8 +6563,8 @@ class SwiftExpr {
         return switch (Context.follow(t)) {
             case TInst(c, _):
                 switch (c.get().name) {
-                    case "SortedMap" | "SortedMapBuilder" | "SortedSet" | "SortedSetBuilder"
-                        | "SortedMapTable" | "SortedMapTableBuilder" | "SortedSetTable" | "SortedSetTableBuilder": true;
+                    case "SortedMap" | "SortedMapBuilder" | "SortedSet" | "SortedSetBuilder" | "SortedMapTable" | "SortedMapTableBuilder" | "SortedSetTable" |
+                        "SortedSetTableBuilder": true;
                     case _: false;
                 };
             case _: false;
@@ -6451,12 +6629,14 @@ class SwiftExpr {
             case TAbstract(a, _): a.get().name == "Float";
             case TInst(_, params):
                 for (p in params) {
-                    if (containsFloatType(p)) return true;
+                    if (containsFloatType(p))
+                        return true;
                 }
                 false;
             case TEnum(_, params):
                 for (p in params) {
-                    if (containsFloatType(p)) return true;
+                    if (containsFloatType(p))
+                        return true;
                 }
                 false;
             case TLazy(f): containsFloatType(f());
