@@ -328,3 +328,26 @@ and repeat the compiler override after entering that shell.
 Raw recovery records are retained outside the consumer checkout at
 `/tmp/boring-architecture-round1/g2-evidence/`. No consumer generation, native
 compilation, or regression suite was part of preflight acceptance.
+
+## Implementation preparation review
+
+D revision 2 supplies the missing local-initializer emitter paths. The
+coordinator checked the inline conversion and subsequent unwrap at
+`SwiftExpr.hx:759` through `:782`, together with guard fact propagation.
+The report also corrects its evidence claim: retained logs contain command
+output; exit statuses came from tool results, and generation logs were not
+saved. Future verification must preserve those records together.
+
+H provides the conversion consumer inventory used by
+[implementation brief J](architecture-round-1/j-boundary-implementation.md).
+The coordinator revised its proposed scope to include a focused boundary
+module and `SwiftDecl` consumers. Keeping every decision inside `SwiftExpr`
+or deferring static fields would leave the ownership problem partly intact.
+Runtime effect checks replace operand spelling counts as the primary evidence
+for evaluation count and order. The brief awaits the owner semantic ruling.
+
+Automatic review rejected task I's focused Tiqian generation twice before
+process creation. It retained the earlier preflight-only authorization limit
+despite the subsequent generation assignment. The coordinator requested
+explicit authorization for the bounded generation command. No generation
+result or consumer regression evidence exists from those attempts.
