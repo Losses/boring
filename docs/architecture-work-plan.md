@@ -98,17 +98,17 @@ target observations.
 
 | Package | Reviewable code and current boundary | Next acceptance step |
 | --- | --- | --- |
-| A: types, values, and representation | The Swift array pilot is an unfinished checkpoint at `e5e21854`; shared source-container facts are integrated at `f104e3bf`. The isolated admission fixture matches 41 authored rows. The latest A3 macro probe instead stops on a generic type representation mismatch, before Swift generation and execution; see the [probe review](investigations/architecture-round-2/a3-probe-review.md). | Resolve the A3 mismatch, rerun its full procedure, then migrate and verify comparison consumers across the five targets. |
-| B: flow and evaluation | B1's focused observation fixture is integrated. B2 source-local presence analysis and 167 authored observations are integrated as a checkpoint at `887d51e1`, with a style correction at `2a4502b0`. An unintegrated Kotlin consumer candidate still emits an unnecessary safe call in a nested guarded read; its fixture fails that assertion. See the [consumer review](investigations/architecture-round-2/b-kotlin-consumer-qa.md). | Correct the nested function consumer and remaining proof boundaries; rerun the Kotlin fixture and independently review its generated output before integration. |
+| A: types, values, and representation | The Swift array pilot remains an unfinished checkpoint at `e5e21854`; shared source-container facts are integrated at `f104e3bf`. Finite comparison analysis and its Swift consumer are integrated at `4581308d`. The coordinator's source admission run matched 41 rows, and the A3 procedure completed 19 expected stages, including Swift compilation and execution. | Migrate and verify comparison consumers in TypeScript, Kotlin, Rust, and Dart; retain five-target evidence. |
+| B: flow and evaluation | B1's focused observation fixture and B2's 167-row source-local presence analysis are integrated. Kotlin now consumes per-occurrence presence in function lowering at `3fb8c565`. The coordinator's focused procedure passed 28 output assertions, two mutation controls, Kotlin compilation, and JVM execution. | Extend this consumer pattern to remaining flow decisions and targets, then run broader regression checks. |
 | C: identity and writable places | Classifier and place observation fixtures are integrated at `5eb3429b`; they do not implement the place migration. | Establish place identity and writeback through target lowering. |
 | D: control-flow results | The source/target result specification is documented; the policy migration has not begun. | Start after the A and B interfaces required by branch and return construction are accepted. |
 | E: intrinsics and platform integration | Swift ordinary-array runtime dependency correction is integrated at `f3a8955a`; broader numeric, string, and module specifications remain open. | Validate target operation and helper closure across the affected languages. |
-| F: evidence and diagnostics | Child execution evidence is integrated at `8a2a9c6a`, shared stage membership verification at `d873da91`, and the first TypeScript source-occurrence fragment path at `8a9a8c49`. The second diagnostic batch passed its current focused runner, but [independent review](investigations/architecture-round-2/f-tsc-diagnostic-qa.md) found untested path, sidecar, and successful child evidence boundaries. | Correct and test those boundaries before integrating the second batch; then extend provenance through more lowering paths and preserve layered verdicts. |
+| F: evidence and diagnostics | Child execution evidence is integrated at `8a2a9c6a`, shared stage membership verification at `d873da91`, and TypeScript source-occurrence fragments at `8a9a8c49`. The corrected package `tsc` diagnostic path is integrated at `c4787f70`; focused replay covers relative and absolute paths, successful child streams, malformed metadata, and existing outside files. | Extend provenance through more lowering paths and preserve layered verdicts. |
 
 The fixed Tiqian revision is prepared, but the full Boring and Tiqian
 candidate gates have not run. P08–P10 and P12 remain open for that reason.
 The [candidate integration queue](investigations/architecture-round-2/candidate-integration-queue.md)
-assigns the next A, B, and F repairs and independent reviews.
+records the comparison, Kotlin, and diagnostic repairs and independent reviews.
 
 The owner selected shared alias visibility for ordinary read-only arrays.
 The unfinished Swift checkpoint is `e5e21854`. P07's prepared-value design
@@ -130,7 +130,7 @@ correction is integrated at `f3a8955a` and belongs to package E; its historical
 D1 assignment name remains in the evidence paths.
 
 A3's five-target runtime comparison observations now inform a shared comparison
-plan and its first Swift consumer, assigned to Luna at `f3a8955a`. Four other
+plan and its first Swift consumer, integrated at `4581308d`. Four other
 target migrations follow the reviewed interface. The enum-comparison fixture is
 integrated at `cde5e97c`, with its source ruling still pending. B1 observes actual
 flow consumers through the existing child-evidence recorder. These tasks do
@@ -141,9 +141,9 @@ and all 18 production-entry controls. Its two target nonconformance observations
 remain recorded in the [B1 review](investigations/architecture-round-2/b-flow-consumer-boundary.md).
 The next
 [local-presence migration](investigations/architecture-round-2/b-local-presence-migration.md)
-has a coordinator-owned source-fact and Kotlin consumer specification. Its writer
-uses a separate pinned checkout; shared comparison analysis, B1's replay tools
-and other target adapters remain outside that writer's ownership.
+has a coordinator-owned source-fact and Kotlin consumer specification. The
+focused Kotlin consumer is integrated at `3fb8c565`; B1's replay tools and
+other target adapters retain separate ownership.
 
 The fixed Tiqian input remains `8504d230228e8206689a2049bbb84b671c1f079a`.
 The previous validation checkout was absent during the latest environment
