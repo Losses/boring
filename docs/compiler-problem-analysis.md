@@ -153,6 +153,21 @@ come from one missing representation decision. Share a mechanism after
 comparing its semantics and target requirements under the implementation
 standard's consolidation procedure.
 
+Before reusing a conversion or comparison helper, inspect its current body,
+the operand representations its callers supply, and the declarations its
+output requires. Record whether it preserves a numeric value, reinterprets
+bits, truncates, checks a range, or rejects an input. A helper's name and
+comment do not establish those guarantees. An existing rule violation inside
+the helper remains a dependency to correct; reuse does not authorize it.
+
+When analyzing generic or recursive declarations, track declaration identity
+and actual type arguments together. A repeated declaration with different
+arguments can occur in finite nesting, such as a record holding another
+instantiation of itself. Distinguish that case from a recursive declaration
+that continually expands its arguments. State the traversal's termination
+argument and how unresolved obligations reach consumers. A repeated name or
+arbitrary depth limit cannot establish source rejection.
+
 ## Investigation and repair procedure
 
 ### Establish the authority of each claim
