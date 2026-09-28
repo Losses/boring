@@ -1,0 +1,8 @@
+# Focused observation entry for the place contract fixtures.
+# Run from the repository root; the caller supplies the output path so
+# every attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/place-contract/observe.hxml \
+#     -js out/place-contract/runs/<run>/observe.js
+-cp tests/haxe/place-contract
+-cp samples
+-main place.PlaceObserve
