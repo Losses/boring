@@ -3,10 +3,10 @@ package reflaxe.kotlin;
 /**
     The test-annotation coordinates the Kotlin target emits for generated
     test entries. Kotlin reserves the kotlin package for its own standard
-    library, so the annotation lives in the runtime's own namespace instead
-    of any compiled package. The literals sit in this module, outside the
-    compiler-boundary-checked directory, because they name the runtime's
-    package rather than an identifier of the sources being compiled.
+    library, so the annotation lives in the runtime's own namespace.
+    The literals sit in this module, outside the
+    compiler-boundary-checked directory, because they identify the runtime
+    package. The package containing compiled source varies by consumer.
 **/
 class KotlinTestMeta {
     /** The runtime package the generated test annotation is declared in. */
