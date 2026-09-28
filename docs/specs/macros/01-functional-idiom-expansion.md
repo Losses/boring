@@ -13,7 +13,7 @@ lambdas that never become values. `let` / `also` / `apply` (81 uses) stay
 hand-rewritten into local bindings; they have no standard-library oracle on
 any target, so recognition would buy no independent evidence. `groupBy`
 (7 uses) is excluded because its product is a `Map<K, Array<V>>` and no
-ordered multimap contract is ruled.
+ordered multimap ruling exists.
 
 This spec amends `docs/specs/features/09-iterators.md` (functional iteration
 ban), `docs/specs/style/01-haxe-style-standard.md` (`V02`), and

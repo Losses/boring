@@ -229,7 +229,7 @@ Fields could live in `Float32Array` so storage rounds to binary32.
    `Float` and `Double` both implement, so the method renderings follow
    the type table unchanged.
 7. **FPHelper and the wire boundary.** The FPHelper runtime keeps its
-   64-bit bit-layout contract: `i64_to_double` and `double_to_i64` (and
+   64-bit bit-layout rule: `i64_to_double` and `double_to_i64` (and
    their Kotlin and TypeScript forms) stay f64. Under `f32` the call
    dispatch translates `FPHelper.i64ToDouble(low, high)` to the runtime
    variant `i64_to_f32(low, high)`, which decodes the same 8 wire bytes

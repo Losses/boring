@@ -306,7 +306,7 @@ enum SourcePresence {
 }
 
 enum SourcePresenceReason {
-    ProducerContract(producer:SourceProducer);
+    ProducerRule(producer:SourceProducer);
 
     /** A null comparison held its non-null outcome on every path here. */
     GuardPresentOutcome(testedOperator:SourceGuardOperator);
@@ -330,8 +330,8 @@ enum SourcePresenceReason {
 }
 
 /**
-    The source producer contracts this batch recognizes. Each names the rule
-    that establishes presence. A written type selects which contract applies
+    The source producer rules this batch recognizes. Each names the construct
+    that establishes presence. A written type selects which rule applies
     at a node form and never establishes presence by itself.
 **/
 enum SourceProducer {
@@ -560,7 +560,7 @@ class SourceEnvironment {
 
     static function sameReason(left:SourcePresenceReason, right:SourcePresenceReason):Bool {
         return switch [left, right] {
-            case [ProducerContract(l), ProducerContract(r)]: l == r;
+            case [ProducerRule(l), ProducerRule(r)]: l == r;
             case [GuardPresentOutcome(l), GuardPresentOutcome(r)]
                 | [GuardAbsentOutcome(l), GuardAbsentOutcome(r)]: l == r;
             case [NullAssignment, NullAssignment]
@@ -1070,18 +1070,18 @@ class SourcePresenceWalk {
             case TArrayDecl(elements):
                 final listed = evalList(env, elements, policy);
                 return done(listed.environment, e,
-                    SourcePresence.Present(ProducerContract(SourceProducer.CollectionConstruction)), policy, listed.exits);
+                    SourcePresence.Present(ProducerRule(SourceProducer.CollectionConstruction)), policy, listed.exits);
             case TNew(_, _, args):
                 final listed = evalList(env, args, policy);
                 if (listed.environment == null)
                     return noTransfer(listed.exits);
                 final after = afterCall(listed.environment);
-                return done(after, e, SourcePresence.Present(ProducerContract(SourceProducer.ObjectConstruction)), policy,
+                return done(after, e, SourcePresence.Present(ProducerRule(SourceProducer.ObjectConstruction)), policy,
                     append(listed.exits, [SourceEdge.ThrowOfBody(after)]));
             case TObjectDecl(fields):
                 final listed = evalList(env, [for (field in fields) field.expr], policy);
                 return done(listed.environment, e,
-                    SourcePresence.Present(ProducerContract(SourceProducer.ObjectConstruction)), policy, listed.exits);
+                    SourcePresence.Present(ProducerRule(SourceProducer.ObjectConstruction)), policy, listed.exits);
             case TCall(fn, args):
                 final callee = eval(env, fn, policy);
                 if (callee.environment == null)
@@ -1137,7 +1137,7 @@ class SourcePresenceWalk {
     /**
         One binary operation. An assignment writes its binding inside this
         transfer, so every consumer of the expression sees the write.
-        Short-circuit operands follow the contract's true and false exit
+        Short-circuit operands follow the rule's true and false exit
         table, and an operand whose controlling exit is unreachable is never
         evaluated.
     **/
@@ -1439,7 +1439,7 @@ class SourcePresenceWalk {
     **/
     function functionValue(env:SourceEnvironment, node:TypedExpr, fn:TFunc, policy:SourceEvalPolicy):SourceValueTransfer {
         if (!policy.record)
-            return done(env, node, SourcePresence.Present(ProducerContract(SourceProducer.ObjectConstruction)), policy, []);
+            return done(env, node, SourcePresence.Present(ProducerRule(SourceProducer.ObjectConstruction)), policy, []);
         final inherited:Array<SourceCaptureFact> = [];
         for (fact in input.outerCaptureFacts)
             inherited.push(fact);
@@ -1459,7 +1459,7 @@ class SourcePresenceWalk {
             outerCaptureFacts: inherited
         });
         nestedBodies.set(node, child.run());
-        return done(env, node, SourcePresence.Present(ProducerContract(SourceProducer.ObjectConstruction)), policy, []);
+        return done(env, node, SourcePresence.Present(ProducerRule(SourceProducer.ObjectConstruction)), policy, []);
     }
 
     // ------------------------------------------------------------------
@@ -1517,7 +1517,7 @@ class SourcePresenceWalk {
         return switch (constant) {
             case TNull: SourcePresence.Absent(SourcePresenceReason.NullLiteral);
             case TInt(_) | TFloat(_) | TString(_) | TBool(_):
-                SourcePresence.Present(ProducerContract(SourceProducer.ScalarConstant));
+                SourcePresence.Present(ProducerRule(SourceProducer.ScalarConstant));
             case _:
                 SourcePresence.Unknown;
         }
@@ -1527,19 +1527,19 @@ class SourcePresenceWalk {
         return switch (op) {
             case OpAdd:
                 if (isStringWritten(l.t) || isStringWritten(r.t))
-                    SourcePresence.Present(ProducerContract(SourceProducer.StringConcatenation));
+                    SourcePresence.Present(ProducerRule(SourceProducer.StringConcatenation));
                 else if (isScalarWritten(l.t) && isScalarWritten(r.t))
-                    SourcePresence.Present(ProducerContract(SourceProducer.ScalarOperation));
+                    SourcePresence.Present(ProducerRule(SourceProducer.ScalarOperation));
                 else
                     SourcePresence.Unknown;
             case OpMult | OpDiv | OpSub | OpMod | OpShl | OpShr | OpUShr | OpAnd | OpOr | OpXor | OpGt | OpGte | OpLt | OpLte
                 | OpEq | OpNotEq | OpBoolAnd | OpBoolOr:
                 if (isScalarWritten(l.t) && isScalarWritten(r.t))
-                    SourcePresence.Present(ProducerContract(SourceProducer.ScalarOperation));
+                    SourcePresence.Present(ProducerRule(SourceProducer.ScalarOperation));
                 else
                     SourcePresence.Unknown;
             case OpInterval:
-                SourcePresence.Present(ProducerContract(SourceProducer.CollectionConstruction));
+                SourcePresence.Present(ProducerRule(SourceProducer.CollectionConstruction));
             case OpArrow | OpIn:
                 SourcePresence.Unknown;
             case _:
@@ -1551,7 +1551,7 @@ class SourcePresenceWalk {
         return switch (op) {
             case OpIncrement | OpDecrement | OpNeg | OpNegBits | OpNot:
                 isScalarWritten(subject.t)
-                    ? SourcePresence.Present(ProducerContract(SourceProducer.ScalarOperation))
+                    ? SourcePresence.Present(ProducerRule(SourceProducer.ScalarOperation))
                     : SourcePresence.Unknown;
             case _:
                 SourcePresence.Unknown;

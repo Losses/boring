@@ -1,0 +1,16 @@
+# Rust generation of the original flow cases. Run from the repository root:
+# haxe tests/haxe/flow/rust.hxml
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp tests/haxe/flow
+--macro Intercept.run(['samples', 'tests/haxe/flow'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/flow/rust
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+-D package-name=flow-gen
+-D package-license=MIT
+flow.FlowMain

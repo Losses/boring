@@ -49,7 +49,7 @@ Foreign payload allocation/release belongs to host binding. A finalizer runs at 
 
 ## 6. Allocation failure
 
-Allocator follows Wren allocate/grow/shrink contract. Byte counters use checked arithmetic. If allocation fails, VM performs one collection and retries once. A second failure yields ResourceLimit. If internal consistency cannot continue, mark VM Failed; future calls return VMFault while destroy remains valid. Compilation installs atomically and releases pending transaction roots on failure. Runtime mutations completed before a failed allocation remain completed.
+Allocator matches the Wren allocate/grow/shrink behavior. Byte counters use checked arithmetic. If allocation fails, VM performs one collection and retries once. A second failure yields ResourceLimit. If internal consistency cannot continue, mark VM Failed; future calls return VMFault while destroy remains valid. Compilation installs atomically and releases pending transaction roots on failure. Runtime mutations completed before a failed allocation remain completed.
 
 ## 7. Tests
 

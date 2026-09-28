@@ -11,14 +11,14 @@ this module. The module exercises principles 1 through 3 of
 `docs/specs/design-principles.md`: semantics defined over content,
 restriction arriving with its provision, and cost tiers at their floor.
 
-## Contract
+## String access behavior
 
 `std.UString` is a module of static functions over the character sequence
 of a string. A character is one Unicode code point. The input domain is
 valid Unicode scalar sequences, the same domain
 `docs/specs/stdlib/07-sorted-keyed-tables.md` states for string keys.
 
-| Function | Contract |
+| Function | Behavior |
 | --- | --- |
 | `count(s:String):Int` | The number of characters. |
 | `at(s:String, index:Int):Null<Int>` | The code point at character position `index`, counting from 0; `null` when `index` is negative or at least `count(s)`. The null return on a miss matches `String.charCodeAt` and `std.SortedMap.get`. |

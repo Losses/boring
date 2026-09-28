@@ -10,7 +10,7 @@ This document rules the tiers, the conversions, and the emitted shapes. None of 
 
 Before this specification every target publishes every top-level declaration. `TsDecl.hx` writes `export` on each top-level declaration unconditionally (lines 67, 75, 105, 355), `RustDecl.hx` writes `pub` (lines 45, 102, 131, 240), `KotlinDecl.hx` emits classes with no modifier, which Kotlin reads as public (lines 82, 149), and `SwiftDecl.hx` writes no access modifier at all. The spec 24 exports map lists one wildcard per emitted directory and holds no root entry, so a consumer of a generated package imports by deep module path and reaches any internal name.
 
-For the codec tree this is tolerable: the consumers are repository builds that name their own modules. For a library whose internal signatures the compiler rewrites, binary spec 07 threads implicit buffer parameters through them, a deep import path is a contract the compiler must break, and a position value that crosses out of the system names bytes its holder cannot resolve.
+For the codec tree this is tolerable: the consumers are repository builds that name their own modules. For a library whose internal signatures the compiler rewrites, binary spec 07 threads implicit buffer parameters through them, a deep import path is a compatibility promise the compiler must break, and a position value that crosses out of the system names bytes its holder cannot resolve.
 
 ## Tiers
 
@@ -53,7 +53,7 @@ Two target rulings complete the table:
 
 ## Root entry
 
-When foreign-facing declarations exist, each target gains a root entry generated from the derived set. TypeScript writes `index.ts` at the tree root, re-exporting every foreign-facing top-level name from its module; the spec 24 exports map then lists the root entry `.` plus `"./runtime"` when the compilation used the runtime, and nothing else, so deep module paths stop being part of the package contract. Rust adds one `pub use` per foreign-facing name to the crate root `lib.rs`. Swift needs no entry file: `public` on the foreign-facing names plus the one package target of spec 24 is the whole mechanism. Kotlin needs no entry file: package structure plus visibility is the mechanism. Dart uses the root library file of the Dart assembly ruling.
+When foreign-facing declarations exist, each target gains a root entry generated from the derived set. TypeScript writes `index.ts` at the tree root, re-exporting every foreign-facing top-level name from its module; the spec 24 exports map then lists the root entry `.` plus `"./runtime"` when the compilation used the runtime, and nothing else, so deep module paths stop being part of the package export set. Rust adds one `pub use` per foreign-facing name to the crate root `lib.rs`. Swift needs no entry file: `public` on the foreign-facing names plus the one package target of spec 24 is the whole mechanism. Kotlin needs no entry file: package structure plus visibility is the mechanism. Dart uses the root library file of the Dart assembly ruling.
 
 The entry re-exports names sorted by name, and the entry module set is a pure function of the derived foreign-facing set, following the spec 24 determinism rule: two identical compilations produce identical entries.
 
@@ -90,9 +90,9 @@ Authors mark published declarations; the compiler derives the lowering and the e
 Everything is public; consumers import deep module paths.
 
 - performance: no runtime cost.
-- ambiguity: every internal name is a contract in effect; rewrites in the common layer become visible breaking changes.
+- ambiguity: every internal name is a commitment in effect; rewrites in the common layer become visible breaking changes.
 - redundancy: none.
-- readability: consumers see the whole internal body with no stated contract.
+- readability: consumers see the whole internal body with no explicitly bounded public API.
 
 ### Judgment
 
@@ -100,7 +100,7 @@ Everything is public; consumers import deep module paths.
 | --- | --- | --- | --- | --- |
 | C1 derived set | no runtime cost | one criterion, ownership of the threading | nothing restates the set | per-target vocabulary |
 | C2 author marker | no runtime cost | marker on the declaration | marker restates a computable fact | published set reads from source |
-| C3 status quo | no runtime cost | every internal name is a contract | none | no stated contract |
+| C3 status quo | no runtime cost | every internal name is a commitment | none | no explicitly bounded public API |
 
 Principle application: the set is computed from information the compiler already holds, and the author states nothing (P4). Candidate 3 publishes constructs whose signatures the rewrite of binary spec 07 changes, the restriction this specification addresses; the sanctioned path for reaching internals is the generated root entry (P2). Candidate 2 keeps one advantage, stating a general published API with no record format; that need stays on the spec 24 exports map, and introducing it requires revising this specification first, so no marker rides along unused.
 

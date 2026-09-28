@@ -1,6 +1,6 @@
 # Feature spec 33: Record collection fields
 
-Status: Implemented. This specification amends the Contract element sentence
+Status: Implemented. This specification amends the element sentence
 and the rejection sentence of
 [12-std-string.md](../stdlib/12-std-string.md), and adds one sentence to
 ruling 4 of [31-record-tostring-member.md](31-record-tostring-member.md).
@@ -41,7 +41,7 @@ The array operand of `Std.string` already renders through the ruled
 single-pass builders of stdlib spec 12 ruling 6 on every target, and the
 element rendering recurses through the same operand-form function, so an
 array of records renders each element through its member call on every
-target today. The Contract of stdlib spec 12 restricts elements to the
+target today. Stdlib spec 12 restricts elements to the
 operand list that names no record, so the implemented recursion is
 unruled. The gap is the field routing: the synthesis never sends a
 collection field through that lowering.
@@ -64,11 +64,11 @@ collection field through that lowering.
    apply unchanged, in the concatenation position of the member body and
    at the `RecordStr.str` call site.
 2. The element domain of the array rendering of stdlib spec 12 is the
-   operand domain of its Contract: scalars, parameterless enum values
+   operand domain of its Std.string behavior section: scalars, parameterless enum values
    through their constructor-name reads, `@:dataClass` records through
    their member calls (the member synthesis of feature spec 31), and
    nested arrays recursively. This states the behavior the five targets
-   implement through the shared operand-form function; the Contract
+   implement through the shared operand-form function; the operand
    sentence of stdlib spec 12 gains the record element clause, and its
    rejection sentence admits a `@:dataClass` receiver through the member
    call, which feature spec 31 admitted.

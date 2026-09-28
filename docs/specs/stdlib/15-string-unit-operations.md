@@ -12,7 +12,7 @@ walks the input with `charCodeAt` and its version parser splits on
 `"."`. The f32 configurations inherit the rules and differ only in float
 width.
 
-## Contract
+## String unit behavior
 
 - `s.length` returns the number of UTF-16 code units in `s` as an `Int`.
 - `s.charCodeAt(i)` returns the UTF-16 code unit at index `i` as an
@@ -53,12 +53,12 @@ targets already lower.
 
    | Member | TypeScript | Kotlin | Swift | Dart | Rust |
    | --- | --- | --- | --- | --- | --- |
-   | `s.length` | `s.length` | `s.length` | current lowering, verified against the Contract | current lowering, verified against the Contract | the `u_string` unit count cast to the `u32` domain of `Int` |
+   | `s.length` | `s.length` | `s.length` | current lowering, verified against the string-unit behavior | current lowering, verified against the string-unit behavior | the `u_string` unit count cast to the `u32` domain of `Int` |
    | `charCodeAt` | the nullable NaN conversion in the pure-operand expression form, or `readUnit(s, i)` for effectful operands | `run` expression captures receiver and index once, bounds-checks, and reads `.code`; an out-of-range index yields null | current lowering, verified | closure expression captures receiver and index once, bounds-checks, and reads `codeUnitAt`; an out-of-range index yields null | the `u_string` unit read in the nullable form; an out-of-range index yields the null value, never a panic |
    | `s.split(sep)` | `s.split(sep)` | current lowering, verified | current lowering, verified | current lowering, verified | one scan collecting a `Vec<String>`; empty parts are kept; the empty separator yields one part per code unit |
 
 2. A row marked "current lowering, verified" keeps its native rendering
-   once the sample suite proves the Contract on that target; a
+   once the sample suite proves the string-unit behavior on that target; a
    divergence found by the suite is a defect this specification rules
    against and the target fixes its rendering in the same change.
 3. The Rust length rendering and its sample rows appear in the value

@@ -8,8 +8,7 @@ each target language emits and runs them in its own native runner, how
 every target writes its results to one standard file format, and how a
 Haxe-side manager compares all targets against the Kotlin baseline. It
 covers the `@:test` declaration metadata, the `std.Test` assertion
-API, the canonical failure-message format, the results-file
-contract, the test output location of each target, the
+API, the canonical failure-message format, the results-file format, the test output location of each target, the
 `ts-test-runner` define (`node`, `deno`, `bun`), and the consistency
 manager.
 
@@ -131,7 +130,7 @@ A failed assertion raises the runtime's test-failure error carrying
 the canonical message below. The Haxe reference raises
 `haxe.Exception`; each target's runtime raises its platform error
 (`Error`, `AssertionError`, panic). The raised type is
-target-specific; the message string is the contract.
+target-specific; the message string follows the canonical format.
 
 ## Stage 1, the assertion runtime
 
@@ -207,7 +206,7 @@ Rules:
     so every target renders identically.
   - Enum value: `Kind` without payload, `Kind(payload)` with.
 
-## Stage 1, the results-file contract
+## Stage 1, the results-file format
 
 Every target writes its outcomes to one standard file; stage 2 reads
 only these files.
@@ -303,7 +302,7 @@ Kotlin test code emits into a separate test source root, mirroring the
 source-set split of the Kotlin ecosystem:
 
 - `-D kotlin-test-output=<dir>`: the test source root, required when
-  any `tests.*` module is compiled, same error contract as above.
+  any `tests.*` module is compiled, same error rule as above.
 - Files are written in package `tests.*`, named `<Module>Tests.kt`; a
   Gradle consumer maps the main output to `commonMain` and this root
   to `commonTest`.
@@ -622,8 +621,7 @@ Cross-language consistency is managed from the Haxe side.
 ## Phasing
 
 Phase 1 (this document): declaration metadata, `std.Test`
-`run`/`ok`/`equals`/`fail`, canonical messages, the results-file
-contract, all four emission targets, the `ts-test-runner` define with
+`run`/`ok`/`equals`/`fail`, canonical messages, the results-file format, all four emission targets, the `ts-test-runner` define with
 all three values, the consistency manager.
 
 Phase 2: `std.Test.throws(f:() -> Void, …)` for error-identity

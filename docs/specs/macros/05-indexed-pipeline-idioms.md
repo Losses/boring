@@ -17,7 +17,7 @@ across ten layout source files, the largest being
 `WidthIndependentAnnotationCache.kt` 7, and `PunctuationGeometryStage.kt`
 5. `macros/01` included `associate` at 19 uses and `sortedBy` at 8 uses
 on the same audit basis. Every exclusion recorded in those specs carries
-a reason (`groupBy`: no ordered multimap contract; `let`/`also`/`apply`:
+a reason (`groupBy`: no ordered multimap ruling; `let`/`also`/`apply`:
 no standard-library oracle; `reduce`/`fold`: no engine-port use). The
 indexed family carries no recorded reason, and this spec fills that gap.
 

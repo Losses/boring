@@ -1,0 +1,99 @@
+{
+  "replay": "flow replay of the normalized and stable-local groups",
+  "declaredBeforeExecution": true,
+  "stageKinds": {
+    "producer": "the stage must end ok; its output feeds later stages",
+    "observation": "the stage is expected to end as a complete capture of a child that ended nonzero, carrying exactly the declared native diagnostic at the declared source location; any signal, unrelated diagnostic, missing output or capture failure does not match",
+    "check": "the stage must end ok; it verifies identity, closure, comparison or membership"
+  },
+  "dependencies": {
+    "dependsOn": "every listed stage must end ok before this stage runs; otherwise this stage is recorded as not-reached",
+    "observes": "this stage examines the complete recorded result of the listed stage, including a declared observation, and is not blocked by it"
+  },
+  "stages": [
+    { "id": "boring-path-check", "kind": "check", "observation": null, "dependsOn": [], "observes": [], "cmd": "haxelib path boring", "claim": "the actual boring class path belongs to this checkout; the caller stops when it does not" },
+    { "id": "bootstrap-probe", "kind": "check", "observation": null, "dependsOn": ["boring-path-check"], "observes": [], "cmd": "haxe <attempt>/probe.hxml", "claim": "the evidence probe is built once, with command, status, stdout and stderr retained" },
+    { "id": "identity-haxe", "kind": "check", "observation": null, "dependsOn": ["bootstrap-probe"], "observes": [], "cmd": "haxe --version", "claim": "compiler identity, captured by the probe" },
+    { "id": "identity-kotlinc", "kind": "check", "observation": null, "dependsOn": ["bootstrap-probe"], "observes": [], "cmd": "kotlinc -version", "claim": "Kotlin compiler identity, captured by the probe" },
+    { "id": "identity-cargo", "kind": "check", "observation": null, "dependsOn": ["bootstrap-probe"], "observes": [], "cmd": "cargo --version", "claim": "cargo identity, captured by the probe" },
+    { "id": "identity-rustc", "kind": "check", "observation": null, "dependsOn": ["bootstrap-probe"], "observes": [], "cmd": "rustc --version", "claim": "rustc identity, captured by the probe" },
+    { "id": "identity-java", "kind": "check", "observation": null, "dependsOn": ["bootstrap-probe"], "observes": [], "cmd": "java --version", "claim": "runtime identity, captured by the probe" },
+    { "id": "identity-bun", "kind": "check", "observation": null, "dependsOn": ["bootstrap-probe"], "observes": [], "cmd": "bun --version", "claim": "host identity, captured by the probe" },
+    { "id": "hashes-before", "kind": "check", "observation": null, "dependsOn": ["bootstrap-probe"], "observes": [], "cmd": "hash-closure", "claim": "content identity of the selected input closure before the attempt" },
+    { "id": "normalized-admission", "kind": "producer", "observation": null, "dependsOn": ["hashes-before"], "observes": [], "cmd": "haxe <attempt>/entries/normalized-haxe-ref.hxml", "claim": "source admission of the normalized cases" },
+    { "id": "normalized-reference", "kind": "producer", "observation": null, "dependsOn": ["normalized-admission"], "observes": [], "cmd": "bun <attempt>/generated-normalized/haxe/flow-main.js", "claim": "the reference run, compared against replay/expected/normalized.txt" },
+    { "id": "normalized-kotlin-generation", "kind": "producer", "observation": null, "dependsOn": [], "observes": [], "cmd": "haxe <attempt>/entries/normalized-kotlin.hxml", "claim": "generated Kotlin of the normalized group into the attempt's own fresh directory" },
+    { "id": "normalized-kotlin-compile", "kind": "producer", "observation": null, "dependsOn": ["normalized-kotlin-generation"], "observes": [], "cmd": "kotlinc <every generated .kt> <runner> -d <attempt>/kotlin-normalized/app.jar", "claim": "legality of the generated Kotlin of the normalized group" },
+    { "id": "normalized-kotlin-run", "kind": "producer", "observation": null, "dependsOn": ["normalized-kotlin-compile"], "observes": [], "cmd": "java -cp <attempt>/kotlin-normalized/app.jar RunnerKt", "claim": "Kotlin result of the normalized group, compared against replay/expected/normalized.txt" },
+    { "id": "normalized-rust-generation", "kind": "producer", "observation": null, "dependsOn": [], "observes": [], "cmd": "haxe <attempt>/entries/normalized-rust.hxml", "claim": "generated Rust of the normalized group into the attempt's own fresh directory" },
+    { "id": "normalized-rust-build", "kind": "producer", "observation": null, "dependsOn": ["normalized-rust-generation"], "observes": [], "cmd": "cargo build --manifest-path <attempt>/rust-normalized-runner/Cargo.toml", "claim": "legality of the generated Rust of the normalized group" },
+    { "id": "normalized-rust-run", "kind": "producer", "observation": null, "dependsOn": ["normalized-rust-build"], "observes": [], "cmd": "cargo run --manifest-path <attempt>/rust-normalized-runner/Cargo.toml", "claim": "Rust result of the normalized group, compared against replay/expected/normalized.txt" },
+    { "id": "stable-local-admission", "kind": "producer", "observation": null, "dependsOn": ["hashes-before"], "observes": [], "cmd": "haxe <attempt>/entries/stable-local-haxe-ref.hxml", "claim": "source admission of the stable-local isolation cases" },
+    { "id": "stable-local-reference", "kind": "producer", "observation": null, "dependsOn": ["stable-local-admission"], "observes": [], "cmd": "bun <attempt>/generated-stable-local/haxe/flow-main.js", "claim": "the reference run, compared against replay/expected/stable-local.txt" },
+    { "id": "stable-local-kotlin-generation", "kind": "producer", "observation": null, "dependsOn": [], "observes": [], "cmd": "haxe <attempt>/entries/stable-local-kotlin.hxml", "claim": "generated Kotlin of the stable-local group into the attempt's own fresh directory" },
+    { "id": "stable-local-kotlin-compile", "kind": "observation", "observation": "kotlin-stable-local-position-proof", "dependsOn": ["stable-local-kotlin-generation"], "observes": [], "cmd": "kotlinc <every generated .kt> <runner> -d <attempt>/kotlin-stable-local/app.jar", "claim": "legality of the generated Kotlin of the stable-local group; the declared observation is the rejected nullable receiver at flow/stable/FlowCases.kt:11" },
+    { "id": "stable-local-kotlin-run", "kind": "producer", "observation": null, "dependsOn": ["stable-local-kotlin-compile"], "observes": [], "cmd": "java -cp <attempt>/kotlin-stable-local/app.jar RunnerKt", "claim": "Kotlin result of the stable-local group; blocked by the declared observation, and Java is never launched after a failed compile" },
+    { "id": "stable-local-rust-generation", "kind": "producer", "observation": null, "dependsOn": [], "observes": [], "cmd": "haxe <attempt>/entries/stable-local-rust.hxml", "claim": "generated Rust of the stable-local group into the attempt's own fresh directory" },
+    { "id": "stable-local-rust-build", "kind": "producer", "observation": null, "dependsOn": ["stable-local-rust-generation"], "observes": [], "cmd": "cargo build --manifest-path <attempt>/rust-stable-local-runner/Cargo.toml", "claim": "legality of the generated Rust of the stable-local group" },
+    { "id": "stable-local-rust-run", "kind": "producer", "observation": null, "dependsOn": ["stable-local-rust-build"], "observes": [], "cmd": "cargo run --manifest-path <attempt>/rust-stable-local-runner/Cargo.toml", "claim": "Rust result of the stable-local group, compared against replay/expected/stable-local.txt" },
+    { "id": "hashes-after", "kind": "check", "observation": null, "dependsOn": [], "observes": [], "cmd": "hash-closure", "claim": "the selected input closure is unchanged by the attempt" },
+    {
+      "id": "comparison",
+      "kind": "check",
+      "observation": null,
+      "dependsOn": ["normalized-reference", "normalized-kotlin-run", "normalized-rust-run", "stable-local-reference", "stable-local-rust-run", "hashes-after"],
+      "observes": ["stable-local-kotlin-compile"],
+      "cmd": "verdict.ts compare",
+      "claim": "authored expectations against the reference and the measured targets, the declared observation matched against its own diagnostic, and a terminal decision for every declared stage"
+    },
+    { "id": "membership", "kind": "check", "observation": null, "dependsOn": ["comparison"], "observes": [], "cmd": "tests/support/stage-check.sh", "claim": "the recorded stage identity set equals the declared list of the frozen manifest, through the shared checker" }
+  ],
+  "knownObservations": [
+    {
+      "observation": "rust-negative-fallback-unsigned",
+      "stage": "normalized-rust-run",
+      "category": null,
+      "source": null,
+      "sourceLine": null,
+      "line": "normalizedBinding.null",
+      "expected": "w:-1",
+      "observed": "w:4294967295",
+      "classification": "the generated Rust selects unsigned storage for the source Int and renders the branch literal modulo its width; a source and target nonconformance observation, retained and never counted as an agreement"
+    },
+    {
+      "observation": "kotlin-stable-local-position-proof",
+      "stage": "stable-local-kotlin-compile",
+      "category": "only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'Cell?'.",
+      "source": "flow/stable/FlowCases.kt",
+      "sourceLine": 11,
+      "classification": "the emitted plain separator on a nullable receiver is rejected by a normal compiler exit 1; any signal, unrelated diagnostic, missing output or capture failure does not match this observation"
+    }
+  ],
+  "inputClosure": {
+    "hashed": [
+      "tests/haxe/flow/**",
+      "tests/bundle-child-evidence/**",
+      "tools/bundle/**/*.hx",
+      "packages/compiler/**/*.hx",
+      "samples/**/*.hx",
+      "tests/support/stage-check.sh when this revision carries it",
+      "haxelib.json",
+      "defines.json",
+      "extraParams.hxml",
+      "boring.json"
+    ],
+    "excluded": [
+      "reference/**: no generation entry of these groups names it",
+      "packages/registry/**: no generation entry of these groups names it",
+      "tests/ts, tests/kotlin, tests/rust, tests/dart, tests/vectors: verification trees, not generation inputs",
+      "tools other than tools/bundle: verification and repository tooling, not generation inputs",
+      "examples/**, docs/**: not read by these entries"
+    ],
+    "note": "the class-path roots are hashed whole, so the closure covers the declared inputs of the entries and not only the modules the entry classes reach"
+  },
+  "verdictMeaning": {
+    "unexpectedFailures": "declared stages that did not reach their declared outcome, captures that do not hold, stage sets that do not match, and measured sequences that differ from the authored sequence in any way other than the one documented replacement",
+    "recordedObservations": "the declared native rejections and differences of this fixture; each is a source and target nonconformance observation that stays retained and never counts as an agreement",
+    "acceptance": "the attempt is accepted only when unexpectedFailures is zero"
+  }
+}

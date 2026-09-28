@@ -1,0 +1,8 @@
+# Focused entry for a failed element read on a null binding.
+# Run from the repository root; the caller supplies the output path so
+# every attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/place/readfault.hxml \
+#     -js out/place/runs/<run>/readfault.js
+-cp tests/haxe/place
+-cp samples
+-main place.PlaceReadFault

@@ -19,7 +19,7 @@ This document defines subsystem boundaries and reference implementations. Use re
 
 Reference entry points: [rustc-dev-guide compiler overview](https://rustc-dev-guide.rust-lang.org/overview.html), [rustc-dev-guide type inference](https://rustc-dev-guide.rust-lang.org/type-inference.html), [Swift compiler repository](https://github.com/swiftlang/swift), [WebAssembly core validation](https://webassembly.github.io/spec/core/valid/instructions.html), and pinned Wren links in 08-wren-reference.md. These identify projects and areas to inspect. Before adopting implementation details, record exact source revisions, symbol links, and tests in the implementation record.
 
-## 3. Compiler phase contract
+## 3. Compiler phase requirements
 
 The compiler owns immutable SourceFile records through one compile transaction. Syntax and semantic nodes store SourceSpan (module id, start byte, end byte). Diagnostics refer to spans, never AST pointers.
 
@@ -32,7 +32,7 @@ Pipeline:
 5. Resolver replaces identifier references with SymbolId references and validates access/import visibility. It does not infer types.
 6. Type checker consumes resolved AST and declarations, produces typed HIR, and emits diagnostics. Typed HIR has TypeId on every expression and resolved MethodId/ConformanceId on every call and conformance use.
 7. Lowering converts typed HIR to control-flow IR. It removes pattern syntax, lowers loops and short-circuit expressions, and records conversions and effects.
-8. Bytecode generator maps typed IR to the instruction contract in 10-opcode-reference.md.
+8. Bytecode generator maps typed IR to the instruction set in 10-opcode-reference.md.
 9. Verifier validates generated or external bytecode before installation.
 
 Each phase accepts immutable input and returns output plus diagnostics. A failed phase blocks phases that require its invariants. User code cannot run during compilation. Typed HIR is target-independent.
@@ -89,7 +89,7 @@ Each IR value has TypeId and definition block. Each call has MethodId, signature
 
 For each subsystem:
 
-1. Read the public contract and tests first.
+1. Read the public API and tests first.
 2. Trace one implementation path from input through data structures to result.
 3. Record source revision, file, symbol, invariants, and tests in 08-wren-reference.md or a subsystem reference section.
 4. Write a Beep comparison fixture before adapting the design.

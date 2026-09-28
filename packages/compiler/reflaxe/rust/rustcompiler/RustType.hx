@@ -113,7 +113,7 @@ class RustType {
                 } else switch (pathOf(abs.pack, abs.name)) {
                     // Business modules keep haxe Int unsigned: the subset
                     // domain is non-negative. Resident runtime modules
-                    // render Int as i32 because their contracts carry
+                    // render Int as i32 because their declarations carry
                     // signed values (negative slice bounds, the -1
                     // no-previous sentinel); the call boundary casts
                     // between the two conventions (RuntimeResidents).

@@ -7,7 +7,7 @@ import boring.ArraySliceOps;
 #end
 
 /**
-    The Haxe contract bounds an Array bound at the platform call: a negative
+    The Haxe std rule bounds an Array bound at the platform call: a negative
     bound counts from the end of the array and stops at the first element, and
     a bound past the length clamps to the length. The TypeScript target reaches
     the JavaScript prototype, which applies those bounds, and the Kotlin,

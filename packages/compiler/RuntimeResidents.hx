@@ -9,7 +9,7 @@
  * modules through the import tables whether or not they emit them.
  *
  * The Rust target renders haxe Int as u32 in business modules; resident
- * modules render Int as i32 because the runtime contracts carry signed
+ * modules render Int as i32 because the runtime declarations carry signed
  * values (negative slice bounds, the -1 no-previous sentinel). Call
  * boundaries between the two conventions cast explicitly.
  *
