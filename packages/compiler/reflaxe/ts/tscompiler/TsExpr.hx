@@ -2692,6 +2692,13 @@ class TsExpr {
         };
         if (fieldType == null)
             return rendered;
+        // A recognized coalescing site renders p ?? E with a sanctioned
+        // non-null default, so the rendered value is already non-null and a
+        // null-unwrap assertion would only bolt a pin-breaking wrapper onto
+        // constructor field assignments. A null default still carries null.
+        final coalescing = coalescingSiteFor(r);
+        if (coalescing != null && coalescingDefaultTextFor(coalescing) != "null")
+            return rendered;
         final needsNull = argCarriesNull(r) && !isNullType(fieldType);
         final needsUndefined = argCarriesUndefined(r);
         if (needsNull || needsUndefined)
