@@ -89,6 +89,8 @@ this plan. Earlier investigations are leads that require revision checks.
   Record unresolved semantic rulings separately from implementation choices.
 - [ ] P07: Select the first mechanism and write a complete implementation brief,
   test matrix, file ownership list, and migration acceptance criteria.
+  [Swift array boundary brief](investigations/architecture-round-1/j-boundary-implementation.md)
+  is drafted; its semantic ruling and resulting file scope remain pending.
 - [ ] P08: Delegate reproduction and contract tests, then implementation.
   Independently review both before accepting a candidate.
 - [ ] P09: Run the candidate's required Boring checks and Tiqian checks on fixed
