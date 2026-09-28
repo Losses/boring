@@ -84,8 +84,10 @@ policy assignments and corrective reviews.
 The owner selected shared alias visibility for ordinary read-only arrays.
 The unfinished Swift checkpoint is `e5e21854`. P07's prepared-value design
 remains accepted as a design; its implementation and X's lifetime exercise
-remain outstanding. The owner authorized two concurrent GLM workers and two
-concurrent Goose workers. Each implementation has an exclusive file owner;
+remain outstanding. The owner authorized four execution workers in total,
+with up to two concurrent GLM workers and two concurrent Goose workers.
+Previously authorized native Luna tasks share that total capacity.
+Each implementation has an exclusive file owner;
 independent reviewers inspect a recorded snapshot or an integrated revision.
 
 The A and C diagnostic fixtures are integrated at `5eb3429b`; their
@@ -93,11 +95,17 @@ The A and C diagnostic fixtures are integrated at `5eb3429b`; their
 limits the claims to observed classifier and assignment behavior. A2's
 source-container analysis and three query adapters are integrated at `f104e3bf`;
 F1's child execution evidence is integrated at `8a2a9c6a`. Their delivery
-reviews retain the limits of the focused checks. A3 has an accepted consumer
-audit and is collecting runtime comparison evidence before compiler migration.
-F2 consolidates stage membership for two fixtures; D1 repairs Swift ordinary
-runtime declaration dependencies; B1 observes actual flow consumers. These
-tasks do not complete P08's mechanism migration or P09's regression requirements.
+reviews retain the limits of the focused checks. F2's shared stage membership
+owner is integrated at `d873da91`. The Swift ordinary-runtime dependency
+correction is integrated at `f3a8955a` and belongs to package E; its historical
+D1 assignment name remains in the evidence paths.
+
+A3's five-target runtime comparison observations now inform a shared comparison
+plan and its first Swift consumer, assigned to Luna at `f3a8955a`. Four other
+target migrations follow the reviewed interface. The enum contract fixture is
+integrated at `cde5e97c`, with its source ruling still pending. B1 observes actual
+flow consumers through the existing child-evidence recorder. These tasks do
+not complete P08's mechanism migration or P09's regression requirements.
 
 The fixed Tiqian input remains `8504d230228e8206689a2049bbb84b671c1f079a`.
 The previous validation checkout was absent during the latest environment
