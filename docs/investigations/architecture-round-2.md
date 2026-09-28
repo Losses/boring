@@ -174,7 +174,7 @@ planning and declaration dependencies, with a removal inventory for all five
 targets. The independent caller audit precedes exact implementation ownership.
 
 
-## Current execution and consumer preparation
+## Earlier execution and consumer preparation
 
 Two GLM workers now own A2 source-container implementation and F1 child evidence
 capture. One Goose worker audits the five-target comparator consumers for A3;
@@ -195,3 +195,25 @@ checks, separate engine and protocol comparisons, and common protocol test
 roots. Those earlier preparations were static inputs; a reconstructed mapping
 requires its own checks before generation or native execution can establish
 regression evidence. The coordinator has not launched the full Tiqian matrix.
+
+## Current execution after F1 integration
+
+F1 is integrated at `8a2a9c6a`; its
+[delivery review](architecture-round-2/f-child-evidence-review.md) records the
+focused integration checks. Source maps and compiler decision provenance remain
+package F work. The coordinator accepted the reconstructed
+[Tiqian preparation inputs](architecture-round-2/tiqian-preparation-review.md)
+for later fixed-candidate verification; no Tiqian regression pass is claimed.
+
+A2 source analysis has a reviewed implementation and focused evidence from Luna.
+Its all-target verification remains under review. After the GLM native-tool
+handover, Luna owns the remaining runner corrections, with compiler and authored
+source files frozen. A second GLM worker now owns baseline comparison fixtures
+in a separate checkout at `8a2a9c6a`, covering integer, read-only collection,
+nullable collection and UTF-16 string ordering in all five targets.
+
+Goose reviews shared verification responsibilities against the actual runners.
+Repeated omissions in status, stream and input-identity recording motivate that
+review. It must identify a bounded common implementation and concrete consumers
+before another infrastructure change is assigned. No compiler writer has yet
+been assigned the broader A3 comparison-plan migration.
