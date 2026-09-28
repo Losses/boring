@@ -192,6 +192,46 @@ The target adapter separately establishes how to read the value legally under
 its storage, borrowing, and native promotion rules. Those target operations do
 not change the source analysis result.
 
+### Transfer rules and analysis lifecycle
+
+A condition analysis returns the environments at its true and false exits,
+including effects incurred while evaluating the condition. Sequential evaluation
+transforms the current environment. A join combines alternative reachable exits.
+These operations have different inputs and cannot replace one another.
+
+| Condition | Input to the right operand | True exit | False exit |
+| --- | --- | --- | --- |
+| `A && B` | True exit of `A` | True exit of `B` | Join of false exits from `A` and `B` |
+| `A || B` | False exit of `A` | Join of true exits from `A` and `B` | False exit of `B` |
+
+Each exit of `B` already includes the effects of the path through `A` that
+reaches it. A right operand that changes a local and returns false contributes
+those changes to the false exit of `&&`. Exits that are unreachable contribute
+no environment. A null-refinement rule states its operator, operand identity
+and outcome; `x != 7` cannot establish presence because it also holds for null.
+
+Conservative loop analysis must protect uses inside later iterations as well as
+uses after the loop. Clearing facts only after the loop leaves repeated body
+uses unprotected. Establish a fixed point or remove facts for dependencies that
+may change before analyzing repeated uses, then apply the condition's outcome
+facts. Include writes from conditions, increments and calls, with explicit
+break, continue and zero-iteration paths.
+
+Declaration and expression consumers must share a deliberate analysis lifecycle.
+Name the prepared function tree, its normalization owner, the point at which
+analysis runs and the consumers of its result. Node-identity lookup requires a
+stable tree or explicit provenance through rewrites. Synthetic nodes without
+such provenance yield unknown facts. Definition identities must remain finite
+under loop analysis, and their join rule must account for distinct incoming
+assignments.
+
+Source presence and target promotion remain separate. For example, Kotlin can
+promote certain local `var` values as well as `val` values when its stability
+conditions hold; the emitter's whole-function mutation set does not define that
+language capability. Consult the target's
+[documented promotion conditions](https://kotlinlang.org/docs/typecasts.html)
+and retain the target-specific legality decision beside the source proof.
+
 ## Prepared assignment locations
 
 Where the source operation requires a write to an already selected location,
