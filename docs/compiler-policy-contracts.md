@@ -102,6 +102,61 @@ separate decisions. Native placement alone proves no presence. Apply feature
 22 together with feature 51 and their documented variations before defining
 default evaluation or call-completion behavior.
 
+## Flow environments and effect dependencies
+
+A flow fact describes a particular value or read at an evaluation point. Its
+identity retains the binding or evaluated object and every supported projection.
+`x.left.value` and `x.right.value` cannot share a key that keeps only `x` and
+`value`. An unsupported projection yields an unknown identity. Rendered text
+and source offsets cannot establish identity or control-flow dominance.
+
+Fact validity and lexical visibility have separate lifetimes. Leaving a nested
+scope removes its local bindings; it does not undo writes to outer bindings or
+objects. A join consumes the exit environments of reachable incoming paths.
+Restoring an entry snapshot after a branch is valid only for facts whose
+dependencies remain unchanged along every relevant path.
+
+| Situation | Required analysis distinction |
+| --- | --- |
+| A branch may assign a nullable value to a previously present binding | The exit may lack presence even when the binding remains visible. |
+| A loop may write a fact's dependency | Zero iterations and executed iterations both contribute to the exits. Use a fixed-point analysis or a conservative treatment of the possible writes; restoring all entry facts is unsound. |
+| A call has incomplete effect information | Account for captured bindings and reachable mutable storage. Invalidating local facts while preserving every field fact is not conservative. |
+| Short-circuit operands, arguments, or assignment operands have effects | Represent their distinct evaluation points and edges. One statement index cannot describe every use within the expression. |
+| A value has a non-null contextual type | Establish presence through its actual producer or the applicable source rule. The contextual type cannot make a null literal present. |
+
+Effects invalidate dependent facts; the owning analysis states which dependencies
+it can distinguish. A fact about an immutable, uncaptured local value can survive
+a call when the available information establishes its independence. A fact about
+mutable storage requires the relevant effect and alias information. Unknown
+effects cannot be relabelled as a registered read operation to retain a proof.
+
+Missing flow evidence remains distinct from invalid source. A conservative
+analysis must compose with a valid translation of the accepted source domain.
+The target adapter separately establishes how to read the value legally under
+its storage, borrowing, and native promotion rules. Those target operations do
+not change the source analysis result.
+
+## Prepared assignment locations
+
+Where the source operation requires a write to an already selected location,
+preparation retains the evaluated receiver, projections, indices, and applicable
+access operations. Rebinding the original variable during the right operand
+does not authorize computing a new destination from the original expression.
+The location's logical identity is separate from a physical address that a
+target allocation or growth operation could invalidate.
+
+Permission applies to an operation at a location. Permission to replace a field,
+store an element, and call a mutator on a referenced object are separate queries.
+A final binding or getter-only property does not by itself establish transitive
+immutability of every reachable object.
+
+A target value intermediate on an assignment path may require an ordered chain
+of writebacks. Each writeback names its owner location and required evaluation
+point. A value copied into an independent source binding has a different
+contract; its later mutation does not automatically require writing to the
+original binding. Retain the governing rule's target and source scope when
+deciding between these cases.
+
 ## Implementation admission
 
 An executor must demonstrate that its finite decision rows are disjoint and
