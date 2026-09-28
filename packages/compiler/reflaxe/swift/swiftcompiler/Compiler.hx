@@ -36,7 +36,12 @@ class Compiler extends PluginCompiler<Compiler> {
     final testModules:Map<String, Bool> = [];
 
     /** One entry per @:test function, in emission order. */
-    final testEntries:Array<{id:String, runnerName:String, call:String, notApplicable:Bool}> = [];
+    final testEntries:Array<{
+        id:String,
+        runnerName:String,
+        call:String,
+        notApplicable:Bool
+    }> = [];
 
     var current:Null<SwiftDecl> = null;
 
@@ -228,7 +233,12 @@ class Compiler extends PluginCompiler<Compiler> {
                 }
                 // An excluded test emits no body; the runner writes its
                 // not-applicable record directly (feature spec 19).
-                testEntries.push({id: id, runnerName: runnerNameOf(id, f), call: classType.name + "." + f.field.name, notApplicable: notApplicable});
+                testEntries.push({
+                    id: id,
+                    runnerName: runnerNameOf(id, f),
+                    call: classType.name + "." + f.field.name,
+                    notApplicable: notApplicable
+                });
             }
             // The test namespace mirrors the statics-only business
             // lowering: a case-less enum carrying the throwing functions.
@@ -339,11 +349,12 @@ class Compiler extends PluginCompiler<Compiler> {
             // The UStringRT resident supplies the UString members itself;
             // a compilation that never includes it receives the prelude instead.
             final ustringResident = parts.get("runtime.UString");
-            final ustringPrelude = ustringResident == null || ustringResident.length == 0
-                ? "\n" + StringTools.trim(SwiftRuntime.USTRING_PRELUDE) + "\n"
-                : "";
+            final ustringPrelude = ustringResident == null
+                || ustringResident.length == 0 ? "\n" + StringTools.trim(SwiftRuntime.USTRING_PRELUDE) + "\n" : "";
             PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "Runtime.swift"),
                 StringTools.trim(SwiftRuntime.SOURCE)
+                + "\n\n"
+                + StringTools.trim(SwiftRuntime.ARRAY_SOURCE)
                 + ustringPrelude
                 + "\n"
                 + residentParts.join("\n\n")
