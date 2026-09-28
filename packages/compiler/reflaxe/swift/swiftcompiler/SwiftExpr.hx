@@ -216,6 +216,12 @@ class SwiftExpr {
         this.types = types;
     }
 
+    /** Records the ordinary runtime dependency for an emitted Haxe array. */
+    function arrayRuntimeText(text:String):String {
+        imports.runtime("TiqianArray");
+        return text;
+    }
+
     public function reserveName(name:String):Void {
         usedNames.set(name, true);
     }
@@ -356,10 +362,11 @@ class SwiftExpr {
             case CEmptyArray:
                 if (StaticFieldHelper.isReadOnlyArrayType(DefaultArgExpander.withoutNull(targetType))) {
                     final element = StaticFieldHelper.arrayElementType(DefaultArgExpander.withoutNull(targetType));
-                    element == null ?throw new haxe.Exception("read-only empty default is missing its element type"):"ReadOnlyArray<" + types.of(element) +
-                    ">()";
+                    arrayRuntimeText(element == null ?throw new haxe.Exception("read-only empty default is missing its element type"):"ReadOnlyArray<"
+                        + types.of(element)
+                        + ">()");
                 } else {
-                    "TiqianArray()";
+                    arrayRuntimeText("TiqianArray()");
                 }
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
@@ -1794,9 +1801,8 @@ class SwiftExpr {
         out.push(indent(depth)
             + (mutated.exists(alloc.arr.id) ? "var " : "let ")
             + arrName
-            + " = TiqianArray<"
-            + types.of(alloc.elem)
-            + ">()");
+            + " = "
+            + arrayRuntimeText("TiqianArray<" + types.of(alloc.elem) + ">()"));
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
             + strideValue(loop.bound) + ", by: 1) {");
@@ -1936,7 +1942,7 @@ class SwiftExpr {
                 // the protocol members; the interface element type is carried
                 // explicitly so the existential stays in the array.
                 final body = isInterfaceType(elemType) ? "(" + inner + " as [" + types.of(elemType) + "])" : inner;
-                return elemType == null ? "TiqianArray(" + body + ")" : "TiqianArray<" + types.of(elemType) + ">(" + body + ")";
+                return arrayRuntimeText(elemType == null ? "TiqianArray(" + body + ")" : "TiqianArray<" + types.of(elemType) + ">(" + body + ")");
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -2599,7 +2605,7 @@ class SwiftExpr {
             return fail(inner, "array boundary is missing its element type");
         final elementText = types.of(plan.elementType);
         return {
-            text: SwiftArrayBoundary.render(plan, operand.text, elementText),
+            text: arrayRuntimeText(SwiftArrayBoundary.render(plan, operand.text, elementText)),
             sourceType: target,
             storage: plan.resultStorage,
             optionality: plan.resultOptionality,
@@ -2608,37 +2614,29 @@ class SwiftExpr {
     }
 
     /** Lower both lazy arms to one destination representation before rendering the conditional. */
-    function lowerArrayConditionalBoundary(inner:TypedExpr, condition:TypedExpr, whenTrue:TypedExpr, whenFalse:TypedExpr,
-            target:Type, destinationOptionalOverride:Null<Bool>):SwiftArrayPreparedOperand {
+    function lowerArrayConditionalBoundary(inner:TypedExpr, condition:TypedExpr, whenTrue:TypedExpr, whenFalse:TypedExpr, target:Type,
+            destinationOptionalOverride:Null<Bool>):SwiftArrayPreparedOperand {
         final nilMerge = optionalIfSite(condition, whenTrue, whenFalse);
         if (nilMerge != null) {
             final targetValue = lowerArrayBoundary(nilMerge.target, target, null, destinationOptionalOverride);
             final fallbackValue = lowerArrayBoundary(nilMerge.fallback, target, null, destinationOptionalOverride);
-            final text = targetValue.optionality == SwiftArrayOptionality.RequiredOperand
-                ? targetValue.text
-                : targetValue.text + " ?? " + fallbackValue.text;
+            final text = targetValue.optionality == SwiftArrayOptionality.RequiredOperand ? targetValue.text : targetValue.text + " ?? " + fallbackValue.text;
             final optionality = targetValue.optionality == SwiftArrayOptionality.OptionalOperand
-                && fallbackValue.optionality == SwiftArrayOptionality.OptionalOperand
-                ? SwiftArrayOptionality.OptionalOperand
-                : SwiftArrayOptionality.RequiredOperand;
+                && fallbackValue.optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand;
             final storage = targetValue.storage == SwiftArrayStorage.NullArrayValue ? fallbackValue.storage : targetValue.storage;
             return {
                 text: text,
                 sourceType: inner.t,
                 storage: storage,
                 optionality: optionality,
-                presenceFact: optionality == SwiftArrayOptionality.OptionalOperand
-                    ? SwiftArrayPresenceFact.NoPresenceProof
-                    : SwiftArrayPresenceFact.BranchValuesRequired
+                presenceFact: optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayPresenceFact.BranchValuesRequired
             };
         }
 
         final trueValue = lowerArrayBoundary(whenTrue, target, null, destinationOptionalOverride);
         final falseValue = lowerArrayBoundary(whenFalse, target, null, destinationOptionalOverride);
         final optionality = trueValue.optionality == SwiftArrayOptionality.OptionalOperand
-            || falseValue.optionality == SwiftArrayOptionality.OptionalOperand
-            ? SwiftArrayOptionality.OptionalOperand
-            : SwiftArrayOptionality.RequiredOperand;
+            || falseValue.optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand;
         if (optionality == SwiftArrayOptionality.OptionalOperand && destinationOptionalOverride == false)
             return fail(inner, "optional conditional array result cannot satisfy a required boundary");
         final storage = trueValue.storage == SwiftArrayStorage.NullArrayValue ? falseValue.storage : trueValue.storage;
@@ -2647,9 +2645,7 @@ class SwiftExpr {
             sourceType: inner.t,
             storage: storage,
             optionality: optionality,
-            presenceFact: optionality == SwiftArrayOptionality.OptionalOperand
-                ? SwiftArrayPresenceFact.NoPresenceProof
-                : SwiftArrayPresenceFact.BranchValuesRequired
+            presenceFact: optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayPresenceFact.BranchValuesRequired
         };
     }
 
@@ -3778,7 +3774,7 @@ class SwiftExpr {
                     // std.Process.args() reads the arguments after the
                     // program name (stdlib/17). The Haxe result is an
                     // Array, which lowers to TiqianArray.
-                    return "TiqianArray(Array(CommandLine.arguments.dropFirst()))";
+                    return arrayRuntimeText("TiqianArray(Array(CommandLine.arguments.dropFirst()))");
                 }
                 if (module == "std.UStringPlatform") {
                     return ustringPlatformCall(fName, args, fn);
@@ -4061,12 +4057,12 @@ class SwiftExpr {
                     // return slot of that container type.
                     // (StringSplitContainer)
                     if (isEmptyDelimiterSplit(name, args))
-                        return "TiqianArray("
+                        return arrayRuntimeText("TiqianArray("
                             + (types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
                                 + receiverText(subj)
                                 + ".utf16).map { String(decoding: [$0], as: UTF16.self) }")
-                            + ")";
-                    return "TiqianArray("
+                            + ")");
+                    return arrayRuntimeText("TiqianArray("
                         + (types.resident ? receiverText(subj)
                             + ".split(separator: "
                             + expr(args[0])
@@ -4074,7 +4070,7 @@ class SwiftExpr {
                             + ".split(separator: "
                             + expr(args[0])
                             + ", omittingEmptySubsequences: false).map { String($0) }")
-                        + ")";
+                        + ")");
                 }
                 if (name == "push") {
                     final elemType = switch (subj.t) {
@@ -4164,7 +4160,7 @@ class SwiftExpr {
                         body += " let _t = Int(" + expr(args[1]) + "); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n);"
                             + " let _e = _e0 < _s ? _s : _e0; return " + open + "_a[_s..<_e]" + close + " }())";
                     }
-                    return body;
+                    return wrapped ? arrayRuntimeText(body) : body;
                 }
                 if (name == "substring" && isStringSubject(subj)) {
                     // The haxe typer passes a synthesized null for an
@@ -4349,7 +4345,7 @@ class SwiftExpr {
             case _: null;
         };
         if (ret != null && arrayElementType(ret) != null) {
-            return "TiqianArray(" + text + ")";
+            return arrayRuntimeText("TiqianArray(" + text + ")");
         }
         return text;
     }
@@ -4867,7 +4863,7 @@ class SwiftExpr {
                 imports.runtime("BytesBuffer");
                 return "BytesBuffer()";
             case "Array":
-                return "TiqianArray<" + types.of(params[0]) + ">()";
+                return arrayRuntimeText("TiqianArray<" + types.of(params[0]) + ">()");
             case _:
                 imports.value(cls.module, cls.name);
                 return cls.name + "(" + rendered + ")";

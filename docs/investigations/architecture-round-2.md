@@ -266,3 +266,10 @@ Two existing fixtures now consume one implementation and retain their existing
 native failures. The report records the focused checks and the limits of this
 shared responsibility. B1 flow observation is assigned to GLM in an independent
 checkout at `41d67cad`; its child commands use the existing F1 capture caller.
+
+The [Swift ordinary-runtime delivery](architecture-round-2/e-swift-runtime-closure-review.md)
+is accepted by coordinator source review and focused integration execution.
+Its historical D1 assignment name is retained in external evidence; its actual
+responsibility belongs to package E. The review explains the declaration and
+expression-producer dependencies, the additional scalar-result counterexample,
+and the remaining verification obligations.

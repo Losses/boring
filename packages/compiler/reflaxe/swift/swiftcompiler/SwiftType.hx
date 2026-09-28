@@ -89,7 +89,9 @@ class SwiftType {
                         "BoringException";
                     case "String": resident ? "[UInt16]" : "String";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";
-                    case "Array": "TiqianArray<" + of(params[0]) + ">";
+                    case "Array":
+                        imports.runtime("TiqianArray");
+                        "TiqianArray<" + of(params[0]) + ">";
                     case "haxe.io.Bytes": "[UInt8]";
                     case "haxe.io.BytesBuffer":
                         imports.runtime("BytesBuffer");
@@ -189,7 +191,9 @@ class SwiftType {
                 switch (pathOf(cls.pack, cls.name)) {
                     case "String": resident ? "[UInt16]" : "String";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";
-                    case "Array": "TiqianArray<" + ofSubstituted(params2[0], params, args) + ">";
+                    case "Array":
+                        imports.runtime("TiqianArray");
+                        "TiqianArray<" + ofSubstituted(params2[0], params, args) + ">";
                     case "haxe.io.Bytes": "[UInt8]";
                     case _:
                         for (i in 0...params.length) {
