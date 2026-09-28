@@ -11,6 +11,22 @@ The preparation recorded coordinator revision `8a5aa83a`, actual working-file
 hashes and its documentation-only delta from the task's earlier revision.
 Later coordinator changes require new candidate identity evidence before tests.
 
+### Later coordinator checkpoint
+
+The coordinator reached `039e1a43` after the terminology and candidate-review
+commits. Its path difference from `8a5aa83a` includes compiler and fixture
+files, so the preparation tool's documentation-only revision allowance does
+not apply. The existing twelve derived HXML files and three project files
+remain evidence for the earlier static preparation. They do not identify
+the current Boring candidate's complete inputs.
+
+After A, B, and F candidates are accepted, select one Boring revision. Keep
+its inputs unchanged while rerunning static preparation against that exact
+revision. Independently check the twelve generation and eleven target-test
+obligations, the three protocol
+test-root unions, the transformed HXML paths, and working-file hashes before
+launching Tiqian generation. Keep the earlier attempt as historical evidence.
+
 | Input or obligation | Verified result |
 | --- | --- |
 | Three derived root configurations | Complete project, engine comparison group and protocol comparison group retained |
