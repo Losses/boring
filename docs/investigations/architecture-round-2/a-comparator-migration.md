@@ -36,6 +36,13 @@ query also affects equality selection, so replacing it requires tracing that
 consumer separately from sorted-key admission. A missing target operation for
 an admitted source key is a compiler migration obligation.
 
+For example, Swift's current scalar comparison capability includes `Float`
+and `Bool`. Spec 16's sorted-key domain excludes those field types. Applying
+the narrower source admission rule to Swift's optional comparator capability
+would also change the decision used by `SwiftType.usesIdentityEquality` and
+`SwiftExpr`. Preserve that consumer's behavior unless a separate verified
+semantic correction requires a change.
+
 ## One selected plan for helpers and body
 
 A target comparison plan names the operations its body will perform and the
@@ -103,6 +110,17 @@ nesting forms require a cited source rule before entering the accepted domain.
 Test same-short-name records from distinct modules and recursive dependencies
 without equating the two cases. Observe the first production query in the
 admitted phase, as required by the source-resolution contract.
+
+An acyclic identity test can use two distinct declarations named `Point`:
+`A.Point` has a stored `B.Point` field, and `B.Point` has only an `Int` field.
+The reference path `A.Point -> B.Point -> A.Point` is a real cycle and cannot
+prove a false cycle rejection. Add instantiated generic cases independently;
+module and declaration names alone do not identify their actual type arguments.
+
+The [consumer audit review](a-consumer-audit-review.md) records verified caller
+locations and corrections to the external audit. In particular, TypeScript's
+and Dart's `rawArrayElement` definitions have no caller beyond self-recursion
+at the checkpoint. Their presence cannot establish a live nullable-array path.
 
 Preserve direct-form behavior where the source contract is already satisfied.
 Alias identity corrections, missing helper repairs, or altered source-domain

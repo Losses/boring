@@ -109,6 +109,10 @@ the rule's preconditions explain its broader applicability.
    Consumer class names cannot serve as evidence of sharing, mutability, or
    ownership. Express such requirements through the accepted semantic model,
    validated declarations, or analyses that establish them.
+   At a host boundary, distinguish the declared API result from an arbitrary
+   caught value. A destination type annotation does not validate that value.
+   Establish the required runtime shape before reading foreign metadata;
+   convert validated fields into the internal result in one owning boundary.
 9. **Evidence follows the decision.** Preserve source identity and record the
    responsible stage or rule for a generated operation. Keep runtime
    observations, compilation results, structural inspection, and performance
