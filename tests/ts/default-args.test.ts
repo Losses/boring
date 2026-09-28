@@ -50,7 +50,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain("const resolvedValue = value ?? (fallback ?? 2.5);");
     expect(content).toContain("export class ChainedPaint");
     expect(content).toContain("constructor(radius: number | null = null, followRadius: number | null = null)");
-    expect(content).toContain("this.followRadius = (followRadius ?? (radius ?? 0.0))!;");
+    expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");
     expect(content).toContain("return DefaultArgsOps.chainedCoalescing();");
 
     // A zero-argument self-construction on a field-carrying class is a
@@ -58,7 +58,7 @@ describe("default argument expansion generated tree", () => {
     // singleton: the printed form stays the labeled record text.
     expect(content).toContain("public static readonly Default: CoalescingPreset = new CoalescingPreset();");
     expect(content).toContain("constructor(base: number | null = null, ceiling: number | null = null)");
-    expect(content).toContain("this.ceiling = (ceiling ?? 0.5)!;");
+    expect(content).toContain("this.ceiling = ceiling ?? 0.5;");
     expect(content).toContain("CoalescingPreset(base=${this.base}, ceiling=${this.ceiling})");
 
     // A coalescing default keeps its container expression in the body, so the
@@ -224,14 +224,14 @@ describe("default argument expansion generated tree", () => {
     expect(fs.existsSync(swiftFile)).toBe(true);
     const content = fs.readFileSync(swiftFile, "utf8");
 
-    expect(content).toContain("init(_ familyNames: TiqianArray<String> = TiqianArray())");
+    expect(content).toContain("init(_ familyNames: [String] = [])");
     expect(content).toContain("static func infinityDefault(_ value: Double = Double.infinity) -> Double");
     expect(content).toContain("static func mapDefault(_ value: [String: Int32] = [:]) -> [String: Int32]");
     expect(content).toContain("return DefaultArgsOps.infinityDefault()");
     expect(content).toContain("return DefaultArgsOps.mapDefault()");
     expect(content).toContain("static func greetWithPrefix(_ name: String, _ prefix: String? = nil) -> String");
     expect(content).toContain("let prefix = prefix ?? name;");
-    expect(content).toContain("static func fieldAccessSample(_ items: TiqianArray<String>, _ count: Int32? = nil) -> Int32");
+    expect(content).toContain("static func fieldAccessSample(_ items: [String], _ count: Int32? = nil) -> Int32");
     expect(content).toContain("let count = count ?? Int32(items.count);");
     expect(content).toContain("static func localeSample(_ lang: String, _ fallback: String? = nil) -> String");
     expect(content).toContain("let fallback = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
