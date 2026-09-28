@@ -75,10 +75,10 @@ assignment whose right side may run a captured writer.
   still yielding an available value, a catch arm joined as a normal path when
   the protected body cannot throw, an ambiguity marker revived by a third visit
   to one physical node, an or-value carrying only its true outcome, and an
-  assignment destination written into the lvalue environment instead of the
-  right side's. The join rule that refuses a one-sided fact at a reachable join
-  is not distinguishable by this fixture, because lexical scope removal removes
-  the only one-sided entries the current cases can build.
+  assignment destination written into the lvalue environment, discarding the
+  right side's environment. The rule refusing a one-sided fact at a reachable
+  join is not distinguishable by this fixture, because lexical scope removal
+  removes the only one-sided entries the current cases can build.
 - A marker call clears captured bindings by rule, so a read that follows a
   marker call observes the call's effects and cannot discriminate an earlier
   transfer. The assignment cases therefore observe their captured local through
@@ -88,7 +88,7 @@ assignment whose right side may run a captured writer.
   thrown-type and catch matching. A protected body's throw exits are therefore
   kept unchanged: an unknown call's escape stays possible, and a definitely
   matching explicit throw is still reported as a reachable throw exit.
-- No legal surface form puts a throw or a return inside an array or object
+- No legal source expression puts a throw or a return inside an array or object
   literal, because the element type must unify, so the abrupt-literal case is
   a typed shape built by the checker itself. It observes the assembly rule
   directly and is not authored source.

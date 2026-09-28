@@ -927,7 +927,7 @@ class SourcePresenceWalk {
         matches the caught type has no source rule in this batch, and the edge
         carries no thrown type, so an unknown call's escape stays possible and
         a definitely matching explicit throw is still reported as a reachable
-        throw exit. That precision limit is stated here, not resolved.
+        throw exit. This remains a stated precision limit.
     **/
     function handler(bodyThrows:Array<SourceEdge>, env:SourceEnvironment, body:TypedExpr,
             catches:Array<{v:TVar, expr:TypedExpr}>, policy:SourceEvalPolicy):SourceStep {
@@ -1058,7 +1058,7 @@ class SourcePresenceWalk {
             case TUnop(op, _, subject):
                 return unary(env, e, op, subject, policy);
             case TArray(receiver, index):
-                // An indexed read is a projection, not a construction. Its
+                // An indexed read projects an element. Its
                 // element can be null, so it states no presence.
                 final first = eval(env, receiver, policy);
                 if (first.environment == null)
@@ -1240,7 +1240,7 @@ class SourcePresenceWalk {
 
     /**
         One assignment rule for the plain and the compound form. The
-        destination write lands in the environment the right side left behind,
+        destination write uses the environment left by the right side,
         so the write cannot restore a fact the right side removed, and the
         operand edges stay in evaluation order.
     **/

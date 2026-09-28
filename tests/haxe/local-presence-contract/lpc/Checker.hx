@@ -112,7 +112,7 @@ class Checker {
     }
 
     /**
-        The abrupt-literal shape. No legal surface form puts a throw or a
+        The abrupt-literal shape. No legal source expression puts a throw or a
         return inside an array literal, because the element type must unify,
         so this typed shape is built by hand here. It observes the assembly
         rule directly: the literal and its later sibling can deliver no
@@ -591,7 +591,7 @@ class Checker {
         at("booleanOrValueJoin", "use", 0, unknown),
 
         // C39 assignmentKeepsRightEffects and C40
-        // compoundAssignmentKeepsRightEffects: the destination write lands in
+        // compoundAssignmentKeepsRightEffects: the destination write uses
         // the environment the right side left behind, so the compared read
         // right after the assignment cannot still see the captured local the
         // right side may null as present. The assignment target takes the
