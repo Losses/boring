@@ -1,0 +1,14 @@
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp tests/haxe/ts-package-diagnostic-resolution
+-cp samples
+--macro Intercept.run(['tests/haxe/ts-package-diagnostic-resolution'])
+--macro tscompiler.Compiler.use()
+-D ts-source-origins
+-D package-shell=emit
+-D package-artifacts=emit
+-D package-name=ts-diagnostic-resolution
+-D package-version=0.1.0
+-main DiagnosticSubject
