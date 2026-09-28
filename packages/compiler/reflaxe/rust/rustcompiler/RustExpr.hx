@@ -4554,6 +4554,12 @@ class RustExpr {
                 case _: false;
             })
                 return text;
+            // Inside an active null-guard match arm the subject read renders
+            // through the match binding, which already holds the inner value
+            // (the &bool payload), so the Option forcing read must not
+            // re-apply on it. (NarrowedBoolOperand)
+            if (narrowedSubject(stripWrap(e)) != null)
+                return text;
             return text + ".unwrap_or(false)";
         }
         return text;
