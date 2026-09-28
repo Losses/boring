@@ -73,25 +73,39 @@ been exercised.
 
 ## Todo and dependencies
 
-Current status: the first investigation round is running on independent branch
+Current status: round 2 policy work is running on independent branch
 `arch/agent-guided-governance`, based on
-`e3b8bab39ac2da0e17e9d04e031f03bd39290274`. See the
-[round 1 record](investigations/architecture-round-1.md) for version evidence,
-ownership, and assignments. The owner has selected shared alias visibility for
-ordinary read-only arrays. Brief J now includes the required Swift type and
-runtime scope. The coordinator preserved and checked the initial focused
-delivery during a native service interruption. Native execution has resumed.
-Local Goose reproduced a nullable binding failure and the coordinator preserved
-its complete compiler inputs. Later review found that conditional producers
-still reported contextual source types as their emitted storage. The owner
-challenged the repeated corrective cycle. J completed the producer inventory
-and a separate executor approved the prepared-result design on 2026-09-28.
-P07 is accepted with explicit implementation phases and producer acceptance
-conditions. The owner subsequently requested an unfinished Swift checkpoint
-and parallel cross-target policy work. J1 stopped without additional edits.
-P08 now follows policy-package assignments; the J phases remain a migration
-inventory for package A. X's lifetime exercise remains required for the final
-Swift delivery. Earlier investigations remain revision-specific leads.
+`e3b8bab39ac2da0e17e9d04e031f03bd39290274`. The
+[round 1 record](investigations/architecture-round-1.md) retains the initial
+investigation and Swift decisions. The
+[round 2 record](investigations/architecture-round-2.md) records the current
+policy assignments and corrective reviews.
+
+The owner selected shared alias visibility for ordinary read-only arrays.
+The unfinished Swift checkpoint is `e5e21854`. P07's prepared-value design
+remains accepted as a design; its implementation and X's lifetime exercise
+remain outstanding. The owner authorized two concurrent GLM workers and two
+concurrent Goose workers. Each implementation has an exclusive file owner;
+independent reviewers inspect a recorded snapshot or an integrated revision.
+
+The A and C diagnostic fixtures are integrated at `5eb3429b`; their
+[acceptance record](investigations/architecture-round-2/observation-acceptance.md)
+limits the claims to observed classifier and assignment behavior. A2 implements
+the source-container analysis and its three initial query adapters. F1
+implements child execution evidence in the bundle driver. Both remain under
+review. A3's comparator design awaits the independent consumer audit and the
+accepted A2 interface before compiler writes are assigned. These tasks do not
+complete P08's mechanism migration or P09's regression requirements.
+
+The fixed Tiqian input remains `8504d230228e8206689a2049bbb84b671c1f079a`.
+The previous validation checkout was absent during the latest environment
+check; its loss has no established cause. A new locked checkout at the same
+revision contains 248 copied local data inputs with matching source and target
+hashes. The data's producing revision remains unknown. Earlier reports retain
+their original scope; neither the copied inputs nor the new checkout establish
+a fresh regression result. Recreate and review the derived compiler paths and
+comparison groups before running the final candidate. Retain all 12 generation
+and 11 target-test obligations, including the protocol test-root union.
 
 The current candidate must use `ReadOnlyArray` for J's new runtime view and
 all references to it. Existing branded mutable-array and exception types remain
