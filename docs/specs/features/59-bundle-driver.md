@@ -114,6 +114,75 @@ path, a memory bound) are not derivable from the compilation.
 - Exit status is 0 when every action the invocation ran succeeded. A failure
   names the bundle and the action.
 
+## Child execution evidence
+
+    BORING_CHILD_EVIDENCE_DIR=<directory> bun out/bundle/driver.js <action> ...
+
+When the variable names a directory, every command the driver runs through a
+recipe step is captured. When it is unset or empty, the driver behaves exactly
+as before.
+
+One invocation allocates one run directory under the named parent and never
+reuses an existing entry: the run directory is created with exclusive,
+non-recursive creation. A name collision selects another candidate name with
+a suffix; the existing entry is preserved. Exhausted candidate names or another
+allocation error fail the run. A missing parent is created recursively; the recursive
+form alone cannot establish a fresh run, because it succeeds on an existing
+directory.
+
+Every captured child writes one subdirectory of the run holding:
+
+| File | Content |
+| --- | --- |
+| `stdout.bin` | the child's standard output, as the host returned it |
+| `stderr.bin` | the child's standard error, as the host returned it |
+| `record.json` | one evidence record, described below |
+
+The captured spawn requests buffer output from the host process API, so the
+two files carry the child's bytes without a text decode and re-encode step.
+The driver's console output stays as short as before; a copy of the retained
+buffers is decoded only to print the failure tail of a failed step.
+
+`record.json` holds, per child: the invocation identifier shared by every
+child of the run and derived from the run directory the exclusive allocation
+created, the child's sequence number, the bundle, the action, the step, the
+command and its argument array, the working directory the child actually ran
+in, the declared environment override key names, the start, end, and elapsed
+times, the outcome of the child, the exit status, the signal, and the launch
+error as separate fields, the directory holding the child's evidence, the byte
+length of each stream, the capture completeness and its error, and the project
+file's path and content identity. The exit status, the signal, and the launch
+error are separate because the host reports a null status when a child signals
+or fails to launch; a missing status never reads as success. The outcome
+distinguishes a normal exit, a signaled child, a child the host failed to
+start, and a spawn the host interrupted, so an arbitrary host error is never
+reported as complete output. A stream path is recorded only for a stream that
+was written; an unavailable stream is recorded as unavailable with no path and
+no bytes, so every file the record names exists. Only the declared override
+key names are recorded; the inherited environment is never serialized.
+
+The per-stream capture limit is the same limit the uncaptured path uses, so
+capture does not change when a large stream stops being retained. When the
+host reports that the limit was reached, the record keeps the output that
+arrived, names the error, and marks the capture incomplete.
+
+An evidence write failure, a spawn the host raised on, and an allocation that
+cannot create a fresh run all fail the driver. A record that is incomplete or
+absent cannot stand for a passed child, and capture never turns a child
+failure into a driver success. The project path and content identity identify
+the driver's inputs; they do not state which compiler source a package
+resolver actually loaded.
+
+### Scope of capture
+
+Capture covers the recipe steps, which are the commands the driver runs
+through `step`. The `compare` action's consistency manager runs through a
+direct execution that keeps its own console behaviour, because its matrix and
+divergence list are the compare result and print on success as well as
+failure. That execution is outside child execution evidence, so a driver run
+with capture enabled does not establish complete evidence for the `compare`
+action.
+
 ## Results sink on every target
 
 Spec 19's location rule names `haxe`, `ts`, `kotlin` and `rust` as the values
