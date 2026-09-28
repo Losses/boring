@@ -74,12 +74,19 @@ All commands run inside the flake environment:
     nix develop -c bash -c "bun install"
     nix develop -c bash -c "bun run verify"
 
-`bun run verify` runs every check in order: the three generation passes
-(`gen:ts`, `gen:kotlin`, `gen:rust` through the example entries),
-`bun test`, the Haxe test binary, the Kotlin test binary, the
-interception suite, the Rust test suite, `eslint .`, `tsc -p .`, the
-documentation style check, the vector regeneration check, and the
-reflaxe smoke compile. Individual commands:
+`bun run verify` builds the bundle driver and runs its generation, target
+tests, and comparison over the configurations in `boring.json`. The current
+matrix includes Haxe, TypeScript, Kotlin, Rust, Swift, and Dart, with additional
+f32 configurations for Haxe, Kotlin, Rust, and Swift. The command then runs
+the Bun, Haxe, Kotlin, interception, Dart, and Rust checks, registry compilation,
+ESLint, TypeScript typechecking, documentation style, vector regeneration,
+and the reflaxe smoke compile. Read `package.json` and the project configuration
+when determining the exact commands for a candidate.
+
+The separate `test:swift` and `test:swift-f32` scripts include SwiftPM vector
+and package checks beyond the driver matrix. They are supplemental to the root
+verification command and share a build directory; schedule them serially when
+the change requires those checks. Individual commands:
 
 | Command | Effect |
 | --- | --- |
