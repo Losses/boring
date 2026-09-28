@@ -673,6 +673,31 @@ extension TiqianArray where Element: Equatable {
 extension TiqianArray: Equatable where Element: Equatable {
     public static func == (lhs: TiqianArray<Element>, rhs: TiqianArray<Element>) -> Bool { return lhs.items == rhs.items }
 }
+
+/// Read-only reference view over the same slots held by a TiqianArray.
+public final class ReadOnlyArray<Element>: RandomAccessCollection {
+    public typealias Index = Int
+    private let backing: TiqianArray<Element>
+
+    public init(_ backing: TiqianArray<Element>) { self.backing = backing }
+    public convenience init() { self.init(TiqianArray<Element>()) }
+
+    public var startIndex: Int { return backing.startIndex }
+    public var endIndex: Int { return backing.endIndex }
+    public func index(after i: Int) -> Int { return backing.index(after: i) }
+    public func index(before i: Int) -> Int { return backing.items.index(before: i) }
+    public func index(_ i: Int, offsetBy distance: Int) -> Int { return backing.items.index(i, offsetBy: distance) }
+    public func distance(from start: Int, to end: Int) -> Int { return backing.items.distance(from: start, to: end) }
+    public subscript(index: Int) -> Element { return backing[index] }
+
+    public func toMutableArray() -> TiqianArray<Element> { return TiqianArray(Array(self)) }
+}
+
+extension ReadOnlyArray: Equatable where Element: Equatable {
+    public static func == (lhs: ReadOnlyArray<Element>, rhs: ReadOnlyArray<Element>) -> Bool {
+        return lhs.elementsEqual(rhs)
+    }
+}
 ';
 }
 #end

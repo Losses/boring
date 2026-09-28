@@ -2,6 +2,13 @@
 
 ## Goal and completion criteria
 
+The owner's 2026-09-28 direction expands implementation into parallel policy
+migrations across all targets. Follow the
+[policy architecture and task boundaries](compiler-policy-architecture.md).
+The Swift pilot is being preserved as an unfinished checkpoint with explicit
+TODOs. Its completion is no longer a prerequisite for those migrations. The
+first-cycle criteria below remain required evidence within the expanded work.
+
 Improve the compiler's architecture through delegated work and use the results
 to improve the instructions available to subsequent agents. Apply the
 [compiler problem analysis method](compiler-problem-analysis.md) and the
@@ -72,8 +79,25 @@ Current status: the first investigation round is running on independent branch
 [round 1 record](investigations/architecture-round-1.md) for version evidence,
 ownership, and assignments. The owner has selected shared alias visibility for
 ordinary read-only arrays. Brief J now includes the required Swift type and
-runtime scope and is ready for executor assignment. Earlier investigations are
-leads that require revision checks.
+runtime scope. The coordinator preserved and checked the initial focused
+delivery during a native service interruption. Native execution has resumed.
+Local Goose reproduced a nullable binding failure and the coordinator preserved
+its complete compiler inputs. Later review found that conditional producers
+still reported contextual source types as their emitted storage. The owner
+challenged the repeated corrective cycle. J completed the producer inventory
+and a separate executor approved the prepared-result design on 2026-09-28.
+P07 is accepted with explicit implementation phases and producer acceptance
+conditions. The owner subsequently requested an unfinished Swift checkpoint
+and parallel cross-target policy work. J1 stopped without additional edits.
+P08 now follows policy-package assignments; the J phases remain a migration
+inventory for package A. X's lifetime exercise remains required for the final
+Swift delivery. Earlier investigations remain revision-specific leads.
+
+The current candidate must use `ReadOnlyArray` for J's new runtime view and
+all references to it. Existing branded mutable-array and exception types remain
+separate migration work with recorded public API dependencies. P09 verifies
+this bounded candidate; P12 must retain those naming violations in its remaining
+work and must not claim complete runtime naming conformance.
 
 - [x] P00: Establish the coordinator role and create the programme goal.
 - [x] P01: Verify basic availability of Luna, Goose, and Claude Code routes;
@@ -93,7 +117,12 @@ leads that require revision checks.
   test matrix, file ownership list, and migration acceptance criteria.
   [Swift array boundary brief](investigations/architecture-round-1/j-boundary-implementation.md)
   includes the owner's shared-storage ruling, runtime representation, and
-  fair comparisons between generation runs with identical inputs.
+  fair comparisons between generation runs with identical inputs. The reopened
+  review mapped expression producers to actual target representation owners
+  and accepted the common conditional/default result contract.
+  The [prepared-value design](investigations/architecture-round-1/j-representation-contract.md)
+  records the reviewed responsibilities, concrete integration owners, phased
+  implementation, and acceptance conditions for each producer family.
 - [ ] P08: Delegate reproduction and contract tests, then implementation.
   Independently review both before accepting a candidate.
 - [ ] P09: Run the candidate's required Boring checks and Tiqian checks on fixed
@@ -110,6 +139,12 @@ P04's three investigations can run concurrently. P05 depends on all three.
 P08 depends on an accepted P07 brief and resolved semantic dependencies.
 Heavy platform tests use a measured resource limit even when investigation
 capacity is available. Start with one heavy verification candidate at a time.
+Schedule the P11 guidance exercise after P08's focused acceptance and before
+freezing the final P09 candidate when its dependencies permit. This allows
+the follow-up fixture or repair to share the final full verification run.
+P10's final reflection and P12 still require that verification evidence.
+The planned [storage-lifetime exercise](investigations/architecture-round-1/x-guidance-evaluation.md)
+defines the next guidance evaluation; it is not yet assigned for implementation.
 
 ## First investigation assignments
 
@@ -209,6 +244,13 @@ Every execution task records:
    insufficient facts, or a failed required check. Follow existing rulings and
    session authorization when deciding whether owner input is necessary.
 
+State what an execution limit counts: semantic cases, target runs, setup
+attempts, or elapsed cost. Define whether diagnosed harness corrections within
+the assigned files may proceed, with every attempt retained. A setup failure
+is separate from source rejection or a target semantic result. Explicit owner
+limits remain binding; the coordinator can revise its own task limits when
+the evidence supports a bounded correction.
+
 An agent's summary is a claim to inspect. Acceptance requires reviewing the
 actual changes and evidence. Additional reproductions or code corrections are
 assigned to an execution agent; the coordinator can run existing checks.
@@ -238,6 +280,17 @@ target compilation and execution checks, then every gate required by the
 implementation standard and repository instructions. Follow with the required
 Tiqian platform matrix. Document the actual scope of that matrix before launch.
 Reuse evidence only when the relevant inputs and artifact identities match.
+
+Before a cross-target comparison, establish the test-ID set each configuration
+produces and the comparison domain it belongs to. A shared baseline requires
+corresponding observations. Resolve different source sets through explicit
+comparison groups while retaining each configuration's test obligations.
+Preserve raw result records; filtering missing IDs can conceal absent coverage.
+
+For required byte comparisons, inspect generated metadata for embedded paths.
+Use identical output paths when those paths affect bytes, preserving verified
+baseline copies before replacement. Candidate compiler routing must still be
+proven independently of the chosen source and output directories.
 
 Expand composite commands before scheduling checks. When the full verification
 command already runs a target matrix, schedule that matrix once for the fixed
