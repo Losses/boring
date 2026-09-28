@@ -1,0 +1,32 @@
+package kotlinlocalpresence
+
+
+fun main() {
+    val ops = LocalPresenceOps(null)
+    check(LocalPresenceOps.presentLocal(ops) == "present")
+    check(LocalPresenceOps.presentLocal(null) == "absent")
+    check(LocalPresenceOps.ordinaryReturn(ops) == "ordinary")
+    check(ops.render(ops) == "override")
+    check(LocalPresenceOps.absentLocal() == null)
+    check(LocalPresenceOps.unknownOptional(ops) === ops)
+    check(LocalPresenceOps.unknownRequired(ops) === ops)
+    check(LocalPresenceOps.producedConstruction().read(null) == "missing")
+    check(LocalPresenceOps.producedCall("ok") == "OK")
+    check(LocalPresenceOps.producedField(ops) == "field")
+    check(LocalPresenceOps.nestedLiteral(ops) == "nested")
+    check(LocalPresenceOps.nestedLiteral(null) == "absent")
+    check(LocalPresenceOps.nestedNameRestore() == "innerouter")
+    check(LocalPresenceOps.defaultedNullable() == "READY")
+    check(LocalPresenceOps.defaultedNullable("go") == "GO")
+    check(LocalPresenceOps.unprovenNullableUppercase(null) == null)
+    check(LocalPresenceOps.unprovenNullableUppercase("go") == "GO")
+    check(LocalPresenceOps.staticEntry(ops) == "static")
+    check(LocalPresenceOps.staticEntry(null) == "absent")
+    LocalPresenceOps(ops)
+    ops.constructorEntry(ops)
+    check(LocalPresenceEnumOps.firstMember(LocalPresenceChoice.First) == "first")
+    check(LocalPresenceEnumOps.secondMember(LocalPresenceChoice.First) == "first-again")
+    check(LocalPresenceEnumOps.firstPayloadMember(LocalPresencePayloadChoice.Text("x")) == "x")
+    check(LocalPresenceEnumOps.secondPayloadMember(LocalPresencePayloadChoice.Text("x")) == "again-x")
+    println("KOTLIN LOCAL PRESENCE PASS")
+}
