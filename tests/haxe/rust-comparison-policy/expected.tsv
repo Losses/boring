@@ -1,0 +1,10 @@
+case	expected
+int-extremes	minMax=AB#size2;AB#size2|maxMin=BA#size2;BA#size2|equal=size1atB
+array-order	singleton=AB#size2;AB#size2|swapped=BA#size2;BA#size2|equalCollection=size1atB|prefix=AB#size2;AB#size2|prefixSwapped=BA#size2;BA#size2|firstUnequal=AB#size2;AB#size2|firstUnequalSwapped=BA#size2;BA#size2
+nullable-order	absentAbsent=size1atB|absentPresent=AB#size2;AB#size2|presentAbsent=BA#size2;BA#size2|presentEqual=size1atB|presentUnequal=AB#size2;AB#size2|presentUnequalSwapped=BA#size2;BA#size2
+string-order	equal=size1atB|ascii=AB#size2;AB#size2|asciiSwapped=BA#size2;BA#size2|astral=AB#size2;AB#size2|astralSwapped=BA#size2;BA#size2
+nullable-int-order	twoTen=AB#size2;AB#size2|minusTwoOne=AB#size2;AB#size2
+mixed-sign-array-order	AB#size2;AB#size2
+shared-enum-helpers	first=AB;second=AB
+generic-sequence	signed=AB;utf16=AB
+parameter-composition	direct=AB;unused=AB;nested=AB;nullable=NV;sequence=AB
