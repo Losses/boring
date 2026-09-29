@@ -1948,7 +1948,16 @@ class RustExpr {
                         // An owned Vec return slot receiving a borrowed array
                         // parameter clones the referent at the boundary. A
                         // borrowing return slot keeps the caller's view.
-                        retStr = "(*" + retStr + ").clone()";
+                        // A slice-typed borrow (ReadOnlyArray, Bytes) renders
+                        // &[T]: deref is the unsized [T] and `.clone()` fails
+                        // with E0599, so the referent clones through to_vec.
+                        // (&Vec<T> derefs to a slice too, so to_vec is valid
+                        // for every borrowed array shape.) (SliceReturnClone)
+                        if (argTypes.get(v.name) != null && StringTools.startsWith(argTypes.get(v.name), "&[")) {
+                            retStr = retStr + ".to_vec()";
+                        } else {
+                            retStr = "(*" + retStr + ").clone()";
+                        }
                     case _:
                 }
                 if (RustType.isTypeParam(ret.t)) {
@@ -13769,10 +13778,21 @@ class RustExpr {
                         mutated.set(v.id, true);
                     case TArray(arr, _):
                         final receiver = mapBackingReceiver(arr);
-                        switch (stripWrap(receiver == null ? arr : receiver).expr) {
-                            case TLocal(v):
-                                mutated.set(v.id, true);
-                            case _:
+                        // The index target's receiver may be a field chain
+                        // (holder.values[i] = ...): walk the chain to its
+                        // root local so the binding renders mut, matching
+                        // the TField case below. (IndexedFieldRootMut)
+                        var inner = receiver == null ? arr : receiver;
+                        while (true) {
+                            switch (stripWrap(inner).expr) {
+                                case TLocal(v):
+                                    mutated.set(v.id, true);
+                                    break;
+                                case TField(next, _):
+                                    inner = next;
+                                case _:
+                                    break;
+                            }
                         }
                     case TField(subj, _):
                         // Assigning through a field of a local requires the binding to be mutable;
