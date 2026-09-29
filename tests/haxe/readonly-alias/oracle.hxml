@@ -1,0 +1,11 @@
+# Haxe JS oracle for the readonly-alias fixture.
+# Run from the repository root (inside the boring devShell):
+#   haxe tests/haxe/readonly-alias/oracle.hxml -js out/readonly-alias/<run>/oracle/oracle.js
+# The runner appends the -js output path; the entry main() logs the five
+# labeled lines that every native harness must reproduce.
+-lib boring
+-cp packages/compiler
+-cp samples
+-cp tests/haxe/readonly-alias
+--macro Intercept.run(['samples', 'tests/haxe/readonly-alias'])
+-main roalias.ReadOnlyAliasOracle
