@@ -356,7 +356,7 @@ class KotlinDecl {
                 if (csep)
                     lines.push("");
                 csep = true;
-                for (l in staticFunctionVarDecl(v))
+                for (l in staticFunctionVarDecl(cls, v))
                     lines.push("    " + l);
             }
             for (f in staticFuncs) {
@@ -1122,7 +1122,7 @@ class KotlinDecl {
     function objectVarDecl(v:ClassVarData, cls:ClassType):Array<String> {
         final field = v.field;
         if (v.isStatic && isFunctionType(field.type)) {
-            return staticFunctionVarDecl(v);
+            return staticFunctionVarDecl(cls, v);
         }
         if (v.isStatic && DataTableHelper.isDataTableField(field)) {
             final elems = DataTableHelper.getDataTableElements(field.expr());
@@ -1242,15 +1242,17 @@ class KotlinDecl {
         };
     }
 
-    function staticFunctionVarDecl(v:ClassVarData):Array<String> {
+    function staticFunctionVarDecl(cls:ClassType, v:ClassVarData):Array<String> {
         final field = v.field;
         final initializer = field.expr();
         if (initializer == null) {
             Context.error("static function fields require initializers", field.pos);
             return [];
         }
+        // The initializer renders inside one prepared scope so a nested
+        // function literal finds its source facts. (StaticFunctionVarInitializer)
         return [
-            '    val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} = ${expr.rawExpression(initializer)}'
+            '    val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} = ${expr.preparedInitializer(cls, field.name, initializer)}'
         ];
     }
 
