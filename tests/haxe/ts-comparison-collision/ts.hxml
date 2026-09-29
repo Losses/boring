@@ -1,0 +1,24 @@
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp tests/haxe/ts-comparison-collision
+-cp samples
+--macro Intercept.run(['tests/haxe/ts-comparison-collision'])
+--macro tscompiler.Compiler.use()
+-D ts-output=out/ts-comparison-collision/current/ts-gen
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none
+comparisoncollision.PairKey
+comparisoncollision.first.Point
+comparisoncollision.second.Point
+comparisoncollision.first.Color
+comparisoncollision.second.Color
+comparisoncollision.TintedKey
+comparisoncollision.TintedHolder
+comparisoncollision.ColorMaker
+comparisoncollision.pair.Pair
+comparisoncollision.pair.other.Pair
+comparisoncollision.pair.other2.Pair
+comparisoncollision.pair.Shell

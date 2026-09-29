@@ -11,8 +11,12 @@ import ValueTypeSupport;
 import PolicyQueries;
 import TestApplicability;
 import reflaxe.kotlin.KotlinTestMeta;
-import ComparatorPlan;
-import ComparatorPlan.ComparatorFieldKind;
+import SourceComparisonAnalysis;
+import SourceComparisonAnalysis.SourceComparisonRequest;
+import SourceComparisonAnalysis.SourceAdmissionResult;
+import SourceComparisonAnalysis.SourceComparisonPlanResult;
+import SourceComparisonAnalysis.SourceComparisonOperation;
+import SourceComparisonAnalysis.SourceRecordComparisonPlan;
 import ValueTypeSupport.ValueTypeOperator;
 import ValueTypeSupport.ValueTypeInfo;
 
@@ -375,116 +379,41 @@ class KotlinDecl {
     }
 
     function dataClassComparator(cls:ClassType):String {
-        final lines:Array<String> = [];
-        final entries = ComparatorPlan.entries(cls, true, true);
-        final fields = [for (entry in entries) entry.field];
-        for (f in fields) {
-            switch (f.type) {
-                case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1):
-                    switch (Context.follow(params[0])) {
-                        case TEnum(e, _):
-                            final en = e.get();
-                            lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {');
-                            for (ef in en.constructs)
-                                lines.push(enumFieldParams(ef)
-                                    .length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}');
-                            lines.push('    }');
-                        case _:
-                    }
-                case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
-                    switch (rawArrayElement(params[0])) {
-                        case TEnum(e, _):
-                            final en = e.get();
-                            lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {');
-                            for (ef in en.constructs)
-                                lines.push(enumFieldParams(ef)
-                                    .length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}');
-                            lines.push('    }');
-                        case _:
-                    }
-                default:
-            }
-            switch (Context.follow(f.type)) {
-                case TEnum(e, _):
-                    final en = e.get();
-                    lines.push('    fun ${cls.name}${f.name}Order(v: ${en.name}): Int = when (v) {');
-                    for (ef in en.constructs)
-                        lines.push(enumFieldParams(ef)
-                            .length > 0 ? '        is ${en.name}.${ef.name} -> ${ef.index}' : '        ${en.name}.${ef.name} -> ${ef.index}');
-                    lines.push('    }');
-                case _:
-            }
-        }
-        lines.push('    fun compare${cls.name}(a: ${cls.name}, b: ${cls.name}): Int {');
-        lines.push('    var cmp = 0');
-        for (entry in entries) {
-            final f = entry.field;
-            // Context.follow unwraps Null, so nullable fields must be handled from the raw type.
-            switch (entry.kind) {
-                case NullableScalar(inner):
-                    lines.push('    if (a.${f.name} == null && b.${f.name} != null) return -1');
-                    lines.push('    if (a.${f.name} != null && b.${f.name} == null) return 1');
-                    switch (Context.follow(inner)) {
-                        case TEnum(e,
-                            _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = ${cls.name}${f.name}Order(a.${f.name}).compareTo(${cls.name}${f.name}Order(b.${f.name})); if (cmp != 0) return cmp }');
-                        case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                            imports.requireType(c.get().module, "compare" + c.get().name);
-                            lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp != 0) return cmp }');
-                        // A smart-cast String compares directly: toString()
-                        // on the non-null String warns as redundant. A val
-                        // property smart-casts through the guard; a var
-                        // property keeps the assertion.
-                        // (NullableScalarStringCompare)
-                        case TInst(c, _) if (c.get().name == "String"):
-                            if (f.isFinal)
-                                lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.compareTo(b.${f.name}); if (cmp != 0) return cmp }');
-                            else
-                                lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}!!.compareTo(b.${f.name}!!); if (cmp != 0) return cmp }');
-                        case TAbstract(_,
-                            _) | TInst(_,
-                                _): lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
-                        case _: lines.push('    if (a.${f.name} != null && b.${f.name} != null) { cmp = a.${f.name}.toString().compareTo(b.${f.name}.toString()); if (cmp != 0) return cmp }');
-                    }
-                    continue;
-                case NullableArray(element):
-                    lines.push('    if (a.${f.name} == null && b.${f.name} != null) return -1');
-                    lines.push('    if (a.${f.name} != null && b.${f.name} == null) return 1');
-                    nullableArrayComparator(lines, cls, f.name, element);
-                    continue;
-                case ReadOnlyArrayField(element):
-                    lines.push('    var idx${f.name} = 0');
-                    lines.push('    while (idx${f.name} < a.${f.name}.size && idx${f.name} < b.${f.name}.size) {');
-                    switch (Context.follow(element)) {
-                        case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                            imports.requireType(c.get().module, "compare" + c.get().name);
-                            lines.push('        cmp = compare${c.get().name}(a.${f.name}[idx${f.name}], b.${f.name}[idx${f.name}])');
-                        // The order helper is hoisted by the pre-pass over the
-                        // fields; emitting it here would nest a fun inside
-                        // the while loop body.
-                        case TEnum(e,
-                            _): lines.push('        cmp = ${cls.name}${f.name}Order(a.${f.name}[idx${f.name}]).compareTo(${cls.name}${f.name}Order(b.${f.name}[idx${f.name}]))');
-                        case _: lines.push('        cmp = a.${f.name}[idx${f.name}].compareTo(b.${f.name}[idx${f.name}])');
-                    }
-                    lines.push('        if (cmp != 0) return cmp');
-                    lines.push('        idx${f.name} += 1');
-                    lines.push('    }');
-                    lines.push('    cmp = a.${f.name}.size - b.${f.name}.size');
-                    lines.push('    if (cmp != 0) return cmp');
-
-                case PlainField:
-            }
-            switch (Context.follow(f.type)) {
-                case TAbstract(a, _) if (a.get().name == "Int"):
-                    lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
-                case TInst(c, _) if (c.get().name == "String"):
-                    lines.push('    cmp = a.${f.name}.compareTo(b.${f.name})');
-                case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                    imports.requireType(c.get().module, "compare" + c.get().name);
-                    lines.push('    cmp = compare${c.get().name}(a.${f.name}, b.${f.name})');
-                case TEnum(_, _):
-                    lines.push('    cmp = ${cls.name}${f.name}Order(a.${f.name}).compareTo(${cls.name}${f.name}Order(b.${f.name}))');
-                case _:
-            }
+        final declaration = SourceComparisonAnalysis.declarationReference(cls);
+        final arguments = [for (parameter in cls.params) parameter.t];
+        final summary = switch (SourceComparisonAnalysis.admit(declaration, arguments, SortedKey)) {
+            case SourceAdmissionAdmitted(ready): ready;
+            case SourceAdmissionRejected(_, _, _) | SourceAdmissionIncomplete(_, _, _):
+                // A data class need not be used as a sorted key. Its ordinary
+                // data-class lowering remains valid without a comparator; a
+                // sorted key use is diagnosed at the key selection boundary.
+                return "";
+        };
+        final source = SourceComparisonAnalysis.analyzeRecordSchema(declaration);
+        final plan = switch (SourceComparisonAnalysis.comparisonPlan(source, SortedKey)) {
+            case ComparisonPlanReady(ready): ready;
+            case ComparisonPlanFailed(path, reason, _):
+                Context.error("Kotlin sorted comparator failed at " + path + ": " + reason, cls.pos);
+                null;
+            case ComparisonPlanUnresolved(path, reason):
+                Context.error("Kotlin sorted comparator incomplete at " + path + ": " + reason, cls.pos);
+                null;
+        };
+        final typeParameters = cls.params.length == 0 ? "" : "<" + [for (parameter in cls.params) parameter.name].join(", ") + "> ";
+        final typeArguments = cls.params.length == 0 ? "" : "<" + [for (parameter in cls.params) parameter.name].join(", ") + ">";
+        final comparisonArguments = [
+            for (slot in summary.requiredSlots)
+                ', compareParam$slot: (${cls.params[slot].name}, ${cls.params[slot].name}) -> Int'
+        ].join("");
+        final selected = new KotlinComparisonPlan(imports);
+        final lines = [
+            'fun $typeParameters' + 'compare${cls.name}(a: ${cls.name}$typeArguments, b: ${cls.name}$typeArguments$comparisonArguments): Int {',
+            '    var cmp = 0'
+        ];
+        for (entry in plan.fields) {
+            final field = KotlinNameEscape.escape(entry.field.name);
+            final compared = selected.render(entry.operation, 'a.$field', 'b.$field', plan);
+            lines.push('    cmp = $compared');
             lines.push('    if (cmp != 0) return cmp');
         }
         lines.push('    return 0');
@@ -714,52 +643,6 @@ class KotlinDecl {
             case TFun(args, _): [for (a in args) {name: a.name, type: a.t}];
             case _: [];
         };
-    }
-
-    /**
-        The element type when `t` is a raw ReadOnlyArray (checked before
-        Context.follow, which erases the abstract to Array). Nullable
-        collections need this raw check: the Null arm's followed inner
-        type is Array and would otherwise lose the array shape.
-    **/
-    function rawArrayElement(t:Type):Null<Type> {
-        return switch (t) {
-            case TAbstract(a, params) if (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
-            case TLazy(f): rawArrayElement(f());
-            case _: null;
-        };
-    }
-
-    /**
-        The element-wise compare lines for a nullable collection field
-        inside the non-null guard. Kotlin cannot smart-cast a mutable
-        `var` field through the null check, so the present arrays bind to
-        locals first; the semantics mirror the non-null ReadOnlyArray
-        arm: compare in index order, then by length.
-    **/
-    function nullableArrayComparator(lines:Array<String>, cls:ClassType, field:String, element:Type):Void {
-        lines.push('    if (a.${field} != null && b.${field} != null) {');
-        // The guard smart-casts both nullable val properties, so the
-        // bindings read bare. (NullableScalarStringCompare)
-        lines.push('        val av${field} = a.${field}!!');
-        lines.push('        val bv${field} = b.${field}!!');
-        lines.push('        var idx${field} = 0');
-        lines.push('        while (idx${field} < av${field}.size && idx${field} < bv${field}.size) {');
-        switch (Context.follow(element)) {
-            case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                imports.requireType(c.get().module, "compare" + c.get().name);
-                lines.push('            cmp = compare${c.get().name}(av${field}[idx${field}], bv${field}[idx${field}])');
-            case TEnum(e, _):
-                lines.push('            cmp = ${cls.name}${field}Order(av${field}[idx${field}]).compareTo(${cls.name}${field}Order(bv${field}[idx${field}]))');
-            case _:
-                lines.push('            cmp = av${field}[idx${field}].compareTo(bv${field}[idx${field}])');
-        }
-        lines.push('            if (cmp != 0) return cmp');
-        lines.push('            idx${field} += 1');
-        lines.push('        }');
-        lines.push('        cmp = av${field}.size - bv${field}.size');
-        lines.push('        if (cmp != 0) return cmp');
-        lines.push('    }');
     }
 
     /**

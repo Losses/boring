@@ -1,0 +1,28 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp samples
+-cp tests/haxe/dart-comparison-consumer
+-cp tests/haxe/comparison-runtime-observation
+--macro Intercept.run(['tests/haxe/dart-comparison-consumer', 'tests/haxe/comparison-runtime-observation', 'samples/boring'])
+--macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
+--macro dartcompiler.Compiler.use()
+-D dart-output=out/dart-comparison-consumer/current/dart-gen
+-D dart-test-output=out/dart-comparison-consumer/current/dart-gen-tests
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+boring.PrintedCollection
+boring.PrintedEnumOps
+boring.PrintedSortedFields
+dartcomparison.EnumCases
+dartcomparison.ComparisonCases
+comparison.ParameterCompositionCases
+dartcomparison.left.Same
+dartcomparison.left.LeftWrapper
+dartcomparison.right.Same
+dartcomparison.right.RightWrapper
+std.ReadOnlyArray
+std.SortedMap
+runtime.SortedTable
