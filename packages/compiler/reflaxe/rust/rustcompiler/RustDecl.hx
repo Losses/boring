@@ -9,8 +9,7 @@ import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
 import TestApplicability;
-import ComparatorPlan;
-import ComparatorPlan.ComparatorFieldKind;
+import SourceComparisonAnalysis;
 import ValueTypeSupport.ValueTypeInfo;
 import ValueTypeSupport.ValueTypeOperator;
 
@@ -361,6 +360,12 @@ class RustDecl {
         if (cls.module.indexOf("registry.") == 0) {
             lines.push("#[derive(Debug, Clone, PartialEq)]");
         }
+        // A type parameter no field type references would leave the Rust
+        // declaration unconstrained (E0392). The zero-sized PhantomData
+        // marker names the parameter in the struct; its Clone, Debug, and
+        // PartialEq impls are unconditional, so the derive above stays legal.
+        // (GenericCtorParamMarker)
+        final markerParams = unusedMarkerParams(cls);
         lines.push("pub struct " + emittedName + genericStr + " {");
         for (v in varFields) {
             if (v.isStatic)
@@ -368,6 +373,8 @@ class RustDecl {
             for (l in instanceVarDecl(cls, v, hasLifetime, borrowedBytes))
                 lines.push(l);
         }
+        for (p in markerParams)
+            lines.push("    __phantom_" + p.toLowerCase() + ": core::marker::PhantomData<" + p + ">,");
         lines.push("}\n");
 
         if (isSortedTableResident) {
@@ -493,108 +500,173 @@ class RustDecl {
 
         final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
-        return cls.meta.has(":dataClass")
-            && RustType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
+        final comparator = cls.meta.has(":dataClass") ? sortedComparisonPlan(cls) : null;
+        return comparator == null ? result : result + "\n\n" + dataClassComparator(cls, comparator);
     }
 
-    function dataClassComparator(cls:ClassType):String {
+    function sortedComparisonPlan(cls:ClassType):Null<SourceRecordComparisonPlan> {
+        final declaration = SourceComparisonAnalysis.declarationReference(cls);
+        final admitted = SourceComparisonAnalysis.admit(declaration,
+            [for (parameter in cls.params) parameter.t], SortedKey);
+        switch (admitted) {
+            case SourceAdmissionAdmitted(_):
+            case SourceAdmissionRejected(_, _, _): return null;
+            case SourceAdmissionIncomplete(reason, site, _):
+                Context.error("Rust sorted comparator admission incomplete at " + Std.string(site) + ": " + Std.string(reason), cls.pos);
+                return null;
+        }
+        return switch (SourceComparisonAnalysis.comparisonPlan(
+            SourceComparisonAnalysis.analyzeRecordSchema(declaration), SortedKey)) {
+            case ComparisonPlanReady(plan): rustComparatorAvailable(plan, []) ? plan : null;
+            case ComparisonPlanFailed(_, _, _): null;
+            case ComparisonPlanUnresolved(path, reason):
+                Context.error("Rust sorted comparator analysis incomplete at " + path + ": " + reason, cls.pos);
+                null;
+        };
+    }
+
+    /** Keep target operation support separate from source admission. */
+    function rustComparatorAvailable(plan:SourceRecordComparisonPlan, visited:Array<SourceRecordComparisonPlan>):Bool {
+        if (visited.indexOf(plan) >= 0)
+            return true;
+        visited.push(plan);
+        function available(operation:SourceComparisonOperation):Bool {
+            return switch (operation) {
+                case FloatOrder | BooleanOrder: false;
+                case RecordOrder(nested, _): rustComparatorAvailable(nested, visited);
+                case NullBeforePresent(child) | Lexicographic(child): available(child);
+                case _: true;
+            };
+        }
+        for (field in plan.fields)
+            if (!available(field.operation))
+                return false;
+        return true;
+    }
+
+    function dataClassComparator(cls:ClassType, plan:SourceRecordComparisonPlan):String {
         imports.requireType("runtime.SortedTable", "SortedTable");
-        final n = RustImports.toSnakeCase(cls.name);
-        final lines = ['pub fn compare_$n(a: &${cls.name}, b: &${cls.name}) -> i32 {'];
-        function importElementComparator(elem:ClassType):Void {
-            if (elem.module != imports.selfModule) {
-                final cmp = "compare_" + RustImports.toSnakeCase(elem.name);
-                imports.require("crate::" + RustImports.moduleToRustPath(elem.module) + "::" + cmp);
-            }
+        final lines:Array<String> = [];
+        final helperPrefix = RustImports.toSnakeCase(cls.name);
+        final parameterTrait = "CompareParameter" + cls.name;
+        var helperIndex = 0;
+        function operationText(operation:SourceComparisonOperation, left:String, right:String):String {
+            return switch (operation) {
+                case IntegerOrder:
+                    cmpToI32(signedI32("*(" + left + ")") + ".cmp(&" + signedI32("*(" + right + ")") + ")");
+                case BooleanOrder:
+                    cmpToI32("(" + left + ").cmp(" + right + ")");
+                case Utf16StringOrder:
+                    "SortedTable::sorted_table_compare_strings((" + left + ").as_ustr(), (" + right + ").as_ustr())";
+                case ParameterOrder(index):
+                    final parameter = cls.params[index].name;
+                    '<$parameter as $parameterTrait>::compare_order($left, $right)';
+                case FloatOrder:
+                    Context.error("Rust sorted comparator received an unsupported source operation", cls.pos);
+                    "0";
+                case EnumOrdinalOrder(declaration, _, constructors):
+                    final name = helperPrefix + "_order_" + helperIndex++;
+                    final arms = [for (constructor in constructors)
+                        '        ${declaration.name}::${RustImports.toUpperCamelCase(constructor.name)}'
+                        + (enumHasPayload(constructor) ? ' { .. }' : '') + ' => ${constructor.index},'];
+                    lines.push('fn $name(v: &${declaration.name}) -> i32 {\n    match v {\n'
+                        + arms.join("\n") + '\n    }\n}');
+                    cmpToI32('$name($left).cmp(&$name($right))');
+                case RecordOrder(record, _):
+                    final nested = record.source.declaration;
+                    if (nested.module != imports.selfModule)
+                        imports.require("crate::" + RustImports.moduleToRustPath(nested.module)
+                            + "::compare_" + RustImports.toSnakeCase(nested.name));
+                    'compare_${RustImports.toSnakeCase(nested.name)}($left, $right)';
+                case NullBeforePresent(child):
+                    'match ($left, $right) { (None, None) => 0, (None, Some(_)) => -1, '
+                        + '(Some(_), None) => 1, (Some(av), Some(bv)) => '
+                        + operationText(child, "av", "bv") + ' }';
+                case Lexicographic(child):
+                    '{ let mut cmp = 0; for (av, bv) in (' + left + ').iter().zip((' + right
+                        + ').iter()) { cmp = ' + operationText(child, "av", "bv")
+                        + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
+                        + cmpToI32('(' + left + ').len().cmp(&(' + right + ').len())') + '; } cmp }';
+            };
         }
-        for (f in [
-            for (x in cls.fields.get())
-                if (switch (x.kind) {
-                        case FVar(read, write): !(read.match(AccCall) && write.match(AccNever));
-                        case _: false;
-                    }) x
-        ]) {
-            final fn = RustImports.toSnakeCase(f.name);
-            var rawHandled = false;
-            switch (f.type) {
-                case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1):
-                    rawHandled = true;
-                    var presentCompare = cmpToI32("av.cmp(bv)");
-                    switch (rawArrayElement(params[0])) {
-                        case null:
-                            switch (Context.follow(params[0])) {
-                                case TEnum(e, _):
-                                    final en = e.get();
-                                    final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
-                                    lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
-                                        for (ef in en.constructs)
-                                            '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') +
-                                            ' => ${ef.index},'
-                                    ].join("\n") + '\n    }\n}');
-                                    presentCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
-                                case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
-                                    importElementComparator(c.get());
-                                    presentCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
-                                case _:
+        // A field whose nested record is generic instantiates the nested
+        // comparator with the outer parameter as an actual argument. The
+        // nested function carries its own parameter trait bound, so the
+        // outer parameter lists the nested trait bound beside its own.
+        // A parameter lists its own trait bound only when the plan compares
+        // the parameter value directly; an unused parameter carries no
+        // comparison obligation and takes no bound.
+        final extraBounds:Map<String, Array<String>> = new Map();
+        final directSlots:Array<Int> = [];
+        function addBound(parameterName:String, bound:String):Void {
+            if (!extraBounds.exists(parameterName))
+                extraBounds.set(parameterName, []);
+            final list = extraBounds.get(parameterName);
+            if (list.indexOf(bound) < 0)
+                list.push(bound);
+        }
+        if (cls.params.length > 0) {
+            final ownKeys = [for (parameter in cls.params)
+                SourceComparisonAnalysis.parameterIdentity(parameter.t)];
+            function collectOperations(operation:SourceComparisonOperation):Void {
+                switch (operation) {
+                    case ParameterOrder(slot):
+                        if (directSlots.indexOf(slot) < 0)
+                            directSlots.push(slot);
+                    case RecordOrder(record, arguments):
+                        final nested = record.source.declaration;
+                        if (nested.params.length == 0)
+                            return;
+                        for (index in 0...nested.params.length) {
+                            if (index >= arguments.length)
+                                continue;
+                            final actualKey = SourceComparisonAnalysis.parameterIdentity(arguments[index]);
+                            if (actualKey != null) {
+                                final slot = ownKeys.indexOf(actualKey);
+                                if (slot >= 0)
+                                    addBound(cls.params[slot].name, "CompareParameter" + nested.name);
                             }
-                        case element:
-                            final elementExpr = nullableArrayCompareExpr(lines, cls, f.name, element);
-                            presentCompare = '{ let mut cmp = 0; for (av, bv) in av.iter().zip(bv.iter()) { cmp = $elementExpr; if cmp != 0 { break; } } if cmp == 0 { cmp = '
-                                + cmpToI32('av.len().cmp(&bv.len())')
-                                + '; } cmp }';
-                    }
-                    lines.push('    let cmp_$fn = match (&a.$fn, &b.$fn) { (None, None) => 0, (None, Some(_)) => -1, (Some(_), None) => 1, (Some(av), Some(bv)) => $presentCompare };');
-                case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1):
-                    rawHandled = true;
-                    final element = Context.follow(params[0]);
-                    final elementExprA = "a." + fn + ".iter()";
-                    final elementExprB = "b." + fn + ".iter()";
-                    var elementCompare = cmpToI32("av.cmp(bv)");
-                    switch (element) {
-                        case TEnum(e, _):
-                            final en = e.get();
-                            final orderName = n + "_" + fn + "_element_order";
-                            lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
-                                for (ef in en.constructs)
-                                    '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
-                            ].join("\n") + '\n    }\n}');
-                            elementCompare = cmpToI32('$orderName(av).cmp(&$orderName(bv))');
-                        case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
-                            importElementComparator(c.get());
-                            elementCompare = 'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
-                        case _:
-                    }
-                    lines.push('    let mut cmp_$fn = 0; for (av, bv) in a.$fn.iter().zip(b.$fn.iter()) { cmp_$fn = $elementCompare; if cmp_$fn != 0 { break; } }');
-                    lines.push('    if cmp_$fn == 0 { cmp_$fn = ' + cmpToI32('a.$fn.len().cmp(&b.$fn.len())') + '; }');
-                default:
-            }
-            if (!rawHandled)
-                switch (Context.follow(f.type)) {
-                    case TAbstract(a, _) if (a.get().name == "Int"):
-                        // Scalar int fields pass isDataClassFieldKey but
-                        // reached no arm here before, emitting the trailing
-                        // use without its let binding (E0425).
-                        lines.push('    let cmp_$fn = if a.$fn < b.$fn { -1 } else if a.$fn > b.$fn { 1 } else { 0 };');
-                    case TInst(c, _) if (c.get().name == "String"):
-                        lines.push('    let cmp_$fn = SortedTable::sorted_table_compare_strings(a.$fn.as_ustr(), b.$fn.as_ustr());');
-                    case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
-                        importElementComparator(c.get());
-                        lines.push('    let cmp_$fn = compare_${RustImports.toSnakeCase(c.get().name)}(&a.$fn, &b.$fn);');
-                    case TEnum(e, _):
-                        final en = e.get();
-                        final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(f.name) + "_order";
-                        lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
-                            for (ef in en.constructs)
-                                '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
-                        ].join("\n") + '\n    }\n}');
-                        lines.push('    let cmp_$fn = ' + cmpToI32('$orderName(&a.$fn).cmp(&$orderName(&b.$fn))') + ';');
-                    case _: // validated before emission
+                        }
+                    case NullBeforePresent(child) | Lexicographic(child):
+                        collectOperations(child);
+                    case _:
                 }
-            lines.push('    if cmp_$fn != 0 { return cmp_$fn; }');
+            }
+            for (field in plan.fields)
+                collectOperations(field.operation);
         }
-        lines.push('    0');
-        lines.push('}');
-        return lines.join("\n");
+        if (cls.params.length > 0 && directSlots.length > 0) {
+            imports.requireType("runtime.UString", "UString");
+            lines.push('pub trait $parameterTrait { fn compare_order(a: &Self, b: &Self) -> i32; }'
+                + '\nimpl $parameterTrait for u32 { fn compare_order(a: &Self, b: &Self) -> i32 { '
+                + cmpToI32(signedI32("*a") + ".cmp(&" + signedI32("*b") + ")") + ' } }'
+                + '\nimpl $parameterTrait for UString { fn compare_order(a: &Self, b: &Self) -> i32 { '
+                + 'SortedTable::sorted_table_compare_strings(a.as_ustr(), b.as_ustr()) } }');
+        }
+        function parameterBoundText(slot:Int):String {
+            final name = cls.params[slot].name;
+            final bounds:Array<String> = [];
+            if (directSlots.indexOf(slot) >= 0)
+                bounds.push(parameterTrait);
+            if (extraBounds.exists(name))
+                for (bound in extraBounds.get(name))
+                    bounds.push(bound);
+            return bounds.length == 0 ? "" : ": " + bounds.join(" + ");
+        }
+        final generic = cls.params.length == 0 ? "" : "<" + [for (index in 0...cls.params.length)
+            cls.params[index].name + parameterBoundText(index)].join(", ") + ">";
+        final applied = cls.params.length == 0 ? "" : "<" + [for (parameter in cls.params) parameter.name].join(", ") + ">";
+        final body = ['pub fn compare_${helperPrefix}$generic(a: &${cls.name}$applied, b: &${cls.name}$applied) -> i32 {'];
+        for (field in plan.fields) {
+            final name = RustImports.toSnakeCase(field.field.name);
+            final comparison = operationText(field.operation, "&a." + name, "&b." + name);
+            body.push('    let cmp_$name = $comparison;');
+            body.push('    if cmp_$name != 0 { return cmp_$name; }');
+        }
+        body.push("    0");
+        body.push("}");
+        lines.push(body.join("\n"));
+        return lines.join("\n\n");
     }
 
     function enumHasPayload(ef:haxe.macro.Type.EnumField):Bool {
@@ -604,49 +676,18 @@ class RustDecl {
         };
     }
 
-    /**
-        The element type when `t` is a raw ReadOnlyArray (checked before
-        Context.follow, which erases the abstract to Array). Nullable
-        collections need this raw check: the Null arm's followed inner
-        type is Array and would otherwise lose the array shape.
-    **/
-    function rawArrayElement(t:Type):Null<Type> {
-        return switch (t) {
-            case TAbstract(a, params) if (a.get().pack.join(".") == "std" && a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
-            case TLazy(f): rawArrayElement(f());
-            case _: null;
-        };
-    }
-
-    /**
-        The element-wise compare expression for one nullable collection
-        field. The loop binds av/bv to the zipped element references,
-        shadowing the match arm's array bindings; the semantics mirror
-        the non-null ReadOnlyArray arm: compare in index order, then by
-        length, with the same per-element rules (native Ord for scalars
-        and strings, the order helper for enums, the nested comparator
-        for records).
-    **/
-    function nullableArrayCompareExpr(lines:Array<String>, cls:ClassType, field:String, element:Type):String {
-        return switch (Context.follow(element)) {
-            case TEnum(e, _):
-                final en = e.get();
-                final orderName = RustImports.toSnakeCase(cls.name) + "_" + RustImports.toSnakeCase(field) + "_order";
-                lines.unshift('fn $orderName(v: &${en.name}) -> i32 {\n    match v {\n' + [
-                    for (ef in en.constructs)
-                        '        ${en.name}::${RustImports.toUpperCamelCase(ef.name)}' + (enumHasPayload(ef) ? ' { .. }' : '') + ' => ${ef.index},'
-                ].join("\n") + '\n    }\n}');
-                cmpToI32('$orderName(av).cmp(&$orderName(bv))');
-            case TInst(c, _) if (c.get().meta.has(":dataClass") && RustType.canEmitDataClassComparator(c.get())):
-                'compare_${RustImports.toSnakeCase(c.get().name)}(av, bv)';
-            case _:
-                cmpToI32("av.cmp(bv)");
-        };
-    }
-
     /** An `Ordering` expression to the i32 trichotomy the comparators carry. */
     static function cmpToI32(cmpExpr:String):String {
         return "match " + cmpExpr + " { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 }";
+    }
+
+    // Reinterpret same-width integer storage into the signed i32 domain by
+    // byte copy, never by an as cast: u32 business storage and i32 resident
+    // storage both render the identical bits, so the comparator orders the
+    // source signed value (Haxe Int is signed 32-bit) without changing the
+    // stored width or reusing the existing conversion helper.
+    static function signedI32(expr:String):String {
+        return "i32::from_ne_bytes((" + expr + ").to_ne_bytes())";
     }
 
     public function valueTypeDecl(cls:ClassType, info:ValueTypeInfo, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
@@ -1518,6 +1559,66 @@ class RustDecl {
         return hasLifetime && isBytesType(t) ? "&'a [u8]" : types.of(t, true);
     }
 
+    /** The type parameters no instance field type references. Such a
+        parameter is absent from the lowered struct, so the declaration
+        carries it as a zero-sized PhantomData marker field instead. **/
+    function unusedMarkerParams(cls:ClassType):Array<String> {
+        final staticNames:Map<String, Bool> = new Map();
+        for (s in cls.statics.get())
+            staticNames.set(s.name, true);
+        final identities = [for (p in cls.params) SourceComparisonAnalysis.parameterIdentity(p.t)];
+        return [for (index in 0...cls.params.length)
+            if (!fieldTypeMentionsParameter(cls, staticNames, identities[index])) cls.params[index].name];
+    }
+
+    function fieldTypeMentionsParameter(cls:ClassType, staticNames:Map<String, Bool>, identity:String):Bool {
+        for (field in cls.fields.get()) {
+            switch (field.kind) {
+                case FVar(_, _):
+                    if (!staticNames.exists(field.name) && typeMentionsParameter(field.type, identity))
+                        return true;
+                case _:
+            }
+        }
+        return false;
+    }
+
+    function typeMentionsParameter(t:Null<Type>, identity:String):Bool {
+        if (t == null)
+            return false;
+        final self = SourceComparisonAnalysis.parameterIdentity(t);
+        if (self != null)
+            return self == identity;
+        switch (t) {
+            case TType(d, ps):
+                if (typeMentionsParameter(d.get().type, identity))
+                    return true;
+                for (p in ps)
+                    if (typeMentionsParameter(p, identity))
+                        return true;
+                return false;
+            case TLazy(f):
+                return typeMentionsParameter(f(), identity);
+            case _:
+        }
+        switch (Context.follow(t)) {
+            case TInst(c, ps):
+                for (p in ps)
+                    if (typeMentionsParameter(p, identity))
+                        return true;
+            case TAbstract(a, ps):
+                for (p in ps)
+                    if (typeMentionsParameter(p, identity))
+                        return true;
+            case TEnum(e, ps):
+                for (p in ps)
+                    if (typeMentionsParameter(p, identity))
+                        return true;
+            case _:
+        }
+        return false;
+    }
+
     /** A `var x(get, never)` field renders no storage on this target (feature spec 27). */
     static function isGetterOnlyProperty(field:haxe.macro.Type.ClassField):Bool {
         return PolicyQueries.isGetterOnlyProperty(field);
@@ -2307,7 +2408,15 @@ class RustDecl {
                         // moved into the literal; clone it there instead.
                         lines.push('            $sname: $sname.clone(),');
                     } else {
-                        lines.push('            $sname,');
+                        // A generic class constructor borrows its type
+                        // parameter (RustType parameter face) while the field
+                        // owns the value; the impl Clone bound supplies the
+                        // initializer clone. (GenericCtorParamClone)
+                        if (cls.params.length > 0 && RustType.isTypeParam(a.type)) {
+                            lines.push('            $sname: $sname.clone(),');
+                        } else {
+                            lines.push('            $sname,');
+                        }
                     }
                 }
             }
@@ -2354,6 +2463,11 @@ class RustDecl {
                     case _:
                 }
             }
+            // A PhantomData marker field names a type parameter no stored
+            // field references; the literal supplies its zero-sized value.
+            // (GenericCtorParamMarker)
+            for (p in unusedMarkerParams(cls))
+                lines.push("            __phantom_" + p.toLowerCase() + ": core::marker::PhantomData,");
             if (thisAsValue) {
                 lines.push("        };");
                 for (l in parts.statementLines) {

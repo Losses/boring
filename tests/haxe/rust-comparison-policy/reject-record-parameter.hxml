@@ -1,0 +1,21 @@
+# Focused rejection fixture: a generic key whose parameter is bound to a
+# record type. The source gates admit the shape, and the target compiler
+# must reject the instantiation with the missing trait bound diagnostic.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp tests/haxe/comparison-runtime-observation
+-cp tests/haxe/rust-comparison-policy
+--macro Intercept.run(['tests/haxe/comparison-runtime-observation','tests/haxe/rust-comparison-policy'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/rust-comparison-policy/current/gen-reject-record-parameter
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+comparison.RejectRecordParameter
+std.ReadOnlyArray
+std.SortedMap
+runtime.SortedTable
+runtime.TestCore
+std.FpText
