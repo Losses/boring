@@ -1,0 +1,16 @@
+# Focused generation for the static function-field initializer repair.
+# Run from the repository root inside the flake environment.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp samples
+-cp tests/haxe/kotlin-staticfn-prepared-init/shapes
+--macro Intercept.run(['samples', 'tests/haxe/kotlin-staticfn-prepared-init/shapes'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/kotlin-staticfn-prepared-init/kotlin-gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+boring.StaticFnOps
+ksfshapes.StaticFnShapes
+ksfshapes.StaticFnObjectShape
