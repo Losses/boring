@@ -1,0 +1,15 @@
+# Focused generation of the original blocker: tests.DataTableTests with its
+# template-literal expected payload strings.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp samples
+--macro Intercept.run(['samples'])
+--macro tscompiler.Compiler.use()
+-D ts-test-runner=bun
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none
+boring.PayloadTextTable
+tests.DataTableTests
