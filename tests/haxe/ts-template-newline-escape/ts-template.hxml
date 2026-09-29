@@ -1,0 +1,11 @@
+# Focused generation for template-literal newline escaping.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp samples
+-cp tests/haxe/ts-template-newline-escape
+--macro Intercept.run(['samples', 'tests/haxe/ts-template-newline-escape'])
+--macro tscompiler.Compiler.use()
+-D package-shell=none
+-main TemplateShape
