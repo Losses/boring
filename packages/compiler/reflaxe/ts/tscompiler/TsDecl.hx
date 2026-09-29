@@ -3,6 +3,7 @@ package tscompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassFuncArg;
 import reflaxe.data.ClassVarData;
@@ -10,8 +11,9 @@ import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
 import TestApplicability;
-import ComparatorPlan;
-import ComparatorPlan.ComparatorFieldKind;
+import SourceComparisonAnalysis;
+import SourceComparisonAnalysis.SourceComparisonOperation;
+import SourceComparisonAnalysis.SourceRecordComparisonPlan;
 import ValueTypeSupport.ValueTypeInfo;
 import SourceOriginFragment;
 import SourceOriginFragment.SourceOriginSpan;
@@ -70,6 +72,7 @@ class TsDecl {
     // ------------------------------------------------------------------
 
     public function classDecl(cls:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):SourceOriginFragment {
+        imports.declareLocal(cls.name);
         if (cls.isInterface) {
             final typeAliases:Array<String> = [];
             final members:Array<String> = [];
@@ -115,6 +118,31 @@ class TsDecl {
         }
         if (varFields.length == 0 && ordinaryFuncs.length == 0) {
             return SourceOriginFragment.plain(extractedParts.join("\n\n"));
+        }
+
+        final comparatorPlan = cls.meta.has(":dataClass") && TsType.canEmitDataClassComparator(cls) ? selectComparator(cls) : null;
+        if (comparatorPlan != null) {
+            imports.declareLocal("compare" + cls.name);
+            prepareComparatorAliases(comparatorPlan);
+        }
+        // Front-load every module reference this file's declarations make
+        // before any body text is emitted. The import block renders after
+        // every body, so an alias decision must not depend on emission
+        // order: the first emitted reference already has to see a
+        // collision a later field, method signature, or method body would
+        // introduce. Stored fields, method signatures, and the full typed
+        // expression trees cover the references the emitters resolve
+        // through imports.type and imports.value.
+        // A resident module appends into the shared runtime.ts; its body
+        // references resolve through runtime symbols, so the resident body
+        // needs no pre-registered import line.
+        if (!imports.selfResident) {
+            for (v in varFields)
+                registerTypeImports(v.field.type);
+            for (f in funcFields) {
+                registerSignatureImports(f.field.type);
+                registerExprTypeImports(f.field.expr());
+            }
         }
 
         final tableLines:Array<String> = [];
@@ -187,7 +215,7 @@ class TsDecl {
         lines.push("}");
         final prefix = tableLines.length > 0 ? tableLines.join("\n\n") + "\n\n" : "";
         final classPart = prefix + lines.join("\n");
-        final comparator = cls.meta.has(":dataClass") && TsType.canEmitDataClassComparator(cls) ? dataClassComparator(cls) : "";
+        final comparator = comparatorPlan == null ? "" : dataClassComparator(cls, comparatorPlan);
         final fullPart = comparator == "" ? classPart : classPart + "\n\n" + comparator;
         final leading = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" : "";
         final spans = [
@@ -202,131 +230,211 @@ class TsDecl {
         return new SourceOriginFragment(leading + fullPart, spans);
     }
 
-    function dataClassComparator(cls:ClassType):String {
-        final lines:Array<String> = [];
-        final entries = ComparatorPlan.entries(cls, false, false);
-        final fields = [for (entry in entries) entry.field];
-        for (f in fields) {
-            var orderType:Null<EnumType> = null;
-            switch (f.type) {
-                case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1):
-                    switch (Context.follow(params[0])) {
-                        case TEnum(e, _): orderType = e.get();
-                        case _:
+    function selectComparator(cls:ClassType):SourceRecordComparisonPlan {
+        final declaration = SourceComparisonAnalysis.declarationReference(cls);
+        final analyzed = SourceComparisonAnalysis.analyzeRecord(declaration, [for (parameter in cls.params) parameter.t]);
+        return switch (SourceComparisonAnalysis.comparisonPlan(analyzed, SortedKey)) {
+            case ComparisonPlanReady(plan): plan;
+            case ComparisonPlanFailed(path, reason, _):
+                Context.error("TypeScript comparator failed at " + path + ": " + reason, cls.pos);
+                null;
+            case ComparisonPlanUnresolved(path, reason):
+                Context.error("TypeScript comparator analysis incomplete at " + path + ": " + reason, cls.pos);
+                null;
+        };
+    }
+
+    /**
+        Registers the module references one stored-field or signature type
+        makes. The set mirrors the types TsType.of resolves through
+        imports.type; everything the type mapping lowers to a plain
+        language primitive or a runtime symbol is skipped, because no
+        module import line exists for it to collide with.
+    **/
+    function registerTypeImports(t:Null<Type>):Void {
+        if (t == null) return;
+        switch (Context.follow(t)) {
+            case TInst(c, params):
+                final cls = c.get();
+                if (!specialClassPath(cls.pack, cls.name) && !specialModuleImport(cls.module)) {
+                    imports.observeType(cls.module, cls.name);
+                    for (param in params)
+                        registerTypeImports(param);
+                }
+            case TEnum(e, _):
+                final en = e.get();
+                imports.observeType(en.module, en.name);
+            case TAbstract(a, params):
+                final abs = a.get();
+                if (ValueTypeSupport.isMarkedAbstract(abs)) {
+                    imports.observeType(abs.module, abs.name);
+                } else {
+                    final path = PolicyQueries.pathOf(abs.pack, abs.name);
+                    if (path == "Null" && params.length == 1) {
+                        registerTypeImports(params[0]);
+                    } else if (path == "std.ReadOnlyArray" && params.length == 1) {
+                        registerTypeImports(params[0]);
                     }
+                }
+            case TType(d, params):
+                final def = d.get();
+                if (!(def.pack.length == 0 && def.name == "Map")
+                    && !(def.pack.join(".") == "haxe.io" && def.name == "Bytes")
+                    && !RuntimeResidents.isResident(def.module)) {
+                    imports.observeType(def.module, def.name);
+                }
+                for (param in params)
+                    registerTypeImports(param);
+            case _:
+        }
+    }
+
+    /** Signature shapes: argument and return types of one method. */
+    function registerSignatureImports(t:Null<Type>):Void {
+        if (t == null) return;
+        switch (Context.follow(t)) {
+            case TFun(args, ret):
+                for (arg in args)
+                    registerTypeImports(arg.t);
+                registerTypeImports(ret);
+            case _:
+                registerTypeImports(t);
+        }
+    }
+
+    /**
+        Walks one typed expression tree and registers every type reference
+        it carries. Each sub-expression names its own type, so this covers
+        constructor calls, casts, enum constructions, and type expressions
+        the emitters resolve through imports.value and imports.type during
+        body emission.
+    **/
+    function registerExprTypeImports(e:Null<TypedExpr>):Void {
+        if (e == null) return;
+        registerTypeImports(e.t);
+        switch (e.expr) {
+            case TTypeExpr(t):
+                switch (t) {
+                    case TClassDecl(c):
+                        final cls = c.get();
+                        imports.observeType(cls.module, cls.name);
+                    case TEnumDecl(en):
+                        final enumDef = en.get();
+                        imports.observeType(enumDef.module, enumDef.name);
+                    case _:
+                }
+            case _:
+        }
+        TypedExprTools.iter(e, registerExprTypeImports);
+    }
+
+    /** Modules whose references lower at their call site or inline, so the
+    emitted text never names the module symbol. (HostShimModules) */
+    static function specialModuleImport(module:String):Bool {
+        return switch (module) {
+            case "std.Fs", "std.Env", "std.Process", "StringTools": true;
+            case _: false;
+        }
+    }
+
+    /** Class paths the type mapping lowers without a module import. */
+    static function specialClassPath(pack:Array<String>, name:String):Bool {
+        final path = PolicyQueries.pathOf(pack, name);
+        return switch (path) {
+            case "String", "std.StringBuf", "StringBuf", "Array", "haxe.Exception", "haxe.io.Bytes", "haxe.io.BytesBuffer", "std.SortedMap", "std.SortedMapBuilder",
+                "std.SortedSet", "std.SortedSetBuilder":
+                true;
+            case _:
+                false;
+        };
+    }
+
+    function prepareComparatorAliases(plan:SourceRecordComparisonPlan):Void {
+        final modulesByName:Map<String, Array<String>> = [];
+        function collect(operation:SourceComparisonOperation):Void {
+            switch (operation) {
+                case RecordOrder(record, _):
+                    final nested = record.source.declaration;
+                    if (!modulesByName.exists(nested.name)) modulesByName.set(nested.name, []);
+                    final modules = modulesByName.get(nested.name);
+                    if (modules != null && modules.indexOf(nested.module) < 0) modules.push(nested.module);
+                case EnumOrdinalOrder(declaration, _, _):
+                    if (!modulesByName.exists(declaration.name)) modulesByName.set(declaration.name, []);
+                    final modules = modulesByName.get(declaration.name);
+                    if (modules != null && modules.indexOf(declaration.module) < 0) modules.push(declaration.module);
+                case NullBeforePresent(child) | Lexicographic(child): collect(child);
                 case _:
-                    switch (Context.follow(f.type)) {
-                        case TEnum(e, _): orderType = e.get();
-                        case _:
-                    }
-            }
-            if (orderType != null) {
-                final en = orderType;
-                lines.push('export function ${cls.name}${f.name}Order(v: ${en.name}): number {');
-                for (ef in en.constructs)
-                    lines.push('  if (v.kind === "${ef.name}") return ${ef.index};');
-                lines.push('  return 0;');
-                lines.push('}');
-                lines.push("");
             }
         }
-        lines.push('export function compare${cls.name}(a: ${cls.name}, b: ${cls.name}): number {');
-        lines.push('  if (a === b) return 0;');
-        for (entry in entries) {
-            final f = entry.field;
-            switch (entry.kind) {
-                case NullableScalar(inner):
-                    lines.push('  if (a.${f.name} === null && b.${f.name} !== null) return -1;');
-                    lines.push('  if (a.${f.name} !== null && b.${f.name} === null) return 1;');
-                    switch (Context.follow(inner)) {
-                        case TInst(c,
-                            _) if (c.get()
-                                .name == "String"): lines.push('  if (a.${f.name} !== null && b.${f.name} !== null && a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
-                        case _: lines.push('  if (a.${f.name} !== null && b.${f.name} !== null) { const cmp = '
-                                + tsCompareExpr(cls, f.name, inner)
-                                + '; if (cmp !== 0) return cmp; }');
-                    }
-                case NullableArray(element):
-                    lines.push('  if (a.${f.name} === null && b.${f.name} !== null) return -1;');
-                    lines.push('  if (a.${f.name} !== null && b.${f.name} === null) return 1;');
-                    nullableArrayComparator(lines, cls, f.name, element);
-                case ReadOnlyArrayField(element):
-                    lines.push('  const a${f.name}Length = a.${f.name}.length; const b${f.name}Length = b.${f.name}.length;');
-                    switch (Context.follow(element)) {
-                        case TInst(c,
-                            _) if (c.get()
-                                .name == "String"): lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { if (a.${f.name}[i] !== b.${f.name}[i]) return a.${f.name}[i]! < b.${f.name}[i]! ? -1 : 1; }');
-                        case _: lines.push('  for (let i = 0; i < a${f.name}Length && i < b${f.name}Length; i++) { const cmp = '
-                                + tsCompareExpr(cls, f.name + '[i]!', element)
-                                + '; if (cmp !== 0) return cmp; }');
-                    }
-                    lines.push('  if (a${f.name}Length !== b${f.name}Length) return a${f.name}Length - b${f.name}Length;');
-                case PlainField:
-                    switch (Context.follow(f.type)) {
-                        case TAbstract(a, _) if (a.get().name == "Int"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} - b.${f.name};');
-                        case TInst(c,
-                            _) if (c.get().name == "String"): lines.push('  if (a.${f.name} !== b.${f.name}) return a.${f.name} < b.${f.name} ? -1 : 1;');
-                        case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                            imports.value(c.get().module, "compare" + c.get().name);
-                            lines.push('  { const cmp = compare${c.get().name}(a.${f.name}, b.${f.name}); if (cmp !== 0) return cmp; }');
-                        case TEnum(_,
-                            _): lines.push('  if (${cls.name}${f.name}Order(a.${f.name}) !== ${cls.name}${f.name}Order(b.${f.name})) return ${cls.name}${f.name}Order(a.${f.name}) - ${cls.name}${f.name}Order(b.${f.name});');
-                        case _:
-                    }
-            }
+        for (field in plan.fields) collect(field.operation);
+        for (name in modulesByName.keys()) {
+            final modules = modulesByName.get(name);
+            if (modules != null && modules.length > 1)
+                for (module in modules) {
+                    imports.reserveAlias(module, name);
+                    imports.reserveAlias(module, "compare" + name);
+                }
         }
+    }
+
+    function dataClassComparator(cls:ClassType, selected:SourceRecordComparisonPlan):String {
+        final helpers:Array<String> = [];
+        final lines = [
+            'export function compare${cls.name}(a: ${cls.name}, b: ${cls.name}): number {',
+            '  if (a === b) return 0;'
+        ];
+        for (entry in selected.fields)
+            emitComparison(lines, helpers, entry.operation, 'a.${entry.field.name}', 'b.${entry.field.name}', cls.name + entry.field.name, 0);
+        lines.push('  return 0;');
+        lines.push('}');
+        return helpers.concat([lines.join("\n")]).join("\n\n");
+    }
+
+    function emitComparison(lines:Array<String>, helpers:Array<String>, operation:SourceComparisonOperation, left:String, right:String, name:String,
+            depth:Int):Void {
+        final indent = StringTools.lpad("", " ", 2 + depth * 2);
+        switch (operation) {
+            case IntegerOrder:
+                lines.push('${indent}if (${left} !== ${right}) return ${left} - ${right};');
+            case Utf16StringOrder:
+                lines.push('${indent}if (${left} !== ${right}) return ${left} < ${right} ? -1 : 1;');
+            case EnumOrdinalOrder(declaration, _, constructors):
+                final helper = name + "Order";
+                final enumLocal = imports.typeName(declaration.module, declaration.name);
+                helpers.push(enumOrderHelper(helper, enumLocal, constructors));
+                lines.push('${indent}if (${helper}(${left}) !== ${helper}(${right})) return ${helper}(${left}) - ${helper}(${right});');
+            case RecordOrder(record, _):
+                final nested = record.source.declaration;
+                final comparatorName = imports.valueName(nested.module, "compare" + nested.name);
+                lines.push('${indent}{ const cmp = ${comparatorName}(${left}, ${right}); if (cmp !== 0) return cmp; }');
+            case NullBeforePresent(child):
+                lines.push('${indent}if (${left} === null && ${right} !== null) return -1;');
+                lines.push('${indent}if (${left} !== null && ${right} === null) return 1;');
+                lines.push('${indent}if (${left} !== null && ${right} !== null) {');
+                emitComparison(lines, helpers, child, left, right, name, depth + 1);
+                lines.push('${indent}}');
+            case Lexicographic(child):
+                final index = "i" + depth;
+                lines.push('${indent}for (let ${index} = 0; ${index} < ${left}.length && ${index} < ${right}.length; ${index}++) {');
+                emitComparison(lines, helpers, child, '${left}[${index}]!', '${right}[${index}]!', name + "Element", depth + 1);
+                lines.push('${indent}}');
+                lines.push('${indent}if (${left}.length !== ${right}.length) return ${left}.length - ${right}.length;');
+            case FloatOrder | BooleanOrder | ParameterOrder(_):
+                Context.error("TypeScript sorted comparator received a non-key operation", Context.currentPos());
+        }
+    }
+
+    function enumOrderHelper(name:String, enumLocal:String, constructors:Array<EnumField>):String {
+        final lines = ['export function ${name}(v: ${enumLocal}): number {'];
+        for (constructor in constructors)
+            lines.push('  if (v.kind === "${constructor.name}") return ${constructor.index};');
         lines.push('  return 0;');
         lines.push('}');
         return lines.join("\n");
     }
 
-    function tsCompareExpr(cls:ClassType, field:String, t:Type):String {
-        return switch (Context.follow(t)) {
-            case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                imports.value(c.get().module, "compare" + c.get().name);
-                'compare${c.get().name}(a.${field}, b.${field})';
-            case TEnum(_,
-                _): '${cls.name}${field.indexOf("[") >= 0 ? field.substr(0, field.indexOf("[")) : field}Order(a.${field}) - ${cls.name}${field.indexOf("[") >= 0 ? field.substr(0, field.indexOf("[")) : field}Order(b.${field})';
-            case TInst(c, _) if (c.get().name == "String"): 'a.${field} < b.${field} ? -1 : 1';
-            case _: 'a.${field} - b.${field}';
-        };
-    }
-
-    /**
-        The element type when `t` is a raw ReadOnlyArray (checked before
-        Context.follow, which erases the abstract to Array). Nullable
-        collections need this raw check: the Null arm's followed inner
-        type is Array and would otherwise lose the array shape.
-    **/
-    function rawArrayElement(t:Type):Null<Type> {
-        return switch (t) {
-            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
-            case TLazy(f): rawArrayElement(f());
-            case _: null;
-        };
-    }
-
-    /**
-        The element-wise compare lines for a nullable collection field
-        inside the `!== null` guard. The semantics mirror the non-null
-        ReadOnlyArray arm: compare in index order, then by length; the
-        field is already narrowed to the array by the outer guard.
-    **/
-    function nullableArrayComparator(lines:Array<String>, cls:ClassType, field:String, element:Type):Void {
-        lines.push('  if (a.${field} !== null && b.${field} !== null) { const a${field}Length = a.${field}.length; const b${field}Length = b.${field}.length;');
-        switch (Context.follow(element)) {
-            case TInst(c, _) if (c.get().name == "String"):
-                lines.push('    for (let i = 0; i < a${field}Length && i < b${field}Length; i++) { if (a.${field}[i] !== b.${field}[i]) return a.${field}[i]! < b.${field}[i]! ? -1 : 1; }');
-            case _:
-                lines.push('    for (let i = 0; i < a${field}Length && i < b${field}Length; i++) { const cmp = '
-                    + tsCompareExpr(cls, field + '[i]!', element)
-                    + '; if (cmp !== 0) return cmp; }');
-        }
-        lines.push('    if (a${field}Length !== b${field}Length) return a${field}Length - b${field}Length;');
-        lines.push('  }');
-    }
-
     public function valueTypeDecl(cls:ClassType, info:ValueTypeInfo, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
+        imports.declareLocal(info.name);
         final abs = info.abstractType;
         final lines:Array<String> = ["export type " + info.name + " = " + types.of(info.representation) + ";"];
         var ctor:Null<ClassFuncData> = null;
@@ -649,7 +757,14 @@ class TsDecl {
             for (a in f.args) {
                 expr.reserveName(a.name);
             }
-            final body = expr.constructorBody(cls, cls.name, f, isException(cls));
+            final loweredBody = expr.constructorBody(cls, cls.name, f, isException(cls));
+            // A trailing optional nullable parameter arrives as undefined
+            // at the strict signature; the same body-top fold as ordinary
+            // methods applies. Only parameter assignments are prepended,
+            // before the promoted super call, so a forwarded argument is
+            // the normalized value and an inherited constructor keeps its
+            // position. (OptionalNullableBodyNormalization)
+            final body = optionalNullNormalizations(cls, f, "    ").concat(loweredBody);
             return SourceOriginFragment.plain(['  constructor($args) {'].concat(body).concat(["  }"]).join("\n"));
         }
         for (a in f.args) {
@@ -748,6 +863,7 @@ class TsDecl {
     // ------------------------------------------------------------------
 
     public function enumDecl(en:EnumType, options:Array<EnumOptionData>):String {
+        imports.declareLocal(en.name);
         final sorted = PolicyQueries.sortedEnumOptions(options);
         // Each variant is a named interface (the no-inline-types rule bans
         // object literals inside unions); the enum is the union of names.
@@ -813,6 +929,7 @@ class TsDecl {
     }
 
     public function typedefDecl(def:DefType):String {
+        imports.declareLocal(def.name);
         switch (def.type) {
             case TAnonymous(anonRef):
                 final fields = PolicyQueries.sortedAnonFields(anonRef);
@@ -836,8 +953,8 @@ class TsDecl {
                                 switch (f.type) {
                                     case TType(innerDef, _):
                                         final innerName = innerDef.get().name;
-                                        imports.value(innerDef.get().module, "compare" + innerName);
-                                        cmpLines.push('  const cmp_${f.name} = compare${innerName}(a.${f.name}, b.${f.name});');
+                                        final innerCompare = imports.valueName(innerDef.get().module, "compare" + innerName);
+                                        cmpLines.push('  const cmp_${f.name} = ' + innerCompare + '(a.${f.name}, b.${f.name});');
                                         cmpLines.push('  if (cmp_${f.name} !== 0) return cmp_${f.name};');
                                     case _:
                                 }

@@ -346,14 +346,6 @@ class RustType {
         PolicyQueries.validateDataClassField(cls, field, field.name);
     }
 
-    public static function canEmitDataClassComparator(cls:ClassType):Bool {
-        return PolicyQueries.canEmitDataClassComparator(cls);
-    }
-
-    static function isDataClassFieldKey(t:Type):Bool {
-        return PolicyQueries.isDataClassFieldKey(t);
-    }
-
     static function validateStructDef(def:DefType, pos:haxe.macro.Expr.Position, visited:Array<String>):Array<ClassField> {
         return StructuralKeyValidator.validateStructDef(def, pos, visited);
     }

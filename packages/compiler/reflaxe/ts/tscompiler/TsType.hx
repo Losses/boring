@@ -63,11 +63,11 @@ class TsType {
                         imports.runtime("SortedSetTableBuilder");
                         "SortedSetTableBuilder<" + of(params[0]) + ">";
                     case _:
-                        imports.type(cls.module, cls.name);
+                        final localName = imports.typeName(cls.module, cls.name);
                         if (params.length > 0) {
-                            cls.name + "<" + [for (p in params) of(p)].join(", ") + ">";
+                            localName + "<" + [for (p in params) of(p)].join(", ") + ">";
                         } else {
-                            cls.name;
+                            localName;
                         }
                 }
             case TType(def, params):
@@ -89,8 +89,7 @@ class TsType {
                 }
             case TEnum(e, _):
                 final en = e.get();
-                imports.type(en.module, en.name);
-                en.name;
+                imports.typeName(en.module, en.name);
             case TFun(args, ret):
                 // Function types written without argument names, like the
                 // comparator `(K, K) -> Int`, still need positional names

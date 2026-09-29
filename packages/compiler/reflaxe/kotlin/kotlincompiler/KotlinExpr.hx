@@ -34,6 +34,9 @@ import VarFusionPlan;
 import ValueTypeSupport;
 import ValueTypePlan;
 import ValueTypeSupport.ValueTypeOperator;
+import SourceComparisonAnalysis;
+import SourceComparisonAnalysis.SourceComparisonRequest;
+import SourceComparisonAnalysis.SourceAdmissionResult;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Kotlin.
@@ -6204,7 +6207,20 @@ class KotlinExpr {
                 "::compare";
             case DataClassKey(cls, _):
                 imports.requireType(cls.module, "compare" + cls.name);
-                "::compare" + cls.name;
+                final selected = new KotlinComparisonPlan(imports);
+                final declaration = SourceComparisonAnalysis.declarationReference(cls);
+                final arguments = switch (kType) {
+                    case TInst(_, parameters): parameters;
+                    case _: [];
+                };
+                final slots = selected.requiredSlots(declaration, arguments);
+                if (slots.length == 0) {
+                    "::compare" + cls.name;
+                } else {
+                    final keyType = types.of(kType);
+                    final operations = [for (slot in slots) selected.argumentComparator(arguments[slot])];
+                    '{ left: $keyType, right: $keyType -> compare${cls.name}(left, right, ${operations.join(", ")}) }';
+                }
             case EnumKey(en): "{ a, b -> a.ordinal - b.ordinal }";
         };
     }
