@@ -4173,6 +4173,14 @@ class TsExpr {
                     b.add('\\`');
                 case 36:
                     b.add('\\$');
+                // A raw LF or CR inside a template literal either breaks the
+                // declaration split-and-indent pass or loses its byte: the
+                // parser normalizes CR and CRLF to LF. Both escape.
+                // (TemplateLiteralNewlineEscape)
+                case 10:
+                    b.add('\\n');
+                case 13:
+                    b.add('\\r');
                 case c:
                     b.addChar(c);
             }
