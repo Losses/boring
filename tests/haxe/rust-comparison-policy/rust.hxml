@@ -1,0 +1,20 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp tests/haxe/comparison-runtime-observation
+-cp tests/haxe/rust-comparison-policy
+--macro Intercept.run(['tests/haxe/comparison-runtime-observation','tests/haxe/rust-comparison-policy'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/rust-comparison-policy/current/gen
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+comparison.ComparisonObserve
+comparison.GenericRustKey
+comparison.ParameterCompositionCases
+std.ReadOnlyArray
+std.SortedMap
+runtime.SortedTable
+runtime.TestCore
+std.FpText

@@ -1,0 +1,23 @@
+# Focused end-to-end fixture: a generic key whose parameter takes no
+# stored field. The comparator takes no trait bound for the parameter,
+# and the struct carries the parameter as a zero-sized PhantomData
+# marker. The crate compiles, and the builder at a record type reports
+# the stored field order.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp tests/haxe/comparison-runtime-observation
+-cp tests/haxe/rust-comparison-policy
+--macro Intercept.run(['tests/haxe/comparison-runtime-observation','tests/haxe/rust-comparison-policy'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/rust-comparison-policy/current/gen-unused-param-key
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+comparison.UnusedParamKeyCase
+std.ReadOnlyArray
+std.SortedMap
+runtime.SortedTable
+runtime.TestCore
+std.FpText

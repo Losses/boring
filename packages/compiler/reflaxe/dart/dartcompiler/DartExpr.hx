@@ -11,6 +11,7 @@ import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
 import PolicyQueries;
+import dartcompiler.DartComparisonPlan;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
@@ -3400,8 +3401,7 @@ class DartExpr {
                 final cmpName = "compare" + def.name;
                 qualifiedRef(def.module, cmpName);
             case DataClassKey(cls, _):
-                final cmpName = "compare" + cls.name;
-                qualifiedRef(cls.module, cmpName);
+                DartComparisonPlan.comparatorForType(kType, imports);
             case EnumKey(en):
                 qualifiedRef(en.module, "compare" + en.name);
         };

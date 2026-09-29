@@ -19,6 +19,11 @@ class TsImports {
 
     final valueNames:Map<String, Map<String, Bool>> = [];
     final typeNames:Map<String, Map<String, Bool>> = [];
+    final aliases:Map<String, Map<String, String>> = [];
+    final localNames:Map<String, Bool> = [];
+    // Modules the speculative pre-walk saw. They inform alias decisions
+    // but never render an import line; real imports register at emission.
+    final observedNames:Map<String, Map<String, Bool>> = [];
     final runtimeNames:Map<String, Bool> = [];
     final runtimeTestNames:Map<String, Bool> = [];
 
@@ -41,6 +46,84 @@ class TsImports {
 
     public function type(moduleBase:String, name:String):Void {
         add(typeNames, moduleBase, name);
+    }
+
+    public function reserveAlias(moduleBase:String, name:String):Void {
+        if (moduleBase == selfModule) return;
+        if (!aliases.exists(moduleBase)) aliases.set(moduleBase, []);
+        final names = aliases.get(moduleBase);
+        if (names != null) names.set(name, collisionAlias(moduleBase, name));
+    }
+
+    /**
+        Records one name this file declares itself. An imported symbol that
+        shares its short name with a local declaration must bind under an
+        alias, because the import block renders after every body and the
+        bodies must already use the aliased spelling.
+    **/
+    public function declareLocal(name:String):Void {
+        localNames.set(name, true);
+    }
+
+    /** Records one module reference the speculative pre-walk found. **/
+    public function observeType(moduleBase:String, name:String):Void {
+        if (moduleBase == selfModule) return;
+        if (!observedNames.exists(moduleBase)) observedNames.set(moduleBase, []);
+        final names = observedNames.get(moduleBase);
+        if (names != null) names.set(name, true);
+    }
+
+
+    public function typeName(moduleBase:String, name:String):String {
+        type(moduleBase, name);
+        return localName(moduleBase, name);
+    }
+
+    public function valueName(moduleBase:String, name:String):String {
+        value(moduleBase, name);
+        return localName(moduleBase, name);
+    }
+
+    function localName(moduleBase:String, name:String):String {
+        if (moduleBase == selfModule) return name;
+        final names = aliases.get(moduleBase);
+        final reserved = names != null ? names.get(name) : null;
+        if (reserved != null) return reserved;
+        // A short name binds ambiguous when this file imports it from more
+        // than one module or declares it locally. Both facts stay stable
+        // across emission order for the pre-registered field types, and
+        // the alias spelling is a pure function of the module path, so the
+        // emitted references and the rendered bindings always agree.
+        if (localNames.exists(name) || collidingModules(name) > 1) return collisionAlias(moduleBase, name);
+        return name;
+    }
+
+    function collidingModules(name:String):Int {
+        final modules:Map<String, Bool> = [];
+        for (module in valueNames.keys()) {
+            final values = valueNames.get(module);
+            if (values != null && values.exists(name)) modules.set(module, true);
+        }
+        for (module in typeNames.keys()) {
+            final types = typeNames.get(module);
+            if (types != null && types.exists(name)) modules.set(module, true);
+        }
+        for (module in observedNames.keys()) {
+            final observed = observedNames.get(module);
+            if (observed != null && observed.exists(name)) modules.set(module, true);
+        }
+        var count = 0;
+        for (_ in modules.keys()) count++;
+        return count;
+    }
+
+    function collisionAlias(moduleBase:String, name:String):String {
+        // Segment lengths keep distinct module paths distinct after joining.
+        return name + "_" + [for (part in moduleBase.split(".")) part.length + "_" + part].join("_");
+    }
+
+    function importedNames(moduleBase:String, names:Array<String>):String {
+        return [for (name in names) name == localName(moduleBase, name) ? name : name + " as " + localName(moduleBase, name)].join(", ");
     }
 
     /**
@@ -214,7 +297,8 @@ class TsImports {
             for (name in nameSet.keys())
                 names.push(name);
             names.sort(Reflect.compare);
-            lines.push('import { ${names.join(", ")} } from "' + relativeModule(selfModule, module) + '.ts";');
+            lines.push('import { ${importedNames(module, names)} } from "'
+                + relativeModule(selfModule, module) + '.ts";');
         }
         if (hasAnyKey(runtimeNames)) {
             final names = [];
@@ -297,7 +381,7 @@ class TsImports {
                 mainOutputDir + "/" + module.split(".").join("/") + ".ts";
             };
             final relPath = computeRelativePath(fromDir, toFile);
-            lines.push('import { ${names.join(", ")} } from "' + relPath + '";');
+            lines.push('import { ${importedNames(module, names)} } from "' + relPath + '";');
         }
         if (testRunner == "bun" && hasAnyKey(runtimeTestNames)) {
             // The margin between the entry budget and the runner timer

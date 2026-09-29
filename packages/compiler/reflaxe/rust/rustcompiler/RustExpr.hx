@@ -13192,6 +13192,15 @@ class RustExpr {
                 final inner = getNullInnerType(arg.t);
                 argStr = isTypeCopy(inner) ? "(" + argStr + ").unwrap()" : "(" + argStr + ").as_ref().unwrap().clone()";
             }
+            // A type parameter constructor slot borrows the parameter
+            // (RustType parameter face); the owned argument passes by
+            // reference so the source value stays usable after the call.
+            // (GenericCtorParamBorrow)
+            if (i < paramTypes.length && RustType.isTypeParam(paramTypes[i])
+                && !StringTools.startsWith(argStr, "&")) {
+                out.push("&" + argStr);
+                continue;
+            }
             if (i < paramTypes.length)
                 out.push(numericAssignmentValue(paramTypes[i], arg, ownedConstructorArg(paramTypes[i], arg, null, argStr), null, true));
             else
