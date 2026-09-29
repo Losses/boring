@@ -3113,15 +3113,29 @@ lines.push("        }");
 
                 if (isStructKeyCandidate(fields)) {
                     // The comparator matches the resident table signature,
-                    // fn(&K, &K) -> i32: integer and boolean fields use the
-                    // trichotomy directly, string fields reuse the resident
-                    // string walk, nested structures call their comparator.
+                    // fn(&K, &K) -> i32: integer fields order the signed
+                    // 32-bit domain through the byte re-interpretation shared
+                    // with the resident direct-Int rule, boolean fields use
+                    // the trichotomy directly, string fields reuse the
+                    // resident string walk, nested structures call their
+                    // comparator.
                     final fnName = "compare_" + RustImports.toSnakeCase(def.name);
                     final cmpLines = ['pub fn $fnName(a: &${def.name}, b: &${def.name}) -> i32 {'];
                     for (f in fields) {
                         final fieldSnake = RustImports.toSnakeCase(f.name);
                         switch (Context.follow(f.type)) {
-                            case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Bool"):
+                            case TAbstract(a, _) if (a.get().name == "Int"):
+                                // Haxe Int is signed 32-bit while business
+                                // modules store it as u32. The u32/i32 byte
+                                // identity orders the source signed value
+                                // through the same re-interpretation the
+                                // direct-Int builder rule and the dataClass
+                                // IntegerOrder rule emit; a raw u32 comparison
+                                // reverses every negative value and the signed
+                                // 32-bit extremes.
+                                cmpLines.push('    let cmp_$fieldSnake = ' + cmpToI32(signedI32("a." + fieldSnake) + ".cmp(&" + signedI32("b." + fieldSnake) + ")") + ';');
+                                cmpLines.push('    if cmp_$fieldSnake != 0 { return cmp_$fieldSnake; }');
+                            case TAbstract(a, _) if (a.get().name == "Bool"):
                                 cmpLines.push('    let cmp_$fieldSnake = if a.$fieldSnake < b.$fieldSnake { -1 } else if a.$fieldSnake > b.$fieldSnake { 1 } else { 0 };');
                                 cmpLines.push('    if cmp_$fieldSnake != 0 { return cmp_$fieldSnake; }');
                             case TInst(c, _) if (c.get().name == "String"):
