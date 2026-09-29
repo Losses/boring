@@ -1,0 +1,28 @@
+# Focused Dart generation of the signed key composition fixture.
+# Run from the repository root inside the pinned toolchain; the caller
+# supplies the output tree so every attempt writes into its own run
+# directory:
+#   XDG_CACHE_HOME=out/nix-cache nix develop -c haxe \
+#     tests/haxe/signed-key-composition/hxml/dart.hxml -D dart-output=<run>/dart-gen
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp samples
+-cp tests/haxe/signed-key-composition
+--macro Intercept.run(['tests/haxe/signed-key-composition'])
+--macro dartcompiler.Compiler.use()
+-D dart-output=out/signed-key-composition/current/dart-gen
+-D dart-test-output=out/signed-key-composition/current/dart-gen-tests
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+composition.KeyCompositionObserve
+std.ReadOnlyArray
+std.SortedMap
+runtime.SortedTable
+# The emitted test host names runtime.TestCore, and its Kotlin host source
+# calls FPHelper, so the two modules ride in the entry list and the generated
+# tree compiles as a whole. They carry no observation case.
+runtime.TestCore
+std.FpText
