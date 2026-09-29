@@ -847,6 +847,31 @@ class KotlinExpr {
         });
     }
 
+    /**
+        Renders a static function-field initializer inside one prepared scope.
+        The initializer becomes the artifact root, so a nested function literal
+        keeps its object identity in the source facts and nestedAt finds it.
+        (StaticFunctionVarInitializer)
+    **/
+    public function preparedInitializer(cls:ClassType, fieldName:String, e:TypedExpr):String {
+        DefaultArgExpander.completeRootExprForKotlin(cls, fieldName, e);
+        PipelineExpander.expandRootExpr(e);
+        EnumQueryExpander.expandRootExpr(e);
+        final fusedRoot = fuseWithin(e);
+        scanLocals(fusedRoot);
+        final source = SourceLocalPresenceAnalysis.prepare({
+            body: fusedRoot,
+            parameters: [],
+            outerCapturedWrites: [],
+            outerSummaryKind: SourceCaptureSummaryKind.EnclosingAssignsNothing,
+            outerCaptureFacts: []
+        });
+        final artifact = new KotlinPreparedFunction(fusedRoot, source, FunctionBody, null, scanBodyWrites(fusedRoot));
+        return scoped(artifact, function():String {
+            return expr(fusedRoot);
+        });
+    }
+
     public function expressionOf(e:TypedExpr):String {
         return rawExpression(e);
     }
