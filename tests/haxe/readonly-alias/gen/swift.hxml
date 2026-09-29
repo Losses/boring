@@ -1,0 +1,19 @@
+# Swift generation of the readonly-alias fixture.
+# The runner passes -D swift-output=... and -D swift-test-output=... on
+# the command line. No -main: the native harness is an authored
+# @main entry (native/native-main.swift) compiled alongside the emitted
+# Runtime.swift, mirroring tests/haxe/view-lifetime.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp tests/haxe/readonly-alias
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/readonly-alias'])
+--macro swiftcompiler.Compiler.use()
+-D swift-test-runner=native
+-D swift-test-import=ReadOnlyAliasOracle
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+roalias.ReadOnlyAliasOracle
