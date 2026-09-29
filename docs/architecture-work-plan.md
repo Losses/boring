@@ -105,8 +105,33 @@ target observations.
 | E: intrinsics and platform integration | Swift ordinary-array runtime dependency correction is integrated at `f3a8955a`; broader numeric, string, and module specifications remain open. | Validate target operation and helper closure across the affected languages. |
 | F: evidence and diagnostics | Child execution evidence is integrated at `8a2a9c6a`, shared stage membership verification at `d873da91`, and TypeScript source-occurrence fragments at `8a9a8c49`. The corrected package `tsc` diagnostic path is integrated at `c4787f70`; focused replay covers relative and absolute paths, successful child streams, malformed metadata, and existing outside files. | Extend provenance through more lowering paths and preserve layered verdicts. |
 
-The fixed Tiqian revision is prepared, but the full Boring and Tiqian
-candidate gates have not run. P08–P10 and P12 remain open for that reason.
+The fixed Tiqian revision is prepared, but the Tiqian candidate gate has not run.
+Full Boring verification attempts have run without producing an accepted full
+result. `verify-final3` stopped at the TypeScript test step; the diagnostic
+`verify-e315bb79` log records a Dart printed-wrapper `.index` failure and
+additional Kotlin failure output after its end marker. The latter log does not
+establish single-run provenance and cannot certify a Kotlin pass. Its writer
+attribution remains unverified by retained process evidence.
+
+The separate focused attempt `out/ts-platformops-imports/attempt-jRePPdut/`
+retains 730 passing Bun tests, zero failing Bun tests, and a failing typecheck
+with exit 2 (six TS18047 and three TS2322 diagnostics). These results belong
+to that attempt and its input manifest; they are not full-verification results.
+The later focused attempt `out/ts-platformops-imports/attempt-LcbBaPyn/`
+retains typecheck exit 0 with zero TypeScript diagnostics across 204 generated
+modules, and 730 passing Bun tests with zero failures. Its input manifest is
+distinct from jRePPdut; the earlier failure record remains valid.
+`out/ts-nullable-lowering/attempt-WblNuYRS/` passes generation, generated-code
+strict typechecking, checker strict typechecking, and runtime checks under
+unchanged before/after input hashes. Spec51 coalescing mix remains unverified.
+The scoped Dart ordinal repair is signed off: the five stages in
+`out/dart-comparison-consumer/runs/attempt-QzEpW1Ee/` pass, with 22 expected
+output lines matching and no analyzer issues. That run records HEAD
+`ae73c11e`; ordinal equality does not settle payload equality policy.
+These focused results are not full-verification or Tiqian gate results.
+The full attempts retain their own input identities. Subsequent runner and
+documentation changes must not be attributed to those tested inputs.
+P08–P10 and P12 remain open pending accepted fixed-input regression evidence.
 The [candidate integration queue](investigations/architecture-round-2/candidate-integration-queue.md)
 records the comparison, Kotlin, and diagnostic repairs and independent reviews.
 
