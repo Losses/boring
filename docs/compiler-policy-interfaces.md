@@ -26,22 +26,45 @@ remain under review.
 
 ### Current named APIs and consumers
 
-This inventory describes coordinator revision `4581308d` plus the Kotlin
-consumer batch under integration review. It distinguishes a
-typed result that exists in the tree from a target consumer that uses it.
-Refresh the inventory when a candidate is integrated.
+This inventory describes the integrated compiler at `2159c657`. Historical
+comparison consumer inputs copied on 2026-09-28 came from the frozen
+worktrees `ts-comparison-consumer` (tracked diff `5adb5f00`),
+`policy-kotlin-comparison-consumer` (`907c53e9`), `boring-wt-rust-comparison`
+(`a7b60a81`), and `policy-dart-comparison-consumer` (HEAD `ae73c11e`, tracked
+diff `74c58a3c`). It distinguishes a typed result that exists in the tree
+from a target consumer that uses it. Refresh the inventory when a candidate
+is integrated.
 
 | Producer or existing query | Concrete result | Current consumer and limit |
 | --- | --- | --- |
 | `SourceContainerAnalysis.analyze` | `SourceContainerFacts`, with wrapper, container face, resolved type and unresolved reason | `StaticFieldHelper` queries these facts; this does not select every target's value storage. |
 | `SourceLocalPresenceAnalysis.prepare` | `SourceLocalPresenceFacts`, with per-use `SourceUseFacts` and expression results | Kotlin now prepares these facts for production lowering and uses occurrence-specific presence at guarded reads and target entry. The focused Kotlin compile and JVM test pass; other target consumers remain unproved. |
-| `SourceComparisonAnalysis` and `SwiftComparisonPlan` | Finite source comparison facts and selected Swift operations | Swift consumes the selected operations and passes the focused A3 compile and runtime procedure. TypeScript, Kotlin and Dart still call legacy `ComparatorPlan.entries`; Rust still imports the legacy module. Five-target migration remains open. |
+| `SourceComparisonAnalysis` and `SwiftComparisonPlan` | Finite source comparison facts and selected Swift operations | All five reflaxe targets now consume the finite comparison analysis: Swift through `SwiftComparisonPlan`, TypeScript through the migrated `TsDecl`, `TsExpr`, `TsImports` and `TsType`, Kotlin through `KotlinComparisonPlan`, Rust through the migrated `RustDecl`, `RustExpr` and `RustType`, and Dart through `DartComparisonPlan`. The legacy `ComparatorPlan` module stays in the tree for the classifier probe (`tests/haxe/classifier/ClassifierProbe.hx`) and the consistency tooling; no reflaxe target imports or calls it, and the registry no longer lists a `ComparatorPlan` consumer row. |
+| `SemanticPassRegistry` consumer rows | Registry validation at macro time over the reflaxe tree | The `ComparatorPlan` row is removed after a verified review of real imports and calls across all five targets. The `EnumCycleDetector` row now lists rust and swift only: dart, kotlin and ts mention the module only inside comments and reach it through `PolicyQueries`. The detector ignores comment and string-literal mentions and requires an exact module name, so a longer name with the same prefix is not a consumer. `tests/haxe/semantic-registry-comment-control/run.sh` runs the real registry validation over sandbox trees and rejects comment-only, string-only and same-prefix mentions while accepting a real import and call. `tools/registry-guard/backstop.ts` mirrors the corrected rows. |
 | `SourceOriginTrace.beforeRewrites` and `SourceOriginFragment` | Source occurrence spans alongside generated TypeScript text | TypeScript emitters compose these fragments into an optional sidecar. The package `tsc` path now resolves selected diagnostics to the second matching Haxe occurrence, retains both child streams and status, and conservatively reports invalid metadata as `Unmapped`. This is focused diagnostic coverage. |
 
 The [candidate integration queue](investigations/architecture-round-2/candidate-integration-queue.md)
 names the independent comparison, Kotlin, and diagnostic acceptance work. An API's existence is
 evidence of a producer, while each migration still needs a named consumer,
 removed duplicate decision, and target compilation and behavior result.
+
+The four focused consumer suites pass in the integration tree: TypeScript
+`tests/haxe/ts-comparison-collision/run.sh`, Kotlin
+`tests/haxe/kotlin-comparison-consumer/run.sh`, Rust
+`tests/haxe/rust-comparison-policy/run.sh`, and Dart
+`tests/haxe/dart-comparison-consumer/run.sh`, each with generation, target
+compilation or analysis, execution, expectation comparison, and mutation or
+rejection negative controls. Known A3 limitations stay open. The Rust suite
+codifies that a generic key whose parameter is bound to a record type is
+admitted by source analysis and rejected by rustc with the missing trait
+bound diagnostic `E0277`; realizing that parameter composition in Rust remains
+deferred. The TypeScript `functionRef` marked path is untested by the focused
+suite. The Kotlin static function-field initializer renders inside one
+prepared scope after the `StaticFnOps` producer-side repair; a value-type
+static function `var` still renders through `rawExpression` and remains a
+separate open limitation that this repair does not extend to. These focused
+cases do not replace the full Boring verification or the fixed-version Tiqian
+regression.
 
 Source classification cannot populate actual produced storage. A target can
 produce several storage forms for the same source type, including helper-native
