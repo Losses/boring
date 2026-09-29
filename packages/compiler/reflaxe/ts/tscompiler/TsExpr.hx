@@ -213,14 +213,14 @@ class TsExpr {
             case CNegativeInfinity: "-Infinity";
             case CEnum(enumRef, enumField):
                 final en = enumRef.get();
-                imports.value(en.module, en.name);
+                final enumLocal = imports.valueName(en.module, en.name);
                 // An enum constant is a frozen variant object whose
                 // TypeScript type is the single variant (e.g. `Bopomofo`).
                 // Comparing two such constants narrows each side to its
                 // literal variant, so `A === B` trips TS2367 (no overlap).
                 // Widening the constant to the enum union keeps the
                 // comparison legal; the cast is erased at runtime.
-                "(" + en.name + "." + enumField.name + " as " + en.name + ")";
+                "(" + enumLocal + "." + enumField.name + " as " + enumLocal + ")";
             case CParameterRead(name):
                 // Spec 22, Evaluation ordering: a read of an earlier coalescing
                 // parameter resolves through that parameter's own default.
@@ -254,9 +254,9 @@ class TsExpr {
                 + " "
                 + coalescingDefaultText(right, targetType);
             case CConstructorCall(modulePath, className, args):
-                imports.value(modulePath, className);
+                final ctorLocal = imports.valueName(modulePath, className);
                 "new "
-                + className
+                + ctorLocal
                 + "("
                 + completeCoalescingCallArgs(modulePath, "new", className, args, targetType).join(", ")
                 + ")";
@@ -305,8 +305,8 @@ class TsExpr {
             imports.runtime("SortedTable");
             return "SortedTable.mapBuilder<" + types.of(key) + ", " + types.of(value) + ">(" + sortedComparator(key, Context.currentPos()) + ")";
         }
-        imports.value(modulePath, className);
-        return className
+        final callLocal = imports.valueName(modulePath, className);
+        return callLocal
             + "."
             + methodName
             + "("
@@ -330,12 +330,12 @@ class TsExpr {
                         final field = ValueTypeSupport.memberField(abs, fieldName);
                         return field == null ? fieldName : imports.functionRef(abs.module, fieldName, field.isPublic);
                     }
-                    imports.value(abs.module, abs.name);
-                    return abs.name + "." + fieldName;
+                    final abstractLocal = imports.valueName(abs.module, abs.name);
+                    return abstractLocal + "." + fieldName;
                 case TEnum(enRef, _):
                     final en = enRef.get();
                     if (en.constructs.exists(fieldName)) {
-                        imports.value(en.module, en.name);
+                        final constantLocal = imports.valueName(en.module, en.name);
                         // An enum constant is a frozen variant object whose
                         // TypeScript type is the single variant (e.g.
                         // `Bopomofo`). Comparing two such constants narrows
@@ -343,7 +343,7 @@ class TsExpr {
                         // trips TS2367 (no overlap). Widening the constant
                         // to the enum union keeps the comparison legal; the
                         // cast is erased at runtime.
-                        return "(" + en.name + "." + fieldName + " as " + en.name + ")";
+                        return "(" + constantLocal + "." + fieldName + " as " + constantLocal + ")";
                     }
                     return path;
                 default:
@@ -1523,18 +1523,18 @@ class TsExpr {
             case LengthCount(count): Std.string(count);
             case AliasIndex(subj, index): expr(subj) + "[" + expr(index) + "]!";
             case EntryIndex(en, index):
-                imports.value(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL");
-                EnumQueryExpander.upperSnake(en.name) + "_ALL[" + expr(index) + "]!";
+                final allName = imports.valueName(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL");
+                allName + "[" + expr(index) + "]!";
             case EnumKindQuery(kind, en, args):
                 switch (kind) {
                     case QCollection:
-                        imports.value(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL");
-                        EnumQueryExpander.upperSnake(en.name) + "_ALL";
+                        final allLocal = imports.valueName(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL");
+                        allLocal;
                     case QName: expr(args[0]) + ".kind";
                     case QLookup:
                         final fn = EnumQueryExpander.lowerFirst(en.name) + "OfName";
-                        imports.value(en.module, fn);
-                        fn + "(" + expr(args[1]) + ")";
+                        final fnLocal = imports.valueName(en.module, fn);
+                        fnLocal + "(" + expr(args[1]) + ")";
                 }
         }
     }
@@ -1722,9 +1722,11 @@ class TsExpr {
                     && !RuntimeResidents.isResident(cls.module) ? "Array.from(" + rendered + ")" : rendered;
             case FEnum(en, ef):
                 final enumDef = en.get();
-                if (isValueEnum(enumDef))
-                    imports.value(enumDef.module, enumDef.name);
-                return isValueEnum(enumDef) ? enumDef.name + "." + ef.name : "{ kind: \"" + ef.name + "\" }";
+                if (isValueEnum(enumDef)) {
+                    final enumLocal = imports.valueName(enumDef.module, enumDef.name);
+                    return enumLocal + "." + ef.name;
+                }
+                return "{ kind: \"" + ef.name + "\" }";
             case FInstance(owner, _, cf):
                 final name = cf.get().name;
                 notePrivateAccess(owner.get(), cf.get());
@@ -1871,8 +1873,8 @@ class TsExpr {
                     // even though ordinary synthetic impls never emit.
                     Compiler.referencedImplModules.set(cls.module, true);
                 }
-                imports.value(cls.module, cls.name);
-                return cls.name + "." + name;
+                final staticLocal = imports.valueName(cls.module, cls.name);
+                return staticLocal + "." + name;
         }
     }
 
@@ -1891,14 +1893,12 @@ class TsExpr {
                     imports.runtimeTest("Test");
                     return "Test";
                 }
-                imports.value(cls.module, cls.name);
-                return cls.name;
+                return imports.valueName(cls.module, cls.name);
                 Context.error("type expression has no value lowering: " + cls.name, Context.currentPos());
                 return null;
             case TEnumDecl(e):
                 final en = e.get();
-                imports.value(en.module, en.name);
-                return en.name;
+                return imports.valueName(en.module, en.name);
                 Context.error("enum type expression has no value lowering: " + en.name, Context.currentPos());
                 return null;
             case _:
@@ -2498,7 +2498,16 @@ class TsExpr {
                         case _:
                     }
                 }
-                return expr(subj) + "." + name + "(" + rendered + ")";
+                final receiverText = expr(subj);
+                // The receiver's rendered TypeScript type still includes
+                // null while Haxe calls the member straight off it: both
+                // runtimes throw on a null receiver, so the assertion only
+                // restates the Haxe type and satisfies the strict reading,
+                // matching the field read above.
+                // (NullableReceiverUnwrap)
+                if (PolicyQueries.isNullableType(subj.t) && !StringTools.endsWith(receiverText, "!"))
+                    return receiverText + "!." + name + "(" + rendered + ")";
+                return receiverText + "." + name + "(" + rendered + ")";
             case TField(subj, FStatic(c, cf)):
                 final cls = c.get();
                 final fName = cf.get().name;
@@ -2709,14 +2718,12 @@ class TsExpr {
             case StringKey: "SortedTable.compareStrings";
             case StructKey(def, _):
                 final cmpName = "compare" + def.name;
-                imports.value(def.module, cmpName);
-                cmpName;
+                return imports.valueName(def.module, cmpName);
             case DataClassKey(cls, _):
                 final cmpName = "compare" + cls.name;
-                imports.value(cls.module, cmpName);
-                cmpName;
+                return imports.valueName(cls.module, cmpName);
             case EnumKey(en):
-                imports.value(en.module, en.name);
+                imports.valueName(en.module, en.name);
                 "(a, b) => { if (a === b) return 0; " + [
                     for (ef in en.constructs)
                         "if (a.kind === \""
@@ -2741,9 +2748,9 @@ class TsExpr {
     }
 
     function enumConstruct(en:EnumType, ef:EnumField, args:Array<TypedExpr>):String {
+        final enumLocal = imports.valueName(en.module, en.name);
         if (isValueEnum(en)) {
-            imports.value(en.module, en.name);
-            return en.name + "." + ef.name;
+            return enumLocal + "." + ef.name;
         }
         final parts = ['kind: "${ef.name}"'];
         final names = payloadNames(ef);
@@ -2763,8 +2770,7 @@ class TsExpr {
         // arguments.  Keep the enum's discriminated-union type at the
         // construction boundary, without relying on an absent contextual
         // type to preserve `kind` as its literal.
-        imports.value(en.module, en.name);
-        return "({ " + parts.join(", ") + " } as " + en.name + ")";
+        return "({ " + parts.join(", ") + " } as " + enumLocal + ")";
     }
 
     function callArgTexts(fn:TypedExpr, args:Array<TypedExpr>):Array<String> {
@@ -2992,9 +2998,9 @@ class TsExpr {
                 + " "
                 + constructorCoalescingText(right, targetType, cls, args);
             case CConstructorCall(modulePath, className, callArgs):
-                imports.value(modulePath, className);
+                final coalescingCtorLocal = imports.valueName(modulePath, className);
                 "new "
-                + className
+                + coalescingCtorLocal
                 + "("
                 + completeCoalescingCallArgs(modulePath, "new", className, callArgs, targetType).join(", ")
                 + ")";
@@ -3014,8 +3020,8 @@ class TsExpr {
     function constructorStaticCallText(modulePath:String, className:String, methodName:String, args:Array<DefaultArgExpander.CoalescingDefaultValue>,
             targetType:Type, cls:ClassType, ctorArgs:Array<TypedExpr>):String {
         final rendered = [for (a in args) constructorCoalescingText(a, targetType, cls, ctorArgs)].join(", ");
-        imports.value(modulePath, className);
-        return className + "." + methodName + "(" + rendered + ")";
+        final coalescingCallLocal = imports.valueName(modulePath, className);
+        return coalescingCallLocal + "." + methodName + "(" + rendered + ")";
     }
 
     function constructorDefaultText(value:DefaultArgExpander.DefaultArgValue, targetType:Type, cls:ClassType, args:Array<TypedExpr>):String {
@@ -3164,8 +3170,8 @@ class TsExpr {
             case "Array":
                 return "new Array<" + types.of(params[0]) + ">(" + rendered + ")";
             case _:
-                imports.value(cls.module, cls.name);
-                return "new " + cls.name + "(" + rendered + ")";
+                final clsLocal = imports.valueName(cls.module, cls.name);
+                return "new " + clsLocal + "(" + rendered + ")";
         }
     }
 
@@ -3267,8 +3273,7 @@ class TsExpr {
     function exceptionClassOf(c:{v:TVar, expr:TypedExpr}):Null<String> {
         return switch (Context.follow(c.v.t)) {
             case TInst(cls, _):
-                imports.value(cls.get().module, cls.get().name);
-                cls.get().name;
+                imports.valueName(cls.get().module, cls.get().name);
             case _: null;
         };
     }

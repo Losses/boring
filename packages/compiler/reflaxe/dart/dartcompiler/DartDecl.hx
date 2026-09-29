@@ -8,10 +8,10 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import ValueTypeSupport;
 import PolicyQueries;
-import ComparatorPlan;
-import ComparatorPlan.ComparatorFieldKind;
-import ComparatorPlan;
-import ComparatorPlan.ComparatorFieldKind;
+import SourceComparisonAnalysis;
+import SourceComparisonAnalysis.SourceComparisonOperation;
+import SourceComparisonAnalysis.SourceRecordComparisonPlan;
+import dartcompiler.DartComparisonPlan;
 import ValueTypeSupport.ValueTypeInfo;
 import ValueTypeSupport.ValueTypeOperator;
 import NameConversion;
@@ -302,191 +302,77 @@ class DartDecl {
         lines.push("}");
         final classPart = lines.join("\n");
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
-        return cls.meta.has(":dataClass")
-            && DartType.canEmitDataClassComparator(cls) ? result + "\n\n" + dataClassComparator(cls) : result;
+        final comparator = cls.meta.has(":dataClass") ? DartComparisonPlan.schema(cls) : null;
+        return comparator == null ? result : result + "\n\n" + dataClassComparator(cls, comparator);
     }
 
-    function dataClassComparator(cls:ClassType):String {
-        final lines = ["int compare" + cls.name + "(" + cls.name + " a, " + cls.name + " b) {"];
-        function comparatorRef(elem:ClassType):String {
-            // The element comparator lives at module level in its own
-            // library. A cross-module reference needs the library prefix
-            // (imports.value) so the generated call resolves
-            // (features/49: ReadOnlyArray element member access).
-            final prefix = imports.value(elem.module, "compare" + elem.name);
-            return prefix.length > 0 ? prefix + ".compare" + elem.name : "compare" + elem.name;
-        }
-        final entries = ComparatorPlan.entries(cls, false, false);
-        for (entry in entries) {
-            final f = entry.field;
-
-            switch (entry.kind) {
-                case NullableScalar(inner):
-                    lines.push("  final av" + f.name + " = a." + f.name + "; final bv" + f.name + " = b." + f.name + ";");
-                    lines.push("  if (av" + f.name + " == null && bv" + f.name + " != null) return -1;");
-                    lines.push("  if (av" + f.name + " != null && bv" + f.name + " == null) return 1;");
-                    switch (Context.follow(inner)) {
-                        case TEnum(e, _):
-                            final en = e.get();
-                            final orderName = cls.name + f.name + "Order";
-                            lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [
-                                for (ef in en.constructs)
-                                    (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module,
-                                        en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == "
-                                        + qualifiedRef(en.module, en.name)
-                                        + "."
-                                        + lowerFirst(ef.name)
-                                        + ") return "
-                                        + ef.index
-                                        + ";")
-                            ].join("\n") + "\n  return 0;\n}");
-                            lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = " + orderName + "(av"
-                                + f.name + ") - " + orderName + "(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }");
-                        case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                            if (DartType.canEmitDataClassComparator(c.get()))
-                                lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = " + comparatorRef(c.get())
-                                    + "(av" + f.name + ", bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }");
-                        case _: lines.push("  if (av" + f.name + " != null && bv" + f.name + " != null) { final cmp" + f.name + " = av" + f.name
-                                + ".compareTo(bv" + f.name + "); if (cmp" + f.name + " != 0) return cmp" + f.name + "; }");
-                    }
-                case NullableArray(element):
-                    lines.push("  final av" + f.name + " = a." + f.name + "; final bv" + f.name + " = b." + f.name + ";");
-                    lines.push("  if (av" + f.name + " == null && bv" + f.name + " != null) return -1;");
-                    lines.push("  if (av" + f.name + " != null && bv" + f.name + " == null) return 1;");
-                    nullableArrayComparator(lines, cls, f.name, element);
-                case ReadOnlyArrayField(element):
-                    switch (Context.follow(element)) {
-                        case TEnum(e, _):
-                            final en = e.get();
-                            final orderName = cls.name + f.name + "ElementOrder";
-                            lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [
-                                for (ef in en.constructs)
-                                    (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module,
-                                        en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == "
-                                        + qualifiedRef(en.module, en.name)
-                                        + "."
-                                        + lowerFirst(ef.name)
-                                        + ") return "
-                                        + ef.index
-                                        + ";")
-                            ].join("\n") + "\n  return 0;\n}");
-                            lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = " + orderName
-                                + "(a." + f.name + "[i]) - " + orderName + "(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
-                        case TInst(c,
-                            _) if (c.get()
-                                .meta.has(":dataClass")):
-                            if (DartType.canEmitDataClassComparator(c.get()))
-                                lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name
-                                    + ".length; i++) { final cmp = " + comparatorRef(c.get()) + "(a." + f.name + "[i], b." + f.name
-                                    + "[i]); if (cmp != 0) return cmp; }");
-                        case _: lines.push("  for (var i = 0; i < a." + f.name + ".length && i < b." + f.name + ".length; i++) { final cmp = a." + f.name
-                                + "[i].compareTo(b." + f.name + "[i]); if (cmp != 0) return cmp; }");
-                    }
-                    lines.push("  if (a." + f.name + ".length != b." + f.name + ".length) return a." + f.name + ".length - b." + f.name + ".length;");
-
-                case PlainField:
-                    switch (Context.follow(f.type)) {
-                        case TAbstract(a, _) if (a.get().name == "Int"):
-                            lines.push("  if (a." + f.name + " != b." + f.name + ") return a." + f.name + " - b." + f.name + ";");
-                        case TInst(c, _) if (c.get().name == "String"):
-                            lines.push("  final cmp" + f.name + " = a." + f.name + ".compareTo(b." + f.name + "); if (cmp" + f.name + " != 0) return cmp"
-                                + f.name + ";");
-                        case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                            if (DartType.canEmitDataClassComparator(c.get()))
-                                lines.push("  final cmp" + f.name + " = " + comparatorRef(c.get()) + "(a." + f.name + ", b." + f.name + "); if (cmp" + f.name
-                                    + " != 0) return cmp" + f.name + ";");
-                        case TEnum(e, _):
-                            final en = e.get();
-                            if (enumHasPayload(en)) {
-                                lines.unshift("int "
-                                    + cls.name
-                                    + f.name
-                                    + "Order("
-                                    + qualifiedRef(en.module, en.name)
-                                    + " v) {\n"
-                                    + [
-                                        for (ef in en.constructs)
-                                            (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module,
-                                                en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == "
-                                                + qualifiedRef(en.module, en.name)
-                                                + "."
-                                                + lowerFirst(ef.name)
-                                                + ") return "
-                                                + ef.index
-                                                + ";")
-                                    ].join("\n") + "\n  return 0;\n}");
-                                lines.push("  if (" + cls.name + f.name + "Order(a." + f.name + ") != " + cls.name + f.name + "Order(b." + f.name
-                                    + ")) return " + cls.name + f.name + "Order(a." + f.name + ") - " + cls.name + f.name + "Order(b." + f.name + ");");
-                            } else lines.push("  if (a." + f.name + ".index != b." + f.name + ".index) return a." + f.name + ".index - b." + f.name +
-                                ".index;");
-                        case _:
-                    }
+    /** Render the finite source ordering plan. Source owns field order, null
+        placement and sequence composition; Dart supplies native operations. */
+    function dataClassComparator(cls:ClassType, plan:SourceRecordComparisonPlan):String {
+        final generic = cls.params.length == 0 ? "" : "<" + [for (parameter in cls.params) parameter.name].join(", ") + ">";
+        final callbacks = [for (index in DartComparisonPlan.requiredArguments(plan))
+            "int Function(" + cls.params[index].name + ", " + cls.params[index].name + ") compareArg" + index];
+        final lines = ["int compare" + cls.name + generic + "(" + cls.name + generic + " a, "
+            + cls.name + generic + " b" + (callbacks.length == 0 ? "" : ", " + callbacks.join(", ")) + ") {"];
+        var nextLocal = 0;
+        function local():String return "comparison" + nextLocal++;
+        function emit(operation:SourceComparisonOperation, left:String, right:String, indent:String):Void {
+            switch (operation) {
+                case IntegerOrder | Utf16StringOrder | FloatOrder | BooleanOrder:
+                    final result = local();
+                    lines.push(indent + "final " + result + " = " + left + ".compareTo(" + right + ");");
+                    lines.push(indent + "if (" + result + " != 0) return " + result + ";");
+                case EnumOrdinalOrder(declaration, _, constructors):
+                    final result = local();
+                    lines.push(indent + "final " + result + " = " + DartComparisonPlan.enumOrdinal(declaration, left, imports, constructors)
+                        + ".compareTo(" + DartComparisonPlan.enumOrdinal(declaration, right, imports, constructors) + ");");
+                    lines.push(indent + "if (" + result + " != 0) return " + result + ";");
+                case ParameterOrder(index):
+                    final result = local();
+                    lines.push(indent + "final " + result + " = compareArg" + index + "(" + left + ", " + right + ");");
+                    lines.push(indent + "if (" + result + " != 0) return " + result + ";");
+                case RecordOrder(record, arguments):
+                    final nested = record.source.declaration;
+                    final prefix = imports.value(nested.module, "compare" + nested.name);
+                    final name = (prefix.length > 0 ? prefix + "." : "") + "compare" + nested.name;
+                    final callbacks = [for (index in DartComparisonPlan.requiredArguments(record))
+                        DartComparisonPlan.comparatorForType(arguments[index], imports, plan)];
+                    final result = local();
+                    lines.push(indent + "final " + result + " = " + name + "(" + left + ", " + right
+                        + (callbacks.length == 0 ? "" : ", " + callbacks.join(", ")) + ");");
+                    lines.push(indent + "if (" + result + " != 0) return " + result + ";");
+                case NullBeforePresent(child):
+                    // Array indexing and property reads are not promotable in
+                    // Dart. Bind each operand once before testing presence.
+                    final nullableLeft = local();
+                    final nullableRight = local();
+                    lines.push(indent + "final " + nullableLeft + " = " + left + ";");
+                    lines.push(indent + "final " + nullableRight + " = " + right + ";");
+                    lines.push(indent + "if (" + nullableLeft + " == null && " + nullableRight + " != null) return -1;");
+                    lines.push(indent + "if (" + nullableLeft + " != null && " + nullableRight + " == null) return 1;");
+                    lines.push(indent + "if (" + nullableLeft + " != null && " + nullableRight + " != null) {");
+                    emit(child, nullableLeft, nullableRight, indent + "  ");
+                    lines.push(indent + "}");
+                case Lexicographic(child):
+                    final index = local();
+                    lines.push(indent + "for (var " + index + " = 0; " + index + " < " + left + ".length && " + index + " < " + right + ".length; " + index + "++) {");
+                    emit(child, left + "[" + index + "]", right + "[" + index + "]", indent + "  ");
+                    lines.push(indent + "}");
+                    final lengthOrder = local();
+                    lines.push(indent + "final " + lengthOrder + " = " + left + ".length.compareTo(" + right + ".length);");
+                    lines.push(indent + "if (" + lengthOrder + " != 0) return " + lengthOrder + ";");
             }
+        }
+        for (field in plan.fields) {
+            final left = local();
+            final right = local();
+            lines.push("  final " + left + " = a." + field.field.name + ";");
+            lines.push("  final " + right + " = b." + field.field.name + ";");
+            emit(field.operation, left, right, "  ");
         }
         lines.push("  return 0;");
         lines.push("}");
         return lines.join("\n");
-    }
-
-    function enumHasPayload(en:EnumType):Bool {
-        for (ef in en.constructs)
-            switch (ef.type) {
-                case TFun(args, _):
-                    if (args.length > 0)
-                        return true;
-                case _:
-            }
-        return false;
-    }
-
-    /**
-        The element type when `t` is a raw ReadOnlyArray (checked before
-        Context.follow, which erases the abstract to Array). Nullable
-        collections need this raw check: the Null arm's followed inner
-        type is Array and would otherwise lose the array shape.
-    **/
-    function rawArrayElement(t:Type):Null<Type> {
-        return switch (t) {
-            case TAbstract(a, params) if (a.get().name == "ReadOnlyArray" && params.length == 1): params[0];
-            case TLazy(f): rawArrayElement(f());
-            case _: null;
-        };
-    }
-
-    /**
-        The element-wise compare lines for a nullable collection field
-        inside the non-null guard. The locals av/bv hold the present
-        arrays; the semantics mirror the non-null ReadOnlyArray arm:
-        compare in index order, then by length.
-    **/
-    function nullableArrayComparator(lines:Array<String>, cls:ClassType, field:String, element:Type):Void {
-        lines.push("  if (av" + field + " != null && bv" + field + " != null) {");
-        switch (Context.follow(element)) {
-            case TEnum(e, _):
-                final en = e.get();
-                final orderName = cls.name + field + "Order";
-                lines.unshift("int " + orderName + "(" + qualifiedRef(en.module, en.name) + " v) {\n" + [
-                    for (ef in en.constructs)
-                        (enumHasPayload(en) ? "  if (v is " + qualifiedRef(en.module, en.name + ef.name) + ") return " + ef.index + ";" : "  if (v == "
-                            + qualifiedRef(en.module, en.name)
-                            + "."
-                            + lowerFirst(ef.name)
-                            + ") return "
-                            + ef.index
-                            + ";")
-                ].join("\n") + "\n  return 0;\n}");
-                lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = " + orderName + "(av" + field
-                    + "[i]) - " + orderName + "(bv" + field + "[i]); if (cmp != 0) return cmp; }");
-            case TInst(c, _) if (c.get().meta.has(":dataClass")):
-                if (DartType.canEmitDataClassComparator(c.get()))
-                    lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = compare" + c.get().name + "(av"
-                        + field + "[i], bv" + field + "[i]); if (cmp != 0) return cmp; }");
-            case _:
-                lines.push("    for (var i = 0; i < av" + field + ".length && i < bv" + field + ".length; i++) { final cmp = av" + field
-                    + "[i].compareTo(bv" + field + "[i]); if (cmp != 0) return cmp; }");
-        }
-        lines.push("    if (av" + field + ".length != bv" + field + ".length) return av" + field + ".length - bv" + field + ".length;");
-        lines.push("  }");
     }
 
     public function valueTypeDecl(cls:ClassType, info:ValueTypeInfo, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {

@@ -1,0 +1,20 @@
+# Focused rejection fixture: a stored Float field is outside the sorted-key
+# domain. The source gate must fail the build with the domain diagnostic.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp tests/haxe/comparison-runtime-observation
+-cp tests/haxe/rust-comparison-policy
+--macro Intercept.run(['tests/haxe/comparison-runtime-observation','tests/haxe/rust-comparison-policy'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/rust-comparison-policy/current/gen-reject-float-key
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+comparison.RejectFloatKey
+std.ReadOnlyArray
+std.SortedMap
+runtime.SortedTable
+runtime.TestCore
+std.FpText

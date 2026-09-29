@@ -1,0 +1,20 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp samples
+-cp tests/haxe/kotlin-comparison-consumer
+-cp tests/haxe/comparison-runtime-observation
+--macro Intercept.run(['tests/haxe/kotlin-comparison-consumer','tests/haxe/comparison-runtime-observation'])
+--macro cases.ComparisonProbe.run()
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/kotlin-comparison-consumer/current/gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+cases.ComparisonCases
+cases.EnumAdmission
+cases.left.SameKey
+cases.right.SameKey
+comparison.ParameterCompositionCases
+std.SortedMap
+runtime.SortedTable

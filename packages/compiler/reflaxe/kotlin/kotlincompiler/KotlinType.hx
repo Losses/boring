@@ -100,6 +100,10 @@ class KotlinType {
                     // underlying function type with the arguments
                     // applied at the reference site.
                     of(haxe.macro.TypeTools.applyTypeParameters(d.type, d.params, params));
+                } else if (isNullableAlias(d.type)) {
+                    // A nullable alias has no Kotlin declaration. Preserve its
+                    // nullable payload at the use site.
+                    of(haxe.macro.TypeTools.applyTypeParameters(d.type, d.params, params));
                 } else if (params.length == 0) {
                     imports.requireType(d.module, d.name);
                     d.name;
@@ -124,6 +128,13 @@ class KotlinType {
                 fail(t);
             case TLazy(f): of(f());
         }
+    }
+
+    static function isNullableAlias(t:Type):Bool {
+        return switch (t) {
+            case TAbstract(a, _): a.get().name == "Null";
+            case _: false;
+        };
     }
 
     function pathOf(pack:Array<String>, name:String):String {
