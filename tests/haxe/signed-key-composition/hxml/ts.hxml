@@ -1,0 +1,27 @@
+# Focused TypeScript generation of the signed key composition fixture.
+# Run from the repository root inside the pinned toolchain; the caller
+# supplies the output tree so every attempt writes into its own run
+# directory:
+#   XDG_CACHE_HOME=out/nix-cache nix develop -c haxe \
+#     tests/haxe/signed-key-composition/hxml/ts.hxml -D ts-output=<run>/ts-gen
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp samples
+-cp tests/haxe/signed-key-composition
+--macro Intercept.run(['tests/haxe/signed-key-composition'])
+--macro tscompiler.Compiler.use()
+-D ts-output=out/signed-key-composition/current/ts-gen
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none
+composition.KeyCompositionObserve
+std.ReadOnlyArray
+std.SortedMap
+runtime.SortedTable
+# The emitted test host names runtime.TestCore, and its Kotlin host source
+# calls FPHelper, so the two modules ride in the entry list and the generated
+# tree compiles as a whole. They carry no observation case.
+runtime.TestCore
+std.FpText
