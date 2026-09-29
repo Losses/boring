@@ -1,0 +1,26 @@
+# Focused Kotlin generation of the signed key composition fixture.
+# Run from the repository root inside the pinned toolchain; the caller
+# supplies the output tree so every attempt writes into its own run
+# directory:
+#   XDG_CACHE_HOME=out/nix-cache nix develop -c haxe \
+#     tests/haxe/signed-key-composition/hxml/kotlin.hxml -D kotlin-output=<run>/kotlin-gen
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp samples
+-cp tests/haxe/signed-key-composition
+--macro Intercept.run(['tests/haxe/signed-key-composition'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/signed-key-composition/current/kotlin-gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+composition.KeyCompositionObserve
+std.ReadOnlyArray
+std.SortedMap
+runtime.SortedTable
+# The emitted test host names runtime.TestCore, and its Kotlin host source
+# calls FPHelper, so the two modules ride in the entry list and the generated
+# tree compiles as a whole. They carry no observation case.
+runtime.TestCore
+std.FpText
