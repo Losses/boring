@@ -1,0 +1,17 @@
+# Dart generation of the readonly-alias fixture.
+# The runner passes -D dart-output=... and -D dart-test-output=... on
+# the command line. The emitted pubspec.yaml gives the package the name
+# `generated`; the authored harness is copied into lib/roalias/zz_run.dart.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/readonly-alias
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/readonly-alias'])
+--macro dartcompiler.Compiler.use()
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+roalias.ReadOnlyAliasOracle
