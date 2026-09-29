@@ -1,0 +1,12 @@
+# Focused generation for the nullable receiver call and the constructor
+# optional-parameter normalization.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp samples
+-cp tests/haxe/ts-nullable-lowering
+--macro Intercept.run(['samples', 'tests/haxe/ts-nullable-lowering'])
+--macro tscompiler.Compiler.use()
+-D package-shell=none
+-main NullableShapes
