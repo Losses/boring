@@ -43,12 +43,12 @@ const memberTrees: MemberTree[] = [
   },
   {
     file: "reference/rust/gen/boring/printed_record.rs",
-    signature: "pub fn to_string(&self) -> String",
+    signature: "pub fn to_string(&self) -> UString",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
     file: "reference/rust-f32/gen/boring/printed_record.rs",
-    signature: "pub fn to_string(&self) -> String",
+    signature: "pub fn to_string(&self) -> UString",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
 ];
@@ -85,7 +85,7 @@ const mutationTargets: TargetConfig[] = [
     file: "boring/printed_record.rs",
     id: "rust",
     shadow: "packages/compiler/reflaxe/rust/std-shadow",
-    signature: "pub fn to_string(&self) -> String",
+    signature: "pub fn to_string(&self) -> UString",
   },
 ];
 

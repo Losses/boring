@@ -51,7 +51,7 @@ describe("enum value queries generated trees", () => {
     const ops = read("../../reference/rust/gen/boring/enum_queries_ops.rs");
     expect(decl).toContain("pub const ALL: [FloatWidth; 3]");
     expect(decl).toContain("pub fn name(&self) -> &'static str");
-    expect(decl).toContain("pub fn from_name(name: &str) -> Option<FloatWidth>");
+    expect(decl).toContain("pub fn from_name(name: &UStr) -> Option<FloatWidth>");
     expect(ops).toContain("for index in 0..3");
   });
 
