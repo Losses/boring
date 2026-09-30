@@ -1,0 +1,12 @@
+# Haxe JS oracle for the charcodeat fixture (boring pipeline).
+# Run from the repository root (inside the boring devShell); the runner
+# appends the -js output path:
+#   haxe tests/haxe/charcodeat/oracle.hxml -js <run>/oracle/oracle.js
+# The entry main() logs the six labeled lines that every native
+# harness must reproduce.
+-lib boring
+-cp packages/compiler
+-cp samples
+-cp tests/haxe/charcodeat
+--macro Intercept.run(['samples', 'tests/haxe/charcodeat'])
+-main charcodeat.CharCodeAtOracle
