@@ -26,6 +26,7 @@ touched or reopened.
 | Independent five-claim check of `eec707b9` | `dc-warn/out/verify-eec707b9/REPORT.md` (scratch) | independent verification seat |
 | Executor's own claim-versus-commit adjudication | `dc-warn/out/package-shell-adjudication/REPORT.md` (scratch) | the implementing seat |
 | The tool | `tools/gate-proof/verify-commit.ts`, `bun run gate:verify --` (commit `6322af89`) | tooling seat |
+| A sibling seat's condition-4 claim | `docs/architecture/p08-candidate-material/P08-SUCCESSOR-CANDIDATE-MATERIAL.md` §5, branch `prep/p08-candidate-material`, commit `32f76bd9` (**not** an ancestor of this branch) | the P08-preparation seat |
 
 The independent check (`verify-eec707b9`) confirmed all five technical claims and
 then failed the entry on **requirement 2** (no clean working-tree proof) and
@@ -54,17 +55,28 @@ Nothing in the four requirements was missing an artefact any more. Two things we
 still missing from the **record**:
 
 1. **The project's own mechanical verdict for `eec707b9` was never in the
-   repository.** `gate:verify` had been run against `eec707b9` (in
-   `dc-warn/out/gate-evidence/eec707b9.json` and
-   `dc-warn/out/gate-tooling/evidence/pass-eec707b9.json`), but both are git-ignored
-   scratch. The committed package pins the export by checksum and lists the manifest;
-   it does not carry the re-hash comparison verdict that requirement 3's own method
-   paragraph calls "the check". This record commits that verdict, in both modes, with
-   the raw stdout, obtained through the project's tooling.
+   repository.** `gate:verify` had been run against `eec707b9` three times in
+   git-ignored scratch (`dc-warn/out/gate-evidence/eec707b9.json`,
+   `dc-warn/out/gate-tooling/evidence/pass-eec707b9.json`,
+   `dc-warn/out/p08-prep/evidence/gate-verify-eec707b9.json` — all the same
+   `archive-verify` PASS), and the third of those is cited by the sibling seat's
+   committed candidate-material record. No verdict was committed as an evidence
+   artefact. The committed package pins the export by checksum and lists the
+   manifest; it does not carry the re-hash comparison verdict that requirement 3's
+   own method paragraph calls "the check". This record commits that verdict, in both
+   modes, with the raw stdout, obtained through the project's tooling.
 2. **The ledger row contradicted its own evidence.** The condition-4 row still read
    "entry does not yet satisfy the entry gate" after the package had been committed
-   and after round-128 ruled the R2/R3 threshold closed. The row is corrected in the
-   same commit, preserving the original text.
+   and after round-128 ruled the R2/R3 threshold closed. The sibling seat's record §5
+   states that the mechanical evidence "completes the evidence form the gate requires"
+   while explicitly changing no ledger verdict, so the contradiction stood. The row is
+   corrected in the same commit, preserving the original text.
+3. **The sibling run is not a second independent confirmation of this one.** It is
+   `archive-verify` only: it never checks the committed R2/R3 artefacts against
+   reality (the manifest against `git ls-tree -r`, the R2 worktree output, or whether
+   the PASS could fail), and it does not touch the ledger. It is recorded here so the
+   two records are not mistaken for mutually corroborating reviews of the same thing.
+   The overlap is also posted to the workspace chatroom.
 
 Raw logs are in `evidence/`. `SHA256SUMS.txt` covers every file in this record
 **except itself** (it cannot hash itself); unlike the R2/R3 package's copy, it
