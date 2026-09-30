@@ -1,0 +1,13 @@
+# Kotlin comparison generation of the same probe (join-fact contrast only).
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/dc-null-guard-fallthrough
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/dc-null-guard-fallthrough'])
+--macro kotlincompiler.Compiler.use()
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+dcguard.DcGuard

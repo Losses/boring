@@ -23,6 +23,41 @@
 -D runtime-emit=.
 -D package-shell=none
 -D float-precision=f32
+boring.BytesOps
+tests.BytesTests
+tests.StringCodecTests
+boring.FontId
+boring.FontIdConsumer
+boring.GlyphCluster
+boring.GlyphClusterHolder
+boring.GlyphClusterReader
+tests.StdStringPlainClassTests
+boring.NumberClassifyOps
+boring.MathMinMaxOps
+tests.NumberClassifyTests
+tests.MathMinMaxTests
+boring.InstanceDefaults
+boring.ImpWidget
+boring.ImpHost
+tests.ImpDefaultTests
+tests.InstanceDefaultsTests
+boring.AllowHost
+boring.AllowGuest
+tests.AllowAccessTests
+boring.SortedDataClassKeysOps
+boring.DataClassRangeEqOps
+tests.FontIdTests
+tests.GlyphClusterTests
+tests.NoSuchElementTests
+tests.PosterShapeTests
+tests.ShapeTextTests
+tests.StringToolsTests
+boring.FloatLiteralOps
+tests.FloatLiteralOpsTests
+boring.OptionalParamNull
+tests.OptionalParamNullTests
+boring.ExceptionChainProbe
+tests.ExceptionChainProbeTests
 boring.ArraySliceOps
 boring.BinaryReader
 boring.BinaryWriter
@@ -121,6 +156,7 @@ boring.DefaultArgsOps
 boring.DefaultArgShiftOps
 tests.DefaultArgsTests
 tests.DefaultArgShiftTests
+tests.EarlyReturnTests
 boring.ProbeUnit
 boring.InlineDefaultOps
 tests.InlineDefaultTests
@@ -335,6 +371,7 @@ tests.ArrayMethodSwiftTests
 boring.FunctionalLocalOps
 tests.FunctionalLocalTests
 
+tests.SumOfFloatLocalTests
 boring.SwitchNullArmOps
 tests.SwitchNullArmTests
 
