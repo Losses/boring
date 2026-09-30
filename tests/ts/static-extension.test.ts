@@ -112,11 +112,11 @@ describe("top-level and extension function lowering", () => {
     expect(fileConsumer).not.toContain("FileLevelOps::");
 
     expect(extensions).toContain("impl ExtensionMode {");
-    expect(extensions).toContain("pub fn mode_label(&self, suffix: &str) -> String");
-    expect(extensions).toContain("pub fn string_label(value: &str, prefix: &str) -> String");
+    expect(extensions).toContain("pub fn mode_label(&self, suffix: &UStr) -> UString");
+    expect(extensions).toContain("pub fn string_label(value: &UStr, prefix: &UStr) -> UString");
     expect(extensions).not.toContain("struct ExtensionOps");
-    expect(extensionConsumer).toContain("return ExtensionMode::Hot.mode_label(&\"!\");");
-    expect(extensionConsumer).toContain("return string_label(&\"core\", &\"@\");");
+    expect(extensionConsumer).toContain("return ExtensionMode::Hot.mode_label(UStr::new(&[33]));");
+    expect(extensionConsumer).toContain("return string_label(UStr::new(&[99,111,114,101]), UStr::new(&[64]));");
     expect(extensionConsumer).not.toContain("ExtensionOps::");
   });
 });
