@@ -1,0 +1,15 @@
+# Rename control for the second root cause (PIT-281 verification 4):
+# same module/two-exception shape as rust.hxml, but the payload enums are
+# named *PayloadFault so error-enum names carry the Fault suffix.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/payload-key-faultnames
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/payload-key-faultnames'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+pkf.FaultNameProbe
