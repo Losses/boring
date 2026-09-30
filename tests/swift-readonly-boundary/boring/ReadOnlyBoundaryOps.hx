@@ -227,7 +227,7 @@ class ReadOnlyBoundaryOps {
     }
 
     public static function consumeReadOnlyBoundary(view:ReadOnlyArray<Int>):String {
-        return view.length + (view.length == 0 ? ":empty" : ":present");
+        return view.length + ":" + (view.length == 0 ? "empty" : view[0] + ":present");
     }
 
     public static function coalescedBoundary(values:Null<Array<Int>>):String {
