@@ -364,3 +364,47 @@ I reproduced the two load-bearing claims rather than accepting the prose:
 Count diagnostics by `file:line:col: severity` shape, NOT by `grep 'warning:'`, which returns
 2 on the baseline because Swift also prints a caret line. The naive count would have made a
 correct fix look like a false claim.
+
+## Independent audit of the session-integration batch (run-102)
+
+I commissioned an adversarial audit of everything this session merged into base (from
+5a8f19e6 to the then-tip), briefed explicitly to FIND COUNTEREXAMPLES rather than to
+restate the claims. It returned three partly-confirmed verdicts out of six findings. I
+reproduced the actionable ones; all three were real defects in work I had signed off.
+
+1. **charCodeAt `FILES.sha256` claimed "one command, rc=0" — false from a clean tree.**
+   Two of its 22 entries pointed at `dc-warn/out/...`, and `dc-warn/` is git-ignored with
+   zero tracked files. The claim held only on a working copy that happens to have the
+   mount. Fixed by splitting the file into SECTION 1 repo-verifiable (verifies standalone:
+   rc=0, 20/20 from the base repo root) and SECTION 2 evidence-only, which states plainly
+   that those paths do not resolve in a clone. The whole-file check still fails with
+   exactly those 2 dangling, so nothing is hidden.
+
+2. **My own sign-off wording on `t-munebyud-bxbr` overstated the predicate's scope.**
+   I wrote that registration and lookup share "the single identity predicate". In fact
+   `Compiler.hx:2584-2587` computes the absorbed arm's key inline (`? enumName`) and calls
+   `throwGrowthKey` only on the unabsorbed arm. The code is correct and documented for both
+   arms; the over-claim was in my confirmation text. Corrected on the row.
+
+3. **host-String `CLOSURE.md` carried a sentence that has since gone stale.** It said four
+   timeout-budget commits were "branch state, not in effect on base"; all four are
+   ancestors of the current base now. The original wording is kept and a dated coordinator
+   note records that the state changed, rather than rewriting the sentence.
+
+Two further audit caveats I accept as scope statements rather than regressions:
+`registerFaultConversion`/`enumGrowthFor` key the growth table by bare enum name (predates
+this batch; the auditor explicitly could not build a compiled counterexample and marked it
+an argument, not a measurement), and the predicate cannot see two short-circuits the lookup
+performs. Both are recorded as follow-up candidates.
+
+The audit also reported that guard PASS is devShell-dependent (without `.haxelib` it is
+rc=1), i.e. not a property of the tracked tree alone.
+
+**Filed follow-up:** `test/wire-payload-key-controls` (t-muoqi2yb-icpu) - the audit's
+reproducibility gap: the `pkrev` and `rust-faultnames` controls are in base as fixtures
+but no committed command drives them, so the declaration-order discriminating power is
+not reproducible from the repository.
+
+The lesson this batch keeps teaching, now recorded three times over (PIT-339, PIT-344,
+PIT-346): a claim that holds at the moment it is written gets read later as if it still
+holds. Prefer claims that carry their own tree, commit and cwd.
