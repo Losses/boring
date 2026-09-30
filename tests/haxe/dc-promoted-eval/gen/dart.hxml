@@ -1,0 +1,18 @@
+# Generation of the dc-promoted-eval fixture for the dart target.
+# The caller supplies -D dart-output=... (and -D dart-test-output=... where the
+# target expects one); this file is otherwise the complete generation input.
+# Run from the worktree root:
+#   nix develop -c haxe tests/haxe/dc-promoted-eval/gen/dart.hxml -D dart-output=<dir>
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/dc-promoted-eval
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/dc-promoted-eval'])
+--macro dartcompiler.Compiler.use()
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+dcpe.EvalProbe
+dcpe.DoubleEvalControl

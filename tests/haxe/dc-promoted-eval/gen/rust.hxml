@@ -1,0 +1,18 @@
+# Generation of the dc-promoted-eval fixture for the rust target.
+# The caller supplies -D rust-output=... (and -D rust-test-output=... where the
+# target expects one); this file is otherwise the complete generation input.
+# Run from the worktree root:
+#   nix develop -c haxe tests/haxe/dc-promoted-eval/gen/rust.hxml -D rust-output=<dir>
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/dc-promoted-eval
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/dc-promoted-eval'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+dcpe.EvalProbe
+dcpe.DoubleEvalControl
