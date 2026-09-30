@@ -21,5 +21,9 @@ describe("float precision switch on the Dart target", () => {
     expect(exitCode).not.toBe(0);
     expect(stderr).toContain("float-precision=f32 is not available on the Dart target");
     expect(stderr).toContain("double is the one real storage width");
-  });
+    // One full haxe macro-compiler run measured at 28.1 s (baseline machine,
+    // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises
+    // only the harness patience for that subprocess, never the asserted
+    // behavior.
+  }, 60_000);
 });

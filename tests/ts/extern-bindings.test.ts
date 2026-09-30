@@ -60,7 +60,11 @@ describe("TypeScript extern binding modules", () => {
     } finally {
       fs.rmSync(result.dir, { recursive: true, force: true });
     }
-  });
+    // One full haxe macro-compiler run measured at 22.6 s (baseline machine,
+    // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises
+    // only the harness patience for that subprocess, never the asserted
+    // behavior.
+  }, 60_000);
 
   test("rejects a value reference to an empty module", async () => {
     const result = await compileFixture([
@@ -74,5 +78,9 @@ describe("TypeScript extern binding modules", () => {
     } finally {
       fs.rmSync(result.dir, { recursive: true, force: true });
     }
-  });
+    // One full haxe macro-compiler run measured at 22.4 s (baseline machine,
+    // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises
+    // only the harness patience for that subprocess, never the asserted
+    // behavior.
+  }, 60_000);
 });

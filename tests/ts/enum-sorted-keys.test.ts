@@ -92,4 +92,7 @@ test("payload enums are rejected as sorted keys", async () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-});
+  // One full haxe macro-compiler run measured at 24.3 s (baseline machine,
+  // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises only
+  // the harness patience for that subprocess, never the asserted behavior.
+}, 60_000);
