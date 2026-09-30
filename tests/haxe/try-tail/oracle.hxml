@@ -1,0 +1,8 @@
+# Haxe 4.3.7 oracle for the try-tail fixture: Haxe js target via the
+# boring std shadow (samples/std/Console.hx) for output.
+# Run: haxe tests/haxe/try-tail/oracle.hxml -js <run>/oracle/oracle.js
+-lib boring
+-cp samples
+-cp tests/haxe/try-tail
+-main trytail.TryTailOracle
+-D oracle-output

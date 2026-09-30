@@ -256,8 +256,8 @@ class SwiftArrayBoundary {
             case ContextualReadOnlyEmpty:
                 elementText == null ?throw new haxe.Exception("read-only empty array boundary is missing its element type"):"ReadOnlyArray<" + elementText +
                 ">()";
-            case CopyReadOnlyIntoMutableArray: "TiqianArray(" + operand + ".toMutableArray())";
-            case MapOptionalReadOnlyIntoMutableArray: "(" + operand + ").map { TiqianArray($0.toMutableArray()) }";
+            case CopyReadOnlyIntoMutableArray: operand + ".toMutableArray()";
+            case MapOptionalReadOnlyIntoMutableArray: "(" + operand + ").map { $0.toMutableArray() }";
         };
     }
 }
