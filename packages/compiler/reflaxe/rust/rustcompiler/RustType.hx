@@ -142,10 +142,11 @@ class RustType {
                 if (RustDecl.isExceptionSubclass(cls) && state.messageOnlyExceptions.exists(cls.module)) {
                     imports.requireType(cls.module, cls.name);
                     cls.name;
-                } else if (RustDecl.isExceptionSubclass(cls) && state.exceptionPayloads.exists(cls.module)) {
-                    final payloadModule = state.exceptionPayloads.get(cls.module);
-                    final payloadName = state.payloadEnumNames.exists(payloadModule) ? state.payloadEnumNames.get(payloadModule) : payloadModule.split(".").pop();
-                    final emittedIn = state.payloadEnumModules.exists(payloadModule) ? state.payloadEnumModules.get(payloadModule) : cls.module;
+                } else if (RustDecl.isExceptionSubclass(cls) && state.exceptionPayloads.exists(RustEmissionState.identityKey(cls.module, cls.name))) {
+                    final classKey = RustEmissionState.identityKey(cls.module, cls.name);
+                    final payloadModule = state.exceptionPayloads.get(classKey);
+                    final payloadName = state.exceptionPayloadNames.get(classKey);
+                    final emittedIn = state.payloadEnumModules.exists(RustEmissionState.identityKey(payloadModule, payloadName)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(payloadModule, payloadName)) : cls.module;
                     imports.requireType(emittedIn, payloadName);
                     payloadName;
                 } else if (!cls.isInterface
