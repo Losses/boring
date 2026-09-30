@@ -42,12 +42,13 @@ function rewriteHxml(name: string, root: string, extra: string[] = []): string {
   );
   out = out.replace("-D runtime-import=@boring/runtime", "-D runtime-import=./runtime");
   out = out.replace("-D package-shell=none\n", "");
-  // The MathNaNTestSupport module imports the test runtime (node:fs) and
-  // belongs to the test tree; it is excluded from the npm promotion stage
-  // which ships only business code. Filter it here to keep the staged tsc
-  // compile green while the emitter's business/test partition is addressed
-  // (emitter still writes it to gen/boring, see report blocker).
-  out = out.replaceAll("boring.MathNaNTestSupport\n", "");
+  // The MathNaNTestSupport module imports the test runtime (runtime/test,
+  // which pulls node:fs) and belongs to the test tree; the npm promotion
+  // stage ships only business code, and the emitter's import-closure
+  // exclusion (PackageArtifacts.npmCompileSet) already keeps it and the
+  // runtime/test entry out of the staged compile. The module stays in the
+  // module list: the artifact must be generated from the repository's
+  // real, unmodified inputs so every generation sees the same source set.
   out += "-D package-artifacts=emit\n";
   for(const line of extra) {
     out += line + "\n";
@@ -60,38 +61,24 @@ async function runHaxe(hxmlName: string, content: string): Promise<CompilerOutco
   const hxmlPath = path.join(REPO_ROOT, "out", hxmlName);
   fs.mkdirSync(path.dirname(hxmlPath), { recursive: true });
   fs.writeFileSync(hxmlPath, content);
-  // Workaround for emitter regression where boring.MathNaNTestSupport is
-  // emitted to the business tree and imports runtime/test (node:fs), which
-  // breaks the npm stage tsc compile. Stub the source during ts artifact
-  // generations so the staged compile stays green; the emitter still writes
-  // the file to reference/ts/gen (blocker, see report).
-  const probe = path.join(REPO_ROOT, "samples/boring/MathNaNTestSupport.hx");
-  const isTs = content.includes("ts-output") || hxmlName.includes("npm") || hxmlName.includes("tsc") || hxmlName.includes("id-");
-  let hidden = false;
-  let backup = "";
-  const stub = "package boring;\nclass MathNaNTestSupport {\n    public static function assertNaN(value:Float, message:String):Void {}\n    public static function assertNegativeZero(value:Float, message:String):Void {}\n    public static function assertPositiveZero(value:Float, message:String):Void {}\n}\n";
-  if (isTs && fs.existsSync(probe)) {
-    backup = fs.readFileSync(probe, "utf8");
-    fs.writeFileSync(probe, stub);
-    hidden = true;
-  }
-  try {
-    const proc = Bun.spawn(["haxe", path.relative(REPO_ROOT, hxmlPath)], {
-      cwd: REPO_ROOT,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
-    return { exitCode, stderr };
-  } finally {
-    // The probe is a TRACKED assertion-bearing fixture other tests read.
-    // The restore must run on every exit path (throw, interrupt-includes-
-    // finally, timeout); leaving the stub behind silently corrupts other
-    // suites' results. Mirrors the try/finally used throughout this file.
-    if (hidden) {
-      fs.writeFileSync(probe, backup);
-    }
-  }
+  // Generations must run against the repository's tracked inputs exactly
+  // as committed. An earlier workaround rewrote the tracked fixture
+  // samples/boring/MathNaNTestSupport.hx to a stub for the duration of
+  // each run; that shared-file mutation is what made the artifact's
+  // entry set non-deterministic (407 vs 405 entries): a generation that
+  // read the stub saw a business-shaped module and shipped
+  // MathNaNTestSupport.{js,d.ts} in the tarball, while a generation that
+  // read the real fixture saw the runtime/test import and the emitter's
+  // exclusion closure dropped it. No input mutation, no flip: the
+  // emitter already excludes the test support module from the npm
+  // package on its own.
+  const proc = Bun.spawn(["haxe", path.relative(REPO_ROOT, hxmlPath)], {
+    cwd: REPO_ROOT,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+  return { exitCode, stderr };
 }
 
 function tempRoot(label: string): string {
