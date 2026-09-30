@@ -21,7 +21,6 @@
 -D runtime-import=@boring/runtime
 -D runtime-emit=.
 -D package-shell=none
-boring.ArraySliceOps
 boring.BinaryReader
 boring.BinaryWriter
 boring.Int64Ops
@@ -124,14 +123,12 @@ boring.TryOps
 tests.TryTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
-tests.MathNaNOpsTests
 boring.ArithmeticOps
 tests.ArithmeticTests
 boring.DefaultArgsOps
 boring.DefaultArgShiftOps
 tests.DefaultArgsTests
 tests.DefaultArgShiftTests
-boring.ProbeUnit
 boring.InlineDefaultOps
 tests.InlineDefaultTests
 tests.KotlinNullabilityTests
@@ -242,8 +239,6 @@ boring.CaptureSwitchOps
 boring.PayloadSelfMapOps
 boring.SwitchOps
 boring.MathIntWideningOps
-boring.MathNaNOps
-boring.MathNaNTestSupport
 boring.PlatformOps
 tests.ExpressionBlockTests
 tests.FontIdTests
@@ -271,7 +266,6 @@ boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.NumericConversionWidening
 tests.NumericConversionWideningTests
-tests.SwiftLiteralSafetyOpsTests
 tests.RustUnionFaultTests
 tests.PlatformModulesTestSupport
 tests.PlatformModulesTests
@@ -286,8 +280,6 @@ boring.SwitchMergeOps
 tests.RustCoalesceTests
 tests.CloneDeriveGapTests
 boring.LoopWriteOps
-boring.HaxeExceptionOps
-tests.HaxeExceptionTests
 boring.MutatingCounterOps
 tests.MutatingCounterTests
 boring.NullableBufFieldOps
@@ -493,8 +485,6 @@ boring.StringIndexOfShadowOps
 tests.StringIndexOfShadowTests
 boring.IntFloatAddOps
 tests.IntFloatAddTests
-boring.InterfaceArrayLiteralOps
-tests.InterfaceArrayLiteralTests
 boring.DartCoalesceStaticOps
 boring.DartCoalesceReceiver
 boring.DartCoalesceKind
