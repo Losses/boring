@@ -5905,7 +5905,15 @@ class RustExpr {
     function caughtPayloadEnum(c:{v:TVar, expr:TypedExpr}):Null<{name:String, module:String}> {
         switch (Context.follow(c.v.t)) {
             case TInst(cls, _):
-                final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
+                final caught = cls.get();
+                // The caught class's own payload first: the module-keyed maps
+                // below key on the payload enum's module, which two exception
+                // classes of one Haxe file share, so they answer for whichever
+                // class was scanned last and mistype this region.
+                final recorded = state.exceptionPayloadEnums.get(caught.module + "::" + caught.name);
+                if (recorded != null)
+                    return {name: recorded.name, module: recorded.module};
+                final messageOnly = state.messageOnlyExceptions.get(caught.module);
                 if (messageOnly != null)
                     return {name: messageOnly, module: cls.get().module};
                 final classKey = RustEmissionState.identityKey(cls.get().module, cls.get().name);
