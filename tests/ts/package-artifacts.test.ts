@@ -75,16 +75,23 @@ async function runHaxe(hxmlName: string, content: string): Promise<CompilerOutco
     fs.writeFileSync(probe, stub);
     hidden = true;
   }
-  const proc = Bun.spawn(["haxe", path.relative(REPO_ROOT, hxmlPath)], {
-    cwd: REPO_ROOT,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
-  if (hidden) {
-    fs.writeFileSync(probe, backup);
+  try {
+    const proc = Bun.spawn(["haxe", path.relative(REPO_ROOT, hxmlPath)], {
+      cwd: REPO_ROOT,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+    return { exitCode, stderr };
+  } finally {
+    // The probe is a TRACKED assertion-bearing fixture other tests read.
+    // The restore must run on every exit path (throw, interrupt-includes-
+    // finally, timeout); leaving the stub behind silently corrupts other
+    // suites' results. Mirrors the try/finally used throughout this file.
+    if (hidden) {
+      fs.writeFileSync(probe, backup);
+    }
   }
-  return { exitCode, stderr };
 }
 
 function tempRoot(label: string): string {
