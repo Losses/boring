@@ -39,7 +39,11 @@ describe("sorted key domains generated tree", () => {
     const clusterTagsPath = path.resolve(__dirname, "../../reference/rust/gen/boring/cluster_tags.rs");
     expect(fs.existsSync(clusterTagsPath)).toBe(true);
     const content = fs.readFileSync(clusterTagsPath, "utf8");
-    expect(content).toContain("let capacity = usize::try_from(u32::from_ne_bytes((set.size()).to_ne_bytes())).unwrap_or(0);");
+    // `set.size()` is a resident call returning the i32 domain; the
+    // resident-to-business boundary casts it to the u32 Int domain before
+    // the bit reinterpretation, and the usize widening stays infallible
+    // (unwrap_or(0), no error enum and no `map_err` path).
+    expect(content).toContain("let capacity = usize::try_from(u32::from_ne_bytes(((set.size()) as u32).to_ne_bytes())).unwrap_or(0);");
     expect(content).toContain("let mut scores = Vec::with_capacity(capacity);");
   });
 });
