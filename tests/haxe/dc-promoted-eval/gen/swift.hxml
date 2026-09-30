@@ -1,0 +1,18 @@
+# Generation of the dc-promoted-eval fixture for the swift target.
+# The caller supplies -D swift-output=... (and -D swift-test-output=... where the
+# target expects one); this file is otherwise the complete generation input.
+# Run from the worktree root:
+#   nix develop -c haxe tests/haxe/dc-promoted-eval/gen/swift.hxml -D swift-output=<dir>
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp tests/haxe/dc-promoted-eval
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/dc-promoted-eval'])
+--macro swiftcompiler.Compiler.use()
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+dcpe.EvalProbe
+dcpe.DoubleEvalControl
