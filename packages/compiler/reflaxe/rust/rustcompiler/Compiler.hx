@@ -248,7 +248,7 @@ class Compiler extends PluginCompiler<Compiler> {
             return null;
         }
         SealedVariantHelper.validateEnum(enumType);
-        if (state.payloadEnumOwners.exists(enumType.module)) {
+        if (state.payloadEnumOwners.exists(RustEmissionState.identityKey(enumType.module, enumType.name))) {
             return null;
         }
         final decl = contextFor(enumType.module);
@@ -294,7 +294,8 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in modules) {
             // A payload enum and its exception can share one Haxe module; that
             // self-map must not suppress the module that owns both declarations.
-            if (state.payloadEnumModules.exists(module) && state.payloadEnumModules.get(module) != module) {
+            final emittedElsewhere = state.payloadEnumEmittedIn(module);
+            if (emittedElsewhere != null && emittedElsewhere != module) {
                 continue;
             }
             if (RuntimeResidents.isResident(module)) {
@@ -704,7 +705,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     }
                 case TEnum(e, _):
                     final en = e.get();
-                    final ownerModule = state.payloadEnumModules.get(en.module);
+                    final ownerModule = state.payloadEnumModules.get(RustEmissionState.identityKey(en.module, en.name));
                     final targetModule = ownerModule != null ? ownerModule : en.module;
                     final enumPath = "crate::" + RustImports.moduleToRustPath(targetModule) + "::" + en.name;
                     final safeSnake = RustImports.toSnakeCase(en.name);
@@ -769,7 +770,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 "crate::" + RustImports.moduleToRustPath(d.module) + "::" + d.name;
             case TEnum(e, params):
                 final en = e.get();
-                final ownerModule = state.payloadEnumOwners.get(en.module);
+                final ownerModule = state.payloadEnumOwners.get(RustEmissionState.identityKey(en.module, en.name));
                 final targetModule = ownerModule != null ? ownerModule : en.module;
                 "crate::" + RustImports.moduleToRustPath(targetModule) + "::" + en.name;
             case _: "()";
@@ -897,7 +898,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + u.name + " {"];
                 final variants = state.syntheticErrorVariants.get(u.name);
                 for (item in u.members) {
-                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
                     lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
@@ -911,7 +912,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
                 lines.push("        match self {");
                 for (item in u.members) {
-                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
                     lines.push("            " + u.name + "::" + variant + "(value) => write!(formatter, \"{}\", value),");
@@ -920,7 +921,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 lines.push("    }");
                 lines.push("}");
                 for (target in u.members) {
-                    final targetEmitted = state.payloadEnumModules.exists(target.module) ? state.payloadEnumModules.get(target.module) : target.module;
+                    final targetEmitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(target.module, target.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(target.module, target.name)) : target.module;
                     final targetPath = "crate::" + RustImports.moduleToRustPath(targetEmitted) + "::" + target.name;
                     final targetVariant = variants != null && variants.exists(target.module + "::" + target.name)
                         ? variants.get(target.module + "::" + target.name) : target.name + "Fault";
@@ -935,7 +936,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     lines.push("}");
                 }
                 for (item in u.members) {
-                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
                     final memberPath = "crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name;
@@ -1027,10 +1028,19 @@ class Compiler extends PluginCompiler<Compiler> {
                                         case TEnum(e, _):
                                             hasPayload = true;
                                             final payload = e.get();
-                                            state.payloadEnumModules.set(payload.module, cls.module);
-                                            state.payloadEnumOwners.set(payload.module, cls.name);
-                                            state.payloadEnumNames.set(payload.module, payload.name);
-                                            state.exceptionPayloads.set(cls.module, payload.module);
+                                            // Identity keys, not bare module
+                                            // paths: two payload enums (or
+                                            // two exception classes) can live
+                                            // in one module, and a module key
+                                            // makes the later scan overwrite
+                                            // the earlier one (PIT-281).
+                                            final payloadKey = RustEmissionState.identityKey(payload.module, payload.name);
+                                            final classKey = RustEmissionState.identityKey(cls.module, cls.name);
+                                            state.payloadEnumModules.set(payloadKey, cls.module);
+                                            state.payloadEnumOwners.set(payloadKey, cls.name);
+                                            state.payloadEnumNames.set(payloadKey, payload.name);
+                                            state.exceptionPayloads.set(classKey, payload.module);
+                                            state.exceptionPayloadNames.set(classKey, payload.name);
                                         case _:
                                     }
                                     if (!hasPayload && RustDecl.isMessageOnlyException(cls))
@@ -1336,6 +1346,18 @@ class Compiler extends PluginCompiler<Compiler> {
         // region for: a fully handled domain does not infect the enclosing
         // function (features/06 catch-site lowering).
         final entries:Array<{key:String, edges:Array<{callee:String, absorbed:Array<String>}>}> = [];
+        // Rethrow growth registrations met during the walk are deferred until
+        // the funcErrorTypes fixpoint below has settled: the registration
+        // must resolve the containing function's Result error enum — the same
+        // identity the emitter's throwVariant lookup uses — and that map only
+        // exists after propagation (t-munebyud-bxbr). The absorbed snapshot
+        // holds the enclosing region domains at walk time: a throw absorbed
+        // into a region looks its variant up under that region's catch domain
+        // (the payload enum itself), because RustExpr regionStatementLines
+        // retargets errorTypeName to the caught domain for the whole region
+        // body; an unabsorbed throw looks it up under the function's Result
+        // error enum.
+        final pendingThrowVariants:Array<{key:String, thrown:TypedExpr, ownerClass:ClassType, absorbed:Array<String>}> = [];
         final interfaceGather:Map<String, Array<{module:String, name:String}>> = [];
         function mergeEnum(key:String, pair:{module:String, name:String}):Bool {
             final existing = enumOf.get(key);
@@ -1460,7 +1482,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                             // live match covered (regression
                                             // fix, PIT ThrowFaultVariantGrowth).
                                             if (fieldEmitted) {
-                                                registerThrownExceptionVariant(stripDecorations(t), cls);
+                                                pendingThrowVariants.push({key: key, thrown: stripDecorations(t), ownerClass: cls, absorbed: absorbed.slice(0, absorbed.length)});
                                             }
                                             descend();
                                         case TIf(condition, ifTrue, ifFalse):
@@ -1500,7 +1522,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                                     if (isStringBufFaultOp(cc.get().module, calleeName)) {
                                                         // stdlib/08: the buffer checks end the owner
                                                         // through Err, in std.UStringFault.
-                                                        final payload = state.exceptionPayloads.get("std.UStringException");
+                                                        final payload = state.exceptionPayloads.get(RustEmissionState.identityKey("std.UStringException", "UStringException"));
                                                         final faultModule = payload != null ? payload : "std.UStringFault";
                                                         if (absorbed.indexOf(faultModule) < 0) {
                                                             fallible.set(key, true);
@@ -1868,7 +1890,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     final variant = StringTools.startsWith(item.name, className)
                         && StringTools.endsWith(item.name, "Fault") ? item.name.substr(className.length) : item.name + "Fault";
                     variants.set(item.module + "::" + item.name, variant);
-                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     declLines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
                 }
                 declLines.push("}");
@@ -2025,6 +2047,15 @@ class Compiler extends PluginCompiler<Compiler> {
                 state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
             }
         }
+
+        // Deferred ThrowFaultVariantGrowth registrations (collected during the
+        // walk above) now resolve their target identity: the containing
+        // function's Result error enum, settled by the fixpoint loops above
+        // and read through the same predicate the emitter's throwVariant
+        // lookup uses, so registration and lookup can no longer disagree
+        // about which enum carries the variant (t-munebyud-bxbr, TCN-109).
+        for (item in pendingThrowVariants)
+            registerThrownExceptionVariant(item.thrown, item.ownerClass, state.funcErrorTypes.get(item.key), item.absorbed);
 
         scanFallibleBlockParams(mtypes);
     }
@@ -2238,10 +2269,12 @@ class Compiler extends PluginCompiler<Compiler> {
                 final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
                 if (messageOnly != null)
                     return messageOnly;
-                final enumModule = state.exceptionPayloads.get(cls.get().module);
+                final classKey = RustEmissionState.identityKey(cls.get().module, cls.get().name);
+                final enumModule = state.exceptionPayloads.get(classKey);
                 if (enumModule == null)
                     return null;
-                return state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.substr(enumModule.lastIndexOf(".") + 1);
+                final enumName = state.exceptionPayloadNames.get(classKey);
+                return state.payloadEnumNames.exists(RustEmissionState.identityKey(enumModule, enumName)) ? state.payloadEnumNames.get(RustEmissionState.identityKey(enumModule, enumName)) : enumModule.substr(enumModule.lastIndexOf(".") + 1);
             case _:
                 return null;
         }
@@ -2423,13 +2456,14 @@ class Compiler extends PluginCompiler<Compiler> {
 
     /**
         Returns the payload enum module a catch clause handles: the caught
-        variable's class maps through exceptionPayloads, and a class without
-        a payload enum has no absorbable domain.
+        variable's class maps through exceptionPayloads (keyed by class
+        identity), and a class without a payload enum has no absorbable
+        domain.
     **/
     function caughtPayloadEnumModuleOf(v:haxe.macro.Type.TVar):Null<String> {
         return switch (v.t) {
             case TInst(c, _):
-                state.exceptionPayloads.exists(c.get().module) ? state.exceptionPayloads.get(c.get().module) : null;
+                state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name)) ? state.exceptionPayloads.get(RustEmissionState.identityKey(c.get().module, c.get().name)) : null;
             case _: null;
         }
     }
@@ -2439,7 +2473,7 @@ class Compiler extends PluginCompiler<Compiler> {
             case TNew(c, _, args) if (args.length > 0):
                 if (state.messageOnlyExceptions.exists(c.get().module))
                     {module: c.get().module, name: c.get().name}
-                else if (state.exceptionPayloads.exists(c.get().module)) switch (stripDecorations(args[0]).expr) {
+                else if (state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name))) switch (stripDecorations(args[0]).expr) {
                     case TField(_, FEnum(en, _)): {module: en.get().module, name: en.get().name};
                     case TCall(fn, _): switch (stripDecorations(fn).expr) {
                         case TField(_, FEnum(en, _)): {module: en.get().module, name: en.get().name};
@@ -2454,16 +2488,24 @@ class Compiler extends PluginCompiler<Compiler> {
     /**
         A rethrow of a caught exception value (`throw new Ex(e.fault)` whose
         constructor argument is not a payload-enum constructor) renders as
-        `Ex::new(...)` wrapped in a growth variant of the exception's payload
-        enum. Register that wrapping variant (and the exception-class reference
-        the payload names) so the emitted enum carries the constructor the
-        throw references. A constructor-shaped argument lowers to the payload
-        directly and needs no variant; a function inside a cfg(test) module
-        stays inside the cfg(test) tree, so its rethrow must not grow the
-        production enum. The test check reads the module the *throw* sits in
-        (the throw's own class) and the module of the exception class stays
-        out of it.
+        `Ex::new(...)` wrapped in a growth variant. Register that wrapping
+        variant (and the exception-class reference the payload names) so the
+        emitted enum carries the constructor the throw references. A
+        constructor-shaped argument lowers to the payload directly and needs
+        no variant; a function inside a cfg(test) module stays inside the
+        cfg(test) tree, so its rethrow must not grow the production enum. The
+        test check reads the module the *throw* sits in (the throw's own
+        class) and the module of the exception class stays out of it.
         (ThrowFaultVariantGrowth)
+
+        `fnError` is the containing function's Result error enum as settled
+        by the funcErrorTypes fixpoint; the growth target is
+        RustEmissionState.throwGrowthKey(fnError, cls.name) — the same
+        identity the emitter's throwVariant lookup queries. Before this
+        predicate the target was the class's payload enum, an identity the
+        lookup never consults when the two differ, so the registered variant
+        was silently never found and the emitter fell back to an undeclared
+        constructor (t-munebyud-bxbr, TCN-109).
 
         Guards, in order, against the registered regressions:
         1. only functions the emitter keeps reach this point (the field and
@@ -2472,11 +2514,13 @@ class Compiler extends PluginCompiler<Compiler> {
            so two exception classes sharing one module keep separate growth
            entries;
         3. the derived enum must match the payload name recorded for its
-           module, so a class without a matching payload pair never registers;
+           identity, so a class without a matching payload pair never
+           registers;
         4. a declared variant of the same name is never shadowed by a growth
-           variant, which would collide at E0428.
+           variant, which would collide at E0428 — checked against the enum
+           the variant will actually be attached to.
     **/
-    function registerThrownExceptionVariant(thrown:TypedExpr, ownerClass:ClassType):Void {
+    function registerThrownExceptionVariant(thrown:TypedExpr, ownerClass:ClassType, fnError:Null<{module:String, name:String}>, absorbed:Array<String>):Void {
         switch (thrown.expr) {
             case TNew(c, _, args) if (args.length == 1):
                 final cls = c.get();
@@ -2485,12 +2529,15 @@ class Compiler extends PluginCompiler<Compiler> {
                 final payloadEnum = classPayloadEnum(cls);
                 if (payloadEnum == null)
                     return;
-                // The payload enum this class actually carries must be the
-                // one recorded for its module; otherwise the module key
-                // belongs to a different exception and the growth variant
-                // would attach to an unrelated enum.
-                final enumName = state.payloadEnumNames.get(payloadEnum.module);
-                if (enumName == null || enumName != payloadEnum.name)
+                // The payload enum is registered under its own identity
+                // (module + name), so the recorded name IS this enum's name
+                // whenever the class was scanned; a miss means the class is
+                // outside the scanned source scope. Under the former
+                // module-keyed table a sibling payload enum sharing the
+                // module overwrote the entry and this guard silently
+                // dropped every earlier-scanned class (PIT-281).
+                final enumName = state.payloadEnumNames.get(RustEmissionState.identityKey(payloadEnum.module, payloadEnum.name));
+                if (enumName == null)
                     return;
                 if (state.isSyntheticErrorType(enumName))
                     return;
@@ -2502,11 +2549,6 @@ class Compiler extends PluginCompiler<Compiler> {
                 // state.testModules), because preScan runs onAfterTyping,
                 // before classDecl has populated that map.
                 if (classHasTestMethods(ownerClass))
-                    return;
-                // A declared variant with the growth name already exists:
-                // registering would define the same constructor twice.
-                final variant = cls.name + "Fault";
-                if (enumDeclaresVariant(payloadEnum.module, variant))
                     return;
                 // A payload-constructor argument lowers to the payload
                 // directly; only a rethrow of a value needs the variant.
@@ -2520,8 +2562,41 @@ class Compiler extends PluginCompiler<Compiler> {
                 };
                 if (isPayloadCtor)
                     return;
+                // The class reference is needed whether or not a growth
+                // variant is: the raw lowering is `Ex::new(...)` and the
+                // emitted struct must exist either way.
                 state.exceptionClassRefs.set(cls.module + "::" + cls.name, true);
-                state.registerFaultConversion(enumName, "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + cls.name, variant);
+                final variant = cls.name + "Fault";
+                // The growth target follows the lookup's own identity. A
+                // throw absorbed into a region catching this class's payload
+                // domain looks its variant up under that region's catch
+                // domain — the payload enum itself (RustExpr retargets
+                // errorTypeName to the caught domain for the region body), so
+                // the target is the payload enum name. An unabsorbed throw
+                // looks it up under the containing function's Result error
+                // enum, resolved through RustEmissionState.throwGrowthKey —
+                // the same predicate shape the emitter applies. When the
+                // predicate returns null the emitter never consults the
+                // growth table for this throw, so no variant is registered;
+                // the pre-predicate behaviour registered on the payload enum
+                // regardless, a registration no lookup could ever reach when
+                // the function's Result error enum differed
+                // (t-munebyud-bxbr).
+                final growthKey = absorbed.indexOf(payloadEnum.module) >= 0
+                    ? enumName
+                    : RustEmissionState.throwGrowthKey(fnError, cls.name);
+                // A declared variant with the growth name already exists on
+                // the target enum: registering would define the same
+                // constructor twice (E0428). Compared by the name the
+                // declaration actually emits (toUpperCamelCase), matching
+                // the constructor rendering, not the raw Haxe name.
+                final targetName = growthKey != null && fnError != null && growthKey != enumName ? fnError.name : enumName;
+                final targetModule = growthKey != null && fnError != null && growthKey != enumName ? fnError.module : payloadEnum.module;
+                if (enumDeclaresVariant(targetModule, targetName, variant))
+                    return;
+                if (growthKey == null)
+                    return;
+                state.registerFaultConversion(growthKey, "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + cls.name, variant);
             case _:
         }
     }
@@ -2543,9 +2618,9 @@ class Compiler extends PluginCompiler<Compiler> {
 
     /**
         The payload enum carried by the exception class's own constructor,
-        or null when the constructor takes no enum argument. Unlike the
-        module-keyed exceptionPayloads map this never crosses exception
-        classes that share one module.
+        or null when the constructor takes no enum argument. Read straight
+        from the class, so it never crosses exception classes that share
+        one module.
     **/
     function classPayloadEnum(cls:ClassType):Null<{module:String, name:String}> {
         final ctor = cls.constructor != null ? cls.constructor.get() : null;
@@ -2566,13 +2641,23 @@ class Compiler extends PluginCompiler<Compiler> {
         return found;
     }
 
-    /** Whether the enum declared in `enumModule` already has this variant. */
-    function enumDeclaresVariant(enumModule:String, variantName:String):Bool {
+    /**
+        Whether the enum declared in `enumModule` already emits this variant.
+        Constructors render through RustImports.toUpperCamelCase
+        (RustDecl.hx enum emission), so the comparison uses that emitted
+        name, not the raw Haxe construct name: a construct declared as
+        `c_exception_fault` emits `CExceptionFault` and must suppress a
+        growth variant of the same emitted name, which the former raw-name
+        comparison missed and then collided at E0428 (t-munebyud-bxbr).
+    **/
+    function enumDeclaresVariant(enumModule:String, enumName:String, variantName:String):Bool {
         for (mt in Context.getModule(enumModule)) {
             switch (mt) {
                 case TEnum(en, _):
+                    if (en.get().name != enumName)
+                        continue;
                     for (name in en.get().constructs.keys())
-                        if (name == variantName)
+                        if (RustImports.toUpperCamelCase(name) == variantName)
                             return true;
                 case _:
             }

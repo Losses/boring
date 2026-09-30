@@ -73,7 +73,8 @@ class RustImports {
             require(runtimePackage + "::" + modName + "::" + name);
             return;
         }
-        final targetModule = state.payloadEnumModules.exists(module) ? state.payloadEnumModules.get(module) : module;
+        final emitted = state.payloadEnumEmittedIn(module);
+        final targetModule = emitted != null ? emitted : module;
         if (targetModule != selfModule) {
             final rustMod = moduleToRustPath(targetModule);
             require("crate::" + rustMod + "::" + name);
