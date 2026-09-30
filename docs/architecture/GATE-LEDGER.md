@@ -81,6 +81,30 @@ this a "product/spec gap" on an "unconditional abort" reading of spec 24. That
 reading was wrong; the entry now carries a supersession note preserving the
 original text.
 
+## The tracked-fixture failure-path proof (owed by the round-215 ruling)
+
+The round-215 ruling required a *discriminating* proof: after deliberately taking
+the failure path, the tracked file's contents must still equal what they were before
+the test ran - and a manual `git checkout` restore counts as neither the fix nor the
+proof. That proof is delivered and recorded as `ed41e14d`
+(`docs/architecture/TRACKED-FILE-PROOF.md`), and its entry satisfies the gate above:
+a traceable hash, a clean-tree statement for the committed file, content exportable
+from that commit, and a report consistent with the commit.
+
+| What | Result |
+|---|---|
+| Control: pre-fix damage at `4cf3165d^` (`ab20a8af`) | **reproduced** - SIGTERM mid-run with the stub live leaves the file corrupted (`Test.equals` 5 -> 0, sha256 `1c2acf93...` -> `4f910e40...`). Without this, "it survived" would prove nothing. |
+| Fixed revision, forced throw from the probe path | **file intact** (`Test.equals` 5, hash equal to the clean-export control) |
+| Fixed revision, SIGINT mid-run | **intact** |
+| Fixed revision, harness timeout (`SIGTERM` at t+25s) | **intact** (rc=124) |
+| Residual limit, **demonstrated not merely stated** | **SIGKILL with the stub provably live still corrupts the file**, byte-identical to the pre-fix damage - no handler runs, so `finally` cannot cover it |
+| **Superseded while the proof was in flight** | `2aadcb69` removed the stub/restore entirely, so at HEAD `runHaxe` never writes the fixture at all. The hazard is now **eliminated rather than guarded**, which is strictly stronger; the SIGKILL gap applies only to `4cf3165d..2aadcb69^`. |
+
+Every fixed-revision run **ended in test failure** - that is the point: the
+evidence is fixture survival, not a green test. Limits recorded by the prover:
+a machine reset was not exercised (same no-handler class), and bun 1.3.13 running
+`finally` on SIGINT/SIGTERM is runtime behaviour rather than a portable guarantee.
+
 ## Ledger entry gate (required by the round-5 ruling)
 
 Added because the coordinator wrote in-flight work into this ledger as though it
