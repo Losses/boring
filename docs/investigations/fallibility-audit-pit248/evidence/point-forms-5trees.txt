@@ -1,0 +1,40 @@
+# Point-by-point forms, all five execution trees (read 2026-09-30, this audit)
+# Tree identity: Compiler.hx sha256:16 (re-derived: see tree-identity.txt)
+===== tree: head-e1c65975 (Compiler.hx sha256:16=1cdc0ebd1e6edb9d) =====
+--- rendered_id (gen/boring/value_type_consumer.rs, anchored grep):
+66:    pub fn value_type_consumer_rendered_id() -> Result<UString, ValueError> {
+46:            return Ok(FontFaceId::new(UStr::new(&[32]))?);
+67:        let id = FontFaceId::new(UStr::new(&[102,97,99,101]))?;
+68:        return Ok(UString::from((id).to_string().as_str()));
+--- caller (gen/tests/value_type_tests.rs, test_rendered_string):
+47:        test_core::TestCore::test_core_equals_string(UStr::new(&[102,97,99,101]), ValueTypeConsumer::value_type_consumer_rendered_id().unwrap().as_ustr(), UStr::new(&[]));
+===== tree: arrfix (Compiler.hx sha256:16=24f79c275c0c493d) =====
+--- rendered_id (gen/boring/value_type_consumer.rs, anchored grep):
+66:    pub fn value_type_consumer_rendered_id() -> Result<UString, ValueError> {
+46:            return Ok(FontFaceId::new(UStr::new(&[32]))?);
+67:        let id = FontFaceId::new(UStr::new(&[102,97,99,101]))?;
+68:        return Ok(UString::from((id).to_string().as_str()));
+--- caller (gen/tests/value_type_tests.rs, test_rendered_string):
+47:        test_core::TestCore::test_core_equals_string(UStr::new(&[102,97,99,101]), ValueTypeConsumer::value_type_consumer_rendered_id().unwrap().as_ustr(), UStr::new(&[]));
+===== tree: coord (Compiler.hx sha256:16=24f79c275c0c493d) =====
+--- rendered_id (gen/boring/value_type_consumer.rs, anchored grep):
+66:    pub fn value_type_consumer_rendered_id() -> Result<UString, ValueError> {
+46:            return Ok(FontFaceId::new(UStr::new(&[32]))?);
+67:        let id = FontFaceId::new(UStr::new(&[102,97,99,101]))?;
+68:        return Ok(UString::from((id).to_string().as_str()));
+--- caller (gen/tests/value_type_tests.rs, test_rendered_string):
+47:        test_core::TestCore::test_core_equals_string(UStr::new(&[102,97,99,101]), ValueTypeConsumer::value_type_consumer_rendered_id().unwrap().as_ustr(), UStr::new(&[]));
+===== tree: chainA-fixed2 (Compiler.hx sha256:16=07896d15a5b718b8) =====
+--- rendered_id (gen/boring/value_type_consumer.rs, anchored grep):
+66:    pub fn value_type_consumer_rendered_id() -> UString {
+46:            return Ok(FontFaceId::new(UStr::new(&[32]))?);
+67:        let id = FontFaceId::new(UStr::new(&[102,97,99,101])).unwrap();
+--- caller (gen/tests/value_type_tests.rs, test_rendered_string):
+47:        test_core::TestCore::test_core_equals_string(UStr::new(&[102,97,99,101]), ValueTypeConsumer::value_type_consumer_rendered_id().as_ustr(), UStr::new(&[]));
+===== tree: chainA-fixed3 (Compiler.hx sha256:16=57ee49976511892c) =====
+--- rendered_id (gen/boring/value_type_consumer.rs, anchored grep):
+66:    pub fn value_type_consumer_rendered_id() -> UString {
+46:            return Ok(FontFaceId::new(UStr::new(&[32]))?);
+67:        let id = FontFaceId::new(UStr::new(&[102,97,99,101])).unwrap();
+--- caller (gen/tests/value_type_tests.rs, test_rendered_string):
+47:        test_core::TestCore::test_core_equals_string(UStr::new(&[102,97,99,101]), ValueTypeConsumer::value_type_consumer_rendered_id().as_ustr(), UStr::new(&[]));
