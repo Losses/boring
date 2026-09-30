@@ -39,7 +39,7 @@ recorded under the entry gate below (each line carries a hash or is marked
 | 1 | repeated generation from clean inputs yields identical bytes and checksums | **in-flight** (`npm-determinism` seat, no hash yet) |
 | 2 | the `MathNaNTestSupport.{js,d.ts}` entries are stable; `package-artifacts.test.ts:333` passes repeatedly | **in-flight**, same seat |
 | 3 | `collected-suite` no longer fails on the flake, and **its log distinguishes real product/spec failures from environment/timeout failures** | **the attribution half is in-flight** (`ci-attribution` seat); the flake half waits on 1-2 |
-| 4 | an independent spec ruling on `package-shell.test.ts:249` | **RESOLVED** - `eec707b9` |
+| 4 | an independent spec ruling on `package-shell.test.ts:249` | **technical claims independently CONFIRMED; entry does not yet satisfy the entry gate** - `eec707b9` |
 
 **Condition 4, resolved** (`eec707b9`): the test was a **stale expectation, not a
 product defect**. Spec 24 (Ruling 5) stops only a compilation combining a
@@ -53,6 +53,28 @@ while the assertion still demanded a by-name abort. The fix pins the import in t
 test itself; no assertion was weakened. Discriminating readings: relative+emit ->
 exit 0; by-name+emit -> exit 1 with the sanctioned message; by-name+none -> exit 0.
 Full file after the fix: 6 pass / 0 fail.
+
+**Condition 4, verified** (independent check of `eec707b9`, five claims, all CONFIRMED
+by the verifier's own measurements): spec 24 Ruling 5 does stop only by-name+emitted
+and does require accepting a relative specifier, and the guard matches that scope;
+the commit touches only the test file and the supersession note with no assertion
+deleted, loosened or skipped; the git forensics hold (the hxml carried
+`@boring/runtime` and only `2bd609b9` changed it to `./runtime`, the helper's literal
+match making that a silent scenario change); the three configurations reproduce
+(`relative+emit` -> exit 0 with a manifest, `by-name+emit` -> exit 1 with the exact
+sanctioned message, `by-name+none` -> exit 0 with none); and the file runs 6 pass /
+0 fail.
+
+**But the same check ruled that this entry does not satisfy the entry gate**, and the
+entry is now worded accordingly rather than claiming resolution: a traceable hash and
+an independent claim-versus-commit check are present, while **a clean working-tree
+proof and independently exported content are not** - the tree carries other seats'
+in-flight edits, so the former cannot be produced right now. The technical claims are
+true; the record is not yet in the form the gate requires.
+
+One limit the verifier stated: nothing re-executed at `52044ed1`/`2bd609b9`, so "the
+test was green before `2bd609b9`" is inference rather than measurement - the failure
+mechanism itself was re-measured directly.
 
 **A correction to this record's own history**: `BASELINE-FAILURES.md` had called
 this a "product/spec gap" on an "unconditional abort" reading of spec 24. That
