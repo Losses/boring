@@ -1,0 +1,2 @@
+rethrow-handler=3
+plain-throw=1

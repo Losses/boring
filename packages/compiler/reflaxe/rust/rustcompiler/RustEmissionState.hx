@@ -36,6 +36,13 @@ class RustEmissionState {
     /** Message-only exception classes are represented by their own Rust error enum. */
     public final messageOnlyExceptions:Map<String, String> = [];
 
+    /**
+        Exception classes a rethrow names inside a growth-variant payload
+        (ThrowFaultVariantGrowth): the class emits beside its payload enum
+        with the constructor the throw renders. Keyed "module::name".
+    **/
+    public final exceptionClassRefs:Map<String, Bool> = [];
+
     /** Maps anonymous structure signatures to their defining typedef name and module. */
     public final structTypedefs:Map<String, {module:String, name:String}> = [];
 

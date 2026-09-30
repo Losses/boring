@@ -913,8 +913,20 @@ class DartExpr {
                 if (guarded != null && f == null && !isNotNullGuard(c)
                     && !mutated.exists(guarded.id) && branchTerminates(t))
                     flowPromotedNonNull.set(guarded.id, true);
-                // A null-defaulting branch promotes its local after the branch.
-                if (guarded != null && f == null && !isNotNullGuard(c))
+                // A null-defaulting branch promotes its local after the
+                // branch only when the then arm exits: on a fall-through
+                // path the local may still be null, so promoting it here
+                // suppressed the required `!` downstream
+                // (unchecked_use_of_nullable_value). Probe:
+                // tests/haxe/dc-null-guard-fallthrough (p2 vs p7).
+                // A later re-assignment kills the promotion the same way
+                // it kills flowPromotedNonNull above: markMutated runs in
+                // the scanLocals pre-pass, before this render-time write,
+                // so the pre-pass removal cannot undo it and the gate has
+                // to consult `mutated` here (GuardThenReassign). Probe:
+                // tests/haxe/dc-null-guard-fallthrough p8/p10.
+                if (guarded != null && f == null && !isNotNullGuard(c)
+                    && !mutated.exists(guarded.id) && branchTerminates(t))
                     nonNullLocals.set(guarded.id, true);
                 return lines;
             case TWhile(c, b, true):
@@ -1643,7 +1655,17 @@ class DartExpr {
         // not suppress unwraps inside. (ClosurePromotionReset)
         final savedClosurePromoted = flowPromotedNonNull.copy();
         flowPromotedNonNull.clear();
+        // Same reset for the nonNullLocals plane: a stale entry (e.g. from
+        // a terminating guard) leaking into the closure body suppresses
+        // the required `!` on captured reads, yet the closure may run at
+        // a time when the captured local's promotion no longer holds.
+        // (ClosurePromotionReset; probes p9/p11)
+        final savedClosureProven = nonNullLocals.copy();
+        nonNullLocals.clear();
         final result = functionLiteralInner(f);
+        nonNullLocals.clear();
+        for (k in savedClosureProven.keys())
+            nonNullLocals.set(k, savedClosureProven.get(k));
         flowPromotedNonNull.clear();
         for (k in savedClosurePromoted.keys())
             flowPromotedNonNull.set(k, savedClosurePromoted.get(k));

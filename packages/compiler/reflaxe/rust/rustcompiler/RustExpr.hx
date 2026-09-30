@@ -2171,7 +2171,17 @@ class RustExpr {
         if (member == null || errorTypeName == member.name)
             return raw;
         final variant = state.syntheticErrorVariant(errorTypeName, member);
-        return errorTypeName + "::" + (variant != null ? variant : member.name + "Fault") + "(" + raw + ")";
+        if (variant != null)
+            return errorTypeName + "::" + variant + "(" + raw + ")";
+        // A declared fault enum carries the wrapping variant the throw
+        // references only as registered growth (ThrowFaultVariantGrowth);
+        // growth payloads are boxed, so the wrap goes through Box::new.
+        final growth = state.enumGrowthFor(errorTypeName);
+        if (growth != null)
+            for (item in growth)
+                if (item.calleeName == member.name + "Fault")
+                    return errorTypeName + "::" + item.variant + "(Box::new(" + raw + "))";
+        return errorTypeName + "::" + member.name + "Fault(" + raw + ")";
     }
 
     /**
