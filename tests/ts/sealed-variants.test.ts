@@ -142,7 +142,10 @@ test("@:sealed on a class reports the interface-only error", async () => {
   } finally {
     fs.rmSync(mutationRoot, { recursive: true, force: true });
   }
-});
+  // One full haxe macro-compiler run measured at 23.4 s (baseline machine,
+  // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises only
+  // the harness patience for that subprocess, never the asserted behavior.
+}, 60_000);
 
 test("self-construction with arguments keeps the static initializer error", async () => {
   const mutationRoot = fs.mkdtempSync(path.join(root, ".sealed-variants-static-mutation-"));
@@ -190,7 +193,10 @@ test("self-construction with arguments keeps the static initializer error", asyn
   } finally {
     fs.rmSync(mutationRoot, { recursive: true, force: true });
   }
-});
+  // One full haxe macro-compiler run measured at 23.2 s (baseline machine,
+  // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises only
+  // the harness patience for that subprocess, never the asserted behavior.
+}, 60_000);
 
 test("the sanctioned self-construction static uses each target lane", async () => {
   const mutationRoot = fs.mkdtempSync(path.join(root, ".sealed-variants-static-shapes-"));
@@ -209,7 +215,11 @@ test("the sanctioned self-construction static uses each target lane", async () =
   } finally {
     fs.rmSync(mutationRoot, { recursive: true, force: true });
   }
-}, 15000);
+  // Five haxe macro-compiler runs (one per target lane) measured at 113.7 s
+  // total (baseline machine, quiet window); 300_000 keeps ≥2× margin. The
+  // explicit timeout raises only the harness patience for those subprocesses,
+  // never the asserted behavior.
+}, 300_000);
 
 test("sealed variant sample trees carry the ruled declaration and printed forms", () => {
   const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
