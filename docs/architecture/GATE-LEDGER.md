@@ -27,6 +27,38 @@ not scratch trees and not the superseded `dc-warn/out/p08-candidate-freeze/FREEZ
 
 **P08 overall: NOT PASSED.** The candidate is REJECT. Its post-review repair is now complete and on the line - the integration ruling's option (b) was executed as `a14345ce` (revert the lambda half, keep W1) followed by `c8ae0054` (the corrected lambda as one atomic commit) - so the line no longer carries a known regression, and a re-freeze is the next step. What still blocks is the build-phase diagnostic above and the absence of a second independent acceptance on a frozen revision.
 
+## Restoring contract 3 - progress against the four conditions
+
+The round-5 ruling downgraded contract 3 to "the gate is implemented; its run
+reliability is not achieved" and named four conditions for restoring it. Progress,
+recorded under the entry gate below (each line carries a hash or is marked
+`in-flight`):
+
+| # | Condition | State |
+|---|---|---|
+| 1 | repeated generation from clean inputs yields identical bytes and checksums | **in-flight** (`npm-determinism` seat, no hash yet) |
+| 2 | the `MathNaNTestSupport.{js,d.ts}` entries are stable; `package-artifacts.test.ts:333` passes repeatedly | **in-flight**, same seat |
+| 3 | `collected-suite` no longer fails on the flake, and **its log distinguishes real product/spec failures from environment/timeout failures** | **the attribution half is in-flight** (`ci-attribution` seat); the flake half waits on 1-2 |
+| 4 | an independent spec ruling on `package-shell.test.ts:249` | **RESOLVED** - `eec707b9` |
+
+**Condition 4, resolved** (`eec707b9`): the test was a **stale expectation, not a
+product defect**. Spec 24 (Ruling 5) stops only a compilation combining a
+**by-name** runtime import with an **emitted** manifest, and expressly requires
+accepting a relative specifier; the guard matches that scope. Git forensics found
+the mechanism: the test was written at `52044ed1` while `examples/ts.hxml` carried
+`-D runtime-import=@boring/runtime`, and `2bd609b9` changed it to `./runtime`
+without updating the test, whose helper matched only the historical value - so the
+scenario silently became *relative + emit*, which the spec mandates accepting,
+while the assertion still demanded a by-name abort. The fix pins the import in the
+test itself; no assertion was weakened. Discriminating readings: relative+emit ->
+exit 0; by-name+emit -> exit 1 with the sanctioned message; by-name+none -> exit 0.
+Full file after the fix: 6 pass / 0 fail.
+
+**A correction to this record's own history**: `BASELINE-FAILURES.md` had called
+this a "product/spec gap" on an "unconditional abort" reading of spec 24. That
+reading was wrong; the entry now carries a supersession note preserving the
+original text.
+
 ## Ledger entry gate (required by the round-5 ruling)
 
 Added because the coordinator wrote in-flight work into this ledger as though it
