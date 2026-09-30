@@ -1,0 +1,10 @@
+# bun test discovers test files by scanning the project root and matching
+# positional arguments as path suffixes. The generated out/ tree (654 MB,
+# ~4000 duplicated *.test.ts files under out/**/tests/) is therefore swept
+# into every run, and duplicates like
+# out/architecture-alias-targets/e3b8-source/tests/ts/array-root.test.ts
+# match the same suffix as the real file. Collection then dies with
+# "Cannot find module ... from ''" / EMFILE before any test executes.
+# Exclude the generated tree from discovery; tests themselves are untouched.
+[test]
+pathIgnorePatterns = ["out/**"]
