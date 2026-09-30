@@ -1,0 +1,14 @@
+# Rust generation of the xt-classemit discriminating fixture.
+# The runner passes -D rust-output=... on the command line.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/xt-classemit
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/xt-classemit'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+classemit.ClassEmitProbe
