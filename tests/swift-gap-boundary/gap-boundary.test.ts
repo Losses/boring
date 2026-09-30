@@ -75,9 +75,41 @@ test("archived gap.Gap counterexample generates and its Swift typechecks", async
   // silently excluded. The final goal stays zero diagnostics under -c.
   expect(diagnostics.split("\n").filter((l) => l.includes(": error:")), "unexpected type errors").toEqual([]);
   expect(diagnostics.includes("#no-usage"), "the W1 unused-result warnings should be gone").toBe(false);
-  const pendingBuildWarning = diagnostics.split("\n").filter((l) => l.includes("warning:"));
+  // The line that used to be here counted `warning:` lines out of the -typecheck
+  // stderr and called them "build-phase diagnostics". That was a name that did not
+  // describe what it measured: -typecheck does not run SILGen, so it cannot see the
+  // build-phase warning at all. This now actually invokes `swiftc -c` and records
+  // what THAT command reports, so the recorded count and the command agree.
+  // -whole-module-optimization is required for a single -o: plain `swiftc -c` with
+  // multiple inputs emits one .o per input and rejects -o with
+  // "error: cannot specify -o when generating multiple output files" (rc=1, which is
+  // exactly what the previous run's build.stderr.log captured). WMO still runs SILGen,
+  // so the build-phase warning stays visible.
+  const build = Bun.spawnSync(
+    ["swiftc", "-c", "-whole-module-optimization", `${generated}/gap/Gap.swift`, `${generated}/Runtime.swift`, `${generated}/std/UStringException.swift`, `${generated}/std/UStringFault.swift`, "-o", `${out}/gap.o`],
+    { cwd: root, stdout: "pipe", stderr: "pipe" },
+  );
+  await Bun.write(`${out}/build.stderr.log`, build.stderr.toString());
+  await Bun.write(`${out}/build.status`, `${build.exitCode ?? 1}\n`);
+  const buildDiagnostics = build.stderr.toString();
+  const pendingBuildWarning = buildDiagnostics.split("\n").filter((l) => l.includes("warning:"));
   await Bun.write(`${out}/pending-build-warnings.log`, pendingBuildWarning.join("\n") + "\n");
-  console.log(`  recorded ${pendingBuildWarning.length} pending build-phase diagnostic(s) - see pending-build-warnings.log`);
+  // The -c step MUST succeed: an object file must actually be produced. A fixture that
+  // keeps passing while its own compile step fails is not a check (LAYERED-VERIFICATION L5).
+  expect(build.exitCode, `swiftc -c failed: ${buildDiagnostics || "no diagnostics"}`).toBe(0);
+  expect(Bun.file(`${out}/gap.o`).size, "swiftc -c produced no object file").toBeGreaterThan(0);
+  expect(buildDiagnostics.split("\n").filter((l) => l.includes(": error:")), "swiftc -c reported type errors").toEqual([]);
+  // Recorded deviation, asserted present so the count cannot rot: under -c (SILGen) the
+  // fixture emits exactly one `will never be executed` warning at Gap.swift:117. Per the
+  // gate-owner ruling this diagnostic COUNTS against 02-translator-implementation-standard.md:78/:80,
+  // so this is an unwaived, recorded baseline failure -- the goal remains zero diagnostics
+  // under -c. When that warning is fixed, this assertion fails and forces the count to be
+  // re-read (same rot-proof pin pattern as the W1 pin that was removed after discharge).
+  expect(
+    pendingBuildWarning.filter((l) => l.includes("Gap.swift:117") && l.includes("will never be executed")),
+    "the recorded `will never be executed` deviation at Gap.swift:117 must still be present under -c; if it is gone, re-read the count and update this pin",
+  ).toHaveLength(1);
+  console.log(`  swiftc -c rc=${build.exitCode}, recorded ${pendingBuildWarning.length} pending build-phase diagnostic(s) - see pending-build-warnings.log`);
   expect(diagnostics.split("\n").filter((line) => line.includes(": error:")), "unexpected type errors").toEqual([]);
 }, 60_000);
 
@@ -90,4 +122,11 @@ test("failure-mode probe: the harness detects a broken Swift source", async () =
   await Bun.write(`${out}/failure-probe.stderr.log`, result.stderr.toString());
   expect(result.exitCode === 0 || result.exitCode === null, "swiftc accepted a deliberately broken source; diagnostics channel is untrustworthy").toBe(false);
   expect(result.stderr.toString()).toContain("error");
+  // Same probe for the build phase: a deliberately broken input must make `swiftc -c` fail
+  // too, proving the -c assertions above can actually fire (discriminating, not decorative).
+  const buildProbe = Bun.spawnSync(["swiftc", "-c", `${probeDir}/broken.swift`, "-o", `${probeDir}/broken.o`], { cwd: root, stdout: "pipe", stderr: "pipe" });
+  await Bun.write(`${out}/failure-probe-build.status`, `${buildProbe.exitCode ?? 0}\n`);
+  await Bun.write(`${out}/failure-probe-build.stderr.log`, buildProbe.stderr.toString());
+  expect(buildProbe.exitCode, "swiftc -c accepted a deliberately broken source; build-phase check cannot fail").not.toBe(0);
+  expect(buildProbe.stderr.toString()).toContain("error");
 }, 60_000);
