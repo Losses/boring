@@ -42,8 +42,8 @@ const memberTrees: MemberTree[] = [
   { file: "reference/swift/gen/boring/RecordOrderOps.swift", signature: "func toString() -> String" },
   { file: "reference/swift-f32/gen/boring/RecordOrderOps.swift", signature: "func toString() -> String" },
   { file: "reference/dart/gen/lib/boring/record_order_ops.dart", signature: "String toString()" },
-  { file: "reference/rust/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> String" },
-  { file: "reference/rust-f32/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> String" },
+  { file: "reference/rust/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
+  { file: "reference/rust-f32/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
 ];
 
 function fieldReads(file: string): string[] {
