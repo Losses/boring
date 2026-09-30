@@ -29,6 +29,7 @@
     "typecheck": "tsc -p .",
     "check:docs": "bun tools/doc-style/check.ts",
     "check:ledger": "bun tools/ledger-check/check.ts",
+    "gate:verify": "bun tools/gate-proof/verify-commit.ts",
     "check:registry": "bun tools/registry-guard/backstop.ts",
     "check:mapping": "bun tools/type-mapping/check.ts",
     "check:precision": "bun tools/precision-guard/check.ts",
