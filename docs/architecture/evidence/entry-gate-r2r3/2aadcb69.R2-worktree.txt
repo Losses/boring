@@ -1,0 +1,9 @@
+## R2 evidence for 2aadcb6978d81705379892d2b382671b3458e753
+$ git worktree add --detach <tmp> 2aadcb6978d81705379892d2b382671b3458e753
+--- in that worktree:
+$ git rev-parse HEAD
+2aadcb6978d81705379892d2b382671b3458e753
+$ git rev-parse HEAD^{tree}
+91151878a6ba0890fda27eddb438d277ac8e9555
+$ git status --porcelain
+(end of porcelain; empty above means clean)
