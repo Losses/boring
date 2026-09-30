@@ -1,0 +1,1 @@
+/home/losses/Development/tq-workspace/dc-warn/out/xs-archive/scratch/gen-frozen-1790806904580223440/xs-testmod/boring/value_exception.rs leak-count=0

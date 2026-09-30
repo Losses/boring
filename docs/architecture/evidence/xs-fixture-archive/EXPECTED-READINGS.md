@@ -99,11 +99,12 @@ recorded here and in REPORT.md, not "fixed" in the fixture bytes.
 
 ## What "reproducible from this archive" means, precisely
 
-1. **Files in the repo** — NO (0 tracked files at `e1c65975`, at the base tip
-   `5a8f19e6`, and on `arch/agent-guided-governance`; only `b18b99df`'s branch
-   carries 19 of the 37 files). This row archives to `dc-warn/out/` per its
-   改动 clause and does NOT commit the fixtures to `tests/` (separate decision —
-   judgment and impact in REPORT.md).
+1. **Files in the repo** — NO at the base line (0 tracked at `e1c65975`, at
+   the base tip `5a8f19e6`, and on `arch/agent-guided-governance`; only
+   `b18b99df`'s branch carries 19 of the 37). After this row's §9 commit
+   (coordinator directive 2026-09-30): all 37 files are tracked at the
+   canonical `tests/haxe/` paths on `chore/archive-xs-fixture-family`;
+   `sha256sum -c RESTORE.sha256` against `tests/haxe/` passes 37/37 there.
 2. **Runner collects them** — NO (no `test*` script, frozen chain-A plan stage,
    or CI step references the family; empirical probes
    `dc-warn/out/xs-archive/evidence/10-*`, `11-*`: `haxe tests/haxe/compile.hxml`

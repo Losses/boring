@@ -12,9 +12,9 @@ a3777f452d9c872bf98d75f8e3f86e1339b2328f19cdda29229a02ac781aab97  /home/losses/D
 d0a87e380f69b35d9cc4a5a8f2b0e39fb5cabd9ee4f37fa9cf6b16ccb845f689  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/evidence/02-restore-run1.log
 3a15155cc8a65a91c05158d7f70e4a6e0dc662fe290615ff459f47396170c661  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/evidence/03-restore-run2-idempotent.log
 6544b25d1c030dc110d1b05cf409d5df2488a2c625aa0f1a56b27af8b5acf755  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/evidence/fixture-provenance.tsv
-11e0e489517bebf7135cfb5f4c0fbcd446e342f4d1d0c00e0ebfa5dace5efc0e  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/EXPECTED-READINGS.md
-604c8ad61c62f3b1dbb283b297f22e884deb0930179db941c66e414c8ebc5bef  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/README.md
-220d0ba849aa99325fbad9bbf3b6d5a7a0d20617d08b7bf151fa316172e0bc4f  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/REPORT.md
+0a1903a7ffeb0287137289f267770ff2060f4757216a0813c7579c67cb78004e  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/EXPECTED-READINGS.md
+5c2fc83e8ef4c4d45894eefbf9b3e9dd6a34e609c452dd3a12db9307739f39d7  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/README.md
+044d6f0822440d91960caa23ea943bd31833da15ef8a128363ddff1a1d76adc0  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/REPORT.md
 26f73cd5fcad9c776e125063d70fadb003c0f3744495785e054c6a381bca04f6  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/RESTORE.sh
 94d7d3d252565f062792d16949439dd6fe7b8a1be0031ca97e3a62368ef652a1  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/RESTORE.sha256
 b19087cfc9b7f5f622235b7ffcfef19b459711d713df79730be6142491de5c4a  /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive/xs-crossmod/gen/rust.hxml

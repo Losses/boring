@@ -164,8 +164,10 @@ archive exist for exactly that).
 
 1. **Files in the repo** — NO at the base line (0 tracked at `e1c65975` /
    `5a8f19e6` / `arch/agent-guided-governance`); YES on `b18b99df`'s side
-   branch (19/37). After this row: still NO on the base line (this row
-   deliberately commits evidence only, not fixture bytes).
+   branch (19/37). After this row: YES on `chore/archive-xs-fixture-family` —
+   all 37 fixture files are tracked at the canonical `tests/haxe/` paths
+   (the §9 commit); still NO on the base line until the row merges (the
+   merge is the coordinator's call).
 2. **Runner collects** — NO (no script, plan stage, or CI step; empirical
    probes above).
 3. **Family discriminates** — YES: `xs-crossmod` is the sole fixture whose
@@ -205,10 +207,12 @@ Rationale:
   `git ls-files 'tests/haxe/xs-*'` becomes non-empty, which `RESTORE.sh`'s
   doc comment currently cites — a trivial comment update, part of the same
   future change.
-- **Why this row does not do it:** the row's 不改/不自行实施 clauses forbid
-  adding the fixtures to `tests/` on this branch; the board's 改动 clause
-  routes the archive to `dc-warn/out/`. This report is the argument record
-  for the separate decision.
+- **Executed, per coordinator directive (2026-09-30):** the row's SOP title
+  demands reproducibility *from the repo*, and this project has paid twice
+  for git-ignored evidence (PIT-251 → backfill `fafa27d6`; PIT-297's
+  `xs-crossmod` living in one seat's worktree → PIT-329). The coordinator
+  therefore directed that the family itself be version-controlled, which
+  supersedes the row's 不自行实施 clause on this point. Done: see §9.
 
 ## 7. Verification performed for the SOP criteria
 
@@ -246,4 +250,56 @@ from archived snapshots and restored to pristine `e1c65975` bytes at the end —
 other fixtures, the frozen runner, `publication-staging/**`, or other
 seats' worktrees. The xcheck scratch dirs at the workspace root
 (`xs-xcheck-scratch-repo/` etc.) were left untouched. No test was weakened or
-skipped; no expected reading was committed without observation.
+skipped; no expected reading was committed without observation. The only
+deliberate in-tree addition is the fixture family itself at its canonical
+`tests/haxe/` paths (and the archive tooling under
+`docs/architecture/evidence/`), per the §9 directive — no test outcome
+changes, because no runner collects the family (§4).
+
+## 9. VCS inclusion — executed (coordinator directive, 2026-09-30)
+
+**What is now tracked on `chore/archive-xs-fixture-family`:**
+- `tests/haxe/{xs-dead,xs-deadcoll,xs-generic,xs-growth,xs-samples,xs-scope,
+  xs-testmod,xs-twoexc,xs-twoexc-faultnames,xs-twoexc-swapped,xs-xmod,
+  xs-crossmod,xt-classemit,xt-oneexc-nofault,xt-twoexc-emit,
+  xt-twoexc-emit-rev}/` — the 37 fixture files, **byte-identical to the
+  `dc-warn/out/xs-fixture-archive/` archive** (hash-verified against
+  `RESTORE.sha256` after copy).
+- `docs/architecture/evidence/xs-fixture-archive/` — the report (this file),
+  `FILES.sha256`, `EXPECTED-READINGS.md`, `ARCHIVE-README.md` (the archive
+  overview), `RESTORE.sh`, `RESTORE.sha256`, `drivers/{run-matrix.sh,
+  run-three-state.sh}`, `compiler-states/` (8 .hx snapshots) and the full
+  raw evidence logs (`evidence-raw/`, 136 files / ~115 KB).
+
+**Location rationale (the choice the directive left to this row):** the
+fixtures go at their **canonical `tests/haxe/<fixture>/` paths** rather than
+under `docs/architecture/evidence/` because (a) every driver `rust.hxml`
+addresses the fixtures by tree-relative path (`-cp tests/haxe/<fixture>`,
+`Intercept.run([... 'tests/haxe/<fixture>']`), so the drivers run
+verbatim from a repo checkout without any retargeting; (b) the PIT-297 seat
+already tracks 19 of the 37 files at exactly these paths on `b18b99df` —
+this continues that precedent instead of forking a second location; (c) the
+§4 finding stands: placement under `tests/` changes no test outcome (bun's
+filename discovery finds no `.test` files there, `compile.hxml` is
+Main-reachable-only, `cargo test` is root-workspace-only, the frozen plan
+references none of it) — so the canonical location costs nothing at runtime
+and makes the bytes addressable by path and commit. `RESTORE.sh` remains
+committed and useful: it installs/verifies the independent out-of-tree
+archive copy (`dc-warn/out/xs-fixture-archive/`) into a tree.
+
+**Members deliberately NOT committed, with reasons:**
+- `dc-warn/out/xs-archive/scratch/` (~47 MB: generated crates + cargo
+  `target/` dirs) — disposable build outputs, fully re-derivable by running
+  `drivers/run-three-state.sh`; committing cargo target trees would bloat the
+  repo with non-source bytes.
+- The measurement worktrees (`xs-run-e1c65975` and the prior xcheck scratch
+  repos at the workspace root) — live git worktrees, not content.
+- The `dc-warn/out/xs-fixture-archive/` directory itself — it lives on the
+  rclone mount and is git-ignored by design; its *content* is what is now
+  tracked (fixtures at canonical paths, tooling under docs/evidence), so
+  "reproducible from the repo" no longer depends on that mount.
+
+**Verification of the tracked bytes:** after copying, `sha256sum -c
+RESTORE.sha256` (run in the worktree against `tests/haxe/`) passes 37/37 —
+i.e. the tracked fixtures are byte-identical to the archived copies, which
+are themselves byte-identical to the cited sources (§2).

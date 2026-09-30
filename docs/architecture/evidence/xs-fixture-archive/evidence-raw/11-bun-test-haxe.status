@@ -1,0 +1,1 @@
+bun test tests/haxe/ rc=1

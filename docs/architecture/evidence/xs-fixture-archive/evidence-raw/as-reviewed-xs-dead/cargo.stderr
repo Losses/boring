@@ -1,0 +1,32 @@
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/out/xs-archive/scratch/gen-as-reviewed-1790806673359867729/xs-dead)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0004]: non-exhaustive patterns: `DFault::DExceptionFault(_)` not covered
+  --> xcheckscope/dead_probe.rs:45:20
+   |
+45 |     let _g = match v { DFault::Only { tag, .. } => tag };
+   |                    ^ pattern `DFault::DExceptionFault(_)` not covered
+   |
+note: `DFault` defined here
+  --> xcheckscope/dead_probe.rs:6:10
+   |
+ 6 | pub enum DFault {
+   |          ^^^^^^
+ 7 |     Only { tag: UString },
+ 8 |     DExceptionFault(Box<crate::xcheckscope::dead_probe::DException>),
+   |     --------------- not covered
+   = note: the matched value is of type `DFault`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+   |
+45 |     let _g = match v { DFault::Only { tag, .. } => tag, DFault::DExceptionFault(_) => todo!() };
+   |                                                       +++++++++++++++++++++++++++++++++++++++
+
+For more information about this error, try `rustc --explain E0004`.
+warning: `generated` (lib) generated 1 warning
+error: could not compile `generated` (lib) due to 1 previous error; 1 warning emitted
