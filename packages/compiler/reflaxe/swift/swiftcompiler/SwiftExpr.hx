@@ -1210,9 +1210,19 @@ class SwiftExpr {
             for (line in stmtLines(s, 1))
                 out.push(line);
         final value = stmts[stmts.length - 1];
-        var valueText = currentReturnType != null
-            && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) ? arrayBoundaryText(value, currentReturnType) : expr(value);
-        out.push(indent(1) + "return " + valueText);
+        // The value statement's destination is this block's OWN result type --
+        // the same `stmts[last].t` the closure above declares. This block is
+        // an inline helper's body, so its value is not the enclosing member's
+        // or lambda's return contract: reading currentReturnType here
+        // converted the value to that contract's read-only array whenever one
+        // was present, a pre-existing member-scope defect that d14aae11's
+        // lambda reseed then propagated into lambdas (the value is the
+        // helper's Array<Int>, the contract is the lambda's ReadOnlyArray).
+        // The read-only boundary into the consuming slot belongs to the
+        // consumer -- call argument, initializer, return, switch arm -- which
+        // wraps the whole immediately-invoked closure.
+        // (BlockValueOwnDestination)
+        out.push(indent(1) + "return " + expr(value));
         out.push("})()");
         return out.join("\n");
     }
