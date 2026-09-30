@@ -146,5 +146,10 @@ describe("value wrapper generated trees", () => {
     } finally {
       fs.rmSync(mutationRoot, { recursive: true, force: true });
     }
-  }, 120_000);
+    // Fifteen haxe macro-compiler runs (three invalid marker shapes across
+    // the five target lanes, run synchronously) measured at 353.7 s total
+    // (baseline machine, quiet window); 720_000 keeps ≥2× margin. The
+    // explicit timeout raises only the harness patience for those
+    // subprocesses, never the asserted behavior.
+  }, 720_000);
 });

@@ -95,5 +95,9 @@ describe("Std.string lowering", () => {
       expect(await proc.exited).not.toBe(0);
       expect(stderr).toContain("Std.string does not accept Null<T> operands; compare against null first");
     }
-  }, 120000);
+    // Five haxe macro-compiler runs (one per target lane) measured at
+    // 141.8 s total (baseline machine, quiet window); 300_000 keeps ≥2×
+    // margin. The explicit timeout raises only the harness patience for
+    // those subprocesses, never the asserted behavior.
+  }, 300_000);
 });
