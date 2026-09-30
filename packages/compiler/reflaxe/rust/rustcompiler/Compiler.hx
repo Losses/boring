@@ -2649,8 +2649,12 @@ class Compiler extends PluginCompiler<Compiler> {
         `c_exception_fault` emits `CExceptionFault` and must suppress a
         growth variant of the same emitted name, which the former raw-name
         comparison missed and then collided at E0428 (t-munebyud-bxbr).
+        The single definition of the collision check: the emission side
+        (RustExpr.throwVariant) calls this same predicate for its throw
+        fallback, so registration suppression and throw lowering answer
+        the question identically (TCN-162).
     **/
-    function enumDeclaresVariant(enumModule:String, enumName:String, variantName:String):Bool {
+    public static function enumDeclaresVariant(enumModule:String, enumName:String, variantName:String):Bool {
         for (mt in Context.getModule(enumModule)) {
             switch (mt) {
                 case TEnum(en, _):
