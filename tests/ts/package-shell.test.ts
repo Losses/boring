@@ -39,7 +39,10 @@ function rewriteHxml(source: string, opts: GenerationOptions): string {
     .replace("-D ts-test-output=reference/ts/gen-tests", `-D ts-test-output=${opts.testOutput}`)
     .replace("-D ts-output=reference/ts/gen", `-D ts-output=${opts.tsOutput}`);
   if(opts.runtimeImport !== undefined) {
-    out = out.replace("-D runtime-import=@boring/runtime", `-D runtime-import=${opts.runtimeImport}`);
+    // Rewrite whatever specifier the repository's hxml currently carries,
+    // so the scenario pins its own runtime import instead of inheriting
+    // the repository state of that line.
+    out = out.replace(/^-D runtime-import=[^\s]+$/m, `-D runtime-import=${opts.runtimeImport}`);
   }
   if(opts.packageShell === undefined) {
     out = out.replace("-D package-shell=none\n", "");
@@ -239,11 +242,15 @@ describe("package shell emission", () => {
   test("a by-name runtime import with an emitted manifest aborts the compile", async () => {
     const tree = tempTree("byname");
     try {
-      // The repository's own by-name import kept in place of the opt-out:
-      // the manifest cannot declare the package coordinate it names.
+      // The scenario pins its own by-name runtime import and drops the
+      // repository's opt-out, so it no longer depends on what specifier
+      // examples/ts.hxml currently carries (feature spec 24, Ruling 5:
+      // a by-name import names a package coordinate the emitted
+      // manifest cannot declare, so the combination stops the compile).
       const hxml = rewriteHxml(fs.readFileSync(path.join(REPO_ROOT, "examples/ts.hxml"), "utf8"), {
         tsOutput: tree,
         testOutput: path.join(tree, "../boring-shell-byname-tests"),
+        runtimeImport: "@boring/runtime",
       });
       const result = await runHaxe("package-shell-byname.hxml", hxml);
       expect(result.exitCode).not.toBe(0);
