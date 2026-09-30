@@ -299,3 +299,68 @@ version control, which is what P08 condition 1 and the re-freeze both need.
 | P09-5 | **DONE** (`695940e8` collects; `40e94772` records the enumeration) |
 | P10-3 | the record published into the repository |
 | P12-3/4 | the above |
+
+## Delivery integrity — measured, not assumed (2026-09-30, coordinator)
+
+A gate decision may only rest on work that is reachable from a commit. I measured the
+delivery surface rather than trusting the board's fields:
+
+    dc-warn/worktrees/          37 worktrees
+    detached HEAD               37 of 37
+    with uncommitted changes    37 of 37
+    commits beyond e1c65975     0  (spot-checked charcodeat, promoted-eval, enum-switch)
+
+So the working convention for this effort has been "do it in a detached worktree, write the
+conclusions into dc-warn/out/, do not commit". Three consequences, each hit in practice:
+
+1. **Not reproducible.** The sha256 lists in the reports anchor files that exist only in a
+   worktree. A clone cannot obtain them. (PIT-285 and PIT-330 recorded one instance each;
+   the charCodeAt fixture family is a third - I verified 20/20 byte-identical on disk, but
+   the files are on no branch.)
+2. **Not decidable.** A criterion that says "this defect is fixed" without saying on which
+   tree cannot distinguish branch-state from base-state, so both can claim to satisfy it.
+3. **Board fields do not locate work.** Every readyForReview row in this milestone names a
+   branch that does not exist (`git rev-parse --verify` fails). The `branch` field is a
+   label, not a pointer. Worse, it invites reading "correct on a branch" as "in effect in
+   base".
+
+### The three-step check a sign-off must run
+
+    git rev-parse --verify <branch>                    # does it exist at all
+    git merge-base --is-ancestor <commit> arch/agent-guided-governance   # is it in base
+    read the actual file in the shared tree            # what state is base really in
+
+The third step is not optional. For tools/roots-guard/ the base copy (introduced at
+0a5c42a7) validates only that a `reason` field is present and non-empty, while the hardened
+copy on fix/roots-guard-defeat-classes (1cafaa42, +923 lines, NOT an ancestor of base)
+additionally rejects reasons under 4 words. The two copies reach OPPOSITE verdicts on the
+same input: deleting the real root boring.ArraySliceOps from examples/kotlin-f32.hxml and
+exempting it with the one-word reason "because" gives rc=0 PASS on base and rc=1 with a
+named diagnostic on the hardened copy. That hardening is now row
+gate/land-roots-guard-hardening.
+
+### Effect on this ledger
+
+- Acceptance criteria from here on state **which tree** the claim holds on, and carry the
+  commit hash plus whether that commit is an ancestor of base.
+- Load-bearing artifacts (tools, guards, fixtures, drivers, assertion scripts) must be
+  committed. Evidence may live in reports; artifacts may not.
+- Rows already signed off in this round were signed on work I reproduced myself, and each
+  sign-off records the landing state explicitly rather than implying it.
+
+## Update: the build-phase diagnostic question is answered
+
+`t-muo92xms-s28t` (the P08-2 need above) now has a ruling of record:
+docs/architecture/rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md (commit 3e2e7cde on
+gate/build-phase-diagnostic-standard; **not yet in base at the time of writing**). It holds
+that build-phase diagnostics DO fall under 02-translator-implementation-standard.md:78/:80,
+that the standard's naming of only "the Swift type-checker" is a drafting omission rather
+than an intentional exemption, and that excluding build-phase diagnostics would make the
+zero-warning criterion non-falsifiable.
+
+I reproduced the two load-bearing claims rather than accepting the prose:
+  baseline  swiftc -c -WMO -> 1 diagnostic (gen/gap/Gap.swift:117:9 will never be executed)
+  after S1  swiftc -c -WMO -> 0 diagnostics; object 278824 B in both states
+Count diagnostics by `file:line:col: severity` shape, NOT by `grep 'warning:'`, which returns
+2 on the baseline because Swift also prints a caret line. The naive count would have made a
+correct fix look like a false claim.
