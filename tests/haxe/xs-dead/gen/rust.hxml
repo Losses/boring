@@ -1,0 +1,15 @@
+# Cross-check probe: a rethrow-of-value that lives in PRUNED (unreferenced
+# private static) code. The scan-side registration is expected to be
+# emission-local; xs-dead measures whether it reaches dead code.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/xs-dead
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/xs-dead'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+xcheckscope.DeadProbe

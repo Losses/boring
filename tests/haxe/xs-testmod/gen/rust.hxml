@@ -1,0 +1,16 @@
+# Cross-check probe: a test module (@:test class) rethrows a PRODUCTION
+# payload-exception value. The patch's gate tests the exception class's
+# module, not the throwing module, so this probes whether a cfg(test)-only
+# throw grows the production fault enum.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/xs-testmod
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/xs-testmod'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+xcheckscope.ProdRethrowTests
