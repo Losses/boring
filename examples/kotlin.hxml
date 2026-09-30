@@ -131,7 +131,6 @@ boring.DefaultArgsOps
 boring.DefaultArgShiftOps
 tests.DefaultArgsTests
 tests.DefaultArgShiftTests
-boring.ProbeUnit
 boring.InlineDefaultOps
 tests.InlineDefaultTests
 tests.KotlinNullabilityTests
@@ -207,8 +206,6 @@ boring.MathNaNOps
 boring.MathNaNTestSupport
 boring.SwitchOps
 boring.MathIntWideningOps
-boring.MathNaNOps
-boring.MathNaNTestSupport
 tests.NumberClassifyTests
 tests.MathMinMaxTests
 tests.MathNaNOpsTests
@@ -223,7 +220,6 @@ tests.AllowAccessTests
 tests.ArrayRootTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
-tests.MathNaNOpsTests
 
 registry.Core
 registry.CoreFault
@@ -289,8 +285,6 @@ boring.SwitchMergeOps
 tests.RustCoalesceTests
 tests.CloneDeriveGapTests
 boring.LoopWriteOps
-boring.HaxeExceptionOps
-tests.HaxeExceptionTests
 boring.MutatingCounterOps
 tests.MutatingCounterTests
 boring.NullableBufFieldOps
@@ -491,8 +485,6 @@ boring.StringIndexOfShadowOps
 tests.StringIndexOfShadowTests
 boring.IntFloatAddOps
 tests.IntFloatAddTests
-boring.InterfaceArrayLiteralOps
-tests.InterfaceArrayLiteralTests
 boring.DartCoalesceStaticOps
 boring.DartCoalesceReceiver
 boring.DartCoalesceKind
