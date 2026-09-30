@@ -2191,12 +2191,14 @@ class RustExpr {
         or null when the exception class is outside the module set.
     **/
     function stringBufFaultEnum():Null<String> {
-        final enumModule = state.exceptionPayloads.get("std.UStringException");
+        final classKey = RustEmissionState.identityKey("std.UStringException", "UStringException");
+        final enumModule = state.exceptionPayloads.get(classKey);
         if (enumModule == null) {
             return null;
         }
-        final name = state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.split(".").pop();
-        final emitted = state.payloadEnumModules.get(enumModule);
+        final payloadName = state.exceptionPayloadNames.get(classKey);
+        final name = state.payloadEnumNames.exists(RustEmissionState.identityKey(enumModule, payloadName)) ? state.payloadEnumNames.get(RustEmissionState.identityKey(enumModule, payloadName)) : enumModule.split(".").pop();
+        final emitted = state.payloadEnumModules.get(RustEmissionState.identityKey(enumModule, payloadName));
         final emittedIn = emitted != null ? emitted : "std.UStringException";
         imports.requireType(emittedIn, name);
         return name;
@@ -2307,7 +2309,7 @@ class RustExpr {
         if (target == null || !StringTools.endsWith(target, "Fault") || target == fault) {
             return raw;
         }
-        final enumModule = state.exceptionPayloads.get("std.UStringException");
+        final enumModule = state.exceptionPayloads.get(RustEmissionState.identityKey("std.UStringException", "UStringException"));
         final memberModule = enumModule != null ? enumModule : "std.UStringFault";
         final variant = state.syntheticErrorVariant(target, {module: memberModule, name: fault});
         return target + "::" + (variant != null ? variant : fault + "Fault") + "(" + raw + ")";
@@ -2323,7 +2325,7 @@ class RustExpr {
         final errType = payloadEnum != null ? payloadEnum.get().name : (state.errorName != null ? state.errorName : cls.name);
         final enumModule = payloadEnum != null ? payloadEnum.get().module : null;
         final emittedIn = enumModule != null
-            && state.payloadEnumModules.exists(enumModule) ? state.payloadEnumModules.get(enumModule) : cls.module;
+            && state.payloadEnumModules.exists(RustEmissionState.identityKey(enumModule, errType)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(enumModule, errType)) : cls.module;
         imports.requireType(emittedIn, errType);
         switch (arg.expr) {
             case TField(_, FEnum(_, ef)):
@@ -5800,7 +5802,7 @@ class RustExpr {
                 switch (Context.follow(v.t)) {
                     case TInst(c, _):
                         final cls = c.get();
-                        final enumModule = state.exceptionPayloads.get(cls.module);
+                        final enumModule = state.exceptionPayloads.get(RustEmissionState.identityKey(cls.module, cls.name));
                         if (enumModule != null) {
                             for (f in cls.fields.get()) {
                                 if (f.name == name) {
@@ -5840,7 +5842,7 @@ class RustExpr {
                 }
                 return "format!(\"{}\", " + expr(subj) + ")";
             case TEnum(en, _):
-                final owner = state.payloadEnumOwners.get(en.get().module);
+                final owner = state.payloadEnumOwners.get(RustEmissionState.identityKey(en.get().module, en.get().name));
                 if (owner == null) {
                     return null;
                 }
@@ -5857,11 +5859,13 @@ class RustExpr {
                 final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
                 if (messageOnly != null)
                     return {name: messageOnly, module: cls.get().module};
-                final enumModule = state.exceptionPayloads.get(cls.get().module);
+                final classKey = RustEmissionState.identityKey(cls.get().module, cls.get().name);
+                final enumModule = state.exceptionPayloads.get(classKey);
                 if (enumModule == null) {
                     return null;
                 }
-                final name = state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.substr(enumModule.lastIndexOf(".") + 1);
+                final payloadName = state.exceptionPayloadNames.get(classKey);
+                final name = state.payloadEnumNames.exists(RustEmissionState.identityKey(enumModule, payloadName)) ? state.payloadEnumNames.get(RustEmissionState.identityKey(enumModule, payloadName)) : enumModule.substr(enumModule.lastIndexOf(".") + 1);
                 return {name: name, module: enumModule};
             case _:
                 return null;
@@ -5888,9 +5892,11 @@ class RustExpr {
                 var guard = 0;
                 while (current != null && guard < 64) {
                     final base = current.get();
-                    final enumModule = state.exceptionPayloads.get(base.module);
+                    final baseKey = RustEmissionState.identityKey(base.module, base.name);
+                    final enumModule = state.exceptionPayloads.get(baseKey);
                     if (enumModule != null) {
-                        final faultName = state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.split(".").pop();
+                        final basePayloadName = state.exceptionPayloadNames.get(baseKey);
+                        final faultName = state.payloadEnumNames.exists(RustEmissionState.identityKey(enumModule, basePayloadName)) ? state.payloadEnumNames.get(RustEmissionState.identityKey(enumModule, basePayloadName)) : enumModule.split(".").pop();
                         final field = messageVariantField(enumModule, faultName);
                         if (field == null) {
                             return null;
@@ -5928,7 +5934,7 @@ class RustExpr {
     }
 
     function requireEnum(enumModule:String, enumName:String):Void {
-        final emittedIn = state.payloadEnumModules.exists(enumModule) ? state.payloadEnumModules.get(enumModule) : enumModule;
+        final emittedIn = state.payloadEnumModules.exists(RustEmissionState.identityKey(enumModule, enumName)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(enumModule, enumName)) : enumModule;
         imports.requireType(emittedIn, enumName);
     }
 
@@ -9829,7 +9835,7 @@ class RustExpr {
                 return RustImports.emittedTypeName(cls.name);
             case TEnumDecl(e):
                 final en = e.get();
-                final owner = state.payloadEnumOwners.get(en.module);
+                final owner = state.payloadEnumOwners.get(RustEmissionState.identityKey(en.module, en.name));
                 final name = owner != null ? owner : en.name;
                 imports.requireType(en.module, name);
                 return name;
@@ -12729,7 +12735,7 @@ class RustExpr {
                     imports.requireType(cls.module, cls.name);
                     return cls.name + "::new(" + exceptionMessageArg(args[0]) + ")";
                 }
-                if (args.length == 1 && state.exceptionPayloads.exists(cls.module)) {
+                if (args.length == 1 && state.exceptionPayloads.exists(RustEmissionState.identityKey(cls.module, cls.name))) {
                     return exceptionVariant(cls, args[0]);
                 }
                 imports.requireType(cls.module, cls.name);

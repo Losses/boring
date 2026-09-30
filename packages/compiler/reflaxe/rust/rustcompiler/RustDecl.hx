@@ -2178,8 +2178,8 @@ class RustDecl {
         class module.
     **/
     function emittedErrorModule(unique:{name:String, module:String}, cls:ClassType):String {
-        if (state.payloadEnumModules.exists(unique.module)) {
-            return state.payloadEnumModules.get(unique.module);
+        if (state.payloadEnumModules.exists(RustEmissionState.identityKey(unique.module, unique.name))) {
+            return state.payloadEnumModules.get(RustEmissionState.identityKey(unique.module, unique.name));
         }
         if (state.messageOnlyExceptions.exists(unique.module)
             && state.messageOnlyExceptions.get(unique.module) == unique.name) {
@@ -2207,7 +2207,7 @@ class RustDecl {
                                     final messageOnly = state.messageOnlyExceptions.get(c.get().module);
                                     if (messageOnly != null && absorbed.indexOf(c.get().module) < 0)
                                         out.push({name: messageOnly, module: c.get().module});
-                                    else if (en != null && state.exceptionPayloads.exists(c.get().module)) {
+                                    else if (en != null && state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name))) {
                                         if (absorbed.indexOf(en.get().module) < 0)
                                             out.push({name: en.get().name, module: en.get().module});
                                     }
@@ -2236,7 +2236,7 @@ class RustDecl {
     function caughtPayloadEnumModuleOf(v:haxe.macro.Type.TVar):Null<String> {
         return switch (v.t) {
             case TInst(c, _):
-                state.exceptionPayloads.exists(c.get().module) ? state.exceptionPayloads.get(c.get().module) : null;
+                state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name)) ? state.exceptionPayloads.get(RustEmissionState.identityKey(c.get().module, c.get().name)) : null;
             case _: null;
         }
     }
@@ -2848,11 +2848,11 @@ class RustDecl {
                                 if (absorbed.indexOf(c.get().module) < 0) {
                                     throwsOrCallsFallible = true;
                                 }
-                            } else if (en != null && state.exceptionPayloads.exists(c.get().module)) {
+                            } else if (en != null && state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name))) {
                                 if (absorbed.indexOf(en.get().module) < 0) {
                                     throwsOrCallsFallible = true;
                                 }
-                            } else if (!state.exceptionPayloads.exists(c.get().module)) {
+                            } else if (!state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name))) {
                                 throwsOrCallsFallible = true;
                             }
                         case _:
@@ -2872,7 +2872,7 @@ class RustDecl {
                             if (isStringBufFaultOp(cc.get().module, cf.get().name)) {
                                 // stdlib/08: the buffer checks end the owner
                                 // in std.UStringFault unless a region absorbs it.
-                                final payload = state.exceptionPayloads.get("std.UStringException");
+                                final payload = state.exceptionPayloads.get(RustEmissionState.identityKey("std.UStringException", "UStringException"));
                                 final faultModule = payload != null ? payload : "std.UStringFault";
                                 if (absorbed.indexOf(faultModule) < 0) {
                                     throwsOrCallsFallible = true;
