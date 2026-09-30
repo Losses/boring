@@ -27,6 +27,34 @@ not scratch trees and not the superseded `dc-warn/out/p08-candidate-freeze/FREEZ
 
 **P08 overall: NOT PASSED.** The candidate is REJECT. Its post-review repair is now complete and on the line - the integration ruling's option (b) was executed as `a14345ce` (revert the lambda half, keep W1) followed by `c8ae0054` (the corrected lambda as one atomic commit) - so the line no longer carries a known regression, and a re-freeze is the next step. What still blocks is the build-phase diagnostic above and the absence of a second independent acceptance on a frozen revision.
 
+## The P08 candidate is SEALED (round-245 management ruling)
+
+`c8ae0054` is **P08 NOT PASSED / REJECTED, finally.** Two independent reviews
+reached that verdict and agree on the ground: under `swiftc -c
+-whole-module-optimization` the counterexample fixture emits exactly one
+build-phase diagnostic at `Gap.swift:117:9`, while
+`02-translator-implementation-standard.md:78/:80` requires the count to be zero.
+Neither reviewer waived it.
+
+**The rejection may not be lifted** - not by supplementary explanation, not by
+editing this ledger, not by re-measuring, and not by re-interpreting the
+build-phase diagnostic. On that candidate only evidence preservation, state
+recording and stopping remain permissible. **No new P08 review may be opened**,
+and P08 may not be described as unblocked until a new candidate is frozen.
+
+**What the repairs now on the line actually are.** `449444cf` (the lambda
+single-statement fast-path repair) and the stopped `w2-diagnostic-fix` work are
+**changes of candidate content**, not patches to `c8ae0054`: a fix that alters
+generated text changes the candidate even when run semantics are unchanged.
+`449444cf` therefore belongs to the **successor** candidate and must never be
+cited as evidence that `c8ae0054` was repaired. Any re-freeze must name a
+revision that includes it.
+
+**The route forward**, if it is taken: put every needed repair into **one**
+clearly identified new candidate - the unreachable-trailing-return fix and the
+lambda fast-path fix together - then re-freeze it and run **both** independent
+reviews again, with the independence requirements still met.
+
 ## Verification results recorded (2026-09-30, latest)
 
 | What was verified | Verdict | Where |
