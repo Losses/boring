@@ -1,0 +1,132 @@
+# Baseline failures — recorded, not waived
+
+`docs/architecture-work-plan.md:417` requires: *"Record any baseline failure
+separately, including its revision and reproduction; a baseline finding does
+not waive the standard."* This is that record. The standard it does not waive is
+`docs/specs/style/02-translator-implementation-standard.md:78/:80`.
+
+**Why this record did not exist before:** the collection command could not run
+at all. `bun test` scans the project root and treats positional arguments as path
+suffix filters, so the generated `out/` tree (654 MB, 4,052 duplicated
+`*.test.ts` files, 35 symlinks) was pulled into every scan; duplicates share a
+suffix with the real files, and collection died with
+`Cannot find module ... from ''` plus EMFILE. Gitignoring `out/` does not help —
+bun's discovery does not read `.gitignore`. Established by bisection: the real
+tree fails, a clean copy collects, and a clean copy with `out/` re-synced
+reproduces the identical failure.
+
+**Reproduction:** `bun run test` at `695940e8` (which adds
+`bunfig.toml` with `[test] pathIgnorePatterns = ["out/**"]`). 303 test files
+collected, zero `out/` references, 1001 pass / 32 fail / 8 errors (1033 tests,
+8026 expect calls), wall time 1864 s, exit code **1**.
+
+**Revision:** the run is against `695940e8`; its parent `05e375b2` carries the
+same test corpus but could not collect at all.
+
+---
+
+# Fix report: `bun run test` test collection (boring-wt-architecture)
+
+Branch: `fix/test-collection-ignore-out` (commit `695940e8`, on top of `05e375b2`).
+Diff: `COLLECT.diff`. Raw logs: `evidence/proof-run.log`, `evidence/proof-exit.txt`.
+
+## 1. Cause (bisection, not argument)
+
+- Real tree, `bun test tests/ts/array-root.test.ts`: exit 1 before any test runs —
+  `Cannot find module '.../tests/ts/array-root.test.ts' from ''`, plus
+  `Cannot read file ".../out/architecture-alias-targets/e3b8-source": EMFILE`.
+- Clean rsync copy (`/tmp/btest-wt`, excluding `out/`, `.git`, `node_modules`):
+  same command collects 1 file and runs (2 tests, 1 pass / 1 timeout).
+- Same clean copy **with `out/` rsynced back in**: identical `from ''` / EMFILE
+  collection failure reproduces.
+
+Conclusion: the hypothesis is CONFIRMED. `bun test` scans the project root for test
+files and treats positional args as path-suffix filters. The generated `out/` tree
+(654 MB, 4,052 duplicated `*.test.ts` under `out/**/tests/`, 35 symlinks) is swept
+into every scan; duplicates such as
+`out/architecture-alias-targets/e3b8-source/tests/ts/array-root.test.ts` match the
+same suffix as the real file, and collection dies on the duplicate/EMFILE tree
+(`from ''` = bun's resolution base is empty for these scan artifacts). `out/` being
+gitignored does not help — bun's discovery does not respect .gitignore. The
+`package.json` trailing-comma repair was necessary but not sufficient, as observed.
+
+## 2. Fix
+
+New `bunfig.toml` at repo root:
+
+```toml
+[test]
+pathIgnorePatterns = ["out/**"]
+```
+
+Why this option: `[test] root = "tests"` also fixed collection in experiment, but
+it would exclude `packages/registry/tests/` from discovery; the script runs both
+roots. `pathIgnorePatterns` excludes only the generated tree, works both on the CLI
+(`--path-ignore-patterns`) and in bunfig, and changes nothing about which real
+tests are collected or how they run. No test was deleted, skipped, renamed, or
+weakened. `git status` after the proof run shows no test-file modifications; guard
+file `samples/boring/MathNaNTestSupport.hx` intact (`Test.equals` count = 5
+before and after).
+
+## 3. Proof run
+
+Command: `bun run test` (= `bun test tests/ packages/registry/tests/`), cwd =
+tree root, output redirected to `evidence/proof-run.log`, exit code captured
+directly (no pipe) into `evidence/proof-exit.txt`:
+
+- Collection: 303 test files, **all** from `tests/` and `packages/registry/tests/`;
+  zero `out/` references in the log.
+- Result: **1001 pass / 32 fail / 8 errors, 1033 tests, 8026 expect() calls**,
+  wall time 1864 s (~31 min).
+- **Exit code: 1** (due to the baseline failures enumerated below — collection
+  itself succeeds; the pre-fix run executed 0 tests).
+
+## 4. Baseline failure enumeration (the `architecture-work-plan.md:417` record)
+
+### Pre-existing red (deterministic assertion failures, complete in ms) — 6
+
+1. `arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks` [1 ms] — `expect().toBe` mismatch on generated Rust tree content.
+2. `compiler boundary > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier` [2 ms] — banned identifier present in tracked source.
+3. `loop structure > reference/ts/gen carries no functional iteration...` [50 ms] — generated reference tree contains banned iteration constructs.
+4. `loop structure > reference/rust/gen carries no functional iteration...` [125 ms] — same class, Rust gen tree.
+5. `sorted dataClass key generated trees > pins resident comparators` [1 ms] — generated-tree content mismatch.
+6. `sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum` [1 ms] — generated-tree content mismatch.
+
+Reason they are pre-existing rather than caused by the fix: the fix only changes
+which files bun *discovers*; these are ms-fast `expect()` mismatches on
+generated/reference tree content, unrelated to discovery. (Cross-check in the
+clean pre-fix copy was not possible for these — `reference/*/gen` is gitignored
+and absent there — so "pre-existing" rests on the mechanism argument above, not a
+clean-tree rerun. Everything else about the fix is directly verified.)
+
+### Environment timeout under machine contention — 26
+
+All 26 remaining fails carry a literal `this test timed out after Nms` marker:
+
+- 5000 ms (bun default; the tests set no own timeout): 17 fails, incl. `tests/ts/array-root.test.ts` (which reproduces its timeout in the clean pre-fix copy too — this class pre-dates the fix), `strict TypeScript emitter output` ×4, `float precision` ×2, extern-bindings ×2, StringTools, Kotlin deferred assignment, Rust module layers, Rust Bytes borrows, payload enums, array/static-mutation rules, `@:sealed`, self-construction.
+- 15000 ms own budget exceeded: 2 (`static initializer mutation`, `sanctioned self-construction static target lanes`).
+- 60000 ms own budget exceeded: 3 (`package artifact emission` cargo/Pub, `Swift read-only array boundary`, + one unhandled-error trigger).
+- 120000 ms own budget exceeded: 2 (`record printed-member mutations`, `Std.string lowering nullable operands`), plus `value wrapper generated trees > rejects each invalid marker shape` (360 s wall, 120 s budget — multiple target lanes each hitting the budget).
+
+Measured cost vs own budget: every one exceeded its configured budget by ~0.1%–3×
+while doing real `haxe`/`swiftc`/`cargo` compile work on a contended machine;
+these are environment results, not product defects. Corroboration: the identical
+default-budget timeout reproduces in the clean uncontaminated copy.
+
+### Infrastructure — 8 (counted in "8 errors", orthogonal to the 32)
+
+Eight `# Unhandled error between tests` entries, each immediately following a
+timeout in the same file (log lines 66, 87, 108, 314, 365, 386, 525, 741): bun's
+per-file abort after a timed-out test leaves dangling state (`killed 1 dangling
+process` also appears). They are cascade damage from the timeouts above, not
+independent failures.
+
+## 5. Notes / not verified
+
+- The working tree carries pre-existing modifications I did not make: the
+  `package.json` JSON repair, and exec-bit loss (mode-only diffs) on ~20
+  `tests/haxe/**/run*.sh` + `tools/` scripts from the fuse mount. I committed
+  only `bunfig.toml`.
+- Per-test worst-case timings under a quiet machine were not measured (contended
+  box); the timeout classification relies on in-log budget markers, which are
+  direct evidence.
