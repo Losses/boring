@@ -31,7 +31,7 @@ on a **new, unfrozen** state, so it does not discharge the rejection.
 | 2 | Boring checks executed | **NOT ESTABLISHED** | no run exists | — |
 | 3 | Tiqian checks executed | **NOT ESTABLISHED** | `work-plan:108` "the Tiqian candidate gate has not run" [DOC]; feasibility check confirmed the matrix is not startable | B4 authorization + pair |
 | 4 | Logs, generated-output identity, warning results preserved | **NOT ESTABLISHED** | preparation artefacts exist but no run produced them | — |
-| 5 | Baseline debt has a finite recorded list | **FAIL** | `work-plan:417` requires recording baseline failures separately; **no enumerated list exists** — `bun run test` cannot even collect (seat 2) | seat 2 |
+| 5 | Baseline debt has a finite recorded list | **PASS** | `docs/architecture/BASELINE-FAILURES.md` — 1033 tests collected, 1001 pass / 32 fail / 8 errors, classified into 6 pre-existing assertions (judged by mechanism, limit stated), 26 environment timeouts (all budget-marked), 8 cascade errors; recorded per `work-plan:417` with revision and reproduction | — |
 
 **P09 overall: NOT PASSED.**
 
@@ -75,6 +75,6 @@ version control, which is what P08 condition 1 and the re-freeze both need.
 | P08-2 | W1 merged onto the candidate and the candidate re-frozen, then re-reviewed |
 | P08-4 | a second, independent acceptance on the **same** frozen revision |
 | P09-1 | a Boring-side revision decision by the gate owner |
-| P09-5 | `bun run test` collecting, then the baseline failures enumerated |
+| P09-5 | **DONE** (`695940e8` collects; `40e94772` records the enumeration) |
 | P10-3 | the record published into the repository |
 | P12-3/4 | the above |
