@@ -166,6 +166,25 @@ careful" does not prevent a recurrence.
 delivery, the mere presence of work in a workspace, or a later commit may not
 retroactively authorize a claim.
 
+**How requirements 2 and 3 are produced and checked.** Neither depends on the
+live worktree (which may sit on a rewritten branch): `git archive <hash>`
+exports the commit's tree independently of any checkout, and every path
+recorded by `git ls-tree -r <hash>` is re-hashed with `git hash-object` and
+compared against its recorded blob oid. The verdict is the comparison result —
+a successful export is not a verification. `tools/gate-proof/verify-commit.ts`
+(runnable as `bun run gate:verify -- <commit-ish>`) performs this mechanically:
+it reports the full commit id, tree id, total file count, per-path mismatches,
+a file-list sha256, and a PASS/FAIL verdict, and exits non-zero on any
+mismatch. With `--verify-export <dir>` it instead verifies an already-exported
+freeze archive against the commit's tree, which is the check requirement 3
+demands. A clean working tree of the live checkout is never an input, so
+requirement 2 is always satisfiable for any existing commit. No requirement
+above is relaxed by this tooling; it only states how the evidence is produced.
+Added because two independent verification seats confirmed every technical
+claim and then failed their entries (`eec707b9`, `2aadcb69`) on requirements 2
+and 3 for the same reason: the gate stated the requirement but not the method,
+and the live worktree sits on a branch that keeps being rewritten.
+
 Applied to this ledger retroactively: `449444cf` and `71a60c7d` carry hashes and
 are on the line; the stopped `w2-diagnostic-fix` work has no hash and is therefore
 recorded as abandoned, never as a delivery.
