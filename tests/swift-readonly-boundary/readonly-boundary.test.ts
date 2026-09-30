@@ -81,4 +81,9 @@ test("Swift read-only array boundary shares storage and preserves flow", async (
   expect(swift.trim().split("\n")).toEqual(expected);
   const compilerDiagnostics = await Bun.file(`${out}/swiftc.stderr.log`).text();
   expect(compilerDiagnostics.trim(), "generated Swift compiler diagnostics").toBe("");
-}, 60_000);
+  // Three haxe runs plus the swiftc compile and binary run measured at
+  // 79.9 s total (baseline machine, quiet window; Bun.spawnSync blocks the
+  // timer, so the budget must cover the whole body); 180_000 keeps ≥2×
+  // margin. The explicit timeout raises only the harness patience for those
+  // subprocesses, never the asserted behavior.
+}, 180_000);
