@@ -77,5 +77,9 @@ describe("StringTools conversions lowering", () => {
     const stderr = await new Response(proc.stderr).text();
     expect(await proc.exited).not.toBe(0);
     expect(stderr).toContain("StringTools.hex accepts non-negative arguments only");
-  });
+    // One full haxe macro-compiler run measured at 25.3 s (baseline machine,
+    // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises
+    // only the harness patience for that subprocess, never the asserted
+    // behavior.
+  }, 60_000);
 });

@@ -38,4 +38,8 @@ test("Rust emits one module layer per Haxe package segment", async () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-});
+  // One full haxe macro-compiler run (rust lane) measured at 23.0 s (baseline
+  // machine, quiet window); 60_000 keeps ≥2× margin. The explicit timeout
+  // raises only the harness patience for that subprocess, never the asserted
+  // behavior.
+}, 60_000);
