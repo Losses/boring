@@ -2181,7 +2181,32 @@ class RustExpr {
             for (item in growth)
                 if (item.calleeName == member.name + "Fault")
                     return errorTypeName + "::" + item.variant + "(Box::new(" + raw + "))";
+        // Registration deliberately suppresses a growth variant when the
+        // target enum already emits this name (for example `e_fault` emits
+        // `EFault`).  Do not then manufacture the same name with a wrapper:
+        // the declared constructor may have a different shape, and Rust
+        // would reject the call with E0533.  This is an impossible lowering
+        // shape rather than a declared constructor to invoke; use a diverging
+        // error path instead of emitting a malformed constructor call.
+        if (enumDeclaresVariant(member.module, errorTypeName, member.name + "Fault"))
+            return "panic!(\"throw variant shape collision\")";
         return errorTypeName + "::" + member.name + "Fault(" + raw + ")";
+    }
+
+    /** Whether a declared enum already emits a constructor with this name. */
+    function enumDeclaresVariant(enumModule:String, enumName:String, variantName:String):Bool {
+        for (mt in Context.getModule(enumModule)) {
+            switch (mt) {
+                case TEnum(en, _):
+                    if (en.get().name != enumName)
+                        continue;
+                    for (name in en.get().constructs.keys())
+                        if (RustImports.toUpperCamelCase(name) == variantName)
+                            return true;
+                case _:
+            }
+        }
+        return false;
     }
 
     /**
