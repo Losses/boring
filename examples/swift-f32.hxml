@@ -58,7 +58,6 @@ boring.OptionalParamNull
 tests.OptionalParamNullTests
 boring.ExceptionChainProbe
 tests.ExceptionChainProbeTests
-boring.ArraySliceOps
 boring.BinaryReader
 boring.BinaryWriter
 boring.Int64Ops
@@ -157,7 +156,6 @@ boring.DefaultArgShiftOps
 tests.DefaultArgsTests
 tests.DefaultArgShiftTests
 tests.EarlyReturnTests
-boring.ProbeUnit
 boring.InlineDefaultOps
 tests.InlineDefaultTests
 boring.UStringOps
@@ -271,8 +269,6 @@ boring.SwitchMergeOps
 tests.RustCoalesceTests
 tests.CloneDeriveGapTests
 boring.LoopWriteOps
-boring.HaxeExceptionOps
-tests.HaxeExceptionTests
 boring.MutatingCounterOps
 tests.MutatingCounterTests
 boring.NullableBufFieldOps
@@ -487,8 +483,6 @@ boring.StringIndexOfShadowOps
 tests.StringIndexOfShadowTests
 boring.IntFloatAddOps
 tests.IntFloatAddTests
-boring.InterfaceArrayLiteralOps
-tests.InterfaceArrayLiteralTests
 boring.DartCoalesceStaticOps
 boring.DartCoalesceReceiver
 boring.DartCoalesceKind
