@@ -57,8 +57,10 @@ result type 'TiqianArray<Int32>'`）。
 **推论（本会话已作出并落笔，TCN-156）**：
 - warning **计入**；**基线失败要记录，但不豁免**（`work-plan:417`）。
 - ⇒ **必须有套件在跑**：没有套件收集 ⇒ 不产生计数 ⇒ 标准无法被满足，
-  只是被绕过。**CI 当前不运行任何收集 `tests/**` 的命令**（`ci.yml` 的 26 个
-  脚本中为 0），因此 50 个 `tests/ts` 文件与两个 Swift 夹具不产生计数。
+  只是被绕过。**该缺口已接线**（`9f26e1ef`）：`ci.yml` 增加 `collected-suite`
+  job，每次运行入口 `bun run test` 并报告收集域（303 文件，其中 249 个来自
+  生成树 `reference/ts/gen-tests`）。该 job 阻塞、无 `continue-on-error`；
+  基线 `1001 pass / 32 fail / 8 errors` 记于 `BASELINE-FAILURES.md`，尚未清偿。
 - ⇒ 记录的形态必须是"**已知基线失败 + 显式 PIN**"，**不得**命名为"零诊断满足"：
   `tests/swift-gap-boundary/gap-boundary.test.ts:44` 的属主裁定即为本契约的落地。
 

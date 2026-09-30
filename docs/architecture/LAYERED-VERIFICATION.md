@@ -63,11 +63,14 @@
 | L3 | `swiftc -c` | **否** |
 | L4 | 夹具自带 runner + oracle | **否** |
 | L5 | 判别性后端 | **否** |
-| — | **`bun run test`（收集 `tests/**`）** | **否**（`ci.yml` 26 脚本中为 0） |
+| 收集 | **`bun run test`（收集 `tests/**`）** | **是**（`collected-suite` job，`9f26e1ef`） |
 
-**⇒ 结论**：**50 个 `tests/ts` 文件与两个 Swift 夹具目前不产生任何计数** ⇒
-按契约 3（标准 `:80` 的 "count is zero"），**当前状态无法满足该标准，
-只能绕过它**。已记录的基线失败须具名，CI 必须运行收集命令。
+**⇒ 结论**（`9f26e1ef` 起）：`collected-suite` job 每次运行入口 `bun run test`，
+报告收集域与计数；该 job 阻塞、无 `continue-on-error`，破坏受保护断言即失败
+（负控证明见 `dc-warn/out/ci-wire/`）。**计数已存在**，但标准 `:80` 的
+"count is zero" **仍未满足**：基线（`1001 pass / 32 fail / 8 errors`）尚未清偿，
+`BASELINE-FAILURES.md` 只记录、不豁免。收集域为 303 文件，其中 249 个来自
+生成树 `reference/ts/gen-tests`，故该 job 先重生成再收集。
 
 ## 未决
 
