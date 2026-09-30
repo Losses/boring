@@ -2337,8 +2337,14 @@ class SwiftExpr {
 
     function functionLiteral(f:TFunc):String {
         final previousOptional = currentFuncReturnsOptional;
+        final previousReturn = currentReturnType;
         currentFuncReturnsOptional = isNullLeafType(f.t);
+        // TFunc.t is the lambda's own return contract; every return-position site
+        // below reads currentReturnType, which without this seeding still holds the
+        // enclosing MEMBER's return type. (P08 implementation review, condition 2.)
+        currentReturnType = Context.follow(f.t);
         final result = functionLiteralInner(f);
+        currentReturnType = previousReturn;
         currentFuncReturnsOptional = previousOptional;
         return result;
     }
@@ -5518,19 +5524,15 @@ class SwiftExpr {
     }
 
     function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
-        final lines = switchReturn(sw, depth, true);
-        for (i in 0...lines.length) {
-            final p = lines[i].indexOf("return ");
-            if (p >= 0) {
-                final value = StringTools.trim(lines[i].substr(p + 7));
-                // A statement-position variant arm whose value is the bare
-                // nil constant has no type context once the return is
-                // stripped; the unit value keeps the required non-empty
-                // case body.
-                lines[i] = value == "nil" ? lines[i].substr(0, p) + "()" : lines[i].substr(0, p) + lines[i].substr(p + 7);
-            }
-        }
-        return lines;
+        // Statement-position arms are rendered as statements: a plain last
+        // value statement keeps its bare statement form (its value is
+        // discarded, as in the Haxe source), and an arm's explicit `return`
+        // is preserved: it returns from the enclosing function. The
+        // value-mode renderer's `return ` prefix must not be spliced out of
+        // the line text: that splice swallowed an explicit arm return and
+        // turned it into an unused expression, so every choice fell through
+        // to the function's trailing return (W1).
+        return switchReturn(sw, depth, true, null, true);
     }
 
     function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
@@ -5601,7 +5603,7 @@ class SwiftExpr {
         return expr(ss[ss.length - 1]);
     }
 
-    function switchReturn(sw:TypedExpr, depth:Int, reservedPayloadNames:Bool = false, destination:Null<Type> = null):Array<String> {
+    function switchReturn(sw:TypedExpr, depth:Int, reservedPayloadNames:Bool = false, destination:Null<Type> = null, statementArms:Bool = false):Array<String> {
         sw = stripWrap(sw);
         final switchParts = switch (sw.expr) {
             case TSwitch(subj, cases, def): {subj: subj, cases: cases, def: def};
@@ -5635,7 +5637,7 @@ class SwiftExpr {
                         used.indexOf(i) >= 0 ? "let " + (reservedPayloadNames ? payloadBindingName(info.field, i) : names[i]) : "_"
                 ].join(", ");
                 out.push(indent(depth + 1) + "case ." + SwiftDecl.lowerFirst(info.name) + (names.length > 0 ? "(" + bindings + ")" : "") + ":");
-                for (l in armLines(c.expr, depth + 2, reservedPayloadNames, destination))
+                for (l in armLines(c.expr, depth + 2, reservedPayloadNames, destination, statementArms))
                     out.push(l);
             }
         }
@@ -5646,9 +5648,14 @@ class SwiftExpr {
         return out;
     }
 
-    function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false, destination:Null<Type> = null):Array<String> {
+    function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false, destination:Null<Type> = null, statementArms:Bool = false):Array<String> {
         final out:Array<String> = [];
         var value:Null<String> = null;
+        // Whether the arm's trailing value came from an explicit `return`
+        // statement rather than a plain last statement. Only the last
+        // classified step decides: every earlier step is demoted to a
+        // statement above before the next one is read.
+        var valueIsReturn:Bool = false;
         for (step in PolicyQueries.variantArmPlan(e)) {
             switch (step) {
                 case PayloadCapture(v, _, ef, index):
@@ -5673,13 +5680,18 @@ class SwiftExpr {
                     // An explicit destination (assignment place, parameter)
                     // outranks the enclosing function's return type.
                     final boundaryDestination = destination != null ? destination : currentReturnType;
-                    value = returnValue != null ? boundaryDestination != null
-                        && StaticFieldHelper.isReadOnlyArrayType(boundaryDestination)
-                        && SwiftArrayBoundary.isBoundary(returnValue.t,
-                            boundaryDestination) ? arrayBoundaryText(returnValue, boundaryDestination) : expr(returnValue)
-                        : isLast && destination != null
-                        && StaticFieldHelper.isReadOnlyArrayType(destination)
-                        && SwiftArrayBoundary.isBoundary(s.t, destination) ? arrayBoundaryText(s, destination) : expr(s);
+                    if (returnValue != null) {
+                        valueIsReturn = true;
+                        value = boundaryDestination != null
+                            && StaticFieldHelper.isReadOnlyArrayType(boundaryDestination)
+                            && SwiftArrayBoundary.isBoundary(returnValue.t,
+                                boundaryDestination) ? arrayBoundaryText(returnValue, boundaryDestination) : expr(returnValue);
+                    } else {
+                        valueIsReturn = false;
+                        value = isLast && destination != null
+                            && StaticFieldHelper.isReadOnlyArrayType(destination)
+                            && SwiftArrayBoundary.isBoundary(s.t, destination) ? arrayBoundaryText(s, destination) : expr(s);
+                    }
                 case MissingInit(s):
                     Context.error("swift target: declaration without initializer has no lowering", s.pos);
             }
@@ -5687,7 +5699,20 @@ class SwiftExpr {
         if (value == null) {
             return fail(e, "variant switch arm has no value");
         }
-        out.push(indent(depth) + "return " + value);
+        if (statementArms && !valueIsReturn) {
+            // A statement-position arm's plain last value statement renders
+            // as itself: its value is discarded, so no `return` is prefixed
+            // and none is stripped. The bare nil constant has no type
+            // context; the unit value keeps the required non-empty case
+            // body. (StatementArmReturnPreserved)
+            out.push(indent(depth) + (value == "nil" ? "()" : value));
+        } else {
+            // Value-mode arms (return position, expression, assignment) and
+            // statement-position arms whose last step is an explicit
+            // `return` emit the return: it returns from the enclosing
+            // function. (StatementArmReturnPreserved)
+            out.push(indent(depth) + "return " + value);
+        }
         return out;
     }
 
