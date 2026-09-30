@@ -143,7 +143,7 @@ reviews again, with the independence requirements still met.
 
 | # | Criterion | Verdict | Evidence | Blocked by |
 |---|---|---|---|---|
-| 1 | A recorded revision pair | **FAIL** | Tiqian side settled (`8504d230`); **Boring side undecided** — three-way (`2159c657` prepared / `e1c65975` partial / `0a5c42a7` nothing) [DOC: `out/p09-tiqian-feasibility/`] | gate owner; decision work ordered stopped pending a stable candidate |
+| 1 | A recorded revision pair | **FAIL** | Tiqian side settled (`8504d230`, a commit in the **Tiqian repository**, not this one); **Boring side undecided** — three-way (`2159c657` prepared / `e1c65975` partial / `0a5c42a7` nothing) [DOC: `out/p09-tiqian-feasibility/`] | gate owner; decision work ordered stopped pending a stable candidate |
 | 2 | Boring checks executed | **NOT ESTABLISHED** | no run exists | — |
 | 3 | Tiqian checks executed | **NOT ESTABLISHED** | `work-plan:108` "the Tiqian candidate gate has not run" [DOC]; feasibility check confirmed the matrix is not startable | B4 authorization + pair |
 | 4 | Logs, generated-output identity, warning results preserved | **NOT ESTABLISHED** | preparation artefacts exist but no run produced them | — |
