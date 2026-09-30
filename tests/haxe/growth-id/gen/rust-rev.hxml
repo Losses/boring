@@ -1,0 +1,13 @@
+# Rust generation of the growth-id counterexample fixture (t-munebyud-bxbr, variant rust-rev).
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/growth-id
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/growth-id'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+girev.GrowthIdRevProbe

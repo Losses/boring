@@ -1346,6 +1346,18 @@ class Compiler extends PluginCompiler<Compiler> {
         // region for: a fully handled domain does not infect the enclosing
         // function (features/06 catch-site lowering).
         final entries:Array<{key:String, edges:Array<{callee:String, absorbed:Array<String>}>}> = [];
+        // Rethrow growth registrations met during the walk are deferred until
+        // the funcErrorTypes fixpoint below has settled: the registration
+        // must resolve the containing function's Result error enum — the same
+        // identity the emitter's throwVariant lookup uses — and that map only
+        // exists after propagation (t-munebyud-bxbr). The absorbed snapshot
+        // holds the enclosing region domains at walk time: a throw absorbed
+        // into a region looks its variant up under that region's catch domain
+        // (the payload enum itself), because RustExpr regionStatementLines
+        // retargets errorTypeName to the caught domain for the whole region
+        // body; an unabsorbed throw looks it up under the function's Result
+        // error enum.
+        final pendingThrowVariants:Array<{key:String, thrown:TypedExpr, ownerClass:ClassType, absorbed:Array<String>}> = [];
         final interfaceGather:Map<String, Array<{module:String, name:String}>> = [];
         function mergeEnum(key:String, pair:{module:String, name:String}):Bool {
             final existing = enumOf.get(key);
@@ -1470,7 +1482,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                             // live match covered (regression
                                             // fix, PIT ThrowFaultVariantGrowth).
                                             if (fieldEmitted) {
-                                                registerThrownExceptionVariant(stripDecorations(t), cls);
+                                                pendingThrowVariants.push({key: key, thrown: stripDecorations(t), ownerClass: cls, absorbed: absorbed.slice(0, absorbed.length)});
                                             }
                                             descend();
                                         case TIf(condition, ifTrue, ifFalse):
@@ -2036,6 +2048,15 @@ class Compiler extends PluginCompiler<Compiler> {
             }
         }
 
+        // Deferred ThrowFaultVariantGrowth registrations (collected during the
+        // walk above) now resolve their target identity: the containing
+        // function's Result error enum, settled by the fixpoint loops above
+        // and read through the same predicate the emitter's throwVariant
+        // lookup uses, so registration and lookup can no longer disagree
+        // about which enum carries the variant (t-munebyud-bxbr, TCN-109).
+        for (item in pendingThrowVariants)
+            registerThrownExceptionVariant(item.thrown, item.ownerClass, state.funcErrorTypes.get(item.key), item.absorbed);
+
         scanFallibleBlockParams(mtypes);
     }
 
@@ -2467,16 +2488,24 @@ class Compiler extends PluginCompiler<Compiler> {
     /**
         A rethrow of a caught exception value (`throw new Ex(e.fault)` whose
         constructor argument is not a payload-enum constructor) renders as
-        `Ex::new(...)` wrapped in a growth variant of the exception's payload
-        enum. Register that wrapping variant (and the exception-class reference
-        the payload names) so the emitted enum carries the constructor the
-        throw references. A constructor-shaped argument lowers to the payload
-        directly and needs no variant; a function inside a cfg(test) module
-        stays inside the cfg(test) tree, so its rethrow must not grow the
-        production enum. The test check reads the module the *throw* sits in
-        (the throw's own class) and the module of the exception class stays
-        out of it.
+        `Ex::new(...)` wrapped in a growth variant. Register that wrapping
+        variant (and the exception-class reference the payload names) so the
+        emitted enum carries the constructor the throw references. A
+        constructor-shaped argument lowers to the payload directly and needs
+        no variant; a function inside a cfg(test) module stays inside the
+        cfg(test) tree, so its rethrow must not grow the production enum. The
+        test check reads the module the *throw* sits in (the throw's own
+        class) and the module of the exception class stays out of it.
         (ThrowFaultVariantGrowth)
+
+        `fnError` is the containing function's Result error enum as settled
+        by the funcErrorTypes fixpoint; the growth target is
+        RustEmissionState.throwGrowthKey(fnError, cls.name) — the same
+        identity the emitter's throwVariant lookup queries. Before this
+        predicate the target was the class's payload enum, an identity the
+        lookup never consults when the two differ, so the registered variant
+        was silently never found and the emitter fell back to an undeclared
+        constructor (t-munebyud-bxbr, TCN-109).
 
         Guards, in order, against the registered regressions:
         1. only functions the emitter keeps reach this point (the field and
@@ -2485,11 +2514,13 @@ class Compiler extends PluginCompiler<Compiler> {
            so two exception classes sharing one module keep separate growth
            entries;
         3. the derived enum must match the payload name recorded for its
-           module, so a class without a matching payload pair never registers;
+           identity, so a class without a matching payload pair never
+           registers;
         4. a declared variant of the same name is never shadowed by a growth
-           variant, which would collide at E0428.
+           variant, which would collide at E0428 — checked against the enum
+           the variant will actually be attached to.
     **/
-    function registerThrownExceptionVariant(thrown:TypedExpr, ownerClass:ClassType):Void {
+    function registerThrownExceptionVariant(thrown:TypedExpr, ownerClass:ClassType, fnError:Null<{module:String, name:String}>, absorbed:Array<String>):Void {
         switch (thrown.expr) {
             case TNew(c, _, args) if (args.length == 1):
                 final cls = c.get();
@@ -2519,11 +2550,6 @@ class Compiler extends PluginCompiler<Compiler> {
                 // before classDecl has populated that map.
                 if (classHasTestMethods(ownerClass))
                     return;
-                // A declared variant with the growth name already exists:
-                // registering would define the same constructor twice.
-                final variant = cls.name + "Fault";
-                if (enumDeclaresVariant(payloadEnum.module, variant))
-                    return;
                 // A payload-constructor argument lowers to the payload
                 // directly; only a rethrow of a value needs the variant.
                 final isPayloadCtor = switch (stripDecorations(args[0]).expr) {
@@ -2536,8 +2562,41 @@ class Compiler extends PluginCompiler<Compiler> {
                 };
                 if (isPayloadCtor)
                     return;
+                // The class reference is needed whether or not a growth
+                // variant is: the raw lowering is `Ex::new(...)` and the
+                // emitted struct must exist either way.
                 state.exceptionClassRefs.set(cls.module + "::" + cls.name, true);
-                state.registerFaultConversion(enumName, "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + cls.name, variant);
+                final variant = cls.name + "Fault";
+                // The growth target follows the lookup's own identity. A
+                // throw absorbed into a region catching this class's payload
+                // domain looks its variant up under that region's catch
+                // domain — the payload enum itself (RustExpr retargets
+                // errorTypeName to the caught domain for the region body), so
+                // the target is the payload enum name. An unabsorbed throw
+                // looks it up under the containing function's Result error
+                // enum, resolved through RustEmissionState.throwGrowthKey —
+                // the same predicate shape the emitter applies. When the
+                // predicate returns null the emitter never consults the
+                // growth table for this throw, so no variant is registered;
+                // the pre-predicate behaviour registered on the payload enum
+                // regardless, a registration no lookup could ever reach when
+                // the function's Result error enum differed
+                // (t-munebyud-bxbr).
+                final growthKey = absorbed.indexOf(payloadEnum.module) >= 0
+                    ? enumName
+                    : RustEmissionState.throwGrowthKey(fnError, cls.name);
+                // A declared variant with the growth name already exists on
+                // the target enum: registering would define the same
+                // constructor twice (E0428). Compared by the name the
+                // declaration actually emits (toUpperCamelCase), matching
+                // the constructor rendering, not the raw Haxe name.
+                final targetName = growthKey != null && fnError != null && growthKey != enumName ? fnError.name : enumName;
+                final targetModule = growthKey != null && fnError != null && growthKey != enumName ? fnError.module : payloadEnum.module;
+                if (enumDeclaresVariant(targetModule, targetName, variant))
+                    return;
+                if (growthKey == null)
+                    return;
+                state.registerFaultConversion(growthKey, "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + cls.name, variant);
             case _:
         }
     }
@@ -2582,13 +2641,23 @@ class Compiler extends PluginCompiler<Compiler> {
         return found;
     }
 
-    /** Whether the enum declared in `enumModule` already has this variant. */
-    function enumDeclaresVariant(enumModule:String, variantName:String):Bool {
+    /**
+        Whether the enum declared in `enumModule` already emits this variant.
+        Constructors render through RustImports.toUpperCamelCase
+        (RustDecl.hx enum emission), so the comparison uses that emitted
+        name, not the raw Haxe construct name: a construct declared as
+        `c_exception_fault` emits `CExceptionFault` and must suppress a
+        growth variant of the same emitted name, which the former raw-name
+        comparison missed and then collided at E0428 (t-munebyud-bxbr).
+    **/
+    function enumDeclaresVariant(enumModule:String, enumName:String, variantName:String):Bool {
         for (mt in Context.getModule(enumModule)) {
             switch (mt) {
                 case TEnum(en, _):
+                    if (en.get().name != enumName)
+                        continue;
                     for (name in en.get().constructs.keys())
-                        if (name == variantName)
+                        if (RustImports.toUpperCamelCase(name) == variantName)
                             return true;
                 case _:
             }
