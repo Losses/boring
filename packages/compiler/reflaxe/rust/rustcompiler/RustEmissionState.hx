@@ -7,7 +7,36 @@ import haxe.macro.Type;
     Emission state shared across modules for the Rust target.
 **/
 class RustEmissionState {
-    /** Maps payload enum module path to its owning exception class name. */
+    /**
+        Unique map key for a declared type: its module path plus its own
+        name. Two payload enums (or two exception classes) can live in one
+        Haxe module; a bare module path as key makes their registrations
+        overwrite each other (PIT-281), so every registration/lookup below
+        keys by this identity.
+    **/
+    public static inline function identityKey(module:String, name:String):String {
+        return module + "." + name;
+    }
+
+    /** The module component of an identityKey-constructed key. */
+    public static function moduleOfIdentity(identity:String):String {
+        return identity.substr(0, identity.lastIndexOf("."));
+    }
+
+    /**
+        The module a payload enum declared in `module` is emitted in, or
+        null when no scanned payload enum lives in that module. Readers
+        that only hold the enum's module path resolve through this instead
+        of a direct map hit, because the payload maps are identity-keyed.
+    **/
+    public function payloadEnumEmittedIn(module:String):Null<String> {
+        for (key => emitted in payloadEnumModules)
+            if (moduleOfIdentity(key) == module)
+                return emitted;
+        return null;
+    }
+
+    /** Maps payload enum identity to its owning exception class name. */
     public final payloadEnumOwners:Map<String, String> = [];
 
     /**
@@ -18,14 +47,25 @@ class RustEmissionState {
     **/
     public var memberPrintsTypeParam:Bool = false;
 
-    /** Maps payload enum module path to its owning exception class module path. */
+    /** Maps payload enum identity to its owning exception class module path. */
     public final payloadEnumModules:Map<String, String> = [];
 
-    /** Maps exception class module path to its payload enum module path. */
+    /**
+        Maps exception class identity ("module.name") to its payload enum's
+        module path. Keyed by class identity so two exception classes that
+        share one Haxe module keep separate registrations (PIT-281).
+    **/
     public final exceptionPayloads:Map<String, String> = [];
 
     /**
-        Maps payload enum module path to the enum's declared name. The name
+        Maps exception class identity to the declared name of its payload
+        enum, recorded beside exceptionPayloads so readers holding only the
+        class can reconstruct the payload enum's identity key.
+    **/
+    public final exceptionPayloadNames:Map<String, String> = [];
+
+    /**
+        Maps payload enum identity to the enum's declared name. The name
         cannot be derived from the module path: an enum declared in the same
         file as its exception class (for example NoSuchElementError inside
         TiqianNoSuchElementException.hx) has a module whose last segment is
