@@ -18,6 +18,32 @@ class RustEmissionState {
         return module + "." + name;
     }
 
+    /**
+        ThrowFaultVariantGrowth identity predicate — the single definition of
+        the enum a rethrow's growth variant belongs to: the containing
+        function's Result error enum. Registration
+        (Compiler.registerThrownExceptionVariant) resolves it from the
+        throwing function's state.funcErrorTypes entry, after the propagation
+        fixpoint has settled that map; the emitter (RustExpr.throwVariant)
+        seeds errorTypeName from the same map through
+        RustDecl.resolveErrorOwner, so both sides query the growth table with
+        one identity. Returns null exactly when the lookup side would not
+        consult the growth table at all (no Fault-suffixed error enum, or the
+        degenerate case where the error enum is named like the thrown class
+        itself and throwVariant returns the raw expression), so a growth
+        registration can no longer exist that no lookup can find. Before this
+        predicate the registration keyed the class's payload enum — an
+        identity the lookup never consults when the function's Result error
+        enum differs (t-munebyud-bxbr, TCN-109).
+    **/
+    public static function throwGrowthKey(fnError:Null<{module:String, name:String}>, memberName:String):Null<String> {
+        if (fnError == null || !StringTools.endsWith(fnError.name, "Fault"))
+            return null;
+        if (fnError.name == memberName)
+            return null;
+        return fnError.name;
+    }
+
     /** The module component of an identityKey-constructed key. */
     public static function moduleOfIdentity(identity:String):String {
         return identity.substr(0, identity.lastIndexOf("."));
