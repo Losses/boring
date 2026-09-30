@@ -236,6 +236,16 @@ carries no timeout marker and is stable, so it is a **product/spec gap**: spec 2
 requires an unconditional abort while the guard at `Compiler.hx:578-583` fires
 only when `anyRuntimeUsed()` holds, a runtime import is set, and the specifier is
 not relative. Either the test or the spec must change. Named here, unfixed.
+**Superseded 2026-09-30** — adjudicated from the documents: the "unconditional"
+reading was a misread. Spec 24 (Ruling 5) stops only a compilation that combines
+a by-name runtime import with an *emitted* manifest, and a relative specifier
+with an emitted manifest must be accepted. The guard enforces exactly that scope
+(and it runs only when `package-shell` is enabled), so the compiler was right
+and this is a stale test expectation, not a product defect: `examples/ts.hxml`
+moved from `-D runtime-import=@boring/runtime` to `./runtime` (2bd609b9) without
+updating the by-name test, which inherited the now-relative specifier and
+asserted an abort the spec does not require for it. The test now pins
+`runtime-import=@boring/runtime` itself; suite passes, no compiler or spec change.
 
 **2. npm artifact generation is non-deterministic, and that reaches the CI gate.**
 The `package/dist/boring/MathNaNTestSupport.{js,d.ts}` entries flip in and out of
