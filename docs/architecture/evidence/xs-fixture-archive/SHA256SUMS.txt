@@ -1,0 +1,11 @@
+24f79c275c0c493d0848f0c66fcbc1b6ebf2050aa9121dea4d1d9fb44a761a03  ./compiler-states/as-reviewed/Compiler.hx
+985b5ad79373473ce1468a46a246427241ea3133a4ee60127ee4176939ac7a8f  ./compiler-states/as-reviewed/RustDecl.hx
+2f2119d85b2ab769ab4b605588da02f627154881c67399f3169f371b76e517b5  ./compiler-states/as-reviewed/RustEmissionState.hx
+cb18968c53b51f666dcaf87460e2768077a5d6dab978806cd914d10ce855ee1e  ./compiler-states/as-reviewed/RustExpr.hx
+57ee49976511892c4490eb490315e49f494774a7d3f23ed2811184acfe1a8a0a  ./compiler-states/frozen-57ee4997/Compiler.hx
+985b5ad79373473ce1468a46a246427241ea3133a4ee60127ee4176939ac7a8f  ./compiler-states/frozen-57ee4997/RustDecl.hx
+2f2119d85b2ab769ab4b605588da02f627154881c67399f3169f371b76e517b5  ./compiler-states/frozen-57ee4997/RustEmissionState.hx
+235d5a363c86b15151034604e1947ed03f847c897a5d3cfa49e59698fd9c4f86  ./compiler-states/frozen-57ee4997/RustExpr.hx
+11e0e489517bebf7135cfb5f4c0fbcd446e342f4d1d0c00e0ebfa5dace5efc0e  ./EXPECTED-READINGS.md
+b4b80a69f48dad6e36a64b97e1c46007b6a409e319e3b082e526700912a1d037  ./FILES.sha256
+220d0ba849aa99325fbad9bbf3b6d5a7a0d20617d08b7bf151fa316172e0bc4f  ./README.md
