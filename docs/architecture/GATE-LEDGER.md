@@ -105,6 +105,46 @@ evidence is fixture survival, not a green test. Limits recorded by the prover:
 a machine reset was not exercised (same no-handler class), and bun 1.3.13 running
 `finally` on SIGINT/SIGTERM is runtime behaviour rather than a portable guarantee.
 
+## The first real end-to-end run (the round-65 ruling's single next action)
+
+The ruling required exactly one new piece of evidence before anything else could
+move: a real, exclusive, CI-shaped run with the two unmerged repairs applied. It
+exists now. Artifacts: `dc-warn/out/e2e-run/REPORT.md` and `evidence/`.
+
+| What | Result |
+|---|---|
+| Run identity | HEAD `9388aa62`, exclusive (no other suite or compiler process), tree clean before and after, `Test.equals` = 5 before and after (blob matched HEAD's; no restore needed) |
+| Pipeline | `bun install` rc 0; **all eight CI-prelude generators** (`gen:ts` .. `gen:dart`) rc 0; then `bun run test` |
+| **Suite result** | **rc 0 - `Ran 1035 tests across 304 files / 1035 pass / 0 fail`, 2344.66 s** |
+| Domain | **304 files**, i.e. the full prelude-built domain, not the shrunken one a bare `bun run test` would have collected |
+| Attribution, applied verbatim from the committed workflow | five classes all 0, **residual 0**, no `::warning::` or `::error::`, generated-tree warning count 0 |
+| Substitutions, named | chainA PATH instead of `nix develop -c`; `sudo sysctl` and `nix-store --import` not performed (no sudo approval available) |
+| Fixture and tree | untouched; fixture blob equals HEAD's; `git status --porcelain` empty |
+
+**The five acceptance conditions, item by item.** (1) **PASS vacuously** - zero
+failures, so nothing was left unattributed. (2) **PASS** - the class counts
+reconcile against the reported fail count with residual 0, so no warning was
+required. (3) **NOT-EXERCISED** - the byte-identity target test *passed* (358.4 s of
+its 420 s budget) and no Buffer-diff shape appears anywhere in the log, so **no flake
+was witnessed and none is claimed**; the flake-catching behaviour of `2aadcb69`
+remains **analytically verified only**. (4) **PASS** - exit codes read outside pipes,
+hashes in `evidence/sha256.txt`, HEAD recorded. (5) **PASS** - fixture and tracked
+tree unchanged.
+
+**So the attribution framework and the other classes may be accepted by this run;
+the flake class may not.** Per the ruling that is the correct reading, not a
+shortfall to paper over. Demonstrating the flake class requires either a real
+occurrence or a controlled, auditable injection labelled as synthetic verification.
+
+**One misstep, self-reported and kept for audit.** The first invocation of the report
+step read the script's hardcoded `LOG=out/collected-suite.log` and found a **stale red
+log from 15:44**, producing a bogus "7 fail" table (retained as
+`evidence/report-step-stdout.misdirected-at-stale-out-log.log`). Every published
+number comes from this run's own log. The stale file lived in the git-ignored `out/`
+tree, so it never dirtied the repository - but it was a reproducible way to publish
+wrong attribution, so it has been **archived beside this run's evidence and removed
+from the path the script reads**.
+
 ## Ledger entry gate (required by the round-5 ruling)
 
 Added because the coordinator wrote in-flight work into this ledger as though it
