@@ -302,7 +302,10 @@ impl Env {
         if let Some(value) = SET_VALUES.with(|set| set.borrow().get(host_key.as_str()).cloned()) {
             return Some(UString::from(value.as_str()));
         }
-        std::env::var(host_key).ok().map(|v| UString::from(v.as_str()))
+        match std::env::var(host_key) {
+            Ok(value) => Some(UString::from(value.as_str())),
+            Err(_) => None,
+        }
     }
 
     pub fn set(key: &UStr, value: &UStr) {
@@ -534,7 +537,10 @@ pub fn units(s: &str) -> Vec<u16> {
 // matching the unit_at read it replaces, so the call-site unwrap (or the
 // nullable Option context) rides the same machinery unchanged.
 pub fn unit_at_from(units: &[u16], index: u32) -> Option<u32> {
-    units.get(usize::try_from(index).unwrap_or(0)).map(|u| u32::from(*u))
+    match units.get(usize::try_from(index).unwrap_or(0)) {
+        Some(u) => Some(u32::from(*u)),
+        None => None,
+    }
 }
 
 // The single UTF-16 unit at `index` as an owned one-unit String, the
@@ -1096,13 +1102,23 @@ impl UString {
         i32::try_from(count(s)).unwrap_or(0)
     }
     pub fn u_string_at(s: &UStr, index: i32) -> Option<i32> {
-        at(s, u32::try_from(index).unwrap_or(0)).map(|v| i32::try_from(v).unwrap_or(0))
+        match at(s, u32::try_from(index).unwrap_or(0)) {
+            Some(v) => Some(i32::try_from(v).unwrap_or(0)),
+            None => None,
+        }
     }
     pub fn u_string_slice(s: &UStr, from: i32, to: i32) -> UString {
         slice(s, from, to)
     }
     pub fn u_string_to_code_points(s: &UStr) -> Vec<i32> {
-        to_code_points(s).iter().map(|v| i32::try_from(*v).unwrap_or(0)).collect()
+        let source = to_code_points(s);
+        let mut out = Vec::with_capacity(source.len());
+        let mut i = 0usize;
+        while i < source.len() {
+            out.push(i32::try_from(source[i]).unwrap_or(0));
+            i += 1;
+        }
+        out
     }
     pub fn u_string_from_code_point(code: i32) -> UString {
         from_code_point(u32::try_from(code).unwrap_or(0))
@@ -1234,7 +1250,10 @@ pub fn units(s: &UStr) -> Vec<u16> {
 // The single UTF-16 unit at `index` read from a precomputed unit vector,
 // the O(1) form of String.charCodeAt.
 pub fn unit_at_from(units: &[u16], index: u32) -> Option<u32> {
-    units.get(usize::try_from(index).unwrap_or(0)).map(|u| u32::from(*u))
+    match units.get(usize::try_from(index).unwrap_or(0)) {
+        Some(u) => Some(u32::from(*u)),
+        None => None,
+    }
 }
 
 // The single UTF-16 unit at `index` as an owned one-unit UString, the
@@ -1286,7 +1305,10 @@ pub fn at(s: &UStr, index: u32) -> Option<u32> {
 // carries its own address and the value is the unit, never the combined
 // code point.
 pub fn unit_at(s: &UStr, index: u32) -> Option<u32> {
-    s.as_slice().get(usize::try_from(index).unwrap_or(0)).map(|u| u32::from(*u))
+    match s.as_slice().get(usize::try_from(index).unwrap_or(0)) {
+        Some(u) => Some(u32::from(*u)),
+        None => None,
+    }
 }
 
 pub fn split(s: &UStr, separator: &UStr) -> Vec<UString> {
@@ -1516,6 +1538,18 @@ pub fn parse_i32(s: &UStr) -> Option<i32> {
     };
     let signed = if negative { -i64::from(magnitude) } else { i64::from(magnitude) };
     i32::try_from(signed).ok()
+}
+
+// std.Process.args() lowers here (stdlib/17): the host arguments after
+// the program name, each as a UString, collected with an index loop.
+pub fn args_from_host() -> Vec<UString> {
+    let mut raw = std::env::args();
+    raw.next();
+    let mut out = Vec::new();
+    while let Some(argument) = raw.next() {
+        out.push(UString::from(argument.as_str()));
+    }
+    out
 }
 
 // The whitespace set of the Haxe scanners.
