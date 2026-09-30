@@ -1,0 +1,19 @@
+# Generation of the dc-promoted-eval fixture for the ts target.
+# The caller supplies -D ts-output=... (and -D ts-test-output=... where the
+# target expects one); this file is otherwise the complete generation input.
+# Run from the worktree root:
+#   nix develop -c haxe tests/haxe/dc-promoted-eval/gen/ts.hxml -D ts-output=<dir>
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp tests/haxe/dc-promoted-eval
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/dc-promoted-eval'])
+--macro tscompiler.Compiler.use()
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none
+dcpe.EvalProbe
+dcpe.DoubleEvalControl
