@@ -36,8 +36,8 @@ recorded under the entry gate below (each line carries a hash or is marked
 
 | # | Condition | State |
 |---|---|---|
-| 1 | repeated generation from clean inputs yields identical bytes and checksums | **implementation evidence exists** (`2aadcb69`); 5 clean-input generations, one unique hash. Awaiting independent review and main-line verification, per the round-65 state markers |
-| 2 | the `MathNaNTestSupport.{js,d.ts}` entries are stable; `package-artifacts.test.ts:333` passes repeatedly | **implementation evidence exists** (`2aadcb69`); entries stable at 405/absent, the byte-identity test passes on repeated runs. Awaiting independent review and main-line verification |
+| 1 | repeated generation from clean inputs yields identical bytes and checksums | **in-flight** (`2aadcb69`; the commit exists and was independently verified, but the entry does not satisfy the entry gate - see below). 5 clean-input generations, one unique hash, independently re-measured |
+| 2 | the `MathNaNTestSupport.{js,d.ts}` entries are stable; the byte-identity test passes repeatedly | **in-flight** (`2aadcb69`, same gate caveat). Entries stable at 405/absent across 10 real-fixture generations; the test passes on repeated runs. **Citation note: at `2aadcb69` the comparison is at `:338`** (`:351` in the parent; `:333` names the declaration there) - documentation drift, content unchanged |
 | 3 | `collected-suite` no longer fails on the flake, and **its log distinguishes real product/spec failures from environment/timeout failures** | **attribution half implemented** (`4f80322c`: four classes, independent flake signal, count reconciliation, residual warning, gate semantics unchanged - proven on 13 extracted-step scenarios). **Acceptance waits on one real end-to-end run**: per the round-65 ruling the framework may be accepted by such a run, but the flake class may not be claimed as witnessed unless a flake actually occurs. The flake half is `cause removed` (`2aadcb69`) |
 | 4 | an independent spec ruling on `package-shell.test.ts:249` | **technical claims independently CONFIRMED; entry does not yet satisfy the entry gate** - `eec707b9` |
 
