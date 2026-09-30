@@ -68,4 +68,8 @@ test("constructed static mutation rules retain all three diagnostics", async () 
     "package boring;", "class Probe {", "  public static final bad:Probe = new Probe((function() { var local = 1; return local; })());", "  public function new(value:Int) {}", "}", "",
   ].join("\n"));
   expect(argumentError).toContain("constructed static field arguments accept literal, enum, array, construction, static field, and static function forms only");
-});
+  // Three sequential haxe macro-compiler runs measured at 70.6 s total
+  // (baseline machine, quiet window); 150_000 keeps ≥2× margin. The explicit
+  // timeout raises only the harness patience for those subprocesses, never
+  // the asserted behavior.
+}, 150_000);

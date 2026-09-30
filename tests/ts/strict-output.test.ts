@@ -45,7 +45,11 @@ describe("strict TypeScript emitter output", () => {
     } finally {
       fs.rmSync(result.dir, { recursive: true, force: true });
     }
-  });
+    // One full haxe macro-compiler run measured at 24.5 s (baseline machine,
+    // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises
+    // only the harness patience for that subprocess, never the asserted
+    // behavior.
+  }, 60_000);
 
   test("single-argument substr drops its synthesized null length", async () => {
     const result = await compileFixture([
@@ -60,7 +64,11 @@ describe("strict TypeScript emitter output", () => {
     } finally {
       fs.rmSync(result.dir, { recursive: true, force: true });
     }
-  });
+    // One full haxe macro-compiler run measured at 24.9 s (baseline machine,
+    // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises
+    // only the harness patience for that subprocess, never the asserted
+    // behavior.
+  }, 60_000);
 
   test("switch-expression cases render preceding statements before their value", async () => {
     const result = await compileFixture([
@@ -81,7 +89,11 @@ describe("strict TypeScript emitter output", () => {
     } finally {
       fs.rmSync(result.dir, { recursive: true, force: true });
     }
-  });
+    // One full haxe macro-compiler run measured at 25.0 s (baseline machine,
+    // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises
+    // only the harness patience for that subprocess, never the asserted
+    // behavior.
+  }, 60_000);
 
   test("empty-array and null local initializers retain declared TypeScript types", async () => {
     const result = await compileFixture([
@@ -103,5 +115,9 @@ describe("strict TypeScript emitter output", () => {
     } finally {
       fs.rmSync(result.dir, { recursive: true, force: true });
     }
-  });
+    // One full haxe macro-compiler run measured at 24.9 s (baseline machine,
+    // quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises
+    // only the harness patience for that subprocess, never the asserted
+    // behavior.
+  }, 60_000);
 });
