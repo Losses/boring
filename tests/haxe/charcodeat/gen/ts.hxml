@@ -1,0 +1,17 @@
+# TypeScript generation of the charcodeat fixture.
+# The runner passes -D ts-output=... and -D ts-test-output=... on the
+# command line; this file is otherwise the complete input.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp tests/haxe/charcodeat
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/charcodeat'])
+--macro tscompiler.Compiler.use()
+-D ts-test-runner=bun
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none
+charcodeat.CharCodeAtOracle
