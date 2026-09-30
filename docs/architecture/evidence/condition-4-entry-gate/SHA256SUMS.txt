@@ -1,0 +1,16 @@
+# SHA-256 of every file in this evidence record, except this file itself
+# (a file cannot contain its own hash; the entry-gate-r2r3 package's copy carries
+#  a self-referential line equal to the empty-string hash, recorded in README section 5)
+0a53442cd9ae8cfaeb78354ed1ebfca9ddc2d6533abed24fb756ea09c02d13a2  README.md
+1daee92b1e75fd40caeb148f99bcf063c237c4defe43c49ceb09a32ffc9ac5f1  evidence/R2-independent-eec707b9.txt
+ccc640a7088b7fc4c6ee88d2c9b0c5d80b4da179c92645ebcd93477c4790151c  evidence/R3-spotcheck.txt
+3e83a0028c8e342f5e9cbbcda711119459663e643ac1d850425372967d41eac9  evidence/check-ledger.stdout.txt
+15ba33ed9cb61d8c65c0660a045c186e03fae00b38aa4dceff4302efe4b34ff8  evidence/doc-style-and-ledger-check.txt
+9089a316a83c5b567c36329c4d569e296ea284293f349cd2cbb2ea9caecb97a2  evidence/eec707b9.export.tar.recomputed.sha256
+a7fd465066ff735c2c3f4f3baba474fc25b8f98f7dd39a8ce76e9f6ea7d5dc85  evidence/gate-verify-eec707b9.archive-verify.json
+c448e9f4d8939ecef1170e1bc0685967cb266144074da057a44c01a3852f9980  evidence/gate-verify-eec707b9.archive-verify.stdout.txt
+281842fd41e24e293a0ea76bfaa1d598d0fa2f7300164ebc77d483f2dbc86695  evidence/gate-verify-eec707b9.mutated.stdout.txt
+ce8330e63d3fffc8c267843fd4db7a358f381a837371d43bb0e75dfe7bd41943  evidence/gate-verify-eec707b9.verify-export.json
+1b1e9243f5b900bc7e7f1c45d5bd5247d97eceb7d16271be1ad827d79ece04cc  evidence/gate-verify-eec707b9.verify-export.stdout.txt
+45d5ded5da4f865eeff1f9470cc4a91a3fb28b00e963dfa9bd7abbeea5c43700  evidence/gate-verify-json-without-path.stdout.txt
+c189c90feef4fd2384b493e8e66d0e2cfbd7dd1e2f76f26a610de52ff065eee0  evidence/trap-count.txt
