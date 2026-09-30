@@ -28,3 +28,35 @@
 
 未决项是文档的一部分，不是缺陷：构建期诊断是否计入验收、J 类迁移的契约、
 命名一致性的归类、单返回快速路径的缺口，均在各自文档中具名。
+
+## Worktree isolation (added after a real incident)
+
+**Work in your own worktree. Never `git checkout` in the shared coordination
+worktree.**
+
+On 2026-09-30 a dispatched seat, following its brief literally, ran a branch
+checkout inside `/home/losses/Development/tq-workspace/boring-wt-architecture`.
+That single act moved **every** other running seat's baseline: the shared tree went
+from the line under test to an unrelated branch at an older commit, and any seat
+that read tree state, generated artifacts, or ran a suite in that window was
+measuring the wrong thing. Nothing was lost - the commits were reachable from
+`--all` throughout - but three seats had to be told their readings might be
+invalid.
+
+The cause was not the seat. Its brief said "claim this branch" and it did. **The
+brief was wrong**: this repository already keeps its parallel work in dedicated
+worktrees (dozens of them under `dc-warn/worktrees/` and beside it), and the
+instruction failed to say so.
+
+**The rule, therefore:**
+
+- To work on a branch, create your own tree: `git worktree add <path> <branch>`.
+- The shared coordination tree is for **reading only** - `git log`, `git show`,
+  `git ls-tree`, `git status`. It may not be checked out, reset, or committed to.
+- If a task is genuinely a one-tree operation, say so and work in an export
+  (`git archive`) instead, which is what the gate tooling already does.
+- A dispatch brief that names a branch **must** say where the work happens. A brief
+  that omits it is defective, regardless of how the seat behaves.
+
+This is recorded here rather than left in chat because it is a property of how this
+repository is worked, not a one-off mishap.
