@@ -1210,19 +1210,9 @@ class SwiftExpr {
             for (line in stmtLines(s, 1))
                 out.push(line);
         final value = stmts[stmts.length - 1];
-        // The value statement's destination is this block's OWN result type --
-        // the same `stmts[last].t` the closure above declares. This block is
-        // an inline helper's body, so its value is not the enclosing member's
-        // or lambda's return contract: reading currentReturnType here
-        // converted the value to that contract's read-only array whenever one
-        // was present, a pre-existing member-scope defect that d14aae11's
-        // lambda reseed then propagated into lambdas (the value is the
-        // helper's Array<Int>, the contract is the lambda's ReadOnlyArray).
-        // The read-only boundary into the consuming slot belongs to the
-        // consumer -- call argument, initializer, return, switch arm -- which
-        // wraps the whole immediately-invoked closure.
-        // (BlockValueOwnDestination)
-        out.push(indent(1) + "return " + expr(value));
+        var valueText = currentReturnType != null
+            && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) ? arrayBoundaryText(value, currentReturnType) : expr(value);
+        out.push(indent(1) + "return " + valueText);
         out.push("})()");
         return out.join("\n");
     }
@@ -2347,14 +2337,8 @@ class SwiftExpr {
 
     function functionLiteral(f:TFunc):String {
         final previousOptional = currentFuncReturnsOptional;
-        final previousReturn = currentReturnType;
         currentFuncReturnsOptional = isNullLeafType(f.t);
-        // TFunc.t is the lambda's own return contract; every return-position site
-        // below reads currentReturnType, which without this seeding still holds the
-        // enclosing MEMBER's return type. (P08 implementation review, condition 2.)
-        currentReturnType = Context.follow(f.t);
         final result = functionLiteralInner(f);
-        currentReturnType = previousReturn;
         currentFuncReturnsOptional = previousOptional;
         return result;
     }
