@@ -16,7 +16,7 @@ describe("small static array initializer trees", () => {
     expect(kotlin).toContain("val mutableInts: MutableList<Int> = mutableListOf<Int>(40, 50)");
 
     expect(read("reference/swift/gen/boring/ArrayRootStateOps.swift")).toContain(
-      "static let readOnlyInts: [Int32] = Array(TiqianArray([10, 20, 30]))",
+      "static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))",
     );
     expect(read("reference/dart/gen/lib/boring/array_root_state_ops.dart")).toContain(
       "static final List<int> readOnlyInts = [10, 20, 30];",
