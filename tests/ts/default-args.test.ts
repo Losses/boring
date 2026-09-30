@@ -155,55 +155,55 @@ describe("default argument expansion generated tree", () => {
     const content = fs.readFileSync(rsFile, "utf8");
 
     // Method signatures carry clean typed parameter lists
-    expect(content).toContain("pub fn default_args_ops_greet(name: &str, prefix: &str) -> String");
+    expect(content).toContain("pub fn default_args_ops_greet(name: &UStr, prefix: &UStr) -> UString");
     expect(content).toContain("pub fn default_args_ops_configure(base: u32, offset: u32, scale: f64, flag: bool) -> f64");
-    expect(content).toContain("pub fn format_label(&self, label: Option<String>, sep: &str) -> String");
-    expect(content).toContain("pub fn default_args_ops_describe_tag(tag: &str, detail: Option<String>) -> String");
-    expect(content).toContain("pub fn default_args_ops_open_mode(id: u32, mode: Mode) -> String");
+    expect(content).toContain("pub fn format_label(&self, label: Option<UString>, sep: &UStr) -> UString");
+    expect(content).toContain("pub fn default_args_ops_describe_tag(tag: &UStr, detail: Option<UString>) -> UString");
+    expect(content).toContain("pub fn default_args_ops_open_mode(id: u32, mode: Mode) -> UString");
     expect(content).toContain("pub fn default_args_ops_adjust(value: f64, step: f64) -> f64");
 
     // Rust normalizes parameter-reading defaults at entry in declaration order.
-    expect(content).toContain("pub fn default_args_ops_greet_with_prefix(name: &str, prefix: Option<String>) -> String");
-    expect(content).toContain("let prefix = prefix.unwrap_or_else(|| name.to_string());");
-    expect(content).toContain("pub fn default_args_ops_field_access_sample(items: &Vec<String>, count: Option<u32>) -> u32");
+    expect(content).toContain("pub fn default_args_ops_greet_with_prefix(name: &UStr, prefix: Option<UString>) -> UString");
+    expect(content).toContain("let prefix = prefix.unwrap_or_else(|| name.to_ustring());");
+    expect(content).toContain("pub fn default_args_ops_field_access_sample(items: &Vec<UString>, count: Option<u32>) -> u32");
     expect(content).toContain("let count = count.unwrap_or_else(|| match u32::try_from((items).len())");
-    expect(content).toContain("let fallback = fallback.unwrap_or_else(|| if lang == \"en\".to_string() { \"English\".to_string() } else { \"Other\".to_string() });");
+    expect(content).toContain("let fallback = fallback.unwrap_or_else(|| if lang == UString::from(\"en\") { UString::from(\"English\") } else { UString::from(\"Other\") });");
     expect(content).toContain("let normalized = normalized.unwrap_or_else(|| text.to_uppercase());");
     expect(content).toContain("let clamped = clamped.unwrap_or_else(|| DefaultArgsOps::default_args_ops_clamp_base(value));");
     expect(content).toContain("SortedTable::sorted_table_set_builder::<u32>");
     expect(content).toContain("pub fn default_args_ops_static_field_sample(value: u32, bound: Option<u32>) -> u32");
     expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::STATIC_STATE_OPS_LIMIT);");
     expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
-    expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<String>) -> String");
-    expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &str, q: Option<String>) -> String");
+    expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<UString>) -> UString");
+    expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &UStr, q: Option<UString>) -> UString");
     expect(content).toContain("let v = match &(p) { None => self.fallback_count, Some(__option4) => *__option4 };");
     expect(content).toContain("let w = match &(q) { None => self.fallback_count, Some(__option5) => *__option5 };");
 
 
     // Rust has no default syntax: omission is completed to None and each
     // entry point evaluates its sanctioned expression lazily.
-    expect(content).toContain("pub fn new(family_names: Option<Vec<String>>) -> Self");
+    expect(content).toContain("pub fn new(family_names: Option<Vec<UString>>) -> Self");
     expect(content).toContain("let family_names = family_names.unwrap_or_else(|| vec![]);");
     expect(content).toContain("pub fn default_args_ops_infinity_default(value: Option<f64>) -> f64");
     expect(content).toContain("let value = value.unwrap_or_else(|| f64::INFINITY);");
-    expect(content).toContain("pub fn default_args_ops_map_default(value: Option<HashMap<String, u32>>) -> HashMap<String, u32>");
+    expect(content).toContain("pub fn default_args_ops_map_default(value: Option<HashMap<UString, u32>>) -> HashMap<UString, u32>");
     expect(content).toContain("let value = value.unwrap_or_else(|| HashMap::new());");
     expect(content).toContain("return DefaultArgsOps::default_args_ops_infinity_default(None);");
     expect(content).toContain("return DefaultArgsOps::default_args_ops_map_default(None);");
 
     // Call sites are fully expanded to full arity
-    expect(content).toContain('return DefaultArgsOps::default_args_ops_greet(&"Ada", &"Hello");');
+    expect(content).toContain('return DefaultArgsOps::default_args_ops_greet(UStr::new(&[65,100,97]), UStr::new(&[72,101,108,108,111]));');
     expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 1.5f64, true);");
     expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 2.5f64, true);");
     expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 10, 2.5f64, true);");
-    expect(content).toContain('return ops.format_label(Some("item".to_string()), &"-");');
-    expect(content).toContain('return ops.format_label(None, &"-");');
-    expect(content).toContain('return DefaultArgsOps::default_args_ops_describe_tag(&"alpha", None);');
+    expect(content).toContain('return ops.format_label(Some(UString::from("item")), UStr::new(&[45]));');
+    expect(content).toContain('return ops.format_label(None, UStr::new(&[45]));');
+    expect(content).toContain('return DefaultArgsOps::default_args_ops_describe_tag(UStr::new(&[97,108,112,104,97]), Some(UString::from("extra")));');
     expect(content).toContain("return DefaultArgsOps::default_args_ops_open_mode(1, Mode::Read);");
     expect(content).toContain("return DefaultArgsOps::default_args_ops_adjust(20.0f64, -5.0f64);");
     expect(content).toContain("return local_add(x, 100);");
     expect(content).toContain("return local_add(x, 200);");
-    expect(content).toContain('return greeter.say(&"Sam", &"User");');
+    expect(content).toContain('return greeter.say(UStr::new(&[83,97,109]), UStr::new(&[85,115,101,114]));');
 
     // A coalescing default reading an earlier coalescing parameter enters
     // after the earlier parameter's entry binding.
@@ -224,14 +224,14 @@ describe("default argument expansion generated tree", () => {
     expect(fs.existsSync(swiftFile)).toBe(true);
     const content = fs.readFileSync(swiftFile, "utf8");
 
-    expect(content).toContain("init(_ familyNames: [String] = [])");
+    expect(content).toContain("public init(_ familyNames: TiqianArray<String> = TiqianArray())");
     expect(content).toContain("static func infinityDefault(_ value: Double = Double.infinity) -> Double");
     expect(content).toContain("static func mapDefault(_ value: [String: Int32] = [:]) -> [String: Int32]");
     expect(content).toContain("return DefaultArgsOps.infinityDefault()");
     expect(content).toContain("return DefaultArgsOps.mapDefault()");
     expect(content).toContain("static func greetWithPrefix(_ name: String, _ prefix: String? = nil) -> String");
     expect(content).toContain("let prefix = prefix ?? name;");
-    expect(content).toContain("static func fieldAccessSample(_ items: [String], _ count: Int32? = nil) -> Int32");
+    expect(content).toContain("public static func fieldAccessSample(_ items: TiqianArray<String>, _ count: Int32? = nil) -> Int32");
     expect(content).toContain("let count = count ?? Int32(items.count);");
     expect(content).toContain("static func localeSample(_ lang: String, _ fallback: String? = nil) -> String");
     expect(content).toContain("let fallback = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");

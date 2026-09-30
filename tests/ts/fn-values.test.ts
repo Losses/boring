@@ -44,14 +44,14 @@ describe("first-class function value generated trees", () => {
 
   test("Rust uses one boxed representation and adapts indirect lengths", () => {
     const rust = read("reference/rust/gen/boring/fn_values_ops.rs");
-    expect(rust).toContain("pub style_at: Arc<dyn Fn(u32) -> String + Send + Sync>");
+    expect(rust).toContain("pub style_at: Arc<dyn Fn(u32) -> UString + Send + Sync>");
     expect(rust).toContain("pub resolver: Box<dyn NameResolver>");
-    expect(rust).toContain("pub fn new(style_at: Arc<dyn Fn(u32) -> String + Send + Sync>, resolver: Box<dyn NameResolver>)");
-    expect(rust).toContain("pub fn fn_values_ops_apply_picker(values: &Vec<String>, pick: Arc<dyn Fn(u32) -> String + Send + Sync>)");
+    expect(rust).toContain("pub fn new(style_at: Arc<dyn Fn(u32) -> UString + Send + Sync>, resolver: Box<dyn NameResolver>)");
+    expect(rust).toContain("pub fn fn_values_ops_apply_picker(values: &Vec<UString>, pick: Arc<dyn Fn(u32) -> UString + Send + Sync>)");
     expect(rust).toContain("return pick(u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1));");
-    expect(rust).toContain("pub fn fn_values_ops_make_prefixer(prefix: &str) -> Arc<dyn Fn(&str) -> String + Send + Sync + '_>");
+    expect(rust).toContain("pub fn fn_values_ops_make_prefixer(prefix: &UStr) -> Arc<dyn Fn(&UStr) -> UString + Send + Sync + '_>");
     expect(rust).toContain("Arc::new(move |suffix|");
-    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> String =");
+    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> UString =");
     expect(rust).not.toMatch(/(?:style_at|resolver): NameResolver/);
 
     const rustTests = read("reference/rust/gen/tests/fn_values_tests.rs");
@@ -60,19 +60,19 @@ describe("first-class function value generated trees", () => {
 
   test("Rust's f32 tree carries the same function-value lowering", () => {
     const rust = read("reference/rust-f32/gen/boring/fn_values_ops.rs");
-    expect(rust).toContain("Arc<dyn Fn(u32) -> String + Send + Sync>");
+    expect(rust).toContain("Arc<dyn Fn(u32) -> UString + Send + Sync>");
     expect(rust).toContain("Box<dyn NameResolver>");
     expect(rust).toContain("Arc::new(move |suffix|");
-    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> String =");
+    expect(rust).toContain("pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> UString =");
     expect(rust).toContain("u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1)");
   });
 
   test("Rust bounds every function-value position with Send and Sync", () => {
     const rust = read("reference/rust/gen/boring/static_ref_ops.rs");
-    expect(rust).toContain("pub fn static_ref_ops_take_fn(callback: Arc<dyn Fn(u32) -> String + Send + Sync>)");
-    expect(rust).toContain("let r#fn: Arc<dyn Fn(u32) -> String + Send + Sync> = Arc::new(StaticRefOps::static_ref_ops_render);");
-    expect(rust).toContain("pub fn static_ref_ops_return_fn() -> Arc<dyn Fn(u32) -> String + Send + Sync + 'static>");
-    expect(rust).toContain("let cmp: Arc<dyn Fn(&str, &str) -> u32 + Send + Sync> = Arc::new(StaticRefStatics::static_ref_statics_compare_strings);");
+    expect(rust).toContain("pub fn static_ref_ops_take_fn(callback: Arc<dyn Fn(u32) -> UString + Send + Sync>)");
+    expect(rust).toContain("let r#fn: Arc<dyn Fn(u32) -> UString + Send + Sync> = Arc::new(StaticRefOps::static_ref_ops_render);");
+    expect(rust).toContain("pub fn static_ref_ops_return_fn() -> Arc<dyn Fn(u32) -> UString + Send + Sync + 'static>");
+    expect(rust).toContain("let cmp: Arc<dyn Fn(&UStr, &UStr) -> u32 + Send + Sync> = Arc::new(StaticRefStatics::static_ref_statics_compare_strings);");
 
     const sortedTable = read("reference/rust/gen/runtime/sorted_table.rs");
     expect(sortedTable).toContain("pub fn sorted_table_map_builder<K: Clone, V: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>)");

@@ -122,7 +122,7 @@ describe("value wrapper generated trees", () => {
     expect(rust).toContain("impl std::ops::Add for Ic");
     expect(rust).toContain("impl std::ops::Neg for Ic");
     expect(rust).toContain("impl std::fmt::Display for FontFaceId");
-    expect(rust).toContain("#[derive(Debug, Clone, PartialEq, Eq, Hash)]\npub struct FontFaceId(pub String);");
+    expect(rust).toContain("#[derive(Debug, Clone, PartialEq, Eq, Hash)]\npub struct FontFaceId(pub UString);");
 
     const rustF32 = read("reference/rust-f32/gen/boring/value_type_ops.rs");
     expect(rustF32).toContain("#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub f32);");
