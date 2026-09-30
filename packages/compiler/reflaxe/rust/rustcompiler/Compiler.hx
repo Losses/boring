@@ -2496,7 +2496,15 @@ class Compiler extends PluginCompiler<Compiler> {
     function caughtPayloadEnumModuleOf(v:haxe.macro.Type.TVar):Null<String> {
         return switch (v.t) {
             case TInst(c, _):
-                state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name)) ? state.exceptionPayloads.get(RustEmissionState.identityKey(c.get().module, c.get().name)) : null;
+                // The class's own recorded payload first: the identity-keyed
+                // fallback cannot be read without the class's identity, and
+                // the former module-keyed fallback could not distinguish two
+                // exception classes sharing one Haxe module.
+                final caught = c.get();
+                final recorded = state.exceptionPayloadEnums.get(caught.module + "::" + caught.name);
+                if (recorded != null)
+                    return recorded.module;
+                return state.exceptionPayloads.exists(RustEmissionState.identityKey(caught.module, caught.name)) ? state.exceptionPayloads.get(RustEmissionState.identityKey(caught.module, caught.name)) : null;
             case _: null;
         }
     }
