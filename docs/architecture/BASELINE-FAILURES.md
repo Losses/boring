@@ -228,11 +228,31 @@ the six reproduce on fresh output at `ec4c5c2d` and pass on fresh output at
 `4c292c64`, independently re-measured. The paragraph stands as the historical
 state of the record at its writing.
 
-### Environment timeout under machine contention — 26
+### Two things the old count of 26 hid
 
-All 26 remaining fails carry a literal `this test timed out after Nms` marker:
+**1. A deterministic assertion failure that is NOT a timeout.**
+`tests/ts/package-shell.test.ts:249` expects an abort; the compiler exits 0. It
+carries no timeout marker and is stable, so it is a **product/spec gap**: spec 24
+requires an unconditional abort while the guard at `Compiler.hx:578-583` fires
+only when `anyRuntimeUsed()` holds, a runtime import is set, and the specifier is
+not relative. Either the test or the spec must change. Named here, unfixed.
 
-- 5000 ms (bun default; the tests set no own timeout): 17 fails, incl. `tests/ts/array-root.test.ts` (which reproduces its timeout in the clean pre-fix copy too — this class pre-dates the fix), `strict TypeScript emitter output` ×4, `float precision` ×2, extern-bindings ×2, StringTools, Kotlin deferred assignment, Rust module layers, Rust Bytes borrows, payload enums, array/static-mutation rules, `@:sealed`, self-construction.
+**2. npm artifact generation is non-deterministic, and that reaches the CI gate.**
+The `package/dist/boring/MathNaNTestSupport.{js,d.ts}` entries flip in and out of
+the generated tgz between runs - 407 entries versus 405, and the \u00b1116-118
+compressed bytes they account for are the *entire* difference the byte-identity
+test at `package-artifacts.test.ts:333` reports. Timestamps are fixed and entry
+names are ordered, so it is the entry set, not metadata. Consequence: that test
+flakes, and because the `collected-suite` job runs the suite, **contract 3's gate
+will intermittently go red for a reason unrelated to any change under review.**
+Established as pre-existing by a failure at 13:17 in a run made before the
+timeout-budget commits. It needs its own determinism task.
+
+### Environment timeout under machine contention — 25 (corrected 2026-09-30; see below)
+
+All 25 remaining fails carry a literal `this test timed out after Nms` marker:
+
+- 5000 ms (bun default; the tests set no own timeout): 18 fails, incl. `tests/ts/array-root.test.ts` (which reproduces its timeout in the clean pre-fix copy too — this class pre-dates the fix), `strict TypeScript emitter output` ×4, `float precision` ×2, extern-bindings ×2, StringTools, Kotlin deferred assignment, Rust module layers, Rust Bytes borrows, payload enums, array/static-mutation rules, `@:sealed`, self-construction.
 - 15000 ms own budget exceeded: 2 (`static initializer mutation`, `sanctioned self-construction static target lanes`).
 - 60000 ms own budget exceeded: 3 (`package artifact emission` cargo/Pub, `Swift read-only array boundary`, + one unhandled-error trigger).
 - 120000 ms own budget exceeded: 2 (`record printed-member mutations`, `Std.string lowering nullable operands`), plus `value wrapper generated trees > rejects each invalid marker shape` (360 s wall, 120 s budget — multiple target lanes each hitting the budget).
