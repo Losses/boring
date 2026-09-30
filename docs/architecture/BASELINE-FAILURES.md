@@ -25,6 +25,115 @@ same test corpus but could not collect at all.
 
 ---
 
+# Discharge record — the six pre-existing reds (2026-09-30)
+
+**The six are no longer red.** Four commits on `fix/test-collection-ignore-out`
+discharged them (base for the seat's work: `ec4c5c2d`):
+
+| Baseline red (§4) | Discharged by | Ruling |
+|---|---|---|
+| #1 arithmetic helpers, Rust inlining | `a80690f1` | expectation stale — pin refreshed to the signed-domain statements (strictly stronger) |
+| #2 RustExpr.hx carries no banned identifier | `28820ff5` | generator defect — `boring_fold_debug` renamed to `rust_fold_debug` (output-neutral) |
+| #3 loop structure, reference/ts/gen | `ac4099ea` | generator defect — dataClass comparator bound hoisted into the for-head init |
+| #4 loop structure, reference/rust/gen | `50a95377` | generator defect — four post-guard `.map(` callback pipelines lowered without callbacks |
+| #5 sorted dataClass keys, pins resident comparators | `a80690f1` | expectation stale — pin refreshed to the exact current declared-faithful form |
+| #6 sorted key domains, int capacity bound | `a80690f1` | expectation stale — pin refreshed to the exact current statement |
+
+The enumeration above is kept as written: the six existed, this is where they
+came from, and `:417`'s purpose is the record, not the waiver. The three
+`a80690f1` refreshes each compare the fresh generated form against what the
+Haxe source declares and date the pin against the generator behavior it
+describes; the three generator fixes each carry a negative control (revert +
+regenerate makes the same scoped test fail again). Per-failure detail: commit
+messages and `dc-warn/out/baseline-red-fix/REPORT.md`.
+
+## Fresh-tree reproduction (supersedes the §4 mechanism limit)
+
+The §4 limit said "pre-existing" rested on a mechanism argument, not a clean
+re-run, because `reference/*/gen` is gitignored and absent from the clean
+pre-fix copy. That limit is no longer operative: the six reproduce on
+freshly generated output at the pre-fix revision and pass on freshly
+generated output at the post-fix revision.
+
+Seat run (inherited, corroborated by its logs): at `ec4c5c2d` the five scoped
+files ran red (exit 1, 88 pass / 6 fail / 670 expect); all five trees were
+then regenerated with `haxe examples/<target>.hxml` (all exit 0) and the same
+six failed on the fresh output —
+`dc-warn/out/baseline-red-fix/evidence/baseline-six-fails.log`. After the four
+commits the same command passes (exit 0, 94 pass / 0 fail / 705 expect) —
+`dc-warn/out/baseline-red-fix/evidence/final-five-files-pass.log`.
+
+Independent re-measurement (this update, 2026-09-30, measured at
+`4c292c64`; raw logs in `dc-warn/out/baseline-record-update/evidence/`):
+
+- **Pre-fix:** a clean worktree at `ec4c5c2d` regenerated the five trees
+  (ts, rust, kotlin, swift, dart — each `haxe examples/<t>.hxml`, all exit 0)
+  and the scoped five-file run fails, exit 1, 88 pass / 6 fail / 670 expect —
+  the six failures are exactly the six §4 reds, by name
+  (`prefix-five-files.log`).
+- **Post-fix:** the same five trees regenerated at `4c292c64` (all exit 0),
+  and the scoped five-file run passes, exit 0, 94 pass / 0 fail / 705 expect —
+  twice, before and after the regeneration (`scoped-five-files.log`,
+  `scoped-five-files-after-regen.log`).
+- **Tree currency:** each regenerated tree is byte-identical to the on-disk
+  tree the scoped tests read live (`diff -rq` empty, all five targets,
+  `diff-<t>-regen.txt`). The only uncommitted generator-source change in the
+  shared tree during this update was another seat's in-flight `SwiftExpr.hx`
+  patch; it is compiled only under the swift hxml (per-target `-cp` roots),
+  so the ts/rust/kotlin/dart regenerations reflect the committed compiler
+  state. For swift, a regeneration from a pure-HEAD worktree — the committed
+  state, no in-flight working-tree patch — is byte-identical to both the
+  shared-worktree regeneration and the on-disk tree, so the scoped pass holds
+  against committed-compiler output either way
+  (`diff-swift-purehead-vs-worktree.txt`, `diff-swift-purehead-vs-snapshot.txt`).
+- **Consistency check:** the pre-fix and post-fix rust-f32 trees differ in
+  exactly the nine files the `50a95377` emitter changes touch
+  (`diff-rustf32-prefix-vs-purehead.txt`); the on-disk rust-f32 tree matches
+  the pure-HEAD regeneration byte-for-byte (`diff-rustf32-snapshot-vs-purehead.txt`).
+
+Inherited, not re-measured here: the seat's per-failure rulings (pin dating,
+L5 negative controls), its L3/L4 results (`cargo check`/`cargo test` on the
+rust trees, `tsc -p .`, `bun test reference/ts/gen-tests/`), and the
+byte-identity of the `28820ff5` rename. Each is documented in the commit
+messages and `dc-warn/out/baseline-red-fix/REPORT.md`; none is load-bearing
+for the scoped verdict, which this update re-measured directly.
+
+## Current baseline (inherited — the full suite was not re-run)
+
+The full-suite count stands as inherited from the `695940e8` proof run
+(1001 pass / 32 fail / 8 errors, 1033 tests, 8026 expect calls, 1864 s). This
+update did not re-run the 31-minute suite (shared tree, and
+`tests/ts/package-artifacts.test.ts` rewrites the tracked
+`samples/boring/MathNaNTestSupport.hx` fixture). Of the 32 fails, the six
+deterministic reds are discharged (scoped: exit 0 at `4c292c64`, measured);
+the 26 environment timeouts and 8 cascade errors stand as recorded. The
+expected shape of a future full run at comparable contention is therefore
+1007 pass / 26 fail / 8 errors — **arithmetic from the inherited run plus the
+scoped discharge, not a measurement**; no full run has been performed since
+the baseline. Two inherited-run caveats: the four measured-budget commits
+(`9905949e`, `36e7540e`, `e8a4c3bb`, `4c292c64`, 2026-09-30 13:52) replaced
+the inherited 5 s default on 16 haxe-pipeline tests after that run, so the
+timeout class may shift; and the timeout class is
+machine-contention-dependent by its own classification.
+
+The branch tip moved to `1eeaa4ad` during this update (three commits,
+`d14231a6`, `fc89d5d8`, `1eeaa4ad` — docs and one test file; none touches the
+five scoped test files or generator sources, verified by
+`git diff --stat 4c292c64..1eeaa4ad`).
+
+## The standard is not waived
+
+`docs/architecture-work-plan.md:417` requires the record, not the waiver. The
+standard it does not waive is unchanged:
+`docs/specs/style/02-translator-implementation-standard.md:80` still requires
+the warning count in generated trees to be zero. No test, pin, or guard was
+deleted, skipped, or weakened by the discharge: the three refreshed pins are
+strictly stronger or exact-current-form pins, and the guard file
+`samples/boring/MathNaNTestSupport.hx` kept its `Test.equals` count of 5
+through every run in this update.
+
+---
+
 # Fix report: `bun run test` test collection (boring-wt-architecture)
 
 Branch: `fix/test-collection-ignore-out` (commit `695940e8`, on top of `05e375b2`).
@@ -98,6 +207,10 @@ generated/reference tree content, unrelated to discovery. (Cross-check in the
 clean pre-fix copy was not possible for these — `reference/*/gen` is gitignored
 and absent there — so "pre-existing" rests on the mechanism argument above, not a
 clean-tree rerun. Everything else about the fix is directly verified.)
+**Superseded 2026-09-30** — the Discharge record above settles this point:
+the six reproduce on fresh output at `ec4c5c2d` and pass on fresh output at
+`4c292c64`, independently re-measured. The paragraph stands as the historical
+state of the record at its writing.
 
 ### Environment timeout under machine contention — 26
 
