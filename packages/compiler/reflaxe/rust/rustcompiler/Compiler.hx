@@ -1426,8 +1426,15 @@ class Compiler extends PluginCompiler<Compiler> {
                     // emitter's own whole-class filters (Compiler.classDecl):
                     // an unreferenced synthetic impl and an inline-only class
                     // drop whole classes, so nothing inside them renders and
-                    // nothing inside them may register growth output.
-                    if (isSyntheticImpl(cls.name) && !state.referencedImpls.exists(cls.module)) {
+                    // nothing inside them may register growth output. A marked
+                    // value-type abstract's impl is exempt: `valueTypeDecl`
+                    // renders its `_new` as the public constructor regardless
+                    // of `referencedImpls`, and construction sites call the
+                    // `_new` static directly. Skipping it would leave a
+                    // throwing constructor's fault unregistered, so its
+                    // construction sites would be misclassified infallible.
+                    if (isSyntheticImpl(cls.name) && ValueTypeSupport.markedAbstractOfClass(cls) == null
+                        && !state.referencedImpls.exists(cls.module)) {
                         continue;
                     }
                     if (!cls.isInterface && scanClassInlineOnly(cls)) {
