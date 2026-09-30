@@ -154,7 +154,6 @@ tests.LoopWriteTests
 boring.ExceptionChainProbe
 tests.ExceptionChainProbeTests
 tests.EarlyReturnTests
-boring.ProbeUnit
 boring.InlineDefaultOps
 tests.InlineDefaultTests
 boring.UStringOps
@@ -177,9 +176,6 @@ tests.EnumQueriesTests
 tests.SwitchOpsTests
 tests.MathIntWideningOpsTests
 tests.MathNaNOpsTests
-tests.EnumQueriesTests
-tests.SwitchOpsTests
-tests.MathIntWideningOpsTests
 tests.EnumQueriesProbes
 boring.StdStringOps
 tests.StdStringTests
@@ -323,12 +319,10 @@ boring.KnullInitNarrowing
 boring.NumericConversionWidening
 boring.NumericWidenOps
 boring.NumericDomainOps
-boring.NumericConversionWidening
 tests.KnullInitNarrowingTests
 tests.NumericConversionWideningTests
 tests.NumericWidenTests
 tests.NumericDomainTests
-tests.NumericConversionWideningTests
 
 boring.ProbeUnit
 boring.SwiftDefaultOps
@@ -491,8 +485,6 @@ boring.StringIndexOfShadowOps
 tests.StringIndexOfShadowTests
 boring.IntFloatAddOps
 tests.IntFloatAddTests
-boring.InterfaceArrayLiteralOps
-tests.InterfaceArrayLiteralTests
 boring.DartCoalesceStaticOps
 boring.DartCoalesceReceiver
 boring.DartCoalesceKind
