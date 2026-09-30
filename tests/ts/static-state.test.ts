@@ -66,4 +66,8 @@ test("static initializer mutation is rejected with the sanctioned error", async 
 	const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
 	expect(exitCode).not.toBe(0);
 	expect(stderr).toContain("static field initializers accept null, literal, and empty array forms only");
-}, 15000);
+	// One full haxe macro-compiler run measured at 29.5 s (baseline machine,
+	// quiet window); 60_000 keeps ≥2× margin. The explicit timeout raises
+	// only the harness patience for that subprocess, never the asserted
+	// behavior.
+}, 60_000);
