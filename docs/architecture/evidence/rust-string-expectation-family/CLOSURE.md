@@ -26,8 +26,13 @@
   在本基仍 fail，原因是 120 s 预算 vs 8×haxe ≈190–240 s——预算类，期望行（`tests/ts/printed-record.test.ts:88`
   `pub fn to_string(&self) -> UString`）已修好且与再生成树逐字一致。该预算修复（420_000 等）是
   `fix/test-timeout-budget` 行（t-munga5l9-alq1）在 `fix/test-collection-ignore-out` 分支上的提交
-  9905949e/36e7540e/e8a4c3bb/4c292c64——**分支态，未生效于 base**（`merge-base --is-ancestor`
-  4 者对 arch 行头全为 false，已逐个核）。
+  9905949e/36e7540e/e8a4c3bb/4c292c64——**当时（本记录写作时）为分支态**：四个提交
+  对当时 arch 行头 `merge-base --is-ancestor` 全为 false，已逐个核。
+  **【协调者补注 2026-09-30】** 该状态**此后已改变**：这四个提交现在**均已在
+  `arch/agent-guided-governance` 上**（我逐个复跑 `merge-base --is-ancestor` 均为真，
+  由本节写作之后的 base 推进带入）。故上面"未生效于 base"一句**只对写作时刻成立**，
+  不再是当前事实；此处按实保留原句并加注，而不是改写历史措辞。
+  （发现者：`run-102` 独立审计；本行由 PIT-346/ARC-19 同类教训引出。）
 - before/after 唯一失败名差集：NEW = ∅（after 复跑 5 名全部 ∈ before A 类；本行零测试改动，
   余 45 文件按零机制免跑）。
 - B 类 7 名（loop-structure ×2、compiler-scope、sorted-dataclass、sorted-key-domains、
