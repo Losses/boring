@@ -36,9 +36,9 @@ recorded under the entry gate below (each line carries a hash or is marked
 
 | # | Condition | State |
 |---|---|---|
-| 1 | repeated generation from clean inputs yields identical bytes and checksums | **in-flight** (`npm-determinism` seat, no hash yet) |
-| 2 | the `MathNaNTestSupport.{js,d.ts}` entries are stable; `package-artifacts.test.ts:333` passes repeatedly | **in-flight**, same seat |
-| 3 | `collected-suite` no longer fails on the flake, and **its log distinguishes real product/spec failures from environment/timeout failures** | **the attribution half is in-flight** (`ci-attribution` seat); the flake half waits on 1-2 |
+| 1 | repeated generation from clean inputs yields identical bytes and checksums | **implementation evidence exists** (`2aadcb69`); 5 clean-input generations, one unique hash. Awaiting independent review and main-line verification, per the round-65 state markers |
+| 2 | the `MathNaNTestSupport.{js,d.ts}` entries are stable; `package-artifacts.test.ts:333` passes repeatedly | **implementation evidence exists** (`2aadcb69`); entries stable at 405/absent, the byte-identity test passes on repeated runs. Awaiting independent review and main-line verification |
+| 3 | `collected-suite` no longer fails on the flake, and **its log distinguishes real product/spec failures from environment/timeout failures** | **attribution half implemented** (`4f80322c`: four classes, independent flake signal, count reconciliation, residual warning, gate semantics unchanged - proven on 13 extracted-step scenarios). **Acceptance waits on one real end-to-end run**: per the round-65 ruling the framework may be accepted by such a run, but the flake class may not be claimed as witnessed unless a flake actually occurs. The flake half is `cause removed` (`2aadcb69`) |
 | 4 | an independent spec ruling on `package-shell.test.ts:249` | **technical claims independently CONFIRMED; entry does not yet satisfy the entry gate** - `eec707b9` |
 
 **Condition 4, resolved** (`eec707b9`): the test was a **stale expectation, not a
