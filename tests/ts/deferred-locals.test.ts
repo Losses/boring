@@ -67,4 +67,8 @@ test("a missing deferred assignment is rejected by the Kotlin tree build", async
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-});
+  // One full haxe macro-compiler run (kotlin lane) plus one kotlinc typecheck
+  // measured at 24.7 s total (baseline machine, quiet window); 60_000 keeps
+  // ≥2× margin. The explicit timeout raises only the harness patience for
+  // those subprocesses, never the asserted behavior.
+}, 60_000);
