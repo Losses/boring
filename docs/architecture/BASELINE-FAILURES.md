@@ -23,6 +23,22 @@ collected, zero `out/` references, 1001 pass / 32 fail / 8 errors (1033 tests,
 **Revision:** the run is against `695940e8`; its parent `05e375b2` carries the
 same test corpus but could not collect at all.
 
+**Warning count (measured; the original record omitted it):** the raw log of
+this run (`dc-warn/out/ci-wire/evidence/recorded-baseline-proof-run.log`)
+contains **0** warning lines naming files under the generated trees
+(`reference/*/gen`, `reference/*/gen-tests`). This measured 0 is the gate
+baseline for the CI collected-suite job's warning check; exceeding it is an
+acceptance failure under `docs/specs/style/02-translator-implementation-standard.md:80`.
+The number is measured from the retained log, not inferred or assumed.
+
+**Domain drift since this run:** the baseline recorded 303 test files (249
+generated `reference/ts/gen-tests/**` + 54 hand-written). The collected domain
+is now **304 files / 55 non-generated**: `tests/swift-gap-boundary/gap-boundary.test.ts`
+landed in `d14231a6`, after both the baseline run and the CI job commit
+`9f26e1ef`. The pass/fail/errors numbers above remain tied to the 303-file
+domain; the +1 file is a later corpus addition, not a re-measurement of the
+baseline numbers.
+
 ---
 
 # Discharge record — the six pre-existing reds (2026-09-30)
