@@ -248,7 +248,7 @@ class Compiler extends PluginCompiler<Compiler> {
             return null;
         }
         SealedVariantHelper.validateEnum(enumType);
-        if (state.payloadEnumOwners.exists(enumType.module)) {
+        if (state.payloadEnumOwners.exists(RustEmissionState.identityKey(enumType.module, enumType.name))) {
             return null;
         }
         final decl = contextFor(enumType.module);
@@ -294,7 +294,8 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in modules) {
             // A payload enum and its exception can share one Haxe module; that
             // self-map must not suppress the module that owns both declarations.
-            if (state.payloadEnumModules.exists(module) && state.payloadEnumModules.get(module) != module) {
+            final emittedElsewhere = state.payloadEnumEmittedIn(module);
+            if (emittedElsewhere != null && emittedElsewhere != module) {
                 continue;
             }
             if (RuntimeResidents.isResident(module)) {
@@ -704,7 +705,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     }
                 case TEnum(e, _):
                     final en = e.get();
-                    final ownerModule = state.payloadEnumModules.get(en.module);
+                    final ownerModule = state.payloadEnumModules.get(RustEmissionState.identityKey(en.module, en.name));
                     final targetModule = ownerModule != null ? ownerModule : en.module;
                     final enumPath = "crate::" + RustImports.moduleToRustPath(targetModule) + "::" + en.name;
                     final safeSnake = RustImports.toSnakeCase(en.name);
@@ -769,7 +770,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 "crate::" + RustImports.moduleToRustPath(d.module) + "::" + d.name;
             case TEnum(e, params):
                 final en = e.get();
-                final ownerModule = state.payloadEnumOwners.get(en.module);
+                final ownerModule = state.payloadEnumOwners.get(RustEmissionState.identityKey(en.module, en.name));
                 final targetModule = ownerModule != null ? ownerModule : en.module;
                 "crate::" + RustImports.moduleToRustPath(targetModule) + "::" + en.name;
             case _: "()";
@@ -897,7 +898,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + u.name + " {"];
                 final variants = state.syntheticErrorVariants.get(u.name);
                 for (item in u.members) {
-                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
                     lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
@@ -911,7 +912,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
                 lines.push("        match self {");
                 for (item in u.members) {
-                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
                     lines.push("            " + u.name + "::" + variant + "(value) => write!(formatter, \"{}\", value),");
@@ -920,7 +921,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 lines.push("    }");
                 lines.push("}");
                 for (target in u.members) {
-                    final targetEmitted = state.payloadEnumModules.exists(target.module) ? state.payloadEnumModules.get(target.module) : target.module;
+                    final targetEmitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(target.module, target.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(target.module, target.name)) : target.module;
                     final targetPath = "crate::" + RustImports.moduleToRustPath(targetEmitted) + "::" + target.name;
                     final targetVariant = variants != null && variants.exists(target.module + "::" + target.name)
                         ? variants.get(target.module + "::" + target.name) : target.name + "Fault";
@@ -935,7 +936,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     lines.push("}");
                 }
                 for (item in u.members) {
-                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
                     final memberPath = "crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name;
@@ -1027,10 +1028,19 @@ class Compiler extends PluginCompiler<Compiler> {
                                         case TEnum(e, _):
                                             hasPayload = true;
                                             final payload = e.get();
-                                            state.payloadEnumModules.set(payload.module, cls.module);
-                                            state.payloadEnumOwners.set(payload.module, cls.name);
-                                            state.payloadEnumNames.set(payload.module, payload.name);
-                                            state.exceptionPayloads.set(cls.module, payload.module);
+                                            // Identity keys, not bare module
+                                            // paths: two payload enums (or
+                                            // two exception classes) can live
+                                            // in one module, and a module key
+                                            // makes the later scan overwrite
+                                            // the earlier one (PIT-281).
+                                            final payloadKey = RustEmissionState.identityKey(payload.module, payload.name);
+                                            final classKey = RustEmissionState.identityKey(cls.module, cls.name);
+                                            state.payloadEnumModules.set(payloadKey, cls.module);
+                                            state.payloadEnumOwners.set(payloadKey, cls.name);
+                                            state.payloadEnumNames.set(payloadKey, payload.name);
+                                            state.exceptionPayloads.set(classKey, payload.module);
+                                            state.exceptionPayloadNames.set(classKey, payload.name);
                                         case _:
                                     }
                                     if (!hasPayload && RustDecl.isMessageOnlyException(cls))
@@ -1500,7 +1510,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                                     if (isStringBufFaultOp(cc.get().module, calleeName)) {
                                                         // stdlib/08: the buffer checks end the owner
                                                         // through Err, in std.UStringFault.
-                                                        final payload = state.exceptionPayloads.get("std.UStringException");
+                                                        final payload = state.exceptionPayloads.get(RustEmissionState.identityKey("std.UStringException", "UStringException"));
                                                         final faultModule = payload != null ? payload : "std.UStringFault";
                                                         if (absorbed.indexOf(faultModule) < 0) {
                                                             fallible.set(key, true);
@@ -1868,7 +1878,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     final variant = StringTools.startsWith(item.name, className)
                         && StringTools.endsWith(item.name, "Fault") ? item.name.substr(className.length) : item.name + "Fault";
                     variants.set(item.module + "::" + item.name, variant);
-                    final emitted = state.payloadEnumModules.exists(item.module) ? state.payloadEnumModules.get(item.module) : item.module;
+                    final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     declLines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
                 }
                 declLines.push("}");
@@ -2238,10 +2248,12 @@ class Compiler extends PluginCompiler<Compiler> {
                 final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
                 if (messageOnly != null)
                     return messageOnly;
-                final enumModule = state.exceptionPayloads.get(cls.get().module);
+                final classKey = RustEmissionState.identityKey(cls.get().module, cls.get().name);
+                final enumModule = state.exceptionPayloads.get(classKey);
                 if (enumModule == null)
                     return null;
-                return state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.substr(enumModule.lastIndexOf(".") + 1);
+                final enumName = state.exceptionPayloadNames.get(classKey);
+                return state.payloadEnumNames.exists(RustEmissionState.identityKey(enumModule, enumName)) ? state.payloadEnumNames.get(RustEmissionState.identityKey(enumModule, enumName)) : enumModule.substr(enumModule.lastIndexOf(".") + 1);
             case _:
                 return null;
         }
@@ -2423,13 +2435,14 @@ class Compiler extends PluginCompiler<Compiler> {
 
     /**
         Returns the payload enum module a catch clause handles: the caught
-        variable's class maps through exceptionPayloads, and a class without
-        a payload enum has no absorbable domain.
+        variable's class maps through exceptionPayloads (keyed by class
+        identity), and a class without a payload enum has no absorbable
+        domain.
     **/
     function caughtPayloadEnumModuleOf(v:haxe.macro.Type.TVar):Null<String> {
         return switch (v.t) {
             case TInst(c, _):
-                state.exceptionPayloads.exists(c.get().module) ? state.exceptionPayloads.get(c.get().module) : null;
+                state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name)) ? state.exceptionPayloads.get(RustEmissionState.identityKey(c.get().module, c.get().name)) : null;
             case _: null;
         }
     }
@@ -2439,7 +2452,7 @@ class Compiler extends PluginCompiler<Compiler> {
             case TNew(c, _, args) if (args.length > 0):
                 if (state.messageOnlyExceptions.exists(c.get().module))
                     {module: c.get().module, name: c.get().name}
-                else if (state.exceptionPayloads.exists(c.get().module)) switch (stripDecorations(args[0]).expr) {
+                else if (state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name))) switch (stripDecorations(args[0]).expr) {
                     case TField(_, FEnum(en, _)): {module: en.get().module, name: en.get().name};
                     case TCall(fn, _): switch (stripDecorations(fn).expr) {
                         case TField(_, FEnum(en, _)): {module: en.get().module, name: en.get().name};
@@ -2485,12 +2498,15 @@ class Compiler extends PluginCompiler<Compiler> {
                 final payloadEnum = classPayloadEnum(cls);
                 if (payloadEnum == null)
                     return;
-                // The payload enum this class actually carries must be the
-                // one recorded for its module; otherwise the module key
-                // belongs to a different exception and the growth variant
-                // would attach to an unrelated enum.
-                final enumName = state.payloadEnumNames.get(payloadEnum.module);
-                if (enumName == null || enumName != payloadEnum.name)
+                // The payload enum is registered under its own identity
+                // (module + name), so the recorded name IS this enum's name
+                // whenever the class was scanned; a miss means the class is
+                // outside the scanned source scope. Under the former
+                // module-keyed table a sibling payload enum sharing the
+                // module overwrote the entry and this guard silently
+                // dropped every earlier-scanned class (PIT-281).
+                final enumName = state.payloadEnumNames.get(RustEmissionState.identityKey(payloadEnum.module, payloadEnum.name));
+                if (enumName == null)
                     return;
                 if (state.isSyntheticErrorType(enumName))
                     return;
@@ -2543,9 +2559,9 @@ class Compiler extends PluginCompiler<Compiler> {
 
     /**
         The payload enum carried by the exception class's own constructor,
-        or null when the constructor takes no enum argument. Unlike the
-        module-keyed exceptionPayloads map this never crosses exception
-        classes that share one module.
+        or null when the constructor takes no enum argument. Read straight
+        from the class, so it never crosses exception classes that share
+        one module.
     **/
     function classPayloadEnum(cls:ClassType):Null<{module:String, name:String}> {
         final ctor = cls.constructor != null ? cls.constructor.get() : null;
