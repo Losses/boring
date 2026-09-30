@@ -1210,9 +1210,14 @@ class SwiftExpr {
             for (line in stmtLines(s, 1))
                 out.push(line);
         final value = stmts[stmts.length - 1];
-        var valueText = currentReturnType != null
-            && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) ? arrayBoundaryText(value, currentReturnType) : expr(value);
-        out.push(indent(1) + "return " + valueText);
+        // The value's destination is THIS block's own result type -- the same
+        // types.of(stmts[last].t) the closure header above declares. This block is
+        // an inline helper's body (blockExpression is reached only from argument
+        // position), so its value is not the enclosing member's or lambda's return
+        // contract; reading currentReturnType here converted it to that contract's
+        // read-only array whenever one was present. Consumers that need a read-only
+        // boundary already apply it around the whole IIFE.
+        out.push(indent(1) + "return " + expr(value));
         out.push("})()");
         return out.join("\n");
     }
@@ -2337,8 +2342,15 @@ class SwiftExpr {
 
     function functionLiteral(f:TFunc):String {
         final previousOptional = currentFuncReturnsOptional;
+        final previousReturn = currentReturnType;
         currentFuncReturnsOptional = isNullLeafType(f.t);
+        // TFunc.t is the lambda's own return contract; return-position sites read
+        // currentReturnType, which without this seeding holds the enclosing
+        // MEMBER's return type. Sites whose destination is NOT this contract
+        // (blockExpression: an inline helper's block) must not read it.
+        currentReturnType = Context.follow(f.t);
         final result = functionLiteralInner(f);
+        currentReturnType = previousReturn;
         currentFuncReturnsOptional = previousOptional;
         return result;
     }
