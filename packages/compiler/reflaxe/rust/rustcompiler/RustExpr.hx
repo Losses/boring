@@ -2268,7 +2268,11 @@ class RustExpr {
             // lowering feeds one UTF-16 unit per add), so only a part that
             // strands the lead faults.
             out.push(indent(depth + 1) + "if unit >= 55296 && unit <= 56319 && !" + part + ".is_empty() {");
-            out.push(indent(depth + 2) + "if !" + part + ".encode_utf16().next().map_or(false, |head| head >= 56320 && head <= 57343) {");
+            // The trail gate is a match on the first encoded unit, not a
+            // closure pipeline: the loop-structure guard bans a lambda
+            // token inside a loop body, and this add check lowers inside
+            // the caller's loops. The predicate is unchanged.
+            out.push(indent(depth + 2) + "if !match (" + part + ").encode_utf16().next() { Some(head) => head >= 56320 && head <= 57343, None => false } {");
             out.push(indent(depth + 3) + "return Err(" + wrappedBufferFault(fault, fault + "::UnpairedSurrogate { unit: u32::from(unit) }") + ");");
             out.push(indent(depth + 2) + "}");
             out.push(indent(depth + 1) + "}");
@@ -11289,8 +11293,12 @@ class RustExpr {
                 }
                 if ((path == "std.Process" || cls.module == "std.Process") && name == "args") {
                     // std.Process.args() reads the arguments of the test
-                    // binary after its name (stdlib/17).
-                    return "std::env::args().skip(1).map(|__a| UString::from(__a.as_str())).collect::<Vec<UString>>()";
+                    // binary after its name (stdlib/17). The collection is a
+                    // runtime index loop, not a callback pipeline: the
+                    // loop-structure guard bans callback-driven iteration
+                    // call sites in the generated trees.
+                    imports.require("crate::runtime::u_string");
+                    return "u_string::args_from_host()";
                 }
                 if ((path == "std.SortedMap" || cls.module == "std.SortedMap") && name == "builder") {
                     final kType = sortedKeyType(fn);
