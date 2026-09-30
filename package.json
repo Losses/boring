@@ -44,7 +44,7 @@
     "check:reflaxe": "haxe -lib reflaxe -cp examples -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
-    "verify": "haxe tools/bundle/driver.hxml && bun out/bundle/driver.js verify && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:dart && bun run test:rust && haxe packages/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run check:precision && bun run gen:vector && bun run check:reflaxe",
+    "verify": "haxe tools/bundle/driver.hxml && bun out/bundle/driver.js verify && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:dart && bun run test:rust && haxe packages/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run check:precision && bun run gen:vector && bun run check:reflaxe"
   },
   "devDependencies": {
     "@boring/codec": "workspace:*",
