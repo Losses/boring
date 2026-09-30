@@ -64,6 +64,19 @@ result type 'TiqianArray<Int32>'`）。
 - ⇒ 记录的形态必须是"**已知基线失败 + 显式 PIN**"，**不得**命名为"零诊断满足"：
   `tests/swift-gap-boundary/gap-boundary.test.ts:44` 的属主裁定即为本契约的落地。
 
+**补充（`t-muo92xms-s28t` 裁定，`1a486ebd`；见 `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`）：
+"用哪个工具"与"能看见哪类诊断"必须分开说明。**
+`:78` 的主句是全称的（"on every target"），但枚举工具时只写 *"the Swift type-checker"*。
+该窄化留下一个洞：**`swiftc -typecheck` 不跑 SILGen，在基线态也报 0 条**，
+故它对 `Gap.swift:117` 的 `will never be executed` **既不能证实也不能证伪**；
+真正能看见它的只有 `-c`（含 `-whole-module-optimization`）与 `-o`。
+⇒ **裁定：构建期诊断计入 `:78/:80`**。若按字面只认"类型检查器"，"零警告"退化为
+**空判据**（真实发射器缺陷全部隐性通过，而下游编译二进制的 CI 仍会撞上它）。
+**计数纪律**：按 `file:line:col: severity` **形状**计，不要用 `grep -c 'warning:'`
+—— Swift 还会打印插入符/上下文行，会把 1 条数成 2 条（PIT-336）。
+**同类推广**：对每个目标都要问一遍"现有命令是否**看不见**它能报的诊断"——
+本会话同族的一例是 `cargo check` 与 `cargo build` 的警告面不同。
+
 ## 契约 4：生成输出的验收判据必须能观察到被测性质
 
 **规则**：一个验收检查必须**在该性质被破坏时会失败**。
