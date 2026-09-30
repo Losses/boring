@@ -1734,7 +1734,7 @@ class RustExpr {
                         }
                     }
                 }
-#if boring_fold_debug
+#if rust_fold_debug
                 if (initStr.indexOf("preferred_inline_object_boundary") >= 0 || initStr.indexOf("metric_decision_by_range") >= 0 || v.name.indexOf("annotation") >= 0)
                     emissionTrace("TVAR " + v.name + " init=[" + initStr.substr(0, initStr.length > 60 ? 60 : initStr.length) + "]", e.pos);
 #end
@@ -5447,7 +5447,7 @@ class RustExpr {
                 // (NoneZeroFold)
                 {
                     final condText = expr(c);
-#if boring_fold_debug
+#if rust_fold_debug
                     Context.warning("CONDTXT [" + condText + "]", e.pos);
 #end
                     if (StringTools.endsWith(condText, ".is_none()")) {
@@ -5470,7 +5470,7 @@ class RustExpr {
                 // (NoneZeroFold)
                 {
                     final cmp = nullComparisonParts(c);
-#if boring_fold_debug
+#if rust_fold_debug
                     Context.warning("FOLD3 t=" + Std.string(stripWrap(t).expr).substr(0, 70) + " f=" + Std.string(stripWrap(f).expr).substr(0, 70) + " cmp=" + (cmp != null), e.pos);
 #end
                     // The fold renders no arm until pure AST checks pass. A
@@ -5513,7 +5513,7 @@ class RustExpr {
                         final subjectArmText = stripRenderedParens(expr(stripWrap(inverted ? t : f)));
                         if (subjectArmText == subjectText)
                             return "(" + subjectText + ").unwrap_or(" + zeroText + ")";
-#if boring_fold_debug
+#if rust_fold_debug
                         Context.warning("FOLDDBG nofold subj=[" + subjectArmText + "] vs [" + subjectText + "] inv=" + inverted, e.pos);
 #end
                     }
@@ -7309,7 +7309,7 @@ class RustExpr {
                     numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(assignTarget) ? "i32" : null,
                         assignTarget >= 0 && !i32Locals.exists(assignTarget));
                 };
-#if boring_fold_debug
+#if rust_fold_debug
                 if (expr(r).indexOf("cached") >= 0 || expr(r).indexOf("decision") >= 0)
                     emissionTrace("ASSIGN target=" + assignTarget(l) + " val=[" + expr(r).substr(0, expr(r).length > 50 ? 50 : expr(r).length) + "]", e.pos);
 #end
@@ -8040,7 +8040,7 @@ class RustExpr {
             // whose arms unwrapped) must not unwrap again: the text pass is
             // the authority. (ShapeParse)
             && RustShapeParse.shapeOf(rendered) != RustShape.ShapeBare) {
-#if boring_fold_debug
+#if rust_fold_debug
             Context.warning("ORPROBE shape=" + Std.string(RustShapeParse.shapeOf(rendered)) + " txt=[" + rendered.substr(0, rendered.length > 70 ? 70 : rendered.length) + "]", e.pos);
 #end
             // Null<Float> lowers to Option<Float>. Haxe arithmetic uses the
@@ -8651,7 +8651,7 @@ class RustExpr {
                         case _: false;
                     })) subjText
                     + ".as_ref().unwrap()" else subjText;
-#if boring_fold_debug
+#if rust_fold_debug
                 if (subjStr.indexOf(".as_ref().unwrap()") >= 0 && subjStr.indexOf("inline_object") >= 0)
                     Context.warning("FLD2 forced-as_ref src=" + (narrowed != null ? "narrowed" : proven != null ? "proven" : filled != null ? "filled" : fieldReceiverCarriesFallibleWrapper(subj) ? "fallible" : "plain") + " [" + subjStr.substr(0, subjStr.length > 70 ? 70 : subjStr.length) + "]", Context.currentPos());
 #end
@@ -12170,7 +12170,7 @@ class RustExpr {
             if (total > 0 && total == inside)
                 forSharedLocals.set(id, true);
         }
-#if boring_fold_debug
+#if rust_fold_debug
         if (unusedLocalIds.keys().hasNext())
             Sys.stderr().writeString("RSCANDUMP n=" + Lambda.count(unusedLocalIds) + "\n");
 #end
@@ -13866,7 +13866,7 @@ class RustExpr {
                             // Covers the receiver-writing call family.
                             switch (stripWrap(subj).expr) {
                                 case TLocal(v):
-#if boring_fold_debug
+#if rust_fold_debug
                                     Context.warning("MUTPROBE m=" + cf.get().name + " fw=" + RustDecl.fieldWritesReceiver(cf.get()) + " iw=" + interfaceMethodWritesReceiver(iface, cf.get()) + " vf=" + Std.string(cf.get().expr() != null), e.pos);
 #end
                                     if (RustDecl.fieldWritesReceiver(cf.get()) || interfaceMethodWritesReceiver(iface, cf.get()))
@@ -15008,7 +15008,7 @@ class RustExpr {
             return rendered + ".unwrap_or(0)";
         }
         if (!isNullType(expected) && isInterfaceType(expected) && !isInterfaceType(actual.t)) {
-            #if boring_fold_debug
+            #if rust_fold_debug
             Context.warning("NNSHARE expected=" + Std.string(expected).substr(0, 40) + " shared=" + Std.string(isSharedIfaceType(expected)), Context.currentPos());
             #end
             // A registered shared interface builds a shared handle instead
@@ -15082,7 +15082,7 @@ class RustExpr {
         // interface even for a concrete constructor; recover the concrete
         // class so the implementor still boxes into the Option<Box<dyn Trait>>.
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && isConcreteConstructor(actual)) {
-            #if boring_fold_debug
+            #if rust_fold_debug
             Context.warning("CCSHARE expected=" + Std.string(expected).substr(0, 40) + " shared=" + Std.string(isSharedIfaceType(expected)), Context.currentPos());
             #end
             if (isSharedIfaceType(expected))
@@ -15295,7 +15295,7 @@ class RustExpr {
             if (StringTools.startsWith(argStr, "(match ") && StringTools.endsWith(argStr, ")")
                 && matchingParens(argStr))
                 argStr = argStr.substr(1, argStr.length - 2);
-#if boring_fold_debug
+#if rust_fold_debug
             if (Std.string(arg).indexOf("TInt") >= 0)
                 Context.warning("RC INTLIT pt=" + Std.string(pt).substr(0, 50) + " argStr=[" + argStr.substr(0, argStr.length > 20 ? 20 : argStr.length) + "]", arg.pos);
 #end
@@ -15476,7 +15476,7 @@ class RustExpr {
                 }
             }
             if (paramIndex < paramTypes.length) {
-#if boring_fold_debug
+#if rust_fold_debug
                 if (pt != null && (isNullType(pt) || isNullType(arg.t)))
                     Context.warning("SLOTDBG pt=" + Std.string(pt).substr(0, 50) + " argT=" + Std.string(arg.t).substr(0, 50)
                         + " argStr=" + argStr.substr(0, 60)
@@ -15558,7 +15558,7 @@ class RustExpr {
                         argStr = "Some(" + inner + ")";
                     }
                 } else if (RustType.isTypeParam(pt)) {
-#if boring_fold_debug
+#if rust_fold_debug
                     Context.warning("RC tp-branch pt=" + Std.string(pt).substr(0, 30), arg.pos);
 #end
                     final borrowed = switch (stripWrap(arg).expr) {
@@ -15650,7 +15650,7 @@ class RustExpr {
                             argStr = prefix + argStr;
                         }
                     }
-#if boring_fold_debug
+#if rust_fold_debug
                     if (Std.string(arg).indexOf("TInt") >= 0)
                         Context.warning("RC4 std=" + stdTableReceiver + " lenOK=" + (i < paramTypes.length) + " num=" + (i < paramTypes.length && isNumericScalarType(paramTypes[i]) ? true : false) + " pt=" + Std.string(i < paramTypes.length ? paramTypes[i] : null).substr(0, 30), arg.pos);
 #end
@@ -15675,7 +15675,7 @@ class RustExpr {
                         // names the u32 domain explicitly so the borrow
                         // targets the slot's element type.
                         // (AppliedReceiverParams)
-#if boring_fold_debug
+#if rust_fold_debug
                         Context.warning("RC11711 fired", arg.pos);
 #end
                         argStr = "&(" + argStr + "u32)";
