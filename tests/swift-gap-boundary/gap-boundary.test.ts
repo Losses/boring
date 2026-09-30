@@ -61,6 +61,13 @@ test("archived gap.Gap counterexample generates and its Swift typechecks", async
   // "without warnings" to the generated code's compilation and :80 counts suite warning lines.
   // So the final goal remains ZERO diagnostics under -c as well, and this row is a recorded,
   // unwaived deviation, not compliance.
+  //
+  // FACT CHANGE (recorded when the count was re-read): the paragraph above no longer holds.
+  // The `will never be executed` warning at Gap.swift:117 is fixed at the cause -- the Swift
+  // emitter no longer emits statements that follow one that diverges (an exhaustive
+  // returning switch, a throw), so the unreachable trailing `return` is not emitted. The
+  // `-c` step below now asserts ZERO build-phase diagnostics; this header keeps the prior
+  // wording only as the history of what this fixture recorded and when.
   const typecheck = Bun.spawnSync(
     ["swiftc", "-typecheck", `${generated}/gap/Gap.swift`, `${generated}/Runtime.swift`, `${generated}/std/UStringException.swift`, `${generated}/std/UStringFault.swift`],
     { cwd: root, stdout: "pipe", stderr: "pipe" },
@@ -99,16 +106,19 @@ test("archived gap.Gap counterexample generates and its Swift typechecks", async
   expect(build.exitCode, `swiftc -c failed: ${buildDiagnostics || "no diagnostics"}`).toBe(0);
   expect(Bun.file(`${out}/gap.o`).size, "swiftc -c produced no object file").toBeGreaterThan(0);
   expect(buildDiagnostics.split("\n").filter((l) => l.includes(": error:")), "swiftc -c reported type errors").toEqual([]);
-  // Recorded deviation, asserted present so the count cannot rot: under -c (SILGen) the
-  // fixture emits exactly one `will never be executed` warning at Gap.swift:117. Per the
-  // gate-owner ruling this diagnostic COUNTS against 02-translator-implementation-standard.md:78/:80,
-  // so this is an unwaived, recorded baseline failure -- the goal remains zero diagnostics
-  // under -c. When that warning is fixed, this assertion fails and forces the count to be
-  // re-read (same rot-proof pin pattern as the W1 pin that was removed after discharge).
+  // Zero build-phase diagnostics, asserted so a regression cannot rot: under -c (SILGen)
+  // the fixture must emit ZERO warnings and ZERO errors
+  // (02-translator-implementation-standard.md:78/:80). FACT CHANGE, recorded per the pin's
+  // own instruction: this assertion previously pinned the presence of exactly one
+  // `will never be executed` warning at Gap.swift:117 -- the W1 unreachable trailing
+  // return -- as a recorded, unwaived baseline failure. That warning is now fixed at the
+  // cause (the Swift emitter skips emitting statements after one that diverges), the count
+  // was re-read as 0, and the pin was inverted to assert the new fact. The -typecheck step
+  // above is NOT this criterion: -typecheck never reported this diagnostic at all.
   expect(
-    pendingBuildWarning.filter((l) => l.includes("Gap.swift:117") && l.includes("will never be executed")),
-    "the recorded `will never be executed` deviation at Gap.swift:117 must still be present under -c; if it is gone, re-read the count and update this pin",
-  ).toHaveLength(1);
+    pendingBuildWarning,
+    "build-phase diagnostics under swiftc -c -WMO must be zero (counted as `file:line:col: severity` lines)",
+  ).toEqual([]);
   console.log(`  swiftc -c rc=${build.exitCode}, recorded ${pendingBuildWarning.length} pending build-phase diagnostic(s) - see pending-build-warnings.log`);
   expect(diagnostics.split("\n").filter((line) => line.includes(": error:")), "unexpected type errors").toEqual([]);
 }, 60_000);
