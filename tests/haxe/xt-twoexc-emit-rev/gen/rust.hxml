@@ -1,0 +1,15 @@
+# Rust generation of the reverse-declaration-order control for xt-twoexc-emit
+# (two exception classes, one module; E1 declared FIRST and rethrown by value).
+# The runner passes -D rust-output=... on the command line.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/xt-twoexc-emit-rev
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/xt-twoexc-emit-rev'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+twoemitrevscope.TwoEmitProbeRev

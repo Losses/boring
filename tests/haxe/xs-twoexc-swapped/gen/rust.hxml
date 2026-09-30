@@ -1,0 +1,14 @@
+# Order-swapped copy of the xs-twoexc fixture (E2 declared first, E1 second);
+# ONLY the declaration order differs from xs-twoexc.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/xs-twoexc-swapped
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/xs-twoexc-swapped'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+xcheckscope.TwoProbe
