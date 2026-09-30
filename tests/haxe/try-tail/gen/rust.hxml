@@ -1,0 +1,16 @@
+# Rust generation of the try-tail fixture.
+# The runner passes -D rust-output=... (and -D rust-test-output=...) on
+# the command line. package-shell is left at its default so the crate
+# manifest Cargo.toml is emitted with the generated tree.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/try-tail
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/try-tail'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+trytail.TryTailOracle
