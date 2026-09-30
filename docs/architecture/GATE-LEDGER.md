@@ -20,8 +20,12 @@ A row with neither is NOT ESTABLISHED.
 | 3 | Preserved source behaviour (branches distinguishable, alias, lifetime, single evaluation, lazy effects, control exits) | **PARTIAL** | `dc-warn/out/p08-candidate-freeze/FREEZE.md` §5.3 [DOC]; branch discrimination was broken and is now repaired (`d1180768`); **lazy effects were never measured** (F3, recorded) | seat 4 |
 | 4 | Two independently recorded reviews | **FAIL** | behaviour review (`out/p08-behaviour-review/`) non-accepting; implementation review (`out/p08-implementation-review/`) **REJECT** with four open conditions | seat 6 |
 
+**Re-freeze recorded** (`fc89d5d8`, `docs/architecture/REFREEZE.md`): the candidate
+identity is now **`c8ae0054`** (chain `a14345ce` -> `28820ff5` -> `c8ae0054`). This is an
+identity record, not an acceptance. Any subsequent P08 review must target that revision,
+not scratch trees and not the superseded `dc-warn/out/p08-candidate-freeze/FREEZE.md`.
+
 **P08 overall: NOT PASSED.** The candidate is REJECT. Its post-review repair is now complete and on the line - the integration ruling's option (b) was executed as `a14345ce` (revert the lambda half, keep W1) followed by `c8ae0054` (the corrected lambda as one atomic commit) - so the line no longer carries a known regression, and a re-freeze is the next step. What still blocks is the build-phase diagnostic above and the absence of a second independent acceptance on a frozen revision.
-on a **new, unfrozen** state, so it does not discharge the rejection.
 
 ## P09 — "Run the candidate's required Boring checks and Tiqian checks on fixed revisions…" (`work-plan:218`, unchecked)
 
