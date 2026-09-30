@@ -1,0 +1,20 @@
+# Dart generation of the charcodeat fixture.
+# The runner passes -D dart-output=... and -D dart-test-output=... on
+# the command line. The emitted pubspec.yaml gives the package the name
+# `generated`; the authored harness is copied into
+# lib/charcodeat/zz_run.dart and executed with `dart run` (the fuse
+# evidence mount does not keep an executable bit, so no
+# `dart compile exe` artifact is executed).
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/charcodeat
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/charcodeat'])
+--macro dartcompiler.Compiler.use()
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+charcodeat.CharCodeAtOracle
