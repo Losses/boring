@@ -15,12 +15,12 @@ A row with neither is NOT ESTABLISHED.
 
 | # | Criterion | Verdict | Evidence | Blocked by |
 |---|---|---|---|---|
-| 1 | Correct fact-and-requirement handoffs; in-scope reconstruction removed | **PARTIAL** | `dc-warn/out/switchexpr-destination/REPORT.md` [DOC] — the reconstruction IS removed on both routes (measured: output unchanged, `sw.t == destination` at all 15 contract-carrying sites); the destination-owner mechanism is **not** enforced structurally (that work was ordered stopped by the ruling) | seat 3 |
-| 2 | Legal generated output — zero diagnostics on the same candidate inputs | **FAIL** | `Gap` fixture yields 2 `[#no-usage]` warnings under the pinned standard `02-translator-implementation-standard.md:78/:80` [MINE: I ran it]; the W1 fix removes them but is **not in the frozen candidate** (`FREEZE` status line) | seat 1 / re-freeze |
+| 1 | Correct fact-and-requirement handoffs; in-scope reconstruction removed | **PARTIAL (improved)** | Two destinations are now supplied by their owning composition rather than inferred: `switchExpression` takes an explicit destination (`out/switchexpr-land/` - 4 hunks, byte-identical trees) and `blockExpression` no longer reads `currentReturnType` (`c8ae0054` - a block's value is its own result type). The destination-owner mechanism is still **not** enforced structurally (that work was ordered stopped) | seat 3 |
+| 2 | Legal generated output — zero diagnostics on the same candidate inputs | **FAIL (reason changed)** | The two `[#no-usage]` warnings that were the original ground are GONE - W1 is on the line and three independent sessions measured 0/0 on the fixture [MINE + 2 seats]. What fails now is one **build-phase** diagnostic: `swiftc -c` emits `will never be executed` at `Gap.swift:117` (W1's unreachable trailing return). Per the round-145 gate-owner ruling such a diagnostic **COUNTS** against `:78`/`:80`, so the fixture records it as an unwaived deviation and keeps zero diagnostics under `-c` as the stated goal (`tests/swift-gap-boundary/gap-boundary.test.ts`) | seat 1 or a gate-owner ruling on the `-c` criterion |
 | 3 | Preserved source behaviour (branches distinguishable, alias, lifetime, single evaluation, lazy effects, control exits) | **PARTIAL** | `dc-warn/out/p08-candidate-freeze/FREEZE.md` §5.3 [DOC]; branch discrimination was broken and is now repaired (`d1180768`); **lazy effects were never measured** (F3, recorded) | seat 4 |
 | 4 | Two independently recorded reviews | **FAIL** | behaviour review (`out/p08-behaviour-review/`) non-accepting; implementation review (`out/p08-implementation-review/`) **REJECT** with four open conditions | seat 6 |
 
-**P08 overall: NOT PASSED.** The candidate is REJECT; a post-review fix (W1) landed
+**P08 overall: NOT PASSED.** The candidate is REJECT. Its post-review repair is now complete and on the line - the integration ruling's option (b) was executed as `a14345ce` (revert the lambda half, keep W1) followed by `c8ae0054` (the corrected lambda as one atomic commit) - so the line no longer carries a known regression, and a re-freeze is the next step. What still blocks is the build-phase diagnostic above and the absence of a second independent acceptance on a frozen revision.
 on a **new, unfrozen** state, so it does not discharge the rejection.
 
 ## P09 — "Run the candidate's required Boring checks and Tiqian checks on fixed revisions…" (`work-plan:218`, unchecked)
@@ -72,7 +72,7 @@ version control, which is what P08 condition 1 and the re-freeze both need.
 
 | Row | Needs |
 |---|---|
-| P08-2 | W1 merged onto the candidate and the candidate re-frozen, then re-reviewed |
+| P08-2 | the `will never be executed` diagnostic cleared, or its `-c` criterion ruled on by the gate owner (board row t-muo92xms-s28t) |
 | P08-4 | a second, independent acceptance on the **same** frozen revision |
 | P09-1 | a Boring-side revision decision by the gate owner |
 | P09-5 | **DONE** (`695940e8` collects; `40e94772` records the enumeration) |
