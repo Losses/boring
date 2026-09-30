@@ -89,4 +89,8 @@ test("small array initializer mutation rules retain all three diagnostics", asyn
     "",
   ].join("\n"));
   expect(rootError).toContain("static field initializers accept null, literal, array, and construction forms only");
-});
+  // Three sequential haxe macro-compiler runs measured at 73.7 s total
+  // (baseline machine, quiet window); 150_000 keeps ≥2× margin. The explicit
+  // timeout raises only the harness patience for those subprocesses, never
+  // the asserted behavior.
+}, 150_000);
