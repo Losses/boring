@@ -1,0 +1,14 @@
+# Rust generation of the try-tail-min minimal fixture.
+# The runner passes -D rust-output=... on the command line.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/try-tail-min
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/try-tail-min'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+trytailmin.MinOracle

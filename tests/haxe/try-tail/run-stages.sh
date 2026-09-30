@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# Stage runner for the try-tail fixture (D observation, task t-mum2ad8j-wgf4).
+# Usage: EV=<evidence dir> bash tests/haxe/try-tail/run-stages.sh <target...>
+# Each stage records argv, separated streams, and exit status under
+# $EV/stages/<stage>/. Not-reached stages are recorded with the producer
+# status that blocked them. Run inside the pinned nix develop environment.
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# Worktree-root resolution: explicit override wins; otherwise derive from the
+# script location (fixture sits at <root>/tests/haxe/try-tail/). The derived
+# value is validated against worktree markers so a copy placed under a
+# different layout fails loudly instead of silently cd-ing into the wrong
+# tree (task t-mun75tk1-h36w).
+ROOT="${FIXTURE_WORKTREE_ROOT:-$(cd "$HERE/../../.." && pwd)}"
+if [ ! -f "$ROOT/flake.nix" ] || [ ! -f "$ROOT/tests/haxe/try-tail/expected.txt" ]; then
+	printf 'run-stages: worktree root misresolved: %s\n' "$ROOT" >&2
+	printf 'run-stages: set FIXTURE_WORKTREE_ROOT=<worktree root> explicitly\n' >&2
+	exit 2
+fi
+EV="${EV:?EV must point at the evidence directory}"
+cd "$ROOT"
+STAGES="$EV/stages"
+mkdir -p "$STAGES"
+TAB="$(printf '\t')"
+
+record() {
+	printf '%s%s%s%s%s\n' "$1" "$TAB" "$TAB$2" "$TAB" "$3" >>"$EV/status.tsv"
+	printf '%s observed=%s\n' "$1" "$2"
+}
+
+stage() {
+	local name=$1 expected=$2
+	shift 2
+	local dir="$STAGES/$name"
+	mkdir -p "$dir"
+	{
+		printf 'cwd %s\nargv' "$ROOT"
+		printf ' %q' "$@"
+		printf '\n'
+	} >"$dir/argv"
+	"$@" >"$dir/stdout" 2>"$dir/stderr"
+	local observed=$?
+	printf '%s\n' "$observed" >"$dir/status"
+	record "$name" "$observed" "$expected"
+	return "$observed"
+}
+
+not_reached() {
+	local producer=$1 observed=$2
+	shift 2
+	for name in "$@"; do
+		record "$name" "producer-$producer-status-$observed" "not-reached"
+	done
+}
+
+# ---- swift toolchain resolution (same bwrap limitation as readonly-alias)
+SWIFTC_WRAPPER="$(command -v swiftc || true)"
+SWIFTC=""
+SWIFT_MODE=""
+if [ -n "$SWIFTC_WRAPPER" ] && timeout 60 "$SWIFTC_WRAPPER" --version >"$STAGES/swiftc-wrapper-probe.stdout" 2>"$STAGES/swiftc-wrapper-probe.stderr"; then
+	SWIFTC="$SWIFTC_WRAPPER"
+	SWIFT_MODE=wrapper
+else
+	SWIFTROOT="$(grep -o '/nix/store/[^"]*-swift-toolchain-[^"]*' "$SWIFTC_WRAPPER" 2>/dev/null | head -1 | sed 's#/usr/bin/swiftc$##' || true)"
+	FHSSCRIPT="$(grep -o '/nix/store/[^"]*-swift-[0-9.]*-fhs/bin/[a-z0-9.-]*' "$SWIFTC_WRAPPER" 2>/dev/null | head -1 || true)"
+	if [ -n "$SWIFTROOT" ] && [ -x "$SWIFTROOT/usr/bin/swiftc" ] && [ -n "$FHSSCRIPT" ] && [ -f "$FHSSCRIPT" ]; then
+		FHS_ROOTFS="$(grep -oE '/nix/store/[a-z0-9]+-swift-[0-9.]+-fhs-fhsenv-rootfs' "$FHSSCRIPT" | head -1 || true)"
+		if [ -n "$FHS_ROOTFS" ] && [ -d "$FHS_ROOTFS" ]; then
+			GLIBC_LIB="$(dirname "$(readlink -f "$FHS_ROOTFS/usr/lib64/Scrt1.o" 2>/dev/null || true)" 2>/dev/null || true)"
+			if [ -n "$GLIBC_LIB" ] && [ -f "$GLIBC_LIB/crtn.o" ]; then
+				GCCRT_DIR="$(gcc -print-libgcc-file-name 2>/dev/null | sed 's#/[^/]*$##' || true)"
+				[ -n "$GCCRT_DIR" ] && [ -f "$GCCRT_DIR/crtbeginS.o" ] || GCCRT_DIR=""
+				LIBGCCS_DIR="$(gcc -print-file-name=libgcc_s.so.1 2>/dev/null | sed 's#/[^/]*$##' || true)"
+				[ -n "$LIBGCCS_DIR" ] && [ -f "$LIBGCCS_DIR/libgcc_s.so.1" ] || LIBGCCS_DIR=""
+				if [ -n "$GCCRT_DIR" ] && [ -n "$LIBGCCS_DIR" ]; then
+					SWIFTC="$SWIFTROOT/usr/bin/swiftc"
+					SWIFT_MODE=raw
+				fi
+			fi
+		fi
+	fi
+fi
+if [ "$SWIFT_MODE" = "raw" ]; then
+	mkdir -p "$EV/swift-shim"
+	for f in Scrt1.o crti.o crtn.o; do ln -sf "$GLIBC_LIB/$f" "$EV/swift-shim/$f" 2>/dev/null || cp "$GLIBC_LIB/$f" "$EV/swift-shim/$f"; done
+	for f in crtbeginS.o crtendS.o; do ln -sf "$GCCRT_DIR/$f" "$EV/swift-shim/$f" 2>/dev/null || cp "$GCCRT_DIR/$f" "$EV/swift-shim/$f"; done
+fi
+printf 'mode %s\nswiftc %s\n' "$SWIFT_MODE" "${SWIFTC:-none}" >"$EV/swift-toolchain.txt"
+
+for target in "$@"; do
+	GEN="out/try-tail/gen/$target"
+	case "$target" in
+	ts)
+		stage bun-build-ts data bash -c "cd $GEN && cp $HERE/native/main.js try-tail-run.js && sha256sum try-tail-run.js >harness.sha256 && timeout 300 bun build try-tail-run.js --outfile=run-bundle.js"
+		[ $? != 0 ] && { not_reached bun-build-ts $? run-ts compare-ts; continue; }
+		stage run-ts zero bash -c "cd $GEN && timeout 120 bun run-bundle.js"
+		[ $? != 0 ] && { not_reached run-ts $? compare-ts; continue; }
+		;;
+	kotlin)
+		stage compile-kotlin data bash -c "cd $GEN && cp $HERE/native/Main.kt TryTailRun.kt && sha256sum TryTailRun.kt >harness.sha256 && timeout 1800 kotlinc TryTailRun.kt \$(find trytail runtime std -name '*.kt' -not -path '*runtime/test*') -include-runtime -d run.jar"
+		[ $? != 0 ] && { not_reached compile-kotlin $? run-kotlin compare-kotlin; continue; }
+		stage run-kotlin zero bash -c "timeout 300 java -cp $GEN/run.jar TryTailRunKt"
+		[ $? != 0 ] && { not_reached run-kotlin $? compare-kotlin; continue; }
+		;;
+	rust)
+		stage compile-rust data bash -c "cd $GEN && mkdir -p src && cp $HERE/native/harness.rs src/main.rs && sha256sum src/main.rs >harness.sha256 && timeout 1800 cargo build --offline"
+		[ $? != 0 ] && { not_reached compile-rust $? run-rust compare-rust; continue; }
+		stage run-rust zero bash -c "cd $GEN && timeout 120 ./target/debug/generated"
+		[ $? != 0 ] && { not_reached run-rust $? compare-rust; continue; }
+		;;
+	swift)
+		if [ -z "$SWIFTC" ]; then
+			record compile-swift swift-toolchain-unusable not-reached
+			not_reached compile-swift 1 run-swift compare-swift
+			continue
+		fi
+		# Compile-set construction (PIT-242 / TCN-71): glob over the ENTIRE
+		# generated tree, tree root included, so the runtime base-class file
+		# (Runtime.swift, emitted at the tree root whenever the tree names
+		# the runtime base class) is inside the compile set. The earlier
+		# formulation (find std trytail -name '*.swift') scanned only
+		# subdirectories and structurally excluded the tree root, which made
+		# pre and post patches indistinguishable: this leg then asserted
+		# "is Runtime.swift in argv", not "does the patch work". Package.swift
+		# is the SwiftPM manifest (not a source) and native-main.swift is the
+		# authored harness (passed explicitly below), so both stay out. The
+		# resolved set is expanded here, so each stage's argv archive carries
+		# the actual file list instead of an unevaluated glob. Assertion
+		# semantics are unchanged: gen -> compile -> run -> diff expected.txt.
+		AGEN="$ROOT/$GEN"
+		SWIFTS="$(find "$AGEN" -name '*.swift' ! -name native-main.swift ! -name Package.swift | sort | tr '\n' ' ')"
+		mkdir -p "$STAGES/compile-swift"
+		printf 'runtime-swift-present %s\n' "$([ -f "$AGEN/Runtime.swift" ] && echo yes || echo no)" >"$STAGES/compile-swift/tree-root.txt"
+		printf '%s\n' $SWIFTS >"$STAGES/compile-swift/sources.txt"
+		if [ "$SWIFT_MODE" = "raw" ]; then
+			stage compile-swift data bash -c "cd $GEN && cp $HERE/native/native-main.swift native-main.swift && sha256sum native-main.swift >harness.sha256 && cd $EV/swift-shim && LD_LIBRARY_PATH='$FHS_ROOTFS/usr/lib64:$FHS_ROOTFS/lib64:/usr/lib64:/usr/lib' timeout 1800 $SWIFTC -o $AGEN/run-bin $SWIFTS $AGEN/native-main.swift -Xcc -I$FHS_ROOTFS/usr/include -L$FHS_ROOTFS/usr/lib64 -L$GCCRT_DIR -L$LIBGCCS_DIR -L$GLIBC_LIB"
+		else
+			stage compile-swift data bash -c "cd $GEN && cp $HERE/native/native-main.swift native-main.swift && sha256sum native-main.swift >harness.sha256 && timeout 1800 $SWIFTC -o run-bin $SWIFTS native-main.swift"
+		fi
+		[ $? != 0 ] && { not_reached compile-swift $? run-swift compare-swift; continue; }
+		stage run-swift zero bash -c "cd $GEN && timeout 300 ./run-bin"
+		[ $? != 0 ] && { not_reached run-swift $? compare-swift; continue; }
+		;;
+	dart)
+		stage dart-pub-get zero bash -c "cd $GEN && timeout 300 dart pub get"
+		[ $? != 0 ] && { not_reached dart-pub-get $? dart-analyze run-dart compare-dart; continue; }
+		stage dart-analyze data bash -c "cd $GEN && timeout 600 dart analyze --format machine lib"
+		[ $? != 0 ] && record dart-analyze-note "analyzer-findings" "data: nonzero is analyzer findings, run still attempted"
+		stage run-dart zero bash -c "cd $GEN && cp $HERE/native/main.dart lib/trytail/zz_run.dart && sha256sum lib/trytail/zz_run.dart >harness.sha256 && timeout 600 dart run lib/trytail/zz_run.dart"
+		[ $? != 0 ] && { not_reached run-dart $? compare-dart; continue; }
+		;;
+	esac
+	# compare against authored expected lines
+	mkdir -p "$STAGES/compare-$target"
+	diff -u tests/haxe/try-tail/expected.txt "$STAGES/run-$target/stdout" >"$STAGES/compare-$target/stdout" 2>"$STAGES/compare-$target/stderr"
+	record "compare-$target" $? "0-identical-nonzero-differs"
+	done

@@ -1,0 +1,16 @@
+# Swift generation of the dedicated minimal probe fixture
+# (t-mun5d99p-op76). The runner passes -D swift-output=... and
+# -D swift-test-output=... on the command line.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp tests/haxe/swift-rt-probe
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/swift-rt-probe'])
+--macro swiftcompiler.Compiler.use()
+-D swift-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+probe.Probe
