@@ -2368,8 +2368,27 @@ class SwiftExpr {
         if (bodyStmts.length == 1) {
             switch (bodyStmts[0].expr) {
                 case TReturn(r) if (r != null):
-                    final tryKw = containsThrowingCall(r) ? "try " : "";
-                    return head + " " + tryKw + expr(r) + " }";
+                    // The fast path must apply the same destination handling
+                    // as the multi-statement path below: the lambda's own
+                    // contract is the destination, so a ReadOnlyArray return
+                    // (or an Int-into-Float widening) has to convert the
+                    // returned value too. A switch subject keeps the
+                    // multi-statement rendering, which routes through
+                    // switchReturn. (DestinationRequirementCarried)
+                    final isSwitchExpr = switch (stripWrap(r).expr) {
+                        case TSwitch(_, _, _): true;
+                        case _: false;
+                    };
+                    if (!isSwitchExpr) {
+                        var retText = expr(r);
+                        final readOnlyReturn = currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType);
+                        if (readOnlyReturn)
+                            retText = arrayBoundaryText(r, currentReturnType);
+                        if (isIntType(emittedType(r)) && currentReturnType != null && isFloatLeafType(currentReturnType))
+                            retText = intToFloatText(retText);
+                        final tryKw = containsThrowingCall(r) ? "try " : "";
+                        return head + " " + tryKw + retText + " }";
+                    }
                 case _:
             }
         }
