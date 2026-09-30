@@ -415,7 +415,13 @@ class TsDecl {
                 lines.push('${indent}}');
             case Lexicographic(child):
                 final index = "i" + depth;
-                lines.push('${indent}for (let ${index} = 0; ${index} < ${left}.length && ${index} < ${right}.length; ${index}++) {');
+                // The bound hoists into the init section next to the counter
+                // (feature 09 loop rule): the condition must evaluate as a
+                // local, so each length reads once here instead of once per
+                // iteration. The minimum of the two declared lengths is the
+                // same iteration count the per-iteration conjunction read.
+                final bound = "n" + depth;
+                lines.push('${indent}for (let ${index} = 0, ${bound} = ${left}.length < ${right}.length ? ${left}.length : ${right}.length; ${index} < ${bound}; ${index}++) {');
                 emitComparison(lines, helpers, child, '${left}[${index}]!', '${right}[${index}]!', name + "Element", depth + 1);
                 lines.push('${indent}}');
                 lines.push('${indent}if (${left}.length !== ${right}.length) return ${left}.length - ${right}.length;');
