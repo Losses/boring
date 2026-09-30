@@ -230,12 +230,10 @@ private func boringFsMakeDirs(_ path: String) throws {
 ';
 
     static final FS_READ_DIR = '
-private func boringFsReadDir(_ path: String) throws -> TiqianArray<String> {
+private func boringFsReadDir(_ path: String) throws -> [String] {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
-        // The Haxe readDir returns Array<String> (the class-backed
-        // TiqianArray), so the native list wraps at the host boundary.
-        return TiqianArray(try FileManager.default.contentsOfDirectory(atPath: path))
+        return try FileManager.default.contentsOfDirectory(atPath: path)
     } catch {
         throw BoringException(message: path + ": " + String(describing: error))
     }
