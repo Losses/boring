@@ -27,6 +27,22 @@ not scratch trees and not the superseded `dc-warn/out/p08-candidate-freeze/FREEZ
 
 **P08 overall: NOT PASSED.** The candidate is REJECT. Its post-review repair is now complete and on the line - the integration ruling's option (b) was executed as `a14345ce` (revert the lambda half, keep W1) followed by `c8ae0054` (the corrected lambda as one atomic commit) - so the line no longer carries a known regression, and a re-freeze is the next step. What still blocks is the build-phase diagnostic above and the absence of a second independent acceptance on a frozen revision.
 
+## Verification results recorded (2026-09-30, latest)
+
+| What was verified | Verdict | Where |
+|---|---|---|
+| **P08 review 1** on the frozen `c8ae0054` | **REJECT** - obligation 2 fails on exactly one build-phase diagnostic; four exact conditions | `dc-warn/out/p08-review-1/REPORT.md` |
+| **P08 review 2**, reached independently from a `git archive` export | **REJECT** - same single in-scope ground, not waived; it also confirmed the P08-1 correction is accurate and that **no remaining row credits `c8ae0054` with bytes it lacks** | `dc-warn/out/p08-review-2/REPORT.md` |
+| **Timeout-budget commits** (`9905949e`, `36e7540e`, `e8a4c3bb`, `4c292c64`) | **CONFIRMED** on five claims: margins 2.03-2.64x recomputed, no assertion touched, 8/8 cascades explained, changed tests pass, no other regression | `dc-warn/out/verify-timeouts/REPORT.md` |
+| **Tracked-fixture damage root cause** | **repaired and on the line** as `4cf3165d` (restore moved into a `finally`). **The failure-path proof is still owed**: interrupting the test and confirming the fixture survives has not been reproduced. | commit `4cf3165d` |
+
+**Two loose ends recorded rather than dropped:**
+
+1. A pre-existing **knife-edge** test - "two generations byte-identical artifacts" - carries an untouched 420 s budget that the recorded baseline already consumed to **98.8%** (414.8 s). It fails under contention in two different ways. It needs its own budget-or-determinism task; the timeout commits neither caused nor fixed it.
+2. One attribution typo in the timeout fix report (line 525 follows the extern-bindings timeout, not printed-record); the commit message and the report's own section 2 attribute it correctly.
+
+**Both reviews agree on the route out**: clear the unreachable trailing `return` so the `-c` diagnostic count reaches zero, then re-freeze. The alternative - a gate-owner ruling that build-phase diagnostics do not count - has already been ruled against.
+
 ## What changed since the previous ledger revision (2026-09-30, later)
 
 | Item | State |
