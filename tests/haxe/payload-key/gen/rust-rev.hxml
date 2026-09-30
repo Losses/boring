@@ -1,0 +1,17 @@
+# Rust generation of the payload-key-rev counterexample fixture (PIT-281,
+# task t-mune0a1j-vmt1): the declaration-order mirror of rust.hxml. The pkrev
+# probe swaps E1/E2 declaration order to prove the mirror signature ("whoever
+# is scanned last is usable") is gone after the fix. Same module/two-exception
+# shape; the runner passes -D rust-output=... on the command line.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/payload-key
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/payload-key'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+pkrev.PayloadKeyProbe
