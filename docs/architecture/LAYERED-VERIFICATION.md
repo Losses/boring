@@ -9,7 +9,7 @@
 |---|---|---|---|---|
 | **L1 生成** | 编译器未崩溃、产物齐全 | 生成进程退出码 + 文件清单 | `rc=0` 且预期文件存在 | **rc=0 不代表产物正确**：`:2609` 的 `fail()` 也会走到 rc=1，但"未触达崩溃"的输入 rc=0 而输出错 |
 | **L2 语法/类型** | 产物在目标语言里合法 | `swiftc -typecheck` / `tsc` / `rustc --emit=metadata` | 0 error | **`-typecheck` 不跑 SILGen**：剥离 `return` 的多语句闭包只报 warning、真实构建才失败。**此类形态必须用 `swiftc -c`** |
-| **L3 构建** | 产物可链接成可执行 | `swiftc -c` / `swiftc -o` | 0 error | 构建期诊断（`will never be executed`）**不在 `-typecheck` 里出现**，其是否计入验收**尚未裁定**（`t-muo92xms-s28t`） |
+| **L3 构建** | 产物可链接成可执行 | `swiftc -c` / `swiftc -o` | 0 error | 构建期诊断（`will never be executed`）**不在 `-typecheck` 里出现**。**已裁定：计入验收口径** —— 见 `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`（`1a486ebd`）；S1 已使其归零（1 → 0，按 `file:line:col: severity` 形状计数，`grep -c 'warning:'` 会因插入符行把 1 数成 2，PIT-336） |
 | **L4 行为** | 运行结果正确 | 与 oracle 逐行比对 | **逐字节相同** | oracle 本身错了就全错；且"同一输入下与 oracle 相同"**不覆盖** oracle 未表达的性质（惰性） |
 | **L5 判别** | 该检查**能**发现目标缺陷 | 对故意错误的后端运行 | 故意错误 ⇒ **FAIL** | 若无此层，L1–L4 全绿可能只说明**该性质未被观察** |
 
@@ -25,6 +25,38 @@
 
 **⇒ L5 的操作形态**：每个夹具必须配一个**故意错误的后端**（取错分支、返回错值、
 剥掉转换），并证明该夹具在它上面 FAIL。**只证明"正确后端通过"不算验证。**
+
+## 每个判据必须写明"在哪棵树上成立"（本会话新增，L0 前置）
+
+**规则**：任何声称"已修 / 已生效 / 已闭合"的判据，必须在**同一行**给出
+**commit 哈希**与 **`git merge-base --is-ancestor <commit> arch/agent-guided-governance` 的结果**。
+结果为否的，只能写成"分支态 / 工作树态"，**不得**写成已生效。
+
+**为什么这不是形式主义**：本会话实测到同一件东西在两棵树上给出**相反结论**——
+`tools/roots-guard/` 的硬化版（`1cafaa42`，+923 行）**已审已签**却**从来不是 base 的祖先**，
+于是 base 上跑的是弱版：删掉真实根 `boring.ArraySliceOps` 再补一条 reason 为 `"because"`
+的豁免，弱版 **rc=0 PASS（4 exemptions）**、硬化版 **rc=1** 并逐字点名。
+即"已签核"与"已生效"是两件事；不写明树，一个**不存在的防护**会被记成存在。
+
+**三步核实法（签核或接手前必跑）**：
+1. `git rev-parse --verify <branch>` —— 该分支**存在吗**（本会话有若干行的 `branch` 字段指向**从未创建**的分支）
+2. `git merge-base --is-ancestor <commit> arch/agent-guided-governance` —— **进 base 了吗**
+3. **直接读共享树里的文件** —— base 里**到底是什么形态**（第 3 步不可省：本案前两步都过，第三步才发现是弱版）
+
+**合入后还要核落点**：`git rev-parse --abbrev-ref HEAD`（我现在在哪条线上）**与**第 2 步（它真在**声明的 base** 上吗）——
+本会话有一次四个 merge 全落在工作线上、而声明 base 未动，导致新开的 worktree 拿不到那些修复。
+
+## 交付面：承重件必须能回答"哪个 commit 里有它"
+
+**规则**：工具、护栏、夹具、驱动、断言脚本这类会被后人依赖的东西**必须入库**；
+证据可以只放报告。判据若依赖某文件，须同时给出**它在 clone 里可达**的依据
+（例如 `git ls-files --error-unmatch <path>` 通过、且 `git archive HEAD` 能取出）。
+
+**本会话两次实测**：① `dc-warn/worktrees/` 下 **37/37** 全是 detached HEAD、**全有未提交改动**、
+**无一带超出 `e1c65975` 的提交** —— "工作树里做完 + 报告在档"成了本批的实际交付约定；
+② 证据清单 `FILES.sha256` 混入 2 条 **git-ignored** 的 `dc-warn/out/...` 路径，
+使"一条命令 rc=0"**只对作者的工作副本成立**、对 clone 为假（PIT-346）。
+**修法**：清单可**分节标注可达性**（repo-verifiable / evidence-only），并在**只含已提交文件的干净导出树**里验。
 
 ## 每层的证据强度必须分开陈述
 
