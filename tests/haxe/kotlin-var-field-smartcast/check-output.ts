@@ -2,9 +2,12 @@
 //
 // Kotlin does not smart-cast a mutable property, so a read through a nullable
 // `var` must keep its force extraction even when a null guard proves the value
-// present; a `final` (val) property may smart-cast. Master commit 8214566d
-// added that distinction and no test in either tree pinned it, which is how a
-// merge silently dropped it and left the emitted Kotlin failing kotlinc.
+// present; a `final` (val) property may smart-cast. Commit 8214566d ("fix
+// (kotlin): keep force extraction on var-property null-narrowing") added that
+// distinction on the ci/collected-suite-failure-attribution lineage (it is not
+// on the arch/agent-guided-governance base), and no test in either tree pinned
+// it, which is how a merge silently dropped it and left the emitted Kotlin
+// failing kotlinc.
 // (VarFieldSmartCast)
 //
 // Run from the worktree root after kotlin-gen.hxml:
