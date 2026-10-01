@@ -1,0 +1,17 @@
+# Rust generation of the cross-module same-name growth fixture
+# (t-muoqr42y-5bu3). Two modules each declare a same-named EFault and a
+# same-named throwing class B; both entries are roots so both are compiled.
+# The runner passes -D rust-output=... on the command line.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/growth-cross
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/growth-cross'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+cma.CrossA
+cmb.CrossB
