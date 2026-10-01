@@ -112,6 +112,15 @@ warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture'
 | 这些 `run.sh` 不被任何 CI job 执行 | **成立**：`grep -c "run\.sh" .github/workflows/ci.yml` → **0，rc=1**；且已扩大到该 rev 的全部 tracked 文件（`git grep` 88 命中），逐条分类后**无一条是执行路径**（散文 / 哈希清单 / 字符串字面量 / 注释 / 守卫自身引用） |
 | `dc-promoted-eval` 在这 35 之内 | **成立** |
 | **「这 35 个夹具不被任何入口触及」** | **被推翻**：`tests/ts/package-shell.test.ts:388` 读取并执行 `tests/haxe/swift-package-shell-emit/emit.hxml`（该夹具属那 9 个纯 `.hxml` 成员）。**至少有一个成员是被收集路径真实触及的。** |
+| **「`dc-promoted-eval` 是唯一做『生成物突变 + negative control』的」** | **被推翻**：`git grep -lE 'sed -i' … 'tests/haxe/**/run.sh'` 命中 **3** 个，另两个是 `kotlin-comparison-consumer/run.sh:80-90` 与 `ts-comparison-collision/run.sh:46-57`，同为 `cp -r` 生成树副本 + `sed -i` 注入 + 断言变异被检出。全称断言（「唯一」）未给枚举即不成立 —— 见 TCN-180。 |
+
+**收口措辞（本节的结论句，按复核方的精确表述）**：
+
+> **29 个 `run.sh`（递归口径）无任何 CI 执行路径；35 个「无被收集测试」的夹具中 1 个
+> （`swift-package-shell-emit`）已由 collected-suite 执行。**
+
+不得写成「35 个 `run.sh` 夹具完全不被 CI 收集」——那混合了两种口径（见下表行 2、3
+与 TCN-180），并被上面两条反例推翻。
 
 **已复核**：`bun test tests/fixture-reachability.test.ts` → **2 pass**，常量
 `RECORDED_UNCOLLECTED = 35` 与独立枚举一致；且该常量的判据是**混合口径**
