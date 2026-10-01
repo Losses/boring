@@ -1,0 +1,21 @@
+# Generation input for the Kotlin TField smart-cast receiver-stability fixture
+# (PIT-388). The caller supplies -D kotlin-output=<dir>; this file is otherwise
+# the complete generation input.
+#
+# Run from the worktree root:
+#   haxe tests/haxe/kotlin-smartcast-tfield/kotlin.hxml -D kotlin-output=<dir>
+#
+# `-cp packages/compiler` names this tree's emitter explicitly. `-lib boring`
+# resolves through the workspace haxelib projection, which in this workspace
+# points into another worktree (PIT-376), and the fixture would then judge a
+# tree other than the one under test -- the failure mode looks exactly like
+# "the defect is gone".
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/kotlin-smartcast-tfield
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/kotlin-smartcast-tfield'])
+--macro kotlincompiler.Compiler.use()
+casee.CaseEOps
