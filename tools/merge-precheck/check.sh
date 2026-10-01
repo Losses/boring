@@ -37,7 +37,8 @@ while [ $# -ge 1 ]; do
   esac
 done
 
-REPO=$(git rev-parse --show-toplevel) || { echo "FAIL repo: not inside a git repository"; exit 1; }
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
+REPO=$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel) || { echo "FAIL repo: not inside a git repository"; exit 1; }
 
 BOARD=${TQ_BOARD_JSON:-}
 if [ -z "$BOARD" ]; then
