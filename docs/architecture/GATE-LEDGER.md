@@ -17,13 +17,13 @@ A row with neither is NOT ESTABLISHED.
 |---|---|---|---|---|
 | 1 | Correct fact-and-requirement handoffs; in-scope reconstruction removed | **PARTIAL**, and a correction is owed | `blockExpression` no longer reads `currentReturnType` (`c8ae0054` - a block's value is its own result type), and the lambda reseed is structurally enforced there. **CORRECTION owed to an independent review (`p08-review-1`): an earlier revision of this cell credited `switchExpression` with taking an explicit destination, and that change is NOT in the frozen `c8ae0054`** - the frozen signature is `switchExpression(sw:TypedExpr):String` (:5562) calling `switchReturn(sw, 1, false, sw.t)` (:5566), with `switchBindingLines` calling it without `v.t` (:5528). The explicit-destination form was committed later as `71a60c7d`, so it belongs to a **successor** candidate, not to this one. The destination-owner mechanism is still **not** enforced structurally (that work was ordered stopped) | seat 3 |
 | 2 | Legal generated output — zero diagnostics on the same candidate inputs | **FAIL (reason changed)** | The two `[#no-usage]` warnings that were the original ground are GONE - W1 is on the line as `d14aae11` and three independent sessions measured 0/0 on the fixture [MINE + 2 seats]. What fails now is one **build-phase** diagnostic: `swiftc -c` emits `will never be executed` at `Gap.swift:117` (W1's unreachable trailing return). Per the round-145 gate-owner ruling such a diagnostic **COUNTS** against `:78`/`:80`, so the fixture records it as an unwaived deviation and keeps zero diagnostics under `-c` as the stated goal (`tests/swift-gap-boundary/gap-boundary.test.ts`) | seat 1 or a gate-owner ruling on the `-c` criterion |
-| 3 | Preserved source behaviour (branches distinguishable, alias, lifetime, single evaluation, lazy effects, control exits) | **PARTIAL** | `dc-warn/out/p08-candidate-freeze/FREEZE.md` §5.3 [DOC]; branch discrimination was broken and is now repaired (`d1180768`); **lazy effects are now MEASURED** - `p08-review-1` built a side-effecting probe over four routes (switch / try / ternary / expression-block argument at a ReadOnlyArray destination) and got **7/7 byte-identical to `haxe --interp`**, each showing exactly one arm's effect and exactly one producer call; the P08 behaviour-matrix seat independently measured laziness on three axes at once (effect order, effect count, and **termination**: lazy terminates rc=0 where eager recurses to SIGSEGV rc=139). **F3** was the freeze cross-check's label for "lazy effects were never measured" - it was cited without a definition until now | seat 4 |
+| 3 | Preserved source behaviour (branches distinguishable, alias, lifetime, single evaluation, lazy effects, control exits) | **PARTIAL** | `docs/architecture/evidence/ledger-cited-reports/p08-candidate-freeze-REPORT.md` §5.3 [DOC]; branch discrimination was broken and is now repaired (`d1180768`); **lazy effects are now MEASURED** - `p08-review-1` built a side-effecting probe over four routes (switch / try / ternary / expression-block argument at a ReadOnlyArray destination) and got **7/7 byte-identical to `haxe --interp`**, each showing exactly one arm's effect and exactly one producer call; the P08 behaviour-matrix seat independently measured laziness on three axes at once (effect order, effect count, and **termination**: lazy terminates rc=0 where eager recurses to SIGSEGV rc=139). **F3** was the freeze cross-check's label for "lazy effects were never measured" - it was cited without a definition until now | seat 4 |
 | 4 | Two independently recorded reviews | **FAIL** | behaviour review (`out/p08-behaviour-review/`) non-accepting; implementation review (`out/p08-implementation-review/`) **REJECT** with four open conditions | seat 6 |
 
 **Re-freeze recorded** (`fc89d5d8`, `docs/architecture/REFREEZE.md`): the candidate
 identity is now **`c8ae0054`** (chain `a14345ce` -> `28820ff5` -> `c8ae0054`). This is an
 identity record, not an acceptance. Any subsequent P08 review must target that revision,
-not scratch trees and not the superseded `dc-warn/out/p08-candidate-freeze/FREEZE.md`.
+not scratch trees and not the superseded `docs/architecture/evidence/ledger-cited-reports/p08-candidate-freeze-REPORT.md`.
 
 **P08 overall: NOT PASSED.** The candidate is REJECT. Its post-review repair is now complete and on the line - the integration ruling's option (b) was executed as `a14345ce` (revert the lambda half, keep W1) followed by `c8ae0054` (the corrected lambda as one atomic commit) - so the line no longer carries a known regression, and a re-freeze is the next step. What still blocks is the build-phase diagnostic above and the absence of a second independent acceptance on a frozen revision.
 
@@ -36,8 +36,8 @@ recorded under the entry gate below (each line carries a hash or is marked
 
 | # | Condition | State |
 |---|---|---|
-| 1 | repeated generation from clean inputs yields identical bytes and checksums | **entry-gate evidence form satisfied (`2aadcb69`); all four requirements independently CONFIRMED by the R2.2 three-way check** (`audit-reports/r22-three-way-check-2026-10-01.md`). 5 clean-input generations, one unique hash, independently re-measured |
-| 2 | the `MathNaNTestSupport.{js,d.ts}` entries are stable; the byte-identity test passes repeatedly | **entry-gate evidence form satisfied (`2aadcb69`); all four requirements independently CONFIRMED by the R2.2 three-way check** (`audit-reports/r22-three-way-check-2026-10-01.md`). Entries stable at 405/absent across 10 real-fixture generations; the test passes on repeated runs. **Citation note: at `2aadcb69` the comparison is at `:338`** (`:351` in the parent; `:333` names the declaration there) - documentation drift, content unchanged |
+| 1 | repeated generation from clean inputs yields identical bytes and checksums | **entry-gate evidence form satisfied (`2aadcb69`); all four requirements independently CONFIRMED by the R2.2 three-way check** (`evidence/condition-1-2-generation/r22-three-way-check-REPORT.md`). 5 clean-input generations, one unique hash, independently re-measured |
+| 2 | the `MathNaNTestSupport.{js,d.ts}` entries are stable; the byte-identity test passes repeatedly | **entry-gate evidence form satisfied (`2aadcb69`); all four requirements independently CONFIRMED by the R2.2 three-way check** (`evidence/condition-1-2-generation/r22-three-way-check-REPORT.md`). Entries stable at 405/absent across 10 real-fixture generations; the test passes on repeated runs. **Citation note: at `2aadcb69` the comparison is at `:338`** (`:351` in the parent; `:333` names the declaration there) - documentation drift, content unchanged |
 | 3 | `collected-suite` no longer fails on the flake, and **its log distinguishes real product/spec failures from environment/timeout failures** | **EXERCISED (SYNTHETIC FLAKE-SHAPED INPUT; NO REAL FLAKE OBSERVED)** - the classification framework was exercised in both directions on a synthetic flake-shaped input (V1 flake=1 and no other class up; V2 same test id failing on its own exit-code assertion -> flake 0; V3 Buffer diff in an unrelated file -> flake 0; V4 residual 1 raised `::warning::` verbatim), with the plan pre-recorded, the step extracted verbatim from the committed blob, and the stale-log trap closed structurally. **No real flake was observed, and none is claimed** - the flake-catching behaviour remains exercised synthetically rather than in the wild. Evidence: `dc-warn/out/flake-synthetic/` (`00-PLAN.md` + `evidence/`, SYNTHETIC-labelled); commit `f1eb7498`. The real-rendering method and the inability to re-invoke bun 1.3.13 locally are stated in that report and are not softened here. The flake half is `cause removed` (`2aadcb69`) |
 | 4 | an independent spec ruling on `package-shell.test.ts:249` | **technical claims independently CONFIRMED (`eec707b9`); R2/R3 evidence package is in-repo (commit `1704c3db`); all four entry-gate requirements are now met** - R2/R3 by the committed package `docs/architecture/evidence/entry-gate-r2r3/` (commit `1704c3db`), independently re-derived; R4 by the executor's adjudication and the independent five-claim check, both now committed in-repo at `docs/architecture/evidence/condition-4-entry-gate/evidence/package-shell-adjudication-REPORT.md` and `docs/architecture/evidence/condition-4-entry-gate/evidence/verify-eec707b9-REPORT.md` (merge commit `84eff599`, byte-identical to `dc-warn/out/` scratch originals, SHA256SUMS 15/15 OK); the mechanical verdict and the four-requirement table are committed at `docs/architecture/evidence/condition-4-entry-gate/`. **The entry gate's evidence form is satisfied; condition 4 itself remains NOT SATISFIED per `MANAGEMENT-RULING-137.md:17-19`, and P08 remains PREPARABLE / NOT NOMINATE-ABLE (`:32-35`)** |
 
@@ -83,7 +83,7 @@ requirement 4 names are now committed in-repo: `docs/architecture/evidence/condi
 (7415 B), both committed by merge `84eff599`, byte-identical to their `dc-warn/out/`
 scratch originals, `SHA256SUMS.txt` re-computed and `sha256sum -c` 15/15 OK. The R2.2
 three-way independent check independently re-confirmed all four entry-gate requirements
-for both `eec707b9` and `2aadcb69` (`audit-reports/r22-three-way-check-2026-10-01.md`),
+for both `eec707b9` and `2aadcb69` (`evidence/condition-1-2-generation/r22-three-way-check-REPORT.md`),
 with `bun run gate:verify` returning PASS, 0 mismatches, RC=0 in both runs.
 `docs/architecture/evidence/entry-gate-r2r3/`
 (commit `1704c3db`, the separate evidence commit the round-128 ruling authorized, which
@@ -162,7 +162,7 @@ a machine reset was not exercised (same no-handler class), and bun 1.3.13 runnin
 
 The ruling required exactly one new piece of evidence before anything else could
 move: a real, exclusive, CI-shaped run with the two unmerged repairs applied. It
-exists now. Artifacts: `dc-warn/out/e2e-run/REPORT.md` and `evidence/`.
+exists now. Artifacts: `docs/architecture/evidence/ledger-cited-reports/e2e-run-REPORT.md` and `evidence/`.
 
 | What | Result |
 |---|---|
@@ -285,9 +285,9 @@ reviews again, with the independence requirements still met.
 
 | What was verified | Verdict | Where |
 |---|---|---|
-| **P08 review 1** on the frozen `c8ae0054` | **REJECT** - obligation 2 fails on exactly one build-phase diagnostic; four exact conditions | `dc-warn/out/p08-review-1/REPORT.md` |
-| **P08 review 2**, reached independently from a `git archive` export | **REJECT** - same single in-scope ground, not waived; it also confirmed the P08-1 correction is accurate and that **no remaining row credits `c8ae0054` with bytes it lacks** | `dc-warn/out/p08-review-2/REPORT.md` |
-| **Timeout-budget commits** (`9905949e`, `36e7540e`, `e8a4c3bb`, `4c292c64`) | **CONFIRMED** on five claims: margins 2.03-2.64x recomputed, no assertion touched, 8/8 cascades explained, changed tests pass, no other regression | `dc-warn/out/verify-timeouts/REPORT.md` |
+| **P08 review 1** on the frozen `c8ae0054` | **REJECT** - obligation 2 fails on exactly one build-phase diagnostic; four exact conditions | `docs/architecture/evidence/ledger-cited-reports/p08-review-1-REPORT.md` |
+| **P08 review 2**, reached independently from a `git archive` export | **REJECT** - same single in-scope ground, not waived; it also confirmed the P08-1 correction is accurate and that **no remaining row credits `c8ae0054` with bytes it lacks** | `docs/architecture/evidence/ledger-cited-reports/p08-review-2-REPORT.md` |
+| **Timeout-budget commits** (`9905949e`, `36e7540e`, `e8a4c3bb`, `4c292c64`) | **CONFIRMED** on five claims: margins 2.03-2.64x recomputed, no assertion touched, 8/8 cascades explained, changed tests pass, no other regression | `docs/architecture/evidence/ledger-cited-reports/verify-timeouts-REPORT.md` |
 | **Tracked-fixture damage root cause** | **repaired and on the line** as `4cf3165d` (restore moved into a `finally`). **The failure-path proof is still owed**: interrupting the test and confirming the fixture survives has not been reproduced. | commit `4cf3165d` |
 
 **Two loose ends recorded rather than dropped:**
@@ -565,7 +565,7 @@ wrong, and the feasibility report settles why.
 
 ### What actually blocks criterion 3 — a DECISION, not an environment limit
 
-Read from `dc-warn/out/p09-tiqian-feasibility/REPORT.md`, the blockers are:
+Read from `docs/architecture/evidence/ledger-cited-reports/p09-tiqian-feasibility-REPORT.md`, the blockers are:
 
 | Blocker | Kind | Evidence |
 |---|---|---|

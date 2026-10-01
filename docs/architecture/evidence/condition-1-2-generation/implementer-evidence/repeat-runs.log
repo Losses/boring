@@ -1,0 +1,5 @@
+Post-fix repeated runs of "two generations of the same inputs produce byte-identical artifacts":
+full file run: 11 pass / 0 fail (816.76s)
+repeat 1: 1 pass / 0 fail (416259.39ms)
+repeat 2: 1 pass / 0 fail (382107.38ms)
+fixture grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx = 5 before and after all runs
