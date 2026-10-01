@@ -115,7 +115,11 @@ else
         RELEVANT=1
       fi
       if [ "$RELEVANT" -eq 0 ] && [ -n "$TREE" ]; then
-        if FULL=$(git -C "$REPO" rev-parse --verify --quiet "$TREE^{commit}" 2>/dev/null); then
+        # The ruling may name the commit by the literal token the caller passed
+        # (e.g. a 7-char abbreviation like ccfe6869) or by its full sha.
+        if printf '%s' "$RULING_CONTENT" | grep -Fq -- "$TREE"; then
+          RELEVANT=1
+        elif FULL=$(git -C "$REPO" rev-parse --verify --quiet "$TREE^{commit}" 2>/dev/null); then
           if printf '%s' "$RULING_CONTENT" | grep -Fq -- "$FULL"; then
             RELEVANT=1
           else
