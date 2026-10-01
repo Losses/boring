@@ -1,0 +1,21 @@
+# rust generation of the resident-closure consumer fixture
+# (t-mum0mp8l-m0a6), variant b. Entry lists the runtime.* roots the examples hxml lists (positive control).
+# Run from the repository root; the runner records rc and raw log.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp tests/haxe/resident-consumer-closure
+--macro Intercept.run(['samples', 'tests/haxe/resident-consumer-closure'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/resident-consumer-closure/rust-b
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+Consumer
+runtime.UString
+runtime.GraphemeWalk
+runtime.Graphemes
+runtime.SortedTable
+runtime.TestCore
