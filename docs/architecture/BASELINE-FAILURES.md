@@ -272,6 +272,16 @@ will intermittently go red for a reason unrelated to any change under review.**
 Established as pre-existing by a failure at 13:17 in a run made before the
 timeout-budget commits. It needs its own determinism task.
 
+> **[RESOLVED — this entry is written in the present tense about a condition that
+> has since been cleared.]** As of the R2 measurement the entries are stable at
+> 405 bytes / `.d.ts` absent, and the byte-identity test passes on repeated runs,
+> independently re-measured by a second party. The tense above was never updated
+> because the entry records the *finding*, not its status; read it as a snapshot
+> from before the fix. R2 conditions 1 and 2 are tracked in `GATE-LEDGER.md`, and
+> the supporting reports now live in-repo at
+> `evidence/condition-1-2-generation/`. The paragraph is left as written rather
+> than edited, so the record shows what was found and when.
+
 ### Environment timeout under machine contention — 25 (corrected 2026-09-30; see below)
 
 All 25 remaining fails carry a literal `this test timed out after Nms` marker:
