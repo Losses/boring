@@ -26,6 +26,12 @@ cd "$(dirname "$0")/../../.." || exit 2
 ROOT="$(pwd)"
 OUT="$ROOT/out/rust-resident-dataclass/gen"
 
+# The haxe log is written under out/, so that directory must exist before the
+# redirect. Without this, a fresh checkout with no out/ makes the redirect
+# fail, haxe never runs, and the guard fails for the WRONG reason with an
+# unreadable log (observed during verification).
+mkdir -p "$ROOT/out"
+
 if ! command -v haxe >/dev/null 2>&1; then
     echo "haxe not on PATH: generation stage environment-not-reached"
     exit 0
