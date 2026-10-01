@@ -34,8 +34,8 @@ final verdict (exit 0 only if all three pass). Recovery plan section 3.4 item
    - Commands:
      `latest=$(git log -1 --format=%H -- 'docs/architecture/MANAGEMENT-RULING-*.md' docs/architecture/rulings/)`
      `mb=$(git merge-base <into> <branch>)`
-     `git merge-base --is-ancestor "$mb" "$latest"`
-   - Pass criterion: exit 0 (base is an ancestor of the latest ruling commit).
+     `git merge-base --is-ancestor "$latest" "$mb"`
+   - Pass criterion: exit 0 (the latest ruling commit is an ancestor of — or equal to — the branch base).
 
 3. **Signoff** (`PASS signoff:`) - the board row's `merges` field carries a
    non-empty `confirm`, produced only by `wb_merge` with `confirm=` after
@@ -56,8 +56,8 @@ the board carries a `confirm` (PIT-477: `wb_merge` with `confirm=` is the
 only signoff write path, and it has not been used on these branches), and
 almost every branch base predates the latest ruling. The PASS path is
 verified by creating a branch whose board row is `done` with a non-empty
-`confirm` and whose base is an ancestor of the latest ruling (i.e. it was
-cut or rebased after the ruling). Until the coordinator signs a row via
+`confirm` and whose base has the latest ruling as an ancestor (i.e. it was
+cut or rebased at or after the ruling). Until the coordinator signs a row via
 `wb_merge confirm=` (or a retro-signoff is ruled for the 17 historical
 merges), expect FAIL on every real row; a FAIL is the gate doing its job,
 not evidence that the gate is broken.
