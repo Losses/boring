@@ -1,0 +1,3 @@
+-cp tests/haxe/variable-bound-loop-eval
+-js /tmp/vble-oracle.js
+-main vble.Probe
