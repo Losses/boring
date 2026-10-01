@@ -271,9 +271,42 @@ Measured on the base branch:
 | `e1c65975` | `merge: integrate fix/rust-readonly-alias-emitter …` | ancestor of `0a5c42a7` |
 | `0a5c42a7` | `baseline` | 9 commits past `2159c657` |
 
-All three are **ancestors of the base branch**, and `boring-wt-architecture`'s base is now
-**124 commits past `0a5c42a7`**. The `/` separators in the old cell read as "or"; the source
-report wrote them as a **sequence that kept advancing** — "the ground has shifted again".
+All three are **ancestors of the base branch**, and its head is **124 commits past `0a5c42a7`**
+on the local ref (see the table below for the ref that matters).
+
+**Correction, second pass (2026-10-01).** An independent recheck refuted this section's first
+pass; the full measurement is in `evidence/layered-verification-review/P09-CRITERION1-RECHECK.md`.
+**The ancestry and the order above are confirmed. The inference the first pass drew from them is
+withdrawn, together with two figures.** Recorded here rather than quietly replaced, because the
+first pass's two errors are each a reusable trap:
+
+**1. "They are all ancestors, therefore it is not a choice" is a non sequitur.** Being three
+ancestors of one branch is *exactly* what makes them three **candidate pins**; the ancestor set of
+a branch has more than one element. Ancestry reduces the choice to **a position on a line** — it
+does not remove it.
+
+**2. The first pass quoted half a conjunction and rendered it as an opposition.** The sentence it
+cited — *"Boring side: STILL UNDECIDED, and the ground has shifted again"* — is verbatim accurate,
+but the report asserts **both** halves; the first pass turned the "and" into a "not". Three
+sentences from the same report, none of them quoted by the first pass, settle the reading:
+
+- §5 closing: *"Therefore: the pair is half-fixed. **The Boring side is the single open
+  decision**; without it no stage command may legitimately be run."*
+- §6 heading: *"**Decider's** minimum (everything cited exists on disk)"*
+- §6 item 1: *"**Decide the pair and write it down**: Tiqian `8504d230…` × Boring `2159c657` …
+  **or** `e1c65975` … **or** re-select at current HEAD"* — and per the same report's `:25`,
+  "current HEAD" **is** `0a5c42a7`, so this is the same three candidates.
+
+The pre-existing scope audit had **already** recorded the ancestry (*"`2159c657` **is** an
+ancestor of HEAD but is 8 commits behind"*, `dc-warn/out/p09-tiqian-scope/REPORT.md:136`) and
+still framed the side as open (*":286"* "*still an open decision*"; *":410"* "*Choose Boring side:
+`2159c657…` … **or** `e1c65975`*"). **Ancestry was never the reason the criterion was open** —
+which is the single most useful thing this recheck produced.
+
+**So the criterion IS blocked on a decision**, as the cell said before the first pass rewrote it.
+What survives from the first pass, stated at its true strength: the decision has a **stated
+preference with a reason** (item 3 below), and the ground has **measurably moved** (item 2).
+Neither removes the need to pick.
 
 **And there are two grounds, not one.** The same cell's own delivery rule (below, "reachable
 from a commit that is on a remote ref") means the pin has to name a **remote** ref, so the
@@ -286,36 +319,78 @@ distance that matters is not the local one:
 
 The local base is an **ancestor of the remote one** (remote is 43 commits further), so the
 two do not disagree — the remote is simply ahead, and a pin quoted against the local ref
-would understate the drift by 43 commits and would not be obtainable by a clone. This is the
-same defect the delivery-surface audit recorded, now attached to the very criterion that
-needs a pin.
+would understate the drift by 43 commits and would not be obtainable by a clone. **Under the
+delivery rule the operative figure is 167; "124" is true of a local ref but is incomplete and
+misleading as a headline.** This is the same defect the delivery-surface audit recorded, now
+attached to the very criterion that needs a pin.
 
-**2. So the real blocker is that the ground moves, not that nobody has chosen.**
-`out/p09-tiqian-feasibility/REPORT.md` §5 says it exactly: *"Boring side: STILL UNDECIDED,
-and the ground has shifted again."* Each time the pair was about to be recorded, the base had
-advanced again — 9 commits then, 124 on the local ref and 167 on the remote one now. A
-criterion phrased as "pick one of three" can
-never close on a branch that keeps moving, and that phrasing is what kept it open.
+**Dating caveat on the remote-tracking refs.** At recheck time
+`origin/arch/agent-guided-governance` and `origin/ci/collected-suite-failure-attribution` both
+resolved to the **same object** `372c42a6`, and the first-pass commits (`18d44ec1`, `696acd93`)
+are themselves **local-only** — no remote ref contains them. So the two remote names give no
+independent corroboration of each other right now. Separately, the `115` figure elsewhere in this
+ledger is **stale, not wrong-at-the-time**: `c9e2cff9` is now **131** behind the local base and
+the relationship has since **inverted**. Date it or drop it.
 
-**3. The report already states the discriminating criterion** — it is not a judgement call:
+**2. The ground has measurably moved — and one pair of numbers must never be quoted as a trend.**
+The drift is measured **from `2159c657`**, which is what both source reports do:
+`2159c657`→HEAD = **8** (scope audit `:136`) → **10** (feasibility `:25`); today the base is
+**124** past `0a5c42a7` locally and **167** on the remote.
+
+The first pass wrote *"9 commits then, 124 … now"*. **Those are unlike quantities:** 9 is the
+**fixed span between the three candidates** (`2159c657..0a5c42a7` — a property of the commit
+graph that cannot change), while 124/167 is the **drift of the base past `0a5c42a7`**. Putting
+them on one line made two measurements look like one time series. Quote 9 as the inter-candidate
+span, 124/167 as the drift, never as a trend.
+
+**3. The report states a preference, not a determination** — the first pass over-read this too:
 pinning `2159c657` *"would freeze a candidate that predates both Rust fixes **and** the
 additional `0a5c42a7` compiler work. That contradicts the evident intent of 'baseline'."*
 Choosing `e1c65975` instead requires the alternate staging snapshot and a full
-re-preparation whose per-file hashes were never verified. So the direction is determined by
-the evidence; what is missing is a **recorded, reproducible pin**, not a decision.
+re-preparation whose per-file hashes were never verified. **But this is a preference with a
+stated reason, not a determination.** The same report goes on to list choosing `e1c65975` and
+choosing `0a5c42a7` as live options, and closes item 1 of §6 by handing all three to a decider.
+The first pass's claim that the criterion is *"no longer blocked on a decision"* and *"not a
+question for the gate owner"* has **no sentence in the source supporting it and two opposing it**.
+What the report supports is: *there is a stated reason against pinning `2159c657`*. That is what
+is recorded here.
 
-**4. A separate divergence the summary dropped, which matters more than the pin.**
-The report's own headline finding: the Tiqian flake pins Boring lineage `304ed70c`, which is
-**not an ancestor of HEAD** (merge-base `378dfdbf`; `rev-list 304ed70c..HEAD` = **150**).
-The two halves of P09 are natively pinned to **different, divergent Boring lineages**. The
-runbook handles this **by procedure** (`HAXELIB_PATH` shadowing, verified resolving to the
-fixed snapshot) rather than by revision identity — which means a P09 run must never rely on
-the flake's default mapping. Any revision pair recorded for criterion 1 has to state that
-explicitly, or the pair is not self-describing.
+**4. The `304ed70c` divergence — the same remote-ref standard must apply here, and the first
+pass failed to apply it.**
+The report's headline finding is that the Tiqian flake pins Boring lineage `304ed70c`. The report
+records *"merge-base `378dfdbf`; `rev-list 304ed70c..HEAD` = 150"*. Every element of that
+parenthetical **reproduces exactly** when `HEAD` is read as `0a5c42a7` — which is the report's own
+reading, since `:25` names `0a5c42a7` "Boring coordinator HEAD". So the figure is neither
+fabricated nor irreproducible; it is anchored to a commit the report names, and the first pass
+dropped the anchor.
 
-**What this changes:** criterion 1 stays **FAIL** (no pair is recorded), but it is no longer
-blocked on a decision and no longer blocked on an environment limit. It is blocked on
-producing a pin — a concrete task with a stated direction, not a question for the gate owner.
+**But the first pass then stated the divergence in the present tense without applying the very
+standard it had just used for 124/167.** Measured against the refs that matter:
+
+| Ref | `304ed70c` an ancestor? | `rev-list <ref>..304ed70c` |
+|---|---|---|
+| `origin/arch/agent-guided-governance` (remote base) | **YES** | **0** |
+| `arch/agent-guided-governance` (local base) | no | 274 |
+| `0a5c42a7` (the report's HEAD) | no | 150 |
+| `ci/collected-suite-failure-attribution` | no | 349 |
+
+`git merge-base origin/arch/agent-guided-governance 304ed70c` returns **`304ed70c` itself**, i.e.
+that lineage is an **ancestor of the remote base** — the divergence has **already been closed by a
+merge**, and the convergence point falls inside the 43-commit window by which the local base lags
+the remote one.
+
+**So the present-tense claim "the two halves are natively pinned to divergent Boring lineages" is
+withdrawn**, and `150` must always carry its anchor (`0a5c42a7`) — never a bare "HEAD". What
+remains true and still matters for a P09 run: the runbook handles the flake mapping **by
+procedure** (`HAXELIB_PATH` shadowing, verified resolving to the fixed snapshot) rather than by
+revision identity, so **a run must never rely on the flake's default mapping**. Any revision pair
+recorded for criterion 1 has to state that explicitly, or the pair is not self-describing.
+
+**What this changes:** criterion 1 stays **FAIL** (no pair is recorded). It **is** blocked on a
+**decision** — the source report calls the Boring side "the single open decision" and hands three
+options to a decider — and it is **not** blocked on an environment limit. What the recheck adds is
+that the decision has a stated preference with a reason (item 3) and that the ground has
+measurably moved (item 2); it does **not** remove the need to pick.
 
 **Checkout presence, established 2026-10-01 (adds a fact; changes no verdict).**
 A search for the Tiqian tree failed once and was reported as "no consumer exists".
