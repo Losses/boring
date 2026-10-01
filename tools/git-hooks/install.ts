@@ -12,10 +12,28 @@ import { chmodSync, renameSync } from "node:fs";
 import { resolve } from "node:path";
 
 // pre-merge-commit is the section 3.4 item 1 enforcement point: it runs the
-// pre-merge three-check gate before a mainline merge. pre-push is deliberately
-// absent: a pre-push hook would query the gate about the mainline itself and
-// refuse every ordinary mainline push (see tools/git-hooks/pre-merge-commit).
-const HOOK_NAMES: ReadonlyArray<string> = ["pre-commit", "commit-msg", "pre-merge-commit"];
+// pre-merge three-check gate before a mainline merge.
+//
+// pre-push closes the fast-forward hole in that same gate. A fast-forward merge
+// creates no merge commit, so pre-merge-commit never fires; by push time the
+// candidate is already on the mainline. pre-push refuses that advance and
+// directs the operator to --no-ff, which does trigger the gate. It reaches that
+// verdict from the reflog's Fast-forward marker and from a cross-branch direct
+// push, so a routine --no-ff merge and its push (reflog reads "Merge made by
+// the 'ort' strategy") pass through untouched.
+//
+// An earlier revision of this installer left pre-push out, on the belief that
+// any pre-push hook must consult the pre-merge gate about the mainline itself
+// and would therefore refuse every ordinary push. That was measured and is
+// false: this hook does not query the gate for ordinary pushes. The remaining
+// bypasses it does NOT cover are listed in tools/git-hooks/pre-push and in
+// audit-reports/d2-ff-bypass-2026-10-01.md.
+const HOOK_NAMES: ReadonlyArray<string> = [
+  "pre-commit",
+  "commit-msg",
+  "pre-merge-commit",
+  "pre-push",
+];
 
 async function main(): Promise<number> {
   const repoRoot = resolve(import.meta.dir, "..", "..");
