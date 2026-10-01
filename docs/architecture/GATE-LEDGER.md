@@ -302,6 +302,30 @@ version control, which is what P08 condition 1 and the re-freeze both need.
 
 ## Delivery integrity — measured, not assumed (2026-09-30, coordinator)
 
+### Correction (same day, after an independent reachability audit)
+
+The rule below said "reachable from a commit". An independent audit showed that is **not
+enough**, and that this session's own deliveries fail the stronger test. Measured:
+
+    git ls-remote --heads origin                    10 heads, none matching ci/* or audit/*
+    branch -r --contains <this session's commits>   empty, for all five sampled
+    origin/arch/agent-guided-governance             c9e2cff9, 115 commits behind local
+
+So every "merged into base" in this session means **merged into a local branch only**. A
+fresh clone gets neither the base branch nor any of the work. The rule is therefore:
+reachable from a commit **that is on a remote ref**. Run all three - `ls-remote --heads
+origin <branch>` non-empty, `branch -r --contains HEAD` non-empty, and record
+`rev-list --count origin/<branch>..<branch>` - and if any fails, the claim is "local only",
+not "delivered".
+
+Two companion gaps the same audit measured: the `dc-warn` ignore rule lives in the LOCAL
+`.git/info/exclude:7`, so a clone does not even carry the reason those paths are
+unreachable; and of 43 `*.sha256` manifests, only 5 verify with `rc=0` from the repo root -
+several of the rest record bytes that exist in **no commit at all**, yet match an
+uncommitted worktree copy byte for byte.
+
+### The original measurement
+
 A gate decision may only rest on work that is reachable from a commit. I measured the
 delivery surface rather than trusting the board's fields:
 
