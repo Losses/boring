@@ -1,0 +1,19 @@
+# Swift generation of the alias-transfer-boundary fixture.
+# The runner passes -D swift-output=... and -D swift-test-output=... on
+# the command line. No -main: the native harness is an authored
+# @main entry (native/native-main.swift) compiled alongside the emitted
+# Runtime.swift, mirroring tests/haxe/view-lifetime.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp tests/haxe/alias-transfer-boundary
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/alias-transfer-boundary'])
+--macro swiftcompiler.Compiler.use()
+-D swift-test-runner=native
+-D swift-test-import=ContainerAliasOracle
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+atb.ContainerAliasOracle
