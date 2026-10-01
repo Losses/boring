@@ -1,0 +1,17 @@
+# dart generation of the resident-closure consumer fixture
+# (t-mum0mp8l-m0a6), variant a. Entry lists NO runtime.* root: the closure under test.
+# Run from the repository root; the runner records rc and raw log.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp samples
+-cp tests/haxe/resident-consumer-closure
+--macro Intercept.run(['samples', 'tests/haxe/resident-consumer-closure'])
+--macro dartcompiler.Compiler.use()
+-D dart-output=out/resident-consumer-closure/dart-a
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D dart-test-output=out/resident-consumer-closure/dart-a-checks
+Consumer
