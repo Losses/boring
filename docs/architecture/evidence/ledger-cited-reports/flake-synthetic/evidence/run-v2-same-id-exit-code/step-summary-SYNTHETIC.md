@@ -1,0 +1,73 @@
+## Collected suite - contract 3 count
+
+Standard: `docs/specs/style/02-translator-implementation-standard.md:80` counts the
+warning lines naming files under the generated trees and requires the count to be zero.
+
+```
+ 1034 pass
+ 1 fail
+Ran 1035 tests across 304 files. [2344.66s]
+```
+
+Collected domain (top-level directories - the count means nothing without it):
+
+```
+    249 reference/ts
+     50 tests/ts
+      1 tests/swift-readonly-boundary
+      1 tests/swift-gap-boundary
+      1 tests/dart
+      1 tests/bundle-child-evidence
+      1 packages/registry
+```
+
+Warning lines naming files under the generated trees
+(`reference/*/gen` and `reference/*/gen-tests` - the count means nothing without the domain):
+
+Generated-tree warning line count: **0**
+
+Baseline reconciliation: the inherited baseline
+(`docs/architecture/BASELINE-FAILURES.md`) recorded 1001 pass / 32 fail / 8 errors and **no
+warning count**. That gap is now closed by measurement, not by invention: the retained raw
+log of the recorded proof run (revision `695940e8`,
+`dc-warn/out/ci-wire/evidence/recorded-baseline-proof-run.log`) contains
+**0** warning lines naming files under the generated trees,
+and that measured number is the gate baseline recorded in
+`docs/architecture/BASELINE-FAILURES.md`. The standard
+(`02-translator-implementation-standard.md:80`) independently requires the count to be
+zero; this step fails on any deviation from the baseline. Exceeding it is an acceptance
+failure; a new baseline number must be measured and recorded, never assumed.
+
+Baseline: `docs/architecture/BASELINE-FAILURES.md` (recorded per
+`docs/architecture-work-plan.md:417`; a baseline finding does not waive the standard).
+## Failure attribution (why this run is red)
+
+Source: the 'N tests failed:' recap (bun's authoritative, deduplicated list).
+A failure is one `(fail)` line; the summary line ` N fail` is the total this must add up to.
+
+| class | count | what it means |
+|---|---:|---|
+| real assertion failure | 1 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+Attribution is not waiver: every class above is still a failing test and this job is still red on
+any of them. Nothing here converts a failure into a pass, and no gate below is relaxed.
+
+**Real assertion failures** - 1 (sample, bounded at 5):
+
+```
+package artifact emission > two generations of the same inputs produce byte-identical artifacts
+```
+
+Reconciliation: 1 failed test(s) attributed against the summary line's
+`1 fail`; residual 0. A non-zero residual means the log's
+failure text is not fully classified by these rules - say so, never round it away.
+
+Limits of these rules, recorded openly: the timeout class needs the literal
+`this test timed out after Nms` marker, so a test the runner kills without that marker
+counts as an `assertion`; the cascade rule needs the file-scope association bun does not
+print itself; and a cascade in a file with no timeout is deliberately left unattributed.
+Classifying a log is not running the suite - these counts describe this log only.
