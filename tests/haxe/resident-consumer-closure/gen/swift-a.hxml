@@ -1,0 +1,17 @@
+# swift generation of the resident-closure consumer fixture
+# (t-mum0mp8l-m0a6), variant a. Entry lists NO runtime.* root: the closure under test.
+# Run from the repository root; the runner records rc and raw log.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/haxe/resident-consumer-closure
+--macro Intercept.run(['samples', 'tests/haxe/resident-consumer-closure'])
+--macro swiftcompiler.Compiler.use()
+-D swift-output=out/resident-consumer-closure/swift-a
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none
+Consumer
