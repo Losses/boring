@@ -165,6 +165,29 @@ lambda：19 驱动、diff 为空）。
 要真正判定自足，需要一个"只被 `requireType` 触及、而其导入方不触发
 extern 点亮"的用例；在那之前此项记为**未决**，不得写成"已验证自足"。
 
+**上文结论已被推翻（更正，独立复现）**：上面那张"整树零差异"的表是**真的，
+但它对判断该写点是否必要几乎无信息量**——闸门是对**同一个共享 `shimsUsed`
+映射求全局并集**，全量语料里任何一处显式点亮都会让所有 resident 照常发射，
+于是写点的缺席被语料本身掩盖。**不能拿全量语料的字节一致当作"惰性"的证据。**
+
+最小反例（写点禁用，只留单一根 `boring.DataClassStringCompare`，
+即 `19ae7db6` 与该写点一起加入的那个样本）：
+
+| 观测 | 写点在 | 写点禁用 |
+|---|---|---|
+| 生成 rc | 0 | 0 |
+| `runtime/mod.rs` | 9 条 `pub mod`，含 `sorted_table` | **5 条，`sorted_table` 消失** |
+| `boring/data_class_string_compare.rs` | 正常 | 仍 `use crate::runtime::sorted_table::SortedTable;`（:1）、:26 仍调用 |
+| `cargo check` | **rc=0** | **rc=101，`error[E0432]: unresolved import`** |
+
+⇒ 该写点是**承重的（load-bearing），不是冗余**，**不得删除**。契约 6 因此有
+一条强得多的落地判据：**判断"某写点是否必要"必须在最小根集上做消融，
+不能在全量语料上做**——全量语料的通过态会掩盖单点缺陷，与 G 类
+"不一致在通过态下不可见"是同一现象。路径：`RustDecl.hx:557` /
+`RustType.hx:196-207` 的 `requireType("runtime.SortedTable", …)` 只点亮
+`std.SortedMap` 一族，而全量语料里这些键另由 `RustImports.hx:61` 经
+`RustType.hx:197/200/203/206` 点亮。
+
 **本条规则的适用边界（补记，实测自 `9081d0d0` 的复核）**：契约 6 要求判据派生自
 事实，但**"派生出来的字段"不等于"可以互相代证"**。同一份记录里，
 `stdoutAvailable` 派生自宿主 outcome 的流对象是否存在（`ChildEvidence.hx:439`），
