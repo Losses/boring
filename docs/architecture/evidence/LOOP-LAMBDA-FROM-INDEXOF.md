@@ -1,9 +1,60 @@
 # Loop-structure violations in generated output
 
-**Status: RESOLVED.** Three causes fixed in the emitters; the fourth was a
-structural constraint and is handled by a scoped, reasoned exemption in the rule.
+**Status: the Rust and TS causes are RESOLVED.** Three causes fixed in those
+emitters; the fourth was a structural constraint and is handled by a scoped,
+reasoned exemption in the rule. **Separately, the rule itself covers only two of
+five generated trees, and the three it does not cover carry ~2118 known
+violations** — see "Coverage" below. Those are not fixed here.
+
 Discovered while re-establishing ground truth after a run of unreliable session
 reports (see "Provenance" below).
+
+## Coverage: the rule watches two trees, three more are generated
+
+`tests/ts/loop-structure.test.ts` scans **`reference/ts/src`, `reference/ts/gen`,
+`samples`, `reference/rust/src`, `reference/rust/gen`**. The **Kotlin, Swift and
+Dart generated trees are not scanned at all**, and all three are present on disk.
+
+A hand-check suggested those trees were clean. **It was wrong, and the way it was
+wrong is the point.** It asked only about the `indexOf` cause — the one this
+document opened with — while the rule covers three things: closures in loops,
+**iterating heads**, and **unhoisted loop bounds**. Checking one cause and
+concluding "clean" answered a narrower question than the rule asks.
+
+### What widening the guard actually found
+
+`SOURCE_TREES` was widened to the three trees and the guard re-run. It reported:
+
+| Tree | Violations |
+|---|---|
+| `reference/kotlin/gen` | **1052** |
+| `reference/dart/gen` | **1034** |
+| `reference/swift/gen` | **32** |
+
+Overwhelmingly `for-head` — `for (value in values)`, `for (var i = 0; i < a.length; i++)`
+(the bound not hoisted), plus `call-site` hits such as `.map(`, and a few real
+`loop-lambda`s (e.g. `dart/gen/lib/boring/number_parsing_ops.dart`,
+`kotlin/gen/boring/PrintedCollection.kt`).
+
+**The widening was reverted**, and this is a deliberate decision recorded rather
+than a silent one. Enforcing the rule on those trees would require fixing three
+emitters across ~2000 sites — a change far beyond what one round can verify, and
+exactly the kind of unverified bulk edit this programme's discipline exists to
+prevent. A guard that is red on 2118 pre-existing findings is not a guard; it is
+a permanent red that trains people to ignore it.
+
+**So the honest state is:**
+
+- the rule's **actual coverage** is TS and Rust, and the other three trees are
+  **unguarded with known, counted violations**;
+- the violation counts above are the measurement to start from, not an estimate;
+- fixing them is a **separate, much larger task** — and it should be done one
+  cause at a time (heads first, since that is the bulk), not in one sweep.
+
+Recorded because the first version of this section asserted the trees were clean.
+They are not, and the error came from checking a narrower question than the rule
+asks — the same shape as a guard whose observation domain is smaller than the
+property it claims to protect.
 
 ## Outcome
 
