@@ -34,7 +34,7 @@ cd "$ROOT" || exit 2
 # --- Pinned toolchain paths ----------------------------------------------------
 # Found and version-checked by the identity stages; the search evidence (which
 # <tool>, ls /nix/store | grep -i <tool>) is recorded in REPORT.md.
-TQ_ROOT="$(cd "$ROOT/.." && pwd)"
+TQ_ROOT="$(cd "$ROOT/../../.." && pwd)"
 HAXE_BIN=/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin
 RUST_BIN=/nix/store/agfrkw7lvckq29w4dp0i3jfrhxjmgv3q-rust-default-1.98.0/bin
 NODE_BIN=/nix/store/vd788darzi6n1k2zrj5x3kqgg03kbz93-nodejs-official-22.23.3/bin
@@ -198,8 +198,6 @@ INPUT_ROOTS=(
 	"$ROOT/packages/compiler"
 	"$ROOT/samples"
 	/nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source/src
-	"$TQ_ROOT/boring-wt-growthkeyfix/packages/compiler"
-	"$TQ_ROOT/boring-wt-growthkeyfix/defines.json"
 	"$TQ_ROOT/.haxelib/format/3,8,0"
 )
 : >"$INPUT_MANIFEST"
