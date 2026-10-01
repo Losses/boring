@@ -41,7 +41,7 @@ class RustEmissionState {
             return null;
         if (fnError.name == memberName)
             return null;
-        return fnError.name;
+        return identityKey(fnError.module, fnError.name);
     }
 
     /** The module component of an identityKey-constructed key. */
@@ -262,8 +262,8 @@ class RustEmissionState {
         return variant;
     }
 
-    public function enumGrowthFor(enumName:String):Null<Array<{calleePath:String, calleeName:String, variant:String}>> {
-        return enumGrowth.get(enumName);
+    public function enumGrowthFor(enumName:String, module:Null<String> = null):Null<Array<{calleePath:String, calleeName:String, variant:String}>> {
+        return module == null ? null : enumGrowth.get(identityKey(module, enumName));
     }
 
     public final recordCloneTypes:Map<String, Bool> = [];
