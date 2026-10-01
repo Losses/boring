@@ -5310,14 +5310,13 @@ class KotlinExpr {
         // argument whose type renders without `?` is already non-nullable
         // at this boundary. (NonNullArgumentExtraction)
 
-        // Only a val-like local smart-casts in Kotlin: a mutable property
-        // or a reassigned binding keeps its extraction even when the
-        // program's control flow proves the value present.
+        // Only a val-like local and a final property smart-cast in Kotlin: a
+        // mutable property or a reassigned binding keeps its extraction even
+        // when the program's control flow proves the value present. Asking the
+        // same predicate the read path asks keeps one source for this
+        // judgement instead of a second, narrower copy of it here.
         // (NonNullArgumentExtraction)
-        final smartCastable = switch (stripWrap(e).expr) {
-            case TLocal(v): !bodyWritesLocal(v.id);
-            case _: false;
-        };
+        final smartCastable = smartCastableSubject(e);
         final proven = valueProvenNonNull(e) || valueProven(e);
         if (smartCastable && proven)
             return false;
