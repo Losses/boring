@@ -260,11 +260,15 @@ reviews again, with the independence requirements still met.
 
 | # | Criterion | Verdict | Evidence | Blocked by |
 |---|---|---|---|---|
-| 1 | Review failures classified | **PASS (drafted)** | `out/p10-reflection/ACCEPTANCE-REFLECTION.md` — four kinds × owner (candidate fault / pre-existing repo state / missing documentation) [DOC] | — |
-| 2 | Appropriate documents revised | **PARTIAL** | record corrections landed in the working copy; **the frozen record revision is now 452 lines**, and two reviews' citations were re-anchored (`out/reanchor-v2/`) | seat 5 |
-| 3 | Acceptance and reflection record published | **PARTIAL** | drafted and complete, **but lives in scratch `dc-warn/out/`, not in the repository** | seat 5 |
+| 1 | Review failures classified | **PASS (drafted)** | `docs/architecture/ACCEPTANCE-REFLECTION.md` §2 — four kinds × owner (candidate fault / pre-existing repo state / missing documentation) [DOC; published in-repo by `ec4c5c2d`] | — |
+| 2 | Appropriate documents revised | **PARTIAL** | record corrections landed, and the surviving record is now the published in-repo revision (`docs/architecture/ACCEPTANCE-REFLECTION.md`, 368 lines, commit `ec4c5c2d`); two reviews' citations were re-anchored (`out/reanchor-v2/`) [DOC] | seat 5 |
+| 3 | Acceptance and reflection record published | **PARTIAL** | **superseded fact**: the record no longer lives only in scratch — it is published in the repository at `docs/architecture/ACCEPTANCE-REFLECTION.md` (commit `ec4c5c2d`, 2026-09-30, "docs(architecture): publish the acceptance and reflection record"). Verdict stays PARTIAL because the published record is still marked DRAFT for gate sign-off, and sign-off is the gate owner's verb, not the ledger's | gate owner |
 
-**P10 overall: NOT PASSED (draft exists; publication is the missing verb).**
+**P10 overall: NOT PASSED.** The publication verb is discharged in-repo (`ec4c5c2d`), which
+reconciles the ledger with the published fact; the conclusion is not changed — the work-plan
+checkbox stays unchecked (`work-plan:220`) pending gate-owner sign-off, and publishing a
+DRAFT record is not gate acceptance (the same rule as `plan:93-94`, "committing is not
+accepting", applied to publishing).
 
 ## P12 — "Publish the programme review, accepted revisions, evidence gaps, and next scheduled mechanisms. Close the goal only when its criteria hold." (`work-plan:225`, unchecked)
 
@@ -297,7 +301,7 @@ version control, which is what P08 condition 1 and the re-freeze both need.
 | P08-4 | a second, independent acceptance on the **same** frozen revision |
 | P09-1 | a Boring-side revision decision by the gate owner |
 | P09-5 | **DONE** (`695940e8` collects; `40e94772` records the enumeration) |
-| P10-3 | the record published into the repository |
+| P10-3 | **DONE** (`ec4c5c2d` publishes the record at `docs/architecture/ACCEPTANCE-REFLECTION.md`); the row's remaining half is the gate owner's sign-off of the published record |
 | P12-3/4 | the above |
 
 ## Delivery integrity — measured, not assumed (2026-09-30, coordinator)

@@ -7,6 +7,8 @@ read-only synthesis; nothing was re-run and nothing was modified to produce it.
 
 **Published here** because a management review found that a record living only in
 a scratch directory is not a publication, and the P10 verb is *publish*.
+Publication commit: `ec4c5c2d` (2026-09-30). This publication is the record only;
+it does not tick the `work-plan:220` checkbox or change any gate verdict.
 
 ---
 
