@@ -59,3 +59,8 @@ boring-*.stuck.md
 # default instead of having to remember this file.
 .*-mutation-*/
 .*-shapes-*/
+
+# dc-warn scratch tree on the dc-warn sshfs mount. Moved here verbatim from
+# .git/info/exclude line 7 on 2026-10-01 (recovery R5.6); the exclude copy is
+# removed only after this lands on the mainline.
+/dc-warn
