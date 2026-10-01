@@ -1863,7 +1863,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (StringTools.startsWith(RustImports.moduleToRustPath(item.module), "tests::")
                     || state.testModules.exists(item.module))
                     continue;
-                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(item.module) + "::" + item.name, item.name);
+                state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), "crate::" + RustImports.moduleToRustPath(item.module) + "::" + item.name, item.name);
             }
         }
 
@@ -1889,7 +1889,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
                     || state.testModules.exists(edgeEnum.module))
                     continue;
-                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
+                state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
             }
         }
 
@@ -2064,7 +2064,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
                     || state.testModules.exists(edgeEnum.module))
                     continue;
-                state.registerFaultConversion(pair.name, "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
+                state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
             }
         }
 
@@ -2603,15 +2603,15 @@ class Compiler extends PluginCompiler<Compiler> {
                 // the function's Result error enum differed
                 // (t-munebyud-bxbr).
                 final growthKey = absorbed.indexOf(payloadEnum.module) >= 0
-                    ? enumName
+                    ? RustEmissionState.identityKey(payloadEnum.module, enumName)
                     : RustEmissionState.throwGrowthKey(fnError, cls.name);
                 // A declared variant with the growth name already exists on
                 // the target enum: registering would define the same
                 // constructor twice (E0428). Compared by the name the
                 // declaration actually emits (toUpperCamelCase), matching
                 // the constructor rendering, not the raw Haxe name.
-                final targetName = growthKey != null && fnError != null && growthKey != enumName ? fnError.name : enumName;
-                final targetModule = growthKey != null && fnError != null && growthKey != enumName ? fnError.module : payloadEnum.module;
+                final targetName = growthKey != null && fnError != null && growthKey != RustEmissionState.identityKey(payloadEnum.module, enumName) ? fnError.name : enumName;
+                final targetModule = growthKey != null && fnError != null && growthKey != RustEmissionState.identityKey(payloadEnum.module, enumName) ? fnError.module : payloadEnum.module;
                 if (enumDeclaresVariant(targetModule, targetName, variant))
                     return;
                 if (growthKey == null)
