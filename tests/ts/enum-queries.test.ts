@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { availableTargets, installTargetTreeReport, targetTreeDir, targetTreeUnavailable } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const read = (file: string): string => fs.readFileSync(path.resolve(__dirname, file), "utf8");
 const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -28,7 +31,7 @@ describe("enum value queries generated trees", () => {
     expect(ops).toContain("for (width in widths)");
   });
 
-  test("Swift uses raw value cases, CaseIterable and element iteration", () => {
+  test.skipIf(targetTreeUnavailable("swift"))("Swift uses raw value cases, CaseIterable and element iteration", () => {
     const decl = read("../../reference/swift/gen/boring/FloatWidth.swift");
     const ops = read("../../reference/swift/gen/boring/EnumQueriesOps.swift");
     expect(decl).toContain("enum FloatWidth: String, CaseIterable, Equatable");
@@ -56,8 +59,10 @@ describe("enum value queries generated trees", () => {
   });
 
   test("no generated target retains a Type static call", () => {
-    const roots = ["../../reference/ts/gen", "../../reference/kotlin/gen", "../../reference/swift/gen", "../../reference/dart/gen", "../../reference/rust/gen"]
-      .map((root) => path.resolve(__dirname, root));
+    const roots = availableTargets(
+      ["ts", "kotlin", "swift", "dart", "rust"],
+      "enum-queries: no generated target retains a Type static call",
+    ).map((target) => targetTreeDir(target));
     for (const file of roots.flatMap(walk)) {
       if (!/\.(ts|kt|swift|dart|rs)$/.test(file)) continue;
       expect(fs.readFileSync(file, "utf8")).not.toMatch(/\bType\.(allEnums|enumConstructor|createEnum)\s*\(/);
