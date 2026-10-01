@@ -91,6 +91,10 @@ const EXCLUDED_PARTS: ReadonlySet<string> = new Set([
   "out",
   "target",
 ]);
+const TARGET_EXTENSIONS: ReadonlySet<string> = new Set([
+  MARKDOWN_EXTENSION,
+  ...SOURCE_EXTENSIONS,
+]);
 
 function commentSyntax(extension: string): CommentSyntax | undefined {
   if ([".hx", ".ts", ".rs", ".kt", ".swift", ".dart"].includes(extension)) {
@@ -610,6 +614,47 @@ async function scanPathTargets(cwd: string): Promise<string[]> {
   return entries;
 }
 
+// The default no-argument scan must measure only the repository's own tree, so
+// that a gitignored worktree parked under dc-warn/ does not inflate the count.
+// Bun.Glob walks the filesystem and does not honour .gitignore, so enumerate
+// the tracked and untracked-but-not-ignored files through git instead. This is
+// the most reliable enumeration: it respects .gitignore, .git/info/exclude and
+// core.excludesFile, and includes new working-tree files that are not yet
+// staged. It misses nothing that git itself would consider part of the tree,
+// but it cannot see files that git is configured to ignore, nor files under a
+// worktree that is itself a separate checkout. Explicit path arguments still
+// use the Glob walk above, so a caller can name dc-warn/... and have it read.
+async function gitLsFiles(): Promise<string[] | null> {
+  try {
+    const proc = Bun.spawnSync({
+      cmd: ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+      cwd: REPO_ROOT,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    if (proc.exitCode !== 0) return null;
+    return proc.stdout.toString().trim().split("\n").filter((line) => line.length > 0);
+  } catch {
+    return null;
+  }
+}
+
+async function scanTargetDirGit(): Promise<string[]> {
+  const tracked = await gitLsFiles();
+  if (tracked === null) return scanTargetDir(REPO_ROOT);
+  return tracked
+    .map((file) => resolve(REPO_ROOT, file))
+    .filter((file) => !excludedTarget(file) && TARGET_EXTENSIONS.has(extname(file)));
+}
+
+async function scanPathTargetsGit(): Promise<string[]> {
+  const tracked = await gitLsFiles();
+  if (tracked === null) return scanPathTargets(REPO_ROOT);
+  return tracked
+    .map((file) => resolve(REPO_ROOT, file))
+    .filter((file) => !excludedTarget(file));
+}
+
 export type CliOptions = {
   readonly text?: string;
   readonly file?: string;
@@ -667,7 +712,7 @@ export async function readTargets(args: ReadonlyArray<string>): Promise<Readonly
       }
     }
   } else {
-    targets.push(...(await scanTargetDir(REPO_ROOT)));
+    targets.push(...(await scanTargetDirGit()));
   }
   const readable: TargetFile[] = [];
   for (const path of [...new Set(targets)].sort()) {
@@ -712,11 +757,12 @@ export async function main(args: ReadonlyArray<string>): Promise<number> {
       hits.push(hit);
     }
   } else {
-    const pathDirs: string[] = [];
-    const pathFiles: string[] = [];
+    const pathTargets: string[] = [];
     if (options.paths.length === 0) {
-      pathDirs.push(REPO_ROOT);
+      pathTargets.push(...(await scanPathTargetsGit()));
     } else {
+      const pathDirs: string[] = [];
+      const pathFiles: string[] = [];
       for (const arg of options.paths) {
         const resolved = resolve(arg);
         try {
@@ -727,10 +773,9 @@ export async function main(args: ReadonlyArray<string>): Promise<number> {
           console.error(`skip ${resolved}: file not found`);
         }
       }
+      for (const dir of pathDirs) pathTargets.push(...(await scanPathTargets(dir)));
+      for (const file of pathFiles) pathTargets.push(file);
     }
-    const pathTargets: string[] = [];
-    for (const dir of pathDirs) pathTargets.push(...(await scanPathTargets(dir)));
-    for (const file of pathFiles) pathTargets.push(file);
     for (const path of [...new Set(pathTargets)].sort()) {
       hits.push(...scanPath(shownPath(path)));
     }
