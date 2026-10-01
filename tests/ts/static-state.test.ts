@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, targetTreeUnavailable } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const repoRoot = path.resolve(__dirname, "../..");
 const read = (file: string): string => fs.readFileSync(path.join(repoRoot, file), "utf8");
@@ -23,7 +26,7 @@ describe("static fields generated trees", () => {
 		expect(content).toContain("StaticStateOps.current = value");
 	});
 
-	test("Swift keeps array statics mutable for value-semantic append", () => {
+	test.skipIf(targetTreeUnavailable("swift"))("Swift keeps array statics mutable for value-semantic append", () => {
 		const content = read("reference/swift/gen/boring/StaticStateOps.swift");
 		expect(content).toContain("static var current: String? = nil");
 		expect(content).toContain("private static var sections: TiqianArray<String> = TiqianArray<String>([])");

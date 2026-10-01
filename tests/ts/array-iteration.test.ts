@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, targetTreeUnavailable } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const read = (file: string) => {
   expect(fs.existsSync(file)).toBe(true);
@@ -29,7 +32,7 @@ describe("array element iteration generated tree", () => {
     expect(content).toContain("let _g1 = holder.values.clone();\n            for &item in &_g1 {");
   });
 
-  test("Swift emits element for loops", () => {
+  test.skipIf(targetTreeUnavailable("swift"))("Swift emits element for loops", () => {
     const content = read(path.resolve(__dirname, "../../reference/swift/gen/boring/ArrayIterationOps.swift"));
     expect(content).toContain("for item in values {\n            total &+= item");
     expect(content).toContain("let _g1 = holder.values\n            for item in _g1 {");

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 describe("capture switch generated trees", () => {
   const read = (target: string) => {
@@ -12,9 +15,11 @@ describe("capture switch generated trees", () => {
   };
 
   test("pins captured switch lowering in generated targets", () => {
-    for (const target of ["ts", "kotlin", "swift", "dart"]) {
-      expect(read(target)).toContain("describe");
-      expect(read(target)).toContain("messageLength");
+    for (const target of ["ts", "kotlin", "swift", "dart"] as const) {
+      withTargetTree(target, "capture-switch-ops: pins captured switch lowering in generated targets", () => {
+        expect(read(target)).toContain("describe");
+        expect(read(target)).toContain("messageLength");
+      });
     }
   });
 });

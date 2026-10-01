@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 describe("enum sorted key generated trees", () => {
   const read = (relative: string) => fs.readFileSync(path.resolve(__dirname, "../../reference", relative), "utf8");
@@ -15,7 +18,8 @@ describe("enum sorted key generated trees", () => {
   return 0;
 }`);
     expect(read("kotlin/gen/boring/EnumSortedKeysOps.kt")).toContain("fun compareEnumTier(a: EnumTier, b: EnumTier): Int = a.ordinal - b.ordinal");
-    expect(read("swift/gen/boring/EnumSortedKeysOps.swift")).toContain(`public func compareEnumTier(_ a: EnumTier, _ b: EnumTier) -> Int32 {
+    withTargetTree("swift", "enum-sorted-keys: pins parameterless enum comparator definitions", () => {
+      expect(read("swift/gen/boring/EnumSortedKeysOps.swift")).toContain(`public func compareEnumTier(_ a: EnumTier, _ b: EnumTier) -> Int32 {
     if a == b { return 0; }
     func rank(_ v: EnumTier) -> Int32 {
         switch v {
@@ -26,6 +30,7 @@ describe("enum sorted key generated trees", () => {
     }
     return rank(a) - rank(b)
 }`);
+    });
     expect(read("dart/gen/lib/boring/enum_sorted_keys_ops.dart")).toContain("int compareEnumTier(EnumTier a, EnumTier b) => a.index.compareTo(b.index);");
     expect(read("rust/gen/boring/enum_sorted_keys_ops.rs")).toContain(`pub fn compare_enum_tier(a: &EnumTier, b: &EnumTier) -> i32 {
     if a == b { return 0; }

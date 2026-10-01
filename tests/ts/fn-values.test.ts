@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree, type TargetId } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(__dirname, "../..");
 
@@ -8,18 +11,20 @@ function read(relative: string): string {
   return fs.readFileSync(path.join(root, relative), "utf8");
 }
 
-const targetTrees = [
-  "reference/ts/gen/boring/FnValuesOps.ts",
-  "reference/kotlin/gen/boring/FnValuesOps.kt",
-  "reference/swift/gen/boring/FnValuesOps.swift",
-  "reference/dart/gen/lib/boring/fn_values_ops.dart",
-  "reference/rust/gen/boring/fn_values_ops.rs",
+const targetTrees: ReadonlyArray<{ readonly target: TargetId; readonly file: string }> = [
+  { target: "ts", file: "reference/ts/gen/boring/FnValuesOps.ts" },
+  { target: "kotlin", file: "reference/kotlin/gen/boring/FnValuesOps.kt" },
+  { target: "swift", file: "reference/swift/gen/boring/FnValuesOps.swift" },
+  { target: "dart", file: "reference/dart/gen/lib/boring/fn_values_ops.dart" },
+  { target: "rust", file: "reference/rust/gen/boring/fn_values_ops.rs" },
 ];
 
 describe("first-class function value generated trees", () => {
   test("all five targets emit the probe module", () => {
-    for(const file of targetTrees) {
-      expect(read(file)).toContain("FnValuesOps");
+    for(const { target, file } of targetTrees) {
+      withTargetTree(target, "fn-values: all five targets emit the probe module", () => {
+        expect(read(file)).toContain("FnValuesOps");
+      });
     }
   });
 
@@ -33,9 +38,11 @@ describe("first-class function value generated trees", () => {
     expect(kotlin).toContain("val defaultTag: (Int) -> String = fun(id: Int): String");
     expect(kotlin).toContain('return "tag" + id');
 
-    const swift = read("reference/swift/gen/boring/FnValuesOps.swift");
-    expect(swift).toContain("static let defaultTag: (Int32) -> String =");
-    expect(swift).toContain("defaultTag");
+    withTargetTree("swift", "fn-values: TypeScript, Kotlin, Swift, and Dart keep static function storage", () => {
+      const swift = read("reference/swift/gen/boring/FnValuesOps.swift");
+      expect(swift).toContain("static let defaultTag: (Int32) -> String =");
+      expect(swift).toContain("defaultTag");
+    });
 
     const dart = read("reference/dart/gen/lib/boring/fn_values_ops.dart");
     expect(dart).toContain("static final String Function(int) defaultTag =");
