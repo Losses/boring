@@ -52,6 +52,42 @@ boring` resolves inside the shell. Enter the environment with:
 The Android SDK, browsers, and fonts from the tiqian flake are absent
 here; this repository needs none of them.
 
+### When `nix develop` cannot run (recorded 2026-10-01)
+
+The two commands below are the documented path and should be used when they work.
+In a sandboxed environment they may not, and the failure is **not** obvious — so
+what still works is recorded here rather than left to be rediscovered:
+
+    $ nix develop -c echo ok
+    error: ... attempt to write a readonly database
+      (in '/home/losses/.cache/nix/fetcher-cache-v4.sqlite')
+
+The cache file is mode 644 and owner-writable; the denial is the sandbox refusing
+writes **outside the workspace**, so `nix develop` — and therefore `bun run
+verify` and every `tests/haxe/**/run.sh` that insists on a pinned shell — cannot
+run. Of the tools the flake provides, only what is already on `PATH` is usable:
+
+| Tool | On `PATH` |
+|---|---|
+| `bun` | yes |
+| `haxe`, `cargo`, `kotlinc`, `swiftc`, `boring` | **no** |
+
+**What still works without the flake**, with the toolchains added to `PATH`
+(e.g. from the store paths the tests already reference):
+
+    bun test tests/                    # the collected suite
+    bun test tests/ts/loop-structure.test.ts
+
+**What does not**, and why it matters for reading results:
+
+- `bun test tests/` **without** `haxe` on `PATH` reports ~56 failures that are
+  toolchain-absent, not defects — see `docs/architecture/BASELINE-FAILURES.md`,
+  which measures this class directly rather than inferring it from a marker;
+- the Swift lane cannot run at all here (`swiftc` needs 13 missing libraries, and
+  its wrapper needs user namespaces the sandbox denies);
+- 35 fixtures under `tests/haxe/` are uncollected **and** unrunnable here, so
+  they are neither known-passing nor known-failing. See the same document.
+
 ## Build and test
 
     nix develop -c bash -c "bun install"
