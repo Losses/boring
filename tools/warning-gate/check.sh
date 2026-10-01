@@ -11,6 +11,14 @@
 # therefore FAILS the gate by default. Set WARNING_GATE_ALLOW_UNMEASURED=1 to
 # downgrade this to a printed note when a toolchain is deliberately absent; the
 # PASS line then states that some columns were skipped.
+#
+# The two rcs of each column were measured, printed, and then ignored: the only
+# verdict was `n <= baseline`. So a compiler that FAILED while emitting no
+# countable `warning:` line measured n=0, `0 <= baseline` held, and a tree that
+# does not compile read as PASS. The failure capability already existed and its
+# cost was already paid; it was simply never wired, which is what check() does
+# now. See the rc-wiring block inside check() for why the loose rc is the bare
+# "did it compile" verdict and the strict rc is not.
 set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 # CI supplies these through nix develop; local verification may point at the
@@ -69,11 +77,65 @@ check() {
     typescript) n=$(grep -ciE '(^|: )warning([: ]|$)' "$OUT/typescript.loose" || true) ;;
     *) echo "warning-gate: unknown target $name"; FAIL=1; return ;;
   esac
+  l=$(rc "$OUT/$name.loose")
   r=$(rc "$OUT/$name.strict")
-  printf '%s: loose=%s strict=%s warnings=%s baseline=%s\n' "$name" "$(rc "$OUT/$name.loose")" "$r" "$n" "$base"
-  # A non-zero count against a zero baseline is only meaningful if the compiler
-  # actually ran; require_measured above has already rejected the 127 case.
+  printf '%s: loose=%s strict=%s warnings=%s baseline=%s\n' "$name" "$l" "$r" "$n" "$base"
   case "$n" in ''|*[!0-9]*) echo "warning-gate: $name count is not numeric"; FAIL=1;; esac
+  # --- rc wiring -----------------------------------------------------------
+  # Both rcs were measured and printed above and then ignored, so the only
+  # verdict was `n <= baseline`. A compiler that failed while emitting no
+  # countable `warning:` line measured n=0, `0 <= baseline` held, and a tree that
+  # does not compile read as PASS.
+  #
+  # The two rcs do NOT carry the same meaning, which is why only one of them can
+  # be read as a bare compile verdict. Measured on the clean generated trees:
+  #   kotlin loose rc=0 strict rc=1   (83 countable warnings, 0 error lines)
+  #   rust   loose rc=0 strict rc=101 (4 countable warnings, "due to 4 previous
+  #                                    errors" - those "errors" ARE the 4 allowed
+  #                                    warnings, promoted by -D warnings)
+  #   dart   loose rc=0 strict rc=2   (46 warnings; GATE-LEDGER, base 5c85feb5)
+  # The strict flag promotes exactly the warnings the baselines already allow, so
+  # a non-zero strict rc is the NORMAL state of a clean tree - and on kotlin and
+  # rust it keeps the same value on a tree that does not compile at all (injected
+  # syntax error: kotlin 1, rust 101). Failing on any non-zero strict rc would
+  # therefore redden every column by construction, which is a zero-warning gate,
+  # not this no-regression gate.
+  #
+  # The LOOSE rc is the same compiler without the promotion flag: 0 on a tree
+  # that compiles with the recorded stock, non-zero on one that does not
+  # (measured: kotlin 0->1, rust 0->101 under injection). That is the
+  # un-confounded "did it compile" verdict, and anything but 0 or 127 fails the
+  # column here, so the failure reads as "rc triggered", not "one warning over
+  # baseline". 127 is "binary absent" and belongs to require_measured.
+  case "$l" in
+    ''|*[!0-9]*)
+      echo "warning-gate: $name loose rc is not numeric (got '$l'); column NOT measured"
+      FAIL=1
+      ;;
+    *)
+      if [ "$l" -ne 0 ] && [ "$l" -ne 127 ]; then
+        echo "warning-gate: $name loose compile FAILED (rc=$l, not a warning-count regression); log: $OUT/$name.loose"
+        FAIL=1
+      fi
+      ;;
+  esac
+  # The strict rc participates in the one state where the allowance cannot
+  # explain it: non-zero while no warning was counted. A non-numeric rc file
+  # means the strict column never ran, which is also a failure.
+  case "$r" in
+    ''|*[!0-9]*)
+      echo "warning-gate: $name strict rc is not numeric (got '$r'); column NOT measured"
+      FAIL=1
+      ;;
+    *)
+      if [ "$r" -ne 0 ] && [ "$r" -ne 127 ] && [ "$n" = 0 ]; then
+        echo "warning-gate: $name strict compile FAILED (rc=$r with warnings=0, so no counted warning explains it); log: $OUT/$name.strict"
+        FAIL=1
+      fi
+      ;;
+  esac
+  # A non-zero count above the allowance is a regression; require_measured above
+  # has already rejected the 127 case.
   if [ "$n" -gt "$base" ] 2>/dev/null; then
     echo "warning-gate: $name has $n warning(s), baseline is $base"
     FAIL=1
