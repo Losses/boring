@@ -1,0 +1,10 @@
+# Haxe 4.3.7 oracle for the throwing-default fixture: Haxe js target via the
+# boring std shadow (samples/std/Console.hx) for output. Plain Haxe semantics
+# (spec 22 Oracle standing: the stage-1 side runs haxe's own optional-argument
+# semantics), no Intercept.
+# Run: haxe tests/haxe/throwing-default/oracle.hxml -js <run>/oracle/oracle.js
+-lib boring
+-cp samples
+-cp tests/haxe/throwing-default
+-main throwdef.ThrowingDefaultOps
+-D oracle-output
