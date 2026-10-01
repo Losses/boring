@@ -55,6 +55,20 @@ discharged them (base for the seat's work: `ec4c5c2d`):
 | #5 sorted dataClass keys, pins resident comparators | `a80690f1` | expectation stale — pin refreshed to the exact current declared-faithful form |
 | #6 sorted key domains, int capacity bound | `a80690f1` | expectation stale — pin refreshed to the exact current statement |
 
+**Re-verified 2026-10-01** (after the Rust and TS emitters were changed for
+loop-structure reasons — `4bf4e9ff`, `755bc060`). Entries #3 and #4 are the two
+that touch the loop guard, so they were the ones at risk of going stale:
+
+| Check | Result |
+|---|---|
+| `tests/ts/loop-structure.test.ts`, all five trees | **5 pass, 0 fail** |
+| `boring_fold_debug` in `RustExpr.hx` (entry #2) | **0** |
+| `printed-collection` + `rust-reference-consistency` guards | 7 pass, 0 fail |
+
+So the emitter changes did not re-open any discharged entry. The five passes are
+named individually because #3 names `reference/ts/gen` and #4 names
+`reference/rust/gen`; a whole-file pass would not have shown which tree moved.
+
 The enumeration above is kept as written: the six existed, this is where they
 came from, and `:417`'s purpose is the record, not the waiver. The three
 `a80690f1` refreshes each compare the fresh generated form against what the
