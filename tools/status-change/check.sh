@@ -15,6 +15,28 @@
 # This script is that missing point: it refuses a status change whose three
 # answers are absent or false.
 #
+# Q1 relevance, and its exact boundary. Q1 asks "which ruling authorizes this
+# change?" A ruling that exists and is tracked but never mentions the branch or
+# the commit being changed is not an answer to that question - it is merely a
+# ruling. So, on top of "is a tracked ruling path", Q1 now also requires the
+# ruling's committed content to contain a literal occurrence of the branch name
+# or the tree commit sha (full or 12-char abbreviated). This is a weak,
+# mechanical relevance gate: it proves the ruling NAMES the thing being
+# changed, nothing more.
+#
+# What this gate catches: an unrelated ruling - one about a different subsystem
+# or a different branch - that does not name this branch or this commit. That
+# was the reported defect: a graphics ruling passed Q1 for an unrelated change.
+#
+# What this gate does NOT catch, by design: a ruling that names the branch but
+# does not actually authorize the specific change on it. Whether a ruling that
+# mentions a branch truly authorizes a given status change is a semantic
+# judgement that cannot be made mechanically, so this script does not pretend
+# to make it. The gate is a necessary condition for relevance (the ruling must
+# at least name the subject), not a sufficient proof of authorization. A caller
+# who needs the stronger guarantee must have a human confirm the ruling's
+# operative text authorizes this exact change.
+#
 # Usage:
 #   tools/status-change/check.sh <branch> --ruling <path> --evidence <path> \
 #                                 --tree <commit> [--tree-base <commit>]
@@ -64,7 +86,14 @@ note() { echo "$1"; case "$1" in FAIL*) FAILS=$((FAILS+1));; esac; }
 
 # Q1: which ruling authorizes this change. The path must exist in the tree and
 # must actually be a ruling, because "which ruling" answered with a
-# non-ruling document is not an answer.
+# non-ruling document is not an answer. And the ruling must actually be ABOUT
+# this change: a tracked ruling that never mentions the branch or the commit
+# being changed is not "the ruling that authorizes THIS change" - it is merely
+# some ruling. Relevance is judged mechanically and weakly: the ruling's
+# committed content must contain a literal occurrence of the branch name or
+# the tree commit sha. That proves the ruling names the thing being changed; it
+# does NOT prove the ruling semantically authorizes the change (see the header
+# note for the exact boundary).
 if [ -z "$RULING" ]; then
   note "FAIL Q1: no --ruling given; a status change must name the ruling that authorizes it"
 else
@@ -74,6 +103,39 @@ else
   esac
   if git -C "$REPO" ls-files --error-unmatch "$RULING" >/dev/null 2>&1; then
     note "PASS Q1: ruling $RULING is tracked at $TREE_BASE"
+    # Relevance: the ruling must name the change subject. Read the committed
+    # content (the ruling is tracked, so its content is in the tree), and look
+    # for a literal occurrence of the branch name or the tree commit sha.
+    RULING_CONTENT=$(git -C "$REPO" show "$TREE_BASE:$RULING" 2>/dev/null || true)
+    if [ -z "$RULING_CONTENT" ]; then
+      note "FAIL Q1: cannot read ruling content at $TREE_BASE:$RULING"
+    else
+      RELEVANT=0
+      if printf '%s' "$RULING_CONTENT" | grep -Fq -- "$BRANCH"; then
+        RELEVANT=1
+      fi
+      if [ "$RELEVANT" -eq 0 ] && [ -n "$TREE" ]; then
+        # The ruling may name the commit by the literal token the caller passed
+        # (e.g. a 7-char abbreviation like ccfe6869) or by its full sha.
+        if printf '%s' "$RULING_CONTENT" | grep -Fq -- "$TREE"; then
+          RELEVANT=1
+        elif FULL=$(git -C "$REPO" rev-parse --verify --quiet "$TREE^{commit}" 2>/dev/null); then
+          if printf '%s' "$RULING_CONTENT" | grep -Fq -- "$FULL"; then
+            RELEVANT=1
+          else
+            SHORT=${FULL:0:12}
+            if printf '%s' "$RULING_CONTENT" | grep -Fq -- "$SHORT"; then
+              RELEVANT=1
+            fi
+          fi
+        fi
+      fi
+      if [ "$RELEVANT" -eq 1 ]; then
+        note "PASS Q1: ruling $RULING names the change subject (branch '$BRANCH' or tree commit)"
+      else
+        note "FAIL Q1: ruling '$RULING' does not mention branch '$BRANCH' or tree commit '$TREE'; it cannot be the ruling that authorizes this change"
+      fi
+    fi
   else
     note "FAIL Q1: ruling '$RULING' is not a tracked file in this repository"
   fi
