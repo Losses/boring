@@ -1,5 +1,18 @@
 # P08 RE-FREEZE RECORD
 
+> **SUPERSEDED — 本记录的候选已被封存否决（指引，2026-10-01；正文以下逐字未改）**
+>
+> 本记录冻结的候选 `c8ae0054` 已被 round-245 管理层裁定 **P08 NOT PASSED / REJECTED,
+> finally，封存**（`docs/architecture/MANAGEMENT-RULING-245.md`）：不得重开评审、不得
+> 修补、不得据其推进 P08。本记录**仅作为历史身份记录保留**——它冻结的那棵树现在
+> 恰是「被封存的前候选」，不能再作为任何评审或 pin 的对象。
+>
+> 后继候选状态：**PREPARABLE / NOT NOMINATE-ABLE**
+> （材料：`docs/architecture/p08-candidate-material/P08-SUCCESSOR-CANDIDATE-MATERIAL.md`，
+> 该文件不受本指引影响）。后继候选的**声明与冻结另见**
+> `docs/architecture/P08-SUCCESSOR-DECLARATION.md`——该文件定稿并冻结之前，
+> P08 后继候选**不存在**可指对象的 revision。
+
 **Candidate revision: `c8ae0054`** — `fix(swift): lambda return contract, with the block
 destination it exposes` (2026-09-30 13:41:26 -0400).
 
