@@ -1,0 +1,15 @@
+# Kotlin generation of the alias-transfer-boundary fixture.
+# The runner passes -D kotlin-output=... and -D kotlin-test-output=...
+# on the command line.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/alias-transfer-boundary
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/alias-transfer-boundary'])
+--macro kotlincompiler.Compiler.use()
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+atb.ContainerAliasOracle
