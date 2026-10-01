@@ -18,8 +18,10 @@
 # no merge-tree and no merge --no-commit logic by design; a merge that is
 # merely textually clean does NOT pass this gate.
 #
-# Board location: $TQ_BOARD_JSON, or the nearest .workspace-board/board.json
-# found walking up from the repository root.
+# Board location: the nearest .workspace-board/board.json found walking up
+# from the repository root. There is no env-var override (TQ_BOARD_JSON was
+# removed in r56rr review: it was a false-green attack surface that could
+# extract a PASS from a forged board placed inside the worktree).
 
 set -u
 
@@ -38,17 +40,6 @@ done
 REPO=$(git rev-parse --show-toplevel) || { echo "FAIL repo: not inside a git repository"; exit 1; }
 
 BOARD=${TQ_BOARD_JSON:-}
-if [ -n "$BOARD" ]; then
-  # Hardening (r56r review): the override is an attack surface - a forged
-  # board file can mark an unsigned branch done+confirm and extract a PASS.
-  # Only honor paths inside the repository: a forged board placed there shows
-  # up in git status/diff, while an out-of-repo board is unauditable.
-  BOARD=$(readlink -f "$BOARD") || { echo "FAIL board: cannot resolve TQ_BOARD_JSON='$BOARD'"; exit 1; }
-  case "$BOARD" in
-    "$REPO"/*) : ;;
-    *) echo "FAIL board: TQ_BOARD_JSON must point to a path inside the repository (got $BOARD)"; exit 1 ;;
-  esac
-fi
 if [ -z "$BOARD" ]; then
   dir=$REPO
   while :; do
@@ -56,9 +47,14 @@ if [ -z "$BOARD" ]; then
     [ "$dir" = "/" ] && break
     dir=$(dirname "$dir")
   done
+else
+  # TQ_BOARD_JSON was an attack surface (r56rr review).
+  # Reject it with a hard FAIL.
+  echo "FAIL board: TQ_BOARD_JSON override is no longer supported (removed after r56rr security review)"
+  exit 1
 fi
 if [ -z "$BOARD" ] || [ ! -f "$BOARD" ]; then
-  echo "FAIL board: workspace-board/board.json not found (set TQ_BOARD_JSON)"
+  echo "FAIL board: workspace-board/board.json not found walking up from $REPO"
   exit 1
 fi
 

@@ -10,12 +10,12 @@ final verdict (exit 0 only if all three pass). Recovery plan section 3.4 item
    `status` is `done`. A `doing` row (or no row at all) fails: work still on a
    branch is not finished work.
    - Command shape: read `status` from the row whose `branch` equals the
-     argument in `.workspace-board/board.json` (override with `TQ_BOARD_JSON`;
-     the override path must resolve inside the repository - an out-of-repo
-     board file is rejected, because a forged board is otherwise an
-     unauditable way to extract a PASS, while a forged board inside the repo
-     shows up in `git status`. The script walks up from the repo root to find
-     the default board).
+     argument in `.workspace-board/board.json`; the script walks up from the
+     repo root to find the default board. There is no `TQ_BOARD_JSON`
+     override — it was removed after the r56rr red-team review: pointing it
+     at a forged board placed inside the worktree extracted a `VERDICT:
+     PASS` for an unsigned branch, and the "`git status` shows it" defence
+     was only an after-the-fact clue, not a control.
    - Pass criterion: `status == "done"`.
 
 2. **Ruling timeline** (`PASS ruling:`) - the branch base must not predate the
@@ -45,8 +45,9 @@ branch-carrying rows - and that is accurate, not a bug: no merge record on
 the board carries a `confirm` (PIT-477: `wb_merge` with `confirm=` is the
 only signoff write path, and it has not been used on these branches), and
 almost every branch base predates the latest ruling. The PASS path is
-verified against a fixture board (now required to live inside the repo),
-not against live board data. Until the coordinator signs a row via
+verified by creating a branch whose board row is `done` with a non-empty
+`confirm` and whose base is an ancestor of the latest ruling (i.e. it was
+cut or rebased after the ruling). Until the coordinator signs a row via
 `wb_merge confirm=` (or a retro-signoff is ruled for the 17 historical
 merges), expect FAIL on every real row; a FAIL is the gate doing its job,
 not evidence that the gate is broken.
