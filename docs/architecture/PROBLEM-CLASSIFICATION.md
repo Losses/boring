@@ -89,7 +89,8 @@ lambda 缺陷（`dc-warn/out/lambda-return-contract/`）的机制是：
 3. **类的属主与站点所在位置可以不同**（D 类就是如此）——
    这正是需要显式契约的原因。
 4. **失败分类必须带归属**：候选之责 / 既存仓库状态 / 缺失文档
-   （P10 记录的教训，`out/p10-reflection/ACCEPTANCE-REFLECTION.md`）。
+   （P10 记录的教训，已发布记录 `docs/architecture/ACCEPTANCE-REFLECTION.md` §2，
+   发布提交 `ec4c5c2d`；早先的草稿路径 `out/p10-reflection/` 已被该发布取代）。
 
 ## 本分类尚未覆盖的
 
