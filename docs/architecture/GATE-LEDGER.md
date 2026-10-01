@@ -248,13 +248,58 @@ reviews again, with the independence requirements still met.
 
 | # | Criterion | Verdict | Evidence | Blocked by |
 |---|---|---|---|---|
-| 1 | A recorded revision pair | **FAIL** | Tiqian side settled (`8504d230`, a commit in the **Tiqian repository**, not this one); **Boring side undecided** — three-way (`2159c657` prepared / `e1c65975` partial / `0a5c42a7` nothing) [DOC: `out/p09-tiqian-feasibility/`] | gate owner; decision work ordered stopped pending a stable candidate |
+| 1 | A recorded revision pair | **FAIL — but the blocker was mis-stated, and the mis-statement is what kept it open** | Tiqian side settled (`8504d230`, a commit in the **Tiqian repository**, not this one). Boring side: see the correction below — it is **not** a three-way choice awaiting a gate owner | nothing needs deciding; what is needed is to *record one revision and stop the ground moving* |
 | 2 | Boring checks executed | **NOT ESTABLISHED** | no run exists | — |
 | 3 | Tiqian checks executed | **NOT ESTABLISHED** | `work-plan:108` "the Tiqian candidate gate has not run" [DOC]; feasibility check confirmed the matrix is not startable | B4 authorization + pair |
 | 4 | Logs, generated-output identity, warning results preserved | **NOT ESTABLISHED** | preparation artefacts exist but no run produced them | — |
 | 5 | Baseline debt has a finite recorded list | **PASS** | `docs/architecture/BASELINE-FAILURES.md` — 1033 tests collected, 1001 pass / 32 fail / 8 errors, classified into 6 pre-existing assertions (judged by mechanism, limit stated), 26 environment timeouts (all budget-marked), 8 cascade errors; recorded per `work-plan:417` with revision and reproduction | — |
 
 **P09 overall: NOT PASSED.**
+
+### Correction to criterion 1: it is a moving target, not a three-way choice (2026-10-01)
+
+This cell used to read that the Boring side was "**undecided — three-way**
+(`2159c657` prepared / `e1c65975` partial / `0a5c42a7` nothing)", blocked by a **gate owner
+decision**. Reading the source material instead of the summary changes both halves.
+
+**1. The three are not alternatives — they are three points on one line, in order.**
+Measured on the base branch:
+
+| Commit | Message | Relation |
+|---|---|---|
+| `2159c657` | `refactor(compiler): migrate target comparison policy consumers` | ancestor of `e1c65975` |
+| `e1c65975` | `merge: integrate fix/rust-readonly-alias-emitter …` | ancestor of `0a5c42a7` |
+| `0a5c42a7` | `baseline` | 9 commits past `2159c657` |
+
+All three are **ancestors of the base branch**, and `boring-wt-architecture`'s base is now
+**124 commits past `0a5c42a7`**. The `/` separators in the old cell read as "or"; the source
+report wrote them as a **sequence that kept advancing** — "the ground has shifted again".
+
+**2. So the real blocker is that the ground moves, not that nobody has chosen.**
+`out/p09-tiqian-feasibility/REPORT.md` §5 says it exactly: *"Boring side: STILL UNDECIDED,
+and the ground has shifted again."* Each time the pair was about to be recorded, the base had
+advanced again — 9 commits then, 124 now. A criterion phrased as "pick one of three" can
+never close on a branch that keeps moving, and that phrasing is what kept it open.
+
+**3. The report already states the discriminating criterion** — it is not a judgement call:
+pinning `2159c657` *"would freeze a candidate that predates both Rust fixes **and** the
+additional `0a5c42a7` compiler work. That contradicts the evident intent of 'baseline'."*
+Choosing `e1c65975` instead requires the alternate staging snapshot and a full
+re-preparation whose per-file hashes were never verified. So the direction is determined by
+the evidence; what is missing is a **recorded, reproducible pin**, not a decision.
+
+**4. A separate divergence the summary dropped, which matters more than the pin.**
+The report's own headline finding: the Tiqian flake pins Boring lineage `304ed70c`, which is
+**not an ancestor of HEAD** (merge-base `378dfdbf`; `rev-list 304ed70c..HEAD` = **150**).
+The two halves of P09 are natively pinned to **different, divergent Boring lineages**. The
+runbook handles this **by procedure** (`HAXELIB_PATH` shadowing, verified resolving to the
+fixed snapshot) rather than by revision identity — which means a P09 run must never rely on
+the flake's default mapping. Any revision pair recorded for criterion 1 has to state that
+explicitly, or the pair is not self-describing.
+
+**What this changes:** criterion 1 stays **FAIL** (no pair is recorded), but it is no longer
+blocked on a decision and no longer blocked on an environment limit. It is blocked on
+producing a pin — a concrete task with a stated direction, not a question for the gate owner.
 
 **Checkout presence, established 2026-10-01 (adds a fact; changes no verdict).**
 A search for the Tiqian tree failed once and was reported as "no consumer exists".
