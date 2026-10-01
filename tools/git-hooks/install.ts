@@ -11,7 +11,7 @@
 import { chmodSync, renameSync } from "node:fs";
 import { resolve } from "node:path";
 
-const HOOK_NAMES: ReadonlyArray<string> = ["pre-commit", "commit-msg"];
+const HOOK_NAMES: ReadonlyArray<string> = ["pre-commit", "commit-msg", "pre-push"];
 
 async function main(): Promise<number> {
   const repoRoot = resolve(import.meta.dir, "..", "..");
