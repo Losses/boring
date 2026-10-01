@@ -459,6 +459,26 @@ The discriminator worth reusing: inject ONE warning into the SAME tree and run t
 command versus a strict one. dart loose rc=0 versus strict rc=2; rust loose rc=0 versus
 strict rc=101. If both rc agree, the gate does not exist.
 
+**Caveat added 2026-10-01 - this gate can pass VACUOUSLY, and its PASS text is identical
+either way.** `check.sh` takes each compiler from `${DART_BIN:-dart}`-style defaults, and in
+this environment none of the five are on `PATH` (they live in the nix store). Measured on
+base `5c85feb5`, same script, changing only the environment:
+- bare PATH -> `dart: loose=127 strict=127 warnings=0 baseline=46` (and likewise for kotlin,
+  rust, swift, typescript), then `WARNING GATE PASS`, rc=0.
+- real binaries exported (`DART_BIN`/`KOTLINC_BIN`/`CARGO_BIN` pointing into the store) ->
+  `dart: loose=0 strict=2 warnings=46 baseline=46`, `kotlin: loose=0 strict=1 warnings=59
+  baseline=59`, `rust: loose=0 strict=101 warnings=4 baseline=4`, `WARNING GATE PASS`, rc=0.
+`127` is command-not-found, so every count was `0` on an empty log and `0 <= baseline` was
+trivially true. **A `warnings=0` reading opposite a non-zero baseline means the compiler
+probably did not run, not that the warnings were cleared.** Two columns (swift, typescript)
+are still `127` even in the second run: there is no `swift` or `tsc` in this environment, so
+those columns remain unmeasured and no zero-warning claim may be made from them. It follows
+that the strict-vs-loose discriminator above is necessary but not sufficient - it shows a
+column CAN fail, not that this run exercised it. The reproducible form is: **rc=127 means
+unmeasured; require at least one column with rc != 127 and count != 0 before reading a PASS.**
+The minimal fix is for the script to assert `rc != 127` (or `command -v` each binary up
+front), so "did not run" is distinguishable from "ran and found zero".
+
 **2. Which default-argument shapes Haxe actually admits - measured, and it splits.**
 Cross-review had warned that spec 22 V16 limits default expressions to compile-time
 constants and closed coalescing forms, so a throwing call in a default might be outside
