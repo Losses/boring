@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, targetTreeUnavailable } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 describe("default argument expansion generated tree", () => {
   const tsGenDir = path.resolve(__dirname, "../../reference/ts/gen");
@@ -219,7 +222,7 @@ describe("default argument expansion generated tree", () => {
     expect(content).not.toContain('return "CoalescingPreset".to_string();');
   });
 
-  test("Swift generated tree lowers parameter-reading coalescing defaults in the body", () => {
+  test.skipIf(targetTreeUnavailable("swift"))("Swift generated tree lowers parameter-reading coalescing defaults in the body", () => {
     const swiftFile = path.join(swiftGenDir, "boring/DefaultArgsOps.swift");
     expect(fs.existsSync(swiftFile)).toBe(true);
     const content = fs.readFileSync(swiftFile, "utf8");
