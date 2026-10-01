@@ -909,6 +909,22 @@ class SwiftExpr {
             case TUnop(OpDecrement, _, subj):
                 return [indent(depth) + expr(subj) + " -= 1"];
             case TBinop(OpAssign, l, r):
+                // A self-assignment of a plain local (`x = x`, e.g. after the
+                // typer folds `x = x + 0`) is a no-op; Swift rejects it as a
+                // hard error ("assigning a variable to itself"). Skip it.
+                // (SelfAssignNoop)
+                {
+                    final lw = stripWrap(l).expr;
+                    final rw = stripWrap(r).expr;
+                    switch (lw) {
+                        case TLocal(a):
+                            switch (rw) {
+                                case TLocal(b) if (a.id == b.id): return [];
+                                case _:
+                            }
+                        case _:
+                    }
+                }
                 // The binding's declaration already rendered as an underscore
                 // discard (UnusedLocalNaming); the assignment keeps the right
                 // side's evaluation and discards the store.
