@@ -1,3 +1,22 @@
+# Disaster-recovery provenance annotation (r54r independent review, 2026-10-01).
+# The following 14 root-floor entries were carried into the tree by the
+# unreviewed disaster merge 7b4aaf8b (merge of fix/p09-roots-guard-candidate
+# = commit 75faf832, a root-parity fix).  Their content is benign (root-set
+# parity restoration for @:test modules), but the merge itself was not
+# reviewed before it entered mainline.  Pinned here for fact-tracking only;
+# a deliberate removal or a sign-off review is deferred to the next planned
+# baseline refresh coordinated through the workspace board.
+#
+#  Via 7b4aaf8b (75faf832 parity fix):
+#    kotlin: boring.NullBoolEmphasisOps, boring.NullBoolStyle,
+#            boring.NullBoolTernaryOps, boring.TestLitEdgeOps,
+#            tests.NullBoolTernaryTests, tests.TestLitEdgeTests
+#    swift:  boring.NullBoolEmphasisOps, boring.NullBoolStyle,
+#            boring.NullBoolTernaryOps, boring.NullInflatedLiteralOps,
+#            boring.TestLitEdgeOps, tests.NullBoolTernaryTests,
+#            tests.NullInflatedLiteralOpsTests, tests.TestLitEdgeTests
+#
+# End of provenance annotation (14 disaster-carried entries, 20 pre-existing).
 kotlin	boring.AbstractStaticDefault
 kotlin	boring.AccessPeer
 kotlin	boring.AccessTarget
