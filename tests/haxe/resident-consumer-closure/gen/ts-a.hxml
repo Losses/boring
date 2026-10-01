@@ -1,0 +1,17 @@
+# ts generation of the resident-closure consumer fixture
+# (t-mum0mp8l-m0a6), variant a. Entry lists NO runtime.* root: the closure under test.
+# Run from the repository root; the runner records rc and raw log.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp samples
+-cp tests/haxe/resident-consumer-closure
+--macro Intercept.run(['samples', 'tests/haxe/resident-consumer-closure'])
+--macro tscompiler.Compiler.use()
+-D ts-output=out/resident-consumer-closure/ts-a
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none
+Consumer
