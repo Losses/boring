@@ -66,6 +66,20 @@ repository is worked, not a one-off mishap.
 Before accepting a delivery, run these in order. Each step corresponds to a trap this
 session actually hit; none of them is hypothetical.
 
+0. **Is it on a remote yet?** This is step zero because it invalidates every step below it.
+   A local commit is not a delivery: for 48 hours this effort pushed nothing, and at the end
+   the remote held neither the base branch nor any of the work -
+   `origin/arch/agent-guided-governance` was **116 commits behind**, and `branch -r --contains`
+   came back empty for every session commit sampled. One machine loss would have taken all of
+   it. Check the three:
+
+       git ls-remote --heads origin "<branch>"        # must be non-empty
+       git branch -r --contains HEAD                  # must be non-empty
+       git rev-list --count origin/<branch>..<branch> # record the lag; 0 is delivered
+
+   If any fails, the honest word is "local only", not "delivered". **Pushing is a closing
+   action, not an optional one.**
+
 1. **Which tree does it hold on?** `git rev-parse --verify <branch>` (does it exist) ->
    `git merge-base --is-ancestor <commit> arch/agent-guided-governance` (is it in base) ->
    **open the file in the shared tree** (what shape is base actually in). The third step is
