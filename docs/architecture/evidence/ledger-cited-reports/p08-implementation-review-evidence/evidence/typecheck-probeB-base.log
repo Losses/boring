@@ -1,0 +1,15 @@
+probeB/PB.swift:35:27: error: cannot convert value of type 'TiqianArray<Int32>?' to closure result type 'ReadOnlyArray<Int32>'
+33 |     switch c {
+34 |         case .one:
+35 |             return values ?? TiqianArray<Int32>([])
+   |                           `- error: cannot convert value of type 'TiqianArray<Int32>?' to closure result type 'ReadOnlyArray<Int32>'
+36 |         case .two:
+37 |             return values ?? TiqianArray<Int32>([])
+
+probeB/PB.swift:49:30: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+47 |     switch c {
+48 |         case .one:
+49 |             return PBSources.arr1()
+   |                              `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+50 |         case .two:
+51 |             return PBSources.arr2()

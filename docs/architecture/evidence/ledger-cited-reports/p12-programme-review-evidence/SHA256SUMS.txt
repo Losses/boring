@@ -1,0 +1,16 @@
+5cff7c71299f94f4fcea6d87ffdfaf75d3c9f408b9d86ef3baf7438f7f26ab8c  ./evidence/board-m-mulwvr32-3jht.md
+778f36da4331383cdcc159e107d6ff7a2a94f232890e5c4e9923a4ffba7e7982  ./evidence/ci-and-scripts.txt
+9beeeaeab830d30bb943cd10a256898836670e316bd2fb240ec15803b596c77f  ./evidence/consult/ASTRA-ANSWER.md
+00d368ad3d35d4f8c6fa43e0746ca3004446618d5a4d40117248ab911f6b3180  ./evidence/consult/CODEX-ARCH-ANSWER.md
+5ce3b591c2843c9379e968482c0c0ad4588f9d0ee4ad26f8fff046f71840fd77  ./evidence/consult/CODEX-AUDIT.md
+de8b33f6a59dd42f94de4de4cea13003c6b828d386380a8b106480ec4053b0e4  ./evidence/consult/QUESTION.md
+5b53acad68da832da55321f139192e914fcdd0c202fb2cf8c8e0c16d7e8acdd4  ./evidence/consult/SOL2-ARCH-ANSWER.md
+195f3c96fef1ed7bce5ac9ccefe76e281c0f717c23950258493185772af58c0b  ./evidence/freeze-xcheck-REPORT.md
+3a586b1a81306a45c99e90f9113b393a9b13fb3eb7e04eb92d834d5a4acbcb79  ./evidence/git-verification.txt
+27d54a3fd87deab087794c2f78ad119865c2ffb2188be712285da672fb80e61a  ./evidence/p08-behaviour-review-REPORT.md
+7b28e78537b5a5a82ea708e299f67ef2755b1701cc4a236259d6c31f9b38428f  ./evidence/p08-candidate-freeze-FREEZE.md
+41d61f06e8d7ee79ce749f737895aff53a4d34add86355fb12cbeb523a51dd5b  ./evidence/p08-implementation-review-REPORT.md
+68291bca03aa580218876d74f46d6652b835eee02e9e68b1a56e768e515d38a2  ./evidence/plan-extracts.md
+358b59ce70bf9f5d4f496a160b857d57931f74bf62f77889ba186b6943b843b7  ./evidence/round1-workorder-p11.md
+d7255b4c4d10e9805f2a4c00514aeb4d5fcf47e8fae7e8834b1f8b2065fed12d  ./PROGRAMME-REVIEW.md
+7dd2f1dbf64e1e33594ee734da0c1f96d0a54d6484a4471613896e09b9ce180d  ./REPORT.md

@@ -1,0 +1,2 @@
+Warning : B2609 dest=ReadOnlyArray<Int32> srctype=TiqianArray<Int32>? storage=MutableArrayWrapper opt=OptionalOperand presence=NoPresenceProof site=TLocal({$: haxe.macro.Unsafe, isStatic: false, name: values, t: TAbstract(Null,[TInst(<...>,[<...>])]), id: 36437, meta: {get: #fun, remove: #fun, has: #fun, extract: #fun, add: #fun}, capture: false, extra: null})
+swift target: array boundary has no prepared storage decision

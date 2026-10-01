@@ -1,0 +1,117 @@
+--- boundary-policy-record/RECORD.before-correction-13.md	2026-09-30 11:46:38.000000000 -0400
++++ boundary-policy-record/RECORD.md	2026-09-30 11:46:38.000000000 -0400
+@@ -51,14 +51,15 @@
+ | ReadOnlyArray | mutable position | required | no | convert (copy) |
+ | MutableArrayWrapper | mutable position | any | no | no boundary |
+ | any | any | literal empty | n/a | retain literal identity until materialization — EXCEPT any mutable destination: `prepare`'s mutable branch (`SwiftArrayBoundary.hx:212`) admits only `ReadOnlyArrayView` sources, so a `ContextualEmptyLiteral` matches **no branch** ⇒ `operation` stays null ⇒ REFUSED (`:233-234`). (Earlier revision said "any | any".) |
+-| any | any | literal null | n/a | retain no-presence proof; do not fabricate storage — EXCEPT a read-only **required** destination: the `NullArrayValue` case requires `destOptional` (`SwiftArrayBoundary.hx:187-192`), so `operation` stays null ⇒ REFUSED (`:233-234`). (Earlier revision said "any | any".) |
++| any | any | literal null | n/a | retain no-presence proof; do not fabricate storage — EXCEPT a read-only **required** destination: the `NullArrayValue` case requires `destOptional` (`SwiftArrayBoundary.hx:187-192`), so `operation` stays null ⇒ REFUSED (`:233-234`). (Earlier revision said "any | any".) **PLANNER-CELL REFUSAL ONLY (CORRECTION 13).** The refusal is the `destOptional` gate at `SwiftArrayBoundary.hx:188`; an explicit `destinationOptionalOverride = true` selects `PreserveNullArrayValue` (`:189-191`). Not demonstrated reachable as a nil-merge target (see section 6, new bullet). |
+ | any | any | any | yes | MUST NOT convert again (no double wrap) |
+ | **OtherArrayStorage** | any | any | no | **REFUSED**: the empty `case OtherArrayStorage:` (`SwiftArrayBoundary.hx:210`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ consumers fail (`SwiftExpr.hx:2608-2609`, `SwiftDecl.hx:600-601`) |
+-| ReadOnlyArray | read-only position | **optional source → required dest** | no | **REFUSED: `prepare` returns null → `fail(...)` at SwiftExpr.hx:2608-2609 / SwiftDecl 600-601.** The earlier row claiming "pass through" is WRONG for this cell. |
+-| MutableArrayWrapper | read-only position | **optional source → required dest** | no | **REFUSED**: the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:203`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ the same consumer failures (`SwiftExpr.hx:2608-2609` / `SwiftDecl.hx:600-601`). Sibling of the row above; the earlier revision did not dispose of it. |
+-| ReadOnlyArray | mutable position | **optional source → required dest** | no | **REFUSED**: the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:221`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ the same consumer failures. Sibling of the row above; the earlier revision did not dispose of it. |
++| ReadOnlyArray | read-only position | **optional source → required dest** | no | **REFUSED: `prepare` returns null → `fail(...)` at SwiftExpr.hx:2608-2609 / SwiftDecl 600-601.** The earlier row claiming "pass through" is WRONG for this cell. **PLANNER-CELL REFUSAL ONLY (CORRECTION 13).** This is `prepare`'s verdict when the destination presented to it admits no absence. It is **not** an end-to-end refusal of this source shape: as a nil-merge target the composition presents the **optional intermediate destination** (`destinationOptionalOverride = true`) and the cell converts via `KeepPreparedArray` (`SwiftArrayBoundary.hx:207`), the required final result being established by the `??` join with a required fallback. |
++| MutableArrayWrapper | read-only position | **optional source → required dest** | no | **REFUSED**: the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:203`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ the same consumer failures (`SwiftExpr.hx:2608-2609` / `SwiftDecl.hx:600-601`). Sibling of the row above; the earlier revision did not dispose of it. **PLANNER-CELL REFUSAL ONLY (CORRECTION 13).** Valid for every caller that presents a required destination unchanged (e.g. `SwiftDecl.hx:599`, a two-argument `prepare` call). As a nil-merge target the composition presents the optional intermediate destination (`destinationOptionalOverride = true`, `SwiftExpr.hx:2627` coordination / `:2646` candidate) and the cell converts via `MapOptionalMutableArrayView` (`SwiftArrayBoundary.hx:200-202`). The override is the composition duty prescribed at `docs/compiler-policy-interfaces.md:171-173`, not an exemption from this row. |
++| ReadOnlyArray | mutable position | **optional source → required dest** | no | **REFUSED**: the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:221`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ the same consumer failures. Sibling of the row above; the earlier revision did not dispose of it. **PLANNER-CELL REFUSAL ONLY (CORRECTION 13).** Same scope as the two rows above; as a nil-merge target the optional intermediate destination is presented and the cell converts via `MapOptionalReadOnlyIntoMutableArray` (`SwiftArrayBoundary.hx:218-220`). |
+ | any | **mutable position** | literal null | n/a | `isBoundary` = false ⇒ **no decision taken at all** (not a "retain identity" case) |
+ | any | any | presence fact absent, no proof | n/a | **veto: no presence proof ⇒ do not fabricate storage** (row was implicit; now explicit) |
++| any (nil-merge **target**) | any | optional source | no | **COMPOSITION SUPPLIES THE INTERMEDIATE DESTINATION**: the nil-merge composition lowers the optional target against the **optional** form of the destination (`destinationOptionalOverride = true`; `SwiftExpr.hx:2627` coordination / `:2646` candidate) and lowers the fallback against the final destination (`:2628`/`:2647`); the result is required only through the `??` join with a required fallback. Prescribed by `docs/compiler-policy-interfaces.md:171-173` with `j-prepared-value-design.md:135-137`; see CORRECTION 13. |
+ 
+ **CORRECTION 10 (the table was STILL not closed - named by the third review,
+ ACCEPTABLE-WITH-NAMED-CORRECTIONS, corrections N1-N4).** CORRECTION 6 said the
+@@ -111,6 +112,38 @@
+ The "already converted" row is the axis whose violation produced the observed
+ double-wrap defect (`TiqianArray(records.toMutableArray())`).
+ 
++**CORRECTION 13 - the decision table was NOT CLOSED over the destination-optionality
++override (found by the P08 candidate freeze, `FREEZE.md` section 4.3; ruled by
++`dc-warn/out/override-ruling/REPORT.md`).** `prepare` takes a third input the section-2
++axes do not carry: `destinationOptionalOverride` (`SwiftArrayBoundary.hx:173`), which
++replaces the destination's own optionality for the whole decision. Section 3 already
++registers it (`:147` - `prepare(operand, destinationType, override)`), and section 4
++already registers the nil-merge operands that thread it (`SwiftExpr.hx:2627-2628`), but no
++section-2 row models it, so three REFUSED rows and one literal row read as end-to-end
++verdicts when they are planner verdicts under the default (`override == null`).
++
++The override is not an exemption; it is the composition duty stated verbatim at
++`docs/compiler-policy-interfaces.md:171-173` - "A nil-merge with a required final result
++passes an **optional intermediate destination** to the optional left operand's
++conversion." - with `j-prepared-value-design.md:135-137` and the repository's own SW04
++work item (`docs/investigations/architecture-round-1/swift-checkpoint-todo.md:39-42`).
++The planner rule at `compiler-policy-interfaces.md:155-157` is untouched: the override
++changes *which destination is presented* at one conversion, not what `prepare` does with
++the destination it is given. Verified: `SwiftArrayBoundary.hx` is byte-identical before
++and after the candidate (sha256
++`b522865c7b7c388207e3de6b88c7d4337e25aac2690f41d70f6173be065f6575`).
++
++The override axis is **already live before the candidate**, at the registered-default
++call-argument routes `SwiftExpr.hx:4760` and `:4863` (`true`), so rows 57-59 were already
++superseded as end-to-end claims for those routes; the candidate extends the same rule to
++the nil-merge routes.
++
++Precondition that must be stated with the row: the intermediate optional destination is
++prescribed for a nil-merge **whose final result is required** (or whose destination admits
++absence, where it is a no-op). Unconditional `true` is permitted today because it is
++extensionally equal at every existing call site, but the record's rule is the
++precondition.
++
+ ## 3. Authoritative producer per fact
+ 
+ Each fact has exactly ONE producer. No consumer may re-derive a fact from an AST
+@@ -144,7 +177,7 @@
+ | source storage | `SwiftArrayBoundary.sourceStorage(t, emptyLit, nullLit)` | :148 | per source expression | change to source type or literal-ness |
+ | optionality | `SwiftArrayOptionality` values set at operand construction | SwiftDecl.hx:591; **SwiftExpr.hx:2690** (NOT 2689 - that line is `storage:`) | per operand | change to operand nullability |
+ | presence proof | `SwiftArrayPresenceFact` values | SwiftDecl.hx:597; SwiftExpr.hx:**2691** (`presenceFact:`) and `:2711-2726`, `:324/:334/:343`, `:2638/:2654`; SwiftParameterPlan.hx:71-80 | per operand | literal-ness change |
+-| boundary plan | `SwiftArrayBoundary.prepare(operand, destinationType, override)` | :165 | per crossing | any input fact change |
++| boundary plan | `SwiftArrayBoundary.prepare(operand, destinationType, override)` | :165 | per crossing | any input fact change; `override` is the composition's intermediate-destination requirement (CORRECTION 13), **not** an AST fact, and its producer is the composition, not the operand |
+ | target text | `SwiftArrayBoundary.render(plan, operandText, elementText)` | :251 | per plan | plan change |
+ | parameter body storage | `SwiftParameterPlan` -> `sourceStorage(baseType)` | SwiftParameterPlan.hx:60 | per parameter | signature change |
+ 
+@@ -185,7 +218,7 @@
+ | **assignment rendering** | SwiftExpr.hx:2806 | isBoundary |
+ | call argument | SwiftExpr.hx:4760, 4863 | lowerArrayBoundary -> prepare |
+ | conditional arms (each) | SwiftExpr.hx:2642-2643 | lowerArrayBoundary -> prepare |
+-| nil-merge operands (each) | SwiftExpr.hx:2627-2628 | lowerArrayBoundary -> prepare |
++| nil-merge operands (each) | SwiftExpr.hx:2627-2628 | lowerArrayBoundary -> prepare; the **target** also consumes the composition override (`true`, :2627) |
+ 
+ **CORRECTION 4 (five live consumption sites were MISSING - found by independent
+ reviewer 1; I verified each in code).** The above table was described as "every
+@@ -336,7 +369,14 @@
+   :2578-2614, :2627-2628, :2642-2643, :2672-2674, :2689, :2721, :2806-2807,
+   :3304, :4720, :4760, :4863, :5641-5642, :6173 - none inside `expr`).
+ - **call result position** (as distinct from call ARGUMENTS, which are covered)
+-- **`tryBindingLines` (:5210-5250)**: verified to have 0 boundary references
++- **`tryBindingLines` (:5210-5250)** and **`tryReturnLines` (:5251-5287)**: verified to have 0 boundary
++  references **as of the revision this was written** - **this is no longer true of the candidate.**
++  The P08 candidate patch inserts the `destinationValueText` funnel into both routes
++  (`SwiftExpr.hx:5229` and `:5275`, in the candidate tree), which **falsifies this bullet and the
++  sibling claim at `:339`**. Recorded as a **record-staleness introduced by the candidate**: these
++  two bullets describe the pre-candidate state and must land with the patch, not be read as current.
++  (Found by the record-cell correction pass; it flagged the staleness but correctly did not edit it,
++  because the override ruling's section 4 did not name these bullets.)
+ - **switch pattern-binding / payload declarations**: never audited
+ - **`Registered default`** and **`Nested collection element`**: named in
+   `j-prepared-value-design.md`. **CORRECTION 12 applies here too** - the earlier
+@@ -351,6 +391,21 @@
+   type when `recorded == null`, which directly contradicts §3's ban on deriving
+   facts from AST types. It needs an explicit ruling; this record does not give one.
+ 
++- **`destinationOptionalOverride` reachability (CORRECTION 13).** The override makes the
++  override-sensitive gates convert (`SwiftArrayBoundary.hx:188`, `:200-202`, `:207`,
++  `:218-220`). Which accepted source forms reach a nil-merge target with each storage and
++  source optionality is **not** established by this record. In particular the plan-check
++  macro fabricates the `ReadOnlyArrayView x optional` operand
++  (`tests/swift-readonly-boundary/boring/SwiftBoundaryPlanChecks.hx:54-62`) rather than
++  reaching it from source.
++- **nil-merge missing required-destination check.** The nil-merge branch
++  (`SwiftExpr.hx:2645-2658` candidate) has no counterpart to the ordinary-conditional
++  guard at `:2665-2666` ("optional conditional array result cannot satisfy a required
++  boundary"), so a nullable fallback joined against a required destination can be returned
++  as `OptionalOperand` with no failure - the outcome
++  `compiler-policy-interfaces.md:176-177` forbids. Dormant today (no caller passes
++  `destinationOptionalOverride = false`); pre-existing, not introduced by the candidate.
++
+ **CORRECTION 11 (three routes with no owner of their own - named by the third
+ review, correction N7, and each verified in code before being written here).**
+ `switchBindingLines` (:5486-5490), `tryReturnLines` (:5251), and the try-region

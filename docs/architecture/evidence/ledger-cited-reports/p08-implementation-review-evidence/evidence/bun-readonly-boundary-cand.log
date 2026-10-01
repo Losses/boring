@@ -1,0 +1,57 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/swift-readonly-boundary/readonly-boundary.test.ts:
+50 |     "nullable-fallback-omitted=nil",
+51 |     "nullable-fallback-null=nil",
+52 |     "nullable-fallback-present=present:1",
+53 |     "guarded-nullable-fallback=present:1",
+54 |   ];
+55 |   expect(oracle.split("\n").map((line) => line.replace(/^.*?:\d+: /, "")).filter(Boolean)).toEqual(expected);
+                                                                                                ^
+error: expect(received).toEqual(expected)
+
+  [
+    "alias=7:2",
+    "effect=1:8:1",
+    "reference=11:true:17:true",
+    "nullable-elements=3:5:3",
+    "nullable-literal-elements=2:5:3",
+    "nullable-local-literal-elements=2:5:3",
+    "present-optional=6:1",
+    "absent-optional=nil",
+    "guarded-present=4:1",
+    "guarded-absent=nil",
+    "guarded-field=8:1",
+    "null-reassigned=21:2:2109",
+    "cleared=nil",
+    "direct-call=2:4:AB",
+    "constructor=6:1",
+    "field-assignment=14:1",
+    "static-field=41:1",
+    "return=13:2",
+    "enum=5:1",
+-   "branch-true=1:1",
+-   "branch-false=2:1",
++   "branch-true=1:present",
++   "branch-false=1:present",
+    "coalesced-null=0:empty",
+    "coalesced-present=1:present",
+    "default-omitted=0:empty",
+    "default-null=0:empty",
+    "default-present=1:present",
+    "nullable-fallback-omitted=nil",
+    "nullable-fallback-null=nil",
+    "nullable-fallback-present=present:1",
+    "guarded-nullable-fallback=present:1",
+  ]
+
+- Expected  - 2
++ Received  + 2
+
+      at <anonymous> (/tmp/p08ir/cand/tests/swift-readonly-boundary/readonly-boundary.test.ts:55:92)
+(fail) Swift read-only array boundary shares storage and preserves flow [23055.60ms]
+
+ 0 pass
+ 1 fail
+ 3 expect() calls
+Ran 1 test across 1 file. [23.25s]

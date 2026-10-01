@@ -1,0 +1,2 @@
+Warning : B2609 file=? line=-1 local=values#36445 dest=ReadOnlyArray<Int32> srctype=TiqianArray<Int32>? storage=MutableArrayWrapper opt=OptionalOperand presence=NoPresenceProof
+swift target: array boundary has no prepared storage decision

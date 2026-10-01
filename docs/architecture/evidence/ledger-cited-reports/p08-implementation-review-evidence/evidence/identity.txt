@@ -1,0 +1,13 @@
+# P08 implementation review — measured identities (2026-09-30)
+candidate worktree: /home/losses/Development/tq-workspace/dc-warn/swc-try-fix-wt/wt/
+  packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx  bf7dde2cec3b89464738019c733eb6f1d8e666bbc976176bf30cc77007be6078  (7041 lines)
+  packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx  b522865c7b7c388207e3de6b88c7d4337e25aac2690f41d70f6173be065f6575
+  packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx  0210d20703769a4e42f2e8a27dd1a1123072a27785e663fc5dbb9b80ef74f973
+  PATCH.diff == diff(boring-wt-architecture, wt) for SwiftExpr.hx (verified: only the ---/+++ header lines differ)
+baseline worktree: /home/losses/Development/tq-workspace/boring-wt-architecture
+  packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx  0a9bed91ef91ca68b75a2e7e4e2482d2743a16fe5caf4150018686c2131e33f0  (7001 lines)
+my working copies (host-local, excluded from the repo):
+  /tmp/p08ir/cand  = rsync of the candidate worktree (out/, node_modules excluded)
+  /tmp/p08ir/base  = rsync of boring-wt-architecture (out/, node_modules excluded)
+  both restored to the hashes above after instrumentation runs
+toolchain: haxe 4.3.7 ; swiftc 6.2.4 via p09-chainA-work/swift-shim-bin (PATH from chainA-fixed-rerun/evidence/env.json)
