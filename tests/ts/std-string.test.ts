@@ -49,9 +49,23 @@ describe("Std.string lowering", () => {
     expect(rust).toContain("value.name()");
   });
 
-  test("Rust standalone scalars use to_string", () => {
+  test("Rust standalone scalars route unsigned Int through int_text", () => {
     const content = fs.readFileSync(path.join(root, "reference/rust/gen/boring/std_string_ops.rs"), "utf8");
-    expect(content).toContain("pub fn std_string_ops_int_value(value: u32) -> UString {\n        return UString::from((value).to_string().as_str());");
+    // The parameter is `u32` -- the unsigned domain -- so it goes through
+    // IntText::int_text rather than Display. Commit ef3c874b (int_text domain)
+    // routed only the SIGNED-domain values (indexOf, unary neg, i32 locals,
+    // fpHelper i32, closure params) through direct to_string and says so in its
+    // message. This expectation still named the pre-ef3c874b form and was missed
+    // when 40cf0ad0 refreshed "stale Rust string expectations across 13 files".
+    //
+    // It stayed invisible because reference/rust/gen is git-ignored build output
+    // that nothing regenerated: the stale tree still emitted the old form, so
+    // the stale expectation kept passing against stale artifacts. Regenerating
+    // the tree exposed it. The generated output is correct; this expectation was
+    // what had gone out of date.
+    expect(content).toContain(
+      'pub fn std_string_ops_int_value(value: u32) -> UString {\n        return UString::from(format!("{}", crate::runtime::int_text::IntText::int_text(value)).as_str());',
+    );
   });
 
   test("array operands use one single-pass builder in every target", () => {
