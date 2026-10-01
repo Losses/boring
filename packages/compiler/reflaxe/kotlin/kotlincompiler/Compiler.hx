@@ -66,6 +66,20 @@ class Compiler extends PluginCompiler<Compiler> {
             // into the runtime module, which Haxe never types from a
             // business reference, so force it here exactly like TestCore.
             Context.getType("runtime.StringTools");
+            // Force the WHOLE resident set, not just the modules some corpus
+            // entry happened to reach: a consumer build whose entry list omits
+            // the `runtime.*` roots still reaches these through the std extern
+            // surface. Forcing only TestCore and StringTools left
+            // `runtime.UString` / `runtime.Graphemes` / `runtime.SortedTable`
+            // absent, so such a consumer emitted references to declarations
+            // that were never typed (tests/haxe/resident-consumer-closure,
+            // variant a).
+            for (resident in RuntimeResidents.MODULES)
+                if (Context.getType(resident) == null)
+                    throw 'kotlin resident module not typed: ' + resident;
+            for (resident in RuntimeResidents.TEST_MODULES)
+                if (Context.getType(resident) == null)
+                    throw 'kotlin resident module not typed: ' + resident;
         }
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
