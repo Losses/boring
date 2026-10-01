@@ -57,6 +57,15 @@ for this run is `508851eb833b88441fe9cdbc2e78ef85c4352a8903859c090dcc0769cdc0684
 
 ## Five-target reachability and measured readings
 
+> **Superseded.** The measured table in this section records the pre-fix run
+> `20261001T022115Z`, in which `rust-lib` and `swift-lib` reached their
+> producer stages but not their run stages. Those two blocks were resolved by
+> commit `1e0d8169` ("fix(rust,swift): unblock variable-bound-loop-eval native
+> compile"); the post-fix run `20261001T211624Z`, recorded in the next
+> section, reaches rc=0 on all five targets with `local=4 length=3 control=4`.
+> This section is retained as the honest record of the pre-fix attempt; it is
+> not the run the sign-off rests on.
+
 `haxelib` is not missing from the environment: `haxelib` 4.1.1 sits in the
 same store bin directory already used for `haxe`
 (`/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxelib`), so the
@@ -140,6 +149,72 @@ not missing-environment rows):
 failures are recorded observations with their failed producer, and the
 runner fails only on harness defects (oracle mismatch, input drift, missing
 stage, or a run with no parseable observation).
+
+## Post-fix run (20261001T211624Z): all five targets reach the run stage
+
+A second run, `20261001T211624Z`, was produced after commit `1e0d8169`
+("fix(rust,swift): unblock variable-bound-loop-eval native compile") landed.
+Its evidence root is `out/variable-bound-loop-eval/runs/20261001T211624Z/`
+(gitignored, like the pre-fix root). The runner records 23 stages and every
+one exits 0 (`stages.tsv`): the identity and input-hash stages bookend the
+oracle generation/run and, for each of ts/kotlin/rust/swift/dart, the
+generation, native compile/build, and run stages.
+`input-unchanged.txt` is present ("the authored input trees are unchanged by
+the run"), and the oracle stage re-confirms
+`tests/haxe/variable-bound-loop-eval/vble/Probe.hx:53: local=4 length=3 control=4`.
+
+Measured readings, read from the run's `stages.tsv` and `observations.tsv`
+(the oracle payload is `local=4 length=3 control=4`):
+
+```
+target  gen  native compile        run         reading
+ts      0    tsc --noEmit 0;       node 0      local=4 length=3 control=4  (matches oracle)
+        -    tsc emit 0
+kotlin  0    kotlinc 0 (jar)       java 0      local=4 length=3 control=4  (matches oracle)
+dart    0    dart run compiles     dart run 0  local=4 length=3 control=4  (matches oracle)
+        -    in-process
+rust    0    rustc lib 0;          harness-    local=4 length=3 control=4  (matches oracle)
+        -    harness 0             bin 0
+swift   0    swiftc lib 0;         runner 0    local=4 length=3 control=4  (matches oracle)
+        -    harness 0
+```
+
+All five targets now reach their run stage with rc=0 and each prints the
+observation `local=4 length=3 control=4`, matching the oracle. The two stages
+that were `not-reached` in the pre-fix run are genuine compilations now:
+`rust-lib` runs `rustc --edition=2024 --crate-type lib --crate-name vble`
+(5 warnings, no errors) and `swift-lib` runs the pinned wrapper
+`swiftc -emit-library -emit-module ... -o libVbleProbe.so` (one
+"variable 'bound' was never mutated; consider 'let'" warning, no error).
+
+The two not-reached rows were resolved by `1e0d8169`, which changed the
+emitters (and the runner's pinned paths), not the frozen source:
+
+- **rust** (`RustExpr.hx`): the `++`/`--` post-increments on the guard-static
+  counters were emitted with `expr(subj)` on the left of the compound
+  assignment, producing a block expression on the LHS that rustc rejects
+  (`expected expression` / `E0067`). The fix renders the assignment target
+  with `assignTarget(subj)` in both the statement and expression paths
+  (`expr(subj)` still supplies the read value), so guard statics now emit
+  `*STATIC.lock()... += 1`.
+- **swift** (`SwiftExpr.hx`): the typer folds the frozen source's
+  `bound = bound + 0;` to a plain-local self-assignment `bound = bound`,
+  which swiftc rejects as a hard error ("assigning a variable to itself").
+  The fix skips a `TBinop(OpAssign)` whose left and right are the same plain
+  `TLocal` id as a no-op.
+- **run.sh**: the pinned `TQ_ROOT` depth was adapted to the current worktree
+  layout and the removed `boring-wt-growthkeyfix` input roots were dropped.
+
+Independent re-execution: the report author re-executed the ts, kotlin, rust,
+and swift run-stage products from these artifacts directly:
+`node ts-js/driver.js`, `java -cp kotlin-build/probe.jar MainKt`,
+`rust-gen/harness-bin`, and `swift-build/runner` (with
+`LD_LIBRARY_PATH` set to the build directory) each print
+`local=4 length=3 control=4` and exit 0. The dart target was not
+independently re-executed — no `dart` toolchain is present in the author's
+environment (`which dart` exits 1) — so the dart reading rests on the
+recorded `dart-run` stage alone (status 0, stdout
+`local=4 length=3 control=4`).
 
 ## Probe discrimination
 
