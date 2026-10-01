@@ -1038,10 +1038,16 @@ class DartExpr {
     }
 
     function ifLines(c:TypedExpr, t:TypedExpr, f:Null<TypedExpr>, depth:Int):Array<String> {
-        // Dart's flow promotion inside the if arm does not reach the
-        // else arm; snapshot the pre-if state so the else can restart.
-        final savedPromoted = flowPromotedNonNull.copy();
+        // Dart's flow promotion inside the if arm does not reach the else
+        // arm; the pre-if state is snapshotted so the else can restart.
+        // The snapshot is taken AFTER the condition renders: the condition
+        // is evaluated on every path through the statement, so a promotion
+        // it records (an operand `x!`, a null guard) holds in both arms and
+        // after the merge — snapshotting before the render rolled those
+        // back at the merge, a later `x!` on the same local re-emitted and
+        // dart read it as redundant. (ConditionRenderPromotionSurvives)
         final out = [indent(depth) + "if (" + conditionText(c) + ") {"];
+        final savedPromoted = flowPromotedNonNull.copy();
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
         if (f != null) {
@@ -1487,12 +1493,28 @@ class DartExpr {
                 // renders record are rolled back once both branch texts
                 // exist. (BooleanArmFlowScope)
                 final branchFlow = flowPromotedNonNull.copy();
+                // A null-comparison guard on an unmutated local promotes the
+                // subject inside the proven arm (dart's own flow: the
+                // condition is evaluated before either arm), so the arm
+                // renders with the subject already registered: receiver
+                // unwraps and the guard-proven unwrap dedup-read it bare.
+                // Probes: /tmp/warnstd/dart6-probe/p1.dart, p5.dart.
+                // (GuardTernaryLocalPromotion)
+                final guardVar = nullGuardLocal(c);
+                final guardPromotes = guardVar != null && !mutated.exists(guardVar.id);
+                final provenIsThen = isNotNullGuard(c);
+                if (guardPromotes && provenIsThen)
+                    flowPromotedNonNull.set(guardVar.id, true);
                 final tText = isFloatType(e.t) && isIntOrLongType(emittedType(t)) ? intToFloatText(expr(t)) : expr(t);
+                if (guardPromotes && !provenIsThen)
+                    flowPromotedNonNull.set(guardVar.id, true);
                 final fText = isFloatType(e.t) && isIntOrLongType(emittedType(f)) ? intToFloatText(expr(f)) : expr(f);
                 // The unwrap predicate mirrors requiredValueText's skip
-                // conditions; the saved rendering is used once.
-                final tFinal = unwrapDecided(t, tGuardProven || tMapRead) ? requiredValueTextOf(tText, t) : tText;
-                final fFinal = unwrapDecided(f, fGuardProven || fMapRead) ? requiredValueTextOf(fText, f) : fText;
+                // conditions; only the render is reused, not repeated. For a
+                // local-subject guard the promotion replaces the unwrap: the
+                // proven arm is promoted, so a rendered `!` reports no effect.
+                final tFinal = unwrapDecided(t, (tGuardProven && !guardPromotes) || tMapRead) ? requiredValueTextOf(tText, t) : tText;
+                final fFinal = unwrapDecided(f, (fGuardProven && !guardPromotes) || fMapRead) ? requiredValueTextOf(fText, f) : fText;
                 restoreFlowSnapshot(branchFlow);
                 return "(" + condText + " ? " + tFinal + " : " + fFinal + ")";
             case TBlock(stmts):
@@ -2273,7 +2295,18 @@ class DartExpr {
         if (isNullLeafType(e.t) || optionalValued(e))
             return true;
         return switch (stripWrap(e).expr) {
-            case TIf(_, t, f) if (f != null): nullableValue(t) || nullableValue(f);
+            case TIf(c, t, f) if (f != null):
+                final guardVar = nullGuardLocal(c);
+                if (guardVar != null && !mutated.exists(guardVar.id))
+                    // A null-comparison guard on an unmutated local promotes
+                    // the subject in the proven arm, so the ternary's result
+                    // reads null only through the other arm. Without this
+                    // the caller of nullableValue adds an unwrap on the whole
+                    // ternary that dart reads as having no effect.
+                    // (GuardTernaryLocalPromotion)
+                    isNotNullGuard(c) ? nullableValue(f) : nullableValue(t);
+                else
+                    nullableValue(t) || nullableValue(f);
             case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)): isNullLeafType(cf.get().type);
             case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): nullableValue(inner);
             case _: false;
