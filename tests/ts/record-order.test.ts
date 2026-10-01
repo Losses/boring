@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree, type TargetId } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(__dirname, "../..");
 
@@ -33,17 +36,18 @@ function expectOrdered(body: string, reads: string[]): void {
 }
 
 interface MemberTree {
+  target: TargetId;
   file: string;
   signature: string;
 }
 
 const memberTrees: MemberTree[] = [
-  { file: "reference/ts/gen/boring/RecordOrderOps.ts", signature: "public toString(): string" },
-  { file: "reference/swift/gen/boring/RecordOrderOps.swift", signature: "func toString() -> String" },
-  { file: "reference/swift-f32/gen/boring/RecordOrderOps.swift", signature: "func toString() -> String" },
-  { file: "reference/dart/gen/lib/boring/record_order_ops.dart", signature: "String toString()" },
-  { file: "reference/rust/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
-  { file: "reference/rust-f32/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
+  { target: "ts", file: "reference/ts/gen/boring/RecordOrderOps.ts", signature: "public toString(): string" },
+  { target: "swift", file: "reference/swift/gen/boring/RecordOrderOps.swift", signature: "func toString() -> String" },
+  { target: "swift-f32", file: "reference/swift-f32/gen/boring/RecordOrderOps.swift", signature: "func toString() -> String" },
+  { target: "dart", file: "reference/dart/gen/lib/boring/record_order_ops.dart", signature: "String toString()" },
+  { target: "rust", file: "reference/rust/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
+  { target: "rust-f32", file: "reference/rust-f32/gen/boring/record_order_ops.rs", signature: "pub fn to_string(&self) -> UString" },
 ];
 
 function fieldReads(file: string): string[] {
@@ -55,12 +59,14 @@ function fieldReads(file: string): string[] {
 describe("record print field order generated trees", () => {
   test("four non-native targets synthesize the member for both classes in declaration order", () => {
     for(const tree of memberTrees) {
-      const content = read(tree.file);
-      const reads = fieldReads(tree.file);
-      for(const className of ["RecordOrderShifted", "RecordOrderAligned"]) {
-        const body = memberFrom(classFrom(content, className), tree.signature);
-        expectOrdered(body, reads);
-      }
+      withTargetTree(tree.target, "record-order: four non-native targets synthesize the member for both classes in declaration order", () => {
+        const content = read(tree.file);
+        const reads = fieldReads(tree.file);
+        for(const className of ["RecordOrderShifted", "RecordOrderAligned"]) {
+          const body = memberFrom(classFrom(content, className), tree.signature);
+          expectOrdered(body, reads);
+        }
+      });
     }
   });
 

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(__dirname, "../..");
 const markerError = "value type markers accept single-field abstracts over a primitive representation only";
@@ -102,12 +105,14 @@ describe("value wrapper generated trees", () => {
     expect(kotlin).toContain("companion object");
     expect(kotlin).toContain("val ZERO: Ic = Ic(0.0)");
 
-    const swift = read("reference/swift/gen/boring/ValueTypeOps.swift");
-    expect(swift).toContain("struct Ic: Equatable, Hashable");
-    expect(swift).toContain("let count: Double");
-    expect(swift).toContain("static func +(lhs: Ic, rhs: Ic) -> Ic");
-    expect(swift).toContain("static prefix func -(value: Ic) -> Ic");
-    expect(swift).toContain("struct FontFaceId: Equatable, Hashable, CustomStringConvertible");
+    withTargetTree("swift", "value-type: renders the five target representations and member forms", () => {
+      const swift = read("reference/swift/gen/boring/ValueTypeOps.swift");
+      expect(swift).toContain("struct Ic: Equatable, Hashable");
+      expect(swift).toContain("let count: Double");
+      expect(swift).toContain("static func +(lhs: Ic, rhs: Ic) -> Ic");
+      expect(swift).toContain("static prefix func -(value: Ic) -> Ic");
+      expect(swift).toContain("struct FontFaceId: Equatable, Hashable, CustomStringConvertible");
+    });
 
     const dart = read("reference/dart/gen/lib/boring/value_type_ops.dart");
     expect(dart).toContain("extension type Ic(double count)");
