@@ -38,6 +38,17 @@ done
 REPO=$(git rev-parse --show-toplevel) || { echo "FAIL repo: not inside a git repository"; exit 1; }
 
 BOARD=${TQ_BOARD_JSON:-}
+if [ -n "$BOARD" ]; then
+  # Hardening (r56r review): the override is an attack surface - a forged
+  # board file can mark an unsigned branch done+confirm and extract a PASS.
+  # Only honor paths inside the repository: a forged board placed there shows
+  # up in git status/diff, while an out-of-repo board is unauditable.
+  BOARD=$(readlink -f "$BOARD") || { echo "FAIL board: cannot resolve TQ_BOARD_JSON='$BOARD'"; exit 1; }
+  case "$BOARD" in
+    "$REPO"/*) : ;;
+    *) echo "FAIL board: TQ_BOARD_JSON must point to a path inside the repository (got $BOARD)"; exit 1 ;;
+  esac
+fi
 if [ -z "$BOARD" ]; then
   dir=$REPO
   while :; do

@@ -11,7 +11,11 @@ final verdict (exit 0 only if all three pass). Recovery plan section 3.4 item
    branch is not finished work.
    - Command shape: read `status` from the row whose `branch` equals the
      argument in `.workspace-board/board.json` (override with `TQ_BOARD_JSON`;
-     the script walks up from the repo root to find it).
+     the override path must resolve inside the repository - an out-of-repo
+     board file is rejected, because a forged board is otherwise an
+     unauditable way to extract a PASS, while a forged board inside the repo
+     shows up in `git status`. The script walks up from the repo root to find
+     the default board).
    - Pass criterion: `status == "done"`.
 
 2. **Ruling timeline** (`PASS ruling:`) - the branch base must not predate the
