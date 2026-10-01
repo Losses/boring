@@ -19,9 +19,15 @@
 # merely textually clean does NOT pass this gate.
 #
 # Board location: the nearest .workspace-board/board.json found walking up
-# from the repository root. There is no env-var override (TQ_BOARD_JSON was
-# removed in r56rr review: it was a false-green attack surface that could
-# extract a PASS from a forged board placed inside the worktree).
+# from the repository root, but a board that lies inside the repository being
+# evaluated is refused. The board is the workspace-level record of what has
+# been signed off; a candidate that commits its own .workspace-board/board.json
+# would otherwise supply the evidence for its own sign-off, and because the
+# forgery is committed it leaves no working-tree clue to catch afterwards
+# (r56c review). Only a board outside the candidate repository is authoritative.
+# There is no env-var override (TQ_BOARD_JSON was removed in r56rr review: it
+# was a false-green attack surface that could extract a PASS from a forged
+# board placed inside the worktree).
 
 set -u
 
@@ -44,7 +50,16 @@ BOARD=${TQ_BOARD_JSON:-}
 if [ -z "$BOARD" ]; then
   dir=$REPO
   while :; do
-    if [ -f "$dir/.workspace-board/board.json" ]; then BOARD=$dir/.workspace-board/board.json; break; fi
+    if [ -f "$dir/.workspace-board/board.json" ]; then
+      # A board inside the repository under evaluation is not authoritative:
+      # the candidate could have committed it and forged its own sign-off.
+      case "$dir/.workspace-board/board.json" in
+        "$REPO"/*)
+          echo "FAIL board: refusing $dir/.workspace-board/board.json - the board is inside the repository under evaluation ($REPO), where a candidate could commit a forged copy and supply its own sign-off"
+          exit 1 ;;
+      esac
+      BOARD=$dir/.workspace-board/board.json; break
+    fi
     [ "$dir" = "/" ] && break
     dir=$(dirname "$dir")
   done

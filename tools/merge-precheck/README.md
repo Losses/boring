@@ -16,6 +16,16 @@ final verdict (exit 0 only if all three pass). Recovery plan section 3.4 item
      at a forged board placed inside the worktree extracted a `VERDICT:
      PASS` for an unsigned branch, and the "`git status` shows it" defence
      was only an after-the-fact clue, not a control.
+   - A board found **inside the repository under evaluation** is refused
+     outright (r56c review). The board is the workspace-level record of what
+     has been signed off, so a candidate that commits its own
+     `.workspace-board/board.json` is supplying the evidence for its own
+     sign-off — and because the forgery is committed, it leaves no
+     working-tree clue. This was reproduced: a committed forged board made an
+     unsigned `warn/ts3` report `VERDICT: PASS` with exit 0 in a repository
+     whose `git status` was clean. Only a board outside the candidate
+     repository is authoritative; in this workspace the real board sits at the
+     workspace root, one level above every repository it governs.
    - Pass criterion: `status == "done"`.
 
 2. **Ruling timeline** (`PASS ruling:`) - the branch base must not predate the
