@@ -45,6 +45,7 @@ class RustExpr {
     var isFallible:Bool = false;
     var countOverflowVariant:Null<String> = null;
     var errorTypeName:Null<String> = null;
+    var errorTypeModuleName:Null<String> = null;
     // StringBuf lowering can run while a nested renderer temporarily clears
     // the active error context. Keep the enclosing function's declared enum
     // so its UStringFault payload still reaches the correct synthetic variant.
@@ -367,9 +368,10 @@ class RustExpr {
         return subst.get(v.id);
     }
 
-    public function setFallible(value:Bool, errorType:Null<String> = null, overflowVariant:Null<String> = null):Void {
+    public function setFallible(value:Bool, errorType:Null<String> = null, overflowVariant:Null<String> = null, errorModule:Null<String> = null):Void {
         this.isFallible = value;
         this.errorTypeName = errorType != null ? errorType : state.errorName;
+        this.errorTypeModuleName = errorType != null ? errorModule : state.errorModule;
         this.declaredErrorTypeName = this.errorTypeName;
         // The overflow variant belongs to the resolved error enum; a function
         // owned by an enum without it reports the gap at the first capacity
@@ -2145,6 +2147,12 @@ class RustExpr {
         }
     }
 
+    /** The module owning the active Result error enum, when the current
+        emission context has enough identity information to distinguish it. */
+    function errorTypeModule():Null<String> {
+        return errorTypeModuleName;
+    }
+
     function throwVariant(x:TypedExpr):String {
         final inner = stripWrap(x);
         final raw = switch (inner.expr) {
@@ -2176,7 +2184,7 @@ class RustExpr {
         // A declared fault enum carries the wrapping variant the throw
         // references only as registered growth (ThrowFaultVariantGrowth);
         // growth payloads are boxed, so the wrap goes through Box::new.
-        final growth = state.enumGrowthFor(errorTypeName);
+        final growth = state.enumGrowthFor(errorTypeName, errorTypeModule());
         if (growth != null)
             for (item in growth)
                 if (item.calleeName == member.name + "Fault")
@@ -2623,7 +2631,7 @@ class RustExpr {
             // The declared caller enum may carry growth variants registered
             // for callee faults merged beyond its declared set; `?` then maps
             // into a real constructor replacing a missing From impl.
-            final growth = state.enumGrowthFor(targetName);
+            final growth = state.enumGrowthFor(targetName, errorTypeModule());
             if (growth != null) {
                 for (item in growth)
                     if (item.calleeName == callee.name)
@@ -5986,15 +5994,18 @@ class RustExpr {
         }
         final savedFallible = isFallible;
         final savedError = errorTypeName;
+        final savedErrorModule = errorTypeModuleName;
         final savedOverflow = countOverflowVariant;
         final savedTryClosure = inTryClosure;
         isFallible = true;
         inTryClosure = true;
         errorTypeName = enumName;
+        errorTypeModuleName = imports.selfModule;
         countOverflowVariant = null;
         final lines = blockLines(bodyStmts, depth, true);
         isFallible = savedFallible;
         errorTypeName = savedError;
+        errorTypeModuleName = savedErrorModule;
         countOverflowVariant = savedOverflow;
         inTryClosure = savedTryClosure;
         // the forced fallible flag, and a rewrapped tail already returns it.
@@ -11584,6 +11595,7 @@ class RustExpr {
         final previousGeneric = inGenericFunction;
         final previousFallible = isFallible;
         final previousErrorTypeName = errorTypeName;
+        final previousErrorTypeModuleName = errorTypeModuleName;
         // A local function has its own return boundary. A body that throws
         // keeps the enclosing error type so each call propagates the throw;
         // an infallible local does not inherit the enclosing Result wrapper.
@@ -11591,6 +11603,7 @@ class RustExpr {
         localFunctionErrorName = null;
         isFallible = closureError != null;
         errorTypeName = closureError;
+        errorTypeModuleName = closureError == null ? null : imports.selfModule;
         // Establish the region for the whole closure body: nested calls in the
         // body's argument lists must convert into this type, and rendering
         // those argument lists retargets errorTypeName to the callee's error.
@@ -11623,6 +11636,7 @@ class RustExpr {
         currentReturnType = previousReturnType;
         isFallible = previousFallible;
         errorTypeName = previousErrorTypeName;
+        errorTypeModuleName = previousErrorTypeModuleName;
         blockClosureErrorName = previousBlockClosure;
         localFunctionErrorName = closureError;
         inGenericFunction = previousGeneric;
@@ -12664,7 +12678,7 @@ class RustExpr {
         final variant = state.syntheticErrorVariant(target, declared);
         if (variant != null)
             return ".map_err(|e| " + target + "::" + variant + "(e))?";
-        final growth = state.enumGrowthFor(target);
+        final growth = state.enumGrowthFor(target, errorTypeModule());
         if (growth != null)
             for (item in growth)
                 if (item.calleeName == declared.name)
