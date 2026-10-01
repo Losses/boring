@@ -1,0 +1,12 @@
+# Haxe oracle for the coalescing String.length fixture.
+# Run from the repository root:
+#   haxe tests/swift-length-utf16/oracle.hxml
+# Expected output:
+#   eval-length 3   (Haxe eval counts code points)
+#   utf16-units 4   (the UTF-16 contract the Swift output must match)
+-lib boring
+-lib reflaxe
+-cp packages/compiler
+-cp tests/swift-length-utf16
+-main oracle.OracleMain
+--interp
