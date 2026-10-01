@@ -18,11 +18,11 @@ output, and no checksummed archive. This package supplies all four.
 
 ## Correspondence
 
-| Commit (full id) | Tree id | Reviewed by | Review judged | R2 | R3 |
+| Commit (full id) | Tree id | Reviewed by (review-seat id; not a git object) | Review judged | R2 | R3 |
 |---|---|---|---|---|---|
-| `2aadcb6978d81705379892d2b382671b3458e753` | `91151878a6ba0890fda27eddb438d277ac8e9555` | `02507c97` | contract 3 conditions 1-2 (npm artifact determinism) | `<hash>.R2-worktree.txt` | `<hash>.R3-manifest.txt` + `<hash>.export.tar` |
-| `4f80322c7ee1ebff5bc893726b4f356a71785ff5` | (in its `.R2-worktree.txt`) | `02507c97`-adjacent (CI attribution) | contract 3 condition 3, attribution half | same | same |
-| `eec707b9b09ccabdc7541b74174c6d8cf1e9ef0e` | (in its `.R2-worktree.txt`) | `e32fd55e` | contract 3 condition 4 | same | same |
+| `2aadcb6978d81705379892d2b382671b3458e753` | `91151878a6ba0890fda27eddb438d277ac8e9555` | `02507c97` (conditions-1/2 review seat; no in-repo report) | contract 3 conditions 1-2 (npm artifact determinism) | `<hash>.R2-worktree.txt` | `<hash>.R3-manifest.txt` + `<hash>.export.tar` |
+| `4f80322c7ee1ebff5bc893726b4f356a71785ff5` | (in its `.R2-worktree.txt`) | `02507c97`-adjacent (conditions-1/2 review seat; CI attribution; no in-repo report) | contract 3 condition 3, attribution half | same | same |
+| `eec707b9b09ccabdc7541b74174c6d8cf1e9ef0e` | (in its `.R2-worktree.txt`) | `e32fd55e` (condition-4 review seat; report: `docs/architecture/evidence/condition-4-entry-gate/evidence/verify-eec707b9-REPORT.md`) | contract 3 condition 4 | same | same |
 
 ## What each file is
 
