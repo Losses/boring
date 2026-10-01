@@ -477,7 +477,29 @@ that the strict-vs-loose discriminator above is necessary but not sufficient - i
 column CAN fail, not that this run exercised it. The reproducible form is: **rc=127 means
 unmeasured; require at least one column with rc != 127 and count != 0 before reading a PASS.**
 The minimal fix is for the script to assert `rc != 127` (or `command -v` each binary up
-front), so "did not run" is distinguishable from "ran and found zero".
+front), so "did not run" is distinguishable from "ran and found zero". **That fix has since
+landed** - see the next entry.
+
+**1b. The vacuous-pass mode is fixed (`f8bb6d40`), and the fix was mutated to prove it did
+not weaken anything.** `require_measured()` now checks `rc=127` before the count comparison.
+An unmeasured column FAILS by default; `WARNING_GATE_ALLOW_UNMEASURED=1` downgrades it to a
+printed skip for environments where a toolchain is genuinely absent, and the PASS line then
+reads "N column(s) SKIPPED" instead of claiming every column was measured. Four readings,
+same commit, changing only the environment:
+
+| environment | mode | verdict | rc |
+|---|---|---|---|
+| bare PATH | default | FAIL, 5 columns NOT measured | 1 |
+| bare PATH | allow-unmeasured | PASS, 5 columns SKIPPED | 0 |
+| 3 real compilers | default | FAIL, swift+tsc NOT measured | 1 |
+| 3 real compilers | allow-unmeasured | PASS, 2 columns SKIPPED | 0 |
+
+**Discriminating power is preserved**, which is the half that could have been lost: injecting
+ONE warning into the dart tree (46 -> 47) still FAILS under the permissive mode, rc=1, with
+`dart: loose=0 strict=2 warnings=47 baseline=46`. So the fix separates "did not run" from "ran
+and found zero" without making a real regression pass. The general lesson is the one this
+ledger keeps re-learning: **a gate's failure modes must be enumerated, not just its success
+path** - here the same PASS string covered "checked and clean" and "never ran".
 
 **2. Which default-argument shapes Haxe actually admits - measured, and it splits.**
 Cross-review had warned that spec 22 V16 limits default expressions to compile-time
