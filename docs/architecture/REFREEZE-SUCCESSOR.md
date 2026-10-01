@@ -41,6 +41,36 @@ remote `b2f081bf`):
 | parent | `cf08733deb3a9a0e11aeac4c6f9a93bd84f1ffdd` | merge: recov/r43-vble-unblock into arch/agent-guided-governance |
 | candidate tree | `22d73adee7adac64de660a9c85e3711495cf5893` | `649aa881^{tree}` |
 
+> **[REVISED 2026-10-01 by the coordinator: the freeze point is `2ba5766b`, not
+> `649aa881`.]** The reasoning below stands, but reason 3 misidentifies the point the
+> declaration prescribes, and the difference matters for review.
+>
+> `P08-SUCCESSOR-DECLARATION.md` §3 step 1 says the freeze happens "在 R1/R2 落地后的
+> HEAD 上" — the HEAD *after R1/R2 and the declaration land*. `649aa881` is a **later**
+> HEAD: it also carries R4.3 (`1e0d8169`, "fix(rust,swift): unblock
+> variable-bound-loop-eval native compile"), a same-day unrelated repair that landed
+> after the declaration. Freezing `649aa881` asks a reviewer to certify a revision
+> containing work the declaration never covered.
+>
+> `2ba5766b` ("merge: recov/r31-successor-declaration into
+> arch/agent-guided-governance") is exactly the prescribed point — R1, R2 and the
+> declaration, and **no** R4.3:
+>
+> ```
+> cd70eb12 (S1)   is-ancestor of 2ba5766b -> rc=0
+> 71a60c7d (S2)   is-ancestor of 2ba5766b -> rc=0
+> 449444cf (S3)   is-ancestor of 2ba5766b -> rc=0
+> c8ae0054        is-ancestor of 2ba5766b -> rc=0
+> 1e0d8169 (R4.3) is-ancestor of 2ba5766b -> rc=1   (absent, as intended)
+> ```
+>
+> The scope caveat below shrinks accordingly but does not vanish: `SwiftExpr.hx` at
+> `2ba5766b` still differs from `c8ae0054` by **230 insertions / 15 deletions**, because
+> unrelated Swift-backend work entered the line before the declaration too. Neither
+> number is a defect in the successor; both are facts a reviewer must see. **The
+> revision to review is `2ba5766b`.** The row above records what this seat pinned; it is
+> left in place rather than rewritten, so the correction is auditable.
+
 **Why this revision, and why not the alternatives:**
 
 1. **An immutable, already-pushed hash.** The freeze must name a hash, not a ref. The
