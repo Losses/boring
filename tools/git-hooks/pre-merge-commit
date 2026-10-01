@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# boring pre-merge-commit hook: a merge into the governed mainline runs the gate.
+#
+# Disaster recovery plan section 3.4 item 1 makes the pre-merge three checks a
+# hard process ("本轮起成为硬流程", "缺一不可"). The gate itself exists as
+# tools/merge-precheck/check.sh, but nothing invoked it: CI did not call it, no
+# hook called it, and the report's own section 1.3 item 2 names that as the root
+# cause - "no enforcement point, the whole thing can be skipped with nothing
+# raising an alarm". A check that can be skipped is not a hard process.
+#
+# Why pre-merge-commit and not pre-push: the gate's subject is the CANDIDATE
+# branch ("may this branch merge into mainline?"), and on a push the local ref is
+# the mainline itself, so a pre-push hook would query the gate about the mainline
+# and refuse every ordinary mainline push. pre-merge-commit fires while the merge
+# candidate is still the subject, so the gate is asked the right question at the
+# moment the answer can still stop the merge.
+#
+# This hook reads the candidate from GIT_REFLOG_ACTION, which git sets to
+# "merge <ref>" for the duration of the merge. Measured directly: at
+# pre-merge-commit time MERGE_HEAD is empty and .git/MERGE_MSG does not yet
+# exist, so the reflog action is the only place the candidate is named.
+#
+# Only a merge whose target is the governed mainline is gated. Merging anything
+# else (a topic branch into another topic branch) is not a mainline merge.
+#
+# Installing: bun tools/git-hooks/install.ts   (a clone installs nothing;
+# .git/hooks holds only samples until this runs).
+
+set -uo pipefail
+
+MAINLINE="${TQ_MAINLINE_BRANCH:-arch/agent-guided-governance}"
+
+REPO=$(git rev-parse --show-toplevel) || exit 1
+GATE="$REPO/tools/merge-precheck/check.sh"
+
+TARGET=$(git symbolic-ref --quiet --short HEAD) || exit 0
+[ "$TARGET" = "$MAINLINE" ] || exit 0
+
+ACTION="${GIT_REFLOG_ACTION:-}"
+CANDIDATE=$(printf '%s' "$ACTION" | sed -n 's/^merge \(.*\)$/\1/p')
+if [ -z "$CANDIDATE" ]; then
+  echo "pre-merge-commit: cannot determine the merge candidate (GIT_REFLOG_ACTION='$ACTION'); refusing to merge into $MAINLINE" >&2
+  exit 1
+fi
+
+[ -x "$GATE" ] || { echo "pre-merge-commit: $GATE missing or not executable; refusing to merge into $MAINLINE" >&2; exit 1; }
+
+echo "pre-merge-commit: running the pre-merge gate for candidate '$CANDIDATE' -> $MAINLINE" >&2
+if "$GATE" "$CANDIDATE" --into "$MAINLINE" >&2; then
+  echo "pre-merge-commit: gate passed for '$CANDIDATE'" >&2
+  exit 0
+fi
+
+cat >&2 <<EOF
+pre-merge-commit: gate FAILED for '$CANDIDATE'; the merge into $MAINLINE is refused.
+pre-merge-commit: section 3.4 item 1 requires all three checks before a merge
+pre-merge-commit: (board status/merges, ruling timeline, wb_merge confirm=).
+pre-merge-commit: "textually conflict-free" is never a reason to merge.
+pre-merge-commit: to proceed anyway, the branch needs its three answers, not a
+pre-merge-commit: bypass - use 'git merge --no-verify' only if a ruling says so.
+EOF
+exit 1
