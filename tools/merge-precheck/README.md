@@ -38,6 +38,19 @@ There is no textual merge test here - no `git merge-tree`, no
 `merge --no-commit`. Textual cleanliness is never a pass reason; the gate is
 process state (board, rulings, signoff), not conflict-freeness.
 
+## Applicability: this gate constrains future merges only
+
+On the real board as of 2026-10-01 the gate passes **zero** of the 271
+branch-carrying rows - and that is accurate, not a bug: no merge record on
+the board carries a `confirm` (PIT-477: `wb_merge` with `confirm=` is the
+only signoff write path, and it has not been used on these branches), and
+almost every branch base predates the latest ruling. The PASS path is
+verified against a fixture board (now required to live inside the repo),
+not against live board data. Until the coordinator signs a row via
+`wb_merge confirm=` (or a retro-signoff is ruled for the 17 historical
+merges), expect FAIL on every real row; a FAIL is the gate doing its job,
+not evidence that the gate is broken.
+
 ## Examples
 
     # blocked: row still doing, no signed merge
