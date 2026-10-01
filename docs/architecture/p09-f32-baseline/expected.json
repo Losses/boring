@@ -1,0 +1,31 @@
+{
+  "status": "preparation-only-not-executed",
+  "generationStarted": false,
+  "candidateRevision": "77c493b5644a3613f70067045f4596f52e346e6d",
+  "comparePolicyRef": "compare-policy.md",
+  "expectedRowCounts": {
+    "note": "expected jsonl row counts per f32 bundle under the exemption ruling below; NOT measured runs — no generation or matrix has been executed for this prep",
+    "haxe-f32": { "rows": 736, "composition": "730 shared ids + 6 f32-only PrintedFloatTests ids (TestCollector scans samples/tests/f32 + samples/boring)" },
+    "kotlin-f32": { "rows": 730, "composition": "shared ids only; f32-only dir not in its roots (hxml fixed input scope)" },
+    "rust-f32": { "rows": 730, "composition": "shared ids only; f32-only dir not in its roots (hxml fixed input scope)" },
+    "swift-f32": { "rows": 730, "composition": "shared ids only; f32-only dir not in its roots (hxml fixed input scope)" }
+  },
+  "exemptedIds": {
+    "reason": "explicit-exemption ruling, see compare-policy.md §1",
+    "revocationCondition": "when any of kotlin-f32/rust-f32/swift-f32 adds tests.f32 collection roots, this baseline must be re-bound (re-run SOURCE_MANIFEST + expected) before compare numbers are acceptance-eligible again",
+    "ids": [
+      "tests.f32.PrintedFloatTests.printsShortestFloatText",
+      "tests.f32.PrintedFloatTests.printsWholeNegativeAndNullFloatFields",
+      "tests.f32.PrintedFloatTests.printsNonFiniteFloatFields",
+      "tests.f32.PrintedFloatTests.printsComputedShortestTextOnNullableFields",
+      "tests.f32.PrintedFloatTests.printsNullableFloatCollectionForm",
+      "tests.f32.PrintedFloatTests.printsShortestFloatTextOnCollectionElements"
+    ]
+  },
+  "carryOverFacts": {
+    "p09Verdict": "NOT PASSED (unchanged; audit-reports/p09-f32-baseline-policy-audit-2026-10-01.md ruling stands)",
+    "groupA": "160 missing rows / 60 ids on the arrfix candidate side: execution-coverage gap of that attempt, zero verdict flips on common ids; remains 'unproven', not 'no regression' (arrfix manifest unbindable to a named revision)",
+    "tiqianGate": "NOT executed (kotlin-f32/dart frozen baseline bundles, 1342 x3, remain un-rerun; still required after this prep before any matrix)",
+    "diagnosticHistoryPreserved": "the 166-condition (160 missing + 6 reference-only) remains the historical diagnostic record; it is superseded for acceptance purposes only by this new scope definition"
+  }
+}

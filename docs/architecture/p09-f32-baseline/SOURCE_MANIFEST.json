@@ -1,0 +1,122 @@
+{
+  "status": "preparation-only-not-executed",
+  "generationStarted": false,
+  "candidateRevision": {
+    "commit": "77c493b5644a3613f70067045f4596f52e346e6d",
+    "branch": "ci/collected-suite-failure-attribution",
+    "worktree": "boring-wt-architecture",
+    "packaging": "git archive of committed HEAD only; dirty uncommitted change tests/ts/printed-collection.test.ts in the worktree is EXCLUDED and not represented in any hash",
+    "baseBranch": "arch/agent-guided-governance",
+    "baseCommit": "0641991b",
+    "candidateIsDescendantOfBase": true
+  },
+  "sourceManifest": {
+    "kind": "f32-compare-baseline-inputs",
+    "entryCount": 15,
+    "entries": [
+      {
+        "path": "examples/kotlin.hxml",
+        "candidateSha256": "e26dca12a5f85e06d62d330d85fca47044750319afbcd5870b86981483b166c3",
+        "prepCopySha256": "e26dca12a5f85e06d62d330d85fca47044750319afbcd5870b86981483b166c3",
+        "match": true
+      },
+      {
+        "path": "examples/kotlin-f32.hxml",
+        "candidateSha256": "9f80bd020a89c719ce1205d19752d111d5436d9361604ed55a7155deecb63258",
+        "prepCopySha256": "9f80bd020a89c719ce1205d19752d111d5436d9361604ed55a7155deecb63258",
+        "match": true
+      },
+      {
+        "path": "examples/rust.hxml",
+        "candidateSha256": "9b7fbfabd1cd9dfc4aa08566f4fd47ad1f5bee018b444c2815a21307141e68fd",
+        "prepCopySha256": "9b7fbfabd1cd9dfc4aa08566f4fd47ad1f5bee018b444c2815a21307141e68fd",
+        "match": true
+      },
+      {
+        "path": "examples/rust-f32.hxml",
+        "candidateSha256": "07eadf80a63d09ef57a0bd3dbd67241959f962b44a98169dfc72101685c14d1a",
+        "prepCopySha256": "07eadf80a63d09ef57a0bd3dbd67241959f962b44a98169dfc72101685c14d1a",
+        "match": true
+      },
+      {
+        "path": "examples/swift.hxml",
+        "candidateSha256": "ec9f604064cf4e2ad53ff8001efb6610dc9ab7dfc1a38172e64fa2fc52cddac4",
+        "prepCopySha256": "ec9f604064cf4e2ad53ff8001efb6610dc9ab7dfc1a38172e64fa2fc52cddac4",
+        "match": true
+      },
+      {
+        "path": "examples/swift-f32.hxml",
+        "candidateSha256": "6ab1a894b33994028bdcb6d442a58ec74c53ca536222e2cf78b0e6a01a9c1e43",
+        "prepCopySha256": "6ab1a894b33994028bdcb6d442a58ec74c53ca536222e2cf78b0e6a01a9c1e43",
+        "match": true
+      },
+      {
+        "path": "tests/haxe/generate-main.hxml",
+        "candidateSha256": "1cd3d8c953b1c23a6e7cb522b6aa8991852b574b5efe2a16446941d7ca3130d8",
+        "prepCopySha256": "1cd3d8c953b1c23a6e7cb522b6aa8991852b574b5efe2a16446941d7ca3130d8",
+        "match": true
+      },
+      {
+        "path": "tests/haxe/generate-main-f32.hxml",
+        "candidateSha256": "d0b0a35e9df41ca4b761fc3a547e818493c68b5337e2046de4bec77177eae56d",
+        "prepCopySha256": "d0b0a35e9df41ca4b761fc3a547e818493c68b5337e2046de4bec77177eae56d",
+        "match": true
+      },
+      {
+        "path": "tests/haxe/GenerateMain.hx",
+        "candidateSha256": "ede21486428e11396d9327c3e2011970c487fb53926f8bb55730cdda716bb9bb",
+        "prepCopySha256": "ede21486428e11396d9327c3e2011970c487fb53926f8bb55730cdda716bb9bb",
+        "match": true
+      },
+      {
+        "path": "samples/tests/f32/PrintedFloatTests.hx",
+        "candidateSha256": "546877a28c7512bce29665b6b05af9f6301247685d427e5e7df48c599a6d138e",
+        "prepCopySha256": "546877a28c7512bce29665b6b05af9f6301247685d427e5e7df48c599a6d138e",
+        "match": true
+      },
+      {
+        "path": "tools/test-consistency/extra-id-allowlist.json",
+        "candidateSha256": "fab8b03661524db4d011fa364f38465ec1e66159d4d5359a13f58d0463007f93",
+        "prepCopySha256": "fab8b03661524db4d011fa364f38465ec1e66159d4d5359a13f58d0463007f93",
+        "match": true
+      },
+      {
+        "path": "tools/roots-guard/roots-allowlist.json",
+        "candidateSha256": "c25b3807443b8b0abccf004dd0b81cccd9c3568de737db3c0ed3defc858e7902",
+        "prepCopySha256": "c25b3807443b8b0abccf004dd0b81cccd9c3568de737db3c0ed3defc858e7902",
+        "match": true
+      },
+      {
+        "path": "tools/roots-guard/check-roots-guard.sh",
+        "candidateSha256": "03b6151353c85f61624edc6c57e9e8a19a8b693298c92459ac7f65be12a2b5d5",
+        "prepCopySha256": "03b6151353c85f61624edc6c57e9e8a19a8b693298c92459ac7f65be12a2b5d5",
+        "match": true
+      },
+      {
+        "path": "boring.json",
+        "candidateSha256": "ca4b70b30a60c6641f8aef3bb319fd9c791b416918bf21377ceeb268d75bc768",
+        "prepCopySha256": "ca4b70b30a60c6641f8aef3bb319fd9c791b416918bf21377ceeb268d75bc768",
+        "match": true
+      },
+      {
+        "path": "docs/specs/features/44-record-float-text-f32.md",
+        "candidateSha256": "58451eea420f2136967b4a2aa6b2ad4c11b7a3f9822828ad3180aba739217383",
+        "prepCopySha256": "58451eea420f2136967b4a2aa6b2ad4c11b7a3f9822828ad3180aba739217383",
+        "match": true
+      }
+    ]
+  },
+  "printedFloatTests": {
+    "source": "samples/tests/f32/PrintedFloatTests.hx",
+    "contentAnchorSha256": "546877a28c7512bce29665b6b05af9f6301247685d427e5e7df48c599a6d138e",
+    "ids": [
+      "tests.f32.PrintedFloatTests.printsShortestFloatText",
+      "tests.f32.PrintedFloatTests.printsWholeNegativeAndNullFloatFields",
+      "tests.f32.PrintedFloatTests.printsNonFiniteFloatFields",
+      "tests.f32.PrintedFloatTests.printsComputedShortestTextOnNullableFields",
+      "tests.f32.PrintedFloatTests.printsNullableFloatCollectionForm",
+      "tests.f32.PrintedFloatTests.printsShortestFloatTextOnCollectionElements"
+    ],
+    "ruling": "explicit-exemption"
+  }
+}
