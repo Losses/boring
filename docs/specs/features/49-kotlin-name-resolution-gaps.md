@@ -73,6 +73,15 @@ every test id on all five targets, and the payload-carrying shape lowers on
 Kotlin only until every target lowers the capture-bound single-case switch
 (`samples/boring/NoSuchElementNoteOps.hx` is gated with it).
 
+> Provenance note (added 2026-10-01, R1 residual cleanup): the regression id
+> `d0806fe0` does not resolve in this repository (`git cat-file -t d0806fe0`
+> fails, rc=128); it occurs nowhere else in the repo, and no full hash or
+> repository attribution for it is recorded, so which repository (if any) it
+> identifies cannot be determined from here (the Tiqian checkout is not
+> consulted to verify, PIT-63). The pin that carries the rule is the in-repo
+> test arm named above (`foldedVariantMessage`), which is present and
+> resolvable.
+
 The fold keeps two module-keyed tables: `payloadEnumOwners` maps the payload
 enum's module to the owner exception, and `exceptionPayloads` maps the
 exception class's module to the payload enum (`Compiler.hx`, set beside the
