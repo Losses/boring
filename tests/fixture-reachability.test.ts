@@ -28,8 +28,22 @@ import { join, resolve } from "node:path";
 const REPO_ROOT = resolve(import.meta.dir, "..");
 const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
 
-/** Measured 2026-10-01. Lower it deliberately when a fixture is wired in. */
-const RECORDED_UNCOLLECTED = 35;
+/**
+ * Measured 2026-10-01. Lower it deliberately when a fixture is wired in.
+ *
+ * Raised 35 -> 36 the same day, and the raise is the interesting direction:
+ * `tests/haxe/kotlin-mutable-chain-probe` was added as a development probe by
+ * the Kotlin mutable-chain fix and carries a `kotlin-gen.hxml` with no
+ * `*.test.ts`. Its shape was wired in as a collected fixture in the SAME commit
+ * series (`tests/haxe/kotlin-var-field-smartcast`, which does have a test), so
+ * the probe is most likely a leftover rather than a new coverable fixture.
+ * It is recorded here rather than deleted because deleting another seat's probe
+ * is their call, and rather than silently raised because a rising count is
+ * exactly what this guard exists to surface. Whoever settles it should either
+ * wire it in (count falls) or remove it (count falls) -- the count should not
+ * stay at 36.
+ */
+const RECORDED_UNCOLLECTED = 36;
 
 interface Fixture {
   readonly name: string;
