@@ -1,7 +1,7 @@
 # SHA-256 of every file in this evidence record, except this file itself
 # (a file cannot contain its own hash; the entry-gate-r2r3 package's copy carries
 #  a self-referential line equal to the empty-string hash, recorded in README section 5)
-3a6aca65d5545580ed09a4c824c13bf168c18af8d8215b30fc7992191f34cb6d  README.md
+919500ba614986deeee1fdfbd60246b163f36c6648364238435854d74c46a63e  README.md
 1daee92b1e75fd40caeb148f99bcf063c237c4defe43c49ceb09a32ffc9ac5f1  evidence/R2-independent-eec707b9.txt
 ccc640a7088b7fc4c6ee88d2c9b0c5d80b4da179c92645ebcd93477c4790151c  evidence/R3-spotcheck.txt
 3e83a0028c8e342f5e9cbbcda711119459663e643ac1d850425372967d41eac9  evidence/check-ledger.stdout.txt
