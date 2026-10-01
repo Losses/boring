@@ -2,9 +2,9 @@
 
 **Status: the Rust and TS causes are RESOLVED.** Three causes fixed in those
 emitters; the fourth was a structural constraint and is handled by a scoped,
-reasoned exemption in the rule. **Separately, the rule itself covers only two of
-five generated trees, and the three it does not cover carry ~2118 known
-violations** — see "Coverage" below. Those are not fixed here.
+reasoned exemption in the rule. **Separately, the rule covers only two of five
+generated trees** — see "Coverage" below, including the two ways an earlier
+version of that section was wrong.
 
 Discovered while re-establishing ground truth after a run of unreliable session
 reports (see "Provenance" below).
@@ -21,40 +21,73 @@ document opened with — while the rule covers three things: closures in loops,
 **iterating heads**, and **unhoisted loop bounds**. Checking one cause and
 concluding "clean" answered a narrower question than the rule asks.
 
-### What widening the guard actually found
+### What widening the guard actually found — and why the first widening was wrong twice
 
 `SOURCE_TREES` was widened to the three trees and the guard re-run. It reported:
 
-| Tree | Violations |
+| Tree | Violations (naive widening) |
 |---|---|
-| `reference/kotlin/gen` | **1052** |
-| `reference/dart/gen` | **1034** |
-| `reference/swift/gen` | **32** |
+| `reference/kotlin/gen` | 1052 |
+| `reference/dart/gen` | 1034 |
+| `reference/swift/gen` | 32 |
 
-Overwhelmingly `for-head` — `for (value in values)`, `for (var i = 0; i < a.length; i++)`
-(the bound not hoisted), plus `call-site` hits such as `.map(`, and a few real
-`loop-lambda`s (e.g. `dart/gen/lib/boring/number_parsing_ops.dart`,
-`kotlin/gen/boring/PrintedCollection.kt`).
+**Those numbers were an artifact of the widening, not findings.** Two mistakes:
 
-**The widening was reverted**, and this is a deliberate decision recorded rather
-than a silent one. Enforcing the rule on those trees would require fixing three
-emitters across ~2000 sites — a change far beyond what one round can verify, and
-exactly the kind of unverified bulk edit this programme's discipline exists to
-prevent. A guard that is red on 2118 pre-existing findings is not a guard; it is
-a permanent red that trains people to ignore it.
+**Mistake 1 — the `for-head` check is TypeScript-specific, and it was switched on
+for three other languages.** The guard's own header says so:
 
-**So the honest state is:**
+> *Every `for (` head **under the TypeScript trees** binds an index counter: the
+> head contains no ` of ` and no ` in `, and its condition section carries no
+> property access.*
 
-- the rule's **actual coverage** is TS and Rust, and the other three trees are
-  **unguarded with known, counted violations**;
-- the violation counts above are the measurement to start from, not an estimate;
-- fixing them is a **separate, much larger task** — and it should be done one
-  cause at a time (heads first, since that is the bulk), not in one sweep.
+`checkForHeads` is `true` for the two TS trees and `false` for Rust — the design
+already encodes the language-specificity. Kotlin's `for (value in values)` and
+Dart's `for (var x in xs)` are **idiomatic in those languages**; the rule flags
+them only because ` in ` is also TS's iterator syntax. Switching the flag on for
+Kotlin/Swift/Dart applied a TS rule to languages it was not written for, and
+produced ~2100 of the ~2118 hits as noise.
 
-Recorded because the first version of this section asserted the trees were clean.
-They are not, and the error came from checking a narrower question than the rule
-asks — the same shape as a guard whose observation domain is smaller than the
-property it claims to protect.
+**Mistake 2 — `lambdaTokens: ["=>"]` does not mean "closure in a loop" in Dart.**
+It means *arrow function*, which Dart uses for nested and top-level declarations
+as well as closures. Re-running with `checkForHeads: false` left:
+
+| Tree | Real hits |
+|---|---|
+| `reference/kotlin/gen` | **0** |
+| `reference/dart/gen` | 4 `loop-lambda` + 8 `call-site` |
+| `reference/swift/gen` | likewise non-empty |
+
+and the Dart `loop-lambda`s were **not** closures in loops either — they are
+immediately-invoked `(() { … })()` regions whose body contains a nested
+`bool sp(String c) => …` declaration, matched by the `=>` token.
+
+**So the honest state is much narrower than last round's entry claimed:**
+
+- **Kotlin is clean** under the rule's non-TS clauses;
+- **Dart and Swift have a small, unverified residue** (single digits, not
+  thousands) that is *not yet characterised* — the hits shown are token false
+  positives, but I have not established whether any true positive hides among
+  them, which needs a Dart/Swift-aware check rather than a token scan;
+- the `for-head` clause is **TS-only by design** and should not be widened.
+
+**The widening is reverted.** Enforcing a token-based rule on languages whose
+syntax the tokens were not chosen for produces noise, and a guard red on 2118
+mostly-spurious findings trains people to ignore it. A Dart/Swift-aware
+equivalent — one that distinguishes `=>` declarations from closures, and head
+forms idiomatic to each language — is the real prerequisite, and it does not
+exist yet.
+
+**What this entry is now worth:** the first version of it reported 2118 violations
+as a finding. They were mostly my widening's artifact. Recording the correction,
+and the two specific mistakes, is more useful than the original number — because
+the number would have sent someone to "fix" idiomatic Kotlin `for (x in xs)`.
+
+Recorded because this section has now been wrong **twice in opposite
+directions** — first asserting the trees were clean after checking one cause, then
+reporting 2118 violations that were mostly the check's own artifact. Both errors
+came from the same root: **answering a narrower or broader question than the rule
+asks.** The first asked about one cause; the second applied a TS-specific clause
+to languages it was not written for.
 
 ## Outcome
 
