@@ -11,7 +11,11 @@
 import { chmodSync, renameSync } from "node:fs";
 import { resolve } from "node:path";
 
-const HOOK_NAMES: ReadonlyArray<string> = ["pre-commit", "commit-msg", "pre-push"];
+// pre-merge-commit is the section 3.4 item 1 enforcement point: it runs the
+// pre-merge three-check gate before a mainline merge. pre-push is deliberately
+// absent: a pre-push hook would query the gate about the mainline itself and
+// refuse every ordinary mainline push (see tools/git-hooks/pre-merge-commit).
+const HOOK_NAMES: ReadonlyArray<string> = ["pre-commit", "commit-msg", "pre-merge-commit"];
 
 async function main(): Promise<number> {
   const repoRoot = resolve(import.meta.dir, "..", "..");
