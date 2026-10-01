@@ -60,3 +60,37 @@ instruction failed to say so.
 
 This is recorded here rather than left in chat because it is a property of how this
 repository is worked, not a one-off mishap.
+
+## Sign-off checklist (this session's lessons, collected)
+
+Before accepting a delivery, run these in order. Each step corresponds to a trap this
+session actually hit; none of them is hypothetical.
+
+1. **Which tree does it hold on?** `git rev-parse --verify <branch>` (does it exist) ->
+   `git merge-base --is-ancestor <commit> arch/agent-guided-governance` (is it in base) ->
+   **open the file in the shared tree** (what shape is base actually in). The third step is
+   not optional: a hardened guard was reviewed and signed off yet was never an ancestor of
+   base, so base ran the weak copy and the same input reached OPPOSITE verdicts on the two.
+2. **Does the load-bearing artifact have a commit?** Tools, guards, fixtures, drivers and
+   assertion scripts must pass `git ls-files --error-unmatch` and come out of
+   `git archive HEAD`; evidence may live in reports. Measured here: 37 of 37 worktrees were
+   detached HEAD and all 37 had uncommitted changes.
+3. **Can the criterion fail?** "The correct case passes" is not verification. Produce a
+   deliberately wrong input and watch it FAIL: a gate needs BOTH the loose and the strict
+   rc (equal rc means the gate does not exist); a fixture needs a mutant or reverse
+   control; "changed the emitter" needs a regenerate-and-diff (one 38-line change produced
+   0 differing files across the whole generated tree).
+4. **Are the rc and the count measured correctly?** Read rc directly, never through a pipe;
+   count diagnostics by SHAPE (`^error(\[E[0-9]+\])?:`, or
+   `^[^ ]+\.swift:[0-9]+:[0-9]+: (warning|error):`), never by substring - caret/context
+   lines and rustc's `--explain` hint both double-count.
+5. **Does the manifest verify from one command at the repo root?** If it names
+   git-ignored paths then "rc=0" holds only on the author's working copy. Label reachable
+   and unreachable entries as separate sections, and verify in a clean `git archive` export.
+6. **After merging, check where it landed.** `git rev-parse --abbrev-ref HEAD` plus step 1's
+   is-ancestor: one round merged four times onto a working line while the declared base
+   never moved, so newly created worktrees could not see the fixes.
+7. **How wide is the claim?** If a report says "passed" where it did not measure, downgrade
+   to `partly-confirmed` with the condition; `not-reached` needs its search evidence (which
+   paths were tried), otherwise "the environment lacks it" is indistinguishable from "nobody
+   looked" - one `haxelib` sat in the very store directory as `haxe`.
