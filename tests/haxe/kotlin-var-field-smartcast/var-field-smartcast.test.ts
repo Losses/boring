@@ -63,10 +63,15 @@ test("a nullable var property read keeps its force extraction; a val property sm
   expect(/\?\./.test(varBody), `var read must not safe-call:\n${varBody}`).toBe(false);
   expect(/\?\./.test(valBody), `val read must not safe-call:\n${valBody}`).toBe(false);
 
-  // The emitted Kotlin must actually compile under the real compiler.
+  // The emitted Kotlin must actually compile under the real compiler. A
+  // missing kotlinc is recorded as environment-not-reached, the convention
+  // tests/haxe/dc-promoted-eval/run.sh states ("recorded as
+  // environment-not-reached and never silently skipped"), rather than
+  // returning quietly -- a silent skip would make the number of assertions
+  // depend on the machine and would let the strongest check here not run.
   const kotlinc = Bun.which("kotlinc");
   if (kotlinc === null) {
-    console.error(`kotlinc not on PATH; source-level assertions above still ran, compile stage skipped`);
+    process.stderr.write("kotlinc not on PATH: compile stage environment-not-reached\n");
     return;
   }
   const files = Array.from(new Bun.Glob("varfieldsmartcast/*.kt").scanSync({ cwd: generated }))
