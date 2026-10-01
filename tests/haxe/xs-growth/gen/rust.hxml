@@ -1,0 +1,13 @@
+# Cross-check boundary fixture: xs-growth
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/xs-growth
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/xs-growth'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+xcheckscope.GrowthProbe
