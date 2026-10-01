@@ -42,14 +42,24 @@ lambda 缺陷（`dc-warn/out/lambda-return-contract/`）的机制是：
 
 | 类 | 实例 | 记录位置 |
 |---|---|---|
-| A | Kotlin：消费方读推断事实而非声明事实 | `out/kotlin-local-presence-facts` |
+| A | Kotlin：消费方读推断事实而非声明事实 | ~~`out/kotlin-local-presence-facts`~~ 工作树已不在；**证据待补** |
 | B | Rust：`String` vs `UString` 宿主串表示 | 提交 `40cf0ad0` |
 | B | Swift：`[Int32] = Array(...)` vs `ReadOnlyArray<Int32> = ReadOnlyArray(...)` | 提交 `9c9548ef` |
-| C | Swift：只读数组边界包装（SW04） | `out/sw04-fix-wt` |
+| C | Swift：只读数组边界包装（SW04） | ~~`out/sw04-fix-wt`~~ 工作树已不在；**证据待补** |
 | D | Swift：lambda 返回契约借用成员类型 | 提交 `d14aae11`（**带回归，见下**）|
-| D | Swift：`switchExpression` 从 `sw.t` 派生目的地 | `out/switchexpr-destination`（在跑）|
+| D | Swift：`switchExpression` 从 `sw.t` 派生目的地 | ~~`out/switchexpr-destination`（在跑）~~ 工作树已不在；**证据待补** |
 | E | Swift：`switchStatement` 剥离臂 `return` ⇒ 控制流出错（W1） | 提交 `d14aae11` |
 | F | 全部：warning 计入验收（标准 `:78`/`:80`） | 记录 TCN-156 |
+
+**`out/...` 的两种写法，实测结果相反（2026-10-01）**：
+
+| 写法 | 例 | 结果 |
+|---|---|---|
+| **工作树内路径** `dc-warn/out/...` | `dc-warn/out/sol-architecture-consult/` | **存在** |
+| **裸工作树名** `out/...` | 上表三处 | **都不在** |
+
+两者看起来一样，实际一个指**长期保留目录里的文件**，一个指**临时工作树本身**。
+前者活下来是因为它落在 `dc-warn` 内；后者随工作树清理而消失，且不留痕。
 
 **记录位置的可靠性分两种（实测 2026-10-01）**：
 
