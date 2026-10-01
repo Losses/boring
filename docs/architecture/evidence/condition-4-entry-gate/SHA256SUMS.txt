@@ -14,3 +14,9 @@ ce8330e63d3fffc8c267843fd4db7a358f381a837371d43bb0e75dfe7bd41943  evidence/gate-
 1b1e9243f5b900bc7e7f1c45d5bd5247d97eceb7d16271be1ad827d79ece04cc  evidence/gate-verify-eec707b9.verify-export.stdout.txt
 45d5ded5da4f865eeff1f9470cc4a91a3fb28b00e963dfa9bd7abbeea5c43700  evidence/gate-verify-json-without-path.stdout.txt
 c189c90feef4fd2384b493e8e66d0e2cfbd7dd1e2f76f26a610de52ff065eee0  evidence/trap-count.txt
+
+# The two RULING-137 minimal-action commits: requirement-4 reports, originally
+# scratch dc-warn/out/{package-shell-adjudication,verify-eec707b9}/REPORT.md,
+# now committed byte-identical under evidence/ (appended 2026-10-01)
+7fe58a4bf1a4f763723c9f25a1370bd9dd557584e64190ee5cd62dbe91bc2d51  evidence/package-shell-adjudication-REPORT.md
+19479238cae6ce73152112b00a91e9fb2954c5d64c64eb276c804bcf82d6ab68  evidence/verify-eec707b9-REPORT.md
