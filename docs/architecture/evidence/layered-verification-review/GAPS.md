@@ -110,10 +110,28 @@ warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture'
 若成立：**L4 的主力（35 个 `run.sh` 夹具）完全不被 CI 收集**，而唯一做
 「生成物突变 + negative control」的 `dc-promoted-eval` 正在这 35 个之内。
 
-## 7. L0 两条规则与交付面规则完全靠人 —— **[未复核]**
+## 7. L0 两条规则与交付面规则完全靠人 —— **[已复核]，且已修其一半**
 
 审阅称 `is-ancestor` 与 `ls-files --error-unmatch` 在整个 `*.ts/*.sh/*.json` 中零命中，
-`gate:verify` 不在 CI。第 1 条缺口已经证明**这正是出错的那条规则**。
+`gate:verify` 不在 CI。**第 1 条缺口已经证明这正是出错的那条规则** ——
+一条只写在正文里的规则，等于没有规则。
+
+**处置：L0 的树规则现在有机器执行了。** `tests/doc-reference-integrity.test.ts` 新增一条：
+
+> 一条**声称已生效**的断言如果引用了 commit，该 commit 必须可从 base **或** HEAD 到达，
+> 否则该行必须自己说明它成立在哪棵树上。
+
+**负控已做，且用的是真实发生过的错误**：在一份副本里把第 12 行还原成历史错误句
+（`S1 已使其归零（1 → 0，cd70eb12）`），守卫 FAIL 并精确点名
+`LAYERED-VERIFICATION.md:12`。该行附近同时留有「未归零」字样，所以抓到它的是
+**祖先关系**而非措辞巧合 —— 这才是这一条能成立的理由。
+
+**守卫第一次跑就误报了** `GATE-LEDGER.md:614`（`f8bb6d40`）：它确实不在 base，
+但在 HEAD 上，**文档是对的、守卫太窄**。已把可达性基准从「仅 base」放宽为
+「base 或 HEAD」。这次误报本身就是该守卫文件自己警告的
+「观察域小于所声称的性质」，记在 PIT-405。
+
+`ls-files --error-unmatch`（交付面规则）**仍未机制化**，缺口 7 只闭了一半。
 
 ## 8. 收集域漂移不复核 —— **[未复核]**
 
