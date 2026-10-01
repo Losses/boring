@@ -3378,40 +3378,27 @@ class KotlinExpr {
     }
 
     /**
-        Whether the field policy states a proof *Kotlin will act on* for one
-        field read. A dominating guard proves the property is present, but
-        Kotlin only turns that proof into a smart cast when the access itself
-        is stable, so the flow proof alone is not the predicate. (PIT-388)
+        The flow half of one field read's proof: a dominating guard (or an
+        emission that printed the assertion) recorded the property as present.
+        This is the *value* fact on its own, with Kotlin's smart-cast rule not
+        yet applied; `fieldProven` is the composite the read path may act on.
+        (PIT-388)
     **/
-    function fieldProven(e:TypedExpr):Bool {
+    function fieldGuarded(e:TypedExpr):Bool {
         final key = fieldAccessKey(e);
-        return key != null && nonNullFields.exists(key) && fieldSmartCastable(e);
+        return key != null && nonNullFields.exists(key);
     }
 
     /**
-        Kotlin's two stability halves for one field read, neither implied by
-        the other and neither supplied by the flow proof:
-
-          * the property must be immutable. A `var` property is never
-            smart-castable however good the guard is: "smart cast to 'T' is
-            impossible, because 'x' is a mutable property that could be
-            mutated concurrently". Only a Haxe `final` backing field lowers to
-            a Kotlin `val`, so the field half is `isFinal` on an `FVar`; a
-            getter-property accessor is excluded because Kotlin refuses a
-            smart cast through a custom getter.
-          * the receiver chain's root local must be one Kotlin treats as
-            stable. A local a capturing closure writes makes every
-            `root.field` projection unstable, and a local this body rebinds
-            stops being stable from the rebinding onward; the latter half is
-            enforced where the write is emitted, by
-            `dropProofsForWriteTarget`. (PIT-388)
+        Whether the field policy states a proof *Kotlin will act on* for one
+        field read: the guard's flow fact together with the one smart-cast
+        predicate. A dominating guard proves the property is present, but
+        Kotlin only turns that proof into a smart cast when
+        `smartCastableSubject` holds, so the flow proof alone is not the
+        predicate. (PIT-388)
     **/
-    function fieldSmartCastable(e:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)):
-                cf.get().kind.match(FVar(_, _)) && cf.get().isFinal && receiverRootStable(e);
-            case _: false;
-        };
+    function fieldProven(e:TypedExpr):Bool {
+        return fieldGuarded(e) && smartCastableSubject(e);
     }
 
     /**
@@ -3453,29 +3440,56 @@ class KotlinExpr {
     }
 
     /**
-        The receiver question one member access asks: a local fact for a local
-        receiver, the root fact for a chain, and the field policy for a field
-        read. This replaces the position walk that answered the same question
-        from source ranges.
-    **/
-    /**
-        Whether Kotlin smart-casts a proven-non-null subject. A val-like local
-        and a final (val) property smart-cast; a var property or a reassigned
-        binding does not, so its read must keep the force extraction even when
-        the enclosing guard proved it present. (VarFieldSmartCast)
+        THE smart-cast predicate: whether Kotlin turns a proof about this
+        subject into a smart cast, i.e. whether the subject may render through
+        a bare dot. One judgement, one source (contract 6): the guard side
+        (`addProofExpr`, deciding whether a printed `!!` may register the field
+        key) and the read side (`fieldProven`) both call this function, so the
+        two can no longer answer the same question differently. Same family as
+        PIT-388 / PIT-416 / TCN-162.
+
+        Kotlin's two halves for a field read, neither implied by the other and
+        neither supplied by the flow proof:
+
+          * the property must be immutable. A `var` property is never
+            smart-castable however good the guard is: "smart cast to 'T' is
+            impossible, because 'x' is a mutable property that could be
+            mutated concurrently". Only a Haxe `final` backing field lowers to
+            a Kotlin `val`, so the field half is `isFinal` on an `FVar`; a
+            getter-property accessor is excluded because Kotlin refuses a
+            smart cast through a custom getter.
+          * the receiver chain's root local must be one Kotlin treats as
+            stable. A local a capturing closure writes makes every
+            `root.field` projection unstable, and a local this body rebinds
+            stops being stable from the rebinding onward; the latter half is
+            enforced where the write is emitted, by
+            `dropProofsForWriteTarget`.
+
+        The local half is the same question for a plain binding: only a
+        binding the body leaves alone smart-casts. (VarFieldSmartCast)
     **/
     function smartCastableSubject(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TLocal(v): !bodyWritesLocal(v.id);
-            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) | TField(_, FStatic(_, cf)): cf.get().isFinal;
+            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) | TField(_, FStatic(_, cf)):
+                cf.get().kind.match(FVar(_, _)) && cf.get().isFinal && receiverRootStable(e);
             case _: false;
         };
     }
 
+    /**
+        The receiver question one member access asks: whether the receiver's
+        own value is present, so the read needs neither a safe call nor an
+        extraction of its own. For a field read this is the field's *own* flow
+        proof, never the presence of the chain's root local: `rootPresent`
+        answers a question about the root, and taking it as the field's own
+        proof is the bypass PIT-416 records -- it licenses a bare dot on a
+        field whose value nothing proved. (PIT-416)
+    **/
     function receiverProven(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TLocal(_): localPresent(e) || targetEntryLegal(e);
-            case TField(_, _): fieldProven(e) || rootPresent(e);
+            case TField(_, _): fieldGuarded(e);
             case _: false;
         }
     }
