@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# boring pre-push hook: refuse fast-forward merges into the governed mainline.
+#
+# A fast-forward merge (git merge <branch> when <branch> is directly ahead of
+# HEAD) does not create a merge commit, so the pre-merge-commit hook never
+# fires and the three-check gate (disaster recovery §3.4 item 1) is silently
+# bypassed. This hook catches that scenario at push time by inspecting the
+# reflog for "Fast-forward" markers.
+#
+# It also refuses direct cross-branch pushes that update the mainline remote
+# ref from a local branch other than the mainline itself
+# (e.g. git push candidate:mainline), because those bypass the local merge
+# machinery entirely.
+#
+# The mainline must advance only via --no-ff merge commits, which trigger
+# pre-merge-commit and run the gate before the merge commit is created.
+#
+# Scenarios this hook refuses:
+#   1. Fast-forward merge onto mainline (git merge <branch>)
+#   5. Rebase + fast-forward onto mainline (rebase candidate, then git merge)
+#   6. Direct push of a candidate branch onto mainline (git push <cand>:mainline)
+#
+# Scenarios this hook does NOT cover (documented in the audit report):
+#   2. --no-verify                (hooks are explicitly skipped)
+#   3. Hand-crafted commit after a rejected merge (MERGE_HEAD + staged index)
+#   4. Conflict merge + manual commit (pre-merge-commit doesn't fire on
+#      conflict resolution; pre-push sees a merge commit and lets it through)
+#   7. Merge in a new clone without hooks installed
+#
+# This hook is installed by tools/git-hooks/install.ts (pre-push is already
+# in its HOOK_NAMES list) alongside pre-commit, commit-msg, and
+# pre-merge-commit.
+
+set -uo pipefail
+
+MAINLINE="${TQ_MAINLINE_BRANCH:-arch/agent-guided-governance}"
+
+while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+  [ -n "$local_ref" ] || continue
+
+  remote_branch="${remote_ref#refs/heads/}"
+  [ "$remote_branch" = "$MAINLINE" ] || continue
+
+  # Creating the remote mainline (all-zeros sha) -- not a merge advance.
+  [ "$local_sha" != "0000000000000000000000000000000000000000" ] || continue
+
+  # Nothing to push.
+  [ "$local_sha" != "$remote_sha" ] || continue
+
+  # --- Detection 1: cross-branch direct push --------------------------------
+  # git push <candidate>:<mainline> updates the mainline remote ref directly
+  # from a non-mainline local branch. No local merge machinery runs, so the
+  # reflog shows no merge action. Catch it by comparing local/remote branch
+  # names.
+  local_branch="${local_ref#refs/heads/}"
+  if [ "$local_branch" != "$MAINLINE" ]; then
+    printf '%s\n' \
+      "pre-push: refusing to push '$local_branch' directly onto $MAINLINE." \
+      "pre-push: merges into $MAINLINE must go through 'git merge --no-ff'." \
+      "pre-push: a direct push bypasses the pre-merge-commit gate (disaster" \
+      "pre-push: recovery plan §3.4 item 1)." \
+      "pre-push:" \
+      "pre-push: to push anyway (only if a ruling says so):" \
+      "pre-push:   git push --no-verify" >&2
+    exit 1
+  fi
+
+  # --- Detection 2: fast-forward merge via reflog ---------------------------
+  # Walk the mainline reflog from newest to oldest, stopping at the first
+  # commit that is an ancestor of the remote SHA (i.e. already on the remote).
+  # If any entry in this window contains "Fast-forward", a fast-forward merge
+  # happened locally and the gate was bypassed.
+  ff_found=0
+  while IFS=' ' read -r sha line; do
+    [ -n "$sha" ] || continue
+    if git merge-base --is-ancestor "$sha" "$remote_sha" 2>/dev/null; then
+      break
+    fi
+    case "$line" in
+      *Fast-forward*)
+        ff_found=1
+        break
+        ;;
+    esac
+  done <<< "$(git reflog "$MAINLINE" --format='%H %gs' 2>/dev/null || true)"
+
+  if [ "$ff_found" -eq 1 ]; then
+    cat >&2 <<EOF
+pre-push: refusing a fast-forward merge into $MAINLINE.
+pre-push: a fast-forward merge does not create a merge commit, so the
+pre-push: pre-merge-commit hook never fires and the three-check gate
+pre-push: (disaster recovery §3.4 item 1) is silently bypassed.
+pre-push:
+pre-push: undo and redo with --no-ff:
+pre-push:   git reset --hard ORIG_HEAD
+pre-push:   git merge --no-ff <branch>
+pre-push:
+pre-push: to push anyway (only if a ruling says so):
+pre-push:   git push --no-verify
+EOF
+    exit 1
+  fi
+done
+
+exit 0
