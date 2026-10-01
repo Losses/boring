@@ -2147,10 +2147,10 @@ class RustExpr {
                 return stmtLines(inner, depth);
             case TUnop(OpIncrement, _, subj):
                 final wrapped = intStepWrapping(subj, true);
-                return [indent(depth) + (wrapped != null ? wrapped : expr(subj) + " += 1") + ";"];
+                return [indent(depth) + (wrapped != null ? wrapped : assignTarget(subj) + " += 1") + ";"];
             case TUnop(OpDecrement, _, subj):
                 final wrapped = intStepWrapping(subj, false);
-                return [indent(depth) + (wrapped != null ? wrapped : expr(subj) + " -= 1") + ";"];
+                return [indent(depth) + (wrapped != null ? wrapped : assignTarget(subj) + " -= 1") + ";"];
             case _:
                 return [indent(depth) + expr(e) + ";"];
         }
@@ -8281,7 +8281,7 @@ class RustExpr {
                 return "-" + inner;
             case OpIncrement | OpDecrement:
                 final wrapping = intStepWrapping(subj, op == OpIncrement, inner);
-                final assign = wrapping != null ? wrapping : inner + (op == OpIncrement ? " += 1" : " -= 1");
+                final assign = wrapping != null ? wrapping : assignTarget(subj) + (op == OpIncrement ? " += 1" : " -= 1");
                 return post ? "({ let t = " + inner + "; " + assign + "; t })" : "({ " + assign + "; " + inner + " })";
             case _:
                 return fail(e, "unary operator has no lowering: " + Std.string(op));
