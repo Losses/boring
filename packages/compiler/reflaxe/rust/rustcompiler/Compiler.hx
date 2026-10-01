@@ -1065,6 +1065,11 @@ class Compiler extends PluginCompiler<Compiler> {
                                             state.payloadEnumNames.set(payloadKey, payload.name);
                                             state.exceptionPayloads.set(classKey, payload.module);
                                             state.exceptionPayloadNames.set(classKey, payload.name);
+                                            // The identity-keyed entries above cannot be read by
+                                            // a reader holding only the caught class; record
+                                            // the same pair under the class's own identity so
+                                            // the catch sites can resolve class-first (PIT-297).
+                                            state.exceptionPayloadEnums.set(cls.module + "::" + cls.name, {module: payload.module, name: payload.name});
                                         case _:
                                     }
                                     if (!hasPayload && RustDecl.isMessageOnlyException(cls))
@@ -2297,7 +2302,15 @@ class Compiler extends PluginCompiler<Compiler> {
     function regionErrorNameOf(c:{v:TVar, expr:TypedExpr}):Null<String> {
         switch (Context.follow(c.v.t)) {
             case TInst(cls, _):
-                final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
+                final caught = cls.get();
+                // The caught class's own payload first: the module-keyed
+                // fallbacks below cannot tell two exception classes of one
+                // module apart, and naming the other class's payload enum
+                // mistypes the catch region (`?` then fails to convert).
+                final payload = state.exceptionPayloadEnums.get(caught.module + "::" + caught.name);
+                if (payload != null)
+                    return payload.name;
+                final messageOnly = state.messageOnlyExceptions.get(caught.module);
                 if (messageOnly != null)
                     return messageOnly;
                 final classKey = RustEmissionState.identityKey(cls.get().module, cls.get().name);
@@ -2494,7 +2507,15 @@ class Compiler extends PluginCompiler<Compiler> {
     function caughtPayloadEnumModuleOf(v:haxe.macro.Type.TVar):Null<String> {
         return switch (v.t) {
             case TInst(c, _):
-                state.exceptionPayloads.exists(RustEmissionState.identityKey(c.get().module, c.get().name)) ? state.exceptionPayloads.get(RustEmissionState.identityKey(c.get().module, c.get().name)) : null;
+                // The class's own recorded payload first: the identity-keyed
+                // fallback cannot be read without the class's identity, and
+                // the former module-keyed fallback could not distinguish two
+                // exception classes sharing one Haxe module.
+                final caught = c.get();
+                final recorded = state.exceptionPayloadEnums.get(caught.module + "::" + caught.name);
+                if (recorded != null)
+                    return recorded.module;
+                return state.exceptionPayloads.exists(RustEmissionState.identityKey(caught.module, caught.name)) ? state.exceptionPayloads.get(RustEmissionState.identityKey(caught.module, caught.name)) : null;
             case _: null;
         }
     }
@@ -2560,16 +2581,17 @@ class Compiler extends PluginCompiler<Compiler> {
                 final payloadEnum = classPayloadEnum(cls);
                 if (payloadEnum == null)
                     return;
-                // The payload enum is registered under its own identity
-                // (module + name), so the recorded name IS this enum's name
-                // whenever the class was scanned; a miss means the class is
-                // outside the scanned source scope. Under the former
-                // module-keyed table a sibling payload enum sharing the
-                // module overwrote the entry and this guard silently
-                // dropped every earlier-scanned class (PIT-281).
-                final enumName = state.payloadEnumNames.get(RustEmissionState.identityKey(payloadEnum.module, payloadEnum.name));
-                if (enumName == null)
+                // The payload enum this class actually carries must be the
+                // one recorded for this class; otherwise no payload pair was
+                // recorded for it and the growth variant would attach to an
+                // unrelated enum. Reading the class-keyed map keeps the gate
+                // satisfiable when two exception classes share one module,
+                // and it stays consistent with the identity-keyed tables,
+                // which are written from the same pair at the set site.
+                final recorded = state.exceptionPayloadEnums.get(cls.module + "::" + cls.name);
+                if (recorded == null || recorded.module != payloadEnum.module || recorded.name != payloadEnum.name)
                     return;
+                final enumName = recorded.name;
                 if (state.isSyntheticErrorType(enumName))
                     return;
                 // A throw inside a cfg(test) module references the variant
