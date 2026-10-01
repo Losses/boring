@@ -99,6 +99,21 @@ class RustEmissionState {
     **/
     public final payloadEnumNames:Map<String, String> = [];
 
+    /**
+        Maps an exception class, keyed "<class module>::<class name>", to the
+        payload enum its constructor carries. The three maps above key on the
+        payload enum's MODULE, and every type declared in one Haxe file shares
+        that file's module: two payload exception classes in one module write
+        the same key, so the later write replaces the earlier class's payload
+        identity and the module key cannot say which payload belongs to which
+        class. This map keeps that identity per class, so the growth-variant
+        registration gate (Compiler.registerThrownExceptionVariant) and the
+        try-region error name (Compiler.regionErrorNameOf) resolve the payload
+        of the class in hand rather than of whichever class was scanned last.
+        (ThrowFaultVariantGrowth)
+    **/
+    public final exceptionPayloadEnums:Map<String, {module:String, name:String}> = [];
+
     /** Message-only exception classes are represented by their own Rust error enum. */
     public final messageOnlyExceptions:Map<String, String> = [];
 
