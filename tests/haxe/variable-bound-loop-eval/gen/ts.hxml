@@ -1,0 +1,18 @@
+# Generation of the variable-bound-loop-eval fixture for the ts target.
+# The caller supplies -D ts-output=... (and -D ts-test-output=...); this file
+# is otherwise the complete generation input. Run from the worktree root:
+#   haxe tests/haxe/variable-bound-loop-eval/gen/ts.hxml -D ts-output=<dir>
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp tests/haxe/variable-bound-loop-eval/shadow
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp tests/haxe/variable-bound-loop-eval
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/variable-bound-loop-eval'])
+--macro tscompiler.Compiler.use()
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none
+vble.Probe
