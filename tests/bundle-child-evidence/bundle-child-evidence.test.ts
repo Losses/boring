@@ -724,8 +724,14 @@ describe("child execution evidence", () => {
      *
      * Rather than document the hole, this drives a shape where the answer is
      * determined: the child writes ONLY to stderr. stderr is then what
-     * exhausts the buffer, so the host stops the child because stderr filled
-     * it, and the retained stderr is non-empty on every run -- no race to lose.
+     * exhausts the buffer, and the retained stderr is non-empty on every run
+     * -- the retention question has no race to lose.
+     *
+     * Retention is the only thing this shape determines. The host's *stop* is
+     * opportunistic, so `signal === "SIGTERM"`, `exitStatus === null`, and
+     * `stderrBytes < CAPTURE_LIMIT * 50` were scheduling facts and not
+     * properties of the record; all three are gone. The measurements that
+     * replaced them are stated at the assertions below.
      */
     test("a stderr-only child beyond the capture limit retains its stderr", () => {
       const limited = join(uniqueDir("stderr-flood"), "evidence");
@@ -745,6 +751,12 @@ describe("child execution evidence", () => {
       if (run.result === null) {
         throw new Error(`the probe did not report a result: ${run.stderr}`);
       }
+      // The caller sees the evidence failure itself, as in the flood above, and
+      // not a bare nonzero status.
+      if (run.result.evidenceError === null || run.result.evidenceError === undefined) {
+        throw new Error("an incomplete capture must be reported as an evidence failure");
+      }
+      expect(run.result.evidenceError).toContain("child evidence");
       const records = collectRecords(limited);
       expect(records.length).toBe(1);
       const record = records[0];
@@ -753,24 +765,43 @@ describe("child execution evidence", () => {
       }
       assertRecordClaimsHold(record);
 
-      // Same incomplete-capture state as the flood above.
+      // Same incomplete-capture state as the flood above, and it is read from
+      // the record's own fields: the host reports ENOBUFS only after a buffer
+      // has passed maxBufferBytes, so an incomplete capture naming the limit is
+      // the determined statement that the limit was reached.
       expect(record.captureComplete).toBe(false);
       if (record.captureError === null) {
         throw new Error("an incomplete capture must name its error");
       }
       expect(record.captureError).toContain("capture limit");
-      expect(record.signal).toBe("SIGTERM");
-      expect(record.exitStatus).toBeNull();
+      expect(record.maxBufferBytes).toBe(CAPTURE_LIMIT);
 
       // The point of this case: stderr was retained, deterministically. The
-      // limit was reached *through* stderr, so this cannot lose a race.
+      // child writes only to fd 2, so with the capture-limit error named above
+      // and stdout empty below, stderr is the stream that reached the limit: a
+      // capture that dropped stderr reports 0 here.
       expect(record.stderrBytes).toBeGreaterThan(0);
-      // ...and it is a truncation, not the whole output the child was told to
-      // write, so the capture really was cut short.
-      expect(record.stderrBytes).toBeLessThan(CAPTURE_LIMIT * 50);
       // Nothing was written to stdout, so this case isolates the stream under
       // test rather than piggy-backing on stdout's retention.
       expect(record.stdoutBytes).toBe(0);
+
+      // The host's *stop* is opportunistic, and all three of its landings were
+      // measured on this shape (60 runs through the probe, maxBuffer 4096,
+      // 204800 bytes written): 41 where the child had already written its last
+      // byte and exited 0, 18 where the stop landed mid-write, and 1 where it
+      // landed after the last byte. So `signal === "SIGTERM"` and
+      // `exitStatus === null` held in only 19 of those 60 runs and neither is
+      // asserted. What is determined is that a capture the host reported as
+      // over the limit is never recorded as a normal exit, even in the 41 runs
+      // whose child status is 0.
+      expect(["signaled", "interrupted"]).toContain(record.outcome);
+
+      // Nor is `stderrBytes < CAPTURE_LIMIT * 50` a property of the record: the
+      // host stops the child when it notices the buffer passed the limit, and
+      // in 41 of the 60 measured runs it noticed only after the child's last
+      // write, so the record legitimately retained all 204800 bytes. The "this
+      // capture was cut short" claim the path does guarantee is
+      // `captureComplete === false` with the capture-limit error, above.
 
       // The retained bytes must be the flood byte, which catches a capture that
       // silently substituted or truncated content rather than just its length.
