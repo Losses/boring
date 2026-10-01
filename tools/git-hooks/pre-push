@@ -27,9 +27,9 @@
 #      conflict resolution; pre-push sees a merge commit and lets it through)
 #   7. Merge in a new clone without hooks installed
 #
-# This hook is installed by tools/git-hooks/install.ts (pre-push is already
-# in its HOOK_NAMES list) alongside pre-commit, commit-msg, and
-# pre-merge-commit.
+# This hook is installed by tools/git-hooks/install.ts alongside pre-commit,
+# commit-msg, and pre-merge-commit. At base commit ccfe6869 pre-push was
+# already in HOOK_NAMES; D1 added pre-merge-commit, and both must coexist.
 
 set -uo pipefail
 
