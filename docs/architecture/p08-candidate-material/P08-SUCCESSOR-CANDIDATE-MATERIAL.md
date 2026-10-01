@@ -69,19 +69,22 @@ worktree (`prep/p08-candidate-material` @ `5a8f19e6`); raw output in
 
 | # | Change a successor must carry | Driven by | Commit | On the line (ancestor of `prep` HEAD `5a8f19e6`)? | Provenance |
 |---|---|---|---|---|---|
-| S1 | Clear the unreachable trailing `return` so `swiftc -c -WMO` diagnostic count at `Gap.swift:117` is **0** — without changing run semantics | Review 1 cond. 1; Review 2 cond. 1; Ruling-245 point 2 | **none exists** — the `w2-diagnostic-fix` work was ordered stopped and sealed with no hash (`GATE-LEDGER.md:189-190` records it as abandoned, never delivered) | **NO — not on the line** `[EXEC]`: the only two commits touching `SwiftExpr.hx` after `c8ae0054` are `71a60c7d` and `449444cf`, neither addresses the trailing return; `git log --all --grep` finds no such fix | `[CODE]` |
+| S1 | Clear the unreachable trailing `return` so `swiftc -c -WMO` diagnostic count at `Gap.swift:117` is **0** — without changing run semantics | Review 1 cond. 1; Review 2 cond. 1; Ruling-245 point 2 | **`cd70eb12`** — "fix(swift): do not emit statements after one that diverges" (`SwiftExpr.hx`); **corrected 2026-10-01**: S1 exists as this commit and is on the line via merge `e550fa52`. RULING-245 point 2 makes it **successor candidate content** (a change of generated text), not a patch to `c8ae0054`. The earlier `w2-diagnostic-fix` work was ordered stopped and sealed with no hash (`GATE-LEDGER.md:189-190`) | **YES — on the line** `[EXEC]` (`git merge-base --is-ancestor e550fa52 arch/agent-guided-governance`); corrected 2026-10-01; the prior "NO" reading was against `prep` HEAD `5a8f19e6`, which predates that merge | `[CODE]` |
 | S2 | `switchExpression` destination from the owning composition (`switchExpression(sw, destination)`, `v.t` from `switchBindingLines`, callee parameter on the argument route) | Review 1 cond. 2; GATE-LEDGER P08-1 correction | `71a60c7d` — "fix(swift): switch-expression closures lower against the owning destination contract" (`SwiftExpr.hx`, +48/−10) | **YES** `[EXEC]` `git merge-base --is-ancestor` | `[EXEC]` |
 | S3 | Boundary conversion applied on the lambda single-statement fast path (`functionLiteralInner`) | Review 1 cond. 3; Ruling-245 point 3 | `449444cf` — "fix(swift): apply destination conversion on the single-statement lambda fast path" (`SwiftExpr.hx`, +21/−2) | **YES** `[EXEC]` | `[EXEC]` |
 | S4 | Fixture carries a working automated `swiftc -c` assertion (the collector must be able to gate the zero-diagnostic criterion) | Review 1 cond. 1 ancillary; Review 2's acceptance-naming requirement | `d14231a6` — "fix(test): make gap-boundary swiftc -c invocation valid and assert its outcome" (`gap-boundary.test.ts`, +41/−2) | **YES** `[EXEC]` | `[EXEC]` |
 
 **Key finding, stated plainly:** Review 1 condition 1 and Review 2 condition 1
-(the sole in-scope ground of the sealing rejection) **cannot be met by the
-changes now on the line.** The one change that would clear `Gap.swift:117`
-does not exist as any commit; its work was stopped and sealed by Ruling-245
-point 4. A successor candidate is therefore not assemble-able from the line
-alone: S1 must be newly written, and under Ruling-245 point 2 any such fix
-creates candidate content and mandates a new freeze plus both independent
-reviews again. `[CODE]`
+(the sole in-scope ground of the sealing rejection) **cannot be met without a
+re-freeze and two independent reviews, even though all three successor repairs now
+exist on the line.** The one change that would clear `Gap.swift:117` **now exists**
+as `cd70eb12` ("fix(swift): do not emit statements after one that diverges",
+`SwiftExpr.hx`) and is on the line via merge `e550fa52` (corrected 2026-10-01);
+the earlier `w2-diagnostic-fix` work was stopped and sealed by Ruling-245
+point 4. A successor candidate is therefore assemblable from the line (S1/S2/S3
+are all present) but is **not yet frozen, not yet re-reviewed, and not yet accepted**;
+under Ruling-245 point 2 the S1 fix creates candidate content and mandates a new
+freeze plus both independent reviews again. `[CODE]`
 
 Mechanical integrity of the commits named above `[EXEC]`, via
 `bun run gate:verify -- <commit-ish> --json <path>` (R2/R3 evidence: full
@@ -114,7 +117,7 @@ for a successor, because no successor exists or is being nominated.
 
 ## 4. Residual scope — what this preparation does NOT cover
 
-1. **No successor exists.** Nothing is frozen, nominated, named as a candidate, or declared ready/verified/acceptable. S1 does not exist as code and this record does not design or write it.
+1. **No successor is frozen, nominated, named as a candidate, or declared ready/verified/acceptable.** S1 now exists as `cd70eb12` and is on the line via `e550fa52` (corrected 2026-10-01); per RULING-245 point 2 it is successor candidate content. A re-freeze and both independent reviews are still required; this record does not design or write the freeze.
 2. **`c8ae0054` status unchanged**: NOT PASSED / REJECTED, sealed. No new P08 review opened; nothing re-measured to dispute the rejection (the `gate:verify` run on `c8ae0054` is integrity evidence for the record, not a re-review).
 3. **No implementation and no tests were added** by this preparation task (this record and its evidence are the only artifacts; the worktree carries no source change).
 4. **Other obligations and rows** (P08-1 destination-owner structural enforcement, in-scope reconstruction's remaining derivation sites, P08-3's unprobed laziness routes, P09/P10/P12) are out of scope; they belong to their own seats and rulings.
