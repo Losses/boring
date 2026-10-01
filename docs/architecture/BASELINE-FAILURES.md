@@ -280,6 +280,35 @@ per-file abort after a timed-out test leaves dangling state (`killed 1 dangling
 process` also appears). They are cascade damage from the timeouts above, not
 independent failures.
 
+### Toolchain absent from PATH — 59 (added 2026-10-01)
+
+A class distinct from the timeouts above, and previously unrecorded. When the
+suite is run with only the default `PATH`, every test that shells out to a
+compiler fails — not because a budget was exceeded, but because the executable
+does not exist at that name:
+
+```
+Executable not found in $PATH: "haxe"     58
+Executable not found in $PATH: "swiftc"    1
+```
+
+They are **environment results, not product defects**, by the same test the
+timeout section uses: the literal marker names the missing executable, and the
+same tests pass once the toolchain is on `PATH`. Corroboration run for this
+record — with haxe, cargo and kotlinc on `PATH`, three of the guards implicated
+in that session's work passed `12 pass, 0 fail`.
+
+**Why it is worth its own entry.** The timeout class is a *budget* result on a
+contended box; this class is a *resolution* result with a quiet box. Recording
+them together would obscure both, and this class is the one that makes
+`bun test tests/` look far redder than the product is. Reading it as regression
+would send someone to investigate missing toolchains as if they were defects —
+the mirror of the earlier error where environmental failures were recorded as
+real ones.
+
+Counts read from a single run at `602e9222` (1000 pass, 61 fail, 1 error, 1061
+tests across 312 files); 59 of the 61 fails carry the marker above.
+
 ## 5. Notes / not verified
 
 - The working tree carries pre-existing modifications I did not make: the
