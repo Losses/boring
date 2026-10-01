@@ -1,6 +1,7 @@
 # Loop-structure violations in generated output
 
-**Status: three of four causes FIXED; one is a structural constraint, not a defect.**
+**Status: RESOLVED.** Three causes fixed in the emitters; the fourth was a
+structural constraint and is handled by a scoped, reasoned exemption in the rule.
 Discovered while re-establishing ground truth after a run of unreliable session
 reports (see "Provenance" below).
 
@@ -15,11 +16,11 @@ fourth is structurally necessary.
 | array `indexOf` → `.iter().position(\|e\| …)` | `RustExpr.hx:11047` | **fixed** — indexed scan |
 | nullable `==` comparison → `.as_ref().map_or(false, \|v\| …)` | `RustExpr.hx:7099`, `:7109` | **fixed** — `matches!(…, Some(__v) if …)` |
 | `std.Process.run` shim → `for (const entry of env)` | `TsExpr.hx:2864` | **fixed** — indexed head, hoisted bound |
-| try-region → `(\|\| { … })()` | `RustExpr.hx:6139` | **not a defect** — see below |
+| try-region → `(\|\| { … })()` | `RustExpr.hx:6139` | **rule-side exemption** — the closure is required |
 
-Effect: the guard went from **10 violations (8 `loop-lambda` + 1 `for-head` + 1
-more) to 1**, the remaining one being the try-region IIFE. Both the Rust and the
-TS trees now pass; only the Rust tree's IIFE keeps that one test red.
+Effect: the guard went from **10 violations (8 `loop-lambda` + a `for-head`) to
+0**, with both trees passing. The four causes were resolved three ways: two
+lowerings rewritten, one runtime shim indexed, and the fourth on the rule side.
 
 ### The `for-head` cause
 
@@ -46,11 +47,25 @@ match __outcome { Ok(_) => {} Err(_) => { … } }
 ```
 
 Removing it is not a rewrite of the same kind — it would need the region's
-control flow restructured, not reformatted. So it is recorded as a **constraint
-the loop-lambda rule does not currently accommodate**, which is a question about
-the rule and the construct, not a bug in the lowering.
+control flow restructured, not reformatted. So it is a **constraint the
+loop-lambda rule does not accommodate**, which is a question about the rule and
+the construct, not a bug in the lowering.
 
-### Evidence for the two fixes
+**Resolved on the rule side**, by an exemption carrying its reason in the guard
+(`tests/ts/loop-structure.test.ts`), beside the pre-existing one for the
+immediately-invoked single-pass builder. Two checks that it is scoped rather than
+a hole:
+
+| Check | Result |
+|---|---|
+| Guard with the exemption | 5 pass, 0 fail |
+| An injected **non-region** closure inside a loop body | still fails it (4 pass, 1 fail) |
+| Regions in the tree vs regions inside a loop body | 7 vs **1** |
+
+The closure was also confirmed necessary by compiling the shape both ways: the
+alternative forms cannot express the region, because `?` would escape it.
+
+### Evidence for the three fixes
 
 Read back after the change, not inferred from the command:
 
