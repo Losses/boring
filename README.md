@@ -72,19 +72,22 @@ run. Of the tools the flake provides, only what is already on `PATH` is usable:
 | `bun` | yes |
 | `haxe`, `cargo`, `kotlinc`, `swiftc`, `boring` | **no** |
 
-**What still works without the flake**, with the toolchains added to `PATH`
-(e.g. from the store paths the tests already reference):
+**What still works without the flake** — the tests invoke `haxe`/`cargo`/`kotlinc`
+by name and do not locate them themselves, so the toolchains must be on `PATH`
+however you arrange that (the flake normally does it):
 
     bun test tests/                    # the collected suite
     bun test tests/ts/loop-structure.test.ts
 
 **What does not**, and why it matters for reading results:
 
-- `bun test tests/` **without** `haxe` on `PATH` reports ~56 failures that are
-  toolchain-absent, not defects — see `docs/architecture/BASELINE-FAILURES.md`,
-  which measures this class directly rather than inferring it from a marker;
+- `bun test tests/` **without** `haxe` on `PATH` reports **61 failures (1000
+  pass)**; with it on `PATH`, **5 failures (1075 pass)**. Those 56 are
+  toolchain-absent, not defects — `docs/architecture/BASELINE-FAILURES.md`
+  measures the class by running both ways rather than inferring it from a marker;
 - the Swift lane cannot run at all here (`swiftc` needs 13 missing libraries, and
-  its wrapper needs user namespaces the sandbox denies);
+  its wrapper needs user namespaces the sandbox denies), which is why the
+  residual 5 also cannot be cleared;
 - 35 fixtures under `tests/haxe/` are uncollected **and** unrunnable here, so
   they are neither known-passing nor known-failing. See the same document.
 
