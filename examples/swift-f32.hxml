@@ -687,3 +687,8 @@ boring.TestLitEdgeOps
 tests.TestLitEdgeTests
 
 tests.SharedHandleTests
+# R1 warn-zero regression samples (one mechanism each)
+boring.ClassInstanceLocalLet
+boring.BytesValueArrayVar
+boring.StringIndexOfDeadClamp
+boring.UnusedSwiftBinding
