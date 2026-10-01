@@ -1,0 +1,15 @@
+# Rust generation of the per-char units-hoisting fixture (t-mukem10i-n8ll).
+# The caller supplies -D rust-output=<dir>, as for the other tests/haxe fixtures:
+#   haxe tests/haxe/perchar-units-hoist/gen/rust.hxml -cp packages/compiler -D rust-output=/tmp/pch-out
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/perchar-units-hoist
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/perchar-units-hoist'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+pch.PerCharUnitsProbe
