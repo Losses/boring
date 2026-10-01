@@ -142,10 +142,16 @@ class RustType {
                 if (RustDecl.isExceptionSubclass(cls) && state.messageOnlyExceptions.exists(cls.module)) {
                     imports.requireType(cls.module, cls.name);
                     cls.name;
-                } else if (RustDecl.isExceptionSubclass(cls) && state.exceptionPayloads.exists(RustEmissionState.identityKey(cls.module, cls.name))) {
+                } else if (RustDecl.isExceptionSubclass(cls) && (state.exceptionPayloadEnums.exists(cls.module + "::" + cls.name) || state.exceptionPayloads.exists(RustEmissionState.identityKey(cls.module, cls.name)))) {
+                    // The class's own recorded payload first: the
+                    // identity-keyed fallback cannot be read without the
+                    // class's identity, and the former module-keyed fallback
+                    // named whichever same-module exception class was scanned
+                    // last when two classes share one Haxe module.
+                    final recorded = state.exceptionPayloadEnums.get(cls.module + "::" + cls.name);
                     final classKey = RustEmissionState.identityKey(cls.module, cls.name);
-                    final payloadModule = state.exceptionPayloads.get(classKey);
-                    final payloadName = state.exceptionPayloadNames.get(classKey);
+                    final payloadModule = recorded != null ? recorded.module : state.exceptionPayloads.get(classKey);
+                    final payloadName = recorded != null ? recorded.name : state.exceptionPayloadNames.get(classKey);
                     final emittedIn = state.payloadEnumModules.exists(RustEmissionState.identityKey(payloadModule, payloadName)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(payloadModule, payloadName)) : cls.module;
                     imports.requireType(emittedIn, payloadName);
                     payloadName;
