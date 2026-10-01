@@ -116,8 +116,12 @@ lambda：19 驱动、diff 为空）。
 | 量 | 值 |
 |---|---|
 | 写点（各自认为"某 shim 被用到了"） | **28 处**，散在 `RustDecl.hx` / `RustExpr.hx` / `RustImports.hx` |
-| 读点（据此决定某 resident 是否发射） | **12 处** |
+| 读点（据此决定某 resident 是否发射） | **15 处** |
 | 规定"哪条路径必须写"的契约 | **无** |
+
+（写点分布：`RustExpr.hx` 23、`RustImports.hx` 3、`RustDecl.hx` 2；
+读点分布：`Compiler.hx` 13、`RustImports.hx` 1、`RustEmissionState.hx` 1。
+量于 `aceda352`，判据为"行形状"：左侧赋值、下标赋值，或 `push|add|set|insert|remove|clear`。）
 
 ⇒ 这个全局被**当两种意思用**："业务引用到了某 extern"（意图层）与
 "某 resident 该不该写出 `.rs`"（发射层）。**两层不等价，且无人负责保证等价。**
@@ -141,6 +145,25 @@ lambda：19 驱动、diff 为空）。
 3. 验证派生是否**自足**：若不点亮那些写点、仅靠派生仍能保持不变量，
    说明派生独立成立；**若只有某个写点开火才成立**，说明正确性仍依赖
    未协调的写点；**这本身是要报的发现**，即便代码在语法上是对的。
+
+**消融实测（补记，`aceda352`）**：把 master 在 `RustImports.requireType`
+尾部的写点整段禁用后重新生成 `examples/rust.hxml`。
+
+| 观测 | 结果 |
+|---|---|
+| 生成 rc | 0 |
+| 生成树差异（排除 cargo 的 `target/`） | **零**：545 个 `.rs` 两侧一致 |
+| `runtime/mod.rs` | **逐字节相同** |
+| 声明/引用 | 15 / 15，violations = **0** |
+| `cargo check` | rc=0，error 计数 0 |
+
+⇒ 该写点在本语料上**完全惰性**，因此"零违规"**既不证明派生自足、
+也不证明写点必要**。原因是两条路径对同一组 extern 求值：`Compiler.hx:862`
+的发射闸门本身就读 `state.shimsUsed.exists(externModule)`（经 `externsOf`），
+与写点用的是同一对 `(isResident, externsOf)`，按构造必然一致。
+
+要真正判定自足，需要一个"只被 `requireType` 触及、而其导入方不触发
+extern 点亮"的用例；在那之前此项记为**未决**，不得写成"已验证自足"。
 
 ## 未决
 
