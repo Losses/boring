@@ -4,8 +4,10 @@ import { expect, test } from "bun:test";
 // `var` must keep its force extraction even when a null guard proves the value
 // present; a `final` (val) property may smart-cast.
 //
-// Master commit 8214566d ("fix(kotlin): keep force extraction on var-property
-// null-narrowing") added that distinction, and no test in either tree pinned
+// Commit 8214566d ("fix(kotlin): keep force extraction on var-property
+// null-narrowing") added that distinction on the
+// ci/collected-suite-failure-attribution lineage (it is not on the
+// arch/agent-guided-governance base), and no test in either tree pinned
 // it -- which is how a merge silently dropped it and left the emitted Kotlin
 // failing kotlinc. This test exists to make that loss impossible to repeat.
 // (VarFieldSmartCast)
