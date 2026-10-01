@@ -1,0 +1,17 @@
+# Minimal Swift package-shell=emit observation input (feature spec 24).
+# Run from the repository root, overriding the output tree:
+#   haxe tests/haxe/swift-package-shell-emit/emit.hxml -D swift-output=/tmp/<dir>
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/haxe/swift-package-shell-emit
+--macro Intercept.run(['tests/haxe/swift-package-shell-emit'])
+--macro swiftcompiler.Compiler.use()
+-main Main
+-D swift-output=out/swift-package-shell-emit
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=emit
