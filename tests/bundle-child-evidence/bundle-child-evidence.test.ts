@@ -682,15 +682,31 @@ describe("child execution evidence", () => {
         throw new Error("an incomplete capture must name its error");
       }
       expect(record.captureError).toContain("capture limit");
-      // What this path guarantees is that the capture was cut short, not how
-      // much of each stream survived. The host stops the child the moment the
-      // buffer is exhausted, so which stream has flushed by then is a
-      // scheduling fact: a run can legitimately retain zero bytes on one
-      // stream (measured: 4 of 5 runs did), and the retained total is not
-      // bounded by maxBufferBytes either (measured sums well above it). The
-      // incomplete-capture state itself is asserted above; here only that
-      // something was retained.
-      expect(record.stdoutBytes + record.stderrBytes).toBeGreaterThan(0);
+      // The child was told to write CAPTURE_LIMIT * 50 bytes to each stream, so
+      // a retained length below that is a truncation and not the whole output.
+      const floodBytes = CAPTURE_LIMIT * 50;
+      expect(record.stdoutBytes).toBeLessThan(floodBytes);
+      // stdout is retained on every run: 60 of 60 raw host spawns of this same
+      // fixture retained it (8192..24576 bytes), never zero. So stdout carries
+      // the "something was retained" claim deterministically.
+      expect(record.stdoutBytes).toBeGreaterThan(0);
+      //
+      // No assertion here reads stderr, and that is deliberate. Whether stderr
+      // has flushed when the host SIGTERMs the child is a scheduling race in
+      // the host, not a property of this record: measured on the raw spawn,
+      // stderr was non-empty in 5 of 60 samples (~8%), so asserting
+      // `stderrBytes > 0` fails often enough to look like a flake, and
+      // asserting it *sometimes* would need ~90 runs for 95% confidence.
+      // Retained totals are not bounded by maxBufferBytes either (the limit
+      // applies per stream; sums above it are normal). What this path does
+      // guarantee -- an incomplete capture, an error naming the capture limit,
+      // no exit status, SIGTERM -- is asserted above.
+      //
+      // Consequence, stated so nobody reads more into this than it proves: the
+      // suite cannot detect a regression that silently drops stderr on this
+      // path, because such a record is byte-identical in shape to one of the
+      // 62 legitimate stderr-less capture-limit records observed on the healthy
+      // tree. stderr retention is verified nowhere by this suite.
       expect(record.exitStatus).toBeNull();
       expect(record.signal).toBe("SIGTERM");
       expect(record.maxBufferBytes).toBe(CAPTURE_LIMIT);
