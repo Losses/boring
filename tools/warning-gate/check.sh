@@ -31,10 +31,10 @@ check() {
   local name=$1 base=$2 n r
   case "$name" in
     dart) n=$(grep -cE '^warning' "$OUT/dart.loose" || true) ;;
-    kotlin) n=$(grep -cE '\\.kt:[0-9]+:[0-9]+: warning:' "$OUT/kotlin.loose" || true) ;;
+    kotlin) n=$(grep -cE '\.kt:[0-9]+:[0-9]+: warning:' "$OUT/kotlin.loose" || true) ;;
     rust) n=$(grep -E '^[[:space:]]+--> ' "$OUT/rust.loose" | grep -cE 'runtime/|boring/|haxe/|registry/|std/' || true) ;;
     swift) n=$(grep -ciE '(^|: )warning([: ]|$)' "$OUT/swift.loose" || true) ;;
-    typescript) n=$(grep -ciE '(^|: )warning([: ]|$)' "$OUT/ts.loose" || true) ;;
+    typescript) n=$(grep -ciE '(^|: )warning([: ]|$)' "$OUT/typescript.loose" || true) ;;
     *) echo "warning-gate: unknown target $name"; FAIL=1; return ;;
   esac
   r=$(rc "$OUT/$name.strict")
@@ -70,8 +70,8 @@ run "$OUT/swift.loose" "$SWIFT_BIN" build --product BoringSwiftTests
 run "$OUT/swift.strict" "$SWIFT_BIN" build --product BoringSwiftTests -Xswiftc -warnings-as-errors
 check swift 0
 
-run "$OUT/ts.loose" "$TSC_BIN" -p "$ROOT"
-run "$OUT/ts.strict" "$TSC_BIN" -p "$ROOT" --noEmit
+run "$OUT/typescript.loose" "$TSC_BIN" -p "$ROOT"
+run "$OUT/typescript.strict" "$TSC_BIN" -p "$ROOT" --noEmit
 check typescript 0
 
 if [ "$FAIL" -eq 0 ]; then echo 'WARNING GATE PASS (no warning count above baseline)'; else echo 'WARNING GATE FAIL'; fi
