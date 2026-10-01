@@ -44,11 +44,35 @@ const FOREIGN_REPO_MARKERS = [
   "外部仓库",
 ];
 
+/** A hash-notation value that is NOT an object id -- an uncommitted diff state,
+    for instance. Found 2026-10-01: four `tracked diff <hash>` citations in
+    compiler-policy-interfaces.md can never resolve, because an uncommitted diff
+    has no object id. That is a NOTATION problem, not staleness, and the failure
+    looks identical to a cleaned-up reference from the reader's side. So the
+    citing line must say which kind it is; the words are matched, not the value. */
+const NON_OBJECT_MARKERS = [
+  "tracked diff",
+  "未提交",
+  "uncommitted",
+  "不是对象 id",
+];
+
 function markdownFiles(): string[] {
-  if (!existsSync(DOCS)) return [];
-  return readdirSync(DOCS)
-    .filter((f) => f.endsWith(".md"))
-    .map((f) => join(DOCS, f));
+  // Two locations, not one. The guard originally scanned only
+  // docs/architecture/ and therefore missed docs/architecture-work-plan.md and
+  // docs/compiler-policy-interfaces.md -- which is where the four unresolvable
+  // diff citations were living. A guard whose observation domain is smaller than
+  // the property it claims to protect is the failure this file exists to catch,
+  // so the domain is stated here and asserted below.
+  const dirs = [DOCS, join(REPO_ROOT, "docs")];
+  const out: string[] = [];
+  for (const dir of dirs) {
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) {
+      if (f.endsWith(".md")) out.push(join(dir, f));
+    }
+  }
+  return out;
 }
 
 function objectType(ref: string): string | null {
@@ -64,12 +88,18 @@ function objectType(ref: string): string | null {
 }
 
 describe("architecture document reference integrity", () => {
-  test("the documents directory is present and non-empty", () => {
+  test("the document set is discovered from more than one directory", () => {
     const files = markdownFiles();
-    expect(files.length, `no markdown found under ${DOCS}; discovery is broken`).toBeGreaterThan(0);
+    expect(files.length, `no markdown found; discovery is broken`).toBeGreaterThan(0);
+    const outside = files.filter((f) => !f.startsWith(`${DOCS}/`));
+    expect(
+      outside.length,
+      "the scan found only docs/architecture/; the domain has silently narrowed, " +
+        "which is how the four tracked-diff citations went unchecked",
+    ).toBeGreaterThan(0);
   });
 
-  test("every cited object hash resolves in this repository or names its own", () => {
+  test("every cited object hash resolves, or its line says why it cannot", () => {
     const unresolvable: string[] = [];
     let checked = 0;
 
@@ -77,12 +107,19 @@ describe("architecture document reference integrity", () => {
       const text = readFileSync(file, "utf8");
       const lines = text.split("\n");
       for (const [i, line] of lines.entries()) {
+        // A hash may legitimately not resolve when the line names another
+        // repository, or when it says the value is not an object id at all
+        // (an uncommitted diff). Both are the AUTHOR stating which kind it is.
         if (FOREIGN_REPO_MARKERS.some((m) => line.includes(m))) continue;
+        if (NON_OBJECT_MARKERS.some((m) => line.includes(m))) continue;
         for (const m of line.matchAll(HASH_REF)) {
           const ref = m[1]!;
           checked += 1;
           if (objectType(ref) === null) {
-            unresolvable.push(`${file.replace(`${REPO_ROOT}/`, "")}:${i + 1} cites \`${ref}\`, which does not resolve`);
+            unresolvable.push(
+              `${file.replace(`${REPO_ROOT}/`, "")}:${i + 1} cites \`${ref}\`, which does not resolve — ` +
+                `fix the hash, or say which repository it lives in, or mark it as not an object id`,
+            );
           }
         }
       }

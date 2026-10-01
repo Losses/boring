@@ -28,12 +28,32 @@ remain under review.
 
 This inventory describes the integrated compiler at `2159c657`. Historical
 comparison consumer inputs copied on 2026-09-28 came from the frozen
-worktrees `ts-comparison-consumer` (tracked diff `5adb5f00`),
-`policy-kotlin-comparison-consumer` (`907c53e9`), `boring-wt-rust-comparison`
-(`a7b60a81`), and `policy-dart-comparison-consumer` (HEAD `ae73c11e`, tracked
-diff `74c58a3c`). It distinguishes a typed result that exists in the tree
+worktrees `ts-comparison-consumer` (tracked diff `5adb5f00` — uncommitted,
+not an object id),
+`policy-kotlin-comparison-consumer` (`907c53e9` — tracked diff, uncommitted,
+not an object id), `boring-wt-rust-comparison`
+(`a7b60a81` — tracked diff, uncommitted, not an object id), and
+`policy-dart-comparison-consumer` (HEAD `ae73c11e`, tracked
+diff `74c58a3c` — uncommitted, not an object id). It distinguishes a typed
+result that exists in the tree
 from a target consumer that uses it. Refresh the inventory when a candidate
 is integrated.
+
+**注意（2026-10-01 实测）：上面四个 `tracked diff` 值不是对象 id，`git cat-file`
+一律取不到**。它们指的是那四个工作树里**当时未提交的 diff 状态**——未提交的 diff
+没有对象 id，所以任何形如 `git show 5adb5f00` 的查法都会失败：
+
+| 值 | `git cat-file -t` | 说明 |
+|---|---|---|
+| `ae73c11e`（标为 HEAD） | **commit** | 唯一可取到的 |
+| 四个 `tracked diff` 值 | 四个都 **ABSENT** | 也**不在**各自工作树里——本就不该在 |
+
+**这是记法问题，不是失效引用**：作者把"HEAD"与"tracked diff"分开写，说明**知道**
+两者不同；但把 diff 状态写成裸十六进制，读起来和提交哈希一样。
+**规则（补记）**：引用**未提交**状态时不要写裸哈希——写**工作树名 + 文件名 + 复核日期**，
+或写当时的 `git diff --stat` 摘要。裸哈希承诺的是"可 `cat-file` 取到"，
+而未提交状态无法兑现这个承诺，于是**每一个这样的引用都会在读者尝试解析时失败**，
+且失败原因（"它本来就不是对象"）与失效原因（"它被清理了"）**看起来完全一样**。
 
 | Producer or existing query | Concrete result | Current consumer and limit |
 | --- | --- | --- |
