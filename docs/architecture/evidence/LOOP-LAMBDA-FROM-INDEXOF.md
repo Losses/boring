@@ -53,6 +53,16 @@ Read back after the change, not inferred from the command:
 The 780-passing Rust suite is the load-bearing evidence that the two conversions
 are semantically equivalent rather than merely compiling.
 
+### Mutation control
+
+The half that makes the fix load-bearing rather than coincidental: reinstating
+only the `indexOf` closure form (leaving everything else at the fixed state)
+returns **6** `loop-lambda` hits, against **1** on the fixed emitter. So the
+conversion is what removes them, not a side effect of the same edit.
+
+Restoring the fix returns the count to 1, and the emitter is byte-identical to
+its committed state afterwards.
+
 ## The defect
 
 An array `indexOf` lowers to a **closure**:
