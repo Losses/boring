@@ -23,6 +23,14 @@ forms at commit `4b1fec9` are:
 | Dart | `packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx:2019` | `math.min(a, b)`/`math.max(a, b)` after `mathFloatArg` widening. |
 | Rust | `packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:4775` (with `:3880` providing the static reference) | `f64::min(a, b)`/`f64::max(a, b)` (or `f32` under the precision switch), a bare native call whose NaN behavior returns the other operand and therefore currently disagrees with the oracle. |
 
+> Provenance note (added 2026-10-01, R1 residual cleanup): the commit id
+> `4b1fec9` does not resolve in this repository (`git cat-file -t 4b1fec9`
+> fails, rc=128), and no full hash or repository attribution for it is
+> recorded anywhere in this repo. Which repository it belongs to cannot be
+> determined from inside this repo, and the Tiqian checkout is not consulted
+> to verify (PIT-63). The anchors in the table above were recorded against
+> that commit as originally written.
+
 The TypeScript, Kotlin, Swift, and Dart native forms propagate NaN in the
 required way in the supported floating-point domain. Rust's `f32::min`,
 `f32::max`, `f64::min`, and `f64::max` are non-conforming despite their Haxe-
