@@ -170,9 +170,7 @@ has a coordinator-owned source-fact and Kotlin consumer specification. The
 focused Kotlin consumer is integrated at `3fb8c565`; B1's replay tools and
 other target adapters retain separate ownership.
 
-The fixed Tiqian input remains `8504d230228e8206689a2049bbb84b671c1f079a` (a commit in the **Tiqian repository**, not this one, so `git cat-file` here cannot resolve it).
-commit in the **Tiqian repository**, not this one, so `git cat-file` here
-cannot resolve it (expected, not staleness).
+The fixed Tiqian input remains `8504d230228e8206689a2049bbb84b671c1f079a` (a commit in the **Tiqian repository**, not this one, so `git cat-file` here cannot resolve it — expected, not staleness).
 The previous validation checkout was absent during the latest environment
 check; its loss has no established cause. A new locked checkout at the same
 revision contains 248 copied local data inputs with matching source and target
