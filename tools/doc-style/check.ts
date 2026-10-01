@@ -18,7 +18,7 @@
  * Each hit is a candidate that requires manual judgment and may be accepted.
  */
 
-import { extname, relative, resolve } from "node:path";
+import { dirname, extname, relative, resolve } from "node:path";
 import { Glob } from "bun";
 
 export type WordTag = "metaphor" | "jargon" | "putdown" | "coinage" | "adjective";
@@ -583,10 +583,47 @@ export function scanText(text: string, file: string): ReadonlyArray<StyleHit> {
   return hits;
 }
 
+// Frozen evidence mirrors are not a subject of this gate.
+//
+// A directory that carries a SHA256SUMS manifest pins every file under it by
+// hash. Its content is a verbatim copy of a build artifact, so a hit inside it
+// is not fixable: rewriting the text to satisfy a style rule would break the
+// manifest the copy is pinned by. The checker already excludes the out/
+// directory these copies come from (EXCLUDED_PARTS); scanning the copies while
+// excluding the originals measures nothing about authored prose, and it leaves
+// the gate permanently red on content no commit can repair.
+//
+// The rule is keyed on the manifest, not on a directory name, so it stays
+// correct as evidence is ingested: a subtree that declares a manifest is a
+// mirror, and a directory holding authored reports beside a mirror (for example
+// docs/architecture/evidence/layered-verification-review/, which has no
+// manifest) stays in scope. An explicitly named path is still read - the
+// exclusion applies to directory and repository-wide scans only.
+const MIRROR_MANIFEST_GLOB = "SHA256SUMS*";
+let frozenMirrors: ReadonlyArray<string> = [];
+let frozenMirrorsReady = false;
+
+async function initializeFrozenMirrors(): Promise<void> {
+  if (frozenMirrorsReady) return;
+  const roots = new Set<string>();
+  try {
+    for await (const entry of new Glob(`**/${MIRROR_MANIFEST_GLOB}`).scan({ cwd: REPO_ROOT, absolute: true })) {
+      roots.add(dirname(entry));
+    }
+  } catch {
+    // A walk failure leaves the exclusion empty, which scans MORE files than
+    // intended: the failure direction is strict, never a silent widening of
+    // what the gate ignores.
+  }
+  frozenMirrors = [...roots];
+  frozenMirrorsReady = true;
+}
+
 function excludedTarget(path: string): boolean {
   const parts = relative(REPO_ROOT, path).split(/[\\/]/);
   if (parts.some((part) => EXCLUDED_PARTS.has(part))) return true;
   if (parts[0] === "tools" && parts[1] === "unicode-data") return true;
+  if (frozenMirrors.some((mirror) => path === mirror || path.startsWith(`${mirror}/`))) return true;
   return parts.some((part) => part.endsWith("-gen"));
 }
 
@@ -694,6 +731,7 @@ export function parseCliArgs(args: ReadonlyArray<string>): CliOptions {
 }
 
 export async function readTargets(args: ReadonlyArray<string>): Promise<ReadonlyArray<TargetFile>> {
+  await initializeFrozenMirrors();
   const targets: string[] = [];
   const explicitFiles: string[] = [];
   if (args.length > 0) {
@@ -733,6 +771,7 @@ function shownPath(path: string): string {
 
 export async function main(args: ReadonlyArray<string>): Promise<number> {
   const options = parseCliArgs(args);
+  await initializeFrozenMirrors();
   const hits: StyleHit[] = [];
 
   if (options.text !== undefined) {
