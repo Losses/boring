@@ -2,15 +2,16 @@ package;
 
 import haxe.Json;
 import js.Syntax;
-import ChildEvidence.ChildContext;
-import ChildEvidence.ChildEvidenceError;
-import ChildEvidence.ChildEvidenceRecord;
-import ChildEvidence.ChildEnvironment;
-import ChildEvidence.ChildExecution;
-import ChildEvidence.ChildOutcome;
-import ChildEvidence.ChildRun;
-import ChildEvidence.EnvironmentOverride;
-import ChildEvidence.NodeFile;
+import driver.ChildEvidence as ChildEvidence;
+import driver.ChildEvidence.ChildContext;
+import driver.ChildEvidence.ChildEvidenceError;
+import driver.ChildEvidence.ChildEvidenceRecord;
+import driver.ChildEvidence.ChildEnvironment;
+import driver.ChildEvidence.ChildExecution;
+import driver.ChildEvidence.ChildOutcome;
+import driver.ChildEvidence.ChildRun;
+import driver.ChildEvidence.EnvironmentOverride;
+import driver.ChildEvidence.NodeFile;
 
 /**
     Focused probe for the child evidence module of feature spec 59. It reads

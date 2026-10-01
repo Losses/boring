@@ -162,7 +162,12 @@ function requireTool(name: string): void {
 /** Builds the driver or the probe from this checkout into the suite's own output. */
 function build(moduleClass: string, extraClassPath: Array<string>, outputJs: string): void {
   const hxmlPath = join(RUN_BASE, "build", `${moduleClass.toLowerCase()}.hxml`);
-  const lines = ["-cp", join(REPO_ROOT, "tools", "bundle"), ...extraClassPath, "-main", moduleClass, "-js", outputJs];
+  const lines = [
+    "-cp", join(REPO_ROOT, "packages", "driver", "src"),
+    "-cp", join(REPO_ROOT, "packages", "registry", "src"),
+    "-cp", join(REPO_ROOT, "samples"),
+    ...extraClassPath, "-main", moduleClass, "-js", outputJs,
+  ];
   writeFileSync(hxmlPath, `${lines.join("\n")}\n`);
   const result = spawnSync(HAXE, [hxmlPath], { cwd: REPO_ROOT, encoding: "utf8" });
   if (result.status !== 0 || !existsSync(outputJs)) {
@@ -321,7 +326,7 @@ function successfulArgs(dir: string, evidenceParent?: string): Array<string> {
 
 requireTool(HAXE);
 mkdirSync(join(RUN_BASE, "build"), { recursive: true });
-build("Driver", [], DRIVER_JS);
+build("driver.Main", [], DRIVER_JS);
 build("EvidenceProbe", ["-cp", join(REPO_ROOT, "tests", "bundle-child-evidence", "probe")], PROBE_JS);
 
 describe("child execution evidence", () => {

@@ -1,3 +1,7 @@
+package driver;
+
+#if js
+
 import haxe.Json;
 import js.Syntax;
 
@@ -770,3 +774,5 @@ class ChildEvidence {
         return Syntax.code("Date.now()");
     }
 }
+
+#end
