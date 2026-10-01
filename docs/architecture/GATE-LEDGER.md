@@ -25,6 +25,32 @@ identity is now **`c8ae0054`** (chain `a14345ce` -> `28820ff5` -> `c8ae0054`). T
 identity record, not an acceptance. Any subsequent P08 review must target that revision,
 not scratch trees and not the superseded `docs/architecture/evidence/ledger-cited-reports/p08-candidate-freeze-REPORT.md`.
 
+**Successor re-freeze recorded** (`2905bdfb` + `d31041eb`, superseding the paragraph
+above; `docs/architecture/REFREEZE-SUCCESSOR.md`): the successor candidate is frozen at
+**`2ba5766b`** (`merge: recov/r31-successor-declaration into
+arch/agent-guided-governance`). `REFREEZE.md` carries a pointer at its head and its
+original lines are left intact, so the supersession is auditable rather than silent.
+
+The successor is a **lineage**, not one commit: `c8ae0054` plus three components S1
+`cd70eb12`, S2 `71a60c7d`, S3 `449444cf`, each of which entered the line separately.
+`2ba5766b` is the revision the declaration prescribes - the HEAD after R1, R2 and the
+declaration land. All five are ancestors of `2ba5766b` (`git merge-base --is-ancestor`
+gives rc=0 for each).
+
+The freeze point was first recorded as `649aa881`, and that was wrong: `649aa881` is a
+**later** HEAD that also carries R4.3 (`1e0d8169`), a same-day unrelated repair, so a
+reviewer would have been asked to certify work the declaration never covered. The
+correction is recorded in `REFREEZE-SUCCESSOR.md` with the seat's original row left in
+place rather than rewritten.
+
+Still an identity record, not an acceptance, and it nominates nothing: `RULING-137` stands
+and P08 remains PREPARABLE / NOT NOMINATE-ABLE. Its **scope caveat** is a fact for the
+R3.3 reviewer, not a defect in the successor: at `2ba5766b`, `SwiftExpr.hx` differs from
+`c8ae0054` by **230 insertions / 15 deletions**, because unrelated Swift-backend work
+entered the line before the declaration as well. Nine commits touched that file between
+`c8ae0054` and the freeze - four are successor components, five are unrelated mainline
+work.
+
 **P08 overall: NOT PASSED.** The candidate is REJECT. Its post-review repair is now complete and on the line - the integration ruling's option (b) was executed as `a14345ce` (revert the lambda half, keep W1) followed by `c8ae0054` (the corrected lambda as one atomic commit) - so the line no longer carries a known regression, and a re-freeze is the next step. What still blocks is the build-phase diagnostic above and the absence of a second independent acceptance on a frozen revision.
 
 ## Restoring contract 3 - progress against the four conditions
