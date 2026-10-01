@@ -7,7 +7,7 @@
 | 目标 | 基线 | 可复算形状 | 来源 SHA-256 |
 |---|---:|---|---|
 | Dart | 46 | `^warning` 行 | `docs/architecture/evidence/zero-warning-gate-coverage/dart-analyze.log`, `07264594db77ad9899ee6eb2a81f779850ad1931d417ffed4d7404dd0cad8eda` |
-| Kotlin | 59 | `<file>.kt:<line>:<col>: warning:` | `kotlin-compile.log`, `b86d468fcbf77c4094a4481f3089690bd7843cf2e34b49c1` |
+| Kotlin | 59 | `<file>.kt:<line>:<col>: warning:` | `kotlin-compile.log`, `b86d468fcbf77ca14e2371cf1cc39c4094a4481f3089690bd7843cf2e34b49c1` |
 | Rust | 4 | 生成树文件的 `-->` 引用行（排除插入符/上下文/汇总） | `rust-baseline-check.log`, `c091f9de8287eaa3bb519ae4dab7d71ba94bf88814e186e0611c19b51b4c8838` |
 | Swift / TypeScript | 0 | 编译器 warning 行 | 本轮门禁中的严格入口；审计未给出存量，故基线只允许 0 |
 
