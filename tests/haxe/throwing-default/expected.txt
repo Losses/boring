@@ -1,0 +1,3 @@
+omittedSafe=ok:10
+omittedThrowing=caught:OverThreshold:20
+explicit=ok:9
