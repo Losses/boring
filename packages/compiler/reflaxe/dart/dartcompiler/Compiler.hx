@@ -104,6 +104,20 @@ class Compiler extends PluginCompiler<Compiler> {
             Context.getType("runtime.StringTools");
             Context.getType("runtime.UString");
             Context.getType("runtime.TestCore");
+            // Force the WHOLE resident set, not just the modules some corpus
+            // entry happened to reach: a consumer build whose entry list omits
+            // the `runtime.*` roots still reaches these through the std extern
+            // surface. Forcing only the three above left
+            // `runtime.GraphemeWalk` / `runtime.Graphemes` /
+            // `runtime.SortedTable` absent, so such a consumer emitted
+            // references to files that were never typed
+            // (tests/haxe/resident-consumer-closure, variant a).
+            for (resident in RuntimeResidents.MODULES)
+                if (Context.getType(resident) == null)
+                    throw 'dart resident module not typed: ' + resident;
+            for (resident in RuntimeResidents.TEST_MODULES)
+                if (Context.getType(resident) == null)
+                    throw 'dart resident module not typed: ' + resident;
         }
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
