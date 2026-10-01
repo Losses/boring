@@ -30,6 +30,7 @@
     "check:docs": "bun tools/doc-style/check.ts",
     "check:ledger": "bun tools/ledger-check/check.ts",
     "gate:verify": "bun tools/gate-proof/verify-commit.ts",
+    "warning:gate": "bash tools/warning-gate/check.sh",
     "check:registry": "bun tools/registry-guard/backstop.ts",
     "check:mapping": "bun tools/type-mapping/check.ts",
     "check:precision": "bun tools/precision-guard/check.ts",
