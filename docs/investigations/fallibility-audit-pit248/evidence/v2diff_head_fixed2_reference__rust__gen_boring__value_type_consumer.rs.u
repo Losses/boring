@@ -1,0 +1,11 @@
+--- head/boring/value_type_consumer.rs+++ fixed2/boring/value_type_consumer.rs@@ -63,8 +63,8 @@         return if indent.is_none() { -1.0f64 } else { 2.0f64 };
+     }
+ 
+-    pub fn value_type_consumer_rendered_id() -> Result<UString, ValueError> {
+-        let id = FontFaceId::new(UStr::new(&[102,97,99,101]))?;
+-        return Ok(UString::from((id).to_string().as_str()));
++    pub fn value_type_consumer_rendered_id() -> UString {
++        let id = FontFaceId::new(UStr::new(&[102,97,99,101])).unwrap();
++        return UString::from((id).to_string().as_str());
+     }
+ }

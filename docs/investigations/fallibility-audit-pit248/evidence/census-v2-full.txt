@@ -1,0 +1,153 @@
+# census start
+[inventory] tree=head root=reference/rust/gen rs_files=509
+[inventory] tree=head root=reference/rust-f32/gen rs_files=466
+[inventory] tree=coord root=reference/rust/gen rs_files=509
+[inventory] tree=coord root=reference/rust-f32/gen rs_files=466
+[inventory] tree=fixed2 root=reference/rust/gen rs_files=509
+[inventory] tree=fixed2 root=reference/rust-f32/gen rs_files=508
+[inventory] tree=fixed3 root=reference/rust/gen rs_files=509
+[inventory] tree=fixed3 root=reference/rust-f32/gen rs_files=508
+
+===== pair=head->coord root=reference/rust/gen =====
+[file-set] a=509 b=509 common=509 only_in_a=0 only_in_b=0
+[byte-diff] changed_files=0
+
+[counts-common] common_files=509
+[counts-common] head: unwrap_lines=97 unwrap_occ=100 result_lines=129 result_occ=129 sigs=2582 sigs_result=99
+[counts-common] coord: unwrap_lines=97 unwrap_occ=100 result_lines=129 result_occ=129 sigs=2582 sigs_result=99
+[counts-common] DELTA (coord-head): unwrap_occ=+0 result_occ=+0 sigs=+0 sigs_result=+0
+[counts] head: files=509 unwrap_lines=97 unwrap_occ=100 result_lines=129 result_occ=129 sigs=2582 sigs_result=99
+[counts] coord: files=509 unwrap_lines=97 unwrap_occ=100 result_lines=129 result_occ=129 sigs=2582 sigs_result=99
+[counts] DELTA (coord-head): unwrap_lines=+0 unwrap_occ=+0 result_lines=+0 result_occ=+0 sigs=+0 sigs_result=+0
+  [unwrap-per-file] files_with_delta=0
+[sigs] common_files=509 RESULT_LOST=0 RESULT_GAINED=0 OTHER_SIG_DIFF=0
+
+===== pair=head->coord root=reference/rust-f32/gen =====
+[file-set] a=466 b=466 common=466 only_in_a=0 only_in_b=0
+[byte-diff] changed_files=0
+
+[counts-common] common_files=466
+[counts-common] head: unwrap_lines=97 unwrap_occ=100 result_lines=126 result_occ=126 sigs=2449 sigs_result=97
+[counts-common] coord: unwrap_lines=97 unwrap_occ=100 result_lines=126 result_occ=126 sigs=2449 sigs_result=97
+[counts-common] DELTA (coord-head): unwrap_occ=+0 result_occ=+0 sigs=+0 sigs_result=+0
+[counts] head: files=466 unwrap_lines=97 unwrap_occ=100 result_lines=126 result_occ=126 sigs=2449 sigs_result=97
+[counts] coord: files=466 unwrap_lines=97 unwrap_occ=100 result_lines=126 result_occ=126 sigs=2449 sigs_result=97
+[counts] DELTA (coord-head): unwrap_lines=+0 unwrap_occ=+0 result_lines=+0 result_occ=+0 sigs=+0 sigs_result=+0
+  [unwrap-per-file] files_with_delta=0
+[sigs] common_files=466 RESULT_LOST=0 RESULT_GAINED=0 OTHER_SIG_DIFF=0
+
+===== pair=head->fixed2 root=reference/rust/gen =====
+[file-set] a=509 b=509 common=509 only_in_a=0 only_in_b=0
+[byte-diff] changed_files=3
+  CHANGED boring/value_type_consumer.rs
+  CHANGED tests/number_classify_tests.rs
+  CHANGED tests/value_type_tests.rs
+
+[counts-common] common_files=509
+[counts-common] head: unwrap_lines=97 unwrap_occ=100 result_lines=129 result_occ=129 sigs=2582 sigs_result=99
+[counts-common] fixed2: unwrap_lines=97 unwrap_occ=100 result_lines=128 result_occ=128 sigs=2582 sigs_result=98
+[counts-common] DELTA (fixed2-head): unwrap_occ=+0 result_occ=-1 sigs=+0 sigs_result=-1
+[counts] head: files=509 unwrap_lines=97 unwrap_occ=100 result_lines=129 result_occ=129 sigs=2582 sigs_result=99
+[counts] fixed2: files=509 unwrap_lines=97 unwrap_occ=100 result_lines=128 result_occ=128 sigs=2582 sigs_result=98
+[counts] DELTA (fixed2-head): unwrap_lines=+0 unwrap_occ=+0 result_lines=-1 result_occ=-1 sigs=+0 sigs_result=-1
+  [unwrap-per-file] boring/value_type_consumer.rs: 0 -> 1 (+1)
+  [unwrap-per-file] tests/value_type_tests.rs: 1 -> 0 (-1)
+  [unwrap-per-file] files_with_delta=2
+[sigs] common_files=509 RESULT_LOST=1 RESULT_GAINED=0 OTHER_SIG_DIFF=0
+  RESULT_LOST  boring/value_type_consumer.rs :: value_type_consumer_rendered_id()
+     head: ['-> Result<UString, ValueError>']
+     fixed2: ['-> UString']
+[line-diff] boring/value_type_consumer.rs -> v2diff_head_fixed2_reference__rust__gen_boring__value_type_consumer.rs.u (14 diff lines)
+[line-diff] tests/number_classify_tests.rs -> v2diff_head_fixed2_reference__rust__gen_tests__number_classify_tests.rs.u (11 diff lines)
+[line-diff] tests/value_type_tests.rs -> v2diff_head_fixed2_reference__rust__gen_tests__value_type_tests.rs.u (10 diff lines)
+
+===== pair=head->fixed2 root=reference/rust-f32/gen =====
+[file-set] a=466 b=508 common=466 only_in_a=0 only_in_b=42
+[only-in-fixed2] count=42 first20: boring/allow_guest.rs boring/allow_host.rs boring/bytes_ops.rs boring/font_id.rs boring/font_id_consumer.rs boring/glyph_cluster.rs boring/glyph_cluster_holder.rs boring/glyph_cluster_reader.rs boring/imp_host.rs boring/imp_widget.rs boring/ink_text_shaper.rs boring/instance_defaults.rs boring/math_min_max_ops.rs boring/no_such_element_fault_exception.rs boring/no_such_element_message_reader.rs boring/no_such_element_note.rs boring/no_such_element_thrower.rs boring/number_classify_ops.rs boring/poster_text_render.rs boring/render_shape_text_ops.rs
+[byte-diff] changed_files=6
+  CHANGED boring/mod.rs
+  CHANGED boring/value_type_consumer.rs
+  CHANGED runtime/mod.rs
+  CHANGED std/mod.rs
+  CHANGED tests/mod.rs
+  CHANGED tests/value_type_tests.rs
+
+[counts-common] common_files=466
+[counts-common] head: unwrap_lines=97 unwrap_occ=100 result_lines=126 result_occ=126 sigs=2449 sigs_result=97
+[counts-common] fixed2: unwrap_lines=97 unwrap_occ=100 result_lines=125 result_occ=125 sigs=2449 sigs_result=96
+[counts-common] DELTA (fixed2-head): unwrap_occ=+0 result_occ=-1 sigs=+0 sigs_result=-1
+[counts] head: files=466 unwrap_lines=97 unwrap_occ=100 result_lines=126 result_occ=126 sigs=2449 sigs_result=97
+[counts] fixed2: files=508 unwrap_lines=97 unwrap_occ=100 result_lines=127 result_occ=127 sigs=2580 sigs_result=97
+[counts] DELTA (fixed2-head): unwrap_lines=+0 unwrap_occ=+0 result_lines=+1 result_occ=+1 sigs=+131 sigs_result=+0
+  [unwrap-per-file] boring/value_type_consumer.rs: 0 -> 1 (+1)
+  [unwrap-per-file] tests/value_type_tests.rs: 1 -> 0 (-1)
+  [unwrap-per-file] files_with_delta=2
+[sigs] common_files=466 RESULT_LOST=1 RESULT_GAINED=0 OTHER_SIG_DIFF=0
+  RESULT_LOST  boring/value_type_consumer.rs :: value_type_consumer_rendered_id()
+     head: ['-> Result<UString, ValueError>']
+     fixed2: ['-> UString']
+[line-diff] boring/mod.rs -> v2diff_head_fixed2_reference__rust-f32__gen_boring__mod.rs.u (220 diff lines)
+[line-diff] boring/value_type_consumer.rs -> v2diff_head_fixed2_reference__rust-f32__gen_boring__value_type_consumer.rs.u (14 diff lines)
+[line-diff] runtime/mod.rs -> v2diff_head_fixed2_reference__rust-f32__gen_runtime__mod.rs.u (10 diff lines)
+[line-diff] std/mod.rs -> v2diff_head_fixed2_reference__rust-f32__gen_std__mod.rs.u (12 diff lines)
+[line-diff] tests/mod.rs -> v2diff_head_fixed2_reference__rust-f32__gen_tests__mod.rs.u (236 diff lines)
+[line-diff] tests/value_type_tests.rs -> v2diff_head_fixed2_reference__rust-f32__gen_tests__value_type_tests.rs.u (10 diff lines)
+
+===== pair=head->fixed3 root=reference/rust/gen =====
+[file-set] a=509 b=509 common=509 only_in_a=0 only_in_b=0
+[byte-diff] changed_files=3
+  CHANGED boring/value_type_consumer.rs
+  CHANGED tests/number_classify_tests.rs
+  CHANGED tests/value_type_tests.rs
+
+[counts-common] common_files=509
+[counts-common] head: unwrap_lines=97 unwrap_occ=100 result_lines=129 result_occ=129 sigs=2582 sigs_result=99
+[counts-common] fixed3: unwrap_lines=97 unwrap_occ=100 result_lines=128 result_occ=128 sigs=2582 sigs_result=98
+[counts-common] DELTA (fixed3-head): unwrap_occ=+0 result_occ=-1 sigs=+0 sigs_result=-1
+[counts] head: files=509 unwrap_lines=97 unwrap_occ=100 result_lines=129 result_occ=129 sigs=2582 sigs_result=99
+[counts] fixed3: files=509 unwrap_lines=97 unwrap_occ=100 result_lines=128 result_occ=128 sigs=2582 sigs_result=98
+[counts] DELTA (fixed3-head): unwrap_lines=+0 unwrap_occ=+0 result_lines=-1 result_occ=-1 sigs=+0 sigs_result=-1
+  [unwrap-per-file] boring/value_type_consumer.rs: 0 -> 1 (+1)
+  [unwrap-per-file] tests/value_type_tests.rs: 1 -> 0 (-1)
+  [unwrap-per-file] files_with_delta=2
+[sigs] common_files=509 RESULT_LOST=1 RESULT_GAINED=0 OTHER_SIG_DIFF=0
+  RESULT_LOST  boring/value_type_consumer.rs :: value_type_consumer_rendered_id()
+     head: ['-> Result<UString, ValueError>']
+     fixed3: ['-> UString']
+[line-diff] boring/value_type_consumer.rs -> v2diff_head_fixed3_reference__rust__gen_boring__value_type_consumer.rs.u (14 diff lines)
+[line-diff] tests/number_classify_tests.rs -> v2diff_head_fixed3_reference__rust__gen_tests__number_classify_tests.rs.u (11 diff lines)
+[line-diff] tests/value_type_tests.rs -> v2diff_head_fixed3_reference__rust__gen_tests__value_type_tests.rs.u (10 diff lines)
+
+===== pair=head->fixed3 root=reference/rust-f32/gen =====
+[file-set] a=466 b=508 common=466 only_in_a=0 only_in_b=42
+[only-in-fixed3] count=42 first20: boring/allow_guest.rs boring/allow_host.rs boring/bytes_ops.rs boring/font_id.rs boring/font_id_consumer.rs boring/glyph_cluster.rs boring/glyph_cluster_holder.rs boring/glyph_cluster_reader.rs boring/imp_host.rs boring/imp_widget.rs boring/ink_text_shaper.rs boring/instance_defaults.rs boring/math_min_max_ops.rs boring/no_such_element_fault_exception.rs boring/no_such_element_message_reader.rs boring/no_such_element_note.rs boring/no_such_element_thrower.rs boring/number_classify_ops.rs boring/poster_text_render.rs boring/render_shape_text_ops.rs
+[byte-diff] changed_files=6
+  CHANGED boring/mod.rs
+  CHANGED boring/value_type_consumer.rs
+  CHANGED runtime/mod.rs
+  CHANGED std/mod.rs
+  CHANGED tests/mod.rs
+  CHANGED tests/value_type_tests.rs
+
+[counts-common] common_files=466
+[counts-common] head: unwrap_lines=97 unwrap_occ=100 result_lines=126 result_occ=126 sigs=2449 sigs_result=97
+[counts-common] fixed3: unwrap_lines=97 unwrap_occ=100 result_lines=125 result_occ=125 sigs=2449 sigs_result=96
+[counts-common] DELTA (fixed3-head): unwrap_occ=+0 result_occ=-1 sigs=+0 sigs_result=-1
+[counts] head: files=466 unwrap_lines=97 unwrap_occ=100 result_lines=126 result_occ=126 sigs=2449 sigs_result=97
+[counts] fixed3: files=508 unwrap_lines=97 unwrap_occ=100 result_lines=127 result_occ=127 sigs=2580 sigs_result=97
+[counts] DELTA (fixed3-head): unwrap_lines=+0 unwrap_occ=+0 result_lines=+1 result_occ=+1 sigs=+131 sigs_result=+0
+  [unwrap-per-file] boring/value_type_consumer.rs: 0 -> 1 (+1)
+  [unwrap-per-file] tests/value_type_tests.rs: 1 -> 0 (-1)
+  [unwrap-per-file] files_with_delta=2
+[sigs] common_files=466 RESULT_LOST=1 RESULT_GAINED=0 OTHER_SIG_DIFF=0
+  RESULT_LOST  boring/value_type_consumer.rs :: value_type_consumer_rendered_id()
+     head: ['-> Result<UString, ValueError>']
+     fixed3: ['-> UString']
+[line-diff] boring/mod.rs -> v2diff_head_fixed3_reference__rust-f32__gen_boring__mod.rs.u (220 diff lines)
+[line-diff] boring/value_type_consumer.rs -> v2diff_head_fixed3_reference__rust-f32__gen_boring__value_type_consumer.rs.u (14 diff lines)
+[line-diff] runtime/mod.rs -> v2diff_head_fixed3_reference__rust-f32__gen_runtime__mod.rs.u (10 diff lines)
+[line-diff] std/mod.rs -> v2diff_head_fixed3_reference__rust-f32__gen_std__mod.rs.u (12 diff lines)
+[line-diff] tests/mod.rs -> v2diff_head_fixed3_reference__rust-f32__gen_tests__mod.rs.u (236 diff lines)
+[line-diff] tests/value_type_tests.rs -> v2diff_head_fixed3_reference__rust-f32__gen_tests__value_type_tests.rs.u (10 diff lines)
+
+# census done
