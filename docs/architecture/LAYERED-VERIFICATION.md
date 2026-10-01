@@ -1,125 +1,107 @@
 # Layered Verification Scheme
 
-Classification answers "who owns it," contracts answer "what is promised," and this document answers **which observable to use for verification at each layer**, as well as **when each criterion deceives**.
+Classification says "who owns it", contracts say "what is promised", this document says **what observable quantity each layer uses for verification**,
+and **when each criterion will deceive you**.
 
-## Layers and Criteria
+## Layering and Criteria
 
-| Layer | Property Verified | Observable | Passing Criterion | **When This Criterion Deceives** |
+| Layer | Property Under Test | Observable | Pass Criterion | **When This Criterion Deceives** |
 |---|---|---|---|---|
-| **L1 Generation** | Compiler did not crash, outputs are complete | Generation process exit code + file manifest | `rc=0` and expected files exist | **rc=0 does not mean correct output**: `:2609`'s `fail()` also reaches rc=1, but inputs that "did not hit a crash" get rc=0 with wrong output |
-| **L2 Syntax/Types** | Output is legal in the target language | `swiftc -typecheck` / `tsc` / `rustc --emit=metadata` | 0 errors | **`-typecheck` does not run SILGen**: multi-statement closures with elided `return` only produce a warning; a real build fails. **Such forms must use `swiftc -c`** |
-| **L3 Build** | Output can link into an executable | `swiftc -c` / `swiftc -o` | 0 errors | Build-phase diagnostics (`will never be executed`) **do not appear under `-typecheck`**. **Ruled: counted in acceptance criteria** — see `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` (`1a486ebd`); S1 has driven them to zero (1 → 0, counted by `file:line:col: severity` shape; `grep -c 'warning:'` would count 1 as 2 due to caret lines, PIT-336) |
-| **L4 Behavior** | Runtime results are correct | Line-by-line comparison against oracle | **Byte-identical** | If the oracle itself is wrong, everything is wrong; additionally, "identical to oracle on the same input" **does not cover** properties the oracle does not express (e.g., laziness) |
-| **L5 Discriminability** | The check **can** detect the target defect | Run against a deliberately-wrong backend | Deliberate error ⇒ **FAIL** | Without this layer, L1–L4 all green may only mean **the property was never observed** |
+| **L1 Generation** | Compiler did not crash, outputs are complete | Generation process exit code + file manifest | `rc=0` and expected files exist | **rc=0 does not mean output is correct**: `fail()` at `:2609` also leads to rc=1, but inputs that "did not reach a crash" get rc=0 while output is wrong |
+| **L2 Syntax/Type** | Output is legal in the target language | `swiftc -typecheck` / `tsc` / `rustc --emit=metadata` | 0 error | **`-typecheck` does not run SILGen**: multi-statement closures with stripped `return` only report warnings; the real build fails. **Such forms must use `swiftc -c`** |
+| **L3 Build** | Output can be linked into an executable | `swiftc -c` / `swiftc -o` | 0 error | Build-phase diagnostics (`will never be executed`) **do not appear under `-typecheck`**. **Ruled: included in acceptance criteria** — see `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` (`1a486ebd`). **The current fact of this entry is "not yet zero"**: the diagnostic count remains **1**, it is an **unwaived, recorded baseline failure**, see next section "This layer is currently not green" |
+| **L4 Behavior** | Runtime results are correct | Line-by-line comparison against oracle | **Byte-for-byte identical** | If the oracle itself is wrong, everything is wrong; and "identical to oracle on the same input" **does not cover** properties the oracle does not express (laziness) |
+| **L5 Discriminability** | The check **can** discover the target defect | Run against an intentionally wrong backend | Intentional error ⇒ **FAIL** | Without this layer, L1–L4 all green may only mean **the property is not being observed** |
 
-## L5 Is a Layer Added During This Session (Previously Missing)
+## L5 is a layer this session added (previously missing)
 
-**Instances of "the check cannot detect the target defect"**:
+**Instances of "check cannot discover the target defect"**:
 
-1. **`branchBoundary` fixture**: two branches of equal length, consumer only prints length ⇒ a backend that "always picks either branch"
-   **passes every assertion**. After the fix, `branch-false=1:2:present` FAILs against the deliberately-wrong
-   backend (commit `d1180768`).
-2. **`swiftc -typecheck`**: misses "missing return in closure" (`lambda-fix-xcheck` §5).
-3. **Splicing-style changes**: pre/post generation trees are byte-identical ⇒ cannot distinguish "not applied" from "correctly changed".
-4. **The zero-warning gate simply did not exist** (`t-mum29cli-9c9w`, `89dd80b2`): `:78/:80` requires zero warnings,
-   but `package.json:21`'s `test:dart` **explicitly** carries `--no-fatal-warnings`, `:12`'s
-   `test:rust` lacks `-D warnings`, and the sole CI gate `collected-suite` only greps `bun run test`
-   logs which **do not contain** the five-target compiler output ⇒ **the grep domain is empty under the passing state**. The existing warning stockpile —
-   Dart 46 / Kotlin 59 / Rust 4 — all exit rc=0. **A reproducible discriminability method**: inject **one** warning into the same tree,
-   run the "existing command" vs. the "strict command" — `dart: loose rc=0 / strict rc=2`, `rust: loose rc=0 /
-   strict rc=101`; **if both rc values are identical, that gate does not exist** (this seat made it into a re-runnable
-   `verify.sh`). Fixed on branch `fix/zero-warning-gate-wiring`.
-5. **"Changed the emitter" does not equal "produced different output"** (PIT-347 measured): one seat added **38 lines**
-   of AST traversal bypass in `Compiler.hx`, and `diff -rq` across **the entire generation tree** showed **0 differences**, the target site
-   unchanged character for character. **Discriminability method**: any emitter change must be **re-generated and the generated output diffed** to count;
-   a plausible-looking source diff does not constitute evidence. (Another dispatch on the same row changed only **9 lines** and genuinely altered the site.)
+1. **`branchBoundary` fixture**: two branches are equal-length, consumer only prints length ⇒ a "always-take-either-branch" backend **passes all assertions**. After fix `branch-false=1:2:present` FAILs against an intentionally wrong backend (commit `d1180768`).
+2. **`swiftc -typecheck`**: fails to report "missing return in closure" (`lambda-fix-xcheck` §5).
+3. **Splice-type modifications**: generated tree pre/post byte-for-byte identical ⇒ cannot distinguish "did not take effect" from "was fixed correctly".
+4. **The zero-warning gate simply does not exist** (`t-mum29cli-9c9w`, `89dd80b2`): `:78/:80` requires zero warnings, but `package.json:21`'s `test:dart` **explicitly** carries `--no-fatal-warnings`, `:12`'s `test:rust` has no `-D warnings`, the sole CI gate `collected-suite` only greps `bun run test` log which **does not contain** the five-target compiler output ⇒ **under pass state the grep domain is empty**. Existing warning backlog Dart 46 / Kotlin 59 / Rust 4 all rc=0. **Reproducible discriminability method**: inject **one** warning into the same tree, run "existing command" vs "strict command" — `dart: loose rc=0 / strict rc=2`, `rust: loose rc=0 / strict rc=101`; **if both rc are identical, the gate does not exist** (this seat turned it into a rerunnable `verify.sh`). Fix branch `fix/zero-warning-gate-wiring`.
+5. **"Changed the emitter" does not equal generated different output** (PIT-347 measured): one seat added **38 lines** of AST traversal bypass in `Compiler.hx`, `diff -rq` against the **entire generated tree** showed **0 differences**, the target site unchanged by a single character. **Discriminability method**: any emitter change must **regenerate and diff the generated artifacts** to count; source diff looking reasonable does not constitute evidence. (Another redispatch on the same row changed only **9 lines** but actually altered the site.)
 
-**⇒ L5 operational form**: every fixture must be paired with a **deliberately-wrong backend** (picking the wrong branch, returning the wrong value,
-stripping a transform), and must prove that the fixture FAILs against it. **Proving "the correct backend passes" is not verification.**
-**⇒ Corollary for "gate-type" criteria**: must report the rc of **both** the loose and strict runs — reporting only "pass"
-cannot distinguish "the check passed" from "there was no check."
+**⇒ L5 operational form**: every fixture must be paired with an **intentionally wrong backend** (wrong branch taken, wrong value returned, transformation stripped), and prove the fixture FAILs against it. **Proving only that "the correct backend passes" does not count as verification.**
+**⇒ Corollary for "gate-class" criteria**: must present rc for **both** loose and strict runs — reporting only "pass" cannot distinguish "check passed" from "no check".
 
-## Every Criterion Must State "On Which Tree It Holds" (Added This Session, L0 Prerequisite)
+## Every criterion must state "on which tree it holds" (new in this session, prerequisite L0)
 
-**Rule**: any criterion claimed as "fixed / in effect / closed" must, **on the same line**, give
-the **commit hash** and the **result of `git merge-base --is-ancestor <commit> arch/agent-guided-governance`**.
-If the result is false, write only "branch state / worktree state" and **never** write "in effect."
+**Rule**: any criterion claiming "fixed / in effect / closed" must, **on the same line**, provide the **commit hash** and **the result of `git merge-base --is-ancestor <commit> arch/agent-guided-governance`**. If the result is negative, it may only be written as "branch state / worktree state", and must **not** be written as in effect.
 
-**Why this is not formalism**: this session measured the same artifact giving **opposite conclusions** on two trees —
-the hardened version of `tools/roots-guard/` (`1cafaa42`, +923 lines) was **reviewed and signed off** yet was **never an ancestor of base**,
-so what runs on base is the weak version: delete the real root `boring.ArraySliceOps` and add one exemption with reason `"because"`,
-the weak version **rc=0 PASS (4 exemptions)**, the hardened version **rc=1** and names it verbatim.
-That is, "signed off" and "in effect" are two different things; without stating the tree, a **non-existent guard** gets recorded as present.
+**Why this is not formalism**: this session measured the same artifact giving **opposite conclusions** on two trees — the hardened version of `tools/roots-guard/` (`1cafaa42`, +923 lines) **was reviewed and signed off** yet **was never an ancestor of base**, so what runs on base is the weak version: delete the real root `boring.ArraySliceOps` and add an exemption with reason `"because"`, the weak version returns **rc=0 PASS (4 exemptions)**, the hardened version returns **rc=1** and names it verbatim. That is, "signed off" and "in effect" are two different things; without specifying the tree, a **non-existent safeguard** gets recorded as existing.
 
-**Three-step verification method (must run before sign-off or handoff)**:
-1. `git rev-parse --verify <branch>` — does the branch **exist** (this session has several rows whose `branch` field points to a branch **never created**)
-2. `git merge-base --is-ancestor <commit> arch/agent-guided-governance` — **has it landed on base**
-3. **Directly read the file on the shared tree** — what form is it **really** in on base (step 3 cannot be omitted: in this case steps 1 and 2 both passed, and step 3 was what revealed the weak version)
+**Three-step verification method (must run before signoff or handoff)**:
+1. `git rev-parse --verify <branch>` — does the branch **exist** (this session has several rows whose `branch` field points to branches that were **never created**)
+2. `git merge-base --is-ancestor <commit> arch/agent-guided-governance` — has it **landed on base**
+3. **Directly read the file in the shared tree** — what form does it actually have in base (step 3 is non-optional: in this case the first two steps both passed, and only the third revealed it was the weak version)
 
-**After merge, also verify the landing point**: `git rev-parse --abbrev-ref HEAD` (which line am I on now) **and** step 2 (is it truly on the **declared base**) —
-once in this session, four merges all landed on the working line while the declared base was untouched, causing newly-opened worktrees not to receive those fixes.
+**After landing, also verify the landing point**: `git rev-parse --abbrev-ref HEAD` (which branch am I on) **and** step 2 (is it truly on the **declared base**) — this session had one case where four merges all landed on the work branch while the declared base was untouched, causing newly opened worktrees to miss those fixes.
 
-## Delivery Surface: Load-Bearing Artifacts Must Answer "Which Commit Contains It"
+## Delivery surface: load-bearing artifacts must answer "which commit has it"
 
-**Rule**: tools, guards, fixtures, drivers, assertion scripts — anything that later people will depend on — **must be checked into the repo**;
-evidence may be report-only. If a criterion depends on a file, it must also give the basis for **its reachability in a clone**
-(e.g., `git ls-files --error-unmatch <path>` passes and `git archive HEAD` can retrieve it).
+**Rule**: tools, guardrails, fixtures, drivers, assertion scripts — things others will depend on — **must be checked in**; evidence may be report-only. If a criterion depends on a file, it must also provide the basis for **its reachability in a clone** (e.g. `git ls-files --error-unmatch <path>` passes, and `git archive HEAD` can retrieve it).
 
-**Two measurements from this session**: ① under `dc-warn/worktrees/`, **37/37** are all detached HEADs, **all have uncommitted changes**,
-**not one carries a commit beyond `e1c65975`** — "done in a worktree + report on file" became the de facto delivery contract for this batch;
-② the evidence manifest `FILES.sha256` mixed in 2 **git-ignored** `dc-warn/out/...` paths,
-making "one command rc=0" **true only for the author's working copy** and false for a clone (PIT-346).
-**Fix**: the manifest may **sectionally annotate reachability** (repo-verifiable / evidence-only), and must be verified in a **clean export tree containing only committed files**.
+**Two measurements in this session**: ① under `dc-warn/worktrees/`, **37/37** are all detached HEAD, **all have uncommitted changes**, **none carry commits beyond `e1c65975`** — "done in worktree + report on file" became the actual delivery convention for this batch; ② the evidence manifest `FILES.sha256` mixed in 2 **git-ignored** `dc-warn/out/...` paths, making "one command rc=0" **true only for the author's working copy** and false for a clone (PIT-346). **Fix**: the manifest may **section-label reachability** (repo-verifiable / evidence-only), and be verified on a **clean export tree containing only committed files**.
 
-## Evidence Strength at Each Layer Must Be Stated Separately
+## Evidence strength of each layer must be stated separately
 
-**Never** conflate these three:
+**Do not** conflate the three:
 - "Generation succeeded" (L1)
-- "Generated code type-checks" (L2)
+- "Generated code passes type-check" (L2)
 - "Runtime results are correct" (L4)
 
-**One misjudgment in this session originated from this**: `d14aae11` was submitted with `-typecheck` 0/0 as the acceptance criterion,
-and that criterion cannot see problems at the L3/L4 layers (the P4 regression is only exposed under a full build).
+**One misjudgment in this session originated here**: `d14aae11` was submitted with `-typecheck` 0/0 as the acceptance criterion, but that criterion cannot see L3/L4 problems (the P4 regression only surfaces under a full build).
 
-## Honest Coverage Reporting
+## Honest reporting of coverage
 
-**Rule**: when reporting "covered N/M," must also give **the skipped items and their reasons**.
+**Rule**: when reporting "N/M covered", must also give the **skipped items and why**.
 
-**Instance**: the P1 scoped run claimed "every P1-updated expectation was exercised,"
-but actually **56/57** — `printed-record.test.ts:88` is only consumed in a test that times out,
-and was therefore never executed; while the pre-existing red at `array-root.test.ts:18` meant `L28` was never reached.
-(lesson PIT-321)
+**Instance**: the P1 scoped run claimed "every P1-updated expectation was exercised", actual was **56/57** — `printed-record.test.ts:88` is only consumed in a test that times out, so it was never executed; and the pre-existing red in `array-root.test.ts:18` means `L28` was never reached. (Lesson PIT-321)
 
-## Timeouts and Failures Must Be Distinguished
+## Timeout and failure must be distinguished
 
-**The criterion is "did the subject finish running," not "did it time out."**
+**The criterion is "did the subject finish running", not "did it time out".**
 
-**Instance**: the coupled run for `value-type` was **not killed** — `Bun.spawnSync` blocks the bun timer,
-taking 351 s ≈ 15 runs, the temporary directory disappeared in both replicas ⇒ the subject **finished running**.
-Reading it as "coupling masked by timeout" is wrong; the correct description is **latent coupling**
-(the fix was not on the execution path of those probes at all).
+**Instance**: the `value-type` coupled run was **not killed** — `Bun.spawnSync` blocks the bun timer, taking 351 s ≈ 15 runs, the temp directory disappeared in both replicas ⇒ the subject **finished running**. Reading it as "coupling masked by timeout" is wrong; the correct description is **latent coupling** (the fix was simply not on the execution path of those probes).
 
-## Commands Corresponding to Each Layer (Current State)
+## Commands corresponding to each layer (current state)
 
 | Layer | Command | In CI? |
 |---|---|---|
 | L1 | `haxe <fixture>.hxml` | Partial (26 `bun run test:*` scripts) |
 | L2 | `swiftc -typecheck` / `tsc` | Partial |
 | L3 | `swiftc -c` | **No** |
-| L4 | Fixture-internal runner + oracle | **No** |
+| L4 | Fixture built-in runner + oracle | **No** |
 | L5 | Discriminative backend | **No** |
 | Collection | **`bun run test` (collects `tests/**`)** | **Yes** (`collected-suite` job, `9f26e1ef`) |
 
-**⇒ Conclusion** (since `9f26e1ef`): the `collected-suite` job runs `bun run test` as its entry point on every invocation,
-reporting the collection domain and count; this job blocks, has no `continue-on-error`, and a broken protected assertion causes failure
-(negative-control proof at `dc-warn/out/ci-wire/`). **Counting exists**, but the standard `:80`
-"count is zero" **is still not met**: baseline (`1001 pass / 32 fail / 8 errors`) is not yet cleared,
-and `BASELINE-FAILURES.md` records only, does not exempt. The collection domain is 303 files, 249 of which come from
-the generation tree `reference/ts/gen-tests`, so the job regenerates before collecting.
+**⇒ Conclusion** (since `9f26e1ef`): the `collected-suite` job runs `bun run test` on every invocation, reporting collection domain and counts; the job is blocking, has no `continue-on-error`, and failing a protected assertion means failure (negative control proof under `dc-warn/out/ci-wire/`). **Counting already exists**, but the `:80` standard of "count is zero" is **still not met**: the baseline (`1001 pass / 32 fail / 8 errors`) has not yet been cleared, `BASELINE-FAILURES.md` only records, does not waive. The collection domain is 303 files, of which 249 come from the generated tree `reference/ts/gen-tests`, so the job regenerates first then collects.
 
-## Open
+## This layer is currently not green (L3 build-phase diagnostics, correction record)
 
-- **Whether L3 build-phase diagnostics count toward acceptance** (`t-muo92xms-s28t`, unclaimed)
-- **Whether L5 discriminative backends are written for every fixture** (currently only `branchBoundary` and gap drivers have them)
-- **Whether `swiftc -c` should replace `-typecheck` as the acceptance standard for all Swift verification** —
-  evidence supports distinguishing by form (normal forms: `-typecheck` suffices; return-eliding forms: `-c` is mandatory)
+**An earlier version of this document wrote on line 12 "S1 brought it to zero (1 → 0)". That was wrong; it is corrected here and the error shape is preserved, because it is exactly the type that this document's L0 section itself warns about.**
+
+The error shape: writing **a measurement on a candidate-material tree** as **an established fact on the current branch**. Verify separately:
+
+| Question | Result |
+|---|---|
+| Is `cd70eb12` an ancestor of `arch/agent-guided-governance` (base)? | **No** — `git merge-base --is-ancestor cd70eb12 arch/agent-guided-governance` → rc=1 |
+| Which branches does it appear on? | Only `prep/p08-s1-unreachable-return` (including the origin branch of the same name) — it is **candidate material** |
+| Does `stmtDiverges` exist in the current tree? | **No** — `grep -rn stmtDiverges --include=*.hx packages/` → 0 hits |
+| What is the diagnostic count on the current tree? | **1**, and the fixture **explicitly asserts it must exist** |
+
+`tests/swift-gap-boundary/gap-boundary.test.ts` pins this 1 warning, its comment self-describes as "an unwaived, recorded baseline failure -- the goal remains zero diagnostics under `-c`", with assertion `toHaveLength(1)`. Therefore:
+
+- **The fixture says "defect still present"** (anti-corruption pin — once the defect is truly fixed, this assertion will fail and force a recount);
+- **The document at that time said "brought to zero"**.
+
+Both cannot be true simultaneously; measurement sides with the fixture. The "1 → 0" record in `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` describes **that tree** at `cd70eb12`, and within that tree it is true; it cannot be cited as the state of the current branch. Writing a candidate-tree conclusion as branch state directly conflicts with this record's L0 section requirement to "provide commit + `is-ancestor` result" — and at that time this rule had no machine enforcement, so it was violated and nobody noticed.
+
+**Lesson (already written into L0 section)**: a candidate material's measurement result may only be written as "in effect" when `is-ancestor` is true. Previously this document was precisely missing this step.
+
+## Unresolved
+
+- Whether L5 discriminative backends are written into every fixture (currently only `branchBoundary` and gap driver have them)
+- Whether `swiftc -c` should replace `-typecheck` as the acceptance standard for all Swift — evidence supports distinguishing by form (ordinary forms `-typecheck` is sufficient, return-stripped forms must use `-c`)
