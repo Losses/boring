@@ -1,0 +1,1770 @@
+$ bun test tests/ packages/registry/tests/
+bun test v1.3.13 (bf2e2cec)
+
+tests/bundle-child-evidence/bundle-child-evidence.test.ts:
+(pass) child execution evidence > Driver.step integration > a successful step retains both streams and runs its command once [153.00ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps its status, both streams, and the driver failure exit [42.00ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps the same failure exit without capture [39.00ms]
+(pass) child execution evidence > Driver.step integration > without the evidence setting the driver keeps its previous behaviour [144.00ms]
+(pass) child execution evidence > Driver.step integration > a capture write failure after a zero exit child fails the driver [152.00ms]
+(pass) child execution evidence > Driver.step integration > an evidence parent that is a regular file fails the driver before a run [22.00ms]
+(pass) child execution evidence > Driver.step integration > a read only evidence parent fails the driver before any run is created [22.00ms]
+(pass) child execution evidence > retained outcome fields > a missing executable claims no stream file and is not a normal exit [69.00ms]
+(pass) child execution evidence > retained outcome fields > a command the host refuses to accept raises instead of returning an outcome [24.00ms]
+(pass) child execution evidence > retained outcome fields > a working directory that is not a directory keeps the host code of its launch failure [25.00ms]
+(pass) child execution evidence > retained outcome fields > a signaled child is distinct from a launch failure and from success [45.00ms]
+(pass) child execution evidence > retained outcome fields > a nonzero child keeps its exact status and both streams [45.00ms]
+(pass) child execution evidence > retained outcome fields > byte sequences survive including forms that are not valid UTF-8 [47.00ms]
+(pass) child execution evidence > retained outcome fields > a stream beyond the capture limit keeps its output and is marked incomplete [40.00ms]
+(pass) child execution evidence > retained outcome fields > captured and uncaptured children observe the same argv, cwd, and environment [62.00ms]
+(pass) child execution evidence > retained outcome fields > repeated runs keep separate records and never reuse an earlier run [87.00ms]
+(pass) child execution evidence > retained outcome fields > a same name allocation resolves exclusively and keeps its own identity [22.00ms]
+(pass) child execution evidence > retained outcome fields > the production conversion validates each host value it is handed [112.00ms]
+(pass) child execution evidence > retained outcome fields > the project identity names the project path and its content [151.00ms]
+
+tests/swift-gap-boundary/gap-boundary.test.ts:
+  swiftc -c rc=0, recorded 2 pending build-phase diagnostic(s) - see pending-build-warnings.log
+(pass) archived gap.Gap counterexample generates and its Swift typechecks [46498.17ms]
+(pass) failure-mode probe: the harness detects a broken Swift source [213.00ms]
+
+tests/dart/precision-switch.test.ts:
+(pass) float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error [24997.55ms]
+
+tests/ts/printed-record.test.ts:
+(pass) record printed-member generated trees > four non-native targets synthesize the constructor-ordered member [1.00ms]
+(pass) record printed-member generated trees > Kotlin keeps native data-class printing and renders explicit text [1.00ms]
+(pass) record printed-member generated trees > marker and explicit-member mutations affect the four emitted members [183601.01ms]
+
+tests/ts/arithmetic-helpers.test.ts:
+(pass) arithmetic helpers generated tree > No standalone Arithmetic or IntRange module is generated in any target
+(pass) arithmetic helpers generated tree > TS inlines arithmetic helpers and abstracts into native comparison operators and ternaries [1.00ms]
+(pass) arithmetic helpers generated tree > Kotlin inlines arithmetic helpers into native comparison operators and if-expressions
+(pass) arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks [1.00ms]
+
+tests/ts/precision-switch.test.ts:
+(pass) float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error [24363.62ms]
+
+tests/ts/strict-output.test.ts:
+(pass) strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays [21651.66ms]
+(pass) strict TypeScript emitter output > single-argument substr drops its synthesized null length [22315.64ms]
+(pass) strict TypeScript emitter output > switch-expression cases render preceding statements before their value [22112.65ms]
+(pass) strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types [22396.64ms]
+
+tests/ts/vector.test.ts:
+(pass) committed cross-language vector > decoded binary matches the JSON description [4.00ms]
+(pass) committed cross-language vector > re-encoding the decoded records reproduces the committed bytes
+(pass) record count domain > a count of 0xFFFFFFFF throws the CountOverflow variant [2.00ms]
+(pass) record count domain > a count of 0x80000000 throws the CountOverflow variant
+
+tests/ts/pipeline-map-store.test.ts:
+(pass) Dart pipeline map store lowering > uses growing-list writes in constructor and ordinary pipeline sites [1.00ms]
+
+tests/ts/platform-modules.test.ts:
+(pass) std.Fs lowering > node:fs loads lazily through the host module probe inside each call body [1.00ms]
+(pass) std.Fs lowering > a host without the module probe raises the fixed unavailability message
+(pass) std.Env lowering > a browser host maps to localStorage with a null missing key
+(pass) std.Env lowering > a node host maps to process.env behind a presence probe
+(pass) std.Process.args lowering > reads process.argv.slice(2) lazily behind a presence probe
+
+tests/ts/enum-sorted-keys.test.ts:
+(pass) enum sorted key generated trees > pins parameterless enum comparator definitions [2.00ms]
+(pass) enum sorted key generated trees > pins qualified Dart comparator references
+(pass) payload enums are rejected as sorted keys [22473.64ms]
+
+tests/ts/printed-enum.test.ts:
+(pass) enum printed forms > generated trees contain enum operands and badge member [1.00ms]
+(pass) enum printed forms > generated trees contain array enum constructors
+
+tests/ts/number-classify.test.ts:
+(pass) number classification generated tree > Math.isFinite and Math.isNaN render as native predicates on every target
+
+tests/ts/error-structure.test.ts:
+(pass) typed error structure > reference/ts/src contains no bare Error construction [2.00ms]
+(pass) typed error structure > samples/boring contains no bare haxe.Exception construction [33.00ms]
+
+tests/ts/array-root.test.ts:
+(pass) small static array initializer trees > each target uses the ruled array declaration [2.00ms]
+(pass) small array initializer mutation rules retain all three diagnostics [66079.93ms]
+
+tests/ts/runtime-entry.test.ts:
+(pass) runtime entry points > general entry exists and contains no node: import specifier [1.00ms]
+(pass) runtime entry points > general entry contains no Test class; test entry owns it
+(pass) runtime entry points > generated business code imports only the general entry [19.00ms]
+(pass) runtime entry points > generated test code never imports the general entry for Test [1.00ms]
+
+tests/ts/capture-switch-ops.test.ts:
+(pass) capture switch generated trees > pins captured switch lowering in generated targets [1.00ms]
+
+tests/ts/constructed-state.test.ts:
+(pass) constructed static initializer trees > each target uses its ruled declaration and Rust read lane [1.00ms]
+(pass) constructed static mutation rules retain all three diagnostics [65611.92ms]
+
+tests/ts/rust-packages.test.ts:
+(pass) Rust emits one module layer per Haxe package segment [22698.63ms]
+
+tests/ts/record-copy.test.ts:
+(pass) record copy generated tree > TS generated tree emits object literals with fields in declaration order
+(pass) record copy generated tree > Kotlin generated tree emits named constructor calls in declaration order
+(pass) record copy generated tree > Rust generated tree emits struct instantiation in declaration order
+
+tests/ts/generated-tree.test.ts:
+(pass) generated tree behavior > decode matches the oracle field by field [4.00ms]
+(pass) generated tree behavior > encode reproduces the fixture bytes exactly [3.00ms]
+(pass) generated tree behavior > reachable exception variants match the oracle [1.00ms]
+(pass) generated tree behavior > counts at or above 2^31 throw CountOverflow before any record byte is read
+(pass) generated tree behavior > sort orders by code point and is idempotent [1.00ms]
+(pass) generated tree behavior > decoded records and their array are frozen
+(pass) generated tree behavior > slot assignment through a mutable view throws TypeError [1.00ms]
+(pass) generated tree behavior > array growth through a mutable view throws TypeError
+(pass) generated tree behavior > record field assignment through a mutable view throws TypeError
+
+tests/ts/static-extension.test.ts:
+(pass) top-level and extension function lowering > TypeScript extracts file functions and keeps the receiver first [1.00ms]
+(pass) top-level and extension function lowering > Kotlin emits file-facade functions and receiver extensions [1.00ms]
+(pass) top-level and extension function lowering > Swift emits a file function and native extension blocks
+(pass) top-level and extension function lowering > Dart emits named grouped extensions and library top-level functions [1.00ms]
+(pass) top-level and extension function lowering > Rust uses an inherent impl only for the owned receiver [1.00ms]
+
+tests/ts/rust-bytes-ownership.test.ts:
+(pass) Rust borrows input Bytes fields and owns allocated Bytes fields [23621.61ms]
+
+tests/ts/compiler-scope.test.ts:
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestClassFlush.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ComparatorPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ExpressionBlockNorm.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SealedVariantHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/FloatPrecision.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticFieldHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/EnumQueryExpander.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TerminationAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ValueTypeSupport.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceLocalPresenceAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestApplicability.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ConstantFold.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/NameConversion.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SemanticExceptionLedger.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/FusionPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/VarFusionPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/RuntimeResidents.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestCollector.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SemanticPassRegistry.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/EnumCycleDetector.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceOriginTrace.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PackageArtifacts.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DataTableHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PolicyQueries.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DataTables.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceContainerAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestClassEntries.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ValueTypePlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ExpressionPredicates.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TypeCheckHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/AssignTargetPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DefaultArgExpander.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StructuralKeyValidator.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticReferenceScan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PackageShell.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/RuntimeConfig.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PipelineExpander.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticFunctionMarkers.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceOriginFragment.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceComparisonAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/Intercept.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsStringBufParams.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsDecl.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsImports.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsRuntime.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/Compiler.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/ExternBindings.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsTestBinding.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsType.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinType.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinRuntime.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinNameEscape.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinComparisonPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinTestBinding.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinPreparedFunction.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/Compiler.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinAccessGrants.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinEmissionState.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinImports.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinDecl.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/LoopCounterGuard.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustShape.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustImports.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustTestBinding.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustShapeParse.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustType.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustRuntime.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/DeadInitializerMatchFusion.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/ParenFold.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustConversions.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier [3.00ms]
+
+tests/ts/package-artifacts.test.ts:
+(pass) package artifact emission > the npm tarball carries compiled JavaScript plus declarations and runs under plain node [31034.48ms]
+(pass) package artifact emission > the cargo crate and the Pub archive keep the tree at the root [75350.74ms]
+(pass) package artifact emission > the Swift zip carries the tree at the root [30494.49ms]
+(pass) package artifact emission > the Kotlin target packs a Maven repository directory with a compiled jar [43654.27ms]
+336 |         expect(b.stderr).toBe("");
+337 |         expect(b.exitCode).toBe(0);
+338 |         expect(fs.readFileSync(path.join(second, pkg.file))).toEqual(fs.readFileSync(path.join(first, pkg.file)));
+            ^
+error: expect(received).toEqual(expected)
+
+  {
+    "data": [
+      104,
+      101,
+      108,
+      108,
+      111,
+      32,
+      119,
+      111,
+      114,
+      108,
+      100,
+      32,
+      112,
+      97,
+      121,
+      108,
+      111,
+      97,
+      100,
+      32,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
+-     65,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
++     66,
+    ],
+    "type": "Buffer",
+  }
+
+- Expected  - 40
++ Received  + 40
+
+      at <anonymous> ($REPO/tests/ts/package-artifacts.test.ts:338:58)
+(fail) package artifact emission > two generations of the same inputs produce byte-identical artifacts [358384.89ms]
+(pass) package artifact emission > an invalid package-artifacts value aborts the compile [29179.50ms]
+(pass) package artifact emission > artifacts without the package shell abort the compile [28521.51ms]
+(pass) package artifact emission > npm artifacts without package-tsc abort the compile [28143.51ms]
+(pass) package artifact emission > kotlin artifacts without package-kotlinc abort the compile [30311.48ms]
+(pass) package artifact emission > a failing package-tsc forwards the exit code and the tool output [28107.51ms]
+(pass) package artifact emission > a failing package-kotlinc forwards the exit code and the tool output [29640.49ms]
+
+tests/ts/data-tables.test.ts:
+(pass) data tables TypeScript generation and behavior > ScriptEvidenceTable emits new Int32Array table form without per-element unrolling
+(pass) data tables TypeScript generation and behavior > WordCharacterTable emits new Int32Array table form without per-element unrolling
+(pass) data tables TypeScript generation and behavior > PayloadTextTable emits new Int32Array table form without per-element unrolling
+(pass) data tables TypeScript generation and behavior > ScriptEvidenceTable.classify operates correctly on generated tree [4.00ms]
+(pass) data tables TypeScript generation and behavior > WordCharacterTable.contains operates correctly on generated tree
+(pass) data tables TypeScript generation and behavior > PayloadTextTable operates correctly on generated tree [5.00ms]
+(pass) data tables TypeScript generation and behavior > CodePointNames operates correctly on generated tree [1.00ms]
+
+tests/ts/static-state.test.ts:
+(pass) static fields generated trees > TypeScript emits mutable, container, and constant static declarations
+(pass) static fields generated trees > Kotlin emits nullable var, mutableList val, and constant val [1.00ms]
+(pass) static fields generated trees > Swift keeps array statics mutable for value-semantic append
+(pass) static fields generated trees > Dart flattens static state and applies the private underscore [1.00ms]
+(pass) static fields generated trees > Rust uses Mutex guards and the direct constant lane [1.00ms]
+(pass) static initializer mutation is rejected with the sanctioned error [28051.51ms]
+
+tests/ts/sealed-variants.test.ts:
+(pass) @:sealed on a class reports the interface-only error [21561.63ms]
+(pass) self-construction with arguments keeps the static initializer error [21594.63ms]
+(pass) the sanctioned self-construction static uses each target lane [109997.09ms]
+(pass) sealed variant sample trees carry the ruled declaration and printed forms [3.00ms]
+
+tests/ts/loop-structure.test.ts:
+(pass) loop structure > reference/ts/src carries no functional iteration, loop closures, or unhoisted bounds [14.00ms]
+(pass) loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds [60.00ms]
+(pass) loop structure > samples carries no functional iteration, loop closures, or unhoisted bounds [133.00ms]
+(pass) loop structure > reference/rust/src carries no functional iteration, loop closures, or unhoisted bounds [2.00ms]
+(pass) loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds [118.00ms]
+
+tests/ts/value-type.test.ts:
+(pass) value wrapper generated trees > renders the five target representations and member forms [1.00ms]
+(pass) value wrapper generated trees > rejects each invalid marker shape with the ruled error on every target [326239.32ms]
+
+tests/ts/extern-bindings.test.ts:
+(pass) TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once [21357.63ms]
+(pass) TypeScript extern binding modules > rejects a value reference to an empty module [21466.63ms]
+
+tests/ts/default-args.test.ts:
+(pass) default argument expansion generated tree > TS generated tree emits full-arity calls and clean method signatures [1.00ms]
+(pass) default argument expansion generated tree > Kotlin generated tree emits native defaults and full-arity calls [1.00ms]
+(pass) default argument expansion generated tree > Rust generated tree emits full-arity calls and clean method signatures
+(pass) default argument expansion generated tree > Swift generated tree lowers parameter-reading coalescing defaults in the body [1.00ms]
+(pass) default argument expansion generated tree > Dart generated tree normalizes coalescing defaults in the body [1.00ms]
+
+tests/ts/string-buffer.test.ts:
+(pass) string buffer generated tree > TS lowers StringBuf to primitive strings with inline pairing checks [1.00ms]
+(pass) string buffer generated tree > Kotlin lowers StringBuf to StringBuilder with tail reads via lastOrNull
+(pass) string buffer generated tree > Rust lowers StringBuf to Vec<u16> with fault arms bound in the pattern [1.00ms]
+(pass) string buffer generated tree > Swift lowers StringBuf to UTF-16 arrays
+(pass) string buffer generated tree > Dart lowers StringBuf to UTF-16 unit lists [1.00ms]
+
+tests/ts/try-region.test.ts:
+(pass) TTry catch-site lowering > uses native typed catch forms on every target [1.00ms]
+
+tests/ts/std-string.test.ts:
+(pass) Std.string lowering > generated trees contain no unresolved Std reference [209.00ms]
+(pass) Std.string lowering > Kotlin concatenation keeps Std.string scalar operands bare
+(pass) Std.string lowering > enum operands use each target constructor-name read
+(pass) Std.string lowering > Rust standalone scalars use to_string
+(pass) Std.string lowering > array operands use one single-pass builder in every target [1.00ms]
+(pass) Std.string lowering > unsupported operands report the named error [26268.54ms]
+(pass) Std.string lowering > nullable operands are rejected on every target [131497.70ms]
+
+tests/ts/block-width.test.ts:
+(pass) block float widths > F32 committed binary decodes to the JSON records [4.00ms]
+(pass) block float widths > F32 re-encoding the decoded records reproduces the committed bytes [1.00ms]
+(pass) block float widths > F32 travels under the BRG2 magic
+(pass) block float widths > F32 records occupy 24 bytes each
+(pass) block float widths > F16 committed binary decodes to the JSON records [1.00ms]
+(pass) block float widths > F16 re-encoding the decoded records reproduces the committed bytes
+(pass) block float widths > F16 travels under the BRG3 magic
+(pass) block float widths > F16 records occupy 14 bytes each
+(pass) block float widths > unknown width magics are rejected as BadMagic
+(pass) binary16 edge constants > binary16 patterns widen to exact binary32 bits
+(pass) binary16 edge constants > binary32 patterns narrow with round-to-nearest-even
+
+tests/ts/printed-collection.test.ts:
+(pass) record collection printed members > non-Kotlin targets route collection fields through single-pass builders [1.00ms]
+(pass) record collection printed members > Kotlin relies on native data-class text
+
+tests/ts/printed-sorted-fields.test.ts:
+(pass) printed sorted field trees > all native targets retain resident collection members [1.00ms]
+(pass) printed sorted field trees > Kotlin keeps data-class synthesis without resident members
+
+tests/ts/enum-queries.test.ts:
+(pass) enum value queries generated trees > TypeScript emits frozen values, collection and lookup with a literal loop bound
+(pass) enum value queries generated trees > Kotlin uses enum class, entries and element iteration [1.00ms]
+(pass) enum value queries generated trees > Swift uses raw value cases, CaseIterable and element iteration
+(pass) enum value queries generated trees > Dart uses enhanced enum labels, lookup and element iteration
+(pass) enum value queries generated trees > Rust emits ALL, name, from_name and a literal range
+(pass) enum value queries generated trees > no generated target retains a Type static call [115.00ms]
+
+tests/ts/sorted-key-domains.test.ts:
+(pass) sorted key domains generated tree > TS generated tree exports comparison function for structure keys
+(pass) sorted key domains generated tree > Structure key builder call site injects the comparator reference
+(pass) sorted key domains generated tree > Int key builder call site binds the resident comparator [1.00ms]
+(pass) sorted key domains generated tree > String key builder call site binds the resident comparator
+(pass) sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum
+
+tests/ts/array-iteration.test.ts:
+(pass) array element iteration generated tree > TypeScript uses a single-read indexed bound for all array subjects
+(pass) array element iteration generated tree > Kotlin emits element for loops
+(pass) array element iteration generated tree > Rust emits element for loops
+(pass) array element iteration generated tree > Swift emits element for loops
+(pass) array element iteration generated tree > Dart emits element for loops
+
+tests/ts/constructor-statements.test.ts:
+(pass) constructor statement initialization safety > keeps body locals and lowered temporaries out of the initializer list
+(pass) constructor statement initialization safety > keeps parameter-to-field assignments represented in the generated constructor
+
+tests/ts/stringtools-conv.test.ts:
+(pass) StringTools conversions lowering > kotlin trees qualify StringTools statics through the runtime resident [29.00ms]
+(pass) StringTools conversions lowering > every tree referencing StringTools statics emits its runtime resident [29.00ms]
+(pass) StringTools conversions lowering > each target uses its ruled native conversion spelling
+(pass) StringTools conversions lowering > negative hex arguments report the named domain error [25311.56ms]
+
+tests/ts/record-order.test.ts:
+(pass) record print field order generated trees > four non-native targets synthesize the member for both classes in declaration order [1.00ms]
+(pass) record print field order generated trees > Kotlin overrides the native print only for the reordered class
+(pass) record print field order mutations > a constructor parameter without a field stops the compilation [22000.62ms]
+(pass) record print field order mutations > aligning the field declarations removes the Kotlin explicit member [21744.62ms]
+
+tests/ts/deferred-locals.test.ts:
+(pass) deferred locals retain each target's sanctioned declaration form
+(pass) a missing deferred assignment is rejected by the Kotlin tree build [23782.58ms]
+
+tests/ts/sorted-dataclass-keys.test.ts:
+(pass) sorted dataClass key generated trees > pins dataClass computed key properties [1.00ms]
+(pass) sorted dataClass key generated trees > pins nullable folded constructor defaults [1.00ms]
+(pass) sorted dataClass key generated trees > pins mutation evidence fixtures
+(pass) sorted dataClass key generated trees > pins resident comparators [2.00ms]
+
+tests/ts/fn-values.test.ts:
+(pass) first-class function value generated trees > all five targets emit the probe module
+(pass) first-class function value generated trees > TypeScript, Kotlin, Swift, and Dart keep static function storage
+(pass) first-class function value generated trees > Rust uses one boxed representation and adapts indirect lengths
+(pass) first-class function value generated trees > Rust's f32 tree carries the same function-value lowering [1.00ms]
+(pass) first-class function value generated trees > Rust bounds every function-value position with Send and Sync
+(pass) first-class function value generated trees > Rust's f32 tree bounds the resident comparator
+(pass) static function field capture validation > a capturing static initializer reports the ruled Rust error [22917.60ms]
+
+tests/ts/package-shell.test.ts:
+(pass) package shell emission > default emission writes package.json and the tree runs standalone [27547.52ms]
+(pass) package shell emission > identity defines flow into the manifest [27651.52ms]
+(pass) package shell emission > package-shell=none writes source only [28351.55ms]
+(pass) package shell emission > an invalid package-shell value aborts the compile [29053.62ms]
+(pass) package shell emission > a by-name runtime import with an emitted manifest aborts the compile [28522.62ms]
+(pass) package shell emission > the Swift, Kotlin, and Rust manifests of the reference trees are pinned [3.00ms]
+
+tests/ts/switch-ops.test.ts:
+(pass) variant switch lowering > supports statement and initializer positions [1.00ms]
+(pass) variant switch lowering > supports default arms
+(pass) variant switch lowering > supports switches inside conditional arms
+
+tests/ts/read-only.test.ts:
+(pass) read-only decoded data > decoded records and their array are frozen [4.00ms]
+(pass) read-only decoded data > slot assignment through a mutable view throws TypeError [1.00ms]
+(pass) read-only decoded data > array growth through a mutable view throws TypeError [1.00ms]
+(pass) read-only decoded data > record field assignment through a mutable view throws TypeError
+(pass) read-only decoded data > the JSON boundary output is frozen the same way
+
+tests/ts/vector-sort.test.ts:
+(pass) vectorSortByCodePoint > sorts a 9-element input array through the insertion tier [1.00ms]
+(pass) vectorSortByCodePoint > sorts a 40-element input array through the packed tier [1.00ms]
+(pass) vectorSortByCodePoint > equal keys keep input order (stability) [2.00ms]
+(pass) vectorSortByCodePoint > an all-equal input array is returned unchanged element for element
+
+tests/ts/codec.test.ts:
+(pass) BinaryWriter and BinaryReader > u16 and u32 round trip in big-endian order
+(pass) BinaryWriter and BinaryReader > f64 round trip preserves the bit pattern
+(pass) BinaryWriter and BinaryReader > ascii writes one byte per character
+(pass) BinaryWriter and BinaryReader > buffer grows past the initial capacity [1.00ms]
+(pass) vector format > round trip preserves records and length
+(pass) vector format > decode rejects a wrong magic with the BadMagic variant
+(pass) vector format > decode rejects trailing bytes with the TrailingBytes variant
+(pass) vector format > decode rejects a truncated vector with the UnexpectedEof variant [1.00ms]
+
+tests/ts/number-parsing.test.ts:
+(pass) number parsing renderings > all target trees use the validated implementation [2.00ms]
+
+tests/swift-readonly-boundary/readonly-boundary.test.ts:
+(pass) Swift read-only array boundary shares storage and preserves flow [71550.02ms]
+
+packages/registry/tests/package-registry.test.ts:
+(pass) committed package registry > writes all five namespaces and stable bytes [23399.67ms]
+(pass) committed package registry > rejects stray files [24.00ms]
+(pass) committed package registry > rejects malformed metadata [23.00ms]
+(pass) committed package registry > rejects missing README [20.00ms]
+(pass) committed package registry > rejects missing version [18.00ms]
+(pass) committed package registry > rejects platform disagreement [23.00ms]
+(pass) committed package registry > rejects uppercase Cargo name [24.00ms]
+(pass) committed package registry > rejects missing Swift flags [18.00ms]
+(pass) committed package registry > rejects missing Swift archive base [17.00ms]
+(pass) committed package registry > rejects invalid URL scheme [17.00ms]
+(pass) committed package registry > rejects digest conflict [24.00ms]
+(pass) committed package registry > rejects missing required flags [16.00ms]
+
+reference/ts/gen-tests/boring/CfgTestProbe.test.ts:
+(pass) boring.CfgTestProbe.probe: cfg(test) gate probe for a business-package test module [1.00ms]
+
+reference/ts/gen-tests/tests/NullGuardNarrowTests.test.ts:
+(pass) tests.NullGuardNarrowTests.testNarrowing: a null guard narrows the value use in Swift
+
+reference/ts/gen-tests/tests/EarlyReturnTests.test.ts:
+(pass) tests.EarlyReturnTests.conditionalReturn: conditional early return exits the test body
+(pass) tests.EarlyReturnTests.fallThrough: fall-through path continues after the conditional
+
+reference/ts/gen-tests/tests/SumOfFloatLocalTests.test.ts:
+(pass) tests.SumOfFloatLocalTests.testTotal: sumOfFloat in a local function keeps the Float accumulator
+(pass) tests.SumOfFloatLocalTests.testWeighted: a weighted sumOfFloat in a local function scales the accumulator
+
+reference/ts/gen-tests/tests/SwiftLiteralSafetyOpsTests.test.ts:
+(pass) tests.SwiftLiteralSafetyOpsTests.testTrailingPoint: trailing-point float literal renders as zero
+(pass) tests.SwiftLiteralSafetyOpsTests.testControlText: control character in literal renders escaped
+
+reference/ts/gen-tests/tests/ForInOptionalTests.test.ts:
+(pass) tests.ForInOptionalTests.testIterate: a for-in over a guarded nullable array unwraps
+
+reference/ts/gen-tests/tests/DataTableTests.test.ts:
+(pass) tests.DataTableTests.testScriptFirstRecord: script table first record hits [1.00ms]
+(pass) tests.DataTableTests.testScriptLastRecord: script table last record hits
+(pass) tests.DataTableTests.testScriptMisses: script table boundary misses [1.00ms]
+(pass) tests.DataTableTests.testScriptIntermediateRecords: script table intermediate record classifications
+(pass) tests.DataTableTests.testWordFirstRecord: word character table first record hits
+(pass) tests.DataTableTests.testWordLastRecord: word character table last record hits
+(pass) tests.DataTableTests.testWordMisses: word character table misses and gaps
+(pass) tests.DataTableTests.testWordSingletons: word character table singleton ranges [1.00ms]
+(pass) tests.DataTableTests.testPayloadUnits: payload table unit count and edge units
+(pass) tests.DataTableTests.testPayloadRoundtrip: payload table decodes back to the file content [4.00ms]
+
+reference/ts/gen-tests/tests/NegativeSentinelOpsTests.test.ts:
+(pass) tests.NegativeSentinelOpsTests.separatorIndex: a negative sentinel local keeps one domain across its uses
+
+reference/ts/gen-tests/tests/M2OptionVecTests.test.ts:
+(pass) tests.M2OptionVecTests.nullableArrayReceiver: nullable array receiver pushes and joins
+(pass) tests.M2OptionVecTests.nullableSetReceiver: nullable sorted set receiver queries membership
+(pass) tests.M2OptionVecTests.nullableMapReceiver: nullable sorted map receiver reads a stored value
+(pass) tests.M2OptionVecTests.vecCopy: Vec copy clones the array
+(pass) tests.M2OptionVecTests.vecShift: Vec shift removes the first element
+(pass) tests.M2OptionVecTests.vecUnshift: Vec unshift inserts at the front
+(pass) tests.M2OptionVecTests.vecIndexOf: Vec indexOf finds the element position
+(pass) tests.M2OptionVecTests.indexOfCompared: Vec and String indexOf compared against -1 share the signed domain
+(pass) tests.M2OptionVecTests.guardedCopyLocal: guarded-copy local reads fields of the proven inner value
+(pass) tests.M2OptionVecTests.guardedAndChain: guarded and-chain reads fields of the proven inner value
+(pass) tests.M2OptionVecTests.guardedHolderField: guarded holder field copies the proven inner value
+
+reference/ts/gen-tests/tests/KnullInitNarrowingTests.test.ts:
+(pass) tests.KnullInitNarrowingTests.fieldOffNullableReceiver: reads a field off a nullable receiver bound to a non-null local
+(pass) tests.KnullInitNarrowingTests.ternaryWithNullableArm: binds a non-null local from a ternary whose else arm is nullable
+(pass) tests.KnullInitNarrowingTests.chainedFieldAccess: chains two field accesses off a nullable receiver
+
+reference/ts/gen-tests/tests/OptionalValueUseTests.test.ts:
+(pass) tests.OptionalValueUseTests.testValueUses: a nullable value unwraps at the remaining value uses
+
+reference/ts/gen-tests/tests/StringToolsTests.test.ts:
+(pass) tests.StringToolsTests.padLeft: lpad pads on the left through the runtime module
+(pass) tests.StringToolsTests.trims: ltrim and rtrim strip whitespace through the runtime module [1.00ms]
+(pass) tests.StringToolsTests.replace: replace swaps substrings through the runtime module
+
+reference/ts/gen-tests/tests/OptionalMemberTests.test.ts:
+(pass) tests.OptionalMemberTests.testMember: a narrowed nullable receiver unwraps at its member read
+
+reference/ts/gen-tests/tests/FloatLiteralOpsTests.test.ts:
+(pass) tests.FloatLiteralOpsTests.testArgLeadingDot: leading-dot float in argument position lowers
+(pass) tests.FloatLiteralOpsTests.testLocalLeadingDotNeg: negative leading-dot float in initializer position lowers
+(pass) tests.FloatLiteralOpsTests.testArgSmall: small-magnitude leading-dot float in argument position lowers
+(pass) tests.FloatLiteralOpsTests.testLocalSmallNeg: negative small-magnitude leading-dot float in initializer position lowers
+
+reference/ts/gen-tests/tests/PrivateStaticCallTests.test.ts:
+(pass) tests.PrivateStaticCallTests.testPrivateStaticCall: private static referenced by class name lowers under its Dart name
+
+reference/ts/gen-tests/tests/FloatModTests.test.ts:
+(pass) tests.FloatModTests.testRemainder: a float remainder lowers onto truncatingRemainder
+
+reference/ts/gen-tests/tests/NullableArrayTests.test.ts:
+(pass) tests.NullableArrayTests.nullableIntLiterals: nullable Int array literals keep every element
+(pass) tests.NullableArrayTests.singleNull: a single null element stays null
+(pass) tests.NullableArrayTests.nullableVarElements: nullable variables pass through without Some wrapping [1.00ms]
+(pass) tests.NullableArrayTests.nullableStringLiterals: nullable String array literals keep every element
+
+reference/ts/gen-tests/tests/LocalThrowTests.test.ts:
+(pass) tests.LocalThrowTests.testLocalStep: a local throwing function call carries the try marker
+(pass) tests.LocalThrowTests.testLocalNested: a local function throwing through another local function call [1.00ms]
+(pass) tests.LocalThrowTests.testLocalCondition: a local call in a condition carries the try marker
+(pass) tests.LocalThrowTests.testLocalArray: a local call inside an array literal carries the try marker
+(pass) tests.LocalThrowTests.testCaughtLocal: the local fault is caught by the caller
+
+reference/ts/gen-tests/tests/ConstructorStatementTests.test.ts:
+(pass) tests.ConstructorStatementTests.testComprehension: constructor lowers array comprehension fill
+(pass) tests.ConstructorStatementTests.testPipelineBlockLambda: constructor lowers pipeline call with block lambda
+
+reference/ts/gen-tests/tests/FlushHookProbeTests.test.ts:
+(pass) tests.FlushHookProbeTests.classBodyRuns: the class body runs and the flush entry stays outside the test id set
+
+reference/ts/gen-tests/tests/AllowAccessTests.test.ts:
+(pass) tests.AllowAccessTests.staticAccess: allowed private static function is callable across classes
+(pass) tests.AllowAccessTests.staticFieldAccess: allowed private static field is writable across classes
+(pass) tests.AllowAccessTests.instanceAccess: allowed private instance members are reachable across classes
+
+reference/ts/gen-tests/tests/Sha256Tests.test.ts:
+(pass) tests.Sha256Tests.empty: hashes the empty byte sequence [1.00ms]
+(pass) tests.Sha256Tests.abc: hashes abc
+(pass) tests.Sha256Tests.incremental: matches one-shot and incremental blocks [1.00ms]
+
+reference/ts/gen-tests/tests/StdStringSelfRecTests.test.ts:
+(pass) tests.StdStringSelfRecTests.forms: cyclic enum constructor printed forms
+
+reference/ts/gen-tests/tests/RuntimeExportTests.test.ts:
+(pass) tests.RuntimeExportTests.testFloatToBits: binary32 float bits widen from a round number
+(pass) tests.RuntimeExportTests.testBitsToFloat: binary32 bit patterns widen to a float
+(pass) tests.RuntimeExportTests.testFloatRoundTrip: binary32 bits round-trip through the edge helpers
+(pass) tests.RuntimeExportTests.testUStringExports: UString code-point helpers are exported from the runtime module [1.00ms]
+
+reference/ts/gen-tests/tests/Ts2448Tests.test.ts:
+(pass) tests.Ts2448Tests.nestedLocal: nested locals do not self-reference [1.00ms]
+
+reference/ts/gen-tests/tests/BytesTests.test.ts:
+(pass) tests.BytesTests.fixedMutation: allocates and mutates fixed-length bytes [1.00ms]
+(pass) tests.BytesTests.bufferAdd: appends whole byte segments through add
+(pass) tests.BytesTests.bufferAddEmpty: add with an empty argument appends nothing
+
+reference/ts/gen-tests/tests/NumberClassifyTests.test.ts:
+(pass) tests.NumberClassifyTests.finiteClassification: isFinite accepts finite values and rejects NaN and infinities
+(pass) tests.NumberClassifyTests.nanClassification: isNaN accepts NaN and rejects finite values and infinities
+
+reference/ts/gen-tests/tests/BorrowedStringReturnTests.test.ts:
+(pass) tests.BorrowedStringReturnTests.requireText: a borrowed String parameter returns through an owned abstract String
+
+reference/ts/gen-tests/tests/CrcTests.test.ts:
+(pass) tests.CrcTests.crc1Vectors: crc1 vectors [1.00ms]
+(pass) tests.CrcTests.crc8Vectors: crc8 vectors [1.00ms]
+(pass) tests.CrcTests.crc81wireVectors: crc81wire vectors [1.00ms]
+(pass) tests.CrcTests.crc8dvbs2Vectors: crc8dvbs2 vectors
+(pass) tests.CrcTests.crc16Vectors: crc16 vectors
+(pass) tests.CrcTests.crc16ccittVectors: crc16ccitt vectors
+(pass) tests.CrcTests.crc16modbusVectors: crc16modbus vectors [1.00ms]
+(pass) tests.CrcTests.crc16kermitVectors: crc16kermit vectors
+(pass) tests.CrcTests.crc16xmodemVectors: crc16xmodem vectors
+(pass) tests.CrcTests.crc24Vectors: crc24 vectors
+(pass) tests.CrcTests.crc32Vectors: crc32 vectors [1.00ms]
+(pass) tests.CrcTests.crc32mpeg2Vectors: crc32mpeg2 vectors
+(pass) tests.CrcTests.crcjamVectors: crcjam vectors
+(pass) tests.CrcTests.crc1Incremental: crc1 incremental
+(pass) tests.CrcTests.crc8Incremental: crc8 incremental
+(pass) tests.CrcTests.crc81wireIncremental: crc81wire incremental [1.00ms]
+(pass) tests.CrcTests.crc8dvbs2Incremental: crc8dvbs2 incremental
+(pass) tests.CrcTests.crc16Incremental: crc16 incremental
+(pass) tests.CrcTests.crc16ccittIncremental: crc16ccitt incremental
+(pass) tests.CrcTests.crc16modbusIncremental: crc16modbus incremental
+(pass) tests.CrcTests.crc16kermitIncremental: crc16kermit incremental
+(pass) tests.CrcTests.crc16xmodemIncremental: crc16xmodem incremental
+(pass) tests.CrcTests.crc24Incremental: crc24 incremental
+(pass) tests.CrcTests.crc32Incremental: crc32 incremental
+(pass) tests.CrcTests.crc32mpeg2Incremental: crc32mpeg2 incremental
+(pass) tests.CrcTests.crcjamIncremental: crcjam incremental
+
+reference/ts/gen-tests/tests/ArithmeticTests.test.ts:
+(pass) tests.ArithmeticTests.testWithinInt: within checks integer range inclusion
+(pass) tests.ArithmeticTests.testWithinFloat: within checks float range inclusion
+(pass) tests.ArithmeticTests.testCoerceAtLeast: coerceAtLeast clamps values to floor
+(pass) tests.ArithmeticTests.testCoerceAtMost: coerceAtMost clamps values to ceiling
+(pass) tests.ArithmeticTests.testCoerceIn: coerceIn clamps values to range
+(pass) tests.ArithmeticTests.testIntRange: IntRange contains evaluates bounds
+
+reference/ts/gen-tests/tests/TypeAliasLocalTests.test.ts:
+(pass) tests.TypeAliasLocalTests.testCompute: a local class alias lowers to a Swift typealias
+
+reference/ts/gen-tests/tests/ThrowingClosureTests.test.ts:
+(pass) tests.ThrowingClosureTests.testThrowingClosure: a throwing closure matches a zero-argument Void callback
+
+reference/ts/gen-tests/tests/MathMinShadowTests.test.ts:
+(pass) tests.MathMinShadowTests.testClamp: Math.min evaluates an operand that reads a local named a
+
+reference/ts/gen-tests/tests/NumericWidenTests.test.ts:
+(pass) tests.NumericWidenTests.testOperands: Int operands widen for Float arithmetic
+(pass) tests.NumericWidenTests.testReturns: Int returns widen for Float results
+(pass) tests.NumericWidenTests.testAssignments: Int assignments widen for Float locals
+(pass) tests.NumericWidenTests.testNullableConditional: Nullable conditional arms widen for Float results
+(pass) tests.NumericWidenTests.testBranchMerges: Conditional and switch arms widen for Float results
+
+reference/ts/gen-tests/tests/DefaultArgShiftTests.test.ts:
+(pass) tests.DefaultArgShiftTests.testExplicitNull: explicit null at a parameter-reading default resolves the earlier argument
+(pass) tests.DefaultArgShiftTests.testChainExplicitNull: chain later parameter with explicit null reads the earlier argument
+(pass) tests.DefaultArgShiftTests.testChainOmissions: chain omission forms keep their resolved values
+(pass) tests.DefaultArgShiftTests.testInstanceMethod: instance method parameter-reading default resolves the receiver argument
+(pass) tests.DefaultArgShiftTests.testMiddleSlot: middle slot omitted with later arguments keeps every slot
+(pass) tests.DefaultArgShiftTests.testConstructor: constructor parameter-reading default resolves the constructor argument
+(pass) tests.DefaultArgShiftTests.testExplicitValues: explicit values at every slot are unchanged
+
+reference/ts/gen-tests/tests/MathNaNOpsTests.test.ts:
+(pass) tests.MathNaNOpsTests.minValues: Math.min propagates NaN and handles finite and infinity edges
+(pass) tests.MathNaNOpsTests.maxValues: Math.max propagates NaN and handles finite and infinity edges
+(pass) tests.MathNaNOpsTests.foldedConstantEdges: literal constant edges keep NaN, both infinities, and the f32 flush values
+
+reference/ts/gen-tests/tests/ComparatorGateTests.test.ts:
+(pass) tests.ComparatorGateTests.comparable: comparable data classes remain usable
+(pass) tests.ComparatorGateTests.unsupported: data classes with unsupported comparator fields remain usable
+
+reference/ts/gen-tests/tests/NumericCoalesceLocalOpsTests.test.ts:
+(pass) tests.NumericCoalesceLocalOpsTests.testCoalescedLocal: a coalesced Int local feeds a scalar argument without a bridge
+
+reference/ts/gen-tests/tests/SealedVariantTests.test.ts:
+(pass) tests.SealedVariantTests.testSingletonToString: singleton variant prints its bare name [1.00ms]
+(pass) tests.SealedVariantTests.testRecordToString: record variants print fields in parameter order
+(pass) tests.SealedVariantTests.testLabels: variant labels distinguish all three classes
+(pass) tests.SealedVariantTests.testTypeChecks: variant type checks include the interface and reject siblings
+
+reference/ts/gen-tests/tests/SignedComparisonTests.test.ts:
+(pass) tests.SignedComparisonTests.indexBelowLimit: an ordered comparison with a signed index keeps the absent sentinel below a limit
+(pass) tests.SignedComparisonTests.indexAtOrAboveLimit: an ordered comparison with a signed index keeps the absent sentinel below an upper bound
+(pass) tests.SignedComparisonTests.indexEqualsLimit: an equality comparison with a signed index compares the sentinel
+(pass) tests.SignedComparisonTests.lastIndexEqualsLimit: an equality comparison with a signed last index compares the sentinel
+(pass) tests.SignedComparisonTests.indexBelowZero: an ordered comparison with literal zero reinterprets the signed index sentinel
+
+reference/ts/gen-tests/tests/SortedTableTests.test.ts:
+(pass) tests.SortedTableTests.testCodePointNamesLookup: CodePointNames lookup hits and misses
+(pass) tests.SortedTableTests.testCodePointNamesOrder: CodePointNames ascending traversal order
+(pass) tests.SortedTableTests.testMapDuplicateKeys: SortedMap duplicate key last-put-wins semantics
+(pass) tests.SortedTableTests.testEmptyMap: SortedMap empty builder produces empty map
+(pass) tests.SortedTableTests.testSortedSetOperations: SortedSet duplicate key deduplication and ascending ordering
+(pass) tests.SortedTableTests.testEmptySet: SortedSet empty builder produces empty set
+
+reference/ts/gen-tests/tests/FPHelperSwiftTests.test.ts:
+(pass) tests.FPHelperSwiftTests.testRoundTrip: binary32 bit edges round-trip through the runtime pair
+
+reference/ts/gen-tests/tests/FontIdTests.test.ts:
+(pass) tests.FontIdTests.make: a non-inline static on a sub-type abstract is callable across modules
+
+reference/ts/gen-tests/tests/NumericConversionWideningTests.test.ts:
+(pass) tests.NumericConversionWideningTests.testComparison: Numeric conversion widening compares Float and Int [1.00ms]
+(pass) tests.NumericConversionWideningTests.testReturn: Numeric conversion widening returns Int from Float function
+(pass) tests.NumericConversionWideningTests.testInit: Numeric conversion widening initializes Float from Int
+(pass) tests.NumericConversionWideningTests.testAssign: Numeric conversion widening assigns Int to Float
+(pass) tests.NumericConversionWideningTests.testParam: Numeric conversion widening passes Int to Float parameter
+
+reference/ts/gen-tests/tests/GlyphClusterTests.test.ts:
+(pass) tests.GlyphClusterTests.firstRange: a data-class member reads off a ReadOnlyArray field element
+(pass) tests.GlyphClusterTests.firstReturnedRange: a data-class member reads off a ReadOnlyArray return element
+
+reference/ts/gen-tests/tests/PrivateClassTests.test.ts:
+(pass) tests.PrivateClassTests.distinctResolutions: file-private classes remain private and distinct
+
+reference/ts/gen-tests/tests/InheritCtorTests.test.ts:
+(pass) tests.InheritCtorTests.messageValue: inherited data-class constructors preserve message values
+(pass) tests.InheritCtorTests.constructionAndCatch: inherited data-class construction preserves the second message
+
+reference/ts/gen-tests/tests/TernaryInterfaceTests.test.ts:
+(pass) tests.TernaryInterfaceTests.testChoose: ternary arms widen to the interface they unified on
+
+reference/ts/gen-tests/tests/PipelineTests.test.ts:
+(pass) tests.PipelineTests.testMap: map transforms elements and pre-allocates fill
+(pass) tests.PipelineTests.testShadowing: lambda parameter shadows outer local variable
+(pass) tests.PipelineTests.testFilter: filter keeps matching elements in compact push loop
+(pass) tests.PipelineTests.testMintCapture: mint hygiene protects user locals with pipeline_ prefix
+(pass) tests.PipelineTests.testForEach: forEach traverses elements in statement position
+(pass) tests.PipelineTests.testAssociate: associate builds sorted map with last-wins on duplicate keys
+(pass) tests.PipelineTests.testSortedBy: sortedBy sorts ascending with platform stability on equal keys
+(pass) tests.PipelineTests.testChained: chained pipeline methods expand in source order
+(pass) tests.PipelineTests.testNestedLoop: nested loops rebuild per-iteration pipeline temporaries
+(pass) tests.PipelineTests.testAny: any checks predicate matches with early exit and returns false for empty
+(pass) tests.PipelineTests.testAll: all checks predicate matches all with early exit and returns true for empty [1.00ms]
+(pass) tests.PipelineTests.testFirstOrNull: firstOrNull finds first matching element or returns null
+(pass) tests.PipelineTests.testSumOfInt: sumOfInt sums integer selector values and returns 0 for empty
+(pass) tests.PipelineTests.testSumOfFloat: sumOfFloat sums float selector values and returns 0.0 for empty
+(pass) tests.PipelineTests.testMapNotNull: mapNotNull filters out null selector results
+(pass) tests.PipelineTests.testFlatMap: flatMap flattens selector array results
+(pass) tests.PipelineTests.testGroupBy: groupBy groups elements into SortedMap with ascending keys and receiver order in buckets
+
+reference/ts/gen-tests/tests/SwitchMergeTests.test.ts:
+(pass) tests.SwitchMergeTests.grouped: grouped variant arms preserve both constructors
+(pass) tests.SwitchMergeTests.single: single variant arms remain distinct
+(pass) tests.SwitchMergeTests.groupedPlainMatches: grouped plain arms match without payload bindings
+
+reference/ts/gen-tests/tests/DartCoalesceSiblingTests.test.ts:
+(pass) tests.DartCoalesceSiblingTests.testSibling: a static call site binds sibling defaults to caller arguments
+
+reference/ts/gen-tests/tests/AbstractStaticDefaultTests.test.ts:
+(pass) tests.AbstractStaticDefaultTests.testAbstractStaticDefault: omitted optional parameter falls back to the abstract static default
+
+reference/ts/gen-tests/tests/ExceptionCatchTests.test.ts:
+(pass) tests.ProbeShareTests.probe: shared probe module compiles
+(pass) tests.ExceptionCatchTests.exceptionTypeLowering: haxe.Exception type lowers to Error
+(pass) tests.ExceptionCatchTests.testModuleImport: test module probes resolve across test files
+
+reference/ts/gen-tests/tests/RecordInterfaceOpsTests.test.ts:
+(pass) tests.RecordInterfaceOpsTests.singletonRole: a singleton interface field prints its bare name
+(pass) tests.RecordInterfaceOpsTests.recordRole: a record interface field prints its labeled form
+(pass) tests.RecordInterfaceOpsTests.presentNote: a present nullable interface field prints its member text
+(pass) tests.RecordInterfaceOpsTests.dataClassEquality: data class equality compares interface fields
+
+reference/ts/gen-tests/tests/BorrowedReceiverBoundaryTests.test.ts:
+(pass) tests.BorrowedReceiverBoundaryTests.snapshotLabel: a borrowed receiver fills an owned constructor slot
+(pass) tests.BorrowedReceiverBoundaryTests.pickLabel: a borrowed receiver fills an owned conditional return slot
+
+reference/ts/gen-tests/tests/FloatTernaryArmTests.test.ts:
+(pass) tests.FloatTernaryArmTests.testCost: a mixed int arm widens inside a float ternary
+
+reference/ts/gen-tests/tests/OptionalCtorTests.test.ts:
+(pass) tests.OptionalCtorTests.testOptionalCtor: optional nullable ctor params with differently-named fields render optional
+
+reference/ts/gen-tests/tests/StaticStateTests.test.ts:
+(pass) tests.StaticStateTests.testStaticCollision: colliding static-only classes retain distinct namespaces
+(pass) tests.StaticStateTests.testStaticState: static fields round-trip assignments and retain container state [1.00ms]
+
+reference/ts/gen-tests/tests/HaxeExceptionTests.test.ts:
+(pass) tests.HaxeExceptionTests.thrownMessage: haxe.Exception subclasses preserve message values when thrown and caught
+(pass) tests.HaxeExceptionTests.joinedMessage: a concatenated exception message crosses the constructor as a str view
+(pass) tests.HaxeExceptionTests.mixedMessage: a direct message-only throw joins the callee fault union
+
+reference/ts/gen-tests/tests/FusedPushThrowTests.test.ts:
+(pass) tests.FusedPushThrowTests.testBuild: a fused push of a throwing construction carries the try marker
+
+reference/ts/gen-tests/tests/StringCodecTests.test.ts:
+(pass) tests.StringCodecTests.asciiRoundTrip: encodes and decodes ASCII [1.00ms]
+(pass) tests.StringCodecTests.cjkRoundTrip: encodes and decodes a two-byte character
+(pass) tests.StringCodecTests.astralRoundTrip: encodes and decodes an astral character [1.00ms]
+(pass) tests.StringCodecTests.emptyEncode: empty string encodes to zero bytes
+(pass) tests.StringCodecTests.invalidDecodesToReplacement: invalid bytes decode to U+FFFD
+(pass) tests.StringCodecTests.truncatedSequence: a truncated multi-byte sequence decodes to U+FFFD
+(pass) tests.StringCodecTests.subRangeDecode: getString decodes a middle sub-range
+(pass) tests.StringCodecTests.concatJoins: concat joins both operands in order
+(pass) tests.StringCodecTests.concatEmpty: concat with an empty operand still copies
+(pass) tests.StringCodecTests.concatNoAlias: concat never shares storage with its operands
+
+reference/ts/gen-tests/tests/VecSpliceTests.test.ts:
+(pass) tests.VecSpliceTests.removeSingle: vecSpliceDrain: remove a single element from the middle
+(pass) tests.VecSpliceTests.captureRemoved: vecSpliceDrain: capture the removed sub-array
+(pass) tests.VecSpliceTests.removeHead: vecSpliceDrain: remove the first n elements
+
+reference/ts/gen-tests/tests/StaticRefTests.test.ts:
+(pass) tests.StaticRefTests.testPassToParam: static method passed as value to function-typed parameter
+(pass) tests.StaticRefTests.testStoreLocal: static method stored in function-typed local
+(pass) tests.StaticRefTests.testReturnFn: static method returned as function value
+(pass) tests.StaticRefTests.testReassignLocal: static method assigned in function-typed local
+(pass) tests.StaticRefTests.testStaticsOnlyValue: statics-only class static method used as value
+(pass) tests.StaticRefTests.testCallSite: static method at call site is unchanged
+
+reference/ts/gen-tests/tests/LoopWriteTests.test.ts:
+(pass) tests.LoopWriteTests.tailIncrement: tail counter increment remains a counted loop
+(pass) tests.LoopWriteTests.branchIncrement: branch counter write remains a while loop
+(pass) tests.LoopWriteTests.nonUnitIncrement: non-unit counter increment remains a while loop
+(pass) tests.LoopWriteTests.closureIncrement: closure counter write remains a while loop
+
+reference/ts/gen-tests/tests/BorrowedIterationSubjectOpsTests.test.ts:
+(pass) tests.BorrowedIterationSubjectOpsTests.unique: an element loop borrows an already-referenced subject once
+
+reference/ts/gen-tests/tests/DartCharNullTests.test.ts:
+(pass) tests.DartCharNullTests.charNullNarrowing: charCodeAt results narrow correctly at consumer boundaries
+(pass) tests.DartCharNullTests.charNullOutOfRange: charCodeAt preserves null for out-of-range indices
+
+reference/ts/gen-tests/tests/EnumSortedKeysTests.test.ts:
+(pass) tests.EnumSortedKeysTests.testSetOrder: Parameterless enum sorted sets use declaration order
+(pass) tests.EnumSortedKeysTests.testMapOrder: Parameterless enum sorted maps order keys and values
+
+reference/ts/gen-tests/tests/ArrayMethodSwiftTests.test.ts:
+(pass) tests.ArrayMethodSwiftTests.testFind: indexOf lowers onto firstIndex with the -1 miss
+(pass) tests.ArrayMethodSwiftTests.testCopyConcat: copy and concat lower onto native array operations
+(pass) tests.ArrayMethodSwiftTests.testEnds: pop shift and unshift lower onto the mutating array members
+(pass) tests.ArrayMethodSwiftTests.testSplice: splice returns the removed sub-array
+
+reference/ts/gen-tests/tests/PrivateCollisionTests.test.ts:
+(pass) tests.PrivateCollisionTests.testPrivateCollision: module-private types of the same name stay file-scoped
+
+reference/ts/gen-tests/tests/FunctionalLocalTests.test.ts:
+(pass) tests.FunctionalLocalTests.testDoubled: sumOfFloat in a local function lowers onto reduce
+(pass) tests.FunctionalLocalTests.testCounted: forEach in a local function lowers onto the array method
+
+reference/ts/gen-tests/tests/BoxedInterfaceDefaultOpsTests.test.ts:
+(pass) tests.BoxedInterfaceDefaultOpsTests.defaultBoxes: a concrete interface default boxes in the coalescing closure
+
+reference/ts/gen-tests/tests/ResidentModuleImportTests.test.ts:
+(pass) tests.ResidentModuleImportTests.testResidentModuleImport: resident module imports resolve on their own module path
+
+reference/ts/gen-tests/tests/WidgetCoalescingTests.test.ts:
+(pass) tests.WidgetCoalescingTests.builderDefault: coalescing default constructs builder with omitted defaults
+(pass) tests.WidgetCoalescingTests.lensDefault: coalescing default constructs lens in non-main-class module
+
+reference/ts/gen-tests/tests/NullableLocalTests.test.ts:
+(pass) tests.NullableLocalTests.intLocalKeepsSome: a nullable Int local from a literal compares equal inside Some
+(pass) tests.NullableLocalTests.floatLocalKeepsSome: a nullable Float local from a literal compares equal inside Some
+(pass) tests.NullableLocalTests.nullBoolStaysNull: a null Bool local stays null
+(pass) tests.NullableLocalTests.stringLocalKeepsSome: a nullable String local keeps the existing Some wrapping
+(pass) tests.NullableLocalTests.nullableInitUnwrapped: a nullable initializer passes through without double wrapping
+(pass) tests.NullableLocalTests.lookupInitUnwrapped: a createEnum initializer passes through without Some wrapping [1.00ms]
+
+reference/ts/gen-tests/tests/StringConvTests.test.ts:
+(pass) tests.StringConvTests.testHex: StringTools.hex renders uppercase and optional padding [1.00ms]
+(pass) tests.StringConvTests.testCaseConversions: String case conversions preserve the target-independent rows
+
+reference/ts/gen-tests/tests/LocalShadowTests.test.ts:
+(pass) tests.LocalShadowTests.arrays: array comprehensions preserve both local values
+(pass) tests.LocalShadowTests.shadow: shadowed locals retain their distinct values
+(pass) tests.LocalShadowTests.single: ordinary local remains unchanged
+
+reference/ts/gen-tests/tests/NullGuardFieldTests.test.ts:
+(pass) tests.NullGuardFieldTests.testFieldGuard: a field null guard ternary lowers to nil coalescing
+
+reference/ts/gen-tests/tests/ValuePassingTests.test.ts:
+(pass) tests.ValuePassingTests.valueFlow: field reads and parameter passes keep values usable
+
+reference/ts/gen-tests/tests/SwiftGlobalThrowTests.test.ts:
+(pass) tests.SwiftGlobalThrowTests.testSeed: a throwing stored static initializer force-tries at the declaration
+(pass) tests.SwiftGlobalThrowTests.testCurrent: a throwing computed accessor force-tries in the property body
+
+reference/ts/gen-tests/tests/MultiPatternSwitchTests.test.ts:
+(pass) tests.MultiPatternSwitchTests.testPatterns: a multi-pattern switch arm keeps every pattern
+
+reference/ts/gen-tests/tests/SwitchNullArmTests.test.ts:
+(pass) tests.SwitchNullArmTests.testLabel: a null variant arm lowers to a unit statement
+
+reference/ts/gen-tests/tests/RangeParameterTests.test.ts:
+(pass) tests.RangeParameterTests.testCall: a range-counting call passes its range positionally
+
+reference/ts/gen-tests/tests/FnValuesTests.test.ts:
+(pass) tests.FnValuesTests.testFieldInvocation: function-typed fields stored and invoked
+(pass) tests.FnValuesTests.testParameterInvocation: function-typed parameter invoked inside the callee
+(pass) tests.FnValuesTests.testGenericParameter: generic function-typed parameter
+(pass) tests.FnValuesTests.testStoredLocal: local function value stored and invoked
+(pass) tests.FnValuesTests.testReturnedFunction: function value returned from a function
+(pass) tests.FnValuesTests.testStaticField: static function-typed field invoked
+
+reference/ts/gen-tests/tests/SignedIntAssignOpsTests.test.ts:
+(pass) tests.SignedIntAssignOpsTests.advance: a u32 local assigned an i32-domain sum reinterprets the result
+
+reference/ts/gen-tests/tests/NullableArrayArgumentTests.test.ts:
+(pass) tests.NullableArrayArgumentTests.checkedSum: a null-checked nullable array unwraps into a borrowed Array parameter [1.00ms]
+
+reference/ts/gen-tests/tests/NullableInterfaceBranchOpsTests.test.ts:
+(pass) tests.NullableInterfaceBranchOpsTests.label: a nullable interface conditional boxes its concrete arm [1.00ms]
+
+reference/ts/gen-tests/tests/IntFloatAddTests.test.ts:
+(pass) tests.IntFloatAddTests.testAdd: an Int operand widens in a mixed Float addition
+
+reference/ts/gen-tests/tests/ValueTypeTests.test.ts:
+(pass) tests.ValueTypeTests.testArithmetic: value wrapper arithmetic and member call
+(pass) tests.ValueTypeTests.testEquality: equal wrapper representations compare equal
+(pass) tests.ValueTypeTests.testStaticField: value wrapper static field is preserved
+(pass) tests.ValueTypeTests.testBlankRejected: validating wrapper rejects blank construction
+(pass) tests.ValueTypeTests.testOptionalIc: nullable value wrapper field preserves its presence
+(pass) tests.ValueTypeTests.testRenderedString: declared wrapper toString returns its representation
+
+reference/ts/gen-tests/tests/ArrayIndexSearchTests.test.ts:
+(pass) tests.ArrayIndexSearchTests.testElementOnly: an element-only array search reads the platform overload
+(pass) tests.ArrayIndexSearchTests.testIndexOfFrom: an array indexOf keeps its start index
+(pass) tests.ArrayIndexSearchTests.testLastIndexOfFrom: an array lastIndexOf searches towards index 0 from its start index
+(pass) tests.ArrayIndexSearchTests.testEmpty: an empty array reports a miss in every shape
+(pass) tests.ArrayIndexSearchTests.testNullableReceiver: a nullable array receiver keeps its start index
+(pass) tests.ArrayIndexSearchTests.testStringElement: an array search compares a String element by value
+
+reference/ts/gen-tests/tests/PosterShapeTests.test.ts:
+(pass) tests.PosterShapeTests.print: a class in the business package implements a std-package interface
+
+reference/ts/gen-tests/tests/TypeParameterCompareTests.test.ts:
+(pass) tests.TypeParameterCompareTests.testCompare: a generic equality compares equal and different values
+
+reference/ts/gen-tests/tests/NullGuardNestedFieldOpsTests.test.ts:
+(pass) tests.NullGuardNestedFieldOpsTests.startsBefore: a guarded local reads through an intermediate member
+(pass) tests.NullGuardNestedFieldOpsTests.matchingSpan: two guarded paths compare through their intermediate members
+(pass) tests.NullGuardNestedFieldOpsTests.spanLeft: a guarded local returns a value read through an intermediate member
+
+reference/ts/gen-tests/tests/UStringResidentTests.test.ts:
+(pass) tests.UStringResidentTests.testResidentMembers: UString member calls resolve through the Dart runtime resident
+
+reference/ts/gen-tests/tests/FallibleLocalFunctionTests.test.ts:
+(pass) tests.FallibleLocalFunctionTests.localVoidThrow: a Void local function that throws propagates through the enclosing Result
+(pass) tests.FallibleLocalFunctionTests.localVoidSuccess: the infallible path returns the guarded value
+
+reference/ts/gen-tests/tests/SignedLoopBoundOpsTests.test.ts:
+(pass) tests.SignedLoopBoundOpsTests.fill: a signed loop bound clamps into the u32 range endpoint
+
+reference/ts/gen-tests/tests/CompareGateTests.test.ts:
+(pass) tests.CompareGateTests.boolNestedIsUngated: nested data class with Bool remains constructible [1.00ms]
+(pass) tests.CompareGateTests.safeNestedRemainsComparable: nested data class with supported keys remains constructible
+
+reference/ts/gen-tests/tests/FloatModCompareOpsTests.test.ts:
+(pass) tests.FloatModCompareOpsTests.even: a Float remainder compares zero in the Float domain
+
+reference/ts/gen-tests/tests/ImpDefaultTests.test.ts:
+(pass) tests.ImpDefaultTests.defaults: materialized cross-package constructor default
+
+reference/ts/gen-tests/tests/MapHasGetTests.test.ts:
+(pass) tests.MapHasGetTests.testGuardedLookup: a guarded map lookup lowers to nil coalescing
+
+reference/ts/gen-tests/tests/NullableArrayElemTests.test.ts:
+(pass) tests.NullableArrayElemTests.testCollect: a nullable array element unwraps for a non-optional element type
+
+reference/ts/gen-tests/tests/NullableFloatCompareTests.test.ts:
+(pass) tests.NullableFloatCompareTests.structuralZero: a null-coalescing Float local compares zero in the Float domain
+(pass) tests.NullableFloatCompareTests.notZero: a null-coalescing Float local inequality compares zero in the Float domain
+
+reference/ts/gen-tests/tests/FloatFieldLiteralOpsTests.test.ts:
+(pass) tests.FloatFieldLiteralOpsTests.pair: an Int literal widens into an anonymous Float field
+
+reference/ts/gen-tests/tests/RegistryJsonTests.test.ts:
+(pass) tests.RegistryJsonTests.roundTrip: JSON preserves escaped nested values and formatting
+
+reference/ts/gen-tests/tests/IntToFloatCtorTests.test.ts:
+(pass) tests.IntToFloatCtorTests.testWiden: an Int argument widens at a Float value-type constructor
+
+reference/ts/gen-tests/tests/PlatformModulesTests.test.ts:
+(pass) tests.PlatformModulesTests.fsRoundTrip: std.Fs write append and read round-trip [1.00ms]
+(pass) tests.PlatformModulesTests.fsMakeDirs: std.Fs makeDirs creates a nested directory
+(pass) tests.PlatformModulesTests.fsReadDir: std.Fs readDir omits the dot entries
+(pass) tests.PlatformModulesTests.envRoundTrip: std.Env set and remove are observable through get [1.00ms]
+(pass) tests.PlatformModulesTests.envAbsent: std.Env get reports an absent entry as null
+(pass) tests.PlatformModulesTests.pathNormalize: std.Path normalizes mixed separators and dot segments
+(pass) tests.PlatformModulesTests.pathDirname: std.Path dirname follows the kind table [1.00ms]
+(pass) tests.PlatformModulesTests.pathNormalizeKinds: std.Path normalize follows the kind table
+(pass) tests.PlatformModulesTests.pathJoinKinds: std.Path join keeps absolute and device seconds
+(pass) tests.PlatformModulesTests.pathExpandHome: std.Path expandHome reads HOME through std.Env
+
+reference/ts/gen-tests/tests/AccessGrantTests.test.ts:
+(pass) tests.AccessGrantTests.testAccessGrant: an @:access peer reads private members across classes
+
+reference/ts/gen-tests/tests/DefaultParamUnwrapTests.test.ts:
+(pass) tests.DefaultParamUnwrapTests.testDefaults: a constant-default parameter is plain in Swift and never unwraps
+
+reference/ts/gen-tests/tests/StringCodeOptionalTests.test.ts:
+(pass) tests.StringCodeOptionalTests.testOptionalOperands: optional string-code and parsed-array operands unwrap
+
+reference/ts/gen-tests/tests/TryTests.test.ts:
+(pass) tests.TryTests.testCaughtStatement: statement region catches overflow into the handler
+(pass) tests.TryTests.testRegionReturn: return region yields the handler value on fault [1.00ms]
+(pass) tests.TryTests.testRegionValue: initializer region binds the region value
+(pass) tests.TryTests.testHandlerReturn: handler return leaves the region through the handler
+(pass) tests.TryTests.testRegionMessage: message accessor derives from the variant
+(pass) tests.TryTests.testFaultPayload: payload capture flows through the catch variable
+(pass) tests.TryTests.testClassifyFault: classify fault maps every variant
+
+reference/ts/gen-tests/tests/NumberParsingTests.test.ts:
+(pass) tests.NumberParsingTests.floatSuccess: parseFloat accepts complete decimal tokens
+(pass) tests.NumberParsingTests.floatFailure: parseFloat rejects malformed and partial tokens as NaN
+(pass) tests.NumberParsingTests.intSuccess: parseInt accepts decimal and hexadecimal tokens
+(pass) tests.NumberParsingTests.intFailure: parseInt rejects partial and overflowing tokens as null [1.00ms]
+
+reference/ts/gen-tests/tests/DartLocalNameFixTests.test.ts:
+(pass) tests.DartLocalNameFixTests.localShadow: local declarations avoid shadowing their initializer
+
+reference/ts/gen-tests/tests/ProbeShareTests.test.ts:
+
+reference/ts/gen-tests/tests/PrintedSortedFieldsTests.test.ts:
+(pass) tests.PrintedSortedFieldsTests.fields: sorted fields use ruled forms [1.00ms]
+
+reference/ts/gen-tests/tests/NullArgsTests.test.ts:
+(pass) tests.NullArgsTests.testExplicitNull: explicit null materializes a registered default [1.00ms]
+(pass) tests.NullArgsTests.testNullableVariable: nullable arguments use the default only when null
+(pass) tests.NullArgsTests.testConditionalArg: null-guard conditional argument wraps in the Option slot
+(pass) tests.NullArgsTests.testNullDefault: null default keeps the nullable parameter in the Option domain
+
+reference/ts/gen-tests/tests/InstanceDefaultsTests.test.ts:
+(pass) tests.InstanceDefaultsTests.defaults: instance field defaults initialize every field
+(pass) tests.InstanceDefaultsTests.perInstance: instance field defaults evaluate per instance
+
+reference/ts/gen-tests/tests/DefaultBuilderTests.test.ts:
+(pass) tests.DefaultBuilderTests.testDefaults: a coalescing default lowers a map builder and a secondary static field
+
+reference/ts/gen-tests/tests/NodeFsBorrowOpsTests.test.ts:
+(pass) tests.NodeFsBorrowOpsTests.writeProbe: a node:fs extern borrows its String arguments
+
+reference/ts/gen-tests/tests/ProbeChainTests.test.ts:
+(pass) tests.ProbeChainTests.depth: recursive class fields are boxed
+
+reference/ts/gen-tests/tests/RustCoalesceTests.test.ts:
+(pass) tests.RustCoalesceTests.directArrayStatic: a coalescing nullable array parameter copies a direct array static [1.00ms]
+(pass) tests.RustCoalesceTests.stringTagFrom: a String-backed abstract parameter accepts an owned String
+(pass) tests.RustCoalesceTests.assignedStringField: a nullable String field assignment owns a borrowed view
+(pass) tests.RustCoalesceTests.substitutedStringDefault: an omitted nullable String parameter owns the substituted view
+(pass) tests.RustCoalesceTests.borrowedStringDefault: a coalescing nullable String parameter owns a borrowed view
+(pass) tests.RustCoalesceTests.defaultRecord: nullable class coalescing materializes optional constructor arguments
+
+reference/ts/gen-tests/tests/SubstringDefaultTests.test.ts:
+(pass) tests.SubstringDefaultTests.testDerive: a substring coalescing default lowers through the UTF-16 helper
+
+reference/ts/gen-tests/tests/PrintedEnumTests.test.ts:
+(pass) tests.PrintedEnumTests.forms: enum constructor printed forms [1.00ms]
+
+reference/ts/gen-tests/tests/DartEmptyArrayFixTests.test.ts:
+(pass) tests.DartEmptyArrayFixTests.emptyArrayArgument: empty array arguments retain their element type
+
+reference/ts/gen-tests/tests/RustUnionFaultTests.test.ts:
+(pass) tests.RustUnionFaultTests.unionFaults: union faults preserve deterministic source text
+
+reference/ts/gen-tests/tests/DataClassRangeEqTests.test.ts:
+(pass) tests.DataClassRangeEqTests.testDataClassRangeEq: DataClass with TextRange field supports == comparison
+
+reference/ts/gen-tests/tests/OptionalProjectionTests.test.ts:
+(pass) tests.OptionalProjectionTests.testProjections: a nullable value-type projection unwraps at its member read
+
+reference/ts/gen-tests/tests/NullableBufFieldTests.test.ts:
+(pass) tests.NullableBufFieldTests.appendGuarded: a buffer field mutation opens the nullable owner with as_mut
+(pass) tests.NullableBufFieldTests.caughtFault: a stranded lead in a nullable buffer field faults through the catch
+
+reference/ts/gen-tests/tests/PrintedRecordTests.test.ts:
+(pass) tests.PrintedRecordTests.memberMatchesMacro: synthesized member matches RecordStr
+(pass) tests.PrintedRecordTests.standardStringUsesMember: Std.string and concatenation use the member
+(pass) tests.PrintedRecordTests.nestedRecordUsesMember: nested records use their printed form [1.00ms]
+(pass) tests.PrintedRecordTests.presentNotePrintsMember: a present nullable record field prints its member text
+(pass) tests.PrintedRecordTests.explicitMemberWins: explicit printed member wins
+
+reference/ts/gen-tests/tests/ThrowingIndexOfTests.test.ts:
+(pass) tests.ThrowingIndexOfTests.testAt: an index search on a throwing receiver marks the closure try
+
+reference/ts/gen-tests/tests/JvmFieldPrivateTests.test.ts:
+(pass) tests.JvmFieldPrivateTests.resolveTags: static object fields render visibility-correct JvmField placement
+
+reference/ts/gen-tests/tests/UnderscoreParamTests.test.ts:
+(pass) tests.UnderscoreParamTests.underscoreParameters: underscore parameters are readable and independently named
+
+reference/ts/gen-tests/tests/NullableToStringTests.test.ts:
+(pass) tests.NullableToStringTests.testRender: a narrowed nullable local still unwraps in Swift
+
+reference/ts/gen-tests/tests/NumericDomainTests.test.ts:
+(pass) tests.NumericDomainTests.testPrefixUnit: A positive-checked index stays unsigned in charCodeAt
+(pass) tests.NumericDomainTests.testOffsets: Loop offsets stay in the u32 domain
+(pass) tests.NumericDomainTests.testFindIndex: A negative sentinel local assigns from a u32 loop index
+(pass) tests.NumericDomainTests.testBeforeChar: An i32 index reaches the u32 charCodeAt slot
+(pass) tests.NumericDomainTests.testColonPair: An i32 indexOf result feeds a u32 vec literal
+(pass) tests.NumericDomainTests.testCollectOffsets: An i32 offset pushes into a u32 array
+
+reference/ts/gen-tests/tests/NullableStringViewOpsTests.test.ts:
+(pass) tests.NullableStringViewOpsTests.testNullableView: a nullable String argument unwraps at a str parameter
+
+reference/ts/gen-tests/tests/DefaultArgsTests.test.ts:
+(pass) tests.DefaultArgsTests.testGreet: greet with explicit and default prefix
+(pass) tests.DefaultArgsTests.testConfigure: configure with zero, one, two, and three omitted arguments
+(pass) tests.DefaultArgsTests.testFormatLabel: formatLabel instance method with nullable and value optional parameters
+(pass) tests.DefaultArgsTests.testDescribeTag: describeTag with explicit null default
+(pass) tests.DefaultArgsTests.testOpenMode: openMode with zero-argument enum constructor default
+(pass) tests.DefaultArgsTests.testAdjust: adjust with negative literal default
+(pass) tests.DefaultArgsTests.testCoalescingInfinity: coalescing infinity default preserves explicit values
+(pass) tests.DefaultArgsTests.testCoalescingArrayFreshness: coalescing array defaults are fresh per constructor call
+(pass) tests.DefaultArgsTests.testCoalescingMapFreshness: coalescing map defaults are fresh per function call
+(pass) tests.DefaultArgsTests.testLocalFunction: local function with default argument called with omission
+(pass) tests.DefaultArgsTests.testInterfaceMethod: interface method with default parameter called through interface
+(pass) tests.DefaultArgsTests.testParameterRead: bare earlier-parameter read
+(pass) tests.DefaultArgsTests.testFieldAccess: field access over a parameter
+(pass) tests.DefaultArgsTests.testConditional: conditional over a parameter [1.00ms]
+(pass) tests.DefaultArgsTests.testCallAndBinaryDefaults: instance method call, static call, and binary operator defaults
+(pass) tests.DefaultArgsTests.testStaticFieldRead: static-field read
+(pass) tests.DefaultArgsTests.testDependence: dependence assertion: different earlier arguments resolve differently
+(pass) tests.DefaultArgsTests.testChainedCoalescing: chain with both parameters omitted resolves through the earlier default
+(pass) tests.DefaultArgsTests.testChainedPaint: constructor chain defaults the later field to the earlier parameter
+(pass) tests.DefaultArgsTests.testCoalescingPreset: zero-argument self-construction on a field-carrying class keeps the labeled printed form
+(pass) tests.DefaultArgsTests.ctorDefaultLeafFreshness: constructor default leaf builds a fresh instance per omitting call
+(pass) tests.DefaultArgsTests.kotlinHardKeywordIdentifiers: kotlin hard keyword identifiers survive every target
+(pass) tests.DefaultArgsTests.ctorParamReadDefault: constructor coalescing default reading an earlier parameter resolves at the call site
+(pass) tests.DefaultArgsTests.ctorStaticCallParamReadDefault: constructor coalescing default calling a static helper with an earlier parameter
+
+reference/ts/gen-tests/tests/OptionalParamNullTests.test.ts:
+(pass) tests.OptionalParamNullTests.testIntDefault: omitted Int optional parameter falls back to its null default
+(pass) tests.OptionalParamNullTests.testClassDefault: omitted class optional parameter falls back to its null default
+
+reference/ts/gen-tests/tests/StringSearchFromTests.test.ts:
+(pass) tests.StringSearchFromTests.testFindFrom: a string index search keeps its start index
+(pass) tests.StringSearchFromTests.testSecondBlock: a resumed brace scan reads the second block
+(pass) tests.StringSearchFromTests.testFindLastFrom: a backwards string search keeps the index it searches from
+
+reference/ts/gen-tests/tests/PrivateDefaultTests.test.ts:
+(pass) tests.PrivateDefaultTests.testDefaults: a coalescing default may call a private static helper
+
+reference/ts/gen-tests/tests/MathMinMaxTests.test.ts:
+(pass) tests.MathMinMaxTests.minFloat: Math.min returns the lesser float operand
+(pass) tests.MathMinMaxTests.maxFloat: Math.max returns the greater float operand
+(pass) tests.MathMinMaxTests.intOperands: Math.min and Math.max accept int operands through the float signature
+(pass) tests.MathMinMaxTests.intExpression: Math.max widens an int expression against a literal zero
+(pass) tests.MathMinMaxTests.absFloat: Math.abs returns the absolute value of the float operand
+(pass) tests.MathMinMaxTests.absInt: Math.abs accepts an int operand through the float signature
+(pass) tests.MathMinMaxTests.powFloat: Math.pow raises the base to the exponent
+(pass) tests.MathMinMaxTests.powInt: Math.pow accepts int operands through the float signature [1.00ms]
+(pass) tests.MathMinMaxTests.roundFloat: Math.round returns the nearest integer as an int
+(pass) tests.MathMinMaxTests.floorCeil: Math.floor rounds down and Math.ceil rounds up as ints
+
+reference/ts/gen-tests/tests/ExceptionTypeOpsTests.test.ts:
+(pass) tests.ExceptionTypeOpsTests.testHasCause: a base-typed exception instance is non-null
+(pass) tests.ExceptionTypeOpsTests.testNilArgument: a nil base exception argument resolves against the parameter
+(pass) tests.ExceptionTypeOpsTests.testMissingCause: a missing base exception ranks against null
+
+reference/ts/gen-tests/tests/IntDivisionTests.test.ts:
+(pass) tests.IntDivisionTests.testQuotient: an Int quotient assigned to a Float keeps the fraction
+(pass) tests.IntDivisionTests.testNegativeQuotient: negative Int operands keep the Float quotient
+(pass) tests.IntDivisionTests.testZeroDivisor: an Int quotient over a zero divisor reaches infinity
+(pass) tests.IntDivisionTests.testOffset: a layout offset keeps the fractional quotient
+(pass) tests.IntDivisionTests.testScaled: an Int quotient takes part in a Float multiply and add
+(pass) tests.IntDivisionTests.testTruncated: the truncating spelling keeps integer division
+(pass) tests.IntDivisionTests.testFloored: a floored Int quotient floors the Float quotient
+
+reference/ts/gen-tests/tests/ToStringTests.test.ts:
+(pass) tests.ToStringTests.explicitToString: an explicit toString method renders and runs on every target
+
+reference/ts/gen-tests/tests/TernaryOptionalTests.test.ts:
+(pass) tests.TernaryOptionalTests.testChoose: an optional ternary branch unwraps for a non-optional result
+
+reference/ts/gen-tests/tests/ValueRecordTests.test.ts:
+(pass) tests.ValueRecordTests.testConstruction: constructor keeps the given fields and validates nothing in range
+(pass) tests.ValueRecordTests.testProperty: getter-only property computes per read
+(pass) tests.ValueRecordTests.testStartAfterEnd: constructor throws on start after end [1.00ms]
+(pass) tests.ValueRecordTests.testNegativeStart: constructor throws on negative start
+(pass) tests.ValueRecordTests.testAccepted: in-range construction is accepted
+(pass) tests.ValueRecordTests.testCopyZero: copy without override keeps every field
+(pass) tests.ValueRecordTests.testCopyOne: copy with one override replaces the targeted field
+(pass) tests.ValueRecordTests.testCopyReordered: copy with reordered overrides keeps parameter order
+(pass) tests.ValueRecordTests.testEquality: structural equality compares constructor fields
+(pass) tests.ValueRecordTests.testPrintedForm: printed form names the class and constructor fields
+(pass) tests.ValueRecordTests.testPrivateHolder: private constructor-parameter field survives construction
+
+reference/ts/gen-tests/tests/ResidentBuilderInferOpsTests.test.ts:
+(pass) tests.ResidentBuilderInferOpsTests.testResidentBuilder: a resident builder binds its key and value types
+
+reference/ts/gen-tests/tests/ExpressionBlockTests.test.ts:
+(pass) tests.ExpressionBlockTests.inlineFieldArguments: inline field arguments work in string concatenation
+(pass) tests.ExpressionBlockTests.multipleDeclarations: expression blocks support multiple declarations
+(pass) tests.ExpressionBlockTests.binaryOperand: expression blocks can be binary operands
+(pass) tests.ExpressionBlockTests.nestedFieldChain: nested record field chains trigger the lowering [1.00ms]
+
+reference/ts/gen-tests/tests/MathIntWideningOpsTests.test.ts:
+(pass) tests.MathIntWideningOpsTests.testPositive: Math Int widening preserves floor, ceil, and predicates
+(pass) tests.MathIntWideningOpsTests.testNegative: Math Int widening handles negative square roots
+(pass) tests.MathIntWideningOpsTests.testZero: Math Int widening handles zero
+
+reference/ts/gen-tests/tests/EnumLookupTests.test.ts:
+(pass) tests.EnumLookupTests.testRoundTrip: a createEnum result unwraps before a name read
+
+reference/ts/gen-tests/tests/InterfaceConditionalTests.test.ts:
+(pass) tests.InterfaceConditionalTests.chooseText: a conditional interface result boxes each concrete arm
+
+reference/ts/gen-tests/tests/RegistryParseArgsTests.test.ts:
+(pass) tests.RegistryParseArgsTests.missingRequired: parseArgs reports missing required flags
+(pass) tests.RegistryParseArgsTests.help: parseArgs reports help usage [1.00ms]
+(pass) tests.RegistryParseArgsTests.unknown: parseArgs reports unknown flags
+
+reference/ts/gen-tests/tests/InterfaceGetterPropertyTests.test.ts:
+(pass) tests.InterfaceGetterPropertyTests.testInterfaceGetterProperty: reads a getter-only property through the interface type
+
+reference/ts/gen-tests/tests/InlineDefaultTests.test.ts:
+(pass) tests.InlineDefaultTests.testInlineDefaults: inlined data-class defaults preserve static paths and parameter bindings
+
+reference/ts/gen-tests/tests/PostIncConditionTests.test.ts:
+(pass) tests.PostIncConditionTests.testCondition: a post-increment condition keeps its closure parenthesized
+
+reference/ts/gen-tests/tests/ParseIntPushTests.test.ts:
+(pass) tests.ParseIntPushTests.parseAll: a direct Std.parseInt result pushes into a u32 array
+(pass) tests.ParseIntPushTests.parseLocal: a local Std.parseInt result pushes into a u32 array
+
+reference/ts/gen-tests/tests/StaticExtensionTests.test.ts:
+(pass) tests.StaticExtensionTests.testTopLevelResults: top-level functions cross module boundaries
+(pass) tests.StaticExtensionTests.testOwnedExtension: owned extension renders and evaluates as a receiver method
+(pass) tests.StaticExtensionTests.testStringExtension: foreign string extension keeps its receiver argument
+
+reference/ts/gen-tests/tests/StdStringTests.test.ts:
+(pass) tests.StdStringTests.concatenatedScalars: Std.string converts scalar operands inside concatenation
+(pass) tests.StdStringTests.standaloneScalars: Std.string converts standalone scalar operands
+(pass) tests.StdStringTests.valueEnumerations: Std.string converts value enumeration operands to constructor names [1.00ms]
+(pass) tests.StdStringTests.floatForms: Std.string uses the ECMAScript float spelling
+(pass) tests.StdStringTests.arrays: Std.string renders arrays with ruled separators and element forms
+
+reference/ts/gen-tests/tests/StringBufUnionTests.test.ts:
+(pass) tests.StringBufUnionTests.testBuildCharChecked: the buffer addChar fault stays a union variant beside the vector throw
+(pass) tests.StringBufUnionTests.testBuildChecked: the buffer add fault stays a union variant beside the vector throw
+(pass) tests.StringBufUnionTests.testVectorFault: the vector throw still arrives through the union
+
+reference/ts/gen-tests/tests/InterfaceArrayLiteralTests.test.ts:
+(pass) tests.InterfaceArrayLiteralTests.testTags: an interface-typed array literal keeps its protocol members
+
+reference/ts/gen-tests/tests/DeferredLocalsTests.test.ts:
+(pass) tests.DeferredLocalsTests.testDeferredLocals: deferred locals initialize along control-flow paths
+
+reference/ts/gen-tests/tests/SortedKeyDomainTests.test.ts:
+(pass) tests.SortedKeyDomainTests.testStringKeyOrder: String keys UTF-16 code unit ordering with astral and high BMP
+(pass) tests.SortedKeyDomainTests.testStringKeyLookup: String key lookup hits and misses
+(pass) tests.SortedKeyDomainTests.testStructureKeyOrder: Structure key lexicographic ordering across field types
+(pass) tests.SortedKeyDomainTests.testDataClassKeyEvidence: DataClass array and nullable key evidence
+(pass) tests.SortedKeyDomainTests.testDataClassGeneratedEntries: DataClass generated entries cover nested enum and arrays
+(pass) tests.SortedKeyDomainTests.testStructureKeyLookup: Structure key lookup hits and misses [1.00ms]
+(pass) tests.SortedKeyDomainTests.testStructureMapLastWins: Structure key SortedMap duplicate key last-put-wins
+(pass) tests.SortedKeyDomainTests.testStructureSetOperations: Structure key SortedSet deduplication and ascending ordering
+
+reference/ts/gen-tests/tests/Xxh128Tests.test.ts:
+(pass) tests.Xxh128Tests.vectors: xxh128 vectors [4.00ms]
+
+reference/ts/gen-tests/tests/DartNullPushTests.test.ts:
+(pass) tests.DartNullPushTests.pushNullKeepsNull: pushing null into Array<Null<T>> keeps null at the slot
+(pass) tests.DartNullPushTests.pushValueKeepsValue: pushing a value into Array<Null<T>> keeps the value
+(pass) tests.DartNullPushTests.closureNullStaysNull: nullable closure returning null keeps null
+(pass) tests.DartNullPushTests.closureValueStaysValue: nullable closure returning a value keeps the value
+
+reference/ts/gen-tests/tests/ClosureStringViewOpsTests.test.ts:
+(pass) tests.ClosureStringViewOpsTests.testChoose: a captured String parameter owns text on return
+(pass) tests.ClosureStringViewOpsTests.testLabel: a captured String parameter passes a str view through
+
+reference/ts/gen-tests/tests/NullStaticMapTests.test.ts:
+(pass) tests.NullStaticMapTests.testLookup: a null-initialized static map reads through an implicitly unwrapped optional
+
+reference/ts/gen-tests/tests/OptionalInterfaceArgumentOpsTests.test.ts:
+(pass) tests.OptionalInterfaceArgumentOpsTests.render: a concrete implementor boxes once into an optional interface argument
+
+reference/ts/gen-tests/tests/InterfaceFieldLiteralOpsTests.test.ts:
+(pass) tests.InterfaceFieldLiteralOpsTests.describe: an interface-typed literal field boxes the concrete value
+
+reference/ts/gen-tests/tests/FPHelperRustTests.test.ts:
+(pass) tests.FPHelperRustTests.valueOf: an FPHelper bit edge reinterprets a u32 Int argument
+(pass) tests.FPHelperRustTests.decompose: floatToI32 reads stay signed through u32 struct fields
+
+reference/ts/gen-tests/tests/StringIndexOfShadowTests.test.ts:
+(pass) tests.StringIndexOfShadowTests.testDashIndex: a string index search does not shadow the receiver's local
+
+reference/ts/gen-tests/tests/InterfaceIdentityTests.test.ts:
+(pass) tests.InterfaceIdentityTests.testIdentity: an interface value compares by identity in Swift without a class constraint
+
+reference/ts/gen-tests/tests/CtorOptArgTests.test.ts:
+(pass) tests.CtorOptArgTests.testConstructorArg: a nullable value unwraps at a value-typed constructor argument
+
+reference/ts/gen-tests/tests/CaptureSwitchOpsTests.test.ts:
+(pass) tests.CaptureSwitchOpsTests.testDescribe: single captured switch forwards a return payload
+(pass) tests.CaptureSwitchOpsTests.testInitialized: single captured switch works in an initializer
+(pass) tests.CaptureSwitchOpsTests.testClassify: multi-case captured switch remains available
+(pass) tests.CaptureSwitchOpsTests.testMessageLength: single captured payload supports an operation
+
+reference/ts/gen-tests/tests/SealedChildTests.test.ts:
+(pass) tests.SealedChildTests.childMessage: a message-only child of a folded parent keeps the delegated message
+
+reference/ts/gen-tests/tests/ValueTypeClashTests.test.ts:
+(pass) tests.ValueTypeClashTests.clashDoubled: clashing wrapper reads through the colliding member
+(pass) tests.ValueTypeClashTests.controlMember: clash-free wrapper reads its representation
+
+reference/ts/gen-tests/tests/NilContextTests.test.ts:
+(pass) tests.NilContextTests.testConditional: conditional nil retains its optional payload
+(pass) tests.NilContextTests.testArgument: synthesized optional argument nil is typed
+
+reference/ts/gen-tests/tests/RecordOrderTests.test.ts:
+(pass) tests.RecordOrderTests.shiftedPrintsDeclarationOrder: reordered class prints fields in declaration order
+(pass) tests.RecordOrderTests.shiftedDefaultedPrintsFallback: reordered class prints the defaulted parameter's fallback value
+(pass) tests.RecordOrderTests.shiftedMatchesRecordStr: reordered class prints the same text through RecordStr
+(pass) tests.RecordOrderTests.alignedPrintsAsBefore: aligned class keeps its printed form
+(pass) tests.RecordOrderTests.equalityAcceptsShiftedValues: equality accepts equal values of the reordered class
+(pass) tests.RecordOrderTests.copyRoundTripsShifted: copy round-trips the reordered class through constructor parameter order
+(pass) tests.RecordOrderTests.copyRoundTripsAligned: copy round-trips the aligned class
+
+reference/ts/gen-tests/tests/OverrideMemberTests.test.ts:
+(pass) tests.OverrideMemberTests.hashMember: a handwritten zero-argument hashCode is emitted as an Any override
+(pass) tests.OverrideMemberTests.ordinary: ordinary members remain ordinary
+(pass) tests.OverrideMemberTests.message: message payloads retain their value
+
+reference/ts/gen-tests/tests/IntFloatCtorTests.test.ts:
+(pass) tests.IntFloatCtorTests.testWidening: an Int argument widens into a Float constructor parameter
+
+reference/ts/gen-tests/tests/NullableCallTests.test.ts:
+(pass) tests.NullableCallTests.testNullableToStringResult: nullable toString result
+(pass) tests.NullableCallTests.testNormalizedToStringResult: normalized local toString result
+(pass) tests.NullableCallTests.testGuardedToStringResult: guarded local toString result
+
+reference/ts/gen-tests/tests/NegIntSlotOpsTests.test.ts:
+(pass) tests.NegIntSlotOpsTests.negate: a negated Int reinterprets at the u32 return and argument slots
+(pass) tests.NegIntSlotOpsTests.negateConditional: a negated conditional arm carries the u32 slot type
+
+reference/ts/gen-tests/tests/SignedIntConstructorTests.test.ts:
+(pass) tests.SignedIntConstructorTests.sumIndex: a signed wrapping sum reinterprets into an owned u32 constructor slot
+(pass) tests.SignedIntConstructorTests.negatedIndex: a negated signed index reinterprets into an owned u32 constructor slot
+
+reference/ts/gen-tests/tests/BranchedOptionalFieldOpsTests.test.ts:
+(pass) tests.BranchedOptionalFieldOpsTests.penalty: a branch-assigned optional field keeps the parameter null check
+(pass) tests.BranchedOptionalFieldOpsTests.rate: a branch-assigned optional float field keeps the parameter null check
+(pass) tests.BranchedOptionalFieldOpsTests.ruleTag: a branch-assigned interface field declares its owned Rust type
+
+reference/ts/gen-tests/tests/NullInitLocalTests.test.ts:
+(pass) tests.NullInitLocalTests.testPick: a class local bound to nil names its optional type
+(pass) tests.NullInitLocalTests.testLabel: a second nil-bound class local names its optional type
+
+reference/ts/gen-tests/tests/UsizeComparisonTests.test.ts:
+(pass) tests.UsizeComparisonTests.withinBounds: a nullable array length bounds an index in the u32 comparison domain
+(pass) tests.UsizeComparisonTests.lengthExceeds: a nullable array length compares above an Int limit
+
+reference/ts/gen-tests/tests/ConsoleShimTests.test.ts:
+console-shim-probe
+(pass) tests.ConsoleShimTests.logReturns: std.Console.log returns to its caller
+
+reference/ts/gen-tests/tests/SwitchOpsTests.test.ts:
+(pass) tests.SwitchOpsTests.testAssign: switch assign position lowers
+(pass) tests.SwitchOpsTests.testStatement: switch statement assignment lowers
+(pass) tests.SwitchOpsTests.testInitializer: switch initializer lowers
+(pass) tests.SwitchOpsTests.testDefault: switch default lowers
+(pass) tests.SwitchOpsTests.testConditional: switch inside a conditional arm lowers
+
+reference/ts/gen-tests/tests/StringUnitTests.test.ts:
+(pass) tests.StringUnitTests.unitSurface: code-unit reads and splits follow the unit domain
+(pass) tests.StringUnitTests.charCodeAtUnitDomain: charCodeAt addresses UTF-16 code units
+(pass) tests.StringUnitTests.substrUnitDomain: substr counts UTF-16 code units
+(pass) tests.StringUnitTests.splitEmptyDelimiter: empty delimiter splits one part per code unit [1.00ms]
+(pass) tests.StringUnitTests.splitEmptyDelimiterSurrogates: empty delimiter keeps a surrogate pair as two units
+
+reference/ts/gen-tests/tests/RegistrySemverTests.test.ts:
+(pass) tests.RegistrySemverTests.ordering: semver orders prereleases before releases [1.00ms]
+
+reference/ts/gen-tests/tests/NullableIndexTests.test.ts:
+(pass) tests.NullableIndexTests.testAt: an optional array index unwraps for the Swift subscript
+
+reference/ts/gen-tests/tests/NullableFieldRecordTests.test.ts:
+(pass) tests.NullableFieldRecordTests.nullIntFieldPrintsNull: a null Int field prints null
+(pass) tests.NullableFieldRecordTests.nullStringFieldPrintsNull: a null String field prints null
+(pass) tests.NullableFieldRecordTests.presentIntFieldPrintsValue: a present Int field prints its value
+(pass) tests.NullableFieldRecordTests.presentStringFieldPrintsValue: a present String field prints its value
+(pass) tests.NullableFieldRecordTests.nullFieldLeftOperand: a nullable field on the left of a literal prints nulla
+(pass) tests.NullableFieldRecordTests.nullFieldRightOperand: a nullable field on the right of a literal prints anull
+(pass) tests.NullableFieldRecordTests.nullIntFieldLeftOperand: a nullable Int field on the left of a literal prints null
+(pass) tests.NullableFieldRecordTests.nullLocalLeftOperand: a nullable local on the left of a literal prints nulla [1.00ms]
+(pass) tests.NullableFieldRecordTests.nullLocalRightOperand: a nullable local on the right of a literal prints anull
+(pass) tests.NullableFieldRecordTests.presentValueConcatenates: a present nullable value concatenates on either side
+(pass) tests.NullableFieldRecordTests.bothStatesPrint: every nullable field prints its null and present forms
+
+reference/ts/gen-tests/tests/VecInsertTests.test.ts:
+(pass) tests.VecInsertTests.insertAt: an Array insert widens the u32 position to the Vec usize index
+
+reference/ts/gen-tests/tests/MapValueOptionalTests.test.ts:
+(pass) tests.MapValueOptionalTests.testValue: a sorted-map value optional carries one optional layer
+
+reference/ts/gen-tests/tests/ConstructedStateTests.test.ts:
+(pass) tests.ConstructedStateTests.testConstructedState: constructed static initializers expose their state
+
+reference/ts/gen-tests/tests/DartArrayMethodTests.test.ts:
+(pass) tests.DartArrayMethodTests.testConcatSplice: concat and splice lower onto Dart list operations
+(pass) tests.DartArrayMethodTests.testReverseUnshift: reverse and unshift mutate the list in place
+(pass) tests.DartArrayMethodTests.testPopShift: pop and shift answer the end elements
+(pass) tests.DartArrayMethodTests.testBoolCondition: a bool comparison condition emits no toDouble call
+
+reference/ts/gen-tests/tests/NarrowLocalSwitchTests.test.ts:
+(pass) tests.NarrowLocalSwitchTests.testNarrowedSwitch: a narrowed enum local resumes an exhaustive switch
+
+reference/ts/gen-tests/tests/ValueTypeCtorBindingTests.test.ts:
+(pass) tests.ValueTypeCtorBindingTests.testWithSeed: a value wrapper built from a narrowed field carries the field value
+
+reference/ts/gen-tests/tests/KotlinNullabilityTests.test.ts:
+(pass) tests.KotlinNullabilityTests.testOptionalDefault: optional parameters emit a native default [1.00ms]
+(pass) tests.KotlinNullabilityTests.testNullableReceiver: nullable receiver calls preserve present values
+(pass) tests.KotlinNullabilityTests.testAnonymousNullableLambda: anonymous lambda keeps a Null return
+(pass) tests.KotlinNullabilityTests.testNullableLambdaArgument: lambda argument keeps a Null return
+(pass) tests.KotlinNullabilityTests.testNamedNullableLocalFunction: named local function keeps a Null return
+(pass) tests.KotlinNullabilityTests.testGenericReceiverNullableParam: generic receiver type arguments decide parameter nullability
+(pass) tests.KotlinNullabilityTests.testNullableComparisonArgument: a nullable receiver comparison keeps its value at a Bool argument
+(pass) tests.KotlinNullabilityTests.testNullableComparisonHardening: a nullable receiver comparison survives ctor and array element boundaries
+(pass) tests.KotlinNullabilityTests.testSortedMapNullableValue: a nullable value type argument keeps sorted map nulls storable [1.00ms]
+
+reference/ts/gen-tests/tests/NullabilityTests.test.ts:
+(pass) tests.NullabilityTests.testNullableToString: nullable toString in argument
+(pass) tests.NullabilityTests.testNullableToStringWithParam: nullable toString with suffix
+(pass) tests.NullabilityTests.testNarrowedFloat: a guarded nullable Float read widens after extraction
+(pass) tests.NullabilityTests.testCtorFieldLabel: a nullable constructor argument reaches a nullable property
+
+reference/ts/gen-tests/tests/RecordTests.test.ts:
+(pass) tests.RecordTests.testZeroOverride: zero override returns record with all original fields [1.00ms]
+(pass) tests.RecordTests.testSingleOverride: single override replaces only targeted field
+(pass) tests.RecordTests.testReorderedOverrides: reordered overrides apply in declaration order and preserve untouched fields
+(pass) tests.RecordTests.testMultipleOverrides: multiple overrides replace all specified fields
+
+reference/ts/gen-tests/tests/ArraySliceTests.test.ts:
+(pass) tests.ArraySliceTests.testEndPastLength: an end past the length returns the elements the array carries
+(pass) tests.ArraySliceTests.testEndBelowStart: an end below the start returns the empty slice
+(pass) tests.ArraySliceTests.testNegativeStart: a negative start counts from the end of the array
+(pass) tests.ArraySliceTests.testOmittedEnd: an omitted end reaches the length of the array
+(pass) tests.ArraySliceTests.testNullableReceiver: a slice through an absent array returns null
+(pass) tests.ArraySliceTests.testNullInitLocal: a slice on a null-initialized array local clamps as well
+(pass) tests.ArraySliceTests.testEmptyToTwenty: a fixed end of 20 on an empty array returns an empty slice
+(pass) tests.ArraySliceTests.testSpliceEmptyBounds: a negative length or a position past the length removes nothing
+(pass) tests.ArraySliceTests.testSpliceNegativePosition: a negative position counts from the end and a long length stops at the tail
+(pass) tests.ArraySliceTests.testInsertClamping: an insert clamps a negative position and a position past the length
+(pass) tests.ArraySliceTests.testSpliceNegativeLength: a negative length removes nothing and leaves the array alone
+(pass) tests.ArraySliceTests.testSplicePositionPastLength: a position past the length removes nothing
+(pass) tests.ArraySliceTests.testSpliceLengthPastEnd: a length past the end removes only the tail
+(pass) tests.ArraySliceTests.testNullInitSplice: a splice on a null-initialized array local clamps as well
+
+reference/ts/gen-tests/tests/InterfaceThrowTests.test.ts:
+(pass) tests.InterfaceThrowTests.testInterfaceThrows: only a throwing implementation lifts the interface requirement
+
+reference/ts/gen-tests/tests/VectorCodecTests.test.ts:
+(pass) tests.VectorCodecTests.roundtrip: encode then decode returns the input records
+(pass) tests.VectorCodecTests.roundtripF32: f32 blocks round trip every record
+(pass) tests.VectorCodecTests.roundtripF16: f16 blocks round trip every record
+(pass) tests.VectorCodecTests.byteLengthsPerWidth: block lengths follow the width marker
+(pass) tests.VectorCodecTests.magicWidthMapping: magics map to widths, unknown magics answer null
+(pass) tests.VectorCodecTests.testBool: boolean assertion
+(pass) tests.VectorCodecTests.testInt: integer assertion
+(pass) tests.VectorCodecTests.testFloat: float assertion
+(pass) tests.VectorCodecTests.testString: string assertion
+(pass) tests.VectorCodecTests.testBytes: bytes assertion [1.00ms]
+(pass) tests.VectorCodecTests.testArray: array assertion
+(pass) tests.VectorCodecTests.testStructure: structure assertion
+(pass) tests.VectorCodecTests.testEnum: enum assertion
+(pass) tests.VectorCodecTests.testNaN: nan assertion using ok
+(pass) tests.VectorCodecTests.testWithoutDescription
+(pass) tests.VectorCodecTests.asciiCodecsRoundTrip: ascii codecs round-trip through the Bytes APIs
+
+reference/ts/gen-tests/tests/MutableBufFieldTests.test.ts:
+(pass) tests.MutableBufFieldTests.testField: a final StringBuf field mutates and Array.insert names its position
+
+reference/ts/gen-tests/tests/UnionChainTests.test.ts:
+(pass) tests.UnionChainTests.chainedUnion: a repeated callee union stays convertible through a chained caller
+
+reference/ts/gen-tests/tests/Int64Tests.test.ts:
+(pass) tests.Int64Tests.construction: constructs and extracts 64-bit words
+(pass) tests.Int64Tests.carry: wraps addition across the low word
+(pass) tests.Int64Tests.multiplication: wraps Int64 multiplication
+(pass) tests.Int64Tests.ordering: compares signed Int64 values at limits and across zero
+(pass) tests.Int64Tests.operations: keeps rotate and bitwise operations at 64 bits
+
+reference/ts/gen-tests/tests/NarrowedOptionReturnTests.test.ts:
+(pass) tests.NarrowedOptionReturnTests.pick: a narrowed nullable value returns through a fallible owned String slot
+
+reference/ts/gen-tests/tests/FloatCompoundAssignOpsTests.test.ts:
+(pass) tests.FloatCompoundAssignOpsTests.scaled: a Float compound assignment widens an Int right side
+(pass) tests.FloatCompoundAssignOpsTests.stepTotal: a Float accumulator widens each Int increment
+(pass) tests.FloatCompoundAssignOpsTests.walk: add and subtract compound assignments widen Int right sides
+
+reference/ts/gen-tests/tests/InterfaceFieldRecordTests.test.ts:
+(pass) tests.InterfaceFieldRecordTests.testInterfaceField: a record with an interface field drops the unsynthesizable Equatable
+
+reference/ts/gen-tests/tests/TestApplicabilityProbeTests.test.ts:
+(pass) tests.TestApplicabilityProbeTests.appliesToAll: a test with no except argument applies to every target
+(pass) tests.TestApplicabilityProbeTests.excludedOnSwift: a test that excludes swift does not run on swift
+
+reference/ts/gen-tests/tests/IntFloatSignTests.test.ts:
+(pass) tests.IntFloatSignTests.testComparison: a wrapped Int stays -1.0 through an Int-vs-Float comparison widening [1.00ms]
+(pass) tests.IntFloatSignTests.testCollapsedComparison: a wrapped Int stays -1.0 through a collapsed-local comparison widening
+(pass) tests.IntFloatSignTests.testCompoundAssign: a wrapped Int stays -1.0 through a Float compound assignment
+(pass) tests.IntFloatSignTests.testArrayElem: a wrapped Int stays -1.0 through an array-literal Float element
+(pass) tests.IntFloatSignTests.testOptionalReturn: a wrapped Int stays -1.0 through an Option<Float> return boundary
+(pass) tests.IntFloatSignTests.testTernaryFallback: a wrapped Int stays -1.0 through a guarded ternary fallback
+
+reference/ts/gen-tests/tests/SignedIntArgumentTests.test.ts:
+(pass) tests.SignedIntArgumentTests.fromIndex: a negated signed index reinterprets into an owned u32 parameter [1.00ms]
+(pass) tests.SignedIntArgumentTests.shifted: a signed wrapping sum reinterprets into an owned u32 parameter
+
+reference/ts/gen-tests/tests/BorrowedArrayBoundaryTests.test.ts:
+(pass) tests.BorrowedArrayBoundaryTests.wrap: a borrowed array parameter fills an owned nullable constructor slot
+(pass) tests.BorrowedArrayBoundaryTests.readOnlyWrap: a borrowed array parameter fills an owned nullable ReadOnlyArray slot
+(pass) tests.BorrowedArrayBoundaryTests.nullableReturn: a borrowed array parameter fills an owned nullable return slot
+(pass) tests.BorrowedArrayBoundaryTests.rebind: an owned array local clones a borrowed array assignment
+(pass) tests.BorrowedArrayBoundaryTests.choose: a conditional array result clones the borrowed arm
+
+reference/ts/gen-tests/tests/PrintedCollectionTests.test.ts:
+(pass) tests.PrintedCollectionTests.collections: collection fields use the ruled array form [1.00ms]
+(pass) tests.PrintedCollectionTests.enumElements: payload enum elements render through the labeled form
+(pass) tests.PrintedCollectionTests.nullableCollectionPrint: nullable collection fields print null and present forms
+(pass) tests.PrintedCollectionTests.nullableCollectionKeys: nullable collection keys order null, elements, then length
+
+reference/ts/gen-tests/tests/ShapeTextTests.test.ts:
+(pass) tests.ShapeTextTests.render: an instance of the cross-module implementing class satisfies the interface parameter
+
+reference/ts/gen-tests/tests/Fp32Tests.test.ts:
+(pass) tests.Fp32Tests.halvesToBits: binary64 halves round to binary32 bits with ties to even
+(pass) tests.Fp32Tests.bitsRoundTrip: binary32 bits widen exactly and round back
+
+reference/ts/gen-tests/tests/MutatingCounterTests.test.ts:
+(pass) tests.MutatingCounterTests.bumpTwice: a mutating interface method forces the mutable receiver on the trait object
+(pass) tests.MutatingCounterTests.readOnly: a read-only implementation keeps the aggregated mutable trait shape
+(pass) tests.MutatingCounterTests.concreteBump: a concrete receiver accumulates through a compound field update
+
+reference/ts/gen-tests/tests/ArrayAccessTests.test.ts:
+(pass) tests.ArrayAccessTests.testWriteSplit: split results support written array access [1.00ms]
+(pass) tests.ArrayAccessTests.testReadSplit: split results support read array access
+(pass) tests.ArrayAccessTests.testCompositePart: composite StringBuf part can read its first character
+(pass) tests.ArrayAccessTests.testSimplePart: simple StringBuf part can read its first character
+(pass) tests.ArrayAccessTests.testGrowNullableSlots: an index write past the end grows a nullable-element array
+(pass) tests.ArrayAccessTests.testGrowValueSlots: an index write past the end grows a value-element array
+(pass) tests.ArrayAccessTests.testGrowFieldSlots: an index loop over an empty array field grows it
+(pass) tests.ArrayAccessTests.testGrowFloatSlots: an index write past the end grows a float-element array
+(pass) tests.ArrayAccessTests.testGrowFloatFieldSlots: an index loop over an empty float array field grows it
+(pass) tests.ArrayAccessTests.testWriteInsideSlots: writes inside an array keep their slots
+
+reference/ts/gen-tests/tests/PublicGetterPropertyTests.test.ts:
+(pass) tests.PublicGetterPropertyTests.testPublicGetterProperty: reads a public property backed by a private getter across modules [1.00ms]
+(pass) tests.PublicGetterPropertyTests.testGetterOnlyInterfaceRead: reads a getter-only property through an interface receiver
+(pass) tests.PublicGetterPropertyTests.testGetterOnlyConcreteRead: reads a getter-only property through a concrete class receiver
+
+reference/ts/gen-tests/tests/InterfaceUnionTests.test.ts:
+(pass) tests.InterfaceUnionTests.sharedUnion: an interface method with disagreeing fault domains shares one union
+
+reference/ts/gen-tests/tests/NarrowedSortedReceiverOpsTests.test.ts:
+(pass) tests.NarrowedSortedReceiverOpsTests.testNarrowedReceiver: a nullable sorted receiver keeps the null-coalescing binding
+
+reference/ts/gen-tests/tests/Xxh64Tests.test.ts:
+(pass) tests.Xxh64Tests.vectorTests: xxh64 vectors [2.00ms]
+(pass) tests.Xxh64Tests.streamingChunks: xxh64 streaming chunks [1.00ms]
+(pass) tests.Xxh64Tests.digestIsIdempotent: xxh64 digest remains usable
+
+reference/ts/gen-tests/tests/ExceptionChainProbeTests.test.ts:
+(pass) tests.ExceptionChainProbeTests.nullPrevious: a null previous on a base exception reads as none
+
+reference/ts/gen-tests/tests/HandWrittenLoopPositionTests.test.ts:
+(pass) tests.HandWrittenLoopPositionTests.directLoop: hand-written accumulation loop remains valid at direct position
+(pass) tests.HandWrittenLoopPositionTests.loopInIf: hand-written accumulation loop remains valid in if
+(pass) tests.HandWrittenLoopPositionTests.loopInWhile: hand-written accumulation loop remains valid in while
+(pass) tests.HandWrittenLoopPositionTests.nestedLoop: nested hand-written loop does not synthesize a closure
+
+reference/ts/gen-tests/tests/DartCoalesceStaticTests.test.ts:
+(pass) tests.DartCoalesceStaticTests.testPreset: omitted constructor defaults resolve through coalescing statics
+(pass) tests.DartCoalesceStaticTests.testPartial: an explicit null argument inlines the cross-module static default
+
+reference/ts/gen-tests/tests/InterfaceFallibleOpsTests.test.ts:
+(pass) tests.InterfaceFallibleOpsTests.value: a call through a throwing interface method propagates its error
+
+reference/ts/gen-tests/tests/CtorOmitTests.test.ts:
+(pass) tests.CtorOmitTests.testOmit: constructor omitted trailing defaults materialize [1.00ms]
+
+reference/ts/gen-tests/tests/StdStringPlainClassTests.test.ts:
+(pass) tests.StdStringPlainClassTests.plainClassAndRecord: Std.string accepts ordinary classes with toString
+
+reference/ts/gen-tests/tests/PayloadSelfMapOpsTests.test.ts:
+(pass) tests.PayloadSelfMapOpsTests.selfMappedPayload: keeps a payload enum and exception declared in one module
+
+reference/ts/gen-tests/tests/SwiftDefaultTests.test.ts:
+(pass) tests.SwiftDefaultTests.testDefaultStyle: data class defaults construct a value type static constant
+
+reference/ts/gen-tests/tests/Sha512Tests.test.ts:
+(pass) tests.Sha512Tests.empty: hashes the empty byte sequence [2.00ms]
+(pass) tests.Sha512Tests.abc: hashes abc
+(pass) tests.Sha512Tests.incremental: matches incremental updates [2.00ms]
+
+reference/ts/gen-tests/tests/DowncastTests.test.ts:
+(pass) tests.DowncastTests.testDowncast: a checked downcast keeps the concrete type
+
+reference/ts/gen-tests/tests/Fp16Tests.test.ts:
+(pass) tests.Fp16Tests.widen: binary16 patterns widen to exact binary32 bits
+(pass) tests.Fp16Tests.narrow: binary32 patterns narrow with round-to-nearest-even
+
+reference/ts/gen-tests/tests/BlockScopeUnrollTests.test.ts:
+(pass) tests.BlockScopeUnrollTests.literalLoopScopes: literal loop unrolls into scoped blocks
+(pass) tests.BlockScopeUnrollTests.sequentialLoops: sequential literal loops reuse names
+(pass) tests.BlockScopeUnrollTests.returnFromSegment: return inside unrolled body
+(pass) tests.BlockScopeUnrollTests.breakContinuePath: break and continue keep the counted loop path
+
+reference/ts/gen-tests/tests/StaticFnTests.test.ts:
+(pass) tests.StaticFnTests.testFunctionStatic: static function values can be called
+(pass) tests.StaticFnTests.testIntStatic: ordinary mutable static remains shared
+
+reference/ts/gen-tests/tests/UStringTests.test.ts:
+(pass) tests.UStringTests.testAsciiTier: ascii content counts and reads through the general tier
+(pass) tests.UStringTests.testBmpTier: bmp cjk counts and reads by code point
+(pass) tests.UStringTests.testSupplementaryTier: supplementary cjk occupies one character index
+(pass) tests.UStringTests.testSlice: slice addresses characters on every storage
+(pass) tests.UStringTests.testRoundTrip: code point round trip preserves content
+(pass) tests.UStringTests.testReversal: character reversal keeps supplementary characters whole
+(pass) tests.UStringTests.testSubstring: substring addresses utf-16 unit positions on every target [1.00ms]
+(pass) tests.UStringTests.testSubstringBounds: substring clamps negative, long, reversed, and omitted bounds
+
+reference/ts/gen-tests/tests/TableBuilderInferTests.test.ts:
+(pass) tests.TableBuilderInferTests.testBuilders: a sorted table builder local pins its value parameter
+
+reference/ts/gen-tests/tests/NoSuchElementTests.test.ts:
+(pass) tests.NoSuchElementTests.caught: a module-listed exception class that only a catch references stays emitted [1.00ms]
+(pass) tests.NoSuchElementTests.messageRead: a message read off a folded exception value outside a catch lowers to the property
+(pass) tests.NoSuchElementTests.foldedVariantMessage: a folded exception reports its variant message text
+
+reference/ts/gen-tests/tests/SwitchCaseScopeTests.test.ts:
+(pass) tests.SwitchCaseScopeTests.testToneRow: multiple cases declaring the same name resolve without collision
+(pass) tests.SwitchCaseScopeTests.testToneInk: cases declaring multiple locals resolve without collision
+(pass) tests.SwitchCaseScopeTests.testMixed: mixed declaring and non-declaring cases coexist
+
+reference/ts/gen-tests/tests/GraphemeTests.test.ts:
+(pass) tests.GraphemeTests.testCjkClusters: cjk text counts one cluster per character
+(pass) tests.GraphemeTests.testCombiningMarks: combining marks join their base character [1.00ms]
+(pass) tests.GraphemeTests.testHangul: hangul jamo runs form one cluster
+(pass) tests.GraphemeTests.testCrLf: carriage return and line feed form one cluster
+(pass) tests.GraphemeTests.testEmojiSequences: emoji sequences with joiners and modifiers form one cluster
+(pass) tests.GraphemeTests.testRegionalIndicators: regional indicators pair up
+(pass) tests.GraphemeTests.testDevanagariConjunct: devanagari conjuncts with a virama linker stay whole
+(pass) tests.GraphemeTests.testPrepend: prepend characters join the following cluster
+(pass) tests.GraphemeTests.testSlicing: cluster slicing clamps like the code-point tier
+(pass) tests.GraphemeTests.testParts: parts enumerate every cluster and join back to the source
+(pass) tests.GraphemeTests.testBoundaries: boundary offsets list every cluster edge in string units [1.00ms]
+
+reference/ts/gen-tests/tests/RegistryPipelineTests.test.ts:
+(pass) tests.RegistryPipelineTests.generatesFiles: pipeline generates literal registry files [1.00ms]
+
+reference/ts/gen-tests/tests/DivTableTests.test.ts:
+(pass) tests.DivTableTests.testDiv: length division by constant lowers to integer division [1.00ms]
+
+reference/ts/gen-tests/tests/BorrowedLoopItemBoundaryTests.test.ts:
+(pass) tests.BorrowedLoopItemBoundaryTests.firstEntry: a borrowed loop item fills an owned Option return slot
+(pass) tests.BorrowedLoopItemBoundaryTests.wrappedEntries: a borrowed loop item fills an owned constructor slot [1.00ms]
+(pass) tests.BorrowedLoopItemBoundaryTests.describedLabels: a borrowed loop item fills an owned call argument
+(pass) tests.BorrowedLoopItemBoundaryTests.records: a borrowed loop item fills an owned object field
+(pass) tests.BorrowedLoopItemBoundaryTests.hasMarker: a borrowed enum loop item compares against an owned value
+(pass) tests.BorrowedLoopItemBoundaryTests.indexOfNullable: a nullable array indexOf unwraps the receiver
+
+reference/ts/gen-tests/tests/StringAppendTests.test.ts:
+(pass) tests.StringAppendTests.testAppend: a string += converts a non-string right side
+
+reference/ts/gen-tests/tests/StringBufTests.test.ts:
+(pass) tests.StringBufTests.testEmptyBuffer: empty buffer has length zero and empty toString
+(pass) tests.StringBufTests.testAddStrings: add appends strings and updates length [1.00ms]
+(pass) tests.StringBufTests.testSupplementaryCharacters: add with supplementary characters counts UTF-16 code units
+(pass) tests.StringBufTests.testAddChar: addChar appends BMP characters
+(pass) tests.StringBufTests.testIncremental: buffer extends after toString calls
+(pass) tests.StringBufTests.testCompletePair: a lead completed by the immediately following addChar reads as one character
+(pass) tests.StringBufTests.testTrailWithoutLead: a trail without a preceding lead faults with the argument unit
+(pass) tests.StringBufTests.testDanglingLead: a dangling lead observed by toString faults with the held unit
+(pass) tests.StringBufTests.testAddAfterLead: an add stranding a held lead faults with the held unit
+
+reference/ts/gen-tests/tests/ArrayJoinTests.test.ts:
+(pass) tests.ArrayJoinTests.testJoin: a non-string array join maps each value to its string form
+
+reference/ts/gen-tests/tests/StringBufThrowTests.test.ts:
+(pass) tests.StringBufThrowTests.testBuildFromChecked: add carries a throwing argument through the surrogate guard
+(pass) tests.StringBufThrowTests.testCaughtChecked: the added call fault leaves the buffer expression [1.00ms]
+(pass) tests.StringBufThrowTests.testBuildCharFromChecked: addChar carries a throwing unit through the surrogate guard
+
+reference/ts/gen-tests/tests/ArrayRootTests.test.ts:
+(pass) tests.ArrayRootTests.testArrayRoots: small static arrays preserve their roots and elements
+
+reference/ts/gen-tests/tests/CloneDeriveGapTests.test.ts:
+(pass) tests.CloneDeriveGapTests.resolve: data class holding a plain-class field derives Clone and reads owned values
+(pass) tests.CloneDeriveGapTests.resolveAbstract: class holding a string abstract field derives Clone and reads owned values
+
+reference/ts/gen-tests/tests/EnumQueriesTests.test.ts:
+(pass) tests.EnumQueriesTests.names: enum collections preserve declaration order and constructor names
+(pass) tests.EnumQueriesTests.counts: enum collection counts fold through direct and alias reads
+(pass) tests.EnumQueriesTests.lookup: enum name lookup round trips and misses return empty
+(pass) tests.EnumQueriesTests.second: enum queries cover a second value enumeration
+(pass) tests.EnumQueriesTests.lookupName: enumConstructor on a createEnum result unwraps the nullable lookup [1.00ms]
+
+reference/ts/gen-tests/tests/RegistrySha1Tests.test.ts:
+(pass) tests.RegistrySha1Tests.hashesBoundaries: SHA-1 covers empty and padding boundaries [1.00ms]
+
+reference/ts/gen-tests/tests/DataClassCtorGuardTests.test.ts:
+(pass) tests.DataClassCtorGuardTests.acceptsValidValue: data-class constructor accepts finite non-negative values
+(pass) tests.DataClassCtorGuardTests.rejectsNegativeValue: data-class constructor rejects negative values
+(pass) tests.DataClassCtorGuardTests.rejectsNonFiniteValue: data-class constructor rejects non-finite values
+
+ 1034 pass
+1 tests failed:
+(fail) package artifact emission > two generations of the same inputs produce byte-identical artifacts [358384.89ms]
+ 2 fail
+ 8237 expect() calls
+Ran 1035 tests across 304 files. [2344.66s]
