@@ -1,0 +1,12 @@
+# Haxe JS oracle for the alias-transfer-boundary fixture.
+# Run from the repository root (inside the pinned toolchain):
+#   haxe tests/haxe/alias-transfer-boundary/oracle.hxml \
+#     -js out/alias-transfer-boundary/<run>/oracle/oracle.js
+# The runner appends the -js output path; the entry main() logs the five
+# labeled lines that every native harness must reproduce.
+-lib boring
+-cp packages/compiler
+-cp samples
+-cp tests/haxe/alias-transfer-boundary
+--macro Intercept.run(['samples', 'tests/haxe/alias-transfer-boundary'])
+-main atb.ContainerAliasOracle
