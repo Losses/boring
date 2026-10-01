@@ -1,0 +1,26 @@
+# Generate the focused Kotlin probe for the redundant-assertion shape.
+# Run from the worktree root:
+#   haxe tests/haxe/kotlin-redundant-assertion/kotlin-gen.hxml
+# The emitted Kotlin is the measurement: after the first printed `!!` on an
+# immutable nullable local, a second read of the same local inside the same
+# expression must not print a second assertion.
+# (RedundantAssertionCoverage)
+#
+# `-cp packages/compiler` is explicit on purpose: `-lib boring` resolves the
+# nearest ancestor `.haxelib` projection, which in this workspace points at an
+# older compiler (Class<PolicyQueries> has no field
+# matchStructTypedefByUnification). Every hxml that generates here spells the
+# source root out instead.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/kotlin-redundant-assertion/probe
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/kotlin-redundant-assertion/probe'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/kotlin-redundant-assertion/gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+redundantassertion.RedundantAssertionOps
+redundantassertion.MemberRegistryProbe
