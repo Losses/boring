@@ -427,6 +427,49 @@ It deliberately does **not** judge whether each should be collected: some may be
 superseded by a collected test elsewhere, which is a review question rather than
 a scan's.
 
+#### Can they even be RUN here? No — and the reason is a third unrelated blocker
+
+"Unwatched" and "unrunnable" are different, so it was checked rather than assumed.
+Attempting `tests/haxe/charcodeat/run.sh` directly:
+
+```
+run this runner through: nix develop -c bash tests/haxe/charcodeat/run.sh
+```
+
+The runner refuses outside a pinned environment — correctly, since it records the
+environment as part of its evidence. So `nix develop` was tried:
+
+```
+error: ... attempt to write a readonly database
+(in '/home/losses/.cache/nix/fetcher-cache-v4.sqlite')
+```
+
+**The file itself is writable** (`-rw-r--r--`, mode 644) — the denial is the
+sandbox refusing writes outside the workspace:
+
+```
+$ touch /home/losses/.cache/nix/probe-write-test
+touch: cannot touch '...': Permission denied
+```
+
+So three independent environment limits now block this lane:
+
+| # | Limit | Consequence |
+|---|---|---|
+| 1 | `swiftc` — 13 missing libs, and `bwrap` needs denied user namespaces | Swift lane cannot run |
+| 2 | `nix develop` — sandbox denies writes to `~/.cache/nix` | the 35 pinned fixtures cannot run |
+| 3 | `haxe` absent from default `PATH` | 56 tests fail until it is added |
+
+**What that means for the count of 35.** They are not known-failing and not
+known-passing; they are **unrunnable in this environment**. Recording the
+distinction matters because "35 fixtures are uncollected" invites the reader to
+wire them in, and that would produce 35 red tests here for an environmental
+reason — turning a coverage gap into a false regression report.
+
+**The guard therefore checks collection only, which is what this environment can
+actually establish.** Whether they pass is a question for an environment with a
+writable Nix cache.
+
 ### Pre-existing tree state
 
 - The working tree carries pre-existing modifications I did not make: the
