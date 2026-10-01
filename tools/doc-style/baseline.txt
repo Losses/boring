@@ -1,0 +1,29 @@
+# doc-style no-regression baseline (fact pin, not a sign-off).
+#
+# The number on the last line is the whole-repo hit count that
+# `bun tools/doc-style/check.ts` reports on the current mainline. check:docs
+# has a standing red state (TCN-213 "check:docs is red by design"): the word
+# list and sentence patterns flag a large body of existing prose as candidates,
+# most of which are proper nouns, technical terms, and precise contrast
+# constructions (see audit-reports/doc-style-gate-investigation.md). That red
+# state is a property of the repository as a whole, not of any one commit, so
+# the pre-commit hook must not refuse an unrelated commit because of it.
+#
+# The pre-commit hook (tools/git-hooks/pre-commit) reads this number and only
+# refuses a commit when the measured count EXCEEDS it - that is, when the
+# commit introduces a new doc-style candidate. A count at or below the
+# baseline passes and the hook reports the standing red state truthfully.
+#
+# This file is a fact pin, not a sign-off: recording a number here means "the
+# tree already reads N and a deviation must be visible", not "every one of N
+# hits was reviewed and accepted". Refresh it deliberately:
+#   - LOWER it when hits are fixed, to lock in the improvement.
+#   - RAISE it only after the new hits have been reviewed by a human, never as
+#     a side effect of some unrelated commit (same rule as TCN-24 for the
+#     warning-gate baselines).
+#   - After a check.ts word-list growth (new banned term or pattern), the
+#     measured count jumps without any prose change; re-measure and refresh
+#     here in the same commit that changes the word list.
+#
+# Measured on arch/agent-guided-governance @ cfec9666 (2026-10-01):
+2203
