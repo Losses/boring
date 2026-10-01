@@ -256,6 +256,31 @@ reviews again, with the independence requirements still met.
 
 **P09 overall: NOT PASSED.**
 
+**Checkout presence, established 2026-10-01 (adds a fact; changes no verdict).**
+A search for the Tiqian tree failed once and was reported as "no consumer exists".
+That was **imprecise**, and the accurate statement matters because it points at
+different next actions. Three Tiqian checkouts **are** present:
+
+| Path | HEAD | holds `8504d230` (frozen rev)? |
+|---|---|---|
+| `/home/losses/Development/tiqian` | `f5c48441` | **no** |
+| `/home/losses/Development/tiqian-master` | `1ad3816` | **no** |
+| `/home/losses/Development/tiqian-f64only` | `3d52039d` | **no** |
+
+`/home/losses/Development/tiqian/engine-haxe` is a real consumer: `src/`,
+`tests/` with `compile.hxml`, oracles, `baseline-goldens/`, and a spec that uses
+`-lib boring`, `Intercept.run` and `-D boring_oracle` — the integration this
+project compiles against.
+
+**So the blocker is not "there is nothing to run against".** It is narrower and
+more tractable: the checkouts exist, **none is at the settled revision
+`8504d230`**, and criterion 1 additionally needs the Boring side decided.
+
+**Why the distinction is worth recording:** "no consumer exists" invites building
+one or declaring the clause impossible. "The consumer exists but not at the pinned
+revision" invites **fetching that revision** — a different, cheaper task, and one
+criterion 3 is actually waiting on.
+
 ## P10 — "Classify review failures, revise the appropriate documents, and publish the first round's acceptance and reflection record." (`work-plan:220`, unchecked)
 
 | # | Criterion | Verdict | Evidence | Blocked by |
