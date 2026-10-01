@@ -5933,7 +5933,16 @@ class RustExpr {
                 switch (Context.follow(v.t)) {
                     case TInst(c, _):
                         final cls = c.get();
-                        final enumModule = state.exceptionPayloads.get(RustEmissionState.identityKey(cls.module, cls.name));
+                        // The caught class's own payload first: the
+                        // identity-keyed fallback cannot be read without the
+                        // class's identity, and the former module-keyed map
+                        // could not tell two exception classes of one Haxe
+                        // module apart (whoever was scanned last wins), so
+                        // a cross-module payload enum would leave this class's
+                        // catch-payload rewrite pointing at the other class's
+                        // enum and emit `e.fault` untranslated (E0609).
+                        final recorded = state.exceptionPayloadEnums.get(cls.module + "::" + cls.name);
+                        final enumModule = recorded != null ? recorded.module : state.exceptionPayloads.get(RustEmissionState.identityKey(cls.module, cls.name));
                         if (enumModule != null) {
                             for (f in cls.fields.get()) {
                                 if (f.name == name) {
@@ -5987,7 +5996,15 @@ class RustExpr {
     function caughtPayloadEnum(c:{v:TVar, expr:TypedExpr}):Null<{name:String, module:String}> {
         switch (Context.follow(c.v.t)) {
             case TInst(cls, _):
-                final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
+                final caught = cls.get();
+                // The caught class's own payload first: the module-keyed maps
+                // below key on the payload enum's module, which two exception
+                // classes of one Haxe file share, so they answer for whichever
+                // class was scanned last and mistype this region.
+                final recorded = state.exceptionPayloadEnums.get(caught.module + "::" + caught.name);
+                if (recorded != null)
+                    return {name: recorded.name, module: recorded.module};
+                final messageOnly = state.messageOnlyExceptions.get(caught.module);
                 if (messageOnly != null)
                     return {name: messageOnly, module: cls.get().module};
                 final classKey = RustEmissionState.identityKey(cls.get().module, cls.get().name);
@@ -6088,7 +6105,7 @@ class RustExpr {
         for the closure body only, so `Ok` wrapping holds even when the
         enclosing function absorbed the domain.
     **/
-    function regionClosureLines(body:TypedExpr, regionType:Null<Type>, enumName:String, depth:Int):Array<String> {
+    function regionClosureLines(body:TypedExpr, regionType:Null<Type>, enumName:String, enumModule:String, depth:Int):Array<String> {
         var stmts = statementsOf(body);
         // A top-level throw ends the region: the tail after it is dead in
         // every target, so the closure stops at the throwing edge.
@@ -6114,7 +6131,13 @@ class RustExpr {
         isFallible = true;
         inTryClosure = true;
         errorTypeName = enumName;
-        errorTypeModuleName = imports.selfModule;
+        // The region's error domain is the caught class's payload enum, which
+        // may live in another module. Naming its own module keeps the
+        // identity-keyed growth lookup (enumGrowthFor(name, module)) able to
+        // find the rethrow growth variant this region absorbs; the former
+        // bare-name lookup needed no module, which is why selfModule used to
+        // be tolerated here.
+        errorTypeModuleName = enumModule;
         countOverflowVariant = null;
         final lines = blockLines(bodyStmts, depth, true);
         isFallible = savedFallible;
@@ -6177,7 +6200,7 @@ class RustExpr {
         final opener = "(|| -> Result<" + valueType + ", " + payload.name + "> {";
         final prefix = isFallible ? "return Ok(match " + opener : "return match " + opener;
         final out = [indent(depth) + prefix];
-        for (l in regionClosureLines(parts.body, region.t, payload.name, depth + 1))
+        for (l in regionClosureLines(parts.body, region.t, payload.name, payload.module, depth + 1))
             out.push(l);
         out.push(indent(depth) + (isFallible ? "})() {" : "})() {"));
         out.push(indent(depth) + "    Ok(" + valueBinding + ") => " + valueBinding + ",");
@@ -6211,7 +6234,7 @@ class RustExpr {
             + ', '
             + payload.name
             + "> = (|| {"];
-        for (l in regionClosureLines(body, valueType, payload.name, depth + 1))
+        for (l in regionClosureLines(body, valueType, payload.name, payload.module, depth + 1))
             out.push(l);
         out.push(indent(depth) + "})();");
         out.push(indent(depth) + 'match $outcome {');
@@ -6266,7 +6289,7 @@ class RustExpr {
         final out = [
             indent(depth) + 'let $name: ' + types.of(v.t) + ' = match (|| -> Result<' + types.of(v.t) + ', ' + payload.name + '> {'
         ];
-        for (l in regionClosureLines(parts.body, v.t, payload.name, depth + 1))
+        for (l in regionClosureLines(parts.body, v.t, payload.name, payload.module, depth + 1))
             out.push(l);
         out.push(indent(depth) + "})() {");
         out.push(indent(depth) + "    Ok(" + valueBinding + ") => " + valueBinding + ",");
