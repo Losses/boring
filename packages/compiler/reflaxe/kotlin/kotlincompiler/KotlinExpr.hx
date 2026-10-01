@@ -2678,8 +2678,21 @@ class KotlinExpr {
             case TField(_, _):
                 final key = fieldAccessKey(e);
                 if (key != null) {
-                    nonNullFields.set(key, true);
-                    extractedFields.set(key, true);
+                    // One extraction record feeds two questions: whether a
+                    // repeat assertion is suppressed (extractedFields, read
+                    // back through alreadyExtracted) and whether the subject
+                    // counts as proven (nonNullFields, read back through
+                    // fieldProven). Kotlin never smart-casts a mutable
+                    // property, so a printed `!!` on a `var` field neither
+                    // proves the subject nor licenses dropping the next
+                    // assertion — both records stay reserved for the
+                    // smart-castable subjects nullableAccess itself accepts,
+                    // so the guard and the read answer one predicate for one
+                    // subject. (MutableChainProofUniqueness)
+                    if (smartCastableSubject(e)) {
+                        nonNullFields.set(key, true);
+                        extractedFields.set(key, true);
+                    }
                 }
             case _:
         }

@@ -1,0 +1,14 @@
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/kotlin-mutable-chain-probe/probe
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/kotlin-mutable-chain-probe/probe'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/kotlin-mutable-chain-probe/gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+chk.Ops
+chk.Outer
+chk.Inner
