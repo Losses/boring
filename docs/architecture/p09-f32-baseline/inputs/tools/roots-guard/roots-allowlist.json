@@ -1,0 +1,31 @@
+{
+  "exempt": [
+    {
+      "target": "kotlin",
+      "module": "registry.Main",
+      "reason": "registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact."
+    },
+    {
+      "target": "rust",
+      "module": "registry.Main",
+      "reason": "registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact."
+    },
+    {
+      "target": "swift",
+      "module": "registry.Main",
+      "reason": "registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact."
+    }
+  ],
+  "unrootedTestModules": [
+    {
+      "target": "*",
+      "module": "tests.E0308FiTests",
+      "reason": "Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module."
+    },
+    {
+      "target": "*",
+      "module": "tests.f32.PrintedFloatTests",
+      "reason": "f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json."
+    }
+  ]
+}
