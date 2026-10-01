@@ -73,8 +73,22 @@ class Compiler extends PluginCompiler<Compiler> {
         // Haxe never types from a business reference, so force it here like
         // the Kotlin target forces runtime.TestCore. A build without a
         // runtime-import define has no way to reference the runtime package.
+        //
+        // Force the WHOLE resident set, not just the module some corpus entry
+        // happened to reach: a consumer build whose entry list omits the
+        // `runtime.*` roots still reaches these through the std extern
+        // surface, and `keep` cannot substitute because it only protects an
+        // already-typed module from DCE. Forcing only StringTools left
+        // `runtime.UString` / `runtime.Graphemes` / `runtime.SortedTable`
+        // absent, so such a consumer emitted references to files that were
+        // never typed (tests/haxe/resident-consumer-closure, variant a).
         if (RuntimeConfig.importName() != null) {
-            Context.getType("runtime.StringTools");
+            for (resident in RuntimeResidents.MODULES)
+                if (Context.getType(resident) == null)
+                    throw 'swift resident module not typed: ' + resident;
+            for (resident in RuntimeResidents.TEST_MODULES)
+                if (Context.getType(resident) == null)
+                    throw 'swift resident module not typed: ' + resident;
         }
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
