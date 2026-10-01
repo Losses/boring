@@ -363,6 +363,13 @@ That the residual set is **identical** across two runs a session apart is the
 evidence that the emitter changes made in between touched nothing here — a count
 alone would not show it.
 
+**Final check at `21ee82ee` (end of session), default `PATH`**: 1004 pass, 61 fail,
+1065 tests across 314 files — **60 distinct failures, 59 carrying the
+`Executable not found` marker**. Identical to the set measured before this
+session's emitter and document changes, so nothing regressed. The three guards
+added or touched this session (`doc-reference-integrity`,
+`fixture-reachability`, `ts/loop-structure`) pass **9 tests, 0 fail** together.
+
 ### Why the Swift lane cannot be exercised here — two independent causes
 
 The Swift toolchain **is present** in the store, so "not installed" would have been
