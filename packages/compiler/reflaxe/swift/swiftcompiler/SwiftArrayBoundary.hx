@@ -39,6 +39,7 @@ enum SwiftArrayOperation {
     ContextualReadOnlyEmpty;
     CopyReadOnlyIntoMutableArray;
     MapOptionalReadOnlyIntoMutableArray;
+    UnwrapOptionalMutableArrayView;
 }
 
 /** One expression lowering's text and the representation facts it established. */
@@ -201,6 +202,13 @@ class SwiftArrayBoundary {
                                 operation = MapOptionalMutableArrayView;
                                 resultOptionality = OptionalOperand;
                             case OptionalOperand:
+                                // A nullable container field aliased into a
+                                // required read-only slot has no flow proof of
+                                // presence; the unwrap asserts it at the
+                                // boundary (traps on null) instead of dropping
+                                // the storage decision.
+                                operation = UnwrapOptionalMutableArrayView;
+                                resultOptionality = RequiredOperand;
                         }
                     }
                 case ReadOnlyArrayView:
@@ -252,6 +260,7 @@ class SwiftArrayBoundary {
         return switch (plan.operation) {
             case KeepPreparedArray | PreserveNullArrayValue: operand;
             case WrapMutableArrayView: "ReadOnlyArray(" + operand + ")";
+            case UnwrapOptionalMutableArrayView: "ReadOnlyArray(" + operand + "!)";
             case MapOptionalMutableArrayView: "(" + operand + ").map { ReadOnlyArray($0) }";
             case ContextualReadOnlyEmpty:
                 elementText == null ?throw new haxe.Exception("read-only empty array boundary is missing its element type"):"ReadOnlyArray<" + elementText +
