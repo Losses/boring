@@ -358,11 +358,34 @@ workspace is writable, the checkout is not. Generalising from one blocked form t
 the whole capability is the same error shape as concluding "the trees are clean"
 from checking one cause.
 
-**This is a fourth independent environment limit**, alongside the three already
-recorded in `BASELINE-FAILURES.md`. The next action is therefore **not** a code
-change: it needs an environment with write access to the Tiqian checkout (or that
-revision placed in the workspace), after which criterion 1's Boring side must
-still be decided.
+**Superseded (kept so the same error is not repeated):** an earlier version of this
+paragraph called the Tiqian checkout "a fourth independent environment limit" and
+said the next action needed an environment with write access to it. Both halves are
+wrong, and the feasibility report settles why.
+
+### What actually blocks criterion 3 — a DECISION, not an environment limit
+
+Read from `dc-warn/out/p09-tiqian-feasibility/REPORT.md`, the blockers are:
+
+| Blocker | Kind | Evidence |
+|---|---|---|
+| **B4 authorization** | **a decision** | `manifest.json` `protocolCException.status = "requires-execution-authorization"`; `protocol-c afterGen` must not run without an explicit authorization |
+| **Write mandate on the run location** | **a constraint the seat accepted** | every stage's cwd is the locked `tiqian-validation-round2` worktree; that seat's mandate made it read-only, so it did not start the matrix |
+
+Neither is an environment limit, and neither is a capability gap. The toolchain,
+pinned inputs, driver, haxelib shadowing and the Swift fallback recipe were **all
+verified working** by that report — the Tiqian half is *locally executable*.
+
+**Two premises the report also records as moved** (they would change how a run is
+read): Tiqian's flake natively pins a **different, divergent** Boring lineage
+(`304ed70c`, not an ancestor of HEAD), handled by procedure via
+`HAXELIB_PATH` shadowing rather than by revision identity; and the 30-manifest hash
+invariant is **PARTIAL FAIL today** (17/30 match — 13 originals mismatch, all 15
+derived live inputs still match).
+
+So the accurate status of criterion 3 is: **startable in principle, gated on an
+authorization decision and on a seat whose mandate permits writing there.** The
+next action is a decision, which is the gate owner's, not a code change.
 
 ## P10 — "Classify review failures, revise the appropriate documents, and publish the first round's acceptance and reflection record." (`work-plan:220`, unchecked)
 
