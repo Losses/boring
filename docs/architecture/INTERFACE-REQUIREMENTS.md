@@ -1,51 +1,51 @@
 # Architecture Contract
 
-Classification (`PROBLEM-CLASSIFICATION.md`) makes clear "which type of failure belongs to whom"; this file makes clear
-**what the two ends of an interface each promise**, that is: under what conditions a given location must produce what.
+The classification (`PROBLEM-CLASSIFICATION.md`) clarifies "which class of failure belongs to whom"; this file clarifies
+**what each side of an interface commits to**, i.e., what a given site must deliver under what conditions.
 
-## Contract 1: The destination is passed in by composition (category D)
+## Contract 1: Destination Is Passed In by the Composition (Class D)
 
-**Rule**: a conversion site must be given the **destination** (target type), and must not infer it from compiler instance state.
+**Rule**: a conversion site must be given its **destination** (target type) and must not infer it from compiler-instance state.
 
-**Current facts** (verified; candidate tree `SwiftExpr.hx`, 7041 lines):
-- `currentReturnType` is an **instance field** of `SwiftExpr` (`:218`), its only write is at `:544`
+**Current facts** (verified, candidate tree `SwiftExpr.hx` 7041 lines):
+- `currentReturnType` is an **instance field** of `SwiftExpr` (`:218`), written only at `:544`
   (`functionBody`, from the member's `TFun` return), cleared at `:563`.
 - `functionLiteral` (`:2338-2345`) only saves/restores `currentFuncReturnsOptional`,
-  and **does not rebind** `currentReturnType`.
+  and does **not rebind** `currentReturnType`.
 - The correct value inside a lambda is **`f.t`** (`:2349` already uses it to print the closure header).
 
 **Contract form**:
 ```
-conversion-site(value, destination, fallback) -> text
-where destination is provided by the composition that the location belongs to:
-  - member body                   -> the member's return type
-  - lambda body                   -> the lambda's return type (f.t)
-  - inline block/anonymous helper -> that block's own result type (not the outer lambda's)
-  - binding route                 -> the type of the bound variable (v.t)
-  - argument route                -> the parameter type declared by the callee
+conversionSite(value, destination, fallback) -> text
+where destination is provided by the composition the site belongs to:
+  - member body       -> the member's return type
+  - lambda body       -> the lambda's return type (f.t)
+  - inline block / anonymous helper -> the block's own result type (not the outer lambda's)
+  - binding route     -> the bound variable's type (v.t)
+  - parameter route   -> the callee-declared parameter type
 ```
-**The last item is this session's lesson**: the block of `blockExpression` has its own destination;
-treating it as the lambda's return contract **injects a wrong conversion** (the P4 regression of `lambda-fix-xcheck`,
+**The last item is this session's lesson**: `blockExpression`'s block has its own destination;
+treating it as the lambda's return contract will **inject a wrong conversion** (P4 regression from `lambda-fix-xcheck`,
 `mx/MXProbe.swift:19:12`, `cannot convert 'ReadOnlyArray<Int32>' to closure
 result type 'TiqianArray<Int32>'`).
 
-## Contract 2: The intermediate destination of a nil-merge is provided by composition (category C boundary × category D destination)
+## Contract 2: nil-merge's Intermediate Destination Is Provided by the Composition (Class C Boundary × Class D Destination)
 
-**Spec source text** (`docs/compiler-policy-interfaces.md:171-173`, verbatim):
+**Specification source** (`docs/compiler-policy-interfaces.md:171-173`, verbatim):
 > "A nil-merge with a required final result passes an **optional intermediate
 > destination** to the optional left operand's conversion."
 
 **Implementation**: the third input of `prepare(operand, destinationType, override)`
 `destinationOptionalOverride` (`SwiftArrayBoundary.hx:173`).
-- `override == null` ⇒ the planner rules by the destination's own optionality (the default context of the three REFUSED rows)
-- `override == true` ⇒ the composition declares "an optional intermediate result is accepted here" ⇒ that cell becomes a conversion
-  (`MapOptionalMutableArrayView` `:200-202`, etc.)
+- `override == null` ⇒ the planner adjudicates based on the destination's own optionality (default context for the three REFUSED rows)
+- `override == true` ⇒ the composition declares "optional intermediate result accepted here" ⇒ that cell becomes a conversion
+  (`MapOptionalMutableArrayView` `:200-202` etc.)
 
-**Contract boundary**: `override` is **the composition's obligation**, not a property of the operand, nor an exemption.
-The three REFUSED rows of `RECORD.md` are therefore qualified in the record as **PLANNER-CELL ONLY**
+**Contract boundary**: `override` is an **obligation of the composition**, not a property of the operand, nor an exemption.
+`RECORD.md`'s three REFUSED rows are therefore scoped in the record as **PLANNER-CELL ONLY**
 (CORRECTION 13).
 
-## Contract 3: warnings count toward acceptance (category F)
+## Contract 3: Warnings Count Toward Acceptance (Class F)
 
 **Binding standard**: `docs/specs/style/02-translator-implementation-standard.md`
 - `:78` *"Generated code compiles **without warnings** on every target … A
@@ -54,60 +54,100 @@ The three REFUSED rows of `RECORD.md` are therefore qualified in the record as *
 - `:80` *"…counts the warning lines in the target suite output that name files
   under the generated trees; **the count is zero**."*
 
-**Corollary (already drawn and written down this session, TCN-156)**:
-- warnings **count**; **baseline failures must be recorded, but not exempted** (`work-plan:417`).
-- ⇒ **a suite must be running**: no suite collecting ⇒ no count produced ⇒ the standard cannot be satisfied,
-  only bypassed. **That gap has been wired up** (`9f26e1ef`): `ci.yml` adds a `collected-suite`
-  job that runs `bun run test` at the entry point on every run and reports the collected scope (303 files, of which 249 come from
-  the generated tree `reference/ts/gen-tests`). That job blocks, with no `continue-on-error`;
-  the baseline `1001 pass / 32 fail / 8 errors` is recorded in `BASELINE-FAILURES.md`, not yet cleared.
-- ⇒ the shape of the record must be "**known baseline failures + explicit PIN**", and must **not** be named "zero-diagnostic satisfaction":
+**Corollaries (arrived at and recorded in this session, TCN-156)**:
+- warnings **count**; **baseline failures must be recorded but are not exempted** (`work-plan:417`).
+- ⇒ **a suite must be running**: no suite collecting ⇒ no count produced ⇒ the standard cannot be met,
+  merely bypassed. **This gap has been wired up** (`9f26e1ef`): `ci.yml` gained a `collected-suite`
+  job, which runs `bun run test` on every invocation and reports the collected domain (303 files, 249 of them from
+  the generated tree `reference/ts/gen-tests`). The job blocks, no `continue-on-error`;
+  baseline `1001 pass / 32 fail / 8 errors` recorded in `BASELINE-FAILURES.md`, not yet settled.
+- ⇒ the recorded form must be "**known baseline failure + explicit PIN**", and must **not** be named "zero diagnostics satisfied":
   the owner ruling at `tests/swift-gap-boundary/gap-boundary.test.ts:44` is this contract's implementation.
 
-**Supplement (`t-muo92xms-s28t` ruling, `1a486ebd`; see `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`):
-"which tool to use" and "which category of diagnostics can be seen" must be explained separately.**
-The main clause of `:78` is universal ("on every target"), but when enumerating tools it writes only *"the Swift type-checker"*.
-That narrowing leaves a hole: **`swiftc -typecheck` does not run SILGen, and reports 0 even in the baseline state**,
-so for `Gap.swift:117`'s `will never be executed` it **can neither confirm nor refute**;
-only `-c` (including `-whole-module-optimization`) and `-o` can actually see it.
-⇒ **Ruling: build-phase diagnostics count toward `:78/:80`**. If, taken literally, only the "type checker" is recognized, "zero warnings" degenerates into
-an **empty criterion** (all real emitter defects pass silently, while the downstream CI that compiles binaries will still hit it).
-**Counting discipline**: count by the `file:line:col: severity` **shape**, do not use `grep -c 'warning:'`
-— Swift also prints caret/context lines, which would count 1 as 2 (PIT-336).
-**Same-category generalization**: for each target, ask whether the existing command **cannot see** the diagnostics it can report —
-one same-family example this session is that `cargo check` and `cargo build` have different warning surfaces.
+**Addendum (`t-muo92xms-s28t` ruling, `1a486ebd`; see `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`):
+"Which tool to use" and "which class of diagnostics it can see" must be specified separately.**
+`:78`'s main clause is universal ("on every target"), but when enumerating tools it only writes *"the Swift type-checker"*.
+This narrowing leaves a hole: **`swiftc -typecheck` does not run SILGen, and reports 0 even in the baseline state**,
+so for `Gap.swift:117`'s `will never be executed`, it can **neither confirm nor refute**;
+the only modes that actually see it are `-c` (including `-whole-module-optimization`) and `-o`.
+⇒ **Ruling: build-phase diagnostics count for `:78/:80`**. Taking "type-checker" literally degrades "zero warnings" to
+**an empty criterion** (real emitter defects all silently pass, while downstream CI compiling binaries will still hit them).
+**Counting discipline**: count by the `file:line:col: severity` **shape**, not with `grep -c 'warning:'`
+— Swift also prints caret/context lines, which can double-count 1 occurrence as 2 (PIT-336).
+**Generalizing**: for every target, ask "does the current command **fail to see** diagnostics it can report" —
+a sibling example from this session is that `cargo check` and `cargo build` have different warning surfaces.
 
-## Contract 4: The acceptance criterion for generated output must be able to observe the property under test
+## Contract 4: Acceptance Criteria for Generated Output Must Be Able to Observe the Property Under Test
 
-**Rule**: an acceptance check must **fail when that property is broken**.
+**Rule**: an acceptance check must **fail when that property is violated**.
 
-**Three counterexamples this session** (the same gap, three causes):
+**Three counterexamples from this session** (same gap, three causes):
 | Item | Why it is not observable |
 |---|---|
-| `branchBoundary` fixture | The two branches are equal length; the consumer only prints the length |
-| Missing-return form | **`swiftc -typecheck` does not run SILGen, and does not report "missing return"** |
-| Splice-type fix | The generated tree pre/post is byte-identical (cannot distinguish "unchanged" from "fixed correctly") |
+| `branchBoundary` fixture | both branches are equal-length, and the consumer only prints length |
+| missing-return shape | **`swiftc -typecheck` does not run SILGen, does not report "missing return"** |
+| splicing-type fix | generated tree pre/post identical byte-for-byte (cannot distinguish "unchanged" from "correctly changed") |
 
-**⇒ Implemented criteria** (`LAYERED-VERIFICATION.md` will expand on this):
-1. The assertion must be stricter than "not broken": for example `1:1:present` rather than `1:present`
-2. **The form that strips `return` must use `swiftc -c`, not `-typecheck`**
-3. Splice-type modifications must use a **discriminating backend** (deliberately take the wrong branch / deliberately return the wrong value) to prove it will FAIL
+**⇒ Implemented criteria** (`LAYERED-VERIFICATION.md` will elaborate):
+1. assertions must be stricter than "not broken": e.g., `1:1:present` rather than `1:present`
+2. **the return-stripped shape must use `swiftc -c`, not `-typecheck`**
+3. splicing-type changes must use a **discriminative backend** (deliberately take the wrong branch / deliberately return a wrong value) to prove it would FAIL
 
-## Contract 5: A fix must not change other categories' behavior
+## Contract 5: A Fix Must Not Change Behavior of Other Classes
 
-**Implementation method**: after a fix, regenerate against the **full driver set** and do a whole-tree comparison; **byte-identical after path normalization**
-is a necessary condition. All four committed fixes satisfy it (W1: 19 drivers, only a 2-line difference and it is expected;
-lambda: 19 drivers, empty diff).
+**Implementation**: after a fix, regenerate against the **full driver set** and perform a whole-tree comparison; **path-normalized byte-for-byte identity**
+is a necessary condition. Four committed fixes all satisfy it (W1: 19 drivers, only 2 lines of diff and expected;
+lambda: 19 drivers, diff is empty).
 
-**Limits**: whole-tree identity **cannot** prove a fix is correct, it can only prove it **did not affect anything else**;
-"generation succeeds", "type-check passes", "runs correctly" are three different strengths, and must be stated separately.
+**Limitation**: whole-tree identity does **not** prove the fix is correct, only that it did **not affect other areas**;
+"generation succeeded", "type-check passed", "run correctly" are three different strengths and must be stated separately.
 
-## Unresolved
+## Contract 6: A Judgment May Have Only One Source; What Can Be Derived from Facts Must Not Be Independently Decided
 
-- **The destination of `switchExpression`**: condition 3 requires giving it an explicit destination argument
-  (binding route `v.t`, argument route uses the callee's parameter), and `sw.t` only serves as a fallback when there is no contract.
-  An implementation seat is running (`out/switchexpr-destination`). **That seat must report "output unchanged" as
-  a legitimate result**, and must not fabricate a behavior difference to make the change look necessary.
-- **The single-return fast path** (`functionLiteralInner`) never applies boundary conversion:
-  the P1 probe of `lambda-fix-xcheck` is byte-identical in both trees and fails in both. This is a residual gap.
-- **Category J migration** has no defined contract.
+**Rule**: when whether something "holds" affects output, that judgment must have **exactly one authoritative source**.
+If it can be **derived from facts that have already occurred** (whether a file was actually written, whether a declaration was actually emitted),
+then it **must be derived**; a second site must not **independently** decide it again.
+
+**Why**: when criterion and fact are decided **in parallel**, they can diverge — and **divergence is invisible in the passing state**.
+This is the same family as Contract 4 but at a different layer: Contract 4 says "the check must be able to observe the violated property",
+this one says "**the criterion itself must not be decoupled from the facts it describes**".
+
+**Empirical finding (Rust target `state.shimsUsed`)**:
+| Quantity | Value |
+|---|---|
+| Write sites (each asserting "some shim was used") | **28 sites**, scattered across `RustDecl.hx` / `RustExpr.hx` / `RustImports.hx` |
+| Read sites (deciding whether a resident should be emitted) | **12 sites** |
+| Contract specifying "which path must write" | **none** |
+
+⇒ this global is used with **two different meanings**: "some business code referenced an extern" (intent layer) and
+"whether some resident should be written out as `.rs`" (emission layer). **The two layers are not equivalent, and no one is responsible for ensuring equivalence.**
+The product is `runtime/mod.rs` declaring a module that was never written out (`E0583`):
+**declarations follow one criterion, file emission follows another, and their write surfaces do not overlap.**
+
+**Two repair routes, with different criteria**:
+- **Add write sites**: for every uncovered path discovered, add another criterion write on that path
+  (the one added at the tail of `RustImports.requireType` on master is of this kind).
+  correctness is staked on "**complete write-site coverage**"; but write-site count **cannot be exhaustively verified**, and degrades with each new path.
+- **Derive from facts**: make the emission function **return whether it actually wrote the file**, have the caller record it,
+  and **generate the declaration list from that record** (this branch `94eace13`: `emitResidentModule` returns `Bool`
+  ⇒ `emittedResidentMods` ⇒ `runtimeMods`). Correctness is staked on "**declarations come from facts**",
+  **verifiable and does not degrade with new paths**.
+
+**⇒ Implemented criteria**:
+1. When "two sites make the same judgment", first distinguish whether it is **same-layer duplication** or **write-side/read-side**;
+   when both sides are needed, **one side must be designated the correctness source**.
+2. Ask "**is there a contract specifying who must write**". If the answer is "none + write sites far outnumber read sites",
+   the real defect is **not a missing merge**, but the criterion's lack of a unique source.
+3. Verify whether the derivation is **self-sufficient**: if, without activating those write sites, the invariant still holds by derivation alone,
+   then the derivation stands independently; **if it only holds when a specific write site fires**, then correctness still depends on
+   uncoordinated write sites; **this itself is a finding to report**, even if the code is syntactically correct.
+
+## Open
+
+- **`switchExpression`'s destination**: Condition 3 requires giving it an explicit destination parameter
+  (binding route uses `v.t`, parameter route uses callee parameters), with `sw.t` only as a fallback when there is no contract.
+  The implementation seat is running (`out/switchexpr-destination`). **That seat must report "output unchanged" as
+  a valid result** and must not fabricate behavioral differences to make the change appear necessary.
+- **Single-return fast path** (`functionLiteralInner`) has never applied boundary conversion:
+  `lambda-fix-xcheck`'s P1 probe is byte-for-byte identical across both trees and both fail. This is a residual gap.
+- **Class J migration**'s contract is undefined.

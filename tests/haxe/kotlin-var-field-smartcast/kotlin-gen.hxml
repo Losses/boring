@@ -1,0 +1,20 @@
+# Generate the focused Kotlin var-property smart-cast probe.
+# Run from the worktree root:
+#   nix develop -c haxe tests/haxe/kotlin-var-field-smartcast/kotlin-gen.hxml
+# The emitted Kotlin is the measurement: a read through a mutable (var)
+# property must keep its force extraction, while the val-side control may
+# smart-cast. (VarFieldSmartCast)
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/kotlin-var-field-smartcast/probe
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/kotlin-var-field-smartcast/probe'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/kotlin-var-field-smartcast/gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+varfieldsmartcast.VarFieldSmartCastOps
+varfieldsmartcast.VarFieldSmartCastHolder
+varfieldsmartcast.VarFieldSmartCastFinalHolder
