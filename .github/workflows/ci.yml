@@ -31,6 +31,18 @@ jobs:
       - name: Import nix closure
         if: hashFiles('nix-closure.nar') != ''
         run: sudo nix-store --import < nix-closure.nar || true
+      # Roots guard (tools/roots-guard/, hardened at 8b32f8a0): the base and
+      # f32 bundles of each guarded target (kotlin/rust/swift) must declare
+      # the same root-module set, every root must resolve on the classpath its
+      # own file declares, @:test modules must be collected, and the pinned
+      # root floor must hold. The guard landed 2026-09-30 but was invoked by
+      # no script and no workflow - an unwired guard is no guard, and the
+      # 2026-10-01 merge of warn/r1 (d1834102) added four base-only roots to
+      # kotlin and four to swift precisely because nothing ran this check.
+      # The check is static (bash + node, no compilation), so it runs before
+      # the generation chain and fails fast.
+      - name: Roots guard (base/f32 root-set parity)
+        run: nix develop -c bash -c 'bun run check:roots'
       - name: Run generation and tests
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run warning:gate && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:stage1:dart && bun run test:consistency && bun run check:docs && bun run check:ledger && bun run check:registry && bun run check:mapping' || { echo '--- PrintedCollection comparator lines ---'; sed -n '70,86p' reference/kotlin/gen/boring/PrintedCollection.kt; echo '--- DartCharNullOps compareShape ---'; grep -n 'compareShape' -A 5 reference/kotlin/gen/boring/DartCharNullOps.kt; (exit 1); }
       # BoringSwiftTests segfaulted on CI while the same tree and toolchain
@@ -129,6 +141,10 @@ jobs:
         run: sudo nix-store --import < nix-closure.nar || true
       - name: Swift toolchain version
         run: swift --version
+      # Same guard as the linux job (see the comment there): static
+      # root-set parity check, fail-fast before the generation chain.
+      - name: Roots guard (base/f32 root-set parity)
+        run: nix develop -c bash -c 'bun run check:roots'
       - name: Run generation and tests
         # Echo the toolchain variables the darwin shellHook pins so the
         # log shows what SwiftPM actually saw if the manifest build fails.
