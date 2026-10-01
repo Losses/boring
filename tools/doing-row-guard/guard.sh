@@ -14,11 +14,20 @@
 #                 of the merge-back base (or of the recorded target tree). The
 #                 work landed in the mainline and the branch was later
 #                 deleted; the row is stale, not a ghost. NOT a sign-off.
-#   UNTRACEABLE   branch does not resolve and there is no resolvable
-#                 integration record. A ghost *candidate* only. It may be a
-#                 real seat whose branch was never created, or a board field
-#                 never filled in. Needs a human; this script does NOT delete
-#                 or close these.
+#   LANDED_       branch does not resolve and there is no resolvable
+#   UNRECORDED     integration record, but a commit sha found in the row's
+#                 own progress reports (commented timeline entries, evidence,
+#                 notes) resolves and is an ancestor of GUARD_BASE — suggesting
+#                 the work reached the mainline without a recorded integration
+#                 fact. Evidence is weaker than INTEGRATED: the sha is lifted
+#                 from free text and may name a base point or related commit,
+#                 not necessarily the row's tip. NOT a sign-off.
+#   UNTRACEABLE   branch does not resolve and none of the above signals
+#                 (integration record, free-text commit shas) yield a
+#                 checkable mechanical trace. A ghost *candidate* only. It may
+#                 be a real seat whose branch was never created, or a board
+#                 field never filled in. Needs a human; this script does NOT
+#                 delete or close these.
 #   NO_BRANCH     branch field is empty. Cannot judge at all; the field is
 #                 missing, not false.
 #
@@ -33,12 +42,22 @@
 #     or re-claimed. That disposition is human, on top of this report.
 #   - INTEGRATED trusts the integration record; the script verifies only that
 #     the recorded commit exists and is an ancestor of the base.
+#   - LANDED_UNRECORDED trusts free-text mention of a commit sha; the sha may
+#     name a base point, a sibling branch, or an unrelated landed commit
+#     rather than the row's own work product. Treat it as "work plausibly
+#     landed", not as a checkable integration fact.
+#   - It cannot prove that a LANDED_UNRECORDED row is deletable: the work
+#     reached the mainline, but the row's acceptance criteria still need
+#     adjudication — there is no sign-off record.
 #   - "Branch unresolvable" != "row should be deleted": the board field may
 #     simply be unfilled or stale.
 #
 # Exit codes (fail-closed, same contract as status-change):
 #   0 = guard ran; no UNTRACEABLE/NO_BRANCH rows
 #   1 = guard ran; at least one UNTRACEABLE or NO_BRANCH row (findings printed)
+#       LANDED_UNRECORDED is surfaced but NOT a finding — it does not prevent
+#       exit 0 on its own, because the work demonstrably reached the mainline
+#       (even though the record is missing).
 #   2 = guard could NOT run (missing board, missing base tree, bad usage)
 #
 # Usage:
@@ -83,7 +102,7 @@ esac
 R4_ROWS="warn/r1 warn/ts3"
 
 python3 - "$BOARD" "$REPO" "$BASE" "$MODE" "${2:-}" "$R4_ROWS" <<'PY'
-import json, subprocess, sys
+import json, re, subprocess, sys
 
 board_path, repo, base, mode, target, r4_arg = sys.argv[1:7]
 r4 = set(r4_arg.split())
@@ -96,6 +115,37 @@ def resolves(ref):
 
 def is_ancestor(a, b):
     return git(["merge-base", "--is-ancestor", a, b]).returncode == 0
+
+def row_free_text(row):
+    """Gather prose fields from a row that may name a work commit.
+
+    Scans agent progress reports (timeline entries of type 'commented'),
+    plus the top-level notes and evidence fields.  These are the fields
+    where a seat reports actual commits it produced; the row's title and
+    description name the *subject* of the work and are excluded because
+    they often reference shas that are not the row's own product."""
+    parts = [row.get("notes", ""), row.get("evidence", "")]
+    for sop in row.get("sop") or []:
+        parts.append(sop.get("evidence", ""))
+    for entry in row.get("timeline") or []:
+        if entry.get("type") == "commented":
+            parts.append(entry.get("text", ""))
+    return "\n".join(parts)
+
+SHA_RE = re.compile(r"\b([0-9a-f]{7,40})\b")
+
+def find_landed_sha(row, base):
+    """Return the first commit sha found in the row's free text that resolves
+    and is an ancestor of *base*, or None."""
+    seen = set()
+    for m in SHA_RE.finditer(row_free_text(row)):
+        sha = m.group(0)
+        if sha in seen:
+            continue
+        seen.add(sha)
+        if resolves(sha) and is_ancestor(sha, base):
+            return sha
+    return None
 
 board = json.load(open(board_path))
 doing = [t for t in board["tasks"] if t.get("status") == "doing"]
@@ -119,6 +169,13 @@ def judge(row):
         if is_ancestor(commit, anchor):
             flags.append("INTEGRATED")
             return flags
+    # Third evidence path: scan the row's own free text for a commit sha
+    # that resolves and is an ancestor of base — work that plausibly
+    # landed without a recorded integration fact.
+    landed = find_landed_sha(row, base)
+    if landed:
+        flags.append("LANDED_UNRECORDED")
+        return flags
     flags.append("UNTRACEABLE")
     return flags
 
@@ -138,12 +195,16 @@ for t in rows:
     if "UNTRACEABLE" in flags or "NO_BRANCH" in flags:
         findings += 1
     integ = t.get("integration") or {}
+    # Re-run find_landed_sha for the results dict (cheap: judge already
+    # computed it, but we need it again for display).
+    landed_sha = find_landed_sha(t, base) if "LANDED_UNRECORDED" in flags else ""
     results.append({
         "id": t["id"],
         "branch": br,
         "flags": flags,
         "verdict": [f for f in flags if f != "R4_NAMED"][0],
         "integration_commit": integ.get("commit", ""),
+        "landed_sha": landed_sha,
         "title": t["title"],
     })
 
@@ -158,6 +219,8 @@ else:
         line = "%s  branch=%-28s %s" % (r["id"], r["branch"] or "(empty)", ",".join(r["flags"]))
         if r["verdict"] == "INTEGRATED":
             line += "  [%s -> mainline (signoff not recorded here)]" % r["integration_commit"]
+        elif r["verdict"] == "LANDED_UNRECORDED" and r["landed_sha"]:
+            line += "  [sha %s in row text -> mainline (free-text evidence, NOT a signoff)]" % r["landed_sha"]
         print(line)
 
 # Findings are UNTRACEABLE / NO_BRANCH rows; exit 1 so a sweep is never
