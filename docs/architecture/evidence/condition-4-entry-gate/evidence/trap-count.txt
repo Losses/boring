@@ -1,0 +1,4 @@
+grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx
+5
+git status --porcelain (worktree clean check before writing evidence):
+HEAD: 5a8f19e6459b31fc8d0697edd8e26fdfbfd2dabc

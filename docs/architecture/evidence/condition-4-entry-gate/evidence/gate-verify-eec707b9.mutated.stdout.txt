@@ -1,0 +1,11 @@
+$ bun tools/gate-proof/verify-commit.ts "eec707b9b09ccabdc7541b74174c6d8cf1e9ef0e" --verify-export "/home/losses/Development/tq-workspace/dc-warn/out/cond4-closure/export-mutated"
+commit:        eec707b9b09ccabdc7541b74174c6d8cf1e9ef0e
+tree:          0a61e32ab7978b37de4d5362c548b50609b6b3fd
+mode:          verify-export
+total files:   1455
+hashed:        1455
+mismatches:    1
+file-list sha256: 551628d37f8fdd4532a91dc0ab8d430c4ee9b1fe006b104df6ae9ea0dc49f0f0
+verdict:       FAIL
+  MISMATCH tests/ts/package-shell.test.ts: blob mismatch: recorded e2dc596529d44a10a3eee3e606136e426f1e962c, export hashes c1a3cdd08c05c6057a97b3fd678956e449dea939
+error: script "gate:verify" exited with code 1
