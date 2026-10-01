@@ -83,20 +83,62 @@ return (() { final _s = s; final _from = clusterStart; … })();
 ```
 
 a **string-slice closure** used to bind locals for a substring computation inside
-a loop body. That is the same shape as the Rust try-region: a closure that exists
-to give a block its own scope, not a callback-driven iteration.
+a loop body.
 
-**So the Dart finding is structural, like the Rust one** — and the same reasoning
-applies: the closure is what gives the block a scope, so the fix is either a
-Dart-side exemption with its reason, or a lowering that does not need the closure.
-**Not decided here**, because doing it properly means establishing whether the
-slice can be expressed without the scope block, which is its own question.
+### Is the Dart closure necessary? Yes — measured, and my first guess was wrong
+
+The obvious next step was to drop the closure where it looks like pure overhead.
+That was **checked rather than assumed**, and the check reversed the hypothesis.
+
+**Hypothesis:** most sites bind `_s = s`, a simple local, so the closure just
+copies a local to a local and could be removed.
+
+**Measurement — what the bound locals actually are, across the tree:**
+
+| Bound expression kind | Count |
+|---|---|
+| contains a **call** | **60** |
+| member read (`.`) | 17 |
+| simple local / literal | 56 |
+
+**And the receiver is used more than once.** At
+`DartExpr.hx:3145` the body is
+
+```dart
+final _start = _pos < 0 ? (_s.length + _pos < 0 ? 0 : _s.length + _pos)
+                        : (_pos > _s.length ? _s.length : _pos);
+```
+
+`_s` appears **three times** and `_pos` twice.
+
+**So the closure is load-bearing for two reasons at once:** it evaluates a
+possibly-calling argument **once**, and it lets the receiver be **repeated**
+without re-evaluating it. Dropping it would have duplicated calls — a semantic
+change, not a simplification. The six emission sites (`DartExpr.hx:3049, 3120,
+3126, 3145, 3152, 3168`) all share the shape.
+
+**This is the same conclusion as the Rust try-region, reached independently:**
+the closure exists to give a block a scope, and removing it requires restructuring
+the expression rather than reformatting it.
+
+**What this entry is now worth, in order of how it was established:**
+
+1. the original claim — *the uncovered trees are clean* — was **wrong** (checked one cause);
+2. the number I then reported — *2118 violations* — was **my widening's artifact**
+   (applied a TS-only clause to three other languages);
+3. the residue — *uncharacterised* — is now **27 Dart sites of one construct**;
+4. and that construct turns out to be **necessary**, measured, reversing my guess.
+
+Each step falsified the one before it. The count that survives is the one where the
+instrument was finally matched to the rule.
 
 **So the honest state is:**
 
 - **Kotlin and Swift are clean** under both the token scan (Kotlin) and the
   structural scan (both);
-- **Dart has 27 structural IIFE sites**, all one construct, characterised above;
+- **Dart has 27 structural IIFE sites**, all one construct, and that construct is
+  **necessary** — measured above, not assumed;
+- so there is **no Dart defect to fix**, and the finding closes;
 - the `for-head` clause is **TS-only by design** and should not be widened.
 
 **The widening is reverted.** Enforcing a token-based rule on languages whose
