@@ -11,6 +11,8 @@
 #              ancestor of the latest ruling commit - i.e. no ruling newer than
 #              the base invalidates the work; rulings are read from
 #              docs/architecture/MANAGEMENT-RULING-*.md and docs/architecture/rulings/
+#              but files that self-identify as test fixtures are excluded
+#              (content-based guard, PIT-487)
 #   3. signoff the board row's merges field carries a non-empty confirm
 #              (produced by wb_merge confirm=)
 #
@@ -107,7 +109,23 @@ else
 fi
 
 # Check 2: ruling timeline - branch base must not predate the latest ruling commit.
-LATEST=$(git -C "$REPO" log -1 --format=%H -- 'docs/architecture/MANAGEMENT-RULING-*.md' docs/architecture/rulings/)
+#
+# "Is a ruling" is judged by the file content. A file that lives under
+# docs/architecture/rulings/ but self-identifies as a test fixture is NOT a
+# ruling and must not top the timeline (PIT-487). MANAGEMENT-RULING-*.md are
+# always rulings; for docs/architecture/rulings/*.md we include a file only when
+# its header does not self-identify as a test fixture.
+RULING_PATHSPEC="docs/architecture/MANAGEMENT-RULING-*.md"
+for _f in "$REPO"/docs/architecture/rulings/*.md; do
+  [ -f "$_f" ] || continue
+  # The self-identification lives in the title/header quote block (first ~25
+  # lines). A real ruling never claims to be a fixture there.
+  if head -25 "$_f" | grep -qiE '本文件.*测试夹具|this file.*test fixture'; then
+    continue
+  fi
+  RULING_PATHSPEC="$RULING_PATHSPEC docs/architecture/rulings/$(basename "$_f")"
+done
+LATEST=$(git -C "$REPO" log -1 --format=%H -- $RULING_PATHSPEC)
 if [ -z "$LATEST" ]; then
   note "FAIL ruling: no ruling commits found under docs/architecture/"
 else

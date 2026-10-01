@@ -101,6 +101,15 @@ else
     docs/architecture/MANAGEMENT-RULING-*.md|docs/architecture/rulings/*.md) ;;
     *) note "FAIL Q1: '$RULING' is not a ruling path (expected docs/architecture/MANAGEMENT-RULING-*.md or docs/architecture/rulings/*.md)" ;;
   esac
+  # Content guard (PIT-487): "is a ruling" is judged by the file content. A
+  # file that self-identifies as a test fixture is not a ruling even at a
+  # ruling-shaped path. The self-identification lives in the header (first ~25
+  # lines of the committed content).
+  if git -C "$REPO" ls-files --error-unmatch "$RULING" >/dev/null 2>&1 \
+     && git -C "$REPO" show "$TREE_BASE:$RULING" 2>/dev/null | head -25 \
+        | grep -qiE '本文件.*测试夹具|this file.*test fixture'; then
+    note "FAIL Q1: '$RULING' self-identifies as a test fixture, not a ruling or authorization"
+  fi
   if git -C "$REPO" ls-files --error-unmatch "$RULING" >/dev/null 2>&1; then
     note "PASS Q1: ruling $RULING is tracked at $TREE_BASE"
     # Relevance: the ruling must name the change subject. Read the committed
