@@ -15,7 +15,11 @@ package lenfix;
  */
 class CharCount {
 	public static function charCount(text:String, ?count:Int):Int {
-		return count == null ? text.length : count;
+		// The sanctioned coalescing shape: a normalization binding whose
+		// init ternary registers the default with DefaultArgExpander, so
+		// the omitted arm lowers through the untyped coalescing tree.
+		var normalized = count == null ? text.length : count;
+		return normalized;
 	}
 
 	static function main() {}
