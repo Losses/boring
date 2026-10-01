@@ -4071,7 +4071,7 @@ class RustExpr {
                         optionNarrowingHitCount++;
                         return rustU32Length(narrowed + ".len()");
                     }
-                    return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
+                    return nullableLengthRead(expr(subj));
                 }
                 // A String subject counts UTF-16 code units (spec 15), not
                 // UTF-8 bytes: indexing a String walks units, so a byte
@@ -4545,7 +4545,7 @@ class RustExpr {
                         optionNarrowingHitCount++;
                         return narrowed + ".len()";
                     }
-                    return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
+                    return nullableLengthRead(expr(subj));
                 }
                 return expr(subj) + ".len()";
             case _:
@@ -7966,7 +7966,16 @@ class RustExpr {
     function rendersUsizeComparisonOperand(e:TypedExpr, text:String):Bool {
         if (StringTools.startsWith(text, "usize::") || StringTools.endsWith(text, ".len()"))
             return true;
-        return text.indexOf(".as_ref().map_or(0, |v| v.len())") >= 0;
+        return text.indexOf(nullableLengthReadShape()) >= 0;
+    }
+
+    /**
+        nullableLengthReadShape: the emitted text shape of
+        nullableLengthRead, shared by this detector and the emission
+        helper so the two cannot drift apart. (UsizeU32InMapOr)
+    **/
+    function nullableLengthReadShape():String {
+        return ".as_ref().map_or(0usize, |v| v.len())";
     }
 
     /**
@@ -8628,7 +8637,7 @@ class RustExpr {
                             optionNarrowingHitCount++;
                             return RustConversions.truncate(narrowed + ".len()", "u32");
                         }
-                        return "(" + expr(subj) + ").as_ref().map_or(0, |v| v.len())";
+                        return RustConversions.truncate(nullableLengthRead(expr(subj)), "u32");
                     }
                     if (isStringBuf(subj)) {
                         return RustConversions.truncate(expr(subj) + ".len()", "u32");
@@ -8964,6 +8973,18 @@ class RustExpr {
             case _:
                 "match usize::try_from(" + expr(e) + ") { Ok(value) => value, Err(_) => 0usize }";
         };
+    }
+
+    /**
+        nullableLengthRead: a length read on a nullable collection subject.
+        The map_or default and the closure both render as usize, so the
+        expression has one width no matter what the enclosing context
+        would infer; a caller that needs a u32 narrows the whole read with
+        its own site convention (truncate/rustU32Length).
+        (UsizeU32InMapOr)
+    **/
+    function nullableLengthRead(subject:String):String {
+        return "(" + subject + ")" + nullableLengthReadShape();
     }
 
     function rustU32Length(length:String):String {
