@@ -57,25 +57,54 @@ as well as closures. Re-running with `checkForHeads: false` left:
 | `reference/dart/gen` | 4 `loop-lambda` + 8 `call-site` |
 | `reference/swift/gen` | likewise non-empty |
 
-and the Dart `loop-lambda`s were **not** closures in loops either — they are
-immediately-invoked `(() { … })()` regions whose body contains a nested
-`bool sp(String c) => …` declaration, matched by the `=>` token.
+and the Dart `loop-lambda`s were **mostly** false positives — switch-expression
+`=>` pattern arms, and nested `bool sp(String c) => …` declarations inside an
+immediately-invoked region, matched by the `=>` token.
 
-**So the honest state is much narrower than last round's entry claimed:**
+### The Dart residue, characterised (a language-aware check, not a token scan)
 
-- **Kotlin is clean** under the rule's non-TS clauses;
-- **Dart and Swift have a small, unverified residue** (single digits, not
-  thousands) that is *not yet characterised* — the hits shown are token false
-  positives, but I have not established whether any true positive hides among
-  them, which needs a Dart/Swift-aware check rather than a token scan;
+"Mostly false positives" is not good enough to leave as a residue, so the Dart,
+Swift and Kotlin trees were rescanned with a **structural** check: find every
+`for`/`while` body and look for a genuine immediately-invoked closure
+(`( () {` … `})()`), which `=>` does not match.
+
+| Tree | IIFE-in-loop sites |
+|---|---|
+| `reference/dart/gen` | **27** |
+| `reference/swift/gen` | **0** |
+| `reference/kotlin/gen` | **0** |
+
+So **Swift and Kotlin are clean** and **Dart has 27 real sites** — not "single
+digits, uncharacterised". They are one construct, sampled at
+`dart/gen/runtime.dart:1103` and `:1113`:
+
+```dart
+return (() { final _s = s; final _from = clusterStart; … })();
+```
+
+a **string-slice closure** used to bind locals for a substring computation inside
+a loop body. That is the same shape as the Rust try-region: a closure that exists
+to give a block its own scope, not a callback-driven iteration.
+
+**So the Dart finding is structural, like the Rust one** — and the same reasoning
+applies: the closure is what gives the block a scope, so the fix is either a
+Dart-side exemption with its reason, or a lowering that does not need the closure.
+**Not decided here**, because doing it properly means establishing whether the
+slice can be expressed without the scope block, which is its own question.
+
+**So the honest state is:**
+
+- **Kotlin and Swift are clean** under both the token scan (Kotlin) and the
+  structural scan (both);
+- **Dart has 27 structural IIFE sites**, all one construct, characterised above;
 - the `for-head` clause is **TS-only by design** and should not be widened.
 
 **The widening is reverted.** Enforcing a token-based rule on languages whose
 syntax the tokens were not chosen for produces noise, and a guard red on 2118
-mostly-spurious findings trains people to ignore it. A Dart/Swift-aware
-equivalent — one that distinguishes `=>` declarations from closures, and head
-forms idiomatic to each language — is the real prerequisite, and it does not
-exist yet.
+mostly-spurious findings trains people to ignore it. A Dart-aware equivalent that
+distinguishes `=>` pattern arms from closures is the prerequisite, and the
+structural scan above is a first draft of it — recorded as a draft, since it has
+not been reviewed.
 
 **What this entry is now worth:** the first version of it reported 2118 violations
 as a finding. They were mostly my widening's artifact. Recording the correction,
