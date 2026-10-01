@@ -39,7 +39,7 @@ recorded under the entry gate below (each line carries a hash or is marked
 | 1 | repeated generation from clean inputs yields identical bytes and checksums | **in-flight** (`2aadcb69`; the commit exists and was independently verified, but the entry does not satisfy the entry gate - see below). 5 clean-input generations, one unique hash, independently re-measured |
 | 2 | the `MathNaNTestSupport.{js,d.ts}` entries are stable; the byte-identity test passes repeatedly | **in-flight** (`2aadcb69`, same gate caveat). Entries stable at 405/absent across 10 real-fixture generations; the test passes on repeated runs. **Citation note: at `2aadcb69` the comparison is at `:338`** (`:351` in the parent; `:333` names the declaration there) - documentation drift, content unchanged |
 | 3 | `collected-suite` no longer fails on the flake, and **its log distinguishes real product/spec failures from environment/timeout failures** | **EXERCISED (SYNTHETIC FLAKE-SHAPED INPUT; NO REAL FLAKE OBSERVED)** - the classification framework was exercised in both directions on a synthetic flake-shaped input (V1 flake=1 and no other class up; V2 same test id failing on its own exit-code assertion -> flake 0; V3 Buffer diff in an unrelated file -> flake 0; V4 residual 1 raised `::warning::` verbatim), with the plan pre-recorded, the step extracted verbatim from the committed blob, and the stale-log trap closed structurally. **No real flake was observed, and none is claimed** - the flake-catching behaviour remains exercised synthetically rather than in the wild. Evidence: `dc-warn/out/flake-synthetic/` (`00-PLAN.md` + `evidence/`, SYNTHETIC-labelled); commit `f1eb7498`. The real-rendering method and the inability to re-invoke bun 1.3.13 locally are stated in that report and are not softened here. The flake half is `cause removed` (`2aadcb69`) |
-| 4 | an independent spec ruling on `package-shell.test.ts:249` | **technical claims independently CONFIRMED, and the entry now SATISFIES the entry gate (all four requirements met)** - `eec707b9`. R2/R3 by the committed package `docs/architecture/evidence/entry-gate-r2r3/` (commit `1704c3db`), independently re-derived; R4 by the executor's adjudication and the independent five-claim check; the mechanical verdict and the four-requirement table are committed at `docs/architecture/evidence/condition-4-entry-gate/` |
+| 4 | an independent spec ruling on `package-shell.test.ts:249` | **technical claims independently CONFIRMED (`eec707b9`); R2/R3 evidence package is in-repo (commit `1704c3db`); the entry does NOT yet satisfy the entry gate - the sole remaining gap is that requirement 4's two reports still have no in-repo location** - R2/R3 by the committed package `docs/architecture/evidence/entry-gate-r2r3/` (commit `1704c3db`), independently re-derived; R4 by the executor's adjudication and the independent five-claim check, both still in `dc-warn/out/` scratch; the mechanical verdict and the four-requirement table are committed at `docs/architecture/evidence/condition-4-entry-gate/` |
 
 **Condition 4, resolved** (`eec707b9`): the test was a **stale expectation, not a
 product defect**. Spec 24 (Ruling 5) stops only a compilation combining a
@@ -72,17 +72,21 @@ proof and independently exported content are not** - the tree carries other seat
 in-flight edits, so the former cannot be produced right now. The technical claims are
 true; the record is not yet in the form the gate requires.
 
-**Condition 4's entry gate is now SATISFIED.** The paragraph immediately above is
-retained as the state *before* the R2/R3 evidence package landed, not as the current
-state. `docs/architecture/evidence/entry-gate-r2r3/` (commit `1704c3db`, the separate
-evidence commit the round-128 ruling authorized, which found the R2/R3 threshold
-closed) supplies requirement 2 (`eec707b9.R2-worktree.txt` - the raw output of a
-detached worktree at that commit, `git rev-parse HEAD`, `^{tree}` and
-`git status --porcelain`, **0 porcelain lines**) and requirement 3
-(`eec707b9.export.tar.sha256` plus `eec707b9.R3-manifest.txt`, 1455 entries).
-Requirement 1 is the hash itself; requirement 4 is the executor's adjudication
-(`dc-warn/out/package-shell-adjudication/REPORT.md`) together with the independent
-five-claim check (`dc-warn/out/verify-eec707b9/REPORT.md`).
+**Condition 4's entry gate is NOT yet satisfied (corrected 2026-10-01).** The
+technical claims are independently CONFIRMED (`eec707b9`) and the R2/R3 evidence
+package is in-repo (commit `1704c3db`); the sole remaining gap is that requirement 4's
+two reports still have no in-repo location, so the entry does not satisfy the entry
+gate. [已被本行修正] The historical description below is retained as the state *before*
+this correction, not as the current state. `docs/architecture/evidence/entry-gate-r2r3/`
+(commit `1704c3db`, the separate evidence commit the round-128 ruling authorized, which
+found the R2/R3 threshold closed) supplies requirement 2
+(`eec707b9.R2-worktree.txt` - the raw output of a detached worktree at that commit,
+`git rev-parse HEAD`, `^{tree}` and `git status --porcelain`, **0 porcelain lines**)
+and requirement 3 (`eec707b9.export.tar.sha256` plus `eec707b9.R3-manifest.txt`, 1455
+entries). Requirement 1 is the hash itself; requirement 4 is the executor's
+adjudication (`dc-warn/out/package-shell-adjudication/REPORT.md`) together with the
+independent five-claim check (`dc-warn/out/verify-eec707b9/REPORT.md`) - and these two
+reports are the one requirement whose evidence still has no in-repo location.
 
 The condition-4 closure seat re-derived all four from the committed artefacts rather
 than from the tool's word: the archive checksum recomputes to `ad7004d7…` and equals
