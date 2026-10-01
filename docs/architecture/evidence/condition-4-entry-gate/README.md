@@ -6,7 +6,7 @@ runtime import the package shell rejection test asserts against"), tree
 
 **Seat:** condition-4 closure seat. Not the implementer of `eec707b9`, not the
 author of the R2/R3 package committed as `1704c3db`, not the independent reviewer
-whose report is in `dc-warn/out/verify-eec707b9/`.
+whose report is in `evidence/verify-eec707b9-REPORT.md`.
 
 **Worktree:** `boring-wt-cond4`, branch `evidence/contract3-condition4-closure`,
 based on `arch/agent-guided-governance` at `5a8f19e6`. The shared tree
@@ -23,8 +23,8 @@ touched or reopened.
 | Artefact | Where | Producer |
 |---|---|---|
 | R2/R3 package for `2aadcb69`, `4f80322c`, `eec707b9` | `docs/architecture/evidence/entry-gate-r2r3/` (commit `1704c3db`) | the round-128-authorized evidence commit |
-| Independent five-claim check of `eec707b9` | `dc-warn/out/verify-eec707b9/REPORT.md` (scratch) | independent verification seat |
-| Executor's own claim-versus-commit adjudication | `dc-warn/out/package-shell-adjudication/REPORT.md` (scratch) | the implementing seat |
+| Independent five-claim check of `eec707b9` | `evidence/verify-eec707b9-REPORT.md` (originally scratch `dc-warn/out/verify-eec707b9/REPORT.md`, committed in-repo by the RULING-137 minimal action) | independent verification seat |
+| Executor's own claim-versus-commit adjudication | `evidence/package-shell-adjudication-REPORT.md` (originally scratch `dc-warn/out/package-shell-adjudication/REPORT.md`, committed in-repo by the RULING-137 minimal action) | the implementing seat |
 | The tool | `tools/gate-proof/verify-commit.ts`, `bun run gate:verify --` (commit `6322af89`) | tooling seat |
 | A sibling seat's condition-4 claim | `docs/architecture/p08-candidate-material/P08-SUCCESSOR-CANDIDATE-MATERIAL.md` §5, branch `prep/p08-candidate-material`, commit `32f76bd9` (**not** an ancestor of this branch) | the P08-preparation seat |
 
@@ -43,7 +43,7 @@ gate (required by the round-5 ruling)".
 | 1 | "A traceable commit hash." | **MET** | Ledger condition-4 row names `eec707b9`; `MAPPING.md` carries the full id `eec707b9b09ccabdc7541b74174c6d8cf1e9ef0e` | `[EXEC]` `git rev-parse --verify eec707b9^{commit}` resolves to that full id; `^{tree}` = `0a61e32a…`, the tree the package's R2 file and my own detached worktree both report |
 | 2 | "A clean working-tree proof for that hash." | **MET** | `entry-gate-r2r3/eec707b9.R2-worktree.txt` (committed): raw output of a detached worktree at that commit - `git rev-parse HEAD`, `git rev-parse HEAD^{tree}`, `git status --porcelain` | `[EXEC]` reproduced from scratch at a fresh temporary detached worktree: HEAD and tree identical, **0 porcelain lines** (`evidence/R2-independent-eec707b9.txt`). Method is the one round-112 clause 1 itself prescribes |
 | 3 | "The candidate content/checksums, exported independently from that commit or from an explicit freeze archive - not read out of a live worktree." | **MET** | `entry-gate-r2r3/eec707b9.export.tar.sha256` (committed checksum) + `entry-gate-r2r3/eec707b9.R3-manifest.txt` (committed per-file manifest, 1455 entries) + the mechanical verdict committed here | `[EXEC]` recomputed `git archive --format=tar eec707b9 \| sha256sum` = `ad7004d7…`, equal to the committed checksum; manifest is byte-identical to `git ls-tree -r eec707b9` normalised to `oid  path` (1455/1455) and is commit-specific (4 and 6 lines differ from the other two commits' manifests); **every one of the 1455 exported files re-hashed with `git hash-object` equals both the manifest and the recorded tree blob - 0 disagreements**; `bun run gate:verify` returns **PASS, 0 mismatches** in `archive-verify` mode *and* in `--verify-export` mode over an independently extracted export |
-| 4 | "A claim-versus-commit consistency check, by both the executor and a reviewer." | **MET** | Executor: `dc-warn/out/package-shell-adjudication/REPORT.md` (the implementing seat's own spec/git/exec derivation). Reviewer: `dc-warn/out/verify-eec707b9/REPORT.md` - five claims re-derived from the spec, git history and the reviewer's own runs, **5/5 CONFIRMED**, and it states requirement 4 as met by that report | `[EXEC]` re-checked the load-bearing commit-scope claim: `git show --stat eec707b9` touches exactly 2 files, +20/-3 (`docs/architecture/BASELINE-FAILURES.md`, `tests/ts/package-shell.test.ts`); the *exported* `tests/ts/package-shell.test.ts` (oid `e2dc5965…`) carries the pin `runtimeImport: "@boring/runtime"` at :253 and the rewritten matcher `/^-D runtime-import=[^\s]+$/m` at :45 - i.e. the export really is the fixed revision, not a same-named file |
+| 4 | "A claim-versus-commit consistency check, by both the executor and a reviewer." | **MET** | Executor: `evidence/package-shell-adjudication-REPORT.md` (the implementing seat's own spec/git/exec derivation). Reviewer: `evidence/verify-eec707b9-REPORT.md` - five claims re-derived from the spec, git history and the reviewer's own runs, **5/5 CONFIRMED**, and it states requirement 4 as met by that report | `[EXEC]` re-checked the load-bearing commit-scope claim: `git show --stat eec707b9` touches exactly 2 files, +20/-3 (`docs/architecture/BASELINE-FAILURES.md`, `tests/ts/package-shell.test.ts`); the *exported* `tests/ts/package-shell.test.ts` (oid `e2dc5965…`) carries the pin `runtimeImport: "@boring/runtime"` at :253 and the rewritten matcher `/^-D runtime-import=[^\s]+$/m` at :45 - i.e. the export really is the fixed revision, not a same-named file |
 
 **All four requirements are met.** No requirement is unmet, waived or reinterpreted
 by this record. Clause 3 of round-112 ("fix the one-to-one correspondence with the
@@ -99,9 +99,11 @@ contains no self-referential line.
   configurations.** Those are the executor's and the reviewer's measurements;
   requirements 2-3 ask for export/clean-tree evidence, which was this seat's
   verification target.
-- **Requirement 4's evidence has no in-repo location.** Both the executor's
-  adjudication and the reviewer's check live under `dc-warn/out/` (scratch). That is
-  a record-location weakness of the entry, not a missing check.
+- ~~**Requirement 4's evidence has no in-repo location.**~~ Resolved on 2026-10-01
+  by the MANAGEMENT-RULING-137 minimal action: both the executor's adjudication
+  (`evidence/package-shell-adjudication-REPORT.md`) and the reviewer's check
+  (`evidence/verify-eec707b9-REPORT.md`) are now committed in this directory,
+  byte-identical to the scratch originals (see `SHA256SUMS.txt`).
 - The `MAPPING.md` "Reviewed by" ids `02507c97` / `e32fd55e` **do not resolve to
   commits in this repository** - they name review seats/reports, not objects. The
   correspondence they assert is to review documents, and those documents are the two
