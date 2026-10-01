@@ -1,5 +1,9 @@
 # P08 RE-FREEZE RECORD
 
+> **SUCCESSOR FREEZE → `docs/architecture/REFREEZE-SUCCESSOR.md`**（R3.2，2026-10-01）：
+> 后继候选的冻结记录，冻结修订 `649aa881`。本文件冻结的 `c8ae0054` 仍是且仅为被封存
+> 的前候选身份记录，不受后继冻结影响。
+
 > **SUPERSEDED — 本记录的候选已被封存否决（指引，2026-10-01；正文以下逐字未改）**
 >
 > 本记录冻结的候选 `c8ae0054` 已被 round-245 管理层裁定 **P08 NOT PASSED / REJECTED,
