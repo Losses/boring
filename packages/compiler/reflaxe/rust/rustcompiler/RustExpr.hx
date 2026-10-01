@@ -7096,7 +7096,7 @@ class RustExpr {
             case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l) && narrowedSubject(r) != null):
                 return expr(r) + " " + symbolOf(op) + " " + expr(l);
             case OpEq | OpNotEq if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r)):
-                final test = expr(l) + ".as_ref().map_or(false, |v| v == &(" + optionSomeInner(r) + "))";
+                final test = "matches!(" + expr(l) + ".as_ref(), Some(__v) if __v == &(" + optionSomeInner(r) + "))";
                 return op == OpEq ? test : "!(" + test + ")";
             case OpEq | OpNotEq if (isNullType(r.t) && !isNullType(l.t) && !isTNull(l)
                 && !(switch (stripWrap(r).expr) {
@@ -7106,7 +7106,7 @@ class RustExpr {
                     case TLocal(v): hasGuardedTernaryLocals.exists(v.id);
                     case _: false;
                 })):
-                final test = expr(r) + ".as_ref().map_or(false, |v| v == &(" + optionSomeInner(l) + "))";
+                final test = "matches!(" + expr(r) + ".as_ref(), Some(__v) if __v == &(" + optionSomeInner(l) + "))";
                 return op == OpEq ? test : "!(" + test + ")";
             // A non-nullable operand compared against null is a tautology:
             // the value can never be None, so the comparison emits a literal
@@ -11038,15 +11038,20 @@ class RustExpr {
                     else if (isIntType(arrayElementType(subj.t)) && isNullType(args[0].t)
                         && !isTNull(args[0]) && narrowedSubject(args[0]) == null)
                         needle = RustConversions.reinterpret(needle + ".unwrap_or(-1)", "u32");
-                    // The iterator yields &T; compare by reference so the
-                    // element is not moved out of the Vec (E0507/E0277 on a
-                    // non-Copy element like String). A nullable receiver
-                    // unwraps to its inner Vec first.
-                    return "match "
-                        + nullableMethodReceiver(subj, false)
-                        + ".iter().position(|e| e == &"
-                        + needle
-                        + ") { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }";
+                    // Compare by reference so the element is not moved out of
+                    // the Vec (E0507/E0277 on a non-Copy element like String).
+                    // A nullable receiver unwraps to its inner Vec first.
+                    //
+                    // The search is an INDEXED SCAN, not `.iter().position(..)`:
+                    // a closure here is fine at top level but illegal inside a
+                    // loop body, which the loop-structure invariant bans. The
+                    // scan form is legal in both positions, so one lowering
+                    // serves every call site rather than a special case for
+                    // loops. (LoopLambdaFromIndexOf)
+                    var recv = nullableMethodReceiver(subj, false);
+                    return "{ let __hay = &(" + recv + "); let __n = __hay.len(); "
+                        + "let mut __i = 0usize; let mut __found: i32 = -1; "
+                        + "while __i < __n { if __hay[__i] == " + needle + " { __found = i32::from_ne_bytes(u32::try_from(__i).unwrap_or(0).to_ne_bytes()); break; } __i += 1; } __found }";
                 }
                 if (name == "addByte") {
                     return receiverText(subj, cf) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
