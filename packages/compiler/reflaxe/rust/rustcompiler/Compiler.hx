@@ -26,6 +26,16 @@ class Compiler extends PluginCompiler<Compiler> {
     /** Module path to declaration parts, in arrival order. */
     final parts:Map<String, Array<String>> = [];
 
+    /**
+        Snake-case names of the resident runtime files emitResidentModule
+        actually wrote in this run, in emission order. The runtime/mod.rs
+        module list is derived from this record, never recomputed from
+        shim usage: a `pub mod` line for a resident whose file emission
+        skipped (module not typed, no compiled parts) would hand rustc an
+        E0583 dangling module declaration.
+    **/
+    final emittedResidentMods:Array<String> = [];
+
     /** Module path to emission context. */
     /** Module path to emission context. */
     final contexts:Map<String, RustDecl> = [];
@@ -312,7 +322,10 @@ class Compiler extends PluginCompiler<Compiler> {
                 continue;
             }
             if (RuntimeResidents.isResident(module)) {
-                emitResidentModule(module, contexts.get(module));
+                // The mod.rs line follows the file: a resident counts as a
+                // runtime module only when its file was actually written.
+                if (emitResidentModule(module, contexts.get(module)))
+                    emittedResidentMods.push(RustImports.toSnakeCase(moduleLeafName(module)));
                 continue;
             }
             final decl = contexts.get(module);
@@ -421,24 +434,18 @@ class Compiler extends PluginCompiler<Compiler> {
                 runtimeMods.push("functional");
             if (state.shimsUsed.exists("std.IntText"))
                 runtimeMods.push("int_text");
+            // The test shim file (RustTestBinding.shimPath, written above by
+            // emitShim) is declared on shim usage like the other shims. The
+            // compiled resident files (test_core, u_string, string_tools,
+            // graphemes, grapheme_walk, sorted_table) are declared from
+            // emittedResidentMods below: emitResidentModule recorded each
+            // one only when its file was actually written, so a module line
+            // can never name a file rustc will not find.
             final testUsed = RuntimeResidents.externsOf("runtime.TestCore").filter(m -> state.shimsUsed.exists(m));
-            if (testUsed.length > 0) {
+            if (testUsed.length > 0)
                 runtimeMods.push("test");
-                runtimeMods.push("test_core");
-            }
-            if (state.shimsUsed.exists("std.UStringRT"))
-                runtimeMods.push("u_string");
-            if (state.shimsUsed.exists("StringTools"))
-                runtimeMods.push("string_tools");
-            if (state.shimsUsed.exists("std.Graphemes")) {
-                runtimeMods.push("graphemes");
-                runtimeMods.push("grapheme_walk");
-            }
-            // The sorted externs all front runtime.SortedTable, which
-            // emitResidentModule writes as sorted_table.rs.
-            final sortedUsed = RuntimeResidents.externsOf("runtime.SortedTable").filter(m -> state.shimsUsed.exists(m));
-            if (sortedUsed.length > 0)
-                runtimeMods.push("sorted_table");
+            for (m in emittedResidentMods)
+                runtimeMods.push(m);
             runtimeMods.sort(Reflect.compare);
             final rtLines = [];
             for (m in runtimeMods)
@@ -847,9 +854,12 @@ class Compiler extends PluginCompiler<Compiler> {
         module; its output is written beside the runtime shims in the
         runtime tree. The resident module is separate from the business tree. The extern that fronts the resident set gates the
         emission the way shim usage gates the shims, so an unreferenced
-        runtime stays out of the output.
+        runtime stays out of the output. Returns true only when the .rs
+        file was written; the caller records exactly those modules for
+        the runtime/mod.rs list, so declaration and emission cannot
+        disagree.
     **/
-    function emitResidentModule(module:String, decl:Null<RustDecl>):Void {
+    function emitResidentModule(module:String, decl:Null<RustDecl>):Bool {
         var externUsed = false;
         for (externModule in RuntimeResidents.externsOf(module)) {
             if (state.shimsUsed.exists(externModule)) {
@@ -858,15 +868,15 @@ class Compiler extends PluginCompiler<Compiler> {
             }
         }
         if (!externUsed) {
-            return;
+            return false;
         }
         final dir = RuntimeConfig.emitDir();
         if (decl == null || dir == null) {
-            return;
+            return false;
         }
         final moduleParts = parts.get(module);
         if (moduleParts == null || moduleParts.length == 0) {
-            return;
+            return false;
         }
         final body = moduleParts.join("\n\n");
         final imports = decl.renderImportsFiltered(body);
@@ -890,6 +900,7 @@ class Compiler extends PluginCompiler<Compiler> {
         final bodyUsed = module == "runtime.UString" ? "" : body;
         final content = imports + (imports.length > 0 ? "\n" : "") + bodyUsed + abiSource + "\n";
         saveTreeFile(RuntimeConfig.emitPath(dir, fileName), content);
+        return true;
     }
 
     // ------------------------------------------------------------------
