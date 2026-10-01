@@ -335,9 +335,10 @@ $ git -C .tiqian-probe cat-file -e 8504d230…:engine-haxe/tests/compile.hxml &&
 PRESENT
 ```
 
-So **the frozen Tiqian input `8504d230` is obtainable, and the consumer is present
-at that revision** (`engine-haxe` and its `tests/compile.hxml` both verified in
-the tree). The status table becomes:
+So **the frozen Tiqian input `8504d230` (a commit in the Tiqian repository, not
+this one) is obtainable, and the consumer is present at that revision**
+(`engine-haxe` and its `tests/compile.hxml` both verified in the tree). The status
+table becomes:
 
 | Question | Answer |
 |---|---|
