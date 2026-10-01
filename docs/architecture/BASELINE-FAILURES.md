@@ -347,6 +347,27 @@ toolchain-absent, 0 attributable to the product.** Stated as a floor rather than
 a clean number because the environment cannot exercise the Swift lane, so "0
 product failures" is only established for the lanes that ran.
 
+### Why the Swift lane cannot be exercised here — two independent causes
+
+The Swift toolchain **is present** in the store, so "not installed" would have been
+the wrong conclusion. It is unusable for two separate reasons, both checked:
+
+| Path | Result |
+|---|---|
+| `swift-toolchain-6.2.4-al2/usr/bin/swiftc` | **13 shared libraries not found** (`ldd` — incl. `libncurses.so.6`) |
+| `swift-6.2.4-wrapped/bin/swift` | `bwrap: setting up uid map: Permission denied` |
+
+So the first needs libraries the store path does not carry, and the second is a
+**sandbox limitation** — the wrapper requires user namespaces this environment
+denies. Either alone would block the lane; both are present.
+
+**Consequence for the record:** the 5 residual failures are classified
+*toolchain-absent* on the strength of `ENOENT`/`swiftc` in their output, and that
+classification is now corroborated by the two checks above rather than inferred
+from the marker alone. What remains genuinely unestablished is whether those five
+tests would **pass** given a working Swift — an unexercised lane is not a green
+lane, and this record says so rather than counting them as product-clean.
+
 The toolchain run also gained **75 passes** (1000 → 1075) while resolving **56
 failures** (61 → 5) — so the two counts differ, which means the runs are not
 purely a reclassification of the same tests. Part of the difference is that some
