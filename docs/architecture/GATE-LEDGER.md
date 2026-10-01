@@ -248,7 +248,7 @@ reviews again, with the independence requirements still met.
 
 | # | Criterion | Verdict | Evidence | Blocked by |
 |---|---|---|---|---|
-| 1 | A recorded revision pair | **FAIL — but the blocker was mis-stated, and the mis-statement is what kept it open** | Tiqian side settled (`8504d230`, a commit in the **Tiqian repository**, not this one). Boring side: see the correction below — it is **not** a three-way choice awaiting a gate owner | nothing needs deciding; what is needed is to *record one revision and stop the ground moving* |
+| 1 | A recorded revision pair | **FAIL — and its first rewrite of this cell was retracted**; the source report calls the Boring side "the single open decision". A prep pin now exists (`docs/architecture/evidence/p09-revision-pin/REVISION-PAIR.md`) | Tiqian side settled (`8504d230`, a commit in the **Tiqian repository**, not this one). Boring side: see the correction below, and `evidence/layered-verification-review/P09-CRITERION1-RECHECK.md` for what the retraction rests on | the **gate owner's decision** — the report states a preference (against `2159c657`) but hands three options to a decider; the drift is real and measured |
 | 2 | Boring checks executed | **NOT ESTABLISHED** | no run exists | — |
 | 3 | Tiqian checks executed | **NOT ESTABLISHED** | `work-plan:108` "the Tiqian candidate gate has not run" [DOC]; feasibility check confirmed the matrix is not startable | B4 authorization + pair |
 | 4 | Logs, generated-output identity, warning results preserved | **NOT ESTABLISHED** | preparation artefacts exist but no run produced them | — |
