@@ -275,10 +275,26 @@ All three are **ancestors of the base branch**, and `boring-wt-architecture`'s b
 **124 commits past `0a5c42a7`**. The `/` separators in the old cell read as "or"; the source
 report wrote them as a **sequence that kept advancing** — "the ground has shifted again".
 
+**And there are two grounds, not one.** The same cell's own delivery rule (below, "reachable
+from a commit that is on a remote ref") means the pin has to name a **remote** ref, so the
+distance that matters is not the local one:
+
+| Ref | Commit | Commits past `0a5c42a7` |
+|---|---|---|
+| `arch/agent-guided-governance` (local) | `0641991b` | **124** |
+| `origin/arch/agent-guided-governance` | `372c42a6` | **167** |
+
+The local base is an **ancestor of the remote one** (remote is 43 commits further), so the
+two do not disagree — the remote is simply ahead, and a pin quoted against the local ref
+would understate the drift by 43 commits and would not be obtainable by a clone. This is the
+same defect the delivery-surface audit recorded, now attached to the very criterion that
+needs a pin.
+
 **2. So the real blocker is that the ground moves, not that nobody has chosen.**
 `out/p09-tiqian-feasibility/REPORT.md` §5 says it exactly: *"Boring side: STILL UNDECIDED,
 and the ground has shifted again."* Each time the pair was about to be recorded, the base had
-advanced again — 9 commits then, 124 now. A criterion phrased as "pick one of three" can
+advanced again — 9 commits then, 124 on the local ref and 167 on the remote one now. A
+criterion phrased as "pick one of three" can
 never close on a branch that keeps moving, and that phrasing is what kept it open.
 
 **3. The report already states the discriminating criterion** — it is not a judgement call:
