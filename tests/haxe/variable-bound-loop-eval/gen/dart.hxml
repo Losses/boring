@@ -1,0 +1,17 @@
+# Generation of the variable-bound-loop-eval fixture for the dart target.
+# The caller supplies -D dart-output=... (and -D dart-test-output=...); this
+# file is otherwise the complete generation input. Run from the worktree root:
+#   haxe tests/haxe/variable-bound-loop-eval/gen/dart.hxml -D dart-output=<dir>
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp tests/haxe/variable-bound-loop-eval/shadow
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/variable-bound-loop-eval
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/variable-bound-loop-eval'])
+--macro dartcompiler.Compiler.use()
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+vble.Probe
