@@ -1,0 +1,23 @@
+unused-parameter-actual-ignored	admitted required=[] unsupplied=[] visited=1
+unused-parameter-actual-equality	admitted required=[] unsupplied=[] visited=1
+swap-requires-both-slots	admitted required=[0,1] unsupplied=[0,1] visited=1
+swap-second-actual-rejected	rejected demanded-argument type=Reference at=Swap.next chain=[]
+swap-first-actual-rejected	rejected demanded-argument type=Reference at=Swap.value chain=[]
+chain-demanded-array-rejected	rejected stored-field type=Array<T> at=Chain.next chain=[]
+nested-demand-concrete	admitted required=[0] unsupplied=[] visited=1
+nested-demand-unsupplied	admitted required=[0] unsupplied=[0] visited=1
+same-name-method-binder-owner	owner=0 method=none
+expand-recursive-readonly-admitted	admitted required=[] unsupplied=[] visited=1
+mutual-recursion-rejected	rejected stored-field type=Array<U> at=MutB.back chain=[MutA.other]
+mutual-recursion-reversed-order	rejected stored-field type=Array<U> at=MutB2.back chain=[MutA2.other]
+mutual-recursion-repeat-entry	rejected stored-field type=Array<U> at=MutB.back chain=[MutA.other]
+flat-chain-beyond-prior-limit	admitted required=[] unsupplied=[] visited=28
+reserved-spelling-not-a-binder	rejected stored-field type={anonymous} at=PrefixTrap.value chain=[]
+reserved-spelling-collision	rejected stored-field type={anonymous} at=Trap.value chain=[]
+same-spelling-demand-transfer	admitted required=[0] unsupplied=[] visited=4
+same-spelling-nested-rejected	rejected demanded-argument type=Reference at=Box chain=[CrossOwner.first]
+float-key-rejected	rejected stored-field type=Float at=FloatKey.value chain=[]
+float-equality-admitted	admitted required=[] unsupplied=[] visited=1
+generic-sorted-unsupplied	admitted required=[0] unsupplied=[0] visited=1
+generic-equality-parameter-rejected	rejected parameter-without-evidence slot=0 type=T at=GenericValue.value chain=[]
+generic-equality-concrete-admitted	admitted required=[0] unsupplied=[] visited=1
