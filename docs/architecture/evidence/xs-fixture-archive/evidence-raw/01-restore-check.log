@@ -1,0 +1,10 @@
+RESTORE: archive  = /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive
+RESTORE: target   = /home/losses/Development/tq-workspace/xs-run-e1c65975
+RESTORE: mode     = check
+RESTORE: target HEAD = e1c65975 OK
+RESTORE: step 1/3 verifying archive against RESTORE.sha256 ...
+RESTORE: archive OK (37 files)
+RESTORE: step 2/3 checking 37 files into /home/losses/Development/tq-workspace/xs-run-e1c65975/tests/haxe ...
+RESTORE: step 3/3 verifying restored files by sha256 ...
+RESTORE: wrote=0 already-correct=37 replaced-divergent=0 verified=37
+RESTORE: OK all 37 files verified by sha256 at /home/losses/Development/tq-workspace/xs-run-e1c65975/tests/haxe

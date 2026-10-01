@@ -1,0 +1,57 @@
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/out/xs-archive/scratch/gen-frozen-1790806878322092927/xs-crossmod)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: `?` couldn't convert the error to `F2Fault`
+  --> xsxm/cross_probe.rs:88:73
+   |
+88 |             return Ok(CrossProbe::cross_probe_throw_e1(UStr::new(&[97]))?);
+   |                       --------------------------------------------------^ the trait `From<F1Fault>` is not implemented for `F2Fault`
+   |                       |
+   |                       this can't be annotated with `?` because it has type `Result<_, F1Fault>`
+   |
+note: `F2Fault` needs to implement `From<F1Fault>`
+  --> xsxm/cross_probe.rs:40:1
+   |
+40 | pub enum F2Fault {
+   | ^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+
+error[E0599]: no variant, associated function, or constant named `E1Fault` found for enum `F2Fault` in the current scope
+  --> xsxm/cross_probe.rs:94:41
+   |
+40 | pub enum F2Fault {
+   | ---------------- variant, associated function, or constant `E1Fault` not found for this enum
+...
+94 |                     return Err(F2Fault::E1Fault(E1::new(e.fault)));
+   |                                         ^^^^^^^ variant, associated function, or constant not found in `F2Fault`
+   |
+help: there is a variant with a similar name
+   |
+94 -                     return Err(F2Fault::E1Fault(E1::new(e.fault)));
+94 +                     return Err(F2Fault::E2Fault(E1::new(e.fault)));
+   |
+
+error[E0609]: no field `fault` on type `F2Fault`
+  --> xsxm/cross_probe.rs:94:59
+   |
+94 |                     return Err(F2Fault::E1Fault(E1::new(e.fault)));
+   |                                                           ^^^^^ unknown field
+
+warning: unused variable: `e2`
+   --> xsxm/cross_probe.rs:117:25
+    |
+117 |                     Err(e2) => 6,
+    |                         ^^ help: if this is intentional, prefix it with an underscore: `_e2`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0277, E0599, E0609.
+For more information about an error, try `rustc --explain E0277`.
+warning: `generated` (lib) generated 2 warnings
+error: could not compile `generated` (lib) due to 3 previous errors; 2 warnings emitted

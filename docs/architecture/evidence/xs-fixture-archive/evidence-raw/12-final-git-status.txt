@@ -1,0 +1,16 @@
+?? tests/haxe/xs-crossmod/
+?? tests/haxe/xs-dead/
+?? tests/haxe/xs-deadcoll/
+?? tests/haxe/xs-generic/
+?? tests/haxe/xs-growth/
+?? tests/haxe/xs-samples/
+?? tests/haxe/xs-scope/
+?? tests/haxe/xs-testmod/
+?? tests/haxe/xs-twoexc-faultnames/
+?? tests/haxe/xs-twoexc-swapped/
+?? tests/haxe/xs-twoexc/
+?? tests/haxe/xs-xmod/
+?? tests/haxe/xt-classemit/
+?? tests/haxe/xt-oneexc-nofault/
+?? tests/haxe/xt-twoexc-emit-rev/
+?? tests/haxe/xt-twoexc-emit/

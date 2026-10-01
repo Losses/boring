@@ -1,0 +1,5 @@
+state=frozen 2026-09-30T22:20:01Z
+57ee49976511892c4490eb490315e49f494774a7d3f23ed2811184acfe1a8a0a  packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+985b5ad79373473ce1468a46a246427241ea3133a4ee60127ee4176939ac7a8f  packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+2f2119d85b2ab769ab4b605588da02f627154881c67399f3169f371b76e517b5  packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+235d5a363c86b15151034604e1947ed03f847c897a5d3cfa49e59698fd9c4f86  packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx

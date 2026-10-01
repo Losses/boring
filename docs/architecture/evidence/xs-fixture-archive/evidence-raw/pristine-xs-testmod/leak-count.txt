@@ -1,0 +1,1 @@
+/home/losses/Development/tq-workspace/dc-warn/out/xs-archive/scratch/gen-pristine-1790806647172541161/xs-testmod/boring/value_exception.rs leak-count=0
