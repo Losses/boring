@@ -1416,11 +1416,25 @@ class SwiftExpr {
         final snapshot = saveNarrowed();
         final out:Array<String> = [];
         var i = 0;
+        // Whether a statement already emitted diverges (returns, throws, or a
+        // switch whose every arm diverges). Once set, everything after it is
+        // unreachable in the Haxe semantics, so it is not emitted: a trailing
+        // statement after an exhaustive returning switch rendered a Swift
+        // `will never be executed` build-phase warning (the W1 counterexample),
+        // and 02-translator-implementation-standard.md:78/:80 counts any
+        // build-phase warning as an emitter defect. The judgement is local to
+        // the emitted statement list, so the emitted text and the emitter's
+        // own reachability knowledge can never disagree.
+        var diverged = false;
         while (i < stmts.length) {
+            if (diverged)
+                break;
             final fused = fillFusion(stmts, i, depth);
             if (fused != null) {
                 for (l in fused)
                     out.push(l);
+                if (stmtDiverges(stmts[i]) || stmtDiverges(stmts[i + 1]))
+                    diverged = true;
                 i += 2;
                 continue;
             }
@@ -1434,10 +1448,67 @@ class SwiftExpr {
             for (l in stmtLines(stmts[i], depth))
                 out.push(l);
             absorbNarrowing(stmts[i]);
+            if (stmtDiverges(stmts[i]))
+                diverged = true;
             i += 1;
         }
         restoreNarrowed(snapshot);
         return out;
+    }
+
+    /**
+        Conservative local divergence judgement: true only when the statement
+        hands control back to the caller on every path. It reuses exactly the
+        knowledge the switch lowering itself uses (`enumTable`, the constant
+        arm indices, the arms' own bodies), so a switch judged divergent here
+        is one that rendered as a Swift switch with a `return` in every arm.
+        Anything the judgement cannot prove returns false, and the statement
+        after it is emitted exactly as before.
+    **/
+    function stmtDiverges(e:TypedExpr):Bool {
+        final s = stripWrap(e);
+        return switch (s.expr) {
+            case TReturn(_): true;
+            case TThrow(_): true;
+            case TBlock(_):
+                final ss = statementsOf(s);
+                ss.length > 0 && stmtDiverges(ss[ss.length - 1]);
+            case TIf(_, a, b): b != null && stmtDiverges(a) && stmtDiverges(b);
+            case TTry(body, catches):
+                stmtDiverges(body) && Lambda.foreach(catches, c -> stmtDiverges(c.expr));
+            case TSwitch(subj, cases, def):
+                final se = switch (stripWrap(subj).expr) {
+                    case TEnumIndex(inner): inner;
+                    case _: stripWrap(subj);
+                }
+                // Only a variant switch the lowering itself can render
+                // (enumTable succeeds) is judged; anything else stays false.
+                final variant = switch (se.t) {
+                    case TEnum(_): true;
+                    case _: false;
+                }
+                if (!variant)
+                    false;
+                else {
+                    var all = def == null || stmtDiverges(def);
+                    final covered = new Map<Int, Bool>();
+                    for (c in cases) {
+                        if (!stmtDiverges(c.expr))
+                            all = false;
+                        for (v in c.values)
+                            switch (stripWrap(v).expr) {
+                                case TConst(TInt(index)): covered.set(index, true);
+                                case _: all = false;
+                            }
+                    }
+                    final table = enumTable(se);
+                    for (index => _ in table)
+                        if (!covered.exists(index))
+                            all = false;
+                    all;
+                }
+            case _: false;
+        };
     }
 
     // ------------------------------------------------------------------
