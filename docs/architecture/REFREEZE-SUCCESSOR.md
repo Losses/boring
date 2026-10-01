@@ -124,14 +124,14 @@ rcs were read directly.)
 
 ---
 
-## 3. File identities at the frozen revision [MINE, `git show 649aa881:<path> | sha256sum`]
+## 3. File identities at the frozen revision [MINE, `git show 2ba5766b:<path> | sha256sum`]
 
 Reviewers must target **these bytes**; any byte drift means the wrong tree is under
 review.
 
 | file | sha256 | bytes |
 |---|---|---|
-| `packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx` | `33e8f6a9f4d8bbee9e2acbe77cb9d613de7a26c4544a860682b3dabf588e6cca` | 345439 |
+| `packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx` | `a736c7376287c267c6f77ef3abd056dae4ec443ad137c06261d342af7de48631` | 344718 |
 | `tests/swift-gap-boundary/gap-boundary.test.ts` | `c0da2ddce29e25d30e10a4185660c80a1c080a50ac9abb1333dd065559220f02` | 10574 |
 | `tests/swift-gap-boundary/gap/Gap.hx` | `150315585b0a4aee5df5d1f9f24e217a2c5f747717aa6161eb1032769b057048` | 4197 |
 | `tests/swift-gap-boundary/swift.hxml` | `87be97b5393eea5bbba9b87d0082c6378c282bc6153b304e047418798fdc7800` | 646 |
@@ -144,6 +144,21 @@ hashed `22fd243c…` per `REFREEZE.md`; the successor's `SwiftExpr.hx` carries t
 `stmtDiverges` fast path (line ~1484), the S2 `switchBindingLines` destination pass
 (line ~5741) and the S3 `functionLiteralInner` conversion (line ~2506), plus the §1
 scope-caveat changes.
+
+> **[D4 — table recomputed 2026-10-01, freeze point revised to `2ba5766b`.]**
+> This table was originally indexed at `649aa881`. The coordinator revised the freeze
+> point to `2ba5766b` (see the §1 REVISED block above) because `649aa881` also
+> carries R4.3 (`1e0d8169`), a same-day unrelated repair that landed after the
+> declaration and was never covered by it — freezing at `649aa881` would ask a
+> reviewer to certify work outside the declaration's scope. The three fixture files
+> (`gap-boundary.test.ts`, `Gap.hx`, `swift.hxml`) are byte-identical across the two
+> revisions, so their rows are unchanged. `SwiftExpr.hx` alone differs and has been
+> recomputed:
+> ```
+> 原值 (649aa881): sha256=33e8f6a9f4d8bbee…  size=345439
+> 新值 (2ba5766b): sha256=a736c7376287c267…  size=344718
+> ```
+> Independent recomputation confirmed by repair seat D4.
 
 ---
 
