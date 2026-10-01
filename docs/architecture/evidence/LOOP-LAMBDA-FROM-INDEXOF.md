@@ -1,22 +1,35 @@
-# Closures lowered inside loop bodies
+# Loop-structure violations in generated output
 
-**Status: two of three causes FIXED; one is a structural constraint, not a defect.**
+**Status: three of four causes FIXED; one is a structural constraint, not a defect.**
 Discovered while re-establishing ground truth after a run of unreliable session
 reports (see "Provenance" below).
 
 ## Outcome
 
-Three distinct lowerings were producing closures inside loop bodies. Two were
-stylistic and are now converted; the third is structurally necessary.
+Four distinct lowerings were producing loop-structure violations — three
+closures, one iterating head. Three were stylistic and are now converted; the
+fourth is structurally necessary.
 
 | Cause | Emission site | Status |
 |---|---|---|
 | array `indexOf` → `.iter().position(\|e\| …)` | `RustExpr.hx:11047` | **fixed** — indexed scan |
 | nullable `==` comparison → `.as_ref().map_or(false, \|v\| …)` | `RustExpr.hx:7099`, `:7109` | **fixed** — `matches!(…, Some(__v) if …)` |
+| `std.Process.run` shim → `for (const entry of env)` | `TsExpr.hx:2864` | **fixed** — indexed head, hoisted bound |
 | try-region → `(\|\| { … })()` | `RustExpr.hx:6139` | **not a defect** — see below |
 
-Effect: loop-structure `loop-lambda` violations went **8 → 1** and the remaining
-one is the try-region IIFE.
+Effect: the guard went from **10 violations (8 `loop-lambda` + 1 `for-head` + 1
+more) to 1**, the remaining one being the try-region IIFE. Both the Rust and the
+TS trees now pass; only the Rust tree's IIFE keeps that one test red.
+
+### The `for-head` cause
+
+The `std.Process.run` helper is a hand-written shim string in the emitter, and it
+iterated its `env` array. Every other loop in the generated tree already used the
+indexed form with a hoisted bound (52 of them), so the shim was the sole outlier
+— the rule was not being applied to runtime shims.
+
+Converted to the established shape: `const variableCount = env.length;` then
+`for (let i = 0; i < variableCount; i += 1)`.
 
 ### Why the try-region IIFE is not the same defect
 
@@ -45,13 +58,16 @@ Read back after the change, not inferred from the command:
 |---|---|
 | `iter().position(` in `config.rs`, `compare_core.rs` | **0, 0** (was 6, 2) |
 | `.as_ref().map_or(false, \|v\|` in `RustExpr.hx` | **0** (was 2) |
-| `haxe examples/rust.hxml` | rc=0 |
+| `for (const entry of env)` in `ProcessOps.ts` | **0** (was 1) |
+| `haxe examples/rust.hxml` / `examples/ts.hxml` | rc=0, rc=0 |
 | `cargo check` on the regenerated tree | clean, pre-existing warnings only |
 | `cargo test` | **780 passed, 0 failed** |
-| loop-structure `loop-lambda` hits | **1** (the IIFE) |
+| generated TS tests (`reference/ts/gen-tests/`) | **743 passed, 0 failed** |
+| `tsc --noEmit -p .` on affected files | 0 new errors |
+| loop-structure violations | **1** (the IIFE), was 10 |
 
-The 780-passing Rust suite is the load-bearing evidence that the two conversions
-are semantically equivalent rather than merely compiling.
+The 780-passing Rust and 743-passing TS suites are the load-bearing evidence that
+the conversions are semantically equivalent rather than merely compiling.
 
 ### Mutation control
 
@@ -90,12 +106,14 @@ illegal. That is why this is a lowering defect and not a blanket ban.
 export PATH="<haxe>:<bun>"
 export HAXELIB_PATH=/home/losses/Development/tq-workspace/.haxelib
 haxe examples/rust.hxml                     # regenerate the tree
-bun test tests/ts/loop-structure.test.ts     # after the fixes: 3 pass, 2 fail
+haxe examples/ts.hxml                       # and the ts tree
+bun test tests/ts/loop-structure.test.ts     # after the fixes: 4 pass, 1 fail
 ```
 
-The `2 fail` is now the **try-region IIFE** plus the unrelated `for-head` in the
-TS tree — not the `indexOf`/`mapOr` causes this document opened with. Before the
-fixes the same command reported 8 `loop-lambda` hits.
+The `1 fail` is now the **Rust try-region IIFE** alone — the `indexOf`, `mapOr`
+and `for-head` causes this document opened with are gone, and the TS tree passes
+outright. Before the fixes the same command reported 8 `loop-lambda` hits plus
+the `for-head`.
 
 The failure survives a **fresh regeneration**, so it reflects the emitter's
 current output and not a stale local tree. (`reference/*/gen/` is gitignored —
