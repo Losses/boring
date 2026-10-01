@@ -281,6 +281,43 @@ one or declaring the clause impossible. "The consumer exists but not at the pinn
 revision" invites **fetching that revision** — a different, cheaper task, and one
 criterion 3 is actually waiting on.
 
+**Fetching it was then attempted, 2026-10-01 — and it is blocked, for a reason
+worth naming.** The remote is reachable and the checkout has one:
+
+```
+$ git -C /home/losses/Development/tiqian remote -v
+origin    https://github.com/Losses/tiqian.git (fetch)
+$ git -C /home/losses/Development/tiqian ls-remote origin | head -1
+0d3ded4b…  HEAD
+```
+
+but the fetch itself fails on the sandbox, not on the revision:
+
+```
+$ git fetch origin 8504d230228e8206689a2049bbb84b671c1f079a
+error: cannot open '.git/FETCH_HEAD': Permission denied
+
+$ touch /home/losses/Development/tiqian/.git/probe
+touch: cannot touch '…': Permission denied
+```
+
+`.git` reads as writable by mode, and the denial is the sandbox refusing writes
+**outside the workspace** — the same boundary that blocks `nix develop` and the
+Swift lane. So the accurate status of the Tiqian side is:
+
+| Question | Answer |
+|---|---|
+| does a consumer exist? | **yes** — three checkouts |
+| at the settled revision? | **no** |
+| is the revision on the remote? | **not as an advertised ref**; it would need fetch-by-SHA |
+| can it be fetched here? | **no** — sandbox denies writes to that repo's `.git` |
+
+**This is a fourth independent environment limit**, alongside the three already
+recorded in `BASELINE-FAILURES.md`. The next action is therefore **not** a code
+change: it needs an environment with write access to the Tiqian checkout (or that
+revision placed in the workspace), after which criterion 1's Boring side must
+still be decided.
+
 ## P10 — "Classify review failures, revise the appropriate documents, and publish the first round's acceptance and reflection record." (`work-plan:220`, unchecked)
 
 | # | Criterion | Verdict | Evidence | Blocked by |
