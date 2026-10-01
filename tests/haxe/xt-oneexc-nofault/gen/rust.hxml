@@ -1,0 +1,15 @@
+# Rust generation of the orthogonality control for the payload-enum name
+# suffix gate (RustExpr.throwVariant): one payload exception class, payload
+# enum `F1` (no `Fault` suffix). The runner passes -D rust-output=...
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/xt-oneexc-nofault
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/xt-oneexc-nofault'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+onefaultscope.OneFaultProbe

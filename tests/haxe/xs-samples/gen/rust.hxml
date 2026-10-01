@@ -1,0 +1,36 @@
+# Cross-check broad corpus: the committed samples/boring classes that carry the
+# fault/exception/union machinery, generated with the rust_output guards on.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+--macro Intercept.run(['samples'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+-D rust_output
+boring.ValueRecord
+boring.VectorCodec
+boring.TryOps
+boring.UnionChainOps
+boring.StringBufUnionOps
+boring.HaxeExceptionOps
+boring.InterfaceUnionOps
+boring.InterfaceUnionBeta
+boring.FallibleLocalFunctionOps
+boring.BorrowedStringReturnOps
+boring.InterfaceFallibleOps
+boring.NarrowedOptionReturnOps
+boring.OverrideMemberOps
+boring.SealedChildParent
+boring.DataClassCtorGuardOps
+boring.FusedPushThrowOps
+boring.SwiftGlobalThrowOps
+boring.ValueTypeOps
+boring.BinaryReader
+boring.TraitSignOps
+boring.NoSuchElementFaultException
+runtime.UString
+runtime.SortedTable
