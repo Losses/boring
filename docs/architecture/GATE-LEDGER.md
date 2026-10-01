@@ -316,7 +316,46 @@ Swift lane. So the accurate status of the Tiqian side is:
 | does a consumer exist? | **yes** — three checkouts |
 | at the settled revision? | **no** |
 | is the revision on the remote? | **not as an advertised ref**; it would need fetch-by-SHA |
-| can it be fetched here? | **no** — sandbox denies writes to that repo's `.git` |
+| can it be fetched **into that checkout**? | **no** — sandbox denies writes to its `.git` |
+
+**SUPERSEDED within the same session: it CAN be obtained — clone into the
+workspace.** The row above answers "can that checkout be updated", which is not
+the question the criterion needs. Writing **inside** the workspace is permitted:
+
+```
+$ cd /home/losses/Development/tq-workspace
+$ git clone --filter=blob:none --no-checkout https://github.com/Losses/tiqian.git .tiqian-probe
+Cloning into '.tiqian-probe'...            # rc=0
+
+$ git -C .tiqian-probe cat-file -t 8504d230228e8206689a2049bbb84b671c1f079a
+commit
+$ git -C .tiqian-probe log --oneline -1 8504d230…
+8504d230 fix(ffi-js): pass the rubySpans argument the LayoutInput call omits
+$ git -C .tiqian-probe cat-file -e 8504d230…:engine-haxe/tests/compile.hxml && echo PRESENT
+PRESENT
+```
+
+So **the frozen Tiqian input `8504d230` is obtainable, and the consumer is present
+at that revision** (`engine-haxe` and its `tests/compile.hxml` both verified in
+the tree). The status table becomes:
+
+| Question | Answer |
+|---|---|
+| does a consumer exist? | **yes** — three checkouts |
+| is the settled revision obtainable? | **yes** — clone into the workspace |
+| does `engine-haxe` exist at that revision? | **yes**, with `tests/compile.hxml` |
+| is the repo a fourth environment limit? | **no** — that reading was wrong |
+
+**What remains before P09 criterion 3 can run** is therefore **not** an environment
+limit: it is (a) criterion 1's **Boring side**, still undecided three-way, and
+(b) deciding to spend the run. The environment no longer blocks it.
+
+**Why the earlier reading was wrong, recorded rather than quietly replaced:** the
+blocked command was *"fetch into the existing checkout"*, and the conclusion drawn
+was *"the revision cannot be obtained"*. Those are different questions — the
+workspace is writable, the checkout is not. Generalising from one blocked form to
+the whole capability is the same error shape as concluding "the trees are clean"
+from checking one cause.
 
 **This is a fourth independent environment limit**, alongside the three already
 recorded in `BASELINE-FAILURES.md`. The next action is therefore **not** a code
