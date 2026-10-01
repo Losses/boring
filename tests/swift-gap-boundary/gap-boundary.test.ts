@@ -115,6 +115,10 @@ test("archived gap.Gap counterexample generates and its Swift typechecks", async
   // cause (the Swift emitter skips emitting statements after one that diverges), the count
   // was re-read as 0, and the pin was inverted to assert the new fact. The -typecheck step
   // above is NOT this criterion: -typecheck never reported this diagnostic at all.
+  // BOUNDARY (2026-10-01): passing this test does NOT discharge P08 criterion 2.
+  // The sole path to discharge is to freeze the successor candidate and obtain two
+  // independent reviews. The pin direction is correct (zero diagnostics is the
+  // standard), and zero diagnostics does not by itself discharge criterion 2.
   expect(
     pendingBuildWarning,
     "build-phase diagnostics under swiftc -c -WMO must be zero (counted as `file:line:col: severity` lines)",
