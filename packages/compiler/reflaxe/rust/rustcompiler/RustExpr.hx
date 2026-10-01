@@ -241,8 +241,12 @@ class RustExpr {
     // forward walk, -1 for a reverse walk that reads at i-1). receivers[0]
     // is the primary receiver (named by the loop condition); the rest are
     // secondary receivers read at the same index in the body.
-    // (PerCharLoopUnits)
-    final perCharLoopUnits:Array<{ indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}>, countTemp:String, countCall:String }> = [];
+    // unitsFresh is false when an enclosing hoist already holds this
+    // receiver's unit vector and the entry reuses it; countFresh is false when
+    // the entry reuses an enclosing unit count. A reused temp is not emitted
+    // again -- re-materializing it inside an enclosing loop is what made a
+    // nested per-character walk quadratic. (PerCharLoopUnits)
+    final perCharLoopUnits:Array<{ indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String, unitsFresh:Bool}>, countTemp:String, countCall:String, countFresh:Bool }> = [];
     // Hoisted string parameter materializations: when a &str parameter is
     // read with charCodeAt/charAt/unit_count in multiple places and the
     // function body never reassigns it, the UTF-16 units and unit count
@@ -1891,10 +1895,15 @@ class RustExpr {
                     // walking index (the primary receiver plus any secondary
                     // receivers in a two-receiver compare loop), and the unit
                     // count for the primary receiver that bounds the loop.
-                    // (PerCharLoopUnits)
+                    // A receiver an enclosing hoist already holds is not
+                    // materialized again: re-reading it here is what made a
+                    // nested walk rebuild the vector on every outer step, and
+                    // the enclosing vector is the same data. (PerCharLoopUnits)
                     for (r in perChar.receivers)
-                        out.push(indent(depth) + "let " + r.unitsTemp + " = u_string::units(&" + r.receiverText + ");");
-                    out.push(indent(depth) + "let " + perChar.countTemp + " = u_string::unit_count(&" + perChar.receivers[0].receiverText + ");");
+                        if (r.unitsFresh)
+                            out.push(indent(depth) + "let " + r.unitsTemp + " = u_string::units(&" + r.receiverText + ");");
+                    if (perChar.countFresh)
+                        out.push(indent(depth) + "let " + perChar.countTemp + " = u_string::unit_count(&" + perChar.receivers[0].receiverText + ");");
                 }
                 out.push(indent(depth) + header + " {");
                 if (perChar != null)
@@ -3910,20 +3919,45 @@ class RustExpr {
         }
         // Re-render the bound after the body guards are substituted: a bound
         // that reads a body-guard array now renders through the guard (no
+        // The interval form of the same walk: `for (i in 0...s.length)` lowers
+        // here, not through the `while` arm, so the per-character hoist above
+        // never reached it. Every read in the body lowered to
+        // `u_string::unit_at(&s, i)`, which rescans the source once per unit --
+        // quadratic in the string length for exactly the idiom Haxe users reach
+        // for first. Recognize the shape here too and hoist before the `for`,
+        // whose bound Rust evaluates once. (PerCharLoopUnits)
+        final rangePerChar = rangePerCharInfo(loop);
+        // Re-render the bound after the body guards are substituted: a bound
+        // that reads a body-guard array now renders through the guard (no
         // re-lock), so it is safe to inline. A bound that reads a different
         // shared array still renders a fresh lock and must be hoisted to drop
         // before the loop starts. (LoopGuardScope, LoopGuardHoist)
         final boundStr = loopBound(loop.bound);
         final boundNeedsHoist = mentionsSharedGuard(loop.bound);
+        if (rangePerChar != null) {
+            for (r in rangePerChar.receivers)
+                if (r.unitsFresh)
+                    out.push(indent(depth) + "let " + r.unitsTemp + " = u_string::units(&" + r.receiverText + ");");
+            if (rangePerChar.countFresh)
+                out.push(indent(depth) + "let " + rangePerChar.countTemp + " = u_string::unit_count(&" + rangePerChar.receivers[0].receiverText + ");");
+        }
+        // The bound is the receiver's own unit count, so a hoisted count
+        // replaces it: the vector and the count then describe the same
+        // snapshot. (PerCharLoopUnits)
+        final boundText = rangePerChar != null ? rangePerChar.countTemp : boundStr;
         if (boundNeedsHoist) {
             final boundName = freshRegionName("__loop_bound");
-            out.push(indent(depth) + "let " + boundName + " = " + boundStr + ";");
+            out.push(indent(depth) + "let " + boundName + " = " + boundText + ";");
             out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundName + " {");
         } else {
-            out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundStr + " {");
+            out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundText + " {");
         }
+        if (rangePerChar != null)
+            perCharLoopUnits.push(rangePerChar);
         for (l in blockLines(loop.body, depth + 1))
             out.push(l);
+        if (rangePerChar != null)
+            perCharLoopUnits.pop();
         out.push(indent(depth) + "}");
         // Each hoisted body guard holds its mutex across the loop; std::sync::
         // MutexGuard drops at scope end, so an explicit drop frees the mutex
@@ -3937,6 +3971,46 @@ class RustExpr {
             if (g.isScal) sharedClosureScalars.set(g.v.id, true);
         }
         return out;
+    }
+
+    /**
+        rangePerCharInfo: the interval form of the per-character walk -- the
+        `for (i in 0...s.length)` idiom the emitter lowers through the counter
+        path into `for i in start..bound`. It recognizes the same shape
+        perCharLoopInfo does on a `while`: the bound is the receiver's own
+        length, the body reads the receiver at the walking index, and the loop
+        never writes the receiver. `bound` is the receiver length itself, so the
+        caller substitutes the hoisted count for it. Returns the same hoisting
+        plan as the `while` arm, or null to leave the loop untouched.
+        (PerCharLoopUnits)
+    **/
+    function rangePerCharInfo(loop:Dynamic):Null<{indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String, unitsFresh:Bool}>, countTemp:String, countCall:String, countFresh:Bool}> {
+        final index:TVar = loop.index;
+        final bound:TypedExpr = loop.bound;
+        final loopBody:Array<TypedExpr> = loop.body;
+        // Only the direct `receiver.length` bound qualifies: a bound that is a
+        // different expression (`min(a.length, b.length)`, `length - k`) is not
+        // this receiver's unit count.
+        final recv = switch (stripWrap(bound).expr) {
+            case TField(subj, fa) if (fieldName(fa) == "length" && isString(subj)):
+                switch (stripWrap(subj).expr) {
+                    case TLocal(v): v;
+                    case _: return null;
+                };
+            case _: return null;
+        };
+        // A receiver the surrounding loop redirected through a hoisted guard or
+        // another binding is not the local this plan would read.
+        if (subst.exists(recv.id) || mentionsSharedGuard(bound))
+            return null;
+        final body:TypedExpr = {expr: TBlock(loopBody), pos: bound.pos, t: bound.t};
+        // The same soundness conditions as the `while` arm: a snapshot is only
+        // valid while the loop never reassigns the receiver.
+        if (writesLocal(body, recv.id))
+            return null;
+        if (!bodyReadsReceiverAtIndex(body, recv.id, index.id))
+            return null;
+        return buildPerCharInfo(index.id, recv, 0, stableSecondaryReceivers(body, index.id, 0));
     }
 
     function sliceIterationSubject(loop:{
@@ -9029,7 +9103,7 @@ class RustExpr {
         units and the unit count are computed once before the loop and the
         per-char reads lower against that vector. (PerCharLoopUnits)
     **/
-    function perCharLoopInfo(c:TypedExpr, b:TypedExpr):Null<{indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}>, countTemp:String, countCall:String}> {
+    function perCharLoopInfo(c:TypedExpr, b:TypedExpr):Null<{indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String, unitsFresh:Bool}>, countTemp:String, countCall:String, countFresh:Bool}> {
         // Forward walk: `i < receiver.length` (or mirrored), the index
         // increments, and the body reads the receiver at the walking index
         // itself (offset 0). The receiver is named by the condition.
@@ -9077,33 +9151,97 @@ class RustExpr {
         unit vector so a two-receiver compare loop (e.g. compareDigitStrings
         reading both a and b at i) lowers both sides to O(1). (PerCharLoopUnits)
     **/
-    function buildPerCharInfo(indexId:Int, recv:TVar, offset:Int, extraReceivers:Array<TVar>):Null<{indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}>, countTemp:String, countCall:String}> {
+    function buildPerCharInfo(indexId:Int, recv:TVar, offset:Int, extraReceivers:Array<TVar>):Null<{indexLocalId:Int, indexOffset:Int, receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String, unitsFresh:Bool}>, countTemp:String, countCall:String, countFresh:Bool}> {
         state.shimsUsed.set("std.UStringRT", true);
         imports.require("crate::runtime::u_string");
-        final receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String}> = [];
+        final receivers:Array<{receiverLocalId:Int, unitsTemp:String, receiverText:String, unitsFresh:Bool}> = [];
         final seen:Map<Int, Bool> = [];
         function addReceiver(r:TVar):Void {
             if (seen.exists(r.id))
                 return;
             seen.set(r.id, true);
+            // The region name is drawn unconditionally so that a loop which
+            // reuses an enclosing vector numbers the temporaries exactly as one
+            // that materializes them, leaving every other name in the function
+            // unchanged. (PerCharLoopUnits)
+            final freshUnits = freshRegionName("__units");
+            final reuse = perCharHoistReuse(r.id, false);
             receivers.push({
                 receiverLocalId: r.id,
-                unitsTemp: freshRegionName("__units"),
+                unitsTemp: reuse != null ? reuse.unitsTemp : freshUnits,
                 receiverText: RustImports.toSnakeCase(localName(r)),
+                unitsFresh: reuse == null
             });
         }
         addReceiver(recv);
         for (r in extraReceivers)
             addReceiver(r);
         final primaryText = receivers[0].receiverText;
-        final countTemp = freshRegionName("__count");
+        // Likewise drawn unconditionally, then replaced by an enclosing count
+        // when one is live for the primary receiver. (PerCharLoopUnits)
+        var countTemp = freshRegionName("__count");
+        var countFresh = true;
+        final countReuse = perCharHoistReuse(recv.id, true);
+        if (countReuse != null) {
+            final reusedCount = countReuse.countTemp;
+            if (reusedCount != null) {
+                countTemp = reusedCount;
+                countFresh = false;
+            }
+        }
         return {
             indexLocalId: indexId,
             indexOffset: offset,
             receivers: receivers,
             countTemp: countTemp,
             countCall: "u_string::unit_count(&(" + primaryText + "))",
+            countFresh: countFresh
         };
+    }
+
+    /**
+        perCharHoistReuse: the unit vector -- and, for a receiver an enclosing
+        hoist was materialized for as its primary, the unit count -- that an
+        enclosing scope already computed for this receiver local.
+
+        A per-character loop nested inside another per-character loop over the
+        same receiver (TestTraceRender.stripWholeFraction) used to allocate a
+        second units vector on every entry into the inner loop, so a long string
+        with many separators rebuilt its UTF-16 vector once per separator: O(n)
+        per step over an O(n) walk, i.e. quadratic. The enclosing hoist is
+        already in lexical scope, and its snapshot is sound here precisely
+        because the receiver is never written inside the enclosing loop -- the
+        condition that allowed that hoist in the first place. The inner loop
+        therefore reuses it instead of re-materializing it.
+        (PerCharLoopUnitsReuse)
+    **/
+    function perCharHoistReuse(receiverLocalId:Int, wantCount:Bool):Null<{unitsTemp:String, countTemp:Null<String>}> {
+        // Innermost enclosing per-character loop first: it holds the closest
+        // snapshot of the receiver.
+        var i = perCharLoopUnits.length;
+        while (i > 0) {
+            i -= 1;
+            final entry = perCharLoopUnits[i];
+            for (r in entry.receivers) {
+                if (r.receiverLocalId != receiverLocalId)
+                    continue;
+                // An enclosing loop hoists a count only for its primary
+                // receiver; a secondary receiver's count is not in scope.
+                final count = (entry.receivers.length > 0 && entry.receivers[0].receiverLocalId == receiverLocalId)
+                    ? entry.countTemp
+                    : null;
+                if (wantCount && count == null)
+                    continue;
+                return {unitsTemp: r.unitsTemp, countTemp: count};
+            }
+        }
+        // A String parameter materialized once at function entry is in scope
+        // for the whole body, so every loop over it reuses that vector.
+        // (StrParamHoist)
+        final hoisted = hoistedStrParams.get(receiverLocalId);
+        if (hoisted != null)
+            return {unitsTemp: hoisted.unitsTemp, countTemp: hoisted.countTemp};
+        return null;
     }
 
     /**
