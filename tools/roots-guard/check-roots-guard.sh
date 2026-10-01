@@ -429,6 +429,18 @@ lib_classpath() {
         else
             hj=""
         fi
+    elif [ -f "$repo/haxelib.json" ] && command -v node >/dev/null 2>&1 \
+         && [ "$(node -e 'try{console.log(require(process.argv[1]).name||"")}catch(e){console.log("")}' "$repo/haxelib.json" 2>/dev/null)" = "$lib" ]; then
+        # The checked-out tree may BE the library itself (this repository
+        # is the boring haxelib; haxe resolves `-lib boring` through a
+        # .haxelib/boring/.dev pointer, which is git-ignored and therefore
+        # absent from clean exports such as `git archive` trees).  When no
+        # dev/current pointer exists but the repo's own haxelib.json names
+        # this library, contribute the repo's own classPath: that is what
+        # haxe sees for a source checkout of the package, and it keeps the
+        # guard's verdict independent of unversioned local state (PIT-399).
+        proj="$repo"
+        hj="$repo/haxelib.json"
     else
         return 0
     fi
