@@ -715,7 +715,7 @@ class RustDecl {
             + (hasCtorThrow ? " -> Result<Self, " + ctorError.name + ">" : " -> Self")
             + " {");
         if (hasCtorThrow) {
-            expr.setFallible(true, ctorError.name, ctorError.hasOverflow ? state.overflowVariant : null);
+            expr.setFallible(true, ctorError.name, ctorError.hasOverflow ? state.overflowVariant : null, ctorError.module);
             for (line in expr.valueTypeConstructorBody(cls, ctorData))
                 lines.push("    " + line);
         }
@@ -736,7 +736,7 @@ class RustDecl {
             if (isFallible && errOwner != null)
                 imports.requireType(errOwner.module, errOwner.name);
             expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null
-                && errOwner.hasOverflow ? state.overflowVariant : null);
+                && errOwner.hasOverflow ? state.overflowVariant : null, errOwner != null ? errOwner.module : null);
             final rawRet = types.of(f.ret, false);
             final ret = isFallible ? " -> Result<" + rawRet + ", " + errOwner.name + ">" : (rawRet == "()" ? "" : " -> " + rawRet);
             final args = [
@@ -975,7 +975,7 @@ class RustDecl {
         // Fault conversions registered while lowering fallible callees grow
         // wrapping variants here too: the union payload the variant carries
         // keeps propagating through a message function it does not declare.
-        final growth = state.enumGrowthFor(enumName);
+        final growth = state.enumGrowthFor(enumName, payload.module);
         if (growth != null)
             for (item in growth)
                 lines.push("    " + item.variant + "(Box<" + item.calleePath + ">),");
@@ -1761,7 +1761,7 @@ class RustDecl {
             imports.requireType(errOwner.module, errOwner.name);
         }
         expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null
-            && errOwner.hasOverflow ? state.overflowVariant : null);
+            && errOwner.hasOverflow ? state.overflowVariant : null, errOwner != null ? errOwner.module : null);
 
         var rawRetType = returnsArgArray(f) ? types.of(f.ret, true) : types.functionReturnOf(f.ret);
         // A business function that directly returns that lowering uses the
@@ -2325,7 +2325,7 @@ class RustDecl {
                 imports.requireType(errOwner.module, errOwner.name);
             }
             expr.setFallible(ctorFallible, errOwner != null ? errOwner.name : null, errOwner != null
-                && errOwner.hasOverflow ? state.overflowVariant : null);
+                && errOwner.hasOverflow ? state.overflowVariant : null, errOwner != null ? errOwner.module : null);
             final ret = ctorFallible ? " -> Result<Self, " + errOwner.name + ">" : " -> Self";
             var hasInstanceFields = false;
             for (field in cls.fields.get()) {
@@ -2567,7 +2567,7 @@ class RustDecl {
             imports.requireType(errOwner.module, errOwner.name);
         }
         expr.setFallible(isFallible, errOwner != null ? errOwner.name : null, errOwner != null
-            && errOwner.hasOverflow ? state.overflowVariant : null);
+            && errOwner.hasOverflow ? state.overflowVariant : null, errOwner != null ? errOwner.module : null);
 
         final rawRetType = methodReturnType(f.ret, f.field.name);
         final retType = isFallible ? 'Result<$rawRetType, ${errOwner.name}>' : rawRetType;
@@ -3033,7 +3033,7 @@ class RustDecl {
         // Fault conversions registered while lowering fallible callees: each
         // grows a wrapping variant so `?` names a real constructor. The Debug
         // derive covers the Display arm because the payload fault derives it.
-        final growth = state.enumGrowthFor(en.name);
+        final growth = state.enumGrowthFor(en.name, en.module);
         final maxIndex = sorted.length > 0 ? sorted[sorted.length - 1].field.index + 1 : 0;
         if (growth != null) {
             for (item in growth)
