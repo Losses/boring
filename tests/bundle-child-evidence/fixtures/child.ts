@@ -59,6 +59,23 @@ if (mode === "markers") {
     writeAll(2, chunk.subarray(0, size));
     remaining -= size;
   }
+} else if (mode === "stderr-flood") {
+  // Writes ONLY to fd 2. The `flood` mode above writes both streams in
+  // lockstep, which makes "was stderr retained?" depend on whether stderr had
+  // flushed when the host SIGTERMed the child -- a scheduling race, so no
+  // assertion on it is stable (measured 8.8% nonzero from an idle raw spawn,
+  // 25% through the probe idle, 85% under CPU load). Here stderr is what
+  // exhausts the buffer, so the host stops the child *because* stderr filled
+  // it; the retained stderr is therefore non-empty on every run and the
+  // retention question has a determined answer.
+  const total = Number(process.argv[3] ?? "0");
+  const chunk = Buffer.alloc(4096, 0x78);
+  let remaining = total;
+  while (remaining > 0) {
+    const size = Math.min(chunk.length, remaining);
+    writeAll(2, chunk.subarray(0, size));
+    remaining -= size;
+  }
 } else {
   writeAll(2, text(`unknown child mode ${mode}\n`));
   process.exit(64);
