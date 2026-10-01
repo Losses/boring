@@ -3,6 +3,9 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 /**
  * Feature spec 24: every target compiler writes the package manifest of
@@ -306,7 +309,9 @@ describe("package shell emission", () => {
     // (package-shell=none): its test chain is the repository-root
     // SwiftPM package of the stdlib/17 build-chain migration, and the
     // generated trees carry no manifest of their own.
-    expect(fs.existsSync(path.join(REPO_ROOT, "reference/swift/gen/Package.swift"))).toBe(false);
+    withTargetTree("swift", "package-shell: the Swift, Kotlin, and Rust manifests of the reference trees are pinned (Swift target emits no manifest)", () => {
+      expect(fs.existsSync(path.join(REPO_ROOT, "reference/swift/gen/Package.swift"))).toBe(false);
+    });
     const swiftPackage = fs.readFileSync(path.join(REPO_ROOT, "Package.swift"), "utf8");
     expect(swiftPackage).toContain('// swift-tools-version:6.0');
     expect(swiftPackage).toContain('.package(url: "https://github.com/apple/swift-system", exact: "1.6.6")');

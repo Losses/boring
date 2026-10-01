@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, targetTreeUnavailable } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 describe("string buffer generated tree", () => {
   const tsGenDir = path.resolve(__dirname, "../../reference/ts/gen");
@@ -52,7 +55,7 @@ describe("string buffer generated tree", () => {
     expect(content).not.toContain("encode_utf16().count()");
   });
 
-  test("Swift lowers StringBuf to UTF-16 arrays", () => {
+  test.skipIf(targetTreeUnavailable("swift"))("Swift lowers StringBuf to UTF-16 arrays", () => {
     const content = fs.readFileSync(
       path.join(path.resolve(__dirname, "../../reference/swift/gen"), "boring/StringBufOps.swift"),
       "utf8",

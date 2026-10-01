@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(__dirname, "../..");
 const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
@@ -13,9 +16,11 @@ describe("constructed static initializer trees", () => {
     expect(read("reference/kotlin/gen/boring/ConstructedStateOps.kt")).toContain(
       "val weighted: FramePolicy = FramePolicy("
     );
-    expect(read("reference/swift/gen/boring/ConstructedStateOps.swift")).toContain(
-      "static let weighted: FramePolicy = FramePolicy("
-    );
+    withTargetTree("swift", "constructed-state: each target uses its ruled declaration and Rust read lane", () => {
+      expect(read("reference/swift/gen/boring/ConstructedStateOps.swift")).toContain(
+        "static let weighted: FramePolicy = FramePolicy("
+      );
+    });
     expect(read("reference/dart/gen/lib/boring/constructed_state_ops.dart")).toContain(
       "static final FramePolicy weighted = FramePolicy("
     );

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(__dirname, "../..");
 
@@ -13,7 +16,6 @@ describe("TTry catch-site lowering", () => {
     const ts = generated("reference/ts/gen/boring/TryOps.ts");
     const kotlin = generated("reference/kotlin/gen/boring/TryOps.kt");
     const rust = generated("reference/rust/gen/boring/try_ops.rs");
-    const swift = generated("reference/swift/gen/boring/TryOps.swift");
     const dart = generated("reference/dart/gen/lib/boring/try_ops.dart");
 
     expect(ts).toContain("error instanceof VectorException");
@@ -21,8 +23,11 @@ describe("TTry catch-site lowering", () => {
     expect(kotlin).toContain("catch (error: VectorException)");
     expect(rust).toContain("Result<(), VectorError>");
     expect(rust).toContain("Err(error) =>");
-    expect(swift).toContain("catch let error as VectorException");
-    expect(swift).toContain("catch {");
+    withTargetTree("swift", "try-region: uses native typed catch forms on every target", () => {
+      const swift = generated("reference/swift/gen/boring/TryOps.swift");
+      expect(swift).toContain("catch let error as VectorException");
+      expect(swift).toContain("catch {");
+    });
     expect(dart).toContain("on vector_exception.VectorException catch (error)");
   });
 });

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 describe("number classification generated tree", () => {
   const tsFile = path.resolve(__dirname, "../../reference/ts/gen/boring/NumberClassifyOps.ts");
@@ -22,9 +25,11 @@ describe("number classification generated tree", () => {
     expect(rust).toContain("return (value).is_finite();");
     expect(rust).toContain("return (value).is_nan();");
 
-    const swift = fs.readFileSync(swiftFile, "utf8");
-    expect(swift).toContain("return (value).isFinite");
-    expect(swift).toContain("return (value).isNaN");
+    withTargetTree("swift", "number-classify: Math.isFinite and Math.isNaN render as native predicates on every target", () => {
+      const swift = fs.readFileSync(swiftFile, "utf8");
+      expect(swift).toContain("return (value).isFinite");
+      expect(swift).toContain("return (value).isNaN");
+    });
 
     const dart = fs.readFileSync(dartFile, "utf8");
     expect(dart).toContain("return (value).isFinite;");

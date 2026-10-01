@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(__dirname, "../..");
 
@@ -225,7 +228,6 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
   const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
   const ts = read("reference/ts/gen/boring/SealedVariantOps.ts");
   const kotlin = read("reference/kotlin/gen/boring/SealedVariantOps.kt");
-  const swift = read("reference/swift/gen/boring/SealedVariantOps.swift");
   const dart = read("reference/dart/gen/lib/boring/sealed_variant_ops.dart");
   const rust = read("reference/rust/gen/boring/sealed_variant_ops.rs");
 
@@ -239,10 +241,13 @@ test("sealed variant sample trees carry the ruled declaration and printed forms"
   expect(ts).toContain("StripeDrawKind(strokeWidth=");
   expect(ts).toContain("DotDrawKind(dotDiameter=");
 
-  expect(swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
-  expect(swift).toContain('return "NoneDrawKind"');
-  expect(swift).toContain("StripeDrawKind(strokeWidth=");
-  expect(swift).toContain("DotDrawKind(dotDiameter=");
+  withTargetTree("swift", "sealed-variants: sealed variant sample trees carry the ruled declaration and printed forms", () => {
+    const swift = read("reference/swift/gen/boring/SealedVariantOps.swift");
+    expect(swift).toContain("static let instance: NoneDrawKind = NoneDrawKind()");
+    expect(swift).toContain('return "NoneDrawKind"');
+    expect(swift).toContain("StripeDrawKind(strokeWidth=");
+    expect(swift).toContain("DotDrawKind(dotDiameter=");
+  });
 
   expect(dart).toContain("abstract class DrawKind");
   expect(dart).toContain("static final instance = NoneDrawKind();");
