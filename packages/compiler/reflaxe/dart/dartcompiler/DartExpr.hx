@@ -2713,6 +2713,14 @@ class DartExpr {
                 if (module == "std.UStringPlatform") {
                     return ustringPlatformCall(fName, args, fn);
                 }
+                if (module == "std.Console") {
+                    imports.useDartIo();
+                    return switch (fName) {
+                        case "log": "stdout.writeln(" + expr(args[0]) + ")";
+                        case "error": "stderr.writeln(" + expr(args[0]) + ")";
+                        case _: fail(fn, "std.Console." + fName + " has no Dart lowering");
+                    };
+                }
                 if (module == "std.Fs") {
                     return fsCall(fName, args, fn);
                 }
@@ -2732,8 +2740,8 @@ class DartExpr {
                 if (module == "std.Env") {
                     return envCall(fName, args, fn);
                 }
-                if (module == "std.Process" && fName == "args") {
-                    return processArgsCall(fn);
+                if (module == "std.Process") {
+                    return processCall(fName, args, fn);
                 }
                 if (DartTestBinding.isTestPlatformExtern(module)) {
                     return testPlatformCall(fName, args, fn);
@@ -5351,6 +5359,10 @@ class DartExpr {
                 "Directory(" + p + ").listSync().map((e) => e.path.split(RegExp(r'[/\\\\]')).last).toList()";
             case "isDirectory":
                 "FileSystemEntity.isDirectorySync(" + p + ")";
+            case "deleteFile":
+                "File(" + p + ").deleteSync()";
+            case "rename":
+                "File(" + p + ").renameSync(" + expr(args[1]) + ")";
             case _:
                 fail(fn, "std.Fs has no lowering for member " + name);
                 "null";
@@ -5383,6 +5395,39 @@ class DartExpr {
         imports.platformHost();
         processArgsReferenced = true;
         return "platform_host.processArgs()";
+    }
+
+    function processCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
+        return switch (name) {
+            case "exit":
+                imports.useDartIoAlias();
+                "dart_io.exit(" + expr(args[0]) + ")";
+            case "args": processArgsCall(fn);
+            case "cwd":
+                imports.useDartIo();
+                "Directory.current.path";
+            case "platform":
+                imports.useDartIo();
+                "(Platform.isMacOS ? 'darwin' : Platform.isWindows ? 'windows' : 'linux')";
+            case "run":
+                imports.useDartIo();
+                final prefix = imports.type("std.Process", "ProcessResult");
+                final resultType = prefix == "" ? "ProcessResult" : prefix + ".ProcessResult";
+                "(() { final overrides = <String, String>{}; for (final entry in "
+                + expr(args[3])
+                + ") { overrides[entry.name] = entry.value; } final result = Process.runSync("
+                + expr(args[0])
+                + ", "
+                + expr(args[1])
+                + ", workingDirectory: "
+                + expr(args[2])
+                + ", environment: overrides); return "
+                + resultType
+                + "(result.exitCode, result.stdout.toString(), result.stderr.toString()); })()";
+            case _:
+                fail(fn, "std.Process has no lowering for member " + name);
+                "null";
+        };
     }
 }
 #end

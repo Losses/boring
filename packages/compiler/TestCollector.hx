@@ -401,6 +401,13 @@ class $mainName {
                 } catch (e:Dynamic) {
                     return false;
                 }
+            },
+            rename: function(from:String, to:String):Void {
+                try {
+                    nodeFs.renameSync(from, to);
+                } catch (e:Dynamic) {
+                    throw new haxe.Exception(from + " -> " + to + ": " + Std.string(e));
+                }
             }
         };
         js.Syntax.code(\'globalThis.std.Fs = {0};\', fsOracle);

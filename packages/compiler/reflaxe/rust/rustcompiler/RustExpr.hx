@@ -4628,6 +4628,12 @@ class RustExpr {
                 case _: false;
             })
                 return text;
+            // Inside an active null-guard match arm the subject read renders
+            // through the match binding, which already holds the inner value
+            // (the &bool payload), so the Option forcing read must not
+            // re-apply on it. (NarrowedBoolOperand)
+            if (narrowedSubject(stripWrap(e)) != null)
+                return text;
             return text + ".unwrap_or(false)";
         }
         return text;
@@ -5001,11 +5007,13 @@ class RustExpr {
         // dereferences for Copy inners and clones for the owned kinds. A
         // nullable interface result keeps the Option shape, so the binding
         // read wraps in Some.
+        var narrowedBindingArm = false;
         if (narrowedText == name) {
             final innerType = getNullInnerType(info.subject.t);
             narrowedText = isTypeCopy(innerType) ? "*" + name : "(*" + name + ").clone()";
             if (nullableResult && isInterfaceType(innerType))
                 narrowedText = "Some(" + narrowedText + ")";
+            narrowedBindingArm = !StringTools.startsWith(narrowedText, "Some(");
         } else if (narrowedText == "(*" + name + ").clone()"
             && nullableResult && isInterfaceType(getNullInnerType(info.subject.t))) {
             // A narrowed field read renders the dereference and clone at the
@@ -5070,7 +5078,7 @@ class RustExpr {
                 case _: RustShape.ShapeUnknown;
             };
         }
-        final armThen = armShapeOf(narrowedBranch, narrowedText);
+        final armThen = narrowedBindingArm ? RustShape.ShapeBare : armShapeOf(narrowedBranch, narrowedText);
         final armElse = armShapeOf(noneBranch, noneText);
         if ((armThen == RustShape.ShapeOption || armThen == RustShape.ShapeBare)
             && (armElse == RustShape.ShapeOption || armElse == RustShape.ShapeBare)
@@ -7677,11 +7685,15 @@ class RustExpr {
                     else if (isIntType(emittedType(l)) && isIntType(emittedType(r))
                         && !leftI32 && !rightI32 && !leftUsize && !rightUsize) {
                         if (!leftLiteral && !~/^\d+$/.match(leftText))
-                            leftText = RustConversions.reinterpret(leftText, "i32");
+                            leftText = ambiguousIntReceiver(l)
+                                ? "{ let v: u32 = " + leftText + "; i32::from_ne_bytes(v.to_ne_bytes()) }"
+                                : RustConversions.reinterpret(leftText, "i32");
                         else if (StringTools.endsWith(leftText, "u32"))
                             leftText = RustConversions.reinterpret(leftText, "i32");
                         if (!rightLiteral && !~/^\d+$/.match(rightText))
-                            rightText = RustConversions.reinterpret(rightText, "i32");
+                            rightText = ambiguousIntReceiver(r)
+                                ? "{ let v: u32 = " + rightText + "; i32::from_ne_bytes(v.to_ne_bytes()) }"
+                                : RustConversions.reinterpret(rightText, "i32");
                         else if (StringTools.endsWith(rightText, "u32"))
                             rightText = RustConversions.reinterpret(rightText, "i32");
                     }
@@ -10024,8 +10036,14 @@ class RustExpr {
             case IsArray(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = iterableItemText(element, stdStringType(element, value + "[" + index + "]", true, origin, depth + 1));
-                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let n = ${value}.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
+                final item = iterableItemText(element, stdStringType(element, "arr[" + index + "]", true, origin, depth + 1));
+                // A nested array element read is a place expression whose
+                // value is an owned Vec; binding it by value moves it out
+                // of the parent container (E0507). Bind by reference at
+                // depth > 0 so the element stays inside the parent.
+                // (NestedArrayElementMove)
+                final bind = depth > 0 ? "&" + value : value;
+                '{\n        let mut out = String::new();\n        out.push(\'[\');\n        let arr = ${bind};\n        let n = arr.len();\n        let mut ${index} = 0usize;\n        while ${index} < n {\n            if ${index} > 0 { out.push_str(", "); }\n            let _ = write!(out, "{}", ${item});\n            ${index} += 1;\n        }\n        out.push(\']\');\n        out\n    }';
             case IsSortedSet(element):
                 imports.require("std::fmt::Write");
                 final index = depth == 0 ? "i" : "i" + depth;
@@ -10055,12 +10073,35 @@ class RustExpr {
                 imports.requireType("runtime.UString", "UString");
                 "match " + value + " { Some(v) => UString::from(v.to_string().as_str()), None => UString::from(\"null\") }";
             case IsFloat:
+                if (!inConcat)
+                    state.shimsUsed.set("haxe.io.FPHelper", true);
                 inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
-            case IsInt | IsBool:
-                if (inConcat)
-                    return value;
-                imports.requireType("runtime.UString", "UString");
-                return "UString::from((" + value + ").to_string().as_str())";
+            case IsBool:
+                inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
+            case IsInt:
+                // A business-module Haxe Int is u32, so a negative Int stored
+                // as its two's-complement bits prints unsigned under a bare
+                // Display/to_string read. Reinterpret through the runtime
+                // helper; resident modules already render i32 and keep the
+                // direct read. A length read (usize) is already non-negative
+                // and stays plain. (RustIntStringSign)
+                if (RuntimeResidents.isResident(imports.selfModule)) {
+                    inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
+                } else if (StringTools.startsWith(value, "usize::")
+                    || StringTools.endsWith(value, ".len()")
+                    || value.indexOf(".as_ref().map_or(0, |v| v.len())") >= 0) {
+                    inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
+                } else if (rendersSignedIntExpr(origin) || i32LocalDomain(origin) || isClosureParam(origin)) {
+                    // A signed-domain value (an indexOf result, a unary negation,
+                    // an fpHelper i32, an i32 local, or a closure parameter typed
+                    // i32 in the fn signature) reads its signed int through a
+                    // direct to_string. int_text expects u32 and would not
+                    // type-check these. (SignedIntString)
+                    inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
+                } else {
+                    state.shimsUsed.set("std.IntText", true);
+                    inConcat ? value : ustringFromStdText("crate::runtime::int_text::IntText::int_text(" + value + ")");
+                }
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
             case IsParameterlessEnum(en):
@@ -11368,7 +11409,7 @@ class RustExpr {
                 }
                 if ((cls.module == "std.Process" || (cls.pack.join(".") == "std" && cls.name == "Process")) && name == "exit") {
                     imports.require("std::process::exit");
-                    return "exit(" + renderedArgs + ")";
+                    return "exit(" + RustConversions.reinterpret(expr(args[0]), "i32") + ")";
                 }
                 if ((path == "std.Process" || cls.module == "std.Process") && name == "args") {
                     // std.Process.args() reads the arguments of the test
@@ -11378,6 +11419,9 @@ class RustExpr {
                     // call sites in the generated trees.
                     imports.require("crate::runtime::u_string");
                     return "u_string::args_from_host()";
+                }
+                if ((path == "std.Process" || cls.module == "std.Process") && name == "platform") {
+                    return "UString::from(if cfg!(target_os = \"macos\") { \"darwin\" } else if cfg!(target_os = \"windows\") { \"windows\" } else { \"linux\" })";
                 }
                 if ((path == "std.SortedMap" || cls.module == "std.SortedMap") && name == "builder") {
                     final kType = sortedKeyType(fn);
@@ -13598,7 +13642,16 @@ class RustExpr {
                 case _: fail(e, "assignment target has no Rust lowering");
             };
         }, (subj, kind, _) -> switch (kind) {
-            case Instance(_, cf) | Anonymous(cf): expr(subj) + "." + RustImports.toSnakeCase(cf.get().name);
+            case Instance(_, cf) | Anonymous(cf):
+                // (IndexElementFieldWrite) A field assignment through an array
+                // element must reach the element in place, through the mutable
+                // index path, so the field write acts on the Vec element rather
+                // than a value-read clone that is dropped.
+                final subjText = switch (stripWrap(subj).expr) {
+                    case TArray(arr, idx): optionContainerIndexAccess(arr, idx, true);
+                    case _: expr(subj);
+                };
+                subjText + "." + RustImports.toSnakeCase(cf.get().name);
         },
             v -> {
             // A shared closure scalar writes through the dereferenced guard;
@@ -13609,9 +13662,44 @@ class RustExpr {
         }, (e, _) -> fail(e, "assignment target has no Rust lowering: " + Std.string(e.expr)));
     }
 
+    /** The declared field types of a named structure typedef, resolved
+        through its module so module-private typedefs resolve too; the
+        anonymous literal type can inflate non-null fields to Null.
+        (NullableFieldSomeWrap) */
+    function declaredStructFieldTypes(moduleName:String, typeName:String):Null<Map<String, Type>> {
+        final moduleTypes = try Context.getModule(moduleName) catch (_:Dynamic) return null;
+        for (mt in moduleTypes) {
+            final followed = Context.follow(mt);
+            final def = switch (followed) {
+                case TType(t, _): t.get();
+                case _: continue;
+            };
+            if (def.name == typeName)
+                return objectFieldTypes(followed);
+        }
+        return null;
+    }
+
     function objectLiteral(e:TypedExpr, fields:Array<{name:String, expr:TypedExpr}>):String {
         final typeName = resolveTypeName(e.t);
         final fieldTypes = objectFieldTypes(e.t);
+        // The matched named typedef carries the authoritative field types:
+        // the anonymous literal type can inflate a non-null field to Null
+        // when the typer unifies it with a nullable sibling, while the Rust
+        // struct keeps the declared slot. (NullableFieldSomeWrap)
+        final namedFieldTypes = switch (Context.follow(e.t)) {
+            case TType(_): null;
+            case _:
+                final anon = switch (Context.follow(e.t)) {
+                    case TAnonymous(a): a;
+                    case _: null;
+                };
+                if (anon == null) null else {
+                    final match = state.structTypedefs.get(RustDecl.structureSignature(anon));
+                    final chosen = match != null ? match : PolicyQueries.matchStructTypedefByUnification(anon, state.structTypedefs);
+                    chosen == null ? null : declaredStructFieldTypes(chosen.module, chosen.name);
+                }
+        };
         final parts = [
             for (f in fields) {
                 var val = if (isStringType(f.expr.t)) {
@@ -13639,6 +13727,47 @@ class RustExpr {
                     if (isIntType(fieldType) && types.of(fieldType, false) == "u32"
                         && !StringTools.startsWith(val, "u32::") && rendersSignedIntArg(f.expr, val))
                         val = RustConversions.reinterpret(val, "u32");
+                    // A nullable field slot receives Some(...) when the
+                    // initializer is a non-null value: the anonymous-array
+                    // element rule applies the same wrap, and the struct
+                    // literal must match the declared Option field type.
+                    // The typer unifies a non-null initializer to the
+                    // nullable anonymous field type, so the authoritative
+                    // slot is the matched named typedef's field type: only
+                    // a truly nullable named slot wraps. (NullableFieldSomeWrap)
+                    final slotType = namedFieldTypes != null && namedFieldTypes.exists(f.name)
+                        ? namedFieldTypes.get(f.name) : fieldType;
+                    // A value whose rendered form is already Option-shaped
+                    // (a get-tail, a Some(...), an Option-slot local) or a
+                    // try-operator payload (expr? renders the bare value)
+                    // must not wrap again. The declared type of the value —
+                    // the local's slot, the class field, the function return
+                    // — decides payload vs Option: the typer reports the
+                    // unified nullable field type at this boundary, which
+                    // would otherwise suppress or mis-apply the wrap.
+                    // (NullableFieldSomeWrap)
+                    final valueExpr = stripWrap(f.expr);
+                    final exprDeclaredNullable = switch (valueExpr.expr) {
+                        // A literal constant is never a declared-nullable slot:
+                        // the typer unifies it to the nullable anonymous field
+                        // type, so reading the unified expression type here
+                        // would report the field's Null wrapper as the value's
+                        // own declaration and suppress the wrap. (NullableFieldSomeWrap)
+                        case TConst(t) if (t != TNull): false;
+                        case TLocal(v): StaticFieldHelper.isNullableType(v.t);
+                        case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)):
+                            StaticFieldHelper.isNullableType(cf.get().type);
+                        case TCall(fn, _):
+                            switch (fn.t) {
+                                case TFun(_, ret): StaticFieldHelper.isNullableType(ret);
+                                case _: StaticFieldHelper.isNullableType(f.expr.t);
+                            }
+                        case _: StaticFieldHelper.isNullableType(f.expr.t);
+                    };
+                    if (slotType != null && StaticFieldHelper.isNullableType(slotType) && !isTNull(f.expr)
+                        && !exprDeclaredNullable && !StringTools.endsWith(val, "?")
+                        && RustShapeParse.shapeOf(val) != RustShape.ShapeOption)
+                        val = "Some(" + val + ")";
                 }
                 RustImports.toSnakeCase(f.name) + ": " + val;
             }
@@ -13691,7 +13820,9 @@ class RustExpr {
                 imports.requireType(d.module, d.name);
                 d.name;
             case TAnonymous(anon):
-                final match = state.structTypedefs.get(RustDecl.structureSignature(anon));
+                var match = state.structTypedefs.get(RustDecl.structureSignature(anon));
+                if (match == null)
+                    match = PolicyQueries.matchStructTypedefByUnification(anon, state.structTypedefs);
                 if (match == null) {
                     Context.error("anonymous structure literal has no matching named typedef", Context.currentPos());
                     null;
@@ -16733,6 +16864,14 @@ class RustExpr {
             case TLocal(v): rangeLoopVars.exists(v.id) || ambiguousIntReceiverLocals.exists(v.id);
             case TIf(_, _, f) if (f != null): true;
             case TArray(_, _): true;
+            case TBinop(OpShl, l, _):
+                // A shift whose LHS is a bare Int literal (e.g. 1 << u32)
+                // leaves the result ambiguous because the literal carries
+                // no concrete integer type. (AmbiguousIntReceiver)
+                switch (stripWrap(l).expr) {
+                    case TConst(TInt(_)): true;
+                    case _: false;
+                };
             case _: false;
         };
     }

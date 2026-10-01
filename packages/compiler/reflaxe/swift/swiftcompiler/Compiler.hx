@@ -385,7 +385,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     }
                 }
                 PackageArtifacts.saveTreeFile(output, RuntimeConfig.emitPath(emitDir, "Test.swift"),
-                    StringTools.trim(SwiftRuntime.TEST_SOURCE)
+                    StringTools.trim(SwiftRuntime.TEST_HOST_SOURCE)
                     + "\n"
                     + testResidentParts.join("\n\n")
                     + "\n");

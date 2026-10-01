@@ -2953,7 +2953,7 @@ class KotlinExpr {
         // The nullable-type fallback extracts only when no dominating
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
-        if (isNullType(subj.t) && !receiverProven(subj)) {
+        if (isNullType(subj.t) && !(receiverProven(subj) && smartCastableSubject(subj))) {
 #if kotlin_fold_debug
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
@@ -3312,6 +3312,20 @@ class KotlinExpr {
         read. This replaces the position walk that answered the same question
         from source ranges.
     **/
+    /**
+        Whether Kotlin smart-casts a proven-non-null subject. A val-like local
+        and a final (val) property smart-cast; a var property or a reassigned
+        binding does not, so its read must keep the force extraction even when
+        the enclosing guard proved it present. (VarFieldSmartCast)
+    **/
+    function smartCastableSubject(e:TypedExpr):Bool {
+        return switch (ExpressionPredicates.stripWrap(e).expr) {
+            case TLocal(v): !bodyWritesLocal(v.id);
+            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) | TField(_, FStatic(_, cf)): cf.get().isFinal;
+            case _: false;
+        };
+    }
+
     function receiverProven(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TLocal(_): localPresent(e) || targetEntryLegal(e);
@@ -5690,7 +5704,9 @@ class KotlinExpr {
                 imports.requireType(d.module, d.name);
                 d.name;
             case TAnonymous(anon):
-                final match = state.structTypedefs.get(KotlinDecl.structureSignature(anon));
+                var match = state.structTypedefs.get(KotlinDecl.structureSignature(anon));
+                if (match == null)
+                    match = PolicyQueries.matchStructTypedefByUnification(anon, state.structTypedefs);
                 if (match == null) {
                     Context.error("anonymous structure literal has no matching named typedef", Context.currentPos());
                     null;
@@ -6284,6 +6300,12 @@ class KotlinExpr {
                 "Files.newDirectoryStream(Paths.get(" + p + ")).use { s -> s.map { it.fileName.toString() }.toMutableList() }";
             case "isDirectory":
                 "Files.isDirectory(Paths.get(" + p + "))";
+            case "deleteFile":
+                "Files.delete(Paths.get(" + p + "))";
+            case "rename":
+                imports.require("java.nio.file.StandardCopyOption");
+                "Files.move(Paths.get(" + p + "), Paths.get(" + expr(args[1])
+                + "), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)";
             case _:
                 Context.error("std.Fs has no lowering for member " + name, fn.pos);
                 "null";
