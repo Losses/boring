@@ -30,4 +30,10 @@ extern class Fs {
     public static function readDir(path:String):Array<String>;
 
     public static function isDirectory(path:String):Bool;
+
+    /** Delete a regular file. Raises on failure. */
+    public static function deleteFile(path:String):Void;
+
+    /** Rename a path, replacing an existing regular file destination. Raises on failure. */
+    public static function rename(from:String, to:String):Void;
 }

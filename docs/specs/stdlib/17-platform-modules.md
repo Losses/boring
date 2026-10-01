@@ -51,6 +51,8 @@ extern class Fs {
 	    returns its native order. */
 	static function readDir(path:String):Array<String>;
 	static function isDirectory(path:String):Bool;
+	static function deleteFile(path:String):Void;
+	static function rename(from:String, to:String):Void;
 }
 
 extern class Env {
@@ -61,12 +63,30 @@ extern class Env {
 }
 ```
 
-`samples/std/Process.hx` gains one static:
+`samples/std/Process.hx` declares these process operations:
 
 ```haxe
+	typedef ProcessEnv = {final name:String; final value:String;};
+	typedef ProcessResult = {final code:Int; final stdout:String; final stderr:String;};
+
 	/** The program arguments after the program name. */
 	static function args():Array<String>;
+	static function cwd():String;
+	static function run(command:String, args:Array<String>, cwd:String,
+		env:Array<ProcessEnv>):ProcessResult;
 ```
+
+`run` executes one program without a shell, inherits the parent environment,
+applies the listed environment entries, and captures both output streams.
+It returns the exit code even when the child exits with failure. Host errors
+while starting or waiting for the child raise the target exception mapping.
+`deleteFile` removes a regular file and raises on failure. `rename` moves a
+path and replaces an existing regular file destination where the host supports
+that operation. It raises when the host cannot complete the rename. A caller
+can write a sibling temporary file and rename it into place for an atomic
+replacement on hosts that support atomic rename. `std.Console.log`
+writes a line to standard output; `std.Console.error` writes one to standard
+error on every target.
 
 `std.Path` is a compiled module with this face:
 
@@ -130,6 +150,12 @@ spec example and test fixture that contains a backslash must state
 whether it shows the escaped source form or the runtime value.
 
 ## Target rulings
+
+`std.Process.platform()` returns `linux`, `darwin`, or `windows` for the
+host running the generated program. TypeScript maps Node's `win32` to
+`windows`; Rust maps `macos` to `darwin`. Kotlin, Swift, and Dart return the
+same three values. `std.Process.exit(code)` terminates that program with
+the supplied status on each target.
 
 - **TypeScript.** The calling file gains no top-level `node:` import.
   Each `std.Fs` member a file uses lowers once to a top-level named

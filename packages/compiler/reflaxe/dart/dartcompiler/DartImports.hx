@@ -30,6 +30,7 @@ class DartImports {
 
     var dartMathUsed = false;
     var dartIoUsed = false;
+    var dartIoAliasUsed = false;
     var typedDataUsed = false;
     var convertUsed = false;
 
@@ -56,6 +57,15 @@ class DartImports {
     /** Whether this module needs the dart:io import. */
     public function usesDartIo():Bool {
         return dartIoUsed;
+    }
+
+    /** Records a dart:io call that must avoid a generated name collision. */
+    public function useDartIoAlias():Void {
+        dartIoAliasUsed = true;
+    }
+
+    public function usesDartIoAlias():Bool {
+        return dartIoAliasUsed;
     }
 
     public function useTypedData():Void {

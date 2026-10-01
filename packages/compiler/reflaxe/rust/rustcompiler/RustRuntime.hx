@@ -63,6 +63,12 @@ pub struct BytesBuffer {
     bytes: Vec<u8>,
 }
 
+impl Default for BytesBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BytesBuffer {
     pub fn new() -> Self {
         Self { bytes: Vec::new() }
@@ -256,15 +262,43 @@ impl Console {
     pub fn log(message: &UStr) {
         println!("{}", message.to_utf8_lossy());
     }
+    pub fn error(message: &UStr) {
+        eprintln!("{}", message.to_utf8_lossy());
+    }
 }
 ';
 
     public static final PROCESS_SOURCE = '
 pub struct Process;
 
+use crate::runtime::u_string::{UStr, UString};
+use crate::std::process::{ProcessEnv, ProcessResult};
+
 impl Process {
     pub fn exit(code: i32) -> ! {
         std::process::exit(code);
+    }
+
+    pub fn cwd() -> UString {
+        let path = std::env::current_dir().unwrap_or_else(|error| panic!("{}", error));
+        UString::from(path.to_string_lossy().as_ref())
+    }
+
+    pub fn run(command: &UStr, args: &Vec<UString>, cwd: &UStr, env: &Vec<ProcessEnv>) -> ProcessResult {
+        let mut child = std::process::Command::new(command.to_utf8_lossy());
+        for arg in args {
+            child.arg(arg.to_utf8_lossy());
+        }
+        child.current_dir(cwd.to_utf8_lossy());
+        for entry in env {
+            child.env(entry.name.to_utf8_lossy(), entry.value.to_utf8_lossy());
+        }
+        let output = child.output().unwrap_or_else(|error| panic!("{}", error));
+        ProcessResult {
+            code: u32::try_from(output.status.code().unwrap_or(1)).unwrap_or(1),
+            stdout: UString::from(String::from_utf8_lossy(&output.stdout).as_ref()),
+            stderr: UString::from(String::from_utf8_lossy(&output.stderr).as_ref()),
+        }
     }
 }
 ';
@@ -394,6 +428,15 @@ impl Fs {
             Ok(metadata) => metadata.is_dir(),
             Err(_) => false,
         }
+    }
+
+    pub fn delete_file(path: &UStr) {
+        std::fs::remove_file(path.to_utf8_lossy().as_str()).unwrap_or_else(|e| fail(path, e));
+    }
+
+    pub fn rename(from: &UStr, to: &UStr) {
+        std::fs::rename(from.to_utf8_lossy().as_str(), to.to_utf8_lossy().as_str())
+            .unwrap_or_else(|e| fail(from, e));
     }
 }
 ';
