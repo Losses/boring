@@ -399,6 +399,36 @@ before/after comparison is the measurement to trust rather than the marker.
 
 ## 5. Notes / not verified
 
+### Fixture reachability — 35 runner-bearing fixtures are collected by nothing
+
+**Measured 2026-10-01**, and guarded by `tests/fixture-reachability.test.ts`.
+
+`bun test tests/` collects `*.test.ts`. A directory under `tests/haxe/` holding
+only `run.sh` / `*.hxml` is therefore collected by **nothing**: it runs when a
+human remembers, and **no failure signal appears when it breaks**.
+
+| Quantity | Value |
+|---|---|
+| fixtures with a runner and **no** collected test | **35** |
+| — checked for external driving | none appear in `package.json`, `tests/haxe/compile.hxml`, or any `json`/`yml`/`sh` outside their own directory |
+
+They are **not debris**: several carry probes, expected outputs and multiple
+target `hxml`s (e.g. `charcodeat`, `flow`, `place`). They are **unwatched**.
+
+**This is a coverage limitation of the baseline run itself**, which is why it is
+recorded here rather than only in the guard: the pass/fail numbers above describe
+what the collected suite does, and these 35 fixtures are outside that population.
+A fixture that is never collected cannot appear in a failure count, so its
+breakage would be reported as **absence of a signal**, not as a red test.
+
+The guard does not fix them. It makes the count a **fact** that moves deliberately
+— wire one in and lower it, add one and raise it — so it cannot drift unnoticed.
+It deliberately does **not** judge whether each should be collected: some may be
+superseded by a collected test elsewhere, which is a review question rather than
+a scan's.
+
+### Pre-existing tree state
+
 - The working tree carries pre-existing modifications I did not make: the
   `package.json` JSON repair, and exec-bit loss (mode-only diffs) on ~20
   `tests/haxe/**/run*.sh` + `tools/` scripts from the fuse mount. I committed
