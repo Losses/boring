@@ -357,6 +357,66 @@ class SwiftExpr {
         return "(" + valueText + " == nil ? try " + coalescingDefaultText(value, targetType) + " : " + valueText + "!)";
     }
 
+    /**
+        Static types of the enclosing member's parameters, keyed by Haxe
+        parameter name; set by every member-body entry point. The coalescing
+        default tree is an untyped macro-Expr grammar (DefaultArgExpander),
+        so a `length` field access inside it has no receiver type of its own;
+        this map is the only way to resolve one. Null outside a body render.
+    **/
+    var currentParameterTypes:Null<Map<String, Type>> = null;
+
+    function beginParameterTypes(fieldType:Type):Void {
+        currentParameterTypes = switch (Context.follow(fieldType)) {
+            case TFun(args, _): [for (a in args) a.name => a.t];
+            case _: null;
+        };
+    }
+
+    /**
+        Resolves the static type of a coalescing receiver read when the body
+        context knows it: a parameter of the enclosing member or an instance
+        field of the current class. Null for every other receiver shape.
+    **/
+    function coalescingReceiverType(value:DefaultArgExpander.CoalescingDefaultValue):Null<Type> {
+        return switch (value) {
+            case CParameterRead(name): currentParameterTypes == null ? null : currentParameterTypes.get(name);
+            case CInstanceFieldRead(name):
+                final cls = currentClass;
+                if (cls == null)
+                    return null;
+                for (field in cls.fields.get())
+                    if (field.name == name)
+                        return field.type;
+                return null;
+            case _: null;
+        };
+    }
+
+    /**
+        `length` on a coalescing receiver. Haxe String.length counts UTF-16
+        code units; Swift String.count counts grapheme clusters, and resident
+        modules render String as [UInt16] where .count already counts units.
+        This mirrors the expression path's split (strideValue/instanceField).
+        The receiver is untyped in the coalescing tree, so the String
+        discriminator consults coalescingReceiverType; when the type is
+        unknown the emission stays `.count`, which is correct for every
+        non-String receiver (arrays, ReadOnlyArray) and only leaves String
+        receivers in unresolvable contexts on the old unit.
+    **/
+    function coalescingLengthText(receiver:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
+        final isString = switch (coalescingReceiverType(receiver)) {
+            case null: false;
+            case t: switch (Context.follow(t)) {
+                case TInst(c, _): c.get().name == "String";
+                case _: false;
+            }
+        };
+        if (!isString)
+            return "Int32(" + coalescingDefaultText(receiver, targetType) + ".count)";
+        return "Int32(" + coalescingDefaultText(receiver, targetType) + (types.resident ? ".count)" : ".utf16.count)");
+    }
+
     /** Renders a sanctioned default in Swift's native parameter context. */
     public function coalescingDefaultText(value:DefaultArgExpander.CoalescingDefaultValue, targetType:Type):String {
         return switch (value) {
@@ -383,9 +443,7 @@ class SwiftExpr {
             case CInstanceFieldRead(name): "self." + SwiftNameEscape.escape(name);
             case CLocalRead(name): name;
             case CFieldAccess(CParameterRead(staticPath), ""): constructorParameterValues != null && constructorParameterValues.exists(staticPath) ? constructorParameterValues.get(staticPath) : coalescingStaticFieldText(staticPath);
-            case CFieldAccess(receiver, fieldName): fieldName == "length" ? "Int32("
-                + coalescingDefaultText(receiver, targetType)
-                + ".count)" : coalescingDefaultText(receiver, targetType)
+            case CFieldAccess(receiver, fieldName): fieldName == "length" ? coalescingLengthText(receiver, targetType) : coalescingDefaultText(receiver, targetType)
                 + "."
                 + SwiftNameEscape.escape(fieldName);
             case CMethodCall(receiver, "substring", args) if (args.length == 2):
@@ -541,6 +599,7 @@ class SwiftExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        beginParameterTypes(f.field.type);
         currentReturnType = switch (Context.follow(f.field.type)) {
             case TFun(_, ret): ret;
             case _: null;
@@ -595,6 +654,7 @@ class SwiftExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        beginParameterTypes(f.field.type);
         currentFuncReturnsOptional = switch (f.field.type) {
             case TFun(_, ret): isNullLeafType(ret);
             case _: false;
@@ -631,6 +691,7 @@ class SwiftExpr {
         currentClass = cls;
         currentField = f.field.name;
         currentLocalName = null;
+        beginParameterTypes(f.field.type);
         currentFuncReturnsOptional = switch (f.field.type) {
             case TFun(_, ret): isNullLeafType(ret);
             case _: false;
