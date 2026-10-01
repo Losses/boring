@@ -92,7 +92,7 @@ da21da29 merge: audit/fallibility-downgrade-from-pit248 into arch/agent-guided-g
 ```
 
 祖先核验：上列 17 个 sha + `f6f7e3d3` 自身逐一 `git merge-base --is-ancestor <sha> f6f7e3d3`，
-**全部 rc=0**（逐条输出存 `audit-reports/r51-merge-register-2026-10-01.md`）。
+**全部 rc=0**（逐条输出存 `audit-reports/r51-merge-register-2026-10-01.md`；仓外注记 2026-10-01：该路径为工作区级文件，位于 `/home/losses/Development/tq-workspace/audit-reports/`，不在 boring 仓内，`git ls-files --error-unmatch` 不解析）。
 看板行 id / status 与 §1 表逐行经看板读数核对一致（2026-10-01T21:00:56Z 快照）。
 
 ## 5. 灾害恢复批次合入（`f6f7e3d3` 之后，补记于 2026-10-01）

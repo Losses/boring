@@ -211,7 +211,7 @@ addressable for anyone who needs the sealed candidate's history.
 1. **No acceptance, no nomination, no status change** (§4).
 2. **No `swiftc -c -WMO` re-measurement here.** The successor's zero-diagnostic claim
    is the R3.3 reviewers' job; this record only pins the bytes. The independent R3.3-a
-   review (`audit-reports/r33-review-a-2026-10-01.md`) already CONFIRMED the diagnostic
+   review (`audit-reports/r33-review-a-2026-10-01.md`; out-of-repo note, 2026-10-01: this path lives in the workspace at `/home/losses/Development/tq-workspace/audit-reports/`, outside the boring repository) already CONFIRMED the diagnostic
    count = 0 at a line containing the components, and I do not re-adjudicate it.
 3. **Scope of the frozen `SwiftExpr.hx` is wider than the three successor components**
    (§1 scope caveat). Whether that is the correct successor content is for reviewers /

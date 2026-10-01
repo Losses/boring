@@ -23,6 +23,13 @@ all five targets. The Haxe oracle output is printed at report lines 48-52:
 `[Bopomofo:zh-TW,Bopomofo:zh-TW,Bopomofo:fr,Plain:en]` and the three numeric
 rows `[4,4,2,0,1]`, `[-4,-4,nan,0,1]`, and `[0,0,0,0,1]`.
 
+> Note (added 2026-10-01, R1 residual cleanup): that `/tmp` path was volatile
+> scratch storage outside the repository, and the file no longer exists on
+> this machine (checked `/tmp/dispatch-state/`, the workspace
+> `audit-reports/`, and `dc-warn/out/`; no copy was archived). The
+> observations quoted above are the retained record; the `/tmp` source itself
+> is not openable.
+
 ## Semantics ruling
 
 1. A call at the product boundary that omits a coalescing-default argument must be rendered
@@ -78,7 +85,9 @@ rows `[4,4,2,0,1]`, `[-4,-4,nan,0,1]`, and `[0,0,0,0,1]`.
 | `describe(Bopomofo, "fr")` | The non-null explicit value remains explicit and is not replaced by the default. | The explicit locale result remains distinct from the null pair. |
 
 The concrete five-target call spellings and the oracle rows are evidence from
-`/tmp/dispatch-state/boring-probe-gap47-r1.report.md:48-68`.
+`/tmp/dispatch-state/boring-probe-gap47-r1.report.md:48-68` (see the note
+above: that volatile `/tmp` file no longer exists; the tables in this spec are
+the retained record).
 
 ## Non-goals
 
