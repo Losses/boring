@@ -513,7 +513,7 @@ class KotlinExpr {
             case TFun(_, ret): ret;
             case _: null;
         };
-        return new KotlinPreparedFunction(fusedRoot, source, context, declaredReturn, scanBodyWrites(fusedRoot));
+        return new KotlinPreparedFunction(fusedRoot, source, context, declaredReturn, scanBodyWrites(fusedRoot), scanClosureWrites(fusedRoot));
     }
 
     /** Fixture-only evidence from the exact root the production emitter owns. */
@@ -581,6 +581,51 @@ class KotlinExpr {
     /** The active body's writes decide declaration mutability and smart casts. */
     function bodyWritesLocal(binding:Int):Bool {
         return prepared == null ? mutated.exists(binding) : !prepared.nativePromotable(binding);
+    }
+
+    /**
+        The bindings this body writes from inside a nested function: the
+        capturing-closure half of Kotlin's smart-cast stability rule. Such a
+        write has no source position to invalidate a proof at, because the
+        closure runs at an arbitrary call, so the binding is unstable for the
+        whole body. The scan keeps `scanBodyWrites`' own target forms and adds
+        none. (PIT-388)
+    **/
+    function scanClosureWrites(root:TypedExpr):Map<Int, Bool> {
+        final writes:Map<Int, Bool> = [];
+        function note(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TBinop(OpAssign, target, _) | TBinop(OpAssignOp(_), target, _):
+                    switch (ExpressionPredicates.stripWrap(target).expr) {
+                        case TLocal(v): writes.set(v.id, true);
+                        case TArray(arr, _):
+                            switch (ExpressionPredicates.stripWrap(arr).expr) {
+                                case TLocal(v): writes.set(v.id, true);
+                                case _:
+                            }
+                        case _:
+                    }
+                case TUnop(OpIncrement, _, t) | TUnop(OpDecrement, _, t):
+                    switch (ExpressionPredicates.stripWrap(t).expr) {
+                        case TLocal(v): writes.set(v.id, true);
+                        case _:
+                    }
+                case _:
+            }
+        }
+        function walk(e:TypedExpr, inside:Bool):Void {
+            switch (e.expr) {
+                case TFunction(fn):
+                    walk(fn.expr, true);
+                    return;
+                case _:
+            }
+            if (inside)
+                note(e);
+            TypedExprTools.iter(e, child -> walk(child, inside));
+        }
+        walk(root, false);
+        return writes;
     }
 
     /**
@@ -869,7 +914,7 @@ class KotlinExpr {
             outerSummaryKind: SourceCaptureSummaryKind.EnclosingAssignsNothing,
             outerCaptureFacts: []
         });
-        final artifact = new KotlinPreparedFunction(fusedRoot, source, FunctionBody, null, scanBodyWrites(fusedRoot));
+        final artifact = new KotlinPreparedFunction(fusedRoot, source, FunctionBody, null, scanBodyWrites(fusedRoot), scanClosureWrites(fusedRoot));
         return scoped(artifact, function():String {
             return expr(fusedRoot);
         });
@@ -2098,7 +2143,7 @@ class KotlinExpr {
         final nestedFacts = prepared.source.nestedAt(literal);
         if (nestedFacts == null)
             Context.error("function literal has no nested source facts", literal.pos);
-        final nested = new KotlinPreparedFunction(f.expr, nestedFacts, NestedBody, f.t, scanBodyWrites(f.expr));
+        final nested = new KotlinPreparedFunction(f.expr, nestedFacts, NestedBody, f.t, scanBodyWrites(f.expr), scanClosureWrites(f.expr));
         final rendered = withPrepared(nested, function():{params:String, body:String} {
             for (a in f.args) {
                 reserveName(a.v.name);
@@ -2435,6 +2480,10 @@ class KotlinExpr {
             case OpAssign:
                 final map = mapAssignment(l);
                 final value = assignValueText(l, r, map == null);
+                // The right side reads the target's old value, so the proof
+                // it may still use is retired only after it has rendered.
+                // (PIT-388)
+                dropProofsForWriteTarget(l);
                 if (map == null) {
                     // A Haxe Array index write grows the array when the index
                     // reaches past the end, so it needs the growth guard.
@@ -2453,9 +2502,14 @@ class KotlinExpr {
                         var appliedValue = expr(r);
                         if (isIntOrLongType(emittedType(r)) && isFloatType(l.t))
                             appliedValue = intToFloatText(appliedValue);
-                        return assignTarget(l) + " " + symbolOf(inner) + "= " + appliedValue;
+                        final rendered = assignTarget(l) + " " + symbolOf(inner) + "= " + appliedValue;
+                        // `x op= v` reads x before it rebinds it. (PIT-388)
+                        dropProofsForWriteTarget(l);
+                        return rendered;
                     case _:
-                        return assignTarget(l) + " = " + binopCore(e, inner, l, r);
+                        final rendered = assignTarget(l) + " = " + binopCore(e, inner, l, r);
+                        dropProofsForWriteTarget(l);
+                        return rendered;
                 }
             case _:
                 return binopCore(e, op, l, r);
@@ -2963,10 +3017,15 @@ class KotlinExpr {
         };
         if (safeCallResult)
             return "?.";
-        // The nullable-type fallback extracts only when no dominating
+        // The nullable-type fallback extracts only when no dominating value
         // proof holds: a proven subject reads through a plain dot, and a
         // needless assertion warns as redundant. (NullableAccessProof)
-        if (isNullType(subj.t) && !(receiverProven(subj) && smartCastableSubject(subj))) {
+        // The question here is about the subject's *value*, not about its
+        // receiver chain: for a field read the receiver question also answers
+        // yes when the chain's root local is merely present (`rootPresent`),
+        // which says nothing about the field's own value and would leave a
+        // bare dot exactly where Kotlin refuses the smart cast. (PIT-388)
+        if (isNullType(subj.t) && !valueProven(subj)) {
 #if kotlin_fold_debug
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
@@ -3168,7 +3227,12 @@ class KotlinExpr {
     function callRendersNullable(fn:TypedExpr, args:Array<TypedExpr>):Bool {
         return switch (stripWrap(fn).expr) {
             case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
-                rendersNullable(receiver);
+                // A nullable receiver makes the call nullable only when the
+                // call is actually read through a safe call. An extracted
+                // receiver (`recv!!.m()`) yields the method's own declared
+                // type, so treating it as nullable appends a second `!!` that
+                // kotlinc reports as an unnecessary assertion. (PIT-388)
+                rendersNullable(receiver) && nullableAccess(receiver) == "?.";
             case TField(_, FStatic(cls, field))
                 if (cls.get().pack.length == 0 && cls.get().name == "StringTools"
                     && (field.get().name == "startsWith" || field.get().name == "endsWith") && args.length > 0):
@@ -3313,36 +3377,119 @@ class KotlinExpr {
         }
     }
 
-    /** Whether the field policy states a proof for one field read. */
-    function fieldProven(e:TypedExpr):Bool {
+    /**
+        The flow half of one field read's proof: a dominating guard (or an
+        emission that printed the assertion) recorded the property as present.
+        This is the *value* fact on its own, with Kotlin's smart-cast rule not
+        yet applied; `fieldProven` is the composite the read path may act on.
+        (PIT-388)
+    **/
+    function fieldGuarded(e:TypedExpr):Bool {
         final key = fieldAccessKey(e);
         return key != null && nonNullFields.exists(key);
     }
 
     /**
-        The receiver question one member access asks: a local fact for a local
-        receiver, the root fact for a chain, and the field policy for a field
-        read. This replaces the position walk that answered the same question
-        from source ranges.
+        Whether the field policy states a proof *Kotlin will act on* for one
+        field read: the guard's flow fact together with the one smart-cast
+        predicate. A dominating guard proves the property is present, but
+        Kotlin only turns that proof into a smart cast when
+        `smartCastableSubject` holds, so the flow proof alone is not the
+        predicate. (PIT-388)
     **/
+    function fieldProven(e:TypedExpr):Bool {
+        return fieldGuarded(e) && smartCastableSubject(e);
+    }
+
     /**
-        Whether Kotlin smart-casts a proven-non-null subject. A val-like local
-        and a final (val) property smart-cast; a var property or a reassigned
-        binding does not, so its read must keep the force extraction even when
-        the enclosing guard proved it present. (VarFieldSmartCast)
+        Whether the root local of one access chain is a Kotlin-stable value.
+        A root that is not a local at all (`this`, a call result, a literal)
+        states no local instability here and is left to the access form: the
+        key that reaches this predicate is already a `TLocal`/`this` receiver.
+    **/
+    function receiverRootStable(e:TypedExpr):Bool {
+        final root = subjectRootLocal(e);
+        if (root == null)
+            return true;
+        return prepared == null ? !mutated.exists(root.id) : !prepared.closureWrites.exists(root.id);
+    }
+
+    /**
+        Retires the field proofs one write can invalidate, at the emission
+        that prints the write. Rebinding the root local changes every
+        `root.field` projection, so all of that local's keys go; assigning the
+        field itself changes that one key. A write that happens *before* a
+        guard removes nothing and does not stop the guard's own proof from
+        taking effect, which is what keeps a plain dot (rather than a
+        redundant `!!`) on the shapes Kotlin's data flow still proves.
+        (PIT-388)
+    **/
+    function dropProofsForWriteTarget(target:TypedExpr):Void {
+        switch (stripWrap(target).expr) {
+            case TLocal(v):
+                final prefix = "field:" + v.id + ".";
+                for (key in nonNullFields.keys())
+                    if (StringTools.startsWith(key, prefix))
+                        nonNullFields.remove(key);
+            case TField(_, _):
+                final key = fieldAccessKey(target);
+                if (key != null)
+                    nonNullFields.remove(key);
+            case _:
+        }
+    }
+
+    /**
+        THE smart-cast predicate: whether Kotlin turns a proof about this
+        subject into a smart cast, i.e. whether the subject may render through
+        a bare dot. One judgement, one source (contract 6): the guard side
+        (`addProofExpr`, deciding whether a printed `!!` may register the field
+        key) and the read side (`fieldProven`) both call this function, so the
+        two can no longer answer the same question differently. Same family as
+        PIT-388 / PIT-416 / TCN-162.
+
+        Kotlin's two halves for a field read, neither implied by the other and
+        neither supplied by the flow proof:
+
+          * the property must be immutable. A `var` property is never
+            smart-castable however good the guard is: "smart cast to 'T' is
+            impossible, because 'x' is a mutable property that could be
+            mutated concurrently". Only a Haxe `final` backing field lowers to
+            a Kotlin `val`, so the field half is `isFinal` on an `FVar`; a
+            getter-property accessor is excluded because Kotlin refuses a
+            smart cast through a custom getter.
+          * the receiver chain's root local must be one Kotlin treats as
+            stable. A local a capturing closure writes makes every
+            `root.field` projection unstable, and a local this body rebinds
+            stops being stable from the rebinding onward; the latter half is
+            enforced where the write is emitted, by
+            `dropProofsForWriteTarget`.
+
+        The local half is the same question for a plain binding: only a
+        binding the body leaves alone smart-casts. (VarFieldSmartCast)
     **/
     function smartCastableSubject(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TLocal(v): !bodyWritesLocal(v.id);
-            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) | TField(_, FStatic(_, cf)): cf.get().isFinal;
+            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) | TField(_, FStatic(_, cf)):
+                cf.get().kind.match(FVar(_, _)) && cf.get().isFinal && receiverRootStable(e);
             case _: false;
         };
     }
 
+    /**
+        The receiver question one member access asks: whether the receiver's
+        own value is present, so the read needs neither a safe call nor an
+        extraction of its own. For a field read this is the field's *own* flow
+        proof, never the presence of the chain's root local: `rootPresent`
+        answers a question about the root, and taking it as the field's own
+        proof is the bypass PIT-416 records -- it licenses a bare dot on a
+        field whose value nothing proved. (PIT-416)
+    **/
     function receiverProven(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TLocal(_): localPresent(e) || targetEntryLegal(e);
-            case TField(_, _): fieldProven(e) || rootPresent(e);
+            case TField(_, _): fieldGuarded(e);
             case _: false;
         }
     }
@@ -3721,8 +3868,12 @@ class KotlinExpr {
             case OpNeg:
                 return "-" + inner;
             case OpIncrement:
+                // The increment rebinds the local, so its proofs retire here.
+                // (PIT-388)
+                dropProofsForWriteTarget(subj);
                 return post ? inner + "++" : "++" + inner;
             case OpDecrement:
+                dropProofsForWriteTarget(subj);
                 return post ? inner + "--" : "--" + inner;
             case _:
                 return fail(e, "unary operator has no lowering: " + Std.string(op));
