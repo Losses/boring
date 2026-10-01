@@ -100,15 +100,26 @@ warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture'
 - **oracle 无外部对照**：跨跑者一致性对「六者共享的同一处作者错误」免疫。
 - `readonly-boundary.test.ts` 的归一化会抹掉 `文件:行:` 前缀差异，该差异不在判据覆盖内。
 
-## 6. L5 的常设形态缺失 + 大面无覆盖面 —— **[部分已复核]**
+## 6. L5 的常设形态缺失 + 大面无覆盖面 —— **[已复核：一条被推翻，两条需改写]**
+
+复核报告：`L4-COVERAGE-RECHECK.md`（独立席位，交叉核验）。结论不是「确认」而是**修正**：
+
+| 指控 | 复核结论 |
+|---|---|
+| `tests/haxe/` 下 43 个目录 | **一致**（43） |
+| 27 个 `run.sh` | **只在「直接子」口径下一致；实际总数 29**（另有 2 个嵌套：`flow/replay/run.sh`、`source-container-policy/gen/run.sh`） |
+| 35 个「有 runner 但无被收集测试」 | **数值一致（=35）**，但**措辞错**：35 里只有 **26** 个真正带 `run.sh`，另 **9** 个是**纯 `.hxml`、根本没有 `run.sh`**。故原句「27 个 run.sh 其中 35 个有 runner」**算术上不自洽**（27≠35），是把两种口径混写 |
+| 这些 `run.sh` 不被任何 CI job 执行 | **成立**：`grep -c "run\.sh" .github/workflows/ci.yml` → **0，rc=1**；且已扩大到该 rev 的全部 tracked 文件（`git grep` 88 命中），逐条分类后**无一条是执行路径**（散文 / 哈希清单 / 字符串字面量 / 注释 / 守卫自身引用） |
+| `dc-promoted-eval` 在这 35 之内 | **成立** |
+| **「这 35 个夹具不被任何入口触及」** | **被推翻**：`tests/ts/package-shell.test.ts:388` 读取并执行 `tests/haxe/swift-package-shell-emit/emit.hxml`（该夹具属那 9 个纯 `.hxml` 成员）。**至少有一个成员是被收集路径真实触及的。** |
 
 **已复核**：`bun test tests/fixture-reachability.test.ts` → **2 pass**，常量
-`RECORDED_UNCOLLECTED = 35`（35 个「有 runner 但无被收集测试」的夹具）。
-**未复核**：`tests/haxe/` 下 43 目录 / 27 `run.sh` 的精确计数，以及
-`grep -n "run\.sh" .github/workflows/ci.yml` 为空这一条。
+`RECORDED_UNCOLLECTED = 35` 与独立枚举一致；且该常量的判据是**混合口径**
+（`hasRunner` = 有 `run.sh` **或** 有任何 `.hxml`），所以它**不能**被读作「35 个 run.sh 夹具」。
 
-若成立：**L4 的主力（35 个 `run.sh` 夹具）完全不被 CI 收集**，而唯一做
-「生成物突变 + negative control」的 `dc-promoted-eval` 正在这 35 个之内。
+**教训**：审阅给的三个数字里有两个是**口径未声明**的，其中一个还与前一个算术不相容。
+**转述别人的计数前，先问它的口径是什么** —— 这与缺口 1（候选树结论被当成线状态）
+是同一族错误，只是这次错在**口径**而不是**树**。
 
 ## 7. L0 两条规则与交付面规则完全靠人 —— **[已复核]，且已修其一半**
 
