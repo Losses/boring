@@ -384,6 +384,34 @@ So the first needs libraries the store path does not carry, and the second is a
 **sandbox limitation** — the wrapper requires user namespaces this environment
 denies. Either alone would block the lane; both are present.
 
+**Both halves of that were re-measured, and the picture is narrower than the
+table suggests.** The missing libraries are *supplied by nixpkgs*, not absent
+from the machine: pointing `LD_LIBRARY_PATH` at the `lib` outputs of
+`ncurses`, `sqlite`, `libxml2`, `zlib`, `libedit`, `curl` and `icu4c` makes
+the distribution's own `swiftc` start and report `Swift version 6.2.4`. The
+`bwrap` failure is **not** a kernel switch: `unprivileged_userns_clone` is
+`1` and `max_user_namespaces` is `377260`; what fails is
+`unshare --user --map-root-user` → `cannot open /proc/self/uid_map: Permission
+denied`, i.e. the *process* is denied write access to `uid_map`. The wrapper
+is an FHS environment (`buildFHSEnv`), so every `swiftc` invocation pays that
+cost even though compilation itself does not need a namespace.
+
+Consequence: the blocker is **the FHS wrapper, not the Swift compiler**. Driving
+the distribution's `swiftc` directly gets as far as the link step, which then
+fails on `Scrt1.o` / `crti.o` / `crtbeginS.o`. The first two live in a `glibc`
+output, but `crtbeginS.o` belongs to `gcc`, so a direct invocation has to
+reconstruct what the FHS environment was assembling. Rebuilding that by hand is
+the wrong repair — the defect is that the wrapper is the only supported entry
+point on a host that denies user namespaces. The lane stays unexercised **here**;
+it is not unexercisable in principle, and this record no longer claims the
+libraries are the reason.
+
+A third path was also tried and is **not** available: `nix develop` itself
+builds and enters fine once `NIX_CACHE_HOME` is redirected (the sandbox denies
+writes to `~/.cache/nix`, which is what the earlier "no environment" reading
+actually was), but the dev shell's `swiftc` is the same wrapped binary, so it
+fails at `bwrap` identically.
+
 **Consequence for the record:** the 5 residual failures are classified
 *toolchain-absent* on the strength of `ENOENT`/`swiftc` in their output, and that
 classification is now corroborated by the two checks above rather than inferred

@@ -9,7 +9,7 @@
 |---|---|---|---|---|
 | **L1 生成** | 编译器未崩溃、产物齐全 | 生成进程退出码 + 文件清单 | `rc=0` 且预期文件存在 | **rc=0 不代表产物正确**：`:2609` 的 `fail()` 也会走到 rc=1，但"未触达崩溃"的输入 rc=0 而输出错 |
 | **L2 语法/类型** | 产物在目标语言里合法 | `swiftc -typecheck` / `tsc` / `rustc --emit=metadata` | 0 error | **`-typecheck` 不跑 SILGen**：剥离 `return` 的多语句闭包只报 warning、真实构建才失败。**此类形态必须用 `swiftc -c`** |
-| **L3 构建** | 产物可链接成可执行 | `swiftc -c` / `swiftc -o` | 0 error | 构建期诊断（`will never be executed`）**不在 `-typecheck` 里出现**。**已裁定：计入验收口径** —— 见 `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`（`1a486ebd`）；S1 已使其归零（1 → 0，按 `file:line:col: severity` 形状计数，`grep -c 'warning:'` 会因插入符行把 1 数成 2，PIT-336） |
+| **L3 构建** | 产物可链接成可执行 | `swiftc -c` / `swiftc -o` | 0 error | 构建期诊断（`will never be executed`）**不在 `-typecheck` 里出现**。**已裁定：计入验收口径** —— 见 `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`（`1a486ebd`）。**本条目的当前事实是「未归零」**：该诊断计数仍是 **1**，它是一条**未豁免的已记录基线失败**，见下节「这一层当前不是绿的」 |
 | **L4 行为** | 运行结果正确 | 与 oracle 逐行比对 | **逐字节相同** | oracle 本身错了就全错；且"同一输入下与 oracle 相同"**不覆盖** oracle 未表达的性质（惰性） |
 | **L5 判别** | 该检查**能**发现目标缺陷 | 对故意错误的后端运行 | 故意错误 ⇒ **FAIL** | 若无此层，L1–L4 全绿可能只说明**该性质未被观察** |
 
@@ -118,9 +118,37 @@
 `BASELINE-FAILURES.md` 只记录、不豁免。收集域为 303 文件，其中 249 个来自
 生成树 `reference/ts/gen-tests`，故该 job 先重生成再收集。
 
+## 这一层当前不是绿的（L3 构建期诊断，修正记录）
+
+**本文件早先的版本在第 12 行写过「S1 已使其归零（1 → 0）」。那是错的，此处更正并保留
+错误形状，因为它正是本文件 L0 节自己警告的那一类。**
+
+错误形状：把**候选材料树上的实测**写成了**当前线上的既成事实**。分别核对：
+
+| 问题 | 结果 |
+|---|---|
+| `cd70eb12` 是 `arch/agent-guided-governance`（base）的祖先吗？ | **否** —— `git merge-base --is-ancestor cd70eb12 arch/agent-guided-governance` → rc=1 |
+| 它出现在哪些分支上？ | 仅 `prep/p08-s1-unreachable-return`（含 origin 同名分支）—— 是一份**候选材料** |
+| `stmtDiverges` 在当前树里存在吗？ | **否** —— `grep -rn stmtDiverges --include=*.hx packages/` → 0 命中 |
+| 当前树上的诊断计数是多少？ | **1**，且被夹具**显式断言必须存在** |
+
+`tests/swift-gap-boundary/gap-boundary.test.ts` 把这 1 条 warning 钉住，其注释自述
+这是「an unwaived, recorded baseline failure -- the goal remains zero diagnostics under
+`-c`」，断言为 `toHaveLength(1)`。所以：
+
+- **夹具说的是「缺陷仍在」**（防腐针，缺陷一旦真被修掉，这条断言会失败并强制重读计数）；
+- **文档那时说的是「已归零」**。
+
+两者不能同时为真，实测站在夹具一边。`rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` 中
+「1 → 0」的记载描述的是 `cd70eb12` **那棵树**，在该树内它为真；它不能作为当前线的状态引用。
+把候选树结论写成线状态，与本记录 L0 节要求的「必须给出 commit + `is-ancestor` 结果」
+直接冲突——而这条规则当时没有任何机器执行，所以它被违反了而没人发现。
+
+**教训（已写入 L0 节）**：一份候选材料的实测结果，只有在 `is-ancestor` 为真时才能写成
+「已生效」。此前本文件恰恰缺这一步。
+
 ## 未决
 
-- **L3 的构建期诊断是否计入验收**（`t-muo92xms-s28t`，未认领）
 - **L5 的判别性后端是否写入每个夹具**（当前只有 `branchBoundary` 与 gap 驱动有）
 - **`swiftc -c` 是否应取代 `-typecheck` 成为所有 Swift 验收的口径** ——
   证据支持按形态区分（普通形态 `-typecheck` 足够，剥离 return 的形态必须 `-c`）
