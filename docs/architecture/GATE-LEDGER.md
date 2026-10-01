@@ -388,7 +388,7 @@ sentences from the same report, none of them quoted by the first pass, settle th
   "current HEAD" **is** `0a5c42a7`, so this is the same three candidates.
 
 The pre-existing scope audit had **already** recorded the ancestry (*"`2159c657` **is** an
-ancestor of HEAD but is 8 commits behind"*, `dc-warn/out/p09-tiqian-scope/REPORT.md:136`) and
+ancestor of HEAD but is 8 commits behind"*, `docs/architecture/evidence/ledger-cited-reports/p09-tiqian-scope-REPORT.md:136`) and
 still framed the side as open (*":286"* "*still an open decision*"; *":410"* "*Choose Boring side:
 `2159c657…` … **or** `e1c65975`*"). **Ancestry was never the reason the criterion was open** —
 which is the single most useful thing this recheck produced.
