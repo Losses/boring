@@ -317,6 +317,24 @@ jobs:
       # smaller number.
       - name: Generate the trees the collected suite reads
         run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart'
+      # `bun test tests/` collects `tests/driver/` because its positional
+      # arguments match as path substrings, and both collected files there -
+      # driver.test.ts:6 and compare-coverage.test.ts:6 - spawn the built
+      # artifact `out/driver/driver.js`. Nothing above produces it: the `gen:*`
+      # scripts write only `reference/*/gen` and `reference/ts/gen-tests`, and
+      # the dev shell does NOT build it into the worktree - flake.nix:137-156 is
+      # the separate `driver` package derivation, whose buildPhase compiles it
+      # inside its own build directory and installs it to
+      # `$out/share/boring/driver.js`; the devShell only consumes that store path
+      # (flake.nix:210). The only in-tree compile of `out/driver/driver.js` for a
+      # test run is tests/driver/cli-cross-target.ts:112, reached via
+      # `bun run test:driver:cli-cross-target`, which this job does not run (only
+      # the macos job does). Measured without this step: `bun test tests/driver/`
+      # = 0 pass / 18 fail, every one of them
+      # `error: Module not found ".../out/driver/driver.js"`. The command below is
+      # the same one cli-cross-target.ts runs, so both agree on the artifact.
+      - name: Build the driver entry point the collected tests spawn
+        run: nix develop -c bash -c 'mkdir -p out/driver && haxe packages/driver/driver.hxml'
       # BLOCKING ON PURPOSE - do not add `continue-on-error`. At the revision
       # that wires this in the step is RED: docs/architecture/BASELINE-FAILURES.md
       # records the inherited baseline for this exact command (1001 pass / 32
