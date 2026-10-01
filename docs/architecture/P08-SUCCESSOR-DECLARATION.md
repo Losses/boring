@@ -5,7 +5,7 @@
 > 本文件是 R3.1 的**可批注草案**，不是声明本身。在顶部标注改为 DECLARED 且
 > 冻结记录落盘之前，本文件不产生任何候选身份，P08 后继候选**不存在**可指对象。
 >
-> 依灾害报告 §2 R3（`audit-reports/disaster-report-and-recovery-plan-2026-10-01.md`），
+> 依灾害报告 §2 R3（`audit-reports/disaster-report-and-recovery-plan-2026-10-01.md`；仓外注记 2026-10-01：该路径为工作区级文件，位于 `/home/losses/Development/tq-workspace/audit-reports/`，不在 boring 仓内，`git ls-files --error-unmatch` 不解析），
 > 本声明的定稿前置条件是 **R1 与 R2 全部完成**；此前不得在任何台账、裁定文件或
 > 本文件中把本草案当作已声明/已冻结的候选引用。
 >

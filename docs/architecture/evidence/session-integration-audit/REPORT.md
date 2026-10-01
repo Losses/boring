@@ -399,7 +399,7 @@ evidence-referenced to `dc-warn/out/rust-string-expectations/` and was not re-ru
 
 - `73c33200` → `docs/architecture/GATE-LEDGER.md` (+65)
 - `46b83a20` → `docs/architecture/MANAGEMENT-RULING-137.md` (+38)
-- `1a486ebd` → `docs/architecture/evidence/rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` (+251)
+- `1a486ebd` → `docs/architecture/rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` (+251; path corrected 2026-10-01, R1 residual cleanup: the original text wrote `docs/architecture/evidence/rulings/…`, a directory that has never existed in this repository's history)
 - `b51f7643` → `docs/architecture/evidence/entry-gate-r2r3/SHA256SUMS.txt` (−1, removes
   the self-referential `SHA256SUMS.txt` line)
 

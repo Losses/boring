@@ -63,7 +63,7 @@ f6f7e3d3 rc=0   c8ae0054 rc=0
     docs/architecture/evidence/condition-4-entry-gate/evidence/verify-eec707b9-REPORT.md
   ```
 
-- **R2.2 three-way check** (`audit-reports/r22-three-way-check-2026-10-01.md`):
+- **R2.2 three-way check** (`audit-reports/r22-three-way-check-2026-10-01.md`; out-of-repo note, 2026-10-01: this path lives in the workspace at `/home/losses/Development/tq-workspace/audit-reports/`, outside the boring repository; the same report is committed in-repo, byte-identical, at `docs/architecture/evidence/condition-1-2-generation/r22-three-way-check-REPORT.md`):
   for both `eec707b9` and `2aadcb69`, all four entry-gate requirements
   (GATE-LEDGER.md:189-194) are judged **CONFIRMED** — traceable commit hash,
   clean working-tree proof, independent export/checksums, and executor+reviewer
@@ -74,7 +74,7 @@ f6f7e3d3 rc=0   c8ae0054 rc=0
   bun run gate:verify -- 2aadcb69   # PASS, 1455/0, RC=0
   ```
 
-- **R3.3-a independent review** (`audit-reports/r33-review-a-2026-10-01.md`)
+- **R3.3-a independent review** (`audit-reports/r33-review-a-2026-10-01.md`; out-of-repo note, 2026-10-01: this path lives in the workspace at `/home/losses/Development/tq-workspace/audit-reports/`, outside the boring repository)
   confirms the successor candidate's three components are ancestors of the
   reviewed HEAD `f6f7e3d3`:
   `449444cf` rc=0, `cd70eb12` rc=0, `e550fa52` rc=0 (against `f6f7e3d3`), and

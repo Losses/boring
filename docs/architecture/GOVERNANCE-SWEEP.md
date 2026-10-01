@@ -2,7 +2,7 @@
 
 **Status:** active hard process (recovery plan §3.4 item 4, "停止/取消治理常态化").
 **Tool:** `tools/governance-sweep/sweep.sh` (one run = current counts + full lists for all three classes).
-**Established:** 2026-10-01, recov/r34 (report: `audit-reports/r34-governance-sweep-2026-10-01.md`).
+**Established:** 2026-10-01, recov/r34 (report: `audit-reports/r34-governance-sweep-2026-10-01.md`; out-of-repo note, 2026-10-01: this path lives in the workspace at `/home/losses/Development/tq-workspace/audit-reports/`, outside the boring repository).
 
 ## 0. Scope statement — why this file is outside the RULING-137 prohibition
 

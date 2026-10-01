@@ -205,6 +205,11 @@ pinned revision with `git rev-parse` and the file identities in §1 before judgi
 4. **The fixture's `-c` gap (§5).** At the frozen revision there is no working automated
    `-c` assertion; the repaired one lives at a later commit.
 5. **Lazy effects never measured** (GATE-LEDGER P08-3, F3) — unchanged by this freeze.
+   (Line-anchor note, added 2026-10-01, R1 residual cleanup: frozen evidence reports
+   finalized before later edits to this file cite this sentence as `REFREEZE.md:190`:
+   `evidence/ledger-cited-reports/p08-review-1-REPORT.md:292` and `:395`; the sentence
+   itself is unchanged, only its line number moved. Those reports are hash-pinned
+   byte-identical copies and are not edited to track the drift.)
 6. **Tree state.** The freeze is the *commit* `c8ae0054`, reproducible by `git archive`;
    it is not a pin of any working tree, and the coordination tree currently holds
    uncommitted edits beyond it.
