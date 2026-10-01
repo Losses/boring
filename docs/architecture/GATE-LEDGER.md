@@ -188,7 +188,7 @@ a machine reset was not exercised (same no-handler class), and bun 1.3.13 runnin
 
 The ruling required exactly one new piece of evidence before anything else could
 move: a real, exclusive, CI-shaped run with the two unmerged repairs applied. It
-exists now. Artifacts: `docs/architecture/evidence/ledger-cited-reports/e2e-run-REPORT.md` and `evidence/`.
+exists now. Artifacts: `docs/architecture/evidence/ledger-cited-reports/e2e-run-REPORT.md` and `docs/architecture/evidence/ledger-cited-reports/e2e-run-evidence/` - the run's whole tree except the report itself (`evidence/` plus the top-level run artifacts), mirrored byte-for-byte, so every path the report cites resolves relative to `e2e-run-evidence/`; that directory's `README.md` records the intake and the limits of the retained bytes.
 
 | What | Result |
 |---|---|
