@@ -143,3 +143,36 @@ da21da29 merge: audit/fallibility-downgrade-from-pit248 into arch/agent-guided-g
 逐条 `git merge-base --is-ancestor <sha> ed70c6c8` **26/26 rc=0**。
 
 未做：本节未做 patch-id 逐条核验（§1 表做过），故不声称「无内容缺失」；该缺口见 H6 报告 §8。
+
+## 6. 灾害恢复第二批合入（`ed70c6c8` 之后，补记于 2026-10-01）
+
+口径与 §0/§5 相同：**本表只证明「已在主干」这一事实，不构成签核**，不改变任何看板行状态。
+§5 的截止基点是 `ed70c6c8`，其后的合入在 H6 复核口径下仍属未登记，故由协调席在此补齐。
+核验基点取本节提交时的主干 `18cff037`。
+
+| 分支名 | merge sha | 对应看板行 |
+|---|---|---|
+| recov/d7-r1-residual | `06c8a368` | 无独占行（R1 残余引用） |
+| recov/h2-rulings-fixtures | `c66e2bf9` | 无独占行（裁定夹具污染 merge-precheck，PIT-487） |
+| recov/h7-e2e-provenance | `0977f964` | 无独占行（e2e-run 逐文件保留理由） |
+| recov/h9-out-evidence-ingest | `38d20a16` | 无独占行（out/ 证据入仓 159 文件） |
+| recov/h10-doc-style-scope | `648fd67c` | 无独占行（doc-style 扫描范围，PIT-493） |
+| recov/h1-precommit-baseline | `b3cbac1b` | 无独占行（pre-commit 基线门禁，PIT-488） |
+| recov/h13-precheck-direction | `e0f8fd65` | 无独占行（Check 2 判据方向，PIT-495） |
+| fix/guard-landed-unrecorded | `1e8c76ce` | 无独占行（doing-row-guard 假阴性，PIT-494） |
+| docs/vble-report-postfix-run | `18cff037` | 无独占行（VBLE 报告刷新） |
+
+**补记背景**：`recov/h10-doc-style-scope`、`recov/h1-precommit-baseline`、
+`recov/h13-precheck-direction`、`fix/guard-landed-unrecorded`、`docs/vble-report-postfix-run`
+五条在本节之前已完成提交与席位自验，但**未合入主干**：协调席在会话尾部输出了「已合并」的
+结论，实际因 `/tmp/merge-r27` 工作树脏、且 `recov/h10-doc-style-scope` 分支指针被错置为
+H11 的提交 `a2364908` 而未落地。本次逐条独立复验后合入：Check 2 方向在合成仓上以
+「基点早于新裁定」与「基点等于最新裁定」两例对拍（旧码前者误 PASS、新码 FAIL 且后者仍 PASS）；
+`doing-row-guard` 在真实看板上复跑（`warn/kotlin` 三行 UNTRACEABLE 转 LANDED_UNRECORDED，
+全板 UNTRACEABLE 27→20、LANDED_UNRECORDED 0→7、doing 行 33 不变）；
+`recov/h10-doc-style-scope` 的分支指针复位到其自身提交 `cbcc9ccd`。
+
+祖先核验（协调席自跑，2026-10-01）：`git log --format=%H --merges ed70c6c8..18cff037`
+得 **9** 条，逐条 `git merge-base --is-ancestor <sha> 18cff037` 得 **9/9 rc=0**。
+
+未做：与 §5 相同的 patch-id 逐条核验缺口。
