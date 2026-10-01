@@ -2189,8 +2189,40 @@ class RustExpr {
         // shape rather than a declared constructor to invoke; use a diverging
         // error path instead of emitting a malformed constructor call.
         if (Compiler.enumDeclaresVariant(member.module, errorTypeName, member.name + "Fault"))
-            return "panic!(\"throw variant shape collision\")";
+            return collisionPayloadExtract(inner, raw);
         return errorTypeName + "::" + member.name + "Fault(" + raw + ")";
+    }
+
+    /**
+        Degrade for a throw whose wrapping variant name collides with a
+        variant the target error enum already declares (the dedup suppresses
+        the growth registration, so no wrapping constructor exists). The
+        thrown value is the whole exception class value — `Ex::new(payload)`
+        — and the catch site of this error domain binds the payload enum
+        value itself, so the Haxe semantics ("raise an Ex carrying this
+        fault") lower faithfully by extracting the payload and raising it
+        directly: the region's Err arm receives the same fault value. This
+        loses only the exception's Display message, which Rust catch-site
+        lowering never observes. Reachable whenever the exception class's
+        payload enum IS the current error enum (nameshape fixture: the
+        rethrow `throw new E(e.fault)` under a `Result<_, EFault>`), which
+        is checked here; anything else keeps the previous diverging path —
+        a strictly narrower residual than before, not a new one.
+    **/
+    function collisionPayloadExtract(inner:TypedExpr, raw:String):String {
+        final newExpr = switch (stripWrap(inner).expr) {
+            case TNew(c, _, args) if (args.length == 1): {cls: c, arg: args[0]};
+            // member is only computed from a single-argument TNew, so this
+            // arm is unreachable from the sole caller.
+            case _: return raw;
+        };
+        final cls = newExpr.cls.get();
+        final classKey = RustEmissionState.identityKey(cls.module, cls.name);
+        final payloadModule = state.exceptionPayloads.get(classKey);
+        final payloadName = payloadModule != null ? state.exceptionPayloadNames.get(classKey) : null;
+        if (payloadName == null || payloadName != errorTypeName)
+            return "panic!(\"throw variant shape collision\")";
+        return expr(newExpr.arg);
     }
 
     /**
