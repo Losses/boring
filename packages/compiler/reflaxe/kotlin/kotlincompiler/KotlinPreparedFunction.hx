@@ -40,6 +40,14 @@ class KotlinPreparedFunction {
     /** Whole-body write set. The current conservative smart-cast input. */
     public final wholeFunctionWrites:Map<Int, Bool>;
 
+    /**
+        Bindings this body writes from inside a nested function. Kotlin
+        refuses to smart-cast a local a capturing closure can mutate, and it
+        applies that rule to the whole function rather than from the write's
+        source position, because the closure may run at any call. (PIT-388)
+    **/
+    public final closureWrites:Map<Int, Bool>;
+
     /** Target entry facts: parameters the signature lifted to non-null. */
     public final targetEntryNonNull:Map<Int, Bool> = [];
 
@@ -50,12 +58,13 @@ class KotlinPreparedFunction {
     public var completed:Bool = false;
 
     public function new(root:TypedExpr, source:SourceLocalPresenceFacts, context:KotlinBodyContext, declaredReturn:Null<Type>,
-            wholeFunctionWrites:Map<Int, Bool>) {
+            wholeFunctionWrites:Map<Int, Bool>, closureWrites:Map<Int, Bool>) {
         this.root = root;
         this.source = source;
         this.context = context;
         this.declaredReturn = declaredReturn;
         this.wholeFunctionWrites = wholeFunctionWrites;
+        this.closureWrites = closureWrites;
     }
 
     /**
