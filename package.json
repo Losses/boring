@@ -45,8 +45,9 @@
     "check:reflaxe": "haxe -lib reflaxe -cp examples -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
-    "verify": "boring verify && bun run test && bun run test:driver:cross-target && bun run test:driver:cli-cross-target && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:dart && bun run test:rust && haxe packages/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run check:precision && bun run gen:vector && bun run check:reflaxe",
+    "verify": "boring verify && bun run check:roots && bun run test && bun run test:driver:cross-target && bun run test:driver:cli-cross-target && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:dart && bun run test:rust && haxe packages/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run check:precision && bun run gen:vector && bun run check:reflaxe",
     "warning:gate": "bash tools/warning-gate/check.sh",
+    "check:roots": "bash tools/roots-guard/check-roots-guard.sh",
     "gate:verify": "bun tools/gate-proof/verify-commit.ts",
     "check:precision": "bun tools/precision-guard/check.ts"
   },

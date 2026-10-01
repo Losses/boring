@@ -1,3 +1,22 @@
+# Disaster-recovery provenance annotation (r54r independent review, 2026-10-01).
+# The following 14 root-floor entries were carried into the tree by the
+# unreviewed disaster merge 7b4aaf8b (merge of fix/p09-roots-guard-candidate
+# = commit 75faf832, a root-parity fix).  Their content is benign (root-set
+# parity restoration for @:test modules), but the merge itself was not
+# reviewed before it entered mainline.  Pinned here for fact-tracking only;
+# a deliberate removal or a sign-off review is deferred to the next planned
+# baseline refresh coordinated through the workspace board.
+#
+#  Via 7b4aaf8b (75faf832 parity fix):
+#    kotlin: boring.NullBoolEmphasisOps, boring.NullBoolStyle,
+#            boring.NullBoolTernaryOps, boring.TestLitEdgeOps,
+#            tests.NullBoolTernaryTests, tests.TestLitEdgeTests
+#    swift:  boring.NullBoolEmphasisOps, boring.NullBoolStyle,
+#            boring.NullBoolTernaryOps, boring.NullInflatedLiteralOps,
+#            boring.TestLitEdgeOps, tests.NullBoolTernaryTests,
+#            tests.NullInflatedLiteralOpsTests, tests.TestLitEdgeTests
+#
+# End of provenance annotation (14 disaster-carried entries, 20 pre-existing).
 kotlin	boring.AbstractStaticDefault
 kotlin	boring.AccessPeer
 kotlin	boring.AccessTarget
@@ -78,6 +97,7 @@ kotlin	boring.Fp16
 kotlin	boring.Fp32
 kotlin	boring.FPHelperRustOps
 kotlin	boring.FPHelperSwiftOps
+kotlin	boring.FromCharCodeToString
 kotlin	boring.FunctionalLocalOps
 kotlin	boring.FunctionalOps
 kotlin	boring.FusedPushThrowOps
@@ -86,6 +106,7 @@ kotlin	boring.GlyphClusterHolder
 kotlin	boring.GlyphClusterReader
 kotlin	boring.GlyphMetrics
 kotlin	boring.GraphemeOps
+kotlin	boring.GuardedNonNullTernaryElvis
 kotlin	boring.HaxeExceptionOps
 kotlin	boring.ImpHost
 kotlin	boring.ImpWidget
@@ -146,10 +167,14 @@ kotlin	boring.NullableLocalOps
 kotlin	boring.NullableReceiver
 kotlin	boring.NullableStringViewOps
 kotlin	boring.NullableToStringOps
+kotlin	boring.NullBoolEmphasisOps
+kotlin	boring.NullBoolStyle
+kotlin	boring.NullBoolTernaryOps
 kotlin	boring.NullGuardFieldMetrics
 kotlin	boring.NullGuardFieldOps
 kotlin	boring.NullGuardNarrowOps
 kotlin	boring.NullGuardNestedFieldOps
+kotlin	boring.NullInflatedLiteralOps
 kotlin	boring.NullInitLocalOps
 kotlin	boring.NullStaticMapOps
 kotlin	boring.NumberClassifyOps
@@ -205,6 +230,7 @@ kotlin	boring.SealedChildException
 kotlin	boring.SealedChildOps
 kotlin	boring.SealedChildParent
 kotlin	boring.SealedVariantOps
+kotlin	boring.ShiftPopStatement
 kotlin	boring.SignedComparisonOps
 kotlin	boring.SignedIntArgumentOps
 kotlin	boring.SignedIntAssignOps
@@ -238,6 +264,7 @@ kotlin	boring.SwitchOps
 kotlin	boring.TableBuilderInferOps
 kotlin	boring.TernaryInterfaceOps
 kotlin	boring.TernaryOptionalOps
+kotlin	boring.TestLitEdgeOps
 kotlin	boring.ThrowingClosureOps
 kotlin	boring.ThrowingIndexOfOps
 kotlin	boring.ToStringOps
@@ -264,6 +291,7 @@ kotlin	boring.VectorCodec
 kotlin	boring.VectorError
 kotlin	boring.VectorException
 kotlin	boring.VectorSort
+kotlin	boring.WidenedFieldNonNull
 kotlin	boring.WidgetAssembly
 kotlin	boring.WidgetCart
 kotlin	boring.WidgetKind
@@ -343,6 +371,7 @@ kotlin	tests.DefaultParamUnwrapTests
 kotlin	tests.DeferredLocalsTests
 kotlin	tests.DivTableTests
 kotlin	tests.DowncastTests
+kotlin	tests.DriverPlanTests
 kotlin	tests.EarlyReturnTests
 kotlin	tests.EnumLookupTests
 kotlin	tests.EnumQueriesProbes
@@ -432,9 +461,11 @@ kotlin	tests.NullableLocalTests
 kotlin	tests.NullableStringViewOpsTests
 kotlin	tests.NullableToStringTests
 kotlin	tests.NullArgsTests
+kotlin	tests.NullBoolTernaryTests
 kotlin	tests.NullGuardFieldTests
 kotlin	tests.NullGuardNarrowTests
 kotlin	tests.NullGuardNestedFieldOpsTests
+kotlin	tests.NullInflatedLiteralOpsTests
 kotlin	tests.NullInitLocalTests
 kotlin	tests.NullStaticMapTests
 kotlin	tests.NumberClassifyTests
@@ -487,6 +518,7 @@ kotlin	tests.SealedVariantTests
 kotlin	tests.Sha256Tests
 kotlin	tests.Sha512Tests
 kotlin	tests.ShapeTextTests
+kotlin	tests.SharedHandleTests
 kotlin	tests.SignedComparisonTests
 kotlin	tests.SignedIntArgumentTests
 kotlin	tests.SignedIntAssignOpsTests
@@ -527,6 +559,7 @@ kotlin	tests.TernaryInterfaceTests
 kotlin	tests.TernaryOptionalTests
 kotlin	tests.TestApplicabilityProbeTests
 kotlin	tests.TestData
+kotlin	tests.TestLitEdgeTests
 kotlin	tests.ThrowingClosureTests
 kotlin	tests.ThrowingIndexOfTests
 kotlin	tests.ToStringTests
@@ -573,6 +606,8 @@ rust	boring.BorrowedReceiverBoundaryOps
 rust	boring.BorrowedStringReturnOps
 rust	boring.BoxedInterfaceDefaultOps
 rust	boring.BranchedOptionalFieldOps
+rust	boring.BufferHolder
+rust	boring.BytesFrame
 rust	boring.BytesOps
 rust	boring.CaptureSwitchOps
 rust	boring.CfgTestProbe
@@ -598,6 +633,7 @@ rust	boring.DartLocalNameFixOps
 rust	boring.DartNullPushOps
 rust	boring.DataClassCtorGuardOps
 rust	boring.DataClassRangeEqOps
+rust	boring.DataClassStringCompare
 rust	boring.DefaultArgShiftOps
 rust	boring.DefaultArgsOps
 rust	boring.DefaultBuilderOps
@@ -605,6 +641,7 @@ rust	boring.DefaultParamUnwrapOps
 rust	boring.DeferredLocalsOps
 rust	boring.DivTableOps
 rust	boring.DowncastOps
+rust	boring.EncodeProbe
 rust	boring.EnumLookupOps
 rust	boring.EnumQueriesOps
 rust	boring.EnumSortedKeysOps
@@ -700,10 +737,14 @@ rust	boring.NullableLocalOps
 rust	boring.NullableReceiver
 rust	boring.NullableStringViewOps
 rust	boring.NullableToStringOps
+rust	boring.NullBoolEmphasisOps
+rust	boring.NullBoolStyle
+rust	boring.NullBoolTernaryOps
 rust	boring.NullGuardFieldMetrics
 rust	boring.NullGuardFieldOps
 rust	boring.NullGuardNarrowOps
 rust	boring.NullGuardNestedFieldOps
+rust	boring.NullInflatedLiteralOps
 rust	boring.NullInitLocalOps
 rust	boring.NullStaticMapOps
 rust	boring.NumberClassifyOps
@@ -788,6 +829,7 @@ rust	boring.SwitchOps
 rust	boring.TableBuilderInferOps
 rust	boring.TernaryInterfaceOps
 rust	boring.TernaryOptionalOps
+rust	boring.TestLitEdgeOps
 rust	boring.ThrowingClosureOps
 rust	boring.ThrowingIndexOfOps
 rust	boring.ToStringOps
@@ -893,6 +935,7 @@ rust	tests.DefaultParamUnwrapTests
 rust	tests.DeferredLocalsTests
 rust	tests.DivTableTests
 rust	tests.DowncastTests
+rust	tests.DriverPlanTests
 rust	tests.EarlyReturnTests
 rust	tests.EnumLookupTests
 rust	tests.EnumQueriesProbes
@@ -982,9 +1025,11 @@ rust	tests.NullableLocalTests
 rust	tests.NullableStringViewOpsTests
 rust	tests.NullableToStringTests
 rust	tests.NullArgsTests
+rust	tests.NullBoolTernaryTests
 rust	tests.NullGuardFieldTests
 rust	tests.NullGuardNarrowTests
 rust	tests.NullGuardNestedFieldOpsTests
+rust	tests.NullInflatedLiteralOpsTests
 rust	tests.NullInitLocalTests
 rust	tests.NullStaticMapTests
 rust	tests.NumberClassifyTests
@@ -1037,6 +1082,7 @@ rust	tests.SealedVariantTests
 rust	tests.Sha256Tests
 rust	tests.Sha512Tests
 rust	tests.ShapeTextTests
+rust	tests.SharedHandleTests
 rust	tests.SignedComparisonTests
 rust	tests.SignedIntArgumentTests
 rust	tests.SignedIntAssignOpsTests
@@ -1077,6 +1123,7 @@ rust	tests.TernaryInterfaceTests
 rust	tests.TernaryOptionalTests
 rust	tests.TestApplicabilityProbeTests
 rust	tests.TestData
+rust	tests.TestLitEdgeTests
 rust	tests.ThrowingClosureTests
 rust	tests.ThrowingIndexOfTests
 rust	tests.ToStringTests
@@ -1124,8 +1171,10 @@ swift	boring.BorrowedStringReturnOps
 swift	boring.BoxedInterfaceDefaultOps
 swift	boring.BranchedOptionalFieldOps
 swift	boring.BytesOps
+swift	boring.BytesValueArrayVar
 swift	boring.CaptureSwitchOps
 swift	boring.CfgTestProbe
+swift	boring.ClassInstanceLocalLet
 swift	boring.CloneDeriveGapOps
 swift	boring.ClosureStringViewOps
 swift	boring.ClusterTags
@@ -1248,10 +1297,14 @@ swift	boring.NullableLocalOps
 swift	boring.NullableReceiver
 swift	boring.NullableStringViewOps
 swift	boring.NullableToStringOps
+swift	boring.NullBoolEmphasisOps
+swift	boring.NullBoolStyle
+swift	boring.NullBoolTernaryOps
 swift	boring.NullGuardFieldMetrics
 swift	boring.NullGuardFieldOps
 swift	boring.NullGuardNarrowOps
 swift	boring.NullGuardNestedFieldOps
+swift	boring.NullInflatedLiteralOps
 swift	boring.NullInitLocalOps
 swift	boring.NullStaticMapOps
 swift	boring.NumberClassifyOps
@@ -1321,6 +1374,7 @@ swift	boring.StringBufThrowOps
 swift	boring.StringBufUnionOps
 swift	boring.StringCodeOptionalOps
 swift	boring.StringConvOps
+swift	boring.StringIndexOfDeadClamp
 swift	boring.StringIndexOfShadowOps
 swift	boring.StringSearchFromOps
 swift	boring.StringUnitOps
@@ -1335,6 +1389,7 @@ swift	boring.SwitchOps
 swift	boring.TableBuilderInferOps
 swift	boring.TernaryInterfaceOps
 swift	boring.TernaryOptionalOps
+swift	boring.TestLitEdgeOps
 swift	boring.ThrowingClosureOps
 swift	boring.ThrowingIndexOfOps
 swift	boring.ToStringOps
@@ -1344,6 +1399,7 @@ swift	boring.TypeAliasLocalOps
 swift	boring.TypeParameterCompareOps
 swift	boring.UnderscoreParamOps
 swift	boring.UnionChainOps
+swift	boring.UnusedSwiftBinding
 swift	boring.UsizeComparisonOps
 swift	boring.UStringOps
 swift	boring.UStringResidentOps
@@ -1440,6 +1496,7 @@ swift	tests.DefaultParamUnwrapTests
 swift	tests.DeferredLocalsTests
 swift	tests.DivTableTests
 swift	tests.DowncastTests
+swift	tests.DriverPlanTests
 swift	tests.EarlyReturnTests
 swift	tests.EnumLookupTests
 swift	tests.EnumQueriesProbes
@@ -1529,9 +1586,11 @@ swift	tests.NullableLocalTests
 swift	tests.NullableStringViewOpsTests
 swift	tests.NullableToStringTests
 swift	tests.NullArgsTests
+swift	tests.NullBoolTernaryTests
 swift	tests.NullGuardFieldTests
 swift	tests.NullGuardNarrowTests
 swift	tests.NullGuardNestedFieldOpsTests
+swift	tests.NullInflatedLiteralOpsTests
 swift	tests.NullInitLocalTests
 swift	tests.NullStaticMapTests
 swift	tests.NumberClassifyTests
@@ -1584,6 +1643,7 @@ swift	tests.SealedVariantTests
 swift	tests.Sha256Tests
 swift	tests.Sha512Tests
 swift	tests.ShapeTextTests
+swift	tests.SharedHandleTests
 swift	tests.SignedComparisonTests
 swift	tests.SignedIntArgumentTests
 swift	tests.SignedIntAssignOpsTests
@@ -1624,6 +1684,7 @@ swift	tests.TernaryInterfaceTests
 swift	tests.TernaryOptionalTests
 swift	tests.TestApplicabilityProbeTests
 swift	tests.TestData
+swift	tests.TestLitEdgeTests
 swift	tests.ThrowingClosureTests
 swift	tests.ThrowingIndexOfTests
 swift	tests.ToStringTests
