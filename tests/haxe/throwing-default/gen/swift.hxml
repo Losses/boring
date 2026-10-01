@@ -1,0 +1,17 @@
+# Swift generation of the throwing-default fixture.
+# The runner passes -D swift-output=... and -D swift-test-output=... on
+# the command line. No -main: the native harness is an authored @main
+# entry (native/native-main.swift) compiled alongside the emitted
+# Runtime.swift, mirroring tests/haxe/try-tail.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp tests/haxe/throwing-default
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/throwing-default'])
+--macro swiftcompiler.Compiler.use()
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+throwdef.ThrowingDefaultOps
