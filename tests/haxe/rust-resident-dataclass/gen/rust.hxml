@@ -1,0 +1,25 @@
+# Minimal-root generation of the @:dataClass resident-emission probe.
+#
+# The entry list holds exactly ONE root: the @:dataClass class whose generated
+# comparator calls into the resident runtime.SortedTable. No sorted map or set
+# value exists in the program, so the std.SortedMap* keys are never lit by the
+# type cases -- only the requireType bridge in RustImports can gate
+# runtime.SortedTable in.
+#
+# This root set is the point: on the full corpus the emission gate is a global
+# union over one shared shimsUsed map, so any unrelated module lighting those
+# keys keeps sorted_table.rs emitted and hides the bridge's absence. (PIT-390)
+#
+# Run from the repository root; the runner records rc and the raw log.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+--macro Intercept.run(['samples'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/rust-resident-dataclass/gen
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+boring.DataClassStringCompare
