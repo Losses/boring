@@ -682,8 +682,15 @@ describe("child execution evidence", () => {
         throw new Error("an incomplete capture must name its error");
       }
       expect(record.captureError).toContain("capture limit");
-      expect(record.stdoutBytes).toBeGreaterThan(0);
-      expect(record.stderrBytes).toBeGreaterThan(0);
+      // What this path guarantees is that the capture was cut short, not how
+      // much of each stream survived. The host stops the child the moment the
+      // buffer is exhausted, so which stream has flushed by then is a
+      // scheduling fact: a run can legitimately retain zero bytes on one
+      // stream (measured: 4 of 5 runs did), and the retained total is not
+      // bounded by maxBufferBytes either (measured sums well above it). The
+      // incomplete-capture state itself is asserted above; here only that
+      // something was retained.
+      expect(record.stdoutBytes + record.stderrBytes).toBeGreaterThan(0);
       expect(record.exitStatus).toBeNull();
       expect(record.signal).toBe("SIGTERM");
       expect(record.maxBufferBytes).toBe(CAPTURE_LIMIT);
