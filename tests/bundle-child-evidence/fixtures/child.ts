@@ -65,9 +65,15 @@ if (mode === "markers") {
   // flushed when the host SIGTERMed the child -- a scheduling race, so no
   // assertion on it is stable (measured 8.8% nonzero from an idle raw spawn,
   // 25% through the probe idle, 85% under CPU load). Here stderr is what
-  // exhausts the buffer, so the host stops the child *because* stderr filled
-  // it; the retained stderr is therefore non-empty on every run and the
-  // retention question has a determined answer.
+  // exhausts the buffer, so the retained stderr is non-empty on every run and
+  // the retention question has a determined answer.
+  //
+  // What this mode does NOT determine is *when* the host stops the child:
+  // measured through the probe (60 runs, maxBuffer 4096, 204800 bytes written)
+  // the child had already written its last byte and exited 0 in 41 runs, was
+  // stopped mid-write in 18, and was stopped after its last byte in 1. So the
+  // host outcome (signal, exit status) and whether any byte was actually
+  // dropped are scheduling facts here, not properties of the record.
   const total = Number(process.argv[3] ?? "0");
   const chunk = Buffer.alloc(4096, 0x78);
   let remaining = total;
