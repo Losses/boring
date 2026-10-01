@@ -14,6 +14,16 @@
 # commit introduces a new doc-style candidate. A count at or below the
 # baseline passes and the hook reports the standing red state truthfully.
 #
+# What the count covers changed on 2026-10-01 (commit 63aa99ab): check.ts no
+# longer scans the subtree of any directory that carries a SHA256SUMS manifest.
+# Such a directory holds byte-pinned copies of build artifacts, so a hit inside
+# it cannot be repaired without breaking the manifest, and check.ts already
+# excluded the out/ directory those copies came from. The 2203 pinned for
+# cfec9666 was measured WITH the mirrors in scope, so the two numbers are not
+# comparable: the drop to 1569 records a scope correction, and no hit was
+# repaired to earn it. Most of the 1627 that left the count were the 170 files
+# H9 ingested (954 hits) plus the mirrors already in the tree.
+#
 # This file is a fact pin, not a sign-off: recording a number here means "the
 # tree already reads N and a deviation must be visible", not "every one of N
 # hits was reviewed and accepted". Refresh it deliberately:
@@ -24,6 +34,10 @@
 #   - After a check.ts word-list growth (new banned term or pattern), the
 #     measured count jumps without any prose change; re-measure and refresh
 #     here in the same commit that changes the word list.
+#   - After a change to what check.ts SCANS, re-measure and refresh here in the
+#     same commit, and say in the commit message that the new number is not
+#     comparable with the previous one.
 #
-# Measured on arch/agent-guided-governance @ cfec9666 (2026-10-01):
-2203
+# Measured on arch/agent-guided-governance @ 63aa99ab (2026-10-01), frozen
+# evidence mirrors excluded:
+1569
