@@ -18,7 +18,7 @@ A row with neither is NOT ESTABLISHED.
 | 1 | Correct fact-and-requirement handoffs; in-scope reconstruction removed | **PARTIAL**, and a correction is owed | `blockExpression` no longer reads `currentReturnType` (`c8ae0054` - a block's value is its own result type), and the lambda reseed is structurally enforced there. **CORRECTION owed to an independent review (`p08-review-1`): an earlier revision of this cell credited `switchExpression` with taking an explicit destination, and that change is NOT in the frozen `c8ae0054`** - the frozen signature is `switchExpression(sw:TypedExpr):String` (:5562) calling `switchReturn(sw, 1, false, sw.t)` (:5566), with `switchBindingLines` calling it without `v.t` (:5528). The explicit-destination form was committed later as `71a60c7d`, so it belongs to a **successor** candidate, not to this one. The destination-owner mechanism is still **not** enforced structurally (that work was ordered stopped) | seat 3 |
 | 2 | Legal generated output — zero diagnostics on the same candidate inputs | **FAIL (reason changed)** | The two `[#no-usage]` warnings that were the original ground are GONE - W1 is on the line as `d14aae11` and three independent sessions measured 0/0 on the fixture [MINE + 2 seats]. What fails now is one **build-phase** diagnostic: `swiftc -c` emits `will never be executed` at `Gap.swift:117` (W1's unreachable trailing return). Per the round-145 gate-owner ruling such a diagnostic **COUNTS** against `:78`/`:80`, so the fixture records it as an unwaived deviation and keeps zero diagnostics under `-c` as the stated goal (`tests/swift-gap-boundary/gap-boundary.test.ts`) | seat 1 or a gate-owner ruling on the `-c` criterion |
 | 3 | Preserved source behaviour (branches distinguishable, alias, lifetime, single evaluation, lazy effects, control exits) | **PARTIAL** | `docs/architecture/evidence/ledger-cited-reports/p08-candidate-freeze-FREEZE.md` §5.3 [DOC] (the freeze record's `## 5. Obligation map` at `:299` carries `### 5.3 Obligation 3 — Preserved source behaviour` at `:408`; the companion `p08-candidate-freeze-REPORT.md` - sections 1-5, no subsections - remains cited for the freeze method and its limits); branch discrimination was broken and is now repaired (`d1180768`); **lazy effects are now MEASURED** - `p08-review-1` built a side-effecting probe over four routes (switch / try / ternary / expression-block argument at a ReadOnlyArray destination) and got **7/7 byte-identical to `haxe --interp`**, each showing exactly one arm's effect and exactly one producer call; the P08 behaviour-matrix seat independently measured laziness on three axes at once (effect order, effect count, and **termination**: lazy terminates rc=0 where eager recurses to SIGSEGV rc=139). **F3** was the freeze cross-check's label for "lazy effects were never measured" - it was cited without a definition until now | seat 4 |
-| 4 | Two independently recorded reviews | **FAIL** | behaviour review (`out/p08-behaviour-review/`) non-accepting; implementation review (`out/p08-implementation-review/`) **REJECT** with four open conditions | seat 6 |
+| 4 | Two independently recorded reviews | **FAIL** | behaviour review (`docs/architecture/evidence/ledger-cited-reports/p08-behaviour-review-evidence/`) non-accepting; implementation review (`docs/architecture/evidence/ledger-cited-reports/p08-implementation-review-evidence/`) **REJECT** with four open conditions | seat 6 |
 
 **Re-freeze recorded** (`fc89d5d8`, `docs/architecture/REFREEZE.md`): the candidate
 identity is now **`c8ae0054`** (chain `a14345ce` -> `28820ff5` -> `c8ae0054`). This is an
@@ -618,7 +618,7 @@ next action is a decision, which is the gate owner's, not a code change.
 | # | Criterion | Verdict | Evidence | Blocked by |
 |---|---|---|---|---|
 | 1 | Review failures classified | **PASS (drafted)** | `docs/architecture/ACCEPTANCE-REFLECTION.md` §2 — four kinds × owner (candidate fault / pre-existing repo state / missing documentation) [DOC; published in-repo by `ec4c5c2d`] | — |
-| 2 | Appropriate documents revised | **PARTIAL** | record corrections landed, and the surviving record is now the published in-repo revision (`docs/architecture/ACCEPTANCE-REFLECTION.md`, 368 lines, commit `ec4c5c2d`); two reviews' citations were re-anchored (`out/reanchor-v2/`) [DOC] | seat 5 |
+| 2 | Appropriate documents revised | **PARTIAL** | record corrections landed, and the surviving record is now the published in-repo revision (`docs/architecture/ACCEPTANCE-REFLECTION.md`, 368 lines, commit `ec4c5c2d`); two reviews' citations were re-anchored (`docs/architecture/evidence/ledger-cited-reports/reanchor-v2-evidence/`) [DOC] | seat 5 |
 | 3 | Acceptance and reflection record published | **PARTIAL** | **superseded fact**: the record no longer lives only in scratch — it is published in the repository at `docs/architecture/ACCEPTANCE-REFLECTION.md` (commit `ec4c5c2d`, 2026-09-30, "docs(architecture): publish the acceptance and reflection record"). Verdict stays PARTIAL because the published record is still marked DRAFT for gate sign-off, and sign-off is the gate owner's verb, not the ledger's | gate owner |
 
 **P10 overall: NOT PASSED.** The publication verb is discharged in-repo (`ec4c5c2d`), which
@@ -631,14 +631,14 @@ accepting", applied to publishing).
 
 | # | Criterion | Verdict | Evidence | Blocked by |
 |---|---|---|---|---|
-| 1 | Five-target survey mapping failures to responsibilities, unknowns recorded | **PASS (first-cycle reading)** | `out/p12-programme-review/PROGRAMME-REVIEW.md` §1 [DOC]; expanded-scope reading NOT ESTABLISHED | — |
-| 2 | Documents with clear ownership for each decision kind | **PASS** | `work-plan:36-72` [DOC]; independently re-verified in `out/p12-xcheck/` | — |
+| 1 | Five-target survey mapping failures to responsibilities, unknowns recorded | **PASS (first-cycle reading)** | `docs/architecture/evidence/ledger-cited-reports/p12-programme-review-evidence/PROGRAMME-REVIEW.md` §1 [DOC]; expanded-scope reading NOT ESTABLISHED | — |
+| 2 | Documents with clear ownership for each decision kind | **PASS** | `work-plan:36-72` [DOC]; independently re-verified in `docs/architecture/evidence/ledger-cited-reports/p12-xcheck-evidence/` | — |
 | 3 | One mechanism change completed through its consumers | **FAIL** | see P08; `plan:160-162` forecloses the loose reading | seat 1/3/4 |
 | 4 | Accepted candidate + fresh Boring checks + Tiqian regression from a recorded pair | **FAIL** | see P09 | seat 5 |
 | 5 | Later task exercises revised guidance, with failures recorded | **PASS (with caveats)** | P11 fixture accepted; `x-guidance-evaluation.md:95`; the plan's own caveat "Passing tests alone do not establish this condition." | — |
 
 **P12 overall: NOT PASSED. Per P12's own closure rule, the goal must not be closed.**
-Independently re-judged and confirmed at `out/p12-xcheck/REPORT.md`.
+Independently re-judged and confirmed at `docs/architecture/evidence/ledger-cited-reports/p12-xcheck-evidence/REPORT.md`.
 
 ---
 

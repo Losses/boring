@@ -1,0 +1,63 @@
+probeA/PA.swift:40:30: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+ 38 |                 throw PAError(TiqianArray<Int32>([7]))
+ 39 |             }
+ 40 |             view = PASources.arr1()
+    |                              `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+ 41 |         } catch let e as PAError {
+ 42 |             view = e.items
+
+probeA/PA.swift:42:22: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+ 40 |             view = PASources.arr1()
+ 41 |         } catch let e as PAError {
+ 42 |             view = e.items
+    |                      `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+ 43 |         } catch {
+ 44 |             throw error
+
+probeA/PA.swift:54:30: error: cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+ 52 |                 throw PAError(TiqianArray<Int32>([7]))
+ 53 |             }
+ 54 |             return PASources.arr1()
+    |                              `- error: cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+ 55 |         } catch let e as PAError {
+ 56 |             return e.items
+
+probeA/PA.swift:56:22: error: cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+ 54 |             return PASources.arr1()
+ 55 |         } catch let e as PAError {
+ 56 |             return e.items
+    |                      `- error: cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+ 57 |         } catch {
+ 58 |             throw error
+
+probeA/PA.swift:68:20: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+ 66 |     switch c {
+ 67 |         case .one:
+ 68 |             return values
+    |                    `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+ 69 |         case .two:
+ 70 |             return values
+
+probeA/PA.swift:92:20: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+ 90 |     switch c {
+ 91 |         case .one:
+ 92 |             return TiqianArray<Int32>([1])
+    |                    `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+ 93 |         case .two:
+ 94 |             return TiqianArray<Int32>([])
+
+probeA/PA.swift:113:36: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+111 |         switch c {
+112 |             case .one:
+113 |                 h.slot = PASources.arr1()
+    |                                    `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+114 |             case .two:
+115 |                 h.slot = PASources.arr2()
+
+probeA/PA.swift:115:36: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+113 |                 h.slot = PASources.arr1()
+114 |             case .two:
+115 |                 h.slot = PASources.arr2()
+    |                                    `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+116 |         }
+117 |     }

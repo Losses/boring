@@ -1,0 +1,80 @@
+# PROPOSED minimal revision for dc-warn/out/p08-behaviour-review/REPORT.md
+# (and equivalently for dc-warn/out/review-reanchor-apply/REVIEW.reanchored.md,
+# whose line numbers are used below). Applied to neither file — artefact only.
+# Every conclusion is preserved; only anchors and two superseded framings change.
+
+--- REVIEW.reanchored.md (proposed edits)
++++ REVIEW.reanchored-v2.md
+
+@@ §0 anchor table, line 30 @@
+-| `RECORD.md` (input) | **367 lines / `4d348992…` at time of review; superseded 03:06 by 390 lines / `9886fe25…` (CORRECTION 12 added in §6). §0 citations re-checked against `9886fe25…`.** |
++| `RECORD.md` (input) | **367L/`4d348992…` at review; → 390L/`9886fe25…` (CORRECTION 12); → 445L/`21bce64b…` (CORRECTION 13 + override scoping + 2 new §6 open items + tryBinding/tryReturn staleness note). All record citations below re-checked against `21bce64b…` (both predecessors retained, mapping machine-derived).** |
+
+@@ lines 42-45 (narrative of the 03:06 move) @@
+-add: The record moved a second time after that, to 445 lines / `21bce64b…` (CORRECTION 13:
+-the §2 decision table gains the destinationOptionalOverride scoping; §6 gains two open items
+-and a staleness note on the tryBinding/tryReturn bullets). The 445-line edit touched §2 rows
+-54/57-59 + new row 62, §3 boundary-plan row, §4 nil-merge row, §6; all other sections are
+-byte-identical and only line-shifted (see dc-warn/out/reanchor-v2/LINEMAP.tsv).
+
+@@ line 134: §1 (:37-40) @@
+  UNCHANGED — STILL-VALID (same lines).
+
+@@ lines 156-158 and 206: `RECORD.md:116` @@
+-RECORD.md:116
++RECORD.md:149
+ (one-producer rule; content byte-identical)
+
+@@ line 157-158: producer table (:141-149) @@
+-:141-149
++:174-182
+ (note: the boundary-plan row is now :180 and gained a CORRECTION 13 clause; the review's
+  "two producers" complaint against rows :175/:181 (old :142/:148) is untouched)
+
+@@ line 318: "line 184, CORRECTION 3 :255-261" @@
+-line 184, CORRECTION 3 :255-261
++line 217, CORRECTION 3 :288-294
+
+@@ line 321: CORRECTION 4 (:198) @@
++line 231
+
+@@ line 322-323: CORRECTION 12 (:285-302) @@
++:318-335
+
+@@ line 325: CORRECTION 12 (:298-301, :341-345) @@
++:331-334, :374-378
+
+@@ line 327/330: CORRECTION 1 (:240-245); §6 open set (:276) @@
++:273-278 ; :309
+
+@@ line 345: RECORD.md:163-170 @@
++RECORD.md:196-203
+
+@@ line 372: RECORD.md:58 and :108-109 @@
+-RECORD.md:58 classifies this cell as REFUSED, and :108-109 says refusals are "refusals
+-in code, not policy choices".
++RECORD.md:58 classifies this cell as REFUSED, and :109-110 says refusals are "refusals in
++code, not policy choices". CORRECTION 13 (445-line revision, :57-59/:115-146) has since
++SCOPED row 58 as a planner-cell refusal only: as a nil-merge target the composition presents
++an optional intermediate destination and the cell converts via MapOptionalMutableArrayView
++(:200-202). The acceptance-fixture argument below therefore survives only against routes
++that present a required destination unchanged (call arguments, SwiftDecl.hx:599); whether
++the fixture's nil-merge route is one of those is the open question of §5 (see revised O11).
+
+@@ line 499 (D1) @@
+  UNCHANGED — STILL-VALID (:37-40).
+
+@@ O11 row (line ~492) @@
+-| O11 | the cell that blocks O-A — ... has no ruling; the record calls it a code refusal, the acceptance fixture requires it | [EXEC] §Q3.5 |
++| O11 | same cell; WEAKENED by CORRECTION 13: the record now rules the nil-merge occurrence
++  (converter supplies optional intermediate destination) and leaves the refusal standing only
++  for unchanged required-destination callers. The review's [EXEC] abort must be re-attributed
++  to a specific route before O11 stands as written. | [EXEC] §Q3.5 + reanchor-v2 note |
+
+@@ line 586 (ledger) @@
+-RECORD.md:184,255-261
++RECORD.md:217,288-294
+
+@@ line 587 (ledger) @@
+-RECORD.md:198 vs :280-302
++RECORD.md:231 vs :313-335 (CORRECTION 12, 390L; renumbered only in 445L)

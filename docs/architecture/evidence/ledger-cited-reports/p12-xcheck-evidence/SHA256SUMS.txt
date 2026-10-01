@@ -1,0 +1,4 @@
+32aa99dbed4cd5ae935dadca1e0a4b174fd4ed32e0e545bc8ed582f882ccd61a  ./evidence/board-check.md
+8c1f70685b0796813bd58aa7befe4cd6c3e95986834d5593f83f5b9bfe23882c  ./evidence/git-state.md
+12a920fe69f6bc8933b35a6415358334b9fe85d334077a117bff1d85d9c68805  ./evidence/verbatim-check.md
+51d591b4e44b353928c73da0ed2c7a1d970b3de861456b47ac74cb188d1f1530  ./REPORT.md

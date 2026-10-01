@@ -1,0 +1,4 @@
+explicitReturn(one).length=2
+explicitReturn(two).length=1
+switchReturnPosition(one).length=2
+switchReturnPosition(two).length=1

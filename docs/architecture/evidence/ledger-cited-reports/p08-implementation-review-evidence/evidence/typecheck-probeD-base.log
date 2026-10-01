@@ -1,0 +1,15 @@
+probeD/PD.swift:37:30: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+35 |                 throw PDError()
+36 |             }
+37 |             view = PDSources.arr1()
+   |                              `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+38 |         } catch is PDError {
+39 |             view = PDSources.arr2()
+
+probeD/PD.swift:39:30: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+37 |             view = PDSources.arr1()
+38 |         } catch is PDError {
+39 |             view = PDSources.arr2()
+   |                              `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+40 |         } catch {
+41 |             throw error

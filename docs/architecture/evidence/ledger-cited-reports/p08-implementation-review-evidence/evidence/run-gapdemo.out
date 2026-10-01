@@ -1,0 +1,8 @@
+explicitReturn(one).count=2
+explicitReturn(two).count=2
+switchReturnPosition(one).count=2
+switchReturnPosition(two).count=1
+switchLocal(one).count=2
+switchLocal(two).count=1
+switchAssignPath(one).count=2
+switchAssignPath(two).count=1

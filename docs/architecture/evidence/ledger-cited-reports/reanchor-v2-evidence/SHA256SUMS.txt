@@ -1,0 +1,9 @@
+af1c8a86ce0db71b65b94095e932b05badf22036b4459e26bf545681fa25c371  ./evidence/anchor-hashes.txt
+6fce9d64ec2ebb83af668f2bc658adbb92e71191412ff7ed7b1bd1ea08c3da51  ./evidence/codeline-dump.txt
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./evidence/.keep
+0f2d7db95c64d3fe5b552e5756ac3b9424bf0ae60a2305edd1cdebd588d1ae67  ./evidence/old2new.json
+315ca1246779f3f6a53af61d303d86b9ef0df6478ae490a27fbc1d4088ca1b0b  ./evidence/record-full.diff
+7eef245e65a8a3009489102c9cac35fa8bdca166af8adf61389f378d06bd2357  ./LINEMAP.tsv
+0425fa3de91c8770e2b982cba3ce91c6a47685479dba6e3eab32e8f5b452945c  ./REANCHOR-behaviour.diff
+8f6478fc12f372e6a2320755140e0d38736e262b8035f485fec562875949e5c9  ./REANCHOR-implementation.diff
+e1bd8f8502cf42983f59f31bff3bef29df58748fcf135d46f93c8d97870d681b  ./REPORT.md
