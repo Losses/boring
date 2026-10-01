@@ -1,0 +1,17 @@
+# Generation of the variable-bound-loop-eval fixture for the swift target.
+# The caller supplies -D swift-output=... (and -D swift-test-output=...); this
+# file is otherwise the complete generation input. Run from the worktree root:
+#   haxe tests/haxe/variable-bound-loop-eval/gen/swift.hxml -D swift-output=<dir>
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp tests/haxe/variable-bound-loop-eval/shadow
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp tests/haxe/variable-bound-loop-eval
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/variable-bound-loop-eval'])
+--macro swiftcompiler.Compiler.use()
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+vble.Probe
