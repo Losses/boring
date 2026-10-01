@@ -28,12 +28,32 @@ remain under review.
 
 This inventory describes the integrated compiler at `2159c657`. Historical
 comparison consumer inputs copied on 2026-09-28 came from the frozen
-worktrees `ts-comparison-consumer` (tracked diff `5adb5f00`),
-`policy-kotlin-comparison-consumer` (`907c53e9`), `boring-wt-rust-comparison`
-(`a7b60a81`), and `policy-dart-comparison-consumer` (HEAD `ae73c11e`, tracked
-diff `74c58a3c`). It distinguishes a typed result that exists in the tree
+worktrees `ts-comparison-consumer` (tracked diff `5adb5f00` — uncommitted,
+not an object id),
+`policy-kotlin-comparison-consumer` (`907c53e9` — tracked diff, uncommitted,
+not an object id), `boring-wt-rust-comparison`
+(`a7b60a81` — tracked diff, uncommitted, not an object id), and
+`policy-dart-comparison-consumer` (HEAD `ae73c11e`, tracked
+diff `74c58a3c` — uncommitted, not an object id). It distinguishes a typed
+result that exists in the tree
 from a target consumer that uses it. Refresh the inventory when a candidate
 is integrated.
+
+**Note (2026-10-01 measured): the four `tracked diff` values above are not object ids; `git cat-file`
+cannot retrieve any of them**. They refer to the **uncommitted diff state at that time** in those four worktrees — uncommitted diffs
+have no object id, so any query of the form `git show 5adb5f00` will fail:
+
+| Value | `git cat-file -t` | Explanation |
+|---|---|---|
+| `ae73c11e` (marked HEAD) | **commit** | The only retrievable one |
+| The four `tracked diff` values | All four **ABSENT** | Also **not present** in their respective worktrees — they were never meant to be |
+
+**This is a notation problem, not a broken reference**: the author wrote "HEAD" separately from "tracked diff", showing they **knew**
+the two are different; but writing diff state as bare hex makes it read the same as a commit hash.
+**Rule (addendum)**: when referencing **uncommitted** state, do not write a bare hash — write **worktree name + file name + review date**,
+or write a `git diff --stat` summary from that time. A bare hash promises "retrievable via `cat-file`",
+but uncommitted state cannot fulfill that promise, so **every such reference will fail when a reader tries to resolve it**,
+and the failure reason ("it was never an object") looks **exactly the same** as the staleness reason ("it was cleaned up").
 
 | Producer or existing query | Concrete result | Current consumer and limit |
 | --- | --- | --- |
