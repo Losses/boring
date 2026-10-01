@@ -135,4 +135,112 @@ describe("architecture document reference integrity", () => {
       `cited objects that do not resolve — either fix the hash, or say which repository it lives in:\n  ${unresolvable.join("\n  ")}`,
     ).toEqual([]);
   });
+
+  /**
+   * The second half of reference integrity: reachability is not enough.
+   *
+   * LAYERED-VERIFICATION's own L0 section requires every "this is fixed /
+   * this is in effect" claim to carry the commit AND the result of
+   * `git merge-base --is-ancestor <commit> arch/agent-guided-governance`.
+   * That rule existed only as prose, so nobody ran it, and the file went on to
+   * assert that S1 had zeroed the L3 build-phase diagnostic — citing a commit
+   * (`cd70eb12`) that is NOT an ancestor of the base and that lives only on
+   * `prep/p08-s1-unreachable-return`, while the fixture itself still asserts
+   * the diagnostic is present.
+   *
+   * A rule the document states but no machine enforces is the failure mode.
+   * So: a line that claims effect AND cites a hash must have that hash reachable
+   * from the base, or must say the tree it actually holds on.
+   */
+  const BASE_BRANCH = "arch/agent-guided-governance";
+
+  /**
+   * Two lines count as "on the line", and the first version of this check only
+   * looked at one of them — it flagged `GATE-LEDGER.md:614`, where `f8bb6d40`
+   * is genuinely not in the base but IS on the active branch, so the document
+   * was telling the truth. Hardcoding a single reference branch made this
+   * check's observation domain smaller than the property it claims to protect,
+   * which is the exact failure this file exists to catch.
+   */
+  function reachableFromASupportedLine(ref: string): boolean {
+    for (const branch of [BASE_BRANCH, "HEAD"]) {
+      try {
+        execFileSync("git", ["merge-base", "--is-ancestor", ref, branch], {
+          cwd: REPO_ROOT,
+          stdio: "ignore",
+        });
+        return true;
+      } catch {
+        // try the next supported line
+      }
+    }
+    return false;
+  }
+
+  /** Phrasings that assert the cited change is in effect on the line. */
+  const EFFECT_CLAIM_MARKERS = [
+    "已使其归零",
+    "已修",
+    "已生效",
+    "已闭合",
+    "已在源头消灭",
+    "no longer",
+    "is fixed",
+    "has been fixed",
+    "zeroed",
+  ];
+
+  /** Escape hatches: the line itself says which tree the claim holds on. */
+  const TREE_SCOPED_MARKERS = [
+    "候选材料",
+    "该树内",
+    "那棵树",
+    "candidate",
+    "on that tree",
+    "only on",
+    "not in base",
+    "不在 base",
+    "未进 base",
+    "is not an ancestor",
+  ];
+
+  function isAncestorOfBase(ref: string): boolean {
+    return reachableFromASupportedLine(ref);
+  }
+
+  test("a claim of effect cites a commit reachable from the base, or names its tree", () => {
+    const unscoped: string[] = [];
+    let checked = 0;
+
+    for (const file of markdownFiles()) {
+      const text = readFileSync(file, "utf8");
+      for (const [i, line] of text.split("\n").entries()) {
+        if (!EFFECT_CLAIM_MARKERS.some((m) => line.includes(m))) continue;
+        if (TREE_SCOPED_MARKERS.some((m) => line.includes(m))) continue;
+        if (FOREIGN_REPO_MARKERS.some((m) => line.includes(m))) continue;
+        for (const m of line.matchAll(HASH_REF)) {
+          const ref = m[1]!;
+          if (objectType(ref) !== "commit") continue; // non-commits are the other test's business
+          checked += 1;
+          if (!isAncestorOfBase(ref)) {
+            unscoped.push(
+              `${file.replace(`${REPO_ROOT}/`, "")}:${i + 1} claims effect citing \`${ref}\`, ` +
+                `which is on neither ${BASE_BRANCH} nor HEAD — either land it, or say which tree the claim holds on`,
+            );
+          }
+        }
+      }
+    }
+
+    // Same reasoning as above: an empty domain must be loud, not silent.
+    expect(
+      checked,
+      "no effect claims with commit citations were found; this check is not matching anything",
+    ).toBeGreaterThan(0);
+
+    expect(
+      unscoped,
+      `claims of effect citing commits that are not in the base:\n  ${unscoped.join("\n  ")}`,
+    ).toEqual([]);
+  });
 });
