@@ -88,11 +88,41 @@ the conversions are semantically equivalent rather than merely compiling.
 
 The half that makes the fix load-bearing rather than coincidental: reinstating
 only the `indexOf` closure form (leaving everything else at the fixed state)
-returns **6** `loop-lambda` hits, against **1** on the fixed emitter. So the
+returns **5** `loop-lambda` hits, against **0** on the fixed emitter. So the
 conversion is what removes them, not a side effect of the same edit.
 
-Restoring the fix returns the count to 1, and the emitter is byte-identical to
+(Re-measured after the `mapOr` sites were also converted. The first measurement
+recorded **6**, taken while those were still emitting closures; the number moved
+because more of the surface was fixed in between, which is why the figure is
+re-read rather than carried forward.)
+
+Restoring the fix returns the count to 0, and the emitter is byte-identical to
 its committed state afterwards.
+
+### Contract 6 check (the claim made when writing the fix)
+
+The fix was described as *one judgement, one source*. That is checkable as a
+count, and the counts were read rather than assumed:
+
+| Quantity | Value |
+|---|---|
+| array `indexOf` lowering arms (`name == "indexOf" && isVecType`) | **1** |
+| occurrences of the new scan form (`let __hay = `) | **1** |
+| `isVecIndexOf` — defined once, consumed once | **1 / 1** |
+
+The other `indexOf` mentions in the file are a **different domain**, not duplicates:
+
+- `:10551` — the `String` form (`isString(stripCast(subj))`), which lowers to a
+  string search and was never a closure;
+- `:14777` — `isStringIndexOf`, the `String` counterpart of the predicate above.
+
+So the search judgement for arrays has a single emission site, and the derived
+predicate that other logic consults is also single. Contract 6 asks that a
+judgement not be re-derived in parallel; here it is not.
+
+This matters because the defect this document describes **was** a contract-6
+shape in the small: a lowering decision made in one arm while the loop rule
+assumed a different one. A fix that added a second arm would repeat it.
 
 ## The defect
 
