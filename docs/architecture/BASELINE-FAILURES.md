@@ -368,6 +368,27 @@ from the marker alone. What remains genuinely unestablished is whether those fiv
 tests would **pass** given a working Swift — an unexercised lane is not a green
 lane, and this record says so rather than counting them as product-clean.
 
+### Blast radius of the 2026-10-01 emitter changes — failure SETS compared
+
+The session changed the Rust and TS emitters (`4bf4e9ff`, `755bc060`) and added
+two collected guards. Comparing failure **sets** rather than counts, before and
+after:
+
+| Run | Distinct failures |
+|---|---|
+| before the changes | 60 |
+| after the changes | 60 |
+| **difference** | **0** |
+
+`comm -3` on the two sorted sets produces no lines, so the sets are **identical**
+— no test that passed began failing, and none that failed began passing. The pass
+count rose 1000 → **1002**, exactly the two new guard tests.
+
+**Why sets and not counts.** Two counts can match while the members differ, which
+would hide a regression behind a coincidence. The programme's own convention is
+the failure NAME set; this applies it to a change made during the session rather
+than only to the pinned-baseline comparison.
+
 The toolchain run also gained **75 passes** (1000 → 1075) while resolving **56
 failures** (61 → 5) — so the two counts differ, which means the runs are not
 purely a reclassification of the same tests. Part of the difference is that some
