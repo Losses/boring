@@ -408,3 +408,38 @@ not reproducible from the repository.
 The lesson this batch keeps teaching, now recorded three times over (PIT-339, PIT-344,
 PIT-346): a claim that holds at the moment it is written gets read later as if it still
 holds. Prefer claims that carry their own tree, commit and cwd.
+
+## Two facts measured this session that the ledger did not yet carry
+
+**1. The zero-warning standard now has a gate, and it is a baseline-difference gate.**
+Before this session no automated check rejected a target compiler warning at all:
+`test:dart` passed `--no-fatal-warnings`, `test:rust` had no `-D warnings`, and the only CI
+warning check grepped a log that does not contain the five compilers' output (its search
+domain was empty on a passing run). Existing warning stock was Dart 46 / Kotlin 59 /
+Rust 4, all rc=0. `tools/warning-gate/check.sh` (commit `90b9c71a`) now runs after all
+`gen:*` targets and before the test line, allowing the current count not to exceed the
+recorded baselines and failing on any new warning. The baselines were recomputed here
+from the audit's own logs, so they are not hand-copied numbers. Clearing the stock to zero
+and dropping the baseline to zero is still open - the gate is not compliance yet.
+
+The discriminator worth reusing: inject ONE warning into the SAME tree and run the existing
+command versus a strict one. dart loose rc=0 versus strict rc=2; rust loose rc=0 versus
+strict rc=101. If both rc agree, the gate does not exist.
+
+**2. Which default-argument shapes Haxe actually admits - measured, and it splits.**
+Cross-review had warned that spec 22 V16 limits default expressions to compile-time
+constants and closed coalescing forms, so a throwing call in a default might be outside
+the accepted source domain, which would have cancelled that row. It splits:
+a default position holding a call is REJECTED (`rc=1`, "Default argument value should be
+constant"), while a coalescing default containing a throwing call is ACCEPTED
+(oracle rc=0, with three anchored expectation lines). So the premise holds for the
+coalescing spelling only. The fixture also states the boundary that keeps this honest:
+acceptance does not prove the site is registered as a coalescing default.
+
+**3. A reachable soundness defect is now measured rather than argued.**
+`enumGrowth` is keyed by bare enum name, so two modules declaring a same-named `*Fault`
+enum share one bucket: both modules' `EFault` end up declaring
+`BFault(Box<crate::cmb::cross_b::B>)`, and `cma`'s throw site constructs `cma`'s `B`,
+giving `error[E0308]`. Fixture `tests/haxe/growth-cross/` (`f22f55ab`) reproduces it;
+against `05e375b2` it also fails, so the defect predates this batch. A key-strategy fix is
+in flight.
