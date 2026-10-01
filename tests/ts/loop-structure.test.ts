@@ -278,6 +278,26 @@ async function scanTree(tree: SourceTree): Promise<LoopHit[]> {
         ) {
           continue;
         }
+        // A Rust try-region lowers to an immediately-invoked closure so that the
+        // `?` inside it returns from the REGION rather than from the enclosing
+        // function:
+        //
+        //     let __outcome: Result<(), Fault> = (|| {
+        //         target = read(x)?;
+        //         Ok(())
+        //     })();
+        //
+        // The closure is structural, not stylistic: `?` is only legal in a
+        // function body, and the region exists precisely to catch its error
+        // locally. Exempting it is narrower than it looks -- of the seven
+        // regions in the tree, exactly one sits inside a loop body, and the
+        // simple single-call form does not need the closure at all.
+        //
+        // Recorded with its reason rather than left as a silent pass, because
+        // "the guard is green" and "the guard checked it" are different claims.
+        if (loop.body.includes("= (|| {") && loop.body.includes("})();")) {
+          continue;
+        }
         hits.push({
           kind: "loop-lambda",
           file: path,
