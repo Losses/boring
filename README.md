@@ -81,11 +81,18 @@ underlying measurements are in `docs/architecture/BASELINE-FAILURES.md` and
 | 1 | `nix develop` — writes to `~/.cache/nix` denied | `bun run verify`, and every `tests/haxe/**/run.sh` |
 | 2 | `swiftc` — 13 libs missing, and its wrapper needs user namespaces denied | the whole Swift lane |
 | 3 | `haxe`/`cargo`/`kotlinc` off the default `PATH` | 56 tests, which then read as failures |
-| 4 | writes to the Tiqian checkout's `.git` denied | fetching the pinned Tiqian revision |
 
-The first three are **why results must be read carefully**; the fourth is **why
-the Tiqian regression clause cannot be closed here** even though the consumer
-checkouts exist. None of the four is a defect in this repository.
+All three are **why results must be read carefully**. None is a defect in this
+repository.
+
+**A fourth was listed here and removed the same session, because it was wrong.**
+It said writes to the Tiqian checkout's `.git` blocked obtaining the pinned
+revision. That conflated two questions: *"can that existing checkout be updated"*
+(no) and *"can the revision be obtained"* (**yes** — clone into the workspace,
+which is writable). The probe verified `8504d230` and
+`engine-haxe/tests/compile.hxml` in the clone before the entry was deleted. See
+`GATE-LEDGER.md` for why the superseded reasoning is kept there rather than
+quietly replaced.
 
 **What still works without the flake** — the tests invoke `haxe`/`cargo`/`kotlinc`
 by name and do not locate them themselves, so the toolchains must be on `PATH`
