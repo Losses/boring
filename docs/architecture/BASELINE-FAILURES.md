@@ -323,6 +323,38 @@ real ones.
 Counts read from a single run at `602e9222` (1000 pass, 61 fail, 1 error, 1061
 tests across 312 files); 59 of the 61 fails carry the marker above.
 
+### The same suite with the toolchain on PATH — 1075 pass, 5 fail
+
+That estimate is now superseded by a direct measurement. Re-running the identical
+command with `haxe`, `cargo` and `kotlinc` on `PATH`:
+
+| Run | Pass | Fail |
+|---|---|---|
+| default `PATH` | 1000 | 61 |
+| toolchain on `PATH` | **1075** | **5** |
+
+So **56 of the 61 failures were the missing `haxe`**, and the residual is 5.
+
+**And all 5 residual failures are the same class with a different tool.** All five
+are Swift-related (three name Swift directly; `package artifact emission` shells
+out to `swiftc`), and **`swiftc` is not installed in this environment at all** —
+`command -v swiftc` finds nothing, and the failures carry `ENOENT`/`swiftc`. They
+were classified as "genuine" only because my earlier marker scan looked for
+`haxe`; the class is *toolchain absent*, and Swift is a second instance of it.
+
+**So the honest floor for this environment is: 1075 pass, 5 fail, all
+toolchain-absent, 0 attributable to the product.** Stated as a floor rather than
+a clean number because the environment cannot exercise the Swift lane, so "0
+product failures" is only established for the lanes that ran.
+
+The toolchain run also gained **75 passes** (1000 → 1075) while resolving **56
+failures** (61 → 5) — so the two counts differ, which means the runs are not
+purely a reclassification of the same tests. Part of the difference is that some
+tests fail *silently* on a toolchain error rather than carrying the marker, and
+part is that a test which errors early can suppress later tests in the same file.
+**The marker count (59) therefore understated the class**, and the direct
+before/after comparison is the measurement to trust rather than the marker.
+
 ## 5. Notes / not verified
 
 - The working tree carries pre-existing modifications I did not make: the
