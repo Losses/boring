@@ -133,6 +133,12 @@ jobs:
         # Echo the toolchain variables the darwin shellHook pins so the
         # log shows what SwiftPM actually saw if the manifest build fails.
         run: nix develop -c bash -c 'echo "SDKROOT=$SDKROOT CC=$CC DEVELOPER_DIR=$DEVELOPER_DIR" && bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart && bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:stage1:dart && bun run test:consistency && bun run check:docs && bun run check:ledger && bun run check:registry && bun run check:mapping' || { echo '--- PrintedCollection comparator lines ---'; sed -n '70,86p' reference/kotlin/gen/boring/PrintedCollection.kt; echo '--- DartCharNullOps compareShape ---'; grep -n 'compareShape' -A 5 reference/kotlin/gen/boring/DartCharNullOps.kt; (exit 1); }
+      - name: Verify the distributed driver
+        run: nix develop -c bash -c 'boring verify'
+      - name: Check driver plans across targets
+        run: nix develop -c bash -c 'bun run test:driver:cross-target'
+      - name: Check delivered driver commands across targets
+        run: nix develop -c bash -c 'bun run test:driver:cli-cross-target'
       # BoringSwiftTests reports failed tests through its exit code while
       # the jsonl redirect hides the details, so dump the nonpassing
       # records the same way the windows job does.

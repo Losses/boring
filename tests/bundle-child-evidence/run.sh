@@ -75,8 +75,8 @@ record_identity bun-version bun --version
 record_identity git-head git rev-parse HEAD
 record_identity git-status git status --short
 record_identity source-hashes sha256sum \
-	tools/bundle/Driver.hx \
-	tools/bundle/ChildEvidence.hx \
+	packages/driver/src/driver/Main.hx \
+	packages/driver/src/driver/ChildEvidence.hx \
 	docs/specs/features/59-bundle-driver.md \
 	tests/bundle-child-evidence/bundle-child-evidence.test.ts \
 	tests/bundle-child-evidence/probe/EvidenceProbe.hx \

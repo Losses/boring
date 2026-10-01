@@ -8,7 +8,8 @@
 -cp samples
 -cp samples/haxe
 -cp packages/registry/src
---macro Intercept.run(['samples', 'packages/registry/src'])
+-cp packages/driver/src
+--macro Intercept.run(['samples', 'packages/registry/src', 'packages/driver/src'])
 --macro haxe.macro.Compiler.keep('registry.Core')
 --macro haxe.macro.Compiler.keep('registry.Json')
 --macro haxe.macro.Compiler.keep('registry.Semver')
@@ -22,6 +23,9 @@
 -D package-test=vector_gen:../../../tests/rust/vector_gen.rs
 boring.BinaryReader
 boring.BinaryWriter
+boring.DataClassStringCompare
+boring.BufferHolder
+boring.BytesFrame
 boring.Int64Ops
 boring.ValuePassingOps
 boring.BytesOps
@@ -37,11 +41,16 @@ boring.GlyphMetrics
 std.ReadOnlyArray
 boring.VectorCodec
 boring.VectorError
+boring.EncodeProbe
 boring.VectorException
 boring.ValueError
 boring.ValueException
 boring.ValueRecord
 boring.PrivateHolder
+boring.NullBoolStyle
+boring.NullBoolTernaryOps
+boring.NullBoolEmphasisOps
+tests.NullBoolTernaryTests
 boring.VectorSort
 boring.ScriptEvidenceTable
 boring.DivTableOps
@@ -678,3 +687,13 @@ boring.DartNullPushOps
 tests.DartNullPushTests
 boring.IntFloatSignOps
 tests.IntFloatSignTests
+
+tests.DriverPlanTests
+
+boring.NullInflatedLiteralOps
+tests.NullInflatedLiteralOpsTests
+
+boring.TestLitEdgeOps
+tests.TestLitEdgeTests
+
+tests.SharedHandleTests
