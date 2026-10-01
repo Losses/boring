@@ -2861,7 +2861,7 @@ class TsExpr {
                     "const fsProcessRun = (command: string, args: string[], cwd: string, env: ProcessEnv[]) => { "
                     + "const loader = typeof require === \"function\" ? require : null; const child = loader ? loader(\"node:child_process\") : null; "
                     + "if (child === null) throw new Error(\"std.Process is not available on this host\"); "
-                    + "const variables = { ...process.env }; for (const entry of env) variables[entry.name] = entry.value; "
+                    + "const variables = { ...process.env }; const variableCount = env.length; for (let i = 0; i < variableCount; i += 1) { const entry = env[i]!; variables[entry.name] = entry.value; } "
                     + "const result = child.spawnSync(command, args, { cwd, env: variables, encoding: \"utf8\" }); "
                     + "if (result.error) throw result.error; "
                     + "return { code: result.status ?? 1, stdout: result.stdout ?? \"\", stderr: result.stderr ?? \"\" }; };");
