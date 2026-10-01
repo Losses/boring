@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
+
 const root = path.resolve(__dirname, "../..");
 const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
 describe("number parsing renderings", () => {
@@ -17,13 +21,15 @@ describe("number parsing renderings", () => {
     const kotlin = read("reference/kotlin/gen/boring/NumberParsingOps.kt");
     expect(fs.existsSync(path.join(root, "reference/kotlin/gen/runtime/NumberParsing.kt"))).toBe(false);
     expect(kotlin).toContain("toDoubleOrNull"); expect(kotlin).toContain("toIntOrNull"); expect(kotlin).toContain("2147483647");
-    const swift = read("reference/swift/gen/boring/NumberParsingOps.swift");
-    const swiftRuntime = read("reference/swift/gen/Runtime.swift");
-    expect(swiftRuntime).not.toContain("NumberParsing");
-    expect(swiftRuntime).toContain("guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }");
-    expect(swiftRuntime).toContain("return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil");
-    expect(swift).toContain("return parseIntRuntime(value)");
-    expect(swiftRuntime).not.toContain("NSRegularExpression"); expect(swiftRuntime).not.toContain("import Foundation");
+    withTargetTree("swift", "number-parsing: all target trees use the validated implementation (swift)", () => {
+      const swift = read("reference/swift/gen/boring/NumberParsingOps.swift");
+      const swiftRuntime = read("reference/swift/gen/Runtime.swift");
+      expect(swiftRuntime).not.toContain("NumberParsing");
+      expect(swiftRuntime).toContain("guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }");
+      expect(swiftRuntime).toContain("return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil");
+      expect(swift).toContain("return parseIntRuntime(value)");
+      expect(swiftRuntime).not.toContain("NSRegularExpression"); expect(swiftRuntime).not.toContain("import Foundation");
+    });
     const dart = read("reference/dart/gen/lib/boring/number_parsing_ops.dart");
     expect(read("reference/dart/gen/runtime.dart")).not.toContain("NumberParsing");
     expect(dart).toContain("tryParse"); expect(dart).toContain("2147483647");
@@ -32,11 +38,13 @@ describe("number parsing renderings", () => {
     expect(rust).toContain("-> Option<i32>"); expect(rust).not.toContain("parse::<");
     expect(read("reference/rust-f32/gen/boring/number_parsing_ops.rs")).toContain("u_string::parse_f32(&(value))");
     expect(read("reference/kotlin-f32/gen/boring/NumberParsingOps.kt")).toContain("toFloatOrNull");
-    const swiftF32 = read("reference/swift-f32/gen/boring/NumberParsingOps.swift");
-    const swiftF32Runtime = read("reference/swift-f32/gen/Runtime.swift");
-    expect(swiftF32Runtime).toContain("guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }");
-    expect(swiftF32Runtime).toContain("return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil");
-    expect(swiftF32).toContain("return parseIntRuntime(value)");
-    expect(swiftF32Runtime).not.toContain("import Foundation"); expect(swiftF32Runtime).not.toContain("NSRegularExpression");
+    withTargetTree("swift-f32", "number-parsing: all target trees use the validated implementation (swift-f32)", () => {
+      const swiftF32 = read("reference/swift-f32/gen/boring/NumberParsingOps.swift");
+      const swiftF32Runtime = read("reference/swift-f32/gen/Runtime.swift");
+      expect(swiftF32Runtime).toContain("guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }");
+      expect(swiftF32Runtime).toContain("return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil");
+      expect(swiftF32).toContain("return parseIntRuntime(value)");
+      expect(swiftF32Runtime).not.toContain("import Foundation"); expect(swiftF32Runtime).not.toContain("NSRegularExpression");
+    });
   });
 });

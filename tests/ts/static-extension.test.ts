@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, targetTreeUnavailable } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(__dirname, "../..");
 
@@ -53,7 +56,7 @@ describe("top-level and extension function lowering", () => {
     expect(extensionConsumer).not.toContain("ExtensionOps.");
   });
 
-  test("Swift emits a file function and native extension blocks", () => {
+  test.skipIf(targetTreeUnavailable("swift"))("Swift emits a file function and native extension blocks", () => {
     const fileLevel = read("reference/swift/gen/boring/FileLevelOps.swift");
     const fileConsumer = read("reference/swift/gen/boring/FileLevelConsumer.swift");
     const extensions = read("reference/swift/gen/boring/ExtensionOps.swift");

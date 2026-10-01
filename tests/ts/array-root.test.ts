@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(__dirname, "../..");
 const read = (file: string): string => fs.readFileSync(path.join(root, file), "utf8");
@@ -15,9 +18,11 @@ describe("small static array initializer trees", () => {
     expect(kotlin).toContain("val readOnlyInts: List<Int> = listOf(10, 20, 30)");
     expect(kotlin).toContain("val mutableInts: MutableList<Int> = mutableListOf<Int>(40, 50)");
 
-    expect(read("reference/swift/gen/boring/ArrayRootStateOps.swift")).toContain(
-      "static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))",
-    );
+    withTargetTree("swift", "array-root: each target uses the ruled array declaration", () => {
+      expect(read("reference/swift/gen/boring/ArrayRootStateOps.swift")).toContain(
+        "static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))",
+      );
+    });
     expect(read("reference/dart/gen/lib/boring/array_root_state_ops.dart")).toContain(
       "static final List<int> readOnlyInts = [10, 20, 30];",
     );

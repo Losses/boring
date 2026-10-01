@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree, type TargetId } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(__dirname, "../..");
 
 interface MemberTree {
+  target: TargetId;
   file: string;
   signature: string;
   fields: string[];
@@ -22,31 +26,37 @@ interface TargetConfig {
 
 const memberTrees: MemberTree[] = [
   {
+    target: "ts",
     file: "reference/ts/gen/boring/PrintedRecord.ts",
     signature: "public toString(): string",
     fields: ["this.count", "this.ratio", "this.inner"],
   },
   {
+    target: "swift",
     file: "reference/swift/gen/boring/PrintedRecord.swift",
     signature: "func toString() -> String",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
+    target: "swift-f32",
     file: "reference/swift-f32/gen/boring/PrintedRecord.swift",
     signature: "func toString() -> String",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
+    target: "dart",
     file: "reference/dart/gen/lib/boring/printed_record.dart",
     signature: "String toString()",
     fields: ["this.count", "this.ratio", "this.inner"],
   },
   {
+    target: "rust",
     file: "reference/rust/gen/boring/printed_record.rs",
     signature: "pub fn to_string(&self) -> UString",
     fields: ["self.count", "self.ratio", "self.inner"],
   },
   {
+    target: "rust-f32",
     file: "reference/rust-f32/gen/boring/printed_record.rs",
     signature: "pub fn to_string(&self) -> UString",
     fields: ["self.count", "self.ratio", "self.inner"],
@@ -172,15 +182,17 @@ async function generateMutation(
 describe("record printed-member generated trees", () => {
   test("four non-native targets synthesize the constructor-ordered member", () => {
     for(const tree of memberTrees) {
-      const content = read(tree.file);
-      const body = memberBody(content, tree.signature);
-      let previous = -1;
-      for(const field of tree.fields) {
-        const position = body.indexOf(field);
-        expect(position).toBeGreaterThan(previous);
-        previous = position;
-      }
-      expect(body).toContain(tree.fields[2] + (tree.file.includes("rust") ? ").clone().to_string()" : ".toString()"));
+      withTargetTree(tree.target, "printed-record: four non-native targets synthesize the constructor-ordered member", () => {
+        const content = read(tree.file);
+        const body = memberBody(content, tree.signature);
+        let previous = -1;
+        for(const field of tree.fields) {
+          const position = body.indexOf(field);
+          expect(position).toBeGreaterThan(previous);
+          previous = position;
+        }
+        expect(body).toContain(tree.fields[2] + (tree.file.includes("rust") ? ").clone().to_string()" : ".toString()"));
+      });
     }
   });
 

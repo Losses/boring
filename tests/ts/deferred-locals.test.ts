@@ -2,6 +2,9 @@ import { expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { installTargetTreeReport, withTargetTree } from "../support/target-trees";
+
+installTargetTreeReport(import.meta.path);
 
 const root = path.resolve(import.meta.dir, "../..");
 
@@ -12,7 +15,9 @@ function read(relative: string): string {
 test("deferred locals retain each target's sanctioned declaration form", () => {
   expect(read("reference/ts/gen/boring/DeferredLocalsOps.ts")).toContain("let tier: number;");
   expect(read("reference/kotlin/gen/boring/DeferredLocalsOps.kt")).toContain("var tier: Int");
-  expect(read("reference/swift/gen/boring/DeferredLocalsOps.swift")).toContain("var tier: Int32");
+  withTargetTree("swift", "deferred-locals: deferred locals retain each target's sanctioned declaration form", () => {
+    expect(read("reference/swift/gen/boring/DeferredLocalsOps.swift")).toContain("var tier: Int32");
+  });
   expect(read("reference/dart/gen/lib/boring/deferred_locals_ops.dart")).toContain("int tier;");
   expect(read("reference/rust/gen/boring/deferred_locals_ops.rs")).toContain("let tier: u32;");
 });
