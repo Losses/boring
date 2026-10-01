@@ -63,7 +63,13 @@ lambda 缺陷（`dc-warn/out/lambda-return-contract/`）的机制是：
 
 ## 本分类尚未覆盖的
 
-- **J 类迁移**（legacy Kotlin → Haxe）的失败未归入 A–F；
+- **G 类（暂名）：判据来源唯一性**。A–F 分的是"**一处代码该由谁负责**"，
+  但本条问的是"**同一件事被几处各自判定**"。实测：Rust 的 `state.shimsUsed`
+  有 **28 个写点**（3 个文件）与 **12 个读点**（据此 gate 发射），**无契约**规定谁必须写；
+  它同时被当作"业务引用到了某 extern"（意图）与"某 resident 该不该写出"（发射），
+  **两层不等价** ⇒ `runtime/mod.rs` 声明的模块从未写出（`E0583`）。
+  这是**跨切面**的类：它可以出现在 A–F 任意一类的内部，故**不适合**塞进 A–F；
+  已作为**契约 6** 记入 `ARCHITECTURAL-CONTRACTS.md`，本节仅登记分类缺口。- **J 类迁移**（legacy Kotlin → Haxe）的失败未归入 A–F；
   CODEX-AUDIT 指出 "complete J migration were not established"。
 - **命名一致性**（ReadOnlyArray 命名违规）属于 F 还是独立类，未裁定。
 - 各目标的实例表**不完整**：只列了本会话有记录的那些，
