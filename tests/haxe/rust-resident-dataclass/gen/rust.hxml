@@ -1,10 +1,15 @@
 # Minimal-root generation of the @:dataClass resident-emission probe.
 #
-# The entry list holds exactly ONE root: the @:dataClass class whose generated
-# comparator calls into the resident runtime.SortedTable. No sorted map or set
-# value exists in the program, so the std.SortedMap* keys are never lit by the
-# type cases -- only the requireType bridge in RustImports can gate
-# runtime.SortedTable in.
+# The entry list holds exactly ONE root: a @:dataClass class with a String
+# field, whose generated comparator calls into the resident runtime.SortedTable.
+# No sorted map or set value exists in the program, so the std.SortedMap* keys
+# are never lit by the type cases -- only the requireType bridge in RustImports
+# can gate runtime.SortedTable in.
+#
+# What matters is that the root set is MINIMAL (one @:dataClass with a String
+# field), NOT that this particular class is special: verification found that any
+# such class works -- an equivalent AltRoot in another package triggers the same
+# E0432 when the bridge is ablated. Do not read "one root" as "only this root".
 #
 # This root set is the point: on the full corpus the emission gate is a global
 # union over one shared shimsUsed map, so any unrelated module lighting those

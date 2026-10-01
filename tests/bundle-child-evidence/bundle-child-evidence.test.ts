@@ -691,25 +691,92 @@ describe("child execution evidence", () => {
       // the "something was retained" claim deterministically.
       expect(record.stdoutBytes).toBeGreaterThan(0);
       //
-      // No assertion here reads stderr, and that is deliberate. Whether stderr
-      // has flushed when the host SIGTERMs the child is a scheduling race in
-      // the host, not a property of this record: measured on the raw spawn,
-      // stderr was non-empty in 5 of 60 samples (~8%), so asserting
-      // `stderrBytes > 0` fails often enough to look like a flake, and
-      // asserting it *sometimes* would need ~90 runs for 95% confidence.
-      // Retained totals are not bounded by maxBufferBytes either (the limit
-      // applies per stream; sums above it are normal). What this path does
-      // guarantee -- an incomplete capture, an error naming the capture limit,
-      // no exit status, SIGTERM -- is asserted above.
-      //
-      // Consequence, stated so nobody reads more into this than it proves: the
-      // suite cannot detect a regression that silently drops stderr on this
-      // path, because such a record is byte-identical in shape to one of the
-      // 62 legitimate stderr-less capture-limit records observed on the healthy
-      // tree. stderr retention is verified nowhere by this suite.
+      // No assertion here reads stderr, and that is deliberate. In THIS shape
+      // (both streams written in lockstep) whether stderr has flushed when the
+      // host SIGTERMs the child is a scheduling race in the host, not a
+      // property of this record: measured on the raw spawn, stderr was
+      // non-empty in 21 of 240 samples (8.8%) when idle and 85% under CPU
+      // load, so asserting `stderrBytes > 0` here fails often enough to look
+      // like a flake, and asserting it *sometimes* would need many runs for
+      // confidence. Retained totals are not bounded by maxBufferBytes either
+      // (the limit applies per stream; sums above it are normal). What this
+      // path does guarantee -- an incomplete capture, an error naming the
+      // capture limit, no exit status, SIGTERM -- is asserted above.
       expect(record.exitStatus).toBeNull();
       expect(record.signal).toBe("SIGTERM");
       expect(record.maxBufferBytes).toBe(CAPTURE_LIMIT);
+    });
+
+    /**
+     * The companion case to the flood above, and the one that keeps stderr
+     * retention actually verified.
+     *
+     * An earlier revision of this file relaxed the flood's assertion to
+     * `stdoutBytes + stderrBytes > 0` and admitted in a comment that stderr
+     * retention was then verified nowhere. That admission was accurate: a
+     * regression that drops stderr on this path leaves a record byte-identical
+     * in shape to a legitimate stderr-less one, and the suite stayed green.
+     * (Effective mutation, verified: make the outer `outcome.stderr` binding
+     * mutable and null it on the ENOBUFS branch -- 19 pass / 0 fail, rc=0.
+     * Note the naive variant, inserting `final stderr = null;` inside the if,
+     * is INERT: Haxe scopes that shadow to the block, so the record is
+     * unchanged and its rc=0 proves nothing.)
+     *
+     * Rather than document the hole, this drives a shape where the answer is
+     * determined: the child writes ONLY to stderr. stderr is then what
+     * exhausts the buffer, so the host stops the child because stderr filled
+     * it, and the retained stderr is non-empty on every run -- no race to lose.
+     */
+    test("a stderr-only child beyond the capture limit retains its stderr", () => {
+      const limited = join(uniqueDir("stderr-flood"), "evidence");
+      const run = runProbe({
+        mode: "capture",
+        projectPath: "boring.json",
+        evidenceParent: limited,
+        maxBufferBytes: CAPTURE_LIMIT,
+        bundle: "fixture",
+        action: "test",
+        step: "stderr-flood",
+        cmd: BUN,
+        args: [CHILD_SCRIPT, "stderr-flood", String(CAPTURE_LIMIT * 50)],
+        cwd: RUN_BASE,
+      });
+      expect(run.status).toBe(1);
+      if (run.result === null) {
+        throw new Error(`the probe did not report a result: ${run.stderr}`);
+      }
+      const records = collectRecords(limited);
+      expect(records.length).toBe(1);
+      const record = records[0];
+      if (record === undefined) {
+        throw new Error("no record was collected");
+      }
+      assertRecordClaimsHold(record);
+
+      // Same incomplete-capture state as the flood above.
+      expect(record.captureComplete).toBe(false);
+      if (record.captureError === null) {
+        throw new Error("an incomplete capture must name its error");
+      }
+      expect(record.captureError).toContain("capture limit");
+      expect(record.signal).toBe("SIGTERM");
+      expect(record.exitStatus).toBeNull();
+
+      // The point of this case: stderr was retained, deterministically. The
+      // limit was reached *through* stderr, so this cannot lose a race.
+      expect(record.stderrBytes).toBeGreaterThan(0);
+      // ...and it is a truncation, not the whole output the child was told to
+      // write, so the capture really was cut short.
+      expect(record.stderrBytes).toBeLessThan(CAPTURE_LIMIT * 50);
+      // Nothing was written to stdout, so this case isolates the stream under
+      // test rather than piggy-backing on stdout's retention.
+      expect(record.stdoutBytes).toBe(0);
+
+      // The retained bytes must be the flood byte, which catches a capture that
+      // silently substituted or truncated content rather than just its length.
+      const stderr = readBytes(join(record.childDirectory, "stderr.bin"));
+      expect(stderr.length).toBe(record.stderrBytes);
+      expect(stderr.every((byte) => byte === 0x78)).toBe(true);
     });
 
     test("captured and uncaptured children observe the same argv, cwd, and environment", () => {
