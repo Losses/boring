@@ -8,10 +8,25 @@
 > （condition 4 满足**且**有后续明示裁定之前：不得提名、不得宣称通过、不得改状态）
 > **依然有效**。P08 整体维持 `NOT PASSED / REJECTED, finally`（RULING-245）。
 
-**Candidate revision: `649aa881`** — `merge: recov/r34-governance-sweep into
+**Candidate revision: `2ba5766b`** — `merge: recov/r31-successor-declaration into
 arch/agent-guided-governance`.
 
-**Frozen at:** 2026-10-01T17:30-04:00 (America/Toronto).
+> **[SUPERSEDED LINE, RETAINED FOR AUDIT — the revision this seat first pinned was
+> `649aa881` (`merge: recov/r34-governance-sweep into arch/agent-guided-governance`).
+> The revision to review is `2ba5766b`; see the correction in §1 below.]**
+
+**Frozen at:** 2026-10-01T17:30-04:00 (America/Toronto) — the wall-clock time this
+seat performed the freeze, **not** the commit timestamp. For the avoidance of doubt,
+the commits' own times are `2ba5766b` = `2026-10-01 17:24:18 -0400` and `649aa881` =
+`2026-10-01 17:26:33 -0400`; both precede the freeze instant, as they must. A reader
+comparing this line against `git show -s --format=%ci` will otherwise read the
+25-second gap as a fabrication.
+
+> **[AMENDED 2026-10-01 by the coordinator: this line read `649aa881` until the
+> superseding correction in §1 landed. `649aa881` is a *later* HEAD than
+> `2ba5766b` and carries R4.3 (`1e0d8169`), which
+> `P08-SUCCESSOR-DECLARATION.md` §3 step 1 never covered. The line is corrected
+> rather than deleted so the audit trail keeps both.]**
 
 **What this record is:** an *identity* record, in the exact sense of the superseded
 `docs/architecture/REFREEZE.md` (which froze the now-sealed predecessor `c8ae0054`).
