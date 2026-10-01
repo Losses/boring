@@ -235,6 +235,9 @@ Schedule the P11 guidance exercise after P08's focused acceptance and before
 freezing the final P09 candidate when its dependencies permit. This allows
 the follow-up fixture or repair to share the final full verification run.
 P10's final reflection and P12 still require that verification evidence.
+P10's first-round acceptance and reflection record is published in-repo at
+[ACCEPTANCE-REFLECTION](architecture/ACCEPTANCE-REFLECTION.md) (commit `ec4c5c2d`);
+its checkbox above stays unchecked pending gate-owner sign-off.
 The [storage-lifetime exercise](investigations/architecture-round-1/x-guidance-evaluation.md)
 was assigned to Goose at `db1bb984`, with an initial reasoning review before
 fixture implementation. Its focused fixture and guidance evaluation are accepted
