@@ -138,10 +138,10 @@ else
       note "FAIL ruling: target branch '$INTO' does not resolve in this repository"
     else
       MB=$(git -C "$REPO" merge-base "$INTO" "$BRANCH")
-      if git -C "$REPO" merge-base --is-ancestor "$MB" "$LATEST"; then
-        note "PASS ruling: branch base $(git -C "$REPO" rev-parse --short "$MB") is an ancestor of latest ruling $LATEST"
+      if git -C "$REPO" merge-base --is-ancestor "$LATEST" "$MB"; then
+        note "PASS ruling: latest ruling $(git -C "$REPO" rev-parse --short "$LATEST") is an ancestor of (or equal to) branch base $(git -C "$REPO" rev-parse --short "$MB")"
       else
-        note "FAIL ruling: branch base $(git -C "$REPO" rev-parse --short "$MB") predates latest ruling $LATEST - the branch was cut before the newest ruling and needs re-review against it"
+        note "FAIL ruling: branch base $(git -C "$REPO" rev-parse --short "$MB") predates latest ruling $(git -C "$REPO" rev-parse --short "$LATEST") - the branch was cut before the newest ruling and needs re-review against it"
       fi
     fi
   fi
