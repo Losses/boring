@@ -359,9 +359,18 @@ The third step is not optional. For tools/roots-guard/ the base copy (introduced
 copy on fix/roots-guard-defeat-classes (1cafaa42, +923 lines, NOT an ancestor of base)
 additionally rejects reasons under 4 words. The two copies reach OPPOSITE verdicts on the
 same input: deleting the real root boring.ArraySliceOps from examples/kotlin-f32.hxml and
-exempting it with the one-word reason "because" gives rc=0 PASS on base and rc=1 with a
-named diagnostic on the hardened copy. That hardening is now row
+exempting it with the one-word reason "because" gave **rc=0 PASS on the base copy at the
+time of this observation** - that is, at 0a5c42a7, BEFORE the hardening landed - and rc=1
+with a named diagnostic on the hardened copy. **The current base now gives rc=1**, because
+that hardening has since landed as `8b32f8a0`; read the rc=0 reading as a historical one,
+not as a claim about the tree you are holding. That hardening is row
 gate/land-roots-guard-hardening.
+
+(The time-scoping above was added after an independent audit pointed out that the present
+tense made a true-then claim read as false now - a reader checking it against the current
+tree finds rc=1 and would conclude this ledger is wrong. Same failure mode as the
+delivery-integrity correction at the top of this file: a claim true when written, read as
+if still true.)
 
 ### Effect on this ledger
 
