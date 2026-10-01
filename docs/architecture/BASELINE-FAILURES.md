@@ -347,6 +347,22 @@ toolchain-absent, 0 attributable to the product.** Stated as a floor rather than
 a clean number because the environment cannot exercise the Swift lane, so "0
 product failures" is only established for the lanes that ran.
 
+**Re-measured at `f7cc46c8`, after two new guards were added: 1079 pass, 5 fail**
+(1084 tests across 314 files, 2106 s). The +4 passes are the two new guards'
+tests; the **same 5 failures** recur, and all five are Swift/npm-related:
+
+```
+archived gap.Gap counterexample generates and its Swift typechecks
+failure-mode probe: the harness detects a broken Swift source
+package artifact emission > the npm tarball … runs under plain node
+package artifact emission > two generations … byte-identical artifacts
+Swift read-only array boundary shares storage and preserves flow
+```
+
+That the residual set is **identical** across two runs a session apart is the
+evidence that the emitter changes made in between touched nothing here — a count
+alone would not show it.
+
 ### Why the Swift lane cannot be exercised here — two independent causes
 
 The Swift toolchain **is present** in the store, so "not installed" would have been
