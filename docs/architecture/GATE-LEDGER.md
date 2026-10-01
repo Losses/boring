@@ -261,11 +261,16 @@ A search for the Tiqian tree failed once and was reported as "no consumer exists
 That was **imprecise**, and the accurate statement matters because it points at
 different next actions. Three Tiqian checkouts **are** present:
 
-| Path | HEAD | holds `8504d230` (frozen rev)? |
+| Path | HEAD (Tiqian repository, not this one) | holds `8504d230` (frozen rev, Tiqian repository)? |
 |---|---|---|
-| `/home/losses/Development/tiqian` | `f5c48441` | **no** |
-| `/home/losses/Development/tiqian-master` | `1ad3816` | **no** |
-| `/home/losses/Development/tiqian-f64only` | `3d52039d` | **no** |
+| `/home/losses/Development/tiqian` | `f5c48441` Tiqian repository | **no** |
+| `/home/losses/Development/tiqian-master` | `1ad3816` Tiqian repository | **no** |
+| `/home/losses/Development/tiqian-f64only` | `3d52039d` Tiqian repository | **no** |
+
+**All four hashes above are commits in the Tiqian repository, not this one** —
+`git cat-file` here cannot resolve any of them, and that is expected rather than
+staleness. (Stated because a bare hash reads as locally resolvable; the
+reference-integrity guard flags exactly this, and did.)
 
 `/home/losses/Development/tiqian/engine-haxe` is a real consumer: `src/`,
 `tests/` with `compile.hxml`, oracles, `baseline-goldens/`, and a spec that uses
@@ -274,7 +279,8 @@ project compiles against.
 
 **So the blocker is not "there is nothing to run against".** It is narrower and
 more tractable: the checkouts exist, **none is at the settled revision
-`8504d230`**, and criterion 1 additionally needs the Boring side decided.
+`8504d230`** (a commit in the Tiqian repository, not this one), and criterion 1
+additionally needs the Boring side decided.
 
 **Why the distinction is worth recording:** "no consumer exists" invites building
 one or declaring the clause impossible. "The consumer exists but not at the pinned
