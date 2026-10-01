@@ -29,27 +29,70 @@ const REPO_ROOT = resolve(import.meta.dir, "..");
 const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
 
 /**
- * Measured 2026-10-01. Lower it deliberately when a fixture is wired in.
+ * Measured 2026-10-01. May move deliberately in either direction; must not
+ * drift while nobody is looking.
  *
- * Raised 35 -> 36 the same day, and the raise is the interesting direction:
- * `tests/haxe/kotlin-mutable-chain-probe` was added as a development probe by
- * the Kotlin mutable-chain fix and carries a `kotlin-gen.hxml` with no
- * `*.test.ts`. Its shape was wired in as a collected fixture in the SAME commit
- * series (`tests/haxe/kotlin-var-field-smartcast`, which does have a test), so
- * the probe is most likely a leftover rather than a new coverable fixture.
- * It is recorded here rather than deleted because deleting another seat's probe
- * is their call, and rather than silently raised because a rising count is
- * exactly what this guard exists to surface. Whoever settles it should either
- * wire it in (count falls) or remove it (count falls) -- the count should not
- * stay at 36.
+ * **34, corrected from 36.** The count dropped because the guard's criterion
+ * was wrong, not because three fixtures were wired in during this session: it
+ * looked for a `.test.ts` only *inside* the fixture directory, so a fixture
+ * whose test lives under `tests/<target>/` was indistinguishable from an
+ * unwatched one. Three were in that state all along --
+ *
+ *   dc-promoted-eval, swift-package-shell-emit, kotlin-smartcast-tfield
+ *
+ * -- each driven by a collected test elsewhere (swift-package-shell-emit by
+ * tests/ts/package-shell.test.ts:388, kotlin-smartcast-tfield by
+ * tests/kotlin/smartcast-tfield.test.ts:74). `hasCollectedTest` now also
+ * accepts a collected test that names the fixture's path, and the constant
+ * carries the corrected number.
+ *
+ * The two earlier bumps (35 -> 36, and 36 -> 37 when kotlin-smartcast-tfield
+ * landed) were partly this blind spot rather than real drift: the 36->37 step
+ * counted kotlin-smartcast-tfield as unwatched when its test was already
+ * driving it.
+ *
+ * This is the same failure mode the guard exists to catch, one level up: an
+ * observation domain narrower than the property it claims (L6 in
+ * LAYERED-VERIFICATION.md).
+ *
+ * Still open and deliberately NOT absorbed by this correction: the
+ * `kotlin-mutable-chain-probe` leftover that caused the 35 -> 36 step. It has
+ * no test anywhere and remains genuinely unwatched -- see the tracking task.
  */
-const RECORDED_UNCOLLECTED = 36;
+const RECORDED_UNCOLLECTED = 34;
 
 interface Fixture {
   readonly name: string;
   readonly hasRunner: boolean;
   readonly hasCollectedTest: boolean;
 }
+
+/**
+ * Every collected test file under tests/. Discovery mirrors the suite's own
+ * collection (`bun test tests/`), and is asserted non-empty below so a broken
+ * walk cannot silently make the second half of `hasCollectedTest` decide
+ * nothing.
+ */
+function collectedTestFiles(): string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const p = join(dir, e);
+      if (e.endsWith(".test.ts")) out.push(p);
+      else if (!e.includes(".")) walk(p);
+    }
+  };
+  walk(join(REPO_ROOT, "tests"));
+  return out;
+}
+
+const collectedTests = collectedTestFiles();
 
 function fixtures(): Fixture[] {
   if (!existsSync(HAXE_FIXTURES)) return [];
@@ -65,7 +108,18 @@ function fixtures(): Fixture[] {
     out.push({
       name,
       hasRunner: entries.some((f) => f === "run.sh" || f.endsWith(".hxml")),
-      hasCollectedTest: entries.some((f) => f.endsWith(".test.ts")),
+      // A fixture is collected if a test IN the directory exists, OR if any
+      // collected test anywhere under tests/ names this directory's path. The
+      // second half matters: `tests/haxe/kotlin-smartcast-tfield/` has its test
+      // at `tests/kotlin/smartcast-tfield.test.ts`, which drives that
+      // directory's `kotlin.hxml` -- so the old in-directory-only reading
+      // counted it as unwatched when it is in fact wired in. That is this
+      // guard's own failure mode one level up: an observation domain narrower
+      // than the property it claims (the same shape as L6 in
+      // LAYERED-VERIFICATION.md).
+      hasCollectedTest:
+        entries.some((f) => f.endsWith(".test.ts")) ||
+        collectedTests.some((t) => readFileSync(t, "utf8").includes(`tests/haxe/${name}/`)),
     });
   }
   return out;
