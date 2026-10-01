@@ -62,6 +62,10 @@ class RustImports {
             require(runtimePackage + "::sorted_table::" + sortedClass);
             return;
         }
+        if (module == "std.Process" && (name == "ProcessEnv" || name == "ProcessResult")) {
+            require("crate::std::process::" + name);
+            return;
+        }
         if (SHIM_MODULES.exists(module)) {
             final runtimePackage = RuntimeConfig.requireImportName("module " + module);
             state.shimsUsed.set(module, true);
@@ -72,6 +76,15 @@ class RustImports {
             };
             require(runtimePackage + "::" + modName + "::" + name);
             return;
+        }
+        // Requiring a type from a resident module is what the emission gate
+        // treats as usage (emitResidentModule walks the module's externs
+        // against shimsUsed): light the fronting externs here so the resident
+        // emits with its importers instead of leaving a dangling mod entry.
+        if (RuntimeResidents.isResident(module)) {
+            for (externModule in RuntimeResidents.externsOf(module)) {
+                state.shimsUsed.set(externModule, true);
+            }
         }
         final emitted = state.payloadEnumEmittedIn(module);
         final targetModule = emitted != null ? emitted : module;

@@ -1,8 +1,9 @@
 # boring
 
-boring is a Haxe package that exposes the transpilation toolchain to
-tiqian. tiqian provides the original Haxe sources and translates them to
-each platform through the reflaxe targets under `packages/compiler/reflaxe/`.
+boring provides a Haxe transpilation package and a project driver package to
+tiqian. The compiler translates tiqian's Haxe sources through the reflaxe
+targets under `packages/compiler/reflaxe/`. The driver runs project generation,
+tests, comparison, and packaging through the `boring` command.
 
 Every file under `samples/` demonstrates language capabilities of the
 translatable subset. The sample set debugs each language feature of the
@@ -28,6 +29,7 @@ explicit `[[test]]` path into `tests/`.
 | Path | Content |
 | --- | --- |
 | `packages/compiler/` | the transpilation toolchain: the interception pass, the runtime-package configuration, and the reflaxe targets (`packages/compiler/reflaxe/ts/`, `packages/compiler/reflaxe/kotlin/`, `packages/compiler/reflaxe/rust/`); exposed as the `boring` haxelib package through `haxelib.json`, `extraParams.hxml`, and `defines.json` |
+| `packages/driver/` | the delivered project driver package; its `boring` command reads a consumer's `boring.json` and runs generation, tests, comparison, and packaging |
 | `samples/` | Haxe capability samples for the translatable subset, including the subset standard library `samples/std/` |
 | `examples/` | generation entries (`ts.hxml`, `kotlin.hxml`, `rust.hxml`) and the reflaxe smoke file; each entry demonstrates package consumption |
 | `reference/ts/` | hand-written TypeScript reference translation (package `@boring/codec`); `reference/ts/gen/` is the gitignored reflaxe-generated tree |
@@ -55,20 +57,19 @@ here; this repository needs none of them.
     nix develop -c bash -c "bun install"
     nix develop -c bash -c "bun run verify"
 
-`verify` drives the bundle driver of feature spec 59 over the
-project file `boring.json` (gen, test, and compare for the haxe, ts,
-kotlin, dart, and rust bundles; the generated trees are written to the gitignored
-`reference/<id>/gen` and `reference/<id>/gen-tests` directories), then
-runs the TypeScript tests, the Haxe checks, the Kotlin checks, the
-interception suite, the Rust tests, ESLint, `tsc`,
-the documentation style check, the vector regeneration, and the reflaxe
-smoke compile. See
-`AGENT.md` for the individual commands and the repository rules.
+`bun run verify` first runs `boring verify` over this repository's
+`boring.json`. That command generates all ten target configurations, tests
+them, and compares the six binary64 configurations with Kotlin as the
+baseline. The four f32 configurations run tests but have `compare: false`.
+Generated code goes under the gitignored `reference/<id>/gen` and
+`reference/<id>/gen-tests` directories. The script then runs repository
+tests, cross-target driver checks, linting, type checking, documentation
+checks, vector regeneration, and a reflaxe smoke compile. See `AGENT.md`
+for the individual commands and repository rules.
 
-The bundle driver itself (its `boring.json` project file, the five
-actions `gen / test / pack / compare / verify`, and the recipes behind
-them) is documented in the *Bundle driver* section of
-[docs/tutorial.md](docs/tutorial.md).
+The `boring` command also supports `gen <id>`, `test <id>`, `compare`,
+`pack <id>`, and `roots <sourceSet> --output <file>`. The [project driver
+tutorial](docs/tutorial.md) explains the inputs and results of each command.
 
 ## Data comparison and commits
 
