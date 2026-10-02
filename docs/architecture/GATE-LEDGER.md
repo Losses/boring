@@ -274,8 +274,10 @@ the R2/R3 package `docs/architecture/evidence/entry-gate-r2r3/` (commit
 `1704c3db`) carries the per-commit R2 worktree output, the per-file manifest and
 the export checksum for `2aadcb69`, `4f80322c` and `eec707b9`. Whether that
 closes each entry is judged **per entry** - it is recorded for condition 4 above
-and at `docs/architecture/evidence/condition-4-entry-gate/`, and is **not**
-asserted here for conditions 1-2, whose rows still read `in-flight`. The
+and at `docs/architecture/evidence/condition-4-entry-gate/`. For conditions 1-2,
+the **entry-gate evidence form is independently CONFIRMED** by the R2.2 three-way
+check (`docs/architecture/evidence/condition-1-2-generation/r22-three-way-check-REPORT.md`),
+all four requirements met; the table rows above already reflect this. The
 mechanical verdict for condition 4 was re-derived independently rather than
 re-run and pasted. Requirement 2's proof is taken at a detached worktree created
 from the hash (round-112 clause 1), so it never depends on the live tree, and no
