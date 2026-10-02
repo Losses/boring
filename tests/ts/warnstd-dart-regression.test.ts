@@ -26,7 +26,9 @@ describe("warnstd dart regression samples", () => {
 
   test("GuardTernaryArgNonNull: a guard-ternary argument carries no call-site fallback (behavior pin)", () => {
     const out = gen("guard_ternary_dead_fallback.dart");
-    expect(out).toContain('take(((r != null ? r! : "x"))!)');
-    expect(out).not.toContain("?? ");
+    expect(out).toContain('take((r != null ? r : "x"))');
+    expect(out).not.toContain("r!");
+    expect(out).not.toContain("!)");
+    expect(out).not.toContain("??");
   });
 });
