@@ -1,0 +1,15 @@
+cb465e77ef3add7b9a08e48a5576592d9d46b0380f7ef9afa4af59e5ec4236e1  tests/haxe/dc-fs-missing/fsprobe/FsProbe.hx
+7b8ba310669da2d30665d6ccb069a0a93603d6279943be77b9293a7a419024c5  tests/haxe/dc-fs-missing/fsprobe/ProbeMain.hx
+5d66e4b2dae1e412d7ccb492eaf3274387527177144d917ca2da6be8e3b4b3c6  tests/haxe/dc-fs-missing/gen/dart.hxml
+e83447ce170533cc13e764f24c1004a54463a2714d39ed2a8a1ea00b60012c68  tests/haxe/dc-fs-missing/gen/kotlin.hxml
+b832105970aa103bca95ebc8a556727d3eba5e78accb3037c926f23e6f52d390  tests/haxe/dc-fs-missing/gen/rust.hxml
+b11b63d97b6bc7c1010a7f78356b3e3702664dfb3df006a0d325f8f7ee8488b0  tests/haxe/dc-fs-missing/gen/swift.hxml
+f18f4ac8020d5afed4bde41893564d607679c82d828e6d516ac3a390795c85c0  tests/haxe/dc-fs-missing/gen/ts.hxml
+98de23349a1264478826d19af1d38dfd73dfdacf128794ed7b8b3895bf0cd250  tests/haxe/dc-fs-missing/native/harness.dart
+20725d4d6be8069d852e6c734733eb090bb95e1a5eb44ee2d1c27414243b5a9f  tests/haxe/dc-fs-missing/native/Harness.kt
+d3449ebbaa402b89b007937dda5be46f79f088fcfa3c43d322c19031d80f53e9  tests/haxe/dc-fs-missing/native/harness.rs
+ac8480c08ff912d6a2e0b9b9e42d0a0515abcd1a5daba5112acd165149b256bb  tests/haxe/dc-fs-missing/native/Harness.swift
+db43e440f5d74b4a55ab2c8d26c7febfa009ca7a1dd8507127a86d37d48e8223  tests/haxe/dc-fs-missing/native/harness.ts
+ce9682274eb6ac54b3300570185c759bd35066a7c5d7e0209f5cc5fb009bada3  tests/haxe/dc-fs-missing/native/oracle.hxml
+dfe0bb3b0de64420216d106f1a22535a62e9ba1c95046eeaf8df26853e1f4e99  tests/haxe/dc-fs-missing/native/oracle-shim.cjs
+2e0cf0c020faf23bf8ebdc597298385d89e84b7be87fe9269eef78d874846628  tests/haxe/dc-fs-missing/run.sh

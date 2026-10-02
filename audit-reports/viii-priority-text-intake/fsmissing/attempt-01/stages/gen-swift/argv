@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
+argv haxe tests/haxe/dc-fs-missing/gen/swift.hxml -D swift-output=/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/swift-gen

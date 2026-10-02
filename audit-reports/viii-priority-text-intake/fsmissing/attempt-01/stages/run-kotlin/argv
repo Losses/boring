@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
+argv java -cp /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/kotlin-build/library.jar:/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/kotlin-build/tests.jar HarnessKt

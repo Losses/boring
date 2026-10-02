@@ -1,0 +1,209 @@
+package boring.runtime.test
+
+object TestCore {
+    fun ok(condition: Boolean, message: String) {
+        if ((!condition)) {
+            throw AssertionError(TestCore.formatCanonicalMessage(Test.currentTestIdState(), message, "", "", false))
+        }
+    }
+
+    fun fail(message: String) {
+        throw AssertionError(TestCore.formatCanonicalMessage(Test.currentTestIdState(), message, "", "", false))
+    }
+
+    fun equalsBool(expected: Boolean, actual: Boolean, message: String) {
+        if ((expected != actual)) {
+            throw AssertionError(TestCore.formatCanonicalMessage(Test.currentTestIdState(), message, TestCore.formatBool(expected), TestCore.formatBool(actual), true))
+        }
+    }
+
+    fun equalsInt(expected: Int, actual: Int, message: String) {
+        if ((expected != actual)) {
+            throw AssertionError(TestCore.formatCanonicalMessage(Test.currentTestIdState(), message, TestCore.formatInt(expected), TestCore.formatInt(actual), true))
+        }
+    }
+
+    fun equalsFloat(expected: Double, actual: Double, message: String) {
+        if ((expected != actual)) {
+            throw AssertionError(TestCore.formatCanonicalMessage(Test.currentTestIdState(), message, TestCore.formatFloat(expected), TestCore.formatFloat(actual), true))
+        }
+    }
+
+    fun equalsString(expected: String, actual: String, message: String) {
+        if ((expected != actual)) {
+            throw AssertionError(TestCore.formatCanonicalMessage(Test.currentTestIdState(), message, TestCore.formatString(expected), TestCore.formatString(actual), true))
+        }
+    }
+
+    fun reportFailure(message: String, expectedStr: String, actualStr: String) {
+        throw AssertionError(TestCore.formatCanonicalMessage(Test.currentTestIdState(), message, expectedStr, actualStr, true))
+    }
+
+    fun formatBool(v: Boolean): String {
+        if ((v)) {
+            return "true"
+        }
+        return "false"
+    }
+
+    fun formatInt(v: Int): String {
+        return (v).toString()
+    }
+
+    fun formatFloat(v: Double): String {
+        if ((v != v)) {
+            return "NaN"
+        }
+        if ((v == Double.POSITIVE_INFINITY)) {
+            return "Infinity"
+        }
+        if ((v == Double.NEGATIVE_INFINITY)) {
+            return "-Infinity"
+        }
+        if ((v == 0.0)) {
+            return "0"
+        }
+        val raw = (v).toString().replace("E", "e").replace(".0e", "e")
+        var s = raw
+        var negative = false
+        if ((run { val _s = s; val _i = 0; if (_i >= 0 && _i < _s.length) _s[_i].code else null } == 45)) {
+            negative = true
+            s = run { val _s = s; val _from = 1; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; _s.substring(_start) }
+        }
+        val exponentParts = s.split("e")
+        var exponent = 0
+        if ((exponentParts.size == 2)) {
+            val exponentText = exponentParts[1]
+            val exponentValue = run { val s = exponentText; val t = s.trim(' ', '\t', '\n', '\r', '\u000B', '\u000C'); val neg = t.startsWith("-"); val sign = if (neg || t.startsWith("+")) 1 else 0; val hex = t.startsWith("0x", sign) || t.startsWith("0X", sign); val d = if (hex) t.substring(sign + 2) else t.substring(sign); if (!hex) { var i = sign; val start = i; while (i < t.length && t[i] in '0'..'9') i++; if (i != t.length || i == start) null else t.toIntOrNull() } else { var i = 0; while (i < d.length && d[i] in '0'..'9' || i < d.length && d[i] in 'a'..'f' || i < d.length && d[i] in 'A'..'F') i++; if (i != d.length || d.isEmpty()) null else { val n = d.toLongOrNull(16); if (n == null) null else { val v = if (neg) -n else n; if (v >= -2147483648L && v <= 2147483647L) v.toInt() else null } } } }
+            exponent = (if ((exponentValue == null)) 0 else exponentValue)
+            s = exponentParts[0]
+        }
+        val decimalParts = s.split(".")
+        val hasDot = decimalParts.size == 2
+        var fraction = ""
+        if ((hasDot)) {
+            fraction = decimalParts[1]
+        }
+        var digits = decimalParts[0] + fraction
+        var decimalPosition = decimalParts[0].length + exponent
+        while ((digits.length > 1 && run { val _s = digits; val _i = 0; if (_i >= 0 && _i < _s.length) _s[_i].code else null } == 48)) {
+            digits = run { val _s = digits; val _from = 1; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; _s.substring(_start) }
+            decimalPosition--
+        }
+        if ((digits == "0")) {
+            return "0"
+        }
+        if ((decimalPosition >= -5 && decimalPosition <= 21)) {
+            var plain = (if ((decimalPosition <= 0)) TestCore.plainLeading(digits, decimalPosition) else (if ((decimalPosition >= digits.length)) TestCore.plainTrailing(digits, decimalPosition) else run { val _s = digits; val _from = 0; val _to = decimalPosition; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) } + "." + run { val _s = digits; val _from = decimalPosition; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; _s.substring(_start) }))
+            while ((plain.length > 0 && run { val _s = plain; val _i = plain.length - 1; if (_i >= 0 && _i < _s.length) _s[_i].code else null } == 48 && plain.split(".").size > 1)) {
+                plain = run { val _s = plain; val _from = 0; val _to = plain.length - 1; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+            }
+            if ((plain.length > 0 && run { val _s = plain; val _i = plain.length - 1; if (_i >= 0 && _i < _s.length) _s[_i].code else null } == 46)) {
+                plain = run { val _s = plain; val _from = 0; val _to = plain.length - 1; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+            }
+            return ((if ((negative)) "-" else "")) + plain
+        }
+        while ((digits.length > 1 && run { val _s = digits; val _i = digits.length - 1; if (_i >= 0 && _i < _s.length) _s[_i].code else null } == 48)) {
+            digits = run { val _s = digits; val _from = 0; val _to = digits.length - 1; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+        }
+        val sciExponent = decimalPosition - 1
+        val mantissa = (if ((digits.length == 1)) digits else run { val _s = digits; val _from = 0; val _to = 1; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) } + "." + run { val _s = digits; val _from = 1; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; _s.substring(_start) })
+        return ((if ((negative)) "-" else "")) + mantissa + "e" + ((if ((sciExponent >= 0)) "+" else "")) + sciExponent
+    }
+
+    private fun plainLeading(digits: String, decimalPosition: Int): String {
+        var head = "0."
+        for (i in 0 until -decimalPosition) {
+            head += "0"
+        }
+        return head + digits
+    }
+
+    private fun plainTrailing(digits: String, decimalPosition: Int): String {
+        var tail = ""
+        for (i in 0 until decimalPosition - digits.length) {
+            tail += "0"
+        }
+        return digits + tail
+    }
+
+    fun formatString(v: String): String {
+        return "\"" + TestCore.escapeJson(v) + "\""
+    }
+
+    fun formatBytes(b: ByteArray): String {
+        var out = ""
+        for (index in 0 until b.size) {
+            val value = (( b[index].toInt() and 0xFF ))
+            out += TestCore.hexDigit(((((value) shr (4))) and (15)))
+            out += TestCore.hexDigit(((value) and (15)))
+        }
+        return out
+    }
+
+    fun escapeJson(s: String): String {
+        var out = ""
+        var cursor = 0
+        val stop = s.length
+        while ((cursor < stop)) {
+            val code = s.codePointAt(cursor)
+            if ((code == 34)) {
+                out += "\\\""
+            } else {
+                if ((code == 92)) {
+                    out += "\\\\"
+                } else {
+                    if ((code == 10)) {
+                        out += "\\n"
+                    } else {
+                        if ((code == 13)) {
+                            out += "\\r"
+                        } else {
+                            if ((code == 9)) {
+                                out += "\\t"
+                            } else {
+                                if ((code < 32)) {
+                                    out += "\\u" + TestCore.hexDigit(((((code) shr (12))) and (15))) + TestCore.hexDigit(((((code) shr (8))) and (15))) + TestCore.hexDigit(((((code) shr (4))) and (15))) + TestCore.hexDigit(((code) and (15)))
+                                } else {
+                                    out += s.substring(cursor, (cursor + Character.charCount(s.codePointAt(cursor))))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            cursor = (cursor + Character.charCount(s.codePointAt(cursor)))
+        }
+        return out
+    }
+
+    fun formatCanonicalMessage(id: String, message: String, expectedStr: String, actualStr: String, isEquals: Boolean): String {
+        var out = "test failed: " + id
+        if ((message != "")) {
+            out += "\n  message: " + message
+        }
+        if ((isEquals)) {
+            out += "\n  expected: " + expectedStr
+            out += "\n  actual:   " + actualStr
+        }
+        return out
+    }
+
+    fun resultLine(id: String, name: String, failed: Boolean, message: String): String {
+        if ((failed)) {
+            return "{\"id\":\"" + TestCore.escapeJson(id) + "\",\"name\":\"" + TestCore.escapeJson(name) + "\",\"verdict\":\"fail\",\"message\":\"" + TestCore.escapeJson(message) + "\"}\n"
+        }
+        return "{\"id\":\"" + TestCore.escapeJson(id) + "\",\"name\":\"" + TestCore.escapeJson(name) + "\",\"verdict\":\"pass\"}\n"
+    }
+
+    fun notApplicableLine(id: String, name: String): String {
+        return "{\"id\":\"" + TestCore.escapeJson(id) + "\",\"name\":\"" + TestCore.escapeJson(name) + "\",\"verdict\":\"not_applicable\"}\n"
+    }
+
+    private fun hexDigit(nibble: Int): String {
+        if ((nibble < 10)) {
+            return String(Character.toChars(48 + nibble))
+        }
+        return String(Character.toChars(87 + nibble))
+    }
+}

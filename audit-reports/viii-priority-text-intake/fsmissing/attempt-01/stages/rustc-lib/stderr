@@ -1,0 +1,47 @@
+warning: unused import: `DerefMut`
+  --> /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/rust-gen/runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `byte_to_unit` is never used
+   --> /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/rust-gen/runtime/u_string.rs:737:4
+    |
+737 | fn byte_to_unit(s: &str, byte: usize) -> u32 {
+    |    ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+  --> /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/rust-gen/runtime/u_string.rs:62:25
+   |
+62 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+   |                         ^^^^^                       ^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+   |                         |
+   |                         the lifetime is elided here
+   |
+   = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+   = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+   |
+62 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<'_, u16>> {
+   |                                                                      +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/rust-gen/runtime/u_string.rs:280:25
+    |
+280 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+    |                         ^^^^^                       ^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                         |
+    |                         the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+280 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<'_, u16>> {
+    |                                                                      +++
+
+warning: 4 warnings emitted
+

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
+argv rustc --crate-type lib --edition=2024 --crate-name dc_fs_missing -o /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/rust-build/libdc_fs_missing.rlib /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/rust-gen/lib.rs

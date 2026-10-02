@@ -1,0 +1,21 @@
+stage	expected	observed	producer	note
+haxe-oracle-build	zero	0	haxe-oracle-build	
+haxe-oracle-run	program-failure	1	haxe-oracle-run	
+gen-ts	zero	0	gen-ts	
+run-ts	program-failure	1	run-ts	
+gen-kotlin	zero	0	gen-kotlin	
+compile-kotlin	zero	0	compile-kotlin	
+compile-kotlin-harness	zero	0	compile-kotlin-harness	
+run-kotlin	program-failure	1	run-kotlin	
+gen-dart	zero	0	gen-dart	
+run-dart	program-failure	255	run-dart	
+gen-rust	zero	0	gen-rust	
+rustc-lib	zero	0	rustc-lib	
+rustc-bin	zero	0	rustc-bin	
+run-rust	program-failure	101	run-rust	
+gen-swift	zero	0	gen-swift	
+swift-env-probe	program-failure	1	swift-env-probe	
+swiftc-lib	not-reached	producer-swift-env-probe-status-1	swift-env-probe	swiftc wrapper cannot start: bwrap refuses the uid map (user namespaces denied by the host)
+swiftc-bin	not-reached	producer-swift-env-probe-status-1	swift-env-probe	swiftc wrapper cannot start: bwrap refuses the uid map (user namespaces denied by the host)
+run-swift	not-reached	producer-swift-env-probe-status-1	swift-env-probe	swiftc wrapper cannot start: bwrap refuses the uid map (user namespaces denied by the host)
+input-hashes	identical	0	/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/input-hashes-after.txt	no authored input changed during the attempt

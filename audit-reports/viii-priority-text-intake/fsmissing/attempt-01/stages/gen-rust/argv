@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
+argv haxe tests/haxe/dc-fs-missing/gen/rust.hxml -D rust-output=/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/rust-gen

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
+argv bun /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle-shim.cjs /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle.js

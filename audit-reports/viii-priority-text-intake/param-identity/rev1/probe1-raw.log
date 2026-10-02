@@ -1,0 +1,57 @@
+warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/param-identity' is dirty
+== raw parameter ClassType facts ==
+One.T: pack=[revp1.One] module=revp1.One name=T kind=KTypeParameter([]) args=0
+Two.T: pack=[revp1.Two] module=revp1.Two name=T kind=KTypeParameter([]) args=0
+Alpha.T: pack=[revp1.Alpha] module=revp1.Alpha name=T kind=KTypeParameter([]) args=0
+Beta.U: pack=[revp1.Beta] module=revp1.Beta name=U kind=KTypeParameter([]) args=0
+Swap.A: pack=[revp1.Swap] module=revp1.Swap name=A kind=KTypeParameter([]) args=0
+Swap.B: pack=[revp1.Swap] module=revp1.Swap name=B kind=KTypeParameter([]) args=0
+SubHolder.T: pack=[revp1.sub.SubHolder] module=revp1.sub.SubHolder name=T kind=KTypeParameter([]) args=0
+
+== parameterIdentity keys (real SourceComparisonAnalysis.parameterIdentity) ==
+One.T       => revp1.One|revp1.One|T
+Two.T       => revp1.Two|revp1.Two|T
+Alpha.T     => revp1.Alpha|revp1.Alpha|T
+Beta.U      => revp1.Beta|revp1.Beta|U
+Swap.A      => revp1.Swap|revp1.Swap|A
+Swap.B      => revp1.Swap|revp1.Swap|B
+SubHolder.T => revp1.sub.SubHolder|revp1.sub.SubHolder|T
+
+== cross-declaration key collisions ==
+One.T   == Two.T     (same package, diff owner, same name) : false
+One.T   == Alpha.T   (same package, diff owner, same name) : false
+Alpha.T == Beta.U    (same package, diff owner, diff name) : false
+Swap.A  == Swap.B    (same owner, diff names)              : false
+One.T   == SubHolder.T (diff module, same name)            : false
+
+== ownParameterSlot controls (real API, RecordDeclaration owner) ==
+slot(One.T,   owner One)        : 0
+slot(Two.T,   owner One)  neg   : null
+slot(Alpha.T, owner One)  neg   : null
+slot(Two.T,   owner Two)        : 0
+slot(Beta.U,  owner Beta)       : 0
+slot(Swap.A,  owner Swap)       : 0
+slot(Swap.B,  owner Swap)       : 1
+slot(SubHolder.T, owner SubHolder) : 0
+
+== schemaParameterIndex (real API) ==
+index(Two.T,   args [One.T])     : null
+index(One.T,   args [One.T])     : 0
+index(Swap.B,  args [Swap.A,Swap.B]) : 1
+
+== anonymous structures ==
+AnonField.anon type            : TAnonymous(<anonymous>)
+AnonPlain.anon  type           : TAnonymous(<anonymous>)
+SourceComparisonAnalysis.parameterIdentity(AnonField.anon) : null
+SourceComparisonAnalysis.parameterIdentity(AnonPlain.anon) : null
+SourceComparisonAnalysis.ownParameterSlot(AnonField.anon, owner AnonField) : null
+
+== real schema path: SourceComparisonAnalysis.analyzeRecordSchema(One) + SourceComparisonAnalysis.comparisonPlan(SortedKey) ==
+field left => ParameterOrder(0)
+plan.complete: true
+
+== real schema path: SourceComparisonAnalysis.analyzeRecordSchema(Swap) + SourceComparisonAnalysis.comparisonPlan(SortedKey) ==
+field first => ParameterOrder(0)
+field second => ParameterOrder(1)
+ProbeMain.hx:2: identity probe done
+exit=0

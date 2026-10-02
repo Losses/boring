@@ -1,0 +1,7 @@
+swift-wrapper /nix/store/f0pa9lppswnls248abfl142s77a99yw4-swift-6.2.4-wrapped/bin/swiftc
+swift-toolchain /nix/store/j1bfa7mw323wmp6pfrn1qkchxv61wk2n-swift-toolchain-6.2.4-al2/usr/bin/swiftc
+bwrap /nix/store/y0ra9qr3rz81d9wl7dfrldv3j25dc98q-bubblewrap-0.12.0/bin/bwrap
+blocking-condition: bwrap cannot set up its uid map in this session
+host: user-namespace creation denied (unshare --user --map-root-user -> cannot open /proc/self/uid_map: Permission denied)
+host: effective capabilities are empty (CapEff 0000000000000000)
+consequence: the flake swiftc wrapper never reaches the toolchain, and the unwrapped toolchain cannot build SwiftGlibc without the FHS sysroot the wrapper provides

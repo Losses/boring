@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
+argv kotlinc -Xallow-kotlin-package -cp /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/kotlin-build/library.jar /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing/tests/haxe/dc-fs-missing/native/Harness.kt -d /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/kotlin-build/tests.jar

@@ -1,0 +1,17 @@
+14 | // They are JS, not Haxe: the oracle class itself calls the production
+15 | // `std.Fs` face, and this file only supplies the host object underneath it.
+16 | const nodeFs = require("node:fs");
+17 | 
+18 | function haxeException(message) {
+19 |     const error = new Error(message);
+                           ^
+haxe.Exception: out/fs-missing/probe/definitely-missing/no-such-file.txt: Error: ENOENT: no such file or directory, open 'out/fs-missing/probe/definitely-missing/no-such-file.txt'
+      at haxeException (/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle-shim.cjs:19:23)
+      at readText (/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle-shim.cjs:29:27)
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle.js:33:21)
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle.js:82:18)
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle.js:103:19)
+      at /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle.js:103:24
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle-shim.cjs:58:1)
+
+Bun v1.3.13 (Linux x64 baseline)
