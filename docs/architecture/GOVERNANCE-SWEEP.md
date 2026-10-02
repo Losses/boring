@@ -53,32 +53,48 @@ grep -o 'Candidate revision: `[0-9a-f]\{8,\}`' docs/architecture/REFREEZE.md \
 neither under `refs/heads/` nor `refs/remotes/origin/`. Rows whose `branch` field is empty
 entirely are reported too (the board cannot locate the work at all).
 
-**Mandatory sub-classification** — "branch vanished" is two different facts:
+**Mandatory sub-classification** — "branch vanished" is two different facts, and the verdict
+line always names the evidence tier that decided it:
 
-- **DEAD-MERGED** — the work is already on the mainline (branch name appears in a mainline
-  merge subject). The *content* is safe; only the row's bookkeeping is stale. This is the
-  `warn/dart3` pattern: row `t-muhbbydw-w3w4` pointed at `warn/dart6`, and the merged
-  `warn/dart3` content landed on the mainline at `f6f7e3d3` — the row must not be "cancelled
-  as lost", it must be reconciled against what the mainline actually absorbed.
-- **DEAD-UNMERGED** — no merge record on the mainline; the work has no known home. These are
+- **DEAD-MERGED** (`basis=reachability`) — a merge commit reachable from MAIN records the
+  branch in the merged-in position (`Merge branch '<br>'...`, `merge: <br> ...`,
+  `merge: integrate <br> (...) ...`), so MAIN's history holds the branch's commits. The
+  merge's last parent is the last-seen branch tip and is re-checked with
+  `git merge-base --is-ancestor <tip> <MAIN>`. Exact token only: `warn/r1` does not match
+  `warn/r10`. The *content* is safe; only the row's bookkeeping is stale.
+- **DEAD-MERGED-INFERRED** (`basis=path-inference`) — no recorder merge exists, usually
+  because the work was recorded under an aggregating branch name, or because it reached the
+  mainline before the anchor. The sweep then reads the row's own declared artifacts and
+  reports the paths that exist on MAIN, did not exist at the anchor, and are attributed to a
+  reachable adding commit. This tier is an inference, so a reviewer must confirm the paths
+  against the row before treating the row as reconciled.
+- **DEAD-UNMERGED** — neither tier found evidence: no mainline merge records the branch, and
+  no artifact the row declares is new at the anchor. The work has no known home. These are
   the rows that need a per-row disposition (rebuild / cancel / merge-register), decided by a
   human or the coordination seat, never auto-cancelled.
 
-**Listing command** (per-row, addressed by internal row id — PIT-478: never address board
-rows by branch name):
+Both tiers read the whole mainline history. The window anchor `b1188eec` is now only the
+provenance anchor of the fallback tier: an earlier form scanned `b1188eec..MAIN` for the
+branch name in merge subjects, which hid merges recorded before the anchor and could not see
+a branch that was absorbed under another branch's name.
+
+The `warn/dart3` pattern stays DEAD-UNMERGED on purpose: row `t-muhbbydw-w3w4` points at
+`warn/dart6`, no mainline commit subject names `warn/dart6`, and the row's declared artifacts
+name no path that is new at the anchor, so neither tier has evidence that this row was
+absorbed. The content may well have reached the mainline under `warn/dart3` (`f6f7e3d3`); the
+sweep cannot tell, and it must not claim it can.
+
+**Listing command:**
 
 ```bash
-git -C boring fetch --prune -q   # make sure origin refs are current
-jq -r '.tasks[] | select(.status=="doing" and (.branch // "") != "") | .id + "\t" + .branch' \
-  .workspace-board/board.json | while IFS=$'\t' read -r id br; do
-    if git -C boring rev-parse -q --verify "refs/heads/$br" >/dev/null \
-       || git -C boring rev-parse -q --verify "refs/remotes/origin/$br" >/dev/null; then :;
-    else
-      m=$(git -C boring log --merges --format=%s b1188eec..arch/agent-guided-governance \
-          | grep -F "$br" | head -1)
-      [ -n "$m" ] && echo "DEAD-MERGED   $id $br ($m)" || echo "DEAD-UNMERGED $id $br"
-    fi; done
+bash tools/governance-sweep/sweep.sh          # the criterion, both tiers, live
+bash tools/governance-sweep/sweep-negctl.sh   # negative control for the criterion
 ```
+
+`sweep-negctl.sh` builds a fixture board whose rows are known-merged and known-unmerged and
+asserts that the two judgements are opposite; pointed at the pre-fix revision it must fail
+(mutation check, see §C). Per PIT-478, address board rows by internal row id, never by branch
+name; the sweep prints both.
 
 ### A.3 Orphan worktrees（孤工作树）
 
@@ -130,6 +146,22 @@ Sub-classification of the r52 35-row reconciliation (33 ghost + 2 empty), refres
 r52's "done 0 / cancelled 2 / rebuild 31" dispositions remain the per-row decision record;
 live sweep adds the merge-class split:
 
+**Criterion refresh (2026-10-01, `fix/sweep-merge-criterion`):** the counts below come from
+the window+substring form that §A.2 now replaces, so the split moved once the criterion was
+fixed at `f434a9c4` (32 doing rows scanned):
+
+```
+stale candidates:   1
+dead rows (unmerged): 23  dead rows (merged): 6  dead rows (merged, path-inference): 1  empty-branch rows: 2
+orphan worktrees:   31
+RESULT: 64 object(s) need governance action (exit 1)
+```
+
+Four rows moved from DEAD-UNMERGED to DEAD-MERGED by reachability (`warn/kotlin` x3 via
+`9d37247b Merge branch 'warn/kotlin' into warn/zero`, `warn/dartts` via `9ff90845`), and
+`gate/p08-swift-readonly-boundary` moved to DEAD-MERGED-INFERRED. `warn/dart6` and the W0 row
+stay DEAD-UNMERGED (§A.2 explains why that is the intended result).
+
 - **DEAD-MERGED (3)** — `t-muhbc7gp-sg81` (`warn/ts3`), `t-muhbc7hk-zvbl` (`warn/r1`),
   `t-mum0usfn-wwg8` (`audit/variable-bound-loop-eval`): content on mainline via the
   disaster merges; rows stay `doing` (work *not* complete per R4), merge fact
@@ -172,7 +204,8 @@ PIT-469):
 Run:
 
 ```bash
-bash tools/governance-sweep/sweep.sh
+bash tools/governance-sweep/sweep.sh           # the sweep
+bash tools/governance-sweep/sweep-negctl.sh    # its class-2 negative control
 ```
 
 Exit-code contract (**fail-closed**: the failure path can never print "0 objects"):
@@ -181,7 +214,13 @@ Exit-code contract (**fail-closed**: the failure path can never print "0 objects
 |---|---|
 | 0 | sweep ran; zero objects in all three classes |
 | 1 | sweep ran; findings printed (any class non-empty) |
-| 2 | sweep did NOT run: missing `git`/`jq`, unreadable board/REFREEZE, unresolvable mainline, or a failing git/jq/grep step — every such step is `fail`-checked, never swallowed |
+| 2 | sweep did NOT run: missing `git`/`jq`/`awk`, unreadable board/REFREEZE, unresolvable mainline or `SWEEP_MBASE` anchor, or a failing git/jq/grep step — every such step is `fail`-checked, never swallowed |
+
+`sweep-negctl.sh` (exit 0 = control holds, 1 = an assertion failed, 2 = could not run) lifts
+the live merged and unmerged rows into a fixture board, adds a substring-trap branch and a
+deleted-ref branch, and asserts that the sweep under test judges the merged row and the
+unmerged row differently. Pointing it at the pre-fix revision (`--sweep <file>`) must make it
+fail; that is the mutation check for this criterion.
 
 Verified run at `6af45096` (full output preserved in
 `audit-reports/r34-governance-sweep-2026-10-01.md`):
@@ -208,9 +247,14 @@ Red/green validation (synthetic fixtures under `/tmp/r34-fixture`, real dirs unt
 
 Known limits (documented, not hidden): class 1 matches "ruling mentions sha AND
 REJECT/sealed" — a superseded-but-not-rejected candidate needs a ruling-hygiene convention
-before it can be automated; class 2's DEAD-MERGED test is merge-subject match, a
-name-accurate proxy for content (r55-style blob comparison is out of scope for a sweep);
-class 3 deliberately reports only *registered* worktrees, so a `git worktree prune`d
+before it can be automated; class 2 decides by commit reachability with a labelled
+path-inference fallback, and the fallback is an inference, so a DEAD-MERGED-INFERRED row
+still needs a reviewer to confirm the paths against the row; a branch that no mainline merge
+subject records and whose row declares no path that is new at the anchor stays DEAD-UNMERGED,
+because a sweep cannot read content that left no trace (`warn/dart6` is the live example:
+its content may have been absorbed under `warn/dart3`, and the sweep must not claim that
+without evidence); class 3 deliberately reports only *registered* worktrees, so a
+`git worktree prune`d
 directory or non-git directory (the 44th r55 entry) is invisible to it — directory-level
 audits remain a manual coordination item.
 
