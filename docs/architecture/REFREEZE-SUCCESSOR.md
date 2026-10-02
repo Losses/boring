@@ -52,7 +52,7 @@ remote `b2f081bf`):
 
 | revision | full hash | subject |
 |---|---|---|
-| **candidate (frozen)** | `649aa881ed6915ea906abf3b8902e3b730af60b9` | merge: recov/r34-governance-sweep into arch/agent-guided-governance |
+| **superseded pin** (formerly labelled candidate) | `649aa881ed6915ea906abf3b8902e3b730af60b9` | merge: recov/r34-governance-sweep into arch/agent-guided-governance |
 | parent | `cf08733deb3a9a0e11aeac4c6f9a93bd84f1ffdd` | merge: recov/r43-vble-unblock into arch/agent-guided-governance |
 | candidate tree | `22d73adee7adac64de660a9c85e3711495cf5893` | `649aa881^{tree}` |
 
@@ -138,7 +138,7 @@ record neither affirms nor rejects it.
 
 ---
 
-## 2. Ancestry verification [MINE, `git merge-base --is-ancestor <sha> 649aa881`]
+## 2. Ancestry verification at the superseded pin `649aa881` [MINE, `git merge-base --is-ancestor <sha> 649aa881`]
 
 Each line shows the true exit code (`$?`), confirmed one by one (not via a piped tail):
 
