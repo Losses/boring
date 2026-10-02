@@ -151,6 +151,13 @@ the change requires those checks. Individual commands:
   `reference/rust/Cargo.toml` and `reference/rust/gen/Cargo.toml`
   through explicit `[[test]]` paths; a suite carries
   no manifest of its own), and `tests/vectors/` (the shared vectors).
+  The `tests/ts/warnstd-*-regression.test.ts` files contain
+  per-target shape tests for minimal mechanisms from `samples/boring/`.
+  Part of these tests only record the current rendered shape and do
+  NOT constitute degradation guards; negative-control coverage is
+  attested per test in the file headers and is item-specific —
+  consult each header for which tests were independently verified to
+  flip red against a pre-fix emitter.
 - `tools/`: the ESLint plugin, the documentation style checker, the
   commit tool, the git hooks, and the vector generator.
 
