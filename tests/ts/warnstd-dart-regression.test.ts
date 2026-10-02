@@ -6,10 +6,12 @@ import * as path from "node:path";
  * R1 warn-zero regression pins (warnstd seat r2): each test reads the
  * generated Dart tree for one minimal mechanism sample under
  * samples/boring and asserts on the generated text itself. These are
- * behavior pins for the promotion-scope and guard-ternary mechanisms
+ * shape tests for the promotion-scope and guard-ternary mechanisms
  * of 478b3835/d5cf10b2; minimal shapes that flip red against the
  * pre-fix emitters were not reached (see .tq-logs/warnstd/seats/r2.log),
- * so the assertions pin the promoted, fallback-free text.
+ * so the assertions pin the promoted, fallback-free text. The
+ * FlowPromotedDedupe test does NOT constitute a degradation guard:
+ * a regression in the emitter would not necessarily cause it to fail.
  */
 
 const gen = (name: string): string =>
