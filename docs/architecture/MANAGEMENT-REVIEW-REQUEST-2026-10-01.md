@@ -1,6 +1,8 @@
 # Management review request, filed 2026-10-01 by seat R2.3-b
 
-**Status: REQUEST ONLY. This file makes no ruling and changes nothing by itself.**
+**Status: ANSWERED 2026-10-02 by `MANAGEMENT-RULING-RECOVERY-VIII.md`.**
+This file was a REQUEST ONLY — it made no ruling and changed nothing by itself.
+It is retained as the historical request that the ruling answers.
 It exists to place one question before the management review that alone can resolve
 it, per `MANAGEMENT-RULING-137.md:34-35`:
 
