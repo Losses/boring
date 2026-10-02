@@ -9,6 +9,11 @@ import * as path from "node:path";
  * array and indexOf assertions were negative-validated by regenerating
  * against pre-fix SwiftExpr emitters (8b267acd~1 and b638bb42~1); the
  * captured pre-fix outputs are recorded in .tq-logs/warnstd/seats/r2.log.
+ *
+ * The ClassInstanceLocalLet and UnusedLocalNaming tests are shape-only:
+ * no pre-fix emitter shape that flips them red was reached, so they hold
+ * the current rendered text but do NOT prove a regression would be
+ * caught.
  */
 
 const gen = (name: string): string =>
@@ -27,13 +32,13 @@ describe("warnstd swift regression samples", () => {
     expect(out).not.toContain("if i < 0");
   });
 
-  test("ClassInstanceLocalLet: a never-reassigned class-instance local declares let (behavior pin)", () => {
+  test("ClassInstanceLocalLet: a never-reassigned class-instance local declares let (shape test, no negative validation)", () => {
     const out = gen("ClassInstanceLocalLet.swift");
     expect(out).toContain("let inst = ClassInstanceLocalLet()");
     expect(out).not.toContain("var inst");
   });
 
-  test("UnusedLocalNaming: a local the emitter proves unmentioned renders nothing (behavior pin)", () => {
+  test("UnusedLocalNaming: a local the emitter proves unmentioned renders nothing (shape test, no negative validation)", () => {
     const out = gen("UnusedSwiftBinding.swift");
     expect(out).not.toContain("var unused");
     expect(out).not.toContain("let unused");
