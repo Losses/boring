@@ -72,6 +72,50 @@ viii-w0-originals/
 
 The scripts were only syntax-checked and described; they were **not** executed.
 
+## Why this path was chosen
+
+The copies live under `tools/recovery/viii-w0-originals/`, not in the live
+`tools/` or `scripts/` trees, on purpose: **forensic material is kept separate
+from production tooling.** These files are evidence and a recovery anchor; they
+are not validated, installed, or wired into any workflow here. Placing them in
+the live `scripts/` directory would (a) suggest to callers that they are
+supported tooling when they are not, and (b) risk the preserved bytes being
+"fixed up" over time, defeating their role as byte-exact originals. The
+subdirectory naming (`recovery/viii-w0-originals`) states both the provenance
+(VIII incident, W0 row) and the nature (originals) in the path itself.
+
+## Locatability impact on the W0 row (criterion "doing rows all locatable")
+
+With commit `b3c3e8f4`, **four of the five files the W0 row claimed are now
+locatable** in the boring repo: `tq-warnings.sh`, `tq-verdicts.sh`,
+`scripts/warn-tree.sh` (byte-identical copy) and `.tq-logs/warnstd/FREEZE.md`
+(now reachable from HEAD, so no longer dangling). The fifth,
+`scripts/rclone-warn-watchdog.sh`, remains unlocated — see below.
+
+**Locatable does not equal accepted.** The W0 row's *technical* criteria (the
+substance of SOP1–SOP5: frozen-version regression run, readings, verdicts)
+are **not** satisfied by the mere act of archiving these files. Preserving the
+bytes answers only the "can we point at what W0 claimed to deliver" question;
+it does not make the W0 deliverables' claims verified, and this intake makes
+no such claim.
+
+## The missing watchdog: what is and is not claimed
+
+`scripts/rclone-warn-watchdog.sh`: the dedicated recovery search
+(`.tq-logs/viii/watchdog-recovery-evidence.md`) was a **bounded search** —
+three repositories' full ref history, the root repo's object listing, the
+`scripts/` and `scripts/archive/` directories, `.tq-logs` and `docs` greps,
+systemd user units, and a targeted `DataCenter` warn-area check. It found
+**no original bytes** and concluded: (1) the original is **not fabricated** —
+nothing is invented to fill its place; (2) **no rewrite is performed this
+round** — and that is a scoped decision, **not** a finding that its function
+is fully replaced. The `dc-warn-sshfs.service` notes confirm the old rclone
+mount was superseded by sshfs, but the watchdog's full original behaviour
+(monitoring logic, restart policy, thresholds) is unrecorded, so functional
+replacement is **unproven**. A genuinely exhaustive search (deep mount areas,
+Mac side, full-disk find) was **not completed** — criterion-level closure of
+"loss proven" therefore requires that complete search and is **not yet met**.
+
 ## Source of truth
 
 The authoritative intake record for this recovery is
