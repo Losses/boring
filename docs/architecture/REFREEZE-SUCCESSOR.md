@@ -71,6 +71,11 @@ remote `b2f081bf`):
 > arch/agent-guided-governance") is exactly the prescribed point — R1, R2 and the
 > declaration, and **no** R4.3:
 >
+> Full hash `2ba5766b4d241139a99757fd12f45f07b4234c94`; tree
+> `b54997ce12a2c17496a8c60c60550bdcff4aa729` (`git rev-parse 2ba5766b^{tree}`).
+> These are the bytes a reviewer certifies. The table above records the earlier
+> pinning point and is retained for audit.
+>
 > ```
 > cd70eb12 (S1)   is-ancestor of 2ba5766b -> rc=0
 > 71a60c7d (S2)   is-ancestor of 2ba5766b -> rc=0
@@ -109,15 +114,27 @@ remote `b2f081bf`):
    line content anyway; the record correctly lives *outside* the frozen revision, exactly
    as `REFREEZE.md` lives outside `c8ae0054`.
 
-**Scope caveat, recorded as fact, not adjudicated [MINE].** The frozen revision's
-`SwiftExpr.hx` differs from `c8ae0054` by **246 insertions / 15 deletions** across far
-more than the three successor components: the line has interleaved the S1/S2/S3 repairs
-with a large body of additional Swift-backend work brought in through origin/master
-syncs (`aceda352` — array/coalescing/kotlin-nullability fixes), the cross-target driver
-(`011dd739`, `f0a31387`) and the R4.3 variable-bound-loop unblock (`1e0d8169`). This
-record pins *the bytes at `649aa881`* as the review target. Whether that scope is the
-correct successor candidate content is a **reviewer / management question (R3.3)**, not
-this freeze seat's to decide — this record neither affirms nor rejects it.
+**Scope caveat, recorded as fact, not adjudicated [MINE; numbers recomputed at
+`2ba5766b`].** Two scopes must be told apart, and an earlier draft of this paragraph
+mixed them together:
+
+1. **The candidate's own component.** `SwiftExpr.hx` at `2ba5766b` differs from the
+   sealed `c8ae0054` by **230 insertions / 15 deletions** (`git diff --shortstat
+   c8ae0054 2ba5766b -- packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx`).
+   The number **246**, which stood here before, belongs to the earlier pinning point
+   `649aa881` and is superseded.
+2. **The whole revision under review.** The aggregate `c8ae0054..2ba5766b` is
+   **671 files / +94669 / −2527**. A reviewer certifying `2ba5766b` certifies this
+   aggregate and must see it; the three successor components explain only part of it.
+
+The additional body of work entered the line through origin/master syncs
+(`aceda352`), the cross-target driver (`011dd739`, `f0a31387`) and other Swift-backend
+repairs. **R4.3 (`1e0d8169`) is not among them**: `git merge-base --is-ancestor
+1e0d8169 2ba5766b` gives rc=1, so that commit is absent from the revision under review
+and must not be listed as one of its causes. This record pins *the bytes at
+`2ba5766b`* as the review target. Whether that scope is the correct successor candidate
+content is a **reviewer / management question (R3.3)**, not this seat's to decide; this
+record neither affirms nor rejects it.
 
 ---
 
@@ -139,7 +156,8 @@ rcs were read directly.)
 
 ---
 
-## 3. File identities at the frozen revision [MINE, `git show 2ba5766b:<path> | sha256sum`]
+## 3. File identities at the revision under review [MINE at `649aa881`; table recomputed
+by repair seat D4 at `2ba5766b`, `git show 2ba5766b:<path> | sha256sum`]
 
 Reviewers must target **these bytes**; any byte drift means the wrong tree is under
 review.
@@ -201,7 +219,7 @@ and not deleted or rewritten**. This new record is a **separate file**
 (`docs/architecture/REFREEZE-SUCCESSOR.md`), and a one-line pointer is prepended to
 `REFREEZE.md`'s supersession block so a reader landing on the old record is routed
 forward. The two records are disjoint: the old one names `c8ae0054`, this one names
-`649aa881`; neither invalidates the other, and the old record's frozen tree remains
+`2ba5766b`; neither invalidates the other, and the old record's frozen tree remains
 addressable for anyone who needs the sealed candidate's history.
 
 ---
