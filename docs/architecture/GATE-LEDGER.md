@@ -47,9 +47,15 @@ Still an identity record, not an acceptance, and it nominates nothing: `RULING-1
 and P08 remains PREPARABLE / NOT NOMINATE-ABLE. Its **scope caveat** is a fact for the
 R3.3 reviewer, not a defect in the successor: at `2ba5766b`, `SwiftExpr.hx` differs from
 `c8ae0054` by **230 insertions / 15 deletions**, because unrelated Swift-backend work
-entered the line before the declaration as well. Nine commits touched that file between
-`c8ae0054` and the freeze - four are successor components, five are unrelated mainline
-work.
+entered the line before the declaration as well. Eight commits touched that file between
+`c8ae0054` and the freeze - three are successor components (S1 `cd70eb12`, S2 `71a60c7d`,
+S3 `449444cf`), one is S1's integration merge (`e550fa52`), and four are unrelated mainline
+work (`011dd739`, `c0f8f1a7` and their two merges). **Corrected 2026-10-01 (VII): this
+sentence read "Nine commits ... four are successor components, five are unrelated" and did
+not reproduce.** Measured with `git log --oneline c8ae0054..2ba5766b --
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx`, which yields 8 rows; the
+original wording counted 9 and split it 4/5. The 230/15 line diff it introduces is
+correct and unchanged (`git diff --numstat`).
 
 **P08 overall: NOT PASSED.** The candidate is REJECT. Its post-review repair is now complete and on the line - the integration ruling's option (b) was executed as `a14345ce` (revert the lambda half, keep W1) followed by `c8ae0054` (the corrected lambda as one atomic commit) - so the line no longer carries a known regression, and a re-freeze is the next step. What still blocks is the build-phase diagnostic above and the absence of a second independent acceptance on a frozen revision.
 
@@ -776,9 +782,12 @@ reproduced the actionable ones; all three were real defects in work I had signed
 
 2. **My own sign-off wording on `t-munebyud-bxbr` overstated the predicate's scope.**
    I wrote that registration and lookup share "the single identity predicate". In fact
-   `Compiler.hx:2584-2587` computes the absorbed arm's key inline (`? enumName`) and calls
+   `Compiler.hx:2638-2640` computes the absorbed arm's key inline (`? enumName`) and calls
    `throwGrowthKey` only on the unabsorbed arm. The code is correct and documented for both
-   arms; the over-claim was in my confirmation text. Corrected on the row.
+   arms; the over-claim was in my confirmation text. Corrected on the row. (Line reference
+   corrected 2026-10-01 (VII): it read `:2584-2587`, which at `847a7dc3` is an unrelated
+   payload-pair gate comment; the cited code sits at `:2638-2640` in the 2814-line
+   `packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx`. Content unchanged.)
 
 3. **host-String `CLOSURE.md` carried a sentence that has since gone stale.** It said four
    timeout-budget commits were "branch state, not in effect on base"; all four are
