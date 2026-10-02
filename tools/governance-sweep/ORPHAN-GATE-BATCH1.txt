@@ -1,0 +1,55 @@
+orphan-gate 第一批处置清单（A4，架构整治 VII 第 1 轮）
+脚本: boring/tools/governance-sweep/orphan-gate.sh（判据与 fail-closed 方向见脚本头部注释）
+
+判据（每树顺序执行，任一失败/异常 => NEEDS-DECISION，绝不输出 REMOVABLE）:
+  C0 非git树: 纯构建产物目录名(out/target/.haxelib/node_modules等)可 REMOVABLE；否则 NEEDS-DECISION
+  C1 HEAD 必须是 arch/agent-guided-governance 的祖先(git merge-base --is-ancestor)；
+     有未并入主干的提交 => PROTECTED（注：这些提交都在 boring 主仓对象库里、挂在具名分支上，
+     删树本身不丢提交，但该分支的去重要另行裁定）
+  C2 每条已修改跟踪文件: git hash-object 后 git log --all --find-object，
+     blob 从未出现在任何 ref 的任何提交 => NEEDS-DECISION（语料仓库里 DIRTY 不等于有价值，只认"曾上过任何分支"）
+  C3 每条未跟踪文件(status -uall): 逐字节(sha256)与主干同路径 blob 比对，或与
+     ORPHAN_ALT_ROOTS(工作区根+dc-warn)任一同名文件比对；均不同 => NEEDS-DECISION
+  构建产物文件(*.log/*.tmp/*.o/*.pyc/.DS_Store)豁免 C2/C3
+已知精度限制(偏保守方向): C3 的 alt-roots 查重只比对 find 首个命中，命中不同即判 NEEDS-DECISION，
+  可能误伤(多判不可删)但绝不放行(漏判可删)。
+
+第一批 12 棵（全部为工作区根本地盘树；未触碰 dc-warn，未删除任何东西，未跑 worktree prune）:
+
+路径                                          | HEAD       | 脏文件 | 判定            | 证据
+---------------------------------------------+------------+--------+-----------------+--------------------------------------
+boring-wt-builddiag                           | 3e2e7cde   | 0      | PROTECTED       | 1 commit 未并主干: 3e2e7cde docs(architecture) build-phase diagnostics；该提交挂在分支 gate/build-phase-diagnostic-standard（含 origin）
+boring-wt-cs-tipcheck                         | e54611c1   | 0      | REMOVABLE       | status 干净; HEAD 是主干祖先
+boring-wt-cs42c805d3                          | 42c805d3   | 0      | REMOVABLE       | status 干净; HEAD 是主干祖先
+boring-wt-d2-ff-bypass                        | 8d32467b   | 0      | PROTECTED       | 2 commits 未并主干, 如 8d32467b fix(git-hooks) pre-merge-commit HOOK_NAMES；挂在 fix/* 具名分支
+boring-wt-docstyle                            | aa1a6047   | 0      | PROTECTED       | 1 commit 未并主干: aa1a6047 docs(architecture) doc-style
+boring-wt-driver-provenance                   | e1c65975   | 0      | REMOVABLE       | status 干净; HEAD 是主干祖先
+boring-wt-intmodkey-ablate                    | 6205be40   | 0      | REMOVABLE       | status 干净; HEAD 是主干祖先
+boring-wt-intmodkey-basecmp                   | 0641991b   | 0      | REMOVABLE       | status 干净; HEAD 是主干祖先
+boring-wt-mainline                            | b1188eec   | 0      | REMOVABLE       | status 干净; HEAD=b1188eec(灾难首个合并基) 是主干祖先
+boring-wt-master-cc9957dd                     | cc9957dd   | 0      | NEEDS-DECISION  | 未跟踪 tests/haxe/kotlin-redundant-assertion/probe/redundantassertion/MemberRegistryProbe.hx sha256=9a100b02 与全工作区其余 10+ 份同名文件(bca0f9ad)均不同，内容独此一份
+boring-wt-modkey                              | 993d7d10   | 0      | PROTECTED       | 2 commits 未并主干, 如 993d7d10 fix(rust) payload lookups class-first；挂在 fix/rust-module-keyed-read-sites（含 origin）
+architecture-workspaces/repair-kotlin-staticfnops | (detached) | 4脏+3未跟踪 | NEEDS-DECISION | 4 条修改跟踪文件中 TsDecl.hx/TsExpr.hx 的 blob(如 399adeb8) 在任何 ref 的任何提交里都找不到（git log --all --find-object 为空），即 8 行插入的修改只活在这棵树里
+
+建议先删（6 棵，全 REMOVABLE，证据齐全）:
+  boring-wt-cs-tipcheck / boring-wt-cs42c805d3 / boring-wt-driver-provenance /
+  boring-wt-intmodkey-ablate / boring-wt-intmodkey-basecmp / boring-wt-mainline
+  备注: boring-wt-mainline 的 HEAD b1188eec 是历史锚点，删除前确认没有流程引用该路径。
+
+建议先查（3 棵）:
+  1. boring-wt-master-cc9957dd: 独一份 probe 文件，判定是否属于已发表证据链(xs-run-e1c65975 相关)，是则先归档再删
+  2. architecture-workspaces/repair-kotlin-staticfnops: TsDecl/TsExpr 的 8 行未落地修改，要人决定 port 到分支还是弃
+  3. 四棵 PROTECTED 的未并主干分支(gate/build-phase-diagnostic-standard, fix/rust-module-keyed-read-sites 等): 分支级去重裁定后，树本身即可删(提交在主仓对象库, 删树不丢)
+
+复现命令:
+  /home/losses/Development/tq-workspace/boring/tools/governance-sweep/orphan-gate.sh <tree>...
+  单项证据示例:
+    git -C boring-wt-cs-tipcheck merge-base --is-ancestor HEAD arch/agent-guided-governance && echo ancestor
+    git -C boring status --porcelain=v1 -uall            # 三棵 REMOVABLE 均为空输出
+    cd architecture-workspaces/repair-kotlin-staticfnops && git log --all --find-object=399adeb8d63314799d205929f27a1427f760d7fd   # 空输出
+    sha256sum boring-wt-master-cc9957dd/.../MemberRegistryProbe.hx  # 9a100b02..., 其余全部 bca0f9ad...
+
+未能判定/未跑: dc-warn/ 下约 16 棵未跑：按约束未在远端挂载上做细读；后续每棵 cp -a 到 /tmp 后用
+  ORPHAN_ALT_ROOTS 同口径跑即可（脚本无需改动）。
+口径说明: sweep.sh 的 class-3 orphan 是"注册且 detached 且非 recov-*"口径；本清单针对的是
+  无注册游离树，两份名单互补，合计即 65 个待处置对象里的 31 个 orphan。
