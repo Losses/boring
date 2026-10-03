@@ -154,7 +154,7 @@ the change requires those checks. Individual commands:
   The `tests/ts/warnstd-*-regression.test.ts` files hold the
   per-target validated guards for minimal mechanisms from
   `samples/boring/`: negative-control coverage is attested per test
-  in the file headers and is item-specific — consult each header for
+  in the file headers and is item-specific, consult each header for
   which tests were independently verified to flip red against a
   pre-fix emitter (or, for the dart GuardTernaryArgNonNull pin,
   against hand-authored fixture mutations plus archived historical
@@ -162,7 +162,7 @@ the change requires those checks. Individual commands:
   regression would be caught). The sibling
   `tests/ts/warnstd-*-shape.test.ts` files hold only current-shape
   snapshots: they record the rendered text as it stands and do NOT
-  constitute degradation guards — they carry no negative control and
+  constitute degradation guards, they carry no negative control and
   prove nothing about catching a regression.
 - `tools/`: the ESLint plugin, the documentation style checker, the
   commit tool, the git hooks, and the vector generator.
@@ -174,6 +174,78 @@ language keeps a separate runtime tree: TypeScript runs under bun, Rust
 builds with cargo, the Haxe test binary is compiled JS executed by bun,
 and the Kotlin test binary is a jar executed on the JVM. Build outputs
 go under the gitignored `out/`.
+
+## warnstd regression samples
+
+The warnstd regression samples are a set of minimal Haxe mechanisms under
+`samples/boring/` that reproduce warning-avoidance decisions the reflaxe
+emitters make. Each sample is a single class that exercises one emitter
+mechanism. The sample is wired into the per-target generation entries
+(`examples/ts.hxml`, `examples/kotlin.hxml`, `examples/swift.hxml`,
+`examples/dart.hxml`), and a bun test under `tests/ts/` reads the generated
+tree and asserts on the generated text.
+
+### Sample to test mapping
+
+| Sample (`samples/boring/`) | Target | Test file | Test name | Asserted shape |
+| --- | --- | --- | --- | --- |
+| `WidenedFieldNonNull.hx` | kotlin | `tests/ts/warnstd-kotlin-regression.test.ts` | `DeclaredFieldNonNull` | widened chain read keeps one extraction, drops the hop safe call and trailing force |
+| `FromCharCodeToString.hx` | kotlin | `tests/ts/warnstd-kotlin-regression.test.ts` | `CharCodeNoToString` | the fromCharCode template drops the redundant toString on its String branch |
+| `ShiftPopStatement.hx` | kotlin | `tests/ts/warnstd-kotlin-regression.test.ts` | `NullArmStatementFold` | statement-position shift/pop renders as guarded statements and never as an if-else expression |
+| `GuardedNonNullTernaryElvis.hx` | kotlin | `tests/ts/warnstd-kotlin-shape.test.ts` | `guardedNonNullTernary elvis wrap` | proven non-null member reads stay on the non-null path |
+| `BytesValueArrayVar.hx` | swift | `tests/ts/warnstd-swift-regression.test.ts` | `ValueArrayBindingVar` | a Bytes binding that lowers to the native `[UInt8]` value array keeps `var` |
+| `StringIndexOfDeadClamp.hx` | swift | `tests/ts/warnstd-swift-regression.test.ts` | `StringIndexOfDeadClamp` | a constant non-negative start drops the dead negative-offset clamp |
+| `ClassInstanceLocalLet.hx` | swift | `tests/ts/warnstd-swift-shape.test.ts` | `ClassInstanceLocalLet` | a never-reassigned class-instance local declares `let` |
+| `UnusedSwiftBinding.hx` | swift | `tests/ts/warnstd-swift-shape.test.ts` | `UnusedLocalNaming` | a local the emitter proves unmentioned renders nothing |
+| `GuardTernaryDeadFallback.hx` | dart | `tests/ts/warnstd-dart-regression.test.ts` | `GuardTernaryArgNonNull` | a guard-ternary argument carries no call-site fallback |
+| `FlowPromotedDedupe.hx` | dart | `tests/ts/warnstd-dart-shape.test.ts` | `flow-promoted reads stay unwrapped` | promoted reads stay unwrapped across statements, a branch merge and a closure |
+| `NullableIntCompare.hx` | ts | `tests/ts/warnstd-ts-regression.test.ts` | `NullableIntCompare` | a `Null<Int>` comparison carries `code!` (TS18047 to zero after the fix) |
+| `NullableArrayElemArg.hx` | ts | `tests/ts/warnstd-ts-regression.test.ts` | `NullableArrayElemArg` | a nullable array element unwraps (TS2322 to zero after the fix) |
+
+### Two coverage methods
+
+Each regression test asserts two directions.
+
+- Correct-shape assertion. The test reads the generated tree and asserts
+  that the expected post-fix shape is present (`toContain`) and that the
+  pre-fix broken shape is absent (`not.toContain`). The ts regression tests
+  also import the generated module and assert runtime behavior, because the
+  non-null assertion is erased and does not change runtime semantics.
+- Negative validation. A test is a validated degradation guard only when
+  the emitting side was reverted to a pre-fix revision, the tree was
+  regenerated, and the test was confirmed to go red. This is attested per
+  test in each file header and is item-specific. The dart
+  `GuardTernaryArgNonNull` guard was validated against hand-authored
+  fixture mutations plus archived historical before/after artifacts instead
+  of a reverted emitter. No claim is made that any future regression would
+  be caught.
+
+The sibling `tests/ts/warnstd-*-shape.test.ts` files hold only current-shape
+snapshots. They record the rendered text as it stands and carry no negative
+validation, so they do not prove a regression would be caught. The
+`warnstd-*-regression.test.ts` files hold the validated guards.
+
+### Running the regression in the flake environment
+
+Generation runs inside the flake environment and writes the gitignored
+`reference/<target>/gen/` trees:
+
+    nix develop -c bash -c "haxe examples/ts.hxml"
+    nix develop -c bash -c "haxe examples/kotlin.hxml"
+    nix develop -c bash -c "haxe examples/swift.hxml"
+    nix develop -c bash -c "haxe examples/dart.hxml"
+
+The regression tests are bun tests and run after generation:
+
+    nix develop -c bash -c "bun test tests/ts/warnstd-kotlin-regression.test.ts tests/ts/warnstd-swift-regression.test.ts tests/ts/warnstd-dart-regression.test.ts tests/ts/warnstd-ts-regression.test.ts"
+
+The ts regression tests additionally require `tsc` for the strict type
+check that proves the TS18047 and TS2322 diagnostics are gone:
+
+    nix develop -c bash -c "npx tsc --strict --noEmit --target esnext --moduleResolution bundler reference/ts/gen/boring/NullableIntCompare.ts reference/ts/gen/boring/NullableArrayElemArg.ts"
+
+When the generated artifacts are absent, the tests fail with ENOENT rather
+than skip, so a missing generated tree is a visible failure.
 
 ## Test vectors
 
