@@ -42,8 +42,8 @@ result type 'TiqianArray<Int32>'`）。
   （`MapOptionalMutableArrayView` `:200-202` 等）
 
 **契约边界**：`override` 是**组合的义务**，不是操作数的属性，也不是豁免。
-`RECORD.md` 的三条 REFUSED 行因此在记录里被限定为 **PLANNER-CELL ONLY**
-（CORRECTION 13）。
+`RECORD.md`（Swift 边界规划席的会话记录文件，不在产品仓内）的三条 REFUSED 行因此在记录里被限定为 **PLANNER-CELL ONLY**
+（CORRECTION 13；要点已在本契约落地）。
 
 ## 契约 3：warning 计入验收（F 类）
 
@@ -60,11 +60,11 @@ result type 'TiqianArray<Int32>'`）。
   只是被绕过。**该缺口已接线**（`9f26e1ef`）：`ci.yml` 增加 `collected-suite`
   job，每次运行入口 `bun run test` 并报告收集域（303 文件，其中 249 个来自
   生成树 `reference/ts/gen-tests`）。该 job 阻塞、无 `continue-on-error`；
-  基线 `1001 pass / 32 fail / 8 errors` 记于 `BASELINE-FAILURES.md`，尚未清偿。
+  基线 `1001 pass / 32 fail / 8 errors`（原记于 `BASELINE-FAILURES.md`，2026-10-03 随清仓删除；现行记录见 `.github/workflows/ci.yml` 基线接线），尚未清偿。
 - ⇒ 记录的形态必须是"**已知基线失败 + 显式 PIN**"，**不得**命名为"零诊断满足"：
   `tests/swift-gap-boundary/gap-boundary.test.ts:44` 的属主裁定即为本契约的落地。
 
-**补充（`t-muo92xms-s28t` 裁定，`1a486ebd`；见 `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`）：
+**补充（`t-muo92xms-s28t` 裁定，`1a486ebd`；原文件 `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` 已随清仓删除，裁定内容见 wb 系统该行 note）：
 "用哪个工具"与"能看见哪类诊断"必须分开说明。**
 `:78` 的主句是全称的（"on every target"），但枚举工具时只写 *"the Swift type-checker"*。
 该窄化留下一个洞：**`swiftc -typecheck` 不跑 SILGen，在基线态也报 0 条**，

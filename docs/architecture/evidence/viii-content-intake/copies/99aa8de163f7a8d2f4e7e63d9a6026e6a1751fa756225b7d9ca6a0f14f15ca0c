@@ -1,9 +1,0 @@
-package boring;
-
-/** Variant switch subject of the class-2 fixture; the Values payload is a
-    mutable Array so each arm's value crosses the boundary into the
-    ReadOnlyArray destination. */
-enum C2Choice {
-    Values(values:Array<Int>);
-    Marker(m:Int);
-}

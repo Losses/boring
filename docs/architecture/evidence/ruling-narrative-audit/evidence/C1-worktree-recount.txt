@@ -1,4 +1,0 @@
-=== directory entries ===
-38
-=== git worktrees (with .git) ===
-total=37 detached=37 dirty=37 beyond=0

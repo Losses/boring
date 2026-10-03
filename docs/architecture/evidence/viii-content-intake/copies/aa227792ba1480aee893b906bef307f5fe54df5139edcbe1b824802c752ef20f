@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
-argv timeout 300 haxe -main PCodeneg -cp samples -cp tests/haxe/charcodeat/probes -js /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T211606Z/probes/codeneg.js

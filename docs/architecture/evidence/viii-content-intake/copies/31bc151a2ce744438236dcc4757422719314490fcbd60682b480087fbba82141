@@ -1,1 +1,0 @@
-nix develop -c haxe tests/haxe/ts-sourcemap-three-positions/ts-sourcemap-positions.hxml -D ts-output=out/ts-sourcemap-positions/attempt-kllZ8FCF/gen -D ts-source-origins 

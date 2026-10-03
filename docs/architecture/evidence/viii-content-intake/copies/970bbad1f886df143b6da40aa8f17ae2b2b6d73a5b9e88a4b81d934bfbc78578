@@ -1,6 +1,0 @@
-out/kotlin-var-field-smartcast/gen/runtime/test/Test.kt:5:23: error: unresolved reference 'FPHelper'.
-import boring.runtime.FPHelper
-                      ^^^^^^^^
-out/kotlin-var-field-smartcast/gen/runtime/test/Test.kt:112:42: error: unresolved reference 'FPHelper'.
-    fun formatFloat(v: Double): String = FPHelper.formatFloat(v)
-                                         ^^^^^^^^

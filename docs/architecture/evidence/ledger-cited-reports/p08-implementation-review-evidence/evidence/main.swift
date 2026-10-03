@@ -1,8 +1,0 @@
-print("explicitReturn(one).count=\(GapExplicitReturn.switchExplicitReturn(.one).count)")
-print("explicitReturn(two).count=\(GapExplicitReturn.switchExplicitReturn(.two).count)")
-print("switchReturnPosition(one).count=\(Gap.switchReturnPosition(.one).count)")
-print("switchReturnPosition(two).count=\(Gap.switchReturnPosition(.two).count)")
-print("switchLocal(one).count=\(Gap.switchLocal(.one))")
-print("switchLocal(two).count=\(Gap.switchLocal(.two))")
-print("switchAssignPath(one).count=\(GapPaths.switchAssignPath(.one))")
-print("switchAssignPath(two).count=\(GapPaths.switchAssignPath(.two))")

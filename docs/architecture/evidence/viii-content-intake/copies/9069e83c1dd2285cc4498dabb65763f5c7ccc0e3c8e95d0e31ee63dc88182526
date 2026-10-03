@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat-xcheck
-argv bash -c kotlinc\ -version\ 2\>\&1

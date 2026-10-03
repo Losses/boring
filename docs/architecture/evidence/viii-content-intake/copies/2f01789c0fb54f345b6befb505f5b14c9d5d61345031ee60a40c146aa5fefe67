@@ -1,1 +1,0 @@
-tests/haxe/dc-enum-switch-gen/dcsenum/FieldSubjectOracle.hx:14: characters 18-30 : expression block must end in a value statement (features/43)

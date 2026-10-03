@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/boring-wt-architecture
-argv bash -c cp\ tests/haxe/swift-rt-plain/native/native-main.swift\ out/swift-rt-fx/plain/native-main.swift\ \&\&\ sha256sum\ out/swift-rt-fx/plain/native-main.swift

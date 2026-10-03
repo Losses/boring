@@ -1,4 +1,0 @@
-warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture' is dirty
-generated f32 ops, pre-fix literal form : finite(1.0e308f) = false
-generated f32 ops, fixed literal form   : finite(3.0e38f)  = true
-exit=0

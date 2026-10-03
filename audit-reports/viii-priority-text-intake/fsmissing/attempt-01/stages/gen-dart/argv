@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
-argv haxe tests/haxe/dc-fs-missing/gen/dart.hxml -D dart-output=/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/dart-gen -D dart-test-output=/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/dart-test-gen

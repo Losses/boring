@@ -1,4 +1,0 @@
-preflight: haxe tests/swift-readonly-boundary/swift.hxml (cwd = copy root, PATH from env.json)
-cfg-a (P1 only, no compiler fix): exit 1; single-line stderr: swift target: array boundary has no prepared storage decision (= SwiftExpr.hx:2609 fail() in unfixed file)
-cfg-b (P1 + INTEGRATION.diff): exit 0; empty output
-trap baseline md5: 8eb49dcbf9be0412995222aa40207a4c  samples/boring/MathNaNTestSupport.hx

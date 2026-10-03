@@ -1,4 +1,0 @@
-stage=identity
-rc=0
-poststate-rc=0
-poststate: post-state: 1431 entries checked, 0 failures

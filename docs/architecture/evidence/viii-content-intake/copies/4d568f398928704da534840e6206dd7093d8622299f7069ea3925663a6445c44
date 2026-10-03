@@ -1,4 +1,0 @@
-mkdir -p linkdir
-ln -s /tmp linkdir/inner
-echo v > linkdir/inner-file.txt
-require-file:linkdir/inner-file.txt

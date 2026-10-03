@@ -1,9 +1,0 @@
-package tests
-
-object EnumQueriesProbes {
-    const val allEnumsTypeError: String = "Type.allEnums accepts an enum type reference only"
-    const val constructorValueError: String = "Type.enumConstructor accepts parameterless enum values only"
-    const val createEnumArityError: String = "Type.createEnum accepts the two-argument form only"
-    const val payloadEnumError: String = "enum queries accept enums without constructor parameters only"
-    const val allEnumsPositionError: String = "Type.allEnums expands in length and index positions only"
-}

@@ -1,3 +1,0 @@
-FAIL: allowlist: exempt[0].target must be one of kotlin/rust/swift/* (got "dart")
-roots guard: FAILED
-exit_code=1

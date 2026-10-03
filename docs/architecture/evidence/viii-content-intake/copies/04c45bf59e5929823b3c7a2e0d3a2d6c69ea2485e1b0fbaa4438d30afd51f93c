@@ -1,2 +1,0 @@
-import { test, expect } from "bun:test";
-test("ok reference/ts/gen-tests", () => { expect(1).toBe(1); });

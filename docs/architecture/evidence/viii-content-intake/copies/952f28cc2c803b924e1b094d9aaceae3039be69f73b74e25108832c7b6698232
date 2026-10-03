@@ -1,7 +1,0 @@
-source_sha256=3dcbfb2100e673e0cf40c5ff11f0dd72b39567cea02558e07ba23d2935b501a7
-variant=fn-negctl.hx
-haxe=4.3.7
-baseline_commit=e1c6597514634fd347d392709793cc19bd96c9a2
-dedup_runsh_exit=1
-xcheck_exit=0
-unbounded_haxe_exit=1

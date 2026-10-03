@@ -1,6 +1,0 @@
-haxe
-/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/tests/haxe/dc-promoted-eval/gen/ts.hxml
--D
-ts-output=/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-lb9Oej/ts-gen
--D
-ts-test-output=/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-lb9Oej/ts-gen-tests

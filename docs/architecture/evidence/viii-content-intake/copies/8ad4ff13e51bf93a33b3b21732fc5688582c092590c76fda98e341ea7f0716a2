@@ -1,8 +1,0 @@
-label: check-positive
-cwd: /home/losses/Development/tq-workspace/boring/dc-warn/worktrees/kotlin-manifest
-argv:
-  bash
-  tests/package/dc-kotlin-manifest-version/check.sh
-  out/dc-kotlin-manifest-version/kotlin/gen/build.gradle.kts
-  out/dc-kotlin-manifest-version/kotlin/maven/dev/boring/generated/0.1.0/generated-0.1.0.pom
-input-sha256 (see inputs.sha256):

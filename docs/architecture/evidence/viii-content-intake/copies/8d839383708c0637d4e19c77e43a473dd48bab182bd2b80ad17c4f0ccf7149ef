@@ -1,4 +1,0 @@
-230c230
-<         let view = flag ? ReadOnlyArray(first) : ReadOnlyArray(second)
----
->         let view = ReadOnlyArray(first) // L5-BROKEN: always takes the true branch

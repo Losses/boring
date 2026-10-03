@@ -1,3 +1,0 @@
-FAIL: allowlist: exempt[0].module is not a plausible dotted module path: "not a module!"
-roots guard: FAILED
-exit_code=1

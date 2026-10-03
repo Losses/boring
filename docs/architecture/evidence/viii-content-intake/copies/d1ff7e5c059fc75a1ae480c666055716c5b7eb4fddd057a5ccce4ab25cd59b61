@@ -1,5 +1,0 @@
-worktree: /home/losses/Development/tq-workspace/boring-wt-modkey
-branch: fix/rust-module-keyed-read-sites (base: arch/agent-guided-governance @ 05e375b2)
-b18b99df fix(rust): land audited PIT-281 class-keyed payload map + xs-* fixture set
-993d7d10 fix(rust): resolve payload lookups class-first at the remaining module-keyed read sites (PIT-297)
-working tree clean after the reverse-ablation restore (final-restored-hashes.txt == final-hashes.txt)

@@ -1,7 +1,0 @@
-CTL    OLD  NEW  LOG_BYTES VERDICT
-pos    0    0    2622      INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
-negA   0    1    2641      INTEGRITY FAIL: content after the end marker (19 byte(s) past the marker line, byte 2622 of 2641)
-negB1  1    1    2644      INTEGRITY FAIL: content after the end marker (22 byte(s) past the marker line, byte 2622 of 2644)
-negB2  1    1    2622      INTEGRITY FAIL: stage evidence hash changed
-negB3  1    1    2622      INTEGRITY FAIL: stage evidence hash changed
-negB4  1    1    2622      INTEGRITY FAIL: stage evidence set differs from manifest

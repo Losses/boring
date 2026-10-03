@@ -1,6 +1,0 @@
-./_GeneratedFiles.txt
-./Package.swift
-./probe/Probe.swift
-./Runtime.swift
-./std/UStringException.swift
-./std/UStringFault.swift

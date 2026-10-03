@@ -1,4 +1,0 @@
-# shape=field target=dart generated-tree: /home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch/../../out/enum-switch/es-VHFjIw/gen/field/dart
-# stage 7 exit 1
-# generation rejected; raw diagnostics below
-tests/haxe/dc-enum-switch-gen/dcsenum/FieldSubjectOracle.hx:14: characters 18-30 : dart target: expression block must end in a value statement (features/43)

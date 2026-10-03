@@ -1,3 +1,0 @@
-interpreter bash inside the invoking nix develop environment
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/place-ts-swift
-argv haxe tests/haxe/place/ts-gen.hxml -D placeSplit -D placeR5 -D ts-output=out/place/runs/place-ts-swift-k85ORK/case-R5/ts-gen

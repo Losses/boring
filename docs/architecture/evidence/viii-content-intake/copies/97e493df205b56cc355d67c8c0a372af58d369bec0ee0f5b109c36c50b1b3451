@@ -1,4 +1,0 @@
-proves the batch harness in runall.sh actually reports a difference
-when one exists: a two-entry root, one untouched copy and one negA copy.
-attempt-POS                  old=0 new=0 same
-attempt-TAMPER-NONEWLINE     old=0 new=1 <== DIFF (new detection)

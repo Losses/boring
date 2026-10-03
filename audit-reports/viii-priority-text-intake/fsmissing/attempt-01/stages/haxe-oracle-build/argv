@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
-argv haxe tests/haxe/dc-fs-missing/native/oracle.hxml -js /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/oracle.js

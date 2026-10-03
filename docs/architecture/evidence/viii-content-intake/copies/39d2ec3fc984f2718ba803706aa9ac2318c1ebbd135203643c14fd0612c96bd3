@@ -1,7 +1,0 @@
-tree: /home/losses/Development/tq-workspace/boring-wt-architecture/out/source-container-policy/gen-2I2toF
-  BUGGY-COPY   4
-  --- occurrences ---
-  BUGGY-COPY   swift-baseline/gen/scp/CallerCases.swift:31: let this1 = TiqianArray(CallerCases.namesDirect().toMutableArray())
-  BUGGY-COPY   swift-baseline/gen/scp/CallerCases.swift:34: let this11 = TiqianArray(CallerCases.namesDirect().toMutableArray())
-  BUGGY-COPY   swift/gen/scp/CallerCases.swift:31: let this1 = TiqianArray(CallerCases.namesDirect().toMutableArray())
-  BUGGY-COPY   swift/gen/scp/CallerCases.swift:34: let this11 = TiqianArray(CallerCases.namesDirect().toMutableArray())

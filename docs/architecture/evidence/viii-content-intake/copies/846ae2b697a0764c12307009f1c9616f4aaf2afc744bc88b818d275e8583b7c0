@@ -1,3 +1,0 @@
-echo before > before-b.txt
-exit 3
-echo after > after-b.txt

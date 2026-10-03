@@ -1,4 +1,0 @@
-// PIT-255 negative control: the PRE-FIX render texts (double wrap).
-func probeCopyBroken(_ r: ReadOnlyArray<String>) -> TiqianArray<String> {
-    return TiqianArray(r.toMutableArray())
-}

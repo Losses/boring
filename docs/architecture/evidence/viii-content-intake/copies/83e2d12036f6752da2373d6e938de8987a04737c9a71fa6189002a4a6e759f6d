@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail
-argv nix develop -c haxe tests/haxe/try-tail/gen/rust.hxml -D rust-output=out/try-tail/gen/rust-evidence

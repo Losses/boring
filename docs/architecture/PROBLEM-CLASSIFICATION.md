@@ -7,9 +7,9 @@
 ## 分类的根据
 
 分类取自本程序的既有记录，不是新造：
-`docs/investigations/architecture-round-1/` 的调查、两席架构咨询
+`docs/investigations/architecture-round-1/` 的调查（2026-10-03 清仓迁出，事实抽取见 wb 任务 t-muso22y0-5hn2 note）、两席架构咨询
 （`dc-warn/out/sol-architecture-consult/{SOL2-ARCH-ANSWER.md,ASTRA-ANSWER.md}`）、
-`CODEX-AUDIT.md`，以及本会话四处已修复缺陷的机制。
+`CODEX-AUDIT.md`（现位于归档 `boring-docs-archive/evidence/ledger-cited-reports/p12-programme-review-evidence/evidence/consult/`），以及本会话四处已修复缺陷的机制。
 
 ## A–F 六类职责
 
@@ -90,7 +90,7 @@ lambda 缺陷（`dc-warn/out/lambda-return-contract/`）的机制是：
    这正是需要显式契约的原因。
 4. **失败分类必须带归属**：候选之责 / 既存仓库状态 / 缺失文档
    （P10 记录的教训，已发布记录 `docs/architecture/ACCEPTANCE-REFLECTION.md` §2，
-   发布提交 `ec4c5c2d`；早先的草稿路径 `out/p10-reflection/` 已被该发布取代）。
+   发布提交 `ec4c5c2d`——该文件 2026-10-03 随过程文档清仓删除，提交内可追溯；早先的草稿路径 `out/p10-reflection/` 已被该发布取代）。
 
 ## 本分类尚未覆盖的
 

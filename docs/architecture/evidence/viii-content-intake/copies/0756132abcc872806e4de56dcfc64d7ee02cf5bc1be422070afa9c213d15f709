@@ -1,8 +1,0 @@
-package registry
-
-sealed class SemverException(override val message: String) : RuntimeException(message) {
-    data class InvalidCore(val version: String) :
-        SemverException("invalid version core: " + version)
-    data class InvalidExtension(val version: String) :
-        SemverException("invalid prerelease or build metadata: " + version)
-}

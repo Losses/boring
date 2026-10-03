@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-regression-fix
-argv nix develop -c haxe tests/haxe/xs-samples/gen/rust.hxml -D rust-output=/tmp/rustreg-gen-fixed-xs-samples

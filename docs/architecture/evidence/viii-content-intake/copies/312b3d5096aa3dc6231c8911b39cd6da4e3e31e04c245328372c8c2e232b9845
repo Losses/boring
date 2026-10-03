@@ -1,7 +1,0 @@
-package boring
-
-class WidgetCart {
-}
-
-class WidgetLens(val zoom: Int = 3) {
-}

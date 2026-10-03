@@ -1,3 +1,0 @@
-FAIL: cannot locate the repository root for module-source resolution (no directory with haxelib.json+samples+packages above /home/losses/Development/tq-workspace/rgx-scratch/cases/new-norepo/examples); set ROOTS_GUARD_REPO_ROOT=/path/to/repo
-roots guard: FAILED
-exit_code=1

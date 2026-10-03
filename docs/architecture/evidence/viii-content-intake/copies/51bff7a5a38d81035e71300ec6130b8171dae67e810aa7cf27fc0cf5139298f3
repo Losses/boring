@@ -1,8 +1,0 @@
-SUPERSEDED GENERATION (chain-A run 1).
-Snapshot taken 2026-09-30T00:19Z from the then-current boring-wt-architecture.
-Run 1 (attempt-chainA-fixed2-20260930T002043-3235617) finished with rc=1 at Stage 3,
-compare reporting exactly 6 undeclared Extra divergences (all tests.f32.PrintedFloatTests.*,
-[haxe-f32]).  While run 1 was executing, the coordinator landed three further entries in the
-coordination tree (package.json, rust/rustcompiler/Compiler.hx, tools/test-consistency/Main.hx
-+ extra-id-allowlist.json), so this generation no longer describes the tree under test.
-Kept for the record only; the authoritative manifest is ../manifest-fixed2.json.

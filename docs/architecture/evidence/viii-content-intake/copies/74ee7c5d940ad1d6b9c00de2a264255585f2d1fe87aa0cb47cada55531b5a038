@@ -1,5 +1,0 @@
-# RECORD.md drift check 2026-09-30T02:17:24-04:00
-367 /home/losses/Development/tq-workspace/dc-warn/out/boundary-policy-record/RECORD.md
-e20cf625278ebadee008b9379d023500d8bde1f89ebb26daee34e81dba969f28  /home/losses/Development/tq-workspace/dc-warn/out/boundary-policy-record/RECORD.md
-audit pinned: 279 lines, sha 3e7cb12c966495264962fca97480efd744f0b458ec364e8f5fceb30450d39b0f
-arch-answer saw: 279 lines, sha 0ac047d6c34ae12fc8a9fad2f7d8da6810213a45d950b7b44bdb0d5203976eaf (differs from audit's!)

@@ -1,1 +1,0 @@
-{"id":"tests.NumberClassifyTests.finiteClassification","name":"tests.NumberClassifyTests.finiteClassification: isFinite accepts finite values and rejects NaN and infinities","verdict":"fail","message":"test failed: tests.NumberClassifyTests.finiteClassification\n  expected: true\n  actual:   false"}

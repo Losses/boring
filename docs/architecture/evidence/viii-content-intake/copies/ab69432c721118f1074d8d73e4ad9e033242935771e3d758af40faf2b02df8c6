@@ -1,9 +1,0 @@
-# target dart
-# generated tree /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-tbGMwa/dart-gen
-a06bbe29c507f6283ea09e67d09a902742395fe2a4a2052c2f6a1517464680e0  /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-tbGMwa/dart-gen/lib/dcpe/eval_probe.dart
-# --- subject region of /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-tbGMwa/dart-gen/lib/dcpe/eval_probe.dart ---
-17:    final _g = nextKind();
-18:    switch (_g) {
-19:      case kind.KindA():
-22:      case kind.KindB(value: var _p0):
-25:      case kind.KindC():

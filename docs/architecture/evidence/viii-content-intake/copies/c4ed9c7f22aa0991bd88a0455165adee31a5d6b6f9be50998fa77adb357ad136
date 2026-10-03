@@ -1,2 +1,0 @@
-#!/bin/sh
-echo "kotlinc 1.9.0"

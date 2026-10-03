@@ -1,2 +1,0 @@
-gate-proof: '0000000000000000000000000000000000000000' does not resolve to a commit object (nonexistent hash, or a blob/tree/tag was given)
-EXIT=1

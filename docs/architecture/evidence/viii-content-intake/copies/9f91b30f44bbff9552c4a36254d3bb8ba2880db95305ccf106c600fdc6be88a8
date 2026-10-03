@@ -1,7 +1,0 @@
-ProbeA.swift:23:24: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
-21 |             switch choice {
-22 |             case .values(let values):
-23 |                 return values
-   |                        `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
-24 |             case .marker(_):
-25 |                 return fallbackArray()

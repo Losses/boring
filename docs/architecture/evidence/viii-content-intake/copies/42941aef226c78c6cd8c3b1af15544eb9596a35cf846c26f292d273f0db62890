@@ -1,7 +1,0 @@
-/tmp/p08-l5/exit-acc/ReadOnlyBoundaryOps.swift:166:13: warning: variable 'view' was never mutated; consider changing to 'let' constant
-164 | 
-165 |     public static func clearedView() -> String {
-166 |         var view: ReadOnlyArray<Int32>? = ReadOnlyArray(TiqianArray<Int32>([31]))
-    |             `- warning: variable 'view' was never mutated; consider changing to 'let' constant
-167 |         if view != nil {
-168 |             return "unexpected:\(ReadOnlyBoundaryOps.consumeRequired(view!, 9))"

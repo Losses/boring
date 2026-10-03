@@ -1,8 +1,0 @@
-checking file packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx
-Hunk #2 FAILED at 279.
-1 out of 2 hunks FAILED
-checking file packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
-Reversed (or previously applied) patch detected!  Assume -R? [n] 
-Apply anyway? [n] 
-Skipping patch.
-2 out of 2 hunks ignored

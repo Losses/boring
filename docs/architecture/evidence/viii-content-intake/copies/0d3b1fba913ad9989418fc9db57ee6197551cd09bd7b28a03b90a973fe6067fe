@@ -1,3 +1,0 @@
-out/ts-sourcemap-positions/attempt-j6wC700T/stage/OriginShapes.ts(9,23): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
-out/ts-sourcemap-positions/attempt-j6wC700T/stage/OriginShapes.ts(10,37): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
-out/ts-sourcemap-positions/attempt-j6wC700T/stage/OriginShapes.ts(11,30): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.

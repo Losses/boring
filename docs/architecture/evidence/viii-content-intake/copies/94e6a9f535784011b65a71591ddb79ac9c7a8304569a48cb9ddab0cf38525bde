@@ -1,3 +1,0 @@
-FAIL: examples directory not found: /nonexistent-examples-dir
-roots guard: FAILED
-exit_code=1

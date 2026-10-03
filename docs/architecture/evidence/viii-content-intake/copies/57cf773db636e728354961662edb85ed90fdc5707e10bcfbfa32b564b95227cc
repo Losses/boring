@@ -1,6 +1,0 @@
-import { expect, test } from "bun:test";
-test("buffer mismatch shape", () => {
-  const a = Buffer.from("hello world payload AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "utf8");
-  const b = Buffer.from("hello world payload BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", "utf8");
-  expect(b).toEqual(a);
-});

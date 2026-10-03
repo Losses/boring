@@ -1,8 +1,0 @@
-e5508bb442daaeb6655fb1a149ab4a853f5365af415bba3fddf9e854dba980db  tools/roots-guard/check-roots-guard.sh
-34d336ce68b08e686a12dbf5ca43bd89495d470b2ac5278624bdffc93da471a9  tools/roots-guard/roots-allowlist.json
-fab8b03661524db4d011fa364f38465ec1e66159d4d5359a13f58d0463007f93  tools/test-consistency/extra-id-allowlist.json
-24333b7570f54085a155d699ee5a2492319365c5669dd9a37bbc0c1fa73cf7d5  tools/test-consistency/Main.hx
-addebfd8151e274af29fba92bfda2437e063a0472d7eb66b59a2d50f7bfa4adf  examples/kotlin-f32.hxml
-91a8fd710d14151a40766d44bdbfa68165f4be81c553268a463bff28c4fb8255  examples/rust-f32.hxml
-68013176720b64b089a07cc286521d4b06e1829828274a71ac34e337fa03fd6d  examples/swift-f32.hxml
-4ac0fe3a79b4e79c5ca3234deb3ae265b9eca60947f6829f35fc0cf7fbddad8f  /home/losses/Development/tq-workspace/dc-warn/out/f32-roots-fix/PATCH.diff

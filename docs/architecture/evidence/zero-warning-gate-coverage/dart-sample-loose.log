@@ -1,5 +1,0 @@
-Analyzing wg-dart-sample...
-
-warning - lib/sample.dart:3:9 - The value of the local variable 'unused' isn't used. Try removing the variable or using it. - unused_local_variable
-
-1 issue found.

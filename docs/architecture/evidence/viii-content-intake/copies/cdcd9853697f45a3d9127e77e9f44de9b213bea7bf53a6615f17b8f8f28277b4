@@ -1,7 +1,0 @@
-func p(_ l: String, _ v: String) { print("\(l)=\(v)") }
-p("bySwitch-A", Laz.bySwitch(.a))
-p("bySwitch-B", Laz.bySwitch(.b))
-do { p("byTry-true", try Laz.byTry(true)); p("byTry-false", try Laz.byTry(false)) } catch { print("byTry-threw") }
-p("byTernary-true", Laz.byTernary(true))
-p("byTernary-false", Laz.byTernary(false))
-p("byBlockArg", Laz.byBlockArg())

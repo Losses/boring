@@ -1,6 +1,0 @@
-compiler-pin=execution-option-c-coord
-source-reference=option-c-source-before.json
-manifest-sha256=11e642e846361952611eb5c2068b1b87a69d46f7618019f6fa1793831cc51a47
-manifest-entry-count-mismatch: expected=1398 actual=1431
-post-state: 1431 entries checked, 0 failures
-post-state: 1431 entries checked, 0 failures

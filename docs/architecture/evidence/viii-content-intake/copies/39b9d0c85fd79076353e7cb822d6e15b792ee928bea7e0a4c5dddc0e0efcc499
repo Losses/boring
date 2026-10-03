@@ -1,6 +1,0 @@
-gen-acceptance rc=0
-typecheck-acceptance rc=0
-build rc=1
-run rc=127
-build rc=0
-run rc=0

@@ -1,7 +1,0 @@
-package boring
-
-object PrivateStaticCallOps {
-    fun render(): String {
-        return PrivateStaticCallHolder.make(null).value
-    }
-}

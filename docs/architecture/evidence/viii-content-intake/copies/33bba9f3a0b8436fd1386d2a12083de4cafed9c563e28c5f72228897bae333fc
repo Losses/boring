@@ -1,5 +1,0 @@
-# Gate text: docs/architecture-work-plan.md lines 218-219
-# file md5: 65c3abafcae9796f19f5c45d439edaef  tracked=clean  last commit: f2aa3633
----
-- [ ] P09: Run the candidate's required Boring checks and Tiqian checks on fixed
-  revisions, preserving logs, generated-output identity, and warning results.

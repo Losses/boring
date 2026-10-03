@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix-xcheck
-argv diff -u /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix-xcheck/tests/haxe/xcheck-dart-fix-negctrl/expected.txt /home/losses/Development/tq-workspace/dc-warn/out/dart-fix-xcheck/negctrl-20260929T190000Z/stages/dart-run/stdout

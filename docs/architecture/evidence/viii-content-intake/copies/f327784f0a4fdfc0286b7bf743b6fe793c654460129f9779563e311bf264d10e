@@ -1,2 +1,0 @@
-import { test, expect } from "bun:test";
-test("guarded", () => { expect("the guard holds").toBe("the guard holds"); });

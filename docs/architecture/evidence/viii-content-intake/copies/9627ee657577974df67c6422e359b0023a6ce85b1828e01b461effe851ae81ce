@@ -1,1 +1,0 @@
-Usage: bun out/bundle/driver.js <gen|test|pack|compare|verify> [<bundle id>...] [--project <file>] [--with-pack]

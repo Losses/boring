@@ -1,3 +1,0 @@
-5:        return substringUnits("abcdef", 4, 2)
-9:        return substringUnits("abcdef", 4, 100)
-13:        return substringUnits("abcdef", -1, 3)

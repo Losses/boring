@@ -1,9 +1,0 @@
-package boring;
-
-/** Variant switch subject of the class-3 fixture; the Values payload is a
-    mutable Array so each arm's value crosses the boundary into the
-    ReadOnlyArray slot. */
-enum C3Choice {
-    Values(values:Array<Int>);
-    Marker(m:Int);
-}

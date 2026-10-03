@@ -1,9 +1,0 @@
-
-tests/swift-gap-boundary/gap-boundary.test.ts:
-(pass) archived gap.Gap counterexample generates and its Swift typechecks [52224.11ms]
-(pass) failure-mode probe: the harness detects a broken Swift source [252.00ms]
-
- 2 pass
- 0 fail
- 21 expect() calls
-Ran 2 tests across 1 file. [52.53s]

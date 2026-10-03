@@ -1,9 +1,0 @@
-rustc
---edition=2024
---crate-type
-lib
---crate-name
-pe
--o
-/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/build/libpe-mut.rlib
-/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/rust-gen-mut/lib.rs

@@ -1,8 +1,0 @@
-kotlinc: /nix/store/rqx09a40a82di944xi6ydjyzx632av28-kotlin-2.4.10/bin/kotlinc
-info: kotlinc-jvm 2.4.10 (JRE 21.0.12+8-nixos)
-java: /nix/store/1slz0vmmgsd7p6i4c0jaywkpw56wl2yg-openjdk-21.0.12+8/bin/java
-openjdk version "21.0.12" 2026-07-21
-OpenJDK Runtime Environment (build 21.0.12+8-nixos)
-OpenJDK 64-Bit Server VM (build 21.0.12+8-nixos, mixed mode, sharing)
-haxe: /nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe
-4.3.7

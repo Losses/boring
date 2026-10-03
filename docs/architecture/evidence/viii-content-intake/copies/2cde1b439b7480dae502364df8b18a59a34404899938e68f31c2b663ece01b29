@@ -1,4 +1,0 @@
-package boring.test
-
-@Target(AnnotationTarget.FUNCTION)
-annotation class Test

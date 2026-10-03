@@ -1,3 +1,0 @@
-FAIL: allowlist: exempt[0] keys must be exactly target,module,reason (got extra,module,reason,target)
-roots guard: FAILED
-exit_code=1

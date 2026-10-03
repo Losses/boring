@@ -10,11 +10,13 @@
 
 每份文档都带「未决」一节：未决项是文档的一部分，不另立台账。
 
-## 数据目录（审计底册，不删）
+## 数据目录（2026-10-03 已迁出）
 
-- `evidence/`：各轮验证/审计的原始证据（REPORT、日志、哈希清单），含 16 个子目录与 `LOOP-LAMBDA-FROM-INDEXOF.md`。
-- `p09-f32-baseline/`：P09 f32 baseline 的版本化输入——`SOURCE_MANIFEST.json`（candidate `77c493b5` 的 15 项输入逐文件 sha256）、`expected.json`（preparation-only，含 PrintedFloatTests 6 条显式豁免与撤销条件）、`inputs/` 快照。
-- `bunfig-collection-fix.diff`：bun test 收集修复补丁记录（bunfig.toml 排除 `out/**`）。
+本目录只保留规范性架构文档；机器特定证据数据已随清仓（任务 t-muso22x7-878v）迁出产品仓，现位于 workspace 归档 `boring-docs-archive/`（`MANIFEST.sha256` 全量校验，板上迁址 note 可查）：
+
+- 原 `evidence/`：各轮验证/审计的原始证据（REPORT、日志、哈希清单），含 16 个子目录与 `LOOP-LAMBDA-FROM-INDEXOF.md`。
+- 原 `p09-f32-baseline/`：P09 f32 baseline 的版本化输入——`SOURCE_MANIFEST.json`（candidate `77c493b5` 的 15 项输入逐文件 sha256）、`expected.json`（preparation-only，含 PrintedFloatTests 6 条显式豁免与撤销条件）、`inputs/` 快照。
+- 原 `bunfig-collection-fix.diff`：bun test 收集修复补丁记录（bunfig.toml 排除 `out/**`）。
 
 ## 与 wb 系统的关系
 

@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix2-xcheck
-argv timeout 300 dart lib/xprobe/zz_run.dart

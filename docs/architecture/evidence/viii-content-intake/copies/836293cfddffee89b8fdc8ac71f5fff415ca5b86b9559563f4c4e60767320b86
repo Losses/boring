@@ -1,7 +1,0 @@
-run: bash run-exclusive.sh $OPTION_C_ROOT dc-warn/out/option-c-plan-fix/option-c-2stage.plan
-argv of inner: bash -c '<inner>' _ "$OPTION_C_ROOT"  (\$0=_, \$1=$OPTION_C_ROOT)
-cwd of inner: $OPTION_C_ROOT= (resolved via cd "$1")
-detached-loss: setsid process groups TERM/KILLed by runner per RUNNER L49-85; no stray groups observed
-RUN=/home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord/out/integration-a3-evidence/exclusive-runner/attempt-20260929T181340-2928230
-exit codes: runner=0 env-guard.rc=0 identity.rc=0 poststate-rc both=0
-loader-identity: pre PASS rc=0, post PASS rc=0

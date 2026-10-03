@@ -1,8 +1,0 @@
-fixed-gen		0	zero
-fixed-tree		6	file-count
-fixed-compile		0	data
-fixed-run-from-tmp		0	supplementary: fuse exec-bit loss; same binary off-fuse
-fixed-compare-from-tmp		0	0-identical-nonzero-differs
-reverted-gen		0	zero
-reverted-tree		5	file-count
-reverted-compile		1	data

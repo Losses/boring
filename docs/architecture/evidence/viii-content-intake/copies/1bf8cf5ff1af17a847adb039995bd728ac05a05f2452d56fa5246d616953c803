@@ -1,7 +1,0 @@
-precision guard: roots /home/losses/Development/tq-workspace/dc-warn/tmp/prefix-root/samples/tests
-scanned 1 file(s), 5 numeric literal(s), 1 outside the binary32 range
-FAIL /home/losses/Development/tq-workspace/dc-warn/tmp/prefix-root/samples/tests/NumberClassifyTests.hx:11:52: 1.0e308 [overflow] binary64=1e+308 binary32=Infinity
-     Test.equals(true, NumberClassifyOps.finite(1.0e308));
-     Use a literal that binary32 represents, or mark the line with "precision-guard: allow <reason>".
-precision guard: 1 un-annotated literal(s) fail the binary32 range check
-exit=1

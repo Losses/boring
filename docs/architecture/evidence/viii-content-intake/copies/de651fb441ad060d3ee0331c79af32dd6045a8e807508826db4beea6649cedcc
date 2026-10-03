@@ -1,9 +1,0 @@
-diff -r '--exclude=target' /home/losses/Development/tq-workspace/dc-warn/out/rust-growth-id/evidence/pre/gen-gi/gi/growth_id_probe.rs /home/losses/Development/tq-workspace/dc-warn/out/rust-growth-id/evidence/post/gen-gi/gi/growth_id_probe.rs
-6a7
->     EFault(Box<crate::gi::growth_id_probe::E>),
-14a16
->             AFault::EFault(inner) => write!(formatter, "{:?}", inner),
-63c65
-<         return Err(AFault::EFault(E::new(f)));
----
->         return Err(AFault::EFault(Box::new(E::new(f))));

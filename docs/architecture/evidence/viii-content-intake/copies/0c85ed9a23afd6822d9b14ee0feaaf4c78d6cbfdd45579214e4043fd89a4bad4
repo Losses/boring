@@ -1,7 +1,0 @@
-/tmp/bx/out/head-blocklit/gen/mx/MXBlockLit.swift:16:12: error: cannot convert value of type 'ReadOnlyArray<Int32>' to closure result type 'TiqianArray<Int32>'
-14 |         let n: Int32 = MXBlockLit.viewLen(ReadOnlyArray(({ () -> TiqianArray<Int32> in
-15 |     let s: Int32 = 1
-16 |     return ReadOnlyArray(TiqianArray<Int32>([s, 2]))
-   |            `- error: cannot convert value of type 'ReadOnlyArray<Int32>' to closure result type 'TiqianArray<Int32>'
-17 | })()))
-18 |         let out: ReadOnlyArray<Int32> = ReadOnlyArray(MXBlockLit.src())

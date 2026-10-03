@@ -1,7 +1,0 @@
-/tmp/p08-l5/branch-acc/ReadOnlyBoundaryOps.swift:229:13: warning: immutable value 'second' was never used; consider replacing with '_' or removing it [#no-usage]
-227 |     public static func branchBoundary(_ flag: Bool) -> String {
-228 |         let first: TiqianArray<Int32> = TiqianArray<Int32>([1])
-229 |         let second: TiqianArray<Int32> = TiqianArray<Int32>([2])
-    |             `- warning: immutable value 'second' was never used; consider replacing with '_' or removing it [#no-usage]
-230 |         let view = ReadOnlyArray(first) // L5-BROKEN: always takes the true branch
-231 |         return ReadOnlyBoundaryOps.consumeReadOnlyBoundary(view)

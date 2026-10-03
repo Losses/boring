@@ -1,5 +1,0 @@
-Analyzing ....
-
-  error - lib/xg/x_guard.dart:24:12 - The property 'length' can't be unconditionally accessed because the receiver can be 'null'. Try making the access conditional (using '?.') or adding a null check to the target ('!'). - unchecked_use_of_nullable_value
-
-1 issue found.

@@ -1,9 +1,0 @@
-rustc
---edition=2024
---crate-type
-lib
---crate-name
-pe
--o
-/tmp/nix-shell.TkgVyn/promoted-eval-rust-sdvWgS/libpe.rlib
-/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-tbGMwa/rust-gen/lib.rs

@@ -1,4 +1,0 @@
-gen-rust	0	0
-compile-rust	101	data
-run-rust	producer-compile-rust-status-101	not-reached
-compare-rust	producer-compile-rust-status-101	not-reached

@@ -1,7 +1,0 @@
-total bytes: 3221
-independent marker_off: 3124
-marker line bytes: 91
-marker_end: 3215
-sha of prefix: 86bc7fe328da1a6f09222f57323b0d493c4d5bd4b68de90b6749bdde961b4bfa
-appended tail: b'abcdef'
-expected message numbers: 6 byte(s) past, byte 3215 of 3221

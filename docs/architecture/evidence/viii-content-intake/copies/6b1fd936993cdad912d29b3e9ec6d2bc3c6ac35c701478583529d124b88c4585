@@ -1,5 +1,0 @@
-exit=0
-INTEGRITY OK: sealed at line 30, sha e0445152b395d4fae0fd7bb9f54399366bdf23d28b81b6300f5324c50bce06a5, stage manifest exact
---- forged status/stdout now:
-0
---- re-run capture

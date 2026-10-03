@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt
-argv bash -c cp\ tests/haxe/try-tail/native/native-main.swift\ out/swift-rt/gen/swift/native-main.swift

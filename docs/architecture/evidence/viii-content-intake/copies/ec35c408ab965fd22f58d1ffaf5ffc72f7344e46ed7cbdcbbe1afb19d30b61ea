@@ -1,7 +1,0 @@
-mx/MXBlockMember.swift:17:12: error: cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
-15 |         let n: Int32 = MXBlockMember.len(({ () -> TiqianArray<Int32> in
-16 |     let s: Int32 = Int32(src.count)
-17 |     return ReadOnlyArray(({ () in let _a = src; let _n = _a.count; let _f = Int(s); let _s = _f < 0 ? max(_n + _f, 0) : min(_f, _n); let _t = Int(0); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n); let _e = _e0 < _s ? _s : _e0; return TiqianArray(Array(_a[_s..<_e])) }()))
-   |            `- error: cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
-18 | })())
-19 |         if n < 0 {

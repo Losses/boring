@@ -1,6 +1,0 @@
-Analyzing ....
-
-warning - lib/dcguard/dc_guard.dart:6:11 - The value of the local variable 'unused' isn't used. Try removing the variable or using it. - unused_local_variable
-warning - lib/dcguard/dc_guard.dart:49:20 - The '!' will have no effect because the receiver can't be null. Try removing the '!' operator. - unnecessary_non_null_assertion
-
-2 issues found.

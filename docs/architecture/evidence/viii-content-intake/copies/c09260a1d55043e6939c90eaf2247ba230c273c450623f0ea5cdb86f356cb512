@@ -1,6 +1,0 @@
-/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-MPgV8z/kotlin-gen/runtime/test/Test.kt:5:23: error: unresolved reference 'FPHelper'.
-import boring.runtime.FPHelper
-                      ^^^^^^^^
-/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-MPgV8z/kotlin-gen/runtime/test/Test.kt:112:42: error: unresolved reference 'FPHelper'.
-    fun formatFloat(v: Double): String = FPHelper.formatFloat(v)
-                                         ^^^^^^^^

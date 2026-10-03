@@ -1,8 +1,0 @@
--lib reflaxe
--lib boring
--cp packages/compiler
--cp samples
--cp tests/swift-readonly-boundary
---macro Intercept.run(['samples', 'tests/swift-readonly-boundary'])
--main boring.ReadOnlyBoundaryOracle
---interp

@@ -1,3 +1,0 @@
-149:| destination requirement | a bare `Type` argument — **no producer at all** | each caller computes it: local type `:743`, return type `:811/:5642`, assignment target `:2806`, callee parameter `:3303/:4756/:4859`, element type `:1929`, enum parameter `:4720`, field type `SwiftDecl.hx:599`, cast target `:2534` | one call | — |
-157:for the destination requirement** — which is the fact the switch/try gap actually turns on
-566:| The "one producer per fact" rule is false, including for the destination requirement | [CODE] |

@@ -1,5 +1,0 @@
-base attempt          : attempt-20260929T180809-2918225
-base harness.log bytes: 2622
-negB2 mutated file    : step-2320672395.stdout
-negB3 flipped         : step-737716045.status 1 -> 0
-negB4 deleted         : step-2119220958.stderr

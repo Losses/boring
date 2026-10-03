@@ -1,6 +1,0 @@
-# counts at POST state (commit f125f107)
-exceptionPayloads get=11 set=1
-payloadEnumNames get=5 set=1
-payloadEnumOwners get=3 set=1
-payloadEnumModules get=13 set=1
-exceptionPayloadEnums get=7 set=1

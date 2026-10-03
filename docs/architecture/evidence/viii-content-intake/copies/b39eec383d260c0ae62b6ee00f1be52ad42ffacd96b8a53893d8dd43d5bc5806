@@ -1,7 +1,0 @@
--lib boring
--cp packages/compiler
--cp samples
--cp /home/losses/Development/tq-workspace/dc-warn/out/p08-behaviour-matrix/harness/fixture
---macro Intercept.run(['samples', '/home/losses/Development/tq-workspace/dc-warn/out/p08-behaviour-matrix/harness/fixture'])
--main p8l.ClosureLazyOracle
---interp

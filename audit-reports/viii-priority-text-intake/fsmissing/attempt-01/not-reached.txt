@@ -1,6 +1,0 @@
-swiftc-lib	swift-env-probe	1
-	swiftc wrapper cannot start: bwrap refuses the uid map (user namespaces denied by the host)
-swiftc-bin	swift-env-probe	1
-	swiftc wrapper cannot start: bwrap refuses the uid map (user namespaces denied by the host)
-run-swift	swift-env-probe	1
-	swiftc wrapper cannot start: bwrap refuses the uid map (user namespaces denied by the host)

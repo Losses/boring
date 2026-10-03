@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat-xcheck
-argv bash -c cd\ \'/home/losses/Development/tq-workspace/dc-warn/out/charcodeat-xcheck/xatt-20260929T213557Z/dart/gen\'\ \&\&\ timeout\ 600\ dart\ run\ lib/charcodeat/zz_run.dart

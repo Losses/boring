@@ -1,2 +1,0 @@
-warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail-xcheck' is dirty
-tests/haxe/xs-testmod/xcheckscope/ProdRethrowTests.hx:8: lines 8-10 : test class ProdRethrowTests carries a non-test member mustThrow; shared logic belongs in an ordinary class

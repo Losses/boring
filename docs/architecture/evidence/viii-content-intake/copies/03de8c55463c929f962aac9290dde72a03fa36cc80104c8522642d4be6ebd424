@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat-xcheck
-argv git -C /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat-xcheck rev-parse HEAD

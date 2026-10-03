@@ -1,7 +1,0 @@
-boring/C1BoundaryError.swift
-boring/C1TryOps.swift
-boring/C1TryOracle.swift
-std/UStringException.swift
-std/UStringFault.swift
-Runtime.swift
-Test.swift

@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/boring-wt-architecture
-argv bash -c cd\ out/try-tail/gen/rust\ \&\&\ timeout\ 120\ ./target/debug/generated

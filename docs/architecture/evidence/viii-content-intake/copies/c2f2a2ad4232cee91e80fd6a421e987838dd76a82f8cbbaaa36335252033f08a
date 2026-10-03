@@ -1,9 +1,0 @@
-CLASSES(17): Array fields=23,ArrayAccess fields=0,EReg fields=9,IntIterator fields=0,Math fields=0,Reflect fields=0,Shapes fields=0,Std fields=0,String fields=11,StringBuf fields=6,StringTools fields=0,Sys fields=0,Type fields=0,_Any.Any_Impl_ fields=0,_EnumValue.EnumValue_Impl_ fields=0,sys.io.FileInput fields=3,sys.io.FileOutput fields=4
-Array.filter | parent=TBlock | type=TAbstract(Void,[]) | #pos(/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/lib/haxe/std/Array.hx:317: characters 11-38)
-Array.filter | parent=TFunction | type=TDynamic(null) | #pos(/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/lib/haxe/std/Array.hx:317: characters 3-39)
-Array.filter | parent=TWhile | type=TDynamic(null) | #pos(/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/lib/haxe/std/Array.hx:317: characters 11-38)
-Array.iterator | parent=TFunction | type=TDynamic(null) | #pos(/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/lib/haxe/std/Array.hx:281: characters 3-48)
-Array.keyValueIterator | parent=TFunction | type=TDynamic(null) | #pos(/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/lib/haxe/std/Array.hx:288: characters 3-41)
-Array.map | parent=TBlock | type=TAbstract(Void,[]) | #pos(/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/lib/haxe/std/Array.hx:304: characters 11-31)
-Array.map | parent=TFunction | type=TDynamic(null) | #pos(/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/lib/haxe/std/Array.hx:304: characters 3-32)
-Array.map | parent=TWhile | type=TDynamic(null) | #pos(/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/lib/haxe/std/Array.hx:304: characters 11-31)

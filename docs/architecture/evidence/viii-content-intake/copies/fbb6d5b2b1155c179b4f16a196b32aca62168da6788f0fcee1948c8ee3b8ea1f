@@ -1,7 +1,0 @@
-fixture	swift-rt-plain
-root	/tmp/swiftfix-pre
-e1c6597514634fd347d392709793cc19bd96c9a2
-d335c34693f330ffd1bf2102aaee2a97d8db7baee9ae85b04bca66a030958c2f  tests/haxe/swift-rt-plain/plain/Plain.hx
-e0d64be649a15162c149a5b5ae0f260716b9aaa8111ce1227bd492b68cdfebc1  tests/haxe/swift-rt-plain/gen/swift.hxml
-0892e23402c86840dad52c1bdb3bf15941483c1546e8cbfb30a84a154f4f02d1  tests/haxe/swift-rt-plain/native/native-main.swift
-8c0ea9432c7bba1de062c246e3397cf01d4418edc88623a7cf8d851f12938d69  tests/haxe/swift-rt-plain/expected.txt

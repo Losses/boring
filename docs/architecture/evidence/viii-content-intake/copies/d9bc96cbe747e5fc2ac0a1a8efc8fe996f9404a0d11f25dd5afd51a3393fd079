@@ -1,5 +1,0 @@
-pre-run (after copy adaptation of .haxelib/boring/.dev -> copy root):
-OK boring/.dev = .../p09-chainA-work/execution-option-c-coord
-OK reflaxe/.dev = /nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source
-OK format/.current = 3.8.0; OK formatter/.current = 1.18.0
-ASSERTION RESULT: PASS (rc=0)

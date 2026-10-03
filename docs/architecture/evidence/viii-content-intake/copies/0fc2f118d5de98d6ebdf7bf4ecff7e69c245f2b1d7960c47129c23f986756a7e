@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
-argv timeout 900 haxe tests/haxe/charcodeat/oracle.hxml -js /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T211606Z/oracle/oracle.js

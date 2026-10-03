@@ -1,4 +1,0 @@
-patching file examples/kotlin-f32.hxml
-patching file examples/rust-f32.hxml
-patching file examples/swift-f32.hxml
-patching file tools/test-consistency/Main.hx

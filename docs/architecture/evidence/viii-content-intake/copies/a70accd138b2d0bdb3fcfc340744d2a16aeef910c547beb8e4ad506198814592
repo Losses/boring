@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
-argv bash -c cd\ /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212458Z/dart/gen\ \&\&\ mkdir\ -p\ lib/charcodeat\ \&\&\ cp\ /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat/tests/haxe/charcodeat/native/main.dart\ lib/charcodeat/zz_run.dart\ \&\&\ sha256sum\ lib/charcodeat/zz_run.dart\ \>harness.sha256\ \&\&\ timeout\ 900\ dart\ pub\ get

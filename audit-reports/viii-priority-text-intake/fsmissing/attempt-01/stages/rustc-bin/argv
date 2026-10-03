@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
-argv rustc --edition=2024 -o /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/rust-build/harness /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing/tests/haxe/dc-fs-missing/native/harness.rs --extern dc_fs_missing=/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/rust-build/libdc_fs_missing.rlib

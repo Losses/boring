@@ -1,2 +1,0 @@
-import { test, expect } from "bun:test";
-test("dup-out", () => { console.log("COLLECTED out/dup/tests/ts/d.test.ts"); expect(1).toBe(1); });

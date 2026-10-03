@@ -1,5 +1,0 @@
-EXEMPT: kotlin-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
-EXEMPT: rust-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
-EXEMPT: swift-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
-roots guard: PASS (3 exemption(s) in force)
-exit_code=0

@@ -1,4 +1,0 @@
-// PIT-255 negative control, optional variant (pre-fix).
-func probeMapBroken(_ r: ReadOnlyArray<String>?) -> TiqianArray<String>? {
-    return (r).map { TiqianArray($0.toMutableArray()) }
-}

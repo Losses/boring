@@ -1,6 +1,0 @@
-package boring;
-class MathNaNTestSupport {
-    public static function assertNaN(value:Float, message:String):Void {}
-    public static function assertNegativeZero(value:Float, message:String):Void {}
-    public static function assertPositiveZero(value:Float, message:String):Void {}
-}

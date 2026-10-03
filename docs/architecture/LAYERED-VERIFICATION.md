@@ -9,7 +9,7 @@
 |---|---|---|---|---|
 | **L1 生成** | 编译器未崩溃、产物齐全 | 生成进程退出码 + 文件清单 | `rc=0` 且预期文件存在 | **rc=0 不代表产物正确**：`:2609` 的 `fail()` 也会走到 rc=1，但"未触达崩溃"的输入 rc=0 而输出错 |
 | **L2 语法/类型** | 产物在目标语言里合法 | `swiftc -typecheck` / `tsc` / `rustc --emit=metadata` | 0 error | **`-typecheck` 不跑 SILGen**：剥离 `return` 的多语句闭包只报 warning、真实构建才失败。**此类形态必须用 `swiftc -c`** |
-| **L3 构建** | 产物可链接成可执行 | `swiftc -c` / `swiftc -o` | 0 error | 构建期诊断（`will never be executed`）**不在 `-typecheck` 里出现**。**已裁定：计入验收口径** —— 见 `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`（`1a486ebd`）。**本条目的当前事实是「未归零」**：该诊断计数仍是 **1**，它是一条**未豁免的已记录基线失败**，见下节「这一层当前不是绿的」 |
+| **L3 构建** | 产物可链接成可执行 | `swiftc -c` / `swiftc -o` | 0 error | 构建期诊断（`will never be executed`）**不在 `-typecheck` 里出现**。**已裁定：计入验收口径** —— 见 `t-muo92xms-s28t` 裁定（`1a486ebd`；原文件 `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` 已随清仓删除，裁定内容见 wb 系统该行 note）。**本条目的当前事实是「未归零」**：该诊断计数仍是 **1**，它是一条**未豁免的已记录基线失败**，见下节「这一层当前不是绿的」 |
 | **L4 行为** | 运行结果正确 | 与 oracle 逐行比对 | **逐字节相同** | oracle 本身错了就全错；且"同一输入下与 oracle 相同"**不覆盖** oracle 未表达的性质（惰性） |
 | **L5 判别** | 该检查**能**发现目标缺陷 | 对故意错误的后端运行 | 故意错误 ⇒ **FAIL** | 若无此层，L1–L4 全绿可能只说明**该性质未被观察** |
 
@@ -28,8 +28,7 @@
    日志而该日志**不含**五目标编译器输出 ⇒ **通过态下 grep 域为空**。既有警告存量
    Dart 46 / Kotlin 59 / Rust 4 全部 rc=0。**可复现的判别法**：同一棵树注入**一条**警告，
    跑"现有命令"与"严格命令"——`dart: loose rc=0 / strict rc=2`、`rust: loose rc=0 /
-   strict rc=101`；**若两者 rc 相同，说明该门禁并不存在**（该席把它做成了可重跑的
-   `verify.sh`）。修复行 `fix/zero-warning-gate-wiring`。
+   strict rc=101`；**若两者 rc 相同，说明该门禁并不存在**（该席把它做成了可重跑的 `verify.sh`，现位于归档 `boring-docs-archive/evidence/zero-warning-gate-coverage/verify.sh`）。修复行 `fix/zero-warning-gate-wiring`。
 5. **"改了发射器"不等于生成了不同产物**（PIT-347 实测）：某席在 `Compiler.hx` 加了
    **38 行** AST 遍历旁路，`diff -rq` 对**整棵生成树**显示 **0 处差异**、目标位点
    一字未变。**判别法**：任何 emitter 改动都必须**重新生成并 diff 生成物**才算数；
@@ -115,7 +114,7 @@
 报告收集域与计数；该 job 阻塞、无 `continue-on-error`，破坏受保护断言即失败
 （负控证明见 `dc-warn/out/ci-wire/`）。**计数已存在**，但标准 `:80` 的
 "count is zero" **仍未满足**：基线（`1001 pass / 32 fail / 8 errors`）尚未清偿，
-`BASELINE-FAILURES.md` 只记录、不豁免。收集域为 303 文件，其中 249 个来自
+基线台账（原 `BASELINE-FAILURES.md`，2026-10-03 随清仓删除；现行记录见 `.github/workflows/ci.yml` 基线接线）只记录、不豁免。收集域为 303 文件，其中 249 个来自
 生成树 `reference/ts/gen-tests`，故该 job 先重生成再收集。
 
 ## 这一层当前不是绿的（L3 构建期诊断，修正记录）
@@ -139,7 +138,7 @@
 - **夹具说的是「缺陷仍在」**（防腐针，缺陷一旦真被修掉，这条断言会失败并强制重读计数）；
 - **文档那时说的是「已归零」**。
 
-两者不能同时为真，实测站在夹具一边。`rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` 中
+两者不能同时为真，实测站在夹具一边。build 期诊断裁定（原 `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md`，已随清仓删除，`1a486ebd` 可追溯）中
 「1 → 0」的记载描述的是 `cd70eb12` **那棵树**，在该树内它为真；它不能作为当前线的状态引用。
 把候选树结论写成线状态，与本记录 L0 节要求的「必须给出 commit + `is-ancestor` 结果」
 直接冲突——而这条规则当时没有任何机器执行，所以它被违反了而没人发现。

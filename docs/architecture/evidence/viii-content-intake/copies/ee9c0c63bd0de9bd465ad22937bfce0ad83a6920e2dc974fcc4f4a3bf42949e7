@@ -1,7 +1,0 @@
-package boring
-
-sealed class ValueException(override val message: String) : RuntimeException(message) {
-    data object StartAfterEnd : ValueException("start exceeds end")
-    data object NegativeStart : ValueException("start is negative")
-    data object BlankValue : ValueException("value is blank")
-}

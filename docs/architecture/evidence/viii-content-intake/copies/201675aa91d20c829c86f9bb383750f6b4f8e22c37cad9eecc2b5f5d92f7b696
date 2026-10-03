@@ -1,8 +1,0 @@
-#[derive(Clone, Copy)]
-pub struct FloatModCompareOps;
-
-impl FloatModCompareOps {
-    pub fn float_mod_compare_ops_even(value: f64) -> bool {
-        return value % 2 as f64 == 0 as f64;
-    }
-}

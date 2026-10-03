@@ -1,9 +1,0 @@
---- spec line 78 ---
-1. Generated code compiles without warnings on every target: kotlinc, rustc, the TypeScript compiler, the Dart analyzer, and the Swift type-checker. A translation that produces a warning is an emitter defect with the same severity as a translation that produces wrong output.
---- spec line 80 ---
-3. Acceptance for any emitter change counts the warning lines in the target suite output that name files under the generated trees; the count is zero. A change that replaces a warning with a suppression marker fails acceptance.
---- ruling quote (lines 70-73) ---
-> 89: ## Fix location
-> 90: 
-> 91: 1. A defect in translated output is fixed in the translator: the target printer (`packages/compiler/reflaxe/<target>/**`) for rendering defects, the shared layer (`packages/compiler/`) for mechanism defects.
-> 92: 2. Editing `samples/` or `tests/` Haxe source to make a translation defect disappear is banned. The single exception is a Haxe semantic the target language cannot carry; in that case the change record names the semantic and states why the common layer cannot express it.

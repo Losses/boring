@@ -1,4 +1,0 @@
-99c99
-<         var mutable = TiqianArray<ReadOnlyBoundaryBox>([box, second])
----
->         var mutable = TiqianArray<ReadOnlyBoundaryBox>([ReadOnlyBoundaryBox(2), ReadOnlyBoundaryBox(5)]) // L5-BROKEN: array holds value copies

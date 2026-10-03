@@ -1,5 +1,0 @@
-12:  return s.length;
-24:  return s.length;
-36:  if (s != null) {
-37:    return s.length;
-59:  return t.length;

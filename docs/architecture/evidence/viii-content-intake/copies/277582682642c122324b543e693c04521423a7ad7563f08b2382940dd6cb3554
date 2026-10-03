@@ -1,8 +1,0 @@
-mkdir -p gendir-a
-echo ok > artifact-a.txt
-echo one > gendir-a/f1.txt
-echo two > gendir-a/f2.txt
-echo captured > "$CHILD_EVIDENCE_DIR/capture.bin"
-require-file:artifact-a.txt
-require-dir:gendir-a:2
-require-file:child-evidence/capture.bin
