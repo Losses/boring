@@ -13,6 +13,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import StaticReferenceScan;
 import TestClassFlush;
+import EmitSink;
 
 /**
     reflaxe plugin producing the Rust target of the translatable subset.
@@ -45,7 +46,9 @@ class Compiler extends PluginCompiler<Compiler> {
     var current:Null<RustDecl> = null;
 
     function saveTreeFile(path:String, content:String):Void {
-        PackageArtifacts.saveTreeFile(output, path, wrapGeneratedSource(content));
+        final wrapped = wrapGeneratedSource(content);
+        PackageArtifacts.saveTreeFile(output, path, wrapped);
+        writeOriginSidecar(path, wrapped);
     }
 
     function wrapGeneratedSource(content:String):String {
@@ -97,6 +100,8 @@ class Compiler extends PluginCompiler<Compiler> {
 
 
     public static function use() {
+        if (Context.defined("rust_emit_origins"))
+            EmitSink.activate();
         final compiler = new Compiler();
         haxe.macro.Context.onAfterTyping(ValueTypeSupport.validateModules);
         haxe.macro.Context.onAfterTyping(compiler.preScan);
@@ -2809,6 +2814,29 @@ class Compiler extends PluginCompiler<Compiler> {
     function modulePath(module:String):String {
         final parts = module.split(".").map(RustImports.toSnakeCase);
         return parts.join("/") + ".rs";
+    }
+
+    /** Writes the emit-origin sidecar for a saved module when the define is active. */
+    function writeOriginSidecar(savePath:String, content:String):Void {
+        if (!Context.defined("rust_emit_origins"))
+            return;
+        // The Rust target renders module paths in snake_case (int_division_ops.rs),
+        // but the Haxe source file is CamelCase (IntDivisionOps.hx). finalizeFile
+        // derives the expected source suffix from the output path, so construct a
+        // CamelCase source-matching path from the snake_case savePath.
+        final lastSlash = savePath.lastIndexOf("/");
+        final dirPath = lastSlash >= 0 ? savePath.substr(0, lastSlash + 1) : "";
+        final fileName = lastSlash >= 0 ? savePath.substr(lastSlash + 1) : savePath;
+        final dotPos = fileName.lastIndexOf(".");
+        final baseName = dotPos >= 0 ? fileName.substr(0, dotPos) : fileName;
+        final ext = dotPos >= 0 ? fileName.substr(dotPos) : "";
+        final sourceMatchPath = dirPath + RustImports.toUpperCamelCase(baseName) + ext;
+        final map = EmitSink.finalizeFile(sourceMatchPath, content);
+        if (map == null)
+            return;
+        final json = map.write();
+        output.saveFile(savePath + ".emit-origin.json", json);
+        PackageArtifacts.record(savePath + ".emit-origin.json", json);
     }
 }
 #end
