@@ -1,0 +1,67 @@
+# 判据3 独立审阅 · 字节核对 (reviewer: independent model, worktree enum-switch-xcheck @ e1c65975)
+# generated: 2026-09-29T20:33:23Z
+
+## sha256 (my worktree, /home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck)
+bdbc1cfeffb310a57360f9c7eb05435fdd0ffd415d042db06fca75f33994a0c9  packages/compiler/ExpressionBlockNorm.hx
+377eb0c66c8b06fe021a3aeb90613ef3d95e796acfa46ec0a6cc6edc0bca187b  packages/compiler/PipelineExpander.hx
+e0d2283d6ae85f35302f46cd5aeb1acf560b17206cc9471b783f89a6e6afa46b  docs/specs/features/15-control-flow.md
+296fbe894fe5ae99bd81695ef1667f70a8d8ef926f4e23322889fd9b40259695  packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx
+df1b331c1d19b2c89fedb2eaf00138ca2f6fe39e21407282209a4f541b60d102  packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx
+
+## ExpressionBlockNorm.hx L30-34 (the common-layer gate)
+30:         switch (normalized[normalized.length - 1].expr) {
+31:             case TReturn(_) | TThrow(_) | TVar(_, _) | TIf(_, _, _) | TWhile(_, _, _) | TFor(_, _, _) |
+32:                 TSwitch(_, _, _) | TTry(_, _) | TBlock(_) | TBreak | TContinue |
+33:                 TBinop(OpAssign, _, _) | TBinop(OpAssignOp(_), _, _):
+34:                 fail(normalized[normalized.length - 1], valueMessage(normalized[normalized.length - 1]));
+
+## callers of ExpressionBlockNorm.normalize (all five targets)
+packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx:1109:        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
+packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx:1517:        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx:2938:        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:1201:        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message), _ -> "expression block must end in a value statement (features/43)",
+packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx:715:        stmts = ExpressionBlockNorm.normalize(stmts, (e, message) -> fail(e, message),
+
+## PipelineExpander.hx: hoistSwitchSubjects (337-346) = pure traversal (no-op)
+336:     static function hoistSwitchSubjects(e:TypedExpr, usedNames:Map<String, Bool>):Void {
+337:         if (e == null)
+338:             return;
+339:         switch (e.expr) {
+340:             case TBlock(stmts):
+341:                 for (stmt in stmts)
+342:                     hoistSwitchSubjects(stmt, usedNames);
+343:             default:
+344:                 haxe.macro.TypedExprTools.iter(e, child -> hoistSwitchSubjects(child, usedNames));
+345:         }
+346:     }
+
+## PipelineExpander.hx: real hoist logic is inside a block comment
+L348 opens:     /*
+L394 closes:      */
+## commented guard only fires for TEnumIndex(non-TLocal):
+367:                             if (subject != null) switch (subject.expr) {
+368:                                 case TEnumIndex(inner) if (inner != null):
+369:                                     switch (inner.expr) {
+370:                                         case TLocal(_):
+371:                                         default:
+
+## PipelineExpander.hx: active mint at L413 (spec 15 says 'line 154')
+154:                 // ReadOnlyArray element iteration is typed as the extern
+413:     static function mint(base:String, usedNames:Map<String, Bool>):String {
+
+## spec 15 L198 (status: Planned) and L219-223 (present tense)
+198: ## Switch subject positions (amendment filed 2026-09-01; status: Planned)
+219: - The common layer hoists a non-local subject into a synthetic local
+220:   exactly once, before target emission, so every target receives the
+221:   already-supported local-subject shape and no target holds
+222:   subject-specific code. The synthetic name follows the minting rules of
+223:   `src/PipelineExpander.hx` (function `mint`, line 154).
+
+## stale ref: spec says KotlinExpr.hx line 1110 is the rejection point; actual L1110 and actual rejections
+1110:             case _: false;
+2139:            case _: return fail(sw, "switch subject is not a variant index");
+2144:            case _: return fail(sw, "variant switch subject is not a variant value");
+
+## stale ref: spec says 'the expression lowering holds no TBlock case'; TsExpr.hx:1444
+1444:             case TBlock(stmts):
+1445:                 return blockExpression(stmts);

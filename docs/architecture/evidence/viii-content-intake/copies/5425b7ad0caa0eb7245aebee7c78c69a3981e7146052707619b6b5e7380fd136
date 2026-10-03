@@ -1,0 +1,24 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use std::sync::Mutex;
+
+
+pub static STATIC_FN_OPS_COUNT: Mutex<u32> = Mutex::new(0);
+pub static STATIC_FN_OPS_TRANSFORM: fn(&UStr) -> UString = move |value| {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += value; __s += &(UString::from("!")); __s }).as_str());
+};
+
+#[derive(Clone, Copy)]
+pub struct StaticFnOps;
+
+impl StaticFnOps {
+
+    pub fn static_fn_ops_apply(value: &UStr) -> UString {
+        return STATIC_FN_OPS_TRANSFORM(value);
+    }
+
+    pub fn static_fn_ops_increment() -> u32 {
+        *STATIC_FN_OPS_COUNT.lock().unwrap_or_else(|e| e.into_inner()) += 1;
+        return { let __guard = STATIC_FN_OPS_COUNT.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() };
+    }
+}

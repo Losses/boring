@@ -1,0 +1,21 @@
+package boring
+
+class AllowHost {
+    var tag: String
+    init {
+    this.tag = "host"
+    }
+
+    internal fun secretMethod(): String {
+        return "m"
+    }
+
+    companion object {
+        @JvmField
+        internal var counter: Int = 40
+
+        internal fun secretStatic(v: Int): Int {
+            return v + 1
+        }
+    }
+}

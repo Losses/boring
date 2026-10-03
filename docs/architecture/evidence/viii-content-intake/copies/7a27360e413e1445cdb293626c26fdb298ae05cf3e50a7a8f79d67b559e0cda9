@@ -1,0 +1,17 @@
+package boring;
+
+class C1TryOracle {
+    public static function main():Void {
+        #if !swift_output
+        trace("try-binding=" + C1TryOps.tryBindingDest(true));
+        trace("try-return=" + C1TryOps.tryReturnDest(true));
+        trace("try-binding-nocross=" + C1TryOps.tryBindingNoCross(true));
+        trace("try-return-nocross=" + C1TryOps.tryReturnNoCross(true));
+        #else
+        C1TryOps.tryBindingDest(true);
+        C1TryOps.tryReturnDest(true);
+        C1TryOps.tryBindingNoCross(true);
+        C1TryOps.tryReturnNoCross(true);
+        #end
+    }
+}

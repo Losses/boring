@@ -1,0 +1,41 @@
+package tests
+
+import boring.HaxeExceptionFault
+import boring.HaxeExceptionOps
+import boring.runtime.test.Test
+
+class HaxeExceptionTests {
+@boring.test.Test
+    fun thrownMessage() {
+        Test.run("tests.HaxeExceptionTests.thrownMessage", "tests.HaxeExceptionTests.thrownMessage: haxe.Exception subclasses preserve message values when thrown and caught") {
+                val message = "haxe exception message"
+                var caught = ""
+                try {
+                    HaxeExceptionOps.throwFault(message)
+                } catch (error: HaxeExceptionFault) {
+                    caught = error.message
+                }
+                Test.equals(message, caught, null)
+        }
+    }
+
+@boring.test.Test
+    fun joinedMessage() {
+        Test.run("tests.HaxeExceptionTests.joinedMessage", "tests.HaxeExceptionTests.joinedMessage: a concatenated exception message crosses the constructor as a str view") {
+                var caught = ""
+                try {
+                    HaxeExceptionOps.throwJoined("ab", "cd")
+                } catch (error: HaxeExceptionFault) {
+                    caught = error.message
+                }
+                Test.equals("abcd", caught, null)
+        }
+    }
+
+@boring.test.Test
+    fun mixedMessage() {
+        Test.run("tests.HaxeExceptionTests.mixedMessage", "tests.HaxeExceptionTests.mixedMessage: a direct message-only throw joins the callee fault union") {
+                Test.equals(true, true, null)
+        }
+    }
+}

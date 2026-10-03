@@ -1,0 +1,29 @@
+#![cfg(test)]
+
+use crate::boring::allow_guest::AllowGuest;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn static_access() {
+    testlib::run("tests.AllowAccessTests.staticAccess", "tests.AllowAccessTests.staticAccess: allowed private static function is callable across classes", || {
+        test_core::TestCore::test_core_equals_int(4i32, i32::from_ne_bytes(((AllowGuest::allow_guest_use_static(3)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn static_field_access() {
+    testlib::run("tests.AllowAccessTests.staticFieldAccess", "tests.AllowAccessTests.staticFieldAccess: allowed private static field is writable across classes", || {
+        test_core::TestCore::test_core_equals_int(42i32, i32::from_ne_bytes(((AllowGuest::allow_guest_use_counter()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn instance_access() {
+    testlib::run("tests.AllowAccessTests.instanceAccess", "tests.AllowAccessTests.instanceAccess: allowed private instance members are reachable across classes", || {
+        let g = AllowGuest::new();
+        test_core::TestCore::test_core_equals_string(UStr::new(&[109,104,111,115,116]), g.use_method().as_ustr(), UStr::new(&[]));
+    });
+}

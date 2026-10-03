@@ -1,0 +1,20 @@
+#[derive(Clone, Copy)]
+pub struct FloatFieldLiteralOps;
+
+impl FloatFieldLiteralOps {
+    pub fn float_field_literal_ops_pair(side: u32, total: f64) -> FloatFieldPair {
+        if side == 0 {
+            return FloatFieldPair { leading: total, trailing: 0 as f64 };
+        }
+        if side == 1 {
+            return FloatFieldPair { leading: 0 as f64, trailing: total };
+        }
+        return FloatFieldPair { leading: total / format!("{}", (2i32)).parse::<f64>().unwrap_or(0.0), trailing: total / format!("{}", (2i32)).parse::<f64>().unwrap_or(0.0) };
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FloatFieldPair {
+    pub leading: f64,
+    pub trailing: f64,
+}

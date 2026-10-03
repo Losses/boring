@@ -1,0 +1,4 @@
+run1 exit: 0
+run2 exit: 0
+A (by-name + emit) exit: 1
+B (by-name + none) exit: 0

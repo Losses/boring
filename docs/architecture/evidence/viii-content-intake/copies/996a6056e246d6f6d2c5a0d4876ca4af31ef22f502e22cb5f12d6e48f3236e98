@@ -1,0 +1,3 @@
+kotlin-gradle-plugin-version=2.4.10 (/home/losses/Development/tq-workspace/dc-warn/out/kotlin-manifest/20260929T192808Z-2698141/03-mutate-pom/copy/build.gradle.kts:3)
+kotlin-stdlib-pom-version=2.5.99 (/home/losses/Development/tq-workspace/dc-warn/out/kotlin-manifest/20260929T192808Z-2698141/03-mutate-pom/copy/generated-0.1.0.pom:12)
+result=MISMATCH: single-sided version change detected between the two artifacts of one generation

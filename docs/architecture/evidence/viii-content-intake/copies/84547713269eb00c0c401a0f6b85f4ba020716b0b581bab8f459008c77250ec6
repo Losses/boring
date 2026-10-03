@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Run from /home/losses/Development/tq-workspace
+cp dc-warn/out/option-c-plan-fix/backup/option-c.plan.orig \
+   boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c.plan

@@ -1,0 +1,9 @@
+- still timed out: **0** 
+- now failing on an assertion instead: **1** ['record printed-member generated trees > marker and explicit-member mutations affect the four emitted members']
+
+### 6.4 Remaining failures after the change
+
+25 unique failing names remain. Classes: 0 timeout, 25 assertion.
+
+| # | remaining failure | class |
+|---|---|---|

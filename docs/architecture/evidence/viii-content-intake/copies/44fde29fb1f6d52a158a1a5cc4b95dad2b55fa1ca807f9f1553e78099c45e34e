@@ -1,0 +1,139 @@
+# Independent adversarial cross-check — f32 target test-root sync fix
+
+Reviewer: independent (dc-warn/out/f32-roots-xcheck). All numbers below were recomputed from
+artifacts / fresh runs, not taken from any summary. Raw logs in `evidence/`.
+Nothing in `boring-wt-architecture`, the frozen runner, or `publication-staging/**` was modified.
+
+## 1. Diffstat (independently recomputed)
+
+`git -C boring-wt-architecture diff --numstat -- examples/` (evidence/numstat.txt):
+
+```
+41  0  examples/kotlin-f32.hxml
+33  0  examples/rust-f32.hxml
+37  0  examples/swift-f32.hxml
+```
+
+Total: **111 insertions, 0 deletions** — matches the claimed 41/33/37 + 0.
+
+### Per-added-line plausibility (evidence/diff.txt, evidence/added-per-file.txt, evidence/module-exists.txt)
+
+- All 111 added lines match `^\+[a-z]` — every added line is a bare module-root identifier.
+- **Zero** added lines are comments, `-D`, `-cp`, `--macro`, or blank (grep for those shapes: 0 hits).
+- No duplicates **within** any single file (per-file `sort | uniq -d` empty for all three).
+- Across files the 111 lines collapse to **55 distinct modules** (18 `boring.*` + 37 `tests.*`);
+  the overlap between the three files is expected, not duplication.
+- **Existence check: 55/55 distinct modules resolve to a real `.hx` under `samples/`**
+  (`samples/<module path>.hx`, e.g. `samples/boring/AllowGuest.hx`, `samples/tests/NumberClassifyTests.hx`).
+  No nonexistent module found. (First pass against repo root failed 55/55 because sources live
+  under `samples/`; corrected check recorded in evidence/module-exists.txt.)
+
+### Deviation from the literal claim "root set matches base X.hxml"
+
+The f32 root sets are **not** byte-equal to the base sets: each base hxml additionally roots
+`registry.Main` (kotlin.hxml:239, rust.hxml:233, swift.hxml:232), which the f32 files omit.
+This is **documented as a deliberate exception** in `f32-roots-fix/REPORT.md` (§1.1: registry.Main
+is the binary64 packaging/demo entry, no test cases, f32 gen trees carry no Main artifact) and is
+covered by 3 exemptions in `tools/roots-guard/roots-allowlist.json`. Note therefore that the
+"guard-postfix-PASS" is **PASS with 3 exemptions in force** (`roots guard: PASS (3 exemption(s)
+in force)`), not an unconditional equality PASS. This does not affect test-id comparison
+(registry.Main contributes no test ids), but the claim "root set matches its base counterpart"
+is true only modulo this documented, exempted exception.
+
+## 2. Allowlist load-bearing experiment (independently re-run)
+
+Method: copied the byte-identical rebuilt `manager.js` (sha256 `6ed00fec…`, equal to the
+coordinator's rebuild and to the coord-tree prebuilt artifact) plus a real copy of the current
+complete result set (`p09-chainA-work/execution-option-c-chainA-fixed3/out/test-results`) into my
+own scratch tree (`/home/losses/Development/tq-workspace/f32x-scratch/scratch`). The allowlist
+resolves by walking up from the results dir (`tools/test-consistency/Main.hx:findExtraAllowlist`),
+so placing/not-placing `tools/test-consistency/extra-id-allowlist.json` on the ancestor path
+toggles the condition **without touching the shared tree**. Same result set, same manager.js,
+same mechanism-coverage.json in both runs; the only variable is the allowlist.
+
+| Run | rc | Final verdict line | Divergences | Declared extras |
+|---|---|---|---|---|
+| WITH allowlist (`evidence/manager-WITH-allowlist.{log,err}`) | **0** | "All 10 targets … are 100% consistent across **736** tests." | **0** | 6 |
+| WITHOUT allowlist (`evidence/manager-WITHOUT-allowlist.{log,err}`) | **1** | "Cross-target consistency check failed with **6** divergence(s)" | **6** | 0 |
+
+The 6 divergences are exactly `[haxe-f32] Extra test ID not in baseline:
+tests.f32.PrintedFloatTests.*` — 6 **unique ids** (counted by unique test name, not lines):
+printsShortestFloatText, printsShortestFloatTextOnCollectionElements,
+printsWholeNegativeAndNullFloatFields, printsComputedShortestTextOnNullableFields,
+printsNonFiniteFloatFields, printsNullableFloatCollectionForm. All 6 are declared, with reasons,
+in `extra-id-allowlist.json`.
+
+This **confirms** the load-bearing claim and reproduces the prior
+`f32-e2e-reverify` 2x2 cell (0/6) exactly. Caveat found en route: in the WITHOUT run mechanism
+coverage is silently *skipped* ("the results directory declares no mechanisms") — a missing
+allowlist degrades two checks, not one, and only the rc=1 + verdict line reveals it.
+
+## 3. "166 -> 3" vs current reading "0" — which fix did what
+
+- **Pre-fix (root lists unsynced), no allowlist**: 166 divergences = **160 unique Missing test IDs
+  + 6 Extra** (`manager-PREFIX166-prefix-no-allowlist.err`: 166-line header, 160 unique
+  "Missing test ID" lines — unique-name counted).
+- **Pre-fix, allowlist present**: still **160** divergences (the 6 extras become declared; the
+  160 Missing remain). So the allowlist never hides any Missing id (see section 4).
+- **This fix's effect**: on the legacy (1.0e308) input, PATCH.diff alone drops the count
+  166 -> **9** (`manager-PATCHONLY-legacyinput.log`); with allowlist, 9 -> **3**
+  (`manager-all10-WITH-allowlist-legacyinput.log`), the 3 being `finiteClassification` verdict
+  mismatches. **The 160-Missing elimination is attributable to this fix (adding the roots).**
+- **The "3" was never this fix's residue**: it came from `samples/tests/NumberClassifyTests.hx`
+  asserting `finite(1.0e308)`, which overflows to infinity under binary32. That file has since been
+  edited in parallel to `3.0e38` (verified in the current tree, diff `+7/-2`, line 16). On the
+  current input the 3 f32 legs' `finiteClassification` rows are all `pass` (my WITH run's table
+  confirms pass on all 10 columns).
+- **Current reading: 0** — reproduced independently (section 2, WITH run). It is the *joint* result
+  of (a) this roots fix, (b) the parallel test-literal change, and (c) the allowlist being in place.
+  **"166 -> 3" is a stale reading** (legacy input, pre-literal-change); the coordinator's "0, due
+  to the literal change" is the correct current reading, with the nuance that the literal change
+  only explains 3 -> 0; this fix explains 166 -> 3 (legacy input) / 160-Missing -> 0 (current).
+
+## 4. Falsification attempt on "Missing 归零" — not hidden by declaration
+
+- `extra-id-allowlist.json` contains **exactly 6 entries, all `tests.f32.PrintedFloatTests.*`**
+  — all classified *Extra* (f32-only oracle tests collected from `samples/tests/f32`, absent from
+  the binary64 baseline by design). **Zero** allowlist entries overlap the 160 previously-Missing
+  ids; an allowlist entry can only ever declare *Extra* ids, and the manager's Missing branch has
+  no allowlist hook. The pre-fix-with-allowlist run still reporting 160 corroborates this.
+- Conclusion: the 160 Missing ids are genuinely fixed **by adding the module roots** (each Missing
+  id's module is among the 55 verified-real added roots), **not silenced by declaration**.
+  Falsification failed; claim stands.
+
+## 5. Per-claim verdicts
+
+| Claim | Verdict |
+|---|---|
+| 41/33/37 insertions, 0 deletions | **Confirmed** (recomputed numstat) |
+| Added lines are genuine module roots, no dups/filler/comments | **Confirmed** (111/111 bare identifiers, 55/55 modules exist under `samples/`, no dups in-file) |
+| f32 root set *matches* base X.hxml | **Partly confirmed** — matches except `registry.Main`, a documented, exempted, test-id-irrelevant exception |
+| manager all-10 baseline=kotlin: 0 divergences / 736 tests / 6 declared extras | **Confirmed** (independent re-run, rc=0, exact verdict line reproduced) |
+| Allowlist is load-bearing (without it: 6 divergences, not a pass) | **Confirmed** (independent re-run: rc=1, "failed with 6 divergence(s)"; silent degradation also disables mechanism coverage) |
+| Pre-fix state 160 Missing + 6 Extra = 166 | **Confirmed** (unique-name recount of `manager-PREFIX166-prefix-no-allowlist.err`) |
+| "166 -> 3" is the current reading | **Contradicted** — stale (legacy 1.0e308 input). Current reading is 0; 166->3 is this fix + old input; 3->0 is the parallel literal change |
+| Missing zeroed by adding roots, not by hiding | **Confirmed** (allowlist has no Missing-side hook and contains none of the 160 ids) |
+
+## 6. What this evidence does NOT prove
+
+1. **The result set is not built from this tree.** The 0-divergence reading uses
+   `execution-option-c-chainA-fixed3/out/test-results`, produced from a *different* checkout
+   (HEAD `613b6b40…`, absent from this repo) that is only *semantically* equivalent to the current
+   tree (per the prior source-diff analysis). The shared tree itself cannot produce a reading —
+   its own `out/test-results/` is incomplete (6 targets missing). So "0 divergences" is a reading
+   over equivalent inputs, not over this worktree's own build products.
+2. **No fresh end-to-end regeneration was performed.** All manager runs compare *existing* jsonl;
+   I did not rebuild kotlin-f32/rust-f32/swift-f32/haxe-f32 artifacts (~1600-1700 s toolchain run),
+   so I cannot independently confirm the added roots compile and gen cleanly today (the guard and
+   prior builds are the only evidence for that).
+3. **The guard PASS is exemption-conditional** (3 registry.Main exemptions); it does not prove
+   unconditional root-set equality.
+4. **The allowlist deployment state is untracked** (`?? ` in git per the prior evidence) — I
+   verified the file's content and effect in my scratch, but not that any deployment/CI actually
+   ships it; the load-bearing property cuts both ways: without the file in place, the run fails.
+5. **Coverage note**: the parallel literal change (`1.0e308` -> `3.0e38`) narrows binary64 coverage
+   of the "huge finite double" case; my runs confirm the verdict flip but do not evaluate whether
+   that coverage loss is acceptable.
+6. `f32-roots-fix/FILES.sha256` was not independently re-hashed against the shared tree
+   file-by-file (only the manager.js hash and the hxml numstat were recomputed); item-level hash
+   equality is **not verified** here.

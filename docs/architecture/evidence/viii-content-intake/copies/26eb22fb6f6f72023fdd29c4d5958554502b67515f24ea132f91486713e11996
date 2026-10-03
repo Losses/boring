@@ -1,0 +1,471 @@
+# PATCH.diff — t-mum13s6o-mogl (audit/dc-kotlin-manifest-version) against e1c6597514634fd347d392709793cc19bd96c9a2
+# content diffs of tracked files:
+
+# untracked new files (full content):
+diff --git a/tests/package/dc-kotlin-manifest-version/check.sh b/tests/package/dc-kotlin-manifest-version/check.sh
+new file mode 100644
+index 00000000..3cd83580
+--- /dev/null
++++ b/tests/package/dc-kotlin-manifest-version/check.sh
+@@ -0,0 +1,113 @@
++#!/usr/bin/env bash
++# ---------------------------------------------------------------------------
++# dc-kotlin-manifest-version check
++#
++# Verifies the cross-file version contract of one Kotlin generation: the
++# Kotlin Gradle plugin version the generated `build.gradle.kts` declares
++# and the `kotlin-stdlib` version the generated Maven POM declares must
++# be the same version.
++#
++# The two values are parsed independently, each from its own file:
++#   1. build.gradle.kts: the `kotlin("jvm") version "<v>"` plugin line
++#      (feature spec 24, ruling 8: a plain JVM module, one Kotlin plugin).
++#   2. the POM: the `<version>` inside the
++#      `<dependency>` block whose groupId is `org.jetbrains.kotlin` and
++#      whose artifactId is `kotlin-stdlib` only. The project's own
++#      `<version>` (the package version of the generated artifact) is a
++#      different field and is never consulted, which is what keeps the
++#      two parses independent.
++#
++# The check reads no toolchain. The host `kotlinc` that compiles the jar
++# (spec 25, `package-kotlinc`) is a floating build tool; spec 24 ruling 9
++# states the plugin version is a dialect floor, not the host compiler's
++# version. This check therefore never invokes or reads the host
++# kotlinc: a single-sided upgrade of either manifest field is a mismatch
++# no matter what toolchain built the artifacts.
++#
++# Usage:  check.sh <build.gradle.kts> <pom>
++# Exit:   0  the two versions are equal
++#         1  the two versions differ (single-sided upgrade / drift)
++#         2  usage or parse error (missing file, missing or ambiguous
++#            version line): a parse failure never reports a match
++# ---------------------------------------------------------------------------
++set -u
++
++[ "$#" -eq 2 ] || { echo "usage: $0 <build.gradle.kts> <pom>" >&2; exit 2; }
++GRADLE=$1
++POM=$2
++[ -f "$GRADLE" ] || { echo "check: not a file: $GRADLE" >&2; exit 2; }
++[ -f "$POM" ] || { echo "check: not a file: $POM" >&2; exit 2; }
++
++# --- parse 1: the Gradle Kotlin JVM plugin version -------------------------
++# The shell manifest is a fixed block (spec 24 ruling 8), so exactly one
++# line may carry the plugin version. Anything else (no line, two lines, a
++# different shape) is a parse error: the check cannot decide and must not
++# pass.
++plugin_hits=$(grep -nE '^[[:space:]]*kotlin\("jvm"\)[[:space:]]+version[[:space:]]+"[0-9]+(\.[0-9]+)*"[[:space:]]*$' "$GRADLE" || true)
++plugin_count=$(printf '%s\n' "$plugin_hits" | grep -c . || true)
++if [ "$plugin_count" -ne 1 ]; then
++  echo "check: expected exactly one kotlin(\"jvm\") version line in $GRADLE, found $plugin_count" >&2
++  exit 2
++fi
++GRADLE_LINE=${plugin_hits%%:*}
++GRADLE_VERSION=$(printf '%s\n' "$plugin_hits" | sed -E 's/^[0-9]+:[[:space:]]*kotlin\("jvm"\)[[:space:]]+version[[:space:]]+"([0-9]+(\.[0-9]+)*)"[[:space:]]*$/\1/')
++
++# --- parse 2: the kotlin-stdlib version of the POM -------------------------
++# Block-scoped parse: only a <dependency> block whose groupId is
++# org.jetbrains.kotlin and whose artifactId is kotlin-stdlib qualifies;
++# its version is the first <version> inside that block. The project-level
++# <version> sits outside any dependency block and is never reached.
++POM_INFO=$(awk '
++  /<dependency>/ { inblock = 1; group = ""; artifact = ""; version = ""; vline = 0; next }
++  /<\/dependency>/ {
++    if (inblock && group == "org.jetbrains.kotlin" && artifact == "kotlin-stdlib") {
++      hits++
++      if (hits == 1) { v1 = version; l1 = vline }
++    }
++    inblock = 0
++    next
++  }
++  inblock {
++    line = $0
++    sub(/^[[:space:]]+/, "", line)
++    sub(/[[:space:]]+$/, "", line)
++    if (line ~ /^<groupId>/) {
++      v = line; sub(/^<groupId>/, "", v); sub(/<\/groupId>$/, "", v); group = v
++    } else if (line ~ /^<artifactId>/) {
++      v = line; sub(/^<artifactId>/, "", v); sub(/<\/artifactId>$/, "", v); artifact = v
++    } else if (line ~ /^<version>/) {
++      v = line; sub(/^<version>/, "", v); sub(/<\/version>$/, "", v); version = v; vline = NR
++    }
++  }
++  END {
++    if (hits == 0)    print "none\t-"
++    else if (hits > 1) print "doubled\t-"
++    else               print "ok\t" l1
++  }
++' "$POM")
++pom_state=${POM_INFO%%$'\t'*}
++pom_line=${POM_INFO#*$'\t'}
++case "$pom_state" in
++  ok)
++    POM_VERSION=$(sed -n "${pom_line}p" "$POM" | sed -E 's/^[[:space:]]*<version>(.*)<\/version>[[:space:]]*$/\1/')
++    ;;
++  none)
++    echo "check: no org.jetbrains.kotlin:kotlin-stdlib dependency block in $POM" >&2
++    exit 2
++    ;;
++  doubled)
++    echo "check: multiple org.jetbrains.kotlin:kotlin-stdlib dependency blocks in $POM" >&2
++    exit 2
++    ;;
++esac
++
++# --- verdict -----------------------------------------------------------------
++echo "kotlin-gradle-plugin-version=$GRADLE_VERSION ($GRADLE:$GRADLE_LINE)"
++echo "kotlin-stdlib-pom-version=$POM_VERSION ($POM:$pom_line)"
++if [ "$GRADLE_VERSION" = "$POM_VERSION" ]; then
++  echo "result=MATCH"
++  exit 0
++else
++  echo "result=MISMATCH: single-sided version change detected between the two artifacts of one generation"
++  exit 1
++fi
+diff --git a/tests/package/dc-kotlin-manifest-version/README.md b/tests/package/dc-kotlin-manifest-version/README.md
+new file mode 100644
+index 00000000..6d00398c
+--- /dev/null
++++ b/tests/package/dc-kotlin-manifest-version/README.md
+@@ -0,0 +1,59 @@
++# dc-kotlin-manifest-version
++
++Locks the cross-file version contract of one Kotlin generation: the
++Kotlin Gradle plugin version the generated `build.gradle.kts` declares
++(feature spec 24, ruling 8) and the `kotlin-stdlib` version the
++generated Maven POM declares (feature spec 25, `emitMaven`) must be the
++same version, because both files are written by the same compilation.
++
++## The two version sites (base `e1c65975`)
++
++| file (relative to the worktree) | line | bytes |
++| --- | --- | --- |
++| `packages/compiler/reflaxe/kotlin/kotlincompiler/Compiler.hx` | 417 | `+ "    kotlin(\"jvm\") version \"2.4.10\"\n"` (the `build.gradle.kts` plugin line) |
++| `packages/compiler/PackageArtifacts.hx` | 388 | `lines.push("      <version>2.4.10</version>");` (the `kotlin-stdlib` dependency inside `pom()`) |
++
++Both are literal strings in the emitter; there is no shared constant,
++which is exactly why a single-sided edit (or a future single-sided
++upgrade) is possible and why the comparison must be mechanical.
++
++## Files
++
++- `check.sh` — the check. `check.sh <build.gradle.kts> <pom>` parses the
++  two versions **separately** (the Gradle plugin line; the
++  `org.jetbrains.kotlin:kotlin-stdlib` dependency block of the POM, with
++  the project-level `<version>` explicitly out of scope) and compares
++  them. Exit `0` equal, `1` mismatch (single-sided change), `2` usage or
++  parse error. It never reads the host toolchain.
++- `run.sh` — one isolated run: one generation into
++  `out/dc-kotlin-manifest-version/` (the example `kotlin.hxml` with the
++  output trees moved under `out/` plus `-D package-artifacts=emit -D
++  package-kotlinc=<abs> -D package-group=dev.boring`, the same shape
++  `tests/ts/package-artifacts.test.ts` drives), the positive control,
++  the POM-only mutated negative control (required by the task), and a
++  supplementary Gradle-only mutated negative control. Every stage saves
++  argv, cwd, separated stdout/stderr, the exit code, and input sha256;
++  the mutation stages save the mutated file's before/after hashes and
++  the diff. Each invocation creates a fresh evidence directory
++  `<evidence-root>/<utc-timestamp>-<pid>/`.
++
++## Usage
++
++From the worktree root, inside the nix develop shell:
++
++```sh
++bash tests/package/dc-kotlin-manifest-version/run.sh <evidence-root>
++```
++
++Exit `0` when the generation succeeds, the positive control passes, and
++both negative controls fail as required; `3` otherwise.
++
++## Host kotlinc is not a manifest version
++
++`package-kotlinc` (spec 25) names the host compiler that packs the jar;
++it floats with the build environment. Spec 24 ruling 9 states the
++Gradle plugin version is a *dialect floor* ("the oldest dialect the
++current toolchain verified"), not a claim about the host compiler.
++`run.sh` records `kotlinc -version` in `00-host-identity` precisely to
++keep the two concepts apart in the evidence, and `check.sh` never
++consults it.
+diff --git a/tests/package/dc-kotlin-manifest-version/run.sh b/tests/package/dc-kotlin-manifest-version/run.sh
+new file mode 100644
+index 00000000..be323c33
+--- /dev/null
++++ b/tests/package/dc-kotlin-manifest-version/run.sh
+@@ -0,0 +1,277 @@
++#!/usr/bin/env bash
++# ---------------------------------------------------------------------------
++# dc-kotlin-manifest-version run
++#
++# One isolated execution of the version-consistency check, producing a
++# fresh evidence directory per run:
++#
++#   00-host-identity    the floating host tools (kotlinc/java/haxe),
++#                       recorded to keep them out of the check inputs
++#   01-gen              ONE Kotlin generation (spec 24 shell + spec 25
++#                       Maven artifact emission, one haxe invocation)
++#                       into the isolated out/ tree
++#   02-check-positive   the check over the two real artifacts: the
++#                       versions must be equal (exit 0)
++#   03-mutate-pom       copy of the artifacts where ONLY the POM
++#                       kotlin-stdlib version is changed
++#   04-check-negative-pom  the check must FAIL on the mutated POM (exit 1)
++#   05-mutate-gradle    supplementary: copy where ONLY the Gradle
++#                       plugin version is changed
++#   06-check-negative-gradle  the check must FAIL on the mutated shell (exit 1)
++#   07-summary          stage-by-stage expectations
++#
++# Every stage saves its argv, cwd, separated stdout/stderr, the exit code,
++# and the sha256 of the inputs it read. The mutation stages save the
++# mutated file's hash before and after the change plus the diff.
++#
++# Usage:  run.sh <evidence-root>
++#         run from the worktree root (the directory containing examples/),
++#         inside the nix develop shell (haxe + kotlinc on PATH).
++# Exit:   0 when generation succeeds, the positive control passes, and
++#         both negative controls fail as required; 3 otherwise.
++# ---------------------------------------------------------------------------
++set -uo pipefail
++
++[ "$#" -eq 1 ] || { echo "usage: $0 <evidence-root>" >&2; exit 2; }
++EVIDENCE=$1
++ROOT=$(pwd)
++[ -f "$ROOT/examples/kotlin.hxml" ] || { echo "run: invoke from the worktree root" >&2; exit 2; }
++command -v haxe >/dev/null || { echo "run: haxe not on PATH (run inside nix develop)" >&2; exit 2; }
++command -v kotlinc >/dev/null || { echo "run: kotlinc not on PATH (run inside nix develop)" >&2; exit 2; }
++
++TESTDIR=tests/package/dc-kotlin-manifest-version
++STAGE=out/dc-kotlin-manifest-version
++ATT="$EVIDENCE/$(date -u +%Y%m%dT%H%M%SZ)-$$"
++mkdir -p "$ATT"
++
++KOTLINC=$(command -v kotlinc)
++
++# ---------------------------------------------------------------------------
++# helpers
++# ---------------------------------------------------------------------------
++hash_file() { sha256sum "$1" | sed "s#.*#  $(basename "$1")#"; }
++
++# hash_inputs <stage-dir> <file>... : sha256 of the files, relative names
++hash_inputs() {
++  dir=$1; shift
++  : > "$dir/inputs.sha256"
++  for f in "$@"; do
++    (cd "$ROOT" && sha256sum "$f") >> "$dir/inputs.sha256" || echo "  MISSING $f" >> "$dir/inputs.sha256"
++  done
++}
++
++# run_stage <stage-dir> <label> -- <command...>
++# records argv/cwd/inputs, separated streams, exit code
++run_stage() {
++  dir=$1; label=$2; shift 2
++  [ "$1" = "--" ] && shift
++  mkdir -p "$dir"
++  {
++    echo "label: $label"
++    echo "cwd: $ROOT"
++    echo "argv:"
++    printf '  %s\n' "$@"
++    echo "input-sha256 (see inputs.sha256):"
++  } > "$dir/argv.txt"
++  (cd "$ROOT" && "$@") > "$dir/stdout.log" 2> "$dir/stderr.log"
++  echo $? > "$dir/exit.code"
++}
++
++expect() {
++  # expect <stage-dir> <label> <expected-rc>
++  local dir=$1 label=$2 want=$3
++  local got=$(cat "$dir/exit.code")
++  if [ "$got" = "$want" ]; then
++    echo "  $label: PASS (rc=$got, expected $want)"
++  else
++    echo "  $label: FAIL (rc=$got, expected $want)"
++    CONTROLS_OK=1
++  fi
++}
++
++CONTROLS_OK=0
++
++# ---------------------------------------------------------------------------
++# 00: host tool identity (floating; the check must not use it)
++# ---------------------------------------------------------------------------
++run_stage "$ATT/00-host-identity" "host-identity" -- \
++  bash -c 'echo "kotlinc: $(command -v kotlinc)"; kotlinc -version 2>&1; echo "java: $(command -v java)"; java -version 2>&1; echo "haxe: $(command -v haxe)"; haxe --version 2>&1'
++hash_inputs "$ATT/00-host-identity" "$TESTDIR/check.sh"
++
++# ---------------------------------------------------------------------------
++# 01: one generation, isolated tree
++# ---------------------------------------------------------------------------
++GEN="$ATT/01-gen"
++mkdir -p "$GEN" "$STAGE"
++# the generation inputs: the example hxml plus the emitter sources whose
++# bytes state the two versions (spec 24 shell line, spec 25 pom line)
++EMITTER_SOURCES=(
++  examples/kotlin.hxml
++  packages/compiler/PackageShell.hx
++  packages/compiler/PackageArtifacts.hx
++  packages/compiler/reflaxe/kotlin/kotlincompiler/Compiler.hx
++)
++(cd "$ROOT" && sha256sum "${EMITTER_SOURCES[@]}") > "$GEN/inputs-before.sha256"
++
++# isolated copy of the example hxml: the output trees move under out/,
++# the package shell keeps its default emission, the Maven artifact
++# emission joins with the host kotlinc and an explicit group id (the
++# same shape tests/ts/package-artifacts.test.ts drives).
++sed -e "s#-D kotlin-output=reference/kotlin/gen#-D kotlin-output=$STAGE/kotlin/gen#" \
++    -e "s#-D kotlin-test-output=reference/kotlin/gen-tests#-D kotlin-test-output=$STAGE/kotlin/gen-tests#" \
++    "$ROOT/examples/kotlin.hxml" > "$STAGE/kotlin-gen.hxml"
++{
++  echo "-D package-artifacts=emit"
++  echo "-D package-kotlinc=$KOTLINC"
++  echo "-D package-group=dev.boring"
++} >> "$STAGE/kotlin-gen.hxml"
++hash_inputs "$GEN" "${EMITTER_SOURCES[@]}" "$STAGE/kotlin-gen.hxml"
++
++run_stage "$GEN" "kotlin-generation" -- haxe "$STAGE/kotlin-gen.hxml"
++
++GRADLE="$STAGE/kotlin/gen/build.gradle.kts"
++POMDIR="$STAGE/kotlin/maven/dev/boring/generated/0.1.0"
++POM="$POMDIR/generated-0.1.0.pom"
++JAR="$POMDIR/generated-0.1.0.jar"
++if [ -f "$GRADLE" ] && [ -f "$POM" ] && [ -f "$JAR" ]; then
++  {
++    sha256sum "$GRADLE" "$POM" "$JAR"
++    echo
++    echo "maven directory:"
++    (cd "$POMDIR" && sha256sum ./*)
++    echo
++    echo "generated tree (file count): $(find "$STAGE/kotlin/gen" -type f | wc -l)"
++  } > "$GEN/outputs.sha256"
++fi
++(cd "$ROOT" && sha256sum "${EMITTER_SOURCES[@]}") > "$GEN/inputs-after.sha256"
++
++# ---------------------------------------------------------------------------
++# 02: positive control over the real artifacts
++# ---------------------------------------------------------------------------
++run_stage "$ATT/02-check-positive" "check-positive" -- \
++  bash "$TESTDIR/check.sh" "$GRADLE" "$POM"
++hash_inputs "$ATT/02-check-positive" "$GRADLE" "$POM"
++
++# ---------------------------------------------------------------------------
++# 03+04: negative control, mutated POM only
++# ---------------------------------------------------------------------------
++# the line of the kotlin-stdlib <version> inside its dependency block,
++# the same block-scoped rule the check uses (kept in its own file so the
++# nested command carries no awk quoting of its own)
++cat > "$STAGE/pom-stdlib-version-line.awk" <<'EOF'
++# The exact <dependency> open/close tags (not the <dependencies> list).
++{
++  l = $0
++  sub(/^[[:space:]]+/, "", l)
++  sub(/[[:space:]]+$/, "", l)
++}
++l == "<dependency>" { inblock = 1; group = ""; artifact = ""; next }
++l == "</dependency>" { inblock = 0; next }
++inblock {
++  if (l ~ /^<groupId>/) {
++    sub(/^<groupId>/, "", l)
++    sub(/<\/groupId>$/, "", l)
++    group = l
++  } else if (l ~ /^<artifactId>/) {
++    sub(/^<artifactId>/, "", l)
++    sub(/<\/artifactId>$/, "", l)
++    artifact = l
++  } else if (l ~ /^<version>/ && group == "org.jetbrains.kotlin" && artifact == "kotlin-stdlib") {
++    print NR
++    exit
++  }
++}
++EOF
++MUTP="$ATT/03-mutate-pom"
++run_stage "$MUTP" "mutate-pom" -- \
++  bash -c '
++    set -eu
++    dst='"$MUTP"'/copy
++    mkdir -p "$dst"
++    cp '"$GRADLE"' "$dst/build.gradle.kts"
++    cp '"$POM"' "$dst/generated-0.1.0.pom"
++    sha256sum "$dst/build.gradle.kts" "$dst/generated-0.1.0.pom" > "$dst/before.sha256"
++    line=$(awk -f '"$STAGE"'/pom-stdlib-version-line.awk "$dst/generated-0.1.0.pom")
++    [ -n "$line" ] || { echo "mutate: no stdlib version line" >&2; exit 2; }
++    before=$(sed -n "${line}p" "$dst/generated-0.1.0.pom")
++    # the single-sided change: only the POM stdlib version, on its own line
++    sed -i "${line}s#<version>[0-9][0-9.]*</version>#<version>2.5.99</version>#" "$dst/generated-0.1.0.pom"
++    after=$(sed -n "${line}p" "$dst/generated-0.1.0.pom")
++    sha256sum "$dst/build.gradle.kts" "$dst/generated-0.1.0.pom" > "$dst/after.sha256"
++    diff -u "$dst/before.sha256" "$dst/after.sha256" > "$dst/mutation.diff" || true
++    echo "mutated POM line $line:"
++    echo "  before: $before"
++    echo "  after:  $after"
++    [ "$before" != "$after" ] || { echo "mutate: the version line did not change" >&2; exit 2; }
++  '
++run_stage "$ATT/04-check-negative-pom" "check-negative-pom" -- \
++  bash "$TESTDIR/check.sh" "$MUTP/copy/build.gradle.kts" "$MUTP/copy/generated-0.1.0.pom"
++hash_inputs "$ATT/04-check-negative-pom" "$MUTP/copy/build.gradle.kts" "$MUTP/copy/generated-0.1.0.pom"
++
++# ---------------------------------------------------------------------------
++# 05+06: supplementary negative control, mutated Gradle shell only
++# ---------------------------------------------------------------------------
++MUTG="$ATT/05-mutate-gradle"
++run_stage "$MUTG" "mutate-gradle" -- \
++  bash -c '
++    set -eu
++    dst='"$MUTG"'/copy
++    mkdir -p "$dst"
++    cp '"$GRADLE"' "$dst/build.gradle.kts"
++    cp '"$POM"' "$dst/generated-0.1.0.pom"
++    sha256sum "$dst/build.gradle.kts" "$dst/generated-0.1.0.pom" > "$dst/before.sha256"
++    line=$(grep -n "kotlin(\"jvm\") version" "$dst/build.gradle.kts" | head -n 1 | cut -d: -f1)
++    [ -n "$line" ] || { echo "mutate: no kotlin(jvm) plugin line" >&2; exit 2; }
++    before=$(sed -n "${line}p" "$dst/build.gradle.kts")
++    # the single-sided change: only the Gradle plugin version, on its own line
++    sed -i "${line}s#version \"[0-9][0-9.]*\"#version \"2.5.99\"#" "$dst/build.gradle.kts"
++    after=$(sed -n "${line}p" "$dst/build.gradle.kts")
++    sha256sum "$dst/build.gradle.kts" "$dst/generated-0.1.0.pom" > "$dst/after.sha256"
++    diff -u "$dst/before.sha256" "$dst/after.sha256" > "$dst/mutation.diff" || true
++    echo "mutated shell line $line:"
++    echo "  before: $before"
++    echo "  after:  $after"
++    [ "$before" != "$after" ] || { echo "mutate: the version line did not change" >&2; exit 2; }
++  '
++run_stage "$ATT/06-check-negative-gradle" "check-negative-gradle" -- \
++  bash "$TESTDIR/check.sh" "$MUTG/copy/build.gradle.kts" "$MUTG/copy/generated-0.1.0.pom"
++hash_inputs "$ATT/06-check-negative-gradle" "$MUTG/copy/build.gradle.kts" "$MUTG/copy/generated-0.1.0.pom"
++
++# ---------------------------------------------------------------------------
++# 07: summary
++# ---------------------------------------------------------------------------
++mkdir -p "$ATT/07-summary"
++{
++  echo "attempt: $(basename "$ATT")"
++  echo "worktree: $ROOT"
++  echo "base: $(git -C "$ROOT" rev-parse HEAD)"
++  echo "generation: single haxe invocation, $STAGE/kotlin-gen.hxml"
++  echo "artifacts (one generation):"
++  echo "  gradle shell: $GRADLE"
++  echo "  maven pom:    $POM"
++  echo
++  echo "stage exit codes:"
++  for d in "$ATT"/*/; do
++    printf '  %s: rc=%s\n' "$(basename "$d")" "$(cat "$d/exit.code" 2>/dev/null || echo n/a)"
++  done
++} > "$ATT/07-summary/summary.txt"
++(
++  CONTROLS_OK=0
++  expect "$ATT/01-gen" "generation" 0
++  expect "$ATT/02-check-positive" "check-positive" 0
++  expect "$ATT/04-check-negative-pom" "check-negative-pom" 1
++  expect "$ATT/06-check-negative-gradle" "check-negative-gradle" 1
++  exit "$CONTROLS_OK"
++) > "$ATT/07-summary/expectations.txt" 2>&1
++rc=$?
++{
++  cat "$ATT/07-summary/summary.txt"
++  echo
++  cat "$ATT/07-summary/expectations.txt"
++} > "$ATT/07-summary/summary-final.txt"
++if [ "$rc" -eq 0 ]; then
++  echo "ALL CONTROLS PASSED"
++else
++  echo "CONTROL FAILED: see $ATT/07-summary/summary-final.txt"
++fi
++exit "$rc"

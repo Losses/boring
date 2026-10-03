@@ -1,0 +1,85 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use crate::std::u_string_exception::UStringFault;
+
+
+#[derive(Clone)]
+pub struct NullableBufHolder {
+    pub text: Vec<u16>,
+}
+
+impl NullableBufHolder {
+    pub fn new() -> Self {
+        Self {
+            text: Vec::<u16>::new(),
+        }
+    }
+
+    pub fn render(&self) -> Result<UString, UStringFault> {
+        return Ok(UString::from_utf16((self.text).clone().as_slice()).map_err(|_| UStringFault::UnpairedSurrogate { unit: u32::from((self.text).clone()[(self.text).clone().len() - 1]) })?);
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct NullableBufFieldOps;
+
+impl NullableBufFieldOps {
+    pub(crate) fn nullable_buf_field_ops_find_holder(present: bool) -> Option<NullableBufHolder> {
+        if !present {
+            return None;
+        }
+        return Some(NullableBufHolder::new());
+    }
+
+    pub fn nullable_buf_field_ops_append_guarded(present: bool, part: &UStr) -> Result<UString, UStringFault> {
+        let mut holder = NullableBufFieldOps::nullable_buf_field_ops_find_holder(present);
+        if holder.is_none() {
+            return Ok(UString::new());
+        }
+        if let Some(&unit) = (holder).as_mut().unwrap().text.last() {
+            if unit >= 55296 && unit <= 56319 && !part.is_empty() {
+                if !match (part).encode_utf16().next() { Some(head) => head >= 56320 && head <= 57343, None => false } {
+                    return Err(UStringFault::UnpairedSurrogate { unit: u32::from(unit) });
+                }
+            }
+        }
+        (holder).as_mut().unwrap().text.extend(part.encode_utf16());
+        return Ok(holder.as_ref().unwrap().render()?);
+    }
+
+    pub fn nullable_buf_field_ops_caught_fault(present: bool, lead: u32, part: &UStr) -> Result<UString, UStringFault> {
+        let mut holder = NullableBufFieldOps::nullable_buf_field_ops_find_holder(present);
+        if holder.is_none() {
+            return Ok(UString::new());
+        }
+        let __outcome: Result<(), UStringFault> = (|| {
+            if lead >= 56320 && lead <= 57343 {
+                match (holder).as_mut().unwrap().text.last() {
+                    Some(&last) if last >= 55296 && last <= 56319 => {}
+                    _ => return Err(UStringFault::UnpairedSurrogate { unit: lead }),
+                }
+            } else if let Some(&last) = (holder).as_mut().unwrap().text.last() {
+                if last >= 55296 && last <= 56319 {
+                    return Err(UStringFault::UnpairedSurrogate { unit: u32::from(last) });
+                }
+            }
+            (holder).as_mut().unwrap().text.push(u16::try_from((lead) & 0xFFFF).unwrap_or(0));
+            if let Some(&unit) = (holder).as_mut().unwrap().text.last() {
+                if unit >= 55296 && unit <= 56319 && !part.is_empty() {
+                    if !match (part).encode_utf16().next() { Some(head) => head >= 56320 && head <= 57343, None => false } {
+                        return Err(UStringFault::UnpairedSurrogate { unit: u32::from(unit) });
+                    }
+                }
+            }
+            (holder).as_mut().unwrap().text.extend(part.encode_utf16());
+            Ok(())
+        })();
+        match __outcome {
+            Ok(_) => {}
+            Err(_) => {
+                return Ok(UString::from("fault").to_ustring());
+            }
+        }
+        return Ok(holder.as_ref().unwrap().render()?);
+    }
+}

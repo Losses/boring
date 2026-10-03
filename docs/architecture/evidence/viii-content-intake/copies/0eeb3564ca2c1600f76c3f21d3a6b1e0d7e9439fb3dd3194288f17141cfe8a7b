@@ -1,0 +1,20 @@
+[C-dart-precision] rc=0
+[C-ts-precision] rc=0
+[C-strict-output] rc=0
+[C-enum-sorted] rc=0
+[C-array-root] rc=0
+[C-constructed] rc=0
+[C-rust-packages] rc=0
+[C-rust-bytes] rc=0
+[C-sealed-variants] rc=0
+[C-extern] rc=0
+[C-stringtools] rc=0
+[C-deferred] rc=0
+[C-fn-values] rc=0
+[C-static-state] rc=0
+[C-readonly] rc=0
+[C-printed-record] rc=0
+[C-std-string] rc=0
+[C-value-type] rc=0
+[C-pkg-artifacts] rc=1
+PHASE-C-DONE

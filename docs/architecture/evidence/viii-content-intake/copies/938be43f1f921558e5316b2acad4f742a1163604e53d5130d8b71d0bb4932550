@@ -1,0 +1,39 @@
+package boring;
+
+import std.ReadOnlyArray;
+
+/** Class-3 fixtures: a `slot = switch(...)` assignment (switchAssign) whose
+    slot is a ReadOnlyArray and whose arms carry mutable Arrays. */
+class C3AssignOps {
+    /** Assignment route (switchAssign): the slot's destination is
+        ReadOnlyArray<Int>; the function returns String. */
+    public static function switchAssignDest(flag:Bool):String {
+        final choice = flag ? C3Choice.Values([1, 2]) : C3Choice.Marker(0);
+        var view:ReadOnlyArray<Int> = fallbackArray();
+        view = switch (choice) {
+            case Values(values): values;
+            case Marker(_): fallbackArray();
+        };
+        return consumeView(view, 1);
+    }
+
+    /** Negative control: same assignment syntax, but the slot's type is
+        Array<Int> so no boundary is crossed. */
+    public static function switchAssignNoCross(flag:Bool):String {
+        final choice = flag ? C3Choice.Values([1, 2]) : C3Choice.Marker(0);
+        var values:Array<Int> = fallbackArray();
+        values = switch (choice) {
+            case Values(v): v;
+            case Marker(_): fallbackArray();
+        };
+        return values[0] + ":" + values.length;
+    }
+
+    public static function fallbackArray():Array<Int> {
+        return [9];
+    }
+
+    public static function consumeView(values:ReadOnlyArray<Int>, marker:Int):String {
+        return values[0] + ":" + marker + ":" + values.length;
+    }
+}

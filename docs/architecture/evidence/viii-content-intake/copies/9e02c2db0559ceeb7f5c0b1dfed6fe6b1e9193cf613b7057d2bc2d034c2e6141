@@ -1,0 +1,7 @@
+/tmp/p08-l5/reference-acc/ReadOnlyBoundaryOps.swift:98:13: warning: initialization of immutable value 'second' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 96 |     public static func referenceElement() -> String {
+ 97 |         let box = ReadOnlyBoundaryBox(2)
+ 98 |         let second = ReadOnlyBoundaryBox(5)
+    |             `- warning: initialization of immutable value 'second' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 99 |         var mutable = TiqianArray<ReadOnlyBoundaryBox>([ReadOnlyBoundaryBox(2), ReadOnlyBoundaryBox(5)]) // L5-BROKEN: array holds value copies
+100 |         let view: ReadOnlyArray<ReadOnlyBoundaryBox> = ReadOnlyArray(mutable)

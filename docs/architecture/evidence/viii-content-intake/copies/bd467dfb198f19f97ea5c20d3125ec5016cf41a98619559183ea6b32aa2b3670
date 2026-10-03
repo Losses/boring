@@ -1,0 +1,7 @@
+package dcsenum
+
+sealed interface Kind {
+    data object A : Kind
+    data class B(val value: Int) : Kind
+    data object C : Kind
+}

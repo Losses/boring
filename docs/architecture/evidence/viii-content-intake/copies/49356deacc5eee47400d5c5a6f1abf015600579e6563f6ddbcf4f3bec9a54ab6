@@ -1,0 +1,18 @@
+Recomputed 2026-09-30 (read-only, python hashlib) over
+architecture-workspaces/tiqian-validation-round2/out/tiqian-fixed-2159c657-prep/manifest.json:
+originals=15 derived=15  ok=17  MISMATCH=13  missing=0
+
+Mismatched (all ORIGINALS, mtimes 2026-09-29 13:26 — AFTER manifest mtime 02:43):
+ out/architecture-candidate-inputs/hxml/{dart,engine-rust-f32,engine-rust-f64,kotlin-f32,
+   kotlin-f64,protocol-kotlin,protocol-rust,protocol-ts,swift-f32,swift-f64,ts}.hxml
+ boring-architecture-engine-candidate.json
+ boring-architecture-protocol-candidate.json
+
+Matching: all 15 DERIVED live inputs (12 prep/hxml/*.hxml + 3 boring-fixed-2159c657-*.json)
+plus 2 originals (protocol-c.hxml, boring-architecture-candidate.json).
+
+Interpretation: the provenance ORIGINALS were rewritten in place ~10 h after the manifest
+was written (they now carry resolved store-path content, e.g. ts.hxml gained the explicit
+-cp /nix/store/... and registerDefinesDescriptionFile lines). The LIVE inputs for the
+matrix (the derived set) all still match their pinned hashes. The runbook's "all 30
+manifest hashes recomputed: all match" does not hold on disk today.

@@ -1,0 +1,51 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use std::fmt::Write;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NullableFieldRecord {
+    pub name: UString,
+    pub code: Option<u32>,
+    pub label: Option<UString>,
+    pub words: Option<Vec<UString>>,
+}
+
+impl NullableFieldRecord {
+    pub fn new(name: &UStr, label: Option<UString>, code: Option<u32>, words: Option<Vec<UString>>) -> Self {
+        Self {
+            name: name.to_ustring(),
+            label,
+            code,
+            words,
+        }
+    }
+
+    pub fn label_plus_literal(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += match &((self.label).clone()) { Some(v) => v.as_ustr(), None => UStr::new(&[]) }; __s += &(UString::from("l")); __s }).as_str());
+    }
+
+    pub fn literal_plus_label(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("l")); __s += match &((self.label).clone()) { Some(v) => v.as_ustr(), None => UStr::new(&[]) }; __s }).as_str());
+    }
+
+    pub fn code_plus_literal(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(match self.code { Some(v) => UString::from((v).to_string().as_str()), None => UString::from("null") }); __s += &(UString::from("c")); __s }).as_str());
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("NullableFieldRecord(")); __s += &(UString::from("name=")); __s += (self.name).to_ustring().as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("code=")); __s += &(match self.code { Some(v) => UString::from((v).to_string().as_str()), None => UString::from("null") }); __s += &(UString::from(", ")); __s += &(UString::from("label=")); __s += match &((self.label).clone()) { Some(v) => v.as_ustr(), None => UStr::new(&[]) }; __s += &(UString::from(", ")); __s += &(UString::from("words=")); __s += UString::from(format!("{}", (match &(self.words) { None => UString::from("null"), Some(__option) => UString::from(format!("{}", {
+        let mut out = String::new();
+        out.push('[');
+        let n = (*__option).clone().len();
+        let mut i1 = 0usize;
+        while i1 < n {
+            if i1 > 0 { out.push_str(", "); }
+            let _ = write!(out, "{}", (*__option).clone()[i1]);
+            i1 += 1;
+        }
+        out.push(']');
+        out
+    }).as_str()) })).as_str()).as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}

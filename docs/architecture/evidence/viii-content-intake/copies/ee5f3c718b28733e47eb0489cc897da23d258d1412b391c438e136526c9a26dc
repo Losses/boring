@@ -1,0 +1,61 @@
+# Toolchain identity, recorded 2026-10-01T10:07:39-04:00
+cwd=/home/losses/Development/tq-workspace
+PATH=/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin:/nix/store/agfrkw7lvckq29w4dp0i3jfrhxjmgv3q-rust-default-1.98.0/bin:/nix/store/rqx09a40a82di944xi6ydjyzx632av28-kotlin-2.4.10/bin:/nix/store/vd788darzi6n1k2zrj5x3kqgg03kbz93-nodejs-official-22.23.3/bin:/home/losses/.npm/_npx/b86ed90107c62dab/node_modules/.bin:/home/losses/Development/nix-nifer/node_modules/.bin:/home/losses/Development/node_modules/.bin:/home/losses/node_modules/.bin:/home/node_modules/.bin:/node_modules/.bin:/nix/store/vd788darzi6n1k2zrj5x3kqgg03kbz93-nodejs-official-22.23.3/lib/node_modules/npm/node_modules/@npmcli/run-script/lib/node-gyp-bin:/nix/store/vd788darzi6n1k2zrj5x3kqgg03kbz93-nodejs-official-22.23.3/bin:/home/losses/Development/flutter-elinux/bin:/home/losses/.local/bin:/home/losses/.bun/bin:/home/losses/.cargo/bin:/home/losses/.qoder-cn/entry:/run/wrappers/bin:/home/losses/.local/share/flatpak/exports/bin:/var/lib/flatpak/exports/bin:/home/losses/.nix-profile/bin:/nix/profile/bin:/home/losses/.local/state/nix/profile/bin:/etc/profiles/per-user/losses/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin
+which haxe = /nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe
+sha256(haxe) = 2c39ce70dd6eec23b0577d8eb8a9006571e6f1e2d563d357e6b3f3a07fa349ab
+which kotlinc = /nix/store/rqx09a40a82di944xi6ydjyzx632av28-kotlin-2.4.10/bin/kotlinc
+sha256(kotlinc) = 2e64b392f30b0d06c92d320e589ba82bd4ee9973d1fc3ddcc6be0526952c64c0
+which cargo = /nix/store/agfrkw7lvckq29w4dp0i3jfrhxjmgv3q-rust-default-1.98.0/bin/cargo
+sha256(cargo) = fde9f6ee7841942d108812930d8e51a8ddf90a5e94170c4304d464ee8217d75f
+which rustc = /nix/store/agfrkw7lvckq29w4dp0i3jfrhxjmgv3q-rust-default-1.98.0/bin/rustc
+sha256(rustc) = 2785576145da20f3c5e5c03dbe8d49bdc0a691741262d7f2c0482660d0c1703e
+which bun = /home/losses/.bun/bin/bun
+sha256(bun) = a83d263767d839e4d2649ca8e35d07159c7afc99afdc96d731ced29e056dda0c
+which node = /nix/store/vd788darzi6n1k2zrj5x3kqgg03kbz93-nodejs-official-22.23.3/bin/node
+sha256(node) = ab74f0d1a80f6a5ad96d53fbcc3a335ba114e39fc37e0272b6ceba4eed35fe94
+which java = /run/current-system/sw/bin/java
+sha256(java) = 9a3ecfd342b529cfdbc8928a11479316d4629a44636e4a357391011909b1fa08
+which git = /run/current-system/sw/bin/git
+sha256(git) = 856930b25e9d875001f880ae7bfe40049f6af11ebc59357bcfdd98326e96d58f
+--- versions
+haxe: 4.3.7
+kotlinc: info: kotlinc-jvm 2.4.10 (JRE 21.0.12+8-nixos) 
+cargo: cargo 1.98.0 (797e8a9bc 2026-08-05)
+rustc: rustc 1.98.0 (88d9e12ae 2026-08-18)
+bun: 1.4.2
+node: v22.23.3
+java: openjdk version "21.0.12" 2026-07-21
+git: git version 2.54.0
+swiftc: MISSING
+dart: MISSING
+--- tree identity (worktree)
+git rev-parse HEAD = 42c805d3d144d3cbe86e15fcefb414dff9fbb02f
+git rev-parse --abbrev-ref HEAD = HEAD
+git status --porcelain:
+ M docs/architecture/evidence/zero-warning-gate-coverage/verify.sh
+ M tests/haxe/alias-transfer-boundary/run.sh
+ M tests/haxe/compiler-bytes-provenance/run.sh
+ M tests/haxe/payload-key/run.sh
+ M tests/haxe/resident-consumer-closure/run.sh
+ M tests/haxe/rust-resident-dataclass/run.sh
+ M tests/haxe/throwing-default/run.sh
+ M tests/swift-length-utf16/run.sh
+ M tools/warning-gate/check.sh
+git diff --numstat (content lines):
+0	0	docs/architecture/evidence/zero-warning-gate-coverage/verify.sh
+0	0	tests/haxe/alias-transfer-boundary/run.sh
+0	0	tests/haxe/compiler-bytes-provenance/run.sh
+0	0	tests/haxe/payload-key/run.sh
+0	0	tests/haxe/resident-consumer-closure/run.sh
+0	0	tests/haxe/rust-resident-dataclass/run.sh
+0	0	tests/haxe/throwing-default/run.sh
+0	0	tests/swift-length-utf16/run.sh
+0	0	tools/warning-gate/check.sh
+--- subject file hashes
+f489cc0e533205cb548946b060a760c703f21b8bdbfef520786ba40543d85c85  tests/bundle-child-evidence/bundle-child-evidence.test.ts
+7bbd450cca7cf07f30fe7860e59f93dfd354729e2e051292a57deb5d6e2c1672  tests/bundle-child-evidence/fixtures/child.ts
+c89827802e875f9d2434b1464c5c224016b816df4a4daed554ca80ef973a48e1  tests/haxe/kotlin-var-field-smartcast/var-field-smartcast.test.ts
+0741c5813790fc9c78b9030284bc4d6eecde73945e3e5072da28a7fc8704d1f3  tests/haxe/kotlin-var-field-smartcast/kotlin-gen.hxml
+fa06c7038d1e7e661c0cc75d9302b3cfb1f432e609f1568792319799a720f774  packages/driver/src/driver/ChildEvidence.hx
+278dc821ed577d7b09a924c7b179ed63ee37e5b6810731d4dc5b2b586f9a8e07  packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx
+cdda87622c99004a11c35b690bb992fc590b732da5343654516e38e7f720bfb5  bunfig.toml

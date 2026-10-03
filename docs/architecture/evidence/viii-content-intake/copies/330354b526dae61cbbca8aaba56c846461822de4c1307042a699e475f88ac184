@@ -1,0 +1,15 @@
+probeE/PE.swift:34:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+32 |     do {
+33 |         return ReadOnlyArray(PESources.arr1())
+34 |     } catch is PEError {
+   |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+35 |         return ReadOnlyArray(PESources.arr2())
+36 |     } catch {
+
+probeE/PE.swift:63:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+61 |     do {
+62 |         view = ReadOnlyArray(PESources.arr1())
+63 |     } catch is PEError {
+   |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+64 |         view = ReadOnlyArray(PESources.arr2())
+65 |     } catch {

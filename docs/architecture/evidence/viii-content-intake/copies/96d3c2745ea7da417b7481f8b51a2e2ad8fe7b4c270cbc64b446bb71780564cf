@@ -1,0 +1,23 @@
+#![cfg(test)]
+
+use crate::boring::enum_sorted_keys_ops::EnumSortedKeysOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_set_order() {
+    testlib::run("tests.EnumSortedKeysTests.testSetOrder", "tests.EnumSortedKeysTests.testSetOrder: Parameterless enum sorted sets use declaration order", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[76,111,119,44,77,105,100,44,72,105,103,104]), EnumSortedKeysOps::enum_sorted_keys_ops_describe().as_ustr(), UStr::new(&[115,101,116,32,116,114,97,118,101,114,115,97,108,32,102,111,108,108,111,119,115,32,100,101,99,108,97,114,97,116,105,111,110,32,111,114,100,101,114]));
+        test_core::TestCore::test_core_equals_bool(true, EnumSortedKeysOps::enum_sorted_keys_ops_has(), UStr::new(&[115,101,116,32,104,97,115,32,102,105,110,100,115,32,101,110,117,109,32,115,105,110,103,108,101,116,111,110]));
+    });
+}
+
+#[test]
+fn test_map_order() {
+    testlib::run("tests.EnumSortedKeysTests.testMapOrder", "tests.EnumSortedKeysTests.testMapOrder: Parameterless enum sorted maps order keys and values", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[76,111,119,58,49,59,77,105,100,58,50,59,72,105,103,104,58,51]), EnumSortedKeysOps::enum_sorted_keys_ops_map_order().as_ustr(), UStr::new(&[109,97,112,32,105,110,100,101,120,101,115,32,102,111,108,108,111,119,32,100,101,99,108,97,114,97,116,105,111,110,32,111,114,100,101,114]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[76,97,116,101,114,44,69,97,114,108,105,101,114]), EnumSortedKeysOps::enum_sorted_keys_ops_declaration_order().as_ustr(), UStr::new(&[115,111,117,114,99,101,32,99,111,110,115,116,114,117,99,116,111,114,32,111,114,100,101,114,32,105,115,32,97,117,116,104,111,114,105,116,97,116,105,118,101]));
+    });
+}

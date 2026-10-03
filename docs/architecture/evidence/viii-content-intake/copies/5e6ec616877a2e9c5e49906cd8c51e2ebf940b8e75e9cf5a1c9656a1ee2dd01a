@@ -1,0 +1,13 @@
+--- /home/losses/Development/tq-workspace/dc-warn/worktrees/null-guard-xcheck/tests/haxe/xcheck-null-guard/expected.txt	2026-09-29 16:02:47.000000000 -0400
++++ /home/losses/Development/tq-workspace/dc-warn/out/null-guard-xcheck/xcheck-20260929T200611Z/stages/c2-run/stdout	2026-09-29 16:06:40.000000000 -0400
+@@ -1,5 +1,5 @@
+-p2=3
+-p3=2
+-p4=3
+-p5=abc
+-p7=3
++p2=${a}
++p3=${b}
++p4=${c}
++p5=${d}
++p7=${e}

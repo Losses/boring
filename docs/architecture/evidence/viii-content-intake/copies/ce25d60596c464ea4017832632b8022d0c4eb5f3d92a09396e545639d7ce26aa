@@ -1,0 +1,44 @@
+# provenance pins, taken 2026-09-30T18:04:02-04:00 in worktree boring-wt-p08prep (branch prep/p08-candidate-material)
+=== c8ae0054 ===
+c8ae0054d8b1937cf05c0dd849c268807ae19b8f
+2026-09-30 13:41:26 -0400
+fix(swift): lambda return contract, with the block destination it exposes
+IS-ANCESTOR-OF prep/HEAD (5a8f19e6): yes
+   .../reflaxe/swift/swiftcompiler/SwiftExpr.hx       |  18 ++-
+   tests/swift-gap-boundary/gap-boundary.test.ts      |  93 ++++++++++++
+   tests/swift-gap-boundary/gap/Gap.hx                | 161 +++++++++++++++++++++
+   tests/swift-gap-boundary/swift.hxml                |  18 +++
+   4 files changed, 287 insertions(+), 3 deletions(-)
+=== 71a60c7d ===
+71a60c7d3055dbe474bf634cd54681601fdf7073
+2026-09-30 14:16:37 -0400
+fix(swift): switch-expression closures lower against the owning destination contract
+IS-ANCESTOR-OF prep/HEAD (5a8f19e6): yes
+   .../reflaxe/swift/swiftcompiler/SwiftExpr.hx       | 58 ++++++++++++++++++----
+   1 file changed, 48 insertions(+), 10 deletions(-)
+=== 449444cf ===
+449444cf02bb0168e3370b7baae14ceb3ed5ee04
+2026-09-30 14:37:31 -0400
+fix(swift): apply destination conversion on the single-statement lambda fast path
+IS-ANCESTOR-OF prep/HEAD (5a8f19e6): yes
+   .../reflaxe/swift/swiftcompiler/SwiftExpr.hx       | 23 ++++++++++++++++++++--
+   1 file changed, 21 insertions(+), 2 deletions(-)
+=== d14231a6 ===
+d14231a6211a1903bd7a7f67a6297db1d24d7709
+2026-09-30 13:57:32 -0400
+fix(test): make gap-boundary swiftc -c invocation valid and assert its outcome
+IS-ANCESTOR-OF prep/HEAD (5a8f19e6): yes
+   tests/swift-gap-boundary/gap-boundary.test.ts | 43 +++++++++++++++++++++++++--
+   1 file changed, 41 insertions(+), 2 deletions(-)
+=== eec707b9 ===
+eec707b9b09ccabdc7541b74174c6d8cf1e9ef0e
+2026-09-30 15:20:10 -0400
+test(ts): pin the by-name runtime import the package shell rejection test asserts against
+IS-ANCESTOR-OF prep/HEAD (5a8f19e6): yes
+   docs/architecture/BASELINE-FAILURES.md | 10 ++++++++++
+   tests/ts/package-shell.test.ts         | 13 ++++++++++---
+   2 files changed, 20 insertions(+), 3 deletions(-)
+=== unreachable-trailing-return fix search ===
+449444cf fix(swift): apply destination conversion on the single-statement lambda fast path
+71a60c7d fix(swift): switch-expression closures lower against the owning destination contract
+(only 71a60c7d and 449444cf touch SwiftExpr.hx since the sealed candidate)

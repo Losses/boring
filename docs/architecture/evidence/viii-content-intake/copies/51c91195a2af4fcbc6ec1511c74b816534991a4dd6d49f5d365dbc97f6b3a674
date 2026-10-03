@@ -1,0 +1,21 @@
+package xct;
+
+/** Compile host so the global build probe runs on a compiled class. */
+class Trigger {
+	public final a:xc.CrossOwner.OwnerA<Int>;
+	public final b:xc.CrossOwner.OwnerB<String>;
+	public final d:xc.Shapes.Dual<Int, String>;
+	public final h:xc.MethodParams.Host2<Int>;
+	public final hh:xc.MethodParams.Host<Int>;
+	public var forced:Int = 0;
+
+	public function new(a:xc.CrossOwner.OwnerA<Int>, b:xc.CrossOwner.OwnerB<String>, d:xc.Shapes.Dual<Int, String>, h:xc.MethodParams.Host2<Int>, hh:xc.MethodParams.Host<Int>) {
+		this.a = a;
+		this.b = b;
+		this.d = d;
+		this.h = h;
+		this.hh = hh;
+		// Force typing of the method bodies so their own <T> binders exist.
+		forced = h.g(1) + h.h(2) + hh.f(3);
+	}
+}

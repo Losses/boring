@@ -1,0 +1,1244 @@
+=== FILE packages/registry/tests/package-registry.test.ts START 22:02:04 ===
+bun test v1.3.13 (bf2e2cec)
+
+packages/registry/tests/package-registry.test.ts:
+(pass) committed package registry > writes all five namespaces and stable bytes [25367.57ms]
+(pass) committed package registry > rejects stray files [31.00ms]
+(pass) committed package registry > rejects malformed metadata [26.00ms]
+(pass) committed package registry > rejects missing README [28.00ms]
+(pass) committed package registry > rejects missing version [24.00ms]
+(pass) committed package registry > rejects platform disagreement [29.00ms]
+(pass) committed package registry > rejects uppercase Cargo name [25.00ms]
+(pass) committed package registry > rejects missing Swift flags [21.00ms]
+(pass) committed package registry > rejects missing Swift archive base [21.00ms]
+(pass) committed package registry > rejects invalid URL scheme [19.00ms]
+(pass) committed package registry > rejects digest conflict [29.00ms]
+(pass) committed package registry > rejects missing required flags [19.00ms]
+
+ 12 pass
+ 0 fail
+ 55 expect() calls
+Ran 12 tests across 1 file. [25.78s]
+=== FILE packages/registry/tests/package-registry.test.ts END exit=0 22:02:30 ===
+=== FILE tests/bundle-child-evidence/bundle-child-evidence.test.ts START 22:02:30 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/bundle-child-evidence/bundle-child-evidence.test.ts:
+(pass) child execution evidence > Driver.step integration > a successful step retains both streams and runs its command once [179.00ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps its status, both streams, and the driver failure exit [53.00ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps the same failure exit without capture [51.00ms]
+(pass) child execution evidence > Driver.step integration > without the evidence setting the driver keeps its previous behaviour [180.00ms]
+(pass) child execution evidence > Driver.step integration > a capture write failure after a zero exit child fails the driver [168.00ms]
+(pass) child execution evidence > Driver.step integration > an evidence parent that is a regular file fails the driver before a run [23.00ms]
+(pass) child execution evidence > Driver.step integration > a read only evidence parent fails the driver before any run is created [24.00ms]
+(pass) child execution evidence > retained outcome fields > a missing executable claims no stream file and is not a normal exit [93.00ms]
+(pass) child execution evidence > retained outcome fields > a command the host refuses to accept raises instead of returning an outcome [30.00ms]
+(pass) child execution evidence > retained outcome fields > a working directory that is not a directory keeps the host code of its launch failure [29.00ms]
+(pass) child execution evidence > retained outcome fields > a signaled child is distinct from a launch failure and from success [52.00ms]
+(pass) child execution evidence > retained outcome fields > a nonzero child keeps its exact status and both streams [53.00ms]
+(pass) child execution evidence > retained outcome fields > byte sequences survive including forms that are not valid UTF-8 [51.00ms]
+(pass) child execution evidence > retained outcome fields > a stream beyond the capture limit keeps its output and is marked incomplete [53.00ms]
+(pass) child execution evidence > retained outcome fields > captured and uncaptured children observe the same argv, cwd, and environment [70.00ms]
+(pass) child execution evidence > retained outcome fields > repeated runs keep separate records and never reuse an earlier run [114.00ms]
+(pass) child execution evidence > retained outcome fields > a same name allocation resolves exclusively and keeps its own identity [28.00ms]
+(pass) child execution evidence > retained outcome fields > the production conversion validates each host value it is handed [136.00ms]
+(pass) child execution evidence > retained outcome fields > the project identity names the project path and its content [189.00ms]
+
+ 19 pass
+ 0 fail
+ 220 expect() calls
+Ran 19 tests across 1 file. [1.89s]
+=== FILE tests/bundle-child-evidence/bundle-child-evidence.test.ts END exit=0 22:02:32 ===
+=== FILE tests/dart/precision-switch.test.ts START 22:02:32 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/dart/precision-switch.test.ts:
+killed 1 dangling process
+(fail) float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [5.07s]
+=== FILE tests/dart/precision-switch.test.ts END exit=1 22:02:37 ===
+=== FILE tests/swift-readonly-boundary/readonly-boundary.test.ts START 22:02:37 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/swift-readonly-boundary/readonly-boundary.test.ts:
+killed 1 dangling process
+(fail) Swift read-only array boundary shares storage and preserves flow [60011.99ms]
+  ^ this test timed out after 60000ms.
+
+# Unhandled error between tests
+-------------------------------
+ 9 |   const stdout = result.stdout.toString();
+10 |   const stderr = result.stderr.toString();
+11 |   await Bun.write(`${out}/${label}.stdout.log`, stdout);
+12 |   await Bun.write(`${out}/${label}.stderr.log`, stderr);
+13 |   await Bun.write(`${out}/${label}.status`, `${result.exitCode ?? 1}\n`);
+14 |   expect(result.exitCode, `${label}: ${stderr || stdout}`).toBe(0);
+                                                                ^
+error: generate-repeat: 
+
+Expected: 0
+Received: null
+
+      at run (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/swift-readonly-boundary/readonly-boundary.test.ts:14:60)
+      at async <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/swift-readonly-boundary/readonly-boundary.test.ts:62:9)
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+ 5 expect() calls
+Ran 1 test across 1 file. [60.08s]
+=== FILE tests/swift-readonly-boundary/readonly-boundary.test.ts END exit=1 22:03:37 ===
+=== FILE tests/ts/arithmetic-helpers.test.ts START 22:03:37 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/arithmetic-helpers.test.ts:
+(pass) arithmetic helpers generated tree > No standalone Arithmetic or IntRange module is generated in any target [2.00ms]
+(pass) arithmetic helpers generated tree > TS inlines arithmetic helpers and abstracts into native comparison operators and ternaries
+(pass) arithmetic helpers generated tree > Kotlin inlines arithmetic helpers into native comparison operators and if-expressions
+49 |     expect(fs.existsSync(rsFile)).toBe(true);
+50 |     const content = fs.readFileSync(rsFile, "utf8");
+51 | 
+52 |     expect(content).not.toContain("Arithmetic::");
+53 |     expect(content).not.toContain("IntRange");
+54 |     expect(content).toContain("return (value) >= (low) && (value) <= (high);");
+                         ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "return (value) >= (low) && (value) <= (high);"
+Received: "#[derive(Clone, Copy)]\npub struct ArithmeticOps;\n\nimpl ArithmeticOps {\n    pub fn arithmetic_ops_check_within_int(value: u32, low: u32, high: u32) -> bool {\n        return (i32::from_ne_bytes(((value) as i32).to_ne_bytes())) >= i32::from_ne_bytes(((low) as i32).to_ne_bytes()) && (i32::from_ne_bytes(((value) as i32).to_ne_bytes())) <= i32::from_ne_bytes(((high) as i32).to_ne_bytes());\n    }\n\n    pub fn arithmetic_ops_check_within_float(value: f64, low: f64, high: f64) -> bool {\n        return (value) >= low && (value) <= high;\n    }\n\n    pub fn arithmetic_ops_clamp_least_int(value: u32, floor: u32) -> u32 {\n        return if i32::from_ne_bytes(((value) as i32).to_ne_bytes()) < (i32::from_ne_bytes(((floor) as i32).to_ne_bytes())) { floor } else { value };\n    }\n\n    pub fn arithmetic_ops_clamp_least_float(value: f64, floor: f64) -> f64 {\n        return if value < (floor) { floor } else { value };\n    }\n\n    pub fn arithmetic_ops_clamp_most_int(value: u32, ceiling: u32) -> u32 {\n        return if i32::from_ne_bytes(((value) as i32).to_ne_bytes()) > (i32::from_ne_bytes(((ceiling) as i32).to_ne_bytes())) { ceiling } else { value };\n    }\n\n    pub fn arithmetic_ops_clamp_most_float(value: f64, ceiling: f64) -> f64 {\n        return if value > (ceiling) { ceiling } else { value };\n    }\n\n    pub fn arithmetic_ops_clamp_in_int(value: u32, low: u32, high: u32) -> u32 {\n        let v = if i32::from_ne_bytes(((value) as i32).to_ne_bytes()) < (i32::from_ne_bytes(((low) as i32).to_ne_bytes())) { low } else { value };\n        return if i32::from_ne_bytes(((v) as i32).to_ne_bytes()) > (i32::from_ne_bytes(((high) as i32).to_ne_bytes())) { high } else { v };\n    }\n\n    pub fn arithmetic_ops_clamp_in_float(value: f64, low: f64, high: f64) -> f64 {\n        let v = if value < (low) { low } else { value };\n        return if v > (high) { high } else { v };\n    }\n\n    pub fn arithmetic_ops_in_range(start: u32, end: u32, value: u32) -> bool {\n        let range_start = start;\n        let range_end = end;\n        return (i32::from_ne_bytes(((value) as i32).to_ne_bytes())) >= i32::from_ne_bytes(((range_start) as i32).to_ne_bytes()) && (i32::from_ne_bytes(((value) as i32).to_ne_bytes())) <= i32::from_ne_bytes(((range_end) as i32).to_ne_bytes());\n    }\n}\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/arithmetic-helpers.test.ts:54:21)
+(fail) arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks [1.00ms]
+
+ 3 pass
+ 1 fail
+ 24 expect() calls
+Ran 4 tests across 1 file. [53.00ms]
+=== FILE tests/ts/arithmetic-helpers.test.ts END exit=1 22:03:37 ===
+=== FILE tests/ts/array-iteration.test.ts START 22:03:37 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/array-iteration.test.ts:
+(pass) array element iteration generated tree > TypeScript uses a single-read indexed bound for all array subjects [1.00ms]
+(pass) array element iteration generated tree > Kotlin emits element for loops
+(pass) array element iteration generated tree > Rust emits element for loops [1.00ms]
+(pass) array element iteration generated tree > Swift emits element for loops
+(pass) array element iteration generated tree > Dart emits element for loops
+
+ 5 pass
+ 0 fail
+ 18 expect() calls
+Ran 5 tests across 1 file. [58.00ms]
+=== FILE tests/ts/array-iteration.test.ts END exit=0 22:03:37 ===
+=== FILE tests/ts/array-root.test.ts START 22:03:37 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/array-root.test.ts:
+(pass) small static array initializer trees > each target uses the ruled array declaration [2.00ms]
+killed 1 dangling process
+(fail) small array initializer mutation rules retain all three diagnostics [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 1 pass
+ 1 fail
+ 10 expect() calls
+Ran 2 tests across 1 file. [5.07s]
+=== FILE tests/ts/array-root.test.ts END exit=1 22:03:43 ===
+=== FILE tests/ts/block-width.test.ts START 22:03:43 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/block-width.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@boring/codec' from '/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/block-width.test.ts'
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+Ran 1 test across 1 file. [38.00ms]
+=== FILE tests/ts/block-width.test.ts END exit=1 22:03:43 ===
+=== FILE tests/ts/capture-switch-ops.test.ts START 22:03:43 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/capture-switch-ops.test.ts:
+(pass) capture switch generated trees > pins captured switch lowering in generated targets [1.00ms]
+
+ 1 pass
+ 0 fail
+ 8 expect() calls
+Ran 1 test across 1 file. [51.00ms]
+=== FILE tests/ts/capture-switch-ops.test.ts END exit=0 22:03:43 ===
+=== FILE tests/ts/codec.test.ts START 22:03:43 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/codec.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@boring/codec' from '/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/codec.test.ts'
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+Ran 1 test across 1 file. [43.00ms]
+=== FILE tests/ts/codec.test.ts END exit=1 22:03:43 ===
+=== FILE tests/ts/compiler-scope.test.ts START 22:03:43 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/compiler-scope.test.ts:
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestClassFlush.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ComparatorPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ExpressionBlockNorm.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SealedVariantHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/FloatPrecision.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticFieldHelper.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/EnumQueryExpander.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TerminationAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ValueTypeSupport.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceLocalPresenceAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestApplicability.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ConstantFold.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/NameConversion.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SemanticExceptionLedger.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/FusionPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/VarFusionPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/RuntimeResidents.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestCollector.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SemanticPassRegistry.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/EnumCycleDetector.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceOriginTrace.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PackageArtifacts.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DataTableHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PolicyQueries.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DataTables.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceContainerAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestClassEntries.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ValueTypePlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ExpressionPredicates.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TypeCheckHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/AssignTargetPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DefaultArgExpander.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StructuralKeyValidator.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticReferenceScan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PackageShell.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/RuntimeConfig.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PipelineExpander.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticFunctionMarkers.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceOriginFragment.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceComparisonAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/Intercept.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsStringBufParams.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsDecl.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsImports.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsRuntime.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/Compiler.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/ExternBindings.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsTestBinding.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsType.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinType.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinRuntime.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinNameEscape.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinComparisonPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinTestBinding.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinPreparedFunction.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/Compiler.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinAccessGrants.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinEmissionState.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinImports.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinDecl.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/LoopCounterGuard.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustShape.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustImports.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustTestBinding.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustShapeParse.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustType.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustRuntime.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/DeadInitializerMatchFusion.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/ParenFold.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustConversions.hx carries no banned identifier
+48 |     for(const file of haxeFiles(directory)) {
+49 |       const path = join(directory, file);
+50 |       test(`${path} carries no banned identifier`, () => {
+51 |         const source = readFileSync(path, "utf8");
+52 |         for(const banned of BANNED_SUBSTRINGS) {
+53 |           expect(source.includes(banned)).toBe(false);
+                                               ^
+error: expect(received).toBe(expected)
+
+Expected: false
+Received: true
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/compiler-scope.test.ts:53:43)
+(fail) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier [2.00ms]
+
+1 tests failed:
+(fail) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier [2.00ms]
+
+ 75 pass
+ 1 fail
+ 601 expect() calls
+Ran 76 tests across 1 file. [71.00ms]
+=== FILE tests/ts/compiler-scope.test.ts END exit=1 22:03:43 ===
+=== FILE tests/ts/constructed-state.test.ts START 22:03:43 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/constructed-state.test.ts:
+(pass) constructed static initializer trees > each target uses its ruled declaration and Rust read lane [2.00ms]
+killed 1 dangling process
+(fail) constructed static mutation rules retain all three diagnostics [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 1 pass
+ 1 fail
+ 8 expect() calls
+Ran 2 tests across 1 file. [5.05s]
+=== FILE tests/ts/constructed-state.test.ts END exit=1 22:03:48 ===
+=== FILE tests/ts/constructor-statements.test.ts START 22:03:48 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/constructor-statements.test.ts:
+(pass) constructor statement initialization safety > keeps body locals and lowered temporaries out of the initializer list [1.00ms]
+(pass) constructor statement initialization safety > keeps parameter-to-field assignments represented in the generated constructor
+
+ 2 pass
+ 0 fail
+ 8 expect() calls
+Ran 2 tests across 1 file. [55.00ms]
+=== FILE tests/ts/constructor-statements.test.ts END exit=0 22:03:48 ===
+=== FILE tests/ts/data-tables.test.ts START 22:03:48 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/data-tables.test.ts:
+(pass) data tables TypeScript generation and behavior > ScriptEvidenceTable emits new Int32Array table form without per-element unrolling
+(pass) data tables TypeScript generation and behavior > WordCharacterTable emits new Int32Array table form without per-element unrolling
+(pass) data tables TypeScript generation and behavior > PayloadTextTable emits new Int32Array table form without per-element unrolling
+(pass) data tables TypeScript generation and behavior > ScriptEvidenceTable.classify operates correctly on generated tree [1.00ms]
+(pass) data tables TypeScript generation and behavior > WordCharacterTable.contains operates correctly on generated tree [1.00ms]
+(pass) data tables TypeScript generation and behavior > PayloadTextTable operates correctly on generated tree [4.00ms]
+(pass) data tables TypeScript generation and behavior > CodePointNames operates correctly on generated tree [1.00ms]
+
+ 7 pass
+ 0 fail
+ 28 expect() calls
+Ran 7 tests across 1 file. [56.00ms]
+=== FILE tests/ts/data-tables.test.ts END exit=0 22:03:48 ===
+=== FILE tests/ts/default-args.test.ts START 22:03:48 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/default-args.test.ts:
+(pass) default argument expansion generated tree > TS generated tree emits full-arity calls and clean method signatures [1.00ms]
+(pass) default argument expansion generated tree > Kotlin generated tree emits native defaults and full-arity calls
+(pass) default argument expansion generated tree > Rust generated tree emits full-arity calls and clean method signatures [1.00ms]
+(pass) default argument expansion generated tree > Swift generated tree lowers parameter-reading coalescing defaults in the body
+(pass) default argument expansion generated tree > Dart generated tree normalizes coalescing defaults in the body [1.00ms]
+
+ 5 pass
+ 0 fail
+ 202 expect() calls
+Ran 5 tests across 1 file. [49.00ms]
+=== FILE tests/ts/default-args.test.ts END exit=0 22:03:48 ===
+=== FILE tests/ts/deferred-locals.test.ts START 22:03:48 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/deferred-locals.test.ts:
+(pass) deferred locals retain each target's sanctioned declaration form [2.00ms]
+killed 1 dangling process
+(fail) a missing deferred assignment is rejected by the Kotlin tree build [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 1 pass
+ 1 fail
+ 5 expect() calls
+Ran 2 tests across 1 file. [5.05s]
+=== FILE tests/ts/deferred-locals.test.ts END exit=1 22:03:53 ===
+=== FILE tests/ts/enum-queries.test.ts START 22:03:53 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/enum-queries.test.ts:
+(pass) enum value queries generated trees > TypeScript emits frozen values, collection and lookup with a literal loop bound [1.00ms]
+(pass) enum value queries generated trees > Kotlin uses enum class, entries and element iteration [1.00ms]
+(pass) enum value queries generated trees > Swift uses raw value cases, CaseIterable and element iteration
+(pass) enum value queries generated trees > Dart uses enhanced enum labels, lookup and element iteration
+(pass) enum value queries generated trees > Rust emits ALL, name, from_name and a literal range
+(pass) enum value queries generated trees > no generated target retains a Type static call [122.00ms]
+
+ 6 pass
+ 0 fail
+ 1415 expect() calls
+Ran 6 tests across 1 file. [192.00ms]
+=== FILE tests/ts/enum-queries.test.ts END exit=0 22:03:53 ===
+=== FILE tests/ts/enum-sorted-keys.test.ts START 22:03:53 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/enum-sorted-keys.test.ts:
+(pass) enum sorted key generated trees > pins parameterless enum comparator definitions [1.00ms]
+(pass) enum sorted key generated trees > pins qualified Dart comparator references [1.00ms]
+killed 1 dangling process
+(fail) payload enums are rejected as sorted keys [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 2 pass
+ 1 fail
+ 7 expect() calls
+Ran 3 tests across 1 file. [5.06s]
+=== FILE tests/ts/enum-sorted-keys.test.ts END exit=1 22:03:58 ===
+=== FILE tests/ts/error-structure.test.ts START 22:03:58 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/error-structure.test.ts:
+(pass) typed error structure > reference/ts/src contains no bare Error construction [3.00ms]
+(pass) typed error structure > samples/boring contains no bare haxe.Exception construction [31.00ms]
+
+ 2 pass
+ 0 fail
+ 2 expect() calls
+Ran 2 tests across 1 file. [89.00ms]
+=== FILE tests/ts/error-structure.test.ts END exit=0 22:03:59 ===
+=== FILE tests/ts/extern-bindings.test.ts START 22:03:59 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/extern-bindings.test.ts:
+killed 1 dangling process
+(fail) TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+45 |       "class Probe {",
+46 |       "  public static function read():Int return Namespace.value() + Named.value() + GlobalThing.value() + Namespace.value();",
+47 |       "}", "",
+48 |     ].join("\n"));
+49 |     try {
+50 |       expect(result.code).toBe(0);
+                               ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 143
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/extern-bindings.test.ts:50:27)
+-------------------------------
+
+killed 1 dangling process
+(fail) TypeScript extern binding modules > rejects a value reference to an empty module [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 2 fail
+ 1 error
+ 1 expect() calls
+Ran 2 tests across 1 file. [10.06s]
+=== FILE tests/ts/extern-bindings.test.ts END exit=1 22:04:09 ===
+=== FILE tests/ts/fn-values.test.ts START 22:04:09 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/fn-values.test.ts:
+(pass) first-class function value generated trees > all five targets emit the probe module
+(pass) first-class function value generated trees > TypeScript, Kotlin, Swift, and Dart keep static function storage
+(pass) first-class function value generated trees > Rust uses one boxed representation and adapts indirect lengths
+(pass) first-class function value generated trees > Rust's f32 tree carries the same function-value lowering
+(pass) first-class function value generated trees > Rust bounds every function-value position with Send and Sync
+(pass) first-class function value generated trees > Rust's f32 tree bounds the resident comparator
+killed 1 dangling process
+(fail) static function field capture validation > a capturing static initializer reports the ruled Rust error [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 6 pass
+ 1 fail
+ 38 expect() calls
+Ran 7 tests across 1 file. [5.06s]
+=== FILE tests/ts/fn-values.test.ts END exit=1 22:04:14 ===
+=== FILE tests/ts/generated-tree.test.ts START 22:04:14 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/generated-tree.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@boring/codec' from '/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/generated-tree.test.ts'
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+Ran 1 test across 1 file. [50.00ms]
+=== FILE tests/ts/generated-tree.test.ts END exit=1 22:04:14 ===
+=== FILE tests/ts/loop-structure.test.ts START 22:04:14 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/loop-structure.test.ts:
+(pass) loop structure > reference/ts/src carries no functional iteration, loop closures, or unhoisted bounds [5.00ms]
+318 | 
+319 | describe("loop structure", () => {
+320 |   for (const tree of SOURCE_TREES) {
+321 |     test(`${tree.label} carries no functional iteration, loop closures, or unhoisted bounds`, async () => {
+322 |       const hits = await scanTree(tree);
+323 |       expect(hits).toEqual([]);
+                         ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "detail": "condition reads a property; hoist the bound: for (let i0 = 0; i0 < a.flags.length && i0 < b.flags.length; i0++)",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/ts/gen/boring/PrintedCollection.ts",
++     "kind": "for-head",
++     "line": 43,
++   },
++   {
++     "detail": "condition reads a property; hoist the bound: for (let i1 = 0; i1 < a.words.length && i1 < b.words.length; i1++)",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/ts/gen/boring/PrintedCollection.ts",
++     "kind": "for-head",
++     "line": 88,
++   },
++   {
++     "detail": "condition reads a property; hoist the bound: for (let i0 = 0; i0 < a.fontFamilies.length && i0 < b.fontFamilies.length; i0++)",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/ts/gen/boring/SortedDataClassKeysOps.ts",
++     "kind": "for-head",
++     "line": 73,
++   },
++   {
++     "detail": "condition reads a property; hoist the bound: for (let i0 = 0; i0 < a.enumKinds.length && i0 < b.enumKinds.length; i0++)",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/ts/gen/boring/SortedDataClassKeysOps.ts",
++     "kind": "for-head",
++     "line": 78,
++   },
++   {
++     "detail": "condition reads a property; hoist the bound: for (let i0 = 0; i0 < a.ranges.length && i0 < b.ranges.length; i0++)",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/ts/gen/boring/SortedDataClassKeysOps.ts",
++     "kind": "for-head",
++     "line": 82,
++   },
++   {
++     "detail": "condition reads a property; hoist the bound: for (let i0 = 0; i0 < a.clusters.length && i0 < b.clusters.length; i0++)",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/ts/gen/boring/GlyphClusterHolder.ts",
++     "kind": "for-head",
++     "line": 19,
++   },
++ ]
+
+- Expected  - 1
++ Received  + 38
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/loop-structure.test.ts:323:20)
+(fail) loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds [32.00ms]
+(pass) loop structure > samples carries no functional iteration, loop closures, or unhoisted bounds [81.00ms]
+(pass) loop structure > reference/rust/src carries no functional iteration, loop closures, or unhoisted bounds [1.00ms]
+318 | 
+319 | describe("loop structure", () => {
+320 |   for (const tree of SOURCE_TREES) {
+321 |     test(`${tree.label} carries no functional iteration, loop closures, or unhoisted bounds`, async () => {
+322 |       const hits = await scanTree(tree);
+323 |       expect(hits).toEqual([]);
+                         ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "detail": ".map(",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/rust/gen/runtime/env.rs",
++     "kind": "call-site",
++     "line": 0,
++   },
++   {
++     "detail": ".map(",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/rust/gen/runtime/u_string.rs",
++     "kind": "call-site",
++     "line": 0,
++   },
++   {
++     "detail": ".map(",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/rust/gen/boring/platform_ops.rs",
++     "kind": "call-site",
++     "line": 0,
++   },
++   {
++     "detail": "closure inside a loop body",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/rust/gen/boring/payload_text_table.rs",
++     "kind": "loop-lambda",
++     "line": 41,
++   },
++   {
++     "detail": ".map(",
++     "file": "/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/../../reference/rust/gen/registry/main.rs",
++     "kind": "call-site",
++     "line": 0,
++   },
++ ]
+
+- Expected  - 1
++ Received  + 32
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/loop-structure.test.ts:323:20)
+(fail) loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds [79.00ms]
+
+ 3 pass
+ 2 fail
+ 5 expect() calls
+Ran 5 tests across 1 file. [246.00ms]
+=== FILE tests/ts/loop-structure.test.ts END exit=1 22:04:14 ===
+=== FILE tests/ts/number-classify.test.ts START 22:04:14 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/number-classify.test.ts:
+(pass) number classification generated tree > Math.isFinite and Math.isNaN render as native predicates on every target [1.00ms]
+
+ 1 pass
+ 0 fail
+ 10 expect() calls
+Ran 1 test across 1 file. [66.00ms]
+=== FILE tests/ts/number-classify.test.ts END exit=0 22:04:14 ===
+=== FILE tests/ts/number-parsing.test.ts START 22:04:14 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/number-parsing.test.ts:
+(pass) number parsing renderings > all target trees use the validated implementation [2.00ms]
+
+ 1 pass
+ 0 fail
+ 32 expect() calls
+Ran 1 test across 1 file. [55.00ms]
+=== FILE tests/ts/number-parsing.test.ts END exit=0 22:04:14 ===
+=== FILE tests/ts/package-artifacts.test.ts START 22:04:14 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/package-artifacts.test.ts:
+133 |   test("the npm tarball carries compiled JavaScript plus declarations and runs under plain node", async () => {
+134 |     const root = tempRoot("npm");
+135 |     try {
+136 |       const hxml = rewriteHxml("ts.hxml", root, [`-D package-tsc=${TSC}`]);
+137 |       const result = await runHaxe("package-artifacts-npm.hxml", hxml);
+138 |       expect(result.stderr).toBe("");
+                                  ^
+error: expect(received).toBe(expected)
+
+- ""
++ "package-tsc-capture: line 1: /home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/node_modules/typescript/bin/tsc: No such file or directory
++ package-tsc failed with exit code 127:
++ /home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/node_modules/typescript/bin/tsc -p /tmp/boring-artifacts-npm-UT81tD/ts/.package-npm-stage
++ source resolution: Unmapped (tsc emitted no parseable file location)
++ child stdout and stderr were forwarded unchanged on their respective process streams
++ "
+
+- Expected  - 1
++ Received  + 6
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/package-artifacts.test.ts:138:29)
+(fail) package artifact emission > the npm tarball carries compiled JavaScript plus declarations and runs under plain node [31011.48ms]
+killed 1 dangling process
+(fail) package artifact emission > the cargo crate and the Pub archive keep the tree at the root [60000.99ms]
+  ^ this test timed out after 60000ms.
+
+# Unhandled error between tests
+-------------------------------
+233 |         expect(entry.startsWith("package/")).toBe(false);
+234 |       }
+235 | 
+236 |       const dartResult = await runHaxe("package-artifacts-dart.hxml", rewriteHxml("dart.hxml", dartRoot));
+237 |       expect(dartResult.stderr).toBe("");
+238 |       expect(dartResult.exitCode).toBe(0);
+                                        ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 143
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/package-artifacts.test.ts:238:35)
+-------------------------------
+
+(pass) package artifact emission > the Swift zip carries the tree at the root [31735.46ms]
+(pass) package artifact emission > the Kotlin target packs a Maven repository directory with a compiled jar [47670.20ms]
+329 |         {hxml: "dart.hxml", file: "dart/generated-0.1.0.tar.gz", extra: []},
+330 |         {hxml: "kotlin.hxml", file: "kotlin/maven/generated/generated/0.1.0/generated-0.1.0.jar", extra: ["-D package-kotlinc=kotlinc"]},
+331 |       ];
+332 |       for(const pkg of packages) {
+333 |         const a = await runHaxe(`package-artifacts-id-a.hxml`, rewriteHxml(pkg.hxml, first, pkg.extra));
+334 |         expect(a.stderr).toBe("");
+                               ^
+error: expect(received).toBe(expected)
+
+- ""
++ "package-tsc-capture: line 1: /home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/node_modules/typescript/bin/tsc: No such file or directory
++ package-tsc failed with exit code 127:
++ /home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/node_modules/typescript/bin/tsc -p /tmp/boring-artifacts-identity-a-KJu92v/ts/.package-npm-stage
++ source resolution: Unmapped (tsc emitted no parseable file location)
++ child stdout and stderr were forwarded unchanged on their respective process streams
++ "
+
+- Expected  - 1
++ Received  + 6
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/package-artifacts.test.ts:334:26)
+(fail) package artifact emission > two generations of the same inputs produce byte-identical artifacts [30569.48ms]
+(pass) package artifact emission > an invalid package-artifacts value aborts the compile [31075.48ms]
+(pass) package artifact emission > artifacts without the package shell abort the compile [31783.46ms]
+(pass) package artifact emission > npm artifacts without package-tsc abort the compile [30512.48ms]
+(pass) package artifact emission > kotlin artifacts without package-kotlinc abort the compile [33664.43ms]
+(pass) package artifact emission > a failing package-tsc forwards the exit code and the tool output [30872.48ms]
+(pass) package artifact emission > a failing package-kotlinc forwards the exit code and the tool output [33798.43ms]
+
+ 8 pass
+ 3 fail
+ 1 error
+ 1072 expect() calls
+Ran 11 tests across 1 file. [392.75s]
+=== FILE tests/ts/package-artifacts.test.ts END exit=1 22:10:47 ===
+=== FILE tests/ts/package-shell.test.ts START 22:10:47 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/package-shell.test.ts:
+(pass) package shell emission > default emission writes package.json and the tree runs standalone [31440.47ms]
+(pass) package shell emission > identity defines flow into the manifest [31570.47ms]
+(pass) package shell emission > package-shell=none writes source only [31718.46ms]
+(pass) package shell emission > an invalid package-shell value aborts the compile [31754.46ms]
+244 |       const hxml = rewriteHxml(fs.readFileSync(path.join(REPO_ROOT, "examples/ts.hxml"), "utf8"), {
+245 |         tsOutput: tree,
+246 |         testOutput: path.join(tree, "../boring-shell-byname-tests"),
+247 |       });
+248 |       const result = await runHaxe("package-shell-byname.hxml", hxml);
+249 |       expect(result.exitCode).not.toBe(0);
+                                        ^
+error: expect(received).not.toBe(expected)
+
+Expected: not 0
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/package-shell.test.ts:249:35)
+(fail) package shell emission > a by-name runtime import with an emitted manifest aborts the compile [30609.48ms]
+(pass) package shell emission > the Swift, Kotlin, and Rust manifests of the reference trees are pinned [1.00ms]
+
+ 5 pass
+ 1 fail
+ 29 expect() calls
+Ran 6 tests across 1 file. [157.15s]
+=== FILE tests/ts/package-shell.test.ts END exit=1 22:13:24 ===
+=== FILE tests/ts/pipeline-map-store.test.ts START 22:13:24 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/pipeline-map-store.test.ts:
+(pass) Dart pipeline map store lowering > uses growing-list writes in constructor and ordinary pipeline sites [1.00ms]
+
+ 1 pass
+ 0 fail
+ 3 expect() calls
+Ran 1 test across 1 file. [71.00ms]
+=== FILE tests/ts/pipeline-map-store.test.ts END exit=0 22:13:24 ===
+=== FILE tests/ts/platform-modules.test.ts START 22:13:24 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/platform-modules.test.ts:
+(pass) std.Fs lowering > node:fs loads lazily through the host module probe inside each call body
+(pass) std.Fs lowering > a host without the module probe raises the fixed unavailability message
+(pass) std.Env lowering > a browser host maps to localStorage with a null missing key
+(pass) std.Env lowering > a node host maps to process.env behind a presence probe
+(pass) std.Process.args lowering > reads process.argv.slice(2) lazily behind a presence probe
+
+ 5 pass
+ 0 fail
+ 13 expect() calls
+Ran 5 tests across 1 file. [55.00ms]
+=== FILE tests/ts/platform-modules.test.ts END exit=0 22:13:24 ===
+=== FILE tests/ts/precision-switch.test.ts START 22:13:24 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/precision-switch.test.ts:
+killed 1 dangling process
+(fail) float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [5.05s]
+=== FILE tests/ts/precision-switch.test.ts END exit=1 22:13:29 ===
+=== FILE tests/ts/printed-collection.test.ts START 22:13:29 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/printed-collection.test.ts:
+(pass) record collection printed members > non-Kotlin targets route collection fields through single-pass builders [1.00ms]
+(pass) record collection printed members > Kotlin relies on native data-class text
+
+ 2 pass
+ 0 fail
+ 34 expect() calls
+Ran 2 tests across 1 file. [48.00ms]
+=== FILE tests/ts/printed-collection.test.ts END exit=0 22:13:29 ===
+=== FILE tests/ts/printed-enum.test.ts START 22:13:29 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/printed-enum.test.ts:
+(pass) enum printed forms > generated trees contain enum operands and badge member [1.00ms]
+(pass) enum printed forms > generated trees contain array enum constructors
+
+ 2 pass
+ 0 fail
+ 16 expect() calls
+Ran 2 tests across 1 file. [58.00ms]
+=== FILE tests/ts/printed-enum.test.ts END exit=0 22:13:29 ===
+=== FILE tests/ts/printed-record.test.ts START 22:13:29 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/printed-record.test.ts:
+(pass) record printed-member generated trees > four non-native targets synthesize the constructor-ordered member
+(pass) record printed-member generated trees > Kotlin keeps native data-class printing and renders explicit text
+killed 1 dangling process
+(fail) record printed-member generated trees > marker and explicit-member mutations affect the four emitted members [120000.97ms]
+  ^ this test timed out after 120000ms.
+
+ 2 pass
+ 1 fail
+ 67 expect() calls
+Ran 3 tests across 1 file. [120.06s]
+=== FILE tests/ts/printed-record.test.ts END exit=1 22:15:29 ===
+=== FILE tests/ts/printed-sorted-fields.test.ts START 22:15:29 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/printed-sorted-fields.test.ts:
+(pass) printed sorted field trees > all native targets retain resident collection members [1.00ms]
+(pass) printed sorted field trees > Kotlin keeps data-class synthesis without resident members
+
+ 2 pass
+ 0 fail
+ 25 expect() calls
+Ran 2 tests across 1 file. [51.00ms]
+=== FILE tests/ts/printed-sorted-fields.test.ts END exit=0 22:15:30 ===
+=== FILE tests/ts/read-only.test.ts START 22:15:30 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/read-only.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@boring/codec' from '/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/read-only.test.ts'
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+Ran 1 test across 1 file. [43.00ms]
+=== FILE tests/ts/read-only.test.ts END exit=1 22:15:30 ===
+=== FILE tests/ts/record-copy.test.ts START 22:15:30 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/record-copy.test.ts:
+(pass) record copy generated tree > TS generated tree emits object literals with fields in declaration order [1.00ms]
+(pass) record copy generated tree > Kotlin generated tree emits named constructor calls in declaration order
+(pass) record copy generated tree > Rust generated tree emits struct instantiation in declaration order
+
+ 3 pass
+ 0 fail
+ 12 expect() calls
+Ran 3 tests across 1 file. [56.00ms]
+=== FILE tests/ts/record-copy.test.ts END exit=0 22:15:30 ===
+=== FILE tests/ts/record-order.test.ts START 22:15:30 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/record-order.test.ts:
+(pass) record print field order generated trees > four non-native targets synthesize the member for both classes in declaration order
+(pass) record print field order generated trees > Kotlin overrides the native print only for the reordered class [1.00ms]
+(pass) record print field order mutations > a constructor parameter without a field stops the compilation [23664.60ms]
+(pass) record print field order mutations > aligning the field declarations removes the Kotlin explicit member [23897.59ms]
+
+ 4 pass
+ 0 fail
+ 88 expect() calls
+Ran 4 tests across 1 file. [47.62s]
+=== FILE tests/ts/record-order.test.ts END exit=0 22:16:17 ===
+=== FILE tests/ts/runtime-entry.test.ts START 22:16:17 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/runtime-entry.test.ts:
+(pass) runtime entry points > general entry exists and contains no node: import specifier
+(pass) runtime entry points > general entry contains no Test class; test entry owns it
+(pass) runtime entry points > generated business code imports only the general entry [2.00ms]
+(pass) runtime entry points > generated test code never imports the general entry for Test
+
+ 4 pass
+ 0 fail
+ 9 expect() calls
+Ran 4 tests across 1 file. [56.00ms]
+=== FILE tests/ts/runtime-entry.test.ts END exit=0 22:16:17 ===
+=== FILE tests/ts/rust-bytes-ownership.test.ts START 22:16:17 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/rust-bytes-ownership.test.ts:
+killed 1 dangling process
+(fail) Rust borrows input Bytes fields and owns allocated Bytes fields [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [5.05s]
+=== FILE tests/ts/rust-bytes-ownership.test.ts END exit=1 22:16:22 ===
+=== FILE tests/ts/rust-packages.test.ts START 22:16:22 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/rust-packages.test.ts:
+killed 1 dangling process
+(fail) Rust emits one module layer per Haxe package segment [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [5.06s]
+=== FILE tests/ts/rust-packages.test.ts END exit=1 22:16:28 ===
+=== FILE tests/ts/sealed-variants.test.ts START 22:16:28 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/sealed-variants.test.ts:
+killed 1 dangling process
+(fail) @:sealed on a class reports the interface-only error [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+136 |       proc.exited,
+137 |       new Response(proc.stdout).text(),
+138 |       new Response(proc.stderr).text(),
+139 |     ]);
+140 |     expect(exitCode).not.toBe(0);
+141 |     expect(stdout + stderr).toContain("@:sealed applies to interfaces only");
+                                  ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "@:sealed applies to interfaces only"
+Received: ""
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/sealed-variants.test.ts:141:29)
+-------------------------------
+
+killed 1 dangling process
+(fail) self-construction with arguments keeps the static initializer error [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+184 |       proc.exited,
+185 |       new Response(proc.stdout).text(),
+186 |       new Response(proc.stderr).text(),
+187 |     ]);
+188 |     expect(exitCode).not.toBe(0);
+189 |     expect(stdout + stderr).toContain("static field initializers accept null, literal, and empty array forms only");
+                                  ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "static field initializers accept null, literal, and empty array forms only"
+Received: ""
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/sealed-variants.test.ts:189:29)
+-------------------------------
+
+killed 1 dangling process
+(fail) the sanctioned self-construction static uses each target lane [15000.75ms]
+  ^ this test timed out after 15000ms.
+(pass) sealed variant sample trees carry the ruled declaration and printed forms [1.00ms]
+
+ 1 pass
+ 3 fail
+ 2 errors
+ 26 expect() calls
+Ran 4 tests across 1 file. [25.06s]
+=== FILE tests/ts/sealed-variants.test.ts END exit=1 22:16:53 ===
+=== FILE tests/ts/sorted-dataclass-keys.test.ts START 22:16:53 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/sorted-dataclass-keys.test.ts:
+(pass) sorted dataClass key generated trees > pins dataClass computed key properties [2.00ms]
+(pass) sorted dataClass key generated trees > pins nullable folded constructor defaults
+(pass) sorted dataClass key generated trees > pins mutation evidence fixtures
+ 5 | describe("sorted dataClass key generated trees", () => {
+ 6 |   const read = (relative: string) => fs.readFileSync(path.resolve(__dirname, "../../reference", relative), "utf8");
+ 7 |   const comparator = (relative: string, name: string) => {
+ 8 |     const text = read(relative);
+ 9 |     const start = text.indexOf(name);
+10 |     expect(start).toBeGreaterThanOrEqual(0);
+                       ^
+error: expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 0
+Received: -1
+
+      at comparator (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/sorted-dataclass-keys.test.ts:10:19)
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/sorted-dataclass-keys.test.ts:60:20)
+(fail) sorted dataClass key generated trees > pins resident comparators [1.00ms]
+
+ 3 pass
+ 1 fail
+ 28 expect() calls
+Ran 4 tests across 1 file. [55.00ms]
+=== FILE tests/ts/sorted-dataclass-keys.test.ts END exit=1 22:16:53 ===
+=== FILE tests/ts/sorted-key-domains.test.ts START 22:16:53 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/sorted-key-domains.test.ts:
+(pass) sorted key domains generated tree > TS generated tree exports comparison function for structure keys [1.00ms]
+(pass) sorted key domains generated tree > Structure key builder call site injects the comparator reference
+(pass) sorted key domains generated tree > Int key builder call site binds the resident comparator
+(pass) sorted key domains generated tree > String key builder call site binds the resident comparator
+37 | 
+38 |   test("Rust generated tree widens an int capacity bound without an error enum", () => {
+39 |     const clusterTagsPath = path.resolve(__dirname, "../../reference/rust/gen/boring/cluster_tags.rs");
+40 |     expect(fs.existsSync(clusterTagsPath)).toBe(true);
+41 |     const content = fs.readFileSync(clusterTagsPath, "utf8");
+42 |     expect(content).toContain("let capacity = usize::try_from(u32::from_ne_bytes((set.size()).to_ne_bytes())).unwrap_or(0);");
+                         ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "let capacity = usize::try_from(u32::from_ne_bytes((set.size()).to_ne_bytes())).unwrap_or(0);"
+Received: "use crate::runtime::sorted_table::SortedMapTable;\nuse crate::runtime::sorted_table::SortedMapTableBuilder;\nuse crate::runtime::sorted_table::SortedSetTable;\nuse crate::runtime::sorted_table::SortedSetTableBuilder;\nuse crate::runtime::sorted_table::SortedTable;\nuse crate::runtime::u_string::UString;\nuse std::fmt::Write;\nuse std::sync::Arc;\n\n\n#[derive(Clone, Copy)]\npub struct ClusterTags;\n\nimpl ClusterTags {\n    pub fn cluster_tags_create_map() -> SortedMapTable<ClusterTag, u32> {\n        let mut b: SortedMapTableBuilder<ClusterTag, u32> = SortedTable::sorted_table_map_builder::<ClusterTag, u32>(Arc::new(compare_cluster_tag));\n        b.put(&(ClusterTag { name: UString::from(\"beta\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: true }), &(100));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 20, sub: SubTag { priority: 2 }, active: false }), &(200));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 10, sub: SubTag { priority: 3 }, active: true }), &(300));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: true }), &(400));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: false }), &(500));\n        return b.clone().build();\n    }\n\n    pub fn cluster_tags_create_set() -> SortedSetTable<ClusterTag> {\n        let mut b: SortedSetTableBuilder<ClusterTag> = SortedTable::sorted_table_set_builder::<ClusterTag>(Arc::new(compare_cluster_tag));\n        b.put(&(ClusterTag { name: UString::from(\"beta\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: true }));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: false }));\n        b.put(&(ClusterTag { name: UString::from(\"beta\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: true }));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 20, sub: SubTag { priority: 2 }, active: false }));\n        return b.clone().build();\n    }\n\n    pub fn cluster_tags_tag_score(tag: ClusterTag) -> Option<u32> {\n        let map: SortedMapTable<ClusterTag, u32> = ClusterTags::cluster_tags_create_map();\n        return map.get(&(tag));\n    }\n\n    pub fn cluster_tags_describe_order() -> UString {\n        let map: SortedMapTable<ClusterTag, u32> = ClusterTags::cluster_tags_create_map();\n        let mut parts: Vec<UString> = vec![];\n        let count = u32::from_ne_bytes(((map.size()) as u32).to_ne_bytes());\n        for i in 0..count {\n            let k = map.key_at({ let v: u32 = i; i32::from_ne_bytes(v.to_ne_bytes()) });\n            let mut act = UString::from(\"F\").to_ustring();\n            if k.active {\n                act = UString::from(\"T\").to_ustring();\n            }\n            parts.push(UString::from(format!(\"{}\", { let mut __s = UString::new(); __s += (k.name).to_ustring().as_ustr(); __s += &(UString::from(\":\")); __s += &(UString::from((k.score).to_string().as_str())); __s += &(UString::from(\":\")); __s += &(UString::from(((k.sub).clone().priority).to_string().as_str())); __s += &(UString::from(\":\")); __s += act.as_ustr(); __s += &(UString::from(\"=\")); __s += &(UString::from((map.value_at({ let v: u32 = i; i32::from_ne_bytes(v.to_ne_bytes()) })).to_string().as_str())); __s }).as_str()));\n        }\n        return UString::from(format!(\"{}\", { let joined = parts; let mut out = String::new(); let n = joined.len(); let mut index = 0usize; while index < n { if index > 0 { out.push_str(\"; \"); } let _ = write!(out, \"{}\", joined[index]); index += 1; } UString::from(out.as_str()) }).as_str());\n    }\n\n    pub fn cluster_tags_describe_set_order() -> UString {\n        let set: SortedSetTable<ClusterTag> = ClusterTags::cluster_tags_create_set();\n        let mut parts: Vec<UString> = vec![];\n        let count = u32::from_ne_bytes(((set.size()) as u32).to_ne_bytes());\n        for i in 0..count {\n            let k = set.at({ let v: u32 = i; i32::from_ne_bytes(v.to_ne_bytes()) });\n            let mut act = UString::from(\"F\").to_ustring();\n            if k.active {\n                act = UString::from(\"T\").to_ustring();\n            }\n            parts.push(UString::from(format!(\"{}\", { let mut __s = UString::new(); __s += (k.name).to_ustring().as_ustr(); __s += &(UString::from(\":\")); __s += &(UString::from((k.score).to_string().as_str())); __s += &(UString::from(\":\")); __s += &(UString::from(((k.sub).clone().priority).to_string().as_str())); __s += &(UString::from(\":\")); __s += act.as_ustr(); __s }).as_str()));\n        }\n        return UString::from(format!(\"{}\", { let joined1 = parts; let mut out = String::new(); let n = joined1.len(); let mut index1 = 0usize; while index1 < n { if index1 > 0 { out.push_str(\"; \"); } let _ = write!(out, \"{}\", joined1[index1]); index1 += 1; } UString::from(out.as_str()) }).as_str());\n    }\n\n    pub fn cluster_tags_set_scores() -> Vec<u32> {\n        let set: SortedSetTable<ClusterTag> = ClusterTags::cluster_tags_create_set();\n        let capacity = usize::try_from(u32::from_ne_bytes(((set.size()) as u32).to_ne_bytes())).unwrap_or(0);\n        let mut scores = Vec::with_capacity(capacity);\n        for i in 0..u32::from_ne_bytes(((set.size()) as u32).to_ne_bytes()) {\n            scores.push(set.at(i32::from_ne_bytes(((i) as i32).to_ne_bytes())).score);\n        }\n        return scores;\n    }\n\n    pub fn cluster_tags_describe_scores() -> UString {\n        let scores = ClusterTags::cluster_tags_set_scores();\n        let capacity = scores.len();\n        let mut parts = Vec::with_capacity(capacity);\n        for i in 0..match u32::try_from(scores.len()) { Ok(value) => value, Err(_) => u32::MAX } {\n            parts.push(UString::from((scores[usize::try_from(i).unwrap_or(0)]).to_string().as_str()));\n        }\n        return UString::from(format!(\"{}\", { let joined2 = parts; let mut out = String::new(); let n = joined2.len(); let mut index2 = 0usize; while index2 < n { if index2 > 0 { out.push_str(\",\"); } let _ = write!(out, \"{}\", joined2[index2]); index2 += 1; } UString::from(out.as_str()) }).as_str());\n    }\n}\n\n#[derive(Debug, Clone, Copy, PartialEq)]\npub struct SubTag {\n    pub priority: u32,\n}\n\npub fn compare_sub_tag(a: &SubTag, b: &SubTag) -> i32 {\n    let cmp_priority = match i32::from_ne_bytes((a.priority).to_ne_bytes()).cmp(&i32::from_ne_bytes((b.priority).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };\n    if cmp_priority != 0 { return cmp_priority; }\n    0\n}\n\n#[derive(Debug, Clone, PartialEq)]\npub struct ClusterTag {\n    pub name: UString,\n    pub score: u32,\n    pub sub: SubTag,\n    pub active: bool,\n}\n\npub fn compare_cluster_tag(a: &ClusterTag, b: &ClusterTag) -> i32 {\n    let cmp_name = SortedTable::sorted_table_compare_strings(a.name.as_ustr(), b.name.as_ustr());\n    if cmp_name != 0 { return cmp_name; }\n    let cmp_score = match i32::from_ne_bytes((a.score).to_ne_bytes()).cmp(&i32::from_ne_bytes((b.score).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };\n    if cmp_score != 0 { return cmp_score; }\n    let cmp_sub = compare_sub_tag(&a.sub, &b.sub);\n    if cmp_sub != 0 { return cmp_sub; }\n    let cmp_active = if a.active < b.active { -1 } else if a.active > b.active { 1 } else { 0 };\n    if cmp_active != 0 { return cmp_active; }\n    0\n}\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/sorted-key-domains.test.ts:42:21)
+(fail) sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum [1.00ms]
+
+ 4 pass
+ 1 fail
+ 12 expect() calls
+Ran 5 tests across 1 file. [52.00ms]
+=== FILE tests/ts/sorted-key-domains.test.ts END exit=1 22:16:53 ===
+=== FILE tests/ts/static-extension.test.ts START 22:16:53 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/static-extension.test.ts:
+(pass) top-level and extension function lowering > TypeScript extracts file functions and keeps the receiver first [1.00ms]
+(pass) top-level and extension function lowering > Kotlin emits file-facade functions and receiver extensions [1.00ms]
+(pass) top-level and extension function lowering > Swift emits a file function and native extension blocks
+(pass) top-level and extension function lowering > Dart emits named grouped extensions and library top-level functions
+(pass) top-level and extension function lowering > Rust uses an inherent impl only for the owned receiver
+
+ 5 pass
+ 0 fail
+ 66 expect() calls
+Ran 5 tests across 1 file. [58.00ms]
+=== FILE tests/ts/static-extension.test.ts END exit=0 22:16:53 ===
+=== FILE tests/ts/static-state.test.ts START 22:16:53 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/static-state.test.ts:
+(pass) static fields generated trees > TypeScript emits mutable, container, and constant static declarations [1.00ms]
+(pass) static fields generated trees > Kotlin emits nullable var, mutableList val, and constant val
+(pass) static fields generated trees > Swift keeps array statics mutable for value-semantic append
+(pass) static fields generated trees > Dart flattens static state and applies the private underscore
+(pass) static fields generated trees > Rust uses Mutex guards and the direct constant lane
+killed 1 dangling process
+(fail) static initializer mutation is rejected with the sanctioned error [15000.75ms]
+  ^ this test timed out after 15000ms.
+
+ 5 pass
+ 1 fail
+ 27 expect() calls
+Ran 6 tests across 1 file. [15.05s]
+=== FILE tests/ts/static-state.test.ts END exit=1 22:17:08 ===
+=== FILE tests/ts/std-string.test.ts START 22:17:08 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/std-string.test.ts:
+(pass) Std.string lowering > generated trees contain no unresolved Std reference [111.00ms]
+(pass) Std.string lowering > Kotlin concatenation keeps Std.string scalar operands bare
+(pass) Std.string lowering > enum operands use each target constructor-name read
+(pass) Std.string lowering > Rust standalone scalars use to_string
+(pass) Std.string lowering > array operands use one single-pass builder in every target [1.00ms]
+(pass) Std.string lowering > unsupported operands report the named error [31024.47ms]
+killed 1 dangling process
+(fail) Std.string lowering > nullable operands are rejected on every target [120000.97ms]
+  ^ this test timed out after 120000ms.
+
+ 6 pass
+ 1 fail
+ 2427 expect() calls
+Ran 7 tests across 1 file. [151.19s]
+=== FILE tests/ts/std-string.test.ts END exit=1 22:19:39 ===
+=== FILE tests/ts/strict-output.test.ts START 22:19:39 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/strict-output.test.ts:
+killed 1 dangling process
+(fail) strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+34 |       "class Probe {",
+35 |       "  public static function run(text:String, values:Array<Int>):Int return text.indexOf(\"x\") + values.indexOf(2);",
+36 |       "}", "",
+37 |     ].join("\n"));
+38 |     try {
+39 |       expect(result.code).toBe(0);
+                               ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 143
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/strict-output.test.ts:39:27)
+-------------------------------
+
+killed 1 dangling process
+(fail) strict TypeScript emitter output > single-argument substr drops its synthesized null length [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+51 |     const result = await compileFixture([
+52 |       "package fixtures;",
+53 |       "class Probe { public static function run(text:String):String return text.substr(1); }", "",
+54 |     ].join("\n"));
+55 |     try {
+56 |       expect(result.code).toBe(0);
+                               ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 143
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/strict-output.test.ts:56:27)
+-------------------------------
+
+killed 1 dangling process
+(fail) strict TypeScript emitter output > switch-expression cases render preceding statements before their value [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+72 |       "    case Other: 2;",
+73 |       "  };",
+74 |       "}", "",
+75 |     ].join("\n"));
+76 |     try {
+77 |       expect(result.code).toBe(0);
+                               ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 143
+
+      at <anonymous> (/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/strict-output.test.ts:77:27)
+-------------------------------
+
+killed 1 dangling process
+(fail) strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 4 fail
+ 3 errors
+ 3 expect() calls
+Ran 4 tests across 1 file. [20.06s]
+=== FILE tests/ts/strict-output.test.ts END exit=1 22:19:59 ===
+=== FILE tests/ts/string-buffer.test.ts START 22:19:59 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/string-buffer.test.ts:
+(pass) string buffer generated tree > TS lowers StringBuf to primitive strings with inline pairing checks [2.00ms]
+(pass) string buffer generated tree > Kotlin lowers StringBuf to StringBuilder with tail reads via lastOrNull
+(pass) string buffer generated tree > Rust lowers StringBuf to Vec<u16> with fault arms bound in the pattern
+(pass) string buffer generated tree > Swift lowers StringBuf to UTF-16 arrays
+(pass) string buffer generated tree > Dart lowers StringBuf to UTF-16 unit lists
+
+ 5 pass
+ 0 fail
+ 36 expect() calls
+Ran 5 tests across 1 file. [56.00ms]
+=== FILE tests/ts/string-buffer.test.ts END exit=0 22:19:59 ===
+=== FILE tests/ts/stringtools-conv.test.ts START 22:19:59 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/stringtools-conv.test.ts:
+(pass) StringTools conversions lowering > kotlin trees qualify StringTools statics through the runtime resident [21.00ms]
+(pass) StringTools conversions lowering > every tree referencing StringTools statics emits its runtime resident [18.00ms]
+(pass) StringTools conversions lowering > each target uses its ruled native conversion spelling [1.00ms]
+killed 1 dangling process
+(fail) StringTools conversions lowering > negative hex arguments report the named domain error [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+ 3 pass
+ 1 fail
+ 435 expect() calls
+Ran 4 tests across 1 file. [5.10s]
+=== FILE tests/ts/stringtools-conv.test.ts END exit=1 22:20:04 ===
+=== FILE tests/ts/switch-ops.test.ts START 22:20:04 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/switch-ops.test.ts:
+(pass) variant switch lowering > supports statement and initializer positions [1.00ms]
+(pass) variant switch lowering > supports default arms
+(pass) variant switch lowering > supports switches inside conditional arms
+
+ 3 pass
+ 0 fail
+ 11 expect() calls
+Ran 3 tests across 1 file. [42.00ms]
+=== FILE tests/ts/switch-ops.test.ts END exit=0 22:20:04 ===
+=== FILE tests/ts/try-region.test.ts START 22:20:04 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/try-region.test.ts:
+(pass) TTry catch-site lowering > uses native typed catch forms on every target [1.00ms]
+
+ 1 pass
+ 0 fail
+ 8 expect() calls
+Ran 1 test across 1 file. [54.00ms]
+=== FILE tests/ts/try-region.test.ts END exit=0 22:20:04 ===
+=== FILE tests/ts/value-type.test.ts START 22:20:04 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/value-type.test.ts:
+(pass) value wrapper generated trees > renders the five target representations and member forms [2.00ms]
+(fail) value wrapper generated trees > rejects each invalid marker shape with the ruled error on every target [369625.73ms]
+  ^ this test timed out after 120000ms.
+
+ 1 pass
+ 1 fail
+ 63 expect() calls
+Ran 2 tests across 1 file. [369.68s]
+=== FILE tests/ts/value-type.test.ts END exit=1 22:26:14 ===
+=== FILE tests/ts/vector-sort.test.ts START 22:26:14 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/vector-sort.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@boring/codec' from '/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/vector-sort.test.ts'
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+Ran 1 test across 1 file. [42.00ms]
+=== FILE tests/ts/vector-sort.test.ts END exit=1 22:26:14 ===
+=== FILE tests/ts/vector.test.ts START 22:26:14 ===
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/vector.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@boring/codec' from '/home/losses/Development/tq-workspace/architecture-workspaces/fix-rust-string-expectation-family/tests/ts/vector.test.ts'
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+Ran 1 test across 1 file. [40.00ms]
+=== FILE tests/ts/vector.test.ts END exit=1 22:26:14 ===
+ALL DONE

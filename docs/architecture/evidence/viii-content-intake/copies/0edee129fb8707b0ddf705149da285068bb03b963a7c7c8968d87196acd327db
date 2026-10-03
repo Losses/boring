@@ -1,0 +1,13 @@
+package boring;
+
+class C3AssignOracle {
+    public static function main():Void {
+        #if !swift_output
+        trace("switch-assign=" + C3AssignOps.switchAssignDest(true));
+        trace("switch-assign-nocross=" + C3AssignOps.switchAssignNoCross(true));
+        #else
+        C3AssignOps.switchAssignDest(true);
+        C3AssignOps.switchAssignNoCross(true);
+        #end
+    }
+}

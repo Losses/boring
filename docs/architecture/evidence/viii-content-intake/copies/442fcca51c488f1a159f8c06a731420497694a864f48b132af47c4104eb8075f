@@ -1,0 +1,101 @@
+use crate::runtime::sorted_table::SortedTable;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComparatorBoolRecord {
+    pub id: u32,
+    pub enabled: bool,
+}
+
+impl ComparatorBoolRecord {
+    pub fn new(id: u32, enabled: bool) -> Self {
+        Self {
+            id,
+            enabled,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("ComparatorBoolRecord(")); __s += &(UString::from("id=")); __s += &(UString::from((self.id).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("enabled=")); __s += UString::from((self.enabled).to_string().as_str()).as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComparatorFloatRecord {
+    pub id: u32,
+    pub weight: f32,
+}
+
+impl ComparatorFloatRecord {
+    pub fn new(id: u32, weight: f32) -> Self {
+        Self {
+            id,
+            weight,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("ComparatorFloatRecord(")); __s += &(UString::from("id=")); __s += &(UString::from((self.id).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("weight=")); __s += &(crate::runtime::fp_helper::FPHelper::format_float_f32(self.weight)); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComparatorIntStringRecord {
+    pub id: u32,
+    pub name: UString,
+}
+
+impl ComparatorIntStringRecord {
+    pub fn new(id: u32, name: &UStr) -> Self {
+        Self {
+            id,
+            name: name.to_ustring(),
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("ComparatorIntStringRecord(")); __s += &(UString::from("id=")); __s += &(UString::from((self.id).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("name=")); __s += (self.name).to_ustring().as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+pub fn compare_comparator_int_string_record(a: &ComparatorIntStringRecord, b: &ComparatorIntStringRecord) -> i32 {
+    let cmp_id = match i32::from_ne_bytes((*(&a.id)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.id)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_id != 0 { return cmp_id; }
+    let cmp_name = SortedTable::sorted_table_compare_strings((&a.name).as_ustr(), (&b.name).as_ustr());
+    if cmp_name != 0 { return cmp_name; }
+    0
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComparatorNestedRecord {
+    pub value: ComparatorIntStringRecord,
+}
+
+impl ComparatorNestedRecord {
+    pub fn new(value: ComparatorIntStringRecord) -> Self {
+        Self {
+            value,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("ComparatorNestedRecord(")); __s += &(UString::from("value=")); __s += UString::from(format!("{}", (self.value).clone().to_string()).as_str()).as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+pub fn compare_comparator_nested_record(a: &ComparatorNestedRecord, b: &ComparatorNestedRecord) -> i32 {
+    let cmp_value = compare_comparator_int_string_record(&a.value, &b.value);
+    if cmp_value != 0 { return cmp_value; }
+    0
+}
+
+#[derive(Clone, Copy)]
+pub struct ComparatorGateOps;
+
+impl ComparatorGateOps {
+    pub fn comparator_gate_ops_comparable() -> ComparatorNestedRecord {
+        return ComparatorNestedRecord::new(ComparatorIntStringRecord::new(1u32, &(UStr::new(&[111,107]))));
+    }
+}

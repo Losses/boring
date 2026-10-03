@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# VERBATIM from .github/workflows/ci.yml job collected-suite step "Collected suite (contract 3 count)",
+# with exactly one substitution: `bun run test` -> `bun test tests/bundle-child-evidence/bundle-child-evidence.test.ts`
+# (the full entry point takes ~31 min and rewrites a tracked fixture; see REPORT.md).
+set -o pipefail
+mkdir -p out
+nix develop -c bash -c 'bun test tests/bundle-child-evidence/bundle-child-evidence.test.ts' 2>&1 | tee out/collected-suite.log
+

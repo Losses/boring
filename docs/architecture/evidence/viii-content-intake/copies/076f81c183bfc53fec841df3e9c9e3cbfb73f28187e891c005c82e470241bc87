@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
+argv timeout 900 haxe tests/haxe/charcodeat/gen/rust.hxml -D rust-output=/home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212458Z/rust/gen -D rust-test-output=/home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212458Z/rust/gen-tests

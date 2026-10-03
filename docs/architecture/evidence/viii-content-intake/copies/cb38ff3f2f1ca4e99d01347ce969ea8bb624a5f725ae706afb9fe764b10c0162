@@ -1,0 +1,5 @@
+INTEGRITY FAIL: stage evidence set differs from manifest
+--- manifest only:
+  deleted: step-2119220958.stderr
+--- actual only (unmanifested):
+exit=1

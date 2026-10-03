@@ -1,0 +1,116 @@
+package boring
+
+import boring.runtime.SortedTable
+
+data class TextRange(val start: Int, val end: Int) {
+    val isEmpty: Boolean get() = get_isEmpty()
+
+    fun get_isEmpty(): Boolean {
+        return this.start == this.end
+    }
+}
+
+fun compareTextRange(a: TextRange, b: TextRange): Int {
+    var cmp = 0
+    cmp = a.start.compareTo(b.start)
+    if (cmp != 0) return cmp
+    cmp = a.end.compareTo(b.end)
+    if (cmp != 0) return cmp
+    return 0
+}
+
+data class RubySpan(val baseRange: TextRange, val text: String, val fontFamilies: List<String>, val kind: RubyKind, val enumKinds: List<RubyKind>, val ranges: List<TextRange>, val locale: String? = if (kind == RubyKind.Bopomofo) "zh-TW" else null) {
+}
+
+fun compareRubySpan(a: RubySpan, b: RubySpan): Int {
+    var cmp = 0
+    cmp = boring.compareTextRange(a.baseRange, b.baseRange)
+    if (cmp != 0) return cmp
+    cmp = a.text.compareTo(b.text)
+    if (cmp != 0) return cmp
+    cmp = run { val sequenceLeft0 = a.fontFamilies; val sequenceRight0 = b.fontFamilies; var index0 = 0; var difference0 = 0; while (index0 < sequenceLeft0.size && index0 < sequenceRight0.size) { difference0 = sequenceLeft0[index0].compareTo(sequenceRight0[index0]); if (difference0 != 0) break; index0 += 1 }; if (difference0 != 0) difference0 else sequenceLeft0.size.compareTo(sequenceRight0.size) }
+    if (cmp != 0) return cmp
+    cmp = when (a.kind) { RubyKind.Bopomofo -> 0; RubyKind.Other -> 1 }.compareTo(when (b.kind) { RubyKind.Bopomofo -> 0; RubyKind.Other -> 1 })
+    if (cmp != 0) return cmp
+    cmp = run { val sequenceLeft0 = a.enumKinds; val sequenceRight0 = b.enumKinds; var index0 = 0; var difference0 = 0; while (index0 < sequenceLeft0.size && index0 < sequenceRight0.size) { difference0 = when (sequenceLeft0[index0]) { RubyKind.Bopomofo -> 0; RubyKind.Other -> 1 }.compareTo(when (sequenceRight0[index0]) { RubyKind.Bopomofo -> 0; RubyKind.Other -> 1 }); if (difference0 != 0) break; index0 += 1 }; if (difference0 != 0) difference0 else sequenceLeft0.size.compareTo(sequenceRight0.size) }
+    if (cmp != 0) return cmp
+    cmp = run { val sequenceLeft0 = a.ranges; val sequenceRight0 = b.ranges; var index0 = 0; var difference0 = 0; while (index0 < sequenceLeft0.size && index0 < sequenceRight0.size) { difference0 = boring.compareTextRange(sequenceLeft0[index0], sequenceRight0[index0]); if (difference0 != 0) break; index0 += 1 }; if (difference0 != 0) difference0 else sequenceLeft0.size.compareTo(sequenceRight0.size) }
+    if (cmp != 0) return cmp
+    cmp = run { val nullableLeft0 = a.locale; val nullableRight0 = b.locale; when { nullableLeft0 == null && nullableRight0 == null -> 0; nullableLeft0 == null -> -1; nullableRight0 == null -> 1; else -> nullableLeft0.compareTo(nullableRight0) } }
+    if (cmp != 0) return cmp
+    return 0
+}
+
+data class QuotePair(val openIndex: Int, val closeIndex: Int, val quoteType: QuoteType) {
+}
+
+fun compareQuotePair(a: QuotePair, b: QuotePair): Int {
+    var cmp = 0
+    cmp = a.openIndex.compareTo(b.openIndex)
+    if (cmp != 0) return cmp
+    cmp = a.closeIndex.compareTo(b.closeIndex)
+    if (cmp != 0) return cmp
+    cmp = when (a.quoteType) { QuoteType.Open -> 0; QuoteType.Close -> 1 }.compareTo(when (b.quoteType) { QuoteType.Open -> 0; QuoteType.Close -> 1 })
+    if (cmp != 0) return cmp
+    return 0
+}
+
+object SortedDataClassKeysOps {
+    fun read(): String {
+        val b = SortedTable.mapBuilder<TextRange, String>(::compareTextRange)
+        b.put(TextRange(4, 8), "b")
+        b.put(TextRange(1, 2), "a")
+        val m = b.build()
+        val q = SortedTable.mapBuilder<QuotePair, String>(::compareQuotePair)
+        q.put(QuotePair(2, 4, QuoteType.Close), "close")
+        q.put(QuotePair(2, 4, QuoteType.Open), "open")
+        val qm = q.build()
+        val r = SortedTable.mapBuilder<RubySpan, String>(::compareRubySpan)
+        r.put(RubySpan(TextRange(3, 4), "z", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Other), mutableListOf<TextRange>(TextRange(3, 4))), "nested")
+        r.put(RubySpan(TextRange(1, 2), "a", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Bopomofo), mutableListOf<TextRange>(TextRange(1, 2))), "nested-first")
+        val rm = r.build()
+        return m.valueAt(0) + "," + m.valueAt(1) + ";" + qm.valueAt(0) + "," + qm.valueAt(1) + ";" + rm.valueAt(0) + "," + rm.valueAt(1)
+    }
+
+    fun arrayMutations(): String {
+        val a = RubySpan(TextRange(1, 2), "x", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Bopomofo, RubyKind.Other), mutableListOf<TextRange>(TextRange(1, 2)))
+        val b = RubySpan(TextRange(1, 2), "x", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Other, RubyKind.Other), mutableListOf<TextRange>(TextRange(1, 2)))
+        val beforeBuilder = SortedTable.mapBuilder<RubySpan, String>(::compareRubySpan)
+        beforeBuilder.put(a, "a")
+        beforeBuilder.put(b, "b")
+        val before = beforeBuilder.build()
+        val c = RubySpan(TextRange(1, 2), "x", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Other, RubyKind.Other), mutableListOf<TextRange>(TextRange(1, 2)))
+        val d = RubySpan(TextRange(1, 2), "x", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Bopomofo, RubyKind.Other), mutableListOf<TextRange>(TextRange(1, 2)))
+        val afterBuilder = SortedTable.mapBuilder<RubySpan, String>(::compareRubySpan)
+        afterBuilder.put(c, "c")
+        afterBuilder.put(d, "d")
+        val after = afterBuilder.build()
+        val prefixBuilder = SortedTable.mapBuilder<RubySpan, String>(::compareRubySpan)
+        prefixBuilder.put(RubySpan(TextRange(1, 2), "x", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Other, RubyKind.Bopomofo), mutableListOf<TextRange>(TextRange(1, 2))), "long")
+        prefixBuilder.put(RubySpan(TextRange(1, 2), "x", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Other), mutableListOf<TextRange>(TextRange(1, 2))), "short")
+        val prefix = prefixBuilder.build()
+        return before.valueAt(0) + before.valueAt(1) + ";" + after.valueAt(0) + after.valueAt(1) + ";" + prefix.valueAt(0) + "long"
+    }
+
+    fun nullableMutation(): String {
+        val nullKey = RubySpan(TextRange(1, 2), "x", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Other), mutableListOf<TextRange>(TextRange(1, 2)))
+        val valueKey = RubySpan(TextRange(1, 2), "x", mutableListOf<String>("serif"), RubyKind.Other, mutableListOf<RubyKind>(RubyKind.Other), mutableListOf<TextRange>(TextRange(1, 2)), "en")
+        val mapBuilder = SortedTable.mapBuilder<RubySpan, String>(::compareRubySpan)
+        mapBuilder.put(valueKey, "value")
+        mapBuilder.put(nullKey, "null")
+        val map = mapBuilder.build()
+        return map.valueAt(0) + ";value"
+    }
+}
+
+enum class QuoteType {
+    Open,
+    Close
+}
+fun compareQuoteType(a: QuoteType, b: QuoteType): Int = a.ordinal - b.ordinal
+
+enum class RubyKind {
+    Bopomofo,
+    Other
+}
+fun compareRubyKind(a: RubyKind, b: RubyKind): Int = a.ordinal - b.ordinal

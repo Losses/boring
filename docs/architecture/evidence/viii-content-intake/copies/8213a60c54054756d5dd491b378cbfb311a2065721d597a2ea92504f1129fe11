@@ -1,0 +1,37 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlyphCluster {
+    pub cluster_range: u32,
+    pub start: u32,
+    pub end: u32,
+}
+
+impl GlyphCluster {
+    pub fn new(cluster_range: u32, start: u32, end: u32) -> Self {
+        Self {
+            cluster_range,
+            start,
+            end,
+        }
+    }
+
+    pub fn get_width(&self) -> u32 {
+        return u32::wrapping_sub(self.end, self.start);
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("GlyphCluster(")); __s += &(UString::from("clusterRange=")); __s += &(UString::from((self.cluster_range).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("start=")); __s += &(UString::from((self.start).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("end=")); __s += &(UString::from((self.end).to_string().as_str())); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+pub fn compare_glyph_cluster(a: &GlyphCluster, b: &GlyphCluster) -> i32 {
+    let cmp_cluster_range = match i32::from_ne_bytes((*(&a.cluster_range)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.cluster_range)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_cluster_range != 0 { return cmp_cluster_range; }
+    let cmp_start = match i32::from_ne_bytes((*(&a.start)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.start)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_start != 0 { return cmp_start; }
+    let cmp_end = match i32::from_ne_bytes((*(&a.end)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.end)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_end != 0 { return cmp_end; }
+    0
+}

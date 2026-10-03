@@ -1,0 +1,17 @@
+use crate::boring::plain_label::PlainLabel;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct ToStringOps;
+
+impl ToStringOps {
+    pub fn to_string_ops_make_label(text: &UStr, width: u32) -> PlainLabel {
+        return PlainLabel::new(text, width);
+    }
+
+    pub fn to_string_ops_describe(label: PlainLabel) -> UString {
+        return UString::from(format!("{}", label.to_string()).as_str());
+    }
+}

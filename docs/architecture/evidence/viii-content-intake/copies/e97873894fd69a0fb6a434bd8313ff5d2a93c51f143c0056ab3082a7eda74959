@@ -1,0 +1,299 @@
+import { describe, expect, test } from "bun:test";
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+describe("default argument expansion generated tree", () => {
+  const tsGenDir = path.resolve(__dirname, "../../reference/ts/gen");
+  const kotlinGenDir = path.resolve(__dirname, "../../reference/kotlin/gen");
+  const swiftGenDir = path.resolve(__dirname, "../../reference/swift/gen");
+  const dartGenDir = path.resolve(__dirname, "../../reference/dart/gen");
+  const rustGenDir = path.resolve(__dirname, "../../reference/rust/gen");
+
+  test("TS generated tree emits full-arity calls and clean method signatures", () => {
+    const tsFile = path.join(tsGenDir, "boring/DefaultArgsOps.ts");
+    expect(fs.existsSync(tsFile)).toBe(true);
+    const content = fs.readFileSync(tsFile, "utf8");
+
+    // Constant defaults are completed at the call site, so their parameters carry
+    // no default syntax. A coalescing default keeps a null initializer and the
+    // normalization stays in the body (spec 51 rules 4 and 5).
+    expect(content).toContain("public static greet(name: string, prefix: string): string");
+    expect(content).toContain("public static configure(base: number, offset: number, scale: number, flag: boolean): number");
+    expect(content).toContain("public formatLabel(label: string | null, sep: string): string");
+    expect(content).toContain("public static describeTag(tag: string, detail?: string | null): string");
+    expect(content).toContain("public static openMode(id: number, mode: Mode): string");
+    expect(content).toContain("public static adjust(value: number, step: number): number");
+    expect(content).toContain("public static greetWithPrefix(name: string, prefix: string | null = null): string");
+    expect(content).toContain("const normalized = prefix ?? name;");
+    expect(content).toContain("public static sizeLabel(items?: string[] | null): string");
+    expect(content).toContain("public static fieldAccessSample(items: string[], count: number | null = null): number");
+    expect(content).toContain("const normalized = count ?? items.length;");
+    expect(content).toContain("public static localeSample(lang: string, fallback: string | null = null): string");
+    expect(content).toContain("const normalized = fallback ?? (lang === \"en\" ? \"English\" : \"Other\");");
+    expect(content).toContain("public static methodCallSample(text: string, normalized: string | null = null): string");
+    expect(content).toContain("const value = normalized ?? text.toUpperCase();");
+    expect(content).toContain("public static staticCallSample(value: number, clamped: number | null = null): number");
+    expect(content).toContain("const result = clamped ?? DefaultArgsOps.clampBase(value);");
+    expect(content).toContain("const normalized = fallback ?? SortedTable.setBuilder<number>(SortedTable.compareInts).build();");
+    expect(content).toContain("public static staticFieldSample(value: number, bound: number | null = null): number");
+    expect(content).toContain("const normalized = bound ?? StaticStateOps.limit;");
+    expect(content).toContain("const v = p ?? this.normalizationField;");
+    expect(content).toContain("const w = q ?? loc;");
+    expect(content).toContain("const w = q ?? this.fallbackCount;");
+    expect(content).toContain("const v = p ?? this.fallbackCount;");
+
+
+    // A coalescing default reading an earlier coalescing parameter resolves
+    // through that parameter's own default in the body; omitting call sites
+    // stay omitted.
+    expect(content).toContain("public static chainedCoalescing(fallback: number | null = null, value: number | null = null): number");
+    expect(content).toContain("const resolvedValue = value ?? (fallback ?? 2.5);");
+    expect(content).toContain("export class ChainedPaint");
+    expect(content).toContain("constructor(radius: number | null = null, followRadius: number | null = null)");
+    expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");
+    expect(content).toContain("return DefaultArgsOps.chainedCoalescing();");
+
+    // A zero-argument self-construction on a field-carrying class is a
+    // constructed static initializer (spec 35), never the spec 32
+    // singleton: the printed form stays the labeled record text.
+    expect(content).toContain("public static readonly Default: CoalescingPreset = new CoalescingPreset();");
+    expect(content).toContain("constructor(base: number | null = null, ceiling: number | null = null)");
+    expect(content).toContain("this.ceiling = ceiling ?? 0.5;");
+    expect(content).toContain("CoalescingPreset(base=${this.base}, ceiling=${this.ceiling})");
+
+    // A coalescing default keeps its container expression in the body, so the
+    // empty container stays expression-valued and fresh per call.
+    expect(content).toContain("constructor(familyNames: string[] | null = null)");
+    expect(content).toContain("public static infinityDefault(value: number | null = null): number");
+    expect(content).toContain("const normalized = value ?? Infinity;");
+    expect(content).toContain("public static mapDefault(value: Map<string, number> | null = null): Map<string, number>");
+    expect(content).toContain("const normalized = value ?? new Map();");
+    expect(content).toContain("return DefaultArgsOps.infinityDefault();");
+    expect(content).toContain("return DefaultArgsOps.mapDefault();");
+    expect(content).not.toContain("infinityDefault(null)");
+    expect(content).not.toContain("mapDefault(null)");
+
+    // Call sites are fully expanded to full arity with compiler-inserted default constants
+    expect(content).toContain('return DefaultArgsOps.greet("Ada", "Hello");');
+    expect(content).toContain("return DefaultArgsOps.configure(100, 20, 1.5, true);");
+    expect(content).toContain("return DefaultArgsOps.configure(100, 20, 2.5, true);");
+    expect(content).toContain("return DefaultArgsOps.configure(100, 10, 2.5, true);");
+    expect(content).toContain('return ops.formatLabel("item", "-");');
+    expect(content).toContain('return ops.formatLabel(null, "-");');
+    expect(content).toContain('return DefaultArgsOps.describeTag("alpha", null);');
+    expect(content).toContain("return DefaultArgsOps.openMode(1, Mode.Read);");
+    expect(content).toContain("return DefaultArgsOps.adjust(20.0, -5.0);");
+    expect(content).toContain("return localAdd(x, 100);");
+    expect(content).toContain("return localAdd(x, 200);");
+    expect(content).toContain('return greeter.say("Sam", "User");');
+  });
+
+  test("Kotlin generated tree emits native defaults and full-arity calls", () => {
+    const ktFile = path.join(kotlinGenDir, "boring/DefaultArgsOps.kt");
+    expect(fs.existsSync(ktFile)).toBe(true);
+    const content = fs.readFileSync(ktFile, "utf8");
+
+    // Optional parameters carry native Kotlin default initializers.
+    expect(content).toContain('fun greet(name: String, prefix: String = "Hello"): String');
+    expect(content).toContain("fun configure(base: Int, offset: Int = 10, scale: Double = 2.5, flag: Boolean = true): Double");
+    expect(content).toContain("fun formatLabel(label: String? = null, sep: String = \"-\"): String");
+    expect(content).toContain("fun describeTag(tag: String, detail: String? = null): String");
+    expect(content).toContain("fun openMode(id: Int, mode: Mode = Mode.Read): String");
+    expect(content).toContain("fun adjust(value: Double, step: Double = -5.0): Double");
+
+    // Parameter-reading coalescing defaults stay native on Kotlin.
+    expect(content).toContain("fun greetWithPrefix(name: String, prefix: String = name): String");
+    expect(content).toContain("fun fieldAccessSample(items: MutableList<String>, count: Int = items.size): Int");
+    expect(content).toContain("fun localeSample(lang: String, fallback: String = if (lang == \"en\") \"English\" else \"Other\"): String");
+    expect(content).toContain("fun methodCallSample(text: String, normalized: String = text.uppercase()): String");
+    expect(content).toContain("fun staticCallSample(value: Int, clamped: Int = DefaultArgsOps.clampBase(value)): Int");
+    expect(content).toContain("val normalized = fallback ?: SortedTable.setBuilder<Int>(SortedTable::compareInts).build()");
+    expect(content).toContain("fun staticFieldSample(value: Int, bound: Int = StaticStateOps.limit): Int");
+    expect(content).toContain("fun binarySample(value: Int, offset: Int = value + 1): Int");
+    expect(content).toContain("val v = p ?: this.normalizationField");
+    expect(content).toContain("val w = q ?: loc");
+    expect(content).toContain("val w = q ?: this.fallbackCount");
+    expect(content).toContain("val v = p ?: this.fallbackCount");
+
+
+    // A coalescing default reading an earlier coalescing parameter keeps
+    // native defaults on the function and the primary constructor field.
+    expect(content).toContain("fun chainedCoalescing(fallback: Double = 2.5, value: Double = fallback): Double");
+    expect(content).toContain("class ChainedPaint(var radius: Double = 0.0, var followRadius: Double = radius)");
+
+    // The field-carrying zero-argument self-construction static lowers as
+    // a companion construction initializer; the data class keeps the
+    // native labeled printed form and emits no explicit member.
+    expect(content).toContain("data class CoalescingPreset(val base: Double = 0.125, val ceiling: Double = 0.5)");
+    expect(content).toContain("val Default: CoalescingPreset = CoalescingPreset()");
+
+    // Kotlin receives native defaults for the sanctioned coalescing class.
+    expect(content).toContain("class DefaultArgsOps(var familyNames: MutableList<String> = mutableListOf<String>())");
+    expect(content).toContain("fun infinityDefault(value: Double = Double.POSITIVE_INFINITY): Double");
+    expect(content).toContain("fun mapDefault(value: MutableMap<String, Int> = mutableMapOf()): MutableMap<String, Int>");
+    expect(content).toContain("return DefaultArgsOps.infinityDefault()");
+    expect(content).toContain("return DefaultArgsOps.mapDefault()");
+
+    // Call sites are fully expanded to full arity
+    expect(content).toContain('return DefaultArgsOps.greet("Ada", "Hello")');
+    expect(content).toContain("return DefaultArgsOps.configure(100, 20, 1.5, true)");
+    expect(content).toContain("return DefaultArgsOps.configure(100, 20, 2.5, true)");
+    expect(content).toContain("return DefaultArgsOps.configure(100, 10, 2.5, true)");
+    expect(content).toContain('return ops.formatLabel("item", "-")');
+    expect(content).toContain('return ops.formatLabel(null, "-")');
+    expect(content).toContain('return DefaultArgsOps.describeTag("alpha", null)');
+    expect(content).toContain("return DefaultArgsOps.openMode(1, Mode.Read)");
+    expect(content).toContain("return DefaultArgsOps.adjust(20.0, -5.0)");
+    expect(content).toContain("return localAdd(x, 100)");
+    expect(content).toContain("return localAdd(x, 200)");
+    expect(content).toContain('return greeter.say("Sam", "User")');
+  });
+
+  test("Rust generated tree emits full-arity calls and clean method signatures", () => {
+    const rsFile = path.join(rustGenDir, "boring/default_args_ops.rs");
+    expect(fs.existsSync(rsFile)).toBe(true);
+    const content = fs.readFileSync(rsFile, "utf8");
+
+    // Method signatures carry clean typed parameter lists
+    expect(content).toContain("pub fn default_args_ops_greet(name: &UStr, prefix: &UStr) -> UString");
+    expect(content).toContain("pub fn default_args_ops_configure(base: u32, offset: u32, scale: f64, flag: bool) -> f64");
+    expect(content).toContain("pub fn format_label(&self, label: Option<UString>, sep: &UStr) -> UString");
+    expect(content).toContain("pub fn default_args_ops_describe_tag(tag: &UStr, detail: Option<UString>) -> UString");
+    expect(content).toContain("pub fn default_args_ops_open_mode(id: u32, mode: Mode) -> UString");
+    expect(content).toContain("pub fn default_args_ops_adjust(value: f64, step: f64) -> f64");
+
+    // Rust normalizes parameter-reading defaults at entry in declaration order.
+    expect(content).toContain("pub fn default_args_ops_greet_with_prefix(name: &UStr, prefix: Option<UString>) -> UString");
+    expect(content).toContain("let prefix = prefix.unwrap_or_else(|| name.to_ustring());");
+    expect(content).toContain("pub fn default_args_ops_field_access_sample(items: &Vec<UString>, count: Option<u32>) -> u32");
+    expect(content).toContain("let count = count.unwrap_or_else(|| match u32::try_from((items).len())");
+    expect(content).toContain("let fallback = fallback.unwrap_or_else(|| if lang == UString::from(\"en\") { UString::from(\"English\") } else { UString::from(\"Other\") });");
+    expect(content).toContain("let normalized = normalized.unwrap_or_else(|| text.to_uppercase());");
+    expect(content).toContain("let clamped = clamped.unwrap_or_else(|| DefaultArgsOps::default_args_ops_clamp_base(value));");
+    expect(content).toContain("SortedTable::sorted_table_set_builder::<u32>");
+    expect(content).toContain("pub fn default_args_ops_static_field_sample(value: u32, bound: Option<u32>) -> u32");
+    expect(content).toContain("let bound = bound.unwrap_or_else(|| StaticStateOps::STATIC_STATE_OPS_LIMIT);");
+    expect(content).toContain("let offset = offset.unwrap_or_else(|| value + 1);");
+    expect(content).toContain("pub fn instance_field_normalization(&self, p: Option<UString>) -> UString");
+    expect(content).toContain("pub fn earlier_local_normalization(&self, seed: &UStr, q: Option<UString>) -> UString");
+    expect(content).toContain("let v = match &(p) { None => self.fallback_count, Some(__option4) => *__option4 };");
+    expect(content).toContain("let w = match &(q) { None => self.fallback_count, Some(__option5) => *__option5 };");
+
+
+    // Rust has no default syntax: omission is completed to None and each
+    // entry point evaluates its sanctioned expression lazily.
+    expect(content).toContain("pub fn new(family_names: Option<Vec<UString>>) -> Self");
+    expect(content).toContain("let family_names = family_names.unwrap_or_else(|| vec![]);");
+    expect(content).toContain("pub fn default_args_ops_infinity_default(value: Option<f64>) -> f64");
+    expect(content).toContain("let value = value.unwrap_or_else(|| f64::INFINITY);");
+    expect(content).toContain("pub fn default_args_ops_map_default(value: Option<HashMap<UString, u32>>) -> HashMap<UString, u32>");
+    expect(content).toContain("let value = value.unwrap_or_else(|| HashMap::new());");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_infinity_default(None);");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_map_default(None);");
+
+    // Call sites are fully expanded to full arity
+    expect(content).toContain('return DefaultArgsOps::default_args_ops_greet(UStr::new(&[65,100,97]), UStr::new(&[72,101,108,108,111]));');
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 1.5f64, true);");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 20, 2.5f64, true);");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_configure(100, 10, 2.5f64, true);");
+    expect(content).toContain('return ops.format_label(Some(UString::from("item")), UStr::new(&[45]));');
+    expect(content).toContain('return ops.format_label(None, UStr::new(&[45]));');
+    expect(content).toContain('return DefaultArgsOps::default_args_ops_describe_tag(UStr::new(&[97,108,112,104,97]), Some(UString::from("extra")));');
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_open_mode(1, Mode::Read);");
+    expect(content).toContain("return DefaultArgsOps::default_args_ops_adjust(20.0f64, -5.0f64);");
+    expect(content).toContain("return local_add(x, 100);");
+    expect(content).toContain("return local_add(x, 200);");
+    expect(content).toContain('return greeter.say(UStr::new(&[83,97,109]), UStr::new(&[85,115,101,114]));');
+
+    // A coalescing default reading an earlier coalescing parameter enters
+    // after the earlier parameter's entry binding.
+    expect(content).toContain("pub fn default_args_ops_chained_coalescing(fallback: Option<f64>, value: Option<f64>) -> f64");
+    expect(content).toContain("let fallback = fallback.unwrap_or_else(|| 2.5);");
+    expect(content).toContain("let value = value.unwrap_or_else(|| fallback);");
+    expect(content).toContain("let follow_radius = follow_radius.unwrap_or_else(|| radius);");
+
+    // The static initializer completes omitted coalescing arguments to
+    // None exactly as function-body call sites do, because the per-
+    // function pass never visits initializers.
+    expect(content).toContain("pub static COALESCING_PRESET_DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(Some(0.125), Some(0.5)));");
+    expect(content).not.toContain('return "CoalescingPreset".to_string();');
+  });
+
+  test("Swift generated tree lowers parameter-reading coalescing defaults in the body", () => {
+    const swiftFile = path.join(swiftGenDir, "boring/DefaultArgsOps.swift");
+    expect(fs.existsSync(swiftFile)).toBe(true);
+    const content = fs.readFileSync(swiftFile, "utf8");
+
+    expect(content).toContain("public init(_ familyNames: TiqianArray<String> = TiqianArray())");
+    expect(content).toContain("static func infinityDefault(_ value: Double = Double.infinity) -> Double");
+    expect(content).toContain("static func mapDefault(_ value: [String: Int32] = [:]) -> [String: Int32]");
+    expect(content).toContain("return DefaultArgsOps.infinityDefault()");
+    expect(content).toContain("return DefaultArgsOps.mapDefault()");
+    expect(content).toContain("static func greetWithPrefix(_ name: String, _ prefix: String? = nil) -> String");
+    expect(content).toContain("let prefix = prefix ?? name;");
+    expect(content).toContain("public static func fieldAccessSample(_ items: TiqianArray<String>, _ count: Int32? = nil) -> Int32");
+    expect(content).toContain("let count = count ?? Int32(items.count);");
+    expect(content).toContain("static func localeSample(_ lang: String, _ fallback: String? = nil) -> String");
+    expect(content).toContain("let fallback = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
+    expect(content).toContain("let normalized = normalized ?? text.uppercased();");
+    expect(content).toContain("let clamped = clamped ?? DefaultArgsOps.clampBase(value);");
+    expect(content).toContain("fallback ?? SortedTable.setBuilder(SortedTable.compareInts).build()");
+    expect(content).toContain("static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32");
+    expect(content).toContain("let offset = offset ?? value &+ 1;");
+    expect(content).toContain("func instanceFieldNormalization(_ p: String? = Optional<String>.none) -> String");
+    expect(content).toContain("func earlierLocalNormalization(_ seed: String, _ q: String? = Optional<String>.none) -> String");
+    expect(content).toContain("let v: Int32? = p ?? self.fallbackCount");
+    expect(content).toContain("let w: Int32? = q ?? self.fallbackCount");
+
+    expect(content).toContain("static func chainedCoalescing(_ fallback: Double = 2.5, _ value: Double? = nil) -> Double");
+    expect(content).toContain("let value = value ?? fallback;");
+    expect(content).toContain("init(_ radius: Double = 0.0, _ followRadius: Double? = nil)");
+    expect(content).toContain("let followRadius = followRadius ?? radius;");
+
+    // The field-carrying preset keeps constant coalescing defaults as
+    // native Swift defaults and prints the labeled record text.
+    expect(content).toContain("static let Default: CoalescingPreset = CoalescingPreset()");
+    expect(content).toContain('return "CoalescingPreset(base=\\(self.base), ceiling=\\(self.ceiling))"');
+    expect(content).not.toContain('return "CoalescingPreset"');
+  });
+
+  test("Dart generated tree normalizes coalescing defaults in the body", () => {
+    const dartFile = path.join(dartGenDir, "lib/boring/default_args_ops.dart");
+    expect(fs.existsSync(dartFile)).toBe(true);
+    const content = fs.readFileSync(dartFile, "utf8");
+
+    expect(content).toContain("DefaultArgsOps([List<String>? familyNames])");
+    expect(content).toContain("this.familyNames = familyNames ?? <String>[];");
+    expect(content).toContain("static double infinityDefault([double? value])");
+    expect(content).toContain("final double normalized = value ?? double.infinity;");
+    expect(content).toContain("static Map<String, int> mapDefault([Map<String, int>? value])");
+    expect(content).toContain("final Map<String, int> normalized = value ?? <String, int>{};");
+    expect(content).toContain("return DefaultArgsOps.infinityDefault()");
+    expect(content).toContain("return DefaultArgsOps.mapDefault()");
+    expect(content).toContain("static String greetWithPrefix(String name, [String? prefix])");
+    expect(content).toContain("final String normalized = prefix ?? name;");
+    expect(content).toContain("static int fieldAccessSample(List<String> items, [int? count])");
+    expect(content).toContain("final int normalized = count ?? items.length;");
+    expect(content).toContain("static String localeSample(String lang, [String? fallback])");
+    expect(content).toContain("final String normalized = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
+    expect(content).toContain("final String value = normalized ?? text.toUpperCase();");
+    expect(content).toContain("final int result = clamped ?? DefaultArgsOps.clampBase(value);");
+    expect(content).toContain("fallback ?? runtime.SortedTable.setBuilder<int>(runtime.SortedTable.compareInts).build()");
+    expect(content).toContain("static int staticFieldSample(int value, [int? bound])");
+    expect(content).toContain("final int normalized = bound ?? static_state_ops.limit;");
+    expect(content).toContain("final int result = offset ?? value + 1;");
+    expect(content).toContain("final String v = p ?? this.normalizationField;");
+    expect(content).toContain("final String w = q ?? loc;");
+    expect(content).toContain("final int v = p ?? this._fallbackCount;");
+    expect(content).toContain("final int w = q ?? this._fallbackCount;");
+
+    expect(content).toContain("final double resolvedValue = value ?? (fallback ?? 2.5);");
+    expect(content).toContain("this.followRadius = followRadius ?? (radius ?? 0.0);");
+
+    // The field-carrying preset constructs with omitted nullable
+    // parameters and prints the labeled record text, never the bare name.
+    expect(content).toContain("static final CoalescingPreset Default = CoalescingPreset(0.125, 0.5);");
+    expect(content).toContain("CoalescingPreset([double? base, double? ceiling])");
+    expect(content).not.toContain('return "CoalescingPreset"');
+  });
+});

@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# exp-c.sh -- regression surface: does subshell-isolating the wrapper change
+# the NORMAL path (real commands) in stdout/stderr/rc/poststate?
+# Pristine and fixed wrapper are placed at EQUAL-LENGTH paths and run with
+# equal-length OUTDIRs, then every artifact is diffed after normalising the
+# wrapper path prefix (bash's "command not found" diagnostic embeds it).
+set -u
+XS="/home/losses/Development/tq-workspace/out/option-c-xcheck"
+FROZ="/home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner"
+CMP="$XS/cmp"
+rm -rf "$CMP"; mkdir -p "$CMP/a-pris" "$CMP/b-fixd" "$CMP/out-a" "$CMP/out-b"
+cp -p "$FROZ/option-c-stage-wrapper.sh" "$CMP/a-pris/option-c-stage-wrapper.sh"
+cp -p "$XS/fixed/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh" "$CMP/b-fixd/option-c-stage-wrapper.sh"
+chmod 711 "$CMP/a-pris/option-c-stage-wrapper.sh" "$CMP/b-fixd/option-c-stage-wrapper.sh"
+echo "pristine wrapper sha: $(sha256sum "$CMP/a-pris/option-c-stage-wrapper.sh" | cut -d' ' -f1)"
+echo "fixed    wrapper sha: $(sha256sum "$CMP/b-fixd/option-c-stage-wrapper.sh" | cut -d' ' -f1)"
+
+EXP="$XS/experiments"; ROOT="$EXP/root"; MAN="$EXP/manifest.json"
+PS="$FROZ/option-c-poststate.py"
+norm() { sed -e "s#$CMP/a-pris#<W>#g" -e "s#$CMP/b-fixd#<W>#g" -e "s#$CMP/out-a#<O>#g" -e "s#$CMP/out-b#<O>#g" "$1"; }
+
+run() { # run <idx> <kind> <cmd...>
+  local i="$1" kind="$2"; shift 2
+  local a="$CMP/a-pris/option-c-stage-wrapper.sh" b="$CMP/b-fixd/option-c-stage-wrapper.sh"
+  "$a" "t$i" "$ROOT" "$MAN" "$PS" "$CMP/out-a" -- "$@" >"$CMP/out-a/t$i.wout" 2>"$CMP/out-a/t$i.werr"; local rca=$?
+  "$b" "t$i" "$ROOT" "$MAN" "$PS" "$CMP/out-b" -- "$@" >"$CMP/out-b/t$i.wout" 2>"$CMP/out-b/t$i.werr"; local rcb=$?
+  local verdict="IDENTICAL" detail=""
+  if [ "$rca" != "$rcb" ]; then verdict="RC-DIFF"; detail="rc $rca vs $rcb"; fi
+  for f in stdout stderr rc poststate poststate-rc wout werr; do
+    if ! diff -q <(norm "$CMP/out-a/t$i.$f" 2>/dev/null) <(norm "$CMP/out-b/t$i.$f" 2>/dev/null) >/dev/null 2>&1; then
+      verdict="DIFF($f)"; detail="$detail $f"
+    fi
+  done
+  printf '%-3s %-22s rc(a=%s b=%s)  %s%s\n' "$i" "$kind" "$rca" "$rcb" "$verdict" "$detail"
+}
+
+i=1
+run $i "external exit 0"          bash -c 'exit 0'
+i=2; run $i "external exit 1"     bash -c 'exit 1'
+i=3; run $i "external exit 3"     bash -c 'exit 3'
+i=4; run $i "external exit 7"     bash -c 'exit 7'
+i=5; run $i "external exit 42"    bash -c 'exit 42'
+i=6; run $i "external exit 127"   bash -c 'exit 127'
+i=7; run $i "stdout+stderr+rc5"   bash -c 'echo O; echo E >&2; exit 5'
+i=8; run $i "tool.sh direct"      "$ROOT/tool.sh"
+i=9; run $i "tool.sh arg 5"       "$ROOT/tool.sh" 5
+i=10; run $i "true"               true
+i=11; run $i "false"              false
+i=12; run $i "pipeline"           bash -c 'printf "x\n" | cat; exit 0'
+i=13; run $i "quoted args"        bash -c 'printf "%s|%s\n" "$0" "$#"' 'a b' 'c d'
+i=14; run $i "TMPDIR visible"     bash -c 'echo "TMPDIR=$TMPDIR"'
+i=15; run $i "SIGTERM self"       bash -c 'kill -TERM $$'
+i=16; run $i "notfound"           definitely-not-a-command-xyz
+i=17; run $i "stdin read"         bash -c 'read -r x < /dev/null; echo "rc=$?"; exit 0'
+i=18; run $i "env subset"         bash -c 'env | grep -E "^(TMPDIR|CHILD_EVIDENCE_DIR|RUN)=" | sort'
+echo
+echo "--- sample diff (TMPDIR visible) ---"
+diff <(norm "$CMP/out-a/t14.wout") <(norm "$CMP/out-b/t14.wout") && echo "(none)"
+echo "--- notfound normalised diff ---"
+diff <(norm "$CMP/out-a/t16.wout") <(norm "$CMP/out-b/t16.wout") && echo "(none)"
+echo "--- SIGTERM self rc/artifacts ---"
+norm "$CMP/out-a/t15.wout"; echo "  ---"; norm "$CMP/out-b/t15.wout"

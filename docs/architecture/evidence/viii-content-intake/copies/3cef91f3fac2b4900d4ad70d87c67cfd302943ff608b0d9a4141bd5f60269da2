@@ -1,0 +1,8 @@
+package boring
+
+class PrivateHolder(val shown: Int, private val hidden: Int) {
+
+    fun total(): Int {
+        return this.shown + this.hidden
+    }
+}

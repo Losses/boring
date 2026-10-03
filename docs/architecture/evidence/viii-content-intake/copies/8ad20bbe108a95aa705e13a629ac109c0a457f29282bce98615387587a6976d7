@@ -1,0 +1,283 @@
+# W1 — Swift `switchExplicitReturn`: swallowed arm `return` (value-arm vs statement-arm rendering)
+
+Board row: `t-munu29i9-70b7` (branch `fix/swift-switch-explicit-return`, merge-back
+`arch/agent-guided-governance`; claimed by `w1-fix-worker`, 2026-09-30).
+Worktree: `dc-warn/w1-wt/wt/` (rsync of `dc-warn/swc-try-fix-wt/wt/`, which carries the
+two verified boundary fixes SW04/SW05). Patch: `PATCH.diff` (single file,
+`packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx`). Raw logs: `evidence/`.
+
+## 1. Verified diagnosis
+
+The task's hypothesis is confirmed with one refinement. On the tree that actually runs
+(SW04/SW05 already applied), the boundary wrap for an explicit-return arm **already
+fires**: `armLines` computes `boundaryDestination = destination ?? currentReturnType`
+(`SwiftExpr.hx:5675`), and a statement switch passes no destination, so the arm's return
+value converts against the enclosing function's return type. The wrap is not the
+residual bug. (On the original coordination tree — the archive's state — the wrap did
+not fire either; that is the hypothesis as written.)
+
+The residual mechanism, verified in code and in the generated output:
+
+1. `stmtLines:823-824` dispatches a statement-position `TSwitch` to `switchStatement`
+   (`SwiftExpr.hx:5520` pre-fix).
+2. `switchStatement` reused the **value-mode** renderer: `switchReturn(sw, depth, true)`
+   with no destination. `switchReturn` → `armLines` always close the arm by emitting
+   `return <value>` — the value-mode contract, correct for return-position / expression /
+   assignment switches.
+3. `switchStatement` then **spliced the text**: for every line, `indexOf("return ")` and
+   delete the 7-character prefix. For an arm whose last step is an explicit Haxe
+   `return` statement (`variantArmPlan` classifies it as `OtherStatement(s, returnValue, …)`
+   with `returnValue != null`), the `return` keyword is **semantically part of the arm** —
+   it returns from the enclosing function. The splice dropped it, turning
+   `case .one: return ReadOnlyArray(Gap.sourceFirst())` into the bare expression
+   `ReadOnlyArray(Gap.sourceFirst())`.
+4. Consequences, all observed in the baseline (`evidence/gap-fixture-baseline/`):
+   - the arm value is an unused expression → 2 `swiftc` warnings at `Gap.swift:113:17`
+     and `:115:17` ("result of 'ReadOnlyArray<Element>' initializer is unused");
+   - control falls through every choice to the function's own trailing statement — the
+     Haxe source's `return Gap.sourceFirst();` after the switch, faithfully rendered as
+     `return ReadOnlyArray(Gap.sourceFirst())` — so **`.two` returned `sourceFirst()`**.
+     Demonstrated at runtime: baseline binary printed `two-length=2`,
+     `two-values=1,2` (`evidence/run-baseline.out`).
+
+The Haxe source (`gap/Gap.hx`, `GapExplicitReturn`):
+
+```haxe
+public static function switchExplicitReturn(choice:GapChoice):ReadOnlyArray<Int> {
+    switch (choice) {
+        case One: return Gap.sourceFirst();
+        case Two: return Gap.sourceSecond();
+    }
+    return Gap.sourceFirst();
+}
+```
+
+The arms' `return`s are returns from the enclosing function; the trailing `return` is a
+separate statement of the function body. The generated Swift collapsed the first into
+discarded expressions and kept only the second.
+
+## 2. The fix, and why it targets the cause
+
+The cause is the **conflation of two rendering modes** (the "value-arm vs statement-arm"
+class the board row names): `switchReturn`/`armLines` is a value-mode renderer, and
+`switchStatement` force-converted its output with a textual splice that cannot tell an
+explicit arm `return` apart from the value-mode prefix.
+
+`PATCH.diff` (all in `SwiftExpr.hx`):
+
+- `switchReturn` and `armLines` gain `statementArms:Bool = false` (default keeps every
+  existing caller byte-for-byte on its old path).
+- `armLines` tracks `valueIsReturn`: whether the arm's trailing value came from an
+  explicit `return` statement (the value computation itself is unchanged — same
+  `boundaryDestination` selection, same `arrayBoundaryText`/`expr` results).
+- Final emission:
+  - value mode (return position at `stmtLines:810`, `switchExpression`, `switchAssign`)
+    and statement-mode arms whose last step is an explicit `return`:
+    `return <value>` — the explicit return is **preserved** (it returns from the
+    enclosing function, satisfying `currentReturnType`);
+  - statement-mode arms whose last step is a plain statement: the bare value, no
+    `return` prefixed and none stripped; the existing `nil` → `()` mapping is preserved.
+- `switchStatement` becomes `return switchReturn(sw, depth, true, null, true);` — the
+  fragile text splice is **removed**. (The splice also scanned every line for the
+  substring `return `, so any line merely containing that text — e.g. a closure literal
+  inside an arm declaration — would have been mangled; that fragility is gone.)
+
+This is a fix at the cause, not the symptom: the trailing unconditional `return` was
+**not** changed — it is the faithful rendering of the Haxe source's own trailing
+statement, and changing it would have masked the defect. The arms now `return` their own
+values, which is the value-returning switch the task requires.
+
+Generated `GapExplicitReturn` after the fix (`evidence/gap-fixture-after/gen/gap/Gap.swift:110-118`):
+
+```swift
+public static func switchExplicitReturn(_ choice: GapChoice) -> ReadOnlyArray<Int32> {
+    switch choice {
+        case .one:
+            return ReadOnlyArray(Gap.sourceFirst())
+        case .two:
+            return ReadOnlyArray(Gap.sourceSecond())
+    }
+    return ReadOnlyArray(Gap.sourceFirst())
+}
+```
+
+The change is deliberately **not** folded into the destination-handoff repair (SW05):
+different defect class, separate steps per the review ruling. `PATCH.diff` touches only
+`SwiftExpr.hx`, and only the statement-arm path; `SwiftArrayBoundary.hx` / `SwiftDecl.hx`
+carry the inherited SW04/SW05 state only (they are part of the worktree baseline, not of
+this patch — the patch is the diff of `SwiftExpr.hx` between the pre-fix and post-fix
+trees, and nothing else differs between the trees).
+
+## 3. Criteria — own measurements
+
+Toolchain: `PATH` from `dc-warn/out/chainA-fixed-rerun/evidence/env.json` (haxe 4.3.7;
+pinned `swiftc` 6.2.4, `Target: x86_64-unknown-linux-gnu`). `haxe` cwd = tree root
+(repo-local `.haxelib`). Exit codes captured directly, never through a pipe.
+Fixture: the archive's `fixture/gap/Gap.hx` verbatim (driver
+`fixture/swift-archived.hxml`), i.e. no fixture change.
+
+### (a) generated `switchExplicitReturn` arms retain their values
+
+- Pre-fix (`evidence/gap-fixture-baseline/gen/gap/Gap.swift:111-117`): arm bodies are
+  bare `ReadOnlyArray(Gap.sourceFirst())` / `ReadOnlyArray(Gap.sourceSecond())` —
+  discarded; trailing unconditional `return ReadOnlyArray(Gap.sourceFirst())`.
+- Post-fix (`evidence/gap-fixture-after/gen/gap/Gap.swift:111-117`): arm bodies are
+  `return ReadOnlyArray(Gap.sourceFirst())` / `return ReadOnlyArray(Gap.sourceSecond())`
+  — each arm retains (and returns) its own value. Whole-tree before/after diff of the
+  Gap fixture: exactly those 2 lines
+  (`evidence/gap-swift-diff.txt`).
+
+### (b) `Gap` fixture `swiftc -typecheck` zero diagnostics
+
+Command (same 4 files both phases, per the archive's reproduction):
+
+```
+swiftc -typecheck gen/gap/Gap.swift gen/Runtime.swift gen/std/UStringException.swift gen/std/UStringFault.swift
+```
+
+| phase | rc | errors | warnings | log |
+|---|---|---|---|---|
+| pre-fix | 0 | 0 | **2** (`Gap.swift:113:17`, `:115:17`, unused-result — the W1 fingerprint) | `evidence/gap-fixture-baseline/gap-typecheck.log` |
+| post-fix | **0** | **0** | **0** (log empty) | `evidence/gap-fixture-after/gap-typecheck.log` |
+
+Zero diagnostics on the generated `Gap.swift` under `-typecheck`, post-fix: **met**.
+
+### (c) execute the fixture — `.two` returns the correct value
+
+The fixture has no generated main, so a hand-authored Swift entry
+(`evidence/run-fixture/main.swift`) calls the generated public API and prints lengths
+and values for both choices; `Gap.hx` is copied verbatim beside it for provenance
+(`diff` empty). Built with the pinned `swiftc` against each generated tree (binary and
+run in `/tmp` — `dc-warn/` drops exec bits), then executed:
+
+```
+# sourceFirst() = [1, 2]; sourceSecond() = [3]
+pre-fix binary   (evidence/run-baseline.out):  one-length=2   two-length=2   one-values=1,2   two-values=1,2   (run rc=0)
+post-fix binary  (evidence/run-fixed.out):     one-length=2   two-length=1   one-values=1,2   two-values=3      (run rc=0)
+```
+
+**`.two` returns `sourceSecond()` (`[3]`) post-fix; pre-fix it returned `sourceFirst()`
+(`[1,2]`) — the semantic defect, demonstrated at runtime, not just by compilation.**
+
+## 4. Finding (must be adjudicated, not folded into W1)
+
+A **full compilation** (`swiftc -o`) of the fixed `Gap.swift` emits one warning that
+`swiftc -typecheck` does not surface:
+
+```
+Gap.swift:117:9: warning: will never be executed
+        return ReadOnlyArray(Gap.sourceFirst())
+```
+
+(`evidence/build-fixed.log`.) Measured facts:
+
+- `swiftc -typecheck` over the 4 fixture files: rc=0, **empty log** (criterion (b)
+  command — clean).
+- `swiftc -o` over the same 4 files + the hand-authored `main.swift`: rc=0, **1 warning**
+  above (SIL-phase reachability diagnostic; typecheck stops before it).
+- The warning points at the **trailing** return, which is the faithful rendering of the
+  Haxe source's own statement after the switch. The Haxe source is unreachable there
+  (both arms return), and haxe 4.3.7 emits no warning for it (generation log empty).
+- A scratch probe confirmed the shape itself typechecks cleanly
+  (`evidence/reachability-probe.swift` / `.log`); the warning is a build-phase artifact
+  of the fixture's own unreachable trailing return, not of the arm rendering.
+
+Assessment: criterion (b) as written scopes to `swiftc -typecheck` — met with zero
+diagnostics. Under the broader reading of work-plan:415 ("generated-code warnings are
+acceptance failures"), the build-phase warning on the generated file is an open
+standard question: silencing it would require the backend to suppress a source statement
+provably unreachable (cross-statement reachability analysis across the whole function
+body), which is a different defect class from W1 (value-arm vs statement-arm rendering)
+and must not be folded in per the review ruling. Recommendation: **record a separate
+board row** (unreachable-code elision / build-phase diagnostic policy for faithful
+renderings of Haxe-dead trailing returns) and adjudicate there.
+
+## 5. Collateral damage — whole generated trees before/after
+
+All 21 Swift `hxml` drivers in the repo (`tests/`, `samples`-backed examples, `examples/`)
+generated fresh into per-run dirs, pre-fix (true prefix tree `/tmp/w1-prefix-wt` = this
+worktree with `SwiftExpr.hx` restored to the pre-fix version, verified byte-identical to
+`swc-try-fix-wt`'s and the only file differing between the trees) and post-fix
+(this worktree). Each driver: `haxe <driver.hxml> -D swift-output=<fresh> -D
+swift-test-output=<fresh>`, cwd = tree root, exit codes captured directly.
+
+| driver | pre rc | post rc | generated tree diff |
+|---|---|---|---|
+| gap-fixture | 0 | 0 | **CHANGED — exactly Gap.swift:113, 115 (the two W1 `return` keywords)** |
+| acceptance-readonly-boundary | 0 | 0 | IDENTICAL |
+| comparison-plan-identity-runtime | 0 | 0 | IDENTICAL |
+| comparison-plan-identity | 0 | 0 | IDENTICAL |
+| comparison-runtime-observation | 0 | 0 | IDENTICAL |
+| enum-comparison | 0 | 0 | IDENTICAL |
+| readonly-alias | 0 | 0 | IDENTICAL |
+| signed-key-composition | 0 | 0 | IDENTICAL |
+| source-container-policy | 0 | 0 | IDENTICAL |
+| swift-rt-plain | 0 | 0 | IDENTICAL |
+| swift-rt-probe | 0 | 0 | IDENTICAL |
+| swift-runtime-closure-array-only | 0 | 0 | IDENTICAL |
+| swift-runtime-closure-main | 0 | 0 | IDENTICAL |
+| swift-runtime-closure-scalar | 0 | 0 | IDENTICAL |
+| swift-runtime-closure-static-data | 0 | 0 | IDENTICAL |
+| swift-runtime-closure-test | 0 | 0 | IDENTICAL |
+| try-tail | 0 | 0 | IDENTICAL |
+| view-lifetime | 0 | 0 | IDENTICAL |
+| timeout-probe | 0 | 0 | IDENTICAL |
+| examples-swift-f32 | 0 | 0 | IDENTICAL (263 files) |
+| examples-swift | 0 | 0 | IDENTICAL (264 files) |
+
+(`evidence/full-sweep-diff.txt`, `evidence/sweep-prefix.log`, `evidence/sweep-after.log`.)
+
+Notes:
+
+- `_GeneratedFiles.txt` excluded from content diffs: it records the absolute run dir;
+  its only before/after difference is the path prefix (verified: no content lines).
+- The acceptance fixture (the repo's own acceptance check) is byte-identical pre/post
+  and its post-fix generated tree typechecks clean: all 7 generated `.swift` files,
+  `swiftc -typecheck` rc=0, empty log (`evidence/after-acceptance-typecheck.log`).
+- **No other generated file changed anywhere.** The only generated change in the whole
+  repo sweep is the 2-line W1 fix.
+- A second, redundant post-fix sweep run exists as a control
+  (`evidence/sweep-postfix-control.log`); it confirms sweep determinism (all trees
+  identical to the post-fix sweep above).
+
+## 6. Tests and invariants
+
+- No test modified, deleted, skipped, or weakened. No test file touched at all; the
+  patch touches exactly one compiler source file.
+- The `tests/ts/package-artifacts.test.ts` trap (stub written into tracked
+  `samples/boring/MathNaNTestSupport.hx` without `try/finally`): `bun test` was never
+  run; `grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx` = **5 before and
+  after** every generation run (re-checked at each stage; `evidence/worktree-status-*.txt`).
+- Fixture expectations: the Gap fixture source was used verbatim from the archive (no
+  edit); no fixture expectation changed.
+- Worktree discipline: only `SwiftExpr.hx` changed in the worktree beyond the inherited
+  SW04/SW05 state; `git status` entry set unchanged across all runs (26 entries before =
+  26 after, same paths); coordination tree and other worktrees untouched (the prefix
+  comparison tree lives in `/tmp`, the swc-try-fix tree was read-only input).
+
+## 7. Unverifiable / open
+
+- **Not verified by a package build**: no `Package.swift`/`swift build` was run for the
+  fixture (the archive made the same limitation explicit); the runtime binary was built
+  directly with the pinned `swiftc` over the 4 generated files + the hand-authored
+  `main.swift`, and executed.
+- The build-phase `will never be executed` warning (§4) is reported, not adjudicated;
+  its standard question is open per §4.
+- The `swiftc` shim can intermittently print a host-side
+  `<unknown>:0: warning: libc not found …` line (shim SDK state, not a generated-code
+  diagnostic). It appeared in no typecheck run in this work; the archive's original run
+  logged it once and its repro run did not.
+- The Haxe-side `haxe` compiler emits no warning on the fixture's unreachable trailing
+  return (generation log empty) — verified, but not a standard claim.
+
+## 8. Reproduce
+
+```
+export PATH="$(grep -m1 '^PATH=' dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+cd dc-warn/w1-wt/wt                                  # cwd = tree root
+haxe dc-warn/out/gap-fixture-archive/fixture/swift-archived.hxml \
+  -D swift-output=<gen> -D swift-test-output=<tests>
+swiftc -typecheck <gen>/gap/Gap.swift <gen>/Runtime.swift \
+  <gen>/std/UStringException.swift <gen>/std/UStringFault.swift
+# execution: swiftc -o /tmp/bin <gen files> dc-warn/out/w1-fix/evidence/run-fixture/main.swift && /tmp/bin
+```

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# cc.sh <treetag> <probe>  -- full compile (swiftc -c, runs SILGen) of a generated probe output.
+set -u
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/blockexpr-fix
+TAG="$1"; P="$2"
+GEN="/tmp/bx/out/$TAG-$P/gen"
+OBJ="/tmp/bx/obj/$TAG-$P"
+if [ ! -d "$GEN" ]; then echo "no gen dir $GEN" >&2; exit 2; fi
+mkdir -p "$OBJ"
+rm -f "$OBJ"/*.o
+FILES=$(find "$GEN" -name '*.swift' ! -name 'Package.swift' | sort)
+LOG="$OUT/evidence/logs/cc-$TAG-$P.log"
+( cd "$OBJ" && swiftc -c $FILES ) > "$LOG" 2>&1
+rc=$?
+echo "$rc" > "$LOG.rc"
+echo "cc $TAG/$P rc=$rc ($(grep -c 'error:' "$LOG") errors) -> $LOG"
+exit 0

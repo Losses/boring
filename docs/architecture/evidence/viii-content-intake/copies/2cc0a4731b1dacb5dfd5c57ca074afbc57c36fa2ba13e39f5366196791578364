@@ -1,0 +1,7 @@
+installed-repo (haxelib -lib resolution): rc=0 FAIL=0
+installed-repo (no haxelib, .hx index fallback): rc=0 FAIL=0
+no-allowlist: rc=0 FAIL=0
+bad-json: rc=1 FAIL=10
+bad-option: rc=2
+missing-examples-dir: rc=1
+current-envoverride (cwd=/tmp, ROOTS_GUARD_REPO_ROOT): rc=0

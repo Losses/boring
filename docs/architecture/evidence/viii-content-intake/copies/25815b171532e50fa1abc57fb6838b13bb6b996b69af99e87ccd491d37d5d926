@@ -1,0 +1,16 @@
+package tests
+
+import boring.SelfRecMark
+import boring.StdStringSelfRecOps
+import boring.runtime.test.Test
+
+class StdStringSelfRecTests {
+@boring.test.Test
+    fun forms() {
+        Test.run("tests.StdStringSelfRecTests.forms", "tests.StdStringSelfRecTests.forms: cyclic enum constructor printed forms") {
+                Test.equals("plain", StdStringSelfRecOps.markText(SelfRecMark.plain), null)
+                Test.equals("wrap(inner=wrap(inner=plain))", StdStringSelfRecOps.markText(SelfRecMark.wrap(SelfRecMark.wrap(SelfRecMark.plain))), null)
+                Test.equals("nest(list=[plain, wrap(inner=plain)])", StdStringSelfRecOps.markText(SelfRecMark.nest(mutableListOf<SelfRecMark>(SelfRecMark.plain, SelfRecMark.wrap(SelfRecMark.plain)))), null)
+        }
+    }
+}

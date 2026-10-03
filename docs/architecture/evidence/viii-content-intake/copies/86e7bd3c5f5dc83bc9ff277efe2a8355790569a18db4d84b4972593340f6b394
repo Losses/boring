@@ -1,0 +1,14 @@
+--- execution-option-c-head-e1c65975/reference/rust-f32/gen/boring/value_type_consumer.rs	2026-09-29 22:01:05.565311095 -0400
++++ execution-option-c-chainA-fixed3/reference/rust-f32/gen/boring/value_type_consumer.rs	2026-09-29 20:37:55.930460187 -0400
+@@ -63,8 +63,8 @@
+         return if indent.is_none() { -1.0f32 } else { 2.0f32 };
+     }
+ 
+-    pub fn value_type_consumer_rendered_id() -> Result<UString, ValueError> {
+-        let id = FontFaceId::new(UStr::new(&[102,97,99,101]))?;
+-        return Ok(UString::from((id).to_string().as_str()));
++    pub fn value_type_consumer_rendered_id() -> UString {
++        let id = FontFaceId::new(UStr::new(&[102,97,99,101])).unwrap();
++        return UString::from((id).to_string().as_str());
+     }
+ }

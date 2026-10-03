@@ -1,0 +1,36 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DFault {
+    Only { tag: UString },
+}
+
+impl std::fmt::Display for DFault {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DFault::Only { tag } => {
+                write!(formatter, "{}", tag)
+            }
+        }
+    }
+}
+
+impl std::error::Error for DFault {}
+
+#[derive(Clone, Copy)]
+pub struct DeadProbe;
+
+impl DeadProbe {
+    pub fn dead_probe_live_fault(v: DFault) -> u32 {
+        return {
+    let _g = match v { DFault::Only { tag, .. } => tag };
+    let t = (_g).clone();
+    u_string::unit_count(&(t))
+};
+    }
+
+    pub fn dead_probe_main() {
+    }
+}

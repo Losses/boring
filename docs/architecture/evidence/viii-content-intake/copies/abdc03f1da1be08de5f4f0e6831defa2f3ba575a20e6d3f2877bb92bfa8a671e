@@ -1,0 +1,75 @@
+use crate::runtime::u_string::UString;
+
+
+pub trait NullableBranchChoice: Send + Sync {
+    fn __haxe_type_name(&self) -> &'static str;
+    fn as_any(&self) -> &dyn std::any::Any;
+    fn clone_box(&self) -> Box<dyn NullableBranchChoice>;
+    fn label(&self) -> UString;
+}
+
+impl Clone for Box<dyn NullableBranchChoice> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+impl std::fmt::Debug for dyn NullableBranchChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.__haxe_type_name())
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct NullableBranchAlpha {
+}
+
+impl NullableBranchAlpha {
+    pub const fn new() -> Self {
+        Self {
+        }
+    }
+
+    pub fn label(&self) -> UString {
+        return UString::from("alpha").to_ustring();
+    }
+}
+
+impl NullableBranchChoice for NullableBranchAlpha {
+    fn __haxe_type_name(&self) -> &'static str {
+        "boring.NullableInterfaceBranchOps.NullableBranchAlpha"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn NullableBranchChoice> {
+        Box::new(self.clone())
+    }
+
+    fn label(&self) -> UString {
+        return UString::from("alpha").to_ustring();
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct NullableInterfaceBranchOps;
+
+impl NullableInterfaceBranchOps {
+    pub fn nullable_interface_branch_ops_choose(flag: bool) -> Option<Box<dyn NullableBranchChoice>> {
+        let selected: Option<Box<dyn NullableBranchChoice>> = if flag { Some(Box::new(NullableBranchAlpha::new()) as Box<dyn NullableBranchChoice>) } else { None };
+        return selected;
+    }
+
+    pub fn nullable_interface_branch_ops_label(flag: bool) -> UString {
+        let selected: Option<Box<dyn NullableBranchChoice>> = NullableInterfaceBranchOps::nullable_interface_branch_ops_choose(flag);
+        return match &(selected) { None => UString::from("none"), Some(__option) => __option.label().to_ustring() };
+    }
+
+    pub fn nullable_interface_branch_ops_assign(flag: bool) -> UString {
+        let mut selected: Option<Box<dyn NullableBranchChoice>> = None;
+        if flag {
+            selected = Some(Box::new(NullableBranchAlpha::new()));
+        }
+        return match &(selected) { None => UString::from("none"), Some(__option1) => __option1.label().to_ustring() };
+    }
+}

@@ -1,0 +1,38 @@
+package tfprobe;
+
+import std.ReadOnlyArray;
+
+class Shapes {
+	// Entry 2: static read-only array fields (SwiftDecl direct prepare/render)
+	public static final lit:ReadOnlyArray<Int> = [1, 2, 3];
+	public static final empty:ReadOnlyArray<Int> = [];
+	public static final absent:Null<ReadOnlyArray<Int>> = null;
+	public static final nullableElems:ReadOnlyArray<Null<Int>> = [4, null, 6];
+	public static final mutStore:Array<Int> = [7, 8, 9];
+
+	public static function consume(values:ReadOnlyArray<Int>):Int {
+		return values[0];
+	}
+
+	// Entry 1 counterparts: locals with identical source shapes, kept observable
+	public static function localLit():Int {
+		final lit:ReadOnlyArray<Int> = [1, 2, 3];
+		return consume(lit);
+	}
+	public static function localEmpty():Int {
+		final empty:ReadOnlyArray<Int> = [];
+		return consume(empty);
+	}
+	public static function localAbsent():Bool {
+		final absent:Null<ReadOnlyArray<Int>> = null;
+		return absent == null;
+	}
+	public static function localNullableElems():Int {
+		final nullableElems:ReadOnlyArray<Null<Int>> = [4, null, 6];
+		return nullableElems[2];
+	}
+	public static function localFromStatic():Int {
+		final view:ReadOnlyArray<Int> = Shapes.mutStore;
+		return consume(view);
+	}
+}

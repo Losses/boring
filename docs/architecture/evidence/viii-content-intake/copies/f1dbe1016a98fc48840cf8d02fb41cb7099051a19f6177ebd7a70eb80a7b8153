@@ -1,0 +1,14 @@
+package mx;
+import std.ReadOnlyArray;
+import mx.MXSupport.QSource;
+// Attack G (control): inline helper block at ARGUMENT position.
+class AttG {
+	inline static function two(a:Array<Int>):Array<Int> {
+		final s = a.length;
+		return a.slice(s, 0);
+	}
+	public static function run():Int {
+		final h = [1, 2, 3];
+		return QSource.view(two(h));
+	}
+}

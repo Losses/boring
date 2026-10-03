@@ -1,0 +1,54 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+impl ExtensionMode {
+    pub fn mode_label(&self, suffix: &UStr) -> UString {
+        return if *self == ExtensionMode::Hot { UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("hot")); __s += suffix; __s }).as_str()) } else { UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("cold")); __s += suffix; __s }).as_str()) };
+    }
+}
+
+pub fn string_label(value: &UStr, prefix: &UStr) -> UString {
+    return UString::from(format!("{}", { let mut __s = UString::new(); __s += prefix; __s += value; __s }).as_str());
+}
+
+impl ExtensionMode {
+    pub(crate) fn private_mode_label(&self) -> UString {
+        if *self == ExtensionMode::Hot {
+            return UString::from("private-hot").to_ustring();
+        }
+        return UString::from("private-cold").to_ustring();
+    }
+}
+
+impl ExtensionMode {
+    pub fn mode_with_private(&self) -> UString {
+        return (*self).private_mode_label();
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ExtensionMode {
+    Cold,
+    Hot,
+}
+
+pub fn compare_extension_mode(a: &ExtensionMode, b: &ExtensionMode) -> i32 {
+    if a == b { return 0; }
+    fn rank(v: &ExtensionMode) -> i32 {
+        match v {
+            ExtensionMode::Cold => 0,
+            ExtensionMode::Hot => 1,
+        }
+    }
+    rank(a) - rank(b)
+}
+
+impl ExtensionMode {
+    pub fn to_string(&self) -> String {
+        match self {
+            ExtensionMode::Cold => "Cold".to_string(),
+            ExtensionMode::Hot => "Hot".to_string(),
+        }
+    }
+}

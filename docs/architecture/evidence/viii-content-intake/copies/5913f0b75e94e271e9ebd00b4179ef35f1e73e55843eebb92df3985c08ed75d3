@@ -1,0 +1,201 @@
+diff --git a/tests/haxe/ts-sourcemap-three-positions/OriginShapes.hx b/tests/haxe/ts-sourcemap-three-positions/OriginShapes.hx
+new file mode 100644
+index 00000000..4882e267
+--- /dev/null
++++ b/tests/haxe/ts-sourcemap-three-positions/OriginShapes.hx
+@@ -0,0 +1,31 @@
++package;
++
++/**
++	Focused fixture for TS diagnostic source-origin backtracking across three
++	statement positions that hold the *same* call shape:
++
++	  1. direct call statement        -> stmtLines `default:` branch (noteDirectCall IS invoked)
++	  2. local variable initializer   -> stmtLines TVar branch       (noteDirectCall NOT invoked)
++	  3. return expression            -> stmtLines TReturn branch    (noteDirectCall NOT invoked)
++
++	Each authored position renders onto exactly one generated TS line so the
++	tsc TS2345 coordinate can be compared against the origins sidecar spans.
++**/
++class OriginShapes {
++	public static function pick(value:String):String {
++		return value;
++	}
++
++	public static function run():String {
++		// Position 1: direct call statement (result discarded).
++		pick("direct");
++		// Position 2: TVar initializer.
++		final local = pick("init");
++		// Position 3: TReturn expression.
++		return pick("return") + local;
++	}
++
++	public static function main():Void {
++		run();
++	}
++}
+diff --git a/tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs b/tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs
+new file mode 100644
+index 00000000..3184875a
+--- /dev/null
++++ b/tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs
+@@ -0,0 +1,63 @@
++// Resolve tsc diagnostic coordinates against an OriginShapes origins sidecar.
++// Usage: node resolve-origins.mjs <sidecar.json> <tsc.stdout> <tsc.stderr> <generated.ts> <authored.hx>
++import {readFileSync} from "node:fs";
++
++const [sidecarPath, stdoutPath, stderrPath, generatedPath, authoredPath] = process.argv.slice(2);
++const sidecar = JSON.parse(readFileSync(sidecarPath, "utf8"));
++const generated = readFileSync(generatedPath, "utf8");
++const authored = readFileSync(authoredPath, "utf8");
++
++const diags = [];
++for (const stream of [readFileSync(stdoutPath, "utf8"), readFileSync(stderrPath, "utf8")]) {
++	for (const line of stream.split("\n")) {
++		const m = /^(.+\.ts)\((\d+),(\d+)\): (error TS\d+: .*)$/.exec(line.trim());
++		if (m) diags.push({file: m[1], line: Number(m[2]), column: Number(m[3]), message: m[4]});
++	}
++}
++
++function offsetOf(text, line, column) {
++	// tsc 1-based line, 1-based utf16 column
++	const lines = text.split("\n");
++	if (line < 1 || line > lines.length) return null;
++	let off = 0;
++	for (let i = 0; i < line - 1; i++) off += lines[i].length + 1;
++	return off + column - 1;
++}
++
++function containingSpan(offset) {
++	for (const span of sidecar.spans) {
++		let start = 0, end = 0;
++		const lines = generated.split("\n");
++		const pos = (p) => {
++			let o = 0;
++			for (let i = 0; i < p.line - 1; i++) o += lines[i].length + 1;
++			return o + p.column - 1;
++		};
++		start = pos(span.generated.start);
++		end = pos(span.generated.end);
++		if (offset >= start && offset <= end) return {...span, _start: start, _end: end};
++	}
++	return null;
++}
++
++const results = diags.map((d) => {
++	const offset = offsetOf(generated, d.line, d.column);
++	const span = offset == null ? null : containingSpan(offset);
++	const verdict = span == null
++		? {status: "unmapped", reason: "no sidecar span covers this coordinate (defaultResolution=" + sidecar.defaultResolution + ")"}
++		: span.status === "mapped"
++			? {status: "mapped", occurrenceId: span.source.occurrenceId, sourceFile: span.source.file, sourceStart: span.source.start, sourceEnd: span.source.end}
++			: {status: "unmapped", reason: span.reason};
++	return {...d, generatedOffset: offset, verdict};
++});
++
++const authoredLines = authored.split("\n");
++const lineOf = (off) => authored.slice(0, off).split("\n").length;
++for (const r of results) {
++	if (r.verdict.status === "mapped") {
++		r.authoredLine = lineOf(r.verdict.sourceStart);
++		r.authoredText = (authoredLines[r.authoredLine - 1] ?? "").trim();
++	}
++}
++
++console.log(JSON.stringify({sidecar: sidecarPath, spanCount: sidecar.spans.length, diagnostics: results}, null, "\t"));
+diff --git a/tests/haxe/ts-sourcemap-three-positions/run-focused.sh b/tests/haxe/ts-sourcemap-three-positions/run-focused.sh
+new file mode 100644
+index 00000000..6aef187f
+--- /dev/null
++++ b/tests/haxe/ts-sourcemap-three-positions/run-focused.sh
+@@ -0,0 +1,71 @@
++#!/usr/bin/env bash
++# Observation-only runner: same-call-shape TS2345 diagnostics at three
++# authored positions (direct call stmt / TVar init / TReturn), real tsc
++# coordinates resolved against the ts-source-origins sidecar.
++set -uo pipefail
++
++ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
++cd "$ROOT_DIR"
++mkdir -p out/ts-sourcemap-positions out/nix-cache
++export XDG_CACHE_HOME="$ROOT_DIR/out/nix-cache"
++ATTEMPT_DIR="$(mktemp -d out/ts-sourcemap-positions/attempt-XXXXXXXX)"
++GEN_DIR="$ATTEMPT_DIR/gen"
++FIXTURE_DIR="$ROOT_DIR/tests/haxe/ts-sourcemap-three-positions"
++TSC_BIN="${TSC_BIN:-$ROOT_DIR/out/tsc/node_modules/typescript/bin/tsc}"
++
++record_inputs() {
++    local destination="$1"
++    {
++        sha256sum packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx \
++            packages/compiler/SourceOriginTrace.hx \
++            packages/compiler/SourceOriginFragment.hx
++        find tests/haxe/ts-sourcemap-three-positions -type f -print0 | sort -z | xargs -0 sha256sum
++    } > "$destination"
++}
++
++run_stage() {
++    local label="$1"
++    shift
++    printf '%q ' "$@" > "$ATTEMPT_DIR/$label.command"
++    printf '\n' >> "$ATTEMPT_DIR/$label.command"
++    "$@" > "$ATTEMPT_DIR/$label.stdout" 2> "$ATTEMPT_DIR/$label.stderr"
++    local status=$?
++    printf '%s\n' "$status" > "$ATTEMPT_DIR/$label.exit"
++    return "$status"
++}
++
++record_inputs "$ATTEMPT_DIR/inputs.before.sha256"
++
++# Stage 1: Haxe generation with origins sidecars.
++if ! run_stage generation nix develop -c haxe tests/haxe/ts-sourcemap-three-positions/ts-sourcemap-positions.hxml -D "ts-output=$GEN_DIR" -D ts-source-origins; then
++    record_inputs "$ATTEMPT_DIR/inputs.after.sha256"
++    printf 'retained attempt: %s\n' "$ATTEMPT_DIR"
++    exit 1
++fi
++
++# Stage 2: clone the generated tree and inject the SAME TS2345 at each of the
++# three positions by replacing the string-literal argument with a number.
++# Each replacement stays on the single generated line it belongs to.
++STAGE="$ATTEMPT_DIR/stage"
++mkdir -p "$STAGE"
++cp "$GEN_DIR"/*.ts "$STAGE/" 2>/dev/null || true
++cp "$GEN_DIR"/OriginShapes.ts "$STAGE/OriginShapes.ts"
++cp "$GEN_DIR"/OriginShapes.ts.origins.json "$STAGE/OriginShapes.ts.origins.json"
++sed -i 's/pick("direct")/pick(0)/; s/= OriginShapes.pick("init")/= OriginShapes.pick(0)/; s/return OriginShapes.pick("return")/return OriginShapes.pick(0)/' "$STAGE/OriginShapes.ts"
++diff -u "$GEN_DIR/OriginShapes.ts" "$STAGE/OriginShapes.ts" > "$ATTEMPT_DIR/injected.diff" || true
++
++# Stage 3: real tsc (5.9.3) over the mutated stage.
++if ! run_stage strict-tsc node "$TSC_BIN" --noEmit --target ES2022 --module esnext --moduleResolution bundler --strict "$STAGE/OriginShapes.ts"; then
++    : # TS2345 expected; exit code captured in strict-tsc.exit
++fi
++
++# Stage 4: resolve each tsc diagnostic coordinate against the sidecar.
++if ! run_stage resolve node tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs \
++    "$STAGE/OriginShapes.ts.origins.json" \
++    "$ATTEMPT_DIR/strict-tsc.stdout" "$ATTEMPT_DIR/strict-tsc.stderr" \
++    "$GEN_DIR/OriginShapes.ts" "$FIXTURE_DIR/OriginShapes.hx"; then
++    :
++fi
++
++record_inputs "$ATTEMPT_DIR/inputs.after.sha256"
++printf 'retained attempt: %s\n' "$ATTEMPT_DIR"
+diff --git a/tests/haxe/ts-sourcemap-three-positions/ts-sourcemap-positions.hxml b/tests/haxe/ts-sourcemap-three-positions/ts-sourcemap-positions.hxml
+new file mode 100644
+index 00000000..e141907a
+--- /dev/null
++++ b/tests/haxe/ts-sourcemap-three-positions/ts-sourcemap-positions.hxml
+@@ -0,0 +1,12 @@
++# Focused generation for TS source-origin backtracking across three
++# statement positions (direct call / TVar init / TReturn).
++-lib reflaxe
++-cp packages/compiler
++-cp packages/compiler/reflaxe/ts/std-shadow
++-cp packages/compiler/reflaxe/ts
++-cp samples
++-cp tests/haxe/ts-sourcemap-three-positions
++--macro Intercept.run(['samples', 'tests/haxe/ts-sourcemap-three-positions'])
++--macro tscompiler.Compiler.use()
++-D package-shell=none
++-main OriginShapes

@@ -1,0 +1,44 @@
+package boring
+
+object RecordOps {
+    fun makeItem(id: Int, name: String, score: Int, active: Boolean): ItemRecord {
+        return ItemRecord(id = id, name = name, score = score, active = active)
+    }
+
+    fun copyNoOverride(item: ItemRecord): ItemRecord {
+        return ItemRecord(id = item.id, name = item.name, score = item.score, active = item.active)
+    }
+
+    fun copySingleOverride(item: ItemRecord, newScore: Int): ItemRecord {
+        return ItemRecord(id = item.id, name = item.name, score = newScore, active = item.active)
+    }
+
+    fun copyReordered(item: ItemRecord, newActive: Boolean, newName: String): ItemRecord {
+        return ItemRecord(id = item.id, name = newName, score = item.score, active = newActive)
+    }
+
+    fun copyMultiple(item: ItemRecord, newId: Int, newName: String, newScore: Int): ItemRecord {
+        return ItemRecord(id = newId, name = newName, score = newScore, active = item.active)
+    }
+}
+
+data class ItemRecord(
+    var id: Int,
+    var name: String,
+    var score: Int,
+    var active: Boolean
+)
+
+fun compare(a: ItemRecord, b: ItemRecord): Int {
+    if (a === b) return 0
+    var cmp = 0
+    cmp = a.id.compareTo(b.id)
+    if (cmp != 0) return cmp
+    cmp = a.name.compareTo(b.name)
+    if (cmp != 0) return cmp
+    cmp = a.score.compareTo(b.score)
+    if (cmp != 0) return cmp
+    cmp = a.active.compareTo(b.active)
+    if (cmp != 0) return cmp
+    return 0
+}

@@ -1,0 +1,14 @@
+#![cfg(test)]
+
+use crate::boring::sealed_child_ops::SealedChildOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn child_message() {
+    testlib::run("tests.SealedChildTests.childMessage", "tests.SealedChildTests.childMessage: a message-only child of a folded parent keeps the delegated message", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[115,101,97,108,101,100,32,99,104,105,108,100,32,109,101,115,115,97,103,101]), SealedChildOps::sealed_child_ops_child_message(UStr::new(&[115,101,97,108,101,100,32,99,104,105,108,100,32,109,101,115,115,97,103,101])).as_ustr(), UStr::new(&[]));
+    });
+}

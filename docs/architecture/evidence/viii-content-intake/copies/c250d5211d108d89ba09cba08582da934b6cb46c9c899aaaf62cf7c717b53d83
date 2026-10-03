@@ -1,0 +1,10 @@
+trapcheck-before/mid/after.txt   trap file counts (5/5/5)
+base-*-gen.log/.rc               baseline generation (pristine HEAD compiler)
+post-*-gen.log/.rc               patched generation (HEAD + LANDED.diff)
+base-*/ post-*-out/              full generated trees (diff -r empty per pair)
+base-gap-cc.log/.rc post-gap-cc.log/.rc/.counts   swiftc -c gap (0 #no-usage, 0 errors)
+base/post-accept-cc.log/.rc      accept swiftc -o build
+base/post-accept-run.log/.rc     accept binary runtime output (identical)
+post-vl-cc.log/.rc               view-lifetime swiftc -c (0 diagnostics)
+post-lam-*.{log,rc} lam-tree-diff.txt  lambda probe (gen/c/diff)
+INDEX + this file written per fuse-mount rules (no symlinks, via bash cat).

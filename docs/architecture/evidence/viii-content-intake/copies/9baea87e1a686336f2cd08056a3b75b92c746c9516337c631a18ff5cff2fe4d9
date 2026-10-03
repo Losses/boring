@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Per-file bun test driver: one bun process per test file to avoid OOM.
+# Usage: run-bun-per-file.sh <worktree-root> <output-log> <test-file> [more...]
+set -u
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+command -v haxe >/dev/null || { echo "FATAL: haxe not found on PATH" >&2; exit 97; }
+TREE="$1"; OUT="$2"; shift 2
+cd "$TREE"
+: > "$OUT"
+for f in "$@"; do
+  echo "=== FILE $f START $(date -u +%H:%M:%S) ===" >> "$OUT"
+  timeout 900 bun test "$f" >> "$OUT" 2>&1
+  code=$?
+  echo "=== FILE $f END exit=$code $(date -u +%H:%M:%S) ===" >> "$OUT"
+done
+echo "ALL DONE" >> "$OUT"

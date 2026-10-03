@@ -1,0 +1,7 @@
+swiftc-closure-error-recovery-probe.swift:25:20: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+23 |     switch choice {
+24 |         case .values(let values):
+25 |             return values
+   |                    `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+26 |         case .marker(_):
+27 |             return fallbackArray()

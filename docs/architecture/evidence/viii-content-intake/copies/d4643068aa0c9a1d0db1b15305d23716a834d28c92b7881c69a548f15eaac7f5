@@ -1,0 +1,38 @@
+package tests
+
+import boring.runtime.test.Test
+import haxe.crypto.Sha256
+
+class Sha256Tests {
+@boring.test.Test
+    fun empty() {
+        Test.run("tests.Sha256Tests.empty", "tests.Sha256Tests.empty: hashes the empty byte sequence") {
+                Test.equals("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", Sha256TestSupport.digestHex(Sha256.make(Sha256TestSupport.zeroes(0))), null)
+        }
+    }
+
+@boring.test.Test
+    fun abc() {
+        Test.run("tests.Sha256Tests.abc", "tests.Sha256Tests.abc: hashes abc") {
+                val bytes = ByteArray(3)
+                bytes[0] = 97.toByte()
+                bytes[1] = 98.toByte()
+                bytes[2] = 99.toByte()
+                Test.equals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", Sha256TestSupport.digestHex(Sha256.make(bytes)), null)
+        }
+    }
+
+@boring.test.Test
+    fun incremental() {
+        Test.run("tests.Sha256Tests.incremental", "tests.Sha256Tests.incremental: matches one-shot and incremental blocks") {
+                val bytes = Sha256TestSupport.zeroes(64)
+                val oneShot = Sha256.make(bytes)
+                val hash = Sha256()
+                hash.update(bytes.copyOfRange(0, 0 + 17))
+                hash.update(bytes.copyOfRange(17, 17 + 23))
+                hash.update(bytes.copyOfRange(40, 40 + 24))
+                Test.equals("f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b", Sha256TestSupport.digestHex(oneShot), null)
+                Test.equals(Sha256TestSupport.digestHex(oneShot), Sha256TestSupport.digestHex(hash.digest()), null)
+        }
+    }
+}

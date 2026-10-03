@@ -1,0 +1,34 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct OptionalParamNull;
+
+impl OptionalParamNull {
+    pub fn optional_param_null_int_default(p: Option<u32>) -> u32 {
+        if p.is_none() {
+            return 0;
+        }
+        return (p).unwrap();
+    }
+
+    pub fn optional_param_null_class_default(q: Option<SomeClass>) -> UString {
+        if q.is_none() {
+            return ((SomeClass::new().label).to_ustring()).clone();
+        }
+        return (((q).as_ref().unwrap().label).to_ustring()).clone();
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct SomeClass {
+    pub label: UString,
+}
+
+impl SomeClass {
+    pub fn new() -> Self {
+        Self {
+            label: UString::from("default"),
+        }
+    }
+}

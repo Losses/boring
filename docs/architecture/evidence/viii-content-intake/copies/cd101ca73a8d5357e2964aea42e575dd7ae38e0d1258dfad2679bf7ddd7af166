@@ -1,0 +1,23 @@
+#[derive(Clone, PartialEq)]
+pub struct WidgetCart {
+}
+
+impl WidgetCart {
+    pub const fn new() -> Self {
+        Self {
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct WidgetLens {
+    pub zoom: u32,
+}
+
+impl WidgetLens {
+    pub fn new(zoom: Option<u32>) -> Self {
+        Self {
+            zoom: match &(zoom) { None => 3, Some(__option) => *__option },
+        }
+    }
+}

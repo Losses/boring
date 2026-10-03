@@ -1,0 +1,6 @@
+dcsenum/Kind.swift
+dcsenum/KindHolder.swift
+dcsenum/PromotedSubjectOracle.swift
+std/UStringException.swift
+std/UStringFault.swift
+Package.swift

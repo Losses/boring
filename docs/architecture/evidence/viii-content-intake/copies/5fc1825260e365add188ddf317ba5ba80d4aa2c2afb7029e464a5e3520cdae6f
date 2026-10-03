@@ -1,0 +1,14 @@
+#!/bin/bash
+set -u
+COORD=boring-wt-architecture
+OUT=dc-warn/out/coord-baseline-xcheck2
+git -C "$COORD" ls-tree -r e1c65975 | wc -l > "$OUT/s1.tracked_count.txt"
+git -C "$COORD" ls-files -o --exclude-standard > "$OUT/s1.untracked.txt"
+wc -l < "$OUT/s1.untracked.txt" > "$OUT/s1.untracked_count.txt"
+git -C "$COORD" status --porcelain > "$OUT/s1.status.txt"
+git -C "$COORD" ls-files -o -i --exclude-standard | wc -l > "$OUT/s1.ignored_count.txt"
+echo "--- tracked_count"; cat "$OUT/s1.tracked_count.txt"
+echo "--- untracked_count"; cat "$OUT/s1.untracked_count.txt"
+echo "--- ignored_count"; cat "$OUT/s1.ignored_count.txt"
+echo "--- untracked list"; cat "$OUT/s1.untracked.txt"
+echo "--- status"; cat "$OUT/s1.status.txt"

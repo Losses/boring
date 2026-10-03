@@ -1,0 +1,46 @@
+# Roots-manifest consistency guard (precision-switch bundles).
+#
+# WHAT THIS SCRIPT ACTUALLY ENFORCES -- nothing stronger.  (An earlier header
+# claimed it kept "the cross-target test id set equal"; the guard never reads a
+# module body or a test id, so that claim is withdrawn.  It compares
+# root-module LISTS, which is necessary but not sufficient for equal id sets.)
+#
+# For each guarded target T in {kotlin,rust,swift}, with
+#   B = examples/T.hxml        F = examples/T-f32.hxml
+#
+#  (1) ROOT-SET EQUALITY, BOTH DIRECTIONS.  root(B) == root(F).
+#      A module in B but not F ("base-only") and a module in F but not B
+#      ("f32-only") are both reported, and either one fails the guard.
+#      A root is a bare module-path line `Ident(.Ident)*`, a `-main <module>`
+#      argument, or any root of a nested `.hxml` include (depth <= 8).
+#  (2) DECLARED DIVERGENCE.  roots-allowlist.json `exempt` entries authorise a
+#      specific (target, module) asymmetry.  An entry must be LIVE: that module
+#      must really be the asymmetric one for that target.  An entry for a module
+#      present in both files, or for a non-guarded target, is a STALE exemption
+#      and fails.  Entries are structurally validated: target in
+#      {kotlin,rust,swift,*}, module a plausible dotted module path, reason a
+#      substantive sentence (>= 24 chars, >= 4 words, not a placeholder such as
+#      "x" / "todo" / "n/a"), no duplicate (target,module), no unknown keys.
+#  (3) ROOT EXISTENCE.  Every root of both files, and every module named by the
+#      allowlist, must resolve to a real .hx on the guarded classpaths
+#      (-cp dirs + -lib classpaths) or, as a fallback, anywhere in the
+#      repository.  A typo or phantom module fails.
+#  (4) TEST-MODULE COVERAGE.  Every .hx under a `tests/` directory of a guarded
+#      classpath that declares `@:test` must be a root of at least one of B/F.
+#      A test module missing from BOTH files used to be invisible; it now fails
+#      unless declared in allowlist section `unrootedTestModules` (also
+#      reason-checked and stale-checked).
+#
+# REPORTED BUT NOT FATAL (use --strict-duplicates to fail on them):
+#   * duplicate root lines inside one pair.  The shipped hxml files currently
+#     contain 45 such lines; duplicates cannot change the module set, they are
+#     inert, and this guard does not modify examples/**.  They are printed with
+#     file:line and counted so they stop being invisible.
+#
+# NOT COVERED: test ids, @:test case sets, module bodies, runtime behaviour
+#   under binary32/binary64.  `samples/tests/f32/PrintedFloatTests.hx` ships 6
+#   f32-only ids that this guard cannot see (declared in tools/test-consistency/
+#   extra-id-allowlist.json).  dart/ts pairs are not guarded (no -f32 variant).
+#
+# Usage: check-roots-guard.sh [examples-dir] [--repo-root=PATH] [--strict-duplicates]
+help exit_code=0

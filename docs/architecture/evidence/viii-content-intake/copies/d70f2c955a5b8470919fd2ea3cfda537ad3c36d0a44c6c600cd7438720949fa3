@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# runall.sh <checker> <attempts-root> <out.tsv>
+# Runs <checker> against every attempt-* dir; records exit code + first output line.
+set -u
+CHK="$1"; ROOT="$2"; OUT="$3"
+: >"$OUT"
+for d in "$ROOT"/attempt-*/; do
+  name=$(basename "$d")
+  out=$(bash "$CHK" "$d" 2>&1); rc=$?
+  printf '%s\t%s\t%s\n' "$name" "$rc" "$(printf '%s' "$out" | head -1)" >>"$OUT"
+done

@@ -1,0 +1,7 @@
+out/try-tail/gen/rust/Cargo.toml
+out/try-tail/gen/rust/_GeneratedFiles.txt
+out/try-tail/gen/rust/lib.rs
+out/try-tail/gen/rust/runtime/mod.rs
+out/try-tail/gen/rust/runtime/u_string.rs
+out/try-tail/gen/rust/trytail/mod.rs
+out/try-tail/gen/rust/trytail/try_tail_oracle.rs

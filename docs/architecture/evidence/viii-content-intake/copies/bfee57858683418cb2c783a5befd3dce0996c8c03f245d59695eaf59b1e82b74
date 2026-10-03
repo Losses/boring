@@ -1,0 +1,41 @@
+#![cfg(test)]
+
+use crate::boring::haxe_exception_ops::HaxeExceptionFault;
+use crate::boring::interface_union_beta::InterfaceUnionBeta;
+use crate::boring::interface_union_ops::InterfaceUnionAlpha;
+use crate::boring::interface_union_ops::InterfaceUnionOps;
+use crate::boring::value_exception::ValueError;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn shared_union() {
+    testlib::run("tests.InterfaceUnionTests.sharedUnion", "tests.InterfaceUnionTests.sharedUnion: an interface method with disagreeing fault domains shares one union", || {
+        test_core::TestCore::test_core_equals_int(5i32, i32::from_ne_bytes(((InterfaceUnionOps::interface_union_ops_call(Box::new(InterfaceUnionAlpha::new()), 5).unwrap()) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(6i32, i32::from_ne_bytes(((InterfaceUnionOps::interface_union_ops_call(Box::new(InterfaceUnionBeta::new()), 6).unwrap()) as i32).to_ne_bytes()), UStr::new(&[]));
+        let mut alpha_caught = false;
+        let __outcome: Result<u32, HaxeExceptionFault> = (|| {
+            return Ok(InterfaceUnionOps::interface_union_ops_call(Box::new(InterfaceUnionAlpha::new()), 4294967295u32).map_err(|e| HaxeExceptionFault::new(&format!("{}", e)))?);
+        })();
+        match __outcome {
+            Ok(_) => {}
+            Err(_) => {
+                alpha_caught = true;
+            }
+        }
+        test_core::TestCore::test_core_equals_bool(true, alpha_caught, UStr::new(&[]));
+        let mut beta_caught = false;
+        let __outcome1: Result<u32, ValueError> = (|| {
+            return Ok(InterfaceUnionOps::interface_union_ops_call(Box::new(InterfaceUnionBeta::new()), 0)?);
+        })();
+        match __outcome1 {
+            Ok(_) => {}
+            Err(_) => {
+                beta_caught = true;
+            }
+        }
+        test_core::TestCore::test_core_equals_bool(true, beta_caught, UStr::new(&[]));
+    });
+}

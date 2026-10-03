@@ -1,0 +1,17 @@
+## 2x2 reproduction by executor (task t-munauh55-9tue): ALL FOUR CELLS RUN PERSONALLY
+
+cwd: /tmp/f32probe/execroot (own cp -a copy of /tmp/swiftarr/execroot)
+
+cell A (no f32, no swift):  node out/test-consistency/manager.js --targets=kotlin,haxe,ts,dart,rust --baseline=kotlin
+  rc=0 -> "All 5 targets (kotlin, haxe, ts, dart, rust) are 100% consistent across 730 tests."
+
+cell B (no f32, with swift): node out/test-consistency/manager.js --targets=kotlin,haxe,ts,dart,rust,swift --baseline=kotlin
+  rc=0 -> "All 6 targets (haxe, ts, kotlin, dart, rust, swift) are 100% consistent across 730 tests."
+
+cell C (with f32, no swift): node out/test-consistency/manager.js --targets=kotlin,haxe,ts,dart,rust,haxe-f32,kotlin-f32,rust-f32 --baseline=kotlin
+  rc=1 -> "Cross-target consistency check failed with 112 divergence(s)" = haxe-f32 6 Extra + kotlin-f32 58 Missing + rust-f32 48 Missing
+
+cell D (with f32, with swift): node out/test-consistency/manager.js --targets=kotlin,haxe,ts,dart,rust,swift,haxe-f32,kotlin-f32,rust-f32,swift-f32 --baseline=kotlin
+  rc=1 -> "Cross-target consistency check failed with 166 divergence(s)" = cell C + swift-f32 54 Missing
+
+full logs: manager-cellA..D.log (same dir). Mechanism coverage check: 27/27 covered on every cell (no additional failure mode).

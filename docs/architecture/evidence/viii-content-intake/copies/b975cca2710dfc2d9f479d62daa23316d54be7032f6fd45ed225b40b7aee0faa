@@ -1,0 +1,42 @@
+# FILES.sha256 — value-type-expectation deliverables and the artifacts they name
+# generated: 2026-09-30T03:06:19+00:00
+# repo under test: /home/losses/Development/tq-workspace/boring-wt-architecture @ e1c6597514634fd347d392709793cc19bd96c9a2
+# scratch execution root: /home/losses/Development/tq-workspace/vte-scratch
+
+## deliverables
+691d79478464f97be187c7fb11ceccdd5c32ca9379da6797804d34665fb19d71  evidence/after-census.txt
+96de7b1914bc25ed603bf5ec90cecd3c71ee9c0ee0bb7f75f59a1f6cb07b585b  evidence/after-full-suite.log
+22c23166c9aa8faef6c5b8ad4da0daecaf5624054c240af800234ec6218146fd  evidence/after.value-type.test.ts
+741c40e77acafc04806b67289b3b03f65e00bf4f25432449ea500e21c5bdd46b  evidence/before-census.txt
+7dea1c3222ff3e607f7d3963e1d51a65cbd68da0add2e974f0ea0c1e83111697  evidence/before-full-suite.log
+9c0148f3d25ca4b64dc9191128c4f08ffc895ea0516a9066bdf202307891a367  evidence/census-diff.py
+9522015280bd95a9e1d2b6ad0d668fcb388c16fde9b1b609dcb7b6b735f6b8e8  evidence/census-diff.txt
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  evidence/copy.log
+b12bc36a162c1928ae9bf6d80600f76d93ffaa385a4207d7035479c10dcddef5  evidence/env.sh
+ce5d9b966b70fe666bb023dc1b3b8fc8e6480ef7940e1c50f9dcaebaf0d0196f  evidence/gen-diff/as-shipped.sha256
+5dbfc795d69599cfeb5ea318d2ffcb8e0a12d7328dc22725406912a2cbe3be8b  evidence/gen-diff/cargo-check-f32-as-shipped.log
+dcaeda68f2b8e0854e8338c546624034ce943a4ca6379bdac0a9753e8561f854  evidence/gen-diff/cargo-check-f32-mutated-String.log
+cf1bc0e3526ec7c067855bafa719efc345d01044a6ce3b69f9409d30077e3da3  evidence/gen-diff/cargo-check-mutated-String.log
+4289e6112b25eb268f82335cb14f4f33f9b436a150d22e375aabbafc6f8dd480  evidence/gen-diff/value_type_ops.f32.rs.as-shipped
+279e5095684e3163c38603ee0064ec8cec049e7913e0d40041a27d8e79dee424  evidence/gen-diff/value_type_ops.rs.as-shipped
+7c5d5a9e6676bd6b3ddcb860df790c9b740876f8d028fb24d5286771ff732e97  evidence/gen-diff/value_type_ops.rs.mutated-String
+f5e5d64e4bcbc0931c187a392380d550339259fb66b473674796685bef7c2462  evidence/host-string-boundary-audit.txt
+da75dcb60c449a9f4c8b84f830cfcd4ac321599c429dadf1899c9858ed8fa1dd  evidence/parse-failures.py
+ebf3b55c63fd3decd1b02d087bd2ccd424ed6a84af00683dfcb951bb363425f3  evidence/reference-parent-census.txt
+b66101b67e04e695e464af0fff806298113a92a9f04bcdfacf9df685f29b50b1  evidence/run-suite.sh
+176900ab8e95e15b458e753e7cba4fab6df15634ddcbbcbc0a59774efe9a830b  evidence/stale-doc-history.txt
+5bd785f15b848b0364a7d4d522fe791ea6218150abba3b33c0f1f9724c46484e  evidence/targeted-after.log
+86ec7d681583503f54563a2177bc4b62aa3033c1e7f9da518d4c09de8cac3af0  evidence/targeted-before.log
+9f4428b82a26ea4f927a6f1fd9eb83369df8f835cf449941777cf96dfd29e885  evidence/test-assertion-audit.txt
+6a64b5e943851e3e14ac629da0d630f0dfa10290ad9ddb45383f50295d700234  PATCH.diff
+3336847e49af75c20dc25cf2b650f14c8343e1006aedd104c1938e028906cea4  REPORT.md
+
+## the changed file: before (committed e1c65975) / after (PATCH.diff applied)
+0658315bdeebc8cda8d2038e83f43af26f5b5c393918b6cca33fdd915b982393  /home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/value-type.test.ts   # BEFORE
+22c23166c9aa8faef6c5b8ad4da0daecaf5624054c240af800234ec6218146fd  evidence/after.value-type.test.ts   # AFTER == PATCH.diff applied to the BEFORE file (the shared tree itself is untouched)
+
+## generated trees — identical in the shared tree and the post-run scratch tree
+## (the generator was not touched; these are the fixtures the test reads)
+279e5095684e3163c38603ee0064ec8cec049e7913e0d40041a27d8e79dee424  reference/rust/gen/boring/value_type_ops.rs   [SAME shared vs scratch]
+4289e6112b25eb268f82335cb14f4f33f9b436a150d22e375aabbafc6f8dd480  reference/rust-f32/gen/boring/value_type_ops.rs   [SAME shared vs scratch]
+e6d94109d0168d110fa51a7baf12a3e291513eb418848c5ab87abed3371bdcf2  reference/rust/gen/runtime/u_string.rs   [SAME shared vs scratch]

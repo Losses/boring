@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Final coherent evidence set for the independent review of criteria 3.
+set -u
+WT=/home/losses/Development/tq-workspace/dc-warn/worktrees/param-fix-xcheck
+SRC=$WT/packages/compiler/SourceComparisonAnalysis.hx
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/param-fix-xcheck
+export XDG_CACHE_HOME=/tmp/param-xcheck-nix-cache
+mkdir -p "$OUT/prep"
+cp /tmp/xcheck-post.hx "$OUT/prep/fn-post.hx"
+git -C "$WT" show HEAD:packages/compiler/SourceComparisonAnalysis.hx >"$OUT/prep/fn-pre.hx"
+python3 - "$OUT/prep/fn-post.hx" "$OUT/prep/fn-negctl.hx" <<'PY'
+import io, sys
+s = io.open(sys.argv[1], encoding='utf-8').read()
+start = s.index('    function sameTypeParameter(')
+end = s.index('    static function isTypeParameter(')
+body = ('    function sameTypeParameter(left:Ref<ClassType>, right:Ref<ClassType>):Bool {\n'
+        '        // NEGATIVE CONTROL: original pointer-only comparison restored.\n'
+        '        return left == right;\n'
+        '    }\n\n')
+io.open(sys.argv[2], 'w', encoding='utf-8').write(s[:start] + body + s[end:])
+PY
+cp "$OUT/prep/fn-post.hx" "$SRC"
+cp -r "$WT/tests/haxe/dc-xcheck" "$OUT/prep/fixture-xcheck"
+cp -r "$WT/tests/haxe/dc-same-type-parameter" "$OUT/prep/fixture-dedup"
+( cd "$OUT/prep" && sha256sum fn-pre.hx fn-post.hx fn-negctl.hx > variant.sha256
+  echo "--- fixture-dedup hashes" >> variant.sha256; cd fixture-dedup && find . -type f | sort | xargs sha256sum >> ../variant.sha256
+  echo "--- fixture-xcheck hashes" >> ../variant.sha256; cd ../fixture-xcheck && find . -type f | sort | xargs sha256sum >> ../variant.sha256 )
+
+run_phase() { # attempt-dir variant failmodes
+  local name="$1" variant="$2" d="$OUT/$1"
+  cp "$variant" "$SRC"
+  mkdir -p "$d"
+  {
+    echo "source_sha256=$(sha256sum "$SRC" | cut -d' ' -f1)"
+    echo "variant=$(basename "$variant")"
+    echo "haxe=$(XDG_CACHE_HOME=/tmp/param-xcheck-nix-cache nix develop "$WT" -c bash -lc 'haxe --version' 2>/dev/null | tail -1)"
+    echo "baseline_commit=$(git -C "$WT" rev-parse HEAD)"
+  } >"$d/env.txt"
+  # 1) executor fixture (paths repointed to MY tree, see prep fixture notes)
+  XDG_CACHE_HOME=/tmp/param-xcheck-nix-cache timeout 1800 \
+    bash "$WT/tests/haxe/dc-same-type-parameter/run.sh" "$d/dedup" >"$d/dedup.log" 2>&1
+  echo "dedup_runsh_exit=$?" >>"$d/env.txt"
+  grep -E '^(DEDUP|LIMITED|CONTROL)' "$d/dedup/probe.stdout" >"$d/dedup.signal.txt"
+  grep 'run.sh verdict' "$d/dedup.log" >>"$d/dedup.signal.txt"
+  # 2) my independent probe
+  XDG_CACHE_HOME=/tmp/param-xcheck-nix-cache timeout 1800 \
+    bash "$WT/tests/haxe/dc-xcheck/run.sh" "$d/xcheck" >"$d/xcheck.log" 2>&1
+  echo "xcheck_exit=$(cat "$d/xcheck/exit.txt")" >>"$d/env.txt"
+  grep -E '^(ID|COLLIDE total|SLOT|OVER|UNDER|REC|METH)' "$d/xcheck/probe.stdout" >"$d/xcheck.signal.txt"
+  # 3) production default (no node budget) for a self-recursive generic record
+  XCHECK_UNBOUNDED=1 XDG_CACHE_HOME=/tmp/param-xcheck-nix-cache timeout -s KILL 150 \
+    nix develop "$WT" -c bash -lc "haxe $WT/tests/haxe/dc-xcheck/build.hxml" \
+    >"$d/unbounded.stdout" 2>"$d/unbounded.stderr"
+  echo "unbounded_haxe_exit=$?" >>"$d/env.txt"
+  grep -E '^(UNBOUNDED)' "$d/unbounded.stdout" >"$d/unbounded.signal.txt"
+  head -2 "$d/unbounded.stderr" | grep -iE "stack overflow|Uncaught" >>"$d/unbounded.signal.txt" || true
+  echo "=== $name (src $(sha256sum "$SRC" | cut -d' ' -f1))"
+  cat "$d/dedup.signal.txt" "$d/xcheck.signal.txt" "$d/unbounded.signal.txt" | sed 's/^/  /'
+  cat "$d/env.txt" | sed 's/^/  # /'
+}
+
+run_phase attempt-1-postfix "$OUT/prep/fn-post.hx"
+run_phase attempt-2-prefix   "$OUT/prep/fn-pre.hx"
+run_phase attempt-3-negctl   "$OUT/prep/fn-negctl.hx"
+cp "$OUT/prep/fn-post.hx" "$SRC"
+echo "=== restored $(sha256sum "$SRC" | cut -d' ' -f1)"

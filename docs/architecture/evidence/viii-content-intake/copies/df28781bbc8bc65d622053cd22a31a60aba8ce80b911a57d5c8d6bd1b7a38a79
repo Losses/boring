@@ -1,0 +1,30 @@
+Files execution-option-c-head-e1c65975/docs/investigations/architecture-round-1/d-observation.md and execution-option-c-chainA-fixed3/docs/investigations/architecture-round-1/d-observation.md differ
+Only in execution-option-c-chainA-fixed3/docs/investigations/architecture-round-2: p09-fixed-matrix-preparation-runbook.md
+Files execution-option-c-head-e1c65975/examples/kotlin-f32.hxml and execution-option-c-chainA-fixed3/examples/kotlin-f32.hxml differ
+Files execution-option-c-head-e1c65975/examples/rust-f32.hxml and execution-option-c-chainA-fixed3/examples/rust-f32.hxml differ
+Files execution-option-c-head-e1c65975/examples/swift-f32.hxml and execution-option-c-chainA-fixed3/examples/swift-f32.hxml differ
+Files execution-option-c-head-e1c65975/package.json and execution-option-c-chainA-fixed3/package.json differ
+Files execution-option-c-head-e1c65975/packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx and execution-option-c-chainA-fixed3/packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx differ
+Files execution-option-c-head-e1c65975/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx and execution-option-c-chainA-fixed3/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx differ
+Files execution-option-c-head-e1c65975/packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx and execution-option-c-chainA-fixed3/packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx differ
+Files execution-option-c-head-e1c65975/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx and execution-option-c-chainA-fixed3/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx differ
+Files execution-option-c-head-e1c65975/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx and execution-option-c-chainA-fixed3/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx differ
+Files execution-option-c-head-e1c65975/packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx and execution-option-c-chainA-fixed3/packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx differ
+Files execution-option-c-head-e1c65975/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx and execution-option-c-chainA-fixed3/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx differ
+Files execution-option-c-head-e1c65975/samples/tests/NumberClassifyTests.hx and execution-option-c-chainA-fixed3/samples/tests/NumberClassifyTests.hx differ
+Only in execution-option-c-chainA-fixed3/tests/haxe/comparison-plan: left
+Only in execution-option-c-chainA-fixed3/tests/haxe/comparison-plan: right
+Only in execution-option-c-chainA-fixed3/tests/haxe: dc-null-guard-fallthrough
+Only in execution-option-c-chainA-fixed3/tests/haxe/source-container-policy: test
+Only in execution-option-c-chainA-fixed3/tests/haxe: swift-rt-plain
+Only in execution-option-c-chainA-fixed3/tests/haxe: swift-rt-probe
+Only in execution-option-c-chainA-fixed3/tests/haxe: try-tail
+Only in execution-option-c-chainA-fixed3/tests/haxe: try-tail-min
+Only in execution-option-c-chainA-fixed3/tests/support: stage-check-control.sh
+Files execution-option-c-head-e1c65975/tests/support/stage-check.sh and execution-option-c-chainA-fixed3/tests/support/stage-check.sh differ
+Only in execution-option-c-chainA-fixed3/tests/swift-readonly-boundary: tests
+Only in execution-option-c-chainA-fixed3: toolchain-resolution.txt
+Only in execution-option-c-chainA-fixed3/tools: precision-guard
+Only in execution-option-c-chainA-fixed3/tools: roots-guard
+Only in execution-option-c-chainA-fixed3/tools/test-consistency: extra-id-allowlist.json
+Files execution-option-c-head-e1c65975/tools/test-consistency/Main.hx and execution-option-c-chainA-fixed3/tools/test-consistency/Main.hx differ

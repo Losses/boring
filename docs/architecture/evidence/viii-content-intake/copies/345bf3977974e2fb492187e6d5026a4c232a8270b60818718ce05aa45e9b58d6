@@ -1,0 +1,8 @@
+// Harness for the xcheck-dart-fix probe. The Dart backend emits
+// top-level functions, so the harness calls them directly and prints
+// the probe result lines.
+import 'dc_fix.dart' as dcfix;
+
+void main() {
+  print(dcfix.run());
+}

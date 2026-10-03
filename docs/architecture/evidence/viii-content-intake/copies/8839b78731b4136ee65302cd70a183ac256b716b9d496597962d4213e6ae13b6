@@ -1,0 +1,41 @@
+#[derive(Clone, Copy)]
+pub struct FunctionalOps;
+
+impl FunctionalOps {
+    pub fn functional_ops_lambda_sum(values: &Vec<f32>) -> f32 {
+        let mut total: f64 = 0.0f64;
+        for &value in values {
+            total += value as f64;
+        }
+        return total as f32;
+    }
+
+    pub fn functional_ops_functional_sum(values: &Vec<f32>) -> f32 {
+        let mut pipeline_result: f64 = 0.0f64;
+        for &value in values {
+            pipeline_result += value as f64;
+        }
+        return pipeline_result as f32;
+    }
+
+    pub fn functional_ops_lambda_iter(values: &Vec<u32>) -> u32 {
+        let mut total = 0u32;
+        for &value in values {
+            total = u32::wrapping_add(total, value);
+        }
+        return total;
+    }
+
+    pub fn functional_ops_functional_for_each(values: &Vec<u32>) -> u32 {
+        let mut total = 0u32;
+        for &value in values {
+            total = u32::wrapping_add(total, value);
+        }
+        return total;
+    }
+
+    pub fn functional_ops_verify() -> bool {
+        let ints = vec![1, 2, 3, 4];
+        return FunctionalOps::functional_ops_lambda_sum(&vec![1.5f32, 2.0f32, 3.5f32]) == 7.0f32 && FunctionalOps::functional_ops_functional_sum(&vec![1.5f32, 2.0f32, 3.5f32]) == 7.0f32 && FunctionalOps::functional_ops_lambda_iter(&ints) == 10 && FunctionalOps::functional_ops_functional_for_each(&ints) == 10;
+    }
+}

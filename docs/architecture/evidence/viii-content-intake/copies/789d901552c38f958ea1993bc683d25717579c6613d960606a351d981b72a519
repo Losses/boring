@@ -1,0 +1,29 @@
+package boring
+
+class NullArgsSpan(val label: String, val extra: String = "none") {
+}
+
+class NullDefaultSpan(val tier: String? = null) {
+}
+
+object NullArgsOps {
+    fun explicitNull(): String {
+        return NullArgsSpan("a", "none").extra!!
+    }
+
+    fun nullableVariable(v: String?): String {
+        return NullArgsSpan("a", (v ?: "none")).extra!!
+    }
+
+    fun conditionalArg(v: String?): String {
+        return NullArgsSpan("a", ((if ((v == null)) "none" else v) ?: "none")).extra!!
+    }
+
+    fun nullDefaultAbsent(): String {
+        return (if ((NullDefaultSpan(null).tier == null)) "null" else "set")
+    }
+
+    fun nullDefaultPresent(): String {
+        return (if ((NullDefaultSpan("x").tier == null)) "null" else "set")
+    }
+}

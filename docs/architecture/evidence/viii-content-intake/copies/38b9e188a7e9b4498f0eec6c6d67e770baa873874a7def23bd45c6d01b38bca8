@@ -1,0 +1,102 @@
+# Lambda return contract fix — REPORT
+
+Programme: dc-warn. Worktree: `dc-warn/lambda-wt/wt` (rsync of `dc-warn/swc-try-fix-wt/wt`).
+Fixes P08 implementation review section 6, condition 2 (`out/p08-implementation-review/REPORT.md`).
+
+## 1. Verified diagnosis
+
+Confirmed exactly as the review states; **all of the review's line numbers are correct** in this tree
+(`packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx`, 7041 lines pre-fix):
+
+- `currentReturnType` is the **enclosing member's** return type: written once at **:544**
+  (`Context.follow(f.field.type)` → `TFun(_, ret)`), cleared at **:563**.
+- `functionLiteral` (**:2338–2345**) saves and restores only `currentFuncReturnsOptional`; it does **not**
+  rebind `currentReturnType`, while `functionLiteralInner` prints the closure head from `f.t` (:2347–2349).
+- The four repaired sites therefore borrow the member's return type inside any lambda:
+  - return-position switch **:810** (`switchReturn(inner, depth, false, currentReturnType)`);
+  - `tryReturnLines` body arm **:5296** and handler arm **:5310** (`destinationValueText(..., currentReturnType, ...)`);
+  - `armLines` fallback **:5675** (`destination ?? currentReturnType`).
+
+## 2. The fix (PATCH.diff)
+
+Single-site, at the cause: `functionLiteral` now seeds the actual return contract around
+`functionLiteralInner`:
+
+```hx
+final previousReturn = currentReturnType;
+...
+currentReturnType = Context.follow(f.t);   // the lambda's own return contract
+final result = functionLiteralInner(f);
+currentReturnType = previousReturn;
+```
+
+All four sites (plus the sibling uses at :812–814/:1213, which are the same "return contract" fact) now
+see the lambda's own `f.t` inside a lambda body and the member's type outside. Nesting is handled by
+save/restore; the member-level seed at :544 is unchanged. No other code touched.
+
+## 3. Discriminating fixture (probeE-shaped) — before/after
+
+Fixture: review's `probeE` Haxe source (member returns `Int`, lambda returns `ReadOnlyArray<Int>`),
+exercising all three defect routes. Driver: `evidence/probes/probeE/swift.hxml`
+(same as the archive's, plus `-D swift-output`; `-cp` retargeted to `/tmp/lambda-ir/probes/probeE`).
+
+| reading | before fix | after fix |
+|---|---|---|
+| `haxe` generation rc | 0 | 0 |
+| `swiftc -typecheck` rc | **1** | **0** |
+| error count | **1** | **0** |
+| error text | `PE.swift:33:26: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'` (the lambda's do-try return) | — |
+
+Emitted lambda body, before → after: `return PESources.arr1()` → `return ReadOnlyArray(PESources.arr1())`
+(tryReturnLines route). The switch-return and try-binding routes typecheck in both states; the switch case
+still emits the pre-existing IIFE shape (`{ ... in ({ () -> ReadOnlyArray<Int32> in ... })() }`) — unchanged
+by this fix and out of its scope (review condition 3, separate obligation).
+
+Logs: `evidence/gen-probeE-{before,after}.log`, `evidence/typecheck-probeE-{before,after}.log`,
+generated trees `evidence/gen-probeE-{before,after}/`.
+
+## 4. Regression results
+
+### Acceptance fixture (`tests/swift-readonly-boundary/`)
+- oracle interp (`oracle.hxml`): rc=0.
+- Swift generation (`swift.hxml` + swift-output): **rc=0**; `swiftc -typecheck`: **rc=0, 0 errors**.
+- Runner (`bun test tests/swift-readonly-boundary/readonly-boundary.test.ts`): **rc=1 — pre-existing,
+  NOT caused by this patch.** The failure is in the interp *oracle* expectation: `branch-true=1:present` /
+  `branch-false=1:present` vs expected `1:1`/`2:1`. Verified: (a) the pristine baseline worktree
+  `swc-try-fix-wt/wt` prints the identical oracle lines; (b) the review's own candidate run
+  (`out/p08-implementation-review/evidence/bun-readonly-boundary-cand.rc`) is also **rc=1** with the same
+  diff. This is the documented 2609 side issue (`out/gap-fixture-archive/README.md:35`), upstream of this fix.
+
+### Archived counterexample (`dc-warn/out/gap-fixture-archive/`, driver `fixture/swift-archived.hxml`)
+- generation rc=**0**; `swiftc -typecheck` rc=**0, 0 errors** (excluding generated `Package.swift`, which
+  cannot `-typecheck` standalone — `no such module 'PackageDescription'`; same exclusion in the review's
+  own evidence). No runtime runner ships with this archive.
+
+## 5. Collateral damage — none
+
+19 Swift hxml drivers swept (examples/swift{,-f32}, comparison-plan ×2, comparison-runtime-observation,
+enum-comparison, readonly-alias, signed-key-composition, source-container-policy, swift-rt-plain,
+swift-rt-probe, swift-runtime-closure ×5, try-tail, view-lifetime, timeout-probe). All 19 generated with
+**rc=0** on both the before (`swc-try-fix-wt/wt`) and after (`lambda-wt/wt`) trees. Whole-tree diff after
+normalizing the embedded absolute output path: **empty** (`evidence/collateral-normalized.diff`, 0 lines;
+un-normalized `evidence/collateral-tree.diff` differs only in `_GeneratedFiles.txt` path prefixes).
+Zero unintended changes on the existing corpus — expected, since none of its lambdas carry a return
+contract that differs from their enclosing member's.
+
+## 6. Environment / hygiene
+
+- Toolchain PATH from `dc-warn/out/chainA-fixed-rerun/evidence/env.json` (haxe 4.3.7, pinned swiftc shim).
+- Exit codes never measured through a pipe (`${PIPESTATUS[0]}` or direct rc).
+- Sentinel `grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx` = **5** before, during, after.
+- Coordination tree untouched; only `dc-warn/lambda-wt/wt` and `dc-warn/out/lambda-return-contract/` written.
+
+## 7. Unverified / caveats
+
+- The acceptance bun test cannot be made green by any patch in this scope; it fails identically on the
+  unpatched baseline and in the review's own evidence (2609). Owner action on 2609 required.
+- The review's report does not state how its probeE hxml ran without `-D swift-output`; my driver copy adds
+  it (else the compiler aborts with "output directory ... not defined"). Output content is the comparison
+  basis, not the hxml bytes.
+- Runtime comparison for probeE/fixture generated code was not run (no native runner harness was wired for
+  them in the reviewed evidence either); discrimination is at `swiftc -typecheck`, which is exactly the
+  review's stated acceptance evidence.

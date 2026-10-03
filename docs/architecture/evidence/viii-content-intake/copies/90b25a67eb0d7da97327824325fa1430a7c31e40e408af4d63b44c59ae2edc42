@@ -1,0 +1,27 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct LocalShadowOps;
+
+impl LocalShadowOps {
+    pub fn local_shadow_ops_arrays() -> u32 {
+        let first_1 = 2u32;
+        let first_0 = 1u32;
+        let second_1 = 4u32;
+        let second_0 = 3u32;
+        return u32::wrapping_add(u32::wrapping_add(u32::wrapping_add(first_0, first_1), second_0), second_1);
+    }
+
+    pub fn local_shadow_ops_shadow() -> UString {
+        let first_tag = UString::from("a").to_ustring();
+        let before = (first_tag).clone();
+        let second_tag = UString::from("b").to_ustring();
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += before.as_ustr(); __s += second_tag.as_ustr(); __s }).as_str());
+    }
+
+    pub fn local_shadow_ops_single() -> u32 {
+        let value = 41u32;
+        return u32::wrapping_add(value, 1);
+    }
+}

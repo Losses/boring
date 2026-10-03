@@ -1,0 +1,23 @@
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct MathNaNTestSupport;
+
+impl MathNaNTestSupport {
+    pub fn math_na_n_test_support_assert_na_n(value: f64, message: &UStr) {
+        test_core::TestCore::test_core_equals_bool(true, value != value, message);
+    }
+
+    pub fn math_na_n_test_support_assert_negative_zero(value: f64, message: &UStr) {
+        test_core::TestCore::test_core_equals_float(0.0f64, value, message);
+        test_core::TestCore::test_core_equals_bool(true, (1.0f64 / value) < (0.0f64), (UString::from(format!("{}", { let mut __s = UString::new(); __s += message; __s += &(UString::from(" (sign)")); __s }).as_str())).as_ustr());
+    }
+
+    pub fn math_na_n_test_support_assert_positive_zero(value: f64, message: &UStr) {
+        test_core::TestCore::test_core_equals_float(0.0f64, value, message);
+        test_core::TestCore::test_core_equals_bool(true, (1.0f64 / value) > (0.0f64), (UString::from(format!("{}", { let mut __s = UString::new(); __s += message; __s += &(UString::from(" (sign)")); __s }).as_str())).as_ustr());
+    }
+}

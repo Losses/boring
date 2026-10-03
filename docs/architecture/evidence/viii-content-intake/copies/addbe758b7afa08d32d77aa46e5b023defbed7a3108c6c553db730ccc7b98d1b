@@ -1,0 +1,7 @@
+# Independent export check: git archive 2aadcb69 -> /tmp/verify-2aadcb69/wt
+# every extracted file re-hashed and compared with its blob oid in the commit tree
+commit: 2aadcb6978d81705379892d2b382671b3458e753
+files in git ls-tree: 1455
+checked=1455 mismatched=0 missing=0
+fixture sha256: 1c2acf93702b177df7179aac156ab94590e844110162d71e4d6fd5b90af3018a  samples/boring/MathNaNTestSupport.hx
+test file sha256: 8e9f3b58f580ed46f8c761a0f7146c08711694023e3df99675d28b1c9c293b2b  tests/ts/package-artifacts.test.ts

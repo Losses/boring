@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# usage: run-suite.sh <label>
+# Runs the exact authored-test command (`bun run test` == bun test tests/ packages/registry/tests/)
+# in the scratch root, with the toolchain PATH transcribed from the successful run.
+set -u
+LABEL="${1:?label}"
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/value-type-expectation
+. "$OUT/evidence/env.sh"
+LOG="$OUT/evidence/${LABEL}-full-suite.log"
+cd "$SCRATCH" || exit 64
+{
+  echo "label=$LABEL"
+  echo "cwd=$PWD"
+  echo "command=bun run test"
+  echo "scratch=$SCRATCH"
+  echo "HAXELIB_PATH=$HAXELIB_PATH"
+  echo "XDG_CACHE_HOME=$XDG_CACHE_HOME"
+  echo "start=$(date -uIs)"
+} > "$LOG"
+bun run test >> "$LOG" 2>&1
+rc=$?
+{
+  echo "end=$(date -uIs)"
+  echo "BUN_RUN_TEST_RC=$rc"
+} >> "$LOG"
+exit "$rc"

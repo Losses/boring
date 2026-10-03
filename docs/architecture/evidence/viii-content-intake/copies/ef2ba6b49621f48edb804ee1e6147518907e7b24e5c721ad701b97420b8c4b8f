@@ -1,0 +1,58 @@
+$ bun test tests/ packages/registry/tests/
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/package-artifacts.test.ts:
+(pass) package artifact emission > the npm tarball carries the compiled entries [30210.00ms]
+(pass) package artifact emission > the cargo crate and the Pub archive keep the tree at the root [15500.00ms]
+320 |   test("two generations of the same inputs produce byte-identical artifacts", async () => {
+...
+338 |         expect(fs.readFileSync(path.join(second, pkg.file))).toEqual(fs.readFileSync(path.join(first, pkg.file)));
+                                                                     ^
+error: expect(received).toEqual(expected)
+
+  {
+    "data": [
+      80,
+      75,
+      3,
+      4,
+      20,
+      0,
+-     77,
+-     97,
+-     116,
+-     104,
+-     78,
+-     97,
+-     78,
+       1,
+       0,
++     32,
++     32,
++     32,
++     32,
++     32,
++     32,
++     32,
+      0,
+    ],
+    "type": "Buffer",
+  }
+
+- Expected  - 7
++ Received  + 7
+
+      at <anonymous> (/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/package-artifacts.test.ts:338:74)
+(fail) package artifact emission > two generations of the same inputs produce byte-identical artifacts [418900.00ms]
+
+tests/ts/vector.test.ts:
+(pass) committed cross-language vector > re-encoding the decoded records reproduces the committed bytes [4.00ms]
+
+1 tests failed:
+(fail) package artifact emission > two generations of the same inputs produce byte-identical artifacts [418900.00ms]
+
+ 3 pass
+ 1 fail
+ 4 expect() calls
+Ran 4 tests across 2 files. [465000.00ms]
+error: script "test" exited with code 1

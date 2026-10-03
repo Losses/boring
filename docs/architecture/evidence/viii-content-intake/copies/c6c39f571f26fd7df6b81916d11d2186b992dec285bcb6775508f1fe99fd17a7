@@ -1,0 +1,24 @@
+package boring
+
+interface InterfaceGetterProperty {
+    val name: String get() = get_name()
+    fun get_name(): String
+}
+
+class InterfaceGetterPropertyImpl(value: String) : InterfaceGetterProperty {
+    val _value: String
+    init {
+    this._value = value
+    }
+    override val name: String get() = get_name()
+
+    override fun get_name(): String {
+        return this._value
+    }
+}
+
+object InterfaceGetterPropertyUse {
+    fun nameOf(value: InterfaceGetterProperty): String {
+        return value.name
+    }
+}

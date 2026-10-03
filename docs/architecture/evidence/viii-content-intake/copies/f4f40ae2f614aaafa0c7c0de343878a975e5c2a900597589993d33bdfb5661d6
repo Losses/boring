@@ -1,0 +1,88 @@
+package boring
+
+class DefaultArgShiftProbe(var tag: String = "probe") {
+
+    fun label(): String {
+        return this.tag
+    }
+}
+
+object DefaultArgShiftOps {
+    fun pick(a: String, b: String = a): String {
+        val normalized = b
+        return normalized!!
+    }
+
+    fun callExplicitNull(): String {
+        return DefaultArgShiftOps.pick("alpha", "alpha")
+    }
+
+    fun callLaterGiven(): String {
+        return DefaultArgShiftOps.pick("alpha", "beta")
+    }
+
+    fun chainedFallback(fallback: Float = 2.5f, value: Float = fallback): Float {
+        val resolvedFallback = fallback
+        val resolvedValue = value
+        return resolvedFallback + resolvedValue!!
+    }
+
+    fun callChainedLaterNull(): Float {
+        return DefaultArgShiftOps.chainedFallback(4.5f, 4.5f)
+    }
+
+    fun callChainedBothOmitted(): Float {
+        return DefaultArgShiftOps.chainedFallback()
+    }
+
+    fun callChainedLaterOmitted(): Float {
+        return DefaultArgShiftOps.chainedFallback(3.5f)
+    }
+
+    fun callChainedBothGiven(): Float {
+        return DefaultArgShiftOps.chainedFallback(1.5f, 8.0f)
+    }
+
+    fun callInstanceNull(): String {
+        val probe = DefaultArgShiftInstance()
+        return probe.decorate("core", "core")
+    }
+
+    fun run(base: Int, probe: DefaultArgShiftProbe = DefaultArgShiftProbe("fresh"), count: Int = 7): String {
+        val normalized = probe
+        val slots = count
+        return normalized.label() + ":" + base + ":" + slots
+    }
+
+    fun callMiddleNull(): String {
+        return DefaultArgShiftOps.run(3, DefaultArgShiftProbe("fresh"), 9)
+    }
+
+    fun callMiddleSkipped(): String {
+        return DefaultArgShiftOps.run(3, DefaultArgShiftProbe("given"))
+    }
+
+    fun ctorExplicitNull(): Float {
+        val cut = DefaultArgShiftCut(2.0f, 2.0f, 8)
+        return cut.height + (cut.count).toFloat()
+    }
+
+    fun ctorLaterGiven(): Float {
+        val cut = DefaultArgShiftCut(2.0f, 4.5f, 8)
+        return cut.height
+    }
+}
+
+class DefaultArgShiftInstance {
+    fun decorate(text: String, suffix: String = text): String {
+        val normalized = suffix
+        return normalized!!
+    }
+}
+
+class DefaultArgShiftCut(val width: Float, val height: Float = width, val count: Int = 5) {
+
+    fun describe(): String {
+        return (this.width).toString() + ":" + this.height + ":" + this.count
+    }
+}

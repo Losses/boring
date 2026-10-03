@@ -1,0 +1,12 @@
+gen-swift		0	zero
+tree-gen-swift		5	file-count
+prep-swift		0	zero
+compile-swift		1	data
+run-swift		producer-compile-swift-status-1	not-reached
+compare-swift		producer-compile-swift-status-1	not-reached
+gen-probe		0	zero
+tree-gen-probe		5	file-count
+prep-probe		0	zero
+compile-probe		1	data
+run-probe		producer-compile-probe-status-1	not-reached
+compare-probe		producer-compile-probe-status-1	not-reached

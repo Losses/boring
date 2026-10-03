@@ -1,0 +1,29 @@
+#![cfg(test)]
+
+use crate::boring::array_root_state_ops::ArrayRootStateOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_array_roots() {
+    testlib::run("tests.ArrayRootTests.testArrayRoots", "tests.ArrayRootTests.testArrayRoots: small static arrays preserve their roots and elements", || {
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_read_only_length()) as i32).to_ne_bytes()), UStr::new(&[114,101,97,100,45,111,110,108,121,32,108,101,110,103,116,104]));
+        test_core::TestCore::test_core_equals_int(10i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_read_only_element(0)) as i32).to_ne_bytes()), UStr::new(&[114,101,97,100,45,111,110,108,121,32,102,105,114,115,116,32,101,108,101,109,101,110,116]));
+        test_core::TestCore::test_core_equals_int(30i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_read_only_element(2)) as i32).to_ne_bytes()), UStr::new(&[114,101,97,100,45,111,110,108,121,32,108,97,115,116,32,101,108,101,109,101,110,116]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_mutable_length()) as i32).to_ne_bytes()), UStr::new(&[109,117,116,97,98,108,101,32,108,101,110,103,116,104]));
+        test_core::TestCore::test_core_equals_int(40i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_mutable_element(0)) as i32).to_ne_bytes()), UStr::new(&[109,117,116,97,98,108,101,32,102,105,114,115,116,32,101,108,101,109,101,110,116]));
+        test_core::TestCore::test_core_equals_int(50i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_mutable_element(1)) as i32).to_ne_bytes()), UStr::new(&[109,117,116,97,98,108,101,32,108,97,115,116,32,101,108,101,109,101,110,116]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_words_length()) as i32).to_ne_bytes()), UStr::new(&[115,116,114,105,110,103,32,108,101,110,103,116,104]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,108,112,104,97]), ArrayRootStateOps::array_root_state_ops_word(0).as_ustr(), UStr::new(&[102,105,114,115,116,32,115,116,114,105,110,103]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98,101,116,97]), ArrayRootStateOps::array_root_state_ops_word(1).as_ustr(), UStr::new(&[115,101,99,111,110,100,32,115,116,114,105,110,103]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_mixed_length()) as i32).to_ne_bytes()), UStr::new(&[101,110,117,109,32,108,101,110,103,116,104]));
+        test_core::TestCore::test_core_equals_bool(true, ArrayRootStateOps::array_root_state_ops_mixed_is_weighted(), UStr::new(&[101,110,117,109,32,101,108,101,109,101,110,116]));
+        test_core::TestCore::test_core_equals_int(7i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_mixed_weight()) as i32).to_ne_bytes()), UStr::new(&[99,114,111,115,115,45,102,105,101,108,100,32,101,108,101,109,101,110,116]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_nested_length()) as i32).to_ne_bytes()), UStr::new(&[110,101,115,116,101,100,32,111,117,116,101,114,32,108,101,110,103,116,104]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_nested_inner_length(0)) as i32).to_ne_bytes()), UStr::new(&[110,101,115,116,101,100,32,102,105,114,115,116,32,105,110,110,101,114,32,108,101,110,103,116,104]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_nested_inner_length(1)) as i32).to_ne_bytes()), UStr::new(&[110,101,115,116,101,100,32,115,101,99,111,110,100,32,105,110,110,101,114,32,108,101,110,103,116,104]));
+        test_core::TestCore::test_core_equals_int(4i32, i32::from_ne_bytes(((ArrayRootStateOps::array_root_state_ops_nested_element(1, 1)) as i32).to_ne_bytes()), UStr::new(&[110,101,115,116,101,100,32,108,97,115,116,32,101,108,101,109,101,110,116]));
+    });
+}

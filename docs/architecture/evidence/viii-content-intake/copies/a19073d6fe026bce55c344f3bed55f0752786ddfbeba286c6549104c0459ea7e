@@ -1,0 +1,23 @@
+CTL              OLD  NEW    BYTES    DELTA  NEW_MESSAGE
+pos                0    0     2622        0  INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+negA1              0    1     2623        1  INTEGRITY FAIL: content after the end marker (1 byte(s) past the marker line, byte 2622 of 2623)
+negA6              0    1     2628        6  INTEGRITY FAIL: content after the end marker (6 byte(s) past the marker line, byte 2622 of 2628)
+negA5000           0    1     7622     5000  INTEGRITY FAIL: content after the end marker (5000 byte(s) past the marker line, byte 2622 of 7622)
+negA200k           0    1   202622   200000  INTEGRITY FAIL: content after the end marker (200000 byte(s) past the marker line, byte 2622 of 202622)
+negB1              1    1     2629        7  INTEGRITY FAIL: content after the end marker (7 byte(s) past the marker line, byte 2622 of 2629)
+negB2              1    1     2622        0  INTEGRITY FAIL: stage evidence hash changed
+negB3              1    1     2622        0  INTEGRITY FAIL: stage evidence hash changed
+negB4              1    1     2622        0  INTEGRITY FAIL: stage evidence set differs from manifest
+trunc1             0    0     2621       -1  INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+trunc_nl           1    1     1000    -1622  INTEGRITY FAIL: no end marker (unsealed log)
+trunc_bare         1    1     2557      -65  INTEGRITY FAIL: prefix sha mismatch (recorded , actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)
+trunc_hash         0    0     2621       -1  INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+trunc_half         1    1     2589      -33  INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee8, actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)
+trunc_all          1    1     2531      -91  INTEGRITY FAIL: no end marker (unsealed log)
+mid_marker         1    1     2713       91  INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, actual 509a398a9666aefd9c8a6e1a77e60400b2d578d734b5d7ee1256d3a0fd70531b)
+crlf               1    1     2652       30  INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, actual 9b5ce801e1712f3a806905ba29027b36facdcc6ed85172b7dda9457d7fea0c5d)
+mid_and_tail       1    1     2809      187  INTEGRITY FAIL: content after the end marker (5 byte(s) past the marker line, byte 2804 of 2809)
+tail_only_marker    0    0     2622        0  INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+relast_bogus       1    1     2622        0  INTEGRITY FAIL: prefix sha mismatch (recorded ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)
+negE               0    0     2733      111  INTEGRITY OK: sealed at line 32, sha 9737cc38aef07d1fc94810225aee49242fde63ca16b07594b8d709c70bb9e775, stage manifest exact
+negE2              0    0     2721       99  INTEGRITY OK: sealed at line 32, sha 59488deeede6f400f53d6f05ad7c1bc162a1a92da8e587c15d75cbd4e31c3fbb, stage manifest exact

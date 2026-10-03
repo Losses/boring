@@ -1,0 +1,53 @@
+use crate::runtime::u_string::UString;
+use std::fmt::Write;
+
+
+#[derive(Clone, PartialEq)]
+pub struct PlainPoint {
+    pub x: u32,
+    pub y: u32,
+}
+
+impl PlainPoint {
+    pub fn new(x: u32, y: u32) -> Self {
+        Self {
+            x,
+            y,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("Point(")); __s += &(UString::from((self.x).to_string().as_str())); __s += &(UString::from(",")); __s += &(UString::from((self.y).to_string().as_str())); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct PlainClassRecord {
+    pub point: PlainPoint,
+    pub points: Vec<PlainPoint>,
+}
+
+impl PlainClassRecord {
+    pub fn new(point: PlainPoint, points: Vec<PlainPoint>) -> Self {
+        Self {
+            point,
+            points,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("PlainClassRecord(")); __s += &(UString::from("point=")); __s += UString::from(format!("{}", (self.point).clone().to_string()).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("points=")); __s += UString::from(format!("{}", {
+        let mut out = String::new();
+        out.push('[');
+        let n = (self.points).clone().len();
+        let mut i = 0usize;
+        while i < n {
+            if i > 0 { out.push_str(", "); }
+            let _ = write!(out, "{}", (self.points).clone()[i].to_string());
+            i += 1;
+        }
+        out.push(']');
+        out
+    }).as_str()).as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}

@@ -1,0 +1,23 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/array-root.test.ts:
+23 |     );
+24 | 
+25 |     const rust = read("reference/rust/gen/boring/array_root_state_ops.rs");
+26 |     expect(rust).toMatch(/pub static ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS: \[(?:u32|i32); 3\] = \[10, 20, 30\];/);
+27 |     expect(rust).toContain("pub static ARRAY_ROOT_STATE_OPS_MUTABLE_INTS: [u32; 2] = [40, 50];");
+28 |     expect(rust).toContain("LazyLock<Vec<String>>");
+                      ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "LazyLock<Vec<String>>"
+Received: "use crate::runtime::u_string::UString;\nuse std::sync::LazyLock;\n\n\npub static ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS: [u32; 3] = [10, 20, 30];\n\npub static ARRAY_ROOT_STATE_OPS_MUTABLE_INTS: [u32; 2] = [40, 50];\n\npub static ARRAY_ROOT_STATE_OPS_WORDS: LazyLock<Vec<UString>> = LazyLock::new(|| vec![UString::from(\"alpha\").to_ustring(), UString::from(\"beta\").to_ustring()]);\n\npub static ARRAY_ROOT_STATE_OPS_MIXED: LazyLock<Vec<ArrayRootKind>> = LazyLock::new(|| vec![\n    (ArrayRootKind::Weighted { value: ArrayRootStateOps::ARRAY_ROOT_STATE_OPS_MARKER }).clone(),\n    (ArrayRootKind::Plain).clone(),\n]);\n\npub static ARRAY_ROOT_STATE_OPS_NESTED: LazyLock<Vec<Vec<u32>>> = LazyLock::new(|| vec![(vec![1, 2]).clone(), (vec![3, 4]).clone()]);\n\n#[derive(Clone, PartialEq)]\npub struct ArrayRootStateOps {\n}\n\nimpl ArrayRootStateOps {\n    pub const ARRAY_ROOT_STATE_OPS_MARKER: u32 = 7;\n\n    pub const fn new() -> Self {\n        Self {\n        }\n    }\n\n    pub fn array_root_state_ops_read_only_length() -> u32 {\n        return u32::try_from((ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS.len()) & 0xFFFF_FFFF).unwrap_or(0);\n    }\n\n    pub fn array_root_state_ops_read_only_element(index: u32) -> u32 {\n        return ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS[usize::try_from(index).unwrap_or(0)];\n    }\n\n    pub fn array_root_state_ops_mutable_length() -> u32 {\n        return u32::try_from((ARRAY_ROOT_STATE_OPS_MUTABLE_INTS.len()) & 0xFFFF_FFFF).unwrap_or(0);\n    }\n\n    pub fn array_root_state_ops_mutable_element(index: u32) -> u32 {\n        return ARRAY_ROOT_STATE_OPS_MUTABLE_INTS[usize::try_from(index).unwrap_or(0)];\n    }\n\n    pub fn array_root_state_ops_words_length() -> u32 {\n        return u32::try_from(((*ARRAY_ROOT_STATE_OPS_WORDS).clone().len()) & 0xFFFF_FFFF).unwrap_or(0);\n    }\n\n    pub fn array_root_state_ops_word(index: u32) -> UString {\n        return ((*ARRAY_ROOT_STATE_OPS_WORDS).clone()[usize::try_from(index).unwrap_or(0)]).clone();\n    }\n\n    pub fn array_root_state_ops_mixed_length() -> u32 {\n        return u32::try_from(((*ARRAY_ROOT_STATE_OPS_MIXED).clone().len()) & 0xFFFF_FFFF).unwrap_or(0);\n    }\n\n    pub fn array_root_state_ops_mixed_is_weighted() -> bool {\n        let kind = ((*ARRAY_ROOT_STATE_OPS_MIXED).clone()[0usize]).clone();\n        return match kind {\n            ArrayRootKind::Plain => false,\n            ArrayRootKind::Weighted { .. } => true,\n        };\n    }\n\n    pub fn array_root_state_ops_mixed_weight() -> u32 {\n        let kind = ((*ARRAY_ROOT_STATE_OPS_MIXED).clone()[0usize]).clone();\n        return match kind {\n            ArrayRootKind::Plain => 0,\n            ArrayRootKind::Weighted { value: _p0 } => _p0,\n        };\n    }\n\n    pub fn array_root_state_ops_nested_length() -> u32 {\n        return u32::try_from(((*ARRAY_ROOT_STATE_OPS_NESTED).clone().len()) & 0xFFFF_FFFF).unwrap_or(0);\n    }\n\n    pub fn array_root_state_ops_nested_inner_length(index: u32) -> u32 {\n        return u32::try_from((((*ARRAY_ROOT_STATE_OPS_NESTED).clone()[usize::try_from(index).unwrap_or(0)]).clone().len()) & 0xFFFF_FFFF).unwrap_or(0);\n    }\n\n    pub fn array_root_state_ops_nested_element(outer: u32, inner: u32) -> u32 {\n        return ((*ARRAY_ROOT_STATE_OPS_NESTED).clone()[usize::try_from(outer).unwrap_or(0)]).clone()[usize::try_from(inner).unwrap_or(0)];\n    }\n}\n\n#[derive(Debug, Clone, PartialEq)]\npub enum ArrayRootKind {\n    Plain,\n    Weighted { value: u32 },\n}\n\nimpl ArrayRootKind {\n    pub fn to_string(&self) -> String {\n        match self {\n            ArrayRootKind::Plain => \"Plain\".to_string(),\n            ArrayRootKind::Weighted { value } => format!(\"Weighted(value={})\", (value).to_string()),\n        }\n    }\n}\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/arroot-wt/wt/tests/ts/array-root.test.ts:28:18)
+(fail) small static array initializer trees > each target uses the ruled array declaration [116.00ms]
+
+ 0 pass
+ 1 filtered out
+ 1 fail
+ 8 expect() calls
+Ran 1 test across 1 file. [1.65s]

@@ -1,0 +1,59 @@
+import re, os, collections
+
+DIFF="/home/losses/Development/tq-workspace/dc-warn/out/composite-patch/COMPOSITE.diff"
+CFGA="/tmp/p1run/cfg-a/tests/ts"
+OUTA="/home/losses/Development/tq-workspace/dc-warn/out/p1-scoped-run/evidence/cfg-a-outcomes-no-timing.txt"
+outcomes={}
+for line in open(OUTA,encoding="utf8"):
+    m=re.match(r"^\((pass|fail)\)\s+(.*?)(?:\s+\[.*\])?$",line.strip())
+    if m: outcomes[m.group(2).strip()]=m.group(1)
+def outcome_for(short):
+    hits=[k for k in outcomes if k.endswith(short)]
+    return outcomes[hits[0]] if len(hits)==1 else ("?%d"%len(hits))
+
+cur=None; newno=None; added=collections.defaultdict(list)
+for raw in open(DIFF,encoding="utf8"):
+    line=raw.rstrip("\n")
+    m=re.match(r"^\+\+\+ b/(.*)$",line)
+    if m: cur=m.group(1); continue
+    m=re.match(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@",line)
+    if m: newno=int(m.group(1)); continue
+    if cur and newno is not None:
+        if line.startswith("+"):
+            added[cur].append((newno,line[1:])); newno+=1
+        elif line.startswith("-"):
+            pass
+        elif line.startswith(" "):
+            newno+=1
+
+def tests_in(path):
+    src=open(path,encoding="utf8").read().splitlines()
+    marks=[]
+    for i,l in enumerate(src,1):
+        m=re.match(r'\s*(?:test|it)\(\s*"((?:[^"\\]|\\.)*)"',l)
+        if m: marks.append((i,m.group(1)))
+    return [(marks[j][0],(marks[j+1][0]-1 if j+1<len(marks) else len(src)),marks[j][1]) for j in range(len(marks))]
+
+total=0; inpass=0; infail=0; inmodule=0
+detail=[]
+for f,items in sorted(added.items()):
+    total+=len(items)
+    path=os.path.join(CFGA,os.path.basename(f))
+    spans=tests_in(path)
+    for ln,txt in items:
+        span=[ (a,b,n) for a,b,n in spans if a<=ln<=b ]
+        if span:
+            a,b,n=span[0]; st=outcome_for(n)
+            detail.append((f,ln,st,n,txt))
+            if st=="pass": inpass+=1
+            elif st=="fail": infail+=1
+        else:
+            inmodule+=1
+            detail.append((f,ln,"MODULE","",txt))
+print("total added lines in COMPOSITE.diff:",total)
+print("inside a passing test:",inpass)
+print("inside a failing test:",infail)
+print("module scope / tables outside test bodies:",inmodule)
+print()
+for f,ln,st,n,txt in detail:
+    print(f"{st:>7} {f}:{ln}  {txt.strip()[:110]}   {{{n}}}")

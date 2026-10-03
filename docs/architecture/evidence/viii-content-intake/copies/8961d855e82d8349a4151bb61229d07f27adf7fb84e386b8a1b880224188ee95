@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class FusedPushThrowTests {
+@boring.test.Test
+    fun testBuild() {
+        Test.run("tests.FusedPushThrowTests.testBuild", "tests.FusedPushThrowTests.testBuild: a fused push of a throwing construction carries the try marker") {
+                Test.equals(true, true, null)
+        }
+    }
+}

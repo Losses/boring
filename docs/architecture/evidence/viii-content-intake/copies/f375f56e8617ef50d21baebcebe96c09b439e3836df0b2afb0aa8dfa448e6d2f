@@ -1,0 +1,6 @@
+// Harness for the xcheck-null-guard2 probe (closure variant).
+import 'x_guard2.dart' as xg2;
+
+void main() {
+  print(xg2.run());
+}

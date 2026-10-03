@@ -1,0 +1,6 @@
+PROBE payloadEnumNames write key=xcheckscope.TwoProbe value=F1 class=xcheckscope.TwoProbe::E1
+PROBE payloadEnumNames write key=xcheckscope.TwoProbe value=F2 class=xcheckscope.TwoProbe::E2
+PROBE guard cls=xcheckscope.TwoProbe::E1 payloadEnum=xcheckscope.TwoProbe::F1 mapModuleKey=xcheckscope.TwoProbe mapValue=F2
+PROBE guard cls=xcheckscope.TwoProbe::E2 payloadEnum=xcheckscope.TwoProbe::F2 mapModuleKey=xcheckscope.TwoProbe mapValue=F2
+PROBE guard cls=xcheckscope.TwoProbe::E1 payloadEnum=xcheckscope.TwoProbe::F1 mapModuleKey=xcheckscope.TwoProbe mapValue=F2
+PROBE guard cls=xcheckscope.TwoProbe::E2 payloadEnum=xcheckscope.TwoProbe::F2 mapModuleKey=xcheckscope.TwoProbe mapValue=F2

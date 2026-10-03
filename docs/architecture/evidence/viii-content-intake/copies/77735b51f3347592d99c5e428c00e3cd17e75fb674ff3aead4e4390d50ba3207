@@ -1,0 +1,43 @@
+GOVERNING TEXT, verbatim excerpts read at HEAD (git show HEAD:<path>), with sha256 of the
+working-tree file. Working tree is CLEAN for both files (git status --porcelain empty).
+
+== docs/architecture-work-plan.md  lines 415-417 ==
+Generated-code warnings and suppression markers are acceptance failures under
+the current standard. Record any baseline failure separately, including its
+revision and reproduction; a baseline finding does not waive the standard.
+[SECTION: "## Verification and acceptance" (starts line 362); next heading
+ "## Reflection and guidance evaluation" at line 426. Introduced by commit
+ ad6bed45d 2026-09-27, i.e. present since the plan's first version.]
+
+== docs/architecture-work-plan.md  lines 218-219 (P09) ==
+- [ ] P09: Run the candidate's required Boring checks and Tiqian checks on fixed
+  revisions, preserving logs, generated-output identity, and warning results.
+
+== docs/architecture-work-plan.md  lines 63, 65 (document responsibilities) ==
+| docs/specs/style/02-translator-implementation-standard.md | Binding ownership, consolidation, variation, and acceptance rules |
+| This plan | Task order, assignments, dependencies, and programme status |
+
+== docs/specs/style/02-translator-implementation-standard.md  lines 78-80 (Acceptance) ==
+1. Generated code compiles without warnings on every target: kotlinc, rustc, the TypeScript
+   compiler, the Dart analyzer, and the Swift type-checker. A translation that produces a
+   warning is an emitter defect with the same severity as a translation that produces wrong output.
+2. Warning suppression markers are banned in generated trees: ... The emitter produces code that does not warn.
+3. Acceptance for any emitter change counts the warning lines in the target suite output that
+   name files under the generated trees; the count is zero. A change that replaces a warning
+   with a suppression marker fails acceptance.
+[Added by faefab4f3 2026-09-05, i.e. BEFORE the plan; present at HEAD.]
+
+== docs/investigations/architecture-round-1/j-boundary-implementation.md lines 210-212 ==
+Preserve successful compiler output because the current bundle driver discards it. Require
+zero warnings attributed to generated files and no suppression markers.
+
+== docs/investigations/architecture-round-2/a-source-container-facts.md lines 71-72 ==
+A pre-existing failure remains a recorded limitation; it does not justify an unrelated
+backend repair.
+
+== dc-warn/out/integration-manifest/MANIFEST.md lines 154-157 (section 6, decider preconditions) ==
+4. Post-integration gate should re-run, with cwd = tree root and the env.json PATH, exit codes
+   captured unpiped: (a) both fixture generations; (b) both `swiftc -typecheck` sets (expect 0
+   errors); (c) `bun test tests/swift-readonly-boundary/` ONLY after precondition 2 resolves.
+   [NOTE: this project document words its gate expectation "expect 0 errors", NOT "zero
+    diagnostics". It is the one project document that matches option (c).]

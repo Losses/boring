@@ -1,0 +1,11 @@
+package boring
+
+object ToStringOps {
+    fun makeLabel(text: String, width: Int): PlainLabel {
+        return PlainLabel(text, width)
+    }
+
+    fun describe(label: PlainLabel): String {
+        return label.toString()
+    }
+}

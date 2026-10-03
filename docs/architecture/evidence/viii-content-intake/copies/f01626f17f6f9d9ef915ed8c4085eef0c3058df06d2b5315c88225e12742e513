@@ -1,0 +1,6 @@
+evidence root /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval
+run directory /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-tbGMwa
+worktree root /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval
+fixture /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/tests/haxe/dc-promoted-eval
+runner /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/tests/haxe/dc-promoted-eval/run.sh
+tsc selected /home/losses/Development/tq-workspace/boring/node_modules/.bin/tsc (real /home/losses/Development/tq-workspace/boring/node_modules/.bun/typescript@5.9.3/node_modules/typescript/bin/tsc)

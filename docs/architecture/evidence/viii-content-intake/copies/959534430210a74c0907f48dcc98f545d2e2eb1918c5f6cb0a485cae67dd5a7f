@@ -1,0 +1,22 @@
+#![cfg(test)]
+
+use crate::boring::exception_catch_ops::ExceptionCatchOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::tests::probe_share_tests::ProbeShareTests;
+
+
+#[test]
+fn exception_type_lowering() {
+    testlib::run("tests.ExceptionCatchTests.exceptionTypeLowering", "tests.ExceptionCatchTests.exceptionTypeLowering: haxe.Exception type lowers to Error", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[110,111,110,101]), ExceptionCatchOps::exception_catch_ops_cause_message(None).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_module_import() {
+    testlib::run("tests.ExceptionCatchTests.testModuleImport", "tests.ExceptionCatchTests.testModuleImport: test module probes resolve across test files", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[115,104,97,114,101,100]), ProbeShareTests::probe_share_tests_shared_label().as_ustr(), UStr::new(&[]));
+    });
+}

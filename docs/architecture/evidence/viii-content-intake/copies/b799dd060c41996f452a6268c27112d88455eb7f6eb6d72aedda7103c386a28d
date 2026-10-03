@@ -1,0 +1,22 @@
+#![cfg(test)]
+
+use crate::boring::static_fn_ops::StaticFnOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_function_static() {
+    testlib::run("tests.StaticFnTests.testFunctionStatic", "tests.StaticFnTests.testFunctionStatic: static function values can be called", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[111,107,33]), StaticFnOps::static_fn_ops_apply(UStr::new(&[111,107])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_int_static() {
+    testlib::run("tests.StaticFnTests.testIntStatic", "tests.StaticFnTests.testIntStatic: ordinary mutable static remains shared", || {
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((StaticFnOps::static_fn_ops_increment()) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((StaticFnOps::static_fn_ops_increment()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

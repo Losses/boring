@@ -1,0 +1,27 @@
+# governing design doc: docs/investigations/architecture-round-1/j-prepared-value-design.md lines 116-141
+116: | Operation | Required result rule | Optional result rule |
+117: | --- | --- | --- |
+118: | Ordinary conditional | Every reachable arm produces a required value. | At least one reachable arm can be null, and the destination permits null. |
+119: | Nil-merge | The guarded target is already required, or the fallback supplies a required value when the target is null. | Both target and fallback can be null, and the destination permits null. |
+120: | Parameter with native default | The selected body type and operation establish a required value. | The selected body type remains nullable; native placement supplies no additional proof. |
+121: | Entry-normalized parameter | The normalization's possible results are all required. | A permitted normalization result remains nullable. |
+122: 
+123: Present alternatives use the common destination container representation.
+124: A null literal represents an absent value. Empty literals
+125: receive their element type and constructor from the result context. Do not
+126: accept incompatible alternatives by copying one arm's storage field.
+127: 
+128: For nil-merge recognition, the arm returning the guarded target must be the
+129: non-null outcome of the comparison. Account for both `==` and `!=`, either
+130: comparison operand order, and either branch orientation. Reuse the existing
+131: structural decision across its consumers, with one owner for recognition.
+132: Its stability precondition must justify any eliminated repeated source read.
+133: Otherwise preserve the general conditional form.
+134: 
+135: An optional nil-merge target can remain optional during preparation even when
+136: the final result is required: the fallback may supply the required result.
+137: Do not force that target through a required-destination conversion before the
+138: merge has established presence. A prior valid guard can instead make the
+139: prepared target required, in which case the fallback is unreachable. Source
+140: `Null<T>` spelling alone decides neither case.
+141: 

@@ -1,0 +1,12 @@
+package boring
+
+data class SwiftDefaultRecord(val style: ProbeUnit = boring.ProbeUnit.ZERO) {
+}
+
+
+
+object SwiftDefaultOps {
+    fun hasDefault(): Boolean {
+        return SwiftDefaultRecord().style == ProbeUnit.ZERO
+    }
+}

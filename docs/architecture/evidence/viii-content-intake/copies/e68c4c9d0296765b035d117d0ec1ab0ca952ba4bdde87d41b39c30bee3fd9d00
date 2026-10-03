@@ -1,0 +1,22 @@
+package tests
+
+import boring.EnumSortedKeysOps
+import boring.runtime.test.Test
+
+class EnumSortedKeysTests {
+@boring.test.Test
+    fun testSetOrder() {
+        Test.run("tests.EnumSortedKeysTests.testSetOrder", "tests.EnumSortedKeysTests.testSetOrder: Parameterless enum sorted sets use declaration order") {
+                Test.equals("Low,Mid,High", EnumSortedKeysOps.describe(), "set traversal follows declaration order")
+                Test.equals(true, EnumSortedKeysOps.has(), "set has finds enum singleton")
+        }
+    }
+
+@boring.test.Test
+    fun testMapOrder() {
+        Test.run("tests.EnumSortedKeysTests.testMapOrder", "tests.EnumSortedKeysTests.testMapOrder: Parameterless enum sorted maps order keys and values") {
+                Test.equals("Low:1;Mid:2;High:3", EnumSortedKeysOps.mapOrder(), "map indexes follow declaration order")
+                Test.equals("Later,Earlier", EnumSortedKeysOps.declarationOrder(), "source constructor order is authoritative")
+        }
+    }
+}

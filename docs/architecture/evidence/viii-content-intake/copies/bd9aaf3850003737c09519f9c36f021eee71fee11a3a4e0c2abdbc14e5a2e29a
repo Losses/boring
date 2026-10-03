@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Attempt driver for task t-mun5d99p-op76 (fix/swift-generated-tree-runtime).
+# Usage: NAME=<prefix|postfix|negctl> EV=<attempt dir> bash attempt.sh
+# Two fixtures per attempt:
+#   swift-rt   - the read-only try-tail 12-shape fixture (tests/haxe/try-tail)
+#   probe      - the dedicated minimal fixture (tests/haxe/swift-rt-probe):
+#                one concrete exception, caught by its concrete type only,
+#                no explicit haxe.Exception reference anywhere
+# Records argv/cwd, separated streams, numeric exit status, generated-tree
+# manifests, and input hashes before/after. Run inside the pinned
+# `nix develop` shell (haxe 4.3.7, swift 6.2.4 toolchain in the store).
+set -uo pipefail
+NAME="${NAME:?NAME=<prefix|postfix|negctl>}"
+EV="${EV:?EV must point at the evidence dir}"
+ROOT="/home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt"
+STAGES="$EV/stages"
+mkdir -p "$STAGES" "$EV/trees"
+TAB="$(printf '\t')"
+
+record() {
+	printf '%s%s%s%s%s\n' "$1" "$TAB" "$TAB$2" "$TAB" "$3" >>"$EV/status.tsv"
+	printf '%s observed=%s\n' "$1" "$2"
+}
+
+stage() {
+	local name=$1 expected=$2
+	shift 2
+	local dir="$STAGES/$name"
+	mkdir -p "$dir"
+	{
+		printf 'cwd %s\nargv' "$ROOT"
+		printf ' %q' "$@"
+		printf '\n'
+	} >"$dir/argv"
+	( cd "$ROOT" && "$@" ) >"$dir/stdout" 2>"$dir/stderr"
+	local observed=$?
+	printf '%s\n' "$observed" >"$dir/status"
+	record "$name" "$observed" "$expected"
+	return "$observed"
+}
+
+input_hashes() {
+	( cd "$ROOT" && sha256sum tests/haxe/try-tail/oracle.hxml tests/haxe/try-tail/expected.txt tests/haxe/try-tail/trytail/TryTailOracle.hx tests/haxe/try-tail/gen/*.hxml tests/haxe/try-tail/native/* tests/haxe/try-tail/run-stages.sh tests/haxe/swift-rt-probe/probe/Probe.hx tests/haxe/swift-rt-probe/gen/swift.hxml tests/haxe/swift-rt-probe/native/native-main.swift tests/haxe/swift-rt-probe/expected.txt 2>/dev/null )
+}
+
+echo "attempt $NAME at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$EV/identity.txt"
+printf 'worktree %s\n' "$ROOT" >>"$EV/identity.txt"
+git -C "$ROOT" log --oneline -1 >>"$EV/identity.txt"
+input_hashes >"$EV/input-hashes.txt"
+
+# Swift toolchain identity (store 6.2.4 + FHS rootfs, raw mode; same store
+# paths as try-tail attempt-tail-01).
+SWIFTROOT="/nix/store/j1bfa7mw323wmp6pfrn1qkchxv61wk2n-swift-toolchain-6.2.4-al2"
+FHS="/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs"
+GLIBC_LIB="$(dirname "$(readlink -f "$FHS/usr/lib64/Scrt1.o" 2>/dev/null)" 2>/dev/null)"
+GCCRT_DIR="$(gcc -print-libgcc-file-name 2>/dev/null | sed 's#/[^/]*$##')"
+LIBGCCS_DIR="$(gcc -print-file-name=libgcc_s.so.1 2>/dev/null | sed 's#/[^/]*$##')"
+LDRT="$FHS/usr/lib64:$FHS/lib64:$SWIFTROOT/usr/lib/swift/linux:/usr/lib64:/usr/lib"
+{
+	printf 'swiftc %s\n' "$SWIFTROOT/usr/bin/swiftc"
+	printf 'fhs-rootfs %s\n' "$FHS"
+	printf 'glibc-lib %s\n' "$GLIBC_LIB"
+	printf 'gccrt-dir %s\n' "$GCCRT_DIR"
+	printf 'libgccs-dir %s\n' "$LIBGCCS_DIR"
+} >"$EV/swift-toolchain.txt"
+SHIM="$EV/swift-shim"
+mkdir -p "$SHIM"
+for f in Scrt1.o crti.o crtn.o; do cp "$GLIBC_LIB/$f" "$SHIM/$f" 2>/dev/null || true; done
+for f in crtbeginS.o crtendS.o; do cp "$GCCRT_DIR/$f" "$SHIM/$f" 2>/dev/null || true; done
+
+manifest() { # <rel gen dir> <name>
+	( cd "$ROOT" && {
+		[ -d "$1" ] || { echo "no gen dir" ; exit 1 ; }
+		find "$1" \( -name '*.swift' -o -name 'Package.swift' -o -name '_GeneratedFiles.txt' \) | sort | sed "s#^$1/##" | while read -r f; do
+			printf '%s  %s\n' "$(sha256sum "$1/$f" | cut -d' ' -f1)" "$f"
+		done
+	} ) >"$EV/trees/$2.sha256" 2>&1
+	( cd "$ROOT" && find "$1" -type f | sort | sed "s#^$1/##" ) >"$EV/trees/$2.files" 2>&1
+	record "tree-$2" "$(wc -l <"$EV/trees/$2.files")" "file-count"
+}
+
+# Compile recipe (mirrors tests/haxe/readonly-alias/run.sh raw mode): the root
+# Runtime.swift, when emitted, is listed explicitly beside the per-module
+# find; absent in a pre-fix tree, so the prefix argv degenerates to exactly
+# the try-tail original command.
+compile_tree() { # <gen rel> <stage> <modules...>
+	# The file list is expanded by this shell; the inner shell receives the
+	# plain paths (fuse-safe, no nested substitution).
+	local genrel=$1 stageid=$2; shift 2
+	local AGEN="$ROOT/$genrel" RT="" FILES=""
+	for m in "$@"; do
+		FILES="$FILES $(find "$AGEN/$m" -name '*.swift' | tr '\n' ' ')"
+	done
+	[ -f "$AGEN/Runtime.swift" ] && RT="$AGEN/Runtime.swift "
+	stage "$stageid" data bash -c "cd $genrel && sha256sum native-main.swift >harness.sha256 && cd $SHIM && LD_LIBRARY_PATH='$LDRT' timeout 1800 $SWIFTROOT/usr/bin/swiftc -o $AGEN/run-bin $RT$FILES $AGEN/native-main.swift -Xcc -I$FHS/usr/include -L$FHS/usr/lib64 -L$GCCRT_DIR -L$LIBGCCS_DIR -L$GLIBC_LIB"
+}
+
+# ================= fixture 1: try-tail (12 shapes, read-only source) =======
+FIX1="tests/haxe/try-tail"
+GEN1="out/swift-rt/gen/swift"
+stage gen-swift zero bash -c "rm -rf $GEN1 && haxe $FIX1/gen/swift.hxml -D swift-output=$GEN1 -D swift-test-output=out/swift-rt/gen/swift-test"
+GEN1_RC=$(cat "$STAGES/gen-swift/status")
+manifest "$GEN1" "gen-swift"
+stage prep-swift zero bash -c "cp $FIX1/native/native-main.swift $GEN1/native-main.swift"
+compile_tree "$GEN1" compile-swift std trytail
+C1=$(cat "$STAGES/compile-swift/status")
+if [ "$GEN1_RC" = "0" ] && [ "$C1" = "0" ]; then
+	stage run-swift zero bash -c "cd $GEN1 && LD_LIBRARY_PATH='$LDRT' timeout 300 ./run-bin"
+	diff -u "$ROOT/$FIX1/expected.txt" "$STAGES/run-swift/stdout" >"$STAGES/compare-swift.stdout" 2>"$STAGES/compare-swift.stderr"
+	record "compare-swift" "$?" "0-identical-nonzero-differs"
+else
+	record "run-swift" "producer-compile-swift-status-$C1" "not-reached"
+	record "compare-swift" "producer-compile-swift-status-$C1" "not-reached"
+fi
+
+# ================= fixture 2: dedicated minimal probe ======================
+FIX2="tests/haxe/swift-rt-probe"
+GEN2="out/swift-rt/gen/probe"
+stage gen-probe zero bash -c "rm -rf $GEN2 && haxe $FIX2/gen/swift.hxml -D swift-output=$GEN2 -D swift-test-output=out/swift-rt/gen/probe-test"
+GEN2_RC=$(cat "$STAGES/gen-probe/status")
+manifest "$GEN2" "gen-probe"
+stage prep-probe zero bash -c "cp $FIX2/native/native-main.swift $GEN2/native-main.swift"
+compile_tree "$GEN2" compile-probe probe
+C2=$(cat "$STAGES/compile-probe/status")
+if [ "$GEN2_RC" = "0" ] && [ "$C2" = "0" ]; then
+	stage run-probe zero bash -c "cd $GEN2 && LD_LIBRARY_PATH='$LDRT' timeout 300 ./run-bin"
+	diff -u "$ROOT/$FIX2/expected.txt" "$STAGES/run-probe/stdout" >"$STAGES/compare-probe.stdout" 2>"$STAGES/compare-probe.stderr"
+	record "compare-probe" "$?" "0-identical-nonzero-differs"
+else
+	record "run-probe" "producer-compile-probe-status-$C2" "not-reached"
+	record "compare-probe" "producer-compile-probe-status-$C2" "not-reached"
+fi
+
+input_hashes >"$EV/input-hashes-after.txt"

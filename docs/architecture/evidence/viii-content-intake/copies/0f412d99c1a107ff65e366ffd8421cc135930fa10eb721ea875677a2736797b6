@@ -1,0 +1,15 @@
+run=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/attempt-20260929T203448-3297489
+root=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old
+child_evidence_dir=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/attempt-20260929T203448-3297489/child-evidence
+external_dir=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/external-20260929T203448-3297489
+plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/oc-drift.plan
+start=2026-09-29T20:34:48-04:00
+step-3300604402 status=126
+end=2026-09-29T20:34:48-04:00
+failed_stage=step-3300604402
+last_status=126
+stage-evidence 1d9c5a9856af841e692002b9551d3cdd1ab3e93ce17b14f92d38fc3e78f4661f  step-3300604402.command
+stage-evidence 703d2c10fa601276a4dd96193faed68902a642a44eb5b01b40d6fc8499e12822  step-3300604402.status
+stage-evidence d3236dd6c3f2bbec9b8578e234798cdae57e77b2184a399617c4d8e44205c3f2  step-3300604402.stderr
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-3300604402.stdout
+harness end marker sha256=bb19a711c54f9a75271902a4495a11c26cc5f8172194bf0ca6e4e0c48e1b7b91

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt
+argv haxe tests/haxe/swift-rt-plain/gen/swift.hxml -D swift-output=out/swift-rt/gen/plain

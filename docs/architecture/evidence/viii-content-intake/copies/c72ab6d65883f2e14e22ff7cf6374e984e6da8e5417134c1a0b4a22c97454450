@@ -1,0 +1,142 @@
+use crate::boring::binary_reader::BinaryReader;
+use crate::boring::binary_writer::BinaryWriter;
+use crate::boring::float_width::FloatWidth;
+use crate::boring::glyph_metrics::BoundsEm;
+use crate::boring::glyph_metrics::GlyphMetrics;
+use crate::boring::vector_exception::VectorError;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct VectorCodec;
+
+impl VectorCodec {
+    pub fn magic_of(width: FloatWidth) -> UString {
+        if width == FloatWidth::F64 {
+            return UString::from("BRG1").to_ustring();
+        } else {
+            if width == FloatWidth::F32 {
+                return UString::from("BRG2").to_ustring();
+            } else {
+                return UString::from("BRG3").to_ustring();
+            }
+        }
+    }
+
+    pub fn width_of_magic(magic: &UStr) -> Option<FloatWidth> {
+        if !VectorCodec::is_known_magic(magic) {
+            return None;
+        }
+        return Some(VectorCodec::known_width_of(magic));
+    }
+
+    pub(crate) fn is_known_magic(magic: &UStr) -> bool {
+        return magic == UString::from("BRG1") || magic == UString::from("BRG2") || magic == UString::from("BRG3");
+    }
+
+    pub(crate) fn known_width_of(magic: &UStr) -> FloatWidth {
+        if magic == UString::from("BRG1") {
+            return FloatWidth::F64;
+        }
+        if magic == UString::from("BRG2") {
+            return FloatWidth::F32;
+        }
+        return FloatWidth::F16;
+    }
+
+    pub fn byte_length(record_count: u32, width: FloatWidth) -> u32 {
+        if width == FloatWidth::F64 {
+            return u32::wrapping_add(8, u32::wrapping_mul(record_count, 44));
+        } else {
+            if width == FloatWidth::F32 {
+                return u32::wrapping_add(8, u32::wrapping_mul(record_count, 24));
+            } else {
+                return u32::wrapping_add(8, u32::wrapping_mul(record_count, 14));
+            }
+        }
+    }
+
+    pub fn encode(records: &[GlyphMetrics], width: FloatWidth) -> Result<Vec<u8>, VectorError> {
+        let mut writer = BinaryWriter::new();
+        writer.write_ascii(VectorCodec::magic_of(width).as_ustr());
+        writer.write_u32(u32::try_from(u32::try_from((records.len()) & 0xFFFF_FFFF).unwrap_or(0)).map_err(|_| VectorError::CountOverflow)?);
+        for record in records {
+            writer.write_u32(record.code_point);
+            if width == FloatWidth::F64 {
+                writer.write_f64(record.advance_em);
+            } else {
+                if width == FloatWidth::F32 {
+                    writer.write_f32(record.advance_em);
+                } else {
+                    writer.write_f16(record.advance_em);
+                }
+            }
+            if width == FloatWidth::F64 {
+                writer.write_f64((record.bounds).clone().x_min);
+            } else {
+                if width == FloatWidth::F32 {
+                    writer.write_f32((record.bounds).clone().x_min);
+                } else {
+                    writer.write_f16((record.bounds).clone().x_min);
+                }
+            }
+            if width == FloatWidth::F64 {
+                writer.write_f64((record.bounds).clone().y_min);
+            } else {
+                if width == FloatWidth::F32 {
+                    writer.write_f32((record.bounds).clone().y_min);
+                } else {
+                    writer.write_f16((record.bounds).clone().y_min);
+                }
+            }
+            if width == FloatWidth::F64 {
+                writer.write_f64((record.bounds).clone().x_max);
+            } else {
+                if width == FloatWidth::F32 {
+                    writer.write_f32((record.bounds).clone().x_max);
+                } else {
+                    writer.write_f16((record.bounds).clone().x_max);
+                }
+            }
+            if width == FloatWidth::F64 {
+                writer.write_f64((record.bounds).clone().y_max);
+            } else {
+                if width == FloatWidth::F32 {
+                    writer.write_f32((record.bounds).clone().y_max);
+                } else {
+                    writer.write_f16((record.bounds).clone().y_max);
+                }
+            }
+        }
+        return Ok(writer.finish());
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError> {
+        let mut reader = BinaryReader::new(bytes);
+        let magic = reader.read_ascii(4)?;
+        if !VectorCodec::is_known_magic(magic.as_ustr()) {
+            return Err(VectorError::BadMagic);
+        }
+        let width = VectorCodec::known_width_of(magic.as_ustr());
+        let count = reader.read_u32()?;
+        if count > 2147483647 {
+            return Err(VectorError::CountOverflow);
+        }
+        let capacity = usize::try_from(count).map_err(|_| VectorError::CountOverflow)?;
+        let mut records = Vec::with_capacity(capacity);
+        for _ in 0..count {
+            let code_point = reader.read_u32()?;
+            let advance_em = if width == FloatWidth::F64 { reader.read_f64()? } else { if width == FloatWidth::F32 { reader.read_f32()? } else { reader.read_f16()? } };
+            let x_min = if width == FloatWidth::F64 { reader.read_f64()? } else { if width == FloatWidth::F32 { reader.read_f32()? } else { reader.read_f16()? } };
+            let y_min = if width == FloatWidth::F64 { reader.read_f64()? } else { if width == FloatWidth::F32 { reader.read_f32()? } else { reader.read_f16()? } };
+            let x_max = if width == FloatWidth::F64 { reader.read_f64()? } else { if width == FloatWidth::F32 { reader.read_f32()? } else { reader.read_f16()? } };
+            let y_max = if width == FloatWidth::F64 { reader.read_f64()? } else { if width == FloatWidth::F32 { reader.read_f32()? } else { reader.read_f16()? } };
+            records.push(GlyphMetrics { code_point: code_point, advance_em: advance_em, bounds: BoundsEm { x_min: x_min, y_min: y_min, x_max: x_max, y_max: y_max } });
+        }
+        if reader.remaining() != 0 {
+            return Err(VectorError::TrailingBytes { remaining: reader.remaining() });
+        }
+        return Ok(records);
+    }
+}

@@ -1,0 +1,17 @@
+package boring
+
+object SumOfFloatLocalOps {
+    fun total(values: MutableList<Float>): Float {
+        val accumulate = fun(): Float {
+    return values.sumOf { value -> (value).toDouble() }.toFloat()
+}
+        return accumulate()
+    }
+
+    fun weighted(values: MutableList<Float>, weight: Float): Float {
+        val accumulate = fun(): Float {
+    return values.sumOf { value -> (value * weight).toDouble() }.toFloat()
+}
+        return accumulate()
+    }
+}

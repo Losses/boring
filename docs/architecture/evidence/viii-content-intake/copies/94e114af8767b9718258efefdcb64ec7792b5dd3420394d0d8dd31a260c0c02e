@@ -1,0 +1,35 @@
+package tests
+
+import boring.runtime.test.Test
+
+class BorrowedArrayBoundaryTests {
+@boring.test.Test
+    fun wrap() {
+        Test.run("tests.BorrowedArrayBoundaryTests.wrap", "tests.BorrowedArrayBoundaryTests.wrap: a borrowed array parameter fills an owned nullable constructor slot") {
+        }
+    }
+
+@boring.test.Test
+    fun readOnlyWrap() {
+        Test.run("tests.BorrowedArrayBoundaryTests.readOnlyWrap", "tests.BorrowedArrayBoundaryTests.readOnlyWrap: a borrowed array parameter fills an owned nullable ReadOnlyArray slot") {
+        }
+    }
+
+@boring.test.Test
+    fun nullableReturn() {
+        Test.run("tests.BorrowedArrayBoundaryTests.nullableReturn", "tests.BorrowedArrayBoundaryTests.nullableReturn: a borrowed array parameter fills an owned nullable return slot") {
+        }
+    }
+
+@boring.test.Test
+    fun rebind() {
+        Test.run("tests.BorrowedArrayBoundaryTests.rebind", "tests.BorrowedArrayBoundaryTests.rebind: an owned array local clones a borrowed array assignment") {
+        }
+    }
+
+@boring.test.Test
+    fun choose() {
+        Test.run("tests.BorrowedArrayBoundaryTests.choose", "tests.BorrowedArrayBoundaryTests.choose: a conditional array result clones the borrowed arm") {
+        }
+    }
+}

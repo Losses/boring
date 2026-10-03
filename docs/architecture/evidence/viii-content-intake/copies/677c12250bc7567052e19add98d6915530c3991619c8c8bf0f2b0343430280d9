@@ -1,0 +1,17 @@
+// Hand-authored Swift entry for the W1 execution check (criterion c).
+// Compiled together with the generated tree (Gap.swift, Runtime.swift,
+// std/*.swift); this fixture has no generated main. It calls the
+// generated GapExplicitReturn.switchExplicitReturn for both choices and
+// prints lengths and element values, so a swallowed arm return shows up
+// as .two reporting sourceFirst()'s values.
+func text(_ a: [Int32]) -> String {
+    var parts: [String] = []
+    for v in a { parts.append(String(v)) }
+    return parts.joined(separator: ",")
+}
+let one = GapExplicitReturn.switchExplicitReturn(.one)
+let two = GapExplicitReturn.switchExplicitReturn(.two)
+print("one-length=\(one.count)")
+print("two-length=\(two.count)")
+print("one-values=" + text(Array(one)))
+print("two-values=" + text(Array(two)))

@@ -1,0 +1,14 @@
+compare-ts matched the authored expected lines
+compare-rust differs from the authored expected lines:
+    --- tests/haxe/charcodeat/expected.txt	2026-09-29 17:03:34.000000000 -0400
+    +++ /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T211606Z/stages/run-rust/stdout	2026-09-29 17:18:26.000000000 -0400
+    @@ -1,6 +1,6 @@
+     subRev=cd
+     subHigh=ef
+     subNeg=abc
+    -codeNull=null
+    -codeNeg=null
+    -codeInt=null
+    +codeNull=0
+    +codeNeg=0
+    +codeInt=0

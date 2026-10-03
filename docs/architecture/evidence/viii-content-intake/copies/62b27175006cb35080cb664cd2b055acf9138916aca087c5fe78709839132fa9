@@ -1,0 +1,28 @@
+run START utc=2026-09-30T01:56:51+00:00
+ROOT=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-head-e1c65975
+ENVJSON=/home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json
+PATH=/home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-bin:/nix/store/3d1c302vw7kc8a5vknhmn34c0pd7zm6m-gcc-wrapper-15.3.0/bin:/nix/store/7sh9061yj9yl20ndc00rqw4d0bd80m1j-gcc-15.3.0/bin:/nix/store/c2fgns4y4c4xjvc6pq024abmxyy4dl28-glibc-2.42-67-bin/bin:/nix/store/97d5ygrvqj55f4nx1x34wfdcc7qn11c0-coreutils-9.11/bin:/nix/store/j5rd8xm5zqgzcb0l19942ms7r96q0hip-binutils-wrapper-2.46/bin:/nix/store/8lkj89binl0xhraqxb8bwmv0q4p3pnlr-binutils-2.46/bin:/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin:/nix/store/dynr642xrg1fib1y2ry70hybjmzvqz3y-bun-1.3.13/bin:/nix/store/hyw97nxddgxfc6ag6db87rnawss2pw1a-nodejs-22.23.2/bin:/nix/store/8wxs6573l730vxkqd6wp58kvxa19csll-git-2.55.0/bin:/nix/store/agfrkw7lvckq29w4dp0i3jfrhxjmgv3q-rust-default-1.98.0/bin:/nix/store/rqx09a40a82di944xi6ydjyzx632av28-kotlin-2.4.10/bin:/nix/store/1slz0vmmgsd7p6i4c0jaywkpw56wl2yg-openjdk-21.0.12+8/bin:/nix/store/qpggxvncr1jwa7xjn0wf0i6045na7hki-dart-3.13.0/bin:/nix/store/xy32w323i90dlgscl5zbac0dyvgk7lig-clang-wrapper-21.1.8/bin:/nix/store/lfjzqzpn5d79m6xzz729gab296y4sxn4-clang-21.1.8/bin:/nix/store/vjzk5gfvq5hm66lhksmkddzmpvb7x9bj-binutils-wrapper-2.46/bin:/nix/store/f0pa9lppswnls248abfl142s77a99yw4-swift-6.2.4-wrapped/bin:/nix/store/iyinjjn7gv8c77w9qgicfmz4mc4dwq5j-patchelf-0.15.2/bin:/nix/store/ylwfkhrmakaf8mrala410phkjxh95pqx-compiler-rt-libc-21.1.8/bin:/nix/store/97d5ygrvqj55f4nx1x34wfdcc7qn11c0-coreutils-9.11/bin:/nix/store/ibg16grw5is7i7ilnflc5xmj6fwksqkl-findutils-4.11.0/bin:/nix/store/z4i4dnz72g21r3kh8rvjhmi2mpg60vmp-diffutils-3.12/bin:/nix/store/rxd8p6g4k4s0sx4q1szmzvp9rsmhmfys-gnused-4.10/bin:/nix/store/4dgym2zhac9vy0vrih4gsplh0wpfl13m-gnugrep-3.12/bin:/nix/store/ny5hzk3l36pldfsjkh56ia7y55xr23vd-gawk-5.4.1/bin:/nix/store/1lvpa59092swv6mg5hgb0iz8n84z7ksm-gnutar-1.35/bin:/nix/store/5hfc0j56yc4xynq7m4xzi5c9qd2i156f-gzip-1.14/bin:/nix/store/j327d6d2y2a6bc90556jd4wn8n2zb4cf-bzip2-1.0.8-bin/bin:/nix/store/whkpgw1564fpbicxrk77dyv36ygjn9sx-gnumake-4.4.1/bin:/nix/store/byi2zpy2bgcf3dr6y0l8m50rmjj8z7q1-bash-5.3p15/bin:/nix/store/m9r9szj3pajhrphi775ll57jzggcw52k-patch-2.8/bin:/nix/store/wmigyr20bmik4kjqfzm4isql6q5lw8ih-xz-5.8.3-bin/bin:/nix/store/36cxvi2s369aw85pp7fyzq2dqv459d7c-file-5.48/bin:/home/losses/.npm/_npx/b86ed90107c62dab/node_modules/.bin:/home/losses/Development/nix-nifer/node_modules/.bin:/home/losses/Development/node_modules/.bin:/home/losses/node_modules/.bin:/home/node_modules/.bin:/node_modules/.bin:/nix/store/vd788darzi6n1k2zrj5x3kqgg03kbz93-nodejs-official-22.23.3/lib/node_modules/npm/node_modules/@npmcli/run-script/lib/node-gyp-bin:/nix/store/vd788darzi6n1k2zrj5x3kqgg03kbz93-nodejs-official-22.23.3/bin:/home/losses/Development/flutter-elinux/bin:/home/losses/.local/bin:/home/losses/.bun/bin:/home/losses/.cargo/bin:/home/losses/.qoder-cn/entry:/run/wrappers/bin:/home/losses/.local/share/flatpak/exports/bin:/var/lib/flatpak/exports/bin:/home/losses/.nix-profile/bin:/nix/profile/bin:/home/losses/.local/state/nix/profile/bin:/etc/profiles/per-user/losses/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin
+HAXELIB_PATH=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-head-e1c65975/.haxelib
+XDG_CACHE_HOME=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-head-e1c65975/out/xdg-cache
+SWIFT_SHIM_STATE=/home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-state-fixed3
+BORING_SWIFT_SYSTEM_PACKAGE=/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6
+toolchain-resolved: haxe=/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe bun=/nix/store/dynr642xrg1fib1y2ry70hybjmzvqz3y-bun-1.3.13/bin/bun rustc=/nix/store/agfrkw7lvckq29w4dp0i3jfrhxjmgv3q-rust-default-1.98.0/bin/rustc kotlinc=/nix/store/rqx09a40a82di944xi6ydjyzx632av28-kotlin-2.4.10/bin/kotlinc dart=/nix/store/qpggxvncr1jwa7xjn0wf0i6045na7hki-dart-3.13.0/bin/dart swiftc=/home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-bin/swiftc
+versions: haxe=4.3.7  bun=1.3.13 rustc=rustc 1.98.0 (88d9e12ae 2026-08-18) swiftc=<unknown>:0: warning: libc not found for 'x86_64-unknown-linux-gnu'; C stdlib may be unavailable Swift version 6.2.4 (swift-6.2.4-RELEASE) 
+uptime:  21:56:52  up 7 days  0:20,  0 users,  load average: 5.71, 4.52, 4.24
+=== stage driver-build START utc=2026-09-30T01:56:52+00:00 ===
+uptime:  21:56:52  up 7 days  0:20,  0 users,  load average: 5.71, 4.52, 4.24
+=== stage driver-build END utc=2026-09-30T01:56:52+00:00 rc=0 ===
+uptime:  21:56:52  up 7 days  0:20,  0 users,  load average: 5.71, 4.52, 4.24
+free: Mem:              92          75          11          56          63          17
+=== stage driver-verify START utc=2026-09-30T01:56:52+00:00 ===
+uptime:  21:56:52  up 7 days  0:20,  0 users,  load average: 5.71, 4.52, 4.24
+=== stage driver-verify END utc=2026-09-30T02:03:35+00:00 rc=1 ===
+uptime:  22:03:35  up 7 days  0:27,  0 users,  load average: 6.17, 5.75, 4.93
+free: Mem:              92          74          11          56          64          17
+=== stage authored-tests START utc=2026-09-30T02:03:35+00:00 ===
+uptime:  22:03:35  up 7 days  0:27,  0 users,  load average: 6.17, 5.75, 4.93
+=== stage authored-tests END utc=2026-09-30T02:33:30+00:00 rc=1 ===
+uptime:  22:33:30  up 7 days  0:57,  0 users,  load average: 5.99, 6.18, 6.22
+free: Mem:              92          74          15          56          60          17
+run END utc=2026-09-30T02:33:30+00:00
+uptime:  22:33:30  up 7 days  0:57,  0 users,  load average: 5.99, 6.18, 6.22

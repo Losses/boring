@@ -1,0 +1,17 @@
+package tests
+
+import boring.runtime.test.Test
+
+class SignedIntArgumentTests {
+@boring.test.Test
+    fun fromIndex() {
+        Test.run("tests.SignedIntArgumentTests.fromIndex", "tests.SignedIntArgumentTests.fromIndex: a negated signed index reinterprets into an owned u32 parameter") {
+        }
+    }
+
+@boring.test.Test
+    fun shifted() {
+        Test.run("tests.SignedIntArgumentTests.shifted", "tests.SignedIntArgumentTests.shifted: a signed wrapping sum reinterprets into an owned u32 parameter") {
+        }
+    }
+}

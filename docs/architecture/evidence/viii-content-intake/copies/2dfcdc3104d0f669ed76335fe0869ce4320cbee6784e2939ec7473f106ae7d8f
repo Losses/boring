@@ -1,0 +1,25 @@
+package boring
+
+import boring.runtime.FPHelper
+
+object StaticCollisionFloat {
+    fun ic(value: Float): String {
+        return "float:" + boring.runtime.FPHelper.formatFloat(value)
+    }
+}
+
+object StaticCollisionInt {
+    fun ic(value: Int): String {
+        return "int:" + value
+    }
+}
+
+object StaticCollisionOps {
+    fun floatValue(value: Float): String {
+        return StaticCollisionFloat.ic(value)
+    }
+
+    fun intValue(value: Int): String {
+        return StaticCollisionInt.ic(value)
+    }
+}

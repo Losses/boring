@@ -1,0 +1,242 @@
+candidate SwiftExpr.hx: bf7dde2cec3b89464738019c733eb6f1d8e666bbc976176bf30cc77007be6078  /home/losses/Development/tq-workspace/dc-warn/swc-try-fix-wt/wt/packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx
+baseline  SwiftExpr.hx: 0a9bed91ef91ca68b75a2e7e4e2482d2743a16fe5caf4150018686c2131e33f0  /home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx
+
+=== ALL occurrences of currentReturnType (candidate) ===
+218:    var currentReturnType:Null<Type> = null;
+544:        currentReturnType = switch (Context.follow(f.field.type)) {
+563:        currentReturnType = null;
+810:                        return switchReturn(inner, depth, false, currentReturnType);
+812:                        final readOnlyReturn = currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType);
+813:                        var retText = readOnlyReturn ? arrayBoundaryText(ret, currentReturnType) : returnValue(ret);
+814:                        if (isIntType(emittedType(ret)) && currentReturnType != null && isFloatLeafType(currentReturnType))
+1213:        var valueText = currentReturnType != null
+1214:            && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) ? arrayBoundaryText(value, currentReturnType) : expr(value);
+5292:        // The return contract being satisfied (currentReturnType) is this
+5296:            out.push(indent(depth + 1) + "return " + bodyTry + destinationValueText(bodyValueExpr, currentReturnType, body.value));
+5310:            out.push(indent(depth + 1) + "return " + handlerTry + destinationValueText(handlerValueExpr, currentReturnType, handler.value));
+5675:                    final boundaryDestination = destination != null ? destination : currentReturnType;
+
+=== class/field context 76-76, 216-223 ===
+     1	class SwiftExpr {
+     2	
+     3	    /** Return type of the function currently being lowered; null outside function context. */
+     4	    var currentReturnType:Null<Type> = null;
+     5	
+     6	    public function new(imports:SwiftImports, types:SwiftType) {
+     7	        this.imports = imports;
+     8	        this.types = types;
+     9	    }
+
+=== functionBody write/clear 541-565 ===
+        currentClass = cls;
+        currentField = f.field.name;
+        currentLocalName = null;
+        currentReturnType = switch (Context.follow(f.field.type)) {
+            case TFun(_, ret): ret;
+            case _: null;
+        };
+        currentFuncReturnsOptional = switch (f.field.type) {
+            case TFun(_, ret): isNullLeafType(ret);
+            case _: false;
+        };
+        currentFuncReturnsFloat = switch (f.field.type) {
+            case TFun(_, ret): isFloatLeafType(ret);
+            case _: false;
+        };
+        // Depth 2: one level under the member's own indentation.
+        beginLocalScope();
+        markNonOptionalParams(cls, f);
+        scanLocals(f.expr);
+        scanUnusedLocals(f.expr);
+        resolveLocalFunctionThrows();
+        final result = blockLines(statementsOf(f.expr), depth);
+        currentReturnType = null;
+        return result;
+    }
+
+=== functionLiteral / functionLiteralInner 2338-2365 ===
+    function functionLiteral(f:TFunc):String {
+        final previousOptional = currentFuncReturnsOptional;
+        currentFuncReturnsOptional = isNullLeafType(f.t);
+        final result = functionLiteralInner(f);
+        currentFuncReturnsOptional = previousOptional;
+        return result;
+    }
+
+    function functionLiteralInner(f:TFunc):String {
+        final params = [for (a in f.args) a.v.name + ": " + types.of(a.v.t)].join(", ");
+        // TFunc.t is the declared return type of the literal.
+        final ret = types.of(f.t);
+        // A zero-argument Void literal is the thunk shape the harness
+        // passes around; a throwing body must say so to match the
+        // parameter's `() throws -> Void` type.
+        final throwsKw = f.args.length == 0 && isVoidReturnType(f.t) && containsThrowingCall(f.expr) ? "throws " : "";
+        final head = "{ (" + params + ") " + throwsKw + "-> " + ret + " in";
+        final bodyStmts = statementsOf(f.expr);
+        if (bodyStmts.length == 1) {
+            switch (bodyStmts[0].expr) {
+                case TReturn(r) if (r != null):
+                    final tryKw = containsThrowingCall(r) ? "try " : "";
+                    return head + " " + tryKw + expr(r) + " }";
+                case _:
+            }
+        }
+        return head + "\n" + blockLines(bodyStmts, 1).join("\n") + "\n}";
+    }
+
+=== stmtLines TReturn/TSwitch 802-818 ===
+            case TReturn(ret) if (ret == null):
+                return [indent(depth) + "return"];
+            case TReturn(ret):
+                final inner = stripWrap(ret);
+                switch (inner.expr) {
+                    case TSwitch(_, _, _):
+                        // The return contract being satisfied is the actual
+                        // destination. (DestinationRequirementCarried)
+                        return switchReturn(inner, depth, false, currentReturnType);
+                    case _:
+                        final readOnlyReturn = currentReturnType != null && StaticFieldHelper.isReadOnlyArrayType(currentReturnType);
+                        var retText = readOnlyReturn ? arrayBoundaryText(ret, currentReturnType) : returnValue(ret);
+                        if (isIntType(emittedType(ret)) && currentReturnType != null && isFloatLeafType(currentReturnType))
+                            retText = intToFloatText(retText);
+                        final tryKw = containsThrowingCall(ret) ? "try " : "";
+                        return [indent(depth) + "return " + tryKw + retText];
+                }
+
+=== tryReturnLines 5274-5315 ===
+    /** Return-position region: both arms return inside the native statement. */
+    function tryReturnLines(region:TypedExpr, depth:Int):Array<String> {
+        final parts = tryRegionParts(region);
+        if (parts == null) {
+            return fail(region, "not a try region");
+        }
+        final clsName = exceptionClassOf(parts.c);
+        if (clsName == null) {
+            return fail(parts.c.expr, "try region catch type is not an exception class");
+        }
+        final out = [indent(depth) + "do {"];
+        final body = blockValueLines(parts.body, depth + 1);
+        if (body.value == null) {
+            return fail(region, "try region body has no value");
+        }
+        for (l in body.lines)
+            out.push(l);
+        final bodyTry = containsThrowingCall(stripToValue(parts.body)) ? "try " : "";
+        // The return contract being satisfied (currentReturnType) is this
+        // route's actual destination requirement. (DestinationRequirementCarried)
+        final bodyValueExpr = PolicyQueries.blockValueParts(parts.body).value;
+        if (!armPrefixThrows(parts.body)) {
+            out.push(indent(depth + 1) + "return " + bodyTry + destinationValueText(bodyValueExpr, currentReturnType, body.value));
+        }
+        out.push(catchHeaderLine(parts.c, clsName, depth));
+        catchVars.set(parts.c.v.id, true);
+        final handler = blockValueLines(parts.c.expr, depth + 1);
+        catchVars.remove(parts.c.v.id);
+        if (handler.value == null) {
+            return fail(parts.c.expr, "try region handler has no value");
+        }
+        for (l in handler.lines)
+            out.push(l);
+        final handlerTry = containsThrowingCall(stripToValue(parts.c.expr)) ? "try " : "";
+        final handlerValueExpr = PolicyQueries.blockValueParts(parts.c.expr).value;
+        if (!armPrefixThrows(parts.c.expr)) {
+            out.push(indent(depth + 1) + "return " + handlerTry + destinationValueText(handlerValueExpr, currentReturnType, handler.value));
+        }
+        for (l in catchFooterLines(depth))
+            out.push(l);
+        return out;
+    }
+
+=== switchReturn signature 5604; armLines 5649-5692 ===
+    function switchReturn(sw:TypedExpr, depth:Int, reservedPayloadNames:Bool = false, destination:Null<Type> = null):Array<String> {
+    function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false, destination:Null<Type> = null):Array<String> {
+        final out:Array<String> = [];
+        var value:Null<String> = null;
+        for (step in PolicyQueries.variantArmPlan(e)) {
+            switch (step) {
+                case PayloadCapture(v, _, ef, index):
+                    subst.set(v.id, reservedPayloadNames ? payloadBindingName(ef, index) : payloadName(ef, index));
+                case ForwardOrDecl(v, init, source):
+                    // The typer binds the switch subject to a hidden local
+                    // before extracting the payload; forward the substitution
+                    // through that chain.
+                    if (subst.exists(source.id)) {
+                        subst.set(v.id, subst.get(source.id));
+                    } else {
+                        out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
+                    }
+                case PlainDecl(v, init):
+                    out.push(indent(depth) + "let " + localName(v) + " = " + expr(init));
+                case OtherStatement(s, returnValue, isLast):
+                    // Every side-effect statement renders: an earlier
+                    // assignment demotes to a plain statement so a multi-
+                    // write arm keeps all its writes. (MultiStatementArm)
+                    if (value != null)
+                        out.push(indent(depth) + value);
+                    // An explicit destination (assignment place, parameter)
+                    // outranks the enclosing function's return type.
+                    final boundaryDestination = destination != null ? destination : currentReturnType;
+                    value = returnValue != null ? boundaryDestination != null
+                        && StaticFieldHelper.isReadOnlyArrayType(boundaryDestination)
+                        && SwiftArrayBoundary.isBoundary(returnValue.t,
+                            boundaryDestination) ? arrayBoundaryText(returnValue, boundaryDestination) : expr(returnValue)
+                        : isLast && destination != null
+                        && StaticFieldHelper.isReadOnlyArrayType(destination)
+                        && SwiftArrayBoundary.isBoundary(s.t, destination) ? arrayBoundaryText(s, destination) : expr(s);
+                case MissingInit(s):
+                    Context.error("swift target: declaration without initializer has no lowering", s.pos);
+            }
+        }
+        if (value == null) {
+            return fail(e, "variant switch arm has no value");
+        }
+        out.push(indent(depth) + "return " + value);
+        return out;
+    }
+
+=== switchStatement / switchAssign / switchExpression callers ===
+            indent(depth) + (mutated.exists(v.id) ? "var " : "let ") + localName(v) + " = " + switchExpression(sw)
+        ];
+    }
+
+    function switchStatement(sw:TypedExpr, depth:Int):Array<String> {
+        final lines = switchReturn(sw, depth, true);
+        for (i in 0...lines.length) {
+            final p = lines[i].indexOf("return ");
+            if (p >= 0) {
+                final value = StringTools.trim(lines[i].substr(p + 7));
+                // A statement-position variant arm whose value is the bare
+                // nil constant has no type context once the return is
+                // stripped; the unit value keeps the required non-empty
+                // case body.
+                lines[i] = value == "nil" ? lines[i].substr(0, p) + "()" : lines[i].substr(0, p) + lines[i].substr(p + 7);
+            }
+        }
+        return lines;
+    }
+
+    function switchAssign(target:TypedExpr, sw:TypedExpr, depth:Int):Array<String> {
+        // The assignment place's requirement (the target's type) is the actual
+        // destination for every arm value; arms lower against it instead of the
+        // enclosing function's return type. (DestinationRequirementCarried)
+        final lines = switchReturn(sw, depth, true, target.t);
+        final marker = indent(depth + 2) + "return ";
+        for (i in 0...lines.length)
+            if (StringTools.startsWith(lines[i], marker))
+                lines[i] = indent(depth + 2) + assignTarget(target) + " = " + lines[i].substr(marker.length);
+        return lines;
+    }
+
+    /**
+        Expression-position variant switches use an immediately-invoked
+        closure so the native switch remains in Swift's permitted return
+        position. The initializer-position caller intentionally continues to
+        use this function unchanged, preserving its existing output.
+    **/
+    function switchExpression(sw:TypedExpr):String {
+        // The closure this emits declares `types.of(sw.t)` as its result; that
+        // type is the arms' actual destination requirement.
+        // (DestinationRequirementCarried)
+        final lines = switchReturn(sw, 1, false, sw.t);
+        final out = ["({ () -> " + types.of(sw.t) + " in"];
+        for (line in lines)

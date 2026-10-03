@@ -1,0 +1,86 @@
+# f32 组 hxml roots 同步修复 + 清单一致性护栏（t-munbb7z3-39ck）
+
+日期：2026-09-29。执行：本席。基线 commit `e1c65975`（detached worktree
+`dc-warn/worktrees/f32-roots-fix`）。根因诊断见 `../f32-divergence/REPORT.md`（未重复验证）。
+验证运行树：`/tmp/f32fix/execroot`（`/tmp/swiftarr/execroot` 的只读 `cp -a` 副本，含另一席
+Swift 修复后的树；报告如实声明：本修复以 `e1c65975` 源码为基线，运行产物来自该副本）。
+
+## 1. 修复内容
+
+### 1.1 三个 f32 hxml 补齐 roots（插入式，不重排）
+
+`examples/{kotlin,rust,swift}-f32.hxml` 补齐 base hxml 已有而 f32 缺失的 roots 行：
+**kotlin-f32 +41 行、rust-f32 +33 行、swift-f32 +37 行（共 111 行，全部为纯插入，
+`PATCH.diff` 0 删除）**。按 base 文件原顺序插入到对应锚点行之前，保持原书写风格与注释位置。
+逐行以 `../f32-divergence/evidence/hxml-roots-diff.txt` 为准核对；补齐后自测
+`comm -23 <(base roots) <(f32 roots)`：**kotlin/rust/swift 三组 f32-缺失行数 = 0 / 0 / 0**。
+
+有意例外：`registry.Main` **未**补入 f32（三个文件各 1 条 allowlist 豁免）。依据：它无任何
+`@:test`（`packages/registry/src` 全树 grep = 0），是 binary64 打包/演示入口根；f32 bundles
+在 `boring.json` 无 `package` 字段、不走 pack，其 gen 树本就无 Main 产物（修前
+`reference/kotlin-f32/gen/registry/` 无 Main.kt，修后亦无，gen 差异为零）。首版曾机械补入，
+后按"最小语义修复"原则撤出，改为显式声明豁免。
+
+### 1.2 护栏（机制性，`tools/roots-guard/`）
+
+- `tools/roots-guard/check-roots-guard.sh`：对每个 target ∈ {kotlin,rust,swift} 断言
+  **f32 hxml 的 roots 模块集合 ⊇ base hxml 的 roots 模块集合**（模块行 = 裸点分标识符行）。
+- `tools/roots-guard/roots-allowlist.json`：显式豁免清单，每条必须带 `target`+`module`+`reason`，
+  无理由条目脚本本身报错退出 1。现载 3 条 `registry.Main` 豁免（理由见 1.1）。
+- 可选参数 `[examples-dir]`，便于对任意树/修前文件运行。
+
+**护栏判别力（两个读数，必给）**：
+- **修复前 hxml**（`git show e1c65975:examples/*-f32.hxml`，即漂移原字节）→ **FAIL，rc=1**，
+  逐模块列出全部缺失（evidence/guard-prefix-FAIL.log，94 条模块级 FAIL = 41+33+37 + 3×registry.Main）。
+- **修复后** → **PASS，rc=0**（evidence/guard-postfix-PASS.log，"3 exemption(s) in force"）。
+
+**为什么这条护栏能防住本次漂移**：本次漂移的机制是"逐提交向 base hxml 手工加行、从不检查 f32
+文件"——09-04～09-26 三周无人发现正因没有任何机器检查比较两份清单。本护栏把 `f32 ⊇ base`
+变成逐模块集合断言，任何一侧加行而不同步另一侧即当场 rc=1 并点名列出缺失模块；豁免必须带
+书面理由，堵住"顺手绕过"。它不依赖编译或跑测试（纯文本集合比较，秒级），可进 precheck/CI。
+
+### 1.3 六条 Extra 的处置：manager 侧显式声明（候选①）
+
+选择：**`tools/test-consistency/extra-id-allowlist.json` + manager 加载声明豁免**。依据：
+- `tests.f32.PrintedFloatTests`（6 个 `@:test`，逐字对应 6 条 Extra id）是 f32 专属 oracle
+  测试（feature spec 44，断言 shortest-binary32 文本），只在 `-D float-precision=f32` 下语义成立；
+- 收集机制上是 haxe f32 TestCollector 扫 `samples/tests/f32`（`tests/haxe/generate-main-f32.hxml`），
+  binary64 基线按设计不含该目录——是对比口径差异，非收集错误；
+- 候选③不成立（三个非 haxe f32 hxml 的 roots 机制不同，且把 f32 文本 oracle 加进 binary64
+  会使基线跑出假失败）；候选②（f32 单独基线）治标且会掩盖真实口径；
+- 管理器此前已有同类声明先例（not_applicable 排除、mechanism-coverage 的 reason 必填），
+  本方案沿用同一惯例：**声明而非删除**。文件按 mechanism-coverage 同样的"从 resultsDir 向上
+  找最近祖先"规则解析；每条必须 id+reason，否则加载即退出 1。
+- **豁免只作用于 Extra 类 divergence**；verdict/name/message mismatch 不可能被它豁免（无此路径）。
+- 未删除、未跳过任何测试；6 个 f32 专属测试照常在 haxe-f32 运行并 pass。
+
+改动：`tools/test-consistency/Main.hx`（+findExtraAllowlist/loadExtraAllowlist，Extra 分支声明
+计数并输出 `Declared extra test ids …: 6` 及逐条理由）+ 上述 allowlist 文件。
+
+## 2. 四层验证读数
+
+| 层 | 读数 |
+|---|---|
+| ① id 集合 | 4 个 f32 legs 全部重新 gen+test：kotlin-f32/rust-f32/swift-f32 各 **730** 条（=基线 730，**Missing=0**，manager 全量输出 grep "Missing test ID" = **0**）；haxe-f32 **736** = 730 共享 + 6 条已声明的 f32 专属 |
+| ② manager（全 10 目标，baseline=kotlin） | **166 → 3**。3 条全部是同一真实发现：`tests.NumberClassifyTests.finiteClassification` 在 kotlin-f32/rust-f32/swift-f32 verdict fail（baseline=pass）。测试输入 `finite(1.0e308)`：1e308 超出 binary32 表示范围、f32 下溢出为 ∞ → finite=false，断言 true 失败。诊断报告 §5.1 预言的"f32 精度真发现"（补齐的缺失模块恰好是 f32 语义敏感测试）。**未删除/未跳过该测试**，三目标诚实记录 fail；是否修测试输入（改用 f32 可表示字面量）属测试语义裁决，另行处理。6 条 Extra 以声明方式列出，非 divergence |
+| ③ 2×2 另两格 | 不含 f32 两格仍 **rc=0 / 0 divergence**（含/不含 swift：`All 6 targets … 100% consistent across 730 tests`；本席亦复核 5 目标格 rc=0）。未引入任何新 divergence |
+| ④ 护栏判别力 | 修复前 hxml → **FAIL rc=1**；修复后 → **PASS rc=0**（§1.2） |
+
+f32 首轮腿备注：rust-f32 首次 `cargo test` exit 101，原样重跑 rc=0 且 730/729 pass + 1 fail
+（同一 finiteClassification），判为首次构建的环境噪声，非本修复回归。swift 腿需
+`BORING_SWIFT_SYSTEM_PACKAGE` + swiftc shim（沿用另一席 PIT-250 配方，本地副本
+`/tmp/f32fix/bin/swiftc`），修后 728 pass + 1 fail（同一）+ 1 not_applicable。
+
+## 3. 交付物
+
+- `PATCH.diff`：111 行纯插入（3 个 f32 hxml）+ Main.hx 声明机制 + 护栏脚本/allowlist。
+- `FILES.sha256`：全部改动文件与 PATCH 的哈希。
+- `evidence/`：guard-prefix-FAIL.log、guard-postfix-PASS.log、manager-all10-postfix.log、
+  manager-binary64-postfix.log、finiteClassification-f32-fail.jsonl（基线 pass vs 三 f32 fail 原文）、
+  护栏与 allowlist 文件副本。
+
+## 4. 遗留（供裁决）
+
+1. `finiteClassification` 的 f32 语义修复（测试字面量 vs NumberClassifyOps 的 f32 域声明 vs
+   TestApplicability 支持 precision 维度）——需要架构席定，本席只负责如实暴露。
+2. 护栏建议挂进 CI/precheck（一条 `bash tools/roots-guard/check-roots-guard.sh`，秒级）。

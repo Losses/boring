@@ -1,0 +1,28 @@
+   Compiling generated v0.1.0 (/tmp/rt-xcheck/bx-pristine/xs-generic)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0599]: no variant, associated function, or constant named `GExFault` found for enum `GFault` in the current scope
+  --> xcheckscope/gen_probe.rs:39:40
+   |
+ 6 | pub enum GFault {
+   | --------------- variant, associated function, or constant `GExFault` not found for this enum
+...
+39 |                     return Err(GFault::GExFault(GEx::new(e)));
+   |                                        ^^^^^^^^ variant, associated function, or constant not found in `GFault`
+
+error[E0433]: cannot find type `GEx` in this scope
+  --> xcheckscope/gen_probe.rs:39:49
+   |
+39 |                     return Err(GFault::GExFault(GEx::new(e)));
+   |                                                 ^^^ use of undeclared type `GEx`
+
+Some errors have detailed explanations: E0433, E0599.
+For more information about an error, try `rustc --explain E0433`.
+warning: `generated` (lib) generated 1 warning
+error: could not compile `generated` (lib) due to 2 previous errors; 1 warning emitted

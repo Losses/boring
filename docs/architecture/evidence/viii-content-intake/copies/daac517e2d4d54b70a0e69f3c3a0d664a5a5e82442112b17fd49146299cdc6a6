@@ -1,0 +1,197 @@
+# Architecture Consultation Answer
+
+## 1. Is the diagnosis correct?
+
+The diagnosis is directionally correct, but its strongest claim is too broad.
+The real blocker is not simply that no mechanism has any producer. It is that
+there is no accepted, end-to-end ownership contract for the selected mechanism:
+which typed fact is authoritative, which producer creates it, what its scope and
+invalidation rules are, and whether every relevant consumer uses that fact rather
+than reconstructing it from source types, names, or rendered output.
+
+That distinction matters because the repository's own documents do not support
+saying that no producer work has happened. `architecture-round-1.md` records an
+accepted responsibility map, a completed producer inventory, and a prepared-value
+design for the Swift boundary. The same record says that implementation acceptance,
+full runtime coverage, and full verification remain open. The work plan also says
+P07 has been accepted as a design and P08-P10/P12 remain open. Thus the accurate
+statement is: a design-level producer inventory exists for the selected boundary,
+but no mechanism has yet reached accepted implementation status with complete
+producer-consumer coverage and the required regression gates.
+
+The substitution of consistency evidence for architecture is real. Agreement among
+ten outputs can show determinism or agreement among implementations; it cannot
+identify the earliest incorrect fact, prove source semantics, establish ownership,
+or prove that an unobserved path has the same representation. The documents
+explicitly subordinate cross-target agreement to assertions against specified
+semantics and require architectural review alongside test results.
+
+The test that mutates a tracked source file is a separate and more serious problem:
+it can invalidate the evidentiary basis of runs, not merely weaken their coverage.
+I would verify the exact write path, cleanup behavior, timeout behavior, and the
+tracked-file bytes before and after representative interruptions. Until that is
+verified and affected runs are classified, repeated-run comparisons from that
+execution root should be treated as provenance-contaminated, regardless of their
+numerical consistency.
+
+## 2. The single next architectural move
+
+Make and accept one explicit boundary decision for the first mechanism: the Swift
+ordinary read-only array boundary, including the source ruling, target
+representation, conversion timing, nullability combinations, evaluation effects,
+and alias/lifetime behavior.
+
+The artefact at the end should be a revision-specific **boundary policy record**,
+not another test report. It should contain:
+
+- the source semantic ruling and its accepted input domain;
+- a finite decision table for source representation, destination requirement,
+  nullability, and already-converted values;
+- the authoritative producer for each returned fact, including scope and
+  invalidation rules;
+- a producer and consumer inventory covering arguments, returns, local
+  initialization, assignment, literals, optional containers, conditionals,
+  defaults, and repeated evaluation paths;
+- target-specific realization rules, with target syntax kept out of the source
+  semantic decision; and
+- explicit unsupported and unresolved cases.
+
+It is done only when an independent reviewer can start from that record and trace
+every accepted source form to one fact producer and then to every migrated consumer,
+with no consumer deriving the result from an AST type or printed text. The
+behavioural matrix must distinguish alias visibility, evaluation count/order,
+null behavior, and generated target legality. A passing focused fixture alone is
+not completion. This is the concrete form of work-order step 1 and the missing
+architectural decision that should precede further candidate repair.
+
+## 3. Is work order 1-4 still right?
+
+Yes. The order is still right, and the five pre-step repairs are evidence that it
+was bypassed, not evidence that it should be reordered.
+
+The repository's dependency argument is sound: representation and flow facts must
+exist before target construction can preserve branch values and exit intent. Numeric
+conversion and operand evaluation can be specified independently after the
+boundary/source-target distinction is explicit; established evaluation facts then
+support string and null work; structured output follows the relevant representation
+and flow interfaces.
+
+The practical correction is to make step 1 a hard architectural gate rather than a
+soft preliminary activity. Candidate repairs made before that gate must be
+reclassified as bounded observations, historical repairs, or later-candidate
+inputs. They must not be treated as evidence that step 1 was completed. In
+particular, a double-wrap fix or a one-axis map fix may remain useful evidence, but
+neither is an accepted policy unless its earliest incorrect fact, producer,
+consumer inventory, and semantic scope are recorded.
+
+The only concurrency permitted by the documents is design and inventory work on
+independent responsibilities. It does not justify implementing downstream
+consumers before the boundary contract they consume has been accepted.
+
+## 4. What P08 review must mean
+
+“Independently review both” must mean independent architectural acceptance of both
+parts of the candidate: the reproduction/behaviour specification and the
+implementation. It must not mean that two people read the same successful log.
+
+A concrete P08 acceptance condition should require two separately recorded reviews,
+performed against the same immutable candidate and fixed inputs, where each review
+answers all of these questions:
+
+1. What source semantic rule is being implemented, and what forms are in scope?
+2. What fact is required at each boundary, who produces it, what is its lifetime,
+   and what invalidates it?
+3. Does the implementation consume that fact at every inventoried producer and
+   consumer path, including alternate statement, return, default, conditional,
+   and already-converted routes?
+4. Are source meaning, target representation, operation result, and printed syntax
+   kept distinct?
+5. Which discriminating observations would fail if the implementation closed only
+   one axis of the defect?
+6. Which paths remain unknown or intentionally unsupported?
+
+The behaviour reviewer should independently verify the oracle, expected semantic
+outcomes, and discriminating dimensions. The implementation reviewer should
+independently trace the actual changes and generated representation to the policy
+record. Acceptance requires that both reviewers find no unresolved ownership
+contradiction, no unreviewed consumer in scope, and no unexplained divergence from
+the semantic ruling. Any disagreement returns the candidate to the coordinator;
+matching conclusions are not enough if both reviews rely on the same unexamined
+assumption.
+
+The signed artefact is therefore an acceptance record linking the policy record,
+producer/consumer inventory, candidate revision, fixed-input manifest, two review
+records, and explicit residual unknowns. Test density is evidence within that
+record, not its acceptance criterion.
+
+## 5. Minimum evidence for P09
+
+P09 requires a single fixed candidate and a fixed Boring/Tiqian revision pair.
+The minimum evidence is the union of these sets:
+
+**Boring:**
+
+- exact candidate revision or hashes of all consumed working-tree bytes, toolchain
+  and define identity, and an exclusive verification interval;
+- the focused semantic and affected-target checks for the accepted mechanism;
+- all required complete Boring checks for that candidate, including generation,
+  target compilation/execution, warnings, diagnostics, and any required byte or
+  manifest comparisons;
+- independent expected-stage and test-ID inventories, with comparison domains
+  stated explicitly; and
+- per-stage commands, stdout/stderr, exit status, produced-artifact manifests,
+  input hashes before and after, and a clean account of any baseline failures.
+
+**Tiqian:**
+
+- the exact Tiqian revision and pinned driver/toolchain identity;
+- an isolated consumer workspace whose effective compiler paths are proven in the
+  same process that performs generation, including the complete HXML/include path
+  closure;
+- all required generation obligations, all required enabled target-test suites,
+  and the agreed engine/protocol comparison domains, without hiding missing IDs by
+  exclusions;
+- generated-output identity, warning results, native compilation and runtime
+  results where required, and retained child output rather than only driver output;
+- the complete raw logs, statuses, input/output manifests, and post-run identity
+  checks; and
+- evidence that the input set is the fixed set expected by the consumer revision.
+
+A fixed-input claim is invalid if cleanup can silently alter tracked inputs, if
+stale generated output can be included, if the candidate changes during the run,
+or if successful child diagnostics are discarded. The tracked-source mutation trap
+therefore has to be resolved in the provenance classification before its runs can
+contribute to P09.
+
+If Tiqian is unavailable locally, P09 is blocked as a gate. It is not legitimate
+to pass it with Boring-only evidence, a substituted consumer, a static haxelib
+mapping, or an old Tiqian result from a different candidate. There is legitimate
+progress: freeze the candidate and input manifests, complete the P08 architectural
+acceptance, prepare and review the isolated Tiqian procedure, and hand the exact
+pair and evidence contract to an authorized CI or external execution route. That
+preparation advances the programme, but it does not change P09's status. The
+repository documents are explicit that a preflight, static path agreement, or
+prepared checkout is not a regression result.
+
+## 6. The risk most likely being missed
+
+The greatest blind spot is **semantic fragmentation hidden by local closure**.
+Each one-axis repair can create or reinforce a second local authority: one path
+keys by module, another by payload, one path uses a source type, another cached
+representation, one backend clones to satisfy ownership, another preserves an
+alias. Focused tests then pass because they exercise only the closed axis, while
+the compiler increasingly contains several plausible answers to the same policy
+question.
+
+This is more dangerous than an ordinary missing test. It causes the architecture
+to drift while the verification record improves. Cross-target consistency can even
+make the drift harder to notice when all targets share the same mistaken producer
+or fixture expectation. The likely resulting failure is not one more isolated bug,
+but a false claim that a mechanism is complete when its facts are duplicated,
+under-specified, or invalidated differently across paths.
+
+The countermeasure is to make every candidate answer the ownership question before
+counting its tests: one named authority per fact, explicit lifetime and
+invalidation, complete producer/consumer inventory, and a test that distinguishes
+the competing representations or effects. The same discipline also exposes whether
+the verification harness itself can mutate the facts it is supposed to measure.

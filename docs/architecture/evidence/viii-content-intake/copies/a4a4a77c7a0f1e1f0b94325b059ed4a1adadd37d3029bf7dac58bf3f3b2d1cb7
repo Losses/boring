@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# gen.sh <tree-tag> <name> <fixture-dir> <main-class> [getType-classes...]
+set -u
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+TAG="$1"; NAME="$2"; FIX="$3"; MAIN="$4"; shift 4
+TREE="/tmp/vc8/$TAG"
+GEN="/tmp/vc8/out/$TAG-$NAME/gen"
+DRV="/tmp/vc8/drv/$TAG-$NAME.hxml"
+mkdir -p "$GEN"
+{
+  echo "-lib reflaxe"
+  echo "-lib boring"
+  echo "-cp packages/compiler"
+  echo "-cp packages/compiler/reflaxe/swift/std-shadow"
+  echo "-cp packages/compiler/reflaxe/swift"
+  echo "-cp samples"
+  echo "-cp $FIX"
+  echo "--macro Intercept.run(['samples', '$FIX'])"
+  echo "--macro swiftcompiler.Compiler.use()"
+  echo "-D swift-test-runner=native"
+  echo "-D runtime-import=@boring/runtime"
+  echo "-D runtime-emit=."
+  echo "-D swift-output=$GEN"
+  echo "$MAIN"
+  for g in "$@"; do echo "--macro haxe.macro.Context.getType(\"$g\")"; done
+} > "$DRV"
+LOG="/tmp/vc8/logs/gen-$TAG-$NAME.log"
+( cd "$TREE" && haxe "$DRV" ) > "$LOG" 2>&1
+rc=$?
+echo "$rc" > "$LOG.rc"
+echo "gen $TAG/$NAME rc=$rc -> $GEN"

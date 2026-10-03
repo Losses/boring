@@ -1,0 +1,28 @@
+package boring
+
+data class PayloadSelfMapException(val error: PayloadSelfMapError) {
+    val message: String
+    init {
+    this.message = "payload self-map"
+    }
+
+    companion object {
+        fun make(): PayloadSelfMapException {
+            return PayloadSelfMapException(PayloadSelfMapError.Missing)
+        }
+    }
+}
+
+fun comparePayloadSelfMapException(a: PayloadSelfMapException, b: PayloadSelfMapException): Int {
+    var cmp = 0
+    cmp = when (a.error) { PayloadSelfMapError.Missing -> 0 }.compareTo(when (b.error) { PayloadSelfMapError.Missing -> 0 })
+    if (cmp != 0) return cmp
+    cmp = a.message.compareTo(b.message)
+    if (cmp != 0) return cmp
+    return 0
+}
+
+enum class PayloadSelfMapError {
+    Missing
+}
+fun comparePayloadSelfMapError(a: PayloadSelfMapError, b: PayloadSelfMapError): Int = a.ordinal - b.ordinal

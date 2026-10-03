@@ -1,0 +1,88 @@
+
+===== T0 FIXED state (as found) =====
+c14043c0d68623fa0a378c771ead2f4cc831d678e6f244d90b91443a82c59cc5  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh
+961e13070dd1b23ee275b4c1f9c45ce3ab220d8d9fc9f02a9ea19108e04755ab  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/selftest.sh
+-rwxr-xr-x 755 1873 /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh
+-rwxr-xr-x 755 8214 /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/selftest.sh
+7c332d3369e0643a4aa397b2a6530dab628f86e833b3f049d3fbe51cfedb902f  run-exclusive.sh
+bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a  check-log-integrity.sh
+4ad34edf398e175ab72c5e45dc7a23cb0a2efb7c40f078f4a442541823c91105  option-c-poststate.py
+d1199267d87cc635172e8d3a1bdf83150f19c7c87f1faadeefb77c211e7ab573  option-c-child-records.py
+b83a636d176bf5e6b40a98ef3a7d4598de92a2bb6f37fbddd171ee6141f6d54f  option-c.plan
+c14043c0d68623fa0a378c771ead2f4cc831d678e6f244d90b91443a82c59cc5  option-c-stage-wrapper.sh
+961e13070dd1b23ee275b4c1f9c45ce3ab220d8d9fc9f02a9ea19108e04755ab  selftest.sh
+
+===== STEP 1 rollback: restore both original bytes from the dc-warn backup =====
+
+===== T1 ROLLED BACK state =====
+d11801e54decbbfb2085ef1ee63a73a4e36a8f38ebd24db653ae4e2caab9268a  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh
+201636892acc19c905c9c3c1d9c14b4ad686990579b8569e21b74672ad18e26d  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/selftest.sh
+-rwxr-xr-x 755 1869 /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh
+-rwxr-xr-x 755 8214 /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/selftest.sh
+-- byte equality with backup --
+cmp wrapper vs backup: identical
+cmp selftest vs backup: identical
+-- byte equality with pristine --
+cmp wrapper vs pristine: identical
+cmp selftest vs pristine: identical
+-- expected baseline match --
+wrapper == BASE_WRAP OK
+selftest == BASE_SELF OK
+-- full 7-file table during rollback --
+7c332d3369e0643a4aa397b2a6530dab628f86e833b3f049d3fbe51cfedb902f  run-exclusive.sh
+bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a  check-log-integrity.sh
+4ad34edf398e175ab72c5e45dc7a23cb0a2efb7c40f078f4a442541823c91105  option-c-poststate.py
+d1199267d87cc635172e8d3a1bdf83150f19c7c87f1faadeefb77c211e7ab573  option-c-child-records.py
+b83a636d176bf5e6b40a98ef3a7d4598de92a2bb6f37fbddd171ee6141f6d54f  option-c.plan
+d11801e54decbbfb2085ef1ee63a73a4e36a8f38ebd24db653ae4e2caab9268a  option-c-stage-wrapper.sh
+201636892acc19c905c9c3c1d9c14b4ad686990579b8569e21b74672ad18e26d  selftest.sh
+
+===== STEP 2 re-apply: patch -p1 --fuzz=0 < FINAL.patch =====
+patching file boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh
+patching file boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/selftest.sh
+patch rc=0
+
+===== T2 RE-APPLIED (fixed) state =====
+c14043c0d68623fa0a378c771ead2f4cc831d678e6f244d90b91443a82c59cc5  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh
+961e13070dd1b23ee275b4c1f9c45ce3ab220d8d9fc9f02a9ea19108e04755ab  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/selftest.sh
+-rwxr-xr-x 755 1873 /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh
+-rwxr-xr-x 755 8214 /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/selftest.sh
+-- expected fixed match --
+wrapper == FIX_WRAP OK
+selftest == FIX_SELF OK
+-- diff vs pristine must be exactly the two lines --
+--- /home/losses/Development/tq-workspace/dc-warn/out/option-c/selftest/pristine/option-c-stage-wrapper.sh	2026-09-29 02:55:12.000000000 -0400
++++ /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh	2026-09-29 17:22:07.931183142 -0400
+@@ -37,7 +37,7 @@
+ export TMPDIR
+ mkdir -p "$TMPDIR"
+ 
+-"$@" >"$OUTDIR/$NAME.stdout" 2>"$OUTDIR/$NAME.stderr"
++( "$@" ) >"$OUTDIR/$NAME.stdout" 2>"$OUTDIR/$NAME.stderr"
+ rc=$?
+ printf '%s\n' "$rc" >"$OUTDIR/$NAME.rc"
+ 
+--- /home/losses/Development/tq-workspace/dc-warn/out/option-c/selftest/pristine/selftest.sh	2026-09-29 10:24:28.000000000 -0400
++++ /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/selftest.sh	2026-09-29 17:22:07.931508275 -0400
+@@ -197,7 +197,7 @@
+ run_case "option-C original failure" "$E/oc-fail.plan" 7
+ oc_fail=$(cat "$E/.latest-run")
+ check "option-C original rc preserved" "$(cat "$oc_fail/stages"/*.status | sort -u | tr -d '\n')" "7"
+-check "option-C poststate ran after failure" "$(grep -c 'post-state: 6 entries checked, 0 failures' "$oc_fail/stages"/*.stdout)" 1
++check "option-C poststate ran after failure" "$(grep -c 'post-state: 6 entries checked, 0 failures' "$oc_fail/stages"/*.stdout)" 2
+ 
+ # Option C post-state drift: root file modified after manifest build;
+ # original rc 0, post-state rc 91 blocks.
+changed-line count (wrapper): 2
+changed-line count (selftest): 2
+-- full 7-file table after re-apply --
+7c332d3369e0643a4aa397b2a6530dab628f86e833b3f049d3fbe51cfedb902f  run-exclusive.sh
+bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a  check-log-integrity.sh
+4ad34edf398e175ab72c5e45dc7a23cb0a2efb7c40f078f4a442541823c91105  option-c-poststate.py
+d1199267d87cc635172e8d3a1bdf83150f19c7c87f1faadeefb77c211e7ab573  option-c-child-records.py
+b83a636d176bf5e6b40a98ef3a7d4598de92a2bb6f37fbddd171ee6141f6d54f  option-c.plan
+c14043c0d68623fa0a378c771ead2f4cc831d678e6f244d90b91443a82c59cc5  option-c-stage-wrapper.sh
+961e13070dd1b23ee275b4c1f9c45ce3ab220d8d9fc9f02a9ea19108e04755ab  selftest.sh
+
+===== STEP 3 leftover check: stray .orig/.rej files in the frozen tree =====
+none

@@ -1,0 +1,36 @@
+use crate::dcpe::kind::Kind;
+use std::sync::Mutex;
+
+
+pub static EVAL_PROBE_CALL_COUNT: Mutex<u32> = Mutex::new(0);
+
+#[derive(Clone, Copy)]
+pub struct EvalProbe;
+
+impl EvalProbe {
+
+    pub fn eval_probe_next_kind() -> Kind {
+        { let __rhs_value = u32::wrapping_add({ let __guard = EVAL_PROBE_CALL_COUNT.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() }, 1); *EVAL_PROBE_CALL_COUNT.lock().unwrap_or_else(|e| e.into_inner()) = __rhs_value; };
+        return Kind::B { value: 21 };
+    }
+
+    pub fn eval_probe_reset() {
+        *EVAL_PROBE_CALL_COUNT.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+    }
+
+    pub fn eval_probe_promoted_once() -> u32 {
+        let acc: u32;
+        {
+            let _g = EvalProbe::eval_probe_next_kind();
+            let _ = match _g {
+    Kind::A => acc = 1u32,
+    Kind::B { value: _p0 } => acc = _p0,
+    Kind::C => acc = 3u32,
+};
+        }
+        return acc;
+    }
+
+    pub fn eval_probe_main() {
+    }
+}

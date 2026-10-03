@@ -1,0 +1,70 @@
+#[derive(Clone, Copy)]
+pub struct HandWrittenLoopPositionSupport;
+
+impl HandWrittenLoopPositionSupport {
+    pub fn hand_written_loop_position_support_accumulate(values: &Vec<u32>) -> Vec<u32> {
+        let capacity = values.len();
+        let mut result = Vec::with_capacity(capacity);
+        for index in 0..match u32::try_from(values.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+            result.push(u32::wrapping_add(values[usize::try_from(index).unwrap_or(0)], 1));
+        }
+        return result;
+    }
+
+    pub fn hand_written_loop_position_support_nested_if(values: &Vec<u32>) -> Vec<u32> {
+        let mut result: Vec<u32> = Vec::new();
+        if i32::from_ne_bytes(((u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()) > (0) {
+            let capacity = values.len();
+            let mut inner = Vec::with_capacity(capacity);
+            for index in 0..match u32::try_from(values.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+                inner.push(u32::wrapping_add(values[usize::try_from(index).unwrap_or(0)], 1));
+            }
+            for &value in &inner {
+                result.push(value);
+            }
+        }
+        return result;
+    }
+
+    pub fn hand_written_loop_position_support_nested_while(values: &Vec<u32>) -> Vec<u32> {
+        let mut result: Vec<u32> = Vec::new();
+        for _ in 0..1 {
+            let capacity = values.len();
+            let mut inner = Vec::with_capacity(capacity);
+            for index in 0..match u32::try_from(values.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+                inner.push(u32::wrapping_add(values[usize::try_from(index).unwrap_or(0)], 1));
+            }
+            for &value in &inner {
+                result.push(value);
+            }
+        }
+        return result;
+    }
+
+    pub fn hand_written_loop_position_support_outer_loop(values: &Vec<u32>) -> Vec<u32> {
+        let mut result: Vec<u32> = Vec::new();
+        {
+            {
+                let capacity = values.len();
+                let mut inner = Vec::with_capacity(capacity);
+                for index in 0..match u32::try_from(values.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+                    inner.push(u32::wrapping_add(values[usize::try_from(index).unwrap_or(0)], 1));
+                }
+                for &value in &inner {
+                    result.push(value);
+                }
+            }
+            {
+                let capacity = values.len();
+                let mut inner = Vec::with_capacity(capacity);
+                for index in 0..match u32::try_from(values.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+                    inner.push(u32::wrapping_add(values[usize::try_from(index).unwrap_or(0)], 1));
+                }
+                for &value in &inner {
+                    result.push(value);
+                }
+            }
+        }
+        return result;
+    }
+}

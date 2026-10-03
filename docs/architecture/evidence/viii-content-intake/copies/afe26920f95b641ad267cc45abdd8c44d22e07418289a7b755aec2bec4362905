@@ -1,0 +1,130 @@
+package tests
+
+import boring.runtime.test.Test
+
+class BlockScopeUnrollTests {
+@boring.test.Test
+    fun literalLoopScopes() {
+        Test.run("tests.BlockScopeUnrollTests.literalLoopScopes", "tests.BlockScopeUnrollTests.literalLoopScopes: literal loop unrolls into scoped blocks") {
+                var total = 0
+                run {
+                    run {
+                        val step = 1
+                        val doubled = step * 2
+                        total += doubled
+                    }
+                    run {
+                        val step_2 = 3
+                        val doubled_2 = step_2 * 2
+                        total += doubled_2
+                    }
+                    run {
+                        val step_3 = 7
+                        val doubled_3 = step_3 * 2
+                        total += doubled_3
+                    }
+                    run {
+                        val step_4 = 31
+                        val doubled_4 = step_4 * 2
+                        total += doubled_4
+                    }
+                }
+                Test.equals(84, total, null)
+        }
+    }
+
+@boring.test.Test
+    fun sequentialLoops() {
+        Test.run("tests.BlockScopeUnrollTests.sequentialLoops", "tests.BlockScopeUnrollTests.sequentialLoops: sequential literal loops reuse names") {
+                var total = 0
+                run {
+                    run {
+                        val v = 1
+                        val tag = v
+                        total += tag
+                    }
+                    run {
+                        val v_2 = 2
+                        val tag_2 = v_2
+                        total += tag_2
+                    }
+                }
+                run {
+                    run {
+                        val v_3 = 3
+                        val tag_3 = v_3
+                        total += tag_3
+                    }
+                    run {
+                        val v_4 = 4
+                        val tag_4 = v_4
+                        total += tag_4
+                    }
+                }
+                Test.equals(10, total, null)
+        }
+    }
+
+@boring.test.Test
+    fun returnFromSegment() {
+        Test.run("tests.BlockScopeUnrollTests.returnFromSegment", "tests.BlockScopeUnrollTests.returnFromSegment: return inside unrolled body") {
+                Test.equals(7, BlockScopeUnrollSupport.firstAboveFive(), null)
+        }
+    }
+
+@boring.test.Test
+    fun breakContinuePath() {
+        Test.run("tests.BlockScopeUnrollTests.breakContinuePath", "tests.BlockScopeUnrollTests.breakContinuePath: break and continue keep the counted loop path") {
+                var total = 0
+                run {
+                    val _g1 = mutableListOf<Int>(1, 3, 7, 31)
+                    for (step in _g1) {
+                        if ((step == 3)) {
+                            continue
+                        }
+                        if ((step == 31)) {
+                            break
+                        }
+                        total += step
+                    }
+                }
+                Test.equals(8, total, null)
+        }
+    }
+}
+
+object BlockScopeUnrollSupport {
+    fun firstAboveFive(): Int {
+        run {
+            run {
+                val step = 1
+                if ((step > BlockScopeUnrollSupport.threshold())) {
+                    return step
+                }
+            }
+            run {
+                val step_2 = 3
+                if ((step_2 > BlockScopeUnrollSupport.threshold())) {
+                    return step_2
+                }
+            }
+            run {
+                val step_3 = 7
+                if ((step_3 > BlockScopeUnrollSupport.threshold())) {
+                    return step_3
+                }
+            }
+            run {
+                val step_4 = 31
+                if ((step_4 > BlockScopeUnrollSupport.threshold())) {
+                    return step_4
+                }
+            }
+        }
+        return 0
+    }
+
+    fun threshold(): Int {
+        return 5
+    }
+}

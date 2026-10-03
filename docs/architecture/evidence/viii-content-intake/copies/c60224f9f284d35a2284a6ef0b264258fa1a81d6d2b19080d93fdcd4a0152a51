@@ -1,0 +1,15 @@
+gen-try-tail		0	zero
+tree-try-tail		5	file-count
+compile-try-tail		1	data
+libc-warning-count-try-tail		1	environment-noise-count
+gen-probe		0	zero
+tree-probe		5	file-count
+compile-probe		1	data
+libc-warning-count-probe		1	environment-noise-count
+gen-plain		0	zero
+tree-plain		5	file-count
+compile-plain		1	data
+libc-warning-count-plain		2	environment-noise-count
+run-try-tail-from-tmp		no-binary-compile-status-1	not-reached
+run-probe-from-tmp		no-binary-compile-status-1	not-reached
+run-plain-from-tmp		no-binary-compile-status-1	not-reached

@@ -1,0 +1,6 @@
+haxe
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/tests/haxe/dc-promoted-eval/gen/swift.hxml
+-D
+swift-output=/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-MPgV8z/swift-gen
+-D
+swift-test-output=/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-MPgV8z/swift-gen-tests

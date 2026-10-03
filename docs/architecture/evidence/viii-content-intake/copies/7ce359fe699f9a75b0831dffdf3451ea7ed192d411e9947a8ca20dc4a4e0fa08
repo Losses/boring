@@ -1,0 +1,13 @@
+package boring
+
+fun publicValue(value: Int): Int {
+    return value + 10
+}
+
+private fun privateValue(value: Int): Int {
+    return value + 20
+}
+
+fun publicWithPrivate(value: Int): Int {
+    return privateValue(value)
+}

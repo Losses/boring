@@ -1,0 +1,166 @@
+# xs-testmod 泄漏判据补证报告（testmod-leak-recheck）
+
+任务：把 `dc-warn/out/rust-regression-fix/xs-testmod-leak.txt`（及 REPORT.md 第 58 行）
+中无法第三方复核的判据读数补成可复核的。方法：独立 git worktree（e1c65975）+
+三态编译器源码只读复制 + 重新生成 Rust 树 + 逐态归档命令/哈希/测量原文。
+交付物目录 `dc-warn/out/rust-regression-fix/**` 未做任何修改。
+
+## 1. 判定（verdict）
+
+- **交付物的三态方向成立**：泄漏（生产 `boring/value_exception.rs` 出现
+  `ValueExceptionFault` 增长变体）只存在于 **as-reviewed** 态；pristine 与 fixed 均无。
+- **按交付物的隐含口径（变体"声明"出现次数，即匹配 `ValueExceptionFault(Box<` 的行数）：
+  0 → 1 → 0，与交付物一致**，且现已可复核（见 §2、evidence/）。
+- **按裸字符串口径（`grep -c 'ValueExceptionFault'`）：0 → 2 → 0**。as-reviewed 的生产文件里
+  该字符串共 2 次：1 次变体声明（第 6 行）+ 1 次 Display 实现 match arm（第 15 行）。
+  交付物写的 "1" 只在"变体声明"口径下成立；交付物未给出测量命令，这正是它不可复核的根因之一。
+- **交付物标签与磁盘目录名不对应**（详见 §3.1）。
+
+## 2. 三态实测读数（本报告的权威读数）
+
+被检文件：各态生成树中的生产文件 `<gen-tree>/boring/value_exception.rs`
+（生成树命令见 §7；文件完整副本归档于 evidence/<state>/value_exception.rs）。
+
+| 态 | 编译器源（4 文件 sha 见 evidence/<state>/src-hashes.txt） | gen rc | cargo build rc | value_exception.rs sha256（前 8 位） | 变体声明数（口径 A） | 裸字符串数（口径 B） |
+|---|---|---|---|---|---|---|
+| pristine（e1c65975） | Compiler.hx `1cdc0ebd…` 等 | 0 | **0** | `7e478a84…` | **0** | **0** |
+| as-reviewed（src-postfix 4 文件） | Compiler.hx `24f79c27…` 等 | 0 | **0** | `1a1295e0…` | **1** | **2** |
+| fixed（src-fixed/Compiler.hx `07896d15…` + src-postfix 其余 3 文件） | 见左 | 0 | **0** | `7e478a84…` | **0** | **0** |
+
+测量命令原文与原始输出：evidence/<state>/measure/argv（cmd1–cmd5）、
+evidence/<state>/measure/grep-*.out、measure/rc（grep -c 计数为 0 时退出码为 1，属 grep 语义）。
+
+树级交叉验证（gen-tree.sha256，9 文件全树哈希，剔除 target）：
+- 我的 pristine 树 == 我的 fixed 树 == 交付物归档的
+  `postfix-xs-testmod/gen-tree.sha256`（9/9 行逐一相符）→ 本报告的管线与交付物的
+  生成管线逐位复现一致（交付物声称"fixed 树回到与 pristine 逐字节相同"，得证）。
+- as-reviewed 树与另两态的**唯一**差异是 `boring/value_exception.rs`
+  （`1a1295e0…` vs `7e478a84…`），恰为泄漏文件本身；其余 8 文件逐字节相同。
+
+as-reviewed 生产文件中的泄漏形状（完整副本 evidence/as-reviewed/value_exception.rs）：
+```
+pub enum ValueError {
+    StartAfterEnd,
+    NegativeStart,
+    BlankValue,
+    ValueExceptionFault(Box<crate::boring::value_exception::ValueException>),   // ← 泄漏变体（第 6 行）
+}
+…
+    ValueError::ValueExceptionFault(inner) => write!(formatter, "{:?}", inner), // ← Display arm（第 15 行）
+…
+pub struct ValueException { pub error: ValueError }                             // 随注册一并被发射进生产
+```
+pristine / fixed 的 `ValueError` 只有 3 个变体（StartAfterEnd / NegativeStart /
+BlankValue），且**不发射** `ValueException` 结构（生产文件仅 18 行，只有 payload 枚举）。
+
+## 3. 交付物为何不可复核（复核发现）
+
+1. **标签与目录名错位**：xs-testmod-leak.txt 三行标签为 `pristine / postfix / fixed`，
+   其中 "postfix" 行（读数 1）指 **as-reviewed** 态；而磁盘上 `postfix-xs-testmod/`
+   目录是 **fixed** 态，as-reviewed 态的目录是 `negctl-xs-testmod/`。
+   （本项目三态约定：pristine→prefix-*、as-reviewed→negctl-*、fixed→postfix-*。）
+   REPORT.md 第 58 行用的文字标签（pristine / as-reviewed / fixed）是对的，
+   错在 xs-testmod-leak.txt 把 as-reviewed 写成了 "postfix"。
+2. **前两态只跑了 gen**：stage-summary.tsv 第 7 行
+   `xs-testmod [gen-rust=0] [gen-rust=0] [gen-rust=0 compile-rust=0]`——
+   prefix/negctl 只有 `gen-rust 0`，无 compile 阶段、无归档的 `gen-tree.sha256`；
+   生成树 `/tmp/rustreg-gen-*` 已清理。
+3. **无任何测量命令与文件哈希**：字符串 `ValueExceptionFault` 在交付物里只出现于
+   REPORT.md 与 xs-testmod-leak.txt 两处，没有任何归档生成文件包含它，第三方无从复算。
+4. **独立审阅席"as-reviewed 不泄漏"的观感与本复核不符**：在 Compiler.hx 为
+   `24f79c27…`（即交付物 FILES.sha256 登记的 src-postfix/Compiler.hx）的源码下重跑，
+   泄漏**可复现**（声明 1 / 裸串 2）。其"ValueError 同样只有 3 个声明变体"的读数
+   对应的是 pristine/fixed 形状（as-reviewed 下 ValueError 是 4 个变体）——
+   该席很可能在其 as-reviewed 运行中用错了态或测量了别的状态。本报告不改动其结论记录，
+   仅以本归档为准。
+
+## 4. "编译通过" ≠ "泄漏消除"（两类读数必须分开）
+
+- 三态 `cargo build --offline` 退出码**全部为 0**——包括**存在泄漏的 as-reviewed 态**。
+- 机理：夹具唯一的值再抛点在 `@:test` 类 `ProdRethrowTests` 内，生成 Rust 把整个
+  `xcheckscope` 模块置于 `#![cfg(test)]`（见 evidence/<state>/value_exception.rs 同级
+  `xcheckscope/mod.rs`：`#[cfg(test)] pub mod prod_rethrow_tests;`）。`cargo build`
+  （不带 `--tests`）**根本不编译** cfg(test) 模块，因此泄漏在编译器侧零压力，
+  三态编译退出码无判别力。
+- 结论：**"fixed cargo build 0" 不证明"泄漏已消除"**。泄漏是否消除**只能**由
+  "生产文件里该变体是否出现"（§2 的口径 A/B 读数）判定。交付物把两者并列陈述
+  （REPORT.md 第 58 行"…fixed 0（xs-testmod-leak.txt）；fixed 生成树…且 fixed cargo
+  build 0"）应理解为两个独立事实，互不为证据；引用该判据时必须分开给出两类读数
+  （本报告 §2 表已分列 gen rc / cargo rc / 变体计数）。
+
+## 5. 机理（为什么是 0 / 1 / 0；pristine 的"结构上不可能"）
+
+- **pristine = 0 是平凡/结构性的**：pristine 编译器**根本没有**增长变体登记机制
+  （PIT-248 补的正是这个机制——try-tail 负基线 cargo 101 即该缺失的症状）。
+  无登记 → 生产文件**结构上不可能**出现 `ValueExceptionFault`，与夹具形状无关。
+  所以"pristine 不泄漏"不构成对"as-reviewed 会泄漏"的反证；真正有判别力的是
+  as-reviewed vs fixed 这一对。
+- **as-reviewed = 1（声明）**：登记机制存在（src-postfix/Compiler.hx:2429），
+  但其 test 门双重失效（src-postfix:2434）：
+  (a) 键取**异常类自身**的模块（`boring`），而非 throw 所在模块（`xcheckscope`）——
+  异常类模块永远不是 test 模块，键本身就问错了对象；
+  (b) `state.testModules` 只在 classDecl 发射期填充（src-postfix:215），而 preScan
+  挂在 `onAfterTyping`（src-postfix:92），登记时刻 map 恒为空，`exists` 恒 false。
+  夹具中 `throw new ValueException(e.error)`（构造参数是字段访问，非 payload 构造器，
+  不命中 isPayloadCtor 早退）于是被登记 → 生产 `ValueError` 长出
+  `ValueExceptionFault(Box<ValueException>)`，`ValueException` 结构随之进入生产输出。
+- **fixed = 0**：门改为直接查 **throw 所在类**的 `@:test` 成员
+  （src-fixed/Compiler.hx:2503 `classHasTestMethods(ownerClass)`，定义 :2533），
+  不依赖 map 与填充时序；夹具唯一的值再抛点在带 `@:test` 的 `ProdRethrowTests` 内
+  → 不登记。另一处 `mustThrow`（`new ValueException(ValueError.NegativeStart)`）
+  构造参数是 payload 构造器，任何态都直接降级为 payload 值、从不需要变体
+  （src-fixed:2519-2527 isPayloadCtor）→ 不登记。故 fixed 生产文件回到 pristine 形状。
+- 夹具的两个 throw 点正好各覆盖一类：payload-构造器 throw（任何态不登记）与
+  值再抛 throw（门失效即登记）。as-reviewed 恰好只登记后者，故声明数 = 1。
+
+## 6. 更正建议（不改动交付物；以下为建议替换文本）
+
+**xs-testmod-leak.txt 建议替换为：**
+```
+# Leak 3 补证（recheck）：生产 boring/value_exception.rs 中 ValueExceptionFault 变体计数
+# 口径 A = 变体声明次数（匹配 ValueExceptionFault(Box< 的行）；口径 B = grep -c 裸字符串
+# 态 | Compiler.hx sha | A | B | value_exception.rs sha256(8) | gen rc | cargo rc
+pristine    | 1cdc0ebd | 0 | 0 | 7e478a84 | 0 | 0
+as-reviewed | 24f79c27 | 1 | 2 | 1a1295e0 | 0 | 0
+fixed       | 07896d15 | 0 | 0 | 7e478a84 | 0 | 0
+# 证据：dc-warn/out/testmod-leak-recheck/evidence/{pristine,as-reviewed,fixed}/
+# 注意：三态 cargo build 均 0；编译退出码不参与泄漏判定（cfg(test) 不被 cargo build 编译）。
+```
+（原文件中 "postfix:" 行标签应改为 "as-reviewed:"。）
+
+**REPORT.md 第 58 行建议替换为：**
+```
+| 泄漏 3 xs-testmod | 生产 boring/value_exception.rs 中 ValueExceptionFault 变体声明：pristine 0 → as-reviewed 1（裸字符串计 2：声明 + Display arm）→ fixed 0（补证：dc-warn/out/testmod-leak-recheck/evidence）；三态 cargo build 均为 0——编译通过 ≠ 泄漏消除，泄漏判定只以生产文件变体计数为准 |
+```
+
+## 7. 复现方法（第三方重跑步骤）
+
+1. worktree（任务结束时已清理，可按此重建）：
+   `git -C /home/losses/Development/tq-workspace/boring worktree add --detach \
+   /home/losses/Development/tq-workspace/dc-warn/worktrees/tmleak-recheck e1c65975`
+2. 夹具（e1c65975 中不存在，取自交付物 worktree，哈希见 evidence/fixture-hashes-*.txt，
+   89d1a8e2… rust.hxml / f3fda240… ProdRethrowTests.hx）：
+   `cp -p dc-warn/worktrees/rust-regression-fix/tests/haxe/xs-testmod/{gen,xcheckscope} <wt>/tests/haxe/xs-testmod/`
+3. 三态源码（只读复制，逐文件 sha 见 evidence/<state>/src-hashes.txt）：
+   - pristine = worktree 自身 e1c65975 检出版（与交付物 prefix 哈希逐一相符）；
+   - as-reviewed = `dc-warn/out/rust-regression-fix/src-postfix/{Compiler,RustDecl,RustExpr,RustEmissionState}.hx`；
+   - fixed = src-postfix 的 RustDecl/RustExpr/RustEmissionState + `src-fixed/Compiler.hx`（07896d15…）。
+   目标目录均为 `<wt>/packages/compiler/reflaxe/rust/rustcompiler/`。
+4. 生成（flake 一律从含 flake.nix 的 worktree 求值）：
+   `cd <wt> && XDG_CACHE_HOME=/tmp/tmleak-nix-cache TMPDIR=/tmp/tmleak-nix-cache \
+   nix develop -c haxe tests/haxe/xs-testmod/gen/rust.hxml -D rust-output=/tmp/tmleak-gen-<state>`
+5. 编译（与交付物 run-one.sh 同形）：
+   `cd <wt> && … CARGO_TARGET_DIR=/tmp/tmleak-tgt-<state> \
+   nix develop -c bash -c "cd /tmp/tmleak-gen-<state> && timeout 1800 cargo build --offline"`
+   （cargo build 前按 run-one.sh 补写 `src/main.rs: fn main() {}`；gen-tree.sha256
+   快照在补写之前取。）
+6. 测量：见 evidence/<state>/measure/argv（cmd1–cmd5）。
+7. 一键脚本：evidence/run-state.sh（`bash run-state.sh <state>`，含 haxelib .dev 自检归档）。
+8. 环境事实：`~/.haxelib` 已装 format/formatter/reflaxe；`boring/.dev` → 本 worktree，
+   `reflaxe/.dev` → nix store 固定输入（见 evidence/<state>/haxelib/devlinks）。
+
+## 8. 清理记录
+
+- worktree `dc-warn/worktrees/tmleak-recheck`：任务结束移除（`git worktree remove --force`）。
+- `/tmp/tmleak-gen-*`、`/tmp/tmleak-tgt-*`、`/tmp/tmleak-nix-cache`：任务结束删除。
+- 交付物 `dc-warn/out/rust-regression-fix/**` 与其他只读区：零写入。

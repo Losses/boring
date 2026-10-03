@@ -1,0 +1,24 @@
+package mx;
+
+import std.ReadOnlyArray;
+import mx.MXSupport.QError;
+import mx.MXSupport.QSource;
+
+/**
+	P3 in isolation: the documented reachability gate. A lambda whose body is
+	exactly `return try { ... } catch ...` is refused because
+	functionLiteralInner's single-return fast path calls expr() on the try
+	region. Kept in its own module so the refusal cannot hide the other probes.
+**/
+class MXProbeGate {
+	public static function pFastTry(flag:Bool):Int {
+		var f = function(flag:Bool):ReadOnlyArray<Int> {
+			return try {
+				QSource.first();
+			} catch (e:QError) {
+				QSource.second();
+			}
+		}
+		return QSource.view(f(flag));
+	}
+}

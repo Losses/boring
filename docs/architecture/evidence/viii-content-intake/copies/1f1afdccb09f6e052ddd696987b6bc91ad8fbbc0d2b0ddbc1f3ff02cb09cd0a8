@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
+argv bash -c cd\ /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T211606Z/rust/gen\ \&\&\ mkdir\ -p\ src\ \&\&\ cp\ /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat/tests/haxe/charcodeat/native/harness.rs\ src/main.rs\ \&\&\ sha256sum\ src/main.rs\ \>harness.sha256\ \&\&\ timeout\ 1800\ cargo\ build\ --offline\ --target-dir\ /tmp/charcodeat/att-20260929T211606Z/rust-target

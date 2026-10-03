@@ -1,0 +1,2 @@
+echo x > f-start.txt
+require-file:../escape.txt

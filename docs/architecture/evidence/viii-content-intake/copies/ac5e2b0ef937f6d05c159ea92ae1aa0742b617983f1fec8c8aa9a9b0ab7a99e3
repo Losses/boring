@@ -1,0 +1,18 @@
+package mx;
+import std.ReadOnlyArray;
+import mx.MXSupport.QSource;
+// Attack D: inline helper block at VAR-INITIALIZER position inside a lambda.
+class AttD {
+	inline static function two(a:Array<Int>):Array<Int> {
+		final s = a.length;
+		return a.slice(s, 0);
+	}
+	public static function run():Int {
+		var f = function():ReadOnlyArray<Int> {
+			final h = [1, 2, 3];
+			final v:ReadOnlyArray<Int> = two(h);
+			return v;
+		}
+		return QSource.view(f());
+	}
+}

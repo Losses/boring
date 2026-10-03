@@ -1,0 +1,3 @@
+interpreter bash inside the invoking nix develop environment
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/place-ts-swift
+argv swiftc out/place/runs/place-ts-swift-k85ORK/case-R3/swift-gen/place/PlaceObserveStatic.swift -o out/place/runs/place-ts-swift-k85ORK/case-R3/place-observe

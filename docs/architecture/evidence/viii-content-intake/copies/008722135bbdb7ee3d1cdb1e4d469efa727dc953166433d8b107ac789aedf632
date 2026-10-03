@@ -1,0 +1,17 @@
+# RECORD.md lines 46-61 (the section-2 decision table rows), with line numbers
+46: | source storage | destination needs | nullability | already converted | decision |
+47: |---|---|---|---|---|
+48: | MutableArrayWrapper | read-only position | required | no | convert on entry; single wrap |
+49: | MutableArrayWrapper | read-only position | optional | no | convert inside the optional branch only |
+50: | ReadOnlyArray | read-only position | required source, **or** optional destination | no | no boundary; pass through. NOT "any": the optional-source → required-dest sub-cell is REFUSED (see the REFUSED row below), so the earlier "any" contradicted that row. |
+51: | ReadOnlyArray | mutable position | required | no | convert (copy) |
+52: | MutableArrayWrapper | mutable position | any | no | no boundary |
+53: | any | any | literal empty | n/a | retain literal identity until materialization — EXCEPT any mutable destination: `prepare`'s mutable branch (`SwiftArrayBoundary.hx:212`) admits only `ReadOnlyArrayView` sources, so a `ContextualEmptyLiteral` matches **no branch** ⇒ `operation` stays null ⇒ REFUSED (`:233-234`). (Earlier revision said "any | any".) |
+54: | any | any | literal null | n/a | retain no-presence proof; do not fabricate storage — EXCEPT a read-only **required** destination: the `NullArrayValue` case requires `destOptional` (`SwiftArrayBoundary.hx:187-192`), so `operation` stays null ⇒ REFUSED (`:233-234`). (Earlier revision said "any | any".) |
+55: | any | any | any | yes | MUST NOT convert again (no double wrap) |
+56: | **OtherArrayStorage** | any | any | no | **REFUSED**: the empty `case OtherArrayStorage:` (`SwiftArrayBoundary.hx:210`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ consumers fail (`SwiftExpr.hx:2608-2609`, `SwiftDecl.hx:600-601`) |
+57: | ReadOnlyArray | read-only position | **optional source → required dest** | no | **REFUSED: `prepare` returns null → `fail(...)` at SwiftExpr.hx:2608-2609 / SwiftDecl 600-601.** The earlier row claiming "pass through" is WRONG for this cell. |
+58: | MutableArrayWrapper | read-only position | **optional source → required dest** | no | **REFUSED**: the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:203`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ the same consumer failures (`SwiftExpr.hx:2608-2609` / `SwiftDecl.hx:600-601`). Sibling of the row above; the earlier revision did not dispose of it. |
+59: | ReadOnlyArray | mutable position | **optional source → required dest** | no | **REFUSED**: the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:221`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ the same consumer failures. Sibling of the row above; the earlier revision did not dispose of it. |
+60: | any | **mutable position** | literal null | n/a | `isBoundary` = false ⇒ **no decision taken at all** (not a "retain identity" case) |
+61: | any | any | presence fact absent, no proof | n/a | **veto: no presence proof ⇒ do not fabricate storage** (row was implicit; now explicit) |

@@ -1,0 +1,17 @@
+# shape=promoted target=dart generated-tree: /home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch/../../out/enum-switch/es-VHFjIw/gen/promoted/dart
+# stage 17 exit 0
+# files:
+./_GeneratedFiles.txt
+./lib/dcsenum/kind.dart
+./lib/dcsenum/kind_holder.dart
+./lib/dcsenum/promoted_subject_oracle.dart
+./pubspec.yaml
+./runtime.dart
+# --- ./_GeneratedFiles.txt ---
+1:/home/losses/Development/tq-workspace/dc-warn/out/enum-switch/es-VHFjIw/gen/promoted/dart/lib/dcsenum/kind.dart
+2:/home/losses/Development/tq-workspace/dc-warn/out/enum-switch/es-VHFjIw/gen/promoted/dart/lib/dcsenum/kind_holder.dart
+3:/home/losses/Development/tq-workspace/dc-warn/out/enum-switch/es-VHFjIw/gen/promoted/dart/lib/dcsenum/promoted_subject_oracle.dart
+4:/home/losses/Development/tq-workspace/dc-warn/out/enum-switch/es-VHFjIw/gen/promoted/dart/runtime.dart
+5:/home/losses/Development/tq-workspace/dc-warn/out/enum-switch/es-VHFjIw/gen/promoted/dart/pubspec.yaml
+# --- ./lib/dcsenum/promoted_subject_oracle.dart ---
+8:    switch (_g) {

@@ -1,0 +1,8 @@
+RESTORE: archive  = /home/losses/Development/tq-workspace/xs-xcheck-archive-copy
+RESTORE: target   = /home/losses/Development/tq-workspace/xs-xcheck-scratch-repo
+RESTORE: mode     = check
+RESTORE: target HEAD = e1c65975 OK
+RESTORE: step 1/3 verifying archive against RESTORE.sha256 ...
+xs-dead/gen/rust.hxml: FAILED
+sha256sum: WARNING: 1 computed checksum did NOT match
+RESTORE: FAIL archive does not match RESTORE.sha256 (see above) — refusing to restore

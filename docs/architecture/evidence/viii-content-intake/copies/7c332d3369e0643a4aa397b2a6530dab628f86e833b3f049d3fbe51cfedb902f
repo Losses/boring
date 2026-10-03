@@ -1,0 +1,257 @@
+#!/usr/bin/env bash
+set -u
+
+# Exclusive-output verification harness (planning implementation, dummy
+# self-test only; it does not run the real verify chain).
+#
+# d661 second-review-fix notes:
+# - plan-G is now a REAL traversal control: the link target is an
+#   external directory inside the tool's out scope (never /tmp, never a
+#   global path), the plan writes THROUGH the link, the self-test proves
+#   the write landed in the external target (traversal happened), and
+#   the require validation rejects it with exit 65 and the canonical
+#   escape error. The earlier host-behavior claim is revoked: on the
+#   first implementation the write did not traverse the link, so no
+#   rejection was possible; the new target placement makes traversal
+#   unconditional.
+# - The integrity checker enumerates the ACTUAL stage file set and
+#   requires exact equality with the sealed stage-evidence manifest:
+#   modified, deleted, and unmanifested-added stage files are all
+#   detected (three separate self-test controls).
+# - Sealing: the manifest is written into the log before the end marker;
+#   the checker also requires manifest equality, so post-seal stage
+#   mutations cannot pass.
+# - Process-group boundary stated honestly: stages run as setsid group
+#   leaders with their group ids recorded; cleanup TERM/KILLs those
+#   groups to reap detached grandchildren. This is best-effort
+#   synchronous reaping. Nothing can reap anything after an external
+#   SIGKILL of the harness itself, and this script does not claim
+#   otherwise.
+# - Child evidence: BORING_CHILD_EVIDENCE_DIR exported and recorded.
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+ROOT_ARG="${1:-}"
+if [ -z "$ROOT_ARG" ]; then
+    printf '%s\n' "usage: run-exclusive.sh <workspace-root> <plan-file>" >&2
+    exit 64
+fi
+ROOT="$(cd "$ROOT_ARG" && pwd)" || exit 64
+PLAN="${2:-}"
+[ -n "$PLAN" ] && [ -f "$PLAN" ] || {
+    printf '%s\n' "plan file not found: $PLAN" >&2
+    exit 64
+}
+PLAN="$(cd "$(dirname "$PLAN")" && pwd)/$(basename "$PLAN")"
+
+EVIDENCE_PARENT="$ROOT/out/integration-a3-evidence/exclusive-runner"
+mkdir -p "$EVIDENCE_PARENT" || exit 64
+
+reject_path() {
+    printf '%s\n' "stale or symlink path rejected: $1" >&2
+    exit 65
+}
+
+# Attempt directory: test override or timestamped name; existing paths
+# and symlinks (including dangling ones) are rejected.
+RUN_CANDIDATE="${EXCLUSIVE_ATTEMPT_DIR:-$EVIDENCE_PARENT/attempt-$(date +%Y%m%dT%H%M%S)-$$}"
+if [ -e "$RUN_CANDIDATE" ] || [ -L "$RUN_CANDIDATE" ]; then
+    reject_path "$RUN_CANDIDATE"
+fi
+mkdir "$RUN_CANDIDATE" || exit 65
+RUN="$(cd "$RUN_CANDIDATE" && pwd)" || exit 65
+printf '%s\n' "$RUN" >"$EVIDENCE_PARENT/.latest-run" || exit 65
+
+CHILD_EVIDENCE_DIR="$RUN/child-evidence"
+if [ -e "$CHILD_EVIDENCE_DIR" ] || [ -L "$CHILD_EVIDENCE_DIR" ]; then
+    reject_path "$CHILD_EVIDENCE_DIR"
+fi
+mkdir "$CHILD_EVIDENCE_DIR" || exit 65
+export BORING_CHILD_EVIDENCE_DIR="$CHILD_EVIDENCE_DIR"
+export CHILD_EVIDENCE_DIR="$CHILD_EVIDENCE_DIR"
+export RUN="$RUN"
+
+# External traversal target for the self-test: inside the tool's out
+# scope, outside every attempt directory, fresh per run.
+EXTERNAL_DIR_CANDIDATE="$EVIDENCE_PARENT/external-$(date +%Y%m%dT%H%M%S)-$$"
+if [ -e "$EXTERNAL_DIR_CANDIDATE" ] || [ -L "$EXTERNAL_DIR_CANDIDATE" ]; then
+    reject_path "$EXTERNAL_DIR_CANDIDATE"
+fi
+mkdir "$EXTERNAL_DIR_CANDIDATE" || exit 65
+EXTERNAL_DIR="$(cd "$EXTERNAL_DIR_CANDIDATE" && pwd)" || exit 65
+export EXCLUSIVE_EXTERNAL_DIR="$EXTERNAL_DIR"
+
+HARNESS_LOG="$RUN/harness.log"
+if [ -e "$HARNESS_LOG" ] || [ -L "$HARNESS_LOG" ]; then
+    reject_path "$HARNESS_LOG"
+fi
+exec >"$HARNESS_LOG" 2>&1
+
+{
+    echo "run=$RUN"
+    echo "root=$ROOT"
+    echo "child_evidence_dir=$BORING_CHILD_EVIDENCE_DIR"
+    echo "external_dir=$EXTERNAL_DIR"
+    echo "plan=$PLAN"
+    echo "start=$(date -Is)"
+}
+
+STAGES="$RUN/stages"
+mkdir -p "$STAGES" || exit 65
+FAILED_STAGE=""
+LAST_STATUS=0
+WATCH_GROUPS=()
+declare -a PLAN_ERRORS=()
+
+RUN_REAL=$(cd "$RUN" && pwd -P)
+
+# path_guard <reason> <candidate>
+# Lexical walk of every path component inside the attempt (relative
+# candidates resolve inside it): rejects ".." components and symlink
+# components, then a final canonical containment check via realpath -m.
+# This catches traversal and internal-symlink escapes. Appends a
+# specific plan error and returns nonzero on any violation.
+path_guard() {
+    local reason="$1" cand="$2" acc part canon saved
+    case "$cand" in
+        /*)
+            PLAN_ERRORS+=("$reason: absolute paths are not attempt-local: $cand")
+            return 1
+            ;;
+    esac
+    acc="$RUN"
+    saved=$IFS
+    IFS='/'
+    for part in $cand; do
+        IFS=$saved
+        if [ -z "$part" ] || [ "$part" = "." ]; then
+            continue
+        fi
+        if [ "$part" = ".." ]; then
+            IFS=$saved
+            PLAN_ERRORS+=("$reason: path traversal via ..: $cand")
+            return 1
+        fi
+        acc="$acc/$part"
+        if [ -L "$acc" ]; then
+            IFS=$saved
+            PLAN_ERRORS+=("$reason: symlink path component inside the attempt: $acc")
+            return 1
+        fi
+    done
+    IFS=$saved
+    canon=$(realpath -m -- "$acc" 2>/dev/null)
+    case "$canon" in
+        "$RUN_REAL"/*|"$RUN_REAL") ;;
+        *)
+            PLAN_ERRORS+=("$reason: canonical path escapes the attempt directory: $canon")
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+# Best-effort reaping: TERM then KILL every recorded stage process group,
+# so detached grandchildren die with their stage. Groups whose leader the
+# kernel already reaped are skipped. Nothing here can act after an
+# external SIGKILL of this harness; that boundary is documented, not
+# claimed away.
+cleanup_reap() {
+    local g
+    for g in ${WATCH_GROUPS[@]+"${WATCH_GROUPS[@]}"}; do
+        kill -TERM -- "-$g" 2>/dev/null
+    done
+    for g in ${WATCH_GROUPS[@]+"${WATCH_GROUPS[@]}"}; do
+        kill -KILL -- "-$g" 2>/dev/null
+    done
+    wait 2>/dev/null
+}
+trap cleanup_reap EXIT
+
+run_stage() {
+    local name="$1"
+    shift
+    if [ -n "$FAILED_STAGE" ]; then
+        printf 'skipped\tblocked-by\t%s\n' "$FAILED_STAGE" \
+            >"$STAGES/$name.status"
+        printf '%s status=skipped (blocked by %s)\n' "$name" "$FAILED_STAGE"
+        return 0
+    fi
+    printf '%q ' "$@" >"$STAGES/$name.command"
+    printf '\n' >>"$STAGES/$name.command"
+    setsid "$@" >"$STAGES/$name.stdout" 2>"$STAGES/$name.stderr" &
+    local pid=$!
+    WATCH_GROUPS+=("$pid")
+    wait "$pid"
+    local status=$?
+    printf '%s\n' "$status" >"$STAGES/$name.status"
+    printf '%s status=%s\n' "$name" "$status"
+    if [ "$status" -ne 0 ]; then
+        FAILED_STAGE="$name"
+        LAST_STATUS="$status"
+    fi
+    return 0
+}
+
+require_fresh_file() {
+    local path="$1" reason="$2"
+    path_guard "$reason" "$path" || return 0
+    case "$path" in /*) ;; *) path="$RUN/$path" ;; esac
+    if [ ! -s "$path" ]; then
+        PLAN_ERRORS+=("$reason: missing or empty file: $path")
+        return 0
+    fi
+    local canon
+    canon=$(realpath -- "$path" 2>/dev/null)
+    case "$canon" in
+        "$RUN_REAL"/*|"$RUN_REAL") ;;
+        *)
+            PLAN_ERRORS+=("$reason: canonical path escapes the attempt directory through a symlink: $canon")
+            ;;
+    esac
+}
+
+while IFS= read -r line || [ -n "$line" ]; do
+    [ -n "$line" ] || continue
+    case "$line" in
+        '#'*|"require-"*:)
+            ;;
+        "require-file:"*)
+            require_fresh_file "${line#require-file:}" "$line"
+            ;;
+        "require-dir:"*)
+            min="${line##*:}"
+            dirpart="${line#require-dir:}"
+            dirpart="${dirpart%:*}"
+            require_fresh_dir "$dirpart" "$line" "$min"
+            ;;
+        *)
+            run_stage "step-$(printf '%s' "$line" | cksum | cut -d' ' -f1)" \
+                bash -c 'cd "$1" && eval "$2"' _ "$RUN" "$line"
+            ;;
+    esac
+done <"$PLAN"
+
+if [ "${#PLAN_ERRORS[@]}" -gt 0 ]; then
+    printf '%s\n' "${PLAN_ERRORS[@]}" >"$RUN/plan-errors.txt"
+    FAILED_STAGE="plan-validation"
+    LAST_STATUS=65
+fi
+
+{
+    echo "end=$(date -Is)"
+    echo "failed_stage=${FAILED_STAGE:-none}"
+    echo "last_status=$LAST_STATUS"
+}
+
+cleanup_reap
+
+# Seal: the stage-evidence manifest is hashed into the log, then the end
+# marker carries the sha256 of every byte before it. No async writer
+# exists, so nothing can race the seal.
+if ls "$STAGES"/* >/dev/null 2>&1; then
+    sha256sum "$STAGES"/* | sed "s#  $STAGES/#  #" | sed 's/^/stage-evidence /' >>"$HARNESS_LOG"
+fi
+sealed_sha=$(sha256sum "$HARNESS_LOG" | cut -d' ' -f1)
+printf 'harness end marker sha256=%s\n' "$sealed_sha" >>"$HARNESS_LOG"
+
+exit "$LAST_STATUS"

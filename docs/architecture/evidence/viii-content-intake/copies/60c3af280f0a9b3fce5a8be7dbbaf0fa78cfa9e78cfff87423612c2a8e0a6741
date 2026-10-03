@@ -1,0 +1,46 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct CharCodeAtOracle;
+
+impl CharCodeAtOracle {
+    pub fn char_code_at_oracle_sub_rev() -> UString {
+        return u_string::substring(&UString::from("abcdef"), 4i32, 2i32);
+    }
+
+    pub fn char_code_at_oracle_sub_high() -> UString {
+        return u_string::substring(&UString::from("abcdef"), 4i32, 100i32);
+    }
+
+    pub fn char_code_at_oracle_sub_neg() -> UString {
+        return u_string::substring(&UString::from("abcdef"), -1i32, 3i32);
+    }
+
+    pub fn char_code_at_oracle_code_null() -> Option<u32> {
+        let c = u_string::unit_at(&UString::from("abcdef"), 100u32).unwrap_or(0);
+        return Some(c);
+    }
+
+    pub fn char_code_at_oracle_code_neg() -> Option<u32> {
+        let c = u_string::unit_at(&UString::from("abcdef"), 4294967295u32).unwrap_or(0);
+        return Some(c);
+    }
+
+    pub fn char_code_at_oracle_code_int() -> u32 {
+        let c = u_string::unit_at(&UString::from("abcdef"), 100u32).unwrap_or(0);
+        return c;
+    }
+
+    pub fn char_code_at_oracle_code_line(label: &UStr, c: Option<u32>) -> UString {
+        if c.is_none() {
+            return UString::from(format!("{}", { let mut __s = UString::new(); __s += label; __s += &(UString::from("null")); __s }).as_str());
+        }
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += label; __s += &(match c { Some(v) => UString::from((v).to_string().as_str()), None => UString::from("null") }); __s }).as_str());
+    }
+
+    pub fn char_code_at_oracle_main() {
+    }
+}

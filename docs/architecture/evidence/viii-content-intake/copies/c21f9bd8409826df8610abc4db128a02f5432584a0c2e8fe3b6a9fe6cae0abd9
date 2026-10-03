@@ -1,0 +1,18 @@
+#[derive(Clone, Copy)]
+pub struct UsizeComparisonOps;
+
+impl UsizeComparisonOps {
+    pub fn usize_comparison_ops_within_bounds(values: Option<Vec<u32>>, index: u32) -> bool {
+        if match &(values) { None => true, Some(__option) => index > 2147483647 } || (index) >= u32::try_from(((values).as_ref().map_or(0, |v| v.len())) & 0xFFFF_FFFF).unwrap_or(0) {
+            return false;
+        }
+        return true;
+    }
+
+    pub fn usize_comparison_ops_length_exceeds(values: Option<Vec<u32>>, limit: u32) -> bool {
+        if values.is_none() {
+            return false;
+        }
+        return (u32::try_from(((values).as_ref().map_or(0, |v| v.len())) & 0xFFFF_FFFF).unwrap_or(0)) > (limit);
+    }
+}

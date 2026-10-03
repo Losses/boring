@@ -1,0 +1,31 @@
+package tests
+
+import boring.NullableCallOps
+import boring.NullableCallOps2
+import boring.NullableReceiver
+import boring.runtime.test.Test
+
+class NullableCallTests {
+@boring.test.Test
+    fun testNullableToStringResult() {
+        Test.run("tests.NullableCallTests.testNullableToStringResult", "tests.NullableCallTests.testNullableToStringResult: nullable toString result") {
+                Test.equals("present", NullableCallOps.nullableToStringResult(NullableReceiver()), null)
+                Test.equals(null, NullableCallOps.nullableToStringResult(null), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNormalizedToStringResult() {
+        Test.run("tests.NullableCallTests.testNormalizedToStringResult", "tests.NullableCallTests.testNormalizedToStringResult: normalized local toString result") {
+                Test.equals("present", NullableCallOps2.normalizedToStringResult(NullableReceiver()), null)
+                Test.equals("present", NullableCallOps2.normalizedToStringResult(null), null)
+        }
+    }
+
+@boring.test.Test
+    fun testGuardedToStringResult() {
+        Test.run("tests.NullableCallTests.testGuardedToStringResult", "tests.NullableCallTests.testGuardedToStringResult: guarded local toString result") {
+                Test.equals("present", NullableCallOps2.guardedToStringResult(NullableReceiver()), null)
+        }
+    }
+}

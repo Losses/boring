@@ -1,0 +1,7 @@
+source_sha256=5fffdf21e3d576e086bc0df1ff9e94f4a0f735f4f991a9a00321e57100804daf
+variant=fn-pre.hx
+haxe=4.3.7
+baseline_commit=e1c6597514634fd347d392709793cc19bd96c9a2
+dedup_runsh_exit=1
+xcheck_exit=0
+unbounded_haxe_exit=1

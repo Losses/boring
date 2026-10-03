@@ -1,0 +1,19 @@
+warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail-xcheck' is dirty
+   Compiling generated v0.1.0 (/tmp/rt-xcheck/bx-postfix/xs-samples)
+error[E0432]: unresolved import `crate::runtime::sorted_table`
+ --> boring/value_record.rs:2:21
+  |
+2 | use crate::runtime::sorted_table::SortedTable;
+  |                     ^^^^^^^^^^^^ could not find `sorted_table` in `runtime`
+
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0432`.
+warning: `generated` (lib) generated 1 warning
+error: could not compile `generated` (lib) due to 1 previous error; 1 warning emitted

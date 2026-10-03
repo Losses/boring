@@ -1,0 +1,40 @@
+TRAP OBSERVATION AND RESTORE — p08-review-1
+===========================================
+
+Session-start reading of the live coordination worktree (boring-wt-architecture),
+taken before any of my commands ran [transcribed from this session's first git
+status --porcelain, not from a saved file — the file below is written after]:
+
+   M packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx
+  ?? .printed-record-mutation-b6LupB/
+
+=> at session start, samples/boring/MathNaNTestSupport.hx was NOT modified.
+
+Later in the session, the trap named in the dispatch fired:
+
+  $ grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx
+  0
+  $ git status --porcelain
+   M samples/boring/MathNaNTestSupport.hx
+   M tests/ts/package-artifacts.test.ts
+  ?? .value-type-mutation-qUN7Dh/
+
+I ran no bun test and wrote no repository file, so this clobber was produced by a
+concurrent seat's run of tests/ts/package-artifacts.test.ts (inference, not an
+observation of that process).
+
+Restore, exactly as the dispatch's trap note instructs:
+
+  $ git show HEAD:samples/boring/MathNaNTestSupport.hx | grep -c 'Test.equals'
+  5                       # HEAD carries the intended content
+  $ git checkout HEAD -- samples/boring/MathNaNTestSupport.hx
+  $ grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx
+  5                       # restored
+
+After the restore, git status --porcelain showed only the OTHER seat's changes
+( M tests/ts/package-artifacts.test.ts, ?? .value-type-mutation-qUN7Dh/ ). I did not
+touch either of those.
+
+Files written by me in the repository: NONE.
+Files written by me outside the repository: /tmp/rev1-* only,
+plus this review's own output directory.

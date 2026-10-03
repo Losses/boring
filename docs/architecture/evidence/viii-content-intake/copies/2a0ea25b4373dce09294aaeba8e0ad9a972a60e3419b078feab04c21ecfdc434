@@ -1,0 +1,33 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct StaticCollisionFloat;
+
+impl StaticCollisionFloat {
+    pub fn static_collision_float_ic(value: f64) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("float:")); __s += UString::from(format!("{}", crate::runtime::fp_helper::FPHelper::format_float(value)).as_str()).as_ustr(); __s }).as_str());
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct StaticCollisionInt;
+
+impl StaticCollisionInt {
+    pub fn static_collision_int_ic(value: u32) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("int:")); __s += UString::from((value).to_string().as_str()).as_ustr(); __s }).as_str());
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct StaticCollisionOps;
+
+impl StaticCollisionOps {
+    pub fn static_collision_ops_float_value(value: f64) -> UString {
+        return StaticCollisionFloat::static_collision_float_ic(value);
+    }
+
+    pub fn static_collision_ops_int_value(value: u32) -> UString {
+        return StaticCollisionInt::static_collision_int_ic(value);
+    }
+}

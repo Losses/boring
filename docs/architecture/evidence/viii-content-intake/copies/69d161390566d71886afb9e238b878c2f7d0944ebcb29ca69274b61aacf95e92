@@ -1,0 +1,6 @@
+haxe
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/tests/haxe/dc-promoted-eval/gen/rust.hxml
+-D
+rust-output=/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-lb9Oej/rust-gen
+-D
+rust-test-output=/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-lb9Oej/rust-gen-tests

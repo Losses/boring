@@ -1,0 +1,213 @@
+use crate::registry::semver_exception::SemverFault;
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct Semver;
+
+impl Semver {
+    pub(crate) fn semver_int_of(x: &UStr) -> u32 {
+    let __units = u_string::units(&x);
+    let __count = u_string::unit_count(&x);
+        let mut out = 0u32;
+        for i in 0..match u32::try_from(u_string::unit_count(&(x))) { Ok(value) => value, Err(_) => u32::MAX } {
+            out = u32::wrapping_sub(u32::wrapping_add(u32::wrapping_mul(out, 10), u_string::unit_at_from(&__units, i).unwrap_or(0)), 48);
+        }
+        return out;
+    }
+
+    pub(crate) fn semver_split_parts(s: &UStr) -> Vec<UString> {
+        let mut out: Vec<UString> = vec![];
+        let ps = u_string::split(&s, &UString::from("."));
+        for i in 0..match u32::try_from(ps.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+            out.push((ps[usize::try_from(i).unwrap_or(0)]).clone());
+        }
+        return out;
+    }
+
+    pub(crate) fn semver_exception_of(f: SemverFault) -> SemverFault {
+        return match f {
+            SemverFault::InvalidCore { version: _p0 } => SemverFault::InvalidCore { version: _p0.to_ustring() },
+            SemverFault::InvalidExtension { version: _p0 } => SemverFault::InvalidExtension { version: _p0.to_ustring() },
+        };
+    }
+
+    pub(crate) fn semver_valid_numeric(x: &UStr) -> bool {
+    let __units1 = u_string::units(&x);
+    let __count1 = u_string::unit_count(&x);
+        if __count1 == 0 {
+            return false;
+        }
+        if i32::from_ne_bytes(((__count1) as i32).to_ne_bytes()) > (1) && u_string::unit_at_from(&__units1, 0u32).as_ref().map_or(false, |v| v == &(48)) {
+            return false;
+        }
+        for i in 0..match u32::try_from(u_string::unit_count(&(x))) { Ok(value) => value, Err(_) => u32::MAX } {
+            let c = u_string::unit_at_from(&__units1, i).unwrap_or(0);
+            if i32::from_ne_bytes(((c) as i32).to_ne_bytes()) < (48) || (i32::from_ne_bytes(((c) as i32).to_ne_bytes())) > (57) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    pub(crate) fn semver_valid_identifier(x: &UStr) -> bool {
+    let __units2 = u_string::units(&x);
+    let __count2 = u_string::unit_count(&x);
+        if __count2 == 0 {
+            return false;
+        }
+        for i in 0..match u32::try_from(u_string::unit_count(&(x))) { Ok(value) => value, Err(_) => u32::MAX } {
+            let c = u_string::unit_at_from(&__units2, i).unwrap_or(0);
+            if !((i32::from_ne_bytes(((c) as i32).to_ne_bytes())) >= 48 && (i32::from_ne_bytes(((c) as i32).to_ne_bytes())) <= 57 || (i32::from_ne_bytes(((c) as i32).to_ne_bytes())) >= 65 && (i32::from_ne_bytes(((c) as i32).to_ne_bytes())) <= 90 || (i32::from_ne_bytes(((c) as i32).to_ne_bytes())) >= 97 && (i32::from_ne_bytes(((c) as i32).to_ne_bytes())) <= 122 || c == 45) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    pub(crate) fn semver_valid_identifiers(x: &UStr) -> bool {
+        let a = u_string::split(&x, &UString::from("."));
+        for i in 0..match u32::try_from(a.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+            if !Semver::semver_valid_identifier((a[usize::try_from(i).unwrap_or(0)]).clone().as_ustr()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    pub(crate) fn semver_parse_fault(version: &UStr) -> Option<SemverFault> {
+    let __units3 = u_string::units(&version);
+    let __count3 = u_string::unit_count(&version);
+        let mut core = (version.to_ustring()).clone();
+        let dash = u_string::find_from(&(version), UString::from("-").as_ustr(), 0);
+        let plus = u_string::find_from(&(version), UString::from("+").as_ustr(), 0);
+        if plus >= 0 {
+            if dash >= 0 && (plus) < (dash) {
+                return Some(SemverFault::InvalidExtension { version: version.to_ustring() });
+            }
+            if !Semver::semver_valid_identifiers(u_string::substring_from(&version, i32::from_ne_bytes(((i32::wrapping_add(plus, 1)) as i32).to_ne_bytes())).as_ustr()) {
+                return Some(SemverFault::InvalidExtension { version: version.to_ustring() });
+            }
+            core = u_string::substring(&version, 0i32, i32::from_ne_bytes(((plus) as i32).to_ne_bytes()));
+        }
+        if dash >= 0 {
+            let end = if plus >= 0 { u32::from_ne_bytes(((plus) as u32).to_ne_bytes()) } else { __count3 };
+            if !Semver::semver_valid_identifiers(u_string::substring(&version, i32::from_ne_bytes(((i32::wrapping_add(dash, 1)) as i32).to_ne_bytes()), { let v: u32 = end; i32::from_ne_bytes(v.to_ne_bytes()) }).as_ustr()) {
+                return Some(SemverFault::InvalidExtension { version: version.to_ustring() });
+            }
+            core = u_string::substring(&version, 0i32, i32::from_ne_bytes(((dash) as i32).to_ne_bytes()));
+        }
+        let parts = u_string::split(&core, &UString::from("."));
+        if u32::try_from((parts.len()) & 0xFFFF_FFFF).unwrap_or(0) != 3 || !Semver::semver_valid_numeric((parts[0usize]).clone().as_ustr()) || !Semver::semver_valid_numeric((parts[1usize]).clone().as_ustr()) || !Semver::semver_valid_numeric((parts[2usize]).clone().as_ustr()) {
+            return Some(SemverFault::InvalidCore { version: version.to_ustring() });
+        }
+        return None;
+    }
+
+    pub(crate) fn semver_parse_unvalidated(version: &UStr) -> Version {
+    let __units4 = u_string::units(&version);
+    let __count4 = u_string::unit_count(&version);
+        let dash = u_string::find_from(&(version), UString::from("-").as_ustr(), 0);
+        let plus = u_string::find_from(&(version), UString::from("+").as_ustr(), 0);
+        let end = if plus >= 0 { u32::from_ne_bytes(((plus) as u32).to_ne_bytes()) } else { __count4 };
+        let mut pre: Vec<UString> = vec![];
+        if dash >= 0 {
+            pre = Semver::semver_split_parts(u_string::substring(&version, i32::from_ne_bytes(((i32::wrapping_add(dash, 1)) as i32).to_ne_bytes()), { let v: u32 = end; i32::from_ne_bytes(v.to_ne_bytes()) }).as_ustr());
+        }
+        let mut core = (version.to_ustring()).clone();
+        if dash >= 0 {
+            core = u_string::substring(&version, 0i32, i32::from_ne_bytes(((dash) as i32).to_ne_bytes()));
+        } else {
+            if plus >= 0 {
+                core = u_string::substring(&version, 0i32, i32::from_ne_bytes(((plus) as i32).to_ne_bytes()));
+            }
+        }
+        let parts = u_string::split(&core, &UString::from("."));
+        let v = Version { major: Semver::semver_int_of((parts[0usize]).clone().as_ustr()), minor: Semver::semver_int_of((parts[1usize]).clone().as_ustr()), patch: Semver::semver_int_of((parts[2usize]).clone().as_ustr()), pre: pre };
+        return v;
+    }
+
+    pub fn semver_parse(version: &UStr) -> Option<Version> {
+        let f = Semver::semver_parse_fault(version);
+        if f != None {
+            return None;
+        }
+        return Some(Semver::semver_parse_unvalidated(version));
+    }
+
+    pub fn semver_require(version: &UStr) -> Result<Version, SemverFault> {
+        let f = Semver::semver_parse_fault(version);
+        match &(f) {
+            Some(__option1) => {
+                return Err(Semver::semver_exception_of((*__option1).clone()));
+            }
+            None => {
+            }
+        }
+        return Ok(Semver::semver_parse_unvalidated(version));
+    }
+
+    pub fn semver_is_prerelease(version: &UStr) -> bool {
+        let v = Semver::semver_parse(version);
+        return match &(v) { Some(__option2) => i32::from_ne_bytes(((u32::try_from((__option2.pre.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()) > (0), None => false };
+    }
+
+    pub(crate) fn semver_pre(a: &Vec<UString>, b: &Vec<UString>) -> u32 {
+        if u32::try_from((a.len()) & 0xFFFF_FFFF).unwrap_or(0) == 0 && u32::try_from((b.len()) & 0xFFFF_FFFF).unwrap_or(0) == 0 {
+            return 0;
+        }
+        if u32::try_from((a.len()) & 0xFFFF_FFFF).unwrap_or(0) == 0 {
+            return 1;
+        }
+        if u32::try_from((b.len()) & 0xFFFF_FFFF).unwrap_or(0) == 0 {
+            return 4294967295u32;
+        }
+        let n = if i32::from_ne_bytes(((u32::try_from((a.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()) < (i32::from_ne_bytes(((u32::try_from((b.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes())) { u32::try_from((a.len()) & 0xFFFF_FFFF).unwrap_or(0) } else { u32::try_from((b.len()) & 0xFFFF_FFFF).unwrap_or(0) };
+        for i in 0..n {
+            let x = (a[usize::try_from(i).unwrap_or(0)]).clone();
+            let y = (b[usize::try_from(i).unwrap_or(0)]).clone();
+            let xd = Semver::semver_valid_numeric(x.as_ustr());
+            let yd = Semver::semver_valid_numeric(y.as_ustr());
+            if xd && yd {
+                let d = u32::wrapping_sub(Semver::semver_int_of(x.as_ustr()), Semver::semver_int_of(y.as_ustr()));
+                if d != 0 {
+                    return d;
+                }
+            } else {
+                if xd != yd {
+                    return if xd { 4294967295u32 } else { 1 };
+                } else {
+                    if x != y {
+                        return if x.as_ustr() < (y.as_ustr()) { 4294967295u32 } else { 1 };
+                    }
+                }
+            }
+        }
+        return u32::wrapping_sub(u32::try_from((a.len()) & 0xFFFF_FFFF).unwrap_or(0), u32::try_from((b.len()) & 0xFFFF_FFFF).unwrap_or(0));
+    }
+
+    pub fn semver_compare(a: &UStr, b: &UStr) -> u32 {
+        let x = Semver::semver_require(a).unwrap();
+        let y = Semver::semver_require(b).unwrap();
+        if x.major != y.major {
+            return u32::wrapping_sub(x.major, y.major);
+        }
+        if x.minor != y.minor {
+            return u32::wrapping_sub(x.minor, y.minor);
+        }
+        if x.patch != y.patch {
+            return u32::wrapping_sub(x.patch, y.patch);
+        }
+        return Semver::semver_pre(&x.pre, &y.pre);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Version {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+    pub pre: Vec<UString>,
+}

@@ -1,0 +1,44 @@
+package boring
+
+sealed interface DrawKind {
+}
+
+class NoneDrawKind : DrawKind {
+
+    override fun toString(): String {
+        return "NoneDrawKind"
+    }
+
+    companion object {
+        val instance: NoneDrawKind = NoneDrawKind()
+    }
+}
+
+data class StripeDrawKind(val strokeWidth: Float, val gapLength: Float) : DrawKind {
+}
+
+
+
+data class DotDrawKind(val dotDiameter: Float, val gapLength: Float) : DrawKind {
+}
+
+
+
+object SealedVariantOps {
+    fun labelOf(kind: DrawKind): String {
+        if ((kind is NoneDrawKind)) {
+            return "none"
+        }
+        if ((kind is StripeDrawKind)) {
+            return "stripe"
+        }
+        if ((kind is DotDrawKind)) {
+            return "dot"
+        }
+        return "unknown"
+    }
+
+    fun noneLabel(): String {
+        return NoneDrawKind.instance.toString()
+    }
+}

@@ -1,0 +1,7 @@
+# script-layer propagation probe: scripts.test text is byte-identical to the repo's
+#   bun test tests/ packages/registry/tests/
+
+$ bun run test   [guard holds]
+  exit=0
+$ bun run test   [one guarded assertion deliberately broken]
+  exit=1

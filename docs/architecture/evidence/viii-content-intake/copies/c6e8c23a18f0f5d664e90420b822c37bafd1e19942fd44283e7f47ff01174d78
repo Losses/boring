@@ -1,0 +1,14 @@
+package tests
+
+import boring.UnderscoreParamOps
+import boring.runtime.test.Test
+
+class UnderscoreParamTests {
+@boring.test.Test
+    fun underscoreParameters() {
+        Test.run("tests.UnderscoreParamTests.underscoreParameters", "tests.UnderscoreParamTests.underscoreParameters: underscore parameters are readable and independently named") {
+                Test.equals(4, UnderscoreParamOps.resolve(3), null)
+                Test.equals(7, UnderscoreParamOps.pair(3, 4), null)
+        }
+    }
+}

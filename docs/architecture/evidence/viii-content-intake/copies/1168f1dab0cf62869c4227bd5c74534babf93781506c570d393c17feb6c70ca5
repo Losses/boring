@@ -1,0 +1,6 @@
+b17f7b5b6385b4a9d3e3ced040d2b2af1f2d32236d4da86da850160e61cfe3bc  out/try-tail/gen/swift/_GeneratedFiles.txt
+e46a6636d0a87f98e55a00cd698b5bb19236109a7ad70962386b765c05ffa571  out/try-tail/gen/swift/Package.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  out/try-tail/gen/swift/Runtime.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  out/try-tail/gen/swift/std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  out/try-tail/gen/swift/std/UStringFault.swift
+cb5d8fc39a6fa213ff8c64ee34c2943cd5ef0bc817f96cd9154e16f8b27a91d0  out/try-tail/gen/swift/trytail/TryTailOracle.swift

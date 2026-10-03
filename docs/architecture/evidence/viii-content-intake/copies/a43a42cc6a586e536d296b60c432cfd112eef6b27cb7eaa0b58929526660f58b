@@ -1,0 +1,18 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp samples/haxe
+-cp packages/registry/src
+-cp /home/losses/Development/tq-workspace/dc-warn/out/route-fixtures/fixtures/c3-assign
+--macro Intercept.run(['samples', 'packages/registry/src', '/home/losses/Development/tq-workspace/dc-warn/out/route-fixtures/fixtures/c3-assign'])
+--macro swiftcompiler.Compiler.use()
+--macro haxe.macro.Context.getType("runtime.TestCore")
+-main boring.C3AssignOracle
+-D swift-output=/home/losses/Development/tq-workspace/dc-warn/out/armlines-separability/evidence/c3-assign-gen
+-D package-shell=none
+-D runtime-emit=.
+-D runtime-import=@boring/runtime
+-D swift-test-output=/home/losses/Development/tq-workspace/dc-warn/out/armlines-separability/evidence/c3-assign-tests
+-D swift-test-runner=native

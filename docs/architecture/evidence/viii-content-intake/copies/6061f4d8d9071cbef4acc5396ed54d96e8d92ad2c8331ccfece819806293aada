@@ -1,0 +1,5 @@
+#![allow(ambiguous_glob_reexports)]
+
+pub mod dead_probe;
+
+pub use dead_probe::*;

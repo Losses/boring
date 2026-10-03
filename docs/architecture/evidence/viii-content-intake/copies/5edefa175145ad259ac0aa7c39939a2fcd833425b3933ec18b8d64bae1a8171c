@@ -1,0 +1,87 @@
+# Report — literalOperand migration (co-locating the LiteralProvenPresent contract)
+
+## Change
+
+`SwiftDecl.hx` hand-built a `SwiftArrayPreparedOperand` for static read-only
+array field initializers, asserting `LiteralProvenPresent` inline. That
+assertion is sound only while `StaticFieldHelper.validatedInitializer`
+(`packages/compiler/StaticFieldHelper.hx:26`) admits literal/construction
+forms alone, because `LiteralProvenPresent` bypasses `prepare`'s presence
+veto (`SwiftArrayBoundary.hx:222-227`). The contract lived in a different
+file from the fact it justified; widening the initializer language would
+have silently minted unproven presence facts with no failing test.
+
+Implemented exactly the specified scope:
+
+1. Added `SwiftArrayBoundary.literalOperand(text, sourceType, emptyLiteral,
+   nullLiteral)` next to `sourceStorage`. It performs the same three
+   derivations the call site did (storage via the shared `sourceStorage`;
+   optionality and presenceFact from `nullLiteral`).
+2. Documented the contract as a doc comment on that function, immediately
+   next to `LiteralProvenPresent`:
+   > Contract: this asserts LiteralProvenPresent whenever nullLiteral is
+   > false, and that fact bypasses `prepare`'s presence veto below. It is
+   > sound only while `StaticFieldHelper.validatedInitializer` keeps the
+   > static initializer language literal/construction-only: every admitted
+   > form is evaluated eagerly at load, so the storage is provably present
+   > without a runtime check. If the initializer language is ever widened
+   > (e.g. to admit arbitrary expressions), this constructor must stop
+   > minting LiteralProvenPresent for the new forms, or unproven presence
+   > facts will be created silently.
+3. Rewired `SwiftDecl.hx` to call `SwiftArrayBoundary.literalOperand(rendered,
+   init.t, isEmpty, isNull)`, replacing the inline storage/optionality/
+   presenceFact derivations (~15 relocated lines).
+4. Static fields were NOT routed through `lowerArrayBoundary` (rejected by
+   the analysis; needs per-function `SwiftExpr` state and buys nothing for
+   literals). No other code touched; no behaviour change intended.
+
+Full diff: `PATCH.diff` (only the two named files; the worktree carries
+pre-existing fix-2 changes to other files, which are excluded).
+
+## Verification — byte-identical generated output
+
+Setup: pristine pre-change copy at `/home/losses/Development/tq-workspace/litop-pristine`
+(`cp -a` of `litop-wt/wt` before the edit; kept outside the rclone mount for speed).
+`PATH` from `dc-warn/out/chainA-fixed-rerun/evidence/env.json` (haxe 4.3.7);
+haxe run with cwd = tree root (repo-local `.haxelib`). Exit codes captured
+directly (echoed `$?` on the next line, never through a pipe).
+
+### Fixture 1 — acceptance fixture `tests/swift-readonly-boundary/swift.hxml`
+- pre-change: `haxe tests/swift-readonly-boundary/swift.hxml` → exit 0
+  (evidence/base-acc.log; empty log, haxe prints nothing on success).
+  Output: `out/readonly-boundary/current/` — 7 files (base-acc-files.txt).
+- post-change: same command in `litop-wt/wt` → exit 0 (post-acc.log);
+  same 7 files (post-acc-files.txt; file lists identical).
+- `diff -r pristine/out/readonly-boundary/current wt/out/readonly-boundary/current`
+  → no output, **exit 0** (trees identical).
+
+### Fixture 2 — archived counterexample `gap-fixture-archive`
+Driver: `dc-warn/out/gap-fixture-archive/fixture/swift-archived.hxml`, run
+from each tree root with `-D swift-output=<gen> -D swift-test-output=<tests>`
+(as per the archive's `evidence/repro-notes.txt`; without `-D swift-output`
+haxe exits 1).
+- pre-change: exit 0, 6 files → `/tmp/gen-gap-base` (base-gap.log, 0 bytes).
+- post-change: exit 0, 6 files → `/tmp/gen-gap-post` (post-gap.log, 0 bytes).
+- `diff -r /tmp/gen-gap-base /tmp/gen-gap-post` → no output, **exit 0**.
+- per-file sha256 pairs recorded in `evidence/gap-sha256.txt` (identical).
+
+### Guard checks
+- `grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx` = **5 before
+  and 5 after** both runs (tracked file not clobbered by the ts stub).
+- No test deleted, skipped, or weakened. `git diff` confined to the two
+  named files.
+
+## Result
+Generated output is byte-identical pre/post for both fixtures. PASS.
+
+## Not verified / limitations
+- `swiftc -typecheck` was not run: the change is a pure relocation verified
+  at the generation level, and the gap fixture is expected to fail typecheck
+  both before and after (pre-existing 2609-unrelated switch/try gap). No
+  output difference exists to typecheck.
+- No compiler unit-test suite was run beyond fixture generation; the
+  worktree's pre-existing modifications (fix-2) were assumed intact and the
+  baseline was generated from this exact tree state.
+- The pristine copy lives at `/home/losses/Development/tq-workspace/litop-pristine`
+  (outside `dc-warn/`, which is a no-symlink/no-exec-bit rclone mount and
+  made the copy extremely slow); delete it when done.

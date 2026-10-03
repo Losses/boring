@@ -1,0 +1,135 @@
+# REVIEW — 判据 3 独立审阅（任务 t-mun5d97u-c4md，ThrowFaultVariantGrowth）
+
+审阅者：独立审阅 Agent（不同模型）。被审对象：`dc-warn/out/rust-trytail/{REPORT.md,PATCH.diff,FILES.sha256,prefix,postfix,negctl-20260929T210423Z}` + 树 `dc-warn/worktrees/rust-trytail`（只读）。
+
+我自己的工作树：`dc-warn/worktrees/rust-trytail-xcheck`（`worktree add --detach e1c65975`）。证据：`dc-warn/out/rust-trytail-xcheck/attempt-xcheck-01/`。
+
+## 判定：**判据 3 不通过（给出可复现反例）**
+
+改动本身修好了目标形状，但**不是「只影响变体发射路径、未放宽其他语义」**：登记是扫描侧、且未限定「该 throw 是否真的被发射」，也未经类级校验与声明变体查重。由此在**修复前可编译的树**上造成新的编译失败（E0004 / E0428），并让 cfg(test) 的 throw 改到生产枚举。
+
+一句话证据（可直接粘看板）见文末。
+
+---
+
+## 1. 独立复现（我自己的树、自己的 stage 记录，未复用执行席 attempt 目录）
+
+patch 应用方式见 §7；`git apply` 只对源码段有效（交付包缺陷，不阻塞）。四文件修复后 sha256 与 `FILES.sha256` 完全一致。
+
+| 段 | gen | cargo | run | compare | rustc 错误 |
+|---|---|---|---|---|---|
+| prefix try-tail（pristine） | 0 | **101** | not-reached | not-reached | **7×E0599 + 7×E0433**（`try_tail_oracle.rs:61/81/101/121/138/148/205`） |
+| prefix try-tail-min | 0 | **101** | not-reached | not-reached | 1×E0599 + 1×E0433 |
+| postfix try-tail | 0 | **0** | **0** | **0**（12 行与 expected 逐行一致） | — |
+| postfix try-tail-min | 0 | **0** | **0** | **0**（2 行一致） | — |
+| negctl try-tail（只回退登记调用） | 0 | **101** | not-reached | not-reached | 同一 E0599 原文、同一行号 61:46 |
+
+执行席的复现、修法与三段结论**成立**，我独立得到相同退出码与相同错误文本。
+
+## 2. 作用域证据：哪些确实没变
+
+**（a）既有 Rust 夹具全量（14 个 committed fixture，pristine 与 postfix 各生成一次，`diff -r`）**
+只有 `try-tail`、`try-tail-min` 两棵树变化；其余 **12 棵树逐字节相同**（enum-comparison / flow×3 / place / readonly-alias / rust-comparison-policy×2 / signed-key-composition / source-container-policy / comp-runtime-obs / timeout-probe）。
+- 变化的两棵树都只差**一个文件**（含 rethrow 的那一个）；try-tail-min 的差异恰为 4 块（变体行 / Display growth 臂 / struct 块 / `Box::new` 包裹），`plainThrow`（构造器形状）区段逐字节不变。
+- 结论：普通 enum、`?`/声明变体、message-only（place）、合成 union 的**发射文本**在本轮里确实没变。
+
+**（b）既有 growth / 合成 union 通道（xs-growth 自建，pristine 可编译 0）**
+fixture 触发到既有 `registerFaultConversion` 通道：合成 union `GrowthProbeMergeAIntoBFault`、`AFaultFault`/`BFaultFault` 变体、`From` 与 `?` 转换齐备。修复前后**整棵树逐字节相同、cargo 均 0** → 新登记没有污染既有通道。
+
+**（c）构造器形状 throw（xs-scope）** — 单参 `PFault.Only(..)` 与多参 `PFault.Pair(..)` 在两态文本相同；修复只去掉 rethrow 相关错误。（该 fixture 两态都还因我写的两个与 patch 无关的既有 gap 失败：仅作参数类型的 enum 不发射、多参 enum 的 message `write!("{}", a, b)`；两态错误集合差异只有 rethrow 那一处，已逐条核对。）
+
+**（d）合成 samples 语料（xs-samples：boring 的 fault/union 类 21 个根 + `-D rust_output`）**
+pristine 与 postfix 生成树**逐字节相同**（diff 行数 0），cargo stderr 亦相同（两态都只有一条与本 patch 无关的 `E0432 crate::runtime::sorted_table`，因为该 root 组合未发射 runtime 模块）。生成文本相同 ⇒ 编译结果必然相同。
+
+## 3. 反例 1（硬）：未被发射的 throw 也会让已声明 fault 枚举长大 → E0004
+
+fixture `xs-dead`：正常类里的**未被引用的私有静态函数** `deadRethrow` 内 `throw new DException(v)`（rethrow-of-value），类外另有活代码 `switch` 遍历 `DFault`。
+
+| 状态 | cargo | 生成树差异 |
+|---|---|---|
+| pristine | **0** | — |
+| postfix | **101** | 多出 `DExceptionFault(Box<…DException>)` 变体、Display growth 臂、`DException` struct |
+
+postfix rustc 原文：
+
+```
+error[E0004]: non-exhaustive patterns: `DFault::DExceptionFault(_)` not covered
+  --> xcheckscope/dead_probe.rs:45:20
+45 |     let _g = match v { DFault::Only { tag, .. } => tag };
+```
+
+关键点：`dead_rethrow` 在生成树里**根本不存在**（`includeStaticFunc` 剪掉未引用私有静态；grep 无该符号、无 `DException::new` 使用点），新变体与 struct 是**无人引用的死发射**；而 `TThrow` 扫描仍然扫到了它的函数体并完成登记。已声明 fault 枚举一旦长大，任何**已存在且无通配臂**的 `switch`/`match` 立即非穷尽 → 原本编译通过的树编译失败。try-tail/try-tail-min 之所以没暴露，是因为它们被长大的枚举上唯一的 match 是发射器自己生成、**带 growth 臂**的 Display impl（`TryTailFault::TryTailExceptionFault(inner)` 就在其中）。
+
+## 4. 反例 2（硬）：与声明变体重名 → E0428
+
+fixture `xs-deadcoll`：同上，但 `CFault` 自己声明了 `CExceptionFault(n:Int)`（名字正好等于登记合成的 `<类名>Fault`）。
+
+| 状态 | cargo | 错误 |
+|---|---|---|
+| pristine | **0** | — |
+| postfix | **101** | `error[E0428]: the name CExceptionFault is defined multiple times`（`CExceptionFault { n: u32 }` 与 `CExceptionFault(Box<…>)`）+ 同上的 E0004 |
+
+即报告「不确定项 1」**不是理论担忧而是已实测的回归**：`registerFaultConversion` 只按 calleeName 在 growth 内部去重，不查声明变体；触发条件还包括「该 throw 未被发射」，因此它能把一个原本能编过的树变成 E0428。**（此项被低估。）**
+
+## 5. 作用域泄漏 3：test 门用的是异常类所在模块，不是 throw 所在模块
+
+fixture `xs-testmod`：`@:test` 测试类（发射到 `xcheckscope/prod_rethrow_tests.rs`，文件首行 `#![cfg(test)]`）catch 生产类后 `throw new ValueException(e.error)`；被抛的 `ValueException` 在 `boring`（生产模块）。
+
+- 两态 cargo 均 **0**，但**生产文件** `boring/value_exception.rs` 发生变化：postfix 多了 `ValueExceptionFault(Box<…ValueException>)` 变体、Display 臂和 `ValueException` struct；pristine 该文件含 0 处 `ValueExceptionFault`、postfix 2 处。
+- 门写的是 `state.testModules.exists(cls.module)`（= 被抛异常类的模块），而「是否 test」应看**throw 所在模块**。结果：cfg(test) 专用代码改变了非 cfg(test) 生产枚举与生产 struct 的发射——与报告 §4 声称的「test 模块跳过（沿用 TestFaultGrowth 纪律）」不一致。（换句话说：gate 只在「测试类抛自己同模块的异常类」时才有效。）
+
+## 6. 三重闸门窄度判定（读码 + 实测）
+
+`registerThrownExceptionVariant` 实际条件：`TNew(c,_,args) if args.length==1` → `exceptionPayloads.get(cls.module)` 非空 → 非 `testModules[cls.module]` → `payloadEnumNames.get(payloadModule)` 非空且非 `isSyntheticErrorType` → 首参不是 payload 构造器（`TField FEnum` / `TCall(FEnum)`）。
+
+1. **「仅带 payload 异常子类」不成立（类级校验缺失）**：`exceptionPayloads` 是**模块键**（`state.exceptionPayloads.set(cls.module, payload.module)`，一个模块只保留最后一次登记），不是类键。模块里再声明多个带 payload 的异常类时：
+   - 实测 `xs-twoexc`（同模块两个 payload 异常类 E1/F1、E2/F2）：修复把 `E1Fault`、`E2Fault` **都**登记到了 F2；pristine 101（2×E0433+1×E0277）→ postfix 101（3×E0308+1×E0277），E1 的 rethrow 依旧不可编译，同时 F2 白拿两个与它无关的变体。此形状 pristine 本就不可编译，故不算回归，但证明**登记目标可能不是 throw 点所在的域**。
+   - 静态推论：同一模块里若有个普通类 C，`throw new C(v)` 也会通过该门（`cls` 无需是异常类），登记 `<C>Fault` 到该模块的 payload 枚举——同样不是类级校验。
+2. **「非 test」判据错位**：见 §5。
+3. **「非合成」与「参数非 payload 构造器」两闸确实有效**：`isSyntheticErrorType` 挡住合成 union（xs-growth 无变化可佐证），`TField/TCall(FEnum)` 判定挡住全部构造器形状 throw（try-tail-min `plainThrow`、xs-scope 两形状字节不变）。
+4. **「变体发射路径」范围其实更大**：登记发生在 fallibility 扫描（`scanField` 遍历每个类的每个 `TFun` 字段），而**发射**才由 `includeStaticFunc` 剪枝；两者范围不等 ⇒ §3 反例。且 `enumGrowth` 是声明枚举的**变体集合**，长大即改变该枚举在所有 match 中的语义，不是「只影响新引用的那一处」。
+5. 无声明变体查重（§4）；`exceptionClassRefs` 只在异常子类的声明分支被消费，所以登记 `exceptionClassRefs[模块::普通类]` 是空写。
+
+## 7. 负控有效性与交付包问题
+
+- **negctl 有效（比执行席更强）**：我只回退了 `Compiler.hx` 里那一行 `registerThrownExceptionVariant(stripDecorations(t));`。negctl 的生成树与我 pristine 的生成树**逐字节相同**（`trytail/` 与 `lib.rs` 均 IDENTICAL；`diff -rq` 仅多出 cargo 产物 Cargo.lock/harness.sha256/src）。9 个边界 fixture 的 negctl 生成树同样与 pristine **0 差异**。⇒ 失败来自「登记被撤掉」，不是夹具损坏；也说明 postfix 的全部行为差异都只经由这一处登记流动（RustExpr/RustDecl 新代码在无登记时是纯死码）。
+- **交付包缺陷（不阻塞判定）**：`PATCH.diff` 的**夹具段头部损坏**（`a/tests/haxe/try-tail-min/... /dev/null` 缺 `--- ` 前缀），`git apply` 在 152 行报 `patch fragment without header`。源码 4 文件段（1–149 行）完好、可 `git apply`，修复后 sha256 与 `FILES.sha256` 一致；夹具内容本身与其树一致（4 个 sha256 与 `FILES.sha256` 相符）。建议重生成 diff 时夹具部分也用 `git diff` 输出。
+- **证据精度**：报告 "prefix E0599 ×8" 是**字符串出现次数**（含 `Some errors have detailed explanations: E0433, E0599.` 一行）；实际错误为 **7 个 E0599 + 7 个 E0433**（共 14 previous errors）。方向性不影响结论，但表述应改。
+
+## 8. 执行席两条「不确定项」复核
+
+1. **「声明变体重名的理论冲突」→ 低估**。已实测成回归（§4，pristine 0 → postfix E0428），且触发路径不止「同域 rethrow」，还包括「该 throw 其实不被发射」（§3）。需要：登记前对 payload enum 的**声明变体名**查重（命中则复用声明变体或跳过登记），并给出对应负控。
+2. **「跨模块 rethrow 未覆盖」→ 已被我覆盖且可用**。`xs-xmod`（异常类+payload 在 `otherpkg`，throw 点在另一模块）：pristine 101 → postfix **0**（`crate::` 绝对路径 + use 行正常）。泛型边界另测：`xs-generic`（`class GEx<T>`，T 为 phantom，payload 单参构造器）pristine 101 → postfix **0**，可用；受门的 `args.length==1` 与 `exceptionErrorDecl` 的 `TFun([ctorArg],_)` 约束，payload 之外再带参数（含可选参数）的异常类不会被发射 struct，那种形状两态都不可编译（未覆盖，非回归）。
+
+## 9. 结论与最小修正建议
+
+必须补/改（任一条不满足，判据 3 都不能算过）：
+1. **把登记限定在实际会发射的 throw**：登记时带上 throw 所在类/字段，按 `includeStaticFunc` 同类判据剪枝；或把登记从扫描侧挪到发射侧。
+2. **test 判据改用 throw 所在模块**（不是被抛异常类所在模块）。
+3. **类级校验**：确认 `cls` 本身是异常子类，且其构造函数 payload 枚举就是本次使用的 `enumName`（不要再依赖模块键的 `exceptionPayloads`）。
+4. **声明变体查重**：`enumName` 已声明 `<cls.name>Fault` 时不重复登记（或复用）。
+5. 补负控：一个 pristine 可编译的树（如 `xs-dead`、`xs-deadcoll`）在修复后必须仍 0 错误。
+
+被确认成立的一半：目标形状确实修好（prefix 101 → postfix 0/0/0/0），既有 growth 通道、构造器形状、12 棵既有夹具树逐字节不变。
+
+## 10. 证据清单
+
+- `attempt-xcheck-01/stage-summary.tsv` — 五段退出码与错误计数
+- `attempt-xcheck-01/{prefix,postfix,negctl}-try-tail{,-min}/` — 我自己的 stages（argv/cwd/stdout/stderr/status）+ `gen-tree.sha256`
+- `attempt-xcheck-01/PATCH-src.patch`、`PATCH-fixture-asmangled.diff`（证明损坏段）、`patch-split.sha256`、`postfix-hashes.txt`
+- `attempt-xcheck-01/boundary/corpus/` — 14 棵树 `diff -r` 结果 + `corpus-changed-files.tsv`
+- `attempt-xcheck-01/boundary/probes/` — 9 个边界 fixture 的 status、tree-diff、unified diff、negctl-vs-pristine
+- `attempt-xcheck-01/boundary/logs/` — 各态 gen/cargo stderr
+- `attempt-xcheck-01/boundary/fixtures/` — 我写的 9 个 fixture 源码
+- `attempt-xcheck-01/boundary/negctl-identity.tsv` — negctl 与 pristine 的 0 差异表
+
+复现命令（在 `dc-warn/worktrees/rust-trytail-xcheck`，`XDG_CACHE_HOME=/tmp/rt-xcheck-nix-cache`，cargo target 放 /tmp）：
+
+```
+bash /tmp/rt-xcheck/run-all.sh pristine "tests/haxe/try-tail:/abs/expected.txt:tests/haxe/try-tail/native/harness.rs:prefix-try-tail"
+bash /tmp/rt-xcheck/run-all.sh postfix  "tests/haxe/try-tail:/abs/expected.txt:tests/haxe/try-tail/native/harness.rs:postfix-try-tail"
+bash /tmp/rt-xcheck/bx2-all.sh pristine build xs-dead xs-deadcoll
+bash /tmp/rt-xcheck/collect.sh
+```
+
+**判据 3 一行证据**：判据3 不通过——复现/修复/负控我均独立重跑一致（prefix 101=7×E0599+7×E0433、postfix 0/0/0/0 十二形状逐行符、negctl 101 且生成树与 pristine 逐字节相同；14 夹具中 12 棵树与既有 growth 通道逐字节不变、构造器形状不变），但自建反例 xs-dead 证明登记未限定「实际发射」：剪掉的私有静态里的 rethrow 也让已声明 fault 枚举长大，使原本 0 错误的树报 E0004 non-exhaustive，xs-deadcoll 另报 E0428 重复变体（报告不确定项1 被低估）；xs-testmod 证明 test 门用异常类模块而非 throw 模块，cfg(test) 的 rethrow 改到了生产 `boring/value_exception.rs`；xs-twoexc 证明门沿用模块键 `exceptionPayloads`，会把变体登记到无关枚举。跨模块（xs-xmod 101→0）与泛型（xs-generic 101→0）实际可用；报告「E0599×8」实为字符串次数（实为 7+7）。

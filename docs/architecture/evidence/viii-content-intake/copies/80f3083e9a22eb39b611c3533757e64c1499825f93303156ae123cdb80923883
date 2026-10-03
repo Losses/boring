@@ -1,0 +1,99 @@
+package tests
+
+import boring.CodePointNames
+import boring.runtime.SortedTable
+import boring.runtime.test.Test
+
+class SortedTableTests {
+@boring.test.Test
+    fun testCodePointNamesLookup() {
+        Test.run("tests.SortedTableTests.testCodePointNamesLookup", "tests.SortedTableTests.testCodePointNamesLookup: CodePointNames lookup hits and misses") {
+                Test.equals("LINE FEED", CodePointNames.nameOf(10), "LF hit")
+                Test.equals("SPACE", CodePointNames.nameOf(32), "Space hit")
+                Test.equals("DIGIT ZERO", CodePointNames.nameOf(48), "Digit 0 hit")
+                Test.equals("LATIN CAPITAL LETTER A", CodePointNames.nameOf(65), "Letter A hit")
+                Test.equals("LATIN CAPITAL LETTER B", CodePointNames.nameOf(66), "Letter B hit")
+                Test.equals(null, CodePointNames.nameOf(0), "Null character miss")
+                Test.equals(null, CodePointNames.nameOf(39321), "Unmapped code point miss")
+        }
+    }
+
+@boring.test.Test
+    fun testCodePointNamesOrder() {
+        Test.run("tests.SortedTableTests.testCodePointNamesOrder", "tests.SortedTableTests.testCodePointNamesOrder: CodePointNames ascending traversal order") {
+                val expected = "10=LINE FEED; 32=SPACE; 48=DIGIT ZERO; 65=LATIN CAPITAL LETTER A; 66=LATIN CAPITAL LETTER B"
+                Test.equals(expected, CodePointNames.describeOrder(), "ascending traversal matches expected order")
+        }
+    }
+
+@boring.test.Test
+    fun testMapDuplicateKeys() {
+        Test.run("tests.SortedTableTests.testMapDuplicateKeys", "tests.SortedTableTests.testMapDuplicateKeys: SortedMap duplicate key last-put-wins semantics") {
+                val b = SortedTable.mapBuilder<Int, String>(SortedTable::compareInts)
+                b.put(100, "hundred-first")
+                b.put(50, "fifty")
+                b.put(100, "hundred-final")
+                b.put(20, "twenty")
+                b.put(50, "fifty-final")
+                val map = b.build()
+                Test.equals(3, map.size(), "size after duplicate replacements")
+                Test.equals("twenty", map.get(20), "key 20 value")
+                Test.equals("fifty-final", map.get(50), "key 50 replaced value")
+                Test.equals("hundred-final", map.get(100), "key 100 replaced value")
+                Test.equals(null, map.get(99), "unmapped key returns null")
+                Test.equals(true, map.has(20), "has 20")
+                Test.equals(true, map.has(50), "has 50")
+                Test.equals(true, map.has(100), "has 100")
+                Test.equals(false, map.has(10), "has 10 is false")
+                Test.equals(20, map.keyAt(0), "key at 0")
+                Test.equals("twenty", map.valueAt(0), "value at 0")
+                Test.equals(50, map.keyAt(1), "key at 1")
+                Test.equals("fifty-final", map.valueAt(1), "value at 1")
+                Test.equals(100, map.keyAt(2), "key at 2")
+                Test.equals("hundred-final", map.valueAt(2), "value at 2")
+        }
+    }
+
+@boring.test.Test
+    fun testEmptyMap() {
+        Test.run("tests.SortedTableTests.testEmptyMap", "tests.SortedTableTests.testEmptyMap: SortedMap empty builder produces empty map") {
+                val b = SortedTable.mapBuilder<Int, String>(SortedTable::compareInts)
+                val map = b.build()
+                Test.equals(0, map.size(), "empty map size is 0")
+                Test.equals(false, map.has(1), "empty map has returns false")
+                Test.equals(null, map.get(1), "empty map get returns null")
+        }
+    }
+
+@boring.test.Test
+    fun testSortedSetOperations() {
+        Test.run("tests.SortedTableTests.testSortedSetOperations", "tests.SortedTableTests.testSortedSetOperations: SortedSet duplicate key deduplication and ascending ordering") {
+                val b = SortedTable.setBuilder<Int>(SortedTable::compareInts)
+                b.put(300)
+                b.put(100)
+                b.put(300)
+                b.put(200)
+                b.put(100)
+                val set = b.build()
+                Test.equals(3, set.size(), "set size after duplicates")
+                Test.equals(true, set.has(100), "has 100")
+                Test.equals(true, set.has(200), "has 200")
+                Test.equals(true, set.has(300), "has 300")
+                Test.equals(false, set.has(150), "has 150 is false")
+                Test.equals(false, set.has(400), "has 400 is false")
+                Test.equals(100, set.at(0), "element 0")
+                Test.equals(200, set.at(1), "element 1")
+                Test.equals(300, set.at(2), "element 2")
+        }
+    }
+
+@boring.test.Test
+    fun testEmptySet() {
+        Test.run("tests.SortedTableTests.testEmptySet", "tests.SortedTableTests.testEmptySet: SortedSet empty builder produces empty set") {
+                val b = SortedTable.setBuilder<Int>(SortedTable::compareInts)
+                val set = b.build()
+                Test.equals(0, set.size(), "empty set size is 0")
+                Test.equals(false, set.has(42), "empty set has returns false")
+        }
+    }
+}

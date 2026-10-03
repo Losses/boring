@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class InterfaceUnionTests {
+@boring.test.Test
+    fun sharedUnion() {
+        Test.run("tests.InterfaceUnionTests.sharedUnion", "tests.InterfaceUnionTests.sharedUnion: an interface method with disagreeing fault domains shares one union") {
+                Test.equals(true, true, null)
+        }
+    }
+}

@@ -1,0 +1,50 @@
+#![cfg(test)]
+
+use crate::boring::rust_coalesce_ops::RustCoalesceOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn direct_array_static() {
+    testlib::run("tests.RustCoalesceTests.directArrayStatic", "tests.RustCoalesceTests.directArrayStatic: a coalescing nullable array parameter copies a direct array static", || {
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((RustCoalesceOps::rust_coalesce_ops_resolved_ints()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn string_tag_from() {
+    testlib::run("tests.RustCoalesceTests.stringTagFrom", "tests.RustCoalesceTests.stringTagFrom: a String-backed abstract parameter accepts an owned String", || {
+        test_core::TestCore::test_core_equals_bool(true, RustCoalesceOps::rust_coalesce_ops_tag_from(UStr::new(&[116,111,110,101])), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn assigned_string_field() {
+    testlib::run("tests.RustCoalesceTests.assignedStringField", "tests.RustCoalesceTests.assignedStringField: a nullable String field assignment owns a borrowed view", || {
+        test_core::TestCore::test_core_equals_bool(true, RustCoalesceOps::rust_coalesce_ops_assigned_label(UStr::new(&[116,111,110,101])), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn substituted_string_default() {
+    testlib::run("tests.RustCoalesceTests.substitutedStringDefault", "tests.RustCoalesceTests.substitutedStringDefault: an omitted nullable String parameter owns the substituted view", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[116,111,110,101]), RustCoalesceOps::rust_coalesce_ops_display_default(UStr::new(&[116,111,110,101])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn borrowed_string_default() {
+    testlib::run("tests.RustCoalesceTests.borrowedStringDefault", "tests.RustCoalesceTests.borrowedStringDefault: a coalescing nullable String parameter owns a borrowed view", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,114,45,70,82]), RustCoalesceOps::rust_coalesce_ops_locale_from(UStr::new(&[102,114,45,70,82])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn default_record() {
+    testlib::run("tests.RustCoalesceTests.defaultRecord", "tests.RustCoalesceTests.defaultRecord: nullable class coalescing materializes optional constructor arguments", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[122,104,45,72,97,110,115,58,49,54,58,52,48,48,58,102,97,108,115,101,58,48]), RustCoalesceOps::rust_coalesce_ops_resolve(None).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[122,104,45,72,97,110,115]), RustCoalesceOps::rust_coalesce_ops_rust_output_string_default().as_ustr(), UStr::new(&[]));
+    });
+}

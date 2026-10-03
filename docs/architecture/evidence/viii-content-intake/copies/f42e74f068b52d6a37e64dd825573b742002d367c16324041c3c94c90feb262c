@@ -1,0 +1,140 @@
+# Baseline-record update — the six reds are discharged
+
+Repo: `boring-wt-architecture` (branch `fix/test-collection-ignore-out`).
+Record updated: `docs/architecture/BASELINE-FAILURES.md` (committed on branch
+`docs/baseline-failures-discharge`, commit `d36e6d3f`, based on
+`1eeaa4ad`). Raw logs: `evidence/`. Date: 2026-09-30.
+
+## Bottom line
+
+The six pre-existing assertion reds enumerated in `BASELINE-FAILURES.md` §4 are
+no longer red. They were discharged by four commits — `28820ff5`, `ac4099ea`,
+`50a95377`, `a80690f1` — and the "pre-existing, judged by mechanism" limit the
+record carried is settled by fresh-tree reproduction, which I re-measured
+independently at both the pre-fix and post-fix revisions. The full-suite
+counts (1001/32/8) are inherited, not re-run; the expected post-discharge
+shape (1007/26/8) is labeled arithmetic in the record, not a measurement.
+
+## What I verified (measured, this session)
+
+### 1. The four commits exist and change what the rulings claim
+
+All four are on `fix/test-collection-ignore-out` (verified by `git log` /
+`git show --stat`):
+
+| Commit | Subject | Files |
+|---|---|---|
+| `28820ff5` | fix(rust): rename the fold-debug define off the compiled package name | `RustExpr.hx` (16 `#if boring_fold_debug` -> `rust_fold_debug`) |
+| `ac4099ea` | fix(ts): hoist dataClass comparator loop bounds into the for-head init | `TsDecl.hx` (+7/-1) |
+| `50a95377` | fix(rust): lower Sys.args, the trail gate, and the resident ABI reads without callback pipelines | `RustExpr.hx` (+14), `RustRuntime.hx` (+46) |
+| `a80690f1` | test: refresh three stale generated-tree pins to the current declared-faithful forms | 3 test files (+31/-9) |
+
+Mapping to the six reds: #2 <- `28820ff5`; #3 <- `ac4099ea`; #4 <- `50a95377`;
+#1, #5, #6 <- `a80690f1`. Matches the seat's rulings (three generator defects,
+three stale expectations).
+
+### 2. The scoped five files, at HEAD `4c292c64` (measured)
+
+`bun test tests/ts/arithmetic-helpers.test.ts tests/ts/compiler-scope.test.ts
+tests/ts/loop-structure.test.ts tests/ts/sorted-dataclass-keys.test.ts
+tests/ts/sorted-key-domains.test.ts`, cwd = tree root, exit code captured
+directly (no pipe):
+
+- **exit 0 — 94 pass / 0 fail / 705 expect** (`scoped-five-files.exit/.log`),
+  and again **exit 0** after regeneration (`scoped-five-files-after-regen.exit/.log`).
+
+The six §4 reds are exactly the tests that failed pre-fix (below) and now pass.
+
+### 3. Fresh-tree reproduction at both revisions (measured)
+
+`reference/*/gen` is gitignored; the tests read the on-disk trees live. To make
+"passing at HEAD" mean "passing on fresh output", I regenerated the trees
+myself instead of trusting the on-disk state:
+
+- **Pre-fix worktree** (`git worktree add` at `ec4c5c2d`, clean checkout,
+  `.haxelib` dev-markers replicated): regenerated ts, rust, kotlin, swift, dart
+  (`haxe examples/<t>.hxml`, all exit 0; 39–70 s each) and ran the scoped
+  five files: **exit 1, 88 pass / 6 fail / 670 expect** (`prefix-five-files.exit/.log`).
+  The six failures, by name, are exactly the six §4 reds:
+  - `compiler boundary ... RustExpr.hx carries no banned identifier`
+  - `loop structure > reference/ts/gen carries no functional iteration...`
+  - `loop structure > reference/rust/gen carries no functional iteration...`
+  - `arithmetic helpers generated tree > Rust inlines arithmetic helpers...`
+  - `sorted dataClass key generated trees > pins resident comparators`
+  - `sorted key domains generated tree > Rust generated tree widens an int capacity bound...`
+- **Post-fix (HEAD `4c292c64`)**: same five trees regenerated (all exit 0;
+  `regen-*.log`, `regen-summary.txt`), scoped run exit 0 (94/0/705, twice).
+- **Tree currency**: each regenerated tree is byte-identical to the on-disk
+  tree the scoped tests read (`diff -rq` empty; `diff-<t>-regen.txt`).
+- **In-flight patch isolation**: during my session another seat applied an
+  uncommitted `SwiftExpr.hx` patch (mtime 13:56:55 local, mid-run). It is
+  compiled only under the swift hxml, so ts/rust/kotlin/dart regenerations
+  reflect the committed compiler state. For swift, a **pure-HEAD worktree**
+  regeneration (committed state only) is byte-identical to both the
+  shared-worktree regeneration and the on-disk tree
+  (`regen-swift-pure-head.log`, `diff-swift-purehead-vs-*.txt`) — i.e. the
+  scoped pass holds against committed-compiler output.
+- **Consistency check**: pre-fix vs post-fix rust-f32 trees differ in exactly
+  the nine files the `50a95377` emitter changes touch
+  (`diff-rustf32-prefix-vs-purehead.txt`); on-disk rust-f32 matches the
+  pure-HEAD regeneration byte-for-byte (`diff-rustf32-snapshot-vs-purehead.txt`).
+
+This independently reproduces the seat's upgrade claim ("all six reproduced on
+fresh output at `ec4c5c2d`"; its logs `dc-warn/out/baseline-red-fix/evidence/`
+show the same 88/6/670 and 94/0/705).
+
+### 4. Guard file
+
+`samples/boring/MathNaNTestSupport.hx`: `grep -c 'Test.equals'` = 5 before and
+after every run (`prefix.txt`); my scoped runs never collect
+`tests/ts/package-artifacts.test.ts`.
+
+## What I inherited (labeled, not re-measured)
+
+- **Full-suite counts 1001 pass / 32 fail / 8 errors** at `695940e8` (1864 s):
+  inherited from the record's proof run; the 31-minute suite was **not**
+  re-run (shared tree; `package-artifacts.test.ts` rewrites a tracked
+  fixture). Post-discharge expected shape: 1007/26/8 — stated in the record
+  as arithmetic from the inherited run, not a measurement.
+- **The 26 environment timeouts + 8 cascade errors**: inherited; machine-
+  contention-dependent by their own classification. Note the four measured-
+  budget commits (`9905949e`, `36e7540e`, `e8a4c3bb`, `4c292c64`) postdate the
+  baseline run and may shift that class.
+- **The seat's per-failure rulings** (pin dating vs generator behavior; L5
+  negative controls; `cargo check`/`cargo test` on the rust trees; `tsc -p .`;
+  `bun test reference/ts/gen-tests/`; byte-identity of the `28820ff5`
+  rename): inherited from the commit messages and
+  `dc-warn/out/baseline-red-fix/REPORT.md`. None is load-bearing for the
+  scoped verdict, which I re-measured directly.
+
+## Unverifiable / blocked
+
+- Nothing material. The only thing I could not measure is a fresh
+  post-discharge **full-suite** run (deliberately not run: 31 min, shared
+  tree, tracked-fixture rewrite) — so the current full-suite shape is
+  inherited + labeled arithmetic, as required.
+- The shared tree moved during the session: `4c292c64` (my measurement
+  revision) -> `1eeaa4ad` (three docs/test commits; verified via
+  `git diff --stat 4c292c64..1eeaa4ad` that none touches the five scoped
+  files or generator sources). The record states both revisions.
+
+## Deliverables
+
+- `docs/architecture/BASELINE-FAILURES.md` — updated in place: the §4
+  enumeration is preserved as history; the mechanism limit is marked
+  **Superseded 2026-09-30**; a new "Discharge record" section names the four
+  commits, records the fresh-tree reproduction (mine + the seat's), carries
+  the inherited current baseline with explicit labels, and restates that
+  `:417`'s standard (`02-translator-implementation-standard.md:80`, zero
+  warning count) is not waived. Nothing deleted, skipped, or weakened.
+- This `REPORT.md` + `evidence/` (all exit codes captured by redirection,
+  never through a pipe).
+
+## Hygiene
+
+- Scratch worktrees `/tmp/br-prefix` (`ec4c5c2d`) and `/tmp/br-pure-head`
+  (`4c292c64`) used for the regenerations; removed after use
+  (`git worktree remove --force`, `git worktree prune`).
+- Shared working tree left as found: the other seats' in-flight modifications
+  (incl. `SwiftExpr.hx`) are untouched; only `docs/architecture/BASELINE-FAILURES.md`
+  is committed, on its own branch.

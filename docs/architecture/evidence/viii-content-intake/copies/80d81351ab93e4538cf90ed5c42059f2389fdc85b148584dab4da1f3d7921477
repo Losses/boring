@@ -1,0 +1,56 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CFault {
+    Only { tag: UString },
+    CExceptionFault { n: u32 },
+    CExceptionFault(Box<crate::xcheckscope::dead_coll_probe::CException>),
+}
+
+impl std::fmt::Display for CFault {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CFault::Only { tag } => {
+                write!(formatter, "{}", tag)
+            }
+            CFault::CExceptionFault { n } => {
+                write!(formatter, "{}", n)
+            }
+            CFault::CExceptionFault(inner) => write!(formatter, "{:?}", inner),
+        }
+    }
+}
+
+impl std::error::Error for CFault {}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CException {
+    pub fault: CFault,
+}
+impl CException {
+    pub fn new(fault: CFault) -> Self {
+        CException { fault }
+    }
+}
+impl std::fmt::Display for CException {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}", self.fault)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct DeadCollProbe;
+
+impl DeadCollProbe {
+    pub fn dead_coll_probe_live_fault(v: CFault) -> u32 {
+        return match v {
+            CFault::Only { tag: _p0 } => u_string::unit_count(&(_p0)),
+            CFault::CExceptionFault { n: _p0 } => _p0,
+        };
+    }
+
+    pub fn dead_coll_probe_main() {
+    }
+}

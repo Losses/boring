@@ -1,0 +1,66 @@
+# W1 fix — PROGRESS
+
+## Setup
+- Worktree: `dc-warn/w1-wt/wt/` (rsync of `dc-warn/swc-try-fix-wt/wt/`, excl `node_modules`/`out`).
+  That tree carries the two verified boundary fixes (SW04 one-liner + SW05
+  destination-handoff), which the acceptance fixture needs to generate at all.
+- Baseline tree for the true pre-fix comparison: `/tmp/w1-prefix-wt/` (rsync of
+  `w1-wt/wt` with `SwiftExpr.hx` restored to the `swc-try-fix-wt` version —
+  verified byte-identical to that file; the only difference between the two
+  trees is `SwiftExpr.hx`).
+- Environment: `PATH` from `dc-warn/out/chainA-fixed-rerun/evidence/env.json`
+  (haxe 4.3.7, pinned swiftc 6.2.4 shim, `Target: x86_64-unknown-linux-gnu`).
+  `haxe` run with cwd = tree root (repo-local `.haxelib`).
+- Trap check: `grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx` = 5
+  before and after every generation run (checked repeatedly; the
+  `package-artifacts.test.ts` stub was never written — no `bun test` run).
+
+## Work log
+1. Read board row `t-munu29i9-70b7` (branch fix/swift-switch-explicit-return),
+   the gap-fixture archive (README.md, expected-outcomes.md, REPORT.md), and
+   the swc-try-fix tree's REPORT (SW04/SW05 state).
+2. Verified the W1 diagnosis against the code in the tree that actually runs
+   (SW04/SW05 already applied): `stmtLines:823-824` dispatches a statement
+   switch to `switchStatement` (5520); `switchStatement` reuses the
+   value-mode `switchReturn`/`armLines` and strips the `return ` prefix from
+   the arm value line via a text splice. For an explicit-return arm the
+   splice drops the arm's `return` keyword -> arm value becomes an unused
+   expression (2 swiftc warnings at Gap.swift:113/:115) and every choice
+   falls through to the function's trailing unconditional return.
+   Refinement of the task's hypothesis: on this tree the boundary wrap for
+   the explicit-return arm already fires (destination ?? currentReturnType),
+   so the residual mechanism is the return-keyword drop, not the missing
+   wrap. On the original coordination tree the wrap did not fire either
+   (the archive's hypothesis state).
+3. Empirical pre-check with the pinned swiftc: an all-return exhaustive switch
+   followed by a trailing return typechecks with ZERO diagnostics
+   (evidence/reachability-probe.{swift,log}); the "will never be executed"
+   warning appears only at full compilation (see REPORT §5 finding).
+4. Baseline (pre-fix) Gap fixture: gen rc=0; typecheck rc=0 with the 2 W1
+   unused-result warnings (evidence/gap-fixture-baseline/). Baseline build +
+   run (same hand-authored main): `two-length=2`, `two-values=1,2` — .two
+   returns sourceFirst() (defect demonstrated at runtime,
+   evidence/run-baseline.out).
+5. Fix implemented in `packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx`
+   only: `switchStatement` renders arms in a new statement mode
+   (`switchReturn`/`armLines` gained `statementArms:Bool = false`);
+   `armLines` tracks whether the trailing value came from an explicit
+   `return` (`valueIsReturn`); statement-mode arms emit `return <value>` for
+   explicit returns and the bare value otherwise (nil -> `()`, as before).
+   The text splice in `switchStatement` is removed. All value-mode callers
+   (`switchReturn` at return position, `switchExpression`, `switchAssign`)
+   are unchanged (default parameter).
+6. Post-fix Gap fixture: gen rc=0; arms retain their values
+   (`return ReadOnlyArray(Gap.sourceFirst())` /
+   `return ReadOnlyArray(Gap.sourceSecond())`); typecheck rc=0, log empty
+   (0 errors, 0 warnings); build rc=0 (1 finding-warning, see REPORT §5);
+   run: `two-length=1`, `two-values=3` — correct (evidence/run-fixed.out).
+7. Collateral sweep: all 21 Swift hxml drivers generated pre-fix (prefix tree)
+   and post-fix (w1 worktree), fresh output dirs, exit codes captured.
+   Whole-tree diffs: see REPORT §6.
+8. Board: task claimed (sessionId w1-fix-worker, branch
+   fix/swift-switch-explicit-return, merge-back arch/agent-guided-governance).
+
+## Status
+Fix complete; criteria (a)(b)(c) verified with own measurements.
+Deliverables: REPORT.md, PATCH.diff, PROGRESS.md, evidence/.

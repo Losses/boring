@@ -1,0 +1,100 @@
+use crate::runtime::u_string::UString;
+use std::sync::LazyLock;
+
+
+pub static ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS: [u32; 3] = [10, 20, 30];
+
+pub static ARRAY_ROOT_STATE_OPS_MUTABLE_INTS: [u32; 2] = [40, 50];
+
+pub static ARRAY_ROOT_STATE_OPS_WORDS: LazyLock<Vec<UString>> = LazyLock::new(|| vec![UString::from("alpha").to_ustring(), UString::from("beta").to_ustring()]);
+
+pub static ARRAY_ROOT_STATE_OPS_MIXED: LazyLock<Vec<ArrayRootKind>> = LazyLock::new(|| vec![
+    (ArrayRootKind::Weighted { value: ArrayRootStateOps::ARRAY_ROOT_STATE_OPS_MARKER }).clone(),
+    (ArrayRootKind::Plain).clone(),
+]);
+
+pub static ARRAY_ROOT_STATE_OPS_NESTED: LazyLock<Vec<Vec<u32>>> = LazyLock::new(|| vec![(vec![1, 2]).clone(), (vec![3, 4]).clone()]);
+
+#[derive(Clone, PartialEq)]
+pub struct ArrayRootStateOps {
+}
+
+impl ArrayRootStateOps {
+    pub const ARRAY_ROOT_STATE_OPS_MARKER: u32 = 7;
+
+    pub const fn new() -> Self {
+        Self {
+        }
+    }
+
+    pub fn array_root_state_ops_read_only_length() -> u32 {
+        return u32::try_from((ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS.len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn array_root_state_ops_read_only_element(index: u32) -> u32 {
+        return ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS[usize::try_from(index).unwrap_or(0)];
+    }
+
+    pub fn array_root_state_ops_mutable_length() -> u32 {
+        return u32::try_from((ARRAY_ROOT_STATE_OPS_MUTABLE_INTS.len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn array_root_state_ops_mutable_element(index: u32) -> u32 {
+        return ARRAY_ROOT_STATE_OPS_MUTABLE_INTS[usize::try_from(index).unwrap_or(0)];
+    }
+
+    pub fn array_root_state_ops_words_length() -> u32 {
+        return u32::try_from(((*ARRAY_ROOT_STATE_OPS_WORDS).clone().len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn array_root_state_ops_word(index: u32) -> UString {
+        return ((*ARRAY_ROOT_STATE_OPS_WORDS).clone()[usize::try_from(index).unwrap_or(0)]).clone();
+    }
+
+    pub fn array_root_state_ops_mixed_length() -> u32 {
+        return u32::try_from(((*ARRAY_ROOT_STATE_OPS_MIXED).clone().len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn array_root_state_ops_mixed_is_weighted() -> bool {
+        let kind = ((*ARRAY_ROOT_STATE_OPS_MIXED).clone()[0usize]).clone();
+        return match kind {
+            ArrayRootKind::Plain => false,
+            ArrayRootKind::Weighted { .. } => true,
+        };
+    }
+
+    pub fn array_root_state_ops_mixed_weight() -> u32 {
+        let kind = ((*ARRAY_ROOT_STATE_OPS_MIXED).clone()[0usize]).clone();
+        return match kind {
+            ArrayRootKind::Plain => 0,
+            ArrayRootKind::Weighted { value: _p0 } => _p0,
+        };
+    }
+
+    pub fn array_root_state_ops_nested_length() -> u32 {
+        return u32::try_from(((*ARRAY_ROOT_STATE_OPS_NESTED).clone().len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn array_root_state_ops_nested_inner_length(index: u32) -> u32 {
+        return u32::try_from((((*ARRAY_ROOT_STATE_OPS_NESTED).clone()[usize::try_from(index).unwrap_or(0)]).clone().len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn array_root_state_ops_nested_element(outer: u32, inner: u32) -> u32 {
+        return ((*ARRAY_ROOT_STATE_OPS_NESTED).clone()[usize::try_from(outer).unwrap_or(0)]).clone()[usize::try_from(inner).unwrap_or(0)];
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArrayRootKind {
+    Plain,
+    Weighted { value: u32 },
+}
+
+impl ArrayRootKind {
+    pub fn to_string(&self) -> String {
+        match self {
+            ArrayRootKind::Plain => "Plain".to_string(),
+            ArrayRootKind::Weighted { value } => format!("Weighted(value={})", (value).to_string()),
+        }
+    }
+}

@@ -1,0 +1,6 @@
+# dc-enum-switch-gen run /home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch/../../out/enum-switch/es-VHFjIw
+# started 2026-09-29T19:55:44Z
+# successful generation snippets: promoted/ts promoted/kotlin promoted/rust promoted/swift promoted/dart
+# input trees (fixture + packages/compiler) unchanged by the run
+# generations rejected (observed, not defect): 10 / 15
+# verdict: complete

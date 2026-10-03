@@ -1,0 +1,23 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct ProbeShareTests;
+
+impl ProbeShareTests {
+    pub fn probe_share_tests_shared_label() -> UString {
+        return UString::from("shared").to_ustring();
+    }
+}
+
+#[test]
+fn probe() {
+    testlib::run("tests.ProbeShareTests.probe", "tests.ProbeShareTests.probe: shared probe module compiles", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[115,104,97,114,101,100]), ProbeShareTests::probe_share_tests_shared_label().as_ustr(), UStr::new(&[]));
+    });
+}

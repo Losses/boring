@@ -1,0 +1,11 @@
+ mode change 100755 => 100644 tests/haxe/comparison-plan/run.sh
+ mode change 100755 => 100644 tests/haxe/flow/replay/run.sh
+ mode change 100755 => 100644 tests/haxe/flow/replay/verify-verdict.sh
+ mode change 100755 => 100644 tests/haxe/kotlin-comparison-consumer/run.sh
+ mode change 100755 => 100644 tests/haxe/readonly-alias/run.sh
+ mode change 100755 => 100644 tests/haxe/semantic-registry-comment-control/run.sh
+ mode change 100755 => 100644 tests/haxe/signed-key-composition/run.sh
+ mode change 100755 => 100644 tests/haxe/ts-comparison-collision/run.sh
+ mode change 100755 => 100644 tests/haxe/ts-platformops-imports/run.sh
+ mode change 100755 => 100644 tests/haxe/ts-source-origin/run.sh
+ mode change 100755 => 100644 tools/git-hooks/commit-msg

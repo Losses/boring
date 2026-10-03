@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Stage 5: collect the non-case evidence into the out/evidence dir.
+set -u
+. "$(dirname "$0")/xlib.sh"
+HAXE=/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe
+
+# 1. patch applies cleanly from the repo root, and does not touch the shared tree
+{
+  echo "\$ cd $R && git apply --check <PATCH.diff>"
+  ( cd "$R" && git apply --check "$WS/dc-warn/out/roots-guard-hardening/PATCH.diff" ); echo "git_apply_check_rc=$?"
+  echo
+  echo "\$ patch -p1 < PATCH.diff   (in $S/patchcheck)"
+  echo "applied sha256:"
+  sha256sum "$S/patchcheck/tools/roots-guard/check-roots-guard.sh" "$S/patchcheck/tools/roots-guard/roots-allowlist.json"
+} > "$EV/01-git-apply-check.txt" 2>&1
+
+# 2. shared tree state (must still hold the ORIGINAL unhardened files)
+{
+  echo "\$ git -C $R status --porcelain tools/roots-guard examples publication-staging"
+  git -C "$R" status --porcelain tools/roots-guard examples publication-staging; echo "rc=$?"
+  echo
+  echo "sha256 of the two shared-tree guard files:"
+  sha256sum "$R/tools/roots-guard/check-roots-guard.sh" "$R/tools/roots-guard/roots-allowlist.json"
+  echo
+  echo "expected original: e5508bb442daaeb6655fb1a149ab4a853f5365af415bba3fddf9e854dba980db (script)"
+  echo "                   34d336ce68b08e686a12dbf5ca43bd89495d470b2ac5278624bdffc93da471a9 (allowlist)"
+  echo
+  echo "\$ git -C $R log -1 --format=%H"
+  git -C "$R" log -1 --format=%H
+} > "$EV/02-shared-tree-state.txt" 2>&1
+
+# 3. PATCH.diff vs the producer's own scratch copy
+{
+  echo "patched (from PATCH.diff):"
+  sha256sum "$S/patchcheck/tools/roots-guard/check-roots-guard.sh" "$S/patchcheck/tools/roots-guard/roots-allowlist.json"
+  echo "producer scratch dc-warn/scratch-roots-guard/hardened:"
+  sha256sum "$WS/dc-warn/scratch-roots-guard/hardened/tools/roots-guard/check-roots-guard.sh" \
+            "$WS/dc-warn/scratch-roots-guard/hardened/tools/roots-guard/roots-allowlist.json"
+  echo
+  echo "diff -u <producer scratch> <patched>:"
+  diff -u "$WS/dc-warn/scratch-roots-guard/hardened/tools/roots-guard/roots-allowlist.json" \
+          "$S/patchcheck/tools/roots-guard/roots-allowlist.json"; echo "diff_rc=$?"
+} > "$EV/03-patch-vs-producer-scratch.txt" 2>&1
+
+# 4. --help prints only header lines 2..46; the usage/exit documentation is at 47..53
+{
+  echo "\$ bash <hardened> --help | tail -3"; bash "$HARD_SH" --help | tail -3
+  echo "help_rc=$?"
+  echo
+  echo "header lines 46..53 of the patched script:"
+  sed -n '46,53p' "$HARD_SH" | nl -ba -v46
+} > "$EV/04-help-truncation.txt" 2>&1
+
+# 5. Haxe root-line lexing experiment (whitespace forms the guard ignores)
+{
+  echo "\$HAXE = $HAXE"
+  cd "$S/hx1"
+  for f in plain ws_ok ws_missing ts_missing cr_missing tab_missing; do
+    "$HAXE" "$f.hxml" > "$f.recheck.out" 2>&1; rc=$?
+    printf '%-12s rc=%s  first-line=%s\n' "$f" "$rc" "$(head -1 "$f.recheck.out")"
+  done
+  echo
+  echo "hxml bytes (cat -A):"
+  for f in ws_missing ts_missing cr_missing tab_missing; do printf -- '-- %s\n' "$f.hxml"; cat -A "$f.hxml"; done
+} > "$EV/05-haxe-whitespace-experiment.txt" 2>&1
+
+# 6. Haxe --macro include() experiment
+{
+  echo "\$HAXE = $HAXE ; cp/extra/Seen.hx body:"
+  cat "$S/hx2/cp/extra/Seen.hx"
+  cd "$S/hx2"
+  for f in ctrl inc inc_short; do
+    "$HAXE" "$f.hxml" > "$f.recheck.out" 2>&1; rc=$?
+    printf '%-10s rc=%s first-line=%s\n' "$f" "$rc" "$(head -1 "$f.recheck.out")"
+    printf '   hxml: %s\n' "$(tr '\n' '|' < "$f.hxml")"
+  done
+} > "$EV/06-haxe-macro-include-experiment.txt" 2>&1
+
+# 7. per-case counters
+{
+  printf 'case\texit_code\tFAIL\tEXEMPT\tDUP\tCOVER\tOK\n'
+  for f in "$EV"/*.txt; do
+    b="$(basename "$f" .txt)"
+    case "$b" in new-nomutation|dup-recount) continue;; esac
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$b" \
+      "$(grep -m1 -o 'exit_code=[0-9]*' "$f" | cut -d= -f2)" \
+      "$(grep -c '^FAIL' "$f")" "$(grep -c '^EXEMPT' "$f")" \
+      "$(grep -c '^DUP' "$f")" "$(grep -c '^COVER' "$f")" "$(grep -c '^OK:' "$f")"
+  done
+} > "$EV/07-counts.tsv"
+
+cp "$EV/rc.tsv" "$EV/00-summary-rc.tsv" 2>/dev/null || true
+echo "evidence collected:"; ls -1 "$EV" | head -60; echo "... total $(ls -1 "$EV" | wc -l) files"

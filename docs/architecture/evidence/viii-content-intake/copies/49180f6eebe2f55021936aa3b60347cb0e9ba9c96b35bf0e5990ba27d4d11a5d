@@ -1,0 +1,15 @@
+gen-gap-fixed/gap/Gap.swift:113:17: warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+111 |         switch choice {
+112 |             case .one:
+113 |                 ReadOnlyArray(Gap.sourceFirst())
+    |                 `- warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+114 |             case .two:
+115 |                 ReadOnlyArray(Gap.sourceSecond())
+
+gen-gap-fixed/gap/Gap.swift:115:17: warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+113 |                 ReadOnlyArray(Gap.sourceFirst())
+114 |             case .two:
+115 |                 ReadOnlyArray(Gap.sourceSecond())
+    |                 `- warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+116 |         }
+117 |         return ReadOnlyArray(Gap.sourceFirst())

@@ -1,0 +1,239 @@
+# Module-keyed payload-state maps: systematic fix + raw evidence
+
+Worker: delegated fix session. Scratch worktree:
+`/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-modkey`
+(own copy, shared trees untouched). Output/evidence: this directory.
+Raw logs: `evidence/raw/`; states: `evidence/states/`; generated Rust:
+`evidence/generated/`; runner: `evidence/tools/run-matrix-mine.sh`.
+
+## 0. Lineage anchor (read first — the brief's base commit does not contain the earlier fix)
+
+The brief named `boring-wt-architecture` @ `e1c65975` as the repo. I built a
+scratch worktree there first and **measured it**: at `e1c65975` the four
+compiler files hash `1cdc0ebd/f8f97e51/7c4dfce0/34e3e211` and the tree contains
+**neither `state.exceptionPayloadEnums` nor `registerThrownExceptionVariant`** —
+the entire earlier payload-key work is absent from that lineage. Empirical
+proof (kept, relabelled `base-*` in `evidence/raw/`): at that commit even
+`xt-classemit` and `xt-twoexc-emit` — expected 0 — fail with cargo 101
+(E0433 cannot find type `E1`; E0599). No fix of this defect class can be
+verified on a base that fails its own non-discriminating regression fixtures.
+
+I therefore recreated my scratch worktree as a **byte copy of the audited
+reviewer tree** (`rust-keyfix-xcheck-wt`, frozen state) and applied
+`dc-warn/out/rust-payload-key-fix/PATCH.diff` ("the earlier fix"). The result
+reproduces the audited fixed hashes **exactly**
+(`evidence/states/`, `evidence/raw/pre.state.txt`):
+
+    Compiler.hx           46d8fff4…
+    RustDecl.hx           985b5ad7…
+    RustEmissionState.hx  173751f3…
+    RustExpr.hx           5d81f073…
+
+All pre/post readings below are on this anchored state. The `base-*` phase in
+`evidence/raw/` is the abandoned `e1c65975` probe, kept for honesty.
+
+## 1. Reproduction of the counterexample (my own rc, fresh CARGO_TARGET_DIR each run)
+
+Fixture `xs-crossmod`: two payload exception classes in one module
+(`xsxm.CrossProbe.E1/.E2`), payload enums in two modules (`xsxm.Faults1.F1Fault`,
+`xsxm.Faults2.F2Fault`). Every run's `*-compiling-count.txt` = 1 → real
+compiles, no cargo cache replays.
+
+| phase | gen | cargo | error classes |
+|---|---|---|---|
+| frozen (`raw/frozen-*` would be the reviewer's; mine: n/a) | | | |
+| earlier fix applied (`pre`) | 0 | **101** | **{E0609}** — `no field 'fault' on type 'F1Fault'` |
+| + my fix (`post`) | 0 | **0** | {} |
+| my fix reversed (`reverse2`) | 0 | **101** | {E0609} again |
+
+Generated signature (`evidence/generated/cross_probe.rs.*`): pre, `rethrow_e1`
+emits raw `e.fault` under `Result<u32, F1Fault>` (E0609) while `rethrow_e2` is
+rewritten — the "last scanned wins" mirror; post, both catch sites rewrite the
+payload (`Err(F1Fault::E1Fault(Box::new(E1::new(e))))` under
+`Result<u32, F1Fault>`). `xs-crossmod`: **101 → 0**.
+
+## 2. Read-site inventory — every `.get()` on the four module-keyed maps
+
+Count command (at the anchored pre state):
+`grep -o '<map>\.get(' Compiler.hx RustDecl.hx RustExpr.hx RustType.hx RustImports.hx`
+= **32 occurrences / 1 `set()` per map** (my count; the coordinator's 33
+differs by one `payloadEnumNames.get` I cannot locate — I count 5, they
+report 6; the inventory below is exhaustive under the command above, so if
+their 33rd exists it is outside these five files).
+
+Meaning of the keys:
+- `exceptionPayloads`: class MODULE → payload-enum module. **Class identity is
+  the meaning**; a collision (two exception classes in one Haxe module) mistypes
+  one of them.
+- `payloadEnumNames` / `payloadEnumOwners`: payload-enum MODULE → enum name /
+  owning class name. Enum-identity-by-module; collides only if **two payload
+  enums share one module** (a different axis, see §5).
+- `payloadEnumModules`: payload-enum MODULE → emitted module path. Emission
+  location is genuinely a *module* property, so module keying is the intended
+  semantics.
+
+### Class-in-hand sites (`exceptionPayloads`, keyed by a class being resolved)
+
+| # | site | judgement | action |
+|---|---|---|---|
+| 1 | RustExpr.hx:5799 `catchPayloadAccess` | **class identity needed** — collision = the counterexample (E1's rewrite lost to E2) | **changed** (class-keyed first, module fallback) |
+| 2 | Compiler.hx:2444 `caughtPayloadEnumModuleOf` | **class identity needed** — same collision; a shared-module second class's catch region absorbs the wrong enum | **changed** |
+| 3 | RustDecl.hx:2239 `caughtPayloadEnumModuleOf` | **class identity needed** — identical copy of #2 | **changed** |
+| 4 | RustType.hx:146–148 (site at 146; 147/148 are enum-module sites) | **class identity needed** — a type reference to a same-module sibling exception would import the wrong payload name | **changed** (not in the reviewer's nominations; same defect axis) |
+| 5 | Compiler.hx:2253 `regionErrorNameOf` fallback | safe *after* the earlier fix: reached only when `exceptionPayloadEnums` has no entry for this exact class (class-keyed early return precedes it). Residual: a class with neither payload ctor nor message-only ctor sharing a module with a payload class would fall through and inherit the sibling's payload — no known shape reaches it; left as-is (documented risk) | not changed |
+| 6 | Compiler.hx:2256 (names get behind #5) | same as #5 | not changed |
+| 7 | RustExpr.hx:5864 `caughtPayloadEnum` fallback | same as #5 | not changed |
+| 8 | RustExpr.hx:5868 (names get behind #7) | same as #5 | not changed |
+| 9 | Compiler.hx:1507 `exceptionPayloads.get("std.UStringException")` | **safe**: constant key; exactly one class (the stdlib one) occupies that module key; no user class can share the module name in one compilation | not changed |
+| 10 | RustDecl.hx:2875 same constant | safe, as #9 | not changed |
+| 11 | RustExpr.hx:2194 same constant | safe, as #9 | not changed |
+| 12 | RustExpr.hx:2306 same constant | safe, as #9 | not changed |
+
+### Payload-enum-module sites (`payloadEnumModules`, key = enum module)
+
+Emission location is a module property; collision harm requires two payload
+enums in one module AND different emitted targets (different axis, §5).
+
+| # | site | judgement | action |
+|---|---|---|---|
+| 13 | Compiler.hx:297 | self-map suppression check, module semantics intended | safe, not changed |
+| 14 | Compiler.hx:707 (`en.module`) | enum-in-hand → emitted module; see above | safe, not changed |
+| 15 | Compiler.hx:900 | union member emission, module semantics | safe, not changed |
+| 16 | Compiler.hx:914 | same | safe |
+| 17 | Compiler.hx:923 | same | safe |
+| 18 | Compiler.hx:938 | same | safe |
+| 19 | Compiler.hx:1875 | same | safe |
+| 20 | RustDecl.hx:2182 `emittedErrorModule` | enum module → emitted module; module semantics | safe |
+| 21 | RustExpr.hx:2199 | import registration for the constant std enum (#11's continuation); unique key | safe |
+| 22 | RustExpr.hx:2322 | thrown-payload import; enum-module → emitted module | safe (axis note §5) |
+| 23 | RustExpr.hx:5935 `requireEnum` | module semantics | safe |
+| 24 | RustExpr.hx:5895/5897 (one occurrence counted at 5897 for names; 5895 is `exceptionPayloads` — see #25) | — | — |
+| 25 | RustExpr.hx:5895 `exceptionPayloads.get(base.module)` | walks the **superclass chain** of a caught message-only class; keyed by the base class's module. Class identity of the *base* is exactly what is walked — each iteration asks one concrete class. Collision possible only if two classes share the base's module; the base is resolved by identity from the chain, so the module key here names a unique class unless the user put two exception classes in the stdlib base's module. Left unchanged (documented residual, same family as #5) | not changed |
+| 26 | RustType.hx:148 | enum-module → emitted module | safe |
+| 27 | RustImports.hx:76 | module semantics (import target) | safe |
+
+### `payloadEnumNames` sites (key = enum module)
+
+| # | site | judgement | action |
+|---|---|---|---|
+| 28 | Compiler.hx:2256 | behind #5 | not changed |
+| 29 | RustExpr.hx:2198 | constant std enum, unique key | safe |
+| 30 | RustExpr.hx:5868 | behind #7 | not changed |
+| 31 | RustExpr.hx:5897 | behind #25 | not changed |
+| 32 | RustType.hx:147 | continuation of changed #4 — reads the name of the payload module now resolved class-first | safe after #4 |
+
+### `payloadEnumOwners` sites (key = enum module; collides only with two enums/module)
+
+| # | site | judgement | action |
+|---|---|---|---|
+| 33 | Compiler.hx:772 | enum-in-hand → owner module for path printing; module-level meaning | safe (axis note §5) |
+| 34 | RustExpr.hx:5839 | folded-exception message read: enum-in-hand → owner; module-level | safe (axis note §5) |
+| 35 | RustExpr.hx:9836 | enum-in-hand → owner for import; module-level | safe (axis note §5) |
+
+(Numbers exceed 32 because multi-line rows describe the two gets inside one
+`exists() ? get() : …` expression; every `grep -o` occurrence is covered, none
+left undecided.)
+
+## 3. The change (PATCH.diff, 4 sites, +35/−8 lines)
+
+Each change is the same minimal shape: consult
+`state.exceptionPayloadEnums.get(module + "::" + name)` (the class-keyed map
+the earlier fix already maintains) **first**, falling back to the old
+module-keyed lookup when no class-keyed entry exists. When both exist they
+agree by construction (the `set` site writes both from the same pair), so
+single-class-per-module shapes generate byte-identical code — confirmed in §4.
+
+1. `RustExpr.hx` `catchPayloadAccess` — the counterexample site.
+2. `Compiler.hx` `caughtPayloadEnumModuleOf` — reviewer nomination.
+3. `RustDecl.hx` `caughtPayloadEnumModuleOf` — reviewer nomination.
+4. `RustType.hx` exception-type import path — same axis, not previously
+   nominated.
+
+PATCH.diff applies cleanly to the audited earlier-fix state (round-trip
+verified: apply → byte-identical to the post tree, then revert → audited
+hashes back).
+
+## 4. Fixture matrix (gen rc / cargo rc; every cargo run a fresh compile)
+
+| fixture | pre (earlier fix) | post (mine) | claimed | verdict |
+|---|---|---|---|---|
+| xs-crossmod | 0/101 {E0609} | 0/**0** {} | 101→0 | **met** |
+| xt-twoexc-emit-rev | 0/0 | 0/0 | stays 0 | met |
+| xs-twoexc-faultnames | 0/0 | 0/0 | stays 0 (the strongest existing result; already green after the earlier fix — my change must not break it; it doesn't, tree byte-identical pre/post) | met |
+| xt-classemit | 0/0 | 0/0 | stays 0 | met — but **not discriminating** (generated tree byte-identical pre/post, `diff -rq` rc=0 on the whole crate) |
+| xt-twoexc-emit | 0/0 | 0/0 | stays 0 | met — same caveat, byte-identical tree |
+| xs-twoexc | 0/101 {2×E0308} | 0/101 {2×E0308} | converge, stay 101 | met (residual E0308 = the known `endsWith(…,"Fault")` gate, different root cause, untouched) |
+| xs-twoexc-swapped | 0/101 {2×E0308} | 0/101 {2×E0308} | same | met |
+| xt-oneexc-nofault (control) | 0/101 | 0/101 | deliberate negative control stays 101 | met |
+
+Order symmetry (own check): sorted top-level items of `xs-twoexc` vs
+`xs-twoexc-swapped` are identical in both my pre and post states, and the post
+module carries both `{E1Fault,E2Fault}` variants, both `struct E1/E2`, and
+correctly-typed regions in both declaration orders. (My item-level identity
+already holds pre-my-change because the *earlier* fix established it for this
+shape; my change preserves it.)
+
+Non-regression, stronger than rc: for `xt-classemit`, `xt-twoexc-emit`,
+`xs-twoexc-faultnames`, `xt-twoexc-emit-rev`, `xs-twoexc` and
+`xs-twoexc-swapped` the generated crates are **byte-identical** pre/post
+my change (`diff -rq` rc=0 on every full gen tree; only `xs-crossmod`'s tree
+changes) (`diff -rq` over the whole gen tree, rc=0) — consistent with the
+claim that the class-keyed and module-keyed lookups agree whenever no two
+exception classes share a module.
+
+## 5. Reverse test
+
+`evidence/states/reverse-state-hashes.txt` = exact audited earlier-fix hashes
+for the three touched files (RustType untouched, = frozen). Result
+(`reverse2-xs-crossmod.*`): gen=0, **cargo=101**, {E0609
+`no field 'fault' on type 'F1Fault'`} — the counterexample returns. The
+post-state files were then restored and the restoration verified by hash
+(`evidence/states/final-restored-hashes.txt` ≡ `final-hashes.txt`).
+An earlier, semantically equivalent reverse (`reverse-*`, code blocks removed
+but my comment lines left behind — comments do not affect Haxe codegen) gave
+the same 101/{E0609}; both logs kept.
+
+## 6. xs-crossmod custody (per coordinator addendum)
+
+- Archived verbatim at `fixtures/xs-crossmod/` (sources + driver hxml) with
+  `fixtures/README.md` carrying the driver command, per-state expected rc and
+  error classes, and the generated-Rust signature.
+- **Not collected by any runner**: nothing in the audited worktree, this
+  scratch tree, or any manifest references it. It is a manual measurement, not
+  a CI gate.
+- Recommendation on git inclusion (NOT implemented — integration decision):
+  `xs-crossmod` is the only fixture that discriminates this defect class, so
+  `tests/haxe/xs-crossmod/` should be committed and wired into whatever
+  collects `xs-*`. Impact to check before committing: (a) whether `bun run
+  test`'s Rust rows glob `tests/haxe/*` (it would add one generation+build
+  row, currently expected green only with this fix in place — committing the
+  fixture without the compiler fix turns it into a new red row); (b) case
+  counts for other targets are unaffected only if their collectors do not
+  glob `tests/haxe/xs-*`.
+
+## 7. What this does NOT prove
+
+1. **No behavioural test ran.** All green is `cargo build --offline`
+   compile-level. The generated `rethrow_*` functions were never executed.
+2. **The 3 payload-enum-module-axis collisions are untested.** Two payload
+   enums declared in ONE module (e.g. `Faults.hx` with `F1Fault` and
+   `F2Fault`) would still collide in `payloadEnumNames`/`payloadEnumOwners`
+   and, if their owning classes sit in different modules, in
+   `payloadEnumModules`. Sites #33–35 and #22 are judged safe only for the
+   class-collision axis proven here; that axis has no fixture.
+3. **Residual class-axis fall-throughs** (#5/#7/#25) are argued safe by
+   reachability, not proven: a class with neither payload ctor nor
+   message-only ctor sharing a module with a payload class would still
+   inherit the sibling's payload through the module fallback.
+4. **Generality beyond 8 fixtures.** The repository's own Rust reference
+   corpus was not regenerated; regression exposure elsewhere is unmeasured.
+5. **The 33 vs 32 site count.** My exhaustive grep finds 32 `get()`
+   occurrences; the coordinator's 33rd was not located. If it exists outside
+   the five rustcompiler files greped, it is unjudged by this report.
+6. **The full `bun run test` suite was not run** (≈1600s; the fixtures here
+   are outside its collection and the change is codegen-local to the four
+   files). Compile-level evidence only.
+7. **`e1c65975` remains unfixed.** The systematic fix lives in my scratch
+   worktree and this PATCH.diff; porting it onto the `e1c65975` lineage is
+   blocked on that lineage first receiving the earlier payload-key work (its
+   `xt-classemit` is red for unrelated missing machinery).

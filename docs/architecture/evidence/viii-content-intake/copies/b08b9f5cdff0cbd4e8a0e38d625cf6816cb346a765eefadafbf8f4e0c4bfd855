@@ -1,0 +1,2 @@
+90a91
+>         let _p = ReadOnlyBoundaryOps.produce() // L5-BROKEN: producer re-evaluated

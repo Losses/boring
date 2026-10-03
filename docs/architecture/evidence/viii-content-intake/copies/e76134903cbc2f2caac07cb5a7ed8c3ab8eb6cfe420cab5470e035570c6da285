@@ -1,0 +1,34 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, PartialEq)]
+pub struct SignedIntConstructorBox {
+    pub value: u32,
+}
+
+impl SignedIntConstructorBox {
+    pub fn new(value: u32) -> Self {
+        Self {
+            value,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct SignedIntConstructorOps;
+
+impl SignedIntConstructorOps {
+    pub fn signed_int_constructor_ops_sum_index(text: &UStr, offset: u32) -> u32 {
+        let index = u_string::find_from(&(text), UString::from("x").as_ustr(), 0);
+        let r#box = SignedIntConstructorBox::new(u32::from_ne_bytes(((i32::wrapping_add(index, i32::from_ne_bytes(((offset) as i32).to_ne_bytes()))) as u32).to_ne_bytes()));
+        return r#box.value;
+    }
+
+    pub fn signed_int_constructor_ops_negated_index(text: &UStr) -> u32 {
+        let index = u_string::find_from(&(text), UString::from("x").as_ustr(), 0);
+        let r#box = SignedIntConstructorBox::new(u32::from_ne_bytes(((-(index as i32)) as u32).to_ne_bytes()));
+        return r#box.value;
+    }
+}

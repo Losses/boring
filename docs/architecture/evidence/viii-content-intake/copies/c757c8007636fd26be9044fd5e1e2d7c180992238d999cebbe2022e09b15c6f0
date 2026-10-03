@@ -1,0 +1,50 @@
+#![cfg(test)]
+
+use crate::boring::sealed_variant_ops::DotDrawKind;
+use crate::boring::sealed_variant_ops::SealedVariantOps;
+use crate::boring::sealed_variant_ops::StripeDrawKind;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn test_singleton_to_string() {
+    testlib::run("tests.SealedVariantTests.testSingletonToString", "tests.SealedVariantTests.testSingletonToString: singleton variant prints its bare name", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[78,111,110,101,68,114,97,119,75,105,110,100]), (UString::from(format!("{}", { let __guard = crate::boring::sealed_variant_ops::NONE_DRAW_KIND_INSTANCE.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() }.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[78,111,110,101,68,114,97,119,75,105,110,100]), (UString::from(format!("{}", { let __guard = crate::boring::sealed_variant_ops::NONE_DRAW_KIND_INSTANCE.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() }.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[78,111,110,101,68,114,97,119,75,105,110,100]), SealedVariantOps::sealed_variant_ops_none_label().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_record_to_string() {
+    testlib::run("tests.SealedVariantTests.testRecordToString", "tests.SealedVariantTests.testRecordToString: record variants print fields in parameter order", || {
+        let stripe = StripeDrawKind::new(1.5f32, 0.5f32);
+        let dot = DotDrawKind::new(2.25f32, 0.75f32);
+        test_core::TestCore::test_core_equals_string(UStr::new(&[83,116,114,105,112,101,68,114,97,119,75,105,110,100,40,115,116,114,111,107,101,87,105,100,116,104,61,49,46,53,44,32,103,97,112,76,101,110,103,116,104,61,48,46,53,41]), (UString::from(format!("{}", stripe.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[68,111,116,68,114,97,119,75,105,110,100,40,100,111,116,68,105,97,109,101,116,101,114,61,50,46,50,53,44,32,103,97,112,76,101,110,103,116,104,61,48,46,55,53,41]), (UString::from(format!("{}", dot.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_labels() {
+    testlib::run("tests.SealedVariantTests.testLabels", "tests.SealedVariantTests.testLabels: variant labels distinguish all three classes", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[110,111,110,101]), SealedVariantOps::sealed_variant_ops_label_of((Box::new({ let __guard = crate::boring::sealed_variant_ops::NONE_DRAW_KIND_INSTANCE.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() })).clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[115,116,114,105,112,101]), SealedVariantOps::sealed_variant_ops_label_of(Box::new(StripeDrawKind::new(1.5f32, 0.5f32))).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[100,111,116]), SealedVariantOps::sealed_variant_ops_label_of(Box::new(DotDrawKind::new(2.25f32, 0.75f32))).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_type_checks() {
+    testlib::run("tests.SealedVariantTests.testTypeChecks", "tests.SealedVariantTests.testTypeChecks: variant type checks include the interface and reject siblings", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, false, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, false, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, false, UStr::new(&[]));
+    });
+}

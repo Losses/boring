@@ -1,0 +1,66 @@
+# Baseline extracts (captured 2026-09-30T02:17:42-04:00)
+== p09-chainA-full/REPORT.md (2026-09-29) key lines ==
+4:**结论：第 3 段（driver-verify）失败，rc=1 —— 失败分类：生成代码真实编译错误（非环境不可达）。全链不通过，本 attempt 作废为诊断证据；修复须改清单钉住的代码生成器/Runtime，属新输入态任务，修复后须开新 attempt 全链重跑。**
+10:- 副本适配（唯一改动，已记录 evidence/copy-adaptation.txt）：`.haxelib/boring/.dev` 由正本路径改写为副本根路径（loader identity 要求 .dev==root；`.haxelib` 不在 1433 条清单内，poststate 0 漂移佐证）。
+11:- 环境：flake shell（flake.nix+flake.lock 原字节复制到 /tmp/p09-flake，path: 引用，cwd=副本根 → HAXELIB_PATH 指副本 .haxelib）；显式 export 全表（OPTION_C_ROOT / SOURCE_MANIFEST / EXCLUSIVE_RUNNER_DIR / GIT_CEILING_DIRECTORIES / XDG_CACHE_HOME=根内 out/xdg-cache / **EXPECTED_MANIFEST_ENTRIES=1433** / BORING_SWIFT_SYSTEM_PACKAGE=`0svbxvd…-boring-swift-system-1.6.6`）；PATH 前置 swiftc shim 副本（dc-warn 无执行位，故复制到本机盘并 chmod 755），SWIFT_SHIM_STATE 独立。无并发 run-exclusive（跑前 pgrep 确认）。
+17:| 0 | env-guard | 0 | poststate 1433/0；toolchain-resolution.txt 封存 |
+18:| 1 | identity | 0 | manifest-sha256=**610099bb95c0b99e…**（权威锚吻合）；1433=1433 守卫过；poststate 1433/0 |
+19:| 2 | driver-build | 0 | driver.js sha256=`bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53`、52,779 B —— 哈希等值通过；poststate 1433/0 |
+20:| 3 | driver-verify | **1** | 见 §3；poststate 仍 1433/0（执行零漂移） |
+28:  `reference/swift/gen/boring/VectorCodec.swift:49:43: error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'`
+29:  根因：`SwiftArrayBoundary.hx:259` 生成 `TiqianArray(records.toMutableArray())`，而 Runtime.swift:393 `toMutableArray()` 返回 `TiqianArray<Element>`、`TiqianArray.init` 收 `[Element]` —— 生成器包装与 Runtime 签名不匹配。两文件均在 1433 条清单钉住范围内，**执行者不可改码过链**。
+33:- 17 段 rc=0：**不满足**（第 3 段 rc=1，13 段 skipped）。→ 不通过，无"部分通过"。
+35:- 每段 poststate 1433/0：满足（已跑各段全部 1433 entries, 0 failures）。
+41:- 未使用。Swift 腿"环境不可达"已被 shim+export 真实关闭（到达真实工具链、真实编译诊断）。遗留义务是**代码修复**：改 SwiftArrayBoundary.hx:259 的包装（或生成侧直接迭代 records）/Runtime 签名二选一，属新输入态 → 重物化清单 → 新 attempt 全链重跑。
+
+== swift-arrfix/REPORT.md (2026-09-29) key lines ==
+15:| ② 编译层（核心） | Swift 腿 child record `outcome=normal-exit` 且 `exit=0` | 0020 建库 **0**（71.5 s）、0021 建测试可执行 **0**、0022 跑测试 **0**；f32 腿 0030/0031/0032 同 **0/0/0**；`swift.jsonl` 729 pass + 1 not_applicable、**0 fail**；`swift-f32.jsonl` 675 + 1、**0 fail** | **通过** |
+19:- **Stage 3 仍 rc=1**，但**不是** Swift 腿：Swift 腿全绿后 driver 走到 `compare`（record 0033 建管理成功）才失败，报 `Cross-target consistency check failed with 166 divergence(s)`。**归族判定：不是同一族**，且**已被隔离实验证明与本次改动无关**（§6）。
+167:- `swift.jsonl`：730 条 = **729 pass** + 1 `not_applicable`，**0 fail**。
+168:- `swift-f32.jsonl`：676 条 = **675 pass** + 1 `not_applicable`，**0 fail**。
+234:  `Cross-target consistency check failed with 166 divergence(s):`
+
+== stage4-attribution run table ==
+| # | tree | command | wall | pass/fail/errors | tests/files | unique fail names | load |
+|---|---|---|---|---|---|---|---|
+| 1 | DIRTY | harness plan stage 4 (`bun run test`) | 1705.26 s | 984 / **49** / 7 | 1033 / 303 | 49 | 6.25 |
+| 2 | DIRTY | direct `bun run test` at low load | 1626.34 s | 985 / **48** / 7 | 1033 / 303 | 48 | 2.73 |
+| 3 | **HEAD** | stages 2+3+4, harness env | stage3 403 s (rc=1); stage4 **1795.01 s** (rc=1) | 985 / **48** / 7 | 1033 / 303 | **48** | 5.71→6.17→5.99 |
+| 4 | OURS+RES | `driver.js gen` only (no suite) | 3.5 min | — | — | — | 6.0–7.1 |
+
+Load/`uptime`/`free` are recorded before and after each stage in
+`evidence/run-records.txt`, `evidence/run-head/run.log` and
+`evidence/run-dirty-lowload/env-baseline.txt`.
+
+Run 1 → run 2 relationship (established elsewhere, re-verified here): lowering
+load cleared exactly **one** name —
+`child execution evidence > Driver.step integration > without the evidence
+setting the driver keeps its previous behaviour` — so run 2's 48 are a strict
+subset of run 1's 49 (`evidence/name-diff-highload-vs-lowload.txt`). Run 2 is
+the "48 failures" under study.
+
+**Run 3 vs run 2: the name sets are identical (48 == 48, intersection 48, empty
+symmetric difference), the counts are identical, and the raw `(fail)` line count
+
+== failure class split ==
+value wrapper generated trees > renders the five target representations and member forms
+
+== string-family-fix REPORT counts ==
+17:- Census: **BEFORE 48 unique failing test names → AFTER2 35, NEW = 0, FIXED = 13.**
+35:   1742.84 s (BEFORE), 1630.33 s (AFTER1), 1640.27 s (AFTER2) — all inside the sanctioned
+80:| line | asserted | generator emits (`float_width.rs:42`) | class |
+97:| :75 | `let cmp: Arc<dyn Fn(&str, &str) -> u32 …>` | `Arc<dyn Fn(&UStr, &UStr) -> u32 …>` (:48) | stale → **FIXED** |
+113:| :42 | `id: new_id, name: new_name.to_string()` | `new_name.to_ustring()` (:27) | stale → **FIXED** |
+150:| :48/:49 | `UStringFault::…` match arms | present | LEGIT, matches |
+153:| line | asserted | generator emits (`value_type_ops.rs:42`) | class |
+162:### 3.14 Remaining items from the sibling's 48-line census — disposition
+
+== test-timeout-budget REPORT counts ==
+30:| `(fail)` line occurrences in transcript | **96** (= 48 names x 2 prints) |
+31:| **unique failing test names** | **48** |
+36:`common = 48`. **The 48/24/24 split reproduces exactly.**
+109:| 12 | `tests/ts/extern-bindings.test.ts:39` | 5000 | 5001 ms | 1x haxe <isolated probe.hxml> via compileFixture (ts) | **intrinsic** (local-helper) | pass (25343 ms) |
+111:| 14 | `tests/ts/fn-values.test.ts:90` | 5000 | 5001 ms | 1x haxe <isolated probe.hxml> (rust) | **intrinsic** (direct) | pass (25456 ms) |
+112:| 15 | `tests/ts/precision-switch.test.ts:12` | 5000 | 5001 ms | 1x haxe examples/ts.hxml (full example pipeline) | **intrinsic** (direct) | pass (25477 ms) |
+114:| 17 | `tests/ts/rust-packages.test.ts:8` | 5000 | 5002 ms | 1x haxe <isolated probe.hxml> (rust compiler) | **intrinsic** (direct) | pass (25776 ms) |
+115:| 18 | `tests/ts/sealed-variants.test.ts:101` | 5000 | 5001 ms | 1x haxe <isolated probe.hxml> (ts) | **intrinsic** (direct) | pass (23480 ms) |

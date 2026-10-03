@@ -1,0 +1,12 @@
+### comm -23 <(base roots) <(f32 roots) on the CURRENT (fixed) tree ###
+command: comm -23 <(grep -E '^[A-Za-z_][A-Za-z0-9_.]*$' examples/<t>.hxml | sort -u) <(grep -E '^[A-Za-z_][A-Za-z0-9_.]*$' examples/<t>-f32.hxml | sort -u)
+
+--- kotlin ---
+line count = 1
+registry.Main
+--- rust ---
+line count = 1
+registry.Main
+--- swift ---
+line count = 1
+registry.Main

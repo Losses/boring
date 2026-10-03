@@ -1,0 +1,12 @@
+use crate::boring::no_such_element_fault_exception::NoSuchElementFault;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct NoSuchElementMessageReader;
+
+impl NoSuchElementMessageReader {
+    pub fn no_such_element_message_reader_describe(error: NoSuchElementFault) -> UString {
+        return UString::from(format!("{}", format!("{}", error)).as_str());
+    }
+}

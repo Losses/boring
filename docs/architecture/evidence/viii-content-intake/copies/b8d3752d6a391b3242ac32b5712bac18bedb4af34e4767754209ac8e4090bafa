@@ -1,0 +1,5 @@
+$ diff -r <pristine>/out/readonly-boundary/current <wt>/out/readonly-boundary/current
+exit: 0 (no output — trees identical, 7 files)
+
+$ diff -r /tmp/gen-gap-base /tmp/gen-gap-post
+exit: 0 (no output — trees identical, 6 files)

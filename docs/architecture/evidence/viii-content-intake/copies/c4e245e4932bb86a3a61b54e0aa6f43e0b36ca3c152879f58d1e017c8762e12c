@@ -1,0 +1,7 @@
+/tmp/p08-l5/singlev-acc/ReadOnlyBoundaryOps.swift:91:13: warning: initialization of immutable value '_p' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 89 |         ReadOnlyBoundaryOps.producerCalls = 0
+ 90 |         let mutable = ReadOnlyBoundaryOps.produce()
+ 91 |         let _p = ReadOnlyBoundaryOps.produce() // L5-BROKEN: producer re-evaluated
+    |             `- warning: initialization of immutable value '_p' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+ 92 |         let view: ReadOnlyArray<Int32> = ReadOnlyArray(mutable)
+ 93 |         if Int(0) < mutable.count { mutable[Int(0)] = 8 } else { mutable.append(8) }

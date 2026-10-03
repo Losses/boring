@@ -1,0 +1,47 @@
+    function prepareArrayOperand(e:TypedExpr, actualOptional:Null<Bool> = null):SwiftArrayPreparedOperand {
+        final isOptional = actualOptional == null ? arrayOperandOptionality(e) : actualOptional;
+        final recorded = switch (stripWrap(e).expr) {
+            case TLocal(v): localArrayBindingStorages.get(v.id);
+            case _: null;
+        };
+        return {
+            text: arrayOperandText(e),
+            sourceType: e.t,
+            storage: recorded == null ? SwiftArrayBoundary.sourceStorage(e.t, isEmptyArrayDecl(e), isNullLiteral(e)) : recorded,
+            optionality: isOptional ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand,
+            presenceFact: arrayOperandPresenceFact(e)
+        };
+    }
+
+    /** Actual optionality of the value the current Swift expression lowering produces. */
+    function arrayOperandOptionality(e:TypedExpr):Bool {
+        if (isNarrowed(e))
+            return false;
+        if (ternaryNonNullBothArms(e))
+            return false;
+        switch (stripWrap(e).expr) {
+            case TLocal(v) if (parameterPlansByLocal.exists(v.id)):
+                return parameterPlansByLocal.get(v.id).bodyOptionality == SwiftArrayOptionality.OptionalOperand;
+            case _:
+        }
+        if (isNullLeafType(e.t) && isNonOptionalDeclared(e))
+            return false;
+        return optionalValued(e) || isNullLeafType(e.t);
+    }
+
+    function arrayOperandPresenceFact(e:TypedExpr):SwiftArrayPresenceFact {
+        if (isNarrowed(e))
+            return SwiftArrayPresenceFact.GuardProvenPresent;
+        if (ternaryNonNullBothArms(e))
+            return SwiftArrayPresenceFact.BranchValuesRequired;
+        switch (stripWrap(e).expr) {
+            case TLocal(v) if (parameterPlansByLocal.exists(v.id)):
+                return parameterPlansByLocal.get(v.id).bodyPresenceFact;
+            case _:
+        }
+        if (!SwiftArrayBoundary.isOptionalArrayType(e.t))
+            return SwiftArrayPresenceFact.SourceTypeRequired;
+        if (isNonOptionalDeclared(e))
+            return SwiftArrayPresenceFact.DefaultMaterializedPresent;
+        return SwiftArrayPresenceFact.NoPresenceProof;
+    }

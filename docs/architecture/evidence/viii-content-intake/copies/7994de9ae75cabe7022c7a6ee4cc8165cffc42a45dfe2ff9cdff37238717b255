@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class NullableArrayArgumentTests {
+@boring.test.Test
+    fun checkedSum() {
+        Test.run("tests.NullableArrayArgumentTests.checkedSum", "tests.NullableArrayArgumentTests.checkedSum: a null-checked nullable array unwraps into a borrowed Array parameter") {
+        }
+    }
+}

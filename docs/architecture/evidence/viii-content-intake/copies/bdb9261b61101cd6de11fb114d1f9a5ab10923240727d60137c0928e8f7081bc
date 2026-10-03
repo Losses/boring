@@ -1,0 +1,16 @@
+===== m1  markers=2 bytes=2713
+-- OLD rc=0 INTEGRITY OK: sealed at line 31, sha cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1, stage manifest exact
+-- NEW (tail -n 1 anchoring) rc=0 INTEGRITY OK: sealed at line 31, sha cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1, stage manifest exact
+-- ALT (head -n 1 anchoring) rc=1 INTEGRITY FAIL: content after the end marker (91 byte(s) past the marker line, byte 2622 of 2713)
+===== m2  markers=2 bytes=2728
+-- OLD rc=0 INTEGRITY OK: sealed at line 32, sha 6a421e70930f92a1b403c06d62b271578ac433512b9fb5b2f35d8ea5690326c2, stage manifest exact
+-- NEW (tail -n 1 anchoring) rc=0 INTEGRITY OK: sealed at line 32, sha 6a421e70930f92a1b403c06d62b271578ac433512b9fb5b2f35d8ea5690326c2, stage manifest exact
+-- ALT (head -n 1 anchoring) rc=1 INTEGRITY FAIL: content after the end marker (106 byte(s) past the marker line, byte 2622 of 2728)
+===== m3  markers=3 bytes=2812
+-- OLD rc=0 INTEGRITY OK: sealed at line 34, sha 9744cbf997a2867867b0645387a9fa2ce7981a136d99676599568df7f000ea29, stage manifest exact
+-- NEW (tail -n 1 anchoring) rc=0 INTEGRITY OK: sealed at line 34, sha 9744cbf997a2867867b0645387a9fa2ce7981a136d99676599568df7f000ea29, stage manifest exact
+-- ALT (head -n 1 anchoring) rc=1 INTEGRITY FAIL: content after the end marker (190 byte(s) past the marker line, byte 2622 of 2812)
+===== m4  markers=2 bytes=2713
+-- OLD rc=1 INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, actual cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1)
+-- NEW (tail -n 1 anchoring) rc=1 INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, actual cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1)
+-- ALT (head -n 1 anchoring) rc=1 INTEGRITY FAIL: content after the end marker (91 byte(s) past the marker line, byte 2622 of 2713)

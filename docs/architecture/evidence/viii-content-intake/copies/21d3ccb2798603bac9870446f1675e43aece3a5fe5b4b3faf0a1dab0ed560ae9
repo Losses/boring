@@ -1,0 +1,10 @@
+$HAXE = /nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe ; cp/extra/Seen.hx body:
+package extra;
+#error "SEEN_INCLUDE"
+class Seen {}
+ctrl       rc=0 first-line=MAIN_RAN
+   hxml: -cp cp|--interp|-main Main|
+inc        rc=1 first-line=cp/extra/Seen.hx:2: characters 8-22 : SEEN_INCLUDE
+   hxml: -cp cp|--macro haxe.macro.Compiler.include('extra')|--interp|-main Main|
+inc_short  rc=1 first-line=cp/extra/Seen.hx:2: characters 8-22 : SEEN_INCLUDE
+   hxml: -cp cp|--macro include('extra')|--interp|-main Main|

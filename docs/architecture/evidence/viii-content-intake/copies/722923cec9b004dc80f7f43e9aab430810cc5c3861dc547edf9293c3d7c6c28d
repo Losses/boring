@@ -1,0 +1,90 @@
+use crate::runtime::sorted_table::SortedTable;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordOrderShifted {
+    pub a: u32,
+    pub b: u32,
+    pub c: UString,
+}
+
+impl RecordOrderShifted {
+    pub fn new(a: u32, c: &UStr, b: Option<u32>) -> Self {
+        let b = b.unwrap_or_else(|| 0);
+        Self {
+            a,
+            c: c.to_ustring(),
+            b: b,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("RecordOrderShifted(")); __s += &(UString::from("a=")); __s += &(UString::from((self.a).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("b=")); __s += &(UString::from((self.b).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("c=")); __s += (self.c).to_ustring().as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+pub fn compare_record_order_shifted(a: &RecordOrderShifted, b: &RecordOrderShifted) -> i32 {
+    let cmp_a = match i32::from_ne_bytes((*(&a.a)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.a)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_a != 0 { return cmp_a; }
+    let cmp_b = match i32::from_ne_bytes((*(&a.b)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.b)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_b != 0 { return cmp_b; }
+    let cmp_c = SortedTable::sorted_table_compare_strings((&a.c).as_ustr(), (&b.c).as_ustr());
+    if cmp_c != 0 { return cmp_c; }
+    0
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordOrderAligned {
+    pub a: u32,
+    pub b: u32,
+    pub c: UString,
+}
+
+impl RecordOrderAligned {
+    pub fn new(a: u32, b: u32, c: &UStr) -> Self {
+        Self {
+            a,
+            b,
+            c: c.to_ustring(),
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("RecordOrderAligned(")); __s += &(UString::from("a=")); __s += &(UString::from((self.a).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("b=")); __s += &(UString::from((self.b).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("c=")); __s += (self.c).to_ustring().as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+pub fn compare_record_order_aligned(a: &RecordOrderAligned, b: &RecordOrderAligned) -> i32 {
+    let cmp_a = match i32::from_ne_bytes((*(&a.a)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.a)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_a != 0 { return cmp_a; }
+    let cmp_b = match i32::from_ne_bytes((*(&a.b)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.b)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_b != 0 { return cmp_b; }
+    let cmp_c = SortedTable::sorted_table_compare_strings((&a.c).as_ustr(), (&b.c).as_ustr());
+    if cmp_c != 0 { return cmp_c; }
+    0
+}
+
+#[derive(Clone, Copy)]
+pub struct RecordOrderOps;
+
+impl RecordOrderOps {
+    pub fn record_order_ops_shifted_printed() -> UString {
+        return UString::from(format!("{}", RecordOrderShifted::new(1u32, &(UStr::new(&[120])), Some(5)).to_string()).as_str());
+    }
+
+    pub fn record_order_ops_shifted_defaulted() -> UString {
+        return UString::from(format!("{}", RecordOrderShifted::new(1u32, &(UStr::new(&[120])), Some(0)).to_string()).as_str());
+    }
+
+    pub fn record_order_ops_aligned_printed() -> UString {
+        return UString::from(format!("{}", RecordOrderAligned::new(1u32, 5u32, &(UStr::new(&[120]))).to_string()).as_str());
+    }
+
+    pub fn record_order_ops_shifted_equal() -> bool {
+        let left = RecordOrderShifted::new(1u32, &(UStr::new(&[120])), Some(5));
+        let right = RecordOrderShifted::new(1u32, &(UStr::new(&[120])), Some(5));
+        return left.a == right.a && left.b == right.b && (left.c).to_ustring() == (right.c).to_ustring();
+    }
+}

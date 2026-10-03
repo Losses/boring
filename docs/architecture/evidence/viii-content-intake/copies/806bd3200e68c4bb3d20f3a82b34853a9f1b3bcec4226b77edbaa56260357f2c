@@ -1,0 +1,283 @@
+# Independent verification — byte-view fix to `check-log-integrity.sh` (frozen seal checker)
+
+* Verifier: independent subagent (re-derived everything from raw artifacts; no summary trusted).
+* Date: 2026-09-30 (session wall clock), all times local.
+* Frozen artifact: `boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/check-log-integrity.sh`
+  * OLD = `dc-warn/out/integrity-bytefix/backup/check-log-integrity.sh.orig`
+  * NEW = installed file in the frozen runner.
+* Method discipline: every tamper experiment was run on `cp -a` copies under
+  `dc-warn/out/bytefix-verify/scratch/` (the `dc-warn` fuse.rclone mount drops exec bits, so
+  checkers were invoked as `bash <checker> <dir>`). Exit codes were captured with
+  `out=$(bash checker dir 2>&1); rc=$?` — **never through a pipe**. The frozen tree was only read
+  and executed; it was never written (spot-checked below). Raw logs: `evidence/` (index at end).
+
+---
+
+## 1. Hash table (task 1)
+
+Recomputed with `sha256sum`; sizes with `wc -c`/`stat`.
+
+| file | bytes | sha256 (recomputed) | claimed / recorded | verdict |
+|---|---|---|---|---|
+| `exclusive-runner/check-log-integrity.sh` (NEW, installed) | 3812 | `606cb4f391ba288137ef70caad989c848b96cbb78547efac12bd8527f534e3f7` | `606cb4f3…` (new) | **CONFIRMED** |
+| `integrity-bytefix/backup/check-log-integrity.sh.orig` (OLD) | 2641 | `bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a` | `bebd0cf9…` (old) | **CONFIRMED** |
+| `exclusive-runner/run-exclusive.sh` | 8626 | `7c332d3369e0643a…` | FILES.sha256 `7c332d33…` | unchanged |
+| `exclusive-runner/option-c-stage-wrapper.sh` | 1873 | `c14043c0d68623fa…` | FILES.sha256 `c14043c0…` | unchanged |
+| `exclusive-runner/option-c-plan.md` | 8191 | `996293d79b0fbc52…` | FILES.sha256 `996293d7…` | unchanged |
+| `exclusive-runner/README.md` | 4147 | `db36aaf878097f18…` | FILES.sha256 `db36aaf8…` | unchanged (mtime 03:07 predates the fix; no independent pre-change copy exists — residual gap noted by the prior reviewer xcheck2 §1; not material, see below) |
+| **`exclusive-runner/selftest.sh`** | 8863 | `81090001c3907b4a…` | FILES.sha256 `961e1307…` | **CHANGED since the deliverable (see finding F1)** |
+| `exclusive-runner/option-c.plan` | 9440 | `42517f84a02ea326…` | TCN-102 `42517f84` | unchanged |
+| `exclusive-runner/option-c-poststate.py` | 2129 | `4ad34edf398e175a…` | TCN-102 `4ad34edf` | unchanged |
+| `exclusive-runner/option-c-child-records.py` | 1722 | `d1199267d87cc635…` | TCN-102 `d1199267` | unchanged |
+| All 17 deliverable files under `dc-warn/out/integrity-bytefix/` | — | `sha256sum -c FILES.sha256` | 17/17 | **all OK** |
+
+**"Only `check-log-integrity.sh` changed" — verdict: CONFIRMED for the fix itself.**
+Independent proof, stronger than hash comparison: `PATCH.diff` applied with `patch -p1` to a copy
+of the backup yields a file **byte-identical** to the installed NEW checker (sha `606cb4f3…`,
+3812 B). So the recorded diff exactly accounts for the old→new transition, and every other file of
+the 7-file frozen set still matches its recorded hash (F1: `selftest.sh` is the exception, and it
+changed *after* the deliverable was written — see below).
+
+### Finding F1 — `selftest.sh` drifted after the deliverable; the change is documented and benign
+
+`selftest.sh` mtime is 2026-09-29 20:31 (deliverable written 18:42). Current hash
+`81090001c3907b4a…` ≠ recorded `961e1307…`. Wiki note **TCN-102** (same task `t-mun9hxa8-fsmg`)
+documents this as a deliberate, additive-only change (+12 lines, zero deletions): the old selftest
+control appended `zombie writer append\n` **with** a newline — a case the *old* checker already
+caught — so no frozen selftest covered the no-LF blind spot; the new control
+(`selftest.sh:164` `printf 'abcdef' >>"$latest_nolf/harness.log"`, expecting rc=1) closes that gap.
+Corroborating evidence found independently: four live attempts (`attempt-20260929T203259-3291371`,
+`203441-3295732`, `203727-3302888`, `203803-3304340`, mtime window 20:32–20:38) each carry a
+literal 6-byte `abcdef` append without trailing newline after their marker line — residue of that
+selftest control. The frozen tree therefore is **not** at the exact state of the deliverable
+snapshot; the checker under verification, however, is untouched and is exactly the patch's NEW bytes.
+
+---
+
+## 2. Control table (task 2)
+
+Bases: `B1 = attempt-20260929T180809-2918225` (harness.log 2622 B, marker at line 30, marker_end
+2622) and `B2 = attempt-20260929T203318-3292330` (3173 B, line 36, marker_end 3173). Ground truth
+for both bases derived independently with Python (byte search for line-start marker + sha256 of
+the prefix), not from the checker. Each case = fresh `cp -a` copy, tampered, both checkers run.
+Raw output: `evidence/02-controls-detail.txt`; cleaned table `evidence/02b-controls-final.tsv`.
+
+| # | case | command (on copy) | expected old rc | expected new rc | observed old rc | observed new rc | verdict |
+|---|---|---|---|---|---|---|---|
+| pos1 | untampered B1 | (none) | 0 | 0 | **0** | **0** | PASS — prints `INTEGRITY OK: sealed at line 30, sha 597a9e11…, stage manifest exact` |
+| pos2 | untampered B2 | (none) | 0 | 0 | **0** | **0** | PASS — `INTEGRITY OK: sealed at line 36, sha 340f2643…` |
+| negA1 | `printf 'X' >> harness.log` (1 B, no LF) | 0 (blind) | non-zero | **0** | **1** | PASS — `1 byte(s) past the marker line, byte 2622 of 2623` |
+| negA6 | `printf 'TAMPER' >> harness.log` (6 B, no LF) — the claimed repro | 0 (blind) | non-zero | **0** | **1** | PASS — `6 byte(s) past the marker line, byte 2622 of 2628` |
+| negA1_b2 | `printf 'Q' >> harness.log` on B2 (1 B, no LF) | 0 | non-zero | **0** | **1** | PASS — `1 byte(s) … byte 3173 of 3174` |
+| negA6_b2 | `printf 'TAMPER' >> harness.log` on B2 (6 B, no LF) | 0 | non-zero | **0** | **1** | PASS — `6 byte(s) … byte 3173 of 3179` |
+| negA19 | `printf 'TAMPERED-NO-NEWLINE'` (19 B, no LF; author's exact string) | 0 | non-zero | **0** | **1** | PASS — `19 byte(s) … byte 2622 of 2641` (== author's `controls.tsv`) |
+| negB1 | `printf 'TAMPERED-WITH-NEWLINE\n'` (22 B, LF) | non-zero | non-zero | **1** | **1** | PASS — `22 byte(s) … byte 2622 of 2644` |
+| negB1_b2 | same on B2 | non-zero | non-zero | **1** | **1** | PASS — `22 byte(s) … byte 3173 of 3195` |
+| negB2 | flip 1 byte in `step-2320672395.stdout` (242015 B file; flip verified: sha `d575aec2…`→`5a852458…`) | non-zero | non-zero | **1** | **1** | PASS — `stage evidence hash changed`, diff identical to author's detail |
+| negB3 | `printf '0\n' > step-737716045.status` (1→0) | non-zero | non-zero | **1** | **1** | PASS — `stage evidence hash changed` |
+| negB4 | `rm step-2119220958.stderr` | non-zero | non-zero | **1** | **1** | PASS — `stage evidence set differs from manifest` / `deleted: step-2119220958.stderr` |
+| e_nolf | synthetic marker-only log, no trailing LF | 0 | 0 | **0** | **0** | consistent — nothing follows the marker line |
+| e_nomark | synthetic unsealed log (no marker) | 1 | 1 | **1** | **1** | `no end marker (unsealed log)` |
+| e_prefix | synthetic log, recorded sha = `deadbeef` | 1 | 1 | **1** | **1** | `prefix sha mismatch` |
+| E1 | truncate log to 2621 B (drop marker's terminating LF) | 0 (inherited) | 0 (property-consistent) | **0** | **0** | both accept — see §6, limitation L5 |
+| E2 | truncate to 2621 + `printf 'x' >>` (1 B, no LF) | 1 | 1 | **1** | **1** | NEW rejects via **sha layer** (`recorded 597a9e…db03ax != 597a9e…db03a`); byte gate blind here — see L6 |
+| E3 | append 200000 B, no LF | 0 (blind) | non-zero | **0** | **1** | `200000 byte(s) … byte 2622 of 202622` + NEW-only cosmetic stderr `tail: … Broken pipe` (L7) |
+
+Notes:
+* Every negative control still fails under the new checker; failure messages for the
+  with-newline and stage-tampering cases are byte-identical to the author's recorded detail
+  (same diff lines, same `deleted:` line). **Nothing was loosened** (also see batch: 0
+  old-fail→new-pass).
+* One verifier harness bug, disclosed: my first `negA6_b2` run accidentally copied B1 (a
+  `mk()` aliasing slip), so that row read "byte 2622 of 2628"; it was rebuilt correctly on B2
+  ("byte 3173 of 3179", row above). Same disclosure applies to the first `multi1`/`multi2`
+  constructions (see §3 — the checker rejected them correctly; my construction was flawed).
+* PIT-273 (0-byte flip target silently does nothing) was avoided: the flip target is 242015 B and
+  the post-flip sha is shown to differ from the clean copy.
+
+---
+
+## 3. Multi-marker / last-end-marker claim (task 4)
+
+Constructs (all on copies of B1; `sha256` computed over the actual file prefix):
+
+| case | construction | old rc | new rc | result |
+|---|---|---|---|---|
+| multi0 | append a second self-consistent end marker (LF), no forged content | **0** | **0** | **ACCEPTED by both** — `INTEGRITY OK: sealed at line 31, sha cddcb972…` |
+| multi1 | append `FORGED-LINE\n` + second self-consistent marker (LF) | **0** | **0** | **ACCEPTED by both** — `sealed at line 32, sha a48a9d23…` |
+| multi2 | same as multi1 but second marker **without** trailing LF | **0** | **0** | **ACCEPTED by both** |
+| multi-badsha | second marker whose sha covers bytes that are not in the file (my initially flawed construction — the `FORGED-LINE` was never written) | **1** | **1** | both reject: `prefix sha mismatch` (bonus negative control: a *malformed* second marker is still caught) |
+| multi3 | tamper 1 byte of a sealed `.stdout`, re-seal marker only (manifest not updated) | **1** | **1** | both reject: `stage evidence hash changed` (partial re-seal does not hide stage tampering) |
+| multi3b | tamper `.stdout` byte + rewrite the manifest hash in the log + fresh self-consistent marker (full re-seal) | **0** | **0** | **ACCEPTED by both**; resulting sha `80344e6c…45d5` **exactly equals** the author's BOUNDARY 1 reproduction — independent byte-level reproduction of the author's no-key demonstration |
+
+**Reviewer claim verified: the checker takes the last end marker (`grep -abo … | tail -n 1`), so
+appending a second self-consistent marker is accepted (rc=0) by the new checker — and also by the
+old checker (0/0 on every multi case).**
+
+**Classification: the same "no key" limitation, not a distinct defect class introduced by the fix.**
+Root cause in all cases is the unkeyed seal: anyone who can write the log can compute a new valid
+marker over any prefix. The last-marker anchoring (`tail -n 1`) is the *mechanism* that lets the
+attack be **append-only** (log grows, original seal untouched) instead of requiring a rewrite. It
+is inherited from the old checker unchanged. I demonstrated the anchoring choice matters: a
+first-match variant (only `tail -n 1` → `head -n 1` on the marker grep, `evidence/06-firstmatch-demo.txt`)
+still passes both pristine bases (rc=0) but **rejects multi0/1/2 (rc=1, "content after the end
+marker")**. So: (a) the claim is real; (b) it is a sharper instance of the documented no-key
+limitation, not a new defect class; (c) the author's report documents the root cause (REPORT §5.1:
+「无密钥，可无损重封 … 只能防无意损坏，不防有意重封」) but does not name the append-only
+sub-case by name — the Wiki note **TCN-99** fills that gap ("可追加式重封", plus the minimal
+tightening: assert exactly one marker line, or an out-of-log anchor/key). Verdict: documented
+accurately at the root-cause level; the append sub-case should be added to the REPORT wording.
+
+---
+
+## 4. Byte-offset arithmetic (task 3)
+
+Independent ground truth per base (Python, not the checker): B1 `marker_off=2531`, marker line
+91 B (26-char prefix + 64 hex + LF), `marker_end=2622` (= pristine length); B2 `marker_off=3082`,
+`marker_end=3173`.
+
+| tamper size | base | expected message numbers | message actually printed | off-by-one? |
+|---|---|---|---|---|
+| 1 B (no LF) | B1 | `1 … byte 2622 of 2623` | `1 byte(s) past the marker line, byte 2622 of 2623` | **no** |
+| 6 B (`TAMPER`, no LF) | B1 | `6 … byte 2622 of 2628` | `6 byte(s) … byte 2622 of 2628` | **no** |
+| 1 B (no LF) | B2 | `1 … byte 3173 of 3174` | `1 byte(s) … byte 3173 of 3174` | **no** |
+| 6 B (no LF) | B2 | `6 … byte 3173 of 3179` | `6 byte(s) … byte 3173 of 3179` | **no** |
+| 19 B (no LF) | B1 | `19 … byte 2622 of 2641` | `19 byte(s) … byte 2622 of 2641` | **no** |
+| 22 B (LF) | B1 / B2 | `22 … byte 2622 of 2644` / `byte 3173 of 3195` | both as expected | **no** |
+| 200000 B (no LF) | B1 | `200000 … byte 2622 of 202622` | `200000 byte(s) … byte 2622 of 202622` | **no** |
+| 6 B live attempt `…T203259-3291371` (3221 B) | live tree | `6 … byte 3215 of 3221` (independent: marker_off=3124, line 91 B) | `6 byte(s) past the marker line, byte 3215 of 3221` | **no** |
+
+Caveat (verified, E2): when the marker line itself has **no** terminating LF, appended bytes are
+absorbed into "the marker line" by `head -n 1`, so the byte gate does not fire and detection
+happens in the sha layer instead. The patch's comment "so bytes appended without a trailing
+newline are caught as well" is therefore true **via the sha layer** in that sub-case, not via the
+byte assertion. No off-by-one was found at any size tested (1, 6, 19, 22, 200000 B, two bases,
+one real tampered attempt).
+
+---
+
+## 5. Batch agreement (task 5)
+
+I ran **both checkers over all 283 current `attempt-*/` directories** (the tree grew since the
+author's 18:39 run, which covered 222). Exit codes read directly.
+Raw: `evidence/04-batch.tsv` (per-dir rcs + first-line verdicts), summary `04-batch-summary.txt`.
+
+| metric | count |
+|---|---|
+| attempt dirs run | **283** (273 with `harness.log`) |
+| agreement (old_rc == new_rc) | **279** |
+| disagreements | **4** — all old-pass → new-fail |
+| old rc=0 / rc=1 | 205 / 78 |
+| new rc=0 / rc=1 | 201 / 82 |
+| old-pass → new-fail | **4** (the intended new detection; see below) |
+| old-fail → new-pass (loosening) | **0** |
+
+The 4 disagreements are `attempt-20260929T203259-3291371`, `…T203441-3295732`,
+`…T203727-3302888`, `…T203803-3304340` (created 20:32–20:38, *after* the author's run). Each log is
+3221 B: sealed prefix intact (prefix sha `86bc7fe3…` matches the old checker's own "sealed at line
+36" output) + literal 6-byte `abcdef` appended without trailing newline after the marker's LF —
+exactly the blind spot, live in the tree (tail bytes in `evidence/04c-disagree-tail-bytes.txt`;
+independent offset check `04d-disagree-offset-check.txt`). The new checker reports
+`6 byte(s) past the marker line, byte 3215 of 3221` and exits 1; the old checker prints
+`INTEGRITY OK` and exits 0. This is the fix working, not a regression (and per F1, it is residue of
+the selftest no-LF control).
+
+Cross-check against the author's snapshot: joining the author's `evidence/batch-table.tsv`
+(222 rows) with my run **on all 222 shared directories: old_rc and new_rc match 222/222, 0
+mismatches** (`evidence/04e-batch-vs-author-table.txt`). So the author's "all attempt dirs agree"
+claim holds exactly for the tree state they observed; on today's tree it holds for 279/283, with
+the 4 exceptions being the intended new detections.
+
+---
+
+## 6. Author's stated limitations — accuracy and completeness (task 6)
+
+Author REPORT.md §5 lists four boundaries, each with a reproduction (`evidence/known-boundaries.txt`):
+
+| # | author's statement | my independent check | verdict |
+|---|---|---|---|
+| L1 | no key: tamper + re-seal by the writer algorithm → exit 0; 「只能防无意损坏，不防有意重封」 | multi3b reproduced **byte-exactly** (final sha `80344e6c…45d5` identical to author's). A partial re-seal (multi3) is still caught. | **accurate and honest** |
+| L2 | attempt not bound to absolute path: `cp -a` to an unrelated path → rc=0 | consistent with all controls (the seal hashes the prefix, which *contains* absolute-path lines, but nothing compares them to the current location). **Wording overclaim:** the report's justification 「日志与清单里没有任何绝对路径参与哈希」 is factually wrong — the base log's sealed prefix contains 5 absolute-path lines (`run=`, `root=`, `child_evidence_dir=`, `external_dir=`/`child_evidence_dir=`, `plan=` — verified in `attempt-20260929T180809-2918225/harness.log`). The conclusion (relocation still rc=0) is right; the stated reason is not. Already flagged by both prior reviewers (xcheck §5, xcheck2 §8). | conclusion accurate, **justification overclaimed** |
+| L3 | `child-evidence/**` and `$RUN/option-c/**` outside the seal | not re-tested this round (outside the six claims; consistent with code: manifest covers only `stages/*`) | not re-verified (not claimed by the fix under test) |
+| L4 | `toolchain-resolution.txt` claimed by plan but never sealed | not re-tested this round (see L3) | not re-verified |
+
+Additional properties I verified (inherited, not regressions; both checkers agree):
+* **L5 — the seal is self-consistent, not length-pinned.** Dropping the marker line's terminating
+  LF (truncate to 2621 B) is accepted by both (E1). "Byte view" must not be read as "length now
+  pinned to a stored reference"; there is no reference length anywhere.
+* **L6 — when the marker line has no LF, appended bytes are absorbed by `head -n 1`; the byte
+  gate is blind and only the sha layer catches them** (E2). Keep the sha layer; do not replace the
+  marker-line measurement with a fixed 91-byte read.
+* **L7 — new cosmetic defect in the NEW checker:** for large appends, `tail -c +N | head -n 1`
+  lets `head` exit while `tail` still has output, producing `tail: error writing 'standard output':
+  Broken pipe` on stderr (reproduced at 200 KB; not at ≤19 B). Exit code and stdout verdict are
+  unaffected (E3), but a caller merging streams sees noise. The OLD checker emits no such stderr.
+  Not a security/correctness issue; trivial fix (redirect the helper's stderr).
+
+Overall: the author documents the central limitation (no key / re-sealable) accurately and does
+**not** overclaim detection strength (REPORT §4 explicitly says the batch proves zero regression
+and does *not* cover the new capability; §5.1 says the seal only defends against accidental
+corruption). The one overclaim found is the L2 *justification* wording, not the limitation
+itself. The append-only re-seal sub-case (TCN-99) is documented in the Wiki but not yet in the
+REPORT wording.
+
+---
+
+## 7. Per-claim verdicts
+
+| # | claimed behaviour | verdict |
+|---|---|---|
+| 1 | Old checker cannot detect bytes appended after the seal with **no** trailing newline; new checker can, reporting an exact byte offset | **CONFIRMED** (negA1/negA6/negA19/negA1_b2/negA6_b2/E3; exact offsets in §4) |
+| 2 | All other negative controls fail identically under the new checker (no loosening) | **CONFIRMED** (negB1 1/1, negB2 1/1, negB3 1/1, negB4 1/1, e_nomark 1/1, e_prefix 1/1; batch: 0 old-fail→new-pass) |
+| 3 | Positive control (untampered copy) exits 0 and prints `INTEGRITY OK` | **CONFIRMED** (pos1/pos2 and all 201 new-pass batch dirs) |
+| 4 | Batch comparison: old and new agree on every `attempt-*` dir | **CONFIRMED for the author's 222-dir snapshot (222/222 re-verified, 0 mismatches); 279/283 on today's 283-dir tree — the 4 exceptions are live `abcdef` no-LF blind-spot tampers the NEW checker correctly detects and the OLD one misses (intended behaviour, see F1)** |
+| 5 | Known limitation: no key → re-sealable; author documents it rather than overclaiming | **CONFIRMED** (multi3b reproduces author's boundary byte-exactly; REPORT §5.1 is explicit and honest; one wording overclaim in boundary 2's justification, L2) |
+| 6 | Reviewer: checker takes the **last** end marker, so an appended second self-consistent marker is accepted | **CONFIRMED** (multi0/1/2: rc=0 under both checkers). Classification: same no-key root cause, sharper append-only instance, inherited from the old checker; first-match anchoring would close the append form (demonstrated) but not the no-key root cause |
+
+---
+
+## 8. What this fix does NOT prove
+
+* **It does not make the seal authentic.** No key/MAC exists: anyone who can write the log can
+  re-seal it (marker-only re-seal hides nothing about stages, but a full re-seal — manifest rewrite
+  + new marker — yields exit 0, reproduced). It defends against accidental damage and careless
+  tampering, not a determined forger.
+* **It does not pin the sealed length.** Acceptance is self-consistency, not a reference length:
+  dropping the marker's terminating LF passes (E1), and in that shape the byte assertion is blind
+  to appends (only the sha layer catches them, E2).
+* **It does not bind the attempt to its location.** The sealed prefix contains absolute paths but
+  nothing checks them against the current location; the whole directory moves with rc=0 (L2).
+* **It does not cover `child-evidence/**`, `$RUN/option-c/**`, or files the plan claims but never
+  wrote** (`toolchain-resolution.txt`).
+* **It does not rule out append-only re-sealing.** A second self-consistent end marker appended
+  after a valid seal is accepted (multi0/1/2); only the absence of a key and the last-marker
+  anchoring together explain this, and neither is addressed by the fix.
+* **It does not make the frozen tree immutable.** `selftest.sh` was changed after the deliverable
+  (F1, documented in TCN-102); hash-based "frozen" invariants must be re-baselined after any
+  sanctioned change.
+* Batch agreement (279/283 today, 222/222 at the author's snapshot) proves **zero regression and
+  zero loosening**, not the new detection capability by itself — that is proven by the controls
+  (and by the four live `abcdef` attempts, which the old checker mis-reported as `INTEGRITY OK`).
+
+---
+
+## 9. Evidence index (`dc-warn/out/bytefix-verify/evidence/`)
+
+| file | content |
+|---|---|
+| `01-frozen-hashes.txt` | sha256 of the 5 frozen files + installed checker + backup |
+| `01b-files-sha256-check.txt` | `sha256sum -c FILES.sha256` over the deliverable tree (17/17 OK) |
+| `01c-frozen7-hashes.txt` | sha256 of the 3 remaining frozen-set files (match TCN-102) |
+| `02-controls.tsv` / `02-controls-detail.txt` | raw control runs, both checkers, stdout captured per case (includes the disclosed superseded rows) |
+| `02b-controls-final.tsv` | cleaned final control table |
+| `02b-base2-groundtruth.txt` | independent ground truth for base B2 |
+| `04-batch.tsv` / `04-batch-summary.txt` | full 283-dir batch, per-dir rcs + verdicts |
+| `04b-batch-disagreements.txt` | the 4 disagreeing rows |
+| `04c-disagree-tail-bytes.txt` | `od -c` tail of the 4 tampered live logs (`abcdef`, no LF) |
+| `04d-disagree-offset-check.txt` | independent marker_off/marker_end/prefix-sha check on one live tampered log |
+| `04e-batch-vs-author-table.txt` | 222/222 join vs the author's batch table (0 rc mismatches) |
+| `05-extra-controls.txt` | E1/E2/E3 (LF truncation, sha-layer fallback, 200 KB append + broken-pipe stderr) |
+| `06-firstmatch-demo.txt` | first-match anchoring variant on multi0/1/2 + pristine bases |
+
+Mutation copies live in `dc-warn/out/bytefix-verify/scratch/` (`old.sh`, `new.sh`, `new-firstmatch.sh`,
+`ctrl/*`); the frozen tree and the coordination tree were never written to.

@@ -1,0 +1,12 @@
+fixture	prefix(pristine)	negctl(as-reviewed)	postfix(fixed)
+try-tail	[gen-rust=0 compile-rust=101 ]	[gen-rust=0 compile-rust=0 ]	[gen-rust=0 compile-rust=0 run-rust=0 compare-rust=0 ]
+try-tail-min	[gen-rust=0 compile-rust=101 ]	[gen-rust=0 compile-rust=0 ]	[gen-rust=0 compile-rust=0 run-rust=0 compare-rust=0 ]
+xs-dead	[gen-rust=0 compile-rust=0 ]	[gen-rust=0 compile-rust=101 ]	[gen-rust=0 compile-rust=0 ]
+xs-deadcoll	[gen-rust=0 compile-rust=0 ]	[gen-rust=0 compile-rust=101 ]	[gen-rust=0 compile-rust=0 ]
+xs-twoexc	[gen-rust=0 compile-rust=101 ]	[gen-rust=0 compile-rust=101 ]	[gen-rust=0 compile-rust=101 ]
+xs-testmod	[gen-rust=0 ]	[gen-rust=0 ]	[gen-rust=0 compile-rust=0 ]
+xs-generic	[gen-rust=0 ]	[gen-rust=0 ]	[gen-rust=0 ]
+xs-growth	[gen-rust=0 ]	[gen-rust=0 ]	[gen-rust=0 ]
+xs-samples	[gen-rust=0 ]	[gen-rust=0 ]	[gen-rust=0 ]
+xs-scope	[gen-rust=0 ]	[gen-rust=0 ]	[gen-rust=0 ]
+xs-xmod	[gen-rust=0 ]	[gen-rust=0 ]	[gen-rust=0 ]

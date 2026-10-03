@@ -1,0 +1,15 @@
+package tests
+
+import boring.ImpHost
+import boring.ImpWidget
+import boring.runtime.test.Test
+
+class ImpDefaultTests {
+@boring.test.Test
+    fun defaults() {
+        Test.run("tests.ImpDefaultTests.defaults", "tests.ImpDefaultTests.defaults: materialized cross-package constructor default") {
+                Test.equals("w", ImpHost(ImpWidget()).widget.label, null)
+                Test.equals("x", ImpHost(ImpWidget("x")).widget.label, null)
+        }
+    }
+}

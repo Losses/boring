@@ -1,0 +1,62 @@
+use crate::runtime::u_string::UStr;
+use crate::xsxm::e1::E1;
+use crate::xsxm::e2::E2;
+use crate::xsxm::e2::F1Fault;
+use crate::xsxm::e2::F2Fault;
+
+
+#[derive(Clone, Copy)]
+pub struct EnumProbe;
+
+impl EnumProbe {
+    pub fn enum_probe_throw_e1(t: &UStr) -> Result<u32, F1Fault> {
+        return Err(F1Fault::One { t: t.to_ustring() });
+    }
+
+    pub fn enum_probe_throw_e2(t: &UStr) -> Result<u32, F2Fault> {
+        return Err(F2Fault::Two { t: t.to_ustring() });
+    }
+
+    pub fn enum_probe_rethrow_e1() -> u32 {
+        let mut v = 0u32;
+        let __outcome: Result<u32, F1Fault> = (|| {
+            return Ok(EnumProbe::enum_probe_throw_e1(UStr::new(&[97]))?);
+        })();
+        match __outcome {
+            Ok(_) => {}
+            Err(e) => {
+                let h: u32 = match (|| -> Result<u32, F1Fault> {
+                    return Err(F1Fault::E1Fault(Box::new(E1::new(e))));
+                })() {
+                    Ok(__value) => __value,
+                    Err(e2) => 5,
+                };
+                v = h;
+            }
+        }
+        return v;
+    }
+
+    pub fn enum_probe_rethrow_e2() -> u32 {
+        let mut v = 0u32;
+        let __outcome1: Result<u32, F2Fault> = (|| {
+            return Ok(EnumProbe::enum_probe_throw_e2(UStr::new(&[98]))?);
+        })();
+        match __outcome1 {
+            Ok(_) => {}
+            Err(e) => {
+                let h: u32 = match (|| -> Result<u32, F2Fault> {
+                    return Err(F2Fault::E2Fault(Box::new(E2::new(e))));
+                })() {
+                    Ok(__value1) => __value1,
+                    Err(e2) => 6,
+                };
+                v = h;
+            }
+        }
+        return v;
+    }
+
+    pub fn enum_probe_main() {
+    }
+}

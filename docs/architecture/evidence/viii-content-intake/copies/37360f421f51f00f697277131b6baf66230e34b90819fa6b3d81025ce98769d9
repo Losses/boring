@@ -1,0 +1,24 @@
+#![cfg(test)]
+
+use crate::boring::nil_context_ops::NilContextOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use crate::tests::test_helper::*;
+
+
+#[test]
+fn test_conditional() {
+    testlib::run("tests.NilContextTests.testConditional", "tests.NilContextTests.testConditional: conditional nil retains its optional payload", || {
+        assert_equals_opt_string(&Some(UString::from("present")), &NilContextOps::nil_context_ops_conditional(true), UStr::new(&[]));
+        assert_equals_opt_string(&None::<UString>, &NilContextOps::nil_context_ops_conditional(false), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_argument() {
+    testlib::run("tests.NilContextTests.testArgument", "tests.NilContextTests.testArgument: synthesized optional argument nil is typed", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[101,109,112,116,121]), NilContextOps::nil_context_ops_null_argument().as_ustr(), UStr::new(&[]));
+    });
+}

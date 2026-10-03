@@ -1,0 +1,9 @@
+batch: 283 dirs checked, 0 skipped (non-dir)
+agreement (old_rc == new_rc): 279
+disagreements: 4
+old rc=0: 205
+new rc=0: 201
+old rc=1: 78
+new rc=1: 82
+old-pass/new-fail: 4
+old-fail/new-pass: 0

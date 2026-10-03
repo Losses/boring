@@ -1,0 +1,34 @@
+package tests
+
+import boring.runtime.test.Test
+import tests.TestHelper
+
+class HandWrittenLoopPositionTests {
+@boring.test.Test
+    fun directLoop() {
+        Test.run("tests.HandWrittenLoopPositionTests.directLoop", "tests.HandWrittenLoopPositionTests.directLoop: hand-written accumulation loop remains valid at direct position") {
+                TestHelper.assertEquals(mutableListOf<Int>(2, 3, 4), HandWrittenLoopPositionSupport.accumulate(mutableListOf<Int>(1, 2, 3)), null)
+        }
+    }
+
+@boring.test.Test
+    fun loopInIf() {
+        Test.run("tests.HandWrittenLoopPositionTests.loopInIf", "tests.HandWrittenLoopPositionTests.loopInIf: hand-written accumulation loop remains valid in if") {
+                TestHelper.assertEquals(mutableListOf<Int>(2, 3, 4), HandWrittenLoopPositionSupport.nestedIf(mutableListOf<Int>(1, 2, 3)), null)
+        }
+    }
+
+@boring.test.Test
+    fun loopInWhile() {
+        Test.run("tests.HandWrittenLoopPositionTests.loopInWhile", "tests.HandWrittenLoopPositionTests.loopInWhile: hand-written accumulation loop remains valid in while") {
+                TestHelper.assertEquals(mutableListOf<Int>(2, 3, 4), HandWrittenLoopPositionSupport.nestedWhile(mutableListOf<Int>(1, 2, 3)), null)
+        }
+    }
+
+@boring.test.Test
+    fun nestedLoop() {
+        Test.run("tests.HandWrittenLoopPositionTests.nestedLoop", "tests.HandWrittenLoopPositionTests.nestedLoop: nested hand-written loop does not synthesize a closure") {
+                TestHelper.assertEquals(mutableListOf<Int>(2, 3, 4, 2, 3, 4), HandWrittenLoopPositionSupport.outerLoop(mutableListOf<Int>(1, 2, 3)), null)
+        }
+    }
+}

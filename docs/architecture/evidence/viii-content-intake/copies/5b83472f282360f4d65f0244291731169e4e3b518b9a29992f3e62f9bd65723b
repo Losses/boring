@@ -1,0 +1,46 @@
+# P09 链 A 全量验证（Stage 0–16）— 执行报告
+
+日期：2026-09-29。执行者：链 A 全量验证 agent（独立隔离副本运行）。
+**结论：第 3 段（driver-verify）失败，rc=1 —— 失败分类：生成代码真实编译错误（非环境不可达）。全链不通过，本 attempt 作废为诊断证据；修复须改清单钉住的代码生成器/Runtime，属新输入态任务，修复后须开新 attempt 全链重跑。**
+
+## 1. 运行方式与隔离
+- 执行根：`cp -a` 副本 `p09-chainA-work/execution-option-c-coord`（6001 文件全量 sha256 逐文件比对 = 正本 FULL-COPY-IDENTICAL；exec-bit 由 cp -a 保留）。
+- 正本 `publication-staging/**` 零写入；冻结运行器只读，冻结树 `.latest-run` 跑前跑后均为 `attempt-20260929T181227-2924303`（未动）。attempt 落副本根 `out/integration-a3-evidence/exclusive-runner/attempt-20260929T185249-3071089`，`.latest-run`（副本侧）= 该 attempt。
+- 冻结 7 件哈希逐件复核全部匹配（check-log-integrity.sh = `606cb4f3…`，PIT-251 修复后现值）。plan 用副本（sha256 = 冻结值 `42517f84…`），17 段段序/argv 未改。
+- 副本适配（唯一改动，已记录 evidence/copy-adaptation.txt）：`.haxelib/boring/.dev` 由正本路径改写为副本根路径（loader identity 要求 .dev==root；`.haxelib` 不在 1433 条清单内，poststate 0 漂移佐证）。
+- 环境：flake shell（flake.nix+flake.lock 原字节复制到 /tmp/p09-flake，path: 引用，cwd=副本根 → HAXELIB_PATH 指副本 .haxelib）；显式 export 全表（OPTION_C_ROOT / SOURCE_MANIFEST / EXCLUSIVE_RUNNER_DIR / GIT_CEILING_DIRECTORIES / XDG_CACHE_HOME=根内 out/xdg-cache / **EXPECTED_MANIFEST_ENTRIES=1433** / BORING_SWIFT_SYSTEM_PACKAGE=`0svbxvd…-boring-swift-system-1.6.6`）；PATH 前置 swiftc shim 副本（dc-warn 无执行位，故复制到本机盘并 chmod 755），SWIFT_SHIM_STATE 独立。无并发 run-exclusive（跑前 pgrep 确认）。
+- flake shell 工具链实测：haxe 4.3.7 / bun 1.3.13 / kotlinc 2.4.10 / **dart 3.13.0（已物化，Stage 8 前置满足）** / cargo 1.98.0 / openjdk 21.0.12 / node 22.23.2（cargo/jdk 与 RUNBOOK 表 1.97.1/25.0.4 不同——是当前 flake.lock 现物化值，非缺位；本轮未走到相应段，无影响）。
+
+## 2. 逐段结果
+| 段 | 段名 | rc | 备注 |
+|---|---|---|---|
+| 0 | env-guard | 0 | poststate 1433/0；toolchain-resolution.txt 封存 |
+| 1 | identity | 0 | manifest-sha256=**610099bb95c0b99e…**（权威锚吻合）；1433=1433 守卫过；poststate 1433/0 |
+| 2 | driver-build | 0 | driver.js sha256=`bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53`、52,779 B —— 哈希等值通过；poststate 1433/0 |
+| 3 | driver-verify | **1** | 见 §3；poststate 仍 1433/0（执行零漂移） |
+| 4–16 | 其余 13 段 | skipped | blocked-by step-737716045（首败即停语义） |
+
+## 3. 失败段诊断（Stage 3 driver-verify）
+- child records：20 条（run-1790722369870-3071539），0001–0019 全部 normal-exit exit=0 / captureComplete=true / captureError null（haxe 10 生成、ts、kotlin、dart、rust、java 等腿全部真实跑过，无环境失败）。
+- **0020 = swift "build library"（swiftc -emit-library …，command/argv/cwd 已存档 evidence/stage3-child-0020/record.json）：normal-exit，exitStatus=1。**
+- **Swift 环境判定：已可达，非 environment-not-reached**。shim 绕过 userns/bwrap 成功（无沙箱拒绝记录）；BORING_SWIFT_SYSTEM_PACKAGE 直接可用。Swift 腿是真实工具链对生成代码的拒绝。
+- 唯一编译错误（stderr 全文仅此一处 error，余为原生告警，未过滤）：
+  `reference/swift/gen/boring/VectorCodec.swift:49:43: error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'`
+  根因：`SwiftArrayBoundary.hx:259` 生成 `TiqianArray(records.toMutableArray())`，而 Runtime.swift:393 `toMutableArray()` 返回 `TiqianArray<Element>`、`TiqianArray.init` 收 `[Element]` —— 生成器包装与 Runtime 签名不匹配。两文件均在 1433 条清单钉住范围内，**执行者不可改码过链**。
+- 与并行验证路（dc-warn/out/swift-recipe-verify/REPORT.md ③④）独立复现同一失败点，结论一致。
+
+## 4. 验收口径核对
+- 17 段 rc=0：**不满足**（第 3 段 rc=1，13 段 skipped）。→ 不通过，无"部分通过"。
+- driver 哈希等值：满足（bf2450d3…/52,779B）。
+- 每段 poststate 1433/0：满足（已跑各段全部 1433 entries, 0 failures）。
+- check-log-integrity（显式 attempt-dir）：`INTEGRITY OK: sealed at line 56, sha 6f3116f3…, stage manifest exact`，rc=0。
+- loader 断言：跑前（副本适配后）PASS rc=0；跑后 PASS rc=0。`.haxelib/boring/.dev` 内容 = 副本根路径（evidence/haxelib-boring-dev-{pre,post}-run.txt，两次相同）。
+- child records：captureComplete/exit 字段全检通过（除 0020 的合法 exit=1）；本轮仅 20 条（33 条口径是全链到达 test 腿齐全时的数字，driver 在 swift 腿终止）。
+
+## 5. not-reached 使用情况
+- 未使用。Swift 腿"环境不可达"已被 shim+export 真实关闭（到达真实工具链、真实编译诊断）。遗留义务是**代码修复**：改 SwiftArrayBoundary.hx:259 的包装（或生成侧直接迭代 records）/Runtime 签名二选一，属新输入态 → 重物化清单 → 新 attempt 全链重跑。
+- Stage 8 dart、Stage 9 rust 本轮 not-reached-by-block（被第 3 段阻塞，非环境缺位；dart SDK 已证物化）。
+
+## 6. 证据索引（evidence/）
+harness.log（过 integrity）、stage-rcs.txt、harness-step-status.txt、identity-fields.txt、stage3-compile-errors.txt、stage3-child-0020/{record.json,stderr.bin}、integrity.txt、latest-run.txt、loader-assert-{pre,post}-run.txt、haxelib-boring-dev-{pre,post}-run.txt、copy-adaptation.txt。
+完整原始流：attempt 目录 `p09-chainA-work/execution-option-c-coord/out/integration-a3-evidence/exclusive-runner/attempt-20260929T185249-3071089/`（永不改写）。

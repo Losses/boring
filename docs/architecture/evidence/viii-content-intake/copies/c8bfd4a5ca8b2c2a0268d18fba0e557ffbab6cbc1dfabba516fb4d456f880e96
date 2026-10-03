@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Assert the LOADER IDENTITY of execution root execution-option-c-e1c65975.
+# Checks the haxelib .dev pointers that decide which compiler/source tree
+# haxe actually loads. NOTE: correct .dev pointers prove PATH SELECTION only;
+# full loader identity additionally needs -cp/hxml coverage (see REPORT.md).
+# Usage: bash assert-loader-identity.sh [execution-root]
+# Exit 0 = all assertions hold; non-zero = prints which assertion failed.
+set -uo pipefail
+R="${1:-/home/losses/Development/tq-workspace/publication-staging/execution-option-c-e1c65975}"
+# Normalize to an absolute, symlink-resolved path: .dev holds absolute paths, so a
+# relative ROOT would compare "publication-staging/x" against "/home/.../x" and fail
+# with a misleading mismatch.
+case "$R" in /*) ;; *) R="$PWD/$R" ;; esac
+R="$(cd "$R" 2>/dev/null && pwd || printf '%s' "$R")"
+SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Reference root name derived from R itself, so the script works on copies too.
+ROOTNAME="$(basename "$R")"
+fail=0
+chk() { # chk <label> <expected> <actual-file>
+  local label="$1" expected="$2" file="$3"
+  if [ ! -f "$file" ]; then
+    echo "FAIL: $label — file missing: $file"; fail=1; return
+  fi
+  local actual; actual="$(cat "$file")"
+  if [ "$actual" != "$expected" ]; then
+    echo "FAIL: $label"
+    echo "  expected: $expected"
+    echo "  actual:   $actual"
+    fail=1
+  else
+    echo "OK:   $label = $actual"
+  fi
+}
+chk "boring/.dev points at this execution root" "$R" "$R/.haxelib/boring/.dev"
+chk "reflaxe/.dev points at pinned nix store source" \
+  "/nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source" "$R/.haxelib/reflaxe/.dev"
+chk "format/.current pinned" "3.8.0" "$R/.haxelib/format/.current"
+chk "formatter/.current pinned" "1.18.0" "$R/.haxelib/formatter/.current"
+# Cross-check: boring/.dev must not point into a DIFFERENT execution root.
+DEVTARGET="$(cat "$R/.haxelib/boring/.dev" 2>/dev/null || true)"
+if [ -n "$DEVTARGET" ] && [ "$DEVTARGET" != "$R" ] && [ "$(basename "$DEVTARGET")" != "$ROOTNAME" ]; then
+  echo "FAIL: boring/.dev resolves outside the expected execution root (stale generation pointer?)"
+  fail=1
+fi
+if [ "$fail" -ne 0 ]; then
+  echo "ASSERTION RESULT: FAIL (loader identity mismatch)"
+  exit 1
+fi
+echo "ASSERTION RESULT: PASS — loader identity holds for $R"
+exit 0

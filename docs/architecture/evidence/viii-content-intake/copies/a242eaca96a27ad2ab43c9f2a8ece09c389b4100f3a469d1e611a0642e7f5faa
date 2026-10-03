@@ -1,0 +1,6 @@
+# demo: minimal compile (NOT Boring verify): haxe -cp src -m demo.Main -js out.js -D source-map
+# out.js.map "sources" (absolute paths of .hx actually loaded):
+file:////nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/lib/haxe/std/haxe/iterators/ArrayIterator.hx
+file:////tmp/loader-identity-demo/src/demo/Main.hx
+# method: sha256 each path in place (strip file://), then compare vs SOURCE_MANIFEST (project sources)
+# and runtime-assets.json (loader assets). std-path entry pins the exact nix std lib -> provenance for B2.

@@ -1,0 +1,30 @@
+#[derive(Clone, Copy)]
+pub struct FloatCompoundAssignOps;
+
+impl FloatCompoundAssignOps {
+    pub fn float_compound_assign_ops_scaled(value: f32) -> f32 {
+        let mut x = value;
+        while (x) >= 10.0f32 {
+            x /= 10 as f32;
+        }
+        while (x) < (1.0f32) {
+            x *= 10 as f32;
+        }
+        return x;
+    }
+
+    pub fn float_compound_assign_ops_step_total() -> f32 {
+        let mut total = 0.0f32;
+        for _ in 0..3 {
+            total += 1 as f32;
+        }
+        return total;
+    }
+
+    pub fn float_compound_assign_ops_walk(value: f32) -> f32 {
+        let mut x = value;
+        x += 2 as f32;
+        x -= 1 as f32;
+        return x;
+    }
+}

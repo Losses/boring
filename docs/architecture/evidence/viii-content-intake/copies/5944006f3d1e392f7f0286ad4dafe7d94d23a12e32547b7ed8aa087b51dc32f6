@@ -1,0 +1,39 @@
+{
+	"sidecar": "out/ts-sourcemap-xcheck-exp/bad-span/end-before-start.json",
+	"spanCount": 3,
+	"diagnostics": [
+		{
+			"file": "out/ts-sourcemap-positions/attempt-j6wC700T/stage/OriginShapes.ts",
+			"line": 9,
+			"column": 23,
+			"message": "error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.",
+			"generatedOffset": 212,
+			"verdict": {
+				"status": "unmapped",
+				"reason": "no sidecar span covers this coordinate (defaultResolution=Unmapped)"
+			}
+		},
+		{
+			"file": "out/ts-sourcemap-positions/attempt-j6wC700T/stage/OriginShapes.ts",
+			"line": 10,
+			"column": 37,
+			"message": "error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.",
+			"generatedOffset": 259,
+			"verdict": {
+				"status": "unmapped",
+				"reason": "no sidecar span covers this coordinate (defaultResolution=Unmapped)"
+			}
+		},
+		{
+			"file": "out/ts-sourcemap-positions/attempt-j6wC700T/stage/OriginShapes.ts",
+			"line": 11,
+			"column": 30,
+			"message": "error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.",
+			"generatedOffset": 297,
+			"verdict": {
+				"status": "unmapped",
+				"reason": "no sidecar span covers this coordinate (defaultResolution=Unmapped)"
+			}
+		}
+	]
+}

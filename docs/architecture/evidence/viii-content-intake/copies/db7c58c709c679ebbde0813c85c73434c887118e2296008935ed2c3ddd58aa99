@@ -1,0 +1,4 @@
+19c19
+<       "static let readOnlyInts: [Int32] = Array(TiqianArray([10, 20, 30]))",
+---
+>       "static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))",

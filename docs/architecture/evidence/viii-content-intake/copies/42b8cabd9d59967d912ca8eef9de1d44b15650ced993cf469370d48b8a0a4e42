@@ -1,0 +1,39 @@
+#![cfg(test)]
+
+use crate::boring::printed_collection::PrintedPoint;
+use crate::boring::printed_collection::compare_printed_point;
+use crate::boring::printed_enum_ops::PrintedMark;
+use crate::boring::printed_sorted_fields::PrintedNullableMark;
+use crate::boring::printed_sorted_fields::PrintedSortedFields;
+use crate::runtime::sorted_table::SortedMapTableBuilder;
+use crate::runtime::sorted_table::SortedSetTableBuilder;
+use crate::runtime::sorted_table::SortedTable;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use std::sync::Arc;
+
+
+#[test]
+fn fields() {
+    testlib::run("tests.PrintedSortedFieldsTests.fields", "tests.PrintedSortedFieldsTests.fields: sorted fields use ruled forms", || {
+        let mut sb: SortedSetTableBuilder<u32> = SortedTable::sorted_table_set_builder::<u32>(Arc::new(|a, b| SortedTable::sorted_table_compare_ints(i32::from_ne_bytes(((*a) as i32).to_ne_bytes()), i32::from_ne_bytes(((*b) as i32).to_ne_bytes()))));
+        sb.put(&(2));
+        sb.put(&(1));
+        let mut pb: SortedSetTableBuilder<PrintedPoint> = SortedTable::sorted_table_set_builder::<PrintedPoint>(Arc::new(compare_printed_point));
+        pb.put(&(PrintedPoint::new(1u32, 2u32)));
+        let mut mb: SortedMapTableBuilder<UString, u32> = SortedTable::sorted_table_map_builder::<UString, u32>(Arc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_ustr(), b.as_ustr())));
+        mb.put(&(UString::from("b")).to_ustring().to_ustring(), &(2));
+        mb.put(&(UString::from("a")).to_ustring().to_ustring(), &(1));
+        let empty_set: SortedSetTableBuilder<u32> = SortedTable::sorted_table_set_builder::<u32>(Arc::new(|a, b| SortedTable::sorted_table_compare_ints(i32::from_ne_bytes(((*a) as i32).to_ne_bytes()), i32::from_ne_bytes(((*b) as i32).to_ne_bytes()))));
+        let empty_map: SortedMapTableBuilder<UString, u32> = SortedTable::sorted_table_map_builder::<UString, u32>(Arc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_ustr(), b.as_ustr())));
+        let value = PrintedSortedFields::new(sb.clone().build(), pb.clone().build(), mb.clone().build(), empty_set.clone().build(), empty_map.clone().build());
+        let expected = UString::from("PrintedSortedFields(marks=[1, 2], points=[PrintedPoint(x=1, y=2)], lookup={a=1, b=2}, emptySet=[], emptyMap={})").to_ustring();
+        test_core::TestCore::test_core_equals_string(expected.as_ustr(), (UString::from(format!("{}", value.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        let null_mark = PrintedNullableMark::new(None);
+        test_core::TestCore::test_core_equals_string(UStr::new(&[80,114,105,110,116,101,100,78,117,108,108,97,98,108,101,77,97,114,107,40,109,97,114,107,61,110,117,108,108,41]), (UString::from(format!("{}", null_mark.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        let ring_mark = PrintedNullableMark::new(Some(PrintedMark::Ring { diameter: 1.5f64 }));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[80,114,105,110,116,101,100,78,117,108,108,97,98,108,101,77,97,114,107,40,109,97,114,107,61,82,105,110,103,40,100,105,97,109,101,116,101,114,61,49,46,53,41,41]), (UString::from(format!("{}", ring_mark.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}

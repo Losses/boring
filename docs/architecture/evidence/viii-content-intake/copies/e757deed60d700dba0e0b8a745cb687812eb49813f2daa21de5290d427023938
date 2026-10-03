@@ -1,0 +1,10 @@
+gen A: rc=0 stderr="" (35792 ms)
+gen B: rc=0 stderr="" (34685 ms)
+sizes: A=96427 B=96427 diff=0
+first byte diff at offset: -1
+gunzip sizes: A=823808 B=823808
+entries: A=407 B=407
+entries only in A: []
+entries only in B: []
+order same: true
+KEEP: /tmp/boring-identity-inspect-sgIyjj

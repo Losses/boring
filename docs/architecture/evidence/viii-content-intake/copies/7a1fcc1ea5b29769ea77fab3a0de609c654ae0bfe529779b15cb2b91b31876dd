@@ -1,0 +1,6 @@
+manifest entries: 1433
+manifest sha256: 5dd4f9424d446fa5a95d5060ef8a3497f40e1ee35fda3268214b88247c501afd
+CHECK execution-root               entries=1433 failures=0
+CHECK coordination-tree            entries=1433 failures=0
+NAMED-FIX packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx    b522865c7b7c3882 expect-prefix=b522865c7b7c3882 OK
+NAMED-FIX packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx                07896d15a5b718b8 expect-prefix=07896d15a5b718b8 OK

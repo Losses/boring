@@ -1,0 +1,17 @@
+package tests
+
+import boring.runtime.test.Test
+
+class BorrowedReceiverBoundaryTests {
+@boring.test.Test
+    fun snapshotLabel() {
+        Test.run("tests.BorrowedReceiverBoundaryTests.snapshotLabel", "tests.BorrowedReceiverBoundaryTests.snapshotLabel: a borrowed receiver fills an owned constructor slot") {
+        }
+    }
+
+@boring.test.Test
+    fun pickLabel() {
+        Test.run("tests.BorrowedReceiverBoundaryTests.pickLabel", "tests.BorrowedReceiverBoundaryTests.pickLabel: a borrowed receiver fills an owned conditional return slot") {
+        }
+    }
+}

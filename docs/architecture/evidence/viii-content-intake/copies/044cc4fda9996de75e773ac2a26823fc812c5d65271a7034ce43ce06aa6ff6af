@@ -1,0 +1,8 @@
+// Harness for the xcheck-null-guard probe (independent re-check).
+// The Dart backend emits top-level functions; the harness calls the
+// probe's run() and prints the result lines.
+import 'x_guard.dart' as xg;
+
+void main() {
+  print(xg.run());
+}

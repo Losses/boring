@@ -1,0 +1,136 @@
+use crate::boring::guarded_box::GuardedBox;
+use crate::boring::guarded_rect::GuardedRect;
+use crate::runtime::sorted_table::SortedMapTableBuilder;
+use crate::runtime::sorted_table::SortedSetTable;
+use crate::runtime::sorted_table::SortedTable;
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use std::fmt::Write;
+use std::sync::Arc;
+
+
+pub struct M2OptionVecOps {
+    pub tags: Option<Vec<UString>>,
+    pub seen: Option<SortedSetTable<u32>>,
+    pub index: Option<SortedMapTableBuilder<u32, UString>>,
+}
+
+impl M2OptionVecOps {
+    pub fn new() -> Self {
+        Self {
+            tags: None,
+            seen: None,
+            index: None,
+        }
+    }
+
+    pub fn add_tag(&mut self, s: &UStr) -> UString {
+        if self.tags.is_none() {
+            self.tags = Some(vec![].clone());
+        }
+        (self.tags).as_mut().unwrap().push(s.to_ustring());
+        return UString::from(format!("{}", { let joined = (self.tags).as_ref().unwrap(); let mut out = String::new(); let n = joined.len(); let mut index = 0usize; while index < n { if index > 0 { out.push_str(","); } let _ = write!(out, "{}", joined[index]); index += 1; } UString::from(out.as_str()) }).as_str());
+    }
+
+    pub fn has_seen(&mut self, i: u32) -> bool {
+        if self.seen.is_none() {
+            self.seen = Some(SortedTable::sorted_table_set_builder::<u32>(Arc::new(|a, b| SortedTable::sorted_table_compare_ints(i32::from_ne_bytes(((*a) as i32).to_ne_bytes()), i32::from_ne_bytes(((*b) as i32).to_ne_bytes())))).clone().build().clone());
+        }
+        return (self.seen).as_ref().unwrap().has(&(i));
+    }
+
+    pub fn count_seen(&mut self) -> u32 {
+        if self.seen.is_none() {
+            self.seen = Some(SortedTable::sorted_table_set_builder::<u32>(Arc::new(|a, b| SortedTable::sorted_table_compare_ints(i32::from_ne_bytes(((*a) as i32).to_ne_bytes()), i32::from_ne_bytes(((*b) as i32).to_ne_bytes())))).clone().build().clone());
+        }
+        return u32::from_ne_bytes((((self.seen).as_ref().unwrap().size()) as u32).to_ne_bytes());
+    }
+
+    pub fn read_index(&mut self, k: u32) -> bool {
+        if self.index.is_none() {
+            self.index = Some(SortedTable::sorted_table_map_builder::<u32, UString>(Arc::new(|a, b| SortedTable::sorted_table_compare_ints(i32::from_ne_bytes(((*a) as i32).to_ne_bytes()), i32::from_ne_bytes(((*b) as i32).to_ne_bytes())))).clone());
+        }
+        (self.index).as_mut().unwrap().put(&(k), &(UString::from("v")).to_ustring());
+        return (self.index).as_ref().unwrap().get(&(k)).as_ref().map_or(false, |v| v == &(UString::from("v").to_ustring()));
+    }
+
+    pub fn m2_option_vec_ops_copy_array(src: &Vec<UString>) -> UString {
+        let copy = src.clone();
+        return UString::from(format!("{}", { let joined1 = copy; let mut out = String::new(); let n = joined1.len(); let mut index1 = 0usize; while index1 < n { if index1 > 0 { out.push_str(","); } let _ = write!(out, "{}", joined1[index1]); index1 += 1; } UString::from(out.as_str()) }).as_str());
+    }
+
+    pub fn m2_option_vec_ops_shift_array(src: &mut Vec<UString>) -> UString {
+        let shifted = { if src.is_empty() { None } else { Some(src.remove(0)) } };
+        if shifted.is_none() {
+            return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from(":")); __s += UString::from(format!("{}", { let joined2 = src; let mut out = String::new(); let n = joined2.len(); let mut index2 = 0usize; while index2 < n { if index2 > 0 { out.push_str(","); } let _ = write!(out, "{}", joined2[index2]); index2 += 1; } UString::from(out.as_str()) }).as_str()).as_ustr(); __s }).as_str());
+        }
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += match &(shifted) { Some(v) => v.as_ustr(), None => UStr::new(&[]) }; __s += &(UString::from(":")); __s += UString::from(format!("{}", { let joined3 = src; let mut out = String::new(); let n = joined3.len(); let mut index3 = 0usize; while index3 < n { if index3 > 0 { out.push_str(","); } let _ = write!(out, "{}", joined3[index3]); index3 += 1; } UString::from(out.as_str()) }).as_str()).as_ustr(); __s }).as_str());
+    }
+
+    pub fn m2_option_vec_ops_unshift_array(src: &mut Vec<UString>, v: &UStr) -> UString {
+        src.insert(0, v.to_ustring());
+        return UString::from(format!("{}", { let joined4 = src; let mut out = String::new(); let n = joined4.len(); let mut index4 = 0usize; while index4 < n { if index4 > 0 { out.push_str(","); } let _ = write!(out, "{}", joined4[index4]); index4 += 1; } UString::from(out.as_str()) }).as_str());
+    }
+
+    pub fn m2_option_vec_ops_index_of_array(src: &Vec<UString>, needle: &UStr) -> UString {
+        return UString::from((match src.iter().position(|e| e == &needle) { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }).to_string().as_str());
+    }
+
+    pub fn m2_option_vec_ops_has_index(src: &Vec<UString>, needle: &UStr) -> bool {
+        return u32::from_ne_bytes(((match src.iter().position(|e| e == &needle) { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }) as u32).to_ne_bytes()) != 4294967295u32;
+    }
+
+    pub fn m2_option_vec_ops_has_text_index(text: &UStr, needle: &UStr) -> bool {
+        return u32::from_ne_bytes(((u_string::find_from(&(text), needle, 0)) as u32).to_ne_bytes()) != 4294967295u32;
+    }
+
+    pub fn m2_option_vec_ops_guarded_copy_width(rect: Option<GuardedRect>) -> f32 {
+        match &(rect) {
+            Some(__option) => {
+                let r = (*__option).clone();
+                return r.left + r.top;
+            }
+            None => {
+            }
+        }
+        return 0.0f32;
+    }
+
+    pub fn m2_option_vec_ops_guarded_copy_field_width(r#box: GuardedBox) -> f32 {
+        match &(r#box.rect) {
+            Some(__option1) => {
+                let r = (*__option1).clone();
+                return r.left + r.top;
+            }
+            None => {
+            }
+        }
+        return 0.0f32;
+    }
+
+    pub fn m2_option_vec_ops_guarded_and_span(pair: Option<GuardedRect>, end: f32) -> f32 {
+        match &(pair) {
+            Some(__option2) => {
+                if __option2.left < (end) {
+                return __option2.left + 1.0f32;
+                }
+            }
+            None => {
+            }
+        }
+        return 0.0f32;
+    }
+
+    pub fn m2_option_vec_ops_guarded_holder_span(r#box: GuardedBox) -> f32 {
+        match &(r#box.rect) {
+            Some(__option3) => {
+                let r = (*__option3).clone();
+                return r.left + r.top;
+            }
+            None => {
+            }
+        }
+        return 0.0f32;
+    }
+}

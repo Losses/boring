@@ -1,0 +1,19 @@
+package boring
+
+interface HasName {
+    val name: String get() = get_name()
+    fun get_name(): String
+}
+
+class PublicGetterProperty(private val value: Int) : HasName {
+    val x: Int get() = get_x()
+    override val name: String get() = get_name()
+
+    private fun get_x(): Int {
+        return this.value + 1
+    }
+
+    override fun get_name(): String {
+        return "getter-property"
+    }
+}

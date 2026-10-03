@@ -1,0 +1,14 @@
+--- /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix2-xcheck/tests/haxe/xcheck-dfix2/expected.txt	2026-09-29 16:47:09.000000000 -0400
++++ /home/losses/Development/tq-workspace/dc-warn/out/dart-fix2-xcheck/postfix-full3/stages/dart-run/stdout	2026-09-29 16:47:53.000000000 -0400
+@@ -5,8 +5,8 @@
+ n1=4
+ n2=5
+ n3=4
+-n4=2
++n4=4
+ n5=3
+-n6=4
+-n7=3
++n6=-1
++n7=2
+ n8=4

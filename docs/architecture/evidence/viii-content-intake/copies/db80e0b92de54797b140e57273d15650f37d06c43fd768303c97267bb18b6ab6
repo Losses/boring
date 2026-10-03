@@ -1,0 +1,194 @@
+# Gap fixture archive — Swift backend array-boundary conversion gap (switch/try paths)
+
+Self-contained archive of the Haxe→Swift counterexample fixture `gap.Gap`
+(`Gap.hx`), its exact generation driver, its observed generated output, and the
+`swiftc -typecheck` evidence. Origin: `/home/losses/Development/tq-workspace/dc-warn/out/switch-try-gap-verify/`
+(scratch tree of an adversarial verification run, 2026-09-30; its report is copied
+here verbatim as `REPORT.md`). Archived 2026-09-30 from that tree, then reproduced
+from this archive (see "Reproduction").
+
+## The defect, in one paragraph
+
+The Swift backend converts a mutable `TiqianArray<Element>` into a
+`ReadOnlyArray<Element>` (two unrelated `final` classes; no implicit conversion)
+through a small funnel — `SwiftArrayBoundary.prepare`/`render`, entered from
+`SwiftExpr.lowerArrayBoundary` and from `SwiftDecl`'s static-field path. That
+conversion is applied on some expression paths (ternary initializers, statement-
+position switch/try assignments, static fields) but **not** on the switch/try
+*value* paths: switch or try used as an initializer, in return position, as a call
+argument, or on the right-hand side of an assignment. For those seven shapes the
+emitted Swift puts a raw `TiqianArray<Int32>` where `ReadOnlyArray<Int32>` is
+required, and `swiftc -typecheck` fails with **12 type errors** (plus 2
+unused-result warnings marking a related swallowed-`return` symptom). The precise
+mechanism: in `stmtLines` the switch/try dispatch cases match *before* the general
+case that computes the boundary and calls `lowerArrayBoundary`, and the dedicated
+emitters (`switchExpression`, `tryBindingLines`, `tryReturnLines`, `switchAssign`,
+`switchReturn` via expression arms) never consult the destination type.
+
+## Archive layout
+
+| Path | Content |
+|---|---|
+| `fixture/gap/Gap.hx` | The fixture source (verbatim). Seven defective shapes (S1–S7), five controls (C1–C5), one symptom case (W1) — keys match `expected-outcomes.md`. |
+| `fixture/swift.hxml` | The exact driver hxml as run originally (verbatim; references the original scratch fixture dir). |
+| `fixture/swift-archived.hxml` | **Self-contained driver**: byte-identical to `swift.hxml` except lines 7–8, which point at this archive's `fixture/` dir instead of the scratch dir. Use this one to reproduce. |
+| `fixture/*.hxml` (probe/throw/readonly-head) | Verbatim copies of the other drivers from the original tree (probe/shadow experiments and the acceptance-fixture driver). Kept for the record; the probe/throw ones reference now-redundant shadow dirs and the readonly-head ones are the acceptance fixture's, blocked by the separate 2609 issue. |
+| `generated/` | The observed generated Swift tree, verbatim copy of the original `gen-gap/` (6 files). |
+| `generated-repro/` | Fresh generation from `fixture/swift-archived.hxml` (this archive's reproduction step). **Byte-identical to `generated/`** (see `FILES.sha256`). |
+| `expected-outcomes.md` | Per-state expected (when correct) vs observed readings, with the actual `swiftc` error lines quoted. |
+| `evidence/` | All original raw logs (generation logs — note the successful runs are empty by design — and the `swiftc` logs), plus this archive's new repro logs `gen-gap-repro.log`, `swiftc-repro.log`, and `repro-notes.txt`. |
+| `REPORT.md` | The original adversarial verification report, verbatim (mechanism, call-site map, the two partial falsifications, the 2609 side finding). |
+| `FILES.sha256` | SHA-256 of every file in this archive. |
+
+## The exact generation command
+
+Original (run 2026-09-30, cwd = repo root, exit 0, no output on success):
+
+```
+cd /home/losses/Development/tq-workspace/boring-wt-architecture
+haxe fixture/swift.hxml -D swift-output=gen-gap -D swift-test-output=tests-gap
+```
+
+where `fixture/swift.hxml` is `fixture/swift.hxml` in the *original scratch tree*
+(archived here verbatim). The toolchain is not on a bare PATH; the verification
+environment file `dc-warn/out/chainA-fixed-rerun/evidence/env.json` (plain text)
+starts with a `PATH=` line carrying `haxe` 4.3.7 and the pinned Swift 6.2.4:
+
+```
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+```
+
+Self-contained equivalent (this archive's repro; fresh output dir, exit codes captured, never piped):
+
+```
+cd /home/losses/Development/tq-workspace/boring-wt-architecture
+haxe /home/losses/Development/tq-workspace/dc-warn/out/gap-fixture-archive/fixture/swift-archived.hxml \
+     -D swift-output=/home/losses/Development/tq-workspace/dc-warn/out/gap-fixture-archive/generated-repro \
+     -D swift-test-output=/home/losses/Development/tq-workspace/dc-warn/out/gap-fixture-archive/tests-gap-repro
+```
+
+Notes: `swift-output`/`swift-test-output` may be absolute (the compiler takes the
+define value as-is; `runtime-emit=.` in the hxml resolves `Runtime.swift` relative
+to the `swift-output` dir). `tests-gap-repro` is never created because the fixture
+has no test modules. The hxml's relative `-cp` entries (`packages/compiler`,
+`samples`, …) are resolved against the cwd, so generation **must** run from the
+repo root `/home/losses/Development/tq-workspace/boring-wt-architecture`; the
+worktree must exist for the archive to be runnable.
+
+The typecheck command (original form, cwd = repo root, exit 1):
+
+```
+swiftc -typecheck gen-gap/gap/Gap.swift gen-gap/Runtime.swift gen-gap/std/UStringException.swift gen-gap/std/UStringFault.swift
+```
+
+## Expected vs observed per state
+
+Full table with quoted error lines: `expected-outcomes.md`. Headline readings:
+
+- **Correct state**: `swiftc -typecheck` over the four emitted files exits **0**
+  with zero `Gap.swift` diagnostics; every switch/try value-position crossing is
+  wrapped as `ReadOnlyArray(...)` (e.g. S1's closure arms become
+  `return ReadOnlyArray(Gap.sourceFirst())`).
+- **Observed state**: generation **succeeds** (exit 0, silent), then
+  `swiftc -typecheck` exits **1** with **12 errors** at `Gap.swift` lines
+  42, 56, 58, 68, 70, 79, 81, 93, 129, 131, 140, 142 — every one
+  `TiqianArray<Int32>` where `ReadOnlyArray<Int32>` is required — plus 2
+  unused-result warnings (W1). Raw: `evidence/swiftc-gap-final.log` (original)
+  and `evidence/swiftc-repro.log` (this archive's repro; identical modulo the
+  absolute path prefix and one host-environment `<unknown>:0` libc warning line).
+
+## Reproduction (performed by this archive, 2026-09-30)
+
+1. Generation from `fixture/swift-archived.hxml` into the fresh dir
+   `generated-repro/`: **exit 0**, empty log (`evidence/gen-gap-repro.log`).
+2. `generated-repro/` vs archived `generated/` (`diff -r` + per-file sha256):
+   **all 6 files byte-identical** — the current worktree's Swift backend still
+   emits the defective tree.
+3. `swiftc -typecheck` over `generated-repro/`: **exit 1**, same 12 error sites
+   and 2 warnings as the original (normalized diff in `evidence/repro-notes.txt`
+   shows the only difference is the shim's host-side `libc not found` warning line).
+
+Environment caveats, honestly stated:
+
+- `swiftc` is the shim `p09-chainA-work/swift-shim-bin/swiftc` (Swift 6.2.4,
+  `Target: x86_64-unknown-linux-gnu`). The original run logged a
+  `<unknown>:0: warning: libc not found ...` line that the repro run did not —
+  a host/toolchain diagnostic of the shim's SDK state dir, not a diagnostic about
+  the generated code. The code diagnostics are identical.
+- The repo worktree is dirty (uncommitted edits to
+  `SwiftArrayBoundary.hx`/`SwiftDecl.hx` among others — the same two edits the
+  original verification shadowed back to HEAD). The reproduction was run against
+  the worktree *as it stands*; if those files change, the archive's
+  `generated/` and `evidence/` remain the record of the verified state.
+- **Separate known blocker (not this fixture)**: the repo's own *acceptance*
+  fixture `tests/swift-readonly-boundary` currently fails to generate with
+  `swift target: array boundary has no prepared storage decision`
+  (`SwiftExpr.hx:2609`); the `Gap.hx` fixture generates fine, which is why this
+  one carries the evidence. See `REPORT.md` §6.
+
+## How to avoid fooling yourself
+
+- **Generation success is not typecheck success.** This whole defect is invisible
+  to the generator: haxe exits 0 and writes a clean-looking tree. The assertion
+  is `swiftc -typecheck` exit 0 over the emitted files. A run that "produced
+  output" has proven nothing about the output.
+- **Use a fresh output dir.** Never generate into (or typecheck out of) a dir
+  that may already hold a previous run's files — a stale `Gap.swift` from a
+  different compiler state reads as a pass or a fail that isn't yours. This
+  archive's repro used `generated-repro/`, distinct from the archived `generated/`.
+- **Actually run `swiftc`, and capture the exit code directly.** Never measure a
+  piped command's status (`cmd | tail` reports `tail`'s exit). `swiftc` must be
+  a real invocation of the pinned toolchain via the env.json PATH; a missing
+  toolchain masquerades as an environment error, not a fixture pass.
+- **Compare the tree byte-for-byte, don't eyeball it.** The prior programme's
+  lesson (PIT-301): two fixtures cited as "discriminating" turned out to have
+  byte-identical generated trees pre/post. The guard here is the sha256 set in
+  `FILES.sha256` plus the 12-line error fingerprint (lines 42…142 in
+  `expected-outcomes.md`); a "fixed" backend must change both — tree hashes and
+  the typecheck exit code — and a "still broken" one leaves both intact.
+- **Watch the warnings too.** The W1 case (`switchExplicitReturn`) typechecks
+  but emits unused-result warnings marking a swallowed `return` — semantic
+  breakage that a zero-error assertion would miss.
+- **Keep the fixture outside the scratch dir.** This archive exists because a
+  counterexample that lives only in a scratch output directory is worthless as a
+  regression guard: the next person cannot find it and the defect class gets no
+  guard (PIT-301).
+
+## Does any runner or CI collect this fixture?
+
+**No.** Verified by search: no file in `boring-wt-architecture` (hxml, ts, sh,
+json, mjs) references `switch-try-gap-verify`, the scratch fixture, or
+`Gap.hx`; the fixture lives outside the repo in the `dc-warn` output tree, and
+no test, script, or CI step points at `dc-warn`. The repo's CI
+(`.github/workflows/ci.yml`) runs `bun test tests/` among other targets, which
+collects the *acceptance* fixture `tests/swift-readonly-boundary/readonly-
+boundary.test.ts` — the only existing check that would catch this bypass class,
+and it is currently blocked by the separate 2609 generation failure. This gap
+fixture is collected by nothing.
+
+What wiring it in would require (a decision for others — not implemented here):
+
+1. Move the fixture into the repo (e.g. `tests/swift-gap-boundary/` with
+   `Gap.hx` + a repo-relative driver hxml, replacing the absolute scratch paths).
+2. Add a `bun:test` file modelled on
+   `tests/swift-readonly-boundary/readonly-boundary.test.ts`: run the generation
+   (assert exit 0), then run `swiftc -typecheck` on the emitted files and assert
+   exit 0 / zero diagnostics. As written today it would be a **red** test (12
+   errors), turning green when the backend fix lands — which is exactly the
+   regression guard the fixture was built to be.
+3. Make it discoverable under `tests/` so `bun test tests/` (and the CI job)
+   picks it up, or add an explicit CI step.
+4. Decide the typecheck policy (zero diagnostics, or zero errors + a warning
+   allowlist) — the W1 warnings suggest "zero errors" alone is too weak.
+
+## Provenance
+
+- Source tree: `dc-warn/out/switch-try-gap-verify/` (adversarial verification of
+  the "single funnel / switch-try-gap" claim; verdict PARTLY-CONFIRMED, with the
+  bypass reproduced as 12 type errors).
+- Every file copied here is verbatim from that tree except
+  `fixture/swift-archived.hxml` (documented 2-line path rewrite) and the three
+  repro artifacts (`generated-repro/`, `evidence/gen-gap-repro.log`,
+  `evidence/swiftc-repro.log`, `evidence/repro-notes.txt`).
+- `dc-warn/` is a `fuse.rclone` mount (no symlinks, no exec bits); all archive
+  files are plain regular files.

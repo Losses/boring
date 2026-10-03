@@ -1,0 +1,168 @@
+DUP: kotlin.hxml:/tmp/rgcases/prefix/examples/kotlin.hxml:292 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/prefix/examples/kotlin.hxml:486 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/prefix/examples/kotlin.hxml:206 module boring.MathNaNOps appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/prefix/examples/kotlin.hxml:207 module boring.MathNaNTestSupport appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/prefix/examples/kotlin.hxml:134 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/prefix/examples/kotlin.hxml:293 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/prefix/examples/kotlin.hxml:487 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/prefix/examples/kotlin.hxml:214 module tests.MathNaNOpsTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/prefix/examples/kotlin-f32.hxml:446 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/prefix/examples/kotlin-f32.hxml:283 module boring.NumericConversionWidening appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/prefix/examples/kotlin-f32.hxml:117 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/prefix/examples/kotlin-f32.hxml:136 module tests.EnumQueriesTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/prefix/examples/kotlin-f32.hxml:447 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/prefix/examples/kotlin-f32.hxml:138 module tests.MathIntWideningOpsTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/prefix/examples/kotlin-f32.hxml:288 module tests.NumericConversionWideningTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/prefix/examples/kotlin-f32.hxml:137 module tests.SwitchOpsTests appears on multiple root lines in this pair
+FAIL: kotlin-f32.hxml omits root module boring.AllowGuest (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:221); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.AllowHost (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:220); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.BytesOps (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:26); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.DataClassRangeEqOps (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:247); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.ExceptionChainProbe (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:301); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.FloatLiteralOps (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:264); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.FontId (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:167); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.FontIdConsumer (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:168); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.GlyphCluster (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:169); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.GlyphClusterHolder (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:170); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.GlyphClusterReader (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:171); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.ImpHost (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:217); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.ImpWidget (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:216); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.InstanceDefaults (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:215); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.LoopWriteOps (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:291); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.MathMinMaxOps (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:205); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.NullableFieldRecord (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:658); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.NumberClassifyOps (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:204); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.OptionalParamNull (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:270); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.SortedDataClassKeysOps (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:246); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module boring.SwiftLiteralSafetyOps (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:265); the f32 bundle would lose a root that the base bundle compiles
+EXEMPT: kotlin-f32.hxml omits root module registry.Main (base-only, at /tmp/rgcases/prefix/examples/kotlin.hxml:239); declared in allowlist: registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+FAIL: kotlin-f32.hxml omits root module tests.AllowAccessTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:222); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.BytesTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:66); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.EarlyReturnTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:324); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.ExceptionChainProbeTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:302); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.FloatLiteralOpsTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:266); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.FontIdTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:252); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.GlyphClusterTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:253); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.ImpDefaultTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:218); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.InstanceDefaultsTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:219); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.LoopWriteTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:298); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.MathMinMaxTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:213); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.NoSuchElementTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:256); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.NumberClassifyTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:212); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.OptionalParamNullTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:271); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.PosterShapeTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:257); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.ShapeTextTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:258); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.StdStringPlainClassTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:192); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.StringCodecTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:69); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.StringToolsTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:259); the f32 bundle would lose a root that the base bundle compiles
+FAIL: kotlin-f32.hxml omits root module tests.SwiftLiteralSafetyOpsTests (present in kotlin.hxml at /tmp/rgcases/prefix/examples/kotlin.hxml:267); the f32 bundle would lose a root that the base bundle compiles
+UNROOT: tests.E0308FiTests declares @:test in /tmp/rgcases/repo/samples/tests/E0308FiTests.hx but is a root of neither kotlin.hxml nor kotlin-f32.hxml; declared in allowlist: Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module.
+UNROOT: tests.f32.PrintedFloatTests declares @:test in /tmp/rgcases/repo/samples/tests/f32/PrintedFloatTests.hx but is a root of neither kotlin.hxml nor kotlin-f32.hxml; declared in allowlist: f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json.
+DUP: rust.hxml:/tmp/rgcases/prefix/examples/rust.hxml:283 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/prefix/examples/rust.hxml:490 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/prefix/examples/rust.hxml:200 module boring.MathNaNOps appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/prefix/examples/rust.hxml:201 module boring.MathNaNTestSupport appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/prefix/examples/rust.hxml:127 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/prefix/examples/rust.hxml:284 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/prefix/examples/rust.hxml:491 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/prefix/examples/rust.hxml:208 module tests.MathNaNOpsTests appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/prefix/examples/rust-f32.hxml:236 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/prefix/examples/rust-f32.hxml:453 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/prefix/examples/rust-f32.hxml:125 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/prefix/examples/rust-f32.hxml:237 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/prefix/examples/rust-f32.hxml:454 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+FAIL: rust-f32.hxml omits root module boring.AllowGuest (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:215); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.AllowHost (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:214); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.BytesOps (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:27); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.DataClassRangeEqOps (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:241); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.ExceptionChainProbe (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:285); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.FontId (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:160); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.FontIdConsumer (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:161); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.GlyphCluster (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:162); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.GlyphClusterHolder (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:163); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.GlyphClusterReader (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:164); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.ImpHost (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:211); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.ImpWidget (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:210); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.InstanceDefaults (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:209); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.MathMinMaxOps (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:199); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.NumberClassifyOps (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:198); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module boring.SortedDataClassKeysOps (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:240); the f32 bundle would lose a root that the base bundle compiles
+EXEMPT: rust-f32.hxml omits root module registry.Main (base-only, at /tmp/rgcases/prefix/examples/rust.hxml:233); declared in allowlist: registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+FAIL: rust-f32.hxml omits root module tests.AllowAccessTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:216); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.BytesTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:63); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.EarlyReturnTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:311); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.ExceptionChainProbeTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:286); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.FontIdTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:246); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.GlyphClusterTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:247); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.ImpDefaultTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:212); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.InstanceDefaultsTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:213); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.MathMinMaxTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:207); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.NoSuchElementTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:250); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.NumberClassifyTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:206); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.PosterShapeTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:252); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.ShapeTextTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:253); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.StdStringPlainClassTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:186); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.StringCodecTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:64); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.StringToolsTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:254); the f32 bundle would lose a root that the base bundle compiles
+FAIL: rust-f32.hxml omits root module tests.SumOfFloatLocalTests (present in rust.hxml at /tmp/rgcases/prefix/examples/rust.hxml:375); the f32 bundle would lose a root that the base bundle compiles
+UNROOT: tests.E0308FiTests declares @:test in /tmp/rgcases/repo/samples/tests/E0308FiTests.hx but is a root of neither rust.hxml nor rust-f32.hxml; declared in allowlist: Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module.
+UNROOT: tests.f32.PrintedFloatTests declares @:test in /tmp/rgcases/repo/samples/tests/f32/PrintedFloatTests.hx but is a root of neither rust.hxml nor rust-f32.hxml; declared in allowlist: f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json.
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:24 module boring.ArraySliceOps appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:289 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:488 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:206 module boring.MathNaNOps appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:207 module boring.MathNaNTestSupport appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:134 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:290 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:489 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:127 module tests.MathNaNOpsTests appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/prefix/examples/swift.hxml:265 module tests.SwiftLiteralSafetyOpsTests appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/prefix/examples/swift-f32.hxml:26 module boring.ArraySliceOps appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/prefix/examples/swift-f32.hxml:238 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/prefix/examples/swift-f32.hxml:445 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/prefix/examples/swift-f32.hxml:124 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/prefix/examples/swift-f32.hxml:239 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/prefix/examples/swift-f32.hxml:446 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+FAIL: swift-f32.hxml omits root module boring.AllowGuest (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:217); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.AllowHost (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:216); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.BytesOps (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:29); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.DataClassRangeEqOps (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:240); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.ExceptionChainProbe (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:295); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.FloatLiteralOps (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:262); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.FontId (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:167); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.FontIdConsumer (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:168); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.GlyphCluster (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:169); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.GlyphClusterHolder (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:170); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.GlyphClusterReader (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:171); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.ImpHost (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:213); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.ImpWidget (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:212); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.InstanceDefaults (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:211); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.MathMinMaxOps (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:205); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.NumberClassifyOps (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:204); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.OptionalParamNull (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:270); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module boring.SortedDataClassKeysOps (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:239); the f32 bundle would lose a root that the base bundle compiles
+EXEMPT: swift-f32.hxml omits root module registry.Main (base-only, at /tmp/rgcases/prefix/examples/swift.hxml:232); declared in allowlist: registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+FAIL: swift-f32.hxml omits root module tests.AllowAccessTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:218); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.BytesTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:65); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.EarlyReturnTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:321); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.ExceptionChainProbeTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:296); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.FloatLiteralOpsTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:264); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.FontIdTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:249); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.GlyphClusterTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:250); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.ImpDefaultTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:214); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.InstanceDefaultsTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:215); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.MathMinMaxTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:209); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.NoSuchElementTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:253); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.NumberClassifyTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:208); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.OptionalParamNullTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:271); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.PosterShapeTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:255); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.ShapeTextTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:256); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.StdStringPlainClassTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:192); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.StringCodecTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:66); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.StringToolsTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:257); the f32 bundle would lose a root that the base bundle compiles
+FAIL: swift-f32.hxml omits root module tests.SumOfFloatLocalTests (present in swift.hxml at /tmp/rgcases/prefix/examples/swift.hxml:381); the f32 bundle would lose a root that the base bundle compiles
+UNROOT: tests.E0308FiTests declares @:test in /tmp/rgcases/repo/samples/tests/E0308FiTests.hx but is a root of neither swift.hxml nor swift-f32.hxml; declared in allowlist: Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module.
+UNROOT: tests.f32.PrintedFloatTests declares @:test in /tmp/rgcases/repo/samples/tests/f32/PrintedFloatTests.hx but is a root of neither swift.hxml nor swift-f32.hxml; declared in allowlist: f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json.
+SUMMARY: 45 duplicate root line(s) reported above (non-fatal; --strict-duplicates makes them fatal)
+roots guard: FAILED
+exit_code=1

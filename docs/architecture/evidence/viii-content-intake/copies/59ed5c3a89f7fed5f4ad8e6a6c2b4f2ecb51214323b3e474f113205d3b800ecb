@@ -1,0 +1,10 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/fn-values.test.ts:
+(pass) static function field capture validation > a capturing static initializer reports the ruled Rust error [23651.58ms]
+
+ 1 pass
+ 6 filtered out
+ 0 fail
+ 3 expect() calls
+Ran 1 test across 1 file. [23.68s]

@@ -1,0 +1,28 @@
+#![cfg(test)]
+
+use crate::boring::string_buf_throw_ops::StringBufThrowOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_build_from_checked() {
+    testlib::run("tests.StringBufThrowTests.testBuildFromChecked", "tests.StringBufThrowTests.testBuildFromChecked: add carries a throwing argument through the surrogate guard", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[105,116,101,109,45,55]), StringBufThrowOps::string_buf_throw_ops_build_from_checked(7).unwrap().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_caught_checked() {
+    testlib::run("tests.StringBufThrowTests.testCaughtChecked", "tests.StringBufThrowTests.testCaughtChecked: the added call fault leaves the buffer expression", || {
+        test_core::TestCore::test_core_equals_int(3011i32, i32::from_ne_bytes(((StringBufThrowOps::string_buf_throw_ops_caught_checked(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_build_char_from_checked() {
+    testlib::run("tests.StringBufThrowTests.testBuildCharFromChecked", "tests.StringBufThrowTests.testBuildCharFromChecked: addChar carries a throwing unit through the surrogate guard", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[65]), StringBufThrowOps::string_buf_throw_ops_build_char_from_checked(1).unwrap().as_ustr(), UStr::new(&[]));
+    });
+}

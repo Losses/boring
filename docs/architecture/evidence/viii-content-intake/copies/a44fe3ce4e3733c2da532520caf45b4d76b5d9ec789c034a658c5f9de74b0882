@@ -1,0 +1,34 @@
+package blk;
+
+import std.ReadOnlyArray;
+
+class Blk {
+	static function src():Array<Int> return [1, 2];
+
+	public static function consume(view:ReadOnlyArray<Int>):Int return view.length;
+
+	// P-BLK-ARG: expression block in ARGUMENT position at a ReadOnlyArray destination.
+	public static function blockArg():Int {
+		return consume({
+			var n = 1;
+			src();
+		});
+	}
+
+	// P-BLK-RET: expression block in RETURN position at a ReadOnlyArray destination.
+	public static function blockRet():ReadOnlyArray<Int> {
+		return {
+			var n = 1;
+			src();
+		};
+	}
+
+	// P-BLK-BIND: expression block as an initializer at a ReadOnlyArray destination.
+	public static function blockBind():Int {
+		var view:ReadOnlyArray<Int> = {
+			var n = 1;
+			src();
+		};
+		return view.length;
+	}
+}

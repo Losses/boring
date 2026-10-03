@@ -1,0 +1,16 @@
+# Retained runs of tests/swift-gap-boundary/gap-boundary.test.ts (out/swift-gap-boundary/test-*)
+# [MINE] statuses read directly from the status files, 2026-09-30 14:00
+run test-d9311426-191a-48c9-b87b-48ab21a29ff0  (13:40:19 -0400, at candidate c8ae0054 time)
+  generate=0 generate-repeat=0 typecheck=0 typecheck.stderr=0 bytes
+  no -c step in this version of the fixture
+run test-ab05489b-15f7-4a58-bd22-b7ca43accde8  (13:51:35 -0400, BROKEN intermediate -c repair)
+  generate=0 generate-repeat=0 typecheck=0 typecheck.stderr=0 bytes
+  build.status=1  build.stderr="error: cannot specify -o when generating multiple output files"
+  gap.o ABSENT, pending-build-warnings.log EMPTY  -> the -c step asserted nothing meaningful
+  yet the run was treated as passing (confirmed by the fix commit's own message, d14231a6)
+run test-9f15c47f-6d6f-47eb-8d06-df19888c6df6  (13:57:05 -0400, after the fix commit d14231a6)
+  generate=0 generate-repeat=0 typecheck=0 typecheck.stderr=0 bytes
+  build.status=0  gap.o=278288 bytes
+  pending-build-warnings.log = exactly 1 diagnostic:
+    gen/gap/Gap.swift:117:9: warning: will never be executed
+  failure-probe=1 failure-probe-build=1 (deliberately broken sources correctly rejected)

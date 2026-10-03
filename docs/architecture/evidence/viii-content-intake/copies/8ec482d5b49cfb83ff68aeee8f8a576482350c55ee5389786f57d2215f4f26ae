@@ -1,0 +1,35 @@
+$ bun test tests/ packages/registry/tests/
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/vector.test.ts:
+error: expect(received).toEqual(expected)
+
+  {
+    "data": [
+      1,
+      0,
+-     4,
+-     0,
+-     0,
++     5,
++     0,
++     0,
+      0,
+    ],
+    "type": "Buffer",
+  }
+
+- Expected  - 3
++ Received  + 3
+
+      at <anonymous> (/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/vector.test.ts:88:31)
+(fail) committed cross-language vector > re-encoding the decoded records reproduces the committed bytes [4.00ms]
+
+1 tests failed:
+(fail) committed cross-language vector > re-encoding the decoded records reproduces the committed bytes [4.00ms]
+
+ 0 pass
+ 1 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [30.00ms]
+error: script "test" exited with code 1

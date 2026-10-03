@@ -1,0 +1,3 @@
+interpreter bash inside the invoking nix develop environment
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/place-ts-swift
+argv node /home/losses/Development/tq-workspace/tiqian-pin-advance/node_modules/typescript/bin/tsc --strict --noFallthroughCasesInSwitch --target es2022 --module nodenext --moduleResolution nodenext --rewriteRelativeImportExtensions --outDir out/place/runs/place-ts-swift-k85ORK/case-R5rec/ts-out out/place/runs/place-ts-swift-k85ORK/case-R5rec/ts-gen/place/PlaceObserveStatic.ts out/place/runs/place-ts-swift-k85ORK/case-R5rec/ts-gen/ts-main.ts

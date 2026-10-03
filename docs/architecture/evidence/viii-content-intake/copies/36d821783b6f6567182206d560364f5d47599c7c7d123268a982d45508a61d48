@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Prove the 24 assert-class failures are untouched: for each one, extract the whole
+test(...) invocation from the pristine tree and from the patched tree and compare them
+byte for byte. Untouched <=> identical. Files absent from PATCH.diff are trivially untouched."""
+import json, re, os, sys
+
+OUT = "/home/losses/Development/tq-workspace/dc-warn/out/test-timeout-budget"
+BASE = "/home/losses/Development/tq-workspace/tth-work/base"
+AFTER = "/home/losses/Development/tq-workspace/tth-work/after"
+
+patched = set()
+for l in open(f"{OUT}/PATCH.diff", encoding="utf-8"):
+    if l.startswith("+++ b/"):
+        patched.add(l[6:].strip())
+
+lines = open(f"{OUT}/evidence/reference-stage4-lowload-v2.stdout", encoding="utf-8", errors="replace").read().split("\n")
+sum_start = next(i for i, l in enumerate(lines) if re.match(r"^\d+ tests failed:$", l))
+fail_re = re.compile(r"^\(fail\) (.+?)(?: \[([0-9.]+)ms\])?$")
+to_re = re.compile(r"^  \^ this test timed out after (\d+)ms\.$")
+cur_file, live = None, {}
+for i, l in enumerate(lines[:sum_start]):
+    if l.rstrip().endswith(":") and (l.startswith("tests/") or l.startswith("packages/")):
+        cur_file = l.rstrip()[:-1]
+    m = fail_re.match(l)
+    if m:
+        live.setdefault(m.group(1), cur_file)
+allf = {}
+for i, l in enumerate(lines):
+    m = fail_re.match(l)
+    if not m: continue
+    allf[m.group(1)] = bool(to_re.match(lines[i+1]) if i+1 < len(lines) else None)
+assert_class = sorted(n for n, to in allf.items() if not to)
+assert len(assert_class) == 24 and len(allf) == 48
+
+def match_delim(src, i):
+    pairs = {"(": ")", "{": "}", "[": "]"}; op = src[i]; cl = pairs[op]; depth = 0
+    while i < len(src):
+        c = src[i]
+        if c in "\"'`":
+            q = c; i += 1
+            while i < len(src):
+                if src[i] == "\\": i += 1
+                elif src[i] == q: break
+                i += 1
+        elif c == "/" and i+1 < len(src) and src[i+1] == "/":
+            while i < len(src) and src[i] != "\n": i += 1
+        elif c == op: depth += 1
+        elif c == cl:
+            depth -= 1
+            if depth == 0: return i
+        i += 1
+    return -1
+
+def call_text(path, leaf):
+    """Return the full test(...) invocation whose name ends with `leaf`, from `path`."""
+    if not os.path.isfile(path):
+        return None
+    src = open(path, encoding="utf-8", errors="replace").read()
+    for m in re.finditer(r"\btest\s*\(", src):
+        po = src.index("(", m.start())
+        e = match_delim(src, po)
+        if e < 0: continue
+        chunk = src[po:e+1]
+        if leaf in chunk[:600]:
+            return chunk
+    return None
+
+rows, bad, unlocatable = [], [], []
+for n in assert_class:
+    f = live.get(n)
+    leaf = n.split(" > ")[-1]
+    if f and f in patched:
+        b = call_text(os.path.join(BASE, f), leaf)
+        a = call_text(os.path.join(AFTER, f), leaf)
+        if b is None or a is None:
+            unlocatable.append((n, f)); status = "NOT LOCATED"
+        elif b == a:
+            status = "identical"
+        else:
+            status = "CHANGED"; bad.append((n, f))
+    else:
+        status = "file not in patch at all"
+    rows.append((n, f, status))
+
+print(f"{'assert-class failure':<93} {'file':<48} verdict")
+for n, f, s in rows:
+    print(f"{n[:91]:<93} {str(f):<48} {s}")
+print()
+print("assert-class failures in a patched file:      ", sum(1 for _, f, _ in rows if f in patched))
+print("...of those, test invocation CHANGED:         ", len(bad))
+print("...of those, could not be located:            ", len(unlocatable), unlocatable)
+print("assert-class failures in untouched files:     ", sum(1 for _, f, _ in rows if f not in patched))
+json.dump({"rows": [{"name": n, "file": f, "verdict": s} for n, f, s in rows]},
+          open(f"{OUT}/evidence/assert-class-untouched.json", "w"), indent=1)
+sys.exit(1 if bad else 0)

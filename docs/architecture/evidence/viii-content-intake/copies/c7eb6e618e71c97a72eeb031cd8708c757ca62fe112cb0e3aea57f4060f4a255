@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class InterfaceConditionalTests {
+@boring.test.Test
+    fun chooseText() {
+        Test.run("tests.InterfaceConditionalTests.chooseText", "tests.InterfaceConditionalTests.chooseText: a conditional interface result boxes each concrete arm") {
+        }
+    }
+}

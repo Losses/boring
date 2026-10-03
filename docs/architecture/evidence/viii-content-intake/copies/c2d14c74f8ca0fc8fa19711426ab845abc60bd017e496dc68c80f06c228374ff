@@ -1,0 +1,83 @@
+package divd;
+
+import std.ReadOnlyArray;
+
+enum DivChoice {
+	One;
+	Two;
+}
+
+class DivSources {
+	public static function arr1():Array<Int>
+		return [1, 2];
+
+	public static function arr2():Array<Int>
+		return [3];
+}
+
+class Div {
+	// D1: binding route, declared Null<Int>, arms Int.
+	public static function d1(choice:DivChoice):String {
+		var x:Null<Int> = switch (choice) {
+			case One: 1;
+			case Two: 2;
+		};
+		if (x == null)
+			return "nil";
+		return "present";
+	}
+
+	// D2: binding route, declared ReadOnlyArray, arms Array (abstract widening).
+	public static function d2(choice:DivChoice):Int {
+		var x:ReadOnlyArray<Int> = switch (choice) {
+			case One: DivSources.arr1();
+			case Two: DivSources.arr2();
+		};
+		return x.length;
+	}
+
+	// D3: binding route, declared Float, arms Int (float widening).
+	public static function d3(choice:DivChoice):Float {
+		var x:Float = switch (choice) {
+			case One: 1;
+			case Two: 2;
+		};
+		return x;
+	}
+
+	// D4: argument route, parameter Float, switch arms Int.
+	public static function consumeF(v:Float):Float
+		return v;
+
+	public static function d4(choice:DivChoice):Float {
+		return consumeF(switch (choice) {
+			case One: 1;
+			case Two: 2;
+		});
+	}
+
+	// D5: argument route, parameter Null<Int>, switch arms Int.
+	public static function consumeN(v:Null<Int>):String {
+		if (v == null)
+			return "nil";
+		return "present";
+	}
+
+	public static function d5(choice:DivChoice):String {
+		return consumeN(switch (choice) {
+			case One: 1;
+			case Two: 2;
+		});
+	}
+
+	// D6: binding route, declared Null<ReadOnlyArray<Int>>, arms Array.
+	public static function d6(choice:DivChoice):Int {
+		var x:Null<ReadOnlyArray<Int>> = switch (choice) {
+			case One: DivSources.arr1();
+			case Two: DivSources.arr2();
+		};
+		if (x == null)
+			return 0;
+		return x.length;
+	}
+}

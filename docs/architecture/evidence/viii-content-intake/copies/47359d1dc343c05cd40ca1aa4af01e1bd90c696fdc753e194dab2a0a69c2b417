@@ -1,0 +1,48 @@
+package tests
+
+import boring.RustCoalesceOps
+import boring.runtime.test.Test
+
+class RustCoalesceTests {
+@boring.test.Test
+    fun directArrayStatic() {
+        Test.run("tests.RustCoalesceTests.directArrayStatic", "tests.RustCoalesceTests.directArrayStatic: a coalescing nullable array parameter copies a direct array static") {
+                Test.equals(3, RustCoalesceOps.resolvedInts(), null)
+        }
+    }
+
+@boring.test.Test
+    fun stringTagFrom() {
+        Test.run("tests.RustCoalesceTests.stringTagFrom", "tests.RustCoalesceTests.stringTagFrom: a String-backed abstract parameter accepts an owned String") {
+                Test.equals(true, RustCoalesceOps.tagFrom("tone"), null)
+        }
+    }
+
+@boring.test.Test
+    fun assignedStringField() {
+        Test.run("tests.RustCoalesceTests.assignedStringField", "tests.RustCoalesceTests.assignedStringField: a nullable String field assignment owns a borrowed view") {
+                Test.equals(true, RustCoalesceOps.assignedLabel("tone"), null)
+        }
+    }
+
+@boring.test.Test
+    fun substitutedStringDefault() {
+        Test.run("tests.RustCoalesceTests.substitutedStringDefault", "tests.RustCoalesceTests.substitutedStringDefault: an omitted nullable String parameter owns the substituted view") {
+                Test.equals("tone", RustCoalesceOps.displayDefault("tone"), null)
+        }
+    }
+
+@boring.test.Test
+    fun borrowedStringDefault() {
+        Test.run("tests.RustCoalesceTests.borrowedStringDefault", "tests.RustCoalesceTests.borrowedStringDefault: a coalescing nullable String parameter owns a borrowed view") {
+                Test.equals("fr-FR", RustCoalesceOps.localeFrom("fr-FR"), null)
+        }
+    }
+
+@boring.test.Test
+    fun defaultRecord() {
+        Test.run("tests.RustCoalesceTests.defaultRecord", "tests.RustCoalesceTests.defaultRecord: nullable class coalescing materializes optional constructor arguments") {
+                Test.equals("zh-Hans:16:400:false:0", RustCoalesceOps.resolve(null), null)
+        }
+    }
+}

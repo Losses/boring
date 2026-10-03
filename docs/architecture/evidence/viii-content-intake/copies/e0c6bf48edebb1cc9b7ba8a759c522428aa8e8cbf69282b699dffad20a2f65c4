@@ -1,0 +1,33 @@
+#![cfg(test)]
+
+use crate::boring::fallible_local_function_ops::FallibleLocalFunctionFault;
+use crate::boring::fallible_local_function_ops::FallibleLocalFunctionOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn local_void_throw() {
+    testlib::run("tests.FallibleLocalFunctionTests.localVoidThrow", "tests.FallibleLocalFunctionTests.localVoidThrow: a Void local function that throws propagates through the enclosing Result", || {
+        let mut caught = UString::new();
+        let __outcome: Result<u32, FallibleLocalFunctionFault> = (|| {
+            return Ok(FallibleLocalFunctionOps::fallible_local_function_ops_guard(5, 4)?);
+        })();
+        match __outcome {
+            Ok(_) => {}
+            Err(error) => {
+                caught = UString::from(format!("{}", format!("{}", error)).as_str());
+            }
+        }
+        test_core::TestCore::test_core_equals_string(UStr::new(&[111,118,101,114,32,108,105,109,105,116]), caught.as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn local_void_success() {
+    testlib::run("tests.FallibleLocalFunctionTests.localVoidSuccess", "tests.FallibleLocalFunctionTests.localVoidSuccess: the infallible path returns the guarded value", || {
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((FallibleLocalFunctionOps::fallible_local_function_ops_guard(3, 4).unwrap()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

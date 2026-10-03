@@ -1,0 +1,6 @@
+package xc;
+
+/** Cross-module owner with the same short parameter name T. */
+class Solo<T> {
+	public function new() {}
+}

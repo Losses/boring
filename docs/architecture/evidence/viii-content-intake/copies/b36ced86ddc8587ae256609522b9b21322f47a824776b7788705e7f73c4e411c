@@ -1,0 +1,23 @@
+package boring;
+
+import std.ReadOnlyArray;
+
+class NegC3Ops {
+    public static function switchAssignNoCross(flag:Bool):String {
+        final choice = flag ? C3Choice.Values([1, 2]) : C3Choice.Marker(0);
+        var values:Array<Int> = fallbackArray();
+        values = switch (choice) {
+            case Values(v): v;
+            case Marker(_): fallbackArray();
+        };
+        return values[0] + ":" + values.length;
+    }
+
+    public static function fallbackArray():Array<Int> {
+        return [9];
+    }
+
+    public static function consumeView(values:ReadOnlyArray<Int>, marker:Int):String {
+        return values[0] + ":" + marker + ":" + values.length;
+    }
+}

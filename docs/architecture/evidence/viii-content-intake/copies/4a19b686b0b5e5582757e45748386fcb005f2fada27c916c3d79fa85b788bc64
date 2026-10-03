@@ -1,0 +1,58 @@
+DUP: kotlin.hxml:/tmp/rgcases/repo/case-f8/kotlin.hxml:292 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/repo/case-f8/kotlin.hxml:486 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/repo/case-f8/kotlin.hxml:206 module boring.MathNaNOps appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/repo/case-f8/kotlin.hxml:207 module boring.MathNaNTestSupport appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/repo/case-f8/kotlin.hxml:134 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/repo/case-f8/kotlin.hxml:293 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/repo/case-f8/kotlin.hxml:487 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+DUP: kotlin.hxml:/tmp/rgcases/repo/case-f8/kotlin.hxml:214 module tests.MathNaNOpsTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/repo/case-f8/kotlin-f32.hxml:486 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/repo/case-f8/kotlin-f32.hxml:323 module boring.NumericConversionWidening appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/repo/case-f8/kotlin-f32.hxml:157 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/repo/case-f8/kotlin-f32.hxml:176 module tests.EnumQueriesTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/repo/case-f8/kotlin-f32.hxml:487 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/repo/case-f8/kotlin-f32.hxml:178 module tests.MathIntWideningOpsTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/repo/case-f8/kotlin-f32.hxml:328 module tests.NumericConversionWideningTests appears on multiple root lines in this pair
+DUP: kotlin-f32.hxml:/tmp/rgcases/repo/case-f8/kotlin-f32.hxml:177 module tests.SwitchOpsTests appears on multiple root lines in this pair
+EXEMPT: kotlin-f32.hxml omits root module registry.Main (base-only, at /tmp/rgcases/repo/case-f8/kotlin.hxml:239); declared in allowlist: registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+UNROOT: tests.E0308FiTests declares @:test in /tmp/rgcases/repo/samples/tests/E0308FiTests.hx but is a root of neither kotlin.hxml nor kotlin-f32.hxml; declared in allowlist: Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module.
+UNROOT: tests.f32.PrintedFloatTests declares @:test in /tmp/rgcases/repo/samples/tests/f32/PrintedFloatTests.hx but is a root of neither kotlin.hxml nor kotlin-f32.hxml; declared in allowlist: f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json.
+DUP: rust.hxml:/tmp/rgcases/repo/case-f8/rust.hxml:283 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/repo/case-f8/rust.hxml:490 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/repo/case-f8/rust.hxml:200 module boring.MathNaNOps appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/repo/case-f8/rust.hxml:201 module boring.MathNaNTestSupport appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/repo/case-f8/rust.hxml:127 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/repo/case-f8/rust.hxml:284 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/repo/case-f8/rust.hxml:491 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+DUP: rust.hxml:/tmp/rgcases/repo/case-f8/rust.hxml:208 module tests.MathNaNOpsTests appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/repo/case-f8/rust-f32.hxml:268 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/repo/case-f8/rust-f32.hxml:486 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/repo/case-f8/rust-f32.hxml:157 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/repo/case-f8/rust-f32.hxml:269 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: rust-f32.hxml:/tmp/rgcases/repo/case-f8/rust-f32.hxml:487 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+EXEMPT: rust-f32.hxml omits root module registry.Main (base-only, at /tmp/rgcases/repo/case-f8/rust.hxml:233); declared in allowlist: registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+UNROOT: tests.E0308FiTests declares @:test in /tmp/rgcases/repo/samples/tests/E0308FiTests.hx but is a root of neither rust.hxml nor rust-f32.hxml; declared in allowlist: Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module.
+UNROOT: tests.f32.PrintedFloatTests declares @:test in /tmp/rgcases/repo/samples/tests/f32/PrintedFloatTests.hx but is a root of neither rust.hxml nor rust-f32.hxml; declared in allowlist: f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json.
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:24 module boring.ArraySliceOps appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:289 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:488 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:206 module boring.MathNaNOps appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:207 module boring.MathNaNTestSupport appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:134 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:290 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:489 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:127 module tests.MathNaNOpsTests appears on multiple root lines in this pair
+DUP: swift.hxml:/tmp/rgcases/repo/case-f8/swift.hxml:265 module tests.SwiftLiteralSafetyOpsTests appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/repo/case-f8/swift-f32.hxml:60 module boring.ArraySliceOps appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/repo/case-f8/swift-f32.hxml:273 module boring.HaxeExceptionOps appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/repo/case-f8/swift-f32.hxml:481 module boring.InterfaceArrayLiteralOps appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/repo/case-f8/swift-f32.hxml:159 module boring.ProbeUnit appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/repo/case-f8/swift-f32.hxml:274 module tests.HaxeExceptionTests appears on multiple root lines in this pair
+DUP: swift-f32.hxml:/tmp/rgcases/repo/case-f8/swift-f32.hxml:482 module tests.InterfaceArrayLiteralTests appears on multiple root lines in this pair
+EXEMPT: swift-f32.hxml omits root module boring.BytesOps (base-only, at /tmp/rgcases/repo/case-f8/swift.hxml:29); declared in allowlist: f8 documented override surface demonstration entry
+EXEMPT: swift-f32.hxml omits root module registry.Main (base-only, at /tmp/rgcases/repo/case-f8/swift.hxml:232); declared in allowlist: registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+UNROOT: tests.E0308FiTests declares @:test in /tmp/rgcases/repo/samples/tests/E0308FiTests.hx but is a root of neither swift.hxml nor swift-f32.hxml; declared in allowlist: Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module.
+UNROOT: tests.f32.PrintedFloatTests declares @:test in /tmp/rgcases/repo/samples/tests/f32/PrintedFloatTests.hx but is a root of neither swift.hxml nor swift-f32.hxml; declared in allowlist: f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json.
+SUMMARY: 45 duplicate root line(s) reported above (non-fatal; --strict-duplicates makes them fatal)
+roots guard: PASS (4 exemption(s) in force; 6 declared unrooted @:test module(s); 45 duplicate root line(s) reported; 1650 pinned root(s) in root-floor)
+exit_code=0

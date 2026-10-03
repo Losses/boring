@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_widening() {
+    testlib::run("tests.IntFloatCtorTests.testWidening", "tests.IntFloatCtorTests.testWidening: an Int argument widens into a Float constructor parameter", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""Check 6b: triage the 4 exec-bit-only discrepancies.
+Q1: are they unchanged vs the 1431 backup (pre-existing, not introduced by the sync)?
+Q2: what does git at e1c65975 record as their mode?
+Q3: byte-only scan summary (content drift only).
+"""
+import hashlib, json, os, subprocess
+
+WS = "/home/losses/Development/tq-workspace"
+GIT = os.path.join(WS, "boring")
+COORD = os.path.join(WS, "boring-wt-architecture")
+EXEC = os.path.join(WS, "publication-staging", "execution-option-c-coord")
+MANIFEST = os.path.join(WS, "publication-staging", "p09-coord-state", "option-c-source-before.json")
+OLD = os.path.join(WS, "dc-warn/out/coord-state-sync/backup/option-c-source-before.1431.json")
+COMMIT = "e1c65975"
+
+files = ["tests/haxe/kotlin-staticfn-prepared-init/run-focused.sh",
+         "tests/haxe/ts-template-newline-escape/run-datatable.sh",
+         "tests/haxe/ts-template-newline-escape/run-focused.sh",
+         "tests/support/stage-check-control.sh"]
+m_new = {e["path"]: (e["sha256"], e["mode"]) for e in json.load(open(MANIFEST))}
+m_old = {e["path"]: (e["sha256"], e["mode"]) for e in json.load(open(OLD))}
+tree = subprocess.run(["git", "-C", GIT, "ls-tree", "-r", COMMIT], check=True,
+                      capture_output=True, text=True).stdout
+gitmode = {l.split("\t")[1]: l.split()[2] for l in tree.splitlines()}
+
+print("path | git-mode@e1c65975 | old1431 (sha12,mode) | new1433 (sha12,mode) | entry-unchanged-vs-backup")
+for p in files:
+    gm = gitmode.get(p, "(untracked)")
+    o, n = m_old.get(p, ("-", "-")), m_new.get(p, ("-", "-"))
+    same = (o == n)
+    print(f"{p} | {gm} | {o[0][:12]},{o[1]} | {n[0][:12]},{n[1]} | {same}")
+
+# byte-only scan
+def sha256_file(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for c in iter(lambda: f.read(1 << 20), b""): h.update(c)
+    return h.hexdigest()
+tracked = set(l for l in subprocess.run(["git","-C",COORD,"ls-files"],check=True,capture_output=True,text=True).stdout.splitlines() if l)
+untracked = set(l for l in subprocess.run(["git","-C",COORD,"ls-files","--others","--exclude-standard"],check=True,capture_output=True,text=True).stdout.splitlines() if l)
+scope = sorted(tracked | untracked)
+match = differ = miss = 0
+differ_list, miss_list = [], []
+for p in scope:
+    cp, ep = os.path.join(COORD, p), os.path.join(EXEC, p)
+    if not os.path.isfile(ep) or os.path.islink(ep): miss += 1; miss_list.append(p); continue
+    if sha256_file(cp) != sha256_file(ep): differ += 1; differ_list.append(p); continue
+    match += 1
+print(f"\nbyte-only scan: scope={len(scope)} MATCH={match} DIFFER={differ} MISSING={miss}")
+for p in differ_list: print("  DIFFER:", p)
+for p in miss_list: print("  MISSING:", p)

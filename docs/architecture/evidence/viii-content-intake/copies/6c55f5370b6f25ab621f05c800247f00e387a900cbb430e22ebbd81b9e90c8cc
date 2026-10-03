@@ -1,0 +1,4 @@
+checking file examples/kotlin-f32.hxml
+checking file examples/rust-f32.hxml
+checking file examples/swift-f32.hxml
+checking file tools/test-consistency/Main.hx

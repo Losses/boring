@@ -1,0 +1,18 @@
+#![cfg(test)]
+
+use crate::boring::numeric_coalesce_local_ops::NumericCoalesceLocalOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_coalesced_local() {
+    testlib::run("tests.NumericCoalesceLocalOpsTests.testCoalescedLocal", "tests.NumericCoalesceLocalOpsTests.testCoalescedLocal: a coalesced Int local feeds a scalar argument without a bridge", || {
+        test_core::TestCore::test_core_equals_int(6i32, i32::from_ne_bytes(((NumericCoalesceLocalOps::numeric_coalesce_local_ops_pick(Some(5))) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(6i32, i32::from_ne_bytes(((NumericCoalesceLocalOps::numeric_coalesce_local_ops_pick(None)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((NumericCoalesceLocalOps::numeric_coalesce_local_ops_sum_pair(None, None)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(30i32, i32::from_ne_bytes(((NumericCoalesceLocalOps::numeric_coalesce_local_ops_sum_pair(Some(10), Some(20))) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

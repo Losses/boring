@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_append() {
+    testlib::run("tests.StringAppendTests.testAppend", "tests.StringAppendTests.testAppend: a string += converts a non-string right side", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

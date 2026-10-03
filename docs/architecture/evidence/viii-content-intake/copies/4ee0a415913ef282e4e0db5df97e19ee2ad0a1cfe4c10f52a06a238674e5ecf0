@@ -1,0 +1,24 @@
+package boring
+
+object OptionalParamNull {
+    fun intDefault(p: Int? = null): Int {
+        if ((p == null)) {
+            return 0
+        }
+        return p
+    }
+
+    fun classDefault(q: SomeClass? = null): String {
+        if ((q == null)) {
+            return SomeClass().label
+        }
+        return q.label
+    }
+}
+
+class SomeClass {
+    val label: String
+    init {
+    this.label = "default"
+    }
+}

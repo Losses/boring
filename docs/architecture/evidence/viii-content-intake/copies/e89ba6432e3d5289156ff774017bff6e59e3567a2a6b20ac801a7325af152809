@@ -1,0 +1,50 @@
+package tests
+
+import boring.NullableArrayOps
+import boring.runtime.test.Test
+
+class NullableArrayTests {
+@boring.test.Test
+    fun nullableIntLiterals() {
+        Test.run("tests.NullableArrayTests.nullableIntLiterals", "tests.NullableArrayTests.nullableIntLiterals: nullable Int array literals keep every element") {
+                val arr = NullableArrayOps.literalMixed()
+                Test.equals(3, arr.size, null)
+                Test.equals(true, NullableArrayOps.elementMatches(arr, 0, 1), null)
+                Test.equals(true, NullableArrayOps.elementMatches(arr, 1, null), null)
+                Test.equals(true, NullableArrayOps.elementMatches(arr, 2, 3), null)
+        }
+    }
+
+@boring.test.Test
+    fun singleNull() {
+        Test.run("tests.NullableArrayTests.singleNull", "tests.NullableArrayTests.singleNull: a single null element stays null") {
+                val arr = NullableArrayOps.literalSingleNull()
+                Test.equals(1, arr.size, null)
+                Test.equals(true, NullableArrayOps.elementMatches(arr, 0, null), null)
+        }
+    }
+
+@boring.test.Test
+    fun nullableVarElements() {
+        Test.run("tests.NullableArrayTests.nullableVarElements", "tests.NullableArrayTests.nullableVarElements: nullable variables pass through without Some wrapping") {
+                val withValue = NullableArrayOps.fromNullableVar(9)
+                Test.equals(3, withValue.size, null)
+                Test.equals(true, NullableArrayOps.elementMatches(withValue, 0, 9), null)
+                Test.equals(true, NullableArrayOps.elementMatches(withValue, 1, 5), null)
+                Test.equals(true, NullableArrayOps.elementMatches(withValue, 2, null), null)
+                val withNull = NullableArrayOps.fromNullableVar(null)
+                Test.equals(true, NullableArrayOps.elementMatches(withNull, 0, null), null)
+        }
+    }
+
+@boring.test.Test
+    fun nullableStringLiterals() {
+        Test.run("tests.NullableArrayTests.nullableStringLiterals", "tests.NullableArrayTests.nullableStringLiterals: nullable String array literals keep every element") {
+                val arr = NullableArrayOps.nullableStrings()
+                Test.equals(3, arr.size, null)
+                Test.equals(true, NullableArrayOps.stringElementMatches(arr, 0, "a"), null)
+                Test.equals(true, NullableArrayOps.stringElementMatches(arr, 1, null), null)
+                Test.equals(true, NullableArrayOps.stringElementMatches(arr, 2, "c"), null)
+        }
+    }
+}

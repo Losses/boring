@@ -1,0 +1,24 @@
+{
+	"coordinateUnit": "utf16-code-units",
+	"spans": [
+		{
+			"generated": {
+				"start": {
+					"column": 1,
+					"line": 1
+				},
+				"end": {
+					"column": 1,
+					"line": 3
+				},
+				"file": "std/UStringFault.ts"
+			},
+			"status": "unmapped",
+			"reason": "generated-header",
+			"source": null
+		}
+	],
+	"output": "std/UStringFault.ts",
+	"version": 1,
+	"defaultResolution": "Unmapped"
+}

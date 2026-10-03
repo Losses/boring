@@ -1,0 +1,37 @@
+package tests
+
+import boring.StringSearchFromOps
+import boring.runtime.test.Test
+
+class StringSearchFromTests {
+@boring.test.Test
+    fun testFindFrom() {
+        Test.run("tests.StringSearchFromTests.testFindFrom", "tests.StringSearchFromTests.testFindFrom: a string index search keeps its start index") {
+                val text = StringSearchFromOps.twoBlocks()
+                Test.equals(9, StringSearchFromOps.findFrom(text, "{", 0), null)
+                Test.equals(9, StringSearchFromOps.findFrom(text, "{", 9), null)
+                Test.equals(29, StringSearchFromOps.findFrom(text, "{", 10), null)
+                Test.equals(-1, StringSearchFromOps.findFrom(text, "{", 100), null)
+                Test.equals(-1, StringSearchFromOps.findFrom(text, "zzz", 0), null)
+        }
+    }
+
+@boring.test.Test
+    fun testSecondBlock() {
+        Test.run("tests.StringSearchFromTests.testSecondBlock", "tests.StringSearchFromTests.testSecondBlock: a resumed brace scan reads the second block") {
+                val text = StringSearchFromOps.twoBlocks()
+                Test.equals("\na1b\n", StringSearchFromOps.blockBody(text, "\\patterns"), null)
+                Test.equals("\ntable\n", StringSearchFromOps.blockBody(text, "\\hyphenation"), null)
+        }
+    }
+
+@boring.test.Test
+    fun testFindLastFrom() {
+        Test.run("tests.StringSearchFromTests.testFindLastFrom", "tests.StringSearchFromTests.testFindLastFrom: a backwards string search keeps the index it searches from") {
+                val text = StringSearchFromOps.twoBlocks()
+                Test.equals(29, StringSearchFromOps.findLastFrom(text, "{", 29), null)
+                Test.equals(9, StringSearchFromOps.findLastFrom(text, "{", 28), null)
+                Test.equals(-1, StringSearchFromOps.findLastFrom(text, "zzz", 29), null)
+        }
+    }
+}

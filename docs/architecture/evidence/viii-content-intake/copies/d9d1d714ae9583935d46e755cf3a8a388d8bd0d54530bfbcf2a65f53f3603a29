@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Rollback for the integrity-bytefix change: restore the pristine bytes of
+#   <target>/check-log-integrity.sh
+# from backup/check-log-integrity.sh.orig (sha256 bebd0cf9026ec97d...).
+# dc-warn is a fuse.rclone mount, so run it through bash:
+#   bash dc-warn/out/integrity-bytefix/ROLLBACK.sh
+set -eu
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)
+TARGET=${TARGET:-/home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/check-log-integrity.sh}
+BAK="$HERE/backup/check-log-integrity.sh.orig"
+EXPECT=bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a
+
+[ -f "$BAK" ] || { printf '%s\n' "rollback: missing $BAK" >&2; exit 1; }
+got=$(sha256sum "$BAK" | cut -d' ' -f1)
+[ "$got" = "$EXPECT" ] || { printf '%s\n' "rollback: backup hash $got != $EXPECT, refusing" >&2; exit 1; }
+cp -p "$BAK" "$TARGET"
+chmod 755 "$TARGET"
+now=$(sha256sum "$TARGET" | cut -d' ' -f1)
+[ "$now" = "$EXPECT" ] || { printf '%s\n' "rollback: restored hash $now != $EXPECT" >&2; exit 1; }
+printf '%s\n' "rollback OK: $TARGET restored to $EXPECT ($(wc -c < "$TARGET") bytes)"

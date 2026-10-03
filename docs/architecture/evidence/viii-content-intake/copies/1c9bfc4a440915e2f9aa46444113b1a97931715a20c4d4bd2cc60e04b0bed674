@@ -1,0 +1,5 @@
+gen		0	zero
+prep		0	zero
+compile-swift		1	data
+run-swift		producer-compile-swift-status-1	not-reached
+compare-swift		producer-compile-swift-status-1	not-reached

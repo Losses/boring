@@ -1,0 +1,292 @@
+use crate::runtime::bytes_buffer::BytesBuffer;
+
+
+pub struct Sha512 {
+    pub(crate) state: Vec<i64>,
+    pub(crate) block: Vec<u8>,
+    pub(crate) block_pos: u32,
+    pub(crate) total_length: i64,
+}
+
+impl Sha512 {
+    pub fn new() -> Self {
+        Self {
+            state: vec![
+    1779033703i64 << 32 | 4089235720i64,
+    3144134277i64 << 32 | 2227873595i64,
+    1013904242i64 << 32 | 4271175723i64,
+    2773480762i64 << 32 | 1595750129i64,
+    1359893119i64 << 32 | 2917565137i64,
+    2600822924i64 << 32 | 725511199i64,
+    528734635i64 << 32 | 4215389547i64,
+    1541459225i64 << 32 | 327033209i64,
+],
+            block: vec![0u8; 128usize],
+            block_pos: 0,
+            total_length: 0i64,
+        }
+    }
+
+    pub fn update(&mut self, data: &[u8]) {
+        let mut source_pos = 0u32;
+        while (i32::from_ne_bytes(((source_pos) as i32).to_ne_bytes())) < (i32::from_ne_bytes(((u32::try_from((data.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes())) {
+            self.block[usize::try_from(self.block_pos).unwrap_or(0)] = u8::try_from((u32::from(data[usize::try_from(source_pos).unwrap_or(0)])) & 0xFF).unwrap_or(0);
+            self.block_pos += 1;
+            source_pos = u32::wrapping_add(source_pos, 1);
+            self.total_length = self.total_length.wrapping_add(1i64);
+            if self.block_pos == 128 {
+                Sha512::sha512_process_block(&mut self.state, &self.block);
+                self.block_pos = 0u32;
+            }
+        }
+    }
+
+    pub fn digest(&self) -> Vec<u8> {
+        let mut final_state: Vec<i64> = vec![];
+        {
+            final_state.push(self.state[0usize]);
+            final_state.push(self.state[1usize]);
+            final_state.push(self.state[2usize]);
+            final_state.push(self.state[3usize]);
+            final_state.push(self.state[4usize]);
+            final_state.push(self.state[5usize]);
+            final_state.push(self.state[6usize]);
+            final_state.push(self.state[7usize]);
+        }
+        let mut final_block = vec![0u8; 128usize];
+        for i in 0..self.block_pos {
+            final_block[usize::try_from(i).unwrap_or(0)] = u8::try_from((u32::from((self.block).clone()[usize::try_from(i).unwrap_or(0)])) & 0xFF).unwrap_or(0);
+        }
+        final_block[usize::try_from(self.block_pos).unwrap_or(0)] = 128u8;
+        let position = u32::wrapping_add(self.block_pos, 1);
+        if i32::from_ne_bytes(((position) as i32).to_ne_bytes()) > (112) {
+            for i in position..128 {
+                final_block[usize::try_from(i).unwrap_or(0)] = 0u8;
+            }
+            Sha512::sha512_process_block(&mut final_state, &final_block);
+            for i in 0..128 {
+                final_block[usize::try_from(i).unwrap_or(0)] = 0u8;
+            }
+        } else {
+            for i in position..112 {
+                final_block[usize::try_from(i).unwrap_or(0)] = 0u8;
+            }
+        }
+        {
+            final_block[112usize] = 0u8;
+            final_block[113usize] = 0u8;
+            final_block[114usize] = 0u8;
+            final_block[115usize] = 0u8;
+            final_block[116usize] = 0u8;
+            final_block[117usize] = 0u8;
+            final_block[118usize] = 0u8;
+            final_block[119usize] = 0u8;
+            final_block[120usize] = 0u8;
+            final_block[121usize] = 0u8;
+            final_block[122usize] = 0u8;
+            final_block[123usize] = 0u8;
+            final_block[124usize] = 0u8;
+            final_block[125usize] = 0u8;
+            final_block[126usize] = 0u8;
+            final_block[127usize] = 0u8;
+        }
+        let bit_length = self.total_length.wrapping_shl(3u32);
+        {
+            final_block[120usize] = u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((bit_length).to_ne_bytes()).wrapping_shr(56u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0);
+            final_block[121usize] = u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((bit_length).to_ne_bytes()).wrapping_shr(48u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0);
+            final_block[122usize] = u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((bit_length).to_ne_bytes()).wrapping_shr(40u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0);
+            final_block[123usize] = u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((bit_length).to_ne_bytes()).wrapping_shr(32u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0);
+            final_block[124usize] = u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((bit_length).to_ne_bytes()).wrapping_shr(24u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0);
+            final_block[125usize] = u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((bit_length).to_ne_bytes()).wrapping_shr(16u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0);
+            final_block[126usize] = u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((bit_length).to_ne_bytes()).wrapping_shr(8u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0);
+            final_block[127usize] = u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((bit_length).to_ne_bytes()).wrapping_shr(0u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0);
+        }
+        Sha512::sha512_process_block(&mut final_state, &final_block);
+        let mut output = BytesBuffer::new();
+        for i in 0..8 {
+            let word = final_state[usize::try_from(i).unwrap_or(0)];
+            output.add_byte(u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((word).to_ne_bytes()).wrapping_shr(56u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0));
+            output.add_byte(u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((word).to_ne_bytes()).wrapping_shr(48u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0));
+            output.add_byte(u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((word).to_ne_bytes()).wrapping_shr(40u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0));
+            output.add_byte(u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((word).to_ne_bytes()).wrapping_shr(32u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0));
+            output.add_byte(u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((word).to_ne_bytes()).wrapping_shr(24u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0));
+            output.add_byte(u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((word).to_ne_bytes()).wrapping_shr(16u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0));
+            output.add_byte(u8::try_from((u32::try_from((i64::from_ne_bytes(u64::from_ne_bytes((word).to_ne_bytes()).wrapping_shr(8u32).to_ne_bytes())) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0));
+            output.add_byte(u8::try_from((u32::try_from((word) & 0xFFFF_FFFF).unwrap_or(0)) & 0xFF).unwrap_or(0));
+        }
+        return output.get_bytes();
+    }
+
+    pub fn sha512_make(data: &[u8]) -> Vec<u8> {
+        let mut hash = Sha512::new();
+        hash.update(&data);
+        return hash.digest();
+    }
+
+    pub(crate) fn sha512_process_block(hash: &mut Vec<i64>, input: &[u8]) {
+        let mut words: Vec<i64> = vec![];
+        for _ in 0..80 {
+            words.push(0i64);
+        }
+        for i in 0..16 {
+            let offset = u32::wrapping_mul(i, 8);
+            words[usize::try_from(i).unwrap_or(0)] = i64::from(u32::from_be_bytes([
+    (input[usize::try_from(offset).unwrap_or(0)]),
+    (input[usize::try_from(offset + 1).unwrap_or(0)]),
+    (input[usize::try_from(offset + 2).unwrap_or(0)]),
+    (input[usize::try_from(offset + 3).unwrap_or(0)])
+])) << 32 | i64::from((u32::from(input[usize::try_from(u32::wrapping_add(offset, 4)).unwrap_or(0)])) << (24) | (u32::from(input[usize::try_from(u32::wrapping_add(offset, 5)).unwrap_or(0)])) << (16) | (u32::from(input[usize::try_from(u32::wrapping_add(offset, 6)).unwrap_or(0)])) << (8) | u32::from(input[usize::try_from(u32::wrapping_add(offset, 7)).unwrap_or(0)]));
+        }
+        for i in 16..80 {
+            let s1 = Sha512::sha512_gamma1(words[usize::try_from(u32::wrapping_sub(i, 2)).unwrap_or(0)]);
+            let s0 = Sha512::sha512_gamma0(words[usize::try_from(u32::wrapping_sub(i, 15)).unwrap_or(0)]);
+            words[usize::try_from(i).unwrap_or(0)] = s1.wrapping_add(words[usize::try_from(u32::wrapping_sub(i, 7)).unwrap_or(0)]).wrapping_add(s0).wrapping_add(words[usize::try_from(u32::wrapping_sub(i, 16)).unwrap_or(0)]);
+        }
+        let mut a = hash[0usize];
+        let mut b = hash[1usize];
+        let mut c = hash[2usize];
+        let mut d = hash[3usize];
+        let mut e = hash[4usize];
+        let mut f = hash[5usize];
+        let mut g = hash[6usize];
+        let mut h = hash[7usize];
+        let k = vec![
+    1116352408i64 << 32 | 3609767458i64,
+    1899447441i64 << 32 | 602891725i64,
+    3049323471i64 << 32 | 3964484399i64,
+    3921009573i64 << 32 | 2173295548i64,
+    961987163i64 << 32 | 4081628472i64,
+    1508970993i64 << 32 | 3053834265i64,
+    2453635748i64 << 32 | 2937671579i64,
+    2870763221i64 << 32 | 3664609560i64,
+    3624381080i64 << 32 | 2734883394i64,
+    310598401i64 << 32 | 1164996542i64,
+    607225278i64 << 32 | 1323610764i64,
+    1426881987i64 << 32 | 3590304994i64,
+    1925078388i64 << 32 | 4068182383i64,
+    2162078206i64 << 32 | 991336113i64,
+    2614888103i64 << 32 | 633803317i64,
+    3248222580i64 << 32 | 3479774868i64,
+    3835390401i64 << 32 | 2666613458i64,
+    4022224774i64 << 32 | 944711139i64,
+    264347078i64 << 32 | 2341262773i64,
+    604807628i64 << 32 | 2007800933i64,
+    770255983i64 << 32 | 1495990901i64,
+    1249150122i64 << 32 | 1856431235i64,
+    1555081692i64 << 32 | 3175218132i64,
+    1996064986i64 << 32 | 2198950837i64,
+    2554220882i64 << 32 | 3999719339i64,
+    2821834349i64 << 32 | 766784016i64,
+    2952996808i64 << 32 | 2566594879i64,
+    3210313671i64 << 32 | 3203337956i64,
+    3336571891i64 << 32 | 1034457026i64,
+    3584528711i64 << 32 | 2466948901i64,
+    113926993i64 << 32 | 3758326383i64,
+    338241895i64 << 32 | 168717936i64,
+    666307205i64 << 32 | 1188179964i64,
+    773529912i64 << 32 | 1546045734i64,
+    1294757372i64 << 32 | 1522805485i64,
+    1396182291i64 << 32 | 2643833823i64,
+    1695183700i64 << 32 | 2343527390i64,
+    1986661051i64 << 32 | 1014477480i64,
+    2177026350i64 << 32 | 1206759142i64,
+    2456956037i64 << 32 | 344077627i64,
+    2730485921i64 << 32 | 1290863460i64,
+    2820302411i64 << 32 | 3158454273i64,
+    3259730800i64 << 32 | 3505952657i64,
+    3345764771i64 << 32 | 106217008i64,
+    3516065817i64 << 32 | 3606008344i64,
+    3600352804i64 << 32 | 1432725776i64,
+    4094571909i64 << 32 | 1467031594i64,
+    275423344i64 << 32 | 851169720i64,
+    430227734i64 << 32 | 3100823752i64,
+    506948616i64 << 32 | 1363258195i64,
+    659060556i64 << 32 | 3750685593i64,
+    883997877i64 << 32 | 3785050280i64,
+    958139571i64 << 32 | 3318307427i64,
+    1322822218i64 << 32 | 3812723403i64,
+    1537002063i64 << 32 | 2003034995i64,
+    1747873779i64 << 32 | 3602036899i64,
+    1955562222i64 << 32 | 1575990012i64,
+    2024104815i64 << 32 | 1125592928i64,
+    2227730452i64 << 32 | 2716904306i64,
+    2361852424i64 << 32 | 442776044i64,
+    2428436474i64 << 32 | 593698344i64,
+    2756734187i64 << 32 | 3733110249i64,
+    3204031479i64 << 32 | 2999351573i64,
+    3329325298i64 << 32 | 3815920427i64,
+    3391569614i64 << 32 | 3928383900i64,
+    3515267271i64 << 32 | 566280711i64,
+    3940187606i64 << 32 | 3454069534i64,
+    4118630271i64 << 32 | 4000239992i64,
+    116418474i64 << 32 | 1914138554i64,
+    174292421i64 << 32 | 2731055270i64,
+    289380356i64 << 32 | 3203993006i64,
+    460393269i64 << 32 | 320620315i64,
+    685471733i64 << 32 | 587496836i64,
+    852142971i64 << 32 | 1086792851i64,
+    1017036298i64 << 32 | 365543100i64,
+    1126000580i64 << 32 | 2618297676i64,
+    1288033470i64 << 32 | 3409855158i64,
+    1501505948i64 << 32 | 4234509866i64,
+    1607167915i64 << 32 | 987167468i64,
+    1816402316i64 << 32 | 1246189591i64,
+];
+        for i in 0..80 {
+            let t1 = Sha512::sha512_add4(h, Sha512::sha512_sigma1(e), Sha512::sha512_choose(e, f, g), Sha512::sha512_add(k[usize::try_from(i).unwrap_or(0)], words[usize::try_from(i).unwrap_or(0)]));
+            let t2 = Sha512::sha512_add(Sha512::sha512_sigma0(a), Sha512::sha512_majority(a, b, c));
+            h = g;
+            g = f;
+            f = e;
+            e = Sha512::sha512_add(d, t1);
+            d = c;
+            c = b;
+            b = a;
+            a = Sha512::sha512_add(t1, t2);
+        }
+        hash[0usize] = Sha512::sha512_add(hash[0usize], a);
+        hash[1usize] = Sha512::sha512_add(hash[1usize], b);
+        hash[2usize] = Sha512::sha512_add(hash[2usize], c);
+        hash[3usize] = Sha512::sha512_add(hash[3usize], d);
+        hash[4usize] = Sha512::sha512_add(hash[4usize], e);
+        hash[5usize] = Sha512::sha512_add(hash[5usize], f);
+        hash[6usize] = Sha512::sha512_add(hash[6usize], g);
+        hash[7usize] = Sha512::sha512_add(hash[7usize], h);
+    }
+
+    pub(crate) fn sha512_add(a: i64, b: i64) -> i64 {
+        return a.wrapping_add(b);
+    }
+
+    pub(crate) fn sha512_add4(a: i64, b: i64, c: i64, d: i64) -> i64 {
+        return a.wrapping_add(b).wrapping_add(c).wrapping_add(d);
+    }
+
+    pub(crate) fn sha512_choose(x: i64, y: i64, z: i64) -> i64 {
+        return x & y ^ !x & z;
+    }
+
+    pub(crate) fn sha512_majority(x: i64, y: i64, z: i64) -> i64 {
+        return x & y ^ x & z ^ y & z;
+    }
+
+    pub(crate) fn sha512_rotate(x: i64, n: u32) -> i64 {
+        return i64::from_ne_bytes(u64::from_ne_bytes((x).to_ne_bytes()).wrapping_shr(n).to_ne_bytes()) | x.wrapping_shl(u32::wrapping_sub(64, n));
+    }
+
+    pub(crate) fn sha512_sigma0(x: i64) -> i64 {
+        return Sha512::sha512_rotate(x, 28) ^ Sha512::sha512_rotate(x, 34) ^ Sha512::sha512_rotate(x, 39);
+    }
+
+    pub(crate) fn sha512_sigma1(x: i64) -> i64 {
+        return Sha512::sha512_rotate(x, 14) ^ Sha512::sha512_rotate(x, 18) ^ Sha512::sha512_rotate(x, 41);
+    }
+
+    pub(crate) fn sha512_gamma0(x: i64) -> i64 {
+        return Sha512::sha512_rotate(x, 1) ^ Sha512::sha512_rotate(x, 8) ^ i64::from_ne_bytes(u64::from_ne_bytes((x).to_ne_bytes()).wrapping_shr(7u32).to_ne_bytes());
+    }
+
+    pub(crate) fn sha512_gamma1(x: i64) -> i64 {
+        return Sha512::sha512_rotate(x, 19) ^ Sha512::sha512_rotate(x, 61) ^ i64::from_ne_bytes(u64::from_ne_bytes((x).to_ne_bytes()).wrapping_shr(6u32).to_ne_bytes());
+    }
+}

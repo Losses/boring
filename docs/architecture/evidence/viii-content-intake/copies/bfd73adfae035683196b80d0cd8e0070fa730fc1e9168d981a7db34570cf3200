@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/boring-wt-architecture
+argv timeout 900 haxe tests/haxe/dc-null-guard-fallthrough/gen/dart.hxml -D dart-output=/home/losses/Development/tq-workspace/dc-warn/out/integration-apply/dart/integration-apply-dart/gen-dart -D dart-test-output=/home/losses/Development/tq-workspace/dc-warn/out/integration-apply/dart/integration-apply-dart/gen-dart-tests

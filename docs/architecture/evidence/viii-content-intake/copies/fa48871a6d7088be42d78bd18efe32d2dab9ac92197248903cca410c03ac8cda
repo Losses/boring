@@ -1,0 +1,64 @@
+
+=== kotlin-f32: 58 missing ids in 20 modules ===
+  StringCodec: 10
+  MathMinMax: 10
+  LoopWrite: 4
+  FloatLiteralOps: 4
+  StringTools: 3
+  NoSuchElement: 3
+  Bytes: 3
+  AllowAccess: 3
+  SwiftLiteralSafetyOps: 2
+  OptionalParamNull: 2
+  NumberClassify: 2
+  InstanceDefaults: 2
+  GlyphCluster: 2
+  EarlyReturn: 2
+  StdStringPlainClass: 1
+  ShapeText: 1
+  PosterShape: 1
+  ImpDefault: 1
+  FontId: 1
+  ExceptionChainProbe: 1
+
+=== rust-f32: 48 missing ids in 17 modules ===
+  StringCodec: 10
+  MathMinMax: 10
+  StringTools: 3
+  NoSuchElement: 3
+  Bytes: 3
+  AllowAccess: 3
+  SumOfFloatLocal: 2
+  NumberClassify: 2
+  InstanceDefaults: 2
+  GlyphCluster: 2
+  EarlyReturn: 2
+  StdStringPlainClass: 1
+  ShapeText: 1
+  PosterShape: 1
+  ImpDefault: 1
+  FontId: 1
+  ExceptionChainProbe: 1
+
+=== swift-f32: 54 missing ids in 19 modules ===
+  StringCodec: 10
+  MathMinMax: 10
+  FloatLiteralOps: 4
+  StringTools: 3
+  NoSuchElement: 3
+  Bytes: 3
+  AllowAccess: 3
+  SumOfFloatLocal: 2
+  OptionalParamNull: 2
+  NumberClassify: 2
+  InstanceDefaults: 2
+  GlyphCluster: 2
+  EarlyReturn: 2
+  StdStringPlainClass: 1
+  ShapeText: 1
+  PosterShape: 1
+  ImpDefault: 1
+  FontId: 1
+  ExceptionChainProbe: 1
+
+=== haxe-f32: 0 missing ids in 0 modules ===

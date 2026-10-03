@@ -1,0 +1,8 @@
+timeout
+900
+haxe
+/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch/tests/haxe/dc-enum-switch-gen/gen/field-rust.hxml
+-D
+rust-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch/../../out/enum-switch/es-VHFjIw/gen/field/rust
+-D
+rust-test-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch/../../out/enum-switch/es-VHFjIw/gen/field/rust/test-host

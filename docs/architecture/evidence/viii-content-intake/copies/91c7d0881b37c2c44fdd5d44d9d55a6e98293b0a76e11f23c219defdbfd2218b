@@ -1,0 +1,137 @@
+import json, os, hashlib, subprocess, collections, stat, sys
+
+WS='/home/losses/Development/tq-workspace'
+COORD=os.path.join(WS,'boring-wt-architecture')
+ROOT=os.path.join(WS,'publication-staging/execution-option-c-coord')
+MAN=os.path.join(WS,'publication-staging/p09-coord-state/option-c-source-before.json')
+OUT=os.path.join(WS,'dc-warn/out/coord-baseline-xcheck2')
+
+def sha_file(p):
+    h=hashlib.sha256()
+    with open(p,'rb') as f:
+        for c in iter(lambda: f.read(1<<20), b''): h.update(c)
+    return h.hexdigest()
+
+def perm(p):
+    return os.lstat(p).st_mode & 0o777
+
+def git(*a):
+    r=subprocess.run(['git','-C',COORD]+list(a),capture_output=True)
+    if r.returncode!=0:
+        raise RuntimeError('git '+' '.join(a)+' rc='+str(r.returncode)+' '+r.stderr.decode()[:200])
+    return r.stdout
+
+# ---- coord tree sets
+tracked=git('ls-files','-z').decode().split('\0')[:-1]
+untracked=git('ls-files','-o','--exclude-standard','-z').decode().split('\0')[:-1]
+coord_set=tracked+untracked
+assert len(set(coord_set))==len(coord_set), 'dup coord paths'
+# ---- commit tree blob sha1
+tree={}
+for ln in git('ls-tree','-r','e1c65975').decode().splitlines():
+    meta,path=ln.split('\t',1)
+    m,typ,s=meta.split(' ')
+    tree[path]=(s,typ)
+
+# ---- manifest
+man=json.load(open(MAN))
+man_map={e['path']:e for e in man}
+assert len(man_map)==len(man)
+
+# ---- walk execution root (source scope)
+SKIP={'.git','node_modules','out','target','.haxelib','.direnv'}
+root_all=[]
+for dp,dns,fns in os.walk(ROOT):
+    dns[:]=[d for d in dns if d not in SKIP]
+    for fn in fns:
+        fp=os.path.join(dp,fn)
+        root_all.append(os.path.relpath(fp,ROOT))
+root_map={}
+for p in root_all:
+    root_map[p]=(sha_file(os.path.join(ROOT,p)), perm(os.path.join(ROOT,p)))
+
+res={'counts':{},'content_differ':[],'mode_only':[],'missing_in_root':[],'manifest_fail':[],'extra_in_root':[],'third_gen':[],'commit_state':[],'coord_commit_equal':[]}
+
+# ---- manifest verification: recompute from exec root
+mfail=[]
+for e in man:
+    p=e['path']
+    fp=os.path.join(ROOT,p)
+    if not os.path.exists(fp):
+        mfail.append((p,'MISSING',e['sha256'],None,e['mode'],None)); continue
+    s=sha_file(fp); m=perm(fp)
+    mm=int(e['mode'],8)&0o777
+    if s!=e['sha256'] or m!=mm:
+        mfail.append((p,'MISMATCH',e['sha256'],s,e['mode'],oct(m)[2:]))
+res['manifest_fail']=mfail
+
+# ---- coord vs root
+cdiff=[];cmiss=[];cmode=[]
+for p in coord_set:
+    cpath=os.path.join(COORD,p)
+    cp=perm(cpath); cs=sha_file(cpath)
+    if p not in root_map:
+        cmiss.append((p,cs,oct(cp)[2:])); continue
+    rs,rm=root_map[p]
+    if cs!=rs: cdiff.append((p,cs,rs,oct(cp)[2:],oct(rm)[2:]))
+    elif cp!=rm: cmode.append((p,oct(cp)[2:],oct(rm)[2:],cs))
+res['content_differ']=cdiff
+res['missing_in_root']=cmiss
+res['mode_only']=cmode
+
+# ---- extras in root (not in coord set)
+extras=sorted(set(root_map)-set(coord_set))
+res['extra_in_root']=[(p,root_map[p][0],oct(root_map[p][1])[2:]) for p in extras]
+
+# ---- commit-state hashing helper (blob contents)
+def commit_sha(p):
+    if p not in tree: return None
+    b=git('cat-file','blob',tree[p][0])
+    return hashlib.sha256(b).hexdigest()
+
+# ---- third generation analysis over union
+union=sorted(set(coord_set)|set(extras))
+commit_cache={}
+third=[];commit_state=[]
+for p in union:
+    rs,rm=None,None
+    if p in root_map: rs,rm=root_map[p]
+    cp=None
+    if p in coord_set: cp=sha_file(os.path.join(COORD,p))
+    if cp is not None and rs is not None and cp==rs:
+        continue  # current-state agreement, no third gen
+    csha=commit_sha(p)
+    if rs is None:
+        continue  # not in exec root -> handled by missing
+    if csha is not None and rs==csha:
+        commit_state.append((p,cp,rs))
+    else:
+        third.append((p,cp,rs,csha))
+res['third_gen']=third
+res['commit_state']=commit_state
+
+# coord tree vs commit state for tracked modified files
+for p in tracked:
+    cs=sha_file(os.path.join(COORD,p))
+    csha=commit_sha(p)
+    if csha is not None and cs==csha: res['coord_commit_equal'].append(p)
+res['counts']={
+ 'tracked':len(tracked),'untracked':len(untracked),'coord_set':len(coord_set),
+ 'manifest':len(man),'root_files':len(root_all),
+ 'content_differ':len(cdiff),'missing_in_root':len(cmiss),'mode_only':len(cmode),
+ 'manifest_fail':len(mfail),'extra_in_root':len(extras),
+ 'third_gen':len(third),'commit_state_but_not_coord':len(commit_state),
+}
+print(json.dumps(res['counts'],indent=1))
+
+def show(title,rows,limit=200):
+    print('\n== '+title+' ('+str(len(rows))+')')
+    for r in rows[:limit]: print('  ',r)
+show('CONTENT DIFFER (coord vs root)',cdiff)
+show('MISSING in root (present in coord)',cmiss)
+show('MODE-ONLY (bytes equal)',cmode)
+show('MANIFEST FAIL',mfail)
+show('EXTRA in root (not in coord set)',res['extra_in_root'],400)
+show('COMMIT-STATE but coord differs/absent',commit_state)
+show('THIRD GEN (exec root != commit AND != coord current)',third)
+json.dump(res,open(os.path.join(OUT,'s2-cmp.json'),'w'),indent=1)

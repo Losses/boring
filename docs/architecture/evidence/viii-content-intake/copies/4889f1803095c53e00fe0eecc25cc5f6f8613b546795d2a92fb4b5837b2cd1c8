@@ -1,0 +1,52 @@
+# Captured 2026-09-30T02:17:24-04:00 by arc-landing-list
+## git HEAD / branch
+e1c6597514634fd347d392709793cc19bd96c9a2 2026-09-29 12:32:46 -0400 merge: integrate fix/rust-readonly-alias-emitter (0701762d) into Rust fix candidate
+arch/agent-guided-governance
+
+## git status --short
+ M docs/investigations/architecture-round-1/d-observation.md
+ M examples/kotlin-f32.hxml
+ M examples/rust-f32.hxml
+ M examples/swift-f32.hxml
+ M package.json
+ M packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+ M packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx
+ M packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+ M samples/tests/NumberClassifyTests.hx
+ M tests/support/stage-check.sh
+ M tools/test-consistency/Main.hx
+?? docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md
+?? tests/haxe/dc-null-guard-fallthrough/
+?? tests/haxe/swift-rt-plain/
+?? tests/haxe/swift-rt-probe/
+?? tests/haxe/try-tail-min/
+?? tests/haxe/try-tail/
+?? tests/support/stage-check-control.sh
+?? tools/precision-guard/
+?? tools/roots-guard/
+?? tools/test-consistency/extra-id-allowlist.json
+
+## git diff --stat
+ .../architecture-round-1/d-observation.md          |   5 +-
+ examples/kotlin-f32.hxml                           |  41 ++++
+ examples/rust-f32.hxml                             |  33 ++++
+ examples/swift-f32.hxml                            |  37 ++++
+ package.json                                       |   3 +-
+ .../compiler/reflaxe/dart/dartcompiler/DartExpr.hx |  26 ++-
+ .../compiler/reflaxe/rust/rustcompiler/Compiler.hx | 211 ++++++++++++++++++++-
+ .../compiler/reflaxe/rust/rustcompiler/RustDecl.hx |  34 ++++
+ .../reflaxe/rust/rustcompiler/RustEmissionState.hx |   7 +
+ .../compiler/reflaxe/rust/rustcompiler/RustExpr.hx |  12 +-
+ .../swift/swiftcompiler/SwiftArrayBoundary.hx      |   4 +-
+ .../reflaxe/swift/swiftcompiler/SwiftDecl.hx       |   6 +
+ samples/tests/NumberClassifyTests.hx               |   7 +-
+ tests/support/stage-check.sh                       |  25 ++-
+ tools/test-consistency/Main.hx                     |  70 ++++++-
+ 15 files changed, 507 insertions(+), 14 deletions(-)
+
+## worktree count
+73

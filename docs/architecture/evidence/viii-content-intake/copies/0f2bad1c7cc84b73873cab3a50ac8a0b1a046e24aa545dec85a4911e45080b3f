@@ -1,0 +1,7 @@
+# byte-identity test re-run twice more in the export tree (/tmp/verify-2aadcb69/wt)
+run 1  2026-09-30T16:08:37-04:00  guard_before: count=5 sha=1c2acf93702b177d
+  exit=0  1 pass, 10 filtered out, 0 fail, 25 expect() calls [350.03s]
+  guard_after: count=5 sha=1c2acf93702b177d
+run 2  2026-09-30T16:14:27-04:00  guard_before: count=5 sha=1c2acf93702b177d
+  exit=0  1 pass, 10 filtered out, 0 fail, 25 expect() calls [358.47s]
+  guard_after: count=5 sha=1c2acf93702b177d

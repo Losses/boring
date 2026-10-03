@@ -1,0 +1,33 @@
+package tests
+
+import boring.runtime.test.Test
+
+class ArrayMethodSwiftTests {
+@boring.test.Test
+    fun testFind() {
+        Test.run("tests.ArrayMethodSwiftTests.testFind", "tests.ArrayMethodSwiftTests.testFind: indexOf lowers onto firstIndex with the -1 miss") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testCopyConcat() {
+        Test.run("tests.ArrayMethodSwiftTests.testCopyConcat", "tests.ArrayMethodSwiftTests.testCopyConcat: copy and concat lower onto native array operations") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testEnds() {
+        Test.run("tests.ArrayMethodSwiftTests.testEnds", "tests.ArrayMethodSwiftTests.testEnds: pop shift and unshift lower onto the mutating array members") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testSplice() {
+        Test.run("tests.ArrayMethodSwiftTests.testSplice", "tests.ArrayMethodSwiftTests.testSplice: splice returns the removed sub-array") {
+                Test.equals(true, true, null)
+        }
+    }
+}

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
+argv bash -c timeout\ 300\ java\ -cp\ /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212458Z/kotlin/gen/run.jar\ CharCodeAtRunKt

@@ -1,0 +1,52 @@
+use crate::boring::fp16::Fp16;
+use crate::boring::fp32::Fp32;
+use crate::runtime::bytes_buffer::BytesBuffer;
+use crate::runtime::fp_helper::FPHelper;
+use crate::runtime::u_string::UStr;
+
+
+pub struct BinaryWriter {
+    pub(crate) buffer: BytesBuffer,
+}
+
+impl BinaryWriter {
+    pub fn new() -> Self {
+        Self {
+            buffer: BytesBuffer::new(),
+        }
+    }
+
+    pub fn write_u16(&mut self, value: u16) {
+        self.buffer.add_byte(u8::try_from((u32::from(value.to_be_bytes()[0])) & 0xFF).unwrap_or(0));
+        self.buffer.add_byte(u8::try_from((u32::from(value.to_be_bytes()[1])) & 0xFF).unwrap_or(0));
+    }
+
+    pub fn write_u32(&mut self, value: u32) {
+        self.buffer.add_byte(u8::try_from((u32::from(value.to_be_bytes()[0])) & 0xFF).unwrap_or(0));
+        self.buffer.add_byte(u8::try_from((u32::from(value.to_be_bytes()[1])) & 0xFF).unwrap_or(0));
+        self.buffer.add_byte(u8::try_from((u32::from(value.to_be_bytes()[2])) & 0xFF).unwrap_or(0));
+        self.buffer.add_byte(u8::try_from((u32::from(value.to_be_bytes()[3])) & 0xFF).unwrap_or(0));
+    }
+
+    pub fn write_f64(&mut self, value: f64) {
+        let bits = FPHelper::double_to_i64(value);
+        self.write_u32(bits.high);
+        self.write_u32(bits.low);
+    }
+
+    pub fn write_f32(&mut self, value: f64) {
+        self.write_u32(Fp32::fp32_to_bits(value));
+    }
+
+    pub fn write_f16(&mut self, value: f64) {
+        self.write_u16(u16::try_from((Fp16::fp16_f32_to_f16_bits(Fp32::fp32_to_bits(value))) & 0xFFFF).unwrap_or(0));
+    }
+
+    pub fn write_ascii(&mut self, value: &UStr) {
+        self.buffer.add(&value.as_bytes().to_vec());
+    }
+
+    pub fn finish(&mut self) -> Vec<u8> {
+        return self.buffer.get_bytes();
+    }
+}

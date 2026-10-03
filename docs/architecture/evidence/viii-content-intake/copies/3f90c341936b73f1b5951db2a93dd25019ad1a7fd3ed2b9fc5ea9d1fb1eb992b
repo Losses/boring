@@ -1,0 +1,25 @@
+#![cfg(test)]
+
+use crate::boring::float_width::FloatWidth;
+use crate::boring::printed_enum_ops::PrintedBadge;
+use crate::boring::printed_enum_ops::PrintedEnumOps;
+use crate::boring::printed_enum_ops::PrintedMark;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn forms() {
+    testlib::run("tests.PrintedEnumTests.forms", "tests.PrintedEnumTests.forms: enum constructor printed forms", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[80,108,97,105,110]), PrintedEnumOps::printed_enum_ops_mark_value((PrintedMark::Plain).clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[109,97,114,107,61,82,105,110,103,40,100,105,97,109,101,116,101,114,61,49,46,53,41]), PrintedEnumOps::printed_enum_ops_mark_text(PrintedMark::Ring { diameter: 1.5f32 }).as_ustr(), UStr::new(&[]));
+        let label = UString::from("x").to_ustring();
+        test_core::TestCore::test_core_equals_string(UStr::new(&[84,97,103,40,116,101,120,116,61,120,44,32,119,101,105,103,104,116,61,50,41]), PrintedEnumOps::printed_enum_ops_mark_value(PrintedMark::Tag { text: label.to_ustring(), weight: 2 }).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[80,114,105,110,116,101,100,66,97,100,103,101,40,109,97,114,107,61,82,105,110,103,40,100,105,97,109,101,116,101,114,61,49,46,53,41,44,32,119,105,100,116,104,61,70,54,52,41]), PrintedEnumOps::printed_enum_ops_badge_text(PrintedBadge::new(PrintedMark::Ring { diameter: 1.5f32 }, FloatWidth::F64)).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[84,114,97,105,108,40,115,116,101,112,115,61,91,49,44,32,50,93,41]), PrintedEnumOps::printed_enum_ops_mark_value(PrintedMark::Trail { steps: vec![1, 2].to_vec() }).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[65,108,105,97,115,101,115,40,110,97,109,101,115,61,91,97,108,112,104,97,44,32,98,101,116,97,93,41]), PrintedEnumOps::printed_enum_ops_mark_value(PrintedMark::Aliases { names: vec![UString::from("alpha").to_ustring(), UString::from("beta").to_ustring()].to_vec() }).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[91,80,108,97,105,110,44,32,82,105,110,103,40,100,105,97,109,101,116,101,114,61,49,46,53,41,93]), PrintedEnumOps::printed_enum_ops_mark_list(&vec![(PrintedMark::Plain).clone(), (PrintedMark::Ring { diameter: 1.5f32 }).clone()]).as_ustr(), UStr::new(&[]));
+    });
+}

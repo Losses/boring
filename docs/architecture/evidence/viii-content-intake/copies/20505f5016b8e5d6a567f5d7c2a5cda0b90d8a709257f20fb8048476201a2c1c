@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
+argv diff -u tests/haxe/charcodeat/expected.txt /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212458Z/stages/run-ts/stdout

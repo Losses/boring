@@ -1,0 +1,10 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/rust-bytes-ownership.test.ts:
+killed 1 dangling process
+(fail) Rust borrows input Bytes fields and owns allocated Bytes fields [5000.89ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [5.04s]

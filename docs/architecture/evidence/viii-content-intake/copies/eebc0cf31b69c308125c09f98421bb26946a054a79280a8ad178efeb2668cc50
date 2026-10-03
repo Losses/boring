@@ -1,0 +1,20 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_preset() {
+    testlib::run("tests.DartCoalesceStaticTests.testPreset", "tests.DartCoalesceStaticTests.testPreset: omitted constructor defaults resolve through coalescing statics", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_partial() {
+    testlib::run("tests.DartCoalesceStaticTests.testPartial", "tests.DartCoalesceStaticTests.testPartial: an explicit null argument inlines the cross-module static default", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

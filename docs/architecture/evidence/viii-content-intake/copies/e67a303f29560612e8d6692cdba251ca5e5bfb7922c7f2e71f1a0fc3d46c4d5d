@@ -1,0 +1,28 @@
+555:         }
+556:         if (v.isStatic && isFunctionType(field.type)) {
+557:             final initializer = field.expr();
+558:             if (initializer == null) {
+559:                 Context.error("static function fields require initializers", field.pos);
+560:                 return [];
+561:             }
+562:             return ["    public static let "
+563:                 + SwiftNameEscape.escape(field.name)
+564:                 + ": "
+565:                 + types.of(field.type)
+566:                 + " = "
+567:                 + constValFloatInit(initializer, field.type)];
+568:         }
+569:         if (v.isStatic) {
+570:             final init = StaticFieldHelper.validatedInitializer(field, cls);
+571:             final array = StaticFieldHelper.isArrayType(field.type);
+572:             final smallArray = field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init);
+573:             final kw = smallArray ? "let" : (array || !field.isFinal ? "var" : "let");
+574:             // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+575:             final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
+576:             final initText = constValFloatInit(init, field.type);
+577:             // Swift forbids a throw from a global/static stored initializer;
+578:             // the value is a compile-time fixture, so force the fault and
+579:             // let a failure trap at load (stdlib/08/27).
+580:             var rendered = expr.containsThrowingCall(init) ? "try! " + initText : initText;
+581:             if (StaticFieldHelper.isReadOnlyArrayType(field.type)) {
+582:                 final isEmpty = switch (init.expr) {

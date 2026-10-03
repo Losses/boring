@@ -1,0 +1,57 @@
+package tests
+
+import boring.NumberParsingOps
+import boring.runtime.test.Test
+
+class NumberParsingTests {
+@boring.test.Test
+    fun floatSuccess() {
+        Test.run("tests.NumberParsingTests.floatSuccess", "tests.NumberParsingTests.floatSuccess: parseFloat accepts complete decimal tokens") {
+                Test.equals(1.0f, NumberParsingOps.parseFloat("  +1.  "), null)
+                Test.equals(0.5f, NumberParsingOps.parseFloat(".5"), null)
+                Test.equals(-125.0f, NumberParsingOps.parseFloat("-1.25E+2"), null)
+        }
+    }
+
+@boring.test.Test
+    fun floatFailure() {
+        Test.run("tests.NumberParsingTests.floatFailure", "tests.NumberParsingTests.floatFailure: parseFloat rejects malformed and partial tokens as NaN") {
+                Test.equals(true, NumberParsingOps.failedFloat(""), null)
+                Test.equals(true, NumberParsingOps.failedFloat("12x"), null)
+                Test.equals(true, NumberParsingOps.failedFloat("1e"), null)
+                Test.equals(true, NumberParsingOps.failedFloat("inf"), null)
+                Test.equals(true, NumberParsingOps.failedFloat("Infinity"), null)
+                Test.equals(true, NumberParsingOps.failedFloat("1f"), null)
+                Test.equals(true, NumberParsingOps.failedFloat("0x10"), null)
+                Test.equals(true, NumberParsingOps.failedFloat(" 1.5"), null)
+                Test.equals(true, NumberParsingOps.failedFloat("  1.5"), null)
+                Test.equals(0.5f, NumberParsingOps.parseFloat(".5"), null)
+        }
+    }
+
+@boring.test.Test
+    fun intSuccess() {
+        Test.run("tests.NumberParsingTests.intSuccess", "tests.NumberParsingTests.intSuccess: parseInt accepts decimal and hexadecimal tokens") {
+                Test.equals(-42, NumberParsingOps.parseInt(" -42 "), null)
+                Test.equals(16, NumberParsingOps.parseInt("0x10"), null)
+                Test.equals(31, NumberParsingOps.parseInt("0X1f"), null)
+                Test.equals(12, NumberParsingOps.parseInt(" 12 "), null)
+                Test.equals(26, NumberParsingOps.parseInt("+0X1a"), null)
+                Test.equals(-42, NumberParsingOps.parseInt("-42"), null)
+                Test.equals(-2147483648, NumberParsingOps.parseInt("-0x80000000"), null)
+                Test.equals(-2147483648, NumberParsingOps.parseInt("-2147483648"), null)
+                Test.equals(2147483647, NumberParsingOps.parseInt("0x7FFFFFFF"), null)
+                Test.equals(2147483647, NumberParsingOps.parseInt("2147483647"), null)
+        }
+    }
+
+@boring.test.Test
+    fun intFailure() {
+        Test.run("tests.NumberParsingTests.intFailure", "tests.NumberParsingTests.intFailure: parseInt rejects partial and overflowing tokens as null") {
+                Test.equals(true, NumberParsingOps.failedInt("12x"), null)
+                Test.equals(true, NumberParsingOps.failedInt("0x80000000"), null)
+                Test.equals(true, NumberParsingOps.failedInt("0x"), null)
+                Test.equals(true, NumberParsingOps.failedInt("2147483648"), null)
+        }
+    }
+}

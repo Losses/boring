@@ -1,0 +1,30 @@
+use crate::boring::probe_unit::ProbeUnit;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SwiftDefaultRecord {
+    pub style: ProbeUnit,
+}
+
+impl SwiftDefaultRecord {
+    pub fn new(style: Option<ProbeUnit>) -> Self {
+        let style = style.unwrap_or_else(|| ProbeUnit::zero());
+        Self {
+            style: style,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("SwiftDefaultRecord(")); __s += &(UString::from("style=")); __s += &(UString::from((self.style).clone().0.to_string().as_str())); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct SwiftDefaultOps;
+
+impl SwiftDefaultOps {
+    pub fn swift_default_ops_has_default() -> bool {
+        return SwiftDefaultRecord::new(Some(ProbeUnit::zero())).style == ProbeUnit::zero();
+    }
+}

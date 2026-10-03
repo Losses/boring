@@ -1,0 +1,6 @@
+package boring
+
+sealed class NoSuchElementNoteException(override val message: String) : RuntimeException(message) {
+    data class Note(val text: String) :
+        NoSuchElementNoteException(text)
+}

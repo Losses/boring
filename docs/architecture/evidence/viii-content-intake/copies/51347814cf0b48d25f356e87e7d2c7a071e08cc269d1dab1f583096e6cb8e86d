@@ -1,0 +1,9 @@
+evidence_dir=/home/losses/Development/tq-workspace/dc-warn/out/p09-smoke/smoke-chainA-0-3-20260929T220226Z
+utc=2026-09-29T22:02:26+00:00
+execution_root=/home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord
+source_manifest=/home/losses/Development/tq-workspace/publication-staging/p09-coord-state/option-c-source-before.json
+source_manifest_sha256=11e642e846361952611eb5c2068b1b87a69d46f7618019f6fa1793831cc51a47  /home/losses/Development/tq-workspace/publication-staging/p09-coord-state/option-c-source-before.json
+source_manifest_entries=1431
+runtime_assets_sha256=6277481ccd0a2737e4c25bae7ee9da2f13dbf777ae22c8fb938a2642b1a3a596  /home/losses/Development/tq-workspace/publication-staging/p09-coord-state/runtime-assets.json
+plan_source=/home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c.plan
+plan_source_sha256=b83a636d176bf5e6b40a98ef3a7d4598de92a2bb6f37fbddd171ee6141f6d54f  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c.plan

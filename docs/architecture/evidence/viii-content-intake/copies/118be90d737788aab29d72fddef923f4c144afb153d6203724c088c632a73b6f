@@ -1,0 +1,7 @@
+frozen xt-classemit gen=0 cargo=0 genrel=out/keyfix-xcheck/gen-frozen-223300/xt-classemit
+frozen xt-twoexc-emit gen=0 cargo=0 genrel=out/keyfix-xcheck/gen-frozen-223325/xt-twoexc-emit
+frozen xt-twoexc-emit-rev gen=0 cargo=101 genrel=out/keyfix-xcheck/gen-frozen-223351/xt-twoexc-emit-rev
+frozen xt-oneexc-nofault gen=0 cargo=101 genrel=out/keyfix-xcheck/gen-frozen-223416/xt-oneexc-nofault
+frozen xs-twoexc gen=0 cargo=101 genrel=out/keyfix-xcheck/gen-frozen-223441/xs-twoexc
+frozen xs-twoexc-swapped gen=0 cargo=101 genrel=out/keyfix-xcheck/gen-frozen-223507/xs-twoexc-swapped
+frozen xs-twoexc-faultnames gen=0 cargo=101 genrel=out/keyfix-xcheck/gen-frozen-223532/xs-twoexc-faultnames

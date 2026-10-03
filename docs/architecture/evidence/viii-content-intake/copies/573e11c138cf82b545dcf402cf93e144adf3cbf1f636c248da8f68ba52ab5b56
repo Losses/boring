@@ -1,0 +1,6 @@
+Analyzing ....
+
+warning - lib/xcoal/x_coal.dart:10:46 - The '!' will have no effect because the receiver can't be null. Try removing the '!' operator. - unnecessary_non_null_assertion
+warning - lib/xcoal/x_coal.dart:10:49 - The '!' will have no effect because the receiver can't be null. Try removing the '!' operator. - unnecessary_non_null_assertion
+
+2 issues found.

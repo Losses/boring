@@ -1,0 +1,6 @@
+Unhandled exception:
+Null check operator used on a null value
+#0      codeInt (package:generated/charcodeat/char_code_at_oracle.dart:27:11)
+#1      main (package:generated/charcodeat/zz_run.dart:18:28)
+#2      _delayEntrypointInvocation.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:313:19)
+#3      _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:192:12)

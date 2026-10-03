@@ -1,0 +1,7 @@
+lam/Lam.swift:17:32: error: declared closure result 'ReadOnlyArray<Int32>' is incompatible with return type 'TiqianArray<Int32>'
+15 | 
+16 |     public static func singleReturn(_ flag: Bool) -> Int32 {
+17 |         return Lam.use({ () -> ReadOnlyArray<Int32> in (flag ? Lam.src() : Lam.src2()) })
+   |                                `- error: declared closure result 'ReadOnlyArray<Int32>' is incompatible with return type 'TiqianArray<Int32>'
+18 |     }
+19 | 

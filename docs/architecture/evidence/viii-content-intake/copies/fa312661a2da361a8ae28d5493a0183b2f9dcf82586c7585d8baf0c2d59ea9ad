@@ -1,0 +1,15 @@
+package tests
+
+import boring.runtime.Env
+import java.nio.file.Files
+import java.nio.file.Paths
+
+object KotlinEntryProbeTests {
+    fun runTestEntries() {
+        val directory = Env.get("BORING_KOTLIN_ENTRY_PROBE_DIR")
+        if ((directory == null)) {
+            return
+        }
+        Files.writeString(Paths.get(directory + "/KotlinEntryProbeTests.txt"), "entered")
+    }
+}

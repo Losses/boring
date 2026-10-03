@@ -1,0 +1,29 @@
+package tests
+
+import boring.PublicGetterProperty
+import boring.runtime.test.Test
+
+class PublicGetterPropertyTests {
+@boring.test.Test
+    fun testPublicGetterProperty() {
+        Test.run("tests.PublicGetterPropertyTests.testPublicGetterProperty", "tests.PublicGetterPropertyTests.testPublicGetterProperty: reads a public property backed by a private getter across modules") {
+                Test.equals(8, PublicGetterProperty(7).x, null)
+        }
+    }
+
+@boring.test.Test
+    fun testGetterOnlyInterfaceRead() {
+        Test.run("tests.PublicGetterPropertyTests.testGetterOnlyInterfaceRead", "tests.PublicGetterPropertyTests.testGetterOnlyInterfaceRead: reads a getter-only property through an interface receiver") {
+                val h = PublicGetterProperty(1)
+                Test.equals("getter-property", h.name, null)
+        }
+    }
+
+@boring.test.Test
+    fun testGetterOnlyConcreteRead() {
+        Test.run("tests.PublicGetterPropertyTests.testGetterOnlyConcreteRead", "tests.PublicGetterPropertyTests.testGetterOnlyConcreteRead: reads a getter-only property through a concrete class receiver") {
+                val p = PublicGetterProperty(1)
+                Test.equals("getter-property", p.name, null)
+        }
+    }
+}

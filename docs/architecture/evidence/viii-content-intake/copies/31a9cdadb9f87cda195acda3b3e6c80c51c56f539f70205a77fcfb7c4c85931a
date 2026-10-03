@@ -1,0 +1,6 @@
+// Harness for the reviewer's independent xcheck fixture.
+import 'x_probe.dart' as xprobe;
+
+void main() {
+  print(xprobe.run());
+}

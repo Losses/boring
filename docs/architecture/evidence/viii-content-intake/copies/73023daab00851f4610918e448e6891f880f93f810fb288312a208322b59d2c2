@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_value() {
+    testlib::run("tests.MapValueOptionalTests.testValue", "tests.MapValueOptionalTests.testValue: a sorted-map value optional carries one optional layer", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

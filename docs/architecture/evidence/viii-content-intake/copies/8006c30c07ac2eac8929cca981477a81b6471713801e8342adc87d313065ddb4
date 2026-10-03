@@ -1,0 +1,25 @@
+#![cfg(test)]
+
+use crate::boring::usize_comparison_ops::UsizeComparisonOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn within_bounds() {
+    testlib::run("tests.UsizeComparisonTests.withinBounds", "tests.UsizeComparisonTests.withinBounds: a nullable array length bounds an index in the u32 comparison domain", || {
+        test_core::TestCore::test_core_equals_bool(true, UsizeComparisonOps::usize_comparison_ops_within_bounds(Some(vec![1, 2, 3]), 2), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, UsizeComparisonOps::usize_comparison_ops_within_bounds(Some(vec![1, 2, 3]), 3), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, UsizeComparisonOps::usize_comparison_ops_within_bounds(None, 0), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn length_exceeds() {
+    testlib::run("tests.UsizeComparisonTests.lengthExceeds", "tests.UsizeComparisonTests.lengthExceeds: a nullable array length compares above an Int limit", || {
+        test_core::TestCore::test_core_equals_bool(true, UsizeComparisonOps::usize_comparison_ops_length_exceeds(Some(vec![1, 2, 3]), 2), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, UsizeComparisonOps::usize_comparison_ops_length_exceeds(Some(vec![1, 2, 3]), 3), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, UsizeComparisonOps::usize_comparison_ops_length_exceeds(None, 0), UStr::new(&[]));
+    });
+}

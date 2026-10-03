@@ -1,0 +1,145 @@
+# Two-funnel ownership: `SwiftArrayBoundary` plan facts vs. two operand producers
+
+Read-only repo: `boring-wt-architecture` (HEAD). Generation evidence: `evidence/gen/`,
+produced from the patched worktree `dc-warn/swc-try-fix-wt/wt/` with
+`evidence/probe.hxml` (cwd = tree root, PATH from `chainA-fixed-rerun/evidence/env.json`),
+log in `evidence/gen.log`. No worktree or coordination tree was modified; the probe sample
+lives in `evidence/tfprobe/` and all output goes to `dc-warn/out/two-funnel-ownership/`.
+
+## 1. The two entry points, precisely
+
+There is exactly **one plan producer**: `SwiftArrayBoundary.prepare` + `render`
+(`SwiftArrayBoundary.hx:165/251`). Both funnels call it. What the second funnel
+duplicates is not plan selection but **operand-fact derivation** — the
+`SwiftArrayPreparedOperand` fields (`storage`, `optionality`, `presenceFact`) that feed it.
+
+### Entry 1 — `SwiftExpr.lowerArrayBoundary` (`SwiftExpr.hx:2578`; 8 call sites)
+
+Computes (via `prepareArrayOperand`, `:2680`, plus pre-steps):
+- **storage**: `localArrayBindingStorages` / `parameterPlansByLocal` recorded facts when the
+  operand is a local/parameter; otherwise `SwiftArrayBoundary.sourceStorage(e.t, isEmptyArrayDecl(e), isNullLiteral(e))`.
+- **optionality**: `arrayOperandOptionality` (`:2696`) — narrowing (`isNarrowed`), both-arms-non-null
+  ternaries, parameter plans, non-optional-declared null-leaf types, `optionalValued`.
+- **presenceFact**: `arrayOperandPresenceFact` (`:2716`) — `GuardProvenPresent` (narrowed),
+  `BranchValuesRequired` (ternary), parameter-plan facts, `DefaultMaterializedPresent`, else `NoPresenceProof`.
+- Pre-steps: coalescing-site lowering (`lowerCoalescingExpression`), optional nil-merge guards
+  (`guardedOptionalBoundaryOperand`), conditional `TIf` boundaries (`lowerArrayConditionalBoundary`).
+- Post: `arrayRuntimeText(...)` wrap, `fail(...)` on `plan == null` or missing element type,
+  and returns a *result* operand carrying `plan.resultStorage` / `resultOptionality` for downstream consumers.
+
+Assumes nothing about source syntax; it is fully general. If deleted: every expression-level
+boundary breaks — locals, parameters, returns (`:1212`), call arguments (`:4720/:4756/:4859`),
+branches, coalescing. Static-field initializers would keep working (entry 2 is independent).
+
+### Entry 2 — `SwiftDecl.hx` static read-only field initializer (HEAD `:581-603`, hand-built operand at `:590-598`)
+
+Computes:
+- **storage**: the same shared classifier `sourceStorage(init.t, isEmpty, isNull)` where `isEmpty` /
+  `isNull` are pattern-matched directly on the initializer (`TArrayDecl(elements).length == 0`,
+  `TConst(TNull)`).
+- **optionality**: one bit — `isNull ? OptionalOperand : RequiredOperand`.
+- **presenceFact**: one bit — `isNull ? NoPresenceProof : LiteralProvenPresent`.
+- Text: the already-rendered `constValFloatInit` result; a `try!` prefix if it throws.
+
+Assumes the initializer is a **sanctioned literal language**: `StaticFieldHelper.validatedInitializer`
+(`packages/compiler/StaticFieldHelper.hx:26`) admits only null, literals, array literals, and
+construction forms (with per-element admission for non-empty final array literals). That is what
+makes the one-bit facts sound: no locals, no narrowing, no ternaries, no optional-typed non-null
+literals can appear, so the flow-analysis machinery of entry 1 has nothing to compute.
+
+Does NOT do (and cannot need to): coalescing sites, conditional boundaries, nil-merge guards,
+local/parameter recorded storages, `arrayOperandOptionality`/`arrayOperandPresenceFact` inference,
+`arrayRuntimeText` wrap, `destinationOptionalOverride`. On `plan == null` it raises
+`Context.error` (compile-time fault) where entry 1 has a recoverable `fail` path.
+
+If deleted: static read-only array fields would render as bare `constValFloatInit` text with no
+boundary plan — a mutable-backed `TiqianArray(...)` literal assigned to a `ReadOnlyArray` slot, and
+an untyped `[]` empty literal — i.e. invalid Swift for every non-null, non-empty case.
+
+## 2. Divergence test — same source shape through both funnels
+
+Probe (`evidence/tfprobe/Shapes.hx`): static `ReadOnlyArray` fields (entry 2) next to functions
+declaring the identical shape as a local and passing it through a `consume(ReadOnlyArray<Int>)`
+parameter and returns (entry 1). Generated `evidence/gen/tfprobe/Shapes.swift`:
+
+| shape | static field (entry 2) | local (entry 1) | same plan? |
+|---|---|---|---|
+| `[1,2,3]` mutable-backed literal | `ReadOnlyArray(TiqianArray<Int32>([1, 2, 3]))` (`WrapMutableArrayView`) | identical | yes |
+| `[]` empty literal | `ReadOnlyArray<Int32>()` (`ContextualReadOnlyEmpty`) | identical | yes |
+| `null` optional view | `nil` (`PreserveNullArrayValue`) | identical | yes |
+| `ReadOnlyArray<Null<Int>> = [4, null, 6]` | `ReadOnlyArray(TiqianArray<Int32?>([4, nil, 6]))` | (local literal is constant-folded into element locals by an unrelated local-literal optimization before indexing; not a boundary-plan divergence) | yes where comparable |
+| read of mutable static `Shapes.mutStore` | n/a (entry 1 only) | `ReadOnlyArray(Shapes.mutStore)` | — |
+
+**Result: no divergence in the rendered plan for any shape both funnels can legally express.**
+The shapes only entry 1 handles (ternaries, coalescing, narrowed guards, parameter-optional
+merges) are unreachable through entry 2 because `validatedInitializer` rejects them at compile
+time (`Context.error`), so entry 2's simplified facts can never see them.
+
+What entry 2 would do with an *unsanctioned* initializer is fail loudly: an initializer whose
+`t` classifies as `OtherArrayStorage` (e.g. a construction form) yields `plan == null` →
+`Context.error("read-only array initializer has no prepared storage decision")`. There is no
+silent wrong output path found; none constructed because no sanctioned shape produces one.
+
+## 3. Verdict: acceptable layering, with one fragile invariant
+
+The reviewer's label "second plan producer" is imprecise: `prepare`/`render` remain the single
+plan producer and both funnels share it. Entry 2 is a second **operand producer**, and it does
+**not** re-implement any decision `prepare` owns — operation selection, result storage,
+optionality propagation, and rendering all stay in the planner. It duplicates only the
+*source-fact derivation*, and it derives those facts through the same shared classifier
+(`sourceStorage`) that entry 1 falls back to; the two one-bit facts (`optionality`,
+`presenceFact`) are simplifications that are sound for the literal-only initializer language.
+
+So this is not a defect today. It is acceptable layering resting on one **implicit cross-file
+invariant**: entry 2's `LiteralProvenPresent` / `RequiredOperand` simplification is correct only
+while `StaticFieldHelper.validatedInitializer` keeps the static initializer language a closed set
+of literals. That invariant lives in `packages/compiler/StaticFieldHelper.hx`, and neither
+`SwiftDecl.hx:590-598` nor `SwiftArrayBoundary.hx` states it. If feature 30 ever admits a new
+initializer form (a static reference to a computed array, a conditional form, an optional-typed
+literal), entry 2 will silently claim `LiteralProvenPresent` for a value with no such proof, and
+`prepare` will accept it because `LiteralProvenPresent` bypasses the presence check
+(`SwiftArrayBoundary.hx:222-227`). That is a real, narrow ownership hazard — the presence fact is
+asserted by syntax site, not owned by the planner.
+
+## 4. Smallest correct resolution
+
+A universal target IR is unnecessary; a small explicit interface suffices. Move the hand-built
+operand construction out of `SwiftDecl` into the boundary module, next to `prepare`, as e.g.:
+
+```haxe
+// SwiftArrayBoundary.hx
+/** Operand facts for a sanctioned static literal; LiteralProvenPresent is
+    valid only because StaticFieldHelper.validatedInitializer admits
+    literals only. Keep that contract next to the fact it asserts. */
+public static function literalOperand(text:String, sourceType:Null<Type>,
+        emptyLiteral:Bool, nullLiteral:Bool):SwiftArrayPreparedOperand
+```
+
+`SwiftDecl.hx:585-598` then becomes `final operand = SwiftArrayBoundary.literalOperand(rendered, init.t, isEmpty, isNull);`
+plus the `prepare`/`render` calls it already makes. Behavior is byte-identical today (verified:
+the generated file above was produced by the current hand-built path and matches entry 1 for
+every shape). Cost: ~15 lines relocated, no signature churn, no behavior change; the win is that
+the invariant has a named home in the module that owns presence facts, so any widening of the
+static initializer language trips over an assertion site instead of a silent fact.
+
+Do not route static initializers through `lowerArrayBoundary` itself: it lives on `SwiftExpr`
+with per-function state (`parameterPlansByLocal`, `currentReturnType`) that a declaration
+context does not have, and its generality buys nothing for a literal-only language. Also leave
+the "documented-invariant" alternative as a minimum: at least add the comment above even if the
+function move is declined.
+
+## 5. What remains unsettled
+
+- **Not verified by execution**: the `plan == null` fault path for an unsanctioned
+  construction-form initializer of a read-only array field. I did not construct such a field
+  because Haxe type unification itself rejects non-array constructions for a `ReadOnlyArray`
+  slot; the claim rests on reading `prepare`'s `OtherArrayStorage` case, not on a generated
+  artifact.
+- **Not verified**: behavior under a widened initializer language (the hazard in §3). Settling
+  it requires deciding feature 30 policy, which is out of scope here.
+- The local `ReadOnlyArray<Null<Int>>` literal lowering (element spilling) belongs to a
+  different mechanism (local literal constant-folding) and was not investigated beyond
+  confirming it is not the boundary planner.
+- Entry-1 call-site census (`8 sites`) taken from the HEAD checkout at the listed lines; the
+  patched generation worktree may differ by a few lines (`SwiftDecl` operand at `:591-599`
+  there), which does not affect any conclusion.

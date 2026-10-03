@@ -1,0 +1,41 @@
+dirty tracked: 8; untracked entries: 7
+docs/investigations/architecture-round-1/d-observation.md
+   in exec-root=True  in manifest=True (mode 100644)
+   exec==committed: True  exec==coord-dirty: False
+   manifest matches: ['committed']
+   mtime coord=2026-09-28 16:46:23.496178069 -0400  exec=2026-09-29 12:32:46.000000000 -0400
+packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
+   in exec-root=True  in manifest=True (mode 100644)
+   exec==committed: False  exec==coord-dirty: True
+   manifest matches: ['coord-dirty']
+   mtime coord=2026-09-29 17:24:30.868150403 -0400  exec=2026-09-29 17:50:23.741922395 -0400
+packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+   in exec-root=True  in manifest=True (mode 100644)
+   exec==committed: False  exec==coord-dirty: True
+   manifest matches: ['coord-dirty']
+   mtime coord=2026-09-29 17:24:30.881929412 -0400  exec=2026-09-29 17:50:23.744722580 -0400
+packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+   in exec-root=True  in manifest=True (mode 100644)
+   exec==committed: False  exec==coord-dirty: True
+   manifest matches: ['coord-dirty']
+   mtime coord=2026-09-29 17:24:30.882138309 -0400  exec=2026-09-29 17:50:23.747636466 -0400
+packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+   in exec-root=True  in manifest=True (mode 100644)
+   exec==committed: False  exec==coord-dirty: True
+   manifest matches: ['coord-dirty']
+   mtime coord=2026-09-29 17:24:30.882249385 -0400  exec=2026-09-29 17:50:23.750955584 -0400
+packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+   in exec-root=True  in manifest=True (mode 100644)
+   exec==committed: False  exec==coord-dirty: True
+   manifest matches: ['coord-dirty']
+   mtime coord=2026-09-29 17:24:30.882298366 -0400  exec=2026-09-29 17:50:23.753837321 -0400
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+   in exec-root=True  in manifest=True (mode 100644)
+   exec==committed: False  exec==coord-dirty: True
+   manifest matches: ['coord-dirty']
+   mtime coord=2026-09-29 17:24:30.889872303 -0400  exec=2026-09-29 17:50:23.757572721 -0400
+tests/support/stage-check.sh
+   in exec-root=True  in manifest=True (mode 100644)
+   exec==committed: True  exec==coord-dirty: False
+   manifest matches: ['committed']
+   mtime coord=2026-09-29 14:54:51.629935513 -0400  exec=2026-09-29 12:32:46.000000000 -0400

@@ -1,0 +1,16 @@
+$ git -C /home/losses/Development/tq-workspace/boring-wt-architecture status --porcelain tools/roots-guard examples publication-staging
+ M examples/kotlin-f32.hxml
+ M examples/rust-f32.hxml
+ M examples/swift-f32.hxml
+?? tools/roots-guard/
+rc=0
+
+sha256 of the two shared-tree guard files:
+e5508bb442daaeb6655fb1a149ab4a853f5365af415bba3fddf9e854dba980db  /home/losses/Development/tq-workspace/boring-wt-architecture/tools/roots-guard/check-roots-guard.sh
+34d336ce68b08e686a12dbf5ca43bd89495d470b2ac5278624bdffc93da471a9  /home/losses/Development/tq-workspace/boring-wt-architecture/tools/roots-guard/roots-allowlist.json
+
+expected original: e5508bb442daaeb6655fb1a149ab4a853f5365af415bba3fddf9e854dba980db (script)
+                   34d336ce68b08e686a12dbf5ca43bd89495d470b2ac5278624bdffc93da471a9 (allowlist)
+
+$ git -C /home/losses/Development/tq-workspace/boring-wt-architecture log -1 --format=%H
+e1c6597514634fd347d392709793cc19bd96c9a2

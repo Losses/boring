@@ -1,0 +1,10 @@
+# target ts
+# generated tree /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-tbGMwa/ts-gen
+59411cf4eda5ed7e5580f591cd0b03802f0a88b9bb74f6eed92e834d2698cd8f  /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-tbGMwa/ts-gen/dcpe/EvalProbe.ts
+# --- subject region of /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-tbGMwa/ts-gen/dcpe/EvalProbe.ts ---
+20:      const _g = EvalProbe.nextKind();
+21:      switch (_g.kind) {
+22:        case "A":
+25:        case "B":
+27:          acc = _g.value;
+30:        case "C":

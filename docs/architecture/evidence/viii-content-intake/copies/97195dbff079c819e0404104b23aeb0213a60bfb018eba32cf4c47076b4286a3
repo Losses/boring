@@ -1,0 +1,3 @@
+-cp tools/test-consistency
+-main Main
+-js out/test-consistency/manager.js

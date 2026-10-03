@@ -1,0 +1,61 @@
+# P09 链 A / Stage 3 driver-verify — swiftc shim 决定性验证
+
+日期：2026-09-29 18:53–19:02 EDT。问题：用已验证 swiftc shim 绕过 FHS wrapper 后，
+Stage 3 的 Swift 腿能否真正跑起来（取代 not-reached）？
+
+## 结论（三选一判定）
+
+**仍受限 — 但限制类别已改变：shim 生效，Swift 腿真实执行，卡在"生成树本身"
+的类型错误（第二类：类型错误，非 bwrap、非 SDK/链接注入不足）。**
+
+- `driver-verify` rc = **1**；poststate rc = 0（`1433 entries checked, 0 failures`）。
+- Swift 腿首次真实执行到编译期：child record **0020**，command=`swiftc`，
+  outcome=`normal-exit`，exitStatus=1，elapsed 62.4s，cwd=副本根。**0 次 bwrap 出现**。
+- **唯一 error**（逐字）：
+  `reference/swift/gen/boring/VectorCodec.swift:49:43: error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'`
+  （`for record in TiqianArray(records.toMutableArray())`）——与 2026-09-29
+  swift-recipe-verify 探针完全一致，可独立复现。
+- 因 `build library` 失败，`build test executable` 与 swift 运行腿未到达（无 record 0021+）。
+- 判定分类（照任务口径）：**"报 cannot find type / 类型错误 → shim 生效、是生成树本身的问题"**。
+  下一步是修 swiftcodegen 的 VectorCodec 包装（或生成侧直接迭代 records），非环境工作。
+
+## Plan 副本核对
+
+- `dc-warn/out/p7-systempkg-probe/plan-stage3-only.plan`：14 行 = 13 行注释 + **1 条命令行**，
+  经 Python 字节比较与冻结 `option-c.plan` 第 58 行**逐字节一致**；grep 确认仅此一段
+  `option-c-stage-wrapper.sh`（无 Stage 0-2/4-16）。本次运行用其在 `/tmp` 的副本
+  `/tmp/p9-stage3-shim/plan-stage3-only.plan`（sha 见 evidence/hashes.txt）。
+
+## 接线清单（全部显式 export，flake shell 内实测）
+
+| 变量 | 实际值 |
+|---|---|
+| `PATH`（前缀） | `/tmp/p9-stage3-shim/bin:$PATH`（shim 从 dc-warn 复制到 /tmp，sha256 相同 `d5842a5d…`；挂载无执行位） |
+| `SWIFT_SHIM_STATE` | `/tmp/p9-stage3-shim/shim-state`（本次独立，未共享） |
+| `BORING_SWIFT_SYSTEM_PACKAGE` | `/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6` |
+| `OPTION_C_ROOT` | `/tmp/p9-stage3-shim/execroot`（`cp -a` 副本，302M；driver.js sha `bf2450d3…` = 冻结一致；`.haxelib/boring/.dev` 改指副本） |
+| `SOURCE_MANIFEST` | `publication-staging/p09-coord-state/option-c-source-before.json`（实测 **1433** 条） |
+| `EXCLUSIVE_RUNNER_DIR` | `boring-wt-architecture/out/integration-a3-evidence/exclusive-runner`（只读使用） |
+| `GIT_CEILING_DIRECTORIES` / `XDG_CACHE_HOME` | `$OPTION_C_ROOT` / `$OPTION_C_ROOT/out/xdg-cache` |
+| `EXPECTED_MANIFEST_ENTRIES` | **1433**（显式） |
+| `HAXELIB_PATH` | `$OPTION_C_ROOT/.haxelib` |
+
+`command -v swiftc`（运行前在 flake shell 内存档）= **`/tmp/p9-stage3-shim/bin/swiftc`**
+（覆盖 `…-swift-6.2.4-wrapped/bin/swiftc`），完整 PATH 见 `evidence/command-v-swiftc.txt`。
+
+## rc 与 child records
+
+- harness rc（RUNNER_RC）= 1；Stage 3 sealed：`failed_stage=step-737716045 last_status=1`；
+  `check-log-integrity.sh` → **INTEGRITY OK**（end marker sha 9109096a…）。
+- 20 条 child records：0001-0019（haxe 生成×10、haxe build、bun×2、kotlinc×2、java、dart、cargo×2）
+  **全部 exit=0**；**0020 swiftc "build library" exit=1**。详见 `evidence/child-records-summary.txt`。
+- 副本内 attempt：`…/attempt-20260929T185337-3073504`；副本 `.latest-run` 指向它；
+  **真实根 `.latest-run` 跑前跑后不变**（仍 `attempt-20260929T181227-2924303`），真实根无新 attempt。
+
+## 隔离与卫生
+
+- 仅写 `/tmp/p9-stage3-shim/**` 与 `dc-warn/out/p9-stage3-shim/**`；
+  publication-staging、tiqian、boring-wt-architecture、冻结 7 件全部只读。
+- loader 断言（对副本根）：跑前 RC=0 PASS，跑后 RC=0 PASS（`evidence/loader-assert-{before,after}.txt`）。
+- 备注：`nix develop` 需 `XDG_CACHE_HOME=/tmp/p9-stage3-shim/nix-cache`（默认
+  `~/.cache/nix/fetcher-cache-v4.sqlite` 本会话只读导致 SQLite 写失败），与被测环境无关。

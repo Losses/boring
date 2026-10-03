@@ -1,0 +1,443 @@
+# CI failure attribution for the `collected-suite` job
+
+**Task.** The round-5 management ruling
+(`boring-wt-architecture/docs/architecture/MANAGEMENT-RULING-005.md`) downgraded contract 3 from
+"achieved" to "the gate is implemented; its run reliability is not achieved", because the
+`collected-suite` job can go red for a pre-existing npm-artifact non-determinism unrelated to the
+change under review - so its red light cannot be attributed. Restoration condition 3 reads:
+
+> the `collected-suite` job no longer fails on that artifact flake under repeated runs;
+> **the log distinguishes real product/spec failures from environment/timeout failures.**
+
+The flake repair is another seat's half. **This report covers the attribution half**: when the job
+goes red, its own output must let a reader say *which kind* of failure occurred, without re-running
+anything.
+
+**Where the change is.** `boring-wt-architecture/.github/workflows/ci.yml`, job `collected-suite`,
+step renamed from `Report the count and the collection domain` to
+`Report the counts, the collection domain, and the failure attribution`. Committed on branch
+`ci/collected-suite-failure-attribution`, commit **`4f80322c`**, based on `0b723fdc` (clean working tree
+after the commit; see `evidence/commit-clean-tree.txt`).
+
+**What I did and did not run.** I never ran the suite: it takes about 31 minutes, it rewrites a
+tracked fixture, and the tree is shared with another seat. Every class count below describes a
+**log** replayed through the report step, extracted verbatim from the committed workflow.
+Classifying a log is not running the suite, and this report keeps the two apart everywhere.
+
+---
+
+## 1. What a reader could not distinguish before
+
+The step (from `9f26e1ef`, extended by `99ba67fd`) reported, in `$GITHUB_STEP_SUMMARY`:
+
+- the `pass` / `fail` / `errors` / `Ran` summary lines of the run,
+- the collected domain by top-level directory,
+- the generated-tree warning line count and the matching lines,
+- the baseline reconciliation for that warning count.
+
+It gated on a missing log, an unparseable warning count, and a warning count deviating from the
+recorded baseline of 0. It never classified the `fail` number.
+
+**The three failure kinds render nearly identically.** In the retained baseline log
+(`dc-warn/out/ci-wire/evidence/recorded-baseline-proof-run.log`, revision `695940e8`) all three
+appear as a `(fail) <test id> [Nms]` line plus an `error: expect(...)` block:
+
+1. **Real assertion failure** - the test ran and its expectation failed. Its error block ends with
+   an `at <anonymous> (.../file.test.ts:LINE:COL)` frame, and in the inline body it appears
+   *before* its `(fail)` line rather than after it.
+2. **Environment / timeout** - the `(fail)` line is followed by `  ^ this test timed out after
+   Nms.` and often preceded by `killed N dangling process`. The kill then produces
+   `# Unhandled error between tests` blocks that **re-print the aborted test's own expectation**,
+   with `Received: 143` (SIGTERM) or `Received: ""` (a compiler killed before it wrote stderr).
+   Those cascade blocks are assertion-shaped text about a machine event, not a product failure.
+3. **npm-artifact non-determinism** - the byte-identity test (test id `package artifact emission >
+   two generations of the same inputs produce byte-identical artifacts`, in
+   `tests/ts/package-artifacts.test.ts`) fails on a binary `expect(Buffer).toEqual(Buffer)` diff
+   caused by the `MathNaNTestSupport.{js,d.ts}` entry set flipping between runs. It is a real
+   assertion failure in form and an environment artifact in cause. The classifier matches this test
+   by name and by assertion shape, never by line number: that file's numbering has already moved
+   (the test stood at `:333` before the tracked-fixture repair `2aadcb69` and at `:320` after it),
+   so a line-anchored rule would break without saying so.
+
+**Why reading the raw log did not separate them** - measured on the retained log:
+
+| naive reading | value | truth |
+|---|---:|---:|
+| lines matching `^\(fail\) ` | 64 | **32** failed tests (bun prints each twice: inline, then in the `N tests failed:` recap) |
+| lines matching `^error: expect` | 14 | **7** real assertion failures (7 of the 14 are inside timeout cascades) |
+| lines matching `^  \^ this test timed out after` | 50 | **25** timeout failures (again printed twice) |
+| `# Unhandled error between tests` blocks | 8 | 8 - and the run's summary calls them `8 errors`, which reads as a product error count |
+| ` N fail` summary line | 32 | the only honest total, and it says nothing about kind |
+
+So the number a reader had was `32 fail`, and any grep over the log double-counts or misclassifies.
+That is the gap: **the red light was unattributable**, which is exactly what the ruling objected to.
+
+A second, sharper consequence: the ruling names one failure that must **not** be mislabelled -
+`package-shell.test.ts:249` is "recorded separately as a product/spec gap and must not be
+misclassified as a timeout or hidden by the flake". Under the old report step a reader could not
+tell whether the 32 included it or a timeout; under the new one it is classified, and it lands in
+`assertion` (see section 3, control D).
+
+---
+
+## 2. The classification rules
+
+The classifier lives inside the existing report step, after the pre-existing summary block and
+before the pre-existing gate. It writes a new `## Failure attribution (why this run is red)`
+section into `$GITHUB_STEP_SUMMARY`. Its rules, in precedence order:
+
+**Source of the failure list.** Prefer the `N tests failed:` recap - bun's own deduplicated list,
+which is the only place where the count is comparable with the ` N fail` summary line. If the log
+has no recap (a crash before it, or a green run), fall back to the inline body and deduplicate by
+test id, **carrying the timeout marker line through** so the fallback does not silently reclassify
+every timeout as an assertion. The chosen source is printed in the summary.
+
+**Class 1 - real assertion failure.** A `(fail)` entry whose *next* line is not
+`  ^ this test timed out after <N>ms.`. Product or spec.
+
+**Class 2 - environment / timeout.** A `(fail)` entry whose next line matches that marker. The
+marker is taken as the discriminator because bun emits it for a test that exceeds its budget;
+`killed N dangling process` is a hint, not the test, since it is not always adjacent to the failure.
+
+**Class 3 - npm-artifact non-determinism (the known flake).** Requires **both**:
+- the test id is `package artifact emission > two generations of the same inputs produce byte-identical artifacts`, **and**
+- the log (outside cascade blocks) carries the binary-diff shape bun 1.3.13 renders for
+  `expect(Buffer).toEqual(Buffer)`: an `error: expect(received).toEqual(expected)` block with
+  `"type": "Buffer"` and an `at <anonymous>` frame naming `tests/ts/package-artifacts.test.ts`.
+
+Identity alone is deliberately **not** enough. If that test ever fails on its own compiler exit-code
+assertion `expect(a.exitCode).toBe(0)` or on its own 420 s budget, calling it "the flake" would be
+precisely the waiver the ruling forbids. Two flags of different width are kept: `ATTR_FLAKE_SHAPE`
+(the narrow one above, the only one that may classify the flake) and `ATTR_BUFFER_DIFF` (any binary
+`toEqual` diff anywhere in the log, surfaced with a note but counted in the assertion class). The
+rendered `- Expected  - N` / `+ Received  + M` numbers are reported under the name **diff lines**,
+never as bytes.
+
+**Cascade attribution.** A `# Unhandled error between tests` block is classified by **file scope**:
+if the enclosing `*.test.ts:` section already carried a `timed out after` marker, the cascade is
+Class 2's debris (`timeout cascade`). If not, it goes to a separate `unattributed error` row - it is
+**not** absorbed into the timeout class. This is the only rule bun's output does not directly
+support, and it is named as a limit in the summary itself.
+
+**Reconciliation.** The classifier reports `attributed / total` against the ` N fail` summary line
+and prints the residual. A non-zero residual raises a `::warning::` naming it. When there is no
+parseable ` N fail`, the residual is recorded as `unknown`, never as zero.
+
+**Gate semantics are unchanged.** The step still exits 1 only on: a missing log, an unparseable
+warning count, a warning count differing from the recorded baseline of 0, or the `out/` domain
+guard (unchanged, and still documented as structurally unreachable defense in depth). No
+`continue-on-error` was added anywhere. Attribution is not waiver: a flake-class red is still a red,
+written into the summary as a failure, and the suite step above it is untouched and still blocking.
+
+---
+
+## 3. Proof that it discriminates
+
+Method: extract the report step **verbatim** from the committed workflow
+(`Bun.YAML.parse` -> `evidence/step-report-from-yaml.sh`, sha256 in `evidence/hashes.txt`), then run
+it with `bash -e`, cwd = repo root, `GITHUB_STEP_SUMMARY` set, exactly as GitHub Actions runs a
+`run:` step. Each scenario installs its log at the step's real path `out/collected-suite.log`
+(gitignored) and the original file is restored afterwards. Exit codes are read directly from the
+step process - never through a pipe. Harness: `evidence/run-proof.sh`, raw output
+`evidence/proof-run.stdout.txt`, full summaries and per-scenario exit codes in `evidence/`.
+`evidence/discrimination-proof.md` holds the scenario table plus the attribution sections in full.
+Post-commit: the same extraction run against the **committed blob** (`git show 4f80322c:`) produces a
+byte-identical step (`ec51a791...`), so the evidence below describes the committed content, not
+just the working tree; see `evidence/commit-clean-tree.txt`.
+| scenario | step exit | assertion | timeout | flake | timeout cascade | unattributed | attributed/total |
+|---|---:|---:|---:|---:|---:|---:|---|
+| **crafted-assertion** | 0 | **1** | 0 | 0 | 0 | 0 | 1/1 |
+| **crafted-timeout** | 0 | 0 | **2** | 0 | **2** | 0 | 2/2 |
+| **crafted-flake** | 0 | 0 | 0 | **1** | 0 | 0 | 1/1 |
+| retained baseline log | 0 | 7 | 25 | 0 | 8 | 0 | 32/32 |
+| control A - artifact test fails without the byte diff | 0 | 1 | 0 | 0 | 0 | 0 | 1/1 |
+| control B - artifact test times out | 0 | 0 | 1 | 0 | 0 | 0 | 1/1 |
+| control C - cascade with no timeout in the file | 0 | 1 | 0 | 0 | 0 | 1 | 1/1 |
+| control D - `package-shell.test.ts:249` spec gap | 0 | 1 | 0 | 0 | 0 | 0 | 1/1 |
+| control E - log dies before any summary | 0 | 0 | 1 | 0 | 0 | 0 | 1/unknown |
+| control F - Buffer diff in another test file | 0 | 1 | 0 | 0 | 0 | 0 | 1/1 |
+| control G - green run (0 fail) | 0 | 0 | 0 | 0 | 0 | 0 | 0/0 |
+| gate - missing log | **1** | - | - | - | - | - | - |
+| gate - unparseable warning count | **1** | - | - | - | - | - | - |
+| gate - warning count over baseline | **1** | 1 | 0 | 0 | 0 | 0 | 1/1 |
+| gate - `out/` domain guard | **1** | 7 | 25 | 0 | 8 | 0 | 32/32 |
+
+Each crafted log lights **exactly one** primary class, and no control lands in the class it
+superficially resembles. The step exit is 0 for every log scenario on purpose: the red is carried by
+the `Collected suite (contract 3 count)` step above it, which is unchanged and still blocking. A
+report step that failed on a failure would duplicate the suite step's gate, not attribute it.
+
+### The three crafted logs
+
+All three are in `evidence/raw-logs/`, with builders `make-crafted.sh` / `make-controls.sh` so the
+provenance is reproducible. Their summaries, as written by the committed step:
+
+**crafted-assertion.log** - the assertion block is the *retained* block from the baseline log
+(`tests/ts/arithmetic-helpers.test.ts:54`, Rust arithmetic helpers), reduced to one failure with a
+consistent recap and summary. Step exit 0.
+
+```
+## Failure attribution (why this run is red)
+
+Source: the 'N tests failed:' recap (bun's authoritative, deduplicated list).
+A failure is one `(fail)` line; the summary line ` N fail` is the total this must add up to.
+
+| class | count | what it means |
+|---|---:|---|
+| real assertion failure | 1 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+Attribution is not waiver: every class above is still a failing test and this job is still red on
+any of them. Nothing here converts a failure into a pass, and no gate below is relaxed.
+
+**Real assertion failures** - 1 (sample, bounded at 5):
+
+```
+arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks
+```
+
+Reconciliation: 1 failed test(s) attributed against the summary line's
+`1 fail`; residual 0. A non-zero residual means the log's
+failure text is not fully classified by these rules - say so, never round it away.
+```
+
+**crafted-timeout.log** - the timeout and its `# Unhandled error between tests` cascade are the
+*retained* block from the baseline log (`tests/ts/sealed-variants.test.ts`), reduced the same way.
+Step exit 0.
+
+```
+| real assertion failure | 0 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 2 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 2 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+...
+**Environment / timeout failures** - 2 (sample, bounded at 5):
+
+```
+self-construction with arguments keeps the static initializer error
+the sanctioned self-construction static uses each target lane
+```
+
+**Timeout cascades** - 2 (sample, bounded at 5):
+
+```
+tests/ts/sealed-variants.test.ts:
+tests/ts/sealed-variants.test.ts:
+```
+
+Reconciliation: 2 failed test(s) attributed against the summary line's
+`2 fail`; residual 0.
+```
+
+The cascade blocks in that log contain `error: expect(received).toContain(expected)` text with
+`Received: ""`. They are counted as timeout debris (2), and the assertion count is 0 - the naive
+`^error: expect` grep would have said 2 assertions here.
+
+**crafted-flake.log** - the error block is bun 1.3.13's **real** rendering for
+`expect(Buffer).toEqual(Buffer)`, captured live in `evidence/raw-logs/bufshape.test.ts` /
+`bufshape.log` (a two-line bun test, not the suite), re-pointed at the byte-identity test's file and
+real test name. Step exit 0.
+
+```
+| real assertion failure | 0 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 1 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+...
+**npm-artifact non-determinism (known flake)** - 1 (sample, bounded at 5):
+
+```
+package artifact emission > two generations of the same inputs produce byte-identical artifacts
+```
+
+Matched on test identity `package artifact emission > two generations of the same inputs produce byte-identical artifacts` **and** the binary-diff shape
+(`expect(received).toEqual(expected)` over `"type": "Buffer"` at `tests/ts/package-artifacts.test.ts`).
+Rendered diff lines: - Expected  - 7 + Received  + 7
+
+This is the pre-existing npm-artifact non-determinism the round-5 ruling names
+(`docs/architecture/MANAGEMENT-RULING-005.md`, restoration condition 3). It is unrelated
+to the change under review - which is exactly why it is labelled here, so it cannot be
+left to look like a product failure. It is **reported, not excused**: the suite step
+above is still red on it.
+
+Reconciliation: 1 failed test(s) attributed against the summary line's
+`1 fail`; residual 0.
+```
+
+### The retained baseline log
+
+Feeding the real retained log (the `695940e8` proof run) through the committed step reproduces the
+numbers the architecture record already documents independently. Step exit 0.
+
+```
+| real assertion failure | 7 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 25 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 8 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+...
+Reconciliation: 32 failed test(s) attributed against the summary line's
+`32 fail`; residual 0.
+```
+
+`7 + 25 = 32` matches ` N fail`; the `8` cascades match the run's own `8 errors`. The architecture
+record independently states "all 25 remaining fails carry a literal `this test timed out after Nms`
+marker" and describes 8 cascades, so the classifier agrees with a human reading of the same log.
+
+The 7 assertion-class failures are, exhaustively: arithmetic helpers (Rust inlining), compiler
+boundary (banned identifier in `RustExpr.hx`), loop structure x2, sorted key domains, sorted
+dataClass keys, and **`package shell emission > a by-name runtime import with an emitted manifest
+aborts the compile`** - the `package-shell.test.ts:249` spec gap. The ruling requires that gap to be
+recorded as a product/spec failure and forbids calling it a timeout or hiding it as the flake; the
+classifier puts it in `assertion`, and control D pins that behaviour so a later rewrite cannot drift.
+
+### Controls (the L5 layer, plus a green-run control)
+
+`docs/architecture/LAYERED-VERIFICATION.md` L5 asks that a check be shown to **fail on a
+deliberately wrong input**, not merely to pass on a correct one. The controls are that input; their
+full attribution sections are in `evidence/discrimination-proof.md`. G is the green-run
+counterpart: it is there to show the classifier does not turn a green run red.
+
+- **A** - the artifact byte-identity test fails on `expect(a.exitCode).toBe(0)` (no byte diff):
+  classified `assertion`, **not** the flake. This is the anti-waiver control: the flake class cannot
+  be reached by test name alone.
+- **B** - the artifact byte-identity test exceeds its 420 s budget: classified `timeout`, **not** the
+  flake. A killed test is not a byte diff.
+- **C** - a cascade in a file with no timeout marker: classified `unattributed error`, **not**
+  `timeout cascade`.
+- **D** - the `package-shell.test.ts:249` block, verbatim from the retained log: classified
+  `assertion`, **not** timeout and **not** flake.
+- **E** - a log that dies before printing a recap or summary: the fallback path runs, the summary
+  says which source it used, the counts are still separated, and the total is reported as `unknown`
+  with a `::warning::`.
+- **F** - a `Buffer` byte diff in a different test file (`vector.test.ts`): classified `assertion`,
+  with the summary noting that the byte-diff shape was seen but is not the known artifact flake.
+- **G** - a green log (`0 fail`): all classes 0, residual 0, step exit 0, and no warning - the
+  attribution cannot turn a green run red.
+
+### Gate scenarios, re-proved so the change is not a weakening
+
+| scenario | step exit | `::error::` line |
+|---|---:|---|
+| missing log | 1 | `no log at out/collected-suite.log - the collected suite never ran` |
+| unparseable warning count | 1 | `warning count is not a parseable integer (got 'not-a-number') - the gate cannot be evaluated` |
+| warning count over baseline | 1 | `1 warning line(s) in the suite output name files under the generated trees, baseline is 0 - acceptance failure under docs/specs/style/02-translator-implementation-standard.md:80 (a new baseline must be measured and recorded, not assumed)` |
+| `out/` domain guard | 1 | `the collected domain contains files under out/ - the generated tree is being swept into the count` |
+
+The unparseable case is reachable only by a broken `wc`; the proof injects a `wc` shim from
+`$TMPDIR` (the visible mount drops exec bits, so a shim cannot live in `dc-warn/`).
+
+---
+
+## 4. Corrected comments in the job
+
+**Stale counts (task item 5).** The comment above *Generate the trees the collected suite reads*
+attributed the wrong domain to the baseline run:
+
+```
+before:  # `reference/ts/gen-tests/**` tree: 249 of the 304 files the baseline run
+         # recorded (249 generated + 55 hand-written). ... The domain is 304/55, not the 303/54
+         # the baseline recorded: ...
+```
+
+The baseline run recorded **303** files = 249 generated + **54** hand-written, as its own retained
+log says (`Ran 1033 tests across 303 files`, and 303 distinct `*.test.ts:` headers - re-derived in
+`evidence/retained-domain-measurement.txt`). The domain **today** is 304 = 249 + 55, because
+`tests/swift-gap-boundary/gap-boundary.test.ts` landed after both the baseline run and the CI commit
+(recorded in `docs/architecture/GATE-LEDGER.md`). The old comment gave the baseline run the current
+domain's numbers, which is how a reader would conclude the baseline was 304. The comment now
+separates the two domains explicitly and states that the baseline pass/fail/errors numbers stay tied
+to the 303-file domain. `249` and the "26 scripts" claim elsewhere in the job are correct and were
+left alone (verified: 27 distinct `bun run` scripts in the workflow, of which one is this job's own
+`bun run test`).
+
+**Comment that now misdescribed the step (task item 5).** The step was named
+`Report the count and the collection domain`; it now also attributes failures, so it was renamed to
+`Report the counts, the collection domain, and the failure attribution`, and a comment above it
+states what it reports, why (the ruling's unattributability ground), and that attribution is not
+waiver. No tracked file referenced the old step name (checked with grep).
+
+**Repo style check.** `bun tools/doc-style/check.ts .github/workflows/ci.yml` reports 13 candidate
+hits after the change against 11 at HEAD. Both new ones are load-bearing and kept deliberately:
+`` `- Expected  - N` / `+ Received  + M` are rendered diff LINES, not bytes`` (the distinction a
+prior seat got wrong) and `It is **reported, not excused**` (the ruling's own requirement). The tool
+itself says each hit is a candidate for manual judgment, and the baseline file is not hit-free. No
+allowlist entry was added - `check.ts` forbids expanding that list without permission.
+
+---
+
+## 5. Unverified, unproved, and named limits
+
+1. **No retained log of the actual artifact flake exists in this workspace.** The flake signature in
+   the workflow is *derived*, not witnessed: the test identity comes from the byte-identity test in
+   `tests/ts/package-artifacts.test.ts` and its `expect(Buffer).toEqual(Buffer)` assertion, while the
+   byte-diff rendering comes from a live bun 1.3.13 run of an equivalent two-line test
+   (`evidence/raw-logs/bufshape.log`) - **not** from a real failing run of the artifact test. What
+   bun actually prints for a 407-vs-405 tgz entry-set diff, including the rendered diff-line counts,
+   is therefore **not verified**. What would settle it: one retained failing run of
+   `bun test tests/ts/package-artifacts.test.ts` on the pre-fix tree, or the first CI run of this job
+   that goes red on the flake. That could not be produced here: the task forbids running the suite,
+   the byte-identity test alone took 414.8 s in the retained run, it rewrites a tracked fixture, and
+   the tracked-fixture repair is already on the line (`4cf3165d` moved the restore into a `finally`;
+   `2aadcb69` then stopped the mutation altogether).
+2. **I did not run the suite.** Every number in section 3 describes a log replayed through the
+   report step. The classifier has never seen a live `bun test` stream, and no scenario here measured
+   a real exit code of the `Collected suite (contract 3 count)` step.
+3. **The cascade-to-timeout association is a file-scope heuristic.** bun does not print which
+   timeout produced a cascade. Inside one file section, a cascade is attributed to the timeout class
+   if *any* timeout marker preceded it in that file. If a file ever produced both a timeout and an
+   independent, assertion-shaped unhandled error, that cascade would be counted as timeout debris.
+   A sharper rule would need bun to label the cascade, or a per-test parse of the inline stream.
+4. **Crafting is not witnessing, for the controls too.** D and the timeout cascade are verbatim
+   blocks from the retained log, and the `Buffer` rendering was captured from a live bun 1.3.13 run.
+   A, B and F use the artifact test's real test id and its real assertion text
+   (`expect(a.exitCode).toBe(0)`, `expect(b.exitCode).toBe(0)`, the byte-identity `toEqual`), but the
+   surrounding error block and its line numbers are hand-written around them: the line numbers in
+   control A are illustrative, because that file's numbering moved under the flake repair (now
+   committed as `2aadcb69`). G is a green log, not a failure log. All seven are constructed
+   inputs, not observed failures.
+5. **The unparseable-count path emits no attribution.** The pre-existing parseability `case` exits
+   before any summary is written (that was already true of the pre-existing summary block, so this
+   is not a regression). That path's record is its exit code of 1 and its `::error::` line.
+6. **`ATTR_BUFFER_DIFF` is intentionally broad.** Any `expect(received).toEqual(expected)` over a
+   `"type": "Buffer"` payload anywhere in the log sets it, so a byte-diff assertion in an unrelated
+   test raises the "shape present but not the flake" note. That is the intended reading, but it means
+   the note is a hint, not a classification.
+7. **The `out/` domain guard remains unexercised in CI.** It is proved here only by injecting a
+   synthetic `out/` collection line; the pre-existing comment already records why it is structurally
+   unreachable (`bunfig.toml` sets `pathIgnorePatterns = ["out/**"]`).
+8. **The other half of restoration condition 3 is not done here.** "the job no longer fails on that
+   artifact flake under repeated runs" is the flake-repair seat's deliverable. This change makes the
+   flake *nameable* when it happens; it does not prevent it, and it does not relax anything.
+9. **Scope discipline.** `tests/ts/package-shell.test.ts` and
+   `docs/architecture/BASELINE-FAILURES.md` were not touched (another seat owns them).
+   `tests/ts/package-artifacts.test.ts` belongs to the flake-repair seat: it was modified in the
+   working tree while this task ran, and that seat committed it as `2aadcb69`. It is **not** part of
+   this commit. The tracked fixture guard
+   `grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx` was 5 before and 5 after every proof
+   run in this task.
+
+---
+
+## 6. Evidence index
+
+| path | what it is |
+|---|---|
+| `evidence/step-report-from-yaml.sh` | the report step, extracted verbatim from the committed workflow |
+| `evidence/extract-report-step.ts` | the extractor (`Bun.YAML.parse`, no substitution) |
+| `evidence/run-proof.sh` | the harness: `bash -e`, cwd = repo root, `GITHUB_STEP_SUMMARY` set, direct exit codes |
+| `evidence/proof-run.stdout.txt` | raw output of every scenario, in order |
+| `evidence/class-table.tsv` | the consolidated class table |
+| `evidence/class-table-controls.txt` | the control and gate rows on their own |
+| `evidence/make-class-table.sh` | builds the table from the step summaries alone |
+| `evidence/discrimination-proof.md` | scenario table plus every attribution section in full |
+| `evidence/summary-<scenario>.md` | the step summary each scenario produced |
+| `evidence/exit-<scenario>.txt` | each scenario's step exit code |
+| `evidence/step-<scenario>.stdout.txt` | each scenario's stdout/stderr |
+| `evidence/raw-logs/` | the three crafted logs, the seven controls, their builders, the live bun rendering capture, and a copy of the classifier block |
+| `evidence/retained-domain-measurement.txt` | re-derivation of the 303 = 249 + 54 baseline domain |

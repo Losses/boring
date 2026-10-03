@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class InterfaceThrowTests {
+@boring.test.Test
+    fun testInterfaceThrows() {
+        Test.run("tests.InterfaceThrowTests.testInterfaceThrows", "tests.InterfaceThrowTests.testInterfaceThrows: only a throwing implementation lifts the interface requirement") {
+                Test.equals(true, true, null)
+        }
+    }
+}

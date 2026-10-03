@@ -1,0 +1,23 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct SignedIntArgumentOps;
+
+impl SignedIntArgumentOps {
+    pub fn signed_int_argument_ops_offset_total(base: u32, delta: u32) -> u32 {
+        return u32::wrapping_add(base, delta);
+    }
+
+    pub fn signed_int_argument_ops_from_index(text: &UStr, offset: u32) -> u32 {
+        let index = u_string::find_from(&(text), UString::from("x").as_ustr(), 0);
+        return SignedIntArgumentOps::signed_int_argument_ops_offset_total(u32::from_ne_bytes(((-(index as i32)) as u32).to_ne_bytes()), offset);
+    }
+
+    pub fn signed_int_argument_ops_shifted(text: &UStr, offset: u32) -> u32 {
+        let index = u_string::find_from(&(text), UString::from("x").as_ustr(), 0);
+        return SignedIntArgumentOps::signed_int_argument_ops_offset_total(u32::from_ne_bytes(((i32::wrapping_add(index, i32::from_ne_bytes(((offset) as i32).to_ne_bytes()))) as u32).to_ne_bytes()), offset);
+    }
+}

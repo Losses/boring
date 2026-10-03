@@ -1,0 +1,8 @@
+Analyzing ....
+
+  error - lib/dcfix/dc_fix.dart:41:12 - The property 'length' can't be unconditionally accessed because the receiver can be 'null'. Try making the access conditional (using '?.') or adding a null check to the target ('!'). - unchecked_use_of_nullable_value
+           - Variable 't' could not be promoted due to an assignment.  See http://dart.dev/go/non-promo-write at lib/dcfix/dc_fix.dart:40:3.
+warning - lib/dcfix/dc_fix.dart:6:11 - The value of the local variable 'unused' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib/dcfix/dc_fix.dart:49:11 - The '!' will have no effect because the receiver can't be null. Try removing the '!' operator. - unnecessary_non_null_assertion
+
+3 issues found.

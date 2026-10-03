@@ -1,0 +1,7 @@
+/tmp/bx/out/head-fast/gen/mx/MXFast.swift:5:35: error: declared closure result 'ReadOnlyArray<Int32>' is incompatible with return type 'TiqianArray<Int32>'
+ 3 | public enum MXFast {
+ 4 |     public static func pFastPlain(_ flag: Bool) -> Int32 {
+ 5 |         let f = { (flag: Bool) -> ReadOnlyArray<Int32> in QSource.first() }
+   |                                   `- error: declared closure result 'ReadOnlyArray<Int32>' is incompatible with return type 'TiqianArray<Int32>'
+ 6 |         return QSource.view(f(flag))
+ 7 |     }

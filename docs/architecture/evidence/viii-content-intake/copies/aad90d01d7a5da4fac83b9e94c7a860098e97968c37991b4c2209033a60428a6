@@ -1,0 +1,27 @@
+package tests
+
+import boring.StringBufUnionOps
+import boring.runtime.test.Test
+
+class StringBufUnionTests {
+@boring.test.Test
+    fun testBuildCharChecked() {
+        Test.run("tests.StringBufUnionTests.testBuildCharChecked", "tests.StringBufUnionTests.testBuildCharChecked: the buffer addChar fault stays a union variant beside the vector throw") {
+                Test.equals("A", StringBufUnionOps.buildCharChecked(1), null)
+        }
+    }
+
+@boring.test.Test
+    fun testBuildChecked() {
+        Test.run("tests.StringBufUnionTests.testBuildChecked", "tests.StringBufUnionTests.testBuildChecked: the buffer add fault stays a union variant beside the vector throw") {
+                Test.equals("item", StringBufUnionOps.buildChecked(1), null)
+        }
+    }
+
+@boring.test.Test
+    fun testVectorFault() {
+        Test.run("tests.StringBufUnionTests.testVectorFault", "tests.StringBufUnionTests.testVectorFault: the vector throw still arrives through the union") {
+                Test.equals(1, StringBufUnionOps.vectorFaultCode(), null)
+        }
+    }
+}

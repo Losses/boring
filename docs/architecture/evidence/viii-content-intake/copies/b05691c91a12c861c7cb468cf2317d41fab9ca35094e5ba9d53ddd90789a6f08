@@ -1,0 +1,34 @@
+--- a/tests/haxe/try-tail/run-stages.sh
++++ b/tests/haxe/try-tail/run-stages.sh
+@@ -114,11 +114,28 @@
+ 			not_reached compile-swift 1 run-swift compare-swift
+ 			continue
+ 		fi
++		# Compile-set construction (PIT-242 / TCN-71): glob over the ENTIRE
++		# generated tree, tree root included, so the runtime base-class file
++		# (Runtime.swift, emitted at the tree root whenever the tree names
++		# the runtime base class) is inside the compile set. The earlier
++		# formulation (find std trytail -name '*.swift') scanned only
++		# subdirectories and structurally excluded the tree root, which made
++		# pre and post patches indistinguishable: this leg then asserted
++		# "is Runtime.swift in argv", not "does the patch work". Package.swift
++		# is the SwiftPM manifest (not a source) and native-main.swift is the
++		# authored harness (passed explicitly below), so both stay out. The
++		# resolved set is expanded here, so each stage's argv archive carries
++		# the actual file list instead of an unevaluated glob. Assertion
++		# semantics are unchanged: gen -> compile -> run -> diff expected.txt.
++		AGEN="$ROOT/$GEN"
++		SWIFTS="$(find "$AGEN" -name '*.swift' ! -name native-main.swift ! -name Package.swift | sort | tr '\n' ' ')"
++		mkdir -p "$STAGES/compile-swift"
++		printf 'runtime-swift-present %s\n' "$([ -f "$AGEN/Runtime.swift" ] && echo yes || echo no)" >"$STAGES/compile-swift/tree-root.txt"
++		printf '%s\n' $SWIFTS >"$STAGES/compile-swift/sources.txt"
+ 		if [ "$SWIFT_MODE" = "raw" ]; then
+-			AGEN="$ROOT/$GEN"
+-			stage compile-swift data bash -c "cd $GEN && cp $HERE/native/native-main.swift native-main.swift && sha256sum native-main.swift >harness.sha256 && cd $EV/swift-shim && LD_LIBRARY_PATH='$FHS_ROOTFS/usr/lib64:$FHS_ROOTFS/lib64:/usr/lib64:/usr/lib' timeout 1800 $SWIFTC -o $AGEN/run-bin \$(find $AGEN/std $AGEN/trytail -name '*.swift') $AGEN/native-main.swift -Xcc -I$FHS_ROOTFS/usr/include -L$FHS_ROOTFS/usr/lib64 -L$GCCRT_DIR -L$LIBGCCS_DIR -L$GLIBC_LIB"
++			stage compile-swift data bash -c "cd $GEN && cp $HERE/native/native-main.swift native-main.swift && sha256sum native-main.swift >harness.sha256 && cd $EV/swift-shim && LD_LIBRARY_PATH='$FHS_ROOTFS/usr/lib64:$FHS_ROOTFS/lib64:/usr/lib64:/usr/lib' timeout 1800 $SWIFTC -o $AGEN/run-bin $SWIFTS $AGEN/native-main.swift -Xcc -I$FHS_ROOTFS/usr/include -L$FHS_ROOTFS/usr/lib64 -L$GCCRT_DIR -L$LIBGCCS_DIR -L$GLIBC_LIB"
+ 		else
+-			stage compile-swift data bash -c "cd $GEN && cp $HERE/native/native-main.swift native-main.swift && sha256sum native-main.swift >harness.sha256 && timeout 1800 $SWIFTC -o run-bin \$(find std trytail -name '*.swift') native-main.swift"
++			stage compile-swift data bash -c "cd $GEN && cp $HERE/native/native-main.swift native-main.swift && sha256sum native-main.swift >harness.sha256 && timeout 1800 $SWIFTC -o run-bin $SWIFTS native-main.swift"
+ 		fi
+ 		[ $? != 0 ] && { not_reached compile-swift $? run-swift compare-swift; continue; }
+ 		stage run-swift zero bash -c "cd $GEN && timeout 300 ./run-bin"

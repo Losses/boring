@@ -1,0 +1,14 @@
+# shape=promoted target=swift generated-tree: /home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-DiteEQ/gen/promoted/swift
+# stage 16 exit 0
+# files:
+./dcsenum/KindHolder.swift
+./dcsenum/Kind.swift
+./dcsenum/PromotedSubjectOracle.swift
+./_GeneratedFiles.txt
+./Package.swift
+./std/UStringException.swift
+./std/UStringFault.swift
+# --- ./dcsenum/PromotedSubjectOracle.swift ---
+8:            switch _g {
+# --- ./std/UStringException.swift ---
+12:        switch fault {

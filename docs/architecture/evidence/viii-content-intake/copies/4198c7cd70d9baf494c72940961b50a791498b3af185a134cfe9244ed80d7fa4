@@ -1,0 +1,4 @@
+( sleep 1; echo late > "$CHILD_EVIDENCE_DIR/late.txt" ) &
+sleep 0.2
+echo done > done-d.txt
+require-file:done-d.txt

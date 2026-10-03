@@ -1,0 +1,9 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/precision-switch.test.ts:
+(pass) float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error [25490.50ms]
+
+ 1 pass
+ 0 fail
+ 3 expect() calls
+Ran 1 test across 1 file. [25.52s]

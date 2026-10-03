@@ -1,0 +1,1 @@
+tests/haxe/dc-enum-switch-gen/dcsenum/CallSubjectOracle.hx:15: characters 18-28 : swift target: expression block must end in a value statement (features/43)

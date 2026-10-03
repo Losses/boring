@@ -1,0 +1,13 @@
+# Caveat status of the counterexample fixture's own -c check [MINE]
+At the frozen revision c8ae0054, tests/swift-gap-boundary/gap-boundary.test.ts contains
+NO `swiftc -c` invocation at all (grep -c '"-c"' = 0); it only typechecks and records
+the -c deviation in a comment. The automated -c check exists only from HEAD d14231a6
+("fix(test): make gap-boundary swiftc -c invocation valid and assert its outcome",
+2026-09-30 13:57:32 -0400), i.e. AFTER the candidate revision.
+The commit message itself records the broken intermediate: "swiftc -c with multiple
+inputs rejects a single -o ('cannot specify -o when generating multiple output
+files'), so the step exited rc=1 while the fixture [passed]" - reproduced as retained
+run test-ab05489b (build.status=1, zero recorded warnings, gap.o absent).
+Conclusion: the frozen revision has no working automated -c assertion. The working
+-c check at HEAD is real and discriminating (failure probes return 1), but it
+belongs to a later revision than the one this record freezes.

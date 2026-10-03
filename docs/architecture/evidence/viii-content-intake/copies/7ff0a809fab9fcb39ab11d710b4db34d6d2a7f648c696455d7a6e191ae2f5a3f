@@ -1,0 +1,4 @@
+ERROR|COMPILE_TIME_ERROR|URI_DOES_NOT_EXIST|/home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail/out/try-tail/gen/dart/lib/trytail/try_tail_oracle.dart|2|8|20|Target of URI doesn't exist: '../../runtime.dart'.
+WARNING|STATIC_WARNING|DEAD_CODE|/home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail/out/try-tail/gen/dart/lib/trytail/try_tail_oracle.dart|113|12|37|Dead code.
+WARNING|STATIC_WARNING|DEAD_CODE|/home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail/out/try-tail/gen/dart/lib/trytail/try_tail_oracle.dart|128|12|36|Dead code.
+WARNING|STATIC_WARNING|DEAD_CODE|/home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail/out/try-tail/gen/dart/lib/trytail/try_tail_oracle.dart|143|12|40|Dead code.

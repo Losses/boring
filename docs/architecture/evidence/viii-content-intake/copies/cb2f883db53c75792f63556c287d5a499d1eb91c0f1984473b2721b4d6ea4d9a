@@ -1,0 +1,70 @@
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/out/rust-modkey-fix/scratch/gen-base-225904457636799/xs-twoexc-faultnames)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: `?` couldn't convert the error to `E2PayloadFault`
+  --> xcheckscope/two_probe.rs:54:69
+   |
+54 |             return Ok(TwoProbe::two_probe_throw_e1(UStr::new(&[97]))?);
+   |                       ----------------------------------------------^ the trait `From<E1PayloadFault>` is not implemented for `E2PayloadFault`
+   |                       |
+   |                       this can't be annotated with `?` because it has type `Result<_, E1PayloadFault>`
+   |
+note: `E2PayloadFault` needs to implement `From<E1PayloadFault>`
+  --> xcheckscope/two_probe.rs:23:1
+   |
+23 | pub enum E2PayloadFault {
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+
+error[E0599]: no variant, associated function, or constant named `E1Fault` found for enum `E2PayloadFault` in the current scope
+  --> xcheckscope/two_probe.rs:60:48
+   |
+23 | pub enum E2PayloadFault {
+   | ----------------------- variant, associated function, or constant `E1Fault` not found for this enum
+...
+60 |                     return Err(E2PayloadFault::E1Fault(E1::new(e)));
+   |                                                ^^^^^^^ variant, associated function, or constant not found in `E2PayloadFault`
+
+error[E0433]: cannot find type `E1` in this scope
+  --> xcheckscope/two_probe.rs:60:56
+   |
+60 |                     return Err(E2PayloadFault::E1Fault(E1::new(e)));
+   |                                                        ^^ use of undeclared type `E1`
+   |
+help: a trait with a similar name exists
+   |
+60 -                     return Err(E2PayloadFault::E1Fault(E1::new(e)));
+60 +                     return Err(E2PayloadFault::E1Fault(Eq::new(e)));
+   |
+
+error[E0599]: no variant, associated function, or constant named `E2Fault` found for enum `E2PayloadFault` in the current scope
+  --> xcheckscope/two_probe.rs:80:48
+   |
+23 | pub enum E2PayloadFault {
+   | ----------------------- variant, associated function, or constant `E2Fault` not found for this enum
+...
+80 |                     return Err(E2PayloadFault::E2Fault(E2::new(e)));
+   |                                                ^^^^^^^ variant, associated function, or constant not found in `E2PayloadFault`
+
+error[E0433]: cannot find type `E2` in this scope
+  --> xcheckscope/two_probe.rs:80:56
+   |
+80 |                     return Err(E2PayloadFault::E2Fault(E2::new(e)));
+   |                                                        ^^ use of undeclared type `E2`
+   |
+help: a trait with a similar name exists
+   |
+80 -                     return Err(E2PayloadFault::E2Fault(E2::new(e)));
+80 +                     return Err(E2PayloadFault::E2Fault(Eq::new(e)));
+   |
+
+Some errors have detailed explanations: E0277, E0433, E0599.
+For more information about an error, try `rustc --explain E0277`.
+warning: `generated` (lib) generated 1 warning
+error: could not compile `generated` (lib) due to 5 previous errors; 1 warning emitted

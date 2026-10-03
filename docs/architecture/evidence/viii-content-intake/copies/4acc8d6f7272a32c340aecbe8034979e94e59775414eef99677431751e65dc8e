@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail
+argv bash -c cd\ out/try-tail/gen/dart\ \&\&\ cp\ /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail/tests/haxe/try-tail/native/main.dart\ lib/trytail/zz_run.dart\ \&\&\ sha256sum\ lib/trytail/zz_run.dart\ \>harness.sha256\ \&\&\ timeout\ 600\ dart\ run\ lib/trytail/zz_run.dart

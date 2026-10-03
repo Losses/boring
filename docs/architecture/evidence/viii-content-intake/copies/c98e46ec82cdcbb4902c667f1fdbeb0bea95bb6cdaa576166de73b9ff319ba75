@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class FloatModTests {
+@boring.test.Test
+    fun testRemainder() {
+        Test.run("tests.FloatModTests.testRemainder", "tests.FloatModTests.testRemainder: a float remainder lowers onto truncatingRemainder") {
+                Test.equals(true, true, null)
+        }
+    }
+}

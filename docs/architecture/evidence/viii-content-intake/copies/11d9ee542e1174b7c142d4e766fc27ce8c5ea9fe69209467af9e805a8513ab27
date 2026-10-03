@@ -1,0 +1,12 @@
+pre xs-twoexc bf634e3437ed0650
+pre xs-twoexc-swapped 02d5d2b1c9e69995
+pre xt-twoexc-emit-rev 01349f7c73b498b6
+pre xs-twoexc-faultnames 4a17342d4845e9c5
+pre xt-classemit 2dd7f5b92ac19ac5
+pre xt-twoexc-emit 445bfa4128f52c0d
+post xs-twoexc bf634e3437ed0650
+post xs-twoexc-swapped 02d5d2b1c9e69995
+post xt-twoexc-emit-rev 01349f7c73b498b6
+post xs-twoexc-faultnames 4a17342d4845e9c5
+post xt-classemit 2dd7f5b92ac19ac5
+post xt-twoexc-emit 445bfa4128f52c0d

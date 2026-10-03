@@ -1,0 +1,122 @@
+use crate::haxe::crypto::crc_model::CrcModel;
+
+
+#[derive(Clone, Copy)]
+pub struct Crc;
+
+impl Crc {
+    pub fn crc_hash(model: CrcModel, data: &[u8], previous: u32) -> u32 {
+        let mut crc = if previous == 0 { model.init } else { Crc::crc_unfinalize((model).clone(), previous) };
+        let mask = Crc::crc_bit_mask(model.width);
+        if model.refin {
+            let poly = Crc::crc_reflect(model.poly, model.width);
+            for i in 0..match u32::try_from(data.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+                crc = crc ^ u32::from(data[usize::try_from(i).unwrap_or(0)]);
+                {
+                    crc = if crc & 1 != 0 { crc >> 1 ^ poly } else { crc >> 1 };
+                    crc = if crc & 1 != 0 { crc >> 1 ^ poly } else { crc >> 1 };
+                    crc = if crc & 1 != 0 { crc >> 1 ^ poly } else { crc >> 1 };
+                    crc = if crc & 1 != 0 { crc >> 1 ^ poly } else { crc >> 1 };
+                    crc = if crc & 1 != 0 { crc >> 1 ^ poly } else { crc >> 1 };
+                    crc = if crc & 1 != 0 { crc >> 1 ^ poly } else { crc >> 1 };
+                    crc = if crc & 1 != 0 { crc >> 1 ^ poly } else { crc >> 1 };
+                    crc = if crc & 1 != 0 { crc >> 1 ^ poly } else { crc >> 1 };
+                }
+            }
+        } else {
+            let top = if model.width == 32 { 2147483648u32 } else { 1 << (u32::wrapping_sub(model.width, 1)) };
+            for i in 0..match u32::try_from(data.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+                crc = crc ^ (u32::from(data[usize::try_from(i).unwrap_or(0)])) << (u32::wrapping_sub(model.width, 8));
+                {
+                    crc = if crc & top != 0 { crc << (1) ^ model.poly } else { crc << (1) };
+                    crc = if crc & top != 0 { crc << (1) ^ model.poly } else { crc << (1) };
+                    crc = if crc & top != 0 { crc << (1) ^ model.poly } else { crc << (1) };
+                    crc = if crc & top != 0 { crc << (1) ^ model.poly } else { crc << (1) };
+                    crc = if crc & top != 0 { crc << (1) ^ model.poly } else { crc << (1) };
+                    crc = if crc & top != 0 { crc << (1) ^ model.poly } else { crc << (1) };
+                    crc = if crc & top != 0 { crc << (1) ^ model.poly } else { crc << (1) };
+                    crc = if crc & top != 0 { crc << (1) ^ model.poly } else { crc << (1) };
+                }
+                crc &= mask;
+            }
+        }
+        return Crc::crc_finalize((model).clone(), crc) & mask;
+    }
+
+    pub fn crc_crc1(data: &[u8], previous: u32) -> u32 {
+        let mut sum = previous;
+        for i in 0..match u32::try_from(data.len()) { Ok(value) => value, Err(_) => u32::MAX } {
+            sum = u32::from(u32::from(u32::wrapping_add(sum, u32::from(data[usize::try_from(i).unwrap_or(0)])).to_be_bytes()[3]));
+        }
+        return sum;
+    }
+
+    pub fn crc_crc8(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(8u32, 7u32, 0u32, false, false, 0u32), &data, previous);
+    }
+
+    pub fn crc_crc81wire(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(8u32, 49u32, 0u32, true, true, 0u32), &data, previous);
+    }
+
+    pub fn crc_crc8dvbs2(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(8u32, 213u32, 0u32, false, false, 0u32), &data, previous);
+    }
+
+    pub fn crc_crc16(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(16u32, 32773u32, 0u32, true, true, 0u32), &data, previous);
+    }
+
+    pub fn crc_crc16ccitt(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(16u32, 4129u32, 65535u32, false, false, 0u32), &data, previous);
+    }
+
+    pub fn crc_crc16modbus(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(16u32, 32773u32, 65535u32, true, true, 0u32), &data, previous);
+    }
+
+    pub fn crc_crc16kermit(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(16u32, 4129u32, 0u32, true, true, 0u32), &data, previous);
+    }
+
+    pub fn crc_crc16xmodem(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(16u32, 4129u32, 0u32, false, false, 0u32), &data, previous);
+    }
+
+    pub fn crc_crc24(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(24u32, 8801531u32, 11994318u32, false, false, 0u32), &data, previous);
+    }
+
+    pub fn crc_crc32(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(32u32, 79764919u32, 4294967295u32, true, true, 4294967295u32), &data, previous);
+    }
+
+    pub fn crc_crc32mpeg2(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(32u32, 79764919u32, 4294967295u32, false, false, 0u32), &data, previous);
+    }
+
+    pub fn crc_crcjam(data: &[u8], previous: u32) -> u32 {
+        return Crc::crc_hash(CrcModel::new(32u32, 79764919u32, 4294967295u32, true, true, 0u32), &data, previous);
+    }
+
+    pub(crate) fn crc_finalize(model: CrcModel, crc: u32) -> u32 {
+        return (if model.refout != model.refin { Crc::crc_reflect(crc, model.width) } else { crc }) ^ model.xorout;
+    }
+
+    pub(crate) fn crc_unfinalize(model: CrcModel, value: u32) -> u32 {
+        let crc = value ^ model.xorout;
+        return if model.refout != model.refin { Crc::crc_reflect(crc, model.width) } else { crc };
+    }
+
+    pub(crate) fn crc_bit_mask(width: u32) -> u32 {
+        return if width == 32 { 4294967295u32 } else { u32::wrapping_sub((1) << (width), 1) };
+    }
+
+    pub(crate) fn crc_reflect(value: u32, width: u32) -> u32 {
+        let mut result = 0u32;
+        for i in 0..width {
+            result = result << (1) | value >> i & 1;
+        }
+        return result;
+    }
+}

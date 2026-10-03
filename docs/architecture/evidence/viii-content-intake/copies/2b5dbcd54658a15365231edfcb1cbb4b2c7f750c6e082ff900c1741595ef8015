@@ -1,0 +1,11 @@
+package boring
+
+object FileLevelConsumer {
+    fun publicResult(): Int {
+        return publicValue(7)
+    }
+
+    fun privateResultThroughPublic(): Int {
+        return publicWithPrivate(3)
+    }
+}

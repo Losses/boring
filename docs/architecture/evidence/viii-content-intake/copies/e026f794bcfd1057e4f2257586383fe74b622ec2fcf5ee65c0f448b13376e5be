@@ -1,0 +1,4 @@
+head     rust      files=509  unwrap_total=100  result_total=129
+fixed3   rust      files=509  unwrap_total=100  result_total=128
+head     rust-f32  files=466  unwrap_total=100  result_total=126
+fixed3   rust-f32  files=508  unwrap_total=100  result_total=127

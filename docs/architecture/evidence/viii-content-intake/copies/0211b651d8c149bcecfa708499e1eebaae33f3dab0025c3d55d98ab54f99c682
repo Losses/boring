@@ -1,0 +1,1 @@
+tests/haxe/xcheck-coal/xcoal/XCoal.hx:20: lines 20-24 : coalesced default parameter is consumed more than once

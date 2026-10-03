@@ -1,0 +1,26 @@
+import hashlib, os, sys
+# manifest over a directory: sorted relative paths + per-file sha256
+root = sys.argv[1]
+rows = []
+for dirpath, dirnames, filenames in os.walk(root):
+    dirnames.sort()
+    for f in sorted(filenames):
+        p = os.path.join(dirpath, f)
+        rel = os.path.relpath(p, root)
+        h = hashlib.sha256()
+        with open(p, 'rb') as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b''):
+                h.update(chunk)
+        rows.append((rel, h.hexdigest()))
+rows.sort()
+lines = [f"{h}  {rel}" for rel, h in rows]
+blob = "\n".join(lines) + "\n"
+print("files", len(rows), "swift", sum(1 for r, _ in rows if r.endswith('.swift')))
+print("listing_sha256", hashlib.sha256(blob.encode()).hexdigest())
+print("digests_only_sha256", hashlib.sha256("".join(h for _, h in rows).encode()).hexdigest())
+# concatenated file contents in sorted path order
+c = hashlib.sha256()
+for rel, _ in rows:
+    with open(os.path.join(root, rel), 'rb') as fh:
+        c.update(fh.read())
+print("contents_sha256", c.hexdigest())

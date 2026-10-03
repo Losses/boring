@@ -1,0 +1,4 @@
+  generation: PASS (rc=0, expected 0)
+  check-positive: PASS (rc=0, expected 0)
+  check-negative-pom: PASS (rc=1, expected 1)
+  check-negative-gradle: PASS (rc=1, expected 1)

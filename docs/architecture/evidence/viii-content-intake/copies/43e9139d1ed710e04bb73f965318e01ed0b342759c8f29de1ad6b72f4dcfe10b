@@ -1,0 +1,31 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/swift-readonly-boundary/readonly-boundary.test.ts:
+killed 1 dangling process
+(fail) Swift read-only array boundary shares storage and preserves flow [60011.11ms]
+  ^ this test timed out after 60000ms.
+
+# Unhandled error between tests
+-------------------------------
+ 9 |   const stdout = result.stdout.toString();
+10 |   const stderr = result.stderr.toString();
+11 |   await Bun.write(`${out}/${label}.stdout.log`, stdout);
+12 |   await Bun.write(`${out}/${label}.stderr.log`, stderr);
+13 |   await Bun.write(`${out}/${label}.status`, `${result.exitCode ?? 1}\n`);
+14 |   expect(result.exitCode, `${label}: ${stderr || stdout}`).toBe(0);
+                                                                ^
+error: generate-repeat: 
+
+Expected: 0
+Received: null
+
+      at run (/home/losses/Development/tq-workspace/dc-warn/ciwire-wt/wt/tests/swift-readonly-boundary/readonly-boundary.test.ts:14:60)
+      at async <anonymous> (/home/losses/Development/tq-workspace/dc-warn/ciwire-wt/wt/tests/swift-readonly-boundary/readonly-boundary.test.ts:62:9)
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+ 5 expect() calls
+Ran 1 test across 1 file. [60.32s]

@@ -1,0 +1,23 @@
+source attempt          : /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/attempt-20260929T203540-3298495
+run-exclusive.sh rc     : 0
+no-LF harness.log bytes : 3221
+no-LF harness.log lines : 36   (unchanged by the append: no LF added)
+marker line byte offset : 3124
+marker line bytes       : 91  (includes the marker's own LF)
+marker end byte offset  : 3215
+bytes past marker end   : 6   (the 6 appended bytes)
+last 8 bytes (od -c)    :
+0000000   2  \n   a   b   c   d   e   f
+0000010
+harness.log sha256 before any checker run : ae2cf07e187f9eb5c58a720f3017a5b34412d346312c6fef0d454fca5382db5e
+harness.log sha256 after  NEW checker run : ae2cf07e187f9eb5c58a720f3017a5b34412d346312c6fef0d454fca5382db5e
+harness.log sha256 after  OLD checker run : ae2cf07e187f9eb5c58a720f3017a5b34412d346312c6fef0d454fca5382db5e
+checkers are read-only on the input (all three hashes equal): yes
+
+clean       : NEW rc=0  OLD rc=0
+no-LF 6B    : NEW rc=1  OLD rc=0   <-- the control: NEW detects, OLD misses
+6B + LF     : NEW rc=1  OLD rc=1   <-- identical payload, only the LF differs
+
+clean   bytes=3215 lines=36   (the sealed attempt before tampering)
+no-LF   bytes=3221 lines=36   delta: +6 byte(s), 0 line(s)
+6B+LF   bytes=3222 lines=37   delta: +7 byte(s), +1 line(s)  <- the LF is what adds the line and lets OLD catch it

@@ -1,0 +1,91 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum EFault {
+    Bad { tag: UString },
+    EFault(Box<crate::girev::growth_id_rev_probe::E>),
+}
+
+impl std::fmt::Display for EFault {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EFault::Bad { tag } => {
+                write!(formatter, "{}", tag)
+            }
+            EFault::EFault(inner) => write!(formatter, "{:?}", inner),
+        }
+    }
+}
+
+impl std::error::Error for EFault {}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct E {
+    pub fault: EFault,
+}
+impl E {
+    pub fn new(fault: EFault) -> Self {
+        E { fault }
+    }
+}
+impl std::fmt::Display for E {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}", self.fault)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AFault {
+    Alpha { tag: UString },
+    EFault(Box<crate::girev::growth_id_rev_probe::E>),
+}
+
+impl std::fmt::Display for AFault {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AFault::Alpha { tag } => {
+                write!(formatter, "{}", tag)
+            }
+            AFault::EFault(inner) => write!(formatter, "{:?}", inner),
+        }
+    }
+}
+
+impl std::error::Error for AFault {}
+
+#[derive(Clone, Copy)]
+pub struct GrowthIdRevProbe;
+
+impl GrowthIdRevProbe {
+    pub fn growth_id_rev_probe_mixed(f: EFault) -> Result<u32, AFault> {
+        if GrowthIdRevProbe::growth_id_rev_probe_arm() {
+            return Err(AFault::Alpha { tag: UString::from("a") });
+        }
+        return Err(AFault::EFault(Box::new(E::new(f))));
+    }
+
+    pub fn growth_id_rev_probe_arm() -> bool {
+        return false;
+    }
+
+    pub fn growth_id_rev_probe_same_domain() -> u32 {
+        let mut v = 0u32;
+        let __outcome: Result<(), EFault> = (|| {
+            return Err(EFault::Bad { tag: UString::from("b") });
+        })();
+        match __outcome {
+            Ok(_) => {}
+            Err(e) => {
+                let h: u32 = match (|| -> Result<u32, EFault> {
+                    return Err(EFault::EFault(Box::new(E::new(e))));
+                })() {
+                    Ok(__value) => __value,
+                    Err(e2) => 5,
+                };
+                v = h;
+            }
+        }
+        return v;
+    }
+}

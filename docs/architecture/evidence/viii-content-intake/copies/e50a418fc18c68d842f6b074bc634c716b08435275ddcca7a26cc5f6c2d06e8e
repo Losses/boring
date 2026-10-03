@@ -1,0 +1,36 @@
+diff -ru /tmp/rt-xcheck/bx-pristine/xs-testmod/boring/value_exception.rs /tmp/rt-xcheck/bx-postfix/xs-testmod/boring/value_exception.rs
+--- /tmp/rt-xcheck/bx-pristine/xs-testmod/boring/value_exception.rs	2026-09-29 18:13:27.552152511 -0400
++++ /tmp/rt-xcheck/bx-postfix/xs-testmod/boring/value_exception.rs	2026-09-29 18:14:41.557762804 -0400
+@@ -3,6 +3,7 @@
+     StartAfterEnd,
+     NegativeStart,
+     BlankValue,
++    ValueExceptionFault(Box<crate::boring::value_exception::ValueException>),
+ }
+ 
+ impl std::fmt::Display for ValueError {
+@@ -11,8 +12,24 @@
+             ValueError::StartAfterEnd => write!(formatter, "{}", "start exceeds end"),
+             ValueError::NegativeStart => write!(formatter, "{}", "start is negative"),
+             ValueError::BlankValue => write!(formatter, "{}", "value is blank"),
++            ValueError::ValueExceptionFault(inner) => write!(formatter, "{:?}", inner),
+         }
+     }
+ }
+ 
+ impl std::error::Error for ValueError {}
++
++#[derive(Debug, Clone, PartialEq)]
++pub struct ValueException {
++    pub error: ValueError,
++}
++impl ValueException {
++    pub fn new(error: ValueError) -> Self {
++        ValueException { error }
++    }
++}
++impl std::fmt::Display for ValueException {
++    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        write!(formatter, "{}", self.error)
++    }
++}

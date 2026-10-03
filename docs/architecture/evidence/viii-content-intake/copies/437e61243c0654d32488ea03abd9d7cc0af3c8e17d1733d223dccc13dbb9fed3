@@ -1,0 +1,136 @@
+# hxml root dedupe — per-case keep/drop decisions (45/45)
+
+Task: t-munhr03l-o0hb (branch chore/dedupe-hxml-roots). Base 5a8f19e6.
+All 45 duplicates are **literal bare-module lines** (identical intent: "make this module a
+root module"). No hxml conditional sections exist; a bare root line has exactly one meaning.
+Both counting methods (raw `sort|uniq -d` and guard-semantics) agree per file: 8/8/8/5/10/6 = 45.
+
+## Decision rule (applied in order)
+
+1. **Family clustering**: if the two occurrences sit in different semantic neighborhoods and
+   one is clearly the module's family home (paired with its own Ops/Tests sibling, adjacent to
+   same-family modules, or inside the feature's family block), keep that one.
+2. **Owner placement**: if both are neutral or tie on clustering, keep the line placed by the
+   feature commit that *created* the module (verified via `git log --diff-filter=A --
+   samples/.../<M>.hx`), i.e. the feature author's positional choice; delete the later
+   redundant re-list (mechanical cross-target parity re-declaration).
+3. **Compiler-output invariance** (empirical, `exp-keep-later-gen-noart.diff` = 0 lines on the
+   kotlin experiment where the *first* occurrence was dropped): the compiler output does not
+   depend on which duplicate occurrence survives. These decisions are therefore pure hygiene;
+   the final arbiter is the whole-tree byte-identity diff over all 6 targets.
+
+Note on the "first occurrence" trap: the owner's line is **not** always the first occurrence.
+InterfaceArrayLiteral (all 6 files): the *non-owner* commit 7b3014c4 declared the pair first
+(topological ancestor of owner eb646fea); the owner later re-listed it. Keeping the first
+occurrence there is correct, but for the *right* reason (original declaration + family region),
+not by a first-occurrence rule. ProbeUnit (all 6 files) is the opposite: the owner's line is the
+**second** occurrence.
+
+Commit provenance (verified by `git show <c> -- <file>` insertion contexts, 2026 dates):
+
+| commit | date | subject / role |
+|---|---|---|
+| b1cbc410 | 09-09 01:16 | test(rust): reproduce message-only exception throw stop — **owner of HaxeException family** (created HaxeExceptionOps.hx); appended the Ops+Tests pair after `tests.LoopWriteTests` in all 5 files |
+| 7ecdd777 | 09-09 06:04 | test: exercise exception throwing on swift dart kotlin — **parity re-list** of the same pair after `boring.LoopWriteOps` with an *identical anchor context in all 5 files* (mechanical) |
+| bf037cc7 | 09-06 21:19 | fix(compiler): preserve Math min max NaN semantics — **owner of MathNaN family**; added *both* occurrences of MathNaNOps/MathNaNTestSupport (after NumberClassify/MathMinMax Ops and after SwitchOps/MathIntWideningOps) and both of MathNaNOpsTests (after NumberClassify/MathMinMax tests and after SwitchOps/MathIntWidening tests) in one commit |
+| ca5fc14f | 09-08 01:18 | fix(ts): handle abstract static field refs — **owner of ProbeUnit** (created ProbeUnit.hx); placed it as a 3-line block with `boring.AbstractStaticDefault` + `tests.AbstractStaticDefaultTests` in all 6 files |
+| 312d924f | 09-08 20:14 | fix(rust): resolve inlined defaults — **re-list** of ProbeUnit next to `boring.InlineDefaultOps` in all 6 files |
+| 7b3014c4 | 09-11 14:41 (author) | fix(swift): widen the Int side of a mixed Float addition — **earliest in DAG** (`git merge-base --is-ancestor 7b3014c4 eb646fea` = true); declared the InterfaceArrayLiteral pair after `tests.DartArrayMethodTests` (the module did not exist yet — forward declaration) |
+| eb646fea | 09-11 14:19 (author) | fix(swift): carry the interface element type on an array literal — **owner of InterfaceArrayLiteral** (created the .hx, later in DAG); re-listed the pair after `tests.IntFloatAddTests` |
+| e7b65210 | 09-20 23:18 | fix(kotlin): clamp both ends of an Array slice — **owner of ArraySliceOps** (created the .hx); rooted it in *no* hxml |
+| 1c804bf8 | 09-21 01:34 | fix(compiler): clamp Array slice and splice bounds in four targets — added the root at the **core-block head** (after the `-D` lines, before `boring.BinaryReader`) in dart/kotlin/kotlin-f32/swift/swift-f32/ts |
+| f2b6d416 | 09-21 01:58 | fix(compiler): clamp the array insert and rust range bounds — added the root in the **array-family cluster** (after `tests.ArrayAccessTests`, before `tests.ArraySliceTests`) in dart/rust/rust-f32/swift/swift-f32 → this is why rust.hxml:292 / rust-f32.hxml:275 are single occurrences at the cluster position and swift/swift-f32 got two |
+| f0c05000 | 09-07 00:24 | test(samples): add NumericConversionWidening sample for kot[lin] — added a 5-line block (NumericConversionWidening + 4 test lines) in kotlin-f32; **d3fb1588 (09-07 04:46) later removed** the two NumericConversionWidening lines of that block |
+| e787e584 | 09-08 16:52 | test(kotlin): reproduce widening outside call arguments — placed the surviving NumericConversionWidening Ops+Tests pair in the numeric family block (after `boring.KnullInitNarrowing`) in kotlin-f32 |
+| b701de49 | 09-08 17:10 | fix(kotlin): widen int operands beyond call arguments — **interleaved re-list** of both lines inside the same block (current 326/331) |
+| bf4c556b | 08-31 00:43 | feat(enums): expand value queries — **owner of EnumQueries family**; placed EnumQueriesOps+Tests+Probes after `tests.ToStringTests` (kotlin-f32) |
+| 9fd4138f | 09-05 19:36 | fix(reflaxe): terminate variant switch arms — **owner placement of SwitchOpsTests** (after `tests.EnumQueriesTests`, before `tests.EnumQueriesProbes` in kotlin-f32) |
+| fd90dfd1 | 09-06 20:29 | fix(compiler): widen Int operands for Math operations — **owner placement of MathIntWideningOpsTests** (kotlin-f32 tests cluster) |
+| bb55c5be | 09-07 01:15 | fix(swift): render safe float and control literals — **owner of SwiftLiteralSafety family** (created SwiftLiteralSafetyOps.hx); placed Ops+Tests in the family block (with the FloatLiteral family) in swift.hxml |
+| 94c54f46 | 09-07 01:15 | (twin commit, same feature) — **re-list** of `tests.SwiftLiteralSafetyOpsTests` after `tests.NumericConversionWideningTests` in swift.hxml |
+
+## kotlin.hxml (8)
+
+| # | module | lines (first,second) | KEEP | DROP | rationale |
+|---|---|---|---|---|---|
+| 1 | boring.HaxeExceptionOps | 292, 299 | **299** | 292 | owner b1cbc410 appended the pair after `tests.LoopWriteTests` (=299); 7ecdd777 parity re-list after `boring.LoopWriteOps` (=292). 299 also heads the exception-family region (ExceptionChainProbe@301, SealedChild@303-307) |
+| 2 | tests.HaxeExceptionTests | 293, 300 | **300** | 293 | same pair/provenance as #1 |
+| 3 | boring.MathNaNOps | 206, 210 | **206** | 210 | bf037cc7 added both; 206 is in the family Ops block right after its own family's Ops (NumberClassifyOps@204, MathMinMaxOps@205); 210 is the re-list after SwitchOps/MathIntWideningOps directly before the tests block |
+| 4 | boring.MathNaNTestSupport | 207, 211 | **207** | 211 | same as #3 |
+| 5 | tests.MathNaNOpsTests | 214, 226 | **214** | 226 | bf037cc7 added both; 214 sits in the family tests block with the family's own tests (NumberClassifyTests@212, MathMinMaxTests@213); 226 is the re-list before the `registry.Core` block |
+| 6 | boring.ProbeUnit | 134, 331 | **331** | 134 | owner ca5fc14f placed it with its own family member `boring.AbstractStaticDefault`@333; 312d924f re-list next to `boring.InlineDefaultOps` (different feature) |
+| 7 | boring.InterfaceArrayLiteralOps | 486, 494 | **486** | 494 | 7b3014c4 (earliest in DAG) declared the pair in the Interface* family region (InterfaceIdentityOps@481, InterfaceFieldRecordOps@483 above); owner eb646fea (later) re-listed it after `tests.IntFloatAddTests` — the surviving line is both the original declaration and the family-clustered position |
+| 8 | tests.InterfaceArrayLiteralTests | 487, 495 | **487** | 495 | same as #7 |
+
+## kotlin-f32.hxml (8)
+
+| # | module | lines (first,second) | KEEP | DROP | rationale |
+|---|---|---|---|---|---|
+| 9 | boring.NumericConversionWidening | 323, 326 | **323** | 326 | e787e584 placed the pair in the numeric Ops family block (KnullInitNarrowing@322 above, NumericWidenOps@324 below); b701de49 interleaved the re-list at 326. (Owner f0c05000's original root in the upper region was itself removed by d3fb1588 — documented history, not a third line) |
+| 10 | tests.NumericConversionWideningTests | 328, 331 | **328** | 331 | numeric tests cluster 327-330 (KnullInitNarrowingTests/NumericWidenTests/NumericDomainTests); b701de49 re-list at 331 |
+| 11 | tests.EnumQueriesTests | 176, 180 | **176** | 180 | owner bf4c556b placed it in the tests cluster with its family (EnumQueriesOps@171 above, EnumQueriesProbes@183 below); f0c05000 re-list at 180 (its 5-line block, after d3fb1588 trimmed it to the test lines) |
+| 12 | tests.SwitchOpsTests | 177, 181 | **177** | 181 | owner 9fd4138f placed it after `tests.EnumQueriesTests` in the same cluster (Ops `boring.SwitchOps`@172 above); f0c05000 re-list at 181 |
+| 13 | tests.MathIntWideningOpsTests | 178, 182 | **178** | 182 | owner fd90dfd1 placed it in the tests cluster; f0c05000 re-list at 182 |
+| 14 | boring.ProbeUnit | 157, 333 | **333** | 157 | owner ca5fc14f placed it with `boring.AbstractStaticDefault`@335; 312d924f re-list next to `boring.InlineDefaultOps` |
+| 15 | boring.InterfaceArrayLiteralOps | 486, 494 | **486** | 494 | same provenance as kotlin.hxml #7 (7b3014c4 declaration in the Interface* region; eb646fea re-list) |
+| 16 | tests.InterfaceArrayLiteralTests | 487, 495 | **487** | 495 | same as #15 |
+
+## rust.hxml (8)
+
+| # | module | lines (first,second) | KEEP | DROP | rationale |
+|---|---|---|---|---|---|
+| 17 | boring.HaxeExceptionOps | 283, 288 | **288** | 283 | owner b1cbc410's placement (after `tests.LoopWriteTests`@287); 7ecdd777 mechanical parity re-list at 283 (identical anchor in all 5 files). Clustering note: 283 is directly above the ExceptionChainProbe pair (285-286) while 288 is two lines below it (tests.LoopWriteTests@287 interposed) — the owner line is kept for uniformity across the five HaxeException files and traceability (feature author's positional choice vs. batch parity re-declaration); compiler-output invariance proven, so the choice is pure hygiene |
+| 18 | tests.HaxeExceptionTests | 284, 289 | **289** | 284 | same pair/provenance as #17 |
+| 19 | boring.MathNaNOps | 200, 204 | **200** | 204 | bf037cc7 added both; 200 is in the family Ops block right after NumberClassifyOps@198/MathMinMaxOps@199; 204 is the re-list |
+| 20 | boring.MathNaNTestSupport | 201, 205 | **201** | 205 | same as #19 |
+| 21 | tests.MathNaNOpsTests | 208, 219 | **208** | 219 | 208 is in the family tests block with NumberClassifyTests@206/MathMinMaxTests@207; 219 is the re-list before `tests.ArrayRootTests`/`registry.Core` |
+| 22 | boring.ProbeUnit | 127, 318 | **318** | 127 | owner ca5fc14f placed it with `boring.AbstractStaticDefault`@320; 312d924f re-list next to `boring.InlineDefaultOps` |
+| 23 | boring.InterfaceArrayLiteralOps | 490, 498 | **490** | 498 | same provenance (7b3014c4 declaration in the Interface* region; eb646fea re-list) |
+| 24 | tests.InterfaceArrayLiteralTests | 491, 499 | **491** | 499 | same as #23 |
+
+## rust-f32.hxml (5)
+
+| # | module | lines (first,second) | KEEP | DROP | rationale |
+|---|---|---|---|---|---|
+| 25 | boring.HaxeExceptionOps | 268, 271 | **271** | 268 | owner b1cbc410's placement (after `tests.LoopWriteTests`@270); 7ecdd777 parity re-list at 268. Neither position is family-clustered (ExceptionChainProbe is far at 154-155) → owner rule decides |
+| 26 | tests.HaxeExceptionTests | 269, 272 | **272** | 269 | same pair/provenance as #25 |
+| 27 | boring.ProbeUnit | 157, 321 | **321** | 157 | owner ca5fc14f placed it with `boring.AbstractStaticDefault`@323; 312d924f re-list next to `boring.InlineDefaultOps` |
+| 28 | boring.InterfaceArrayLiteralOps | 486, 494 | **486** | 494 | same provenance (7b3014c4 declaration; eb646fea re-list) |
+| 29 | tests.InterfaceArrayLiteralTests | 487, 495 | **487** | 495 | same as #28 |
+
+## swift.hxml (10)
+
+| # | module | lines (first,second) | KEEP | DROP | rationale |
+|---|---|---|---|---|---|
+| 30 | boring.ArraySliceOps | 24, 302 | **302** | 24 | 302 is paired with its own `tests.ArraySliceTests`@303 inside the array-family cluster (ArrayAccessOps@300/Tests@301 above, StaticRefOps@304 below) — identical placement to the sole occurrences in rust.hxml:292 and rust-f32.hxml:275 (cross-file consistency). The 24 line sits in the binary/crypto core block (BinaryReader@25 ... haxe.crypto.Sha256@30) with unrelated primitives. 1c804bf8 added 24; f2b6d416 added 302. This is a keep-second case, justified by clustering + sibling-file consistency, not by first-occurrence |
+| 31 | boring.HaxeExceptionOps | 289, 298 | **298** | 289 | owner b1cbc410's placement, immediately after the ExceptionChainProbe pair (295-296); 7ecdd777 parity re-list after `boring.LoopWriteOps`@288 |
+| 32 | tests.HaxeExceptionTests | 290, 299 | **299** | 290 | same pair/provenance as #31 |
+| 33 | boring.MathNaNOps | 206, 245 | **206** | 245 | family block: own family Ops (NumberClassifyOps@204/MathMinMaxOps@205 above) and own/sibling tests (208-210) directly adjacent; 245 is the re-list in the PlatformOps region (SwitchOps@243/MathIntWideningOps@244 above, PlatformOps@247 below) |
+| 34 | boring.MathNaNTestSupport | 207, 246 | **207** | 246 | same as #33 |
+| 35 | tests.MathNaNOpsTests | 127, 210 | **210** | 127 | bf037cc7 added both; 210 is inside the family block (MathNaNOps Ops@206 directly above, sibling tests NumberClassifyTests@208/MathMinMaxTests@209 adjacent) — the family home; 127 is the re-list in the early TryOps/SwitchOps tests cluster (123-126). Keep-second, justified by family clustering |
+| 36 | tests.SwiftLiteralSafetyOpsTests | 265, 274 | **265** | 274 | owner bb55c5be placed the pair in the family block (`boring.SwiftLiteralSafetyOps`@263 directly above, with the FloatLiteral family); 94c54f46 re-listed only the Tests line after `tests.NumericConversionWideningTests`@273 |
+| 37 | boring.ProbeUnit | 134, 328 | **328** | 134 | owner ca5fc14f placed it with `boring.AbstractStaticDefault`@330; 312d924f re-list next to `boring.InlineDefaultOps` |
+| 38 | boring.InterfaceArrayLiteralOps | 488, 496 | **488** | 496 | same provenance (7b3014c4 declaration in the Interface* region; eb646fea re-list) |
+| 39 | tests.InterfaceArrayLiteralTests | 489, 497 | **489** | 497 | same as #38 |
+
+## swift-f32.hxml (6)
+
+| # | module | lines (first,second) | KEEP | DROP | rationale |
+|---|---|---|---|---|---|
+| 40 | boring.ArraySliceOps | 61, 285 | **285** | 61 | 285 is paired with its own `tests.ArraySliceTests`@286 in the array-family cluster — identical placement to rust-f32.hxml:275 (sibling-file consistency). 61 sits in the core block (BinaryReader@62 ... haxe.crypto@66-68). 1c804bf8 added 61; f2b6d416 added 285. Keep-second, justified by clustering + sibling-file consistency |
+| 41 | boring.HaxeExceptionOps | 274, 281 | **281** | 274 | owner b1cbc410's placement (after `tests.LoopWriteTests`@280); 7ecdd777 parity re-list at 274. Neither position family-clustered (ExceptionChainProbe far at 59-60) → owner rule decides |
+| 42 | tests.HaxeExceptionTests | 275, 282 | **282** | 275 | same pair/provenance as #41 |
+| 43 | boring.ProbeUnit | 160, 328 | **328** | 160 | owner ca5fc14f placed it with `boring.AbstractStaticDefault`@330; 312d924f re-list next to `boring.InlineDefaultOps` |
+| 44 | boring.InterfaceArrayLiteralOps | 482, 490 | **482** | 490 | same provenance (7b3014c4 declaration in the Interface* region; eb646fea re-list) |
+| 45 | tests.InterfaceArrayLiteralTests | 483, 491 | **483** | 491 | same as #44 |
+
+## Drop set (line:module, per file) — used by the apply script with per-line assertions
+
+- examples/kotlin.hxml: 134:boring.ProbeUnit 210:boring.MathNaNOps 211:boring.MathNaNTestSupport 226:tests.MathNaNOpsTests 292:boring.HaxeExceptionOps 293:tests.HaxeExceptionTests 494:boring.InterfaceArrayLiteralOps 495:tests.InterfaceArrayLiteralTests
+- examples/kotlin-f32.hxml: 157:boring.ProbeUnit 180:tests.EnumQueriesTests 181:tests.SwitchOpsTests 182:tests.MathIntWideningOpsTests 326:boring.NumericConversionWidening 331:tests.NumericConversionWideningTests 494:boring.InterfaceArrayLiteralOps 495:tests.InterfaceArrayLiteralTests
+- examples/rust.hxml: 127:boring.ProbeUnit 204:boring.MathNaNOps 205:boring.MathNaNTestSupport 219:tests.MathNaNOpsTests 283:boring.HaxeExceptionOps 284:tests.HaxeExceptionTests 498:boring.InterfaceArrayLiteralOps 499:tests.InterfaceArrayLiteralTests
+- examples/rust-f32.hxml: 157:boring.ProbeUnit 268:boring.HaxeExceptionOps 269:tests.HaxeExceptionTests 494:boring.InterfaceArrayLiteralOps 495:tests.InterfaceArrayLiteralTests
+- examples/swift.hxml: 24:boring.ArraySliceOps 127:tests.MathNaNOpsTests 134:boring.ProbeUnit 245:boring.MathNaNOps 246:boring.MathNaNTestSupport 274:tests.SwiftLiteralSafetyOpsTests 289:boring.HaxeExceptionOps 290:tests.HaxeExceptionTests 496:boring.InterfaceArrayLiteralOps 497:tests.InterfaceArrayLiteralTests
+- examples/swift-f32.hxml: 61:boring.ArraySliceOps 160:boring.ProbeUnit 274:boring.HaxeExceptionOps 275:tests.HaxeExceptionTests 490:boring.InterfaceArrayLiteralOps 491:tests.InterfaceArrayLiteralTests
+
+Counts: 8 + 8 + 8 + 5 + 10 + 6 = 45. Expected line counts after: 682->674, 684->676, 688->680, 554->549, 557->547, 552->546 (total 3342->3297, -45).

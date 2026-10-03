@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Check 4: old 1431 backup vs new 1433 manifest — per-path diff (path/sha256/mode)."""
+import json, os, sys
+
+WS = "/home/losses/Development/tq-workspace"
+OLD = json.load(open(os.path.join(WS, "dc-warn/out/coord-state-sync/backup/option-c-source-before.1431.json")))
+NEW = json.load(open(os.path.join(WS, "publication-staging/p09-coord-state/option-c-source-before.json")))
+old = {e["path"]: (e["sha256"], e["mode"]) for e in OLD}
+new = {e["path"]: (e["sha256"], e["mode"]) for e in NEW}
+
+only_old = sorted(set(old) - set(new))
+only_new = sorted(set(new) - set(old))
+changed, unchanged = [], []
+for p in sorted(set(old) & set(new)):
+    if old[p] != new[p]:
+        changed.append((p, old[p], new[p]))
+    else:
+        unchanged.append(p)
+
+print(f"old: {len(OLD)}  new: {len(NEW)}")
+print(f"only in old (removed): {len(only_old)}")
+for p in only_old: print("  REMOVED:", p)
+print(f"only in new (added): {len(only_new)}")
+for p in only_new: print("  ADDED:", p, new[p][1], new[p][0][:16])
+print(f"changed (same path): {len(changed)}")
+for p, o, n in changed:
+    same_sha = o[0] == n[0]; same_mode = o[1] == n[1]
+    print(f"  CHANGED: {p}")
+    print(f"     sha:  {o[0][:16]}.. -> {n[0][:16]}..  ({'same' if same_sha else 'changed'})")
+    print(f"     mode: {o[1]} -> {n[1]}  ({'same' if same_mode else 'changed'})")
+print(f"unchanged: {len(unchanged)}")
+print(f"identity: {len(only_old)} + {len(only_new)} + {len(changed)} + {len(unchanged)} = {len(only_old)+len(only_new)+len(changed)+len(unchanged)} (== old {len(OLD)} / new {len(NEW)})")
+
+KNOWN_ADDED = {"tests/haxe/swift-rt-probe/run-stages.sh", "tests/haxe/swift-rt-plain/run-stages.sh"}
+KNOWN_CHANGED = {"tests/haxe/dc-null-guard-fallthrough/run.sh", "tests/haxe/try-tail/run-stages.sh"}
+ok = (len(OLD) == 1431 and len(NEW) == 1433 and not only_old
+      and set(only_new) == KNOWN_ADDED and {p for p, _, _ in changed} == KNOWN_CHANGED
+      and len(unchanged) == 1429)
+print("CHECK4 VERDICT:", "PASS" if ok else "FAIL")
+sys.exit(0 if ok else 1)

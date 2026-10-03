@@ -1,0 +1,15 @@
+package boring
+
+object StdStringSelfRecOps {
+    fun markText(value: SelfRecMark): String {
+        return run { fun stdStringSelfRecMark0(v: SelfRecMark): String { return when (v) { is SelfRecMark.wrap -> "wrap(" + "inner=" + (stdStringSelfRecMark0(v.inner)) + ")"
+SelfRecMark.plain -> "plain"
+is SelfRecMark.nest -> "nest(" + "list=" + (run { val sb = StringBuilder(); sb.append('['); val n = v.list.size; var i = 0; while (i < n) { if (i > 0) { sb.append(", "); }; sb.append(stdStringSelfRecMark0(v.list[i])); i += 1; }; sb.append(']'); sb.toString() }) + ")" } }; stdStringSelfRecMark0(value) }
+    }
+}
+
+sealed interface SelfRecMark {
+    data object plain : SelfRecMark
+    data class wrap(val inner: SelfRecMark) : SelfRecMark
+    data class nest(val list: MutableList<SelfRecMark>) : SelfRecMark
+}

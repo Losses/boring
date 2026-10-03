@@ -1,0 +1,364 @@
+package registry
+
+import boring.runtime.FPHelper
+
+object Json {
+    fun read(text: String): JsonValue {
+        return Reader(text).parse()
+    }
+
+    fun getField(value: JsonValue, name: String): JsonValue {
+        return when (value) {
+            is JsonValue.JObject -> Json.findField(value.fields, name)
+            is JsonValue.JArray -> JsonValue.JNull
+            is JsonValue.JString -> JsonValue.JNull
+            is JsonValue.JNumber -> JsonValue.JNull
+            is JsonValue.JBool -> JsonValue.JNull
+            is JsonValue.JNull -> JsonValue.JNull
+        }
+    }
+
+    private fun findField(fields: MutableList<JsonField>, name: String): JsonValue {
+        for (i in 0 until fields.size) {
+            if ((fields[i].name == name)) {
+                return fields[i].value
+            }
+        }
+        return JsonValue.JNull
+    }
+
+    fun write(value: JsonValue): String {
+        return Json.render(value, 0) + "\n"
+    }
+
+    fun writeCompact(value: JsonValue): String {
+        return Json.renderCompact(value)
+    }
+
+    private fun renderCompact(v: JsonValue): String {
+        return when (v) {
+            is JsonValue.JObject -> Json.compactObject(v.fields)
+            is JsonValue.JArray -> Json.compactArray(v.values)
+            is JsonValue.JString -> Json.quote(v.value)
+            is JsonValue.JNumber -> boring.runtime.FPHelper.formatFloat(v.value)
+            is JsonValue.JBool -> (if ((v.value)) "true" else "false")
+            is JsonValue.JNull -> "null"
+        }
+    }
+
+    private fun compactArray(a: MutableList<JsonValue>): String {
+        val parts = mutableListOf<String>()
+        for (i in 0 until a.size) {
+            parts.add(Json.renderCompact(a[i]))
+        }
+        return "[" + parts.joinToString(",") + "]"
+    }
+
+    private fun compactObject(fs: MutableList<JsonField>): String {
+        val parts = mutableListOf<String>()
+        for (i in 0 until fs.size) {
+            parts.add(Json.quote(fs[i].name) + ":" + Json.renderCompact(fs[i].value))
+        }
+        return "{" + parts.joinToString(",") + "}"
+    }
+
+    private fun indent(n: Int): String {
+        var s = ""
+        for (i in 0 until n) {
+            s += "  "
+        }
+        return s
+    }
+
+    private fun hexDigit(v: Int): String {
+        return (if (((if ((v < 10)) 48 + v else 87 + v)) > 0xFFFF) String(Character.toChars(((if ((v < 10)) 48 + v else 87 + v)))) else ((((if ((v < 10)) 48 + v else 87 + v))).toChar()).toString())
+    }
+
+    private fun hex4(v: Int): String {
+        return Json.hexDigit(((((v) shr (12))) and (15))) + Json.hexDigit(((((v) shr (8))) and (15))) + Json.hexDigit(((((v) shr (4))) and (15))) + Json.hexDigit(((v) and (15)))
+    }
+
+    private fun quote(s: String): String {
+        var out = "\""
+        for (i in 0 until s.length) {
+            out += Json.escapeOf((run { val _s = s; val _i = i; if (_i >= 0 && _i < _s.length) _s[_i].code else null }) ?: throw IllegalArgumentException("argument is null"))
+        }
+        return out + "\""
+    }
+
+    private fun escapeOf(c: Int): String {
+        if ((c == 8)) {
+            return "\\b"
+        }
+        if ((c == 9)) {
+            return "\\t"
+        }
+        if ((c == 10)) {
+            return "\\n"
+        }
+        if ((c == 12)) {
+            return "\\f"
+        }
+        if ((c == 13)) {
+            return "\\r"
+        }
+        if ((c == 34)) {
+            return "\\\""
+        }
+        if ((c == 92)) {
+            return "\\\\"
+        }
+        if ((c < 32)) {
+            return "\\u" + Json.hex4(c)
+        }
+        return (if ((c) > 0xFFFF) String(Character.toChars((c))) else (((c)).toChar()).toString())
+    }
+
+    private fun render(v: JsonValue, level: Int): String {
+        return when (v) {
+            is JsonValue.JObject -> Json.renderObject(v.fields, level)
+            is JsonValue.JArray -> Json.renderArray(v.values, level)
+            is JsonValue.JString -> Json.quote(v.value)
+            is JsonValue.JNumber -> boring.runtime.FPHelper.formatFloat(v.value)
+            is JsonValue.JBool -> (if ((v.value)) "true" else "false")
+            is JsonValue.JNull -> "null"
+        }
+    }
+
+    private fun renderArray(a: MutableList<JsonValue>, level: Int): String {
+        if ((a.size == 0)) {
+            return "[]"
+        }
+        val parts = mutableListOf<String>()
+        for (i in 0 until a.size) {
+            parts.add(Json.indent(level + 1) + Json.render(a[i], level + 1))
+        }
+        return "[\n" + parts.joinToString(",\n") + "\n" + Json.indent(level) + "]"
+    }
+
+    private fun renderObject(fs: MutableList<JsonField>, level: Int): String {
+        if ((fs.size == 0)) {
+            return "{}"
+        }
+        val parts = mutableListOf<String>()
+        for (i in 0 until fs.size) {
+            parts.add(Json.indent(level + 1) + Json.quote(fs[i].name) + ": " + Json.render(fs[i].value, level + 1))
+        }
+        return "{\n" + parts.joinToString(",\n") + "\n" + Json.indent(level) + "}"
+    }
+    private class Reader(private val text: String) {
+        var p: Int
+        init {
+        this.p = 0
+        }
+    
+        fun parse(): JsonValue {
+            this.skip()
+            val v = this.value()
+            this.skip()
+            if ((this.p != this.text.length)) {
+                throw JsonException.TrailingInput(this.p)
+            }
+            return v
+        }
+    
+        private fun value(): JsonValue {
+            this.skip()
+            if ((this.p >= this.text.length)) {
+                this.fail()
+            }
+            val k = run { val _s = this.text; val _i = this.p; if (_i >= 0 && _i < _s.length) _s[_i].code else null }
+            if ((k == 123)) {
+                return this.parseObject()
+            }
+            if ((k == 91)) {
+                return this.parseArray()
+            }
+            if ((k == 34)) {
+                return JsonValue.JString(this.string())
+            }
+            if ((k == 116)) {
+                this.word("true")
+                return JsonValue.JBool(true)
+            }
+            if ((k == 102)) {
+                this.word("false")
+                return JsonValue.JBool(false)
+            }
+            if ((k == 110)) {
+                this.word("null")
+                return JsonValue.JNull
+            }
+            return this.number()
+        }
+    
+        private fun parseObject(): JsonValue {
+            this.p = this.p + 1
+            val fs = mutableListOf<JsonField>()
+            this.skip()
+            if ((this.takeCode(125))) {
+                return JsonValue.JObject(fs)
+            }
+            while ((true)) {
+                this.skip()
+                if ((run { val _s = this.text; val _i = this.p; if (_i >= 0 && _i < _s.length) _s[_i].code else null } != 34)) {
+                    this.fail()
+                }
+                val n = this.string()
+                this.skip()
+                if ((!this.takeCode(58))) {
+                    this.fail()
+                }
+                fs.add(JsonField(name = n, value = this.value()))
+                this.skip()
+                if ((this.takeCode(125))) {
+                    return JsonValue.JObject(fs)
+                }
+                if ((!this.takeCode(44))) {
+                    this.fail()
+                }
+            }
+        }
+    
+        private fun parseArray(): JsonValue {
+            this.p = this.p + 1
+            val a = mutableListOf<JsonValue>()
+            this.skip()
+            if ((this.takeCode(93))) {
+                return JsonValue.JArray(a)
+            }
+            while ((true)) {
+                a.add(this.value())
+                this.skip()
+                if ((this.takeCode(93))) {
+                    return JsonValue.JArray(a)
+                }
+                if ((!this.takeCode(44))) {
+                    this.fail()
+                }
+            }
+        }
+    
+        private fun string(): String {
+            this.p = this.p + 1
+            var out = ""
+            while ((this.p < this.text.length)) {
+                val c = run { val _s = this.text; val _i = this.p; if (_i >= 0 && _i < _s.length) _s[_i].code else null }
+                this.p = this.p + 1
+                if ((c == 34)) {
+                    return out
+                }
+                if ((c == 92)) {
+                    if ((this.p >= this.text.length)) {
+                        this.fail()
+                    }
+                    val e = run { val _s = this.text; val _i = this.p; if (_i >= 0 && _i < _s.length) _s[_i].code else null }
+                    this.p = this.p + 1
+                    if ((e == 34 || e == 92 || e == 47)) {
+                        out += (if ((e)!! > 0xFFFF) String(Character.toChars((e)!!)) else (((e)!!).toChar()).toString())
+                    } else {
+                        if ((e == 98)) {
+                            out += "\\u0008"
+                        } else {
+                            if ((e == 102)) {
+                                out += ""
+                            } else {
+                                if ((e == 110)) {
+                                    out += "\n"
+                                } else {
+                                    if ((e == 114)) {
+                                        out += "\r"
+                                    } else {
+                                        if ((e == 116)) {
+                                            out += "\t"
+                                        } else {
+                                            if ((e == 117)) {
+                                                val h = run { val _s = this.text; val _from = this.p; val _to = this.p + 4; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+                                                if ((h.length < 4)) {
+                                                    this.fail()
+                                                }
+                                                var code = run { val s = "0x" + h; val t = s.trim(' ', '\t', '\n', '\r', '\u000B', '\u000C'); val neg = t.startsWith("-"); val sign = if (neg || t.startsWith("+")) 1 else 0; val hex = t.startsWith("0x", sign) || t.startsWith("0X", sign); val d = if (hex) t.substring(sign + 2) else t.substring(sign); if (!hex) { var i = sign; val start = i; while (i < t.length && t[i] in '0'..'9') i++; if (i != t.length || i == start) null else t.toIntOrNull() } else { var i = 0; while (i < d.length && d[i] in '0'..'9' || i < d.length && d[i] in 'a'..'f' || i < d.length && d[i] in 'A'..'F') i++; if (i != d.length || d.isEmpty()) null else { val n = d.toLongOrNull(16); if (n == null) null else { val v = if (neg) -n else n; if (v >= -2147483648L && v <= 2147483647L) v.toInt() else null } } } }
+                                                if ((code == null)) {
+                                                    code = 0
+                                                }
+                                                out += (if ((code) > 0xFFFF) String(Character.toChars((code))) else (((code)).toChar()).toString())
+                                                this.p = this.p + 4
+                                            } else {
+                                                this.fail()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    out += (if ((c)!! > 0xFFFF) String(Character.toChars((c)!!)) else (((c)!!).toChar()).toString())
+                }
+            }
+            this.fail()
+            return ""
+        }
+    
+        private fun number(): JsonValue {
+            val start = this.p
+            while ((this.p < this.text.length && Reader.isTerm((run { val _s = this.text; val _i = this.p; if (_i >= 0 && _i < _s.length) _s[_i].code else null }) ?: throw IllegalArgumentException("argument is null")) == false)) {
+                this.p = this.p + 1
+            }
+            val n = run { val s = run { val _s = this.text; val _from = start; val _to = this.p; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }; val t = s.trim(' ', '\t', '\n', '\r', '\u000B', '\u000C'); var i = 0; if (i < t.length && (t[i] == '+' || t[i] == '-')) i++; val before = i; while (i < t.length && t[i] in '0'..'9') i++; val hasBefore = i > before; var hasAfter = false; if (i < t.length && t[i] == '.') { i++; val start = i; while (i < t.length && t[i] in '0'..'9') i++; hasAfter = i > start } else if (!hasBefore) return@run Double.NaN; if (!hasBefore && !hasAfter) return@run Double.NaN; if (i < t.length && (t[i] == 'e' || t[i] == 'E')) { i++; if (i < t.length && (t[i] == '+' || t[i] == '-')) i++; val start = i; while (i < t.length && t[i] in '0'..'9') i++; if (i == start) return@run Double.NaN }; if (i != t.length) Double.NaN else t.toDoubleOrNull() ?: Double.NaN }
+            if (((n).isNaN())) {
+                this.fail()
+            }
+            return JsonValue.JNumber(n)
+        }
+    
+        private fun word(w: String) {
+            if ((run { val _s = this.text; val _from = this.p; val _to = this.p + w.length; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) } != w)) {
+                this.fail()
+            }
+            this.p = this.p + w.length
+        }
+    
+        private fun skip() {
+            while ((this.p < this.text.length && Reader.isSpace((run { val _s = this.text; val _i = this.p; if (_i >= 0 && _i < _s.length) _s[_i].code else null }) ?: throw IllegalArgumentException("argument is null")))) {
+                this.p = this.p + 1
+            }
+        }
+    
+        private fun takeCode(k: Int): Boolean {
+            if ((run { val _s = this.text; val _i = this.p; if (_i >= 0 && _i < _s.length) _s[_i].code else null } == k)) {
+                this.p = this.p + 1
+                return true
+            }
+            return false
+        }
+    
+        private fun fail() {
+            throw JsonException.InvalidJson
+        }
+    
+        companion object {
+            private fun isTerm(k: Int): Boolean {
+                return k == 44 || k == 93 || k == 125 || k == 32 || k == 9 || k == 10 || k == 13
+            }
+    
+            private fun isSpace(k: Int): Boolean {
+                return k == 32 || k == 9 || k == 10 || k == 13
+            }
+        }
+    }
+}
+
+sealed interface JsonValue {
+    data class JObject(val fields: MutableList<JsonField>) : JsonValue
+    data class JArray(val values: MutableList<JsonValue>) : JsonValue
+    data class JString(val value: String) : JsonValue
+    data class JNumber(val value: Double) : JsonValue
+    data class JBool(val value: Boolean) : JsonValue
+    data object JNull : JsonValue
+}
+
+data class JsonField(
+    var name: String,
+    var value: JsonValue
+)

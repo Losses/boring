@@ -1,0 +1,18 @@
+OLD (line-view) checker internals on the FINAL primary no-LF tampered log
+log: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/proof/noLF/harness.log
+appended: `printf 'abcdef'` -> 6 bytes, no LF
+
+last (marker line number, old checker)      = 36
+total (wc -l, old checker)                  = 36
+old checker guard: total -gt last ?         = no   <- never fires without the LF
+recorded (sed -n ${last}p, marker stripped) = d25b3cff51e41a924a11700c7ae88a0d1731dbfd9f5695564116d623509de352
+prefix_sha (head -n last-1 | sha256)         = d25b3cff51e41a924a11700c7ae88a0d1731dbfd9f5695564116d623509de352
+recorded == prefix_sha ?                     = YES
+
+bytes printed by sed -n ${last}p            = 91   (only the marker line; the 6 appended bytes are NOT in it)
+tail of that output (od -c):
+0000000   6   2   3   5   0   9   d   e   3   5   2  \n
+0000014
+
+wc -c of the log (byte view)                 = 3221
+grep -abo marker offset                      = 3124

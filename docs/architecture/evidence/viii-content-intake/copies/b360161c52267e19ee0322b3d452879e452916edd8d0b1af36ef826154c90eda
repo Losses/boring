@@ -1,0 +1,73 @@
+
+## tests/ts/array-root.test.ts  hunks=[(25, 31)]  changed_lines=[25, 26, 27, 28, 29, 30, 31]
+   [ fail] test lines 9-63: each target uses the ruled array declaration  (changed: [25, 26, 27, 28, 29, 30, 31])
+
+## tests/ts/default-args.test.ts  hunks=[(155, 209), (224, 237)]  changed_lines=[155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237]
+   [ pass] test lines 152-221: Rust generated tree emits full-arity calls and clean method signatures  (changed: [155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209])
+   [ pass] test lines 222-259: Swift generated tree lowers parameter-reading coalescing defaults in the body  (changed: [224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237])
+
+## tests/ts/enum-queries.test.ts  hunks=[(51, 57)]  changed_lines=[51, 52, 53, 54, 55, 56, 57]
+   [ pass] test lines 49-57: Rust emits ALL, name, from_name and a literal range  (changed: [51, 52, 53, 54, 55, 56, 57])
+
+## tests/ts/fn-values.test.ts  hunks=[(44, 57), (60, 78)]  changed_lines=[44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78]
+   [ pass] test lines 26-44: TypeScript, Kotlin, Swift, and Dart keep static function storage  (changed: [44])
+   [ pass] test lines 45-60: Rust uses one boxed representation and adapts indirect lengths  (changed: [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 60])
+   [ pass] test lines 61-69: Rust's f32 tree carries the same function-value lowering  (changed: [61, 62, 63, 64, 65, 66, 67, 68, 69])
+   [ pass] test lines 70-81: Rust bounds every function-value position with Send and Sync  (changed: [70, 71, 72, 73, 74, 75, 76, 77, 78])
+
+## tests/ts/printed-record.test.ts  hunks=[(43, 54), (85, 91)]  changed_lines=[43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 85, 86, 87, 88, 89, 90, 91]
+   changed lines in module scope / tables (not inside a test body): [43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 85, 86, 87, 88, 89, 90, 91]
+
+## tests/ts/record-copy.test.ts  hunks=[(37, 44)]  changed_lines=[37, 38, 39, 40, 41, 42, 43, 44]
+   [ pass] test lines 35-44: Rust generated tree emits struct instantiation in declaration order  (changed: [37, 38, 39, 40, 41, 42, 43, 44])
+
+## tests/ts/record-order.test.ts  hunks=[(42, 49)]  changed_lines=[42, 43, 44, 45, 46, 47, 48, 49]
+   changed lines in module scope / tables (not inside a test body): [42, 43, 44, 45, 46, 47, 48, 49]
+
+## tests/ts/sealed-variants.test.ts  hunks=[(242, 248)]  changed_lines=[242, 243, 244, 245, 246, 247, 248]
+   [ pass] test lines 214-248: sealed variant sample trees carry the ruled declaration and printed forms  (changed: [242, 243, 244, 245, 246, 247, 248])
+
+## tests/ts/static-extension.test.ts  hunks=[(112, 122)]  changed_lines=[112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122]
+   [ pass] test lines 102-122: Rust uses an inherent impl only for the owned receiver  (changed: [112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122])
+
+## tests/ts/static-state.test.ts  hunks=[(26, 32), (42, 59)]  changed_lines=[26, 27, 28, 29, 30, 31, 32, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
+   [ pass] test lines 26-33: Swift keeps array statics mutable for value-semantic append  (changed: [26, 27, 28, 29, 30, 31, 32])
+   [ pass] test lines 34-42: Dart flattens static state and applies the private underscore  (changed: [42])
+   [ pass] test lines 43-59: Rust uses Mutex guards and the direct constant lane  (changed: [43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59])
+
+## tests/ts/std-string.test.ts  hunks=[(51, 57)]  changed_lines=[51, 52, 53, 54, 55, 56, 57]
+   [ pass] test lines 38-51: enum operands use each target constructor-name read  (changed: [51])
+   [ pass] test lines 52-56: Rust standalone scalars use to_string  (changed: [52, 53, 54, 55, 56])
+   [ pass] test lines 57-73: array operands use one single-pass builder in every target  (changed: [57])
+
+## tests/ts/string-buffer.test.ts  hunks=[(44, 50)]  changed_lines=[44, 45, 46, 47, 48, 49, 50]
+   [ pass] test lines 38-54: Rust lowers StringBuf to Vec<u16> with fault arms bound in the pattern  (changed: [44, 45, 46, 47, 48, 49, 50])
+
+## tests/ts/value-type.test.ts  hunks=[(122, 128)]  changed_lines=[122, 123, 124, 125, 126, 127, 128]
+   [ pass] test lines 83-131: renders the five target representations and member forms  (changed: [122, 123, 124, 125, 126, 127, 128])
+
+
+=== SUMMARY: patch-changed lines inside TEST bodies, by outcome ===
+   fail  array-root.test.ts: each target uses the ruled array declaration
+   pass  default-args.test.ts: Rust generated tree emits full-arity calls and clean method signatures
+   pass  default-args.test.ts: Swift generated tree lowers parameter-reading coalescing defaults in the body
+   pass  enum-queries.test.ts: Rust emits ALL, name, from_name and a literal range
+   pass  fn-values.test.ts: TypeScript, Kotlin, Swift, and Dart keep static function storage
+   pass  fn-values.test.ts: Rust uses one boxed representation and adapts indirect lengths
+   pass  fn-values.test.ts: Rust's f32 tree carries the same function-value lowering
+   pass  fn-values.test.ts: Rust bounds every function-value position with Send and Sync
+  [module-scope/table change] printed-record.test.ts: lines [43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 85, 86, 87, 88, 89, 90, 91]
+   pass  record-copy.test.ts: Rust generated tree emits struct instantiation in declaration order
+  [module-scope/table change] record-order.test.ts: lines [42, 43, 44, 45, 46, 47, 48, 49]
+   pass  sealed-variants.test.ts: sealed variant sample trees carry the ruled declaration and printed forms
+   pass  static-extension.test.ts: Rust uses an inherent impl only for the owned receiver
+   pass  static-state.test.ts: Swift keeps array statics mutable for value-semantic append
+   pass  static-state.test.ts: Dart flattens static state and applies the private underscore
+   pass  static-state.test.ts: Rust uses Mutex guards and the direct constant lane
+   pass  std-string.test.ts: enum operands use each target constructor-name read
+   pass  std-string.test.ts: Rust standalone scalars use to_string
+   pass  std-string.test.ts: array operands use one single-pass builder in every target
+   pass  string-buffer.test.ts: Rust lowers StringBuf to Vec<u16> with fault arms bound in the pattern
+   pass  value-type.test.ts: renders the five target representations and member forms
+
+tests containing changed lines: pass=18 fail=1; files with changes only outside test bodies: 2

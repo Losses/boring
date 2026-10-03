@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class NullStaticMapTests {
+@boring.test.Test
+    fun testLookup() {
+        Test.run("tests.NullStaticMapTests.testLookup", "tests.NullStaticMapTests.testLookup: a null-initialized static map reads through an implicitly unwrapped optional") {
+                Test.equals(true, true, null)
+        }
+    }
+}

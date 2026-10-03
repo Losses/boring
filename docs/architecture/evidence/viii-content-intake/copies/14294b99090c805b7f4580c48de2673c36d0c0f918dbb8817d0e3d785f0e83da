@@ -1,0 +1,31 @@
+# Domain-guard reachability
+
+## bunfig.toml is TRACKED and present at 9f26e1ef
+bunfig.toml
+# bun test discovers test files by scanning the project root and matching
+# positional arguments as path suffixes. The generated out/ tree (654 MB,
+# ~4000 duplicated *.test.ts files under out/**/tests/) is therefore swept
+# into every run, and duplicates like
+# out/architecture-alias-targets/e3b8-source/tests/ts/array-root.test.ts
+# match the same suffix as the real file. Collection then dies with
+# "Cannot find module ... from ''" / EMFILE before any test executes.
+# Exclude the generated tree from discovery; tests themselves are untouched.
+[test]
+pathIgnorePatterns = ["out/**"]
+
+## out/ holds 4052 *.test.ts, 4037 matching the entry-point argv substrings
+4052
+4037
+
+## real discovery WITHOUT bunfig.toml (entry-point argv) - header lines emitted:
+tests/bundle-child-evidence/bundle-child-evidence.test.ts:
+tests/swift-gap-boundary/gap-boundary.test.ts:
+tests/dart/precision-switch.test.ts:
+tests/ts/printed-record.test.ts:
+## out/ header lines emitted: 0
+## error mode reached:
+      4 Cannot find module
+      1 EMFILE
+      1 ProcessFdQuotaExceeded
+## guard verdict on that real log:
+WOULD NOT FIRE

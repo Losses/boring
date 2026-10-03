@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Usage: run.sh <phase> <fixture> [<pkg-path=main-class>]
+#   phase   : pre | post | rev  (naming only: selects gen-<phase>/ and cargo-target-<phase>-<fixture>)
+#   fixture : directory name under tests/haxe/
+# Generates the fixture and cargo-builds the generated tree, logging raw
+# stdout/stderr and exit codes under evidence/.
+set -u
+WT=/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-payload-key
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/rust-payload-key-fix
+PHASE=$1
+FIX=$2
+LOG=$OUT/evidence
+export XDG_CACHE_HOME=$WT/.nix-cache
+export TMPDIR=$OUT/tmp
+mkdir -p "$TMPDIR" "$LOG" "$WT/out/rust-payload-key"
+GENREL=out/rust-payload-key/gen-$PHASE/$FIX
+cd "$WT" || exit 90
+nix develop -c haxe tests/haxe/$FIX/gen/rust.hxml -D rust-output=$GENREL >"$LOG/$PHASE-$FIX.gen.stdout" 2>"$LOG/$PHASE-$FIX.gen.stderr"
+GENRC=$?
+echo "gen rc=$GENRC" >"$LOG/$PHASE-$FIX.rc.txt"
+if [ $GENRC -ne 0 ]; then
+  echo "GEN FAILED rc=$GENRC"
+  exit $GENRC
+fi
+CARGO_TARGET_DIR=$WT/out/rust-payload-key/cargo-target-$PHASE-$FIX
+cd "$WT/$GENREL" || exit 90
+nix develop -c bash -c "CARGO_TARGET_DIR=$CARGO_TARGET_DIR cargo build --offline" >"$LOG/$PHASE-$FIX.cargo.stdout" 2>"$LOG/$PHASE-$FIX.cargo.stderr"
+CARGORC=$?
+echo "cargo rc=$CARGORC" >>"$LOG/$PHASE-$FIX.rc.txt"
+echo "gen rc=$GENRC cargo rc=$CARGORC"
+exit 0

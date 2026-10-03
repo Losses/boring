@@ -1,0 +1,60 @@
+package tests
+
+import boring.DefaultArgShiftOps
+import boring.runtime.test.Test
+
+class DefaultArgShiftTests {
+@boring.test.Test
+    fun testExplicitNull() {
+        Test.run("tests.DefaultArgShiftTests.testExplicitNull", "tests.DefaultArgShiftTests.testExplicitNull: explicit null at a parameter-reading default resolves the earlier argument") {
+                Test.equals("alpha", DefaultArgShiftOps.callExplicitNull(), null)
+                Test.equals("beta", DefaultArgShiftOps.callLaterGiven(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testChainExplicitNull() {
+        Test.run("tests.DefaultArgShiftTests.testChainExplicitNull", "tests.DefaultArgShiftTests.testChainExplicitNull: chain later parameter with explicit null reads the earlier argument") {
+                Test.equals(9.0f, DefaultArgShiftOps.callChainedLaterNull(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testChainOmissions() {
+        Test.run("tests.DefaultArgShiftTests.testChainOmissions", "tests.DefaultArgShiftTests.testChainOmissions: chain omission forms keep their resolved values") {
+                Test.equals(5.0f, DefaultArgShiftOps.callChainedBothOmitted(), null)
+                Test.equals(7.0f, DefaultArgShiftOps.callChainedLaterOmitted(), null)
+                Test.equals(9.5f, DefaultArgShiftOps.callChainedBothGiven(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testInstanceMethod() {
+        Test.run("tests.DefaultArgShiftTests.testInstanceMethod", "tests.DefaultArgShiftTests.testInstanceMethod: instance method parameter-reading default resolves the receiver argument") {
+                Test.equals("core", DefaultArgShiftOps.callInstanceNull(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testMiddleSlot() {
+        Test.run("tests.DefaultArgShiftTests.testMiddleSlot", "tests.DefaultArgShiftTests.testMiddleSlot: middle slot omitted with later arguments keeps every slot") {
+                Test.equals("fresh:3:9", DefaultArgShiftOps.callMiddleNull(), null)
+                Test.equals("given:3:7", DefaultArgShiftOps.callMiddleSkipped(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testConstructor() {
+        Test.run("tests.DefaultArgShiftTests.testConstructor", "tests.DefaultArgShiftTests.testConstructor: constructor parameter-reading default resolves the constructor argument") {
+                Test.equals(10.0f, DefaultArgShiftOps.ctorExplicitNull(), null)
+                Test.equals(4.5f, DefaultArgShiftOps.ctorLaterGiven(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testExplicitValues() {
+        Test.run("tests.DefaultArgShiftTests.testExplicitValues", "tests.DefaultArgShiftTests.testExplicitValues: explicit values at every slot are unchanged") {
+                Test.equals("beta", DefaultArgShiftOps.callLaterGiven(), null)
+        }
+    }
+}

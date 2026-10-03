@@ -1,0 +1,14 @@
+#[derive(Clone, PartialEq)]
+pub struct GuardedRect {
+    pub left: f64,
+    pub top: f64,
+}
+
+impl GuardedRect {
+    pub fn new(left: f64, top: f64) -> Self {
+        Self {
+            left,
+            top,
+        }
+    }
+}

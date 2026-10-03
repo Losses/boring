@@ -1,0 +1,50 @@
+package boring
+
+interface NameResolver {
+    fun resolve(id: String): String
+}
+
+class BuiltInNameResolver : NameResolver {
+    override fun resolve(id: String): String {
+        return "built-in:" + id
+    }
+}
+
+class FnValuesOps(var styleAt: (Int) -> String, var resolver: NameResolver) {
+
+    fun styleLabel(index: Int): String {
+        return this.styleAt(index)
+    }
+
+    fun resolveLabel(id: String): String {
+        return this.resolver.resolve(id)
+    }
+
+    companion object {
+        val defaultTag: (Int) -> String = fun(id: Int): String {
+    return "tag" + id
+}
+
+        fun applyPicker(values: MutableList<String>, pick: (Int) -> String): String {
+            return pick(values.size - 1)
+        }
+
+        fun <T> mapOne(value: T, convert: (T) -> T): T {
+            return convert(value)
+        }
+
+        fun storedLocal(): String {
+            val render = fun(code: Int): String {
+    return "u" + code
+}
+            return render(19968)
+        }
+
+        fun makePrefixer(prefix: String): (String) -> String {
+            val joined = fun(suffix: String): String {
+    return prefix + suffix
+}
+            return joined
+        }
+    }
+}

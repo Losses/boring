@@ -1,0 +1,22 @@
+gap-fixture rc=0 files=6
+comparison-plan-identity-runtime rc=0 files=7
+comparison-plan-identity rc=0 files=7
+comparison-runtime-observation rc=0 files=9
+enum-comparison rc=0 files=6
+readonly-alias rc=0 files=8
+signed-key-composition rc=0 files=6
+source-container-policy rc=0 files=6
+swift-rt-plain rc=0 files=6
+swift-rt-probe rc=0 files=6
+swift-runtime-closure-array-only rc=0 files=5
+swift-runtime-closure-main rc=0 files=5
+swift-runtime-closure-scalar rc=0 files=5
+swift-runtime-closure-static-data rc=0 files=5
+swift-runtime-closure-test rc=0 files=6
+try-tail rc=0 files=6
+view-lifetime rc=0 files=7
+acceptance-readonly-boundary rc=0 files=7
+timeout-probe rc=0 files=6
+examples-swift-f32 rc=0 files=263
+examples-swift rc=0 files=264
+SWEEP-DONE prefix

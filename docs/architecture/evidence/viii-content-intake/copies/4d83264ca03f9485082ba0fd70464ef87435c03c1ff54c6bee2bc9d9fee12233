@@ -1,0 +1,21 @@
+2040:             case TInst(_, _): true;
+2041:             case _: false;
+2042:         };
+2043:     }
+2044: 
+2045:     /** A text that already ends a nil-merge chain in a non-nil arm is
+2046:         non-optional by construction: stacking a registered default would
+2047:         warn as never used. (NilMergeChainNonOptional) */
+2048:     static function nilMergeChainNonOptional(text:String):Bool {
+2049:         final idx = text.lastIndexOf(" ?? ");
+2050:         if (idx < 0)
+2051:             return false;
+2052:         final tail = StringTools.trim(text.substr(idx + 4));
+2053:         return tail != "nil" && !StringTools.startsWith(tail, "Optional(");
+2054:     }
+2055: 
+2056:     public static function emissionTrace(tag:String, text:String):Void {
+2057:         #if boring_fold_debug
+2058:         Sys.stderr().writeString("KTRACE " + tag + " [" + text + "]\n");
+2059:         #end
+2060:     }

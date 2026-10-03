@@ -1,0 +1,1060 @@
+{
+  "attempt": "attempt-01-20260928T093930Z-1613971",
+  "toolRevision": "2",
+  "startedUtc": "2026-09-28T09:39:30.588596+00:00",
+  "tool": {
+    "path": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2/out/architecture-t2/prepare.py",
+    "sha256": "3a938515c5fd45d4818467a5906f1cb0718cd1f0874ba46c9d03725704c467db"
+  },
+  "args": {
+    "consumer": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2",
+    "candidate": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+    "expectedConsumerRev": "8504d230228e8206689a2049bbb84b671c1f079a",
+    "expectedCandidateRev": "ac6889dd16dddd627c043974f37b598fa019fbda"
+  },
+  "gitCommands": [
+    {
+      "cmd": [
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "status",
+        "--short"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "status",
+        "--short"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "ls-files",
+        "-z"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "ls-files",
+        "-s",
+        "-z"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "ls-files",
+        "-z"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "ls-files",
+        "-s",
+        "-z"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "log",
+        "--format=%H%x09%s",
+        "ac6889dd16dddd627c043974f37b598fa019fbda..8a5aa83a83c81ed0d72dec51bf892abb5f3bb916"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "diff",
+        "--name-only",
+        "ac6889dd16dddd627c043974f37b598fa019fbda",
+        "8a5aa83a83c81ed0d72dec51bf892abb5f3bb916"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "ls-files",
+        "-z"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "ls-files",
+        "-s",
+        "-z"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "ls-files",
+        "-z"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "diff",
+        "--binary",
+        "HEAD"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "status",
+        "--short"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "status",
+        "--short"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+      "code": 0
+    },
+    {
+      "cmd": [
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/home/losses/Development/tq-workspace/boring-wt-architecture",
+      "code": 0
+    }
+  ],
+  "identity": {
+    "consumer": {
+      "head": "8504d230228e8206689a2049bbb84b671c1f079a",
+      "expected": "8504d230228e8206689a2049bbb84b671c1f079a",
+      "match": true,
+      "statusShort": ""
+    },
+    "candidate": {
+      "head": "8a5aa83a83c81ed0d72dec51bf892abb5f3bb916",
+      "expectedAtBriefTime": "ac6889dd16dddd627c043974f37b598fa019fbda",
+      "match": false,
+      "statusShort": " M docs/investigations/architecture-round-1/d-observation.md\n",
+      "trackedPathCount": 1087,
+      "kinds": {
+        "file": 1087,
+        "symlink": 0,
+        "other": 0,
+        "missing": 0
+      },
+      "deltaVsBriefRev": {
+        "present": true,
+        "docsOnly": true,
+        "commits": [
+          "8a5aa83a83c81ed0d72dec51bf892abb5f3bb916\tdocs(architecture): define comparison and evidence acceptance checks",
+          "8e10606653e2ca51e094672bcef984730e3a2e46\tdocs(architecture): review comparator consumers and host boundaries"
+        ],
+        "paths": [
+          "docs/architecture-work-plan.md",
+          "docs/compiler-problem-analysis.md",
+          "docs/investigations/architecture-round-2/a-comparator-migration.md",
+          "docs/investigations/architecture-round-2/a-consumer-audit-review.md"
+        ],
+        "note": "brief anticipates coordinator documentation commits on the candidate; delta verified docs-only, so preparation continues"
+      }
+    }
+  },
+  "dataInventory": {
+    "summary": {
+      "regularFiles": 248,
+      "symlinks": 1,
+      "unknown": 0
+    },
+    "evidence": {
+      "path": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/data-inventory.json",
+      "sha256": "dfed05b1bb307bcbef5fdab11003a36e9893e8b7590de946b0fce00685e54404"
+    },
+    "vsSetupRecord": {
+      "available": true,
+      "setupTargetFileCount": 248,
+      "inventoryRegularFileCount": 248,
+      "onlyInSetup": [],
+      "onlyInInventory": [],
+      "mismatched": [],
+      "hashesAllEqual": true
+    }
+  },
+  "sourceProject": {
+    "bundleIdsInSourceOrder": [
+      "kotlin-f32",
+      "kotlin-f64",
+      "ts",
+      "swift-f32",
+      "swift-f64",
+      "dart",
+      "protocol-ts",
+      "protocol-rust",
+      "protocol-kotlin",
+      "protocol-c",
+      "engine-rust-f32",
+      "engine-rust-f64"
+    ],
+    "sourceIdsMatchTaskExplicit12": true,
+    "outRoot": "engine-haxe/out",
+    "resultsDir": "engine-haxe/out/test-results",
+    "baseline": "kotlin-f32"
+  },
+  "perBundle": {
+    "kotlin-f32": {
+      "sourceRootsFile": "engine-haxe/targets/kotlin-f32.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/kotlin-f32.hxml",
+      "includeChain": [
+        "engine-haxe/targets/kotlin-f32.hxml",
+        "engine-haxe/targets/kotlin-common.hxml",
+        "engine-haxe/targets/common.hxml",
+        "engine-haxe/targets/classes.hxml"
+      ],
+      "expandedLineCount": 156,
+      "derivedLineCount": 157,
+      "prefixReplacements": 3,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/kotlin": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/kotlin",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/kotlin/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/kotlin/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": []
+    },
+    "kotlin-f64": {
+      "sourceRootsFile": "engine-haxe/targets/kotlin-f64.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/kotlin-f64.hxml",
+      "includeChain": [
+        "engine-haxe/targets/kotlin-f64.hxml",
+        "engine-haxe/targets/kotlin-common.hxml",
+        "engine-haxe/targets/common.hxml",
+        "engine-haxe/targets/classes.hxml"
+      ],
+      "expandedLineCount": 155,
+      "derivedLineCount": 156,
+      "prefixReplacements": 3,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/kotlin": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/kotlin",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/kotlin/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/kotlin/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": []
+    },
+    "ts": {
+      "sourceRootsFile": "engine-haxe/targets/ts.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/ts.hxml",
+      "includeChain": [
+        "engine-haxe/targets/ts.hxml",
+        "engine-haxe/targets/common.hxml",
+        "engine-haxe/targets/classes.hxml"
+      ],
+      "expandedLineCount": 150,
+      "derivedLineCount": 151,
+      "prefixReplacements": 3,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/ts": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/ts",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/ts/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/ts/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": []
+    },
+    "swift-f32": {
+      "sourceRootsFile": "engine-haxe/targets/swift-f32.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/swift-f32.hxml",
+      "includeChain": [
+        "engine-haxe/targets/swift-f32.hxml",
+        "engine-haxe/targets/swift-common.hxml",
+        "engine-haxe/targets/common.hxml",
+        "engine-haxe/targets/classes.hxml"
+      ],
+      "expandedLineCount": 154,
+      "derivedLineCount": 155,
+      "prefixReplacements": 3,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/swift": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/swift",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/swift/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/swift/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": []
+    },
+    "swift-f64": {
+      "sourceRootsFile": "engine-haxe/targets/swift-f64.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/swift-f64.hxml",
+      "includeChain": [
+        "engine-haxe/targets/swift-f64.hxml",
+        "engine-haxe/targets/swift-common.hxml",
+        "engine-haxe/targets/common.hxml",
+        "engine-haxe/targets/classes.hxml"
+      ],
+      "expandedLineCount": 153,
+      "derivedLineCount": 154,
+      "prefixReplacements": 3,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/swift": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/swift",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/swift/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/swift/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": []
+    },
+    "dart": {
+      "sourceRootsFile": "engine-haxe/targets/dart.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/dart.hxml",
+      "includeChain": [
+        "engine-haxe/targets/dart.hxml",
+        "engine-haxe/targets/common.hxml",
+        "engine-haxe/targets/classes.hxml"
+      ],
+      "expandedLineCount": 149,
+      "derivedLineCount": 150,
+      "prefixReplacements": 3,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/dart": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/dart",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/dart/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/dart/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": []
+    },
+    "protocol-ts": {
+      "sourceRootsFile": "engine-haxe/targets/protocol-ts.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/protocol-ts.hxml",
+      "includeChain": [
+        "engine-haxe/targets/protocol-ts.hxml"
+      ],
+      "expandedLineCount": 37,
+      "derivedLineCount": 38,
+      "prefixReplacements": 4,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/ts": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/ts",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/ts/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/ts/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": []
+    },
+    "protocol-rust": {
+      "sourceRootsFile": "engine-haxe/targets/protocol-rust.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/protocol-rust.hxml",
+      "includeChain": [
+        "engine-haxe/targets/protocol-rust.hxml"
+      ],
+      "expandedLineCount": 41,
+      "derivedLineCount": 44,
+      "prefixReplacements": 6,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/rust": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/rust",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/rust/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/rust/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": [
+        "org.tiqian.protocol.CanonicalTest",
+        "org.tiqian.protocol.RevisionTest"
+      ]
+    },
+    "protocol-kotlin": {
+      "sourceRootsFile": "engine-haxe/targets/protocol-kotlin.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/protocol-kotlin.hxml",
+      "includeChain": [
+        "engine-haxe/targets/protocol-kotlin.hxml"
+      ],
+      "expandedLineCount": 32,
+      "derivedLineCount": 35,
+      "prefixReplacements": 4,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/kotlin": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/kotlin",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/kotlin/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/kotlin/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": [
+        "org.tiqian.protocol.CanonicalTest",
+        "org.tiqian.protocol.SnapshotTableBinaryTest"
+      ]
+    },
+    "protocol-c": {
+      "sourceRootsFile": "engine-haxe/targets/protocol-c.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/protocol-c.hxml",
+      "includeChain": [
+        "engine-haxe/targets/protocol-c.hxml"
+      ],
+      "expandedLineCount": 8,
+      "derivedLineCount": 9,
+      "prefixReplacements": 0,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {},
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": false,
+        "inDerived": false
+      },
+      "appendedTestRoots": []
+    },
+    "engine-rust-f32": {
+      "sourceRootsFile": "engine-haxe/targets/rust-f32.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/engine-rust-f32.hxml",
+      "includeChain": [
+        "engine-haxe/targets/rust-f32.hxml",
+        "engine-haxe/targets/rust-common.hxml",
+        "engine-haxe/targets/common.hxml",
+        "engine-haxe/targets/classes.hxml"
+      ],
+      "expandedLineCount": 155,
+      "derivedLineCount": 156,
+      "prefixReplacements": 4,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/rust": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/rust",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/rust/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/rust/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples/std": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples/std",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": []
+    },
+    "engine-rust-f64": {
+      "sourceRootsFile": "engine-haxe/targets/rust-f64.hxml",
+      "derivedRootsFile": "out/architecture-candidate-inputs/hxml/engine-rust-f64.hxml",
+      "includeChain": [
+        "engine-haxe/targets/rust-f64.hxml",
+        "engine-haxe/targets/rust-common.hxml",
+        "engine-haxe/targets/common.hxml",
+        "engine-haxe/targets/classes.hxml"
+      ],
+      "expandedLineCount": 154,
+      "derivedLineCount": 155,
+      "prefixReplacements": 4,
+      "noOldPrefixRemaining": true,
+      "leadingV": true,
+      "candidatePathChecks": {
+        ".haxelib/boring/git/packages/compiler/reflaxe/rust": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/rust",
+          "exists": true
+        },
+        ".haxelib/boring/git/packages/compiler/reflaxe/rust/std-shadow": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/reflaxe/rust/std-shadow",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples",
+          "exists": true
+        },
+        ".haxelib/boring/git/samples/std": {
+          "candidatePath": "/home/losses/Development/tq-workspace/boring-wt-architecture/samples/std",
+          "exists": true
+        }
+      },
+      "candidatePathsAllExist": true,
+      "libBoring": {
+        "inSource": true,
+        "inDerived": true
+      },
+      "appendedTestRoots": []
+    }
+  },
+  "producedFiles": {
+    "out/architecture-candidate-inputs/hxml/kotlin-f32.hxml": {
+      "sha256": "db96fa89d44a0d729bb8d0f3deb34fb119579a6a3b506eae4174c9edf1263572",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/kotlin-f32.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/kotlin-f32.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/kotlin-f32.hxml.diff": {
+      "sha256": "c367936c0c1d46bfb3b2a2adb4dd8868be79f0464ed3157eca001c9d2b5c2657",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/kotlin-f32.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/kotlin-f32.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/kotlin-f64.hxml": {
+      "sha256": "a07275bf043cc6feb02d31c602f843af2226fab2f25f8c621bdf6c192fcf4720",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/kotlin-f64.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/kotlin-f64.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/kotlin-f64.hxml.diff": {
+      "sha256": "817e04eaf0aff605b4a9c0731491671c3bed575d822b14859183b2db88a0be76",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/kotlin-f64.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/kotlin-f64.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/ts.hxml": {
+      "sha256": "9240919d71b2d6880676ac7d75a26f893f01a7f41554898bf86a156efd28f0aa",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/ts.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/ts.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/ts.hxml.diff": {
+      "sha256": "9f99d3b30cc2c3f20b1105bec8b4c6ecb9b8cc783d57c2714577b816c08ee0f1",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/ts.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/ts.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/swift-f32.hxml": {
+      "sha256": "c7fdf5b05e1caf5a2a4abfe8e47faefc940f7ac05781410a5d86fbeb958908e6",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/swift-f32.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/swift-f32.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/swift-f32.hxml.diff": {
+      "sha256": "3498b5d8c71e9e244ab719c92f7017573ccfe31163a557fcc40b493e67790146",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/swift-f32.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/swift-f32.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/swift-f64.hxml": {
+      "sha256": "997102ea48a83531faa5124367da076d7f6bdd183abcb83f045e9dece981184e",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/swift-f64.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/swift-f64.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/swift-f64.hxml.diff": {
+      "sha256": "9f9343f5f446c058472921f3b2991bef7ff7008377b1f9c1e33fb9088427894d",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/swift-f64.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/swift-f64.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/dart.hxml": {
+      "sha256": "b25a5789ceffbf5967befa1fcd1cfc9b27f8fe73c31f00aca2a1112c03fac45d",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/dart.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/dart.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/dart.hxml.diff": {
+      "sha256": "aab0d875c5241e1b722a8b91b2bba290d5e624a3084beaa0b4669054c1a0b003",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/dart.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/dart.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/protocol-ts.hxml": {
+      "sha256": "981e98b145315c8c63cd7290ca5e44d1e5f82e2b74f6ce79bd74f69bc2a7e23a",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/protocol-ts.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/protocol-ts.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/protocol-ts.hxml.diff": {
+      "sha256": "273def7873dbb4841adbca92066bfe6bbcc6475ffa040abea2663593b50b536d",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/protocol-ts.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/protocol-ts.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/protocol-rust.hxml": {
+      "sha256": "55f3563bf66c30be7012e81928c6f027cfc70c2cb59a8b4d00584b29878c30c4",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/protocol-rust.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/protocol-rust.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/protocol-rust.hxml.diff": {
+      "sha256": "c8453b7bcd33fdbac4224c20050b276a97a23f391926f347f21028834637591d",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/protocol-rust.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/protocol-rust.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/protocol-kotlin.hxml": {
+      "sha256": "1e6e5718302f555f6a3e59e38da64935a374599b306a4a94bdea86f155a7944b",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/protocol-kotlin.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/protocol-kotlin.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/protocol-kotlin.hxml.diff": {
+      "sha256": "e21a591d5b91f237d81d1b4453e88bd4794dadd148bfdeb2f815204adf6a8fc7",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/protocol-kotlin.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/protocol-kotlin.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/protocol-c.hxml": {
+      "sha256": "1cea0b91170ee62804b6de8231dd139e428df6a96a369f771dd4efb2b7be83ff",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/protocol-c.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/protocol-c.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/protocol-c.hxml.diff": {
+      "sha256": "9719ee4db0eacd006840393b49d7fe8304f38c1f82906bb41a9527502a953a38",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/protocol-c.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/protocol-c.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/engine-rust-f32.hxml": {
+      "sha256": "dbe85492b33965c8df5574da9b4212c7e8cd73aa3578870add566d73c14f7a62",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/engine-rust-f32.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/engine-rust-f32.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/engine-rust-f32.hxml.diff": {
+      "sha256": "d568627c5ace9439206f1bc11b9211a60d23cee31a8693aaa30565302f2f1ad3",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/engine-rust-f32.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/engine-rust-f32.hxml.diff",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/hxml/engine-rust-f64.hxml": {
+      "sha256": "eb34db931aaf30fa01280a50c7bef7f95562c459eea673a9a5dc2fb4ebe6a11d",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/hxml/engine-rust-f64.hxml",
+      "canonicalCopy": "out/architecture-candidate-inputs/hxml/engine-rust-f64.hxml",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/diffs/engine-rust-f64.hxml.diff": {
+      "sha256": "adc4bdf3c28825bff7baf31746dad7f5c9baf6aea21ea3968f464c1066991740",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/diffs/engine-rust-f64.hxml.diff",
+      "canonicalCopy": "out/architecture-candidate-inputs/diffs/engine-rust-f64.hxml.diff",
+      "copiesEqual": true
+    },
+    "boring-architecture-candidate.json": {
+      "sha256": "375fe242bb993754b57a5af9a3a937280129c9f29d92dbb7df08324dd9eb085a",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/boring-architecture-candidate.json",
+      "canonicalCopy": "boring-architecture-candidate.json",
+      "copiesEqual": true
+    },
+    "boring-architecture-engine-candidate.json": {
+      "sha256": "062c110222d8ea6180d4a18b7d8f1f5097608499df9022cbbace5a636ac664c1",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/boring-architecture-engine-candidate.json",
+      "canonicalCopy": "boring-architecture-engine-candidate.json",
+      "copiesEqual": true
+    },
+    "boring-architecture-protocol-candidate.json": {
+      "sha256": "a854fdbe90d9a1415923aa257a9b9faf73d3bbe022e7f23f2cad66102819c916",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/boring-architecture-protocol-candidate.json",
+      "canonicalCopy": "boring-architecture-protocol-candidate.json",
+      "copiesEqual": true
+    },
+    "out/architecture-candidate-inputs/mapping-manifest.json": {
+      "sha256": "d0977722a38dc461787e322c916d9c40516f4831d0174666b9f95b182b05e494",
+      "attemptCopy": "out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/out/architecture-candidate-inputs/mapping-manifest.json",
+      "canonicalCopy": "out/architecture-candidate-inputs/mapping-manifest.json",
+      "copiesEqual": true
+    }
+  },
+  "gitAfter": {
+    "consumerStatusShortAfter": "?? boring-architecture-candidate.json\n?? boring-architecture-engine-candidate.json\n?? boring-architecture-protocol-candidate.json\n",
+    "consumerTrackedWorkingBytesChangedPaths": [],
+    "consumerTrackedWorkingBytesUnchanged": true,
+    "consumerIndexManifestUnchanged": true,
+    "gitDiffBinaryHeadEmpty": true,
+    "gitDiffBinaryHeadSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "candidateHeadUnchanged": true,
+    "candidateStatusUnchanged": true,
+    "candidateTrackedWorkingBytesUnchanged": true
+  },
+  "checks": {
+    "expectedVsActual": {
+      "expectedGenerationsTaskExplicit": [
+        "kotlin-f32",
+        "kotlin-f64",
+        "ts",
+        "swift-f32",
+        "swift-f64",
+        "dart",
+        "engine-rust-f32",
+        "engine-rust-f64",
+        "protocol-ts",
+        "protocol-rust",
+        "protocol-kotlin",
+        "protocol-c"
+      ],
+      "sourceBundleIdsInSourceOrder": [
+        "kotlin-f32",
+        "kotlin-f64",
+        "ts",
+        "swift-f32",
+        "swift-f64",
+        "dart",
+        "protocol-ts",
+        "protocol-rust",
+        "protocol-kotlin",
+        "protocol-c",
+        "engine-rust-f32",
+        "engine-rust-f64"
+      ],
+      "sourceIdsSetEqualsTaskExplicit": true,
+      "actualGenerations12Root": [
+        "kotlin-f32",
+        "kotlin-f64",
+        "ts",
+        "swift-f32",
+        "swift-f64",
+        "dart",
+        "protocol-ts",
+        "protocol-rust",
+        "protocol-kotlin",
+        "protocol-c",
+        "engine-rust-f32",
+        "engine-rust-f64"
+      ],
+      "derived12IdsSetEqualsTaskExplicit": true,
+      "derived12OrderPreservesSourceOrder": true,
+      "expectedTestsTaskExplicit": [
+        "kotlin-f32",
+        "kotlin-f64",
+        "ts",
+        "swift-f32",
+        "swift-f64",
+        "dart",
+        "engine-rust-f32",
+        "engine-rust-f64",
+        "protocol-ts",
+        "protocol-rust",
+        "protocol-kotlin"
+      ],
+      "actualTestsEngine": [
+        "kotlin-f32",
+        "kotlin-f64",
+        "ts",
+        "swift-f32",
+        "swift-f64",
+        "dart",
+        "engine-rust-f32",
+        "engine-rust-f64"
+      ],
+      "actualTestsEngineOrderEqualsTask": true,
+      "actualTestsProtocol": [
+        "protocol-ts",
+        "protocol-rust",
+        "protocol-kotlin"
+      ],
+      "actualTestsProtocolOrderEqualsTask": true,
+      "testUnionSetEqualsTaskExplicit11": true,
+      "testUnionCount": 11,
+      "noDuplicateTestIds": true,
+      "engineProjectIdsInTaskOrder": true,
+      "protocolProjectIdsInTaskOrder": true,
+      "engineBaseline": "kotlin-f32",
+      "protocolBaseline": "protocol-ts",
+      "sharedOutRoot": true,
+      "sharedResultsDir": true,
+      "perBundleAttributeMatch": {
+        "kotlin-f32": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/kotlin-f32.hxml"
+        },
+        "kotlin-f64": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/kotlin-f64.hxml"
+        },
+        "ts": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/ts.hxml"
+        },
+        "swift-f32": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/swift-f32.hxml"
+        },
+        "swift-f64": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/swift-f64.hxml"
+        },
+        "dart": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/dart.hxml"
+        },
+        "protocol-ts": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/protocol-ts.hxml"
+        },
+        "protocol-rust": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/protocol-rust.hxml"
+        },
+        "protocol-kotlin": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/protocol-kotlin.hxml"
+        },
+        "protocol-c": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/protocol-c.hxml"
+        },
+        "engine-rust-f32": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/engine-rust-f32.hxml"
+        },
+        "engine-rust-f64": {
+          "attributeMatch": true,
+          "rootsFile": "out/architecture-candidate-inputs/hxml/engine-rust-f64.hxml"
+        }
+      },
+      "allAttributesMatch": true
+    },
+    "eightProtocolTestRoots": {
+      "protocol-ts": {
+        "org.tiqian.protocol.CanonicalTest": true,
+        "org.tiqian.protocol.ParagraphRequestTest": true,
+        "org.tiqian.protocol.RevisionTest": true,
+        "org.tiqian.protocol.NamedErrorTest": true,
+        "org.tiqian.protocol.SnapshotTableBinaryTest": true,
+        "org.tiqian.protocol.PlanJsonTest": true,
+        "org.tiqian.protocol.PlanSchemaTest": true,
+        "org.tiqian.protocol.PlanPackedTest": true
+      },
+      "protocol-rust": {
+        "org.tiqian.protocol.CanonicalTest": true,
+        "org.tiqian.protocol.ParagraphRequestTest": true,
+        "org.tiqian.protocol.RevisionTest": true,
+        "org.tiqian.protocol.NamedErrorTest": true,
+        "org.tiqian.protocol.SnapshotTableBinaryTest": true,
+        "org.tiqian.protocol.PlanJsonTest": true,
+        "org.tiqian.protocol.PlanSchemaTest": true,
+        "org.tiqian.protocol.PlanPackedTest": true
+      },
+      "protocol-kotlin": {
+        "org.tiqian.protocol.CanonicalTest": true,
+        "org.tiqian.protocol.ParagraphRequestTest": true,
+        "org.tiqian.protocol.RevisionTest": true,
+        "org.tiqian.protocol.NamedErrorTest": true,
+        "org.tiqian.protocol.SnapshotTableBinaryTest": true,
+        "org.tiqian.protocol.PlanJsonTest": true,
+        "org.tiqian.protocol.PlanSchemaTest": true,
+        "org.tiqian.protocol.PlanPackedTest": true
+      }
+    },
+    "protocolCRecipe": {
+      "source": {
+        "test": false,
+        "afterGen": {
+          "command": "bun",
+          "args": [
+            "engine-haxe/out/protocol-c/gen/c-header.js"
+          ]
+        }
+      },
+      "derived12": {
+        "test": false,
+        "afterGen": {
+          "command": "bun",
+          "args": [
+            "engine-haxe/out/protocol-c/gen/c-header.js"
+          ]
+        }
+      },
+      "derivedProtocol": {
+        "test": false,
+        "afterGen": {
+          "command": "bun",
+          "args": [
+            "engine-haxe/out/protocol-c/gen/c-header.js"
+          ]
+        }
+      },
+      "equal": true,
+      "hxmlHasMain": true,
+      "hxmlHasJsOutput": true
+    },
+    "jsoncParse": {
+      "boring-architecture-candidate.json": {
+        "ok": true,
+        "bundleCount": 12
+      },
+      "boring-architecture-engine-candidate.json": {
+        "ok": true,
+        "bundleCount": 8
+      },
+      "boring-architecture-protocol-candidate.json": {
+        "ok": true,
+        "bundleCount": 4
+      }
+    },
+    "gitAfter": {
+      "consumerStatusShortAfter": "?? boring-architecture-candidate.json\n?? boring-architecture-engine-candidate.json\n?? boring-architecture-protocol-candidate.json\n",
+      "consumerTrackedWorkingBytesChangedPaths": [],
+      "consumerTrackedWorkingBytesUnchanged": true,
+      "consumerIndexManifestUnchanged": true,
+      "gitDiffBinaryHeadEmpty": true,
+      "gitDiffBinaryHeadSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "candidateHeadUnchanged": true,
+      "candidateStatusUnchanged": true,
+      "candidateTrackedWorkingBytesUnchanged": true
+    }
+  },
+  "finishedUtc": "2026-09-28T09:39:31.037022+00:00",
+  "status": "success"
+}

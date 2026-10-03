@@ -1,0 +1,3 @@
+#!/bin/sh
+echo tool-ran
+exit ${1:-0}

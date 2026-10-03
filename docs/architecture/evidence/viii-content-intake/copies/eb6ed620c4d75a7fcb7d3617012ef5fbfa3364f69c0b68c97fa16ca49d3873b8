@@ -1,0 +1,18 @@
+// Observation config for the generated try-tail TS tree. The parser is
+// borrowed read-only from boring-wt-architecture's node_modules because the
+// dc-warn fuse mount cannot complete a node_modules install with packages.
+import { createRequire } from "node:module";
+const require = createRequire("/home/losses/Development/tq-workspace/boring-wt-architecture/package.json");
+const parser = require("@typescript-eslint/parser");
+export default [
+	{
+		files: ["out/try-tail/gen/ts/trytail/*.ts"],
+		languageOptions: { parser, sourceType: "module" },
+		rules: {
+			"no-unreachable": "error",
+			"no-unreachable-loop": "error",
+			"no-fallthrough": "error",
+			"no-unsafe-finally": "error"
+		}
+	}
+];

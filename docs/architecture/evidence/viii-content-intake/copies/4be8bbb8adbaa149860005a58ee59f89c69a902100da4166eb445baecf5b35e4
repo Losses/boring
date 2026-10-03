@@ -1,0 +1,27 @@
+import fs from 'fs'; import path from 'path';
+const root = process.cwd();
+const files = fs.readdirSync('tests/ts').filter(f=>f.endsWith('.test.ts'));
+for (const f of files) {
+  const lines = fs.readFileSync(path.join('tests/ts',f),'utf8').split('\n');
+  let vars = {}; // var -> generated file path
+  for (let i=0;i<lines.length;i++){
+    const L = lines[i];
+    const rd = L.match(/const\s+(\w+)\s*=\s*read\("([^"]+)"\)/);
+    if (rd) { vars[rd[1]] = rd[2]; continue; }
+    // expect(var).toContain("...")
+    let m = L.match(/expect\((\w+)\)\.(not\.)?toContain\("(.+)"\)/);
+    if (!m) { const m2 = L.match(/expect\((\w+)\)\.(not\.)?toContain\(`([^`]+)`\)/); if(!m2) continue; m = m2; }
+    const [,varName,, text] = m;
+    const file = vars[varName];
+    if (!file || !String(file).startsWith('reference/rust')) continue;
+    if (!/String/.test(text)) continue;
+    const abs = path.join(root, file);
+    let content = '';
+    try { content = fs.readFileSync(abs,'utf8'); } catch { console.log(`${f}:${i+1}\tFILE-MISSING ${file}\t${text}`); continue; }
+    if (content.includes(text)) continue; // matches -> fine (but note: could be legit)
+    // stale? try UString substitution
+    const alt = text.replaceAll('String','UString');
+    const cls = content.includes(alt) ? 'STALE(UString)' : 'MISMATCH?';
+    console.log(`${f}:${i+1}\t${cls}\t${file}\t${text.slice(0,140)}`);
+  }
+}

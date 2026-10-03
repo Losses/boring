@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class OptionalInterfaceArgumentOpsTests {
+@boring.test.Test
+    fun render() {
+        Test.run("tests.OptionalInterfaceArgumentOpsTests.render", "tests.OptionalInterfaceArgumentOpsTests.render: a concrete implementor boxes once into an optional interface argument") {
+        }
+    }
+}

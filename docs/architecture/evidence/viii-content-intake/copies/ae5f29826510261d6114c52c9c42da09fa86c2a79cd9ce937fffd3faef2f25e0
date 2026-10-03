@@ -1,0 +1,98 @@
+utc=2026-09-30T00:20:43+00:00
+cwd=/home/losses/Development/tq-workspace/boring-wt-architecture
+
+--- toolchain resolution ---
+npm      /nix/store/hyw97nxddgxfc6ag6db87rnawss2pw1a-nodejs-22.23.2/bin/npm
+node     /nix/store/hyw97nxddgxfc6ag6db87rnawss2pw1a-nodejs-22.23.2/bin/node
+tar      /nix/store/1lvpa59092swv6mg5hgb0iz8n84z7ksm-gnutar-1.35/bin/tar
+python3  /run/current-system/sw/bin/python3
+haxe     /nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe
+kotlinc  /nix/store/rqx09a40a82di944xi6ydjyzx632av28-kotlin-2.4.10/bin/kotlinc
+java     /nix/store/1slz0vmmgsd7p6i4c0jaywkpw56wl2yg-openjdk-21.0.12+8/bin/java
+dart     /nix/store/qpggxvncr1jwa7xjn0wf0i6045na7hki-dart-3.13.0/bin/dart
+cargo    /nix/store/agfrkw7lvckq29w4dp0i3jfrhxjmgv3q-rust-default-1.98.0/bin/cargo
+bun      /nix/store/dynr642xrg1fib1y2ry70hybjmzvqz3y-bun-1.3.13/bin/bun
+eslint   <MISSING>
+tsc      <MISSING>
+4.3.7
+1.3.13
+
+--- swiftc shim (PATH prefix) ---
+PATH head entries:
+/nix/store/3d1c302vw7kc8a5vknhmn34c0pd7zm6m-gcc-wrapper-15.3.0/bin
+/nix/store/7sh9061yj9yl20ndc00rqw4d0bd80m1j-gcc-15.3.0/bin
+/nix/store/c2fgns4y4c4xjvc6pq024abmxyy4dl28-glibc-2.42-67-bin/bin
+/nix/store/97d5ygrvqj55f4nx1x34wfdcc7qn11c0-coreutils-9.11/bin
+command -v swiftc = /nix/store/f0pa9lppswnls248abfl142s77a99yw4-swift-6.2.4-wrapped/bin/swiftc
+shim file: -rwxr-xr-x 1 losses users 1293 Sep 29 18:50 /home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-bin/swiftc
+raw store swiftc: lrwxrwxrwx 12 /nix/store/j1bfa7mw323wmp6pfrn1qkchxv61wk2n-swift-toolchain-6.2.4-al2/usr/bin/swiftc
+
+--- BORING_SWIFT_SYSTEM_PACKAGE ---
+value=/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6
+exists=yes
+/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6
+/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6/io_uring.h
+/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6/CSystemWASI.h
+/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6/SystemPackage.swiftmodule
+/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6/libSystemPackage.so
+/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6/CSystemWindows.h
+/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6/CSystemLinux.h
+/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6/module.modulemap
+
+--- EXPECTED_MANIFEST_ENTRIES guard is genuinely required ---
+manifest='/home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/manifest-fixed2.json'
+actual entries=1433
+plan default  =1431 (option-c.plan identity stage: expected=${EXPECTED_MANIFEST_ENTRIES:-1431})
+=> without EXPECTED_MANIFEST_ENTRIES=1433 the identity stage exits 9 (count mismatch)
+
+--- haxelib loader identity of the execution root ---
+HAXELIB_PATH (flake hook, before override) = /home/losses/Development/tq-workspace/boring-wt-architecture/.haxelib
+root .haxelib/boring/.dev = /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2
+root .haxelib/reflaxe/.dev = /nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source
+root .haxelib/format/.current = 3.8.0
+root .haxelib/formatter/.current = 1.18.0
+with HAXELIB_PATH overridden to the root:
+  boring: 
+  boring: /home/losses/Development/tq-workspace/boring-wt-architecture/packages/compiler/
+  boring: -D boring=0.0.1
+  boring: --macro registerDefinesDescriptionFile('/home/losses/Development/tq-workspace/boring-wt-architecture/defines.json', 'boring')
+  boring: /home/losses/Development/tq-workspace/boring-wt-architecture/.haxelib/format/3,8,0/
+  boring: -D format=3.8.0
+  boring: --macro nullSafety("reflaxe")
+  boring: --macro reflaxe.ReflectCompiler.Start()
+  boring: /nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source/src/
+  boring: -D reflaxe=3.0.0
+  reflaxe: --macro nullSafety("reflaxe")
+  reflaxe: --macro reflaxe.ReflectCompiler.Start()
+  reflaxe: /nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source/src/
+  reflaxe: -D reflaxe=3.0.0
+
+--- node_modules materialisation ---
+root node_modules: 10 entries, dir=real directory
+eslint link: .bun/eslint@10.9.1+d06bd144d58dafc7/node_modules/eslint -> resolves
+typescript link: .bun/typescript@5.9.3/node_modules/typescript -> resolves
+
+--- plan and runner identity ---
+42517f84a02ea3260f2a0d35cc413a79c70e8651596601312934be42276f4d78  /home/losses/Development/tq-workspace/p09-chainA-work/plan/option-c.plan
+7c332d3369e0643a4aa397b2a6530dab628f86e833b3f049d3fbe51cfedb902f  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/run-exclusive.sh
+c14043c0d68623fa0a378c771ead2f4cc831d678e6f244d90b91443a82c59cc5  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh
+606cb4f391ba288137ef70caad989c848b96cbb78547efac12bd8527f534e3f7  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/check-log-integrity.sh
+4ad34edf398e175ab72c5e45dc7a23cb0a2efb7c40f078f4a442541823c91105  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-poststate.py
+
+--- concurrent runner check ---
+none
+
+--- loader identity assertion (pre-run) ---
+OK:   boring/.dev points at this execution root = /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2
+OK:   reflaxe/.dev points at pinned nix store source = /nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source
+OK:   format/.current pinned = 3.8.0
+OK:   formatter/.current pinned = 1.18.0
+ASSERTION RESULT: PASS — loader identity holds for /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2
+loader-assert rc=0
+
+--- roots guard on the execution root (f32 roots property) ---
+EXEMPT: kotlin-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+EXEMPT: rust-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+EXEMPT: swift-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+roots guard: PASS (3 exemption(s) in force)
+roots-guard rc=0

@@ -1,0 +1,8 @@
+=== kotlin-f32: missing ids=58 in 20 modules; modules present-with-full-id-set=229; PARTIAL=0
+   MathMinMaxTests:10 StringCodecTests:10 FloatLiteralOpsTests:4 LoopWriteTests:4 AllowAccessTests:3 BytesTests:3 NoSuchElementTests:3 StringToolsTests:3 EarlyReturnTests:2 GlyphClusterTests:2 InstanceDefaultsTests:2 NumberClassifyTests:2 OptionalParamNullTests:2 SwiftLiteralSafetyOpsTests:2 ExceptionChainProbeTests:1 FontIdTests:1 ImpDefaultTests:1 PosterShapeTests:1 ShapeTextTests:1 StdStringPlainClassTests:1
+=== rust-f32: missing ids=48 in 17 modules; modules present-with-full-id-set=232; PARTIAL=0
+   MathMinMaxTests:10 StringCodecTests:10 AllowAccessTests:3 BytesTests:3 NoSuchElementTests:3 StringToolsTests:3 EarlyReturnTests:2 GlyphClusterTests:2 InstanceDefaultsTests:2 NumberClassifyTests:2 SumOfFloatLocalTests:2 ExceptionChainProbeTests:1 FontIdTests:1 ImpDefaultTests:1 PosterShapeTests:1 ShapeTextTests:1 StdStringPlainClassTests:1
+=== swift-f32: missing ids=54 in 19 modules; modules present-with-full-id-set=230; PARTIAL=0
+   MathMinMaxTests:10 StringCodecTests:10 FloatLiteralOpsTests:4 AllowAccessTests:3 BytesTests:3 NoSuchElementTests:3 StringToolsTests:3 EarlyReturnTests:2 GlyphClusterTests:2 InstanceDefaultsTests:2 NumberClassifyTests:2 OptionalParamNullTests:2 SumOfFloatLocalTests:2 ExceptionChainProbeTests:1 FontIdTests:1 ImpDefaultTests:1 PosterShapeTests:1 ShapeTextTests:1 StdStringPlainClassTests:1
+=== haxe-f32: missing ids=0 in 0 modules; modules present-with-full-id-set=249; PARTIAL=0
+   

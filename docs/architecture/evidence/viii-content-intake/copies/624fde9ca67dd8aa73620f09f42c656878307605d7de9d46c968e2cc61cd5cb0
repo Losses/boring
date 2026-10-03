@@ -1,0 +1,24 @@
+package boring
+
+class FloatHolder(val value: Double) {
+}
+
+object FloatLiteralOps {
+    fun argLeadingDot(): Double {
+        return .001
+    }
+
+    fun localLeadingDotNeg(): Double {
+        val f = -.1
+        return f
+    }
+
+    fun argSmall(): Double {
+        return .25
+    }
+
+    fun localSmallNeg(): Double {
+        val f = -.5
+        return f
+    }
+}

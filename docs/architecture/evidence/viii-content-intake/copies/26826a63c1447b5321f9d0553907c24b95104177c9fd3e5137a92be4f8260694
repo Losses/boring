@@ -1,0 +1,109 @@
+
+*** Signal 11: Backtracing from 0x63f9d30d1664... done ***
+
+*** Program crashed: Bad pointer dereference at 0x00007fff33691ff8 ***
+
+Platform: x86_64 Linux (NixOS 26.05 (Yarara))
+
+Thread 0 "bin" crashed:
+
+     0               0x000063f9d30d1664 static ClosureLazy.spinForever() + 4 in bin
+     1 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+     2 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+     3 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+     4 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+     5 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+     6 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+     7 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+     8 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+     9 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    10 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    11 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    12 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    13 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    14 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    15 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    16 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    17 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    18 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    19 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    20 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    21 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    22 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    23 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    24 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    25 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    26 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    27 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    28 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    29 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    30 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    31 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    32 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    33 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    34 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    35 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    36 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    37 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    38 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    39 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    40 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    41 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    42 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    43 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    44 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    45 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+    46 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+   ...
+523227 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+523228 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+523229 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+523230 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+523231 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+523232 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+523233 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+523234 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+523235 [ra]          0x000063f9d30d1669 static ClosureLazy.spinForever() + 8 in bin
+523236 [ra]          0x000063f9d30d0e59 closure #1 in static ClosureLazy.termProbe() + 8 in bin
+523237 [ra]          0x000063f9d30d160d static ClosureLazy.termProbe() + 12 in bin
+523238 [ra]          0x000063f9d30d0b71 static ClosureLazyRuntimeMain.main() + 1152 in bin
+523239 [ra] [system] 0x000063f9d30d06b9 static ClosureLazyRuntimeMain.$main() + 8 in bin
+523240 [ra]          0x000063f9d30d0cc9 main + 8 in bin
+523241 [ra]          0x0000703e97e2b285 __libc_start_call_main + 116 in libc.so.6
+523242 [ra]          0x0000703e97e2b338 __libc_start_main@GLIBC_2.2.5 + 135 in libc.so.6
+   ...
+
+
+Registers:
+
+rax 0x0000000000000000  0
+rdx 0x0000000000000000  0
+rcx 0x2000000000000000  2305843009213693952
+rbx 0x1fffffffffffffff  2305843009213693951
+rsi 0x8000000000000000  9223372036854775808
+rdi 0xe500000000000000  16501189034685497344
+rbp 0x00007fff33692000  10 20 69 33 ff 7f 00 00 69 16 0d d3 f9 63 00 00  · i3ÿ···i··Óùc··
+rsp 0x00007fff33692000  10 20 69 33 ff 7f 00 00 69 16 0d d3 f9 63 00 00  · i3ÿ···i··Óùc··
+ r8 0x0000000000000000  0
+ r9 0x0000000000000000  0
+r10 0x0000000000000000  0
+r11 0x0000000000000000  0
+r12 0x00007fff33e8e198  00 fb e8 33 ff 7f 00 00 00 00 00 00 00 00 00 00  ·ûè3ÿ···········
+r13 0x00007fff33e8dff8  74 65 72 6d 3d 00 00 00 00 00 00 00 00 00 00 e5  term=··········å
+r14 0x0000703e99007000  f0 82 00 99 3e 70 00 00 14 00 00 00 00 00 00 00  ð···>p··········
+r15 0x000063f9d30e4770  00 00 00 00 00 00 00 00 18 3c 7c 98 3e 70 00 00  ·········<|·>p··
+rip 0x000063f9d30d1664  e8 f7 ff ff ff 5d c3 0f 1f 44 00 00 48 8d 05 49  è÷ÿÿÿ]Ã··D··H··I
+
+rflags 0x0000000000010206  PF
+
+cs 0x0033  fs 0x0000  gs 0x0000
+
+
+Images (18 omitted):
+
+0x000063f9d30c9000–0x000063f9d30e3748 044d298ac58cacacabfb1e29d18505de933f6424 bin       /tmp/p08-l5/eager-cl/build/bin
+0x0000703e97e00000–0x0000703e97fa843d da73b9c956b8fb99f31a6f6778dd8ec20438a4d5 libc.so.6 /nix/store/34dkjp1wxxh6djsvxk8nhvzp0izasds0-glibc-2.42-67/lib/libc.so.6
+
+Backtrace took 0.63s
+
+timeout: the monitored command dumped core

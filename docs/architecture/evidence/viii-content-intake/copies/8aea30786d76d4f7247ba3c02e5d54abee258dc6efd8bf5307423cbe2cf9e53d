@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_builders() {
+    testlib::run("tests.TableBuilderInferTests.testBuilders", "tests.TableBuilderInferTests.testBuilders: a sorted table builder local pins its value parameter", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

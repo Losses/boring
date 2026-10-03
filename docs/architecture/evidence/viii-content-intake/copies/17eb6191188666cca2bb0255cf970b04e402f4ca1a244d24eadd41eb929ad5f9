@@ -1,0 +1,24 @@
+# haxe 4.3.7 include() semantics — measured evidence
+# binary: /nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe
+# layout-exact probe (/tmp/layoutprobe): hxml under examples/, -cp ., extra/ at repo root, run from repo root
+# (files preserved in scratch-roots-guard-f2/hxprobe2/ for the first-round probes)
+
+== round 1 (hxml at probe root, -cp .):
+inc-present: rc-msg=[] classes=48
+inc-none: rc-msg=[] classes=48
+inc-missing: rc-msg=[] classes=48
+inc-barepkg: rc-msg=[Invalid commandline class : extra.Seen should be Seen] classes=-
+inc-fq: rc-msg=[] classes=48
+inc-top: rc-msg=[] classes=48
+inc-dir: rc-msg=[Invalid commandline class : dir1.Aaa should be Aaa] classes=-
+inc-hyphen: rc-msg=[] classes=48
+
+== round 2 (layout-exact: hxml under examples/, run from repo root):
+inc-extra: rc-msg=[Invalid commandline class : extra.Seen should be Seen] classes=-
+inc-extra-fq: rc-msg=[Invalid commandline class : extra.Seen should be Seen] classes=-
+inc-mod: rc-msg=[] classes=48
+inc-hyphen: rc-msg=[] classes=48
+
+== conclusion (all measured, both rounds consistent):
+   - include('<dotted.module>') (present, absent, malformed, fully-qualified): rc=0, silent no-op, compiled class set unchanged => contributes NO root
+   - include('<name>') where <name>/ is a package directory on the file's own -cp: rc=1, 'Invalid commandline class : <name>.X should be X' => the guard FAILs the file the same way

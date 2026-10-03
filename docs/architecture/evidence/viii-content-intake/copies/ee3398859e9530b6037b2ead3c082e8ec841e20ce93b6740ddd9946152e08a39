@@ -1,0 +1,14 @@
+#!/bin/bash
+# usage: sweep.sh <worktree> <outdir>
+WT=$1; OUT=$2
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+rm -rf "$OUT"; mkdir -p "$OUT"
+cd "$WT" || exit 9
+DRIVERS="examples/swift-f32.hxml examples/swift.hxml tests/haxe/comparison-plan/identity-runtime-swift.hxml tests/haxe/comparison-plan/identity-swift.hxml tests/haxe/comparison-runtime-observation/hxml/swift.hxml tests/haxe/enum-comparison/swift-gen.hxml tests/haxe/readonly-alias/gen/swift.hxml tests/haxe/signed-key-composition/hxml/swift.hxml tests/haxe/source-container-policy/gen/swift.hxml tests/haxe/swift-rt-plain/gen/swift.hxml tests/haxe/swift-rt-probe/gen/swift.hxml tests/haxe/swift-runtime-closure/array-only.hxml tests/haxe/swift-runtime-closure/main.hxml tests/haxe/swift-runtime-closure/scalar-array-only.hxml tests/haxe/swift-runtime-closure/static-data-array-only.hxml tests/haxe/swift-runtime-closure/test.hxml tests/haxe/try-tail/gen/swift.hxml tests/haxe/view-lifetime/swift.hxml tests/timeout-probe/swift.hxml"
+for d in $DRIVERS; do
+  name=$(echo $d | tr '/' '_')
+  o="$OUT/${name%.hxml}"
+  mkdir -p "$o"
+  haxe "$d" -D swift-output="$o/gen" -D swift-test-output="$o/tests" > "$OUT/$name.log" 2>&1
+  echo "$d rc=$?" >> "$OUT/summary.txt"
+done

@@ -1,0 +1,42 @@
+=== FINAL VERIFICATION (post-dedupe, after commit 5a19e271) ===
+date: 2026-09-30T22:47:11Z
+kotlin: total-lines pre=682 post=674 delta=8 | root-lines post=553 | sort-u-set vs pre: OK | uniq-d: <empty>
+kotlin-f32: total-lines pre=684 post=676 delta=8 | root-lines post=552 | sort-u-set vs pre: OK | uniq-d: <empty>
+rust: total-lines pre=688 post=680 delta=8 | root-lines post=550 | sort-u-set vs pre: OK | uniq-d: <empty>
+rust-f32: total-lines pre=684 post=679 delta=5 | root-lines post=549 | sort-u-set vs pre: OK | uniq-d: <empty>
+swift: total-lines pre=685 post=675 delta=10 | root-lines post=547 | sort-u-set vs pre: OK | uniq-d: <empty>
+swift-f32: total-lines pre=679 post=673 delta=6 | root-lines post=546 | sort-u-set vs pre: OK | uniq-d: <empty>
+TOTAL line reduction: 45 (expected 45)
+
+=== guard readings ===
+pre-change default: roots guard: PASS (3 exemption(s) in force; 6 declared unrooted @:test module(s); 45 duplicate root line(s) reported; 1650 pinned root(s) in root-floor) [rc recorded in log]
+roots guard: PASS (3 exemption(s) in force; 6 declared unrooted @:test module(s); 45 duplicate root line(s) reported; 1650 pinned root(s) in root-floor)
+roots guard: FAILED
+post-change default: roots guard: PASS (3 exemption(s) in force; 6 declared unrooted @:test module(s); 0 duplicate root line(s) reported; 1650 pinned root(s) in root-floor)
+post-change strict:  roots guard: PASS (3 exemption(s) in force; 6 declared unrooted @:test module(s); 0 duplicate root line(s) reported; 1650 pinned root(s) in root-floor)
+
+=== tree diff summary ===
+### kotlin/gen: diff-lines=0
+### kotlin/gen-tests: diff-lines=0
+### kotlin-f32/gen: diff-lines=0
+### kotlin-f32/gen-tests: diff-lines=0
+### rust/gen: diff-lines=0
+### rust-f32/gen: diff-lines=0
+### swift/gen: diff-lines=0
+### swift/gen-tests: diff-lines=0
+### swift-f32/gen: diff-lines=0
+### swift-f32/gen-tests: diff-lines=0
+
+=== wrong-dedupe demo rc + quoted FAIL lines ===
+A: rc=1
+FAIL: root-floor: registry.Main is pinned in /home/losses/Development/tq-workspace/dc-warn/out/hxml-dedupe/evidence/guard-harness/roots-baseline.txt (rooted in the kotlin pair at the last baseline refresh) but is a root of neither kotlin.hxml nor kotlin-f32.hxml; a root deleted from BOTH files is invisible to the pair-equality check -- restore it, or refresh the baseline with --print-baseline if the deletion is deliberate
+B: rc=1
+FAIL: swift.hxml omits root module boring.MathNaNOps (present in swift-f32.hxml at /home/losses/Development/tq-workspace/boring-wt-hxmldup/examples/swift-f32.hxml:253); the base bundle would compile a root the f32 bundle does not
+
+=== prefix demo ===
+SUMMARY: 45 duplicate root line(s) reported above (non-fatal; --strict-duplicates makes them fatal)
+roots guard: FAILED
+FAIL-line count: 111
+     41 kotlin-f32.hxml
+     33 rust-f32.hxml
+     37 swift-f32.hxml

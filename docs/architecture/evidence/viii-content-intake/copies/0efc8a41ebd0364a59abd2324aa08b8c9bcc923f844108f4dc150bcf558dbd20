@@ -1,0 +1,31 @@
+#![cfg(test)]
+
+use crate::boring::public_getter_property::HasName;
+use crate::boring::public_getter_property::PublicGetterProperty;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_public_getter_property() {
+    testlib::run("tests.PublicGetterPropertyTests.testPublicGetterProperty", "tests.PublicGetterPropertyTests.testPublicGetterProperty: reads a public property backed by a private getter across modules", || {
+        test_core::TestCore::test_core_equals_int(8i32, i32::from_ne_bytes(((PublicGetterProperty::new(7u32).get_x()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_getter_only_interface_read() {
+    testlib::run("tests.PublicGetterPropertyTests.testGetterOnlyInterfaceRead", "tests.PublicGetterPropertyTests.testGetterOnlyInterfaceRead: reads a getter-only property through an interface receiver", || {
+        let h: Box<dyn HasName> = Box::new(PublicGetterProperty::new(1u32));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[103,101,116,116,101,114,45,112,114,111,112,101,114,116,121]), h.get_name().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_getter_only_concrete_read() {
+    testlib::run("tests.PublicGetterPropertyTests.testGetterOnlyConcreteRead", "tests.PublicGetterPropertyTests.testGetterOnlyConcreteRead: reads a getter-only property through a concrete class receiver", || {
+        let p = PublicGetterProperty::new(1u32);
+        test_core::TestCore::test_core_equals_string(UStr::new(&[103,101,116,116,101,114,45,112,114,111,112,101,114,116,121]), p.get_name().as_ustr(), UStr::new(&[]));
+    });
+}

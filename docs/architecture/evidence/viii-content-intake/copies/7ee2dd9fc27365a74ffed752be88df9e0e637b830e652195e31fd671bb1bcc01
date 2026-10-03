@@ -1,0 +1,10 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/extern-bindings.test.ts:
+(pass) TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once [30389.59ms]
+(pass) TypeScript extern binding modules > rejects a value reference to an empty module [31260.57ms]
+
+ 2 pass
+ 0 fail
+ 10 expect() calls
+Ran 2 tests across 1 file. [61.70s]

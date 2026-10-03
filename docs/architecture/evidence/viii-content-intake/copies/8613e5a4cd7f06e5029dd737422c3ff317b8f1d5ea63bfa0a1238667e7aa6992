@@ -1,0 +1,18 @@
+## Collected suite - contract 3 count
+
+Standard: `docs/specs/style/02-translator-implementation-standard.md:80` counts the
+warning lines naming files under the generated trees and requires the count to be zero.
+
+```
+ 19 pass
+ 0 fail
+```
+
+Collected domain (top-level directories - the count means nothing without it):
+
+```
+      1 tests/bundle-child-evidence
+```
+
+Baseline: `docs/architecture/BASELINE-FAILURES.md` (recorded per
+`docs/architecture-work-plan.md:417`; a baseline finding does not waive the standard).

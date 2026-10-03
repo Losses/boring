@@ -1,0 +1,46 @@
+package boring
+
+data class OptionalIcRecord(val indent: Ic?) {
+}
+
+
+
+object ValueTypeConsumer {
+    fun arithmetic(): Float {
+        val first = Ic(2.0f)
+        val total = first + Ic.ZERO
+        return total.toPx(3.0f)
+    }
+
+    fun equalRepresentations(): Boolean {
+        return Ic(2.0f) == Ic(2.0f)
+    }
+
+    fun staticValue(): Float {
+        return Ic.ZERO.toPx(5.0f)
+    }
+
+    fun blankRejected(): Boolean {
+        var rejected = false
+        try {
+            FontFaceId(" ")
+        } catch (i: ValueException) {
+            rejected = true
+        }
+        return rejected
+    }
+
+    fun optionalIcPresent(): Float {
+        val record = OptionalIcRecord(Ic(2.0f))
+        val indent = record.indent
+        if ((indent == null)) {
+            return -1.0f
+        }
+        return (if ((indent == null)) -1.0f else 2.0f)
+    }
+
+    fun renderedId(): String {
+        val id = FontFaceId("face")
+        return id.toString()
+    }
+}

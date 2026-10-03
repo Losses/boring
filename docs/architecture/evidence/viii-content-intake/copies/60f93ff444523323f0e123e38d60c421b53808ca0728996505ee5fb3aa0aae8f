@@ -1,0 +1,13 @@
+package boring;
+
+class NegC2Oracle {
+    public static function main():Void {
+        #if !swift_output
+        trace("switch-return=" + NegC2Ops.switchReturnDest(true));
+        trace("switch-binding-nocross=" + NegC2Ops.switchBindingNoCross(true));
+        #else
+        NegC2Ops.switchReturnDest(true);
+        NegC2Ops.switchBindingNoCross(true);
+        #end
+    }
+}

@@ -1,0 +1,110 @@
+log: /home/losses/Development/tq-workspace/dc-warn/out/value-type-expectation/evidence/before-full-suite.log
+unique failing test names: 48
+raw (fail) lines: 96  (2x trap: unique != raw)
+unhandled-error blocks: 7
+summary lines:
+  985 pass
+  48 fail
+  7 errors
+  Ran 1033 tests across 303 files. [1806.53s]
+  error: script "test" exited with code 1
+
+=== unique failing test names (sorted) ===
+@:sealed on a class reports the interface-only error
+Rust borrows input Bytes fields and owns allocated Bytes fields
+Rust emits one module layer per Haxe package segment
+Std.string lowering > Rust standalone scalars use to_string
+Std.string lowering > nullable operands are rejected on every target
+StringTools conversions lowering > negative hex arguments report the named domain error
+Swift read-only array boundary shares storage and preserves flow
+TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once
+TypeScript extern binding modules > rejects a value reference to an empty module
+a missing deferred assignment is rejected by the Kotlin tree build
+arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks
+compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier
+constructed static mutation rules retain all three diagnostics
+default argument expansion generated tree > Rust generated tree emits full-arity calls and clean method signatures
+default argument expansion generated tree > Swift generated tree lowers parameter-reading coalescing defaults in the body
+enum value queries generated trees > Rust emits ALL, name, from_name and a literal range
+first-class function value generated trees > Rust bounds every function-value position with Send and Sync
+first-class function value generated trees > Rust uses one boxed representation and adapts indirect lengths
+first-class function value generated trees > Rust's f32 tree carries the same function-value lowering
+float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error
+float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error
+loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds
+loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds
+package artifact emission > the cargo crate and the Pub archive keep the tree at the root
+package shell emission > a by-name runtime import with an emitted manifest aborts the compile
+payload enums are rejected as sorted keys
+record copy generated tree > Rust generated tree emits struct instantiation in declaration order
+record print field order generated trees > four non-native targets synthesize the member for both classes in declaration order
+record printed-member generated trees > four non-native targets synthesize the constructor-ordered member
+record printed-member generated trees > marker and explicit-member mutations affect the four emitted members
+sealed variant sample trees carry the ruled declaration and printed forms
+self-construction with arguments keeps the static initializer error
+small array initializer mutation rules retain all three diagnostics
+small static array initializer trees > each target uses the ruled array declaration
+sorted dataClass key generated trees > pins resident comparators
+sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum
+static fields generated trees > Rust uses Mutex guards and the direct constant lane
+static fields generated trees > Swift keeps array statics mutable for value-semantic append
+static function field capture validation > a capturing static initializer reports the ruled Rust error
+static initializer mutation is rejected with the sanctioned error
+strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types
+strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays
+strict TypeScript emitter output > single-argument substr drops its synthesized null length
+strict TypeScript emitter output > switch-expression cases render preceding statements before their value
+the sanctioned self-construction static uses each target lane
+top-level and extension function lowering > Rust uses an inherent impl only for the owned receiver
+value wrapper generated trees > rejects each invalid marker shape with the ruled error on every target
+value wrapper generated trees > renders the five target representations and member forms
+
+=== occurrence counts (a value of 2 is bun's duplicate print) ===
+  2  @:sealed on a class reports the interface-only error
+  2  Rust borrows input Bytes fields and owns allocated Bytes fields
+  2  Rust emits one module layer per Haxe package segment
+  2  Std.string lowering > Rust standalone scalars use to_string
+  2  Std.string lowering > nullable operands are rejected on every target
+  2  StringTools conversions lowering > negative hex arguments report the named domain error
+  2  Swift read-only array boundary shares storage and preserves flow
+  2  TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once
+  2  TypeScript extern binding modules > rejects a value reference to an empty module
+  2  a missing deferred assignment is rejected by the Kotlin tree build
+  2  arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks
+  2  compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier
+  2  constructed static mutation rules retain all three diagnostics
+  2  default argument expansion generated tree > Rust generated tree emits full-arity calls and clean method signatures
+  2  default argument expansion generated tree > Swift generated tree lowers parameter-reading coalescing defaults in the body
+  2  enum value queries generated trees > Rust emits ALL, name, from_name and a literal range
+  2  first-class function value generated trees > Rust bounds every function-value position with Send and Sync
+  2  first-class function value generated trees > Rust uses one boxed representation and adapts indirect lengths
+  2  first-class function value generated trees > Rust's f32 tree carries the same function-value lowering
+  2  float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error
+  2  float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error
+  2  loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds
+  2  loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds
+  2  package artifact emission > the cargo crate and the Pub archive keep the tree at the root
+  2  package shell emission > a by-name runtime import with an emitted manifest aborts the compile
+  2  payload enums are rejected as sorted keys
+  2  record copy generated tree > Rust generated tree emits struct instantiation in declaration order
+  2  record print field order generated trees > four non-native targets synthesize the member for both classes in declaration order
+  2  record printed-member generated trees > four non-native targets synthesize the constructor-ordered member
+  2  record printed-member generated trees > marker and explicit-member mutations affect the four emitted members
+  2  sealed variant sample trees carry the ruled declaration and printed forms
+  2  self-construction with arguments keeps the static initializer error
+  2  small array initializer mutation rules retain all three diagnostics
+  2  small static array initializer trees > each target uses the ruled array declaration
+  2  sorted dataClass key generated trees > pins resident comparators
+  2  sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum
+  2  static fields generated trees > Rust uses Mutex guards and the direct constant lane
+  2  static fields generated trees > Swift keeps array statics mutable for value-semantic append
+  2  static function field capture validation > a capturing static initializer reports the ruled Rust error
+  2  static initializer mutation is rejected with the sanctioned error
+  2  strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types
+  2  strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays
+  2  strict TypeScript emitter output > single-argument substr drops its synthesized null length
+  2  strict TypeScript emitter output > switch-expression cases render preceding statements before their value
+  2  the sanctioned self-construction static uses each target lane
+  2  top-level and extension function lowering > Rust uses an inherent impl only for the owned receiver
+  2  value wrapper generated trees > rejects each invalid marker shape with the ruled error on every target
+  2  value wrapper generated trees > renders the five target representations and member forms

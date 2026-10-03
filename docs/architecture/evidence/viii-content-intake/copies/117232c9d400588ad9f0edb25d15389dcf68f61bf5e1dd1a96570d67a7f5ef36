@@ -1,0 +1,5 @@
+field-ts       exit=1 bytes=1538   :: warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck' is dirtytests/haxe/dc-enum-switch-
+field-dart     exit=1 bytes=261    :: warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck' is dirtytests/haxe/dc-enum-switch-
+call-rust      exit=1 bytes=247    :: warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck' is dirtytests/haxe/dc-enum-switch-
+call-ts        exit=1 bytes=1529   :: warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck' is dirtytests/haxe/dc-enum-switch-
+promoted-dart  exit=0 bytes=104    :: warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck' is dirty

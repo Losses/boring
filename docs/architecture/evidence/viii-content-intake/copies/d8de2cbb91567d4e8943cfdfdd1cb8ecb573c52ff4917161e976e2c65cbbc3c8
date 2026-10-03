@@ -1,0 +1,40 @@
+=== per-directory generated-tree differences (HEAD tree vs DIRTY tree), excluding build/ ===
+directory                                   DIFFERS DIRTY-ONLY HEAD-ONLY
+reference/dart/gen-tests/tests                    1          0         0
+reference/dart/gen/_GeneratedFiles.txt            1          0         0
+reference/dart/gen/lib                            3          0         0
+reference/haxe-f32/gen/generate-main-f32.js        1          0         0
+reference/haxe-f32/gen/test-main.js               0          1         0
+reference/haxe/gen/generate-main.js               1          0         0
+reference/haxe/gen/test-main.js                   1          0         0
+reference/kotlin-f32/gen-tests/TestMain.kt        1          0         0
+reference/kotlin-f32/gen-tests/tests              0         20         0
+reference/kotlin-f32/gen/_GeneratedFiles.txt        1          0         0
+reference/kotlin-f32/gen/boring                   0         28         0
+reference/kotlin-f32/gen/runtime                  0          1         0
+reference/kotlin-f32/gen/std                      0          1         0
+reference/kotlin/gen-tests/tests                  1          0         0
+reference/kotlin/gen/_GeneratedFiles.txt          1          0         0
+reference/rust-f32/gen/Cargo.lock                 0          1         0
+reference/rust-f32/gen/_GeneratedFiles.txt        1          0         0
+reference/rust-f32/gen/boring                     2         23         0
+reference/rust-f32/gen/out                        0          1         0
+reference/rust-f32/gen/runtime                    1          1         0
+reference/rust-f32/gen/std                        1          1         0
+reference/rust-f32/gen/target                     0        582         0
+reference/rust-f32/gen/tests                      2         17         0
+reference/rust/gen/boring                         1          0         0
+reference/rust/gen/tests                          2          0         0
+reference/swift-f32/gen-tests/TestMain.swift        1          0         0
+reference/swift-f32/gen-tests/tests               0         19         0
+reference/swift-f32/gen/_GeneratedFiles.txt        1          0         0
+reference/swift-f32/gen/boring                    1         26         0
+reference/swift-f32/gen/std                       0          1         0
+reference/swift/gen-tests/tests                   1          0         0
+reference/swift/gen/_GeneratedFiles.txt           1          0         0
+reference/swift/gen/boring                        1          0         0
+reference/ts/gen-tests/tests                      1          0         0
+reference/ts/gen/_GeneratedFiles.txt              1          0         0
+
+=== totals ===
+DIFFERS=30 DIRTY-ONLY=723 HEAD-ONLY=0

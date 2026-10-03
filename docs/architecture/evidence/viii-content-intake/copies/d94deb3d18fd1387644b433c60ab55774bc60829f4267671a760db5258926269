@@ -1,0 +1,49 @@
+package tests
+
+import boring.LocalProbe
+import boring.NullableLocalOps
+import boring.runtime.test.Test
+
+class NullableLocalTests {
+@boring.test.Test
+    fun intLocalKeepsSome() {
+        Test.run("tests.NullableLocalTests.intLocalKeepsSome", "tests.NullableLocalTests.intLocalKeepsSome: a nullable Int local from a literal compares equal inside Some") {
+                Test.equals(true, NullableLocalOps.intLocalMatches(mutableListOf<Int?>(1, 2)), null)
+        }
+    }
+
+@boring.test.Test
+    fun floatLocalKeepsSome() {
+        Test.run("tests.NullableLocalTests.floatLocalKeepsSome", "tests.NullableLocalTests.floatLocalKeepsSome: a nullable Float local from a literal compares equal inside Some") {
+                Test.equals(true, NullableLocalOps.floatLocalMatches(mutableListOf<Double?>(0.5, 1.5)), null)
+        }
+    }
+
+@boring.test.Test
+    fun nullBoolStaysNull() {
+        Test.run("tests.NullableLocalTests.nullBoolStaysNull", "tests.NullableLocalTests.nullBoolStaysNull: a null Bool local stays null") {
+                Test.equals(true, NullableLocalOps.boolLocalIsNull(), null)
+        }
+    }
+
+@boring.test.Test
+    fun stringLocalKeepsSome() {
+        Test.run("tests.NullableLocalTests.stringLocalKeepsSome", "tests.NullableLocalTests.stringLocalKeepsSome: a nullable String local keeps the existing Some wrapping") {
+                Test.equals(true, NullableLocalOps.stringLocalMatches(mutableListOf<String?>("a", "b")), null)
+        }
+    }
+
+@boring.test.Test
+    fun nullableInitUnwrapped() {
+        Test.run("tests.NullableLocalTests.nullableInitUnwrapped", "tests.NullableLocalTests.nullableInitUnwrapped: a nullable initializer passes through without double wrapping") {
+                Test.equals(true, NullableLocalOps.nullableInitPassesThrough(mutableListOf<Int?>(7, 8)), null)
+        }
+    }
+
+@boring.test.Test
+    fun lookupInitUnwrapped() {
+        Test.run("tests.NullableLocalTests.lookupInitUnwrapped", "tests.NullableLocalTests.lookupInitUnwrapped: a createEnum initializer passes through without Some wrapping") {
+                Test.equals(true, NullableLocalOps.lookupLocalPassesThrough(LocalProbe.Alpha), null)
+        }
+    }
+}

@@ -1,0 +1,11 @@
+package boring
+
+data class DataClassCtorGuardOps(val magnitude: Double) {
+    init {
+    if ((!(this.magnitude).isFinite() || this.magnitude < 0.0)) {
+        throw ValueException.NegativeStart
+    }
+    }
+}
+
+

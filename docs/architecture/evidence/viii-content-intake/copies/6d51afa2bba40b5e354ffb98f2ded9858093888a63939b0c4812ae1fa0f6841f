@@ -1,0 +1,11 @@
+PASS 1 ts
+PASS 2 kotlin
+PASS 3 kotlin
+PASS 4 swift (9c9548ef)
+PASS 5 dart
+PASS 6 rust regex
+PASS 7 rust
+PASS 8 rust LazyLock<Vec<UString>> (40cf0ad0)
+PASS 9 rust LazyLock<Vec<ArrayRootKind>>
+PASS 10 rust LazyLock::new
+ALL 10 EXPECTS PASS

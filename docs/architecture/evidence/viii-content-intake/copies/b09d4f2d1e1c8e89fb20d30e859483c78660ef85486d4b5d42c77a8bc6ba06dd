@@ -1,0 +1,34 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_concat_splice() {
+    testlib::run("tests.DartArrayMethodTests.testConcatSplice", "tests.DartArrayMethodTests.testConcatSplice: concat and splice lower onto Dart list operations", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_reverse_unshift() {
+    testlib::run("tests.DartArrayMethodTests.testReverseUnshift", "tests.DartArrayMethodTests.testReverseUnshift: reverse and unshift mutate the list in place", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_pop_shift() {
+    testlib::run("tests.DartArrayMethodTests.testPopShift", "tests.DartArrayMethodTests.testPopShift: pop and shift answer the end elements", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_bool_condition() {
+    testlib::run("tests.DartArrayMethodTests.testBoolCondition", "tests.DartArrayMethodTests.testBoolCondition: a bool comparison condition emits no toDouble call", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

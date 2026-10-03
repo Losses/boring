@@ -1,0 +1,2373 @@
+boring/abstract_static_default.rs	pub fn new(v: Option<ProbeUnit>) -> Self
+boring/allow_guest.rs	pub fn allow_guest_use_counter() -> u32
+boring/allow_guest.rs	pub fn allow_guest_use_static(v: u32) -> u32
+boring/allow_guest.rs	pub fn use_method(&self) -> UString
+boring/allow_host.rs	pub fn new() -> Self
+boring/arithmetic_ops.rs	pub fn arithmetic_ops_check_within_float(value: f32, low: f32, high: f32) -> bool
+boring/arithmetic_ops.rs	pub fn arithmetic_ops_check_within_int(value: u32, low: u32, high: u32) -> bool
+boring/arithmetic_ops.rs	pub fn arithmetic_ops_clamp_in_float(value: f32, low: f32, high: f32) -> f32
+boring/arithmetic_ops.rs	pub fn arithmetic_ops_clamp_in_int(value: u32, low: u32, high: u32) -> u32
+boring/arithmetic_ops.rs	pub fn arithmetic_ops_clamp_least_float(value: f32, floor: f32) -> f32
+boring/arithmetic_ops.rs	pub fn arithmetic_ops_clamp_least_int(value: u32, floor: u32) -> u32
+boring/arithmetic_ops.rs	pub fn arithmetic_ops_clamp_most_float(value: f32, ceiling: f32) -> f32
+boring/arithmetic_ops.rs	pub fn arithmetic_ops_clamp_most_int(value: u32, ceiling: u32) -> u32
+boring/arithmetic_ops.rs	pub fn arithmetic_ops_in_range(start: u32, end: u32, value: u32) -> bool
+boring/array_access_ops.rs	pub fn array_access_ops_composite_string_buf_part(value: &UStr) -> u32
+boring/array_access_ops.rs	pub fn array_access_ops_filled_float_holder(count: u32) -> Vec<f32>
+boring/array_access_ops.rs	pub fn array_access_ops_filled_holder(count: u32) -> Vec<Option<u32>>
+boring/array_access_ops.rs	pub fn array_access_ops_grow_float_slots() -> Vec<f32>
+boring/array_access_ops.rs	pub fn array_access_ops_grow_nullable_slots() -> Vec<Option<u32>>
+boring/array_access_ops.rs	pub fn array_access_ops_grow_value_slots() -> Vec<u32>
+boring/array_access_ops.rs	pub fn array_access_ops_read_split(text: &UStr) -> UString
+boring/array_access_ops.rs	pub fn array_access_ops_simple_string_buf_part(value: &UStr) -> u32
+boring/array_access_ops.rs	pub fn array_access_ops_write_inside_slots() -> Vec<u32>
+boring/array_access_ops.rs	pub fn array_access_ops_write_split(text: &UStr) -> UString
+boring/array_access_ops.rs	pub fn new(count: u32) -> Self
+boring/array_access_ops.rs	pub fn new(count: u32) -> Self
+boring/array_access_ops.rs	pub fn read_all(&self) -> Vec<f32>
+boring/array_access_ops.rs	pub fn read_all(&self) -> Vec<Option<u32>>
+boring/array_iteration_ops.rs	pub fn array_iteration_ops_count_read_only(values: &[u32]) -> u32
+boring/array_iteration_ops.rs	pub fn array_iteration_ops_sum_field(holder: Holder) -> u32
+boring/array_iteration_ops.rs	pub fn array_iteration_ops_sum_values(values: &Vec<u32>) -> u32
+boring/array_iteration_ops.rs	pub fn new(values: Vec<u32>) -> Self
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_mixed_is_weighted() -> bool
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_mixed_length() -> u32
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_mixed_weight() -> u32
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_mutable_element(index: u32) -> u32
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_mutable_length() -> u32
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_nested_element(outer: u32, inner: u32) -> u32
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_nested_inner_length(index: u32) -> u32
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_nested_length() -> u32
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_read_only_element(index: u32) -> u32
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_read_only_length() -> u32
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_word(index: u32) -> UString
+boring/array_root_state_ops.rs	pub fn array_root_state_ops_words_length() -> u32
+boring/array_root_state_ops.rs	pub fn to_string(&self) -> String
+boring/array_slice_ops.rs	pub fn array_slice_ops_empty_to_twenty_size() -> u32
+boring/array_slice_ops.rs	pub fn array_slice_ops_empty_to_twenty_text() -> UString
+boring/array_slice_ops.rs	pub fn array_slice_ops_from_text(count: u32, from: u32) -> UString
+boring/array_slice_ops.rs	pub fn array_slice_ops_insert_text(count: u32, pos: u32) -> UString
+boring/array_slice_ops.rs	pub fn array_slice_ops_nullable_text(values: Option<Vec<u32>>, from: u32, to: u32) -> UString
+boring/array_slice_ops.rs	pub fn array_slice_ops_null_init_splice_text(count: u32, pos: u32, len: u32) -> UString
+boring/array_slice_ops.rs	pub fn array_slice_ops_null_init_text(count: u32) -> UString
+boring/array_slice_ops.rs	pub fn array_slice_ops_slice_text(count: u32, from: u32, to: u32) -> UString
+boring/array_slice_ops.rs	pub fn array_slice_ops_splice_text(count: u32, pos: u32, len: u32) -> UString
+boring/array_slice_ops.rs	pub fn array_slice_ops_values(count: u32) -> Vec<u32>
+boring/binary_reader.rs	fn ensure_remaining(&self, length: u32) -> Result<(), VectorError>
+boring/binary_reader.rs	pub fn consumed(&self) -> u32
+boring/binary_reader.rs	pub fn new(bytes: &'a [u8]) -> Self
+boring/binary_reader.rs	pub fn read_ascii(&mut self, length: u32) -> Result<UString, VectorError>
+boring/binary_reader.rs	pub fn read_f16(&mut self) -> Result<f32, VectorError>
+boring/binary_reader.rs	pub fn read_f32(&mut self) -> Result<f32, VectorError>
+boring/binary_reader.rs	pub fn read_f64(&mut self) -> Result<f32, VectorError>
+boring/binary_reader.rs	pub fn read_u16(&mut self) -> Result<u16, VectorError>
+boring/binary_reader.rs	pub fn read_u32(&mut self) -> Result<u32, VectorError>
+boring/binary_reader.rs	pub fn remaining(&self) -> u32
+boring/binary_writer.rs	pub fn finish(&mut self) -> Vec<u8>
+boring/binary_writer.rs	pub fn new() -> Self
+boring/binary_writer.rs	pub fn write_ascii(&mut self, value: &UStr)
+boring/binary_writer.rs	pub fn write_f16(&mut self, value: f32)
+boring/binary_writer.rs	pub fn write_f32(&mut self, value: f32)
+boring/binary_writer.rs	pub fn write_f64(&mut self, value: f32)
+boring/binary_writer.rs	pub fn write_u16(&mut self, value: u16)
+boring/binary_writer.rs	pub fn write_u32(&mut self, value: u32)
+boring/borrowed_array_boundary_ops.rs	pub fn borrowed_array_boundary_ops_choose(values: &Vec<u32>, flag: bool) -> Vec<u32>
+boring/borrowed_array_boundary_ops.rs	pub fn borrowed_array_boundary_ops_nullable_return(values: &Vec<u32>) -> Option<Vec<u32>>
+boring/borrowed_array_boundary_ops.rs	pub fn borrowed_array_boundary_ops_read_only_wrap(values: &Vec<u32>) -> BorrowedReadOnlyArrayHolder
+boring/borrowed_array_boundary_ops.rs	pub fn borrowed_array_boundary_ops_rebind(values: &Vec<u32>) -> u32
+boring/borrowed_array_boundary_ops.rs	pub fn borrowed_array_boundary_ops_wrap(values: &Vec<u32>) -> BorrowedArrayHolder
+boring/borrowed_array_boundary_ops.rs	pub fn has_values(&self) -> bool
+boring/borrowed_array_boundary_ops.rs	pub fn has_values(&self) -> bool
+boring/borrowed_array_boundary_ops.rs	pub fn new(values: Option<Vec<u32>>) -> Self
+boring/borrowed_array_boundary_ops.rs	pub fn new(values: Option<Vec<u32>>) -> Self
+boring/borrowed_iteration_subject_ops.rs	pub fn borrowed_iteration_subject_ops_unique_nullable(values: Option<Vec<u32>>) -> Vec<u32>
+boring/borrowed_iteration_subject_ops.rs	pub fn borrowed_iteration_subject_ops_unique_through_local(values: &Vec<u32>) -> Vec<u32>
+boring/borrowed_iteration_subject_ops.rs	pub fn borrowed_iteration_subject_ops_unique(values: &Vec<u32>) -> Vec<u32>
+boring/borrowed_loop_item_boundary_ops.rs	fn rank(v: &BorrowedLoopMarker) -> i32
+boring/borrowed_loop_item_boundary_ops.rs	pub fn borrowed_loop_item_boundary_ops_described_labels(entries: &Vec<BorrowedLoopItemEntry>) -> Vec<UString>
+boring/borrowed_loop_item_boundary_ops.rs	pub fn borrowed_loop_item_boundary_ops_describe(entry: BorrowedLoopItemEntry) -> UString
+boring/borrowed_loop_item_boundary_ops.rs	pub fn borrowed_loop_item_boundary_ops_first_entry(entries: &Vec<BorrowedLoopItemEntry>) -> Option<BorrowedLoopItemEntry>
+boring/borrowed_loop_item_boundary_ops.rs	pub fn borrowed_loop_item_boundary_ops_has_marker(markers: &Vec<BorrowedLoopMarker>, target: BorrowedLoopMarker) -> bool
+boring/borrowed_loop_item_boundary_ops.rs	pub fn borrowed_loop_item_boundary_ops_index_of_nullable_ints(values: Option<Vec<u32>>, target: u32) -> u32
+boring/borrowed_loop_item_boundary_ops.rs	pub fn borrowed_loop_item_boundary_ops_index_of_nullable_strings(values: Option<Vec<UString>>, needle: &UStr) -> u32
+boring/borrowed_loop_item_boundary_ops.rs	pub fn borrowed_loop_item_boundary_ops_records(entries: &Vec<BorrowedLoopItemEntry>) -> Vec<BorrowedLoopItemRecord>
+boring/borrowed_loop_item_boundary_ops.rs	pub fn borrowed_loop_item_boundary_ops_wrapped_entries(entries: &Vec<BorrowedLoopItemEntry>) -> Vec<BorrowedLoopItemHolder>
+boring/borrowed_loop_item_boundary_ops.rs	pub fn compare_borrowed_loop_marker(a: &BorrowedLoopMarker, b: &BorrowedLoopMarker) -> i32
+boring/borrowed_loop_item_boundary_ops.rs	pub fn new(entry: BorrowedLoopItemEntry) -> Self
+boring/borrowed_loop_item_boundary_ops.rs	pub fn to_string(&self) -> String
+boring/borrowed_loop_item_boundary_ops.rs	pub fn to_string(&self) -> String
+boring/borrowed_receiver_boundary_ops.rs	pub fn borrowed_receiver_boundary_ops_pick_label(flag: bool) -> UString
+boring/borrowed_receiver_boundary_ops.rs	pub fn borrowed_receiver_boundary_ops_snapshot_label() -> UString
+boring/borrowed_receiver_boundary_ops.rs	pub fn new(label: &UStr) -> Self
+boring/borrowed_receiver_boundary_ops.rs	pub fn new(owner: BorrowedReceiverHolder) -> Self
+boring/borrowed_receiver_boundary_ops.rs	pub fn pick(&self, flag: bool) -> BorrowedReceiverHolder
+boring/borrowed_receiver_boundary_ops.rs	pub fn snapshot(&self) -> BorrowedReceiverState
+boring/borrowed_string_return_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/borrowed_string_return_ops.rs	pub fn borrowed_string_return_ops_require_text(value: &UStr) -> Result<UString, BorrowedStringReturnFault>
+boring/borrowed_string_return_ops.rs	pub fn new(message: &str) -> Self
+boring/boxed_interface_default_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/boxed_interface_default_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/boxed_interface_default_ops.rs	fn clone_box(&self) -> Box<dyn BoxedShapeStyle>
+boring/boxed_interface_default_ops.rs	fn clone_box(&self) -> Box<dyn BoxedShapeStyle>;
+boring/boxed_interface_default_ops.rs	fn clone(&self) -> Self
+boring/boxed_interface_default_ops.rs	fn describe(&self) -> UString
+boring/boxed_interface_default_ops.rs	fn describe(&self) -> UString;
+boring/boxed_interface_default_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/boxed_interface_default_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/boxed_interface_default_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/boxed_interface_default_ops.rs	pub fn describe(&self) -> UString
+boring/boxed_interface_default_ops.rs	pub fn describe(&self) -> UString
+boring/boxed_interface_default_ops.rs	pub fn new(style: Option<Box<dyn BoxedShapeStyle>>) -> Self
+boring/boxed_interface_default_ops.rs	pub fn to_string(&self) -> UString
+boring/branched_optional_field_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/branched_optional_field_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/branched_optional_field_ops.rs	fn clone_box(&self) -> Box<dyn BranchedOptionalRule>
+boring/branched_optional_field_ops.rs	fn clone_box(&self) -> Box<dyn BranchedOptionalRule>;
+boring/branched_optional_field_ops.rs	fn clone(&self) -> Self
+boring/branched_optional_field_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/branched_optional_field_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/branched_optional_field_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/branched_optional_field_ops.rs	fn tag(&self) -> UString
+boring/branched_optional_field_ops.rs	fn tag(&self) -> UString;
+boring/branched_optional_field_ops.rs	pub fn branched_optional_field_ops_explicit() -> u32
+boring/branched_optional_field_ops.rs	pub fn branched_optional_field_ops_penalty() -> u32
+boring/branched_optional_field_ops.rs	pub fn branched_optional_field_ops_rate() -> f32
+boring/branched_optional_field_ops.rs	pub fn branched_optional_field_ops_rule_tag() -> UString
+boring/branched_optional_field_ops.rs	pub fn new(penalty: Option<u32>, rate: Option<f32>) -> Self
+boring/branched_optional_field_ops.rs	pub fn new(rule: Option<Box<dyn BranchedOptionalRule>>) -> Self
+boring/branched_optional_field_ops.rs	pub fn tag(&self) -> UString
+boring/bytes_ops.rs	pub fn bytes_ops_build() -> Vec<u8>
+boring/capture_switch_ops.rs	pub fn capture_switch_ops_classify(value: CaptureSwitchValue) -> u32
+boring/capture_switch_ops.rs	pub fn capture_switch_ops_describe(error: NoSuchElementError) -> UString
+boring/capture_switch_ops.rs	pub fn capture_switch_ops_initialized(error: NoSuchElementError) -> UString
+boring/capture_switch_ops.rs	pub fn capture_switch_ops_message_length(error: NoSuchElementError) -> u32
+boring/capture_switch_ops.rs	pub fn to_string(&self) -> String
+boring/capture_switch_ops.rs	pub fn to_string(&self) -> String
+boring/cfg_test_probe.rs	fn probe()
+boring/clone_derive_gap_ops.rs	pub fn clone_derive_gap_ops_resolve_abstract(results: &Vec<CloneDeriveAbstractResult>) -> UString
+boring/clone_derive_gap_ops.rs	pub fn clone_derive_gap_ops_resolve(results: &Vec<CloneDeriveResult>) -> UString
+boring/clone_derive_gap_ops.rs	pub fn new(label: &UStr, size: u32) -> Self
+boring/clone_derive_gap_ops.rs	pub fn new(range: CloneDeriveRange, label: &UStr) -> Self
+boring/clone_derive_gap_ops.rs	pub fn new(start: u32, end: u32) -> Self
+boring/clone_derive_gap_ops.rs	pub fn to_string(&self) -> UString
+boring/clone_derive_gap_ops.rs	pub fn to_string(&self) -> UString
+boring/closure_string_view_ops.rs	pub fn closure_string_view_ops_choose(items: &Vec<UString>, fallback: &UStr) -> UString
+boring/closure_string_view_ops.rs	pub fn closure_string_view_ops_label(value: &UStr) -> UString
+boring/cluster_tags.rs	pub fn cluster_tags_create_map() -> SortedMapTable<ClusterTag, u32>
+boring/cluster_tags.rs	pub fn cluster_tags_create_set() -> SortedSetTable<ClusterTag>
+boring/cluster_tags.rs	pub fn cluster_tags_describe_order() -> UString
+boring/cluster_tags.rs	pub fn cluster_tags_describe_scores() -> UString
+boring/cluster_tags.rs	pub fn cluster_tags_describe_set_order() -> UString
+boring/cluster_tags.rs	pub fn cluster_tags_set_scores() -> Vec<u32>
+boring/cluster_tags.rs	pub fn cluster_tags_tag_score(tag: ClusterTag) -> Option<u32>
+boring/cluster_tags.rs	pub fn compare_cluster_tag(a: &ClusterTag, b: &ClusterTag) -> i32
+boring/cluster_tags.rs	pub fn compare_sub_tag(a: &SubTag, b: &SubTag) -> i32
+boring/code_point_names.rs	pub fn code_point_names_describe_order() -> UString
+boring/code_point_names.rs	pub fn code_point_names_name_of(code_point: u32) -> Option<UString>
+boring/comparator_gate_ops.rs	pub fn comparator_gate_ops_comparable() -> ComparatorNestedRecord
+boring/comparator_gate_ops.rs	pub fn compare_comparator_int_string_record(a: &ComparatorIntStringRecord, b: &ComparatorIntStringRecord) -> i32
+boring/comparator_gate_ops.rs	pub fn compare_comparator_nested_record(a: &ComparatorNestedRecord, b: &ComparatorNestedRecord) -> i32
+boring/comparator_gate_ops.rs	pub fn new(id: u32, enabled: bool) -> Self
+boring/comparator_gate_ops.rs	pub fn new(id: u32, name: &UStr) -> Self
+boring/comparator_gate_ops.rs	pub fn new(id: u32, weight: f32) -> Self
+boring/comparator_gate_ops.rs	pub fn new(value: ComparatorIntStringRecord) -> Self
+boring/comparator_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/comparator_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/comparator_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/comparator_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/compare_gate_ops.rs	pub fn compare_compare_gate_safe_grand(a: &CompareGateSafeGrand, b: &CompareGateSafeGrand) -> i32
+boring/compare_gate_ops.rs	pub fn compare_compare_gate_safe_inner(a: &CompareGateSafeInner, b: &CompareGateSafeInner) -> i32
+boring/compare_gate_ops.rs	pub fn compare_compare_gate_safe_outer(a: &CompareGateSafeOuter, b: &CompareGateSafeOuter) -> i32
+boring/compare_gate_ops.rs	pub fn compare_gate_ops_bool_nested() -> CompareGateBoolOuter
+boring/compare_gate_ops.rs	pub fn compare_gate_ops_safe_nested() -> CompareGateSafeGrand
+boring/compare_gate_ops.rs	pub fn new(enabled: bool) -> Self
+boring/compare_gate_ops.rs	pub fn new(inner: CompareGateBoolInner) -> Self
+boring/compare_gate_ops.rs	pub fn new(inner: CompareGateSafeInner) -> Self
+boring/compare_gate_ops.rs	pub fn new(rank: u32, label: &UStr) -> Self
+boring/compare_gate_ops.rs	pub fn new(value: CompareGateBoolOuter) -> Self
+boring/compare_gate_ops.rs	pub fn new(value: CompareGateSafeOuter) -> Self
+boring/compare_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/compare_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/compare_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/compare_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/compare_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/compare_gate_ops.rs	pub fn to_string(&self) -> UString
+boring/console_shim_ops.rs	pub fn console_shim_ops_log_line(message: &UStr) -> UString
+boring/constructed_state_ops.rs	pub fn constructed_state_ops_cross_class_text() -> UString
+boring/constructed_state_ops.rs	pub fn constructed_state_ops_first_lengths() -> UString
+boring/constructed_state_ops.rs	pub fn constructed_state_ops_generated_label() -> UString
+boring/constructed_state_ops.rs	pub fn constructed_state_ops_labels() -> UString
+boring/constructed_state_ops.rs	pub fn constructed_state_ops_weight() -> f32
+boring/constructed_state_ops.rs	pub fn new(label: &UStr, mode: FrameMode, values: Vec<UString>) -> Self
+boring/constructed_state_ops.rs	pub fn new(label: &UStr) -> Self
+boring/constructed_state_ops.rs	pub fn to_string(&self) -> String
+boring/constructed_state_ops.rs	pub fn value_count_text(&self) -> UString
+boring/constructor_statement_ops.rs	pub fn new(count: u32, values: Vec<u32>) -> Self
+boring/ctor_omit_ops.rs	pub fn ctor_omit_ops_make() -> f32
+boring/ctor_omit_ops.rs	pub fn new(width: f32, height: Option<f32>, count: Option<u32>) -> Self
+boring/dart_char_null_ops.rs	pub fn dart_char_null_ops_annotated_bound_arg_shape(s: &UStr) -> u32
+boring/dart_char_null_ops.rs	pub fn dart_char_null_ops_annotated_compare_shape(s: &UStr) -> bool
+boring/dart_char_null_ops.rs	pub fn dart_char_null_ops_arg_shape(s: &UStr) -> u32
+boring/dart_char_null_ops.rs	pub fn dart_char_null_ops_bound_arg_shape(s: &UStr) -> u32
+boring/dart_char_null_ops.rs	pub fn dart_char_null_ops_compare_shape(s: &UStr) -> bool
+boring/dart_char_null_ops.rs	pub fn dart_char_null_ops_return_shape(s: &UStr) -> u32
+boring/dart_empty_array_fix_ops.rs	pub fn dart_empty_array_fix_ops_empty_array_argument() -> u32
+boring/dart_local_name_fix_ops.rs	pub fn dart_local_name_fix_ops_local_shadow() -> UString
+boring/dart_null_push_ops.rs	pub fn dart_null_push_ops_nullable_closure_returns_null() -> Option<u32>
+boring/dart_null_push_ops.rs	pub fn dart_null_push_ops_nullable_closure_returns_value() -> Option<u32>
+boring/dart_null_push_ops.rs	pub fn dart_null_push_ops_push_null_into_nullable_array() -> Option<u32>
+boring/dart_null_push_ops.rs	pub fn dart_null_push_ops_push_value_into_nullable_array() -> Option<u32>
+boring/data_class_ctor_guard_ops.rs	pub fn new(magnitude: f32) -> Result<Self, ValueError>
+boring/data_class_ctor_guard_ops.rs	pub fn to_string(&self) -> UString
+boring/data_class_range_eq_ops.rs	pub fn compare_range_mark(a: &RangeMark, b: &RangeMark) -> i32
+boring/data_class_range_eq_ops.rs	pub fn compare_span_query(a: &SpanQuery, b: &SpanQuery) -> i32
+boring/data_class_range_eq_ops.rs	pub fn data_class_range_eq_ops_ranges_equal() -> bool
+boring/data_class_range_eq_ops.rs	pub fn new(range: RangeMark, label: &UStr) -> Self
+boring/data_class_range_eq_ops.rs	pub fn new(start: u32, end: u32) -> Self
+boring/data_class_range_eq_ops.rs	pub fn to_string(&self) -> UString
+boring/data_class_range_eq_ops.rs	pub fn to_string(&self) -> UString
+boring/default_arg_shift_ops.rs	pub fn decorate(&self, text: &UStr, suffix: Option<UString>) -> UString
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_call_chained_both_given() -> f32
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_call_chained_both_omitted() -> f32
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_call_chained_later_null() -> f32
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_call_chained_later_omitted() -> f32
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_call_explicit_null() -> UString
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_call_instance_null() -> UString
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_call_later_given() -> UString
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_call_middle_null() -> UString
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_call_middle_skipped() -> UString
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_chained_fallback(fallback: Option<f32>, value: Option<f32>) -> f32
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_ctor_explicit_null() -> f32
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_ctor_later_given() -> f32
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_pick(a: &UStr, b: Option<UString>) -> UString
+boring/default_arg_shift_ops.rs	pub fn default_arg_shift_ops_run(base: u32, probe: Option<DefaultArgShiftProbe>, count: Option<u32>) -> UString
+boring/default_arg_shift_ops.rs	pub fn describe(&self) -> UString
+boring/default_arg_shift_ops.rs	pub fn label(&self) -> UString
+boring/default_arg_shift_ops.rs	pub fn new(tag: Option<UString>) -> Self
+boring/default_arg_shift_ops.rs	pub fn new(width: f32, height: Option<f32>, count: Option<u32>) -> Self
+boring/default_args_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/default_args_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/default_args_ops.rs	fn clone_box(&self) -> Box<dyn IGreeter>
+boring/default_args_ops.rs	fn clone_box(&self) -> Box<dyn IGreeter>;
+boring/default_args_ops.rs	fn clone(&self) -> Self
+boring/default_args_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/default_args_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/default_args_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/default_args_ops.rs	fn rank(v: &Mode) -> i32
+boring/default_args_ops.rs	fn rank(v: &ParamReadKind) -> i32
+boring/default_args_ops.rs	fn say(&self, name: &UStr, title: &UStr) -> UString
+boring/default_args_ops.rs	fn say(&self, name: &UStr, title: &UStr) -> UString;
+boring/default_args_ops.rs	pub fn compare_mode(a: &Mode, b: &Mode) -> i32
+boring/default_args_ops.rs	pub fn compare_param_read_kind(a: &ParamReadKind, b: &ParamReadKind) -> i32
+boring/default_args_ops.rs	pub fn default_args_ops_adjust(value: f32, step: f32) -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_binary_sample(value: u32, offset: Option<u32>) -> u32
+boring/default_args_ops.rs	pub fn default_args_ops_call_adjust0() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_adjust1() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_chained_both_given() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_chained_both_omitted() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_chained_later_omitted() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_configure0() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_configure1() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_configure2() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_configure3() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_dependence_a() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_dependence_b() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_describe_tag0() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_describe_tag1() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_format_label0() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_format_label1() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_format_label2() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_greet0() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_greet1() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_infinity0() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_infinity1() -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_call_interface0() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_interface1() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_local_b() -> u32
+boring/default_args_ops.rs	pub fn default_args_ops_call_local() -> u32
+boring/default_args_ops.rs	pub fn default_args_ops_call_map_default() -> HashMap<UString, u32>
+boring/default_args_ops.rs	pub fn default_args_ops_call_open_mode0() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_call_open_mode1() -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_chained_coalescing(fallback: Option<f32>, value: Option<f32>) -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_clamp_base(value: u32) -> u32
+boring/default_args_ops.rs	pub fn default_args_ops_compute_with_local_b(x: u32) -> u32
+boring/default_args_ops.rs	pub fn default_args_ops_compute_with_local(x: u32) -> u32
+boring/default_args_ops.rs	pub fn default_args_ops_configure(base: u32, offset: u32, scale: f32, flag: bool) -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_dependence_earlier(a: &UStr, b: Option<UString>) -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_describe_tag(tag: &UStr, detail: Option<UString>) -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_field_access_sample(items: &Vec<UString>, count: Option<u32>) -> u32
+boring/default_args_ops.rs	pub fn default_args_ops_greet(name: &UStr, prefix: &UStr) -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_greet_with_prefix(name: &UStr, prefix: Option<UString>) -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_infinity_default(value: Option<f32>) -> f32
+boring/default_args_ops.rs	pub fn default_args_ops_locale_sample(lang: &UStr, fallback: Option<UString>) -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_map_default(value: Option<HashMap<UString, u32>>) -> HashMap<UString, u32>
+boring/default_args_ops.rs	pub fn default_args_ops_method_call_sample(text: &UStr, normalized: Option<UString>) -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_open_mode(id: u32, mode: Mode) -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_size_label(items: Option<Vec<UString>>) -> UString
+boring/default_args_ops.rs	pub fn default_args_ops_sorted_set_normalization(fallback: Option<SortedSetTable<u32>>) -> SortedSetTable<u32>
+boring/default_args_ops.rs	pub fn default_args_ops_static_call_sample(value: u32, clamped: Option<u32>) -> u32
+boring/default_args_ops.rs	pub fn default_args_ops_static_field_sample(value: u32, bound: Option<u32>) -> u32
+boring/default_args_ops.rs	pub fn earlier_local_normalization(&self, seed: &UStr, q: Option<UString>) -> UString
+boring/default_args_ops.rs	pub fn format_label(&self, label: Option<UString>, sep: &UStr) -> UString
+boring/default_args_ops.rs	pub fn glue_placements_for_region(region: ParamReadKind) -> UString
+boring/default_args_ops.rs	pub fn instance_field_normalization(&self, p: Option<UString>) -> UString
+boring/default_args_ops.rs	pub fn keyword_name_ops_clamp_val(val: u32, min: u32, max: u32) -> u32
+boring/default_args_ops.rs	pub fn keyword_name_ops_local_keyword_read() -> u32
+boring/default_args_ops.rs	pub fn make(&self, p: Option<u32>, q: Option<u32>) -> u32
+boring/default_args_ops.rs	pub fn new(badge: Option<CtorDefaultBadge>) -> Self
+boring/default_args_ops.rs	pub fn new(base: Option<f32>, ceiling: Option<f32>) -> Self
+boring/default_args_ops.rs	pub fn new(fallback_count: u32) -> Self
+boring/default_args_ops.rs	pub fn new(family_names: Option<Vec<UString>>) -> Self
+boring/default_args_ops.rs	pub fn new(kind: ParamReadKind, locale: Option<UString>) -> Self
+boring/default_args_ops.rs	pub fn new(radius: Option<f32>, follow_radius: Option<f32>) -> Self
+boring/default_args_ops.rs	pub fn new(region: ParamReadKind, glue_placement: Option<UString>) -> Self
+boring/default_args_ops.rs	pub fn new(tag: &UStr) -> Self
+boring/default_args_ops.rs	pub fn say(&self, name: &UStr, title: &UStr) -> UString
+boring/default_args_ops.rs	pub fn to_string(&self) -> String
+boring/default_args_ops.rs	pub fn to_string(&self) -> String
+boring/default_args_ops.rs	pub fn to_string(&self) -> UString
+boring/deferred_locals_ops.rs	pub fn deferred_locals_ops_loop_value(count: u32) -> u32
+boring/deferred_locals_ops.rs	pub fn deferred_locals_ops_nullable_value(value: Option<u32>) -> u32
+boring/deferred_locals_ops.rs	pub fn deferred_locals_ops_tier_of(value: u32) -> u32
+boring/div_table_ops.rs	pub fn div_table_ops_lookup(code_point: u32) -> u32
+boring/enum_queries_ops.rs	fn rank(v: &QueryMode) -> i32
+boring/enum_queries_ops.rs	pub fn compare_query_mode(a: &QueryMode, b: &QueryMode) -> i32
+boring/enum_queries_ops.rs	pub fn enum_queries_ops_alias_count() -> u32
+boring/enum_queries_ops.rs	pub fn enum_queries_ops_direct_count() -> u32
+boring/enum_queries_ops.rs	pub fn enum_queries_ops_lookup_name() -> UString
+boring/enum_queries_ops.rs	pub fn enum_queries_ops_names() -> UString
+boring/enum_queries_ops.rs	pub fn enum_queries_ops_round_trips() -> bool
+boring/enum_queries_ops.rs	pub fn enum_queries_ops_second_enum() -> UString
+boring/enum_queries_ops.rs	pub fn enum_queries_ops_unknown() -> UString
+boring/enum_queries_ops.rs	pub fn from_name(name: &UStr) -> Option<QueryMode>
+boring/enum_queries_ops.rs	pub fn name(&self) -> &'static str
+boring/enum_queries_ops.rs	pub fn to_string(&self) -> String
+boring/enum_sorted_keys_ops.rs	fn rank(v: &EnumTier) -> i32
+boring/enum_sorted_keys_ops.rs	fn rank(v: &ReverseTier) -> i32
+boring/enum_sorted_keys_ops.rs	pub fn compare_enum_tier(a: &EnumTier, b: &EnumTier) -> i32
+boring/enum_sorted_keys_ops.rs	pub fn compare_reverse_tier(a: &ReverseTier, b: &ReverseTier) -> i32
+boring/enum_sorted_keys_ops.rs	pub fn enum_sorted_keys_ops_declaration_order() -> UString
+boring/enum_sorted_keys_ops.rs	pub fn enum_sorted_keys_ops_describe() -> UString
+boring/enum_sorted_keys_ops.rs	pub fn enum_sorted_keys_ops_has() -> bool
+boring/enum_sorted_keys_ops.rs	pub fn enum_sorted_keys_ops_map_order() -> UString
+boring/enum_sorted_keys_ops.rs	pub fn name(&self) -> &'static str
+boring/enum_sorted_keys_ops.rs	pub fn name(&self) -> &'static str
+boring/enum_sorted_keys_ops.rs	pub fn to_string(&self) -> String
+boring/enum_sorted_keys_ops.rs	pub fn to_string(&self) -> String
+boring/exception_catch_ops.rs	pub fn exception_catch_ops_cause_message(cause: Option<Exception>) -> UString
+boring/extension_consumer.rs	pub fn extension_consumer_enum_result() -> UString
+boring/extension_consumer.rs	pub fn extension_consumer_private_result() -> UString
+boring/extension_consumer.rs	pub fn extension_consumer_string_result() -> UString
+boring/extension_ops.rs	fn rank(v: &ExtensionMode) -> i32
+boring/extension_ops.rs	pub fn compare_extension_mode(a: &ExtensionMode, b: &ExtensionMode) -> i32
+boring/extension_ops.rs	pub fn mode_label(&self, suffix: &UStr) -> UString
+boring/extension_ops.rs	pub fn mode_with_private(&self) -> UString
+boring/extension_ops.rs	pub fn string_label(value: &UStr, prefix: &UStr) -> UString
+boring/extension_ops.rs	pub fn to_string(&self) -> String
+boring/fallible_local_function_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/fallible_local_function_ops.rs	pub fn fallible_local_function_ops_guard(value: u32, limit: u32) -> Result<u32, FallibleLocalFunctionFault>
+boring/fallible_local_function_ops.rs	pub fn new(message: &str) -> Self
+boring/file_level_consumer.rs	pub fn file_level_consumer_private_result_through_public() -> u32
+boring/file_level_consumer.rs	pub fn file_level_consumer_public_result() -> u32
+boring/file_level_ops.rs	pub fn public_value(value: u32) -> u32
+boring/file_level_ops.rs	pub fn public_with_private(value: u32) -> u32
+boring/float_array_anno_ops.rs	pub fn float_array_anno_ops_sum_of(values: &Vec<f32>) -> f32
+boring/float_array_anno_ops.rs	pub fn float_array_anno_ops_verify() -> bool
+boring/float_compound_assign_ops.rs	pub fn float_compound_assign_ops_scaled(value: f32) -> f32
+boring/float_compound_assign_ops.rs	pub fn float_compound_assign_ops_step_total() -> f32
+boring/float_compound_assign_ops.rs	pub fn float_compound_assign_ops_walk(value: f32) -> f32
+boring/float_field_literal_ops.rs	pub fn float_field_literal_ops_pair(side: u32, total: f32) -> FloatFieldPair
+boring/float_literal_ops.rs	pub fn float_literal_ops_arg_leading_dot() -> f32
+boring/float_literal_ops.rs	pub fn float_literal_ops_arg_small() -> f32
+boring/float_literal_ops.rs	pub fn float_literal_ops_integer_constructor_argument() -> f32
+boring/float_literal_ops.rs	pub fn float_literal_ops_local_leading_dot_neg() -> f32
+boring/float_literal_ops.rs	pub fn float_literal_ops_local_small_neg() -> f32
+boring/float_literal_ops.rs	pub fn new(value: f32) -> Self
+boring/float_mod_compare_ops.rs	pub fn float_mod_compare_ops_even(value: f32) -> bool
+boring/float_width.rs	fn rank(v: &FloatWidth) -> i32
+boring/float_width.rs	pub fn compare_float_width(a: &FloatWidth, b: &FloatWidth) -> i32
+boring/float_width.rs	pub fn from_name(name: &UStr) -> Option<FloatWidth>
+boring/float_width.rs	pub fn name(&self) -> &'static str
+boring/float_width.rs	pub fn to_string(&self) -> String
+boring/fn_values_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/fn_values_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/fn_values_ops.rs	fn clone_box(&self) -> Box<dyn NameResolver>
+boring/fn_values_ops.rs	fn clone_box(&self) -> Box<dyn NameResolver>;
+boring/fn_values_ops.rs	fn clone(&self) -> Self
+boring/fn_values_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/fn_values_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/fn_values_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/fn_values_ops.rs	fn resolve(&self, id: &UStr) -> UString
+boring/fn_values_ops.rs	fn resolve(&self, id: &UStr) -> UString;
+boring/fn_values_ops.rs	pub fn fn_values_ops_apply_picker(values: &Vec<UString>, pick: Arc<dyn Fn(u32) -> UString + Send + Sync>) -> UString
+boring/fn_values_ops.rs	pub fn fn_values_ops_make_prefixer(prefix: &UStr) -> Arc<dyn Fn(&UStr) -> UString + Send + Sync + '_>
+boring/fn_values_ops.rs	pub fn fn_values_ops_stored_local() -> UString
+boring/fn_values_ops.rs	pub fn new(style_at: Arc<dyn Fn(u32) -> UString + Send + Sync>, resolver: Box<dyn NameResolver>) -> Self
+boring/fn_values_ops.rs	pub fn resolve_label(&self, id: &UStr) -> UString
+boring/fn_values_ops.rs	pub fn resolve(&self, id: &UStr) -> UString
+boring/fn_values_ops.rs	pub fn style_label(&self, index: u32) -> UString
+boring/font_id_consumer.rs	pub fn font_id_consumer_is_prefixed(face: &UStr) -> bool
+boring/font_id.rs	pub fn font_id_impl_of(face: &UStr) -> UString
+boring/fp16.rs	pub fn fp16_f16_to_f32_bits(h16: u32) -> u32
+boring/fp16.rs	pub fn fp16_f32_to_f16_bits(b32: u32) -> u32
+boring/fp32.rs	pub fn fp32_f64_halves_to_f32_bits(low: u32, high: u32) -> u32
+boring/fp32.rs	pub fn fp32_from_bits(bits: u32) -> f32
+boring/fp32.rs	pub fn fp32_to_bits(value: f32) -> u32
+boring/fp_helper_rust_ops.rs	pub fn compare_fp_helper_decomposed(a: &FpHelperDecomposed, b: &FpHelperDecomposed) -> i32
+boring/fp_helper_rust_ops.rs	pub fn fp_helper_rust_ops_decompose(value: f32) -> FpHelperDecomposed
+boring/fp_helper_rust_ops.rs	pub fn fp_helper_rust_ops_value_of(bits: u32) -> f32
+boring/functional_ops.rs	pub fn functional_ops_functional_for_each(values: &Vec<u32>) -> u32
+boring/functional_ops.rs	pub fn functional_ops_functional_sum(values: &Vec<f32>) -> f32
+boring/functional_ops.rs	pub fn functional_ops_lambda_iter(values: &Vec<u32>) -> u32
+boring/functional_ops.rs	pub fn functional_ops_lambda_sum(values: &Vec<f32>) -> f32
+boring/functional_ops.rs	pub fn functional_ops_verify() -> bool
+boring/glyph_cluster_holder.rs	pub fn compare_glyph_cluster_holder(a: &GlyphClusterHolder, b: &GlyphClusterHolder) -> i32
+boring/glyph_cluster_holder.rs	pub fn new(clusters: Vec<GlyphCluster>) -> Self
+boring/glyph_cluster_holder.rs	pub fn to_string(&self) -> UString
+boring/glyph_cluster_reader.rs	pub fn glyph_cluster_reader_first_range(holder: GlyphClusterHolder) -> u32
+boring/glyph_cluster_reader.rs	pub fn glyph_cluster_reader_first_returned_range() -> u32
+boring/glyph_cluster_reader.rs	pub fn glyph_cluster_reader_first_width(holder: GlyphClusterHolder) -> u32
+boring/glyph_cluster_reader.rs	pub fn glyph_cluster_reader_ranges() -> Vec<GlyphCluster>
+boring/glyph_cluster.rs	pub fn compare_glyph_cluster(a: &GlyphCluster, b: &GlyphCluster) -> i32
+boring/glyph_cluster.rs	pub fn get_width(&self) -> u32
+boring/glyph_cluster.rs	pub fn new(cluster_range: u32, start: u32, end: u32) -> Self
+boring/glyph_cluster.rs	pub fn to_string(&self) -> UString
+boring/grapheme_ops.rs	pub fn grapheme_ops_clamped_slice(text: &UStr) -> UString
+boring/grapheme_ops.rs	pub fn grapheme_ops_cluster_at(text: &UStr, index: u32) -> Option<UString>
+boring/grapheme_ops.rs	pub fn grapheme_ops_cluster_slice(text: &UStr, from: u32, to: u32) -> UString
+boring/grapheme_ops.rs	pub fn grapheme_ops_code_point_count(text: &UStr) -> u32
+boring/grapheme_ops.rs	pub fn grapheme_ops_first_part(text: &UStr) -> UString
+boring/grapheme_ops.rs	pub fn grapheme_ops_grapheme_boundaries(text: &UStr) -> Vec<u32>
+boring/grapheme_ops.rs	pub fn grapheme_ops_grapheme_count(text: &UStr) -> u32
+boring/grapheme_ops.rs	pub fn grapheme_ops_joined_parts(text: &UStr) -> Result<UString, UStringFault>
+boring/grapheme_ops.rs	pub fn grapheme_ops_last_part(text: &UStr) -> UString
+boring/grapheme_ops.rs	pub fn grapheme_ops_part_count(text: &UStr) -> u32
+boring/guarded_box.rs	pub fn new() -> Self
+boring/guarded_rect.rs	pub fn new(left: f32, top: f32) -> Self
+boring/haxe_exception_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/haxe_exception_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/haxe_exception_ops.rs	fn from(value: crate::boring::borrowed_string_return_ops::BorrowedStringReturnFault) -> Self
+boring/haxe_exception_ops.rs	fn from(value: crate::boring::haxe_exception_ops::HaxeExceptionFault) -> Self
+boring/haxe_exception_ops.rs	fn from(value: HaxeExceptionOpsThrowMixedFault) -> Self
+boring/haxe_exception_ops.rs	fn from(value: HaxeExceptionOpsThrowMixedFault) -> Self
+boring/haxe_exception_ops.rs	pub fn haxe_exception_ops_throw_fault(message: &UStr) -> Result<(), HaxeExceptionFault>
+boring/haxe_exception_ops.rs	pub fn haxe_exception_ops_throw_joined(lead: &UStr, tail: &UStr) -> Result<(), HaxeExceptionFault>
+boring/haxe_exception_ops.rs	pub fn haxe_exception_ops_throw_mixed(value: &UStr) -> Result<(), HaxeExceptionOpsThrowMixedFault>
+boring/haxe_exception_ops.rs	pub fn new(message: &str) -> Self
+boring/imp_host.rs	pub fn new(widget: Option<ImpWidget>) -> Self
+boring/imp_widget.rs	pub fn new(label: &UStr) -> Self
+boring/inherit_ctor_ops.rs	pub fn compare_inherit_ctor_ops(a: &InheritCtorOps, b: &InheritCtorOps) -> i32
+boring/inherit_ctor_ops.rs	pub fn new(message: &UStr) -> Self
+boring/inherit_ctor_ops.rs	pub fn new(payload: InheritCtorPayload) -> Self
+boring/inherit_ctor_ops.rs	pub fn to_string(&self) -> String
+boring/inherit_ctor_ops.rs	pub fn to_string(&self) -> UString
+boring/ink_text_shaper.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/ink_text_shaper.rs	fn clone_box(&self) -> Box<dyn TextShaper>
+boring/ink_text_shaper.rs	fn __haxe_type_name(&self) -> &'static str
+boring/ink_text_shaper.rs	fn shape(&self, text: &UStr) -> UString
+boring/ink_text_shaper.rs	pub fn shape(&self, text: &UStr) -> UString
+boring/inline_default_ops.rs	pub fn compare_inline_default_ops(a: &InlineDefaultOps, b: &InlineDefaultOps) -> i32
+boring/inline_default_ops.rs	pub fn new(region: u32, marker: Option<u32>, count: Option<u32>) -> Self
+boring/inline_default_ops.rs	pub fn to_string(&self) -> UString
+boring/instance_defaults.rs	pub fn new() -> Self
+boring/instance_defaults.rs	pub fn new() -> Self
+boring/instance_defaults.rs	pub fn new() -> Self
+boring/int64_ops.rs	pub fn int64_ops_at_or_below(a: i64, b: i64) -> bool
+boring/int64_ops.rs	pub fn int64_ops_below(a: i64, b: i64) -> bool
+boring/int64_ops.rs	pub fn int64_ops_bit_mix(value: i64) -> i64
+boring/int64_ops.rs	pub fn int64_ops_carry() -> i64
+boring/int64_ops.rs	pub fn int64_ops_high(value: i64) -> u32
+boring/int64_ops.rs	pub fn int64_ops_low(value: i64) -> u32
+boring/int64_ops.rs	pub fn int64_ops_mul_anchors() -> i64
+boring/int64_ops.rs	pub fn int64_ops_mul_int_anchor(value: i64) -> i64
+boring/int64_ops.rs	pub fn int64_ops_rotate(value: i64, distance: u32) -> i64
+boring/int_division_ops.rs	pub fn int_division_ops_floored(numerator: u32, denominator: u32) -> f32
+boring/int_division_ops.rs	pub fn int_division_ops_offset(width: u32, index: u32, span: u32) -> f32
+boring/int_division_ops.rs	pub fn int_division_ops_quotient(numerator: u32, denominator: u32) -> f32
+boring/int_division_ops.rs	pub fn int_division_ops_remainder(numerator: u32, denominator: u32) -> u32
+boring/int_division_ops.rs	pub fn int_division_ops_scaled(width: u32, index: u32, span: u32, bias: f32) -> f32
+boring/int_division_ops.rs	pub fn int_division_ops_truncated(numerator: u32, denominator: u32) -> u32
+boring/interface_conditional_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/interface_conditional_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/interface_conditional_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/interface_conditional_ops.rs	fn clone_box(&self) -> Box<dyn ChoiceText>
+boring/interface_conditional_ops.rs	fn clone_box(&self) -> Box<dyn ChoiceText>
+boring/interface_conditional_ops.rs	fn clone_box(&self) -> Box<dyn ChoiceText>;
+boring/interface_conditional_ops.rs	fn clone(&self) -> Self
+boring/interface_conditional_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/interface_conditional_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/interface_conditional_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/interface_conditional_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/interface_conditional_ops.rs	fn text(&self) -> UString
+boring/interface_conditional_ops.rs	fn text(&self) -> UString
+boring/interface_conditional_ops.rs	fn text(&self) -> UString;
+boring/interface_conditional_ops.rs	pub fn interface_conditional_ops_choose(flag: bool) -> Box<dyn ChoiceText>
+boring/interface_conditional_ops.rs	pub fn interface_conditional_ops_choose_text(flag: bool) -> UString
+boring/interface_conditional_ops.rs	pub fn text(&self) -> UString
+boring/interface_conditional_ops.rs	pub fn text(&self) -> UString
+boring/interface_fallible_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/interface_fallible_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/interface_fallible_ops.rs	fn clone_box(&self) -> Box<dyn InterfaceFallibleEdge>
+boring/interface_fallible_ops.rs	fn clone_box(&self) -> Box<dyn InterfaceFallibleEdge>;
+boring/interface_fallible_ops.rs	fn clone(&self) -> Self
+boring/interface_fallible_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/interface_fallible_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/interface_fallible_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/interface_fallible_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/interface_fallible_ops.rs	fn resolve(&self, key: u32) -> Result<UString, InterfaceFallibleFault>
+boring/interface_fallible_ops.rs	fn resolve(&self, key: u32) -> Result<UString, InterfaceFallibleFault>;
+boring/interface_fallible_ops.rs	pub fn interface_fallible_ops_resolve(edge: Box<dyn InterfaceFallibleEdge>, key: u32) -> Result<UString, InterfaceFallibleFault>
+boring/interface_fallible_ops.rs	pub fn interface_fallible_ops_value(key: u32) -> Result<UString, InterfaceFallibleFault>
+boring/interface_fallible_ops.rs	pub fn new(message: &str) -> Self
+boring/interface_fallible_ops.rs	pub fn resolve(&self, key: u32) -> Result<UString, InterfaceFallibleFault>
+boring/interface_field_literal_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/interface_field_literal_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/interface_field_literal_ops.rs	fn clone_box(&self) -> Box<dyn LiteralMark>
+boring/interface_field_literal_ops.rs	fn clone_box(&self) -> Box<dyn LiteralMark>;
+boring/interface_field_literal_ops.rs	fn clone(&self) -> Self
+boring/interface_field_literal_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/interface_field_literal_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/interface_field_literal_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/interface_field_literal_ops.rs	fn tag(&self) -> UString
+boring/interface_field_literal_ops.rs	fn tag(&self) -> UString;
+boring/interface_field_literal_ops.rs	pub fn interface_field_literal_ops_describe() -> UString
+boring/interface_field_literal_ops.rs	pub fn interface_field_literal_ops_make(label: &UStr) -> LiteralMarkRecord
+boring/interface_field_literal_ops.rs	pub fn tag(&self) -> UString
+boring/interface_getter_property.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/interface_getter_property.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/interface_getter_property.rs	fn clone_box(&self) -> Box<dyn InterfaceGetterProperty>
+boring/interface_getter_property.rs	fn clone_box(&self) -> Box<dyn InterfaceGetterProperty>;
+boring/interface_getter_property.rs	fn clone(&self) -> Self
+boring/interface_getter_property.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/interface_getter_property.rs	fn get_name(&self) -> UString
+boring/interface_getter_property.rs	fn get_name(&self) -> UString;
+boring/interface_getter_property.rs	fn __haxe_type_name(&self) -> &'static str
+boring/interface_getter_property.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/interface_getter_property.rs	pub fn get_name(&self) -> UString
+boring/interface_getter_property.rs	pub fn interface_getter_property_use_name_of(value: Box<dyn InterfaceGetterProperty>) -> UString
+boring/interface_getter_property.rs	pub fn new(value: &UStr) -> Self
+boring/interface_union_beta.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/interface_union_beta.rs	fn clone_box(&self) -> Box<dyn InterfaceUnionSlot>
+boring/interface_union_beta.rs	fn __haxe_type_name(&self) -> &'static str
+boring/interface_union_beta.rs	fn run(&self, value: u32) -> Result<u32, InterfaceUnionOpsRunFault>
+boring/interface_union_beta.rs	pub fn run(&self, value: u32) -> Result<u32, ValueError>
+boring/interface_union_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/interface_union_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/interface_union_ops.rs	fn clone_box(&self) -> Box<dyn InterfaceUnionSlot>
+boring/interface_union_ops.rs	fn clone_box(&self) -> Box<dyn InterfaceUnionSlot>;
+boring/interface_union_ops.rs	fn clone(&self) -> Self
+boring/interface_union_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/interface_union_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/interface_union_ops.rs	fn from(value: crate::boring::haxe_exception_ops::HaxeExceptionFault) -> Self
+boring/interface_union_ops.rs	fn from(value: crate::boring::value_exception::ValueError) -> Self
+boring/interface_union_ops.rs	fn from(value: InterfaceUnionOpsRunFault) -> Self
+boring/interface_union_ops.rs	fn from(value: InterfaceUnionOpsRunFault) -> Self
+boring/interface_union_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/interface_union_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/interface_union_ops.rs	fn run(&self, value: u32) -> Result<u32, InterfaceUnionOpsRunFault>
+boring/interface_union_ops.rs	fn run(&self, value: u32) -> Result<u32, InterfaceUnionOpsRunFault>;
+boring/interface_union_ops.rs	pub fn interface_union_ops_call(slot: Box<dyn InterfaceUnionSlot>, value: u32) -> Result<u32, InterfaceUnionOpsRunFault>
+boring/interface_union_ops.rs	pub fn run(&self, value: u32) -> Result<u32, InterfaceUnionOpsRunFault>
+boring/int_float_add_ops.rs	pub fn int_float_add_ops_add_int_left(__n: u32) -> f32
+boring/int_float_add_ops.rs	pub fn int_float_add_ops_add_int_right(__n: u32) -> f32
+boring/int_float_add_ops.rs	pub fn int_float_add_ops_add_nested(__n: u32) -> f32
+boring/int_float_sign_ops.rs	pub fn int_float_sign_ops_as_optional(a: u32, b: u32) -> Option<f32>
+boring/int_float_sign_ops.rs	pub fn int_float_sign_ops_below_half(a: u32, b: u32) -> bool
+boring/int_float_sign_ops.rs	pub fn int_float_sign_ops_compound_sum(a: u32, b: u32) -> f32
+boring/int_float_sign_ops.rs	pub fn int_float_sign_ops_delta(a: u32, b: u32) -> u32
+boring/int_float_sign_ops.rs	pub fn int_float_sign_ops_equals_collapsed(a: u32, b: u32) -> bool
+boring/int_float_sign_ops.rs	pub fn int_float_sign_ops_first_elem(a: u32, b: u32) -> f32
+boring/int_float_sign_ops.rs	pub fn int_float_sign_ops_sample_map() -> SortedMapTable<u32, f32>
+boring/int_float_sign_ops.rs	pub fn int_float_sign_ops_ternary_fallback(m: SortedMapTable<u32, f32>, a: u32, b: u32) -> f32
+boring/jvm_field_private_ops.rs	pub fn jvm_field_private_ops_resolve() -> UString
+boring/knull_init_narrowing.rs	pub fn chained_field_access(&self, nested: Option<Nested>) -> UString
+boring/knull_init_narrowing.rs	pub fn field_off_nullable_receiver(&self, nested: Option<Nested>) -> u32
+boring/knull_init_narrowing.rs	pub fn new(value: u32) -> Self
+boring/knull_init_narrowing.rs	pub fn ternary_with_nullable_arm(&self, flag: bool, fallback: Option<Nested>) -> u32
+boring/local_shadow_ops.rs	pub fn local_shadow_ops_arrays() -> u32
+boring/local_shadow_ops.rs	pub fn local_shadow_ops_shadow() -> UString
+boring/local_shadow_ops.rs	pub fn local_shadow_ops_single() -> u32
+boring/loop_write_ops.rs	pub fn loop_write_ops_branch_increment(n: u32) -> u32
+boring/loop_write_ops.rs	pub fn loop_write_ops_closure_increment(n: u32) -> u32
+boring/loop_write_ops.rs	pub fn loop_write_ops_non_unit_increment(n: u32) -> u32
+boring/loop_write_ops.rs	pub fn loop_write_ops_tail_increment(n: u32) -> u32
+boring/m2_option_vec_ops.rs	pub fn add_tag(&mut self, s: &UStr) -> UString
+boring/m2_option_vec_ops.rs	pub fn count_seen(&mut self) -> u32
+boring/m2_option_vec_ops.rs	pub fn has_seen(&mut self, i: u32) -> bool
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_copy_array(src: &Vec<UString>) -> UString
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_guarded_and_span(pair: Option<GuardedRect>, end: f32) -> f32
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_guarded_copy_field_width(r#box: GuardedBox) -> f32
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_guarded_copy_width(rect: Option<GuardedRect>) -> f32
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_guarded_holder_span(r#box: GuardedBox) -> f32
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_has_index(src: &Vec<UString>, needle: &UStr) -> bool
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_has_text_index(text: &UStr, needle: &UStr) -> bool
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_index_of_array(src: &Vec<UString>, needle: &UStr) -> UString
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_shift_array(src: &mut Vec<UString>) -> UString
+boring/m2_option_vec_ops.rs	pub fn m2_option_vec_ops_unshift_array(src: &mut Vec<UString>, v: &UStr) -> UString
+boring/m2_option_vec_ops.rs	pub fn new() -> Self
+boring/m2_option_vec_ops.rs	pub fn read_index(&mut self, k: u32) -> bool
+boring/math_int_widening_ops.rs	pub fn math_int_widening_ops_ceil_of(x: u32) -> u32
+boring/math_int_widening_ops.rs	pub fn math_int_widening_ops_finite_of(x: u32) -> bool
+boring/math_int_widening_ops.rs	pub fn math_int_widening_ops_floor_of(x: u32) -> u32
+boring/math_int_widening_ops.rs	pub fn math_int_widening_ops_nan_of(x: u32) -> bool
+boring/math_int_widening_ops.rs	pub fn math_int_widening_ops_sqrt_of(x: u32) -> f32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_abs_of_ints(a: u32) -> f32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_abs_value(a: f32) -> f32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_ceiled(a: f32) -> u32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_floored(a: f32) -> u32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_larger(a: f32, b: f32) -> f32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_larger_of_ints(a: u32, b: u32) -> f32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_power(a: f32, b: f32) -> f32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_power_of_ints(a: u32, b: u32) -> f32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_rounded(a: f32) -> u32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_smaller(a: f32, b: f32) -> f32
+boring/math_min_max_ops.rs	pub fn math_min_max_ops_smaller_of_ints(a: u32, b: u32) -> f32
+boring/math_na_n_ops.rs	pub fn math_na_n_ops_constant_nan() -> f32
+boring/math_na_n_ops.rs	pub fn math_na_n_ops_constant_neg_inf() -> f32
+boring/math_na_n_ops.rs	pub fn math_na_n_ops_constant_overflow() -> f32
+boring/math_na_n_ops.rs	pub fn math_na_n_ops_constant_pos_inf() -> f32
+boring/math_na_n_ops.rs	pub fn math_na_n_ops_constant_underflow() -> f32
+boring/math_na_n_ops.rs	pub fn math_na_n_ops_max_ints(a: u32, b: u32) -> f32
+boring/math_na_n_ops.rs	pub fn math_na_n_ops_max_of(a: f32, b: f32) -> f32
+boring/math_na_n_ops.rs	pub fn math_na_n_ops_min_ints(a: u32, b: u32) -> f32
+boring/math_na_n_ops.rs	pub fn math_na_n_ops_min_of(a: f32, b: f32) -> f32
+boring/math_na_n_test_support.rs	pub fn math_na_n_test_support_assert_na_n(value: f32, message: &UStr)
+boring/math_na_n_test_support.rs	pub fn math_na_n_test_support_assert_negative_zero(value: f32, message: &UStr)
+boring/math_na_n_test_support.rs	pub fn math_na_n_test_support_assert_positive_zero(value: f32, message: &UStr)
+boring/mutating_counter_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/mutating_counter_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/mutating_counter_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/mutating_counter_ops.rs	fn bump(&mut self) -> u32
+boring/mutating_counter_ops.rs	fn bump(&mut self) -> u32
+boring/mutating_counter_ops.rs	fn bump(&mut self) -> u32;
+boring/mutating_counter_ops.rs	fn clone_box(&self) -> Box<dyn MutatingCounter>
+boring/mutating_counter_ops.rs	fn clone_box(&self) -> Box<dyn MutatingCounter>
+boring/mutating_counter_ops.rs	fn clone_box(&self) -> Box<dyn MutatingCounter>;
+boring/mutating_counter_ops.rs	fn clone(&self) -> Self
+boring/mutating_counter_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/mutating_counter_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/mutating_counter_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/mutating_counter_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/mutating_counter_ops.rs	pub fn bump(&mut self) -> u32
+boring/mutating_counter_ops.rs	pub fn bump(&mut self) -> u32
+boring/mutating_counter_ops.rs	pub fn mutating_counter_ops_bump_thrice_concrete() -> u32
+boring/mutating_counter_ops.rs	pub fn mutating_counter_ops_bump_twice() -> u32
+boring/mutating_counter_ops.rs	pub fn mutating_counter_ops_read_only() -> u32
+boring/mutating_counter_ops.rs	pub fn new() -> Self
+boring/narrowed_option_return_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/narrowed_option_return_ops.rs	pub fn narrowed_option_return_ops_pick(value: Option<UString>) -> Result<UString, NarrowedOptionReturnFault>
+boring/narrowed_option_return_ops.rs	pub fn new(message: &str) -> Self
+boring/narrowed_sorted_receiver_ops.rs	pub fn narrowed_sorted_receiver_ops_has_key(values: Option<SortedMapTable<UString, u32>>, key: &UStr) -> bool
+boring/narrowed_sorted_receiver_ops.rs	pub fn narrowed_sorted_receiver_ops_size_or_zero(values: Option<SortedSetTable<u32>>) -> u32
+boring/negative_sentinel_ops.rs	pub fn negative_sentinel_ops_separator_index(text: &UStr) -> u32
+boring/neg_int_slot_ops.rs	pub fn neg_int_slot_ops_negate_argument(value: u32) -> u32
+boring/neg_int_slot_ops.rs	pub fn neg_int_slot_ops_negate_conditional(negative: bool, value: u32) -> u32
+boring/neg_int_slot_ops.rs	pub fn neg_int_slot_ops_negate(value: u32) -> u32
+boring/nil_context_ops.rs	pub fn nil_context_ops_conditional(flag: bool) -> Option<UString>
+boring/nil_context_ops.rs	pub fn nil_context_ops_null_argument() -> UString
+boring/node_fs_borrow_ops.rs	pub fn compare_node_fs_mkdir_options(a: &NodeFsMkdirOptions, b: &NodeFsMkdirOptions) -> i32
+boring/node_fs_borrow_ops.rs	pub fn node_fs_borrow_ops_write_probe(name: &UStr, text: &UStr) -> UString
+boring/no_such_element_fault_exception.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/no_such_element_message_reader.rs	pub fn no_such_element_message_reader_describe(error: NoSuchElementFault) -> UString
+boring/no_such_element_note.rs	pub fn to_string(&self) -> String
+boring/no_such_element_thrower.rs	pub fn no_such_element_thrower_missing() -> Result<u32, NoSuchElementFault>
+boring/nullability_ops.rs	pub fn nullability_ops_nullable_to_string(value: Option<NullableReceiver>) -> UString
+boring/nullability_ops.rs	pub fn nullability_ops_nullable_to_string_with_param(value: Option<NullableReceiver>, suffix: &UStr) -> UString
+boring/nullable_array_argument_ops.rs	pub fn nullable_array_argument_ops_checked_sum(values: Option<Vec<u32>>) -> u32
+boring/nullable_array_argument_ops.rs	pub fn nullable_array_argument_ops_sum(values: &Vec<u32>) -> u32
+boring/nullable_array_ops.rs	pub fn nullable_array_ops_element_matches(value: &Vec<Option<u32>>, index: u32, expected: Option<u32>) -> bool
+boring/nullable_array_ops.rs	pub fn nullable_array_ops_from_nullable_var(value: Option<u32>) -> Vec<Option<u32>>
+boring/nullable_array_ops.rs	pub fn nullable_array_ops_literal_mixed() -> Vec<Option<u32>>
+boring/nullable_array_ops.rs	pub fn nullable_array_ops_literal_single_null() -> Vec<Option<u32>>
+boring/nullable_array_ops.rs	pub fn nullable_array_ops_nullable_strings() -> Vec<Option<UString>>
+boring/nullable_array_ops.rs	pub fn nullable_array_ops_string_element_matches(value: &Vec<Option<UString>>, index: u32, expected: Option<UString>) -> bool
+boring/nullable_buf_field_ops.rs	pub fn new() -> Self
+boring/nullable_buf_field_ops.rs	pub fn nullable_buf_field_ops_append_guarded(present: bool, part: &UStr) -> Result<UString, UStringFault>
+boring/nullable_buf_field_ops.rs	pub fn nullable_buf_field_ops_caught_fault(present: bool, lead: u32, part: &UStr) -> Result<UString, UStringFault>
+boring/nullable_buf_field_ops.rs	pub fn render(&self) -> Result<UString, UStringFault>
+boring/nullable_call_ops2.rs	pub fn nullable_call_ops2_guarded_to_string_result(value: Option<NullableReceiver>) -> UString
+boring/nullable_call_ops2.rs	pub fn nullable_call_ops2_normalized_to_string_result(value: Option<NullableReceiver>) -> UString
+boring/nullable_call_ops2.rs	pub fn nullable_call_ops2_nullable_to_string_result(value: Option<NullableReceiver>) -> UString
+boring/nullable_call_ops.rs	pub fn nullable_call_ops_nullable_to_string_result(value: Option<NullableReceiver>) -> UString
+boring/nullable_field_record.rs	pub fn code_plus_literal(&self) -> UString
+boring/nullable_field_record.rs	pub fn label_plus_literal(&self) -> UString
+boring/nullable_field_record.rs	pub fn literal_plus_label(&self) -> UString
+boring/nullable_field_record.rs	pub fn new(name: &UStr, label: Option<UString>, code: Option<u32>, words: Option<Vec<UString>>) -> Self
+boring/nullable_field_record.rs	pub fn to_string(&self) -> UString
+boring/nullable_float_compare_ops.rs	pub fn nullable_float_compare_ops_not_zero(value: Option<f32>) -> bool
+boring/nullable_float_compare_ops.rs	pub fn nullable_float_compare_ops_structural_zero(leading: Option<f32>, trailing: Option<f32>) -> bool
+boring/nullable_interface_branch_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/nullable_interface_branch_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/nullable_interface_branch_ops.rs	fn clone_box(&self) -> Box<dyn NullableBranchChoice>
+boring/nullable_interface_branch_ops.rs	fn clone_box(&self) -> Box<dyn NullableBranchChoice>;
+boring/nullable_interface_branch_ops.rs	fn clone(&self) -> Self
+boring/nullable_interface_branch_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/nullable_interface_branch_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/nullable_interface_branch_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/nullable_interface_branch_ops.rs	fn label(&self) -> UString
+boring/nullable_interface_branch_ops.rs	fn label(&self) -> UString;
+boring/nullable_interface_branch_ops.rs	pub fn label(&self) -> UString
+boring/nullable_interface_branch_ops.rs	pub fn nullable_interface_branch_ops_assign(flag: bool) -> UString
+boring/nullable_interface_branch_ops.rs	pub fn nullable_interface_branch_ops_choose(flag: bool) -> Option<Box<dyn NullableBranchChoice>>
+boring/nullable_interface_branch_ops.rs	pub fn nullable_interface_branch_ops_label(flag: bool) -> UString
+boring/nullable_local_ops.rs	fn rank(v: &LocalProbe) -> i32
+boring/nullable_local_ops.rs	pub fn compare_local_probe(a: &LocalProbe, b: &LocalProbe) -> i32
+boring/nullable_local_ops.rs	pub fn from_name(name: &UStr) -> Option<LocalProbe>
+boring/nullable_local_ops.rs	pub fn name(&self) -> &'static str
+boring/nullable_local_ops.rs	pub fn nullable_local_ops_bool_local_is_null() -> bool
+boring/nullable_local_ops.rs	pub fn nullable_local_ops_float_local_matches(value: &Vec<Option<f32>>) -> bool
+boring/nullable_local_ops.rs	pub fn nullable_local_ops_int_local_matches(value: &Vec<Option<u32>>) -> bool
+boring/nullable_local_ops.rs	pub fn nullable_local_ops_lookup_local_passes_through(mode: LocalProbe) -> bool
+boring/nullable_local_ops.rs	pub fn nullable_local_ops_nullable_init_passes_through(source: &Vec<Option<u32>>) -> bool
+boring/nullable_local_ops.rs	pub fn nullable_local_ops_string_local_matches(value: &Vec<Option<UString>>) -> bool
+boring/nullable_local_ops.rs	pub fn to_string(&self) -> String
+boring/nullable_receiver.rs	pub fn to_string(&self) -> UString
+boring/nullable_string_view_ops.rs	pub fn nullable_string_view_ops_length_or_zero(value: Option<UString>) -> u32
+boring/null_args_ops.rs	pub fn new(label: &UStr, extra: Option<UString>) -> Self
+boring/null_args_ops.rs	pub fn new(tier: Option<UString>) -> Self
+boring/null_args_ops.rs	pub fn null_args_ops_conditional_arg(v: Option<UString>) -> UString
+boring/null_args_ops.rs	pub fn null_args_ops_explicit_null() -> UString
+boring/null_args_ops.rs	pub fn null_args_ops_nullable_variable(v: Option<UString>) -> UString
+boring/null_args_ops.rs	pub fn null_args_ops_null_default_absent() -> UString
+boring/null_args_ops.rs	pub fn null_args_ops_null_default_present() -> UString
+boring/null_guard_nested_field_ops.rs	pub fn new(left: f32, right: f32) -> Self
+boring/null_guard_nested_field_ops.rs	pub fn new(span: NullGuardNestedSpan) -> Self
+boring/null_guard_nested_field_ops.rs	pub fn null_guard_nested_field_ops_matching_span(holder: Option<NullGuardNestedHolder>, other: NullGuardNestedHolder) -> bool
+boring/null_guard_nested_field_ops.rs	pub fn null_guard_nested_field_ops_span_left(holder: Option<NullGuardNestedHolder>) -> f32
+boring/null_guard_nested_field_ops.rs	pub fn null_guard_nested_field_ops_starts_before(holder: Option<NullGuardNestedHolder>, end: f32) -> bool
+boring/number_classify_ops.rs	pub fn number_classify_ops_finite(value: f32) -> bool
+boring/number_classify_ops.rs	pub fn number_classify_ops_nan(value: f32) -> bool
+boring/number_parsing_ops.rs	pub fn number_parsing_ops_failed_float(value: &UStr) -> bool
+boring/number_parsing_ops.rs	pub fn number_parsing_ops_failed_int(value: &UStr) -> bool
+boring/number_parsing_ops.rs	pub fn number_parsing_ops_parse_float(value: &UStr) -> f32
+boring/number_parsing_ops.rs	pub fn number_parsing_ops_parse_int(value: &UStr) -> Option<i32>
+boring/numeric_coalesce_local_ops.rs	pub fn numeric_coalesce_local_ops_pick(penalty: Option<u32>) -> u32
+boring/numeric_coalesce_local_ops.rs	pub fn numeric_coalesce_local_ops_sum_pair(left: Option<u32>, right: Option<u32>) -> u32
+boring/numeric_conversion_widening.rs	pub fn numeric_conversion_widening_assign_int_to_float() -> f32
+boring/numeric_conversion_widening.rs	pub fn numeric_conversion_widening_call_float_param() -> f32
+boring/numeric_conversion_widening.rs	pub fn numeric_conversion_widening_compare_equal(a: f32, b: u32) -> bool
+boring/numeric_conversion_widening.rs	pub fn numeric_conversion_widening_compare_not_equal(a: f32, b: u32) -> bool
+boring/numeric_conversion_widening.rs	pub fn numeric_conversion_widening_float_param(value: f32) -> f32
+boring/numeric_conversion_widening.rs	pub fn numeric_conversion_widening_init_float() -> f32
+boring/numeric_conversion_widening.rs	pub fn numeric_conversion_widening_return_int_as_float(x: u32) -> f32
+boring/numeric_domain_ops.rs	pub fn numeric_domain_ops_before_char(text: &UStr, end: u32) -> u32
+boring/numeric_domain_ops.rs	pub fn numeric_domain_ops_collect_offsets(word: &UStr) -> Vec<u32>
+boring/numeric_domain_ops.rs	pub fn numeric_domain_ops_colon_pair(token: &UStr, close: u32) -> Vec<u32>
+boring/numeric_domain_ops.rs	pub fn numeric_domain_ops_find_index(values: &Vec<u32>, key: u32) -> u32
+boring/numeric_domain_ops.rs	pub fn numeric_domain_ops_offsets(word: &UStr) -> Vec<u32>
+boring/numeric_domain_ops.rs	pub fn numeric_domain_ops_prefix_unit(text: &UStr, start: u32) -> u32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_applied_double() -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_applied_float() -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_assign_double() -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_assign_float() -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_conditional_merge(use_float: bool) -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_nullable_conditional(value: Option<f32>) -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_operand_double() -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_operand_float() -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_return_double() -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_return_float() -> f32
+boring/numeric_widen_ops.rs	pub fn numeric_widen_ops_switch_merge(value: SwitchMergeValue) -> f32
+boring/optional_ctor_ops.rs	pub fn new(label: Option<UString>, count: Option<u32>) -> Self
+boring/optional_ctor_ops.rs	pub fn optional_ctor_ops_render() -> UString
+boring/optional_interface_argument_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/optional_interface_argument_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/optional_interface_argument_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/optional_interface_argument_ops.rs	fn clone_box(&self) -> Box<dyn OptionalArgShape>
+boring/optional_interface_argument_ops.rs	fn clone_box(&self) -> Box<dyn OptionalArgShape>
+boring/optional_interface_argument_ops.rs	fn clone_box(&self) -> Box<dyn OptionalArgShape>;
+boring/optional_interface_argument_ops.rs	fn clone(&self) -> Self
+boring/optional_interface_argument_ops.rs	fn describe(&self) -> UString
+boring/optional_interface_argument_ops.rs	fn describe(&self) -> UString
+boring/optional_interface_argument_ops.rs	fn describe(&self) -> UString;
+boring/optional_interface_argument_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/optional_interface_argument_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/optional_interface_argument_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/optional_interface_argument_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/optional_interface_argument_ops.rs	pub fn describe(&self) -> UString
+boring/optional_interface_argument_ops.rs	pub fn describe(&self) -> UString
+boring/optional_interface_argument_ops.rs	pub fn optional_interface_argument_ops_make_square() -> Box<dyn OptionalArgShape>
+boring/optional_interface_argument_ops.rs	pub fn optional_interface_argument_ops_render_fresh() -> UString
+boring/optional_interface_argument_ops.rs	pub fn optional_interface_argument_ops_render_local(shape: Box<dyn OptionalArgShape>) -> UString
+boring/optional_interface_argument_ops.rs	pub fn optional_interface_argument_ops_render_nullable_local(shape: Option<Box<dyn OptionalArgShape>>) -> UString
+boring/optional_interface_argument_ops.rs	pub fn optional_interface_argument_ops_render(shape: Option<Box<dyn OptionalArgShape>>) -> UString
+boring/optional_param_null.rs	pub fn new() -> Self
+boring/optional_param_null.rs	pub fn optional_param_null_class_default(q: Option<SomeClass>) -> UString
+boring/optional_param_null.rs	pub fn optional_param_null_int_default(p: Option<u32>) -> u32
+boring/override_member_ops.rs	pub fn compare_override_member_record(a: &OverrideMemberRecord, b: &OverrideMemberRecord) -> i32
+boring/override_member_ops.rs	pub fn hash_of(&self) -> u32
+boring/override_member_ops.rs	pub fn new(value: u32) -> Self
+boring/override_member_ops.rs	pub fn override_member_ops_hash(value: u32) -> u32
+boring/override_member_ops.rs	pub fn override_member_ops_message(value: &UStr) -> UString
+boring/override_member_ops.rs	pub fn override_member_ops_ordinary() -> UString
+boring/override_member_ops.rs	pub fn to_string(&self) -> UString
+boring/parse_int_push_ops.rs	pub fn parse_int_push_ops_parse_all(values: &Vec<UString>) -> Vec<u32>
+boring/parse_int_push_ops.rs	pub fn parse_int_push_ops_parse_local(values: &Vec<UString>) -> Vec<u32>
+boring/payload_self_map_ops.rs	fn payload_self_map_exception_order_0(v: &PayloadSelfMapError) -> i32
+boring/payload_self_map_ops.rs	fn rank(v: &PayloadSelfMapError) -> i32
+boring/payload_self_map_ops.rs	pub fn compare_payload_self_map_error(a: &PayloadSelfMapError, b: &PayloadSelfMapError) -> i32
+boring/payload_self_map_ops.rs	pub fn compare_payload_self_map_exception(a: &PayloadSelfMapException, b: &PayloadSelfMapException) -> i32
+boring/payload_self_map_ops.rs	pub fn name(&self) -> &'static str
+boring/payload_self_map_ops.rs	pub fn new(error: PayloadSelfMapError) -> Self
+boring/payload_self_map_ops.rs	pub fn payload_self_map_exception_make() -> PayloadSelfMapException
+boring/payload_self_map_ops.rs	pub fn to_string(&self) -> String
+boring/payload_self_map_ops.rs	pub fn to_string(&self) -> UString
+boring/payload_text_table.rs	pub fn payload_text_table_text() -> Result<UString, UStringFault>
+boring/payload_text_table.rs	pub fn payload_text_table_unit_at(index: u32) -> u32
+boring/payload_text_table.rs	pub fn payload_text_table_unit_count() -> u32
+boring/pipeline_ops.rs	pub fn compare_item(a: &Item, b: &Item) -> i32
+boring/pipeline_ops.rs	pub fn compare_item_key_val(a: &ItemKeyVal, b: &ItemKeyVal) -> i32
+boring/pipeline_ops.rs	pub fn pipeline_ops_all_above_score(items: &Vec<Item>, threshold: u32) -> bool
+boring/pipeline_ops.rs	pub fn pipeline_ops_associate_by_id(items: &Vec<Item>) -> SortedMapTable<u32, UString>
+boring/pipeline_ops.rs	pub fn pipeline_ops_chained_filter_map(numbers: &Vec<u32>) -> Vec<u32>
+boring/pipeline_ops.rs	pub fn pipeline_ops_double_scores(items: &Vec<Item>) -> Vec<u32>
+boring/pipeline_ops.rs	pub fn pipeline_ops_duplicate_scores(items: &Vec<Item>) -> Vec<u32>
+boring/pipeline_ops.rs	pub fn pipeline_ops_extract_valid_names(items: &Vec<Item>, min_score: u32) -> Vec<UString>
+boring/pipeline_ops.rs	pub fn pipeline_ops_filter_high_score(items: &Vec<Item>, threshold: u32) -> Vec<Item>
+boring/pipeline_ops.rs	pub fn pipeline_ops_find_first_high_score(items: &Vec<Item>, threshold: u32) -> Option<Item>
+boring/pipeline_ops.rs	pub fn pipeline_ops_group_names_by_score(items: &Vec<Item>) -> SortedMapTable<u32, Vec<UString>>
+boring/pipeline_ops.rs	pub fn pipeline_ops_has_high_score(items: &Vec<Item>, threshold: u32) -> bool
+boring/pipeline_ops.rs	pub fn pipeline_ops_high_scorer_names(items: &Vec<Item>, min_score: u32) -> Vec<UString>
+boring/pipeline_ops.rs	pub fn pipeline_ops_mint_capture_filter(items: &Vec<Item>) -> Vec<Item>
+boring/pipeline_ops.rs	pub fn pipeline_ops_nested_loop_map(matrix: &Vec<Vec<u32>>, offset: u32) -> Vec<Vec<u32>>
+boring/pipeline_ops.rs	pub fn pipeline_ops_shadowing_map(items: &Vec<Item>) -> Vec<u32>
+boring/pipeline_ops.rs	pub fn pipeline_ops_sort_by_score(items: &Vec<Item>) -> Vec<Item>
+boring/pipeline_ops.rs	pub fn pipeline_ops_sum_scores(items: &Vec<Item>) -> u32
+boring/pipeline_ops.rs	pub fn pipeline_ops_total_score(items: &Vec<Item>) -> u32
+boring/pipeline_ops.rs	pub fn pipeline_ops_total_weighted_score(items: &Vec<Item>, weight: f32) -> f32
+boring/plain_label.rs	pub fn new(text: &UStr, width: u32) -> Self
+boring/plain_label.rs	pub fn to_string(&self) -> UString
+boring/platform_ops.rs	pub fn platform_ops_dirname(p: &UStr) -> UString
+boring/platform_ops.rs	pub fn platform_ops_env_get(key: &UStr) -> UString
+boring/platform_ops.rs	pub fn platform_ops_env_round_trip(key: &UStr, value: &UStr) -> UString
+boring/platform_ops.rs	pub fn platform_ops_exists(path: &UStr) -> bool
+boring/platform_ops.rs	pub fn platform_ops_first_arg() -> UString
+boring/platform_ops.rs	pub fn platform_ops_home() -> UString
+boring/platform_ops.rs	pub fn platform_ops_join(a: &UStr, b: &UStr) -> UString
+boring/platform_ops.rs	pub fn platform_ops_list_dir(path: &UStr) -> Vec<UString>
+boring/platform_ops.rs	pub fn platform_ops_make_dirs_check(path: &UStr) -> bool
+boring/platform_ops.rs	pub fn platform_ops_normalize(p: &UStr) -> UString
+boring/platform_ops.rs	pub fn platform_ops_read_text(path: &UStr) -> UString
+boring/platform_ops.rs	pub fn platform_ops_write_append_read(path: &UStr, first: &UStr, second: &UStr) -> UString
+boring/poster_text_render.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/poster_text_render.rs	fn clone_box(&self) -> Box<dyn RenderShape>
+boring/poster_text_render.rs	fn __haxe_type_name(&self) -> &'static str
+boring/poster_text_render.rs	fn render(&self, text: &UStr) -> UString
+boring/poster_text_render.rs	pub fn render(&self, text: &UStr) -> UString
+boring/printed_collection.rs	fn printed_enum_collection_order_0(v: &PrintedFlag) -> i32
+boring/printed_collection.rs	pub fn compare_printed_enum_collection(a: &PrintedEnumCollection, b: &PrintedEnumCollection) -> i32
+boring/printed_collection.rs	pub fn compare_printed_nullable_collection(a: &PrintedNullableCollection, b: &PrintedNullableCollection) -> i32
+boring/printed_collection.rs	pub fn compare_printed_point(a: &PrintedPoint, b: &PrintedPoint) -> i32
+boring/printed_collection.rs	pub fn new(flags: Vec<PrintedFlag>) -> Self
+boring/printed_collection.rs	pub fn new(names: Vec<UString>, counts: Vec<u32>, points: Vec<PrintedPoint>, matrix: Vec<Vec<u32>>, none: Vec<UString>) -> Self
+boring/printed_collection.rs	pub fn new(words: Option<Vec<UString>>) -> Self
+boring/printed_collection.rs	pub fn new(x: u32, y: u32) -> Self
+boring/printed_collection.rs	pub fn to_string(&self) -> String
+boring/printed_collection.rs	pub fn to_string(&self) -> UString
+boring/printed_collection.rs	pub fn to_string(&self) -> UString
+boring/printed_collection.rs	pub fn to_string(&self) -> UString
+boring/printed_collection.rs	pub fn to_string(&self) -> UString
+boring/printed_custom.rs	pub fn compare_printed_custom(a: &PrintedCustom, b: &PrintedCustom) -> i32
+boring/printed_custom.rs	pub fn new(value: u32) -> Self
+boring/printed_custom.rs	pub fn to_string(&self) -> UString
+boring/printed_enum_ops.rs	fn printed_badge_order_0(v: &PrintedMark) -> i32
+boring/printed_enum_ops.rs	fn printed_badge_order_1(v: &FloatWidth) -> i32
+boring/printed_enum_ops.rs	pub fn compare_printed_badge(a: &PrintedBadge, b: &PrintedBadge) -> i32
+boring/printed_enum_ops.rs	pub fn new(mark: PrintedMark, width: FloatWidth) -> Self
+boring/printed_enum_ops.rs	pub fn printed_enum_ops_badge_text(badge: PrintedBadge) -> UString
+boring/printed_enum_ops.rs	pub fn printed_enum_ops_mark_list(marks: &Vec<PrintedMark>) -> UString
+boring/printed_enum_ops.rs	pub fn printed_enum_ops_mark_text(mark: PrintedMark) -> UString
+boring/printed_enum_ops.rs	pub fn printed_enum_ops_mark_value(mark: PrintedMark) -> UString
+boring/printed_enum_ops.rs	pub fn to_string(&self) -> String
+boring/printed_enum_ops.rs	pub fn to_string(&self) -> UString
+boring/printed_record.rs	pub fn compare_printed_inner(a: &PrintedInner, b: &PrintedInner) -> i32
+boring/printed_record.rs	pub fn new(count: u32, ratio: f32, inner: PrintedInner, note: Option<PrintedInner>) -> Self
+boring/printed_record.rs	pub fn new(name: &UStr) -> Self
+boring/printed_record.rs	pub fn to_string(&self) -> UString
+boring/printed_record.rs	pub fn to_string(&self) -> UString
+boring/printed_sorted_fields.rs	fn printed_nullable_mark_order_0(v: &PrintedMark) -> i32
+boring/printed_sorted_fields.rs	pub fn compare_printed_nullable_mark(a: &PrintedNullableMark, b: &PrintedNullableMark) -> i32
+boring/printed_sorted_fields.rs	pub fn new(mark: Option<PrintedMark>) -> Self
+boring/printed_sorted_fields.rs	pub fn new(marks: SortedSetTable<u32>, points: SortedSetTable<PrintedPoint>, lookup: SortedMapTable<UString, u32>, empty_set: SortedSetTable<u32>, empty_map: SortedMapTable<UString, u32>) -> Self
+boring/printed_sorted_fields.rs	pub fn to_string(&self) -> UString
+boring/printed_sorted_fields.rs	pub fn to_string(&self) -> UString
+boring/private_class_ops.rs	pub fn new(value: &UStr) -> Self
+boring/private_class_ops.rs	pub fn private_class_ops_resolve() -> UString
+boring/private_class_peer_ops.rs	pub fn new(value: &UStr) -> Self
+boring/private_class_peer_ops.rs	pub fn private_class_peer_ops_resolve() -> UString
+boring/private_holder.rs	pub fn new(shown: u32, hidden: u32) -> Self
+boring/private_holder.rs	pub fn total(&self) -> u32
+boring/private_static_call_holder.rs	pub fn new(value: &UStr) -> Self
+boring/private_static_call_holder.rs	pub fn private_static_call_holder_make(v: Option<UString>) -> PrivateStaticCallHolder
+boring/private_static_call_ops.rs	pub fn private_static_call_ops_render() -> UString
+boring/probe_chain.rs	pub fn depth(&self) -> u32
+boring/probe_chain.rs	pub fn new(parent: Option<ProbeChain>, tag: u32) -> Self
+boring/probe_unit.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/probe_unit.rs	pub fn new(value: u32) -> Self
+boring/probe_unit.rs	pub fn zero() -> ProbeUnit
+boring/public_getter_property.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/public_getter_property.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/public_getter_property.rs	fn clone_box(&self) -> Box<dyn HasName>
+boring/public_getter_property.rs	fn clone_box(&self) -> Box<dyn HasName>;
+boring/public_getter_property.rs	fn clone(&self) -> Self
+boring/public_getter_property.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/public_getter_property.rs	fn get_name(&self) -> UString
+boring/public_getter_property.rs	fn get_name(&self) -> UString;
+boring/public_getter_property.rs	fn __haxe_type_name(&self) -> &'static str
+boring/public_getter_property.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/public_getter_property.rs	pub fn get_name(&self) -> UString
+boring/public_getter_property.rs	pub fn get_x(&self) -> u32
+boring/public_getter_property.rs	pub fn new(value: u32) -> Self
+boring/record_interface_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/record_interface_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/record_interface_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/record_interface_ops.rs	fn clone_box(&self) -> Box<dyn RichTextRole>
+boring/record_interface_ops.rs	fn clone_box(&self) -> Box<dyn RichTextRole>
+boring/record_interface_ops.rs	fn clone_box(&self) -> Box<dyn RichTextRole>;
+boring/record_interface_ops.rs	fn clone(&self) -> Self
+boring/record_interface_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/record_interface_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/record_interface_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/record_interface_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/record_interface_ops.rs	fn to_string(&self) -> UString
+boring/record_interface_ops.rs	fn to_string(&self) -> UString
+boring/record_interface_ops.rs	fn to_string(&self) -> UString;
+boring/record_interface_ops.rs	pub fn compare_link(a: &Link, b: &Link) -> i32
+boring/record_interface_ops.rs	pub fn new(role: Box<dyn RichTextRole>, note: Option<Box<dyn RichTextRole>>) -> Self
+boring/record_interface_ops.rs	pub fn new(target: &UStr) -> Self
+boring/record_interface_ops.rs	pub fn record_interface_ops_record_span() -> RichTextSpan
+boring/record_interface_ops.rs	pub fn record_interface_ops_singleton_span() -> RichTextSpan
+boring/record_interface_ops.rs	pub fn to_string(&self) -> UString
+boring/record_interface_ops.rs	pub fn to_string(&self) -> UString
+boring/record_interface_ops.rs	pub fn to_string(&self) -> UString
+boring/record_ops.rs	pub fn compare_item_record(a: &ItemRecord, b: &ItemRecord) -> i32
+boring/record_ops.rs	pub fn record_ops_copy_multiple(item: ItemRecord, new_id: u32, new_name: &UStr, new_score: u32) -> ItemRecord
+boring/record_ops.rs	pub fn record_ops_copy_no_override(item: ItemRecord) -> ItemRecord
+boring/record_ops.rs	pub fn record_ops_copy_reordered(item: ItemRecord, new_active: bool, new_name: &UStr) -> ItemRecord
+boring/record_ops.rs	pub fn record_ops_copy_single_override(item: ItemRecord, new_score: u32) -> ItemRecord
+boring/record_ops.rs	pub fn record_ops_make_item(id: u32, name: &UStr, score: u32, active: bool) -> ItemRecord
+boring/record_order_ops.rs	pub fn compare_record_order_aligned(a: &RecordOrderAligned, b: &RecordOrderAligned) -> i32
+boring/record_order_ops.rs	pub fn compare_record_order_shifted(a: &RecordOrderShifted, b: &RecordOrderShifted) -> i32
+boring/record_order_ops.rs	pub fn new(a: u32, b: u32, c: &UStr) -> Self
+boring/record_order_ops.rs	pub fn new(a: u32, c: &UStr, b: Option<u32>) -> Self
+boring/record_order_ops.rs	pub fn record_order_ops_aligned_printed() -> UString
+boring/record_order_ops.rs	pub fn record_order_ops_shifted_defaulted() -> UString
+boring/record_order_ops.rs	pub fn record_order_ops_shifted_equal() -> bool
+boring/record_order_ops.rs	pub fn record_order_ops_shifted_printed() -> UString
+boring/record_order_ops.rs	pub fn to_string(&self) -> UString
+boring/record_order_ops.rs	pub fn to_string(&self) -> UString
+boring/render_shape_text_ops.rs	pub fn render_shape_text_ops_print(shape: Box<dyn RenderShape>, text: &UStr) -> UString
+boring/resident_builder_infer_ops.rs	pub fn resident_builder_infer_ops_sum() -> u32
+boring/resident_module_import_ops.rs	pub fn resident_module_import_ops_map_lookup() -> Option<u32>
+boring/runtime_export_ops.rs	pub fn runtime_export_ops_ascii_count() -> u32
+boring/runtime_export_ops.rs	pub fn runtime_export_ops_bits_to_float(bits: u32) -> f32
+boring/runtime_export_ops.rs	pub fn runtime_export_ops_code_at(text: &UStr, index: u32) -> Option<u32>
+boring/runtime_export_ops.rs	pub fn runtime_export_ops_code_points_round_trip(text: &UStr) -> Result<UString, UStringFault>
+boring/runtime_export_ops.rs	pub fn runtime_export_ops_float_to_bits(value: f32) -> u32
+boring/runtime_export_ops.rs	pub fn runtime_export_ops_round_trip_float(value: f32) -> f32
+boring/rust_coalesce_ops.rs	pub fn count(&self) -> u32
+boring/rust_coalesce_ops.rs	pub fn describe(&self) -> UString
+boring/rust_coalesce_ops.rs	pub fn describe(&self) -> UString
+boring/rust_coalesce_ops.rs	pub fn has_label(&self) -> bool
+boring/rust_coalesce_ops.rs	pub fn has_tag(&self) -> bool
+boring/rust_coalesce_ops.rs	pub fn new(font_families: Option<Vec<UString>>, font_size: Option<f32>, locale: Option<UString>, font_weight: Option<u32>, italic: Option<bool>) -> Self
+boring/rust_coalesce_ops.rs	pub fn new(record: Option<RustCoalesceRecord>) -> Self
+boring/rust_coalesce_ops.rs	pub fn new() -> Self
+boring/rust_coalesce_ops.rs	pub fn new(tag: &UStr) -> Self
+boring/rust_coalesce_ops.rs	pub fn new(text: &UStr, display: Option<UString>) -> Self
+boring/rust_coalesce_ops.rs	pub fn new(values: Option<Vec<u32>>) -> Self
+boring/rust_coalesce_ops.rs	pub fn rust_coalesce_ops_assigned_label(value: &UStr) -> bool
+boring/rust_coalesce_ops.rs	pub fn rust_coalesce_ops_display_default(text: &UStr) -> UString
+boring/rust_coalesce_ops.rs	pub fn rust_coalesce_ops_locale_from(value: &UStr) -> UString
+boring/rust_coalesce_ops.rs	pub fn rust_coalesce_ops_resolved_ints() -> u32
+boring/rust_coalesce_ops.rs	pub fn rust_coalesce_ops_resolve(value: Option<RustCoalesceRecord>) -> UString
+boring/rust_coalesce_ops.rs	pub fn rust_coalesce_ops_rust_output_string_default() -> UString
+boring/rust_coalesce_ops.rs	pub fn rust_coalesce_ops_tag_from(value: &UStr) -> bool
+boring/rust_coalesce_ops.rs	pub fn set_label(&mut self, value: &UStr)
+boring/rust_iter_ops.rs	pub fn new(index: u32) -> Self
+boring/rust_iter_ops.rs	pub fn new(items: Vec<IterItem>) -> Self
+boring/rust_iter_ops.rs	pub fn rust_iter_ops_sum_items(prep: IterPrep) -> u32
+boring/script_evidence_table.rs	pub fn script_evidence_table_classify(code_point: u32) -> u32
+boring/script_names.rs	pub fn script_names_code_of(name: &UStr) -> Option<u32>
+boring/script_names.rs	pub fn script_names_describe_order() -> UString
+boring/sealed_child_ops.rs	pub fn sealed_child_ops_child_message(message: &UStr) -> UString
+boring/sealed_variant_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/sealed_variant_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/sealed_variant_ops.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/sealed_variant_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/sealed_variant_ops.rs	fn clone_box(&self) -> Box<dyn DrawKind>
+boring/sealed_variant_ops.rs	fn clone_box(&self) -> Box<dyn DrawKind>
+boring/sealed_variant_ops.rs	fn clone_box(&self) -> Box<dyn DrawKind>
+boring/sealed_variant_ops.rs	fn clone_box(&self) -> Box<dyn DrawKind>;
+boring/sealed_variant_ops.rs	fn clone(&self) -> Self
+boring/sealed_variant_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/sealed_variant_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/sealed_variant_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/sealed_variant_ops.rs	fn __haxe_type_name(&self) -> &'static str
+boring/sealed_variant_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/sealed_variant_ops.rs	pub fn new(dot_diameter: f32, gap_length: f32) -> Self
+boring/sealed_variant_ops.rs	pub fn new(stroke_width: f32, gap_length: f32) -> Self
+boring/sealed_variant_ops.rs	pub fn sealed_variant_ops_label_of(kind: Box<dyn DrawKind>) -> UString
+boring/sealed_variant_ops.rs	pub fn sealed_variant_ops_none_label() -> UString
+boring/sealed_variant_ops.rs	pub fn to_string(&self) -> UString
+boring/sealed_variant_ops.rs	pub fn to_string(&self) -> UString
+boring/sealed_variant_ops.rs	pub fn to_string(&self) -> UString
+boring/shape_text_ops.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/shape_text_ops.rs	fn clone_box(&self) -> Box<dyn TextShaper>;
+boring/shape_text_ops.rs	fn clone(&self) -> Self
+boring/shape_text_ops.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/shape_text_ops.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/shape_text_ops.rs	fn shape(&self, text: &UStr) -> UString;
+boring/shape_text_ops.rs	pub fn shape_text_ops_render(shaper: Box<dyn TextShaper>, text: &UStr) -> UString
+boring/signed_comparison_ops.rs	pub fn signed_comparison_ops_element_below_zero(values: &Vec<u32>, needle: u32) -> bool
+boring/signed_comparison_ops.rs	pub fn signed_comparison_ops_index_at_or_above_limit(text: &UStr, limit: u32) -> bool
+boring/signed_comparison_ops.rs	pub fn signed_comparison_ops_index_below_limit(text: &UStr, limit: u32) -> bool
+boring/signed_comparison_ops.rs	pub fn signed_comparison_ops_index_below_zero(text: &UStr) -> bool
+boring/signed_comparison_ops.rs	pub fn signed_comparison_ops_index_equals_limit(text: &UStr, limit: u32) -> bool
+boring/signed_comparison_ops.rs	pub fn signed_comparison_ops_last_index_equals_limit(text: &UStr, limit: u32) -> bool
+boring/signed_int_argument_ops.rs	pub fn signed_int_argument_ops_from_index(text: &UStr, offset: u32) -> u32
+boring/signed_int_argument_ops.rs	pub fn signed_int_argument_ops_offset_total(base: u32, delta: u32) -> u32
+boring/signed_int_argument_ops.rs	pub fn signed_int_argument_ops_shifted(text: &UStr, offset: u32) -> u32
+boring/signed_int_assign_ops.rs	pub fn signed_int_assign_ops_advance(text: &UStr) -> u32
+boring/signed_int_constructor_ops.rs	pub fn new(value: u32) -> Self
+boring/signed_int_constructor_ops.rs	pub fn signed_int_constructor_ops_negated_index(text: &UStr) -> u32
+boring/signed_int_constructor_ops.rs	pub fn signed_int_constructor_ops_sum_index(text: &UStr, offset: u32) -> u32
+boring/signed_loop_bound_ops.rs	pub fn signed_loop_bound_ops_fill(p: u32, e: u32) -> u32
+boring/sorted_data_class_keys_ops.rs	fn quote_pair_order_0(v: &QuoteType) -> i32
+boring/sorted_data_class_keys_ops.rs	fn rank(v: &QuoteType) -> i32
+boring/sorted_data_class_keys_ops.rs	fn rank(v: &RubyKind) -> i32
+boring/sorted_data_class_keys_ops.rs	fn ruby_span_order_0(v: &RubyKind) -> i32
+boring/sorted_data_class_keys_ops.rs	fn ruby_span_order_1(v: &RubyKind) -> i32
+boring/sorted_data_class_keys_ops.rs	pub fn compare_quote_pair(a: &QuotePair, b: &QuotePair) -> i32
+boring/sorted_data_class_keys_ops.rs	pub fn compare_quote_type(a: &QuoteType, b: &QuoteType) -> i32
+boring/sorted_data_class_keys_ops.rs	pub fn compare_ruby_kind(a: &RubyKind, b: &RubyKind) -> i32
+boring/sorted_data_class_keys_ops.rs	pub fn compare_ruby_span(a: &RubySpan, b: &RubySpan) -> i32
+boring/sorted_data_class_keys_ops.rs	pub fn compare_text_range(a: &TextRange, b: &TextRange) -> i32
+boring/sorted_data_class_keys_ops.rs	pub fn get_is_empty(&self) -> bool
+boring/sorted_data_class_keys_ops.rs	pub fn name(&self) -> &'static str
+boring/sorted_data_class_keys_ops.rs	pub fn name(&self) -> &'static str
+boring/sorted_data_class_keys_ops.rs	pub fn new(base_range: TextRange, text: &UStr, font_families: Vec<UString>, kind: RubyKind, enum_kinds: Vec<RubyKind>, ranges: Vec<TextRange>, locale: Option<UString>) -> Self
+boring/sorted_data_class_keys_ops.rs	pub fn new(open_index: u32, close_index: u32, quote_type: QuoteType) -> Self
+boring/sorted_data_class_keys_ops.rs	pub fn new(start: u32, end: u32) -> Self
+boring/sorted_data_class_keys_ops.rs	pub fn sorted_data_class_keys_ops_array_mutations() -> UString
+boring/sorted_data_class_keys_ops.rs	pub fn sorted_data_class_keys_ops_nullable_mutation() -> UString
+boring/sorted_data_class_keys_ops.rs	pub fn sorted_data_class_keys_ops_read() -> UString
+boring/sorted_data_class_keys_ops.rs	pub fn to_string(&self) -> String
+boring/sorted_data_class_keys_ops.rs	pub fn to_string(&self) -> String
+boring/sorted_data_class_keys_ops.rs	pub fn to_string(&self) -> UString
+boring/sorted_data_class_keys_ops.rs	pub fn to_string(&self) -> UString
+boring/sorted_data_class_keys_ops.rs	pub fn to_string(&self) -> UString
+boring/static_collision_ops.rs	pub fn static_collision_float_ic(value: f32) -> UString
+boring/static_collision_ops.rs	pub fn static_collision_int_ic(value: u32) -> UString
+boring/static_collision_ops.rs	pub fn static_collision_ops_float_value(value: f32) -> UString
+boring/static_collision_ops.rs	pub fn static_collision_ops_int_value(value: u32) -> UString
+boring/static_fn_ops.rs	pub fn static_fn_ops_apply(value: &UStr) -> UString
+boring/static_fn_ops.rs	pub fn static_fn_ops_increment() -> u32
+boring/static_lazy_default_ops.rs	pub fn new(name: &UStr) -> Self
+boring/static_lazy_default_ops.rs	pub fn static_lazy_default_ops_read_default() -> SomeStruct
+boring/static_lazy_default_ops.rs	pub fn static_lazy_default_ops_read_lazy_values() -> Vec<UString>
+boring/static_ref_ops.rs	pub fn static_ref_ops_call_site() -> UString
+boring/static_ref_ops.rs	pub fn static_ref_ops_pass_to_param() -> UString
+boring/static_ref_ops.rs	pub fn static_ref_ops_reassign_local() -> UString
+boring/static_ref_ops.rs	pub fn static_ref_ops_render(code: u32) -> UString
+boring/static_ref_ops.rs	pub fn static_ref_ops_return_fn() -> Arc<dyn Fn(u32) -> UString + Send + Sync + 'static>
+boring/static_ref_ops.rs	pub fn static_ref_ops_statics_only_value() -> u32
+boring/static_ref_ops.rs	pub fn static_ref_ops_store_local() -> UString
+boring/static_ref_ops.rs	pub fn static_ref_ops_take_fn(callback: Arc<dyn Fn(u32) -> UString + Send + Sync>) -> UString
+boring/static_ref_ops.rs	pub fn static_ref_statics_compare_strings(a: &UStr, b: &UStr) -> u32
+boring/static_state_ops.rs	pub fn static_state_client_install(value: &UStr)
+boring/static_state_ops.rs	pub fn static_state_ops_first_section() -> UString
+boring/static_state_ops.rs	pub fn static_state_ops_read_current() -> UString
+boring/static_state_ops.rs	pub fn static_state_ops_record(section: &UStr)
+boring/static_state_ops.rs	pub fn static_state_ops_section_count() -> u32
+boring/static_state_ops.rs	pub fn static_state_ops_set_current(value: &UStr)
+boring/std_string_ops.rs	pub fn std_string_ops_bool_array() -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_bool_value(value: bool) -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_concat_bool(value: bool) -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_concat_enum(value: FloatWidth) -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_concat_float(value: f32) -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_concat_int(value: u32) -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_concat_string(value: &UStr) -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_empty_array() -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_enum_array() -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_enum_matches_constructor() -> bool
+boring/std_string_ops.rs	pub fn std_string_ops_enum_value(value: FloatWidth) -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_float_array() -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_float_forms() -> Vec<UString>
+boring/std_string_ops.rs	pub fn std_string_ops_float_value(value: f32) -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_int_array() -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_int_value(value: u32) -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_nested_array() -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_read_only_array() -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_string_array() -> UString
+boring/std_string_ops.rs	pub fn std_string_ops_string_value(value: &UStr) -> UString
+boring/std_string_plain_class_ops.rs	pub fn new(point: PlainPoint, points: Vec<PlainPoint>) -> Self
+boring/std_string_plain_class_ops.rs	pub fn new(x: u32, y: u32) -> Self
+boring/std_string_plain_class_ops.rs	pub fn to_string(&self) -> UString
+boring/std_string_plain_class_ops.rs	pub fn to_string(&self) -> UString
+boring/std_string_self_rec_ops.rs	pub fn std_string_self_rec_ops_mark_text(value: SelfRecMark) -> UString
+boring/std_string_self_rec_ops.rs	pub fn to_string(&self) -> String
+boring/string_buf_ops.rs	pub fn string_buf_ops_build_empty() -> Result<UString, UStringFault>
+boring/string_buf_ops.rs	pub fn string_buf_ops_build_incremental() -> Result<Vec<UString>, UStringFault>
+boring/string_buf_ops.rs	pub fn string_buf_ops_build_parts(a: &UStr, b: &UStr, c: &UStr) -> Result<UString, UStringFault>
+boring/string_buf_ops.rs	pub fn string_buf_ops_build_supplementary() -> Result<UString, UStringFault>
+boring/string_buf_ops.rs	pub fn string_buf_ops_build_with_chars(prefix: &UStr, code_a: u32, code_b: u32) -> Result<UString, UStringFault>
+boring/string_buf_ops.rs	pub fn string_buf_ops_caught_add_after_lead_unit(lead: u32) -> u32
+boring/string_buf_ops.rs	pub fn string_buf_ops_caught_dangling_unit(lead: u32) -> u32
+boring/string_buf_ops.rs	pub fn string_buf_ops_caught_trail_unit(trail: u32) -> u32
+boring/string_buf_ops.rs	pub fn string_buf_ops_complete_pair(lead: u32, trail: u32) -> Result<UString, UStringFault>
+boring/string_buf_ops.rs	pub fn string_buf_ops_measure_length(parts: &Vec<UString>) -> Result<u32, UStringFault>
+boring/string_buf_ops.rs	pub fn string_buf_ops_measure_supplementary_length() -> Result<u32, UStringFault>
+boring/string_buf_throw_ops.rs	pub fn string_buf_throw_ops_build_char_from_checked(count: u32) -> Result<UString, UStringFault>
+boring/string_buf_throw_ops.rs	pub fn string_buf_throw_ops_build_from_checked(count: u32) -> Result<UString, UStringFault>
+boring/string_buf_throw_ops.rs	pub fn string_buf_throw_ops_caught_checked(count: u32) -> u32
+boring/string_buf_union_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/string_buf_union_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/string_buf_union_ops.rs	fn from(value: crate::boring::vector_exception::VectorError) -> Self
+boring/string_buf_union_ops.rs	fn from(value: crate::boring::vector_exception::VectorError) -> Self
+boring/string_buf_union_ops.rs	fn from(value: crate::std::u_string_exception::UStringFault) -> Self
+boring/string_buf_union_ops.rs	fn from(value: crate::std::u_string_exception::UStringFault) -> Self
+boring/string_buf_union_ops.rs	fn from(value: StringBufUnionOpsBuildCharCheckedFault) -> Self
+boring/string_buf_union_ops.rs	fn from(value: StringBufUnionOpsBuildCharCheckedFault) -> Self
+boring/string_buf_union_ops.rs	fn from(value: StringBufUnionOpsBuildCheckedFault) -> Self
+boring/string_buf_union_ops.rs	fn from(value: StringBufUnionOpsBuildCheckedFault) -> Self
+boring/string_buf_union_ops.rs	pub fn string_buf_union_ops_build_char_checked(count: u32) -> Result<UString, StringBufUnionOpsBuildCharCheckedFault>
+boring/string_buf_union_ops.rs	pub fn string_buf_union_ops_build_checked(count: u32) -> Result<UString, StringBufUnionOpsBuildCheckedFault>
+boring/string_buf_union_ops.rs	pub fn string_buf_union_ops_vector_fault_code() -> Result<u32, StringBufUnionOpsBuildCheckedFault>
+boring/string_conv_ops.rs	pub fn string_conv_ops_hex_byte() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_hex_cjk() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_hex_digits_zero() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_hex_dynamic(value: u32, digits: u32) -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_hex_lowercase() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_hex_padded() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_hex_ten() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_hex_wider_than_digits() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_hex_zero() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_lower_ascii() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_lower_cjk() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_lower_dynamic(value: &UStr) -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_lower_language_tag() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_upper_ascii() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_upper_cjk() -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_upper_dynamic(value: &UStr) -> UString
+boring/string_conv_ops.rs	pub fn string_conv_ops_upper_language_tag() -> UString
+boring/string_tools_ops.rs	pub fn string_tools_ops_ltrim(s: &UStr) -> UString
+boring/string_tools_ops.rs	pub fn string_tools_ops_pad_left(s: &UStr, len: u32) -> UString
+boring/string_tools_ops.rs	pub fn string_tools_ops_replace_delims(s: &UStr) -> UString
+boring/string_tools_ops.rs	pub fn string_tools_ops_rtrim(s: &UStr) -> UString
+boring/string_unit_ops.rs	pub fn string_unit_ops_code_at_end(text: &UStr) -> Option<u32>
+boring/string_unit_ops.rs	pub fn string_unit_ops_code_at_or_fallback(text: &UStr, index: u32) -> u32
+boring/string_unit_ops.rs	pub fn string_unit_ops_code_at(text: &UStr, index: u32) -> Option<u32>
+boring/string_unit_ops.rs	pub fn string_unit_ops_code_in_range(text: &UStr) -> Option<u32>
+boring/string_unit_ops.rs	pub fn string_unit_ops_code_out_of_range(text: &UStr) -> Option<u32>
+boring/string_unit_ops.rs	pub fn string_unit_ops_is_space_at(text: &UStr, index: u32) -> bool
+boring/string_unit_ops.rs	pub fn string_unit_ops_split_absent(text: &UStr) -> u32
+boring/string_unit_ops.rs	pub fn string_unit_ops_split_count(text: &UStr) -> u32
+boring/string_unit_ops.rs	pub fn string_unit_ops_split_empty_parts(text: &UStr) -> u32
+boring/string_unit_ops.rs	pub fn string_unit_ops_split_first(text: &UStr) -> UString
+boring/string_unit_ops.rs	pub fn string_unit_ops_split_unit_at(text: &UStr, index: u32) -> UString
+boring/string_unit_ops.rs	pub fn string_unit_ops_split_unit_code(text: &UStr, index: u32) -> Option<u32>
+boring/string_unit_ops.rs	pub fn string_unit_ops_split_unit_count(text: &UStr) -> u32
+boring/string_unit_ops.rs	pub fn string_unit_ops_split_units(text: &UStr) -> Vec<UString>
+boring/string_unit_ops.rs	pub fn string_unit_ops_unit_cut_from(text: &UStr, pos: u32) -> UString
+boring/string_unit_ops.rs	pub fn string_unit_ops_unit_cut(text: &UStr, pos: u32, len: u32) -> UString
+boring/swift_default_ops.rs	pub fn new(style: Option<ProbeUnit>) -> Self
+boring/swift_default_ops.rs	pub fn swift_default_ops_has_default() -> bool
+boring/swift_default_ops.rs	pub fn to_string(&self) -> UString
+boring/swift_literal_safety_ops.rs	pub fn swift_literal_safety_ops_control_text() -> UString
+boring/swift_literal_safety_ops.rs	pub fn swift_literal_safety_ops_trailing_point() -> f32
+boring/switch_case_scope_ops.rs	fn rank(v: &ToneKind) -> i32
+boring/switch_case_scope_ops.rs	pub fn compare_tone_kind(a: &ToneKind, b: &ToneKind) -> i32
+boring/switch_case_scope_ops.rs	pub fn switch_case_scope_ops_mixed(kind: ToneKind, n: u32) -> u32
+boring/switch_case_scope_ops.rs	pub fn switch_case_scope_ops_tone_ink(kind: ToneKind, ink_top: f32, ink_bottom: f32) -> f32
+boring/switch_case_scope_ops.rs	pub fn switch_case_scope_ops_tone_row(kind: ToneKind, n: u32) -> u32
+boring/switch_case_scope_ops.rs	pub fn to_string(&self) -> String
+boring/switch_merge_ops.rs	pub fn switch_merge_ops_grouped_plain(value: SwitchMergeValue) -> UString
+boring/switch_merge_ops.rs	pub fn switch_merge_ops_grouped(value: SwitchMergeValue) -> UString
+boring/switch_merge_ops.rs	pub fn switch_merge_ops_partial(value: SwitchMergeValue) -> UString
+boring/switch_merge_ops.rs	pub fn switch_merge_ops_single(value: SwitchMergeValue) -> UString
+boring/switch_merge_ops.rs	pub fn to_string(&self) -> String
+boring/switch_ops.rs	pub fn switch_ops_assign(mark: SwitchMark) -> UString
+boring/switch_ops.rs	pub fn switch_ops_conditional(mark: SwitchMark, use_fallback: bool) -> UString
+boring/switch_ops.rs	pub fn switch_ops_defaulted(mark: SwitchMark) -> UString
+boring/switch_ops.rs	pub fn switch_ops_initializer(mark: SwitchMark) -> UString
+boring/switch_ops.rs	pub fn switch_ops_statement(mark: SwitchMark) -> UString
+boring/switch_ops.rs	pub fn to_string(&self) -> String
+boring/to_string_ops.rs	pub fn to_string_ops_describe(label: PlainLabel) -> UString
+boring/to_string_ops.rs	pub fn to_string_ops_make_label(text: &UStr, width: u32) -> PlainLabel
+boring/try_ops.rs	pub fn try_ops_caught_statement(count: u32) -> u32
+boring/try_ops.rs	pub fn try_ops_classify_fault(error: VectorError) -> u32
+boring/try_ops.rs	pub fn try_ops_fault_payload(code: u32) -> u32
+boring/try_ops.rs	pub fn try_ops_handler_return(count: u32) -> u32
+boring/try_ops.rs	pub fn try_ops_region_message(count: u32) -> UString
+boring/try_ops.rs	pub fn try_ops_region_return(count: u32) -> u32
+boring/try_ops.rs	pub fn try_ops_region_value(count: u32) -> u32
+boring/ts2448_ops.rs	pub fn ts2448_ops_nested_local() -> u32
+boring/underscore_param_ops.rs	pub fn underscore_param_ops_pair(first: u32, second: u32) -> u32
+boring/underscore_param_ops.rs	pub fn underscore_param_ops_resolve(value: u32) -> u32
+boring/union_chain_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/union_chain_ops.rs	fn from(value: crate::boring::haxe_exception_ops::HaxeExceptionFault) -> Self
+boring/union_chain_ops.rs	fn from(value: crate::boring::value_exception::ValueError) -> Self
+boring/union_chain_ops.rs	fn from(value: UnionChainOpsPairFault) -> Self
+boring/union_chain_ops.rs	fn from(value: UnionChainOpsPairFault) -> Self
+boring/union_chain_ops.rs	pub fn union_chain_ops_adopt(value: u32) -> Result<u32, UnionChainOpsPairFault>
+boring/union_chain_ops.rs	pub fn union_chain_ops_outer(value: u32) -> Result<u32, UnionChainOpsPairFault>
+boring/union_chain_ops.rs	pub fn union_chain_ops_pair(value: u32) -> Result<u32, UnionChainOpsPairFault>
+boring/usize_comparison_ops.rs	pub fn usize_comparison_ops_length_exceeds(values: Option<Vec<u32>>, limit: u32) -> bool
+boring/usize_comparison_ops.rs	pub fn usize_comparison_ops_within_bounds(values: Option<Vec<u32>>, index: u32) -> bool
+boring/u_string_ops.rs	pub fn u_string_ops_ascii_count() -> u32
+boring/u_string_ops.rs	pub fn u_string_ops_bmp_count() -> u32
+boring/u_string_ops.rs	pub fn u_string_ops_clamped_slice(text: &UStr) -> UString
+boring/u_string_ops.rs	pub fn u_string_ops_code_at(text: &UStr, index: u32) -> Option<u32>
+boring/u_string_ops.rs	pub fn u_string_ops_middle_slice(text: &UStr) -> UString
+boring/u_string_ops.rs	pub fn u_string_ops_reversed_text(text: &UStr) -> Result<UString, UStringFault>
+boring/u_string_ops.rs	pub fn u_string_ops_round_trip(text: &UStr) -> Result<UString, UStringFault>
+boring/u_string_ops.rs	pub fn u_string_ops_substring_from(text: &UStr, from: u32) -> UString
+boring/u_string_ops.rs	pub fn u_string_ops_substring_literal() -> UString
+boring/u_string_ops.rs	pub fn u_string_ops_substring_long_end() -> UString
+boring/u_string_ops.rs	pub fn u_string_ops_substring_negative_start() -> UString
+boring/u_string_ops.rs	pub fn u_string_ops_substring_omitted_end() -> UString
+boring/u_string_ops.rs	pub fn u_string_ops_substring_range(text: &UStr, from: u32, to: u32) -> UString
+boring/u_string_ops.rs	pub fn u_string_ops_substring_swapped_bounds() -> UString
+boring/u_string_ops.rs	pub fn u_string_ops_supplementary_count() -> u32
+boring/u_string_resident_ops.rs	pub fn u_string_resident_ops_at(text: &UStr, index: u32) -> Option<u32>
+boring/u_string_resident_ops.rs	pub fn u_string_resident_ops_count(text: &UStr) -> u32
+boring/u_string_resident_ops.rs	pub fn u_string_resident_ops_from_code_point(code: u32) -> UString
+boring/u_string_resident_ops.rs	pub fn u_string_resident_ops_slice(text: &UStr, from: u32, to: u32) -> UString
+boring/value_exception.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/value_passing_ops.rs	pub fn compare_inner_note(a: &InnerNote, b: &InnerNote) -> i32
+boring/value_passing_ops.rs	pub fn value_passing_ops_build_card() -> ValueCard
+boring/value_passing_ops.rs	pub fn value_passing_ops_forward_parameter(tags: &Vec<UString>) -> u32
+boring/value_passing_ops.rs	pub fn value_passing_ops_length_arithmetic(text: &UStr) -> u32
+boring/value_passing_ops.rs	pub fn value_passing_ops_pass_twice(card: ValueCard) -> u32
+boring/value_passing_ops.rs	pub fn value_passing_ops_push_through(tags: &mut Vec<UString>) -> UString
+boring/value_passing_ops.rs	pub fn value_passing_ops_read_two_fields(card: ValueCard) -> UString
+boring/value_record.rs	pub fn compare_value_record(a: &ValueRecord, b: &ValueRecord) -> i32
+boring/value_record.rs	pub fn get_length(&self) -> u32
+boring/value_record.rs	pub fn new(start: u32, end: u32, label: &UStr) -> Result<Self, ValueError>
+boring/value_record.rs	pub fn to_string(&self) -> UString
+boring/value_type_clash_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/value_type_clash_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/value_type_clash_ops.rs	pub fn count(&self) -> f32
+boring/value_type_clash_ops.rs	pub fn doubled(&self) -> f32
+boring/value_type_clash_ops.rs	pub fn new(value: f32) -> Self
+boring/value_type_clash_ops.rs	pub fn new(value: f32) -> Self
+boring/value_type_clash_ops.rs	pub fn read(&self) -> f32
+boring/value_type_consumer.rs	pub fn new(indent: Option<Ic>) -> Self
+boring/value_type_consumer.rs	pub fn to_string(&self) -> UString
+boring/value_type_consumer.rs	pub fn value_type_consumer_arithmetic() -> f32
+boring/value_type_consumer.rs	pub fn value_type_consumer_blank_rejected() -> bool
+boring/value_type_consumer.rs	pub fn value_type_consumer_equal_representations() -> bool
+boring/value_type_consumer.rs	pub fn value_type_consumer_optional_ic_present() -> f32
+boring/value_type_consumer.rs	pub fn value_type_consumer_rendered_id() -> UString
+boring/value_type_consumer.rs	pub fn value_type_consumer_static_value() -> f32
+boring/value_type_ops.rs	fn add(self, rhs: Ic) -> Ic
+boring/value_type_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/value_type_ops.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/value_type_ops.rs	fn neg(self) -> Ic
+boring/value_type_ops.rs	fn to_string(&self) -> UString
+boring/value_type_ops.rs	pub fn new(value: f32) -> Self
+boring/value_type_ops.rs	pub fn new(value: &UStr) -> Result<Self, ValueError>
+boring/value_type_ops.rs	pub fn to_px(&self, em_px: f32) -> f32
+boring/value_type_ops.rs	pub fn zero() -> Ic
+boring/vec_insert_ops.rs	pub fn vec_insert_ops_first_at(position: u32, value: u32) -> u32
+boring/vec_insert_ops.rs	pub fn vec_insert_ops_insert_at(position: u32, value: u32) -> Vec<u32>
+boring/vec_splice_ops.rs	pub fn vec_splice_ops_capture_removed() -> Vec<u32>
+boring/vec_splice_ops.rs	pub fn vec_splice_ops_remove_head(count: u32) -> Vec<u32>
+boring/vec_splice_ops.rs	pub fn vec_splice_ops_remove_single() -> Vec<u32>
+boring/vector_codec.rs	pub fn byte_length(record_count: u32, width: FloatWidth) -> u32
+boring/vector_codec.rs	pub fn decode(bytes: &[u8]) -> Result<Vec<GlyphMetrics>, VectorError>
+boring/vector_codec.rs	pub fn encode(records: &[GlyphMetrics], width: FloatWidth) -> Result<Vec<u8>, VectorError>
+boring/vector_codec.rs	pub fn magic_of(width: FloatWidth) -> UString
+boring/vector_codec.rs	pub fn width_of_magic(magic: &UStr) -> Option<FloatWidth>
+boring/vector_exception.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/vector_sort.rs	pub fn by_code_point(records: &mut Vec<GlyphMetrics>) -> &Vec<GlyphMetrics>
+boring/widget_assembly.rs	pub fn widget_assembly_build(b: Option<WidgetBuilder>) -> WidgetBuilder
+boring/widget_assembly.rs	pub fn widget_assembly_lens(l: Option<WidgetLens>) -> WidgetLens
+boring/widget_cart.rs	pub fn new(zoom: Option<u32>) -> Self
+boring/widget_kind.rs	fn as_any(&self) -> &dyn std::any::Any
+boring/widget_kind.rs	fn as_any(&self) -> &dyn std::any::Any;
+boring/widget_kind.rs	fn clone_box(&self) -> Box<dyn WidgetKind>
+boring/widget_kind.rs	fn clone_box(&self) -> Box<dyn WidgetKind>;
+boring/widget_kind.rs	fn clone(&self) -> Self
+boring/widget_kind.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+boring/widget_kind.rs	fn __haxe_type_name(&self) -> &'static str
+boring/widget_kind.rs	fn __haxe_type_name(&self) -> &'static str;
+boring/widget_kind.rs	fn kind(&self) -> UString
+boring/widget_kind.rs	fn kind(&self) -> UString;
+boring/widget_kind.rs	pub fn kind(&self) -> UString
+boring/widget_kind.rs	pub fn new(scale: Option<u32>, bias: Option<u32>) -> Self
+boring/word_character_table.rs	pub fn word_character_table_contains(code_point: u32) -> bool
+haxe/crypto/crc_model.rs	pub fn new(width: u32, poly: u32, init: u32, refin: bool, refout: bool, xorout: u32) -> Self
+haxe/crypto/crc.rs	pub fn crc_crc16ccitt(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc16(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc16kermit(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc16modbus(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc16xmodem(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc1(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc24(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc32(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc32mpeg2(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc81wire(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc8(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crc8dvbs2(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_crcjam(data: &[u8], previous: u32) -> u32
+haxe/crypto/crc.rs	pub fn crc_hash(model: CrcModel, data: &[u8], previous: u32) -> u32
+haxe/crypto/sha256.rs	pub fn digest(&self) -> Vec<u8>
+haxe/crypto/sha256.rs	pub fn new() -> Self
+haxe/crypto/sha256.rs	pub fn sha256_make(data: &[u8]) -> Vec<u8>
+haxe/crypto/sha256.rs	pub fn update(&mut self, data: &[u8])
+haxe/crypto/sha512.rs	pub fn digest(&self) -> Vec<u8>
+haxe/crypto/sha512.rs	pub fn new() -> Self
+haxe/crypto/sha512.rs	pub fn sha512_make(data: &[u8]) -> Vec<u8>
+haxe/crypto/sha512.rs	pub fn update(&mut self, data: &[u8])
+haxe/crypto/xxh128.rs	pub fn xxh128_make(d: &[u8], seed: i64) -> Xxh128Hash
+haxe/crypto/xxh64.rs	fn consume_mem(&mut self)
+haxe/crypto/xxh64.rs	fn large_start(&self) -> i64
+haxe/crypto/xxh64.rs	fn read32_mem(&self, p: u32) -> u32
+haxe/crypto/xxh64.rs	fn read_mem(&self, p: u32) -> i64
+haxe/crypto/xxh64.rs	pub fn digest(&self) -> i64
+haxe/crypto/xxh64.rs	pub fn new(seed: i64) -> Self
+haxe/crypto/xxh64.rs	pub fn update(&mut self, data: &[u8])
+haxe/crypto/xxh64.rs	pub fn xxh64_make(data: &[u8], seed: i64) -> i64
+registry/core_exception.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+registry/core.rs	pub fn compare_input_record(a: &InputRecord, b: &InputRecord) -> i32
+registry/core.rs	pub fn compare_output_file(a: &OutputFile, b: &OutputFile) -> i32
+registry/core.rs	pub fn compare_registry_config(a: &RegistryConfig, b: &RegistryConfig) -> i32
+registry/core.rs	pub fn core_generate(records: &Vec<InputRecord>, config: RegistryConfig) -> Result<Vec<OutputFile>, CoreFault>
+registry/core.rs	pub fn core_parse_args(argv: &Vec<UString>) -> Result<RegistryConfig, CoreFault>
+registry/json_exception.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+registry/json.rs	fn fail(&self) -> Result<(), JsonFault>
+registry/json.rs	fn number(&mut self) -> Result<JsonValue, JsonFault>
+registry/json.rs	fn parse_array(&mut self) -> Result<JsonValue, JsonFault>
+registry/json.rs	fn parse_object(&mut self) -> Result<JsonValue, JsonFault>
+registry/json.rs	fn skip(&mut self)
+registry/json.rs	fn string(&mut self) -> Result<UString, JsonFault>
+registry/json.rs	fn take_code(&mut self, k: u32) -> bool
+registry/json.rs	fn value(&mut self) -> Result<JsonValue, JsonFault>
+registry/json.rs	fn word(&mut self, w: &UStr) -> Result<(), JsonFault>
+registry/json.rs	pub fn json_get_field(value: JsonValue, name: &UStr) -> JsonValue
+registry/json.rs	pub fn json_read(text: &UStr) -> Result<JsonValue, JsonFault>
+registry/json.rs	pub fn json_write_compact(value: JsonValue) -> UString
+registry/json.rs	pub fn json_write(value: JsonValue) -> UString
+registry/json.rs	pub fn new(text: &UStr) -> Self
+registry/json.rs	pub fn parse(&mut self) -> Result<JsonValue, JsonFault>
+registry/json.rs	pub fn to_string(&self) -> String
+registry/release.rs	pub fn new(o: &UStr, r: &UStr, v: &UStr, p: &UStr, n: &UStr, l: Option<UString>, read: &UStr) -> Self
+registry/semver_exception.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+registry/semver.rs	pub fn semver_compare(a: &UStr, b: &UStr) -> u32
+registry/semver.rs	pub fn semver_is_prerelease(version: &UStr) -> bool
+registry/semver.rs	pub fn semver_parse(version: &UStr) -> Option<Version>
+registry/semver.rs	pub fn semver_require(version: &UStr) -> Result<Version, SemverFault>
+registry/sha1.rs	pub fn sha1_hex(text: &UStr) -> UString
+runtime/bytes_buffer.rs	pub fn add_byte(&mut self, byte: u8)
+runtime/bytes_buffer.rs	pub fn add(&mut self, bytes: &Vec<u8>)
+runtime/bytes_buffer.rs	pub fn get_bytes(&self) -> Vec<u8>
+runtime/bytes_buffer.rs	pub fn new() -> Self
+runtime/console.rs	pub fn log(message: &UStr)
+runtime/env.rs	pub fn get(key: &UStr) -> Option<UString>
+runtime/env.rs	pub fn remove(key: &UStr)
+runtime/env.rs	pub fn set(key: &UStr, value: &UStr)
+runtime/exception.rs	pub fn get_message(&self) -> UString
+runtime/fp_helper.rs	fn f64_halves_to_f32_bits(low: u32, high: u32) -> u32
+runtime/fp_helper.rs	fn format_float_text(mut text: String) -> String
+runtime/fp_helper.rs	fn subnormal_target(mant_high: u32, low: u32, k: u32) -> u32
+runtime/fp_helper.rs	pub fn double_to_i64(v: f64) -> Int64Halves
+runtime/fp_helper.rs	pub fn f32_to_i32(v: f32) -> i32
+runtime/fp_helper.rs	pub fn f32_to_i64(v: f32) -> Int64Halves
+runtime/fp_helper.rs	pub fn float_to_i32(v: f64) -> i32
+runtime/fp_helper.rs	pub fn format_float_f32(v: f32) -> UString
+runtime/fp_helper.rs	pub fn format_float(v: f64) -> UString
+runtime/fp_helper.rs	pub fn i32_to_f32(v: i32) -> f32
+runtime/fp_helper.rs	pub fn i32_to_float(v: i32) -> f64
+runtime/fp_helper.rs	pub fn i64_to_double(low: u32, high: u32) -> f64
+runtime/fp_helper.rs	pub fn i64_to_f32(low: u32, high: u32) -> f32
+runtime/fs.rs	fn fail(path: &UStr, error: std::io::Error) -> !
+runtime/fs.rs	pub fn append_text(path: &UStr, data: &UStr)
+runtime/fs.rs	pub fn exists(path: &UStr) -> bool
+runtime/fs.rs	pub fn is_directory(path: &UStr) -> bool
+runtime/fs.rs	pub fn make_dirs(path: &UStr)
+runtime/fs.rs	pub fn read_dir(path: &UStr) -> Vec<UString>
+runtime/fs.rs	pub fn read_text(path: &UStr) -> UString
+runtime/fs.rs	pub fn write_text(path: &UStr, data: &UStr)
+runtime/graphemes.rs	pub fn boundaries(s: &UStr) -> Vec<u32>
+runtime/graphemes.rs	pub fn graphemes_at(s: &UStr, index: i32) -> Option<UString>
+runtime/graphemes.rs	pub fn graphemes_boundaries(s: &UStr) -> Vec<i32>
+runtime/graphemes.rs	pub fn graphemes_count(s: &UStr) -> i32
+runtime/graphemes.rs	pub fn graphemes_parts(s: &UStr) -> Vec<UString>
+runtime/graphemes.rs	pub fn graphemes_slice(s: &UStr, from: i32, to: i32) -> UString
+runtime/grapheme_walk.rs	pub fn grapheme_walk_advance_state(cur: i32, state: i32) -> i32
+runtime/grapheme_walk.rs	pub fn grapheme_walk_boundary_flags(table: &[i32], codes: &[i32]) -> Vec<bool>
+runtime/grapheme_walk.rs	pub fn grapheme_walk_breaks_before(prev: i32, cur: i32, state: i32) -> bool
+runtime/grapheme_walk.rs	pub fn grapheme_walk_lookup(table: &[i32], code: i32) -> i32
+runtime/sorted_table.rs	fn eq(&self, other: &Self) -> bool
+runtime/sorted_table.rs	fn eq(&self, other: &Self) -> bool
+runtime/sorted_table.rs	fn locate(&self, key: &K) -> i32
+runtime/sorted_table.rs	fn locate(&self, key: &K) -> i32
+runtime/sorted_table.rs	pub fn at(&self, index: i32) -> K
+runtime/sorted_table.rs	pub fn build(self) -> SortedMapTable<K, V>
+runtime/sorted_table.rs	pub fn build(self) -> SortedSetTable<K>
+runtime/sorted_table.rs	pub fn get(&self, key: &K) -> Option<V>
+runtime/sorted_table.rs	pub fn get(&self, key: &K) -> Option<V>
+runtime/sorted_table.rs	pub fn has(&self, key: &K) -> bool
+runtime/sorted_table.rs	pub fn has(&self, key: &K) -> bool
+runtime/sorted_table.rs	pub fn key_at(&self, index: i32) -> K
+runtime/sorted_table.rs	pub fn new(keys: Vec<K>, compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> Self
+runtime/sorted_table.rs	pub fn new(keys: Vec<K>, compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> Self
+runtime/sorted_table.rs	pub fn new(keys: Vec<K>, values: Vec<V>, compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> Self
+runtime/sorted_table.rs	pub fn new(keys: Vec<K>, values: Vec<V>, compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> Self
+runtime/sorted_table.rs	pub fn put(&mut self, key: &K)
+runtime/sorted_table.rs	pub fn put(&mut self, key: &K, value: &V)
+runtime/sorted_table.rs	pub fn size(&self) -> i32
+runtime/sorted_table.rs	pub fn size(&self) -> i32
+runtime/sorted_table.rs	pub fn sorted_table_compare_ints(a: i32, b: i32) -> i32
+runtime/sorted_table.rs	pub fn sorted_table_compare_strings(a: &UStr, b: &UStr) -> i32
+runtime/sorted_table.rs	pub fn to_string(&self) -> UString
+runtime/sorted_table.rs	pub fn to_string(&self) -> UString
+runtime/sorted_table.rs	pub fn value_at(&self, index: i32) -> V
+runtime/string_tools.rs	pub fn string_tools_is_space(s: &UStr, pos: i32) -> bool
+runtime/string_tools.rs	pub fn string_tools_lpad(s: &UStr, c: &UStr, l: i32) -> UString
+runtime/string_tools.rs	pub fn string_tools_ltrim(s: &UStr) -> UString
+runtime/string_tools.rs	pub fn string_tools_replace(s: &UStr, sub: &UStr, by: &UStr) -> UString
+runtime/string_tools.rs	pub fn string_tools_rpad(s: &UStr, c: &UStr, l: i32) -> UString
+runtime/string_tools.rs	pub fn string_tools_rtrim(s: &UStr) -> UString
+runtime/test_core.rs	pub fn test_core_equals_bool(expected: bool, actual: bool, message: &UStr)
+runtime/test_core.rs	pub fn test_core_equals_float(expected: f32, actual: f32, message: &UStr)
+runtime/test_core.rs	pub fn test_core_equals_int(expected: i32, actual: i32, message: &UStr)
+runtime/test_core.rs	pub fn test_core_equals_string(expected: &UStr, actual: &UStr, message: &UStr)
+runtime/test_core.rs	pub fn test_core_escape_json(s: &UStr) -> UString
+runtime/test_core.rs	pub fn test_core_fail(message: &UStr)
+runtime/test_core.rs	pub fn test_core_format_bool(v: bool) -> UString
+runtime/test_core.rs	pub fn test_core_format_bytes(b: &[u8]) -> UString
+runtime/test_core.rs	pub fn test_core_format_canonical_message(id: &UStr, message: &UStr, expected_str: &UStr, actual_str: &UStr, is_equals: bool) -> UString
+runtime/test_core.rs	pub fn test_core_format_float(v: f32) -> UString
+runtime/test_core.rs	pub fn test_core_format_int(v: i32) -> UString
+runtime/test_core.rs	pub fn test_core_format_string(v: &UStr) -> UString
+runtime/test_core.rs	pub fn test_core_not_applicable_line(id: &UStr, name: &UStr) -> UString
+runtime/test_core.rs	pub fn test_core_ok(condition: bool, message: &UStr)
+runtime/test_core.rs	pub fn test_core_report_failure(message: &UStr, expected_str: &UStr, actual_str: &UStr)
+runtime/test_core.rs	pub fn test_core_result_line(id: &UStr, name: &UStr, failed: bool, message: &UStr) -> UString
+runtime/test.rs	fn record_result(id: &str, name: &str, verdict: &str, message: Option<&str>)
+runtime/test.rs	fn timeout_budget_ms() -> u128
+runtime/test.rs	pub fn current_test_id() -> String
+runtime/test.rs	pub fn record_not_applicable(id: &str, name: &str)
+runtime/u_string.rs	fn add_assign(&mut self, rhs: &str)
+runtime/u_string.rs	fn add_assign(&mut self, rhs: &String)
+runtime/u_string.rs	fn add_assign(&mut self, rhs: String)
+runtime/u_string.rs	fn add_assign(&mut self, rhs: &UStr)
+runtime/u_string.rs	fn add_assign(&mut self, rhs: &UString)
+runtime/u_string.rs	fn byte_to_unit(s: &str, byte: usize) -> u32
+runtime/u_string.rs	fn deref(&self) -> &[u16]
+runtime/u_string.rs	fn deref(&self) -> &UStr
+runtime/u_string.rs	fn eq(&self, other: &str) -> bool
+runtime/u_string.rs	fn eq(&self, other: &String) -> bool
+runtime/u_string.rs	fn eq(&self, other: &&UStr) -> bool
+runtime/u_string.rs	fn eq(&self, other: &UStr) -> bool
+runtime/u_string.rs	fn eq(&self, other: &UStr) -> bool
+runtime/u_string.rs	fn eq(&self, other: &UStr) -> bool
+runtime/u_string.rs	fn eq(&self, other: &UString) -> bool
+runtime/u_string.rs	fn eq(&self, other: &UString) -> bool
+runtime/u_string.rs	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+runtime/u_string.rs	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+runtime/u_string.rs	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+runtime/u_string.rs	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+runtime/u_string.rs	fn from(s: &String) -> UString
+runtime/u_string.rs	fn from(s: &str) -> UString
+runtime/u_string.rs	fn from(s: &UStr) -> UString
+runtime/u_string.rs	fn partial_cmp(&self, other: &UString) -> Option<std::cmp::Ordering>
+runtime/u_string.rs	fn partial_cmp(&self, other: &UStr) -> Option<std::cmp::Ordering>
+runtime/u_string.rs	fn trim_fixed(s: &str) -> &str
+runtime/u_string.rs	fn valid_decimal_token(b: &[u8]) -> bool
+runtime/u_string.rs	pub fn as_bytes(&self) -> Vec<u8>
+runtime/u_string.rs	pub fn as_slice(&self) -> &[u16]
+runtime/u_string.rs	pub fn as_ustr(&self) -> &UStr
+runtime/u_string.rs	pub fn at(s: &UStr, index: u32) -> Option<u32>
+runtime/u_string.rs	pub fn char_at_from(units: &[u16], index: u32) -> UString
+runtime/u_string.rs	pub fn count(s: &UStr) -> u32
+runtime/u_string.rs	pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>>
+runtime/u_string.rs	pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>>
+runtime/u_string.rs	pub fn find_from(s: &UStr, needle: &UStr, start: i32) -> i32
+runtime/u_string.rs	pub fn from_code_point(code: u32) -> UString
+runtime/u_string.rs	pub fn from_code_points(codes: &Vec<u32>) -> UString
+runtime/u_string.rs	pub fn from_units(units: &[u16]) -> UString
+runtime/u_string.rs	pub fn from_utf16(units: &[u16]) -> Result<UString, usize>
+runtime/u_string.rs	pub fn new() -> UString
+runtime/u_string.rs	pub fn parse_f32(s: &UStr) -> f32
+runtime/u_string.rs	pub fn parse_f64(s: &UStr) -> f64
+runtime/u_string.rs	pub fn parse_i32(s: &UStr) -> Option<i32>
+runtime/u_string.rs	pub fn rfind(&self, needle: &UStr) -> Option<usize>
+runtime/u_string.rs	pub fn slice(s: &UStr, from: i32, to: i32) -> UString
+runtime/u_string.rs	pub fn split(s: &UStr, separator: &UStr) -> Vec<UString>
+runtime/u_string.rs	pub fn substring_from(s: &UStr, from: i32) -> UString
+runtime/u_string.rs	pub fn substring(s: &UStr, from: i32, to: i32) -> UString
+runtime/u_string.rs	pub fn substr(s: &UStr, pos: i32, len: Option<i32>) -> UString
+runtime/u_string.rs	pub fn to_code_points(s: &UStr) -> Vec<u32>
+runtime/u_string.rs	pub fn to_lowercase(&self) -> UString
+runtime/u_string.rs	pub fn to_uppercase(&self) -> UString
+runtime/u_string.rs	pub fn to_ustring(&self) -> UString
+runtime/u_string.rs	pub fn to_utf8_lossy(&self) -> String
+runtime/u_string.rs	pub fn to_utf8_lossy(&self) -> String
+runtime/u_string.rs	pub fn to_utf8(&self) -> Option<String>
+runtime/u_string.rs	pub fn to_utf8(&self) -> Option<String>
+runtime/u_string.rs	pub fn trim(&self) -> UString
+runtime/u_string.rs	pub fn unit_at_from(units: &[u16], index: u32) -> Option<u32>
+runtime/u_string.rs	pub fn unit_at(s: &UStr, index: u32) -> Option<u32>
+runtime/u_string.rs	pub fn unit_count(s: &UStr) -> u32
+runtime/u_string.rs	pub fn units(s: &UStr) -> Vec<u16>
+runtime/u_string.rs	pub fn u_string_at(s: &UStr, index: i32) -> Option<i32>
+runtime/u_string.rs	pub fn u_string_count(s: &UStr) -> i32
+runtime/u_string.rs	pub fn u_string_from_code_point(code: i32) -> UString
+runtime/u_string.rs	pub fn u_string_from_code_points(codes: &Vec<i32>) -> UString
+runtime/u_string.rs	pub fn u_string_slice(s: &UStr, from: i32, to: i32) -> UString
+runtime/u_string.rs	pub fn u_string_to_code_points(s: &UStr) -> Vec<i32>
+std/path.rs	pub fn path_dirname(p: &UStr) -> UString
+std/path.rs	pub fn path_expand_home(p: &UStr) -> UString
+std/path.rs	pub fn path_join(a: &UStr, b: &UStr) -> UString
+std/path.rs	pub fn path_normalize(p: &UStr) -> UString
+std/render_shape.rs	fn as_any(&self) -> &dyn std::any::Any;
+std/render_shape.rs	fn clone_box(&self) -> Box<dyn RenderShape>;
+std/render_shape.rs	fn clone(&self) -> Self
+std/render_shape.rs	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+std/render_shape.rs	fn __haxe_type_name(&self) -> &'static str;
+std/render_shape.rs	fn render(&self, text: &UStr) -> UString;
+std/u_string_exception.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+tests/abstract_static_default_tests.rs	fn test_abstract_static_default()
+tests/access_grant_tests.rs	fn test_access_grant()
+tests/allow_access_tests.rs	fn instance_access()
+tests/allow_access_tests.rs	fn static_access()
+tests/allow_access_tests.rs	fn static_field_access()
+tests/arithmetic_tests.rs	fn test_coerce_at_least()
+tests/arithmetic_tests.rs	fn test_coerce_at_most()
+tests/arithmetic_tests.rs	fn test_coerce_in()
+tests/arithmetic_tests.rs	fn test_int_range()
+tests/arithmetic_tests.rs	fn test_within_float()
+tests/arithmetic_tests.rs	fn test_within_int()
+tests/array_access_tests.rs	fn test_composite_part()
+tests/array_access_tests.rs	fn test_grow_field_slots()
+tests/array_access_tests.rs	fn test_grow_float_field_slots()
+tests/array_access_tests.rs	fn test_grow_float_slots()
+tests/array_access_tests.rs	fn test_grow_nullable_slots()
+tests/array_access_tests.rs	fn test_grow_value_slots()
+tests/array_access_tests.rs	fn test_read_split()
+tests/array_access_tests.rs	fn test_simple_part()
+tests/array_access_tests.rs	fn test_write_inside_slots()
+tests/array_access_tests.rs	fn test_write_split()
+tests/array_index_search_tests.rs	fn test_element_only()
+tests/array_index_search_tests.rs	fn test_empty()
+tests/array_index_search_tests.rs	fn test_index_of_from()
+tests/array_index_search_tests.rs	fn test_last_index_of_from()
+tests/array_index_search_tests.rs	fn test_nullable_receiver()
+tests/array_index_search_tests.rs	fn test_string_element()
+tests/array_join_tests.rs	fn test_join()
+tests/array_method_swift_tests.rs	fn test_copy_concat()
+tests/array_method_swift_tests.rs	fn test_ends()
+tests/array_method_swift_tests.rs	fn test_find()
+tests/array_method_swift_tests.rs	fn test_splice()
+tests/array_root_tests.rs	fn test_array_roots()
+tests/array_slice_tests.rs	fn test_empty_to_twenty()
+tests/array_slice_tests.rs	fn test_end_below_start()
+tests/array_slice_tests.rs	fn test_end_past_length()
+tests/array_slice_tests.rs	fn test_insert_clamping()
+tests/array_slice_tests.rs	fn test_negative_start()
+tests/array_slice_tests.rs	fn test_nullable_receiver()
+tests/array_slice_tests.rs	fn test_null_init_local()
+tests/array_slice_tests.rs	fn test_null_init_splice()
+tests/array_slice_tests.rs	fn test_omitted_end()
+tests/array_slice_tests.rs	fn test_splice_empty_bounds()
+tests/array_slice_tests.rs	fn test_splice_length_past_end()
+tests/array_slice_tests.rs	fn test_splice_negative_length()
+tests/array_slice_tests.rs	fn test_splice_negative_position()
+tests/array_slice_tests.rs	fn test_splice_position_past_length()
+tests/block_scope_unroll_tests.rs	fn break_continue_path()
+tests/block_scope_unroll_tests.rs	fn literal_loop_scopes()
+tests/block_scope_unroll_tests.rs	fn return_from_segment()
+tests/block_scope_unroll_tests.rs	fn sequential_loops()
+tests/block_scope_unroll_tests.rs	pub fn block_scope_unroll_support_first_above_five() -> u32
+tests/block_scope_unroll_tests.rs	pub fn block_scope_unroll_support_threshold() -> u32
+tests/borrowed_array_boundary_tests.rs	fn choose()
+tests/borrowed_array_boundary_tests.rs	fn nullable_return()
+tests/borrowed_array_boundary_tests.rs	fn read_only_wrap()
+tests/borrowed_array_boundary_tests.rs	fn rebind()
+tests/borrowed_array_boundary_tests.rs	fn wrap()
+tests/borrowed_iteration_subject_ops_tests.rs	fn unique()
+tests/borrowed_loop_item_boundary_tests.rs	fn described_labels()
+tests/borrowed_loop_item_boundary_tests.rs	fn first_entry()
+tests/borrowed_loop_item_boundary_tests.rs	fn has_marker()
+tests/borrowed_loop_item_boundary_tests.rs	fn index_of_nullable()
+tests/borrowed_loop_item_boundary_tests.rs	fn records()
+tests/borrowed_loop_item_boundary_tests.rs	fn wrapped_entries()
+tests/borrowed_receiver_boundary_tests.rs	fn pick_label()
+tests/borrowed_receiver_boundary_tests.rs	fn snapshot_label()
+tests/borrowed_string_return_tests.rs	fn require_text()
+tests/boxed_interface_default_ops_tests.rs	fn default_boxes()
+tests/branched_optional_field_ops_tests.rs	fn penalty()
+tests/branched_optional_field_ops_tests.rs	fn rate()
+tests/branched_optional_field_ops_tests.rs	fn rule_tag()
+tests/bytes_tests.rs	fn buffer_add()
+tests/bytes_tests.rs	fn buffer_add_empty()
+tests/bytes_tests.rs	fn fixed_mutation()
+tests/capture_switch_ops_tests.rs	fn test_classify()
+tests/capture_switch_ops_tests.rs	fn test_describe()
+tests/capture_switch_ops_tests.rs	fn test_initialized()
+tests/capture_switch_ops_tests.rs	fn test_message_length()
+tests/clone_derive_gap_tests.rs	fn resolve()
+tests/clone_derive_gap_tests.rs	fn resolve_abstract()
+tests/closure_string_view_ops_tests.rs	fn test_choose()
+tests/closure_string_view_ops_tests.rs	fn test_label()
+tests/comparator_gate_tests.rs	fn comparable()
+tests/comparator_gate_tests.rs	fn unsupported()
+tests/compare_gate_tests.rs	fn bool_nested_is_ungated()
+tests/compare_gate_tests.rs	fn safe_nested_remains_comparable()
+tests/console_shim_tests.rs	fn log_returns()
+tests/constructed_state_tests.rs	fn test_constructed_state()
+tests/constructor_statement_tests.rs	fn test_comprehension()
+tests/constructor_statement_tests.rs	fn test_pipeline_block_lambda()
+tests/crc_tests.rs	fn crc16ccitt_incremental()
+tests/crc_tests.rs	fn crc16ccitt_vectors()
+tests/crc_tests.rs	fn crc16_incremental()
+tests/crc_tests.rs	fn crc16kermit_incremental()
+tests/crc_tests.rs	fn crc16kermit_vectors()
+tests/crc_tests.rs	fn crc16modbus_incremental()
+tests/crc_tests.rs	fn crc16modbus_vectors()
+tests/crc_tests.rs	fn crc16_vectors()
+tests/crc_tests.rs	fn crc16xmodem_incremental()
+tests/crc_tests.rs	fn crc16xmodem_vectors()
+tests/crc_tests.rs	fn crc1_incremental()
+tests/crc_tests.rs	fn crc1_vectors()
+tests/crc_tests.rs	fn crc24_incremental()
+tests/crc_tests.rs	fn crc24_vectors()
+tests/crc_tests.rs	fn crc32_incremental()
+tests/crc_tests.rs	fn crc32mpeg2_incremental()
+tests/crc_tests.rs	fn crc32mpeg2_vectors()
+tests/crc_tests.rs	fn crc32_vectors()
+tests/crc_tests.rs	fn crc81wire_incremental()
+tests/crc_tests.rs	fn crc81wire_vectors()
+tests/crc_tests.rs	fn crc8dvbs2_incremental()
+tests/crc_tests.rs	fn crc8dvbs2_vectors()
+tests/crc_tests.rs	fn crc8_incremental()
+tests/crc_tests.rs	fn crc8_vectors()
+tests/crc_tests.rs	fn crcjam_incremental()
+tests/crc_tests.rs	fn crcjam_vectors()
+tests/crypto_test_support.rs	pub fn crypto_test_support_data(name: &UStr) -> Vec<u8>
+tests/crypto_test_support.rs	pub fn crypto_test_support_i64_hex(value: i64) -> UString
+tests/crypto_test_support.rs	pub fn crypto_test_support_signed32(raw: f32) -> u32
+tests/ctor_omit_tests.rs	fn test_omit()
+tests/ctor_opt_arg_tests.rs	fn test_constructor_arg()
+tests/dart_array_method_tests.rs	fn test_bool_condition()
+tests/dart_array_method_tests.rs	fn test_concat_splice()
+tests/dart_array_method_tests.rs	fn test_pop_shift()
+tests/dart_array_method_tests.rs	fn test_reverse_unshift()
+tests/dart_char_null_tests.rs	fn char_null_narrowing()
+tests/dart_char_null_tests.rs	fn char_null_out_of_range()
+tests/dart_coalesce_sibling_tests.rs	fn test_sibling()
+tests/dart_coalesce_static_tests.rs	fn test_partial()
+tests/dart_coalesce_static_tests.rs	fn test_preset()
+tests/dart_empty_array_fix_tests.rs	fn empty_array_argument()
+tests/dart_local_name_fix_tests.rs	fn local_shadow()
+tests/dart_null_push_tests.rs	fn closure_null_stays_null()
+tests/dart_null_push_tests.rs	fn closure_value_stays_value()
+tests/dart_null_push_tests.rs	fn push_null_keeps_null()
+tests/dart_null_push_tests.rs	fn push_value_keeps_value()
+tests/data_class_ctor_guard_tests.rs	fn accepts_valid_value()
+tests/data_class_ctor_guard_tests.rs	fn rejects_negative_value()
+tests/data_class_ctor_guard_tests.rs	fn rejects_non_finite_value()
+tests/data_class_range_eq_tests.rs	fn test_data_class_range_eq()
+tests/data_table_tests.rs	fn test_payload_roundtrip()
+tests/data_table_tests.rs	fn test_payload_units()
+tests/data_table_tests.rs	fn test_script_first_record()
+tests/data_table_tests.rs	fn test_script_intermediate_records()
+tests/data_table_tests.rs	fn test_script_last_record()
+tests/data_table_tests.rs	fn test_script_misses()
+tests/data_table_tests.rs	fn test_word_first_record()
+tests/data_table_tests.rs	fn test_word_last_record()
+tests/data_table_tests.rs	fn test_word_misses()
+tests/data_table_tests.rs	fn test_word_singletons()
+tests/default_arg_shift_tests.rs	fn test_chain_explicit_null()
+tests/default_arg_shift_tests.rs	fn test_chain_omissions()
+tests/default_arg_shift_tests.rs	fn test_constructor()
+tests/default_arg_shift_tests.rs	fn test_explicit_null()
+tests/default_arg_shift_tests.rs	fn test_explicit_values()
+tests/default_arg_shift_tests.rs	fn test_instance_method()
+tests/default_arg_shift_tests.rs	fn test_middle_slot()
+tests/default_args_tests.rs	fn ctor_default_leaf_freshness()
+tests/default_args_tests.rs	fn ctor_param_read_default()
+tests/default_args_tests.rs	fn ctor_static_call_param_read_default()
+tests/default_args_tests.rs	fn kotlin_hard_keyword_identifiers()
+tests/default_args_tests.rs	fn test_adjust()
+tests/default_args_tests.rs	fn test_call_and_binary_defaults()
+tests/default_args_tests.rs	fn test_chained_coalescing()
+tests/default_args_tests.rs	fn test_chained_paint()
+tests/default_args_tests.rs	fn test_coalescing_array_freshness()
+tests/default_args_tests.rs	fn test_coalescing_infinity()
+tests/default_args_tests.rs	fn test_coalescing_map_freshness()
+tests/default_args_tests.rs	fn test_coalescing_preset()
+tests/default_args_tests.rs	fn test_conditional()
+tests/default_args_tests.rs	fn test_configure()
+tests/default_args_tests.rs	fn test_dependence()
+tests/default_args_tests.rs	fn test_describe_tag()
+tests/default_args_tests.rs	fn test_field_access()
+tests/default_args_tests.rs	fn test_format_label()
+tests/default_args_tests.rs	fn test_greet()
+tests/default_args_tests.rs	fn test_interface_method()
+tests/default_args_tests.rs	fn test_local_function()
+tests/default_args_tests.rs	fn test_open_mode()
+tests/default_args_tests.rs	fn test_parameter_read()
+tests/default_args_tests.rs	fn test_static_field_read()
+tests/default_builder_tests.rs	fn test_defaults()
+tests/default_param_unwrap_tests.rs	fn test_defaults()
+tests/deferred_locals_tests.rs	fn test_deferred_locals()
+tests/div_table_tests.rs	fn test_div()
+tests/downcast_tests.rs	fn test_downcast()
+tests/early_return_tests.rs	fn conditional_return()
+tests/early_return_tests.rs	fn fall_through()
+tests/enum_lookup_tests.rs	fn test_round_trip()
+tests/enum_queries_tests.rs	fn counts()
+tests/enum_queries_tests.rs	fn lookup()
+tests/enum_queries_tests.rs	fn lookup_name()
+tests/enum_queries_tests.rs	fn names()
+tests/enum_queries_tests.rs	fn second()
+tests/enum_sorted_keys_tests.rs	fn test_map_order()
+tests/enum_sorted_keys_tests.rs	fn test_set_order()
+tests/exception_catch_tests.rs	fn exception_type_lowering()
+tests/exception_catch_tests.rs	fn test_module_import()
+tests/exception_chain_probe_tests.rs	fn null_previous()
+tests/exception_type_ops_tests.rs	fn test_has_cause()
+tests/exception_type_ops_tests.rs	fn test_missing_cause()
+tests/exception_type_ops_tests.rs	fn test_nil_argument()
+tests/expression_block_tests.rs	fn binary_operand()
+tests/expression_block_tests.rs	fn inline_field_arguments()
+tests/expression_block_tests.rs	fn multiple_declarations()
+tests/expression_block_tests.rs	fn nested_field_chain()
+tests/expression_block_tests.rs	pub fn new(holder: ExpressionBlockHolder) -> Self
+tests/expression_block_tests.rs	pub fn new(inner: ExpressionBlockInner) -> Self
+tests/expression_block_tests.rs	pub fn new(text: &UStr, from: u32, to: u32) -> Self
+tests/fallible_local_function_tests.rs	fn local_void_success()
+tests/fallible_local_function_tests.rs	fn local_void_throw()
+tests/float_compound_assign_ops_tests.rs	fn scaled()
+tests/float_compound_assign_ops_tests.rs	fn step_total()
+tests/float_compound_assign_ops_tests.rs	fn walk()
+tests/float_field_literal_ops_tests.rs	fn pair()
+tests/float_literal_ops_tests.rs	fn test_arg_leading_dot()
+tests/float_literal_ops_tests.rs	fn test_arg_small()
+tests/float_literal_ops_tests.rs	fn test_local_leading_dot_neg()
+tests/float_literal_ops_tests.rs	fn test_local_small_neg()
+tests/float_mod_compare_ops_tests.rs	fn even()
+tests/float_mod_tests.rs	fn test_remainder()
+tests/float_ternary_arm_tests.rs	fn test_cost()
+tests/flush_hook_probe_tests.rs	fn class_body_runs()
+tests/fn_values_tests.rs	fn test_field_invocation()
+tests/fn_values_tests.rs	fn test_generic_parameter()
+tests/fn_values_tests.rs	fn test_parameter_invocation()
+tests/fn_values_tests.rs	fn test_returned_function()
+tests/fn_values_tests.rs	fn test_static_field()
+tests/fn_values_tests.rs	fn test_stored_local()
+tests/font_id_tests.rs	fn make()
+tests/for_in_optional_tests.rs	fn test_iterate()
+tests/fp16_tests.rs	fn narrow()
+tests/fp16_tests.rs	fn widen()
+tests/fp32_tests.rs	fn bits_round_trip()
+tests/fp32_tests.rs	fn halves_to_bits()
+tests/fp_helper_rust_tests.rs	fn decompose()
+tests/fp_helper_rust_tests.rs	fn value_of()
+tests/fp_helper_swift_tests.rs	fn test_round_trip()
+tests/functional_local_tests.rs	fn test_counted()
+tests/functional_local_tests.rs	fn test_doubled()
+tests/fused_push_throw_tests.rs	fn test_build()
+tests/glyph_cluster_tests.rs	fn first_range()
+tests/glyph_cluster_tests.rs	fn first_returned_range()
+tests/grapheme_tests.rs	fn test_boundaries()
+tests/grapheme_tests.rs	fn test_cjk_clusters()
+tests/grapheme_tests.rs	fn test_combining_marks()
+tests/grapheme_tests.rs	fn test_cr_lf()
+tests/grapheme_tests.rs	fn test_devanagari_conjunct()
+tests/grapheme_tests.rs	fn test_emoji_sequences()
+tests/grapheme_tests.rs	fn test_hangul()
+tests/grapheme_tests.rs	fn test_parts()
+tests/grapheme_tests.rs	fn test_prepend()
+tests/grapheme_tests.rs	fn test_regional_indicators()
+tests/grapheme_tests.rs	fn test_slicing()
+tests/hand_written_loop_position_support.rs	pub fn hand_written_loop_position_support_accumulate(values: &Vec<u32>) -> Vec<u32>
+tests/hand_written_loop_position_support.rs	pub fn hand_written_loop_position_support_nested_if(values: &Vec<u32>) -> Vec<u32>
+tests/hand_written_loop_position_support.rs	pub fn hand_written_loop_position_support_nested_while(values: &Vec<u32>) -> Vec<u32>
+tests/hand_written_loop_position_support.rs	pub fn hand_written_loop_position_support_outer_loop(values: &Vec<u32>) -> Vec<u32>
+tests/hand_written_loop_position_tests.rs	fn direct_loop()
+tests/hand_written_loop_position_tests.rs	fn loop_in_if()
+tests/hand_written_loop_position_tests.rs	fn loop_in_while()
+tests/hand_written_loop_position_tests.rs	fn nested_loop()
+tests/haxe_exception_tests.rs	fn joined_message()
+tests/haxe_exception_tests.rs	fn mixed_message()
+tests/haxe_exception_tests.rs	fn thrown_message()
+tests/imp_default_tests.rs	fn defaults()
+tests/inherit_ctor_tests.rs	fn construction_and_catch()
+tests/inherit_ctor_tests.rs	fn message_value()
+tests/inline_default_tests.rs	fn test_inline_defaults()
+tests/instance_defaults_tests.rs	fn defaults()
+tests/instance_defaults_tests.rs	fn per_instance()
+tests/int64_tests.rs	fn carry()
+tests/int64_tests.rs	fn construction()
+tests/int64_tests.rs	fn multiplication()
+tests/int64_tests.rs	fn operations()
+tests/int64_tests.rs	fn ordering()
+tests/int_division_tests.rs	fn test_floored()
+tests/int_division_tests.rs	fn test_negative_quotient()
+tests/int_division_tests.rs	fn test_offset()
+tests/int_division_tests.rs	fn test_quotient()
+tests/int_division_tests.rs	fn test_scaled()
+tests/int_division_tests.rs	fn test_truncated()
+tests/int_division_tests.rs	fn test_zero_divisor()
+tests/interface_array_literal_tests.rs	fn test_tags()
+tests/interface_conditional_tests.rs	fn choose_text()
+tests/interface_fallible_ops_tests.rs	fn value()
+tests/interface_field_literal_ops_tests.rs	fn describe()
+tests/interface_field_record_tests.rs	fn test_interface_field()
+tests/interface_getter_property_tests.rs	fn test_interface_getter_property()
+tests/interface_identity_tests.rs	fn test_identity()
+tests/interface_throw_tests.rs	fn test_interface_throws()
+tests/interface_union_tests.rs	fn shared_union()
+tests/int_float_add_tests.rs	fn test_add()
+tests/int_float_ctor_tests.rs	fn test_widening()
+tests/int_float_sign_tests.rs	fn test_array_elem()
+tests/int_float_sign_tests.rs	fn test_collapsed_comparison()
+tests/int_float_sign_tests.rs	fn test_comparison()
+tests/int_float_sign_tests.rs	fn test_compound_assign()
+tests/int_float_sign_tests.rs	fn test_optional_return()
+tests/int_float_sign_tests.rs	fn test_ternary_fallback()
+tests/int_to_float_ctor_tests.rs	fn test_widen()
+tests/jvm_field_private_tests.rs	fn resolve_tags()
+tests/knull_init_narrowing_tests.rs	fn chained_field_access()
+tests/knull_init_narrowing_tests.rs	fn field_off_nullable_receiver()
+tests/knull_init_narrowing_tests.rs	fn ternary_with_nullable_arm()
+tests/kotlin_entry_probe_tests.rs	pub fn kotlin_entry_probe_tests_run_test_entries()
+tests/kotlin_nullability_tests.rs	fn test_anonymous_nullable_lambda()
+tests/kotlin_nullability_tests.rs	fn test_generic_receiver_nullable_param()
+tests/kotlin_nullability_tests.rs	fn test_named_nullable_local_function()
+tests/kotlin_nullability_tests.rs	fn test_nullable_comparison_argument()
+tests/kotlin_nullability_tests.rs	fn test_nullable_comparison_hardening()
+tests/kotlin_nullability_tests.rs	fn test_nullable_lambda_argument()
+tests/kotlin_nullability_tests.rs	fn test_nullable_receiver()
+tests/kotlin_nullability_tests.rs	fn test_optional_default()
+tests/kotlin_nullability_tests.rs	fn test_sorted_map_nullable_value()
+tests/kotlin_nullability_tests.rs	pub fn kotlin_nested_null_return_ops_anonymous_lookup(key: u32) -> UString
+tests/kotlin_nullability_tests.rs	pub fn kotlin_nested_null_return_ops_applied_lookup(key: u32) -> UString
+tests/kotlin_nullability_tests.rs	pub fn kotlin_nested_null_return_ops_named_lookup(key: u32) -> UString
+tests/kotlin_nullability_tests.rs	pub fn kotlin_nullability_ops_defaulted(value: u32) -> u32
+tests/kotlin_nullability_tests.rs	pub fn kotlin_nullability_ops_receiver_label(value: KotlinNullableReceiver) -> UString
+tests/kotlin_nullability_tests.rs	pub fn kotlin_null_guard_arg_ops_absent() -> Option<KotlinNullGuardHolder>
+tests/kotlin_nullability_tests.rs	pub fn kotlin_null_guard_arg_ops_accepts_flag(flag: bool) -> bool
+tests/kotlin_nullability_tests.rs	pub fn kotlin_null_guard_arg_ops_count_is_three(holder: Option<KotlinNullGuardHolder>) -> bool
+tests/kotlin_nullability_tests.rs	pub fn kotlin_null_guard_arg_ops_flag_presence_list(holder: Option<KotlinNullGuardHolder>) -> Vec<bool>
+tests/kotlin_nullability_tests.rs	pub fn kotlin_null_guard_arg_ops_flag_present_ctor(holder: Option<KotlinNullGuardHolder>) -> bool
+tests/kotlin_nullability_tests.rs	pub fn kotlin_null_guard_arg_ops_flag_present(holder: Option<KotlinNullGuardHolder>) -> bool
+tests/kotlin_nullability_tests.rs	pub fn kotlin_null_guard_arg_ops_null_flag() -> Option<KotlinNullGuardHolder>
+tests/kotlin_nullability_tests.rs	pub fn kotlin_null_guard_arg_ops_present() -> Option<KotlinNullGuardHolder>
+tests/kotlin_nullability_tests.rs	pub fn label(&self) -> UString
+tests/kotlin_nullability_tests.rs	pub fn new(flag: Option<UString>, count: Option<u32>) -> Self
+tests/kotlin_nullability_tests.rs	pub fn new(value: bool) -> Self
+tests/local_shadow_tests.rs	fn arrays()
+tests/local_shadow_tests.rs	fn shadow()
+tests/local_shadow_tests.rs	fn single()
+tests/local_throw_tests.rs	fn test_caught_local()
+tests/local_throw_tests.rs	fn test_local_array()
+tests/local_throw_tests.rs	fn test_local_condition()
+tests/local_throw_tests.rs	fn test_local_nested()
+tests/local_throw_tests.rs	fn test_local_step()
+tests/loop_write_tests.rs	fn branch_increment()
+tests/loop_write_tests.rs	fn closure_increment()
+tests/loop_write_tests.rs	fn non_unit_increment()
+tests/loop_write_tests.rs	fn tail_increment()
+tests/m2_option_vec_tests.rs	fn guarded_and_chain()
+tests/m2_option_vec_tests.rs	fn guarded_copy_local()
+tests/m2_option_vec_tests.rs	fn guarded_holder_field()
+tests/m2_option_vec_tests.rs	fn index_of_compared()
+tests/m2_option_vec_tests.rs	fn nullable_array_receiver()
+tests/m2_option_vec_tests.rs	fn nullable_map_receiver()
+tests/m2_option_vec_tests.rs	fn nullable_set_receiver()
+tests/m2_option_vec_tests.rs	fn vec_copy()
+tests/m2_option_vec_tests.rs	fn vec_index_of()
+tests/m2_option_vec_tests.rs	fn vec_shift()
+tests/m2_option_vec_tests.rs	fn vec_unshift()
+tests/map_has_get_tests.rs	fn test_guarded_lookup()
+tests/map_value_optional_tests.rs	fn test_value()
+tests/math_int_widening_ops_tests.rs	fn test_negative()
+tests/math_int_widening_ops_tests.rs	fn test_positive()
+tests/math_int_widening_ops_tests.rs	fn test_zero()
+tests/math_min_max_tests.rs	fn abs_float()
+tests/math_min_max_tests.rs	fn abs_int()
+tests/math_min_max_tests.rs	fn floor_ceil()
+tests/math_min_max_tests.rs	fn int_expression()
+tests/math_min_max_tests.rs	fn int_operands()
+tests/math_min_max_tests.rs	fn max_float()
+tests/math_min_max_tests.rs	fn min_float()
+tests/math_min_max_tests.rs	fn pow_float()
+tests/math_min_max_tests.rs	fn pow_int()
+tests/math_min_max_tests.rs	fn round_float()
+tests/math_min_shadow_tests.rs	fn test_clamp()
+tests/math_na_n_ops_tests.rs	fn folded_constant_edges()
+tests/math_na_n_ops_tests.rs	fn max_values()
+tests/math_na_n_ops_tests.rs	fn min_values()
+tests/multi_pattern_switch_tests.rs	fn test_patterns()
+tests/mutable_buf_field_tests.rs	fn test_field()
+tests/mutating_counter_tests.rs	fn bump_twice()
+tests/mutating_counter_tests.rs	fn concrete_bump()
+tests/mutating_counter_tests.rs	fn read_only()
+tests/narrowed_option_return_tests.rs	fn pick()
+tests/narrowed_sorted_receiver_ops_tests.rs	fn test_narrowed_receiver()
+tests/narrow_local_switch_tests.rs	fn test_narrowed_switch()
+tests/negative_sentinel_ops_tests.rs	fn separator_index()
+tests/neg_int_slot_ops_tests.rs	fn negate()
+tests/neg_int_slot_ops_tests.rs	fn negate_conditional()
+tests/nil_context_tests.rs	fn test_argument()
+tests/nil_context_tests.rs	fn test_conditional()
+tests/node_fs_borrow_ops_tests.rs	fn write_probe()
+tests/no_such_element_tests.rs	fn caught()
+tests/no_such_element_tests.rs	fn folded_variant_message()
+tests/no_such_element_tests.rs	fn message_read()
+tests/nullability_tests.rs	fn test_ctor_field_label()
+tests/nullability_tests.rs	fn test_narrowed_float()
+tests/nullability_tests.rs	fn test_nullable_to_string()
+tests/nullability_tests.rs	fn test_nullable_to_string_with_param()
+tests/nullable_array_argument_tests.rs	fn checked_sum()
+tests/nullable_array_elem_tests.rs	fn test_collect()
+tests/nullable_array_tests.rs	fn nullable_int_literals()
+tests/nullable_array_tests.rs	fn nullable_string_literals()
+tests/nullable_array_tests.rs	fn nullable_var_elements()
+tests/nullable_array_tests.rs	fn single_null()
+tests/nullable_buf_field_tests.rs	fn append_guarded()
+tests/nullable_buf_field_tests.rs	fn caught_fault()
+tests/nullable_call_tests.rs	fn test_guarded_to_string_result()
+tests/nullable_call_tests.rs	fn test_normalized_to_string_result()
+tests/nullable_call_tests.rs	fn test_nullable_to_string_result()
+tests/nullable_field_record_tests.rs	fn both_states_print()
+tests/nullable_field_record_tests.rs	fn null_field_left_operand()
+tests/nullable_field_record_tests.rs	fn null_field_right_operand()
+tests/nullable_field_record_tests.rs	fn null_int_field_left_operand()
+tests/nullable_field_record_tests.rs	fn null_int_field_prints_null()
+tests/nullable_field_record_tests.rs	fn null_local_left_operand()
+tests/nullable_field_record_tests.rs	fn null_local_right_operand()
+tests/nullable_field_record_tests.rs	fn null_string_field_prints_null()
+tests/nullable_field_record_tests.rs	fn present_int_field_prints_value()
+tests/nullable_field_record_tests.rs	fn present_string_field_prints_value()
+tests/nullable_field_record_tests.rs	fn present_value_concatenates()
+tests/nullable_float_compare_tests.rs	fn not_zero()
+tests/nullable_float_compare_tests.rs	fn structural_zero()
+tests/nullable_index_tests.rs	fn test_at()
+tests/nullable_interface_branch_ops_tests.rs	fn label()
+tests/nullable_local_tests.rs	fn float_local_keeps_some()
+tests/nullable_local_tests.rs	fn int_local_keeps_some()
+tests/nullable_local_tests.rs	fn lookup_init_unwrapped()
+tests/nullable_local_tests.rs	fn nullable_init_unwrapped()
+tests/nullable_local_tests.rs	fn null_bool_stays_null()
+tests/nullable_local_tests.rs	fn string_local_keeps_some()
+tests/nullable_string_view_ops_tests.rs	fn test_nullable_view()
+tests/nullable_to_string_tests.rs	fn test_render()
+tests/null_args_tests.rs	fn test_conditional_arg()
+tests/null_args_tests.rs	fn test_explicit_null()
+tests/null_args_tests.rs	fn test_nullable_variable()
+tests/null_args_tests.rs	fn test_null_default()
+tests/null_guard_field_tests.rs	fn test_field_guard()
+tests/null_guard_narrow_tests.rs	fn test_narrowing()
+tests/null_guard_nested_field_ops_tests.rs	fn matching_span()
+tests/null_guard_nested_field_ops_tests.rs	fn span_left()
+tests/null_guard_nested_field_ops_tests.rs	fn starts_before()
+tests/null_init_local_tests.rs	fn test_label()
+tests/null_init_local_tests.rs	fn test_pick()
+tests/null_static_map_tests.rs	fn test_lookup()
+tests/number_classify_tests.rs	fn finite_classification()
+tests/number_classify_tests.rs	fn nan_classification()
+tests/number_parsing_tests.rs	fn float_failure()
+tests/number_parsing_tests.rs	fn float_success()
+tests/number_parsing_tests.rs	fn int_failure()
+tests/number_parsing_tests.rs	fn int_success()
+tests/numeric_coalesce_local_ops_tests.rs	fn test_coalesced_local()
+tests/numeric_conversion_widening_tests.rs	fn test_assign()
+tests/numeric_conversion_widening_tests.rs	fn test_comparison()
+tests/numeric_conversion_widening_tests.rs	fn test_init()
+tests/numeric_conversion_widening_tests.rs	fn test_param()
+tests/numeric_conversion_widening_tests.rs	fn test_return()
+tests/numeric_domain_tests.rs	fn test_before_char()
+tests/numeric_domain_tests.rs	fn test_collect_offsets()
+tests/numeric_domain_tests.rs	fn test_colon_pair()
+tests/numeric_domain_tests.rs	fn test_find_index()
+tests/numeric_domain_tests.rs	fn test_offsets()
+tests/numeric_domain_tests.rs	fn test_prefix_unit()
+tests/numeric_widen_tests.rs	fn test_assignments()
+tests/numeric_widen_tests.rs	fn test_branch_merges()
+tests/numeric_widen_tests.rs	fn test_nullable_conditional()
+tests/numeric_widen_tests.rs	fn test_operands()
+tests/numeric_widen_tests.rs	fn test_returns()
+tests/optional_ctor_tests.rs	fn test_optional_ctor()
+tests/optional_interface_argument_ops_tests.rs	fn render()
+tests/optional_member_tests.rs	fn test_member()
+tests/optional_param_null_tests.rs	fn test_class_default()
+tests/optional_param_null_tests.rs	fn test_int_default()
+tests/optional_projection_tests.rs	fn test_projections()
+tests/optional_value_use_tests.rs	fn test_value_uses()
+tests/override_member_tests.rs	fn hash_member()
+tests/override_member_tests.rs	fn message()
+tests/override_member_tests.rs	fn ordinary()
+tests/parse_int_push_tests.rs	fn parse_all()
+tests/parse_int_push_tests.rs	fn parse_local()
+tests/payload_self_map_ops_tests.rs	fn self_mapped_payload()
+tests/pipeline_tests.rs	fn test_all()
+tests/pipeline_tests.rs	fn test_any()
+tests/pipeline_tests.rs	fn test_associate()
+tests/pipeline_tests.rs	fn test_chained()
+tests/pipeline_tests.rs	fn test_filter()
+tests/pipeline_tests.rs	fn test_first_or_null()
+tests/pipeline_tests.rs	fn test_flat_map()
+tests/pipeline_tests.rs	fn test_for_each()
+tests/pipeline_tests.rs	fn test_group_by()
+tests/pipeline_tests.rs	fn test_map()
+tests/pipeline_tests.rs	fn test_map_not_null()
+tests/pipeline_tests.rs	fn test_mint_capture()
+tests/pipeline_tests.rs	fn test_nested_loop()
+tests/pipeline_tests.rs	fn test_shadowing()
+tests/pipeline_tests.rs	fn test_sorted_by()
+tests/pipeline_tests.rs	fn test_sum_of_float()
+tests/pipeline_tests.rs	fn test_sum_of_int()
+tests/platform_modules_tests.rs	fn env_absent()
+tests/platform_modules_tests.rs	fn env_round_trip()
+tests/platform_modules_tests.rs	fn fs_make_dirs()
+tests/platform_modules_tests.rs	fn fs_read_dir()
+tests/platform_modules_tests.rs	fn fs_round_trip()
+tests/platform_modules_tests.rs	fn path_dirname()
+tests/platform_modules_tests.rs	fn path_expand_home()
+tests/platform_modules_tests.rs	fn path_join_kinds()
+tests/platform_modules_tests.rs	fn path_normalize()
+tests/platform_modules_tests.rs	fn path_normalize_kinds()
+tests/platform_modules_test_support.rs	pub fn platform_modules_test_support_ensure_dir()
+tests/platform_modules_test_support.rs	pub fn platform_modules_test_support_has_entry(dir: &UStr, name: &UStr) -> bool
+tests/platform_modules_test_support.rs	pub fn platform_modules_test_support_no_dot_entries(dir: &UStr) -> bool
+tests/platform_modules_test_support.rs	pub fn platform_modules_test_support_text_path(name: &UStr) -> UString
+tests/poster_shape_tests.rs	fn print()
+tests/post_inc_condition_tests.rs	fn test_condition()
+tests/printed_collection_tests.rs	fn collections()
+tests/printed_collection_tests.rs	fn enum_elements()
+tests/printed_collection_tests.rs	fn nullable_collection_keys()
+tests/printed_collection_tests.rs	fn nullable_collection_print()
+tests/printed_enum_tests.rs	fn forms()
+tests/printed_record_tests.rs	fn explicit_member_wins()
+tests/printed_record_tests.rs	fn member_matches_macro()
+tests/printed_record_tests.rs	fn nested_record_uses_member()
+tests/printed_record_tests.rs	fn present_note_prints_member()
+tests/printed_record_tests.rs	fn standard_string_uses_member()
+tests/printed_sorted_fields_tests.rs	fn fields()
+tests/private_class_tests.rs	fn distinct_resolutions()
+tests/private_collision_tests.rs	fn test_private_collision()
+tests/private_default_tests.rs	fn test_defaults()
+tests/private_static_call_tests.rs	fn test_private_static_call()
+tests/probe_chain_tests.rs	fn depth()
+tests/probe_share_tests.rs	fn probe()
+tests/probe_share_tests.rs	pub fn probe_share_tests_shared_label() -> UString
+tests/public_getter_property_tests.rs	fn test_getter_only_concrete_read()
+tests/public_getter_property_tests.rs	fn test_getter_only_interface_read()
+tests/public_getter_property_tests.rs	fn test_public_getter_property()
+tests/range_parameter_tests.rs	fn test_call()
+tests/record_interface_ops_tests.rs	fn data_class_equality()
+tests/record_interface_ops_tests.rs	fn present_note()
+tests/record_interface_ops_tests.rs	fn record_role()
+tests/record_interface_ops_tests.rs	fn singleton_role()
+tests/record_order_tests.rs	fn aligned_prints_as_before()
+tests/record_order_tests.rs	fn copy_round_trips_aligned()
+tests/record_order_tests.rs	fn copy_round_trips_shifted()
+tests/record_order_tests.rs	fn equality_accepts_shifted_values()
+tests/record_order_tests.rs	fn shifted_defaulted_prints_fallback()
+tests/record_order_tests.rs	fn shifted_matches_record_str()
+tests/record_order_tests.rs	fn shifted_prints_declaration_order()
+tests/record_tests.rs	fn test_multiple_overrides()
+tests/record_tests.rs	fn test_reordered_overrides()
+tests/record_tests.rs	fn test_single_override()
+tests/record_tests.rs	fn test_zero_override()
+tests/registry_json_tests.rs	fn round_trip()
+tests/registry_parse_args_tests.rs	fn help()
+tests/registry_parse_args_tests.rs	fn missing_required()
+tests/registry_parse_args_tests.rs	fn unknown()
+tests/registry_parse_args_tests.rs	pub fn registry_parse_args_support_message(argv: &Vec<UString>) -> UString
+tests/registry_pipeline_tests.rs	fn generates_files()
+tests/registry_semver_tests.rs	fn ordering()
+tests/registry_sha1_tests.rs	fn hashes_boundaries()
+tests/resident_builder_infer_ops_tests.rs	fn test_resident_builder()
+tests/resident_module_import_tests.rs	fn test_resident_module_import()
+tests/runtime_export_tests.rs	fn test_bits_to_float()
+tests/runtime_export_tests.rs	fn test_float_round_trip()
+tests/runtime_export_tests.rs	fn test_float_to_bits()
+tests/runtime_export_tests.rs	fn test_u_string_exports()
+tests/rust_coalesce_tests.rs	fn assigned_string_field()
+tests/rust_coalesce_tests.rs	fn borrowed_string_default()
+tests/rust_coalesce_tests.rs	fn default_record()
+tests/rust_coalesce_tests.rs	fn direct_array_static()
+tests/rust_coalesce_tests.rs	fn string_tag_from()
+tests/rust_coalesce_tests.rs	fn substituted_string_default()
+tests/rust_union_fault_tests.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+tests/rust_union_fault_tests.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+tests/rust_union_fault_tests.rs	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+tests/rust_union_fault_tests.rs	fn from(value: crate::boring::vector_exception::VectorError) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: crate::boring::vector_exception::VectorError) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: crate::boring::vector_exception::VectorError) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: crate::registry::core_exception::CoreFault) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: crate::registry::core_exception::CoreFault) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: crate::tests::rust_union_fault_tests::RustUnionFaultTestsThroughCallsFault) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: RustUnionFaultTestsDirectBothFault) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: RustUnionFaultTestsDirectBothFault) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: RustUnionFaultTestsMixedCallerFault) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: RustUnionFaultTestsMixedCallerFault) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: RustUnionFaultTestsThroughCallsFault) -> Self
+tests/rust_union_fault_tests.rs	fn from(value: RustUnionFaultTestsThroughCallsFault) -> Self
+tests/rust_union_fault_tests.rs	fn union_faults()
+tests/rust_union_fault_tests.rs	pub fn rust_union_fault_support_core_path() -> Result<u32, CoreFault>
+tests/rust_union_fault_tests.rs	pub fn rust_union_fault_support_direct_both(flag: bool) -> Result<u32, RustUnionFaultTestsDirectBothFault>
+tests/rust_union_fault_tests.rs	pub fn rust_union_fault_support_mixed_caller(flag: bool) -> Result<u32, RustUnionFaultTestsMixedCallerFault>
+tests/rust_union_fault_tests.rs	pub fn rust_union_fault_support_second_caller(flag: bool) -> Result<u32, RustUnionFaultTestsThroughCallsFault>
+tests/rust_union_fault_tests.rs	pub fn rust_union_fault_support_through_calls(flag: bool) -> Result<u32, RustUnionFaultTestsThroughCallsFault>
+tests/rust_union_fault_tests.rs	pub fn rust_union_fault_support_vector_path() -> Result<u32, VectorError>
+tests/sealed_child_tests.rs	fn child_message()
+tests/sealed_variant_tests.rs	fn test_labels()
+tests/sealed_variant_tests.rs	fn test_record_to_string()
+tests/sealed_variant_tests.rs	fn test_singleton_to_string()
+tests/sealed_variant_tests.rs	fn test_type_checks()
+tests/sha256_tests.rs	fn abc()
+tests/sha256_tests.rs	fn empty()
+tests/sha256_tests.rs	fn incremental()
+tests/sha256_test_support.rs	pub fn sha256_test_support_digest_hex(value: &[u8]) -> UString
+tests/sha256_test_support.rs	pub fn sha256_test_support_zeroes(length: u32) -> Vec<u8>
+tests/sha512_tests.rs	fn abc()
+tests/sha512_tests.rs	fn empty()
+tests/sha512_tests.rs	fn incremental()
+tests/sha512_test_support.rs	pub fn sha512_test_support_hex(value: &[u8]) -> UString
+tests/shape_text_tests.rs	fn render()
+tests/signed_comparison_tests.rs	fn index_at_or_above_limit()
+tests/signed_comparison_tests.rs	fn index_below_limit()
+tests/signed_comparison_tests.rs	fn index_below_zero()
+tests/signed_comparison_tests.rs	fn index_equals_limit()
+tests/signed_comparison_tests.rs	fn last_index_equals_limit()
+tests/signed_int_argument_tests.rs	fn from_index()
+tests/signed_int_argument_tests.rs	fn shifted()
+tests/signed_int_assign_ops_tests.rs	fn advance()
+tests/signed_int_constructor_tests.rs	fn negated_index()
+tests/signed_int_constructor_tests.rs	fn sum_index()
+tests/signed_loop_bound_ops_tests.rs	fn fill()
+tests/sorted_key_domain_tests.rs	fn test_data_class_generated_entries()
+tests/sorted_key_domain_tests.rs	fn test_data_class_key_evidence()
+tests/sorted_key_domain_tests.rs	fn test_string_key_lookup()
+tests/sorted_key_domain_tests.rs	fn test_string_key_order()
+tests/sorted_key_domain_tests.rs	fn test_structure_key_lookup()
+tests/sorted_key_domain_tests.rs	fn test_structure_key_order()
+tests/sorted_key_domain_tests.rs	fn test_structure_map_last_wins()
+tests/sorted_key_domain_tests.rs	fn test_structure_set_operations()
+tests/sorted_table_tests.rs	fn test_code_point_names_lookup()
+tests/sorted_table_tests.rs	fn test_code_point_names_order()
+tests/sorted_table_tests.rs	fn test_empty_map()
+tests/sorted_table_tests.rs	fn test_empty_set()
+tests/sorted_table_tests.rs	fn test_map_duplicate_keys()
+tests/sorted_table_tests.rs	fn test_sorted_set_operations()
+tests/static_extension_tests.rs	fn test_owned_extension()
+tests/static_extension_tests.rs	fn test_string_extension()
+tests/static_extension_tests.rs	fn test_top_level_results()
+tests/static_fn_tests.rs	fn test_function_static()
+tests/static_fn_tests.rs	fn test_int_static()
+tests/static_ref_tests.rs	fn test_call_site()
+tests/static_ref_tests.rs	fn test_pass_to_param()
+tests/static_ref_tests.rs	fn test_reassign_local()
+tests/static_ref_tests.rs	fn test_return_fn()
+tests/static_ref_tests.rs	fn test_statics_only_value()
+tests/static_ref_tests.rs	fn test_store_local()
+tests/static_state_tests.rs	fn test_static_collision()
+tests/static_state_tests.rs	fn test_static_state()
+tests/std_string_plain_class_tests.rs	fn plain_class_and_record()
+tests/std_string_self_rec_tests.rs	fn forms()
+tests/std_string_tests.rs	fn arrays()
+tests/std_string_tests.rs	fn concatenated_scalars()
+tests/std_string_tests.rs	fn float_forms()
+tests/std_string_tests.rs	fn standalone_scalars()
+tests/std_string_tests.rs	fn value_enumerations()
+tests/string_append_tests.rs	fn test_append()
+tests/string_buf_tests.rs	fn test_add_after_lead()
+tests/string_buf_tests.rs	fn test_add_char()
+tests/string_buf_tests.rs	fn test_add_strings()
+tests/string_buf_tests.rs	fn test_complete_pair()
+tests/string_buf_tests.rs	fn test_dangling_lead()
+tests/string_buf_tests.rs	fn test_empty_buffer()
+tests/string_buf_tests.rs	fn test_incremental()
+tests/string_buf_tests.rs	fn test_supplementary_characters()
+tests/string_buf_tests.rs	fn test_trail_without_lead()
+tests/string_buf_throw_tests.rs	fn test_build_char_from_checked()
+tests/string_buf_throw_tests.rs	fn test_build_from_checked()
+tests/string_buf_throw_tests.rs	fn test_caught_checked()
+tests/string_buf_union_tests.rs	fn test_build_char_checked()
+tests/string_buf_union_tests.rs	fn test_build_checked()
+tests/string_buf_union_tests.rs	fn test_vector_fault()
+tests/string_codec_tests.rs	fn ascii_round_trip()
+tests/string_codec_tests.rs	fn astral_round_trip()
+tests/string_codec_tests.rs	fn cjk_round_trip()
+tests/string_codec_tests.rs	fn concat_empty()
+tests/string_codec_tests.rs	fn concat_joins()
+tests/string_codec_tests.rs	fn concat_no_alias()
+tests/string_codec_tests.rs	fn empty_encode()
+tests/string_codec_tests.rs	fn invalid_decodes_to_replacement()
+tests/string_codec_tests.rs	fn sub_range_decode()
+tests/string_codec_tests.rs	fn truncated_sequence()
+tests/string_code_optional_tests.rs	fn test_optional_operands()
+tests/string_conv_tests.rs	fn test_case_conversions()
+tests/string_conv_tests.rs	fn test_hex()
+tests/string_index_of_shadow_tests.rs	fn test_dash_index()
+tests/string_search_from_tests.rs	fn test_find_from()
+tests/string_search_from_tests.rs	fn test_find_last_from()
+tests/string_search_from_tests.rs	fn test_second_block()
+tests/string_tools_tests.rs	fn pad_left()
+tests/string_tools_tests.rs	fn replace()
+tests/string_tools_tests.rs	fn trims()
+tests/string_unit_tests.rs	fn char_code_at_unit_domain()
+tests/string_unit_tests.rs	fn split_empty_delimiter()
+tests/string_unit_tests.rs	fn split_empty_delimiter_surrogates()
+tests/string_unit_tests.rs	fn substr_unit_domain()
+tests/string_unit_tests.rs	fn unit_surface()
+tests/substring_default_tests.rs	fn test_derive()
+tests/sum_of_float_local_tests.rs	fn test_total()
+tests/sum_of_float_local_tests.rs	fn test_weighted()
+tests/swift_default_tests.rs	fn test_default_style()
+tests/swift_global_throw_tests.rs	fn test_current()
+tests/swift_global_throw_tests.rs	fn test_seed()
+tests/swift_literal_safety_ops_tests.rs	fn test_control_text()
+tests/swift_literal_safety_ops_tests.rs	fn test_trailing_point()
+tests/switch_case_scope_tests.rs	fn test_mixed()
+tests/switch_case_scope_tests.rs	fn test_tone_ink()
+tests/switch_case_scope_tests.rs	fn test_tone_row()
+tests/switch_merge_tests.rs	fn grouped()
+tests/switch_merge_tests.rs	fn grouped_plain_matches()
+tests/switch_merge_tests.rs	fn single()
+tests/switch_null_arm_tests.rs	fn test_label()
+tests/switch_ops_tests.rs	fn test_assign()
+tests/switch_ops_tests.rs	fn test_conditional()
+tests/switch_ops_tests.rs	fn test_default()
+tests/switch_ops_tests.rs	fn test_initializer()
+tests/switch_ops_tests.rs	fn test_statement()
+tests/table_builder_infer_tests.rs	fn test_builders()
+tests/ternary_interface_tests.rs	fn test_choose()
+tests/ternary_optional_tests.rs	fn test_choose()
+tests/test_applicability_probe_tests.rs	fn applies_to_all()
+tests/test_applicability_probe_tests.rs	fn excluded_on_swift()
+tests/test_data.rs	pub fn test_data_glyph_samples() -> Vec<GlyphMetrics>
+tests/test_data.rs	pub fn test_data_sample_bounds() -> BoundsEm
+tests/test_data.rs	pub fn test_data_sample_bytes() -> Vec<u8>
+tests/test_helper.rs	pub fn assert_equals_bool(expected: &bool, actual: &bool, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_bounds_em(expected: &crate::boring::glyph_metrics::BoundsEm, actual: &crate::boring::glyph_metrics::BoundsEm, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_bytes(expected: &[u8], actual: &[u8], message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_f32(expected: &f32, actual: &f32, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_glyph_metrics(expected: &crate::boring::glyph_metrics::GlyphMetrics, actual: &crate::boring::glyph_metrics::GlyphMetrics, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_i32(expected: &i32, actual: &i32, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_opt_string(expected: &Option<UString>, actual: &Option<UString>, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_opt_u32(expected: &Option<u32>, actual: &Option<u32>, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_string(expected: &String, actual: &String, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_u16(expected: &u16, actual: &u16, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_u32(expected: &u32, actual: &u32, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_usize(expected: &usize, actual: &usize, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_vec_glyph_metrics(expected: &[crate::boring::glyph_metrics::GlyphMetrics], actual: &[crate::boring::glyph_metrics::GlyphMetrics], message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_vector_error(expected: &crate::boring::vector_exception::VectorError, actual: &crate::boring::vector_exception::VectorError, message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_vec_u32(expected: &[u32], actual: &[u32], message: &UStr)
+tests/test_helper.rs	pub fn assert_equals_vec_ustring(expected: &[UString], actual: &[UString], message: &UStr)
+tests/test_helper.rs	pub fn equals_bool(a: &bool, b: &bool) -> bool
+tests/test_helper.rs	pub fn equals_bounds_em(a: &crate::boring::glyph_metrics::BoundsEm, b: &crate::boring::glyph_metrics::BoundsEm) -> bool
+tests/test_helper.rs	pub fn equals_bytes(a: &[u8], b: &[u8]) -> bool
+tests/test_helper.rs	pub fn equals_f32(a: &f32, b: &f32) -> bool
+tests/test_helper.rs	pub fn equals_glyph_metrics(a: &crate::boring::glyph_metrics::GlyphMetrics, b: &crate::boring::glyph_metrics::GlyphMetrics) -> bool
+tests/test_helper.rs	pub fn equals_i32(a: &i32, b: &i32) -> bool
+tests/test_helper.rs	pub fn equals_opt_string(a: &Option<UString>, b: &Option<UString>) -> bool
+tests/test_helper.rs	pub fn equals_opt_u32(a: &Option<u32>, b: &Option<u32>) -> bool
+tests/test_helper.rs	pub fn equals_string(a: &String, b: &String) -> bool
+tests/test_helper.rs	pub fn equals_u16(a: &u16, b: &u16) -> bool
+tests/test_helper.rs	pub fn equals_u32(a: &u32, b: &u32) -> bool
+tests/test_helper.rs	pub fn equals_usize(a: &usize, b: &usize) -> bool
+tests/test_helper.rs	pub fn equals_ustring(a: &UString, b: &UString) -> bool
+tests/test_helper.rs	pub fn equals_vec_glyph_metrics(a: &[crate::boring::glyph_metrics::GlyphMetrics], b: &[crate::boring::glyph_metrics::GlyphMetrics]) -> bool
+tests/test_helper.rs	pub fn equals_vector_error(a: &crate::boring::vector_exception::VectorError, b: &crate::boring::vector_exception::VectorError) -> bool
+tests/test_helper.rs	pub fn equals_vec_u32(a: &[u32], b: &[u32]) -> bool
+tests/test_helper.rs	pub fn equals_vec_ustring(a: &[UString], b: &[UString]) -> bool
+tests/test_helper.rs	pub fn format_bool(v: &bool) -> String
+tests/test_helper.rs	pub fn format_bounds_em(v: &crate::boring::glyph_metrics::BoundsEm) -> String
+tests/test_helper.rs	pub fn format_bytes(v: &[u8]) -> String
+tests/test_helper.rs	pub fn format_f32(v: &f32) -> String
+tests/test_helper.rs	pub fn format_glyph_metrics(v: &crate::boring::glyph_metrics::GlyphMetrics) -> String
+tests/test_helper.rs	pub fn format_i32(v: &i32) -> String
+tests/test_helper.rs	pub fn format_opt_string(v: &Option<UString>) -> String
+tests/test_helper.rs	pub fn format_opt_u32(v: &Option<u32>) -> String
+tests/test_helper.rs	pub fn format_string(v: &String) -> String
+tests/test_helper.rs	pub fn format_u16(v: &u16) -> String
+tests/test_helper.rs	pub fn format_u32(v: &u32) -> String
+tests/test_helper.rs	pub fn format_ustring(v: &UString) -> String
+tests/test_helper.rs	pub fn format_vec_glyph_metrics(v: &[crate::boring::glyph_metrics::GlyphMetrics]) -> String
+tests/test_helper.rs	pub fn format_vector_error(v: &crate::boring::vector_exception::VectorError) -> String
+tests/test_helper.rs	pub fn format_vec_u32(v: &[u32]) -> String
+tests/test_helper.rs	pub fn format_vec_ustring(v: &[UString]) -> String
+tests/throwing_closure_tests.rs	fn test_throwing_closure()
+tests/throwing_index_of_tests.rs	fn test_at()
+tests/to_string_tests.rs	fn explicit_to_string()
+tests/try_tests.rs	fn test_caught_statement()
+tests/try_tests.rs	fn test_classify_fault()
+tests/try_tests.rs	fn test_fault_payload()
+tests/try_tests.rs	fn test_handler_return()
+tests/try_tests.rs	fn test_region_message()
+tests/try_tests.rs	fn test_region_return()
+tests/try_tests.rs	fn test_region_value()
+tests/ts2448_tests.rs	fn nested_local()
+tests/type_alias_local_tests.rs	fn test_compute()
+tests/type_parameter_compare_tests.rs	fn test_compare()
+tests/underscore_param_tests.rs	fn underscore_parameters()
+tests/union_chain_tests.rs	fn chained_union()
+tests/usize_comparison_tests.rs	fn length_exceeds()
+tests/usize_comparison_tests.rs	fn within_bounds()
+tests/u_string_resident_tests.rs	fn test_resident_members()
+tests/u_string_tests.rs	fn test_ascii_tier()
+tests/u_string_tests.rs	fn test_bmp_tier()
+tests/u_string_tests.rs	fn test_reversal()
+tests/u_string_tests.rs	fn test_round_trip()
+tests/u_string_tests.rs	fn test_slice()
+tests/u_string_tests.rs	fn test_substring()
+tests/u_string_tests.rs	fn test_substring_bounds()
+tests/u_string_tests.rs	fn test_supplementary_tier()
+tests/value_passing_tests.rs	fn value_flow()
+tests/value_record_probes.rs	pub fn value_record_probes_ctor_rejected(start: u32, end: u32) -> bool
+tests/value_record_tests.rs	fn test_accepted()
+tests/value_record_tests.rs	fn test_construction()
+tests/value_record_tests.rs	fn test_copy_one()
+tests/value_record_tests.rs	fn test_copy_reordered()
+tests/value_record_tests.rs	fn test_copy_zero()
+tests/value_record_tests.rs	fn test_equality()
+tests/value_record_tests.rs	fn test_negative_start()
+tests/value_record_tests.rs	fn test_printed_form()
+tests/value_record_tests.rs	fn test_private_holder()
+tests/value_record_tests.rs	fn test_property()
+tests/value_record_tests.rs	fn test_start_after_end()
+tests/value_type_clash_tests.rs	fn clash_doubled()
+tests/value_type_clash_tests.rs	fn control_member()
+tests/value_type_ctor_binding_tests.rs	fn test_with_seed()
+tests/value_type_tests.rs	fn test_arithmetic()
+tests/value_type_tests.rs	fn test_blank_rejected()
+tests/value_type_tests.rs	fn test_equality()
+tests/value_type_tests.rs	fn test_optional_ic()
+tests/value_type_tests.rs	fn test_rendered_string()
+tests/value_type_tests.rs	fn test_static_field()
+tests/vec_insert_tests.rs	fn insert_at()
+tests/vec_splice_tests.rs	fn capture_removed()
+tests/vec_splice_tests.rs	fn remove_head()
+tests/vec_splice_tests.rs	fn remove_single()
+tests/vector_codec_tests.rs	fn ascii_codecs_round_trip()
+tests/vector_codec_tests.rs	fn byte_lengths_per_width()
+tests/vector_codec_tests.rs	fn magic_width_mapping()
+tests/vector_codec_tests.rs	fn roundtrip()
+tests/vector_codec_tests.rs	fn roundtrip_f16()
+tests/vector_codec_tests.rs	fn roundtrip_f32()
+tests/vector_codec_tests.rs	fn test_array()
+tests/vector_codec_tests.rs	fn test_bool()
+tests/vector_codec_tests.rs	fn test_bytes()
+tests/vector_codec_tests.rs	fn test_enum()
+tests/vector_codec_tests.rs	fn test_float()
+tests/vector_codec_tests.rs	fn test_int()
+tests/vector_codec_tests.rs	fn test_na_n()
+tests/vector_codec_tests.rs	fn test_string()
+tests/vector_codec_tests.rs	fn test_structure()
+tests/vector_codec_tests.rs	fn test_without_description()
+tests/widget_coalescing_tests.rs	fn builder_default()
+tests/widget_coalescing_tests.rs	fn lens_default()
+tests/xxh128_tests.rs	fn vectors()
+tests/xxh64_tests.rs	fn digest_is_idempotent()
+tests/xxh64_tests.rs	fn streaming_chunks()
+tests/xxh64_tests.rs	fn vector_tests()

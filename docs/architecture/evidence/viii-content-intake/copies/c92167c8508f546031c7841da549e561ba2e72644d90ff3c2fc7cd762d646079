@@ -1,0 +1,252 @@
+package boring
+
+import std.UStringException
+
+object StringBufOps {
+    fun buildEmpty(): String {
+        val buf = StringBuilder()
+        val tail = buf.lastOrNull()?.code ?: -1
+        if (tail >= 55296 && tail <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail)
+        }
+        return buf.toString()
+    }
+
+    fun buildParts(a: String, b: String, c: String): String {
+        val buf = StringBuilder()
+        val tail2 = buf.lastOrNull()?.code ?: -1
+        if (tail2 >= 55296 && tail2 <= 56319 && a.length > 0 && !(a[0].code >= 56320 && a[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail2)
+        }
+        buf.append(a)
+        val tail3 = buf.lastOrNull()?.code ?: -1
+        if (tail3 >= 55296 && tail3 <= 56319 && b.length > 0 && !(b[0].code >= 56320 && b[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail3)
+        }
+        buf.append(b)
+        val tail4 = buf.lastOrNull()?.code ?: -1
+        if (tail4 >= 55296 && tail4 <= 56319 && c.length > 0 && !(c[0].code >= 56320 && c[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail4)
+        }
+        buf.append(c)
+        val tail5 = buf.lastOrNull()?.code ?: -1
+        if (tail5 >= 55296 && tail5 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail5)
+        }
+        return buf.toString()
+    }
+
+    fun buildWithChars(prefix: String, codeA: Int, codeB: Int): String {
+        val buf = StringBuilder()
+        val tail6 = buf.lastOrNull()?.code ?: -1
+        if (tail6 >= 55296 && tail6 <= 56319 && prefix.length > 0 && !(prefix[0].code >= 56320 && prefix[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail6)
+        }
+        buf.append(prefix)
+        val tail7 = buf.lastOrNull()?.code ?: -1
+        if (codeA >= 56320 && codeA <= 57343) {
+            if (!(tail7 >= 55296 && tail7 <= 56319)) {
+                throw UStringException.UnpairedSurrogate(codeA)
+            }
+        } else if (tail7 >= 55296 && tail7 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail7)
+        }
+        buf.append((codeA).toChar())
+        val tail8 = buf.lastOrNull()?.code ?: -1
+        if (codeB >= 56320 && codeB <= 57343) {
+            if (!(tail8 >= 55296 && tail8 <= 56319)) {
+                throw UStringException.UnpairedSurrogate(codeB)
+            }
+        } else if (tail8 >= 55296 && tail8 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail8)
+        }
+        buf.append((codeB).toChar())
+        val tail9 = buf.lastOrNull()?.code ?: -1
+        if (tail9 >= 55296 && tail9 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail9)
+        }
+        return buf.toString()
+    }
+
+    fun measureLength(parts: MutableList<String>): Int {
+        val buf = StringBuilder()
+        for (i in 0 until parts.size) {
+            val tail10 = buf.lastOrNull()?.code ?: -1
+            if (tail10 >= 55296 && tail10 <= 56319 && (parts[i]).length > 0 && !((parts[i])[0].code >= 56320 && (parts[i])[0].code <= 57343)) {
+                throw UStringException.UnpairedSurrogate(tail10)
+            }
+            buf.append((parts[i]))
+        }
+        return buf.length
+    }
+
+    fun buildIncremental(): MutableList<String> {
+        val buf = StringBuilder()
+        val tail11 = buf.lastOrNull()?.code ?: -1
+        if (tail11 >= 55296 && tail11 <= 56319 && "step1".length > 0 && !("step1"[0].code >= 56320 && "step1"[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail11)
+        }
+        buf.append("step1")
+        val tail12 = buf.lastOrNull()?.code ?: -1
+        if (tail12 >= 55296 && tail12 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail12)
+        }
+        val s1 = buf.toString()
+        val tail13 = buf.lastOrNull()?.code ?: -1
+        if (tail13 >= 55296 && tail13 <= 56319 && "-step2".length > 0 && !("-step2"[0].code >= 56320 && "-step2"[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail13)
+        }
+        buf.append("-step2")
+        val tail14 = buf.lastOrNull()?.code ?: -1
+        if (tail14 >= 55296 && tail14 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail14)
+        }
+        val s2 = buf.toString()
+        return mutableListOf<String>(s1, s2)
+    }
+
+    fun buildSupplementary(): String {
+        val buf = StringBuilder()
+        val tail15 = buf.lastOrNull()?.code ?: -1
+        if (tail15 >= 55296 && tail15 <= 56319 && "hi".length > 0 && !("hi"[0].code >= 56320 && "hi"[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail15)
+        }
+        buf.append("hi")
+        val tail16 = buf.lastOrNull()?.code ?: -1
+        if (tail16 >= 55296 && tail16 <= 56319 && "🚀".length > 0 && !("🚀"[0].code >= 56320 && "🚀"[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail16)
+        }
+        buf.append("🚀")
+        val tail17 = buf.lastOrNull()?.code ?: -1
+        if (tail17 >= 55296 && tail17 <= 56319 && "!".length > 0 && !("!"[0].code >= 56320 && "!"[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail17)
+        }
+        buf.append("!")
+        val tail18 = buf.lastOrNull()?.code ?: -1
+        if (tail18 >= 55296 && tail18 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail18)
+        }
+        return buf.toString()
+    }
+
+    fun measureSupplementaryLength(): Int {
+        val buf = StringBuilder()
+        val tail19 = buf.lastOrNull()?.code ?: -1
+        if (tail19 >= 55296 && tail19 <= 56319 && "hi".length > 0 && !("hi"[0].code >= 56320 && "hi"[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail19)
+        }
+        buf.append("hi")
+        val tail20 = buf.lastOrNull()?.code ?: -1
+        if (tail20 >= 55296 && tail20 <= 56319 && "🚀".length > 0 && !("🚀"[0].code >= 56320 && "🚀"[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail20)
+        }
+        buf.append("🚀")
+        val tail21 = buf.lastOrNull()?.code ?: -1
+        if (tail21 >= 55296 && tail21 <= 56319 && "!".length > 0 && !("!"[0].code >= 56320 && "!"[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail21)
+        }
+        buf.append("!")
+        return buf.length
+    }
+
+    fun completePair(lead: Int, trail: Int): String {
+        val buf = StringBuilder()
+        val tail22 = buf.lastOrNull()?.code ?: -1
+        if (lead >= 56320 && lead <= 57343) {
+            if (!(tail22 >= 55296 && tail22 <= 56319)) {
+                throw UStringException.UnpairedSurrogate(lead)
+            }
+        } else if (tail22 >= 55296 && tail22 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail22)
+        }
+        buf.append((lead).toChar())
+        val tail23 = buf.lastOrNull()?.code ?: -1
+        if (trail >= 56320 && trail <= 57343) {
+            if (!(tail23 >= 55296 && tail23 <= 56319)) {
+                throw UStringException.UnpairedSurrogate(trail)
+            }
+        } else if (tail23 >= 55296 && tail23 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail23)
+        }
+        buf.append((trail).toChar())
+        val tail24 = buf.lastOrNull()?.code ?: -1
+        if (tail24 >= 55296 && tail24 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail24)
+        }
+        return buf.toString()
+    }
+
+    private fun classifyFault(fault: UStringException): Int {
+        return when (fault) {
+            is UStringException.InvalidCodePoint -> 1000 + fault.code
+            is UStringException.UnpairedSurrogate -> 2000 + fault.unit
+        }
+    }
+
+    fun caughtTrailUnit(trail: Int): Int {
+        val value = try {
+            val buf = StringBuilder()
+            val tail25 = buf.lastOrNull()?.code ?: -1
+            if (trail >= 56320 && trail <= 57343) {
+                if (!(tail25 >= 55296 && tail25 <= 56319)) {
+                    throw UStringException.UnpairedSurrogate(trail)
+                }
+            } else if (tail25 >= 55296 && tail25 <= 56319) {
+                throw UStringException.UnpairedSurrogate(tail25)
+            }
+            buf.append((trail).toChar())
+            0
+        } catch (error: UStringException) {
+            StringBufOps.classifyFault(error)
+        }
+        return value
+    }
+
+    fun caughtDanglingUnit(lead: Int): Int {
+        val value = try {
+            val buf = StringBuilder()
+            val tail26 = buf.lastOrNull()?.code ?: -1
+            if (lead >= 56320 && lead <= 57343) {
+                if (!(tail26 >= 55296 && tail26 <= 56319)) {
+                    throw UStringException.UnpairedSurrogate(lead)
+                }
+            } else if (tail26 >= 55296 && tail26 <= 56319) {
+                throw UStringException.UnpairedSurrogate(tail26)
+            }
+            buf.append((lead).toChar())
+            val tail27 = buf.lastOrNull()?.code ?: -1
+            if (tail27 >= 55296 && tail27 <= 56319) {
+                throw UStringException.UnpairedSurrogate(tail27)
+            }
+            val text = buf.toString()
+            text.length
+        } catch (error: UStringException) {
+            StringBufOps.classifyFault(error)
+        }
+        return value
+    }
+
+    fun caughtAddAfterLeadUnit(lead: Int): Int {
+        val value = try {
+            val buf = StringBuilder()
+            val tail28 = buf.lastOrNull()?.code ?: -1
+            if (lead >= 56320 && lead <= 57343) {
+                if (!(tail28 >= 55296 && tail28 <= 56319)) {
+                    throw UStringException.UnpairedSurrogate(lead)
+                }
+            } else if (tail28 >= 55296 && tail28 <= 56319) {
+                throw UStringException.UnpairedSurrogate(tail28)
+            }
+            buf.append((lead).toChar())
+            val tail29 = buf.lastOrNull()?.code ?: -1
+            if (tail29 >= 55296 && tail29 <= 56319 && "x".length > 0 && !("x"[0].code >= 56320 && "x"[0].code <= 57343)) {
+                throw UStringException.UnpairedSurrogate(tail29)
+            }
+            buf.append("x")
+            0
+        } catch (error: UStringException) {
+            StringBufOps.classifyFault(error)
+        }
+        return value
+    }
+}

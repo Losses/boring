@@ -1,0 +1,72 @@
+PASS plan-A exit
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+ls: cannot access '/stages': No such file or directory
+FAIL plan-A stage file count (got 0, want 20)
+FAIL plan-A child capture wired (got no, want yes)
+cat: '/stages/*.status': No such file or directory
+FAIL plan-A statuses all zero (got , want 0)
+FAIL plan-A attempt sealed and stage evidence verified (got 1, want 0)
+PASS plan-B exit
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+cat: '/stages/*.status': No such file or directory
+FAIL plan-B failing status recorded (got 0, want 1)
+grep: /stages/*.status: No such file or directory
+FAIL plan-B downstream skipped (got 0, want 1)
+PASS plan-B skipped stage produced no artifact
+grep: /harness.log: No such file or directory
+FAIL plan-B blocker named in sealed log (got , want 1)
+FAIL plan-B attempt sealed and stage evidence verified (got 1, want 0)
+PASS plan-C exit
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+FAIL plan-C records plan errors (got no, want yes)
+grep: /plan-errors.txt: No such file or directory
+FAIL plan-C specific error text (got 2, want 0)
+PASS stale attempt path rejected
+PASS stale rejection names the reason
+ln: failed to create symbolic link '/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/attempt-link': Input/output error
+FAIL symlink attempt path rejected (got 0, want 65)
+PASS plan-F traversal exit
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+grep: /plan-errors.txt: No such file or directory
+FAIL plan-F traversal error text (got 2, want 0)
+PASS plan-G internal symlink exit
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+find: ‘’: No such file or directory
+PASS plan-G no attempt file resolves outside
+FAIL plan-G attempt sealed and stage evidence verified (got 1, want 0)
+PASS plan-D exit
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+PASS late writer reaped before seal
+FAIL plan-D attempt sealed and stage evidence verified (got 1, want 0)
+selftest.sh: line 152: /harness.log: Permission denied
+PASS post-end append detected
+PASS plan-A no-LF append exit
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+selftest.sh: line 164: /harness.log: Permission denied
+PASS post-end append without trailing newline detected
+dummy manifest: 6 entries
+FAIL option-C pass exit (got 126, want 0)
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+grep: /stages/*.stdout: No such file or directory
+FAIL option-C poststate report in sealed stdout (got , want 2)
+FAIL option-C original failure exit (got 126, want 7)
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+cat: '/stages/*.status': No such file or directory
+FAIL option-C original rc preserved (got , want 7)
+grep: /stages/*.stdout: No such file or directory
+FAIL option-C poststate ran after failure (got , want 2)
+FAIL option-C poststate drift exit (got 126, want 91)
+  
+cat: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/.latest-run: No such file or directory
+grep: /stages/*.stdout: No such file or directory
+FAIL option-C drift poststate report retained (got , want 1)
+self-test: 14 pass, 21 fail

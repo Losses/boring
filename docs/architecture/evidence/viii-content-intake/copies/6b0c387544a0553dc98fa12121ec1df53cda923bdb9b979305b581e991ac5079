@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Independent stage runner for the ThrowFaultVariantGrowth cross-check.
+# usage: bash stages.sh <mode:gen|full> <fixture-dir-rel> <gen-out-abs> <cargo-target-abs> <expected-abs|-> <harness-rel|-> <evidence-dir>
+# run from the worktree root with XDG_CACHE_HOME set to a host-tmp dir.
+set -uo pipefail
+MODE="$1"; FIX="$2"; GEN="$3"; TGT="$4"; EXP="$5"; HARNESS="$6"; EV="$7"
+ROOT="$(pwd)"
+mkdir -p "$EV" "$GEN"
+TAB="$(printf '\t')"
+: >"$EV/status.tsv"
+
+record() { printf '%s%s%s\n' "$1" "$TAB" "$2" >>"$EV/status.tsv"; printf '[%s] status=%s\n' "$1" "$2"; }
+
+stage() {
+	local name=$1; shift
+	local d="$EV/$name"; mkdir -p "$d"
+	{ printf 'cwd %s\nargv' "$ROOT"; printf ' %q' "$@"; printf '\n'; } >"$d/argv"
+	"$@" >"$d/stdout" 2>"$d/stderr"
+	local observed=$?
+	printf '%s\n' "$observed" >"$d/status"
+	record "$name" "$observed"
+	return "$observed"
+}
+
+not_reached() { local p=$1 o=$2; shift 2; for n in "$@"; do record "$n" "producer-$p-status-$o"; done; }
+
+# ---- gen
+stage gen-rust nix develop -c haxe "$FIX/gen/rust.hxml" -D rust-output="$GEN"
+GS=$?
+if [ $GS -ne 0 ]; then not_reached gen-rust $GS compile-rust run-rust compare-rust; exit 1; fi
+# generated-tree snapshot (before the harness copy and any cargo artifacts)
+( cd "$GEN" && find . -type f -not -path './src/*' -not -path './target/*' -print0 | sort -z | xargs -0 sha256sum ) >"$EV/gen-tree.sha256"
+[ "$MODE" = "gen" ] && exit 0
+
+# ---- compile
+CARGO_TARGET_DIR="$TGT" stage compile-rust nix develop -c bash -c "cd '$GEN' && mkdir -p src && cp '$ROOT/$HARNESS' src/main.rs && sha256sum src/main.rs >harness.sha256 && timeout 1800 cargo build --offline"
+CS=$?
+if [ $CS -ne 0 ]; then not_reached compile-rust $CS run-rust compare-rust; exit 2; fi
+
+# ---- run
+stage run-rust timeout 120 "$TGT/debug/generated"
+RS=$?
+if [ $RS -ne 0 ]; then not_reached run-rust $RS compare-rust; exit 3; fi
+
+# ---- compare
+stage compare-rust diff -u "$EXP" "$EV/run-rust/stdout"
+exit $?

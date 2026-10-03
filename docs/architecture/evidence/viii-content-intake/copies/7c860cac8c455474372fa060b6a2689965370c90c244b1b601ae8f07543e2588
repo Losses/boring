@@ -1,0 +1,62 @@
+package tests
+
+import boring.RecordOrderAligned
+import boring.RecordOrderOps
+import boring.RecordOrderShifted
+import boring.runtime.test.Test
+
+class RecordOrderTests {
+@boring.test.Test
+    fun shiftedPrintsDeclarationOrder() {
+        Test.run("tests.RecordOrderTests.shiftedPrintsDeclarationOrder", "tests.RecordOrderTests.shiftedPrintsDeclarationOrder: reordered class prints fields in declaration order") {
+                Test.equals("RecordOrderShifted(a=1, b=5, c=x)", RecordOrderOps.shiftedPrinted(), null)
+        }
+    }
+
+@boring.test.Test
+    fun shiftedDefaultedPrintsFallback() {
+        Test.run("tests.RecordOrderTests.shiftedDefaultedPrintsFallback", "tests.RecordOrderTests.shiftedDefaultedPrintsFallback: reordered class prints the defaulted parameter's fallback value") {
+                Test.equals("RecordOrderShifted(a=1, b=0, c=x)", RecordOrderOps.shiftedDefaulted(), null)
+        }
+    }
+
+@boring.test.Test
+    fun shiftedMatchesRecordStr() {
+        Test.run("tests.RecordOrderTests.shiftedMatchesRecordStr", "tests.RecordOrderTests.shiftedMatchesRecordStr: reordered class prints the same text through RecordStr") {
+                val value = RecordOrderShifted(1, "x", 5)
+                Test.equals(value.toString(), "RecordOrderShifted(" + "a=" + value.a + ", " + "b=" + value.b + ", " + "c=" + value.c + ")", null)
+        }
+    }
+
+@boring.test.Test
+    fun alignedPrintsAsBefore() {
+        Test.run("tests.RecordOrderTests.alignedPrintsAsBefore", "tests.RecordOrderTests.alignedPrintsAsBefore: aligned class keeps its printed form") {
+                Test.equals("RecordOrderAligned(a=1, b=5, c=x)", RecordOrderOps.alignedPrinted(), null)
+        }
+    }
+
+@boring.test.Test
+    fun equalityAcceptsShiftedValues() {
+        Test.run("tests.RecordOrderTests.equalityAcceptsShiftedValues", "tests.RecordOrderTests.equalityAcceptsShiftedValues: equality accepts equal values of the reordered class") {
+                Test.equals(true, RecordOrderOps.shiftedEqual(), null)
+        }
+    }
+
+@boring.test.Test
+    fun copyRoundTripsShifted() {
+        Test.run("tests.RecordOrderTests.copyRoundTripsShifted", "tests.RecordOrderTests.copyRoundTripsShifted: copy round-trips the reordered class through constructor parameter order") {
+                val value = RecordOrderShifted(1, "x", 5)
+                val copy = RecordOrderShifted(value.a, value.c, 7)
+                Test.equals("RecordOrderShifted(a=1, b=7, c=x)", copy.toString(), null)
+        }
+    }
+
+@boring.test.Test
+    fun copyRoundTripsAligned() {
+        Test.run("tests.RecordOrderTests.copyRoundTripsAligned", "tests.RecordOrderTests.copyRoundTripsAligned: copy round-trips the aligned class") {
+                val value = RecordOrderAligned(1, 5, "x")
+                val copy = RecordOrderAligned(value.a, value.b, value.c)
+                Test.equals(value.toString(), copy.toString(), null)
+        }
+    }
+}

@@ -1,0 +1,154 @@
+package tests
+
+import boring.GraphemeOps
+import boring.runtime.UString
+import boring.runtime.test.Test
+
+class GraphemeTests {
+@boring.test.Test
+    fun testCjkClusters() {
+        Test.run("tests.GraphemeTests.testCjkClusters", "tests.GraphemeTests.testCjkClusters: cjk text counts one cluster per character") {
+                Test.equals(4, GraphemeOps.graphemeCount("提椠排版"), null)
+                Test.equals("提", GraphemeOps.clusterAt("提椠排版", 0), null)
+                Test.equals("版", GraphemeOps.clusterAt("提椠排版", 3), null)
+                Test.equals(null, GraphemeOps.clusterAt("提椠排版", 4), null)
+        }
+    }
+
+@boring.test.Test
+    fun testCombiningMarks() {
+        Test.run("tests.GraphemeTests.testCombiningMarks", "tests.GraphemeTests.testCombiningMarks: combining marks join their base character") {
+                val decomposed = UString.fromCodePoint(101) + UString.fromCodePoint(769)
+                val precomposed = UString.fromCodePoint(233)
+                Test.equals(1, GraphemeOps.graphemeCount(decomposed), null)
+                Test.equals(1, GraphemeOps.graphemeCount(precomposed), null)
+                Test.equals(2, GraphemeOps.codePointCount(decomposed), null)
+                Test.equals(decomposed, GraphemeOps.clusterAt(decomposed, 0), null)
+        }
+    }
+
+@boring.test.Test
+    fun testHangul() {
+        Test.run("tests.GraphemeTests.testHangul", "tests.GraphemeTests.testHangul: hangul jamo runs form one cluster") {
+                val jamo = UString.fromCodePoint(4352) + UString.fromCodePoint(4449) + UString.fromCodePoint(4520)
+                val syllables = "한국어"
+                Test.equals(1, GraphemeOps.graphemeCount(jamo), null)
+                Test.equals(3, GraphemeOps.graphemeCount(syllables), null)
+                Test.equals(3, GraphemeOps.codePointCount(jamo), null)
+        }
+    }
+
+@boring.test.Test
+    fun testCrLf() {
+        Test.run("tests.GraphemeTests.testCrLf", "tests.GraphemeTests.testCrLf: carriage return and line feed form one cluster") {
+                Test.equals(1, GraphemeOps.graphemeCount("\r\n"), null)
+                Test.equals("\r\n", GraphemeOps.clusterAt("\r\n", 0), null)
+                Test.equals(3, GraphemeOps.graphemeCount("a\r\nb"), null)
+                Test.equals("\r\n", GraphemeOps.clusterAt("a\r\nb", 1), null)
+                Test.equals("b", GraphemeOps.clusterAt("a\r\nb", 2), null)
+        }
+    }
+
+@boring.test.Test
+    fun testEmojiSequences() {
+        Test.run("tests.GraphemeTests.testEmojiSequences", "tests.GraphemeTests.testEmojiSequences: emoji sequences with joiners and modifiers form one cluster") {
+                val family = UString.fromCodePoint(128104) + UString.fromCodePoint(8205) + UString.fromCodePoint(128105) + UString.fromCodePoint(8205) + UString.fromCodePoint(128103) + UString.fromCodePoint(8205) + UString.fromCodePoint(128102)
+                val thumbsUpWithTone = UString.fromCodePoint(128077) + UString.fromCodePoint(127997)
+                val keycap = UString.fromCodePoint(49) + UString.fromCodePoint(65039) + UString.fromCodePoint(8419)
+                Test.equals(1, GraphemeOps.graphemeCount(family), null)
+                Test.equals(7, GraphemeOps.codePointCount(family), null)
+                Test.equals(1, GraphemeOps.graphemeCount(thumbsUpWithTone), null)
+                Test.equals(2, GraphemeOps.codePointCount(thumbsUpWithTone), null)
+                Test.equals(1, GraphemeOps.graphemeCount(keycap), null)
+                Test.equals(family, GraphemeOps.clusterAt(family, 0), null)
+                Test.equals(null, GraphemeOps.clusterAt(family, 1), null)
+        }
+    }
+
+@boring.test.Test
+    fun testRegionalIndicators() {
+        Test.run("tests.GraphemeTests.testRegionalIndicators", "tests.GraphemeTests.testRegionalIndicators: regional indicators pair up") {
+                val single = UString.fromCodePoint(127464)
+                val china = UString.fromCodePoint(127464) + UString.fromCodePoint(127475)
+                val chinaJapan = UString.fromCodePoint(127464) + UString.fromCodePoint(127475) + UString.fromCodePoint(127471) + UString.fromCodePoint(127477)
+                Test.equals(1, GraphemeOps.graphemeCount(single), null)
+                Test.equals(1, GraphemeOps.graphemeCount(china), null)
+                Test.equals(2, GraphemeOps.graphemeCount(chinaJapan), null)
+                Test.equals(2, GraphemeOps.codePointCount(china), null)
+                Test.equals(china, GraphemeOps.clusterAt(chinaJapan, 0), null)
+        }
+    }
+
+@boring.test.Test
+    fun testDevanagariConjunct() {
+        Test.run("tests.GraphemeTests.testDevanagariConjunct", "tests.GraphemeTests.testDevanagariConjunct: devanagari conjuncts with a virama linker stay whole") {
+                val conjunct = UString.fromCodePoint(2325) + UString.fromCodePoint(2381) + UString.fromCodePoint(2325)
+                val withExtend = UString.fromCodePoint(2325) + UString.fromCodePoint(2381) + UString.fromCodePoint(768) + UString.fromCodePoint(2325)
+                val noSecondConsonant = UString.fromCodePoint(2325) + UString.fromCodePoint(2381) + UString.fromCodePoint(32)
+                Test.equals(1, GraphemeOps.graphemeCount(conjunct), null)
+                Test.equals(3, GraphemeOps.codePointCount(conjunct), null)
+                Test.equals(1, GraphemeOps.graphemeCount(withExtend), null)
+                Test.equals(2, GraphemeOps.graphemeCount(noSecondConsonant), null)
+        }
+    }
+
+@boring.test.Test
+    fun testPrepend() {
+        Test.run("tests.GraphemeTests.testPrepend", "tests.GraphemeTests.testPrepend: prepend characters join the following cluster") {
+                val arabicNumberSign = UString.fromCodePoint(1536) + UString.fromCodePoint(49) + UString.fromCodePoint(50)
+                Test.equals(2, GraphemeOps.graphemeCount(arabicNumberSign), null)
+                Test.equals(3, GraphemeOps.codePointCount(arabicNumberSign), null)
+                Test.equals(UString.fromCodePoint(1536) + UString.fromCodePoint(49), GraphemeOps.clusterAt(arabicNumberSign, 0), null)
+        }
+    }
+
+@boring.test.Test
+    fun testSlicing() {
+        Test.run("tests.GraphemeTests.testSlicing", "tests.GraphemeTests.testSlicing: cluster slicing clamps like the code-point tier") {
+                val mixed = UString.fromCodePoint(128077) + UString.fromCodePoint(127997) + UString.fromCodePoint(25552) + UString.fromCodePoint(26912)
+                Test.equals(3, GraphemeOps.graphemeCount(mixed), null)
+                Test.equals(UString.fromCodePoint(128077) + UString.fromCodePoint(127997), GraphemeOps.clusterSlice(mixed, 0, 1), null)
+                Test.equals("提椠", GraphemeOps.clusterSlice(mixed, 1, 3), null)
+                Test.equals(mixed, GraphemeOps.clampedSlice(mixed), null)
+                Test.equals("", GraphemeOps.clusterSlice(mixed, 2, 1), null)
+        }
+    }
+
+@boring.test.Test
+    fun testParts() {
+        Test.run("tests.GraphemeTests.testParts", "tests.GraphemeTests.testParts: parts enumerate every cluster and join back to the source") {
+                val mixed = UString.fromCodePoint(128077) + UString.fromCodePoint(127997) + UString.fromCodePoint(25557) + UString.fromCodePoint(26912)
+                Test.equals(3, GraphemeOps.partCount(mixed), null)
+                Test.equals(UString.fromCodePoint(128077) + UString.fromCodePoint(127997), GraphemeOps.firstPart(mixed), null)
+                Test.equals("椠", GraphemeOps.lastPart(mixed), null)
+                Test.equals(mixed, GraphemeOps.joinedParts(mixed), null)
+                Test.equals(0, GraphemeOps.partCount(""), null)
+        }
+    }
+
+@boring.test.Test
+    fun testBoundaries() {
+        Test.run("tests.GraphemeTests.testBoundaries", "tests.GraphemeTests.testBoundaries: boundary offsets list every cluster edge in string units") {
+                val mixed = UString.fromCodePoint(128077) + UString.fromCodePoint(127997) + UString.fromCodePoint(25552) + UString.fromCodePoint(769)
+                val mixedBoundaries = GraphemeOps.graphemeBoundaries(mixed)
+                Test.equals(3, mixedBoundaries.size, null)
+                Test.equals(0, mixedBoundaries[0], null)
+                Test.equals(4, mixedBoundaries[1], null)
+                Test.equals(6, mixedBoundaries[2], null)
+                val cjkBoundaries = GraphemeOps.graphemeBoundaries("提椠排版")
+                Test.equals(5, cjkBoundaries.size, null)
+                Test.equals(4, cjkBoundaries[4], null)
+                val prepend = UString.fromCodePoint(1536) + UString.fromCodePoint(49) + UString.fromCodePoint(50)
+                val prependBoundaries = GraphemeOps.graphemeBoundaries(prepend)
+                Test.equals(3, prependBoundaries.size, null)
+                Test.equals(2, prependBoundaries[1], null)
+                Test.equals(3, prependBoundaries[2], null)
+                val pairBoundaries = GraphemeOps.graphemeBoundaries("\r\n")
+                Test.equals(2, pairBoundaries.size, null)
+                Test.equals(2, pairBoundaries[1], null)
+                val emptyBoundaries = GraphemeOps.graphemeBoundaries("")
+                Test.equals(1, emptyBoundaries.size, null)
+                Test.equals(0, emptyBoundaries[0], null)
+        }
+    }
+}

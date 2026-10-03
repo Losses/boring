@@ -1,0 +1,34 @@
+package boring
+
+@JvmInline
+value class Ic(val count: Float) {
+
+    fun toPx(emPx: Float): Float {
+        return count * emPx
+    }
+
+    operator fun plus(other: Ic): Ic {
+        return Ic(count + other.count)
+    }
+
+    operator fun unaryMinus(): Ic {
+        return Ic(-count)
+    }
+
+    companion object {
+        val ZERO: Ic = Ic(0.0f)
+    }
+}
+
+@JvmInline
+value class FontFaceId(val value: String) {
+    init {
+        if ((value.trim() == "")) {
+            throw ValueException.BlankValue
+        }
+    }
+
+    override fun toString(): String {
+        return value
+    }
+}

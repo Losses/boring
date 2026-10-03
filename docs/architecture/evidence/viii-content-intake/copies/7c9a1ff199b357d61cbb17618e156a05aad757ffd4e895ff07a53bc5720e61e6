@@ -1,0 +1,12 @@
+### kotlin/gen: diff-lines=0
+### kotlin/gen-tests: diff-lines=0
+### kotlin-f32/gen: diff-lines=0
+### kotlin-f32/gen-tests: diff-lines=0
+### rust/gen: diff-lines=0
+skip rust/gen-tests (no pre snapshot)
+### rust-f32/gen: diff-lines=0
+skip rust-f32/gen-tests (no pre snapshot)
+### swift/gen: diff-lines=0
+### swift/gen-tests: diff-lines=0
+### swift-f32/gen: diff-lines=0
+### swift-f32/gen-tests: diff-lines=0

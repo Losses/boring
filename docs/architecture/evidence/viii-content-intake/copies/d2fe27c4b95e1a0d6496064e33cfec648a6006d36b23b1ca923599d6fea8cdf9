@@ -1,0 +1,11 @@
+// PIT-255 positive probe: the FIXED render texts for the two read-only -> mutable boundaries.
+// Mirrors SwiftArrayBoundary.render():
+//   CopyReadOnlyIntoMutableArray      -> operand + ".toMutableArray()"
+//   MapOptionalReadOnlyIntoMutableArray -> "(" + operand + ").map { $0.toMutableArray() }"
+// Destinations are the Swift lowering of Haxe Array<T> / Null<Array<T>> (TiqianArray<T> / TiqianArray<T>?).
+func probeCopyFixed(_ r: ReadOnlyArray<String>) -> TiqianArray<String> {
+    return r.toMutableArray()
+}
+func probeMapFixed(_ r: ReadOnlyArray<String>?) -> TiqianArray<String>? {
+    return (r).map { $0.toMutableArray() }
+}

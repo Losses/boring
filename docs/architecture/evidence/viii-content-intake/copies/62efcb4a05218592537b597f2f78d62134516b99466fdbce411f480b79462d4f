@@ -1,0 +1,3 @@
+FAIL: allowlist: exempt[3].module is not a plausible dotted module path: "not a module path"
+roots guard: FAILED
+exit_code=1

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail
+argv bash -c cd\ out/try-tail/gen/rust\ \&\&\ mkdir\ -p\ src\ \&\&\ cp\ /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail/tests/haxe/try-tail/native/harness.rs\ src/main.rs\ \&\&\ sha256sum\ src/main.rs\ \>harness.sha256\ \&\&\ timeout\ 1800\ cargo\ build\ --offline

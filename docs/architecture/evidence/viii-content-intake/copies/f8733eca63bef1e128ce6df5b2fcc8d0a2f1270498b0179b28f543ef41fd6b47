@@ -1,0 +1,4 @@
+--- /home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt/tests/haxe/swift-rt-probe/expected.txt	2026-09-29 16:54:18.000000000 -0400
++++ /home/losses/Development/tq-workspace/dc-warn/out/swift-rt/postfix-20260929T205917Z/stages/run-probe/stdout	2026-09-29 17:01:07.000000000 -0400
+@@ -1 +0,0 @@
+-concrete=1

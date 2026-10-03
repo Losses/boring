@@ -1,0 +1,28 @@
+ M docs/investigations/architecture-round-1/d-observation.md
+ M examples/kotlin-f32.hxml
+ M examples/rust-f32.hxml
+ M examples/swift-f32.hxml
+ M package.json
+ M packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+ M packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx
+ M packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+ M samples/tests/NumberClassifyTests.hx
+ M tests/support/stage-check.sh
+ M tools/test-consistency/Main.hx
+?? docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md
+?? tests/haxe/dc-null-guard-fallthrough/
+?? tests/haxe/swift-rt-plain/
+?? tests/haxe/swift-rt-probe/
+?? tests/haxe/try-tail-min/
+?? tests/haxe/try-tail/
+?? tests/support/stage-check-control.sh
+?? tools/precision-guard/
+?? tools/roots-guard/
+?? tools/test-consistency/extra-id-allowlist.json
+edcdf4f5edb79d05badcf29fb1d717698f9ac263bb7f7ba1272fb3b04741e966  tests/swift-readonly-boundary/boring/ReadOnlyBoundaryOps.hx
+12d5a005580b171bddd95e6e5a6d5dd5ce2ffb4a287d37cc26b8c6b344cf3953  tests/swift-readonly-boundary/boring/ReadOnlyBoundaryOracle.hx
+789f42d734fc459e3262b8b5414ec6326b108f6e340bd3740c84056152efb6db  tests/swift-readonly-boundary/boring/SwiftBoundaryPlanChecks.hx

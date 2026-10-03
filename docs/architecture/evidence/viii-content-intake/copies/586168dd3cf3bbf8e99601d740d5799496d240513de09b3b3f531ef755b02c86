@@ -1,0 +1,55 @@
+use std::sync::Arc;
+
+
+#[derive(Clone, Copy)]
+pub struct BorrowedIterationSubjectOps;
+
+impl BorrowedIterationSubjectOps {
+    pub(crate) fn borrowed_iteration_subject_ops_contains(values: &Vec<u32>, value: u32) -> bool {
+        for &candidate in values {
+            if candidate == value {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    pub fn borrowed_iteration_subject_ops_unique(values: &Vec<u32>) -> Vec<u32> {
+        let mut out: Vec<u32> = vec![];
+        for &s in values {
+            if !BorrowedIterationSubjectOps::borrowed_iteration_subject_ops_contains(&out, s) {
+                out.push(s);
+            }
+        }
+        return out;
+    }
+
+    pub fn borrowed_iteration_subject_ops_unique_nullable(values: Option<Vec<u32>>) -> Vec<u32> {
+        let mut out: Vec<u32> = vec![];
+        match &(values) {
+            Some(__option) => {
+                for &s in __option {
+                    if !BorrowedIterationSubjectOps::borrowed_iteration_subject_ops_contains(&out, s) {
+                        out.push(s);
+                    }
+                }
+            }
+            None => {
+            }
+        }
+        return out;
+    }
+
+    pub fn borrowed_iteration_subject_ops_unique_through_local(values: &Vec<u32>) -> Vec<u32> {
+        let inner: Arc<dyn Fn(&Vec<u32>) -> Vec<u32> + Send + Sync + '_> = {  Arc::new(move |source| {
+        let mut out: Vec<u32> = vec![];
+        for &s in source {
+            if !BorrowedIterationSubjectOps::borrowed_iteration_subject_ops_contains(&out, s) {
+                out.push(s);
+            }
+        }
+        return out;
+}) };
+        return inner(&values);
+    }
+}

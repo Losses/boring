@@ -1,0 +1,19 @@
+{
+  "exempt": [
+    {
+      "target": "kotlin",
+      "module": "registry.Main",
+      "reason": "registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact."
+    },
+    {
+      "target": "rust",
+      "module": "registry.Main",
+      "reason": "registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact."
+    },
+    {
+      "target": "swift",
+      "module": "registry.Main",
+      "reason": "registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact."
+    }
+  ]
+}

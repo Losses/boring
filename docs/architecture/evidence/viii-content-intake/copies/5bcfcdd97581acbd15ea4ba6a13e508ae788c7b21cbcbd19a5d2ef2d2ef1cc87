@@ -1,0 +1,21 @@
+# shape=promoted target=rust generated-tree: /home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-s3o7gn/gen/promoted/rust
+# stage 15 exit 0
+# files:
+./Cargo.toml
+./dcsenum/kind_holder.rs
+./dcsenum/kind.rs
+./dcsenum/mod.rs
+./dcsenum/promoted_subject_oracle.rs
+./_GeneratedFiles.txt
+./lib.rs
+./runtime/mod.rs
+./runtime/u_string.rs
+# --- ./dcsenum/kind.rs ---
+10:        match self {
+# --- ./dcsenum/promoted_subject_oracle.rs ---
+13:            let _ = match _g {
+# --- ./runtime/u_string.rs ---
+143:        match String::from_utf16(units) {
+590:    match len {
+602:    let end = match len {
+660:    let magnitude = match u32::from_str_radix(&t2[start..], radix) {

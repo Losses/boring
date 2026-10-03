@@ -1,0 +1,13 @@
+package boring;
+
+class NegC1Oracle {
+    public static function main():Void {
+        #if !swift_output
+        trace("try-binding-nocross=" + NegC1Ops.tryBindingNoCross(true));
+        trace("try-return-nocross=" + NegC1Ops.tryReturnNoCross(true));
+        #else
+        NegC1Ops.tryBindingNoCross(true);
+        NegC1Ops.tryReturnNoCross(true);
+        #end
+    }
+}

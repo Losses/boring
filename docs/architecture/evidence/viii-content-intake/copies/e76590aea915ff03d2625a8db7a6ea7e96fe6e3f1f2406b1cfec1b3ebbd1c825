@@ -1,0 +1,19 @@
+### input = builtin 'exit 7' (the case that broke the original selftest)
+== [builtin-frozen] wrapper exit=7
+   artifacts: t-builtin-frozen.poststate t-builtin-frozen.poststate-rc t-builtin-frozen.rc t-builtin-frozen.stderr t-builtin-frozen.stdout tmpdir 
+   .rc=7  poststate-rc=0  poststate=post-state: 1 entries checked, 0 failures
+   stdout=0 bytes; sealed-visible lines=2
+== [builtin-prefix] wrapper exit=7
+   artifacts: t-builtin-prefix.stderr t-builtin-prefix.stdout tmpdir 
+   .rc=<MISSING>  poststate-rc=<MISSING>  poststate=
+   stdout=0 bytes; sealed-visible lines=0
+
+### input = real plan shape 'bash -c exit 7 _ root'
+== [realcmd-frozen] wrapper exit=7
+   artifacts: tmpdir t-realcmd-frozen.poststate t-realcmd-frozen.poststate-rc t-realcmd-frozen.rc t-realcmd-frozen.stderr t-realcmd-frozen.stdout 
+   .rc=7  poststate-rc=0  poststate=post-state: 1 entries checked, 0 failures
+   stdout=0 bytes; sealed-visible lines=2
+== [realcmd-prefix] wrapper exit=7
+   artifacts: tmpdir t-realcmd-prefix.poststate t-realcmd-prefix.poststate-rc t-realcmd-prefix.rc t-realcmd-prefix.stderr t-realcmd-prefix.stdout 
+   .rc=7  poststate-rc=0  poststate=post-state: 1 entries checked, 0 failures
+   stdout=0 bytes; sealed-visible lines=2

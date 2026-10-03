@@ -1,0 +1,18 @@
+#[derive(Clone, PartialEq)]
+pub struct PrivateHolder {
+    pub shown: u32,
+    pub(crate) hidden: u32,
+}
+
+impl PrivateHolder {
+    pub fn new(shown: u32, hidden: u32) -> Self {
+        Self {
+            shown,
+            hidden,
+        }
+    }
+
+    pub fn total(&self) -> u32 {
+        return u32::wrapping_add(self.shown, self.hidden);
+    }
+}

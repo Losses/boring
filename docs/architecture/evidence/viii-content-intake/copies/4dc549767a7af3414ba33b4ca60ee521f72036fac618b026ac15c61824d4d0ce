@@ -1,0 +1,5 @@
+RESTORE: archive  = /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive
+RESTORE: target   = /home/losses/Development/tq-workspace/xs-xcheck-wrongrev
+RESTORE: mode     = check
+RESTORE: FAIL target HEAD is 9d1978c069c7c6c88ee60682bebbf5a58d948367, expected e1c65975
+RESTORE:      pass --any-rev to override, or check out e1c65975

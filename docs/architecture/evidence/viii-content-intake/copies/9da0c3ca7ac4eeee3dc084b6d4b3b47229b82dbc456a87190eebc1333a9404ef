@@ -1,0 +1,56 @@
+run=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-coord/out/integration-a3-evidence/exclusive-runner/attempt-20260929T185249-3071089
+root=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-coord
+child_evidence_dir=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-coord/out/integration-a3-evidence/exclusive-runner/attempt-20260929T185249-3071089/child-evidence
+external_dir=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-coord/out/integration-a3-evidence/exclusive-runner/external-20260929T185249-3071089
+plan=/home/losses/Development/tq-workspace/p09-chainA-work/plan/option-c.plan
+start=2026-09-29T18:52:49-04:00
+step-2119220958 status=0
+step-2107514504 status=0
+step-2132950968 status=0
+step-737716045 status=1
+step-3646290150 status=skipped (blocked by step-737716045)
+step-1451725318 status=skipped (blocked by step-737716045)
+step-2878747768 status=skipped (blocked by step-737716045)
+step-1906832626 status=skipped (blocked by step-737716045)
+step-4247481514 status=skipped (blocked by step-737716045)
+step-164514084 status=skipped (blocked by step-737716045)
+step-2956777136 status=skipped (blocked by step-737716045)
+step-2061946232 status=skipped (blocked by step-737716045)
+step-308326945 status=skipped (blocked by step-737716045)
+step-3606949787 status=skipped (blocked by step-737716045)
+step-488127890 status=skipped (blocked by step-737716045)
+step-4253828906 status=skipped (blocked by step-737716045)
+step-141502349 status=skipped (blocked by step-737716045)
+end=2026-09-29T19:01:56-04:00
+failed_stage=step-737716045
+last_status=1
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-141502349.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-1451725318.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-164514084.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-1906832626.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-2061946232.status
+stage-evidence eb1781b7c086f317f26479b817af8c93d991f65f0232349098d5d524f07675b9  step-2107514504.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-2107514504.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2107514504.stderr
+stage-evidence 6a706f3b959b3604000c991684c65a2cbd6635b5426f9b428e9946c023772b93  step-2107514504.stdout
+stage-evidence 1899522b5ad056c5ab1339cd5ec4a92012ce1262f23d7e574b448ed0d569bfa4  step-2119220958.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-2119220958.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2119220958.stderr
+stage-evidence e3ae53cb7f67a5db8bceb454daa8e3b2e6b6c24c4b80d115bf53e1d6a1edff01  step-2119220958.stdout
+stage-evidence 7db3eb4239dbc23fc019e4c31bef72d45343ae930d8e50bab67043c834362b00  step-2132950968.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-2132950968.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2132950968.stderr
+stage-evidence e3ae53cb7f67a5db8bceb454daa8e3b2e6b6c24c4b80d115bf53e1d6a1edff01  step-2132950968.stdout
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-2878747768.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-2956777136.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-308326945.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-3606949787.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-3646290150.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-4247481514.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-4253828906.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-488127890.status
+stage-evidence f0dc66b69c2713617bf0171c2861653f79cf4a67cca68a34519a983b4da35820  step-737716045.command
+stage-evidence 4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  step-737716045.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-737716045.stderr
+stage-evidence 6423e0c033bd4d281b34bd3840a3d80ff018cb28b831038743a472868d2040f8  step-737716045.stdout
+harness end marker sha256=6f3116f3216da3c79990808cc6e8648c75f2359d67237af29232cbb696b015b3

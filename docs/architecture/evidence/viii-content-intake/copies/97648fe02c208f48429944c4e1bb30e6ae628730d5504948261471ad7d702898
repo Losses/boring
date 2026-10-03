@@ -1,0 +1,17 @@
+#[derive(Clone, Copy)]
+pub struct FloatArrayAnnoOps;
+
+impl FloatArrayAnnoOps {
+    pub fn float_array_anno_ops_sum_of(values: &Vec<f32>) -> f32 {
+        let mut total: f64 = 0.0f64;
+        for &v in values {
+            total += v as f64;
+        }
+        return total as f32;
+    }
+
+    pub fn float_array_anno_ops_verify() -> bool {
+        let floats = vec![1.5f32, 2.0f32, 3.5f32];
+        return FloatArrayAnnoOps::float_array_anno_ops_sum_of(&floats) == 7.0f32;
+    }
+}

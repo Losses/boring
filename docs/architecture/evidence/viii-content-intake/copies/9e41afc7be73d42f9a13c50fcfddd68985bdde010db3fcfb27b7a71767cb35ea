@@ -1,0 +1,4 @@
+77c77
+<         let view: ReadOnlyArray<Int32> = ReadOnlyArray(mutable)
+---
+>         let view: ReadOnlyArray<Int32> = ReadOnlyArray(mutable.copy()) // L5-BROKEN: view is a copy, not an alias

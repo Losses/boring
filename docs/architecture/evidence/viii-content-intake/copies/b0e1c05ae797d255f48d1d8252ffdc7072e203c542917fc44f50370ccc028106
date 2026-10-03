@@ -1,0 +1,60 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/record-copy.test.ts:
+(pass) record copy generated tree > TS generated tree emits object literals with fields in declaration order [3.00ms]
+(pass) record copy generated tree > Kotlin generated tree emits named constructor calls in declaration order [1.00ms]
+(pass) record copy generated tree > Rust generated tree emits struct instantiation in declaration order
+
+tests/ts/sealed-variants.test.ts:
+killed 1 dangling process
+(fail) @:sealed on a class reports the interface-only error [5000.91ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+136 |       proc.exited,
+137 |       new Response(proc.stdout).text(),
+138 |       new Response(proc.stderr).text(),
+139 |     ]);
+140 |     expect(exitCode).not.toBe(0);
+141 |     expect(stdout + stderr).toContain("@:sealed applies to interfaces only");
+                                  ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "@:sealed applies to interfaces only"
+Received: ""
+
+      at <anonymous> (/home/losses/Development/tq-workspace/string-family-resume-wt/wt/tests/ts/sealed-variants.test.ts:141:29)
+-------------------------------
+
+killed 1 dangling process
+(fail) self-construction with arguments keeps the static initializer error [5000.91ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+184 |       proc.exited,
+185 |       new Response(proc.stdout).text(),
+186 |       new Response(proc.stderr).text(),
+187 |     ]);
+188 |     expect(exitCode).not.toBe(0);
+189 |     expect(stdout + stderr).toContain("static field initializers accept null, literal, and empty array forms only");
+                                  ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "static field initializers accept null, literal, and empty array forms only"
+Received: ""
+
+      at <anonymous> (/home/losses/Development/tq-workspace/string-family-resume-wt/wt/tests/ts/sealed-variants.test.ts:189:29)
+-------------------------------
+
+killed 1 dangling process
+(fail) the sanctioned self-construction static uses each target lane [15000.74ms]
+  ^ this test timed out after 15000ms.
+(pass) sealed variant sample trees carry the ruled declaration and printed forms [3.00ms]
+
+ 4 pass
+ 3 fail
+ 2 errors
+ 38 expect() calls
+Ran 7 tests across 2 files. [25.16s]

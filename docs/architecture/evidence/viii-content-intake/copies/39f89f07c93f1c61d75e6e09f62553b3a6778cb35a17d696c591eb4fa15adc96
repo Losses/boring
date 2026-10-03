@@ -1,0 +1,16 @@
+#[derive(Clone, Copy)]
+pub struct IntFloatAddOps;
+
+impl IntFloatAddOps {
+    pub fn int_float_add_ops_add_int_left(__n: u32) -> f32 {
+        return 3.5f32;
+    }
+
+    pub fn int_float_add_ops_add_int_right(__n: u32) -> f32 {
+        return 3.5f32;
+    }
+
+    pub fn int_float_add_ops_add_nested(__n: u32) -> f32 {
+        return -1.0f32;
+    }
+}

@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Pre-run environment probes, executed INSIDE the nix develop shell, cwd = coordination
+# worktree (the flake source), before the chain invocation.
+set -u
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun
+ROOT=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed3
+PLAN=/home/losses/Development/tq-workspace/p09-chainA-work/plan/option-c.plan
+RUNNER=/home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner
+SHIM=/home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-bin
+SYS=/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6
+
+{
+echo "utc=$(date -uIs)"
+echo "cwd=$PWD"
+echo
+echo "--- toolchain resolution ---"
+for t in npm node tar python3 haxe kotlinc java dart cargo bun eslint tsc; do printf '%-8s %s\n' "$t" "$(command -v $t 2>/dev/null || echo '<MISSING>')"; done
+haxe --version 2>&1 | head -1
+bun --version 2>&1 | head -1
+echo
+echo "--- swiftc shim (PATH prefix) ---"
+echo "PATH head entries:"; printf '%s\n' "$PATH" | tr ':' '\n' | head -4
+echo "command -v swiftc = $(command -v swiftc)"
+echo "shim file: $(ls -l "$SHIM/swiftc")"
+echo "raw store swiftc: $(ls -l /nix/store/j1bfa7mw323wmp6pfrn1qkchxv61wk2n-swift-toolchain-6.2.4-al2/usr/bin/swiftc | awk '{print $1,$5,$9}')"
+echo
+echo "--- BORING_SWIFT_SYSTEM_PACKAGE ---"
+echo "value=$SYS"
+echo "exists=$([ -d "$SYS" ] && echo yes || echo no)"
+find "$SYS" -maxdepth 2 | head -20
+echo
+echo "--- EXPECTED_MANIFEST_ENTRIES guard is genuinely required ---"
+echo "manifest='$OUT/manifest-fixed2.json'"
+echo "actual entries=$(grep -c '"path"' "$OUT/manifest-fixed2.json")"
+echo "plan default  =1431 (option-c.plan identity stage: expected=\${EXPECTED_MANIFEST_ENTRIES:-1431})"
+echo "=> without EXPECTED_MANIFEST_ENTRIES=1433 the identity stage exits 9 (count mismatch)"
+echo
+echo "--- haxelib loader identity of the execution root ---"
+echo "HAXELIB_PATH (flake hook, before override) = ${HAXELIB_PATH:-<unset>}"
+echo "root .haxelib/boring/.dev = $(cat "$ROOT/.haxelib/boring/.dev")"
+echo "root .haxelib/reflaxe/.dev = $(cat "$ROOT/.haxelib/reflaxe/.dev")"
+echo "root .haxelib/format/.current = $(cat "$ROOT/.haxelib/format/.current")"
+echo "root .haxelib/formatter/.current = $(cat "$ROOT/.haxelib/formatter/.current")"
+echo "with HAXELIB_PATH overridden to the root:"
+HAXELIB_PATH="$ROOT/.haxelib" haxelib path boring 2>&1 | sed 's/^/  boring: /'
+HAXELIB_PATH="$ROOT/.haxelib" haxelib path reflaxe 2>&1 | sed 's/^/  reflaxe: /'
+echo
+echo "--- node_modules materialisation ---"
+echo "root node_modules: $(ls -A "$ROOT/node_modules" | wc -l) entries, dir=$([ -d "$ROOT/node_modules" ] && [ ! -L "$ROOT/node_modules" ] && echo 'real directory' || echo 'NOT a real dir')"
+echo "eslint link: $(readlink "$ROOT/node_modules/eslint") -> $([ -e "$ROOT/node_modules/eslint" ] && echo resolves || echo BROKEN)"
+echo "typescript link: $(readlink "$ROOT/node_modules/typescript") -> $([ -e "$ROOT/node_modules/typescript" ] && echo resolves || echo BROKEN)"
+echo
+echo "--- plan and runner identity ---"
+sha256sum "$PLAN" "$RUNNER/run-exclusive.sh" "$RUNNER/option-c-stage-wrapper.sh" "$RUNNER/check-log-integrity.sh" "$RUNNER/option-c-poststate.py"
+echo
+echo "--- concurrent runner check ---"
+pgrep -af 'run-exclusive' | grep -v pgrep | grep -v preflight || echo "none"
+echo
+echo "--- loader identity assertion (pre-run) ---"
+bash /home/losses/Development/tq-workspace/dc-warn/out/loader-identity/assert-loader-identity.sh "$ROOT" 2>&1
+echo "loader-assert rc=$?"
+echo
+echo "--- roots guard on the execution root (f32 roots property) ---"
+( cd "$ROOT" && bash tools/roots-guard/check-roots-guard.sh; echo "roots-guard rc=$?" )
+echo
+echo "--- precision guard on the execution root (tree-local guard, not a chain stage) ---"
+( cd "$ROOT" && bun run check:precision; echo "check:precision rc=$?" )
+} > "$OUT/evidence/preflight-in-shell.txt" 2>&1
+cat "$OUT/evidence/preflight-in-shell.txt"

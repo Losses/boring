@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Collect the cross-check evidence into the dc-warn evidence dir (corrected).
+set -uo pipefail
+ATT=/home/losses/Development/tq-workspace/dc-warn/out/rust-trytail-xcheck/attempt-xcheck-01
+B=/tmp/rt-xcheck
+mkdir -p "$ATT/boundary/corpus" "$ATT/boundary/probes" "$ATT/boundary/logs"
+
+for k in try-tail try-tail-min enum-comparison flow flow-normalized flow-stable-local place \
+	readonly-alias rust-comparison-policy rust-comparison-policy-unused signed-key-composition \
+	source-container-policy comp-runtime-obs timeout-probe; do
+	cp "$B/boundary-$k.diff" "$ATT/boundary/corpus/"
+done
+cp "$B/gen-pristine/pristine.status.tsv" "$ATT/boundary/corpus/corpus-pristine.status.tsv"
+cp "$B/gen-postfix/postfix.status.tsv" "$ATT/boundary/corpus/corpus-postfix.status.tsv"
+
+{
+	printf 'fixture\tchanged-files\tchanged-file-names\n'
+	for k in try-tail try-tail-min enum-comparison flow flow-normalized flow-stable-local place \
+		readonly-alias rust-comparison-policy rust-comparison-policy-unused signed-key-composition \
+		source-container-policy comp-runtime-obs timeout-probe; do
+		out=$(diff -rq "$B/gen-pristine/$k" "$B/gen-postfix/$k" 2>/dev/null || true)
+		n=$(printf '%s' "$out" | grep -c . || true)
+		names=$(printf '%s' "$out" | tr '\n' ';')
+		printf '%s\t%s\t%s\n' "$k" "$n" "$names"
+	done
+} >"$ATT/boundary/corpus/corpus-changed-files.tsv"
+
+for st in pristine postfix negctl; do
+	[ -f "$B/bx-$st/status2-main.tsv" ] && cp "$B/bx-$st/status2-main.tsv" "$ATT/boundary/probes/bx-$st-status.tsv"
+	[ -f "$B/bx-$st/status2-bx3.tsv" ] && cp "$B/bx-$st/status2-bx3.tsv" "$ATT/boundary/probes/bx-$st-status-bx3.tsv"
+done
+for st in pristine postfix negctl; do
+	for k in xs-scope xs-twoexc xs-growth xs-xmod xs-generic xs-dead xs-deadcoll xs-samples xs-testmod; do
+		[ -f "$B/bx-$st/$k.cargo.stderr" ] && cp "$B/bx-$st/$k.cargo.stderr" "$ATT/boundary/logs/$st-$k.cargo.stderr"
+		[ -f "$B/bx-$st/$k.gen.stderr" ] && cp "$B/bx-$st/$k.gen.stderr" "$ATT/boundary/logs/$st-$k.gen.stderr"
+	done
+done
+for k in xs-scope xs-twoexc xs-growth xs-xmod xs-generic xs-dead xs-deadcoll xs-samples xs-testmod; do
+	diff -rq "$B/bx-pristine/$k" "$B/bx-postfix/$k" >"$ATT/boundary/probes/$k.tree-diff.txt" 2>&1 || true
+	diff -rq "$B/bx-pristine/$k" "$B/bx-negctl/$k" >"$ATT/boundary/probes/$k.negctl-vs-pristine.txt" 2>&1 || true
+	diff -ru "$B/bx-pristine/$k" "$B/bx-postfix/$k" >"$ATT/boundary/probes/$k.unified.diff" 2>&1 || true
+done
+
+{
+	printf 'segment\tgen\tcompile\trun\tcompare\tE0599-occurrences\tE0599-headers\tE0433-occurrences\tE0433-headers\n'
+	for seg in prefix-try-tail prefix-try-tail-min postfix-try-tail postfix-try-tail-min negctl-try-tail; do
+		d="$ATT/$seg"
+		g=$(cat "$d/gen-rust/status" 2>/dev/null || echo -)
+		c=$(cat "$d/compile-rust/status" 2>/dev/null || echo -)
+		r=$(cat "$d/run-rust/status" 2>/dev/null || echo -)
+		p=$(cat "$d/compare-rust/status" 2>/dev/null || echo -)
+		e9=$(grep -c 'E0599' "$d/compile-rust/stderr" 2>/dev/null || true)
+		h9=$(grep -c '^error\[E0599\]' "$d/compile-rust/stderr" 2>/dev/null || true)
+		e4=$(grep -c 'E0433' "$d/compile-rust/stderr" 2>/dev/null || true)
+		h4=$(grep -c '^error\[E0433\]' "$d/compile-rust/stderr" 2>/dev/null || true)
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$seg" "$g" "$c" "$r" "$p" "${e9:-0}" "${h9:-0}" "${e4:-0}" "${h4:-0}"
+	done
+} >"$ATT/stage-summary.tsv"
+
+{
+	printf 'fixture\tnegctl-vs-pristine-lines\tpristine-vs-postfix-lines\n'
+	for pair in "try-tail:$B/gen-pristine/try-tail:$B/run-negctl-try-tail:$B/gen-postfix/try-tail" \
+		"xs-scope:$B/bx-pristine/xs-scope:$B/bx-negctl/xs-scope:$B/bx-postfix/xs-scope" \
+		"xs-twoexc:$B/bx-pristine/xs-twoexc:$B/bx-negctl/xs-twoexc:$B/bx-postfix/xs-twoexc" \
+		"xs-growth:$B/bx-pristine/xs-growth:$B/bx-negctl/xs-growth:$B/bx-postfix/xs-growth" \
+		"xs-xmod:$B/bx-pristine/xs-xmod:$B/bx-negctl/xs-xmod:$B/bx-postfix/xs-xmod" \
+		"xs-generic:$B/bx-pristine/xs-generic:$B/bx-negctl/xs-generic:$B/bx-postfix/xs-generic" \
+		"xs-dead:$B/bx-pristine/xs-dead:$B/bx-negctl/xs-dead:$B/bx-postfix/xs-dead" \
+		"xs-deadcoll:$B/bx-pristine/xs-deadcoll:$B/bx-negctl/xs-deadcoll:$B/bx-postfix/xs-deadcoll" \
+		"xs-samples:$B/bx-pristine/xs-samples:$B/bx-negctl/xs-samples:$B/bx-postfix/xs-samples" \
+		"xs-testmod:$B/bx-pristine/xs-testmod:$B/bx-negctl/xs-testmod:$B/bx-postfix/xs-testmod"; do
+		IFS=: read -r name pri neg post <<<"$pair"
+		nl=$( { diff -rq "$pri" "$neg" 2>/dev/null || true; } | grep -v "Cargo.lock" | grep -c . || true)
+		pl=$( { diff -rq "$pri" "$post" 2>/dev/null || true; } | grep -c . || true)
+		printf '%s\t%s\t%s\n' "$name" "${nl:-0}" "${pl:-0}"
+	done
+} >"$ATT/boundary/negctl-identity.tsv"
+echo collected
+cat "$ATT/stage-summary.tsv"
+cat "$ATT/boundary/negctl-identity.tsv"

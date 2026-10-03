@@ -1,0 +1,2 @@
+import { test, expect } from "bun:test";
+test("tests-ts/b", () => { console.log("COLLECTED tests/ts/b.test.ts"); expect(1).toBe(1); });

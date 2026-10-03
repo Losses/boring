@@ -1,0 +1,39 @@
+#[derive(Clone, PartialEq)]
+pub struct FloatHolder {
+    pub value: f64,
+}
+
+impl FloatHolder {
+    pub fn new(value: f64) -> Self {
+        Self {
+            value,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct FloatLiteralOps;
+
+impl FloatLiteralOps {
+    pub fn float_literal_ops_integer_constructor_argument() -> f64 {
+        return FloatHolder::new(0 as f64 as f64).value;
+    }
+
+    pub fn float_literal_ops_arg_leading_dot() -> f64 {
+        return 0.001f64;
+    }
+
+    pub fn float_literal_ops_local_leading_dot_neg() -> f64 {
+        let f = -0.1f64;
+        return f;
+    }
+
+    pub fn float_literal_ops_arg_small() -> f64 {
+        return 0.25f64;
+    }
+
+    pub fn float_literal_ops_local_small_neg() -> f64 {
+        let f = -0.5f64;
+        return f;
+    }
+}

@@ -1,0 +1,27 @@
+package tests
+
+import boring.LocalShadowOps
+import boring.runtime.test.Test
+
+class LocalShadowTests {
+@boring.test.Test
+    fun arrays() {
+        Test.run("tests.LocalShadowTests.arrays", "tests.LocalShadowTests.arrays: array comprehensions preserve both local values") {
+                Test.equals(10, LocalShadowOps.arrays(), null)
+        }
+    }
+
+@boring.test.Test
+    fun shadow() {
+        Test.run("tests.LocalShadowTests.shadow", "tests.LocalShadowTests.shadow: shadowed locals retain their distinct values") {
+                Test.equals("ab", LocalShadowOps.shadow(), null)
+        }
+    }
+
+@boring.test.Test
+    fun single() {
+        Test.run("tests.LocalShadowTests.single", "tests.LocalShadowTests.single: ordinary local remains unchanged") {
+                Test.equals(42, LocalShadowOps.single(), null)
+        }
+    }
+}

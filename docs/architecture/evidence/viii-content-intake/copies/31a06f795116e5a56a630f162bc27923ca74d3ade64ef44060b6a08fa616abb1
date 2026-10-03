@@ -1,0 +1,44 @@
+#![cfg(test)]
+
+use crate::boring::enum_queries_ops::EnumQueriesOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn names() {
+    testlib::run("tests.EnumQueriesTests.names", "tests.EnumQueriesTests.names: enum collections preserve declaration order and constructor names", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[70,54,52,44,70,51,50,44,70,49,54]), EnumQueriesOps::enum_queries_ops_names().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn counts() {
+    testlib::run("tests.EnumQueriesTests.counts", "tests.EnumQueriesTests.counts: enum collection counts fold through direct and alias reads", || {
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((EnumQueriesOps::enum_queries_ops_direct_count()) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((EnumQueriesOps::enum_queries_ops_alias_count()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn lookup() {
+    testlib::run("tests.EnumQueriesTests.lookup", "tests.EnumQueriesTests.lookup: enum name lookup round trips and misses return empty", || {
+        test_core::TestCore::test_core_equals_bool(true, EnumQueriesOps::enum_queries_ops_round_trips(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[101,109,112,116,121]), EnumQueriesOps::enum_queries_ops_unknown().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn second() {
+    testlib::run("tests.EnumQueriesTests.second", "tests.EnumQueriesTests.second: enum queries cover a second value enumeration", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[82,101,97,100,44,87,114,105,116,101]), EnumQueriesOps::enum_queries_ops_second_enum().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn lookup_name() {
+    testlib::run("tests.EnumQueriesTests.lookupName", "tests.EnumQueriesTests.lookupName: enumConstructor on a createEnum result unwraps the nullable lookup", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[82,101,97,100]), EnumQueriesOps::enum_queries_ops_lookup_name().as_ustr(), UStr::new(&[]));
+    });
+}

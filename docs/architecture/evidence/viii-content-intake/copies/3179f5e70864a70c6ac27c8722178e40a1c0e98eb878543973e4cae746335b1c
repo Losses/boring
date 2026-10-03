@@ -1,0 +1,8 @@
+#[derive(Clone, Copy)]
+pub struct DartEmptyArrayFixOps;
+
+impl DartEmptyArrayFixOps {
+    pub fn dart_empty_array_fix_ops_empty_array_argument() -> u32 {
+        return 0;
+    }
+}

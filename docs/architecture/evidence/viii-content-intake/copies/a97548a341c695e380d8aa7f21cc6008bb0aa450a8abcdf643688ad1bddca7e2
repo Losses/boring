@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# compare.sh -- normalise the three sweep trees and compare whole-tree output
+set -u
+for t in pre mid fix; do
+  python3 /tmp/vc8/normalise.py /tmp/vc8/sweep/$t /tmp/vc8/$t /tmp/vc8/sweep/$t | sed "s/^/[$t] /"
+done
+echo "--- diff pre vs fix ---"
+diff -ru /tmp/vc8/sweep/pre /tmp/vc8/sweep/fix > /tmp/vc8/logs/sweep-diff-pre-fix.txt 2>&1; echo "rc=$?"
+echo "--- diff mid vs fix ---"
+diff -ru /tmp/vc8/sweep/mid /tmp/vc8/sweep/fix > /tmp/vc8/logs/sweep-diff-mid-fix.txt 2>&1; echo "rc=$?"
+echo "--- file counts (fix) ---"
+find /tmp/vc8/sweep/fix -type f | wc -l
+find /tmp/vc8/sweep/fix -type f -name '*.swift' | wc -l
+for t in pre mid fix; do echo "--- manifest $t ---"; python3 /tmp/vc8/manifest.py /tmp/vc8/sweep/$t; done

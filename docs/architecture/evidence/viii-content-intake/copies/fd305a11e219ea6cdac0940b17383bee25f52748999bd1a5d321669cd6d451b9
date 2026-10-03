@@ -1,0 +1,730 @@
+{"id":"tests.AllowAccessTests.staticAccess","name":"tests.AllowAccessTests.staticAccess: allowed private static function is callable across classes","verdict":"pass"}
+{"id":"tests.AccessGrantTests.testAccessGrant","name":"tests.AccessGrantTests.testAccessGrant: an @:access peer reads private members across classes","verdict":"pass"}
+{"id":"boring.CfgTestProbe.probe","name":"boring.CfgTestProbe.probe: cfg(test) gate probe for a business-package test module","verdict":"pass"}
+{"id":"tests.ArithmeticTests.testCoerceAtMost","name":"tests.ArithmeticTests.testCoerceAtMost: coerceAtMost clamps values to ceiling","verdict":"pass"}
+{"id":"tests.AllowAccessTests.instanceAccess","name":"tests.AllowAccessTests.instanceAccess: allowed private instance members are reachable across classes","verdict":"pass"}
+{"id":"tests.AbstractStaticDefaultTests.testAbstractStaticDefault","name":"tests.AbstractStaticDefaultTests.testAbstractStaticDefault: omitted optional parameter falls back to the abstract static default","verdict":"pass"}
+{"id":"tests.AllowAccessTests.staticFieldAccess","name":"tests.AllowAccessTests.staticFieldAccess: allowed private static field is writable across classes","verdict":"pass"}
+{"id":"tests.ArithmeticTests.testCoerceAtLeast","name":"tests.ArithmeticTests.testCoerceAtLeast: coerceAtLeast clamps values to floor","verdict":"pass"}
+{"id":"tests.ArithmeticTests.testCoerceIn","name":"tests.ArithmeticTests.testCoerceIn: coerceIn clamps values to range","verdict":"pass"}
+{"id":"tests.ArithmeticTests.testWithinFloat","name":"tests.ArithmeticTests.testWithinFloat: within checks float range inclusion","verdict":"pass"}
+{"id":"tests.ArithmeticTests.testIntRange","name":"tests.ArithmeticTests.testIntRange: IntRange contains evaluates bounds","verdict":"pass"}
+{"id":"tests.ArithmeticTests.testWithinInt","name":"tests.ArithmeticTests.testWithinInt: within checks integer range inclusion","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testGrowFieldSlots","name":"tests.ArrayAccessTests.testGrowFieldSlots: an index loop over an empty array field grows it","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testCompositePart","name":"tests.ArrayAccessTests.testCompositePart: composite StringBuf part can read its first character","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testGrowFloatFieldSlots","name":"tests.ArrayAccessTests.testGrowFloatFieldSlots: an index loop over an empty float array field grows it","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testGrowNullableSlots","name":"tests.ArrayAccessTests.testGrowNullableSlots: an index write past the end grows a nullable-element array","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testGrowFloatSlots","name":"tests.ArrayAccessTests.testGrowFloatSlots: an index write past the end grows a float-element array","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testGrowValueSlots","name":"tests.ArrayAccessTests.testGrowValueSlots: an index write past the end grows a value-element array","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testSimplePart","name":"tests.ArrayAccessTests.testSimplePart: simple StringBuf part can read its first character","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testWriteInsideSlots","name":"tests.ArrayAccessTests.testWriteInsideSlots: writes inside an array keep their slots","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testReadSplit","name":"tests.ArrayAccessTests.testReadSplit: split results support read array access","verdict":"pass"}
+{"id":"tests.ArrayIndexSearchTests.testEmpty","name":"tests.ArrayIndexSearchTests.testEmpty: an empty array reports a miss in every shape","verdict":"pass"}
+{"id":"tests.ArrayAccessTests.testWriteSplit","name":"tests.ArrayAccessTests.testWriteSplit: split results support written array access","verdict":"pass"}
+{"id":"tests.ArrayIndexSearchTests.testIndexOfFrom","name":"tests.ArrayIndexSearchTests.testIndexOfFrom: an array indexOf keeps its start index","verdict":"pass"}
+{"id":"tests.ArrayIndexSearchTests.testElementOnly","name":"tests.ArrayIndexSearchTests.testElementOnly: an element-only array search reads the platform overload","verdict":"pass"}
+{"id":"tests.ArrayIndexSearchTests.testNullableReceiver","name":"tests.ArrayIndexSearchTests.testNullableReceiver: a nullable array receiver keeps its start index","verdict":"pass"}
+{"id":"tests.ArrayIndexSearchTests.testStringElement","name":"tests.ArrayIndexSearchTests.testStringElement: an array search compares a String element by value","verdict":"pass"}
+{"id":"tests.ArrayIndexSearchTests.testLastIndexOfFrom","name":"tests.ArrayIndexSearchTests.testLastIndexOfFrom: an array lastIndexOf searches towards index 0 from its start index","verdict":"pass"}
+{"id":"tests.ArrayMethodSwiftTests.testCopyConcat","name":"tests.ArrayMethodSwiftTests.testCopyConcat: copy and concat lower onto native array operations","verdict":"pass"}
+{"id":"tests.ArrayMethodSwiftTests.testEnds","name":"tests.ArrayMethodSwiftTests.testEnds: pop shift and unshift lower onto the mutating array members","verdict":"pass"}
+{"id":"tests.ArrayJoinTests.testJoin","name":"tests.ArrayJoinTests.testJoin: a non-string array join maps each value to its string form","verdict":"pass"}
+{"id":"tests.ArrayMethodSwiftTests.testFind","name":"tests.ArrayMethodSwiftTests.testFind: indexOf lowers onto firstIndex with the -1 miss","verdict":"pass"}
+{"id":"tests.ArrayMethodSwiftTests.testSplice","name":"tests.ArrayMethodSwiftTests.testSplice: splice returns the removed sub-array","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testEmptyToTwenty","name":"tests.ArraySliceTests.testEmptyToTwenty: a fixed end of 20 on an empty array returns an empty slice","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testEndBelowStart","name":"tests.ArraySliceTests.testEndBelowStart: an end below the start returns the empty slice","verdict":"pass"}
+{"id":"tests.ArrayRootTests.testArrayRoots","name":"tests.ArrayRootTests.testArrayRoots: small static arrays preserve their roots and elements","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testNegativeStart","name":"tests.ArraySliceTests.testNegativeStart: a negative start counts from the end of the array","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testInsertClamping","name":"tests.ArraySliceTests.testInsertClamping: an insert clamps a negative position and a position past the length","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testEndPastLength","name":"tests.ArraySliceTests.testEndPastLength: an end past the length returns the elements the array carries","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testNullInitLocal","name":"tests.ArraySliceTests.testNullInitLocal: a slice on a null-initialized array local clamps as well","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testNullableReceiver","name":"tests.ArraySliceTests.testNullableReceiver: a slice through an absent array returns null","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testNullInitSplice","name":"tests.ArraySliceTests.testNullInitSplice: a splice on a null-initialized array local clamps as well","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testSpliceEmptyBounds","name":"tests.ArraySliceTests.testSpliceEmptyBounds: a negative length or a position past the length removes nothing","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testOmittedEnd","name":"tests.ArraySliceTests.testOmittedEnd: an omitted end reaches the length of the array","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testSpliceLengthPastEnd","name":"tests.ArraySliceTests.testSpliceLengthPastEnd: a length past the end removes only the tail","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testSplicePositionPastLength","name":"tests.ArraySliceTests.testSplicePositionPastLength: a position past the length removes nothing","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testSpliceNegativeLength","name":"tests.ArraySliceTests.testSpliceNegativeLength: a negative length removes nothing and leaves the array alone","verdict":"pass"}
+{"id":"tests.BlockScopeUnrollTests.breakContinuePath","name":"tests.BlockScopeUnrollTests.breakContinuePath: break and continue keep the counted loop path","verdict":"pass"}
+{"id":"tests.BlockScopeUnrollTests.returnFromSegment","name":"tests.BlockScopeUnrollTests.returnFromSegment: return inside unrolled body","verdict":"pass"}
+{"id":"tests.BlockScopeUnrollTests.literalLoopScopes","name":"tests.BlockScopeUnrollTests.literalLoopScopes: literal loop unrolls into scoped blocks","verdict":"pass"}
+{"id":"tests.BlockScopeUnrollTests.sequentialLoops","name":"tests.BlockScopeUnrollTests.sequentialLoops: sequential literal loops reuse names","verdict":"pass"}
+{"id":"tests.ArraySliceTests.testSpliceNegativePosition","name":"tests.ArraySliceTests.testSpliceNegativePosition: a negative position counts from the end and a long length stops at the tail","verdict":"pass"}
+{"id":"tests.BorrowedArrayBoundaryTests.choose","name":"tests.BorrowedArrayBoundaryTests.choose: a conditional array result clones the borrowed arm","verdict":"pass"}
+{"id":"tests.BorrowedArrayBoundaryTests.readOnlyWrap","name":"tests.BorrowedArrayBoundaryTests.readOnlyWrap: a borrowed array parameter fills an owned nullable ReadOnlyArray slot","verdict":"pass"}
+{"id":"tests.BorrowedArrayBoundaryTests.nullableReturn","name":"tests.BorrowedArrayBoundaryTests.nullableReturn: a borrowed array parameter fills an owned nullable return slot","verdict":"pass"}
+{"id":"tests.BorrowedArrayBoundaryTests.rebind","name":"tests.BorrowedArrayBoundaryTests.rebind: an owned array local clones a borrowed array assignment","verdict":"pass"}
+{"id":"tests.BorrowedArrayBoundaryTests.wrap","name":"tests.BorrowedArrayBoundaryTests.wrap: a borrowed array parameter fills an owned nullable constructor slot","verdict":"pass"}
+{"id":"tests.BorrowedIterationSubjectOpsTests.unique","name":"tests.BorrowedIterationSubjectOpsTests.unique: an element loop borrows an already-referenced subject once","verdict":"pass"}
+{"id":"tests.BorrowedLoopItemBoundaryTests.describedLabels","name":"tests.BorrowedLoopItemBoundaryTests.describedLabels: a borrowed loop item fills an owned call argument","verdict":"pass"}
+{"id":"tests.BorrowedLoopItemBoundaryTests.firstEntry","name":"tests.BorrowedLoopItemBoundaryTests.firstEntry: a borrowed loop item fills an owned Option return slot","verdict":"pass"}
+{"id":"tests.BorrowedLoopItemBoundaryTests.hasMarker","name":"tests.BorrowedLoopItemBoundaryTests.hasMarker: a borrowed enum loop item compares against an owned value","verdict":"pass"}
+{"id":"tests.BorrowedLoopItemBoundaryTests.indexOfNullable","name":"tests.BorrowedLoopItemBoundaryTests.indexOfNullable: a nullable array indexOf unwraps the receiver","verdict":"pass"}
+{"id":"tests.BorrowedLoopItemBoundaryTests.records","name":"tests.BorrowedLoopItemBoundaryTests.records: a borrowed loop item fills an owned object field","verdict":"pass"}
+{"id":"tests.BorrowedLoopItemBoundaryTests.wrappedEntries","name":"tests.BorrowedLoopItemBoundaryTests.wrappedEntries: a borrowed loop item fills an owned constructor slot","verdict":"pass"}
+{"id":"tests.BorrowedReceiverBoundaryTests.pickLabel","name":"tests.BorrowedReceiverBoundaryTests.pickLabel: a borrowed receiver fills an owned conditional return slot","verdict":"pass"}
+{"id":"tests.BorrowedReceiverBoundaryTests.snapshotLabel","name":"tests.BorrowedReceiverBoundaryTests.snapshotLabel: a borrowed receiver fills an owned constructor slot","verdict":"pass"}
+{"id":"tests.BorrowedStringReturnTests.requireText","name":"tests.BorrowedStringReturnTests.requireText: a borrowed String parameter returns through an owned abstract String","verdict":"pass"}
+{"id":"tests.BoxedInterfaceDefaultOpsTests.defaultBoxes","name":"tests.BoxedInterfaceDefaultOpsTests.defaultBoxes: a concrete interface default boxes in the coalescing closure","verdict":"pass"}
+{"id":"tests.BranchedOptionalFieldOpsTests.penalty","name":"tests.BranchedOptionalFieldOpsTests.penalty: a branch-assigned optional field keeps the parameter null check","verdict":"pass"}
+{"id":"tests.BranchedOptionalFieldOpsTests.rate","name":"tests.BranchedOptionalFieldOpsTests.rate: a branch-assigned optional float field keeps the parameter null check","verdict":"pass"}
+{"id":"tests.BranchedOptionalFieldOpsTests.ruleTag","name":"tests.BranchedOptionalFieldOpsTests.ruleTag: a branch-assigned interface field declares its owned Rust type","verdict":"pass"}
+{"id":"tests.BytesTests.bufferAdd","name":"tests.BytesTests.bufferAdd: appends whole byte segments through add","verdict":"pass"}
+{"id":"tests.BytesTests.bufferAddEmpty","name":"tests.BytesTests.bufferAddEmpty: add with an empty argument appends nothing","verdict":"pass"}
+{"id":"tests.BytesTests.fixedMutation","name":"tests.BytesTests.fixedMutation: allocates and mutates fixed-length bytes","verdict":"pass"}
+{"id":"tests.CaptureSwitchOpsTests.testClassify","name":"tests.CaptureSwitchOpsTests.testClassify: multi-case captured switch remains available","verdict":"pass"}
+{"id":"tests.CaptureSwitchOpsTests.testDescribe","name":"tests.CaptureSwitchOpsTests.testDescribe: single captured switch forwards a return payload","verdict":"pass"}
+{"id":"tests.CaptureSwitchOpsTests.testInitialized","name":"tests.CaptureSwitchOpsTests.testInitialized: single captured switch works in an initializer","verdict":"pass"}
+{"id":"tests.CaptureSwitchOpsTests.testMessageLength","name":"tests.CaptureSwitchOpsTests.testMessageLength: single captured payload supports an operation","verdict":"pass"}
+{"id":"tests.CloneDeriveGapTests.resolve","name":"tests.CloneDeriveGapTests.resolve: data class holding a plain-class field derives Clone and reads owned values","verdict":"pass"}
+{"id":"tests.CloneDeriveGapTests.resolveAbstract","name":"tests.CloneDeriveGapTests.resolveAbstract: class holding a string abstract field derives Clone and reads owned values","verdict":"pass"}
+{"id":"tests.ClosureStringViewOpsTests.testChoose","name":"tests.ClosureStringViewOpsTests.testChoose: a captured String parameter owns text on return","verdict":"pass"}
+{"id":"tests.ClosureStringViewOpsTests.testLabel","name":"tests.ClosureStringViewOpsTests.testLabel: a captured String parameter passes a str view through","verdict":"pass"}
+{"id":"tests.ComparatorGateTests.comparable","name":"tests.ComparatorGateTests.comparable: comparable data classes remain usable","verdict":"pass"}
+{"id":"tests.ComparatorGateTests.unsupported","name":"tests.ComparatorGateTests.unsupported: data classes with unsupported comparator fields remain usable","verdict":"pass"}
+{"id":"tests.CompareGateTests.boolNestedIsUngated","name":"tests.CompareGateTests.boolNestedIsUngated: nested data class with Bool remains constructible","verdict":"pass"}
+{"id":"tests.CompareGateTests.safeNestedRemainsComparable","name":"tests.CompareGateTests.safeNestedRemainsComparable: nested data class with supported keys remains constructible","verdict":"pass"}
+{"id":"tests.ConsoleShimTests.logReturns","name":"tests.ConsoleShimTests.logReturns: std.Console.log returns to its caller","verdict":"pass"}
+{"id":"tests.ConstructedStateTests.testConstructedState","name":"tests.ConstructedStateTests.testConstructedState: constructed static initializers expose their state","verdict":"pass"}
+{"id":"tests.ConstructorStatementTests.testComprehension","name":"tests.ConstructorStatementTests.testComprehension: constructor lowers array comprehension fill","verdict":"pass"}
+{"id":"tests.ConstructorStatementTests.testPipelineBlockLambda","name":"tests.ConstructorStatementTests.testPipelineBlockLambda: constructor lowers pipeline call with block lambda","verdict":"pass"}
+{"id":"tests.CrcTests.crc16Incremental","name":"tests.CrcTests.crc16Incremental: crc16 incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc16ccittIncremental","name":"tests.CrcTests.crc16ccittIncremental: crc16ccitt incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc16modbusIncremental","name":"tests.CrcTests.crc16modbusIncremental: crc16modbus incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc16kermitIncremental","name":"tests.CrcTests.crc16kermitIncremental: crc16kermit incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc16xmodemIncremental","name":"tests.CrcTests.crc16xmodemIncremental: crc16xmodem incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc24Incremental","name":"tests.CrcTests.crc24Incremental: crc24 incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc1Incremental","name":"tests.CrcTests.crc1Incremental: crc1 incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc32mpeg2Incremental","name":"tests.CrcTests.crc32mpeg2Incremental: crc32mpeg2 incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc81wireIncremental","name":"tests.CrcTests.crc81wireIncremental: crc81wire incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc8Incremental","name":"tests.CrcTests.crc8Incremental: crc8 incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc8dvbs2Incremental","name":"tests.CrcTests.crc8dvbs2Incremental: crc8dvbs2 incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc32Incremental","name":"tests.CrcTests.crc32Incremental: crc32 incremental","verdict":"pass"}
+{"id":"tests.CrcTests.crc16Vectors","name":"tests.CrcTests.crc16Vectors: crc16 vectors","verdict":"pass"}
+{"id":"tests.CtorOmitTests.testOmit","name":"tests.CtorOmitTests.testOmit: constructor omitted trailing defaults materialize","verdict":"pass"}
+{"id":"tests.CtorOptArgTests.testConstructorArg","name":"tests.CtorOptArgTests.testConstructorArg: a nullable value unwraps at a value-typed constructor argument","verdict":"pass"}
+{"id":"tests.DartArrayMethodTests.testPopShift","name":"tests.DartArrayMethodTests.testPopShift: pop and shift answer the end elements","verdict":"pass"}
+{"id":"tests.DartArrayMethodTests.testBoolCondition","name":"tests.DartArrayMethodTests.testBoolCondition: a bool comparison condition emits no toDouble call","verdict":"pass"}
+{"id":"tests.DartArrayMethodTests.testConcatSplice","name":"tests.DartArrayMethodTests.testConcatSplice: concat and splice lower onto Dart list operations","verdict":"pass"}
+{"id":"tests.DartCharNullTests.charNullNarrowing","name":"tests.DartCharNullTests.charNullNarrowing: charCodeAt results narrow correctly at consumer boundaries","verdict":"pass"}
+{"id":"tests.CrcTests.crc1Vectors","name":"tests.CrcTests.crc1Vectors: crc1 vectors","verdict":"pass"}
+{"id":"tests.DartArrayMethodTests.testReverseUnshift","name":"tests.DartArrayMethodTests.testReverseUnshift: reverse and unshift mutate the list in place","verdict":"pass"}
+{"id":"tests.CrcTests.crc16xmodemVectors","name":"tests.CrcTests.crc16xmodemVectors: crc16xmodem vectors","verdict":"pass"}
+{"id":"tests.DartCharNullTests.charNullOutOfRange","name":"tests.DartCharNullTests.charNullOutOfRange: charCodeAt preserves null for out-of-range indices","verdict":"pass"}
+{"id":"tests.CrcTests.crc16ccittVectors","name":"tests.CrcTests.crc16ccittVectors: crc16ccitt vectors","verdict":"pass"}
+{"id":"tests.DartCoalesceSiblingTests.testSibling","name":"tests.DartCoalesceSiblingTests.testSibling: a static call site binds sibling defaults to caller arguments","verdict":"pass"}
+{"id":"tests.CrcTests.crc16modbusVectors","name":"tests.CrcTests.crc16modbusVectors: crc16modbus vectors","verdict":"pass"}
+{"id":"tests.CrcTests.crcjamIncremental","name":"tests.CrcTests.crcjamIncremental: crcjam incremental","verdict":"pass"}
+{"id":"tests.DartCoalesceStaticTests.testPartial","name":"tests.DartCoalesceStaticTests.testPartial: an explicit null argument inlines the cross-module static default","verdict":"pass"}
+{"id":"tests.DartEmptyArrayFixTests.emptyArrayArgument","name":"tests.DartEmptyArrayFixTests.emptyArrayArgument: empty array arguments retain their element type","verdict":"pass"}
+{"id":"tests.DartNullPushTests.closureNullStaysNull","name":"tests.DartNullPushTests.closureNullStaysNull: nullable closure returning null keeps null","verdict":"pass"}
+{"id":"tests.DartNullPushTests.closureValueStaysValue","name":"tests.DartNullPushTests.closureValueStaysValue: nullable closure returning a value keeps the value","verdict":"pass"}
+{"id":"tests.DartCoalesceStaticTests.testPreset","name":"tests.DartCoalesceStaticTests.testPreset: omitted constructor defaults resolve through coalescing statics","verdict":"pass"}
+{"id":"tests.DartLocalNameFixTests.localShadow","name":"tests.DartLocalNameFixTests.localShadow: local declarations avoid shadowing their initializer","verdict":"pass"}
+{"id":"tests.DataClassCtorGuardTests.acceptsValidValue","name":"tests.DataClassCtorGuardTests.acceptsValidValue: data-class constructor accepts finite non-negative values","verdict":"pass"}
+{"id":"tests.DataClassCtorGuardTests.rejectsNegativeValue","name":"tests.DataClassCtorGuardTests.rejectsNegativeValue: data-class constructor rejects negative values","verdict":"pass"}
+{"id":"tests.DartNullPushTests.pushValueKeepsValue","name":"tests.DartNullPushTests.pushValueKeepsValue: pushing a value into Array<Null<T>> keeps the value","verdict":"pass"}
+{"id":"tests.DataClassCtorGuardTests.rejectsNonFiniteValue","name":"tests.DataClassCtorGuardTests.rejectsNonFiniteValue: data-class constructor rejects non-finite values","verdict":"pass"}
+{"id":"tests.DartNullPushTests.pushNullKeepsNull","name":"tests.DartNullPushTests.pushNullKeepsNull: pushing null into Array<Null<T>> keeps null at the slot","verdict":"pass"}
+{"id":"tests.DataClassRangeEqTests.testDataClassRangeEq","name":"tests.DataClassRangeEqTests.testDataClassRangeEq: DataClass with TextRange field supports == comparison","verdict":"pass"}
+{"id":"tests.DataTableTests.testPayloadUnits","name":"tests.DataTableTests.testPayloadUnits: payload table unit count and edge units","verdict":"pass"}
+{"id":"tests.DataTableTests.testScriptFirstRecord","name":"tests.DataTableTests.testScriptFirstRecord: script table first record hits","verdict":"pass"}
+{"id":"tests.DataTableTests.testPayloadRoundtrip","name":"tests.DataTableTests.testPayloadRoundtrip: payload table decodes back to the file content","verdict":"pass"}
+{"id":"tests.DataTableTests.testScriptIntermediateRecords","name":"tests.DataTableTests.testScriptIntermediateRecords: script table intermediate record classifications","verdict":"pass"}
+{"id":"tests.DataTableTests.testWordFirstRecord","name":"tests.DataTableTests.testWordFirstRecord: word character table first record hits","verdict":"pass"}
+{"id":"tests.DataTableTests.testWordLastRecord","name":"tests.DataTableTests.testWordLastRecord: word character table last record hits","verdict":"pass"}
+{"id":"tests.DataTableTests.testWordMisses","name":"tests.DataTableTests.testWordMisses: word character table misses and gaps","verdict":"pass"}
+{"id":"tests.DataTableTests.testWordSingletons","name":"tests.DataTableTests.testWordSingletons: word character table singleton ranges","verdict":"pass"}
+{"id":"tests.DefaultArgShiftTests.testChainExplicitNull","name":"tests.DefaultArgShiftTests.testChainExplicitNull: chain later parameter with explicit null reads the earlier argument","verdict":"pass"}
+{"id":"tests.DataTableTests.testScriptLastRecord","name":"tests.DataTableTests.testScriptLastRecord: script table last record hits","verdict":"pass"}
+{"id":"tests.CrcTests.crc81wireVectors","name":"tests.CrcTests.crc81wireVectors: crc81wire vectors","verdict":"pass"}
+{"id":"tests.DataTableTests.testScriptMisses","name":"tests.DataTableTests.testScriptMisses: script table boundary misses","verdict":"pass"}
+{"id":"tests.CrcTests.crc16kermitVectors","name":"tests.CrcTests.crc16kermitVectors: crc16kermit vectors","verdict":"pass"}
+{"id":"tests.DefaultArgShiftTests.testChainOmissions","name":"tests.DefaultArgShiftTests.testChainOmissions: chain omission forms keep their resolved values","verdict":"pass"}
+{"id":"tests.DefaultArgShiftTests.testConstructor","name":"tests.DefaultArgShiftTests.testConstructor: constructor parameter-reading default resolves the constructor argument","verdict":"pass"}
+{"id":"tests.CrcTests.crc32mpeg2Vectors","name":"tests.CrcTests.crc32mpeg2Vectors: crc32mpeg2 vectors","verdict":"pass"}
+{"id":"tests.DefaultArgShiftTests.testExplicitNull","name":"tests.DefaultArgShiftTests.testExplicitNull: explicit null at a parameter-reading default resolves the earlier argument","verdict":"pass"}
+{"id":"tests.DefaultArgShiftTests.testExplicitValues","name":"tests.DefaultArgShiftTests.testExplicitValues: explicit values at every slot are unchanged","verdict":"pass"}
+{"id":"tests.DefaultArgShiftTests.testInstanceMethod","name":"tests.DefaultArgShiftTests.testInstanceMethod: instance method parameter-reading default resolves the receiver argument","verdict":"pass"}
+{"id":"tests.DefaultArgShiftTests.testMiddleSlot","name":"tests.DefaultArgShiftTests.testMiddleSlot: middle slot omitted with later arguments keeps every slot","verdict":"pass"}
+{"id":"tests.CrcTests.crc8Vectors","name":"tests.CrcTests.crc8Vectors: crc8 vectors","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.ctorDefaultLeafFreshness","name":"tests.DefaultArgsTests.ctorDefaultLeafFreshness: constructor default leaf builds a fresh instance per omitting call","verdict":"pass"}
+{"id":"tests.CrcTests.crc24Vectors","name":"tests.CrcTests.crc24Vectors: crc24 vectors","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.ctorParamReadDefault","name":"tests.DefaultArgsTests.ctorParamReadDefault: constructor coalescing default reading an earlier parameter resolves at the call site","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testAdjust","name":"tests.DefaultArgsTests.testAdjust: adjust with negative literal default","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.kotlinHardKeywordIdentifiers","name":"tests.DefaultArgsTests.kotlinHardKeywordIdentifiers: kotlin hard keyword identifiers survive every target","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.ctorStaticCallParamReadDefault","name":"tests.DefaultArgsTests.ctorStaticCallParamReadDefault: constructor coalescing default calling a static helper with an earlier parameter","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testCallAndBinaryDefaults","name":"tests.DefaultArgsTests.testCallAndBinaryDefaults: instance method call, static call, and binary operator defaults","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testChainedCoalescing","name":"tests.DefaultArgsTests.testChainedCoalescing: chain with both parameters omitted resolves through the earlier default","verdict":"pass"}
+{"id":"tests.CrcTests.crc32Vectors","name":"tests.CrcTests.crc32Vectors: crc32 vectors","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testChainedPaint","name":"tests.DefaultArgsTests.testChainedPaint: constructor chain defaults the later field to the earlier parameter","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testCoalescingArrayFreshness","name":"tests.DefaultArgsTests.testCoalescingArrayFreshness: coalescing array defaults are fresh per constructor call","verdict":"pass"}
+{"id":"tests.CrcTests.crcjamVectors","name":"tests.CrcTests.crcjamVectors: crcjam vectors","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testCoalescingInfinity","name":"tests.DefaultArgsTests.testCoalescingInfinity: coalescing infinity default preserves explicit values","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testConditional","name":"tests.DefaultArgsTests.testConditional: conditional over a parameter","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testCoalescingMapFreshness","name":"tests.DefaultArgsTests.testCoalescingMapFreshness: coalescing map defaults are fresh per function call","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testConfigure","name":"tests.DefaultArgsTests.testConfigure: configure with zero, one, two, and three omitted arguments","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testCoalescingPreset","name":"tests.DefaultArgsTests.testCoalescingPreset: zero-argument self-construction on a field-carrying class keeps the labeled printed form","verdict":"pass"}
+{"id":"tests.CrcTests.crc8dvbs2Vectors","name":"tests.CrcTests.crc8dvbs2Vectors: crc8dvbs2 vectors","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testDependence","name":"tests.DefaultArgsTests.testDependence: dependence assertion: different earlier arguments resolve differently","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testDescribeTag","name":"tests.DefaultArgsTests.testDescribeTag: describeTag with explicit null default","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testFieldAccess","name":"tests.DefaultArgsTests.testFieldAccess: field access over a parameter","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testGreet","name":"tests.DefaultArgsTests.testGreet: greet with explicit and default prefix","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testFormatLabel","name":"tests.DefaultArgsTests.testFormatLabel: formatLabel instance method with nullable and value optional parameters","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testInterfaceMethod","name":"tests.DefaultArgsTests.testInterfaceMethod: interface method with default parameter called through interface","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testLocalFunction","name":"tests.DefaultArgsTests.testLocalFunction: local function with default argument called with omission","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testOpenMode","name":"tests.DefaultArgsTests.testOpenMode: openMode with zero-argument enum constructor default","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testParameterRead","name":"tests.DefaultArgsTests.testParameterRead: bare earlier-parameter read","verdict":"pass"}
+{"id":"tests.DefaultArgsTests.testStaticFieldRead","name":"tests.DefaultArgsTests.testStaticFieldRead: static-field read","verdict":"pass"}
+{"id":"tests.DefaultBuilderTests.testDefaults","name":"tests.DefaultBuilderTests.testDefaults: a coalescing default lowers a map builder and a secondary static field","verdict":"pass"}
+{"id":"tests.DefaultParamUnwrapTests.testDefaults","name":"tests.DefaultParamUnwrapTests.testDefaults: a constant-default parameter is plain in Swift and never unwraps","verdict":"pass"}
+{"id":"tests.DeferredLocalsTests.testDeferredLocals","name":"tests.DeferredLocalsTests.testDeferredLocals: deferred locals initialize along control-flow paths","verdict":"pass"}
+{"id":"tests.DowncastTests.testDowncast","name":"tests.DowncastTests.testDowncast: a checked downcast keeps the concrete type","verdict":"pass"}
+{"id":"tests.DivTableTests.testDiv","name":"tests.DivTableTests.testDiv: length division by constant lowers to integer division","verdict":"pass"}
+{"id":"tests.EarlyReturnTests.conditionalReturn","name":"tests.EarlyReturnTests.conditionalReturn: conditional early return exits the test body","verdict":"pass"}
+{"id":"tests.EnumLookupTests.testRoundTrip","name":"tests.EnumLookupTests.testRoundTrip: a createEnum result unwraps before a name read","verdict":"pass"}
+{"id":"tests.EarlyReturnTests.fallThrough","name":"tests.EarlyReturnTests.fallThrough: fall-through path continues after the conditional","verdict":"pass"}
+{"id":"tests.EnumQueriesTests.counts","name":"tests.EnumQueriesTests.counts: enum collection counts fold through direct and alias reads","verdict":"pass"}
+{"id":"tests.EnumQueriesTests.lookup","name":"tests.EnumQueriesTests.lookup: enum name lookup round trips and misses return empty","verdict":"pass"}
+{"id":"tests.EnumQueriesTests.lookupName","name":"tests.EnumQueriesTests.lookupName: enumConstructor on a createEnum result unwraps the nullable lookup","verdict":"pass"}
+{"id":"tests.EnumQueriesTests.names","name":"tests.EnumQueriesTests.names: enum collections preserve declaration order and constructor names","verdict":"pass"}
+{"id":"tests.EnumQueriesTests.second","name":"tests.EnumQueriesTests.second: enum queries cover a second value enumeration","verdict":"pass"}
+{"id":"tests.EnumSortedKeysTests.testMapOrder","name":"tests.EnumSortedKeysTests.testMapOrder: Parameterless enum sorted maps order keys and values","verdict":"pass"}
+{"id":"tests.ExceptionCatchTests.exceptionTypeLowering","name":"tests.ExceptionCatchTests.exceptionTypeLowering: haxe.Exception type lowers to Error","verdict":"pass"}
+{"id":"tests.EnumSortedKeysTests.testSetOrder","name":"tests.EnumSortedKeysTests.testSetOrder: Parameterless enum sorted sets use declaration order","verdict":"pass"}
+{"id":"tests.ExceptionCatchTests.testModuleImport","name":"tests.ExceptionCatchTests.testModuleImport: test module probes resolve across test files","verdict":"pass"}
+{"id":"tests.ExceptionChainProbeTests.nullPrevious","name":"tests.ExceptionChainProbeTests.nullPrevious: a null previous on a base exception reads as none","verdict":"pass"}
+{"id":"tests.ExceptionTypeOpsTests.testHasCause","name":"tests.ExceptionTypeOpsTests.testHasCause: a base-typed exception instance is non-null","verdict":"pass"}
+{"id":"tests.ExceptionTypeOpsTests.testMissingCause","name":"tests.ExceptionTypeOpsTests.testMissingCause: a missing base exception ranks against null","verdict":"pass"}
+{"id":"tests.ExceptionTypeOpsTests.testNilArgument","name":"tests.ExceptionTypeOpsTests.testNilArgument: a nil base exception argument resolves against the parameter","verdict":"pass"}
+{"id":"tests.ExpressionBlockTests.binaryOperand","name":"tests.ExpressionBlockTests.binaryOperand: expression blocks can be binary operands","verdict":"pass"}
+{"id":"tests.ExpressionBlockTests.inlineFieldArguments","name":"tests.ExpressionBlockTests.inlineFieldArguments: inline field arguments work in string concatenation","verdict":"pass"}
+{"id":"tests.ExpressionBlockTests.multipleDeclarations","name":"tests.ExpressionBlockTests.multipleDeclarations: expression blocks support multiple declarations","verdict":"pass"}
+{"id":"tests.ExpressionBlockTests.nestedFieldChain","name":"tests.ExpressionBlockTests.nestedFieldChain: nested record field chains trigger the lowering","verdict":"pass"}
+{"id":"tests.FallibleLocalFunctionTests.localVoidSuccess","name":"tests.FallibleLocalFunctionTests.localVoidSuccess: the infallible path returns the guarded value","verdict":"pass"}
+{"id":"tests.FallibleLocalFunctionTests.localVoidThrow","name":"tests.FallibleLocalFunctionTests.localVoidThrow: a Void local function that throws propagates through the enclosing Result","verdict":"pass"}
+{"id":"tests.FloatCompoundAssignOpsTests.scaled","name":"tests.FloatCompoundAssignOpsTests.scaled: a Float compound assignment widens an Int right side","verdict":"pass"}
+{"id":"tests.FloatCompoundAssignOpsTests.stepTotal","name":"tests.FloatCompoundAssignOpsTests.stepTotal: a Float accumulator widens each Int increment","verdict":"pass"}
+{"id":"tests.FloatCompoundAssignOpsTests.walk","name":"tests.FloatCompoundAssignOpsTests.walk: add and subtract compound assignments widen Int right sides","verdict":"pass"}
+{"id":"tests.FloatFieldLiteralOpsTests.pair","name":"tests.FloatFieldLiteralOpsTests.pair: an Int literal widens into an anonymous Float field","verdict":"pass"}
+{"id":"tests.FloatLiteralOpsTests.testArgLeadingDot","name":"tests.FloatLiteralOpsTests.testArgLeadingDot: leading-dot float in argument position lowers","verdict":"pass"}
+{"id":"tests.FloatLiteralOpsTests.testArgSmall","name":"tests.FloatLiteralOpsTests.testArgSmall: small-magnitude leading-dot float in argument position lowers","verdict":"pass"}
+{"id":"tests.FloatLiteralOpsTests.testLocalLeadingDotNeg","name":"tests.FloatLiteralOpsTests.testLocalLeadingDotNeg: negative leading-dot float in initializer position lowers","verdict":"pass"}
+{"id":"tests.FloatLiteralOpsTests.testLocalSmallNeg","name":"tests.FloatLiteralOpsTests.testLocalSmallNeg: negative small-magnitude leading-dot float in initializer position lowers","verdict":"pass"}
+{"id":"tests.FloatModCompareOpsTests.even","name":"tests.FloatModCompareOpsTests.even: a Float remainder compares zero in the Float domain","verdict":"pass"}
+{"id":"tests.FloatModTests.testRemainder","name":"tests.FloatModTests.testRemainder: a float remainder lowers onto truncatingRemainder","verdict":"pass"}
+{"id":"tests.FloatTernaryArmTests.testCost","name":"tests.FloatTernaryArmTests.testCost: a mixed int arm widens inside a float ternary","verdict":"pass"}
+{"id":"tests.FlushHookProbeTests.classBodyRuns","name":"tests.FlushHookProbeTests.classBodyRuns: the class body runs and the flush entry stays outside the test id set","verdict":"pass"}
+{"id":"tests.FnValuesTests.testFieldInvocation","name":"tests.FnValuesTests.testFieldInvocation: function-typed fields stored and invoked","verdict":"pass"}
+{"id":"tests.FnValuesTests.testParameterInvocation","name":"tests.FnValuesTests.testParameterInvocation: function-typed parameter invoked inside the callee","verdict":"pass"}
+{"id":"tests.FnValuesTests.testGenericParameter","name":"tests.FnValuesTests.testGenericParameter: generic function-typed parameter","verdict":"pass"}
+{"id":"tests.FnValuesTests.testReturnedFunction","name":"tests.FnValuesTests.testReturnedFunction: function value returned from a function","verdict":"pass"}
+{"id":"tests.FnValuesTests.testStaticField","name":"tests.FnValuesTests.testStaticField: static function-typed field invoked","verdict":"pass"}
+{"id":"tests.FnValuesTests.testStoredLocal","name":"tests.FnValuesTests.testStoredLocal: local function value stored and invoked","verdict":"pass"}
+{"id":"tests.FontIdTests.make","name":"tests.FontIdTests.make: a non-inline static on a sub-type abstract is callable across modules","verdict":"pass"}
+{"id":"tests.ForInOptionalTests.testIterate","name":"tests.ForInOptionalTests.testIterate: a for-in over a guarded nullable array unwraps","verdict":"pass"}
+{"id":"tests.Fp16Tests.narrow","name":"tests.Fp16Tests.narrow: binary32 patterns narrow with round-to-nearest-even","verdict":"pass"}
+{"id":"tests.Fp16Tests.widen","name":"tests.Fp16Tests.widen: binary16 patterns widen to exact binary32 bits","verdict":"pass"}
+{"id":"tests.Fp32Tests.bitsRoundTrip","name":"tests.Fp32Tests.bitsRoundTrip: binary32 bits widen exactly and round back","verdict":"pass"}
+{"id":"tests.Fp32Tests.halvesToBits","name":"tests.Fp32Tests.halvesToBits: binary64 halves round to binary32 bits with ties to even","verdict":"pass"}
+{"id":"tests.FPHelperRustTests.valueOf","name":"tests.FPHelperRustTests.valueOf: an FPHelper bit edge reinterprets a u32 Int argument","verdict":"pass"}
+{"id":"tests.FPHelperRustTests.decompose","name":"tests.FPHelperRustTests.decompose: floatToI32 reads stay signed through u32 struct fields","verdict":"pass"}
+{"id":"tests.FPHelperSwiftTests.testRoundTrip","name":"tests.FPHelperSwiftTests.testRoundTrip: binary32 bit edges round-trip through the runtime pair","verdict":"pass"}
+{"id":"tests.FunctionalLocalTests.testCounted","name":"tests.FunctionalLocalTests.testCounted: forEach in a local function lowers onto the array method","verdict":"pass"}
+{"id":"tests.FunctionalLocalTests.testDoubled","name":"tests.FunctionalLocalTests.testDoubled: sumOfFloat in a local function lowers onto reduce","verdict":"pass"}
+{"id":"tests.FusedPushThrowTests.testBuild","name":"tests.FusedPushThrowTests.testBuild: a fused push of a throwing construction carries the try marker","verdict":"pass"}
+{"id":"tests.GlyphClusterTests.firstRange","name":"tests.GlyphClusterTests.firstRange: a data-class member reads off a ReadOnlyArray field element","verdict":"pass"}
+{"id":"tests.GlyphClusterTests.firstReturnedRange","name":"tests.GlyphClusterTests.firstReturnedRange: a data-class member reads off a ReadOnlyArray return element","verdict":"pass"}
+{"id":"tests.GraphemeTests.testBoundaries","name":"tests.GraphemeTests.testBoundaries: boundary offsets list every cluster edge in string units","verdict":"pass"}
+{"id":"tests.GraphemeTests.testCjkClusters","name":"tests.GraphemeTests.testCjkClusters: cjk text counts one cluster per character","verdict":"pass"}
+{"id":"tests.GraphemeTests.testCrLf","name":"tests.GraphemeTests.testCrLf: carriage return and line feed form one cluster","verdict":"pass"}
+{"id":"tests.GraphemeTests.testDevanagariConjunct","name":"tests.GraphemeTests.testDevanagariConjunct: devanagari conjuncts with a virama linker stay whole","verdict":"pass"}
+{"id":"tests.GraphemeTests.testEmojiSequences","name":"tests.GraphemeTests.testEmojiSequences: emoji sequences with joiners and modifiers form one cluster","verdict":"pass"}
+{"id":"tests.GraphemeTests.testHangul","name":"tests.GraphemeTests.testHangul: hangul jamo runs form one cluster","verdict":"pass"}
+{"id":"tests.GraphemeTests.testParts","name":"tests.GraphemeTests.testParts: parts enumerate every cluster and join back to the source","verdict":"pass"}
+{"id":"tests.GraphemeTests.testRegionalIndicators","name":"tests.GraphemeTests.testRegionalIndicators: regional indicators pair up","verdict":"pass"}
+{"id":"tests.GraphemeTests.testPrepend","name":"tests.GraphemeTests.testPrepend: prepend characters join the following cluster","verdict":"pass"}
+{"id":"tests.GraphemeTests.testSlicing","name":"tests.GraphemeTests.testSlicing: cluster slicing clamps like the code-point tier","verdict":"pass"}
+{"id":"tests.HandWrittenLoopPositionTests.directLoop","name":"tests.HandWrittenLoopPositionTests.directLoop: hand-written accumulation loop remains valid at direct position","verdict":"pass"}
+{"id":"tests.GraphemeTests.testCombiningMarks","name":"tests.GraphemeTests.testCombiningMarks: combining marks join their base character","verdict":"pass"}
+{"id":"tests.HandWrittenLoopPositionTests.loopInIf","name":"tests.HandWrittenLoopPositionTests.loopInIf: hand-written accumulation loop remains valid in if","verdict":"pass"}
+{"id":"tests.HandWrittenLoopPositionTests.loopInWhile","name":"tests.HandWrittenLoopPositionTests.loopInWhile: hand-written accumulation loop remains valid in while","verdict":"pass"}
+{"id":"tests.HandWrittenLoopPositionTests.nestedLoop","name":"tests.HandWrittenLoopPositionTests.nestedLoop: nested hand-written loop does not synthesize a closure","verdict":"pass"}
+{"id":"tests.HaxeExceptionTests.joinedMessage","name":"tests.HaxeExceptionTests.joinedMessage: a concatenated exception message crosses the constructor as a str view","verdict":"pass"}
+{"id":"tests.HaxeExceptionTests.mixedMessage","name":"tests.HaxeExceptionTests.mixedMessage: a direct message-only throw joins the callee fault union","verdict":"pass"}
+{"id":"tests.HaxeExceptionTests.thrownMessage","name":"tests.HaxeExceptionTests.thrownMessage: haxe.Exception subclasses preserve message values when thrown and caught","verdict":"pass"}
+{"id":"tests.ImpDefaultTests.defaults","name":"tests.ImpDefaultTests.defaults: materialized cross-package constructor default","verdict":"pass"}
+{"id":"tests.InheritCtorTests.constructionAndCatch","name":"tests.InheritCtorTests.constructionAndCatch: inherited data-class construction preserves the second message","verdict":"pass"}
+{"id":"tests.InheritCtorTests.messageValue","name":"tests.InheritCtorTests.messageValue: inherited data-class constructors preserve message values","verdict":"pass"}
+{"id":"tests.InlineDefaultTests.testInlineDefaults","name":"tests.InlineDefaultTests.testInlineDefaults: inlined data-class defaults preserve static paths and parameter bindings","verdict":"pass"}
+{"id":"tests.InstanceDefaultsTests.defaults","name":"tests.InstanceDefaultsTests.defaults: instance field defaults initialize every field","verdict":"pass"}
+{"id":"tests.InstanceDefaultsTests.perInstance","name":"tests.InstanceDefaultsTests.perInstance: instance field defaults evaluate per instance","verdict":"pass"}
+{"id":"tests.Int64Tests.carry","name":"tests.Int64Tests.carry: wraps addition across the low word","verdict":"pass"}
+{"id":"tests.Int64Tests.construction","name":"tests.Int64Tests.construction: constructs and extracts 64-bit words","verdict":"pass"}
+{"id":"tests.Int64Tests.multiplication","name":"tests.Int64Tests.multiplication: wraps Int64 multiplication","verdict":"pass"}
+{"id":"tests.Int64Tests.operations","name":"tests.Int64Tests.operations: keeps rotate and bitwise operations at 64 bits","verdict":"pass"}
+{"id":"tests.Int64Tests.ordering","name":"tests.Int64Tests.ordering: compares signed Int64 values at limits and across zero","verdict":"pass"}
+{"id":"tests.IntDivisionTests.testFloored","name":"tests.IntDivisionTests.testFloored: a floored Int quotient floors the Float quotient","verdict":"pass"}
+{"id":"tests.IntDivisionTests.testNegativeQuotient","name":"tests.IntDivisionTests.testNegativeQuotient: negative Int operands keep the Float quotient","verdict":"pass"}
+{"id":"tests.IntDivisionTests.testOffset","name":"tests.IntDivisionTests.testOffset: a layout offset keeps the fractional quotient","verdict":"pass"}
+{"id":"tests.IntDivisionTests.testQuotient","name":"tests.IntDivisionTests.testQuotient: an Int quotient assigned to a Float keeps the fraction","verdict":"pass"}
+{"id":"tests.IntDivisionTests.testScaled","name":"tests.IntDivisionTests.testScaled: an Int quotient takes part in a Float multiply and add","verdict":"pass"}
+{"id":"tests.IntDivisionTests.testTruncated","name":"tests.IntDivisionTests.testTruncated: the truncating spelling keeps integer division","verdict":"pass"}
+{"id":"tests.IntDivisionTests.testZeroDivisor","name":"tests.IntDivisionTests.testZeroDivisor: an Int quotient over a zero divisor reaches infinity","verdict":"pass"}
+{"id":"tests.IntFloatAddTests.testAdd","name":"tests.IntFloatAddTests.testAdd: an Int operand widens in a mixed Float addition","verdict":"pass"}
+{"id":"tests.IntFloatCtorTests.testWidening","name":"tests.IntFloatCtorTests.testWidening: an Int argument widens into a Float constructor parameter","verdict":"pass"}
+{"id":"tests.IntFloatSignTests.testArrayElem","name":"tests.IntFloatSignTests.testArrayElem: a wrapped Int stays -1.0 through an array-literal Float element","verdict":"pass"}
+{"id":"tests.IntFloatSignTests.testCollapsedComparison","name":"tests.IntFloatSignTests.testCollapsedComparison: a wrapped Int stays -1.0 through a collapsed-local comparison widening","verdict":"pass"}
+{"id":"tests.IntFloatSignTests.testComparison","name":"tests.IntFloatSignTests.testComparison: a wrapped Int stays -1.0 through an Int-vs-Float comparison widening","verdict":"pass"}
+{"id":"tests.IntFloatSignTests.testCompoundAssign","name":"tests.IntFloatSignTests.testCompoundAssign: a wrapped Int stays -1.0 through a Float compound assignment","verdict":"pass"}
+{"id":"tests.IntFloatSignTests.testOptionalReturn","name":"tests.IntFloatSignTests.testOptionalReturn: a wrapped Int stays -1.0 through an Option<Float> return boundary","verdict":"pass"}
+{"id":"tests.IntFloatSignTests.testTernaryFallback","name":"tests.IntFloatSignTests.testTernaryFallback: a wrapped Int stays -1.0 through a guarded ternary fallback","verdict":"pass"}
+{"id":"tests.IntToFloatCtorTests.testWiden","name":"tests.IntToFloatCtorTests.testWiden: an Int argument widens at a Float value-type constructor","verdict":"pass"}
+{"id":"tests.InterfaceArrayLiteralTests.testTags","name":"tests.InterfaceArrayLiteralTests.testTags: an interface-typed array literal keeps its protocol members","verdict":"pass"}
+{"id":"tests.InterfaceConditionalTests.chooseText","name":"tests.InterfaceConditionalTests.chooseText: a conditional interface result boxes each concrete arm","verdict":"pass"}
+{"id":"tests.InterfaceFallibleOpsTests.value","name":"tests.InterfaceFallibleOpsTests.value: a call through a throwing interface method propagates its error","verdict":"pass"}
+{"id":"tests.InterfaceFieldLiteralOpsTests.describe","name":"tests.InterfaceFieldLiteralOpsTests.describe: an interface-typed literal field boxes the concrete value","verdict":"pass"}
+{"id":"tests.InterfaceFieldRecordTests.testInterfaceField","name":"tests.InterfaceFieldRecordTests.testInterfaceField: a record with an interface field drops the unsynthesizable Equatable","verdict":"pass"}
+{"id":"tests.InterfaceGetterPropertyTests.testInterfaceGetterProperty","name":"tests.InterfaceGetterPropertyTests.testInterfaceGetterProperty: reads a getter-only property through the interface type","verdict":"pass"}
+{"id":"tests.InterfaceIdentityTests.testIdentity","name":"tests.InterfaceIdentityTests.testIdentity: an interface value compares by identity in Swift without a class constraint","verdict":"pass"}
+{"id":"tests.InterfaceThrowTests.testInterfaceThrows","name":"tests.InterfaceThrowTests.testInterfaceThrows: only a throwing implementation lifts the interface requirement","verdict":"pass"}
+{"id":"tests.InterfaceUnionTests.sharedUnion","name":"tests.InterfaceUnionTests.sharedUnion: an interface method with disagreeing fault domains shares one union","verdict":"pass"}
+{"id":"tests.JvmFieldPrivateTests.resolveTags","name":"tests.JvmFieldPrivateTests.resolveTags: static object fields render visibility-correct JvmField placement","verdict":"pass"}
+{"id":"tests.KnullInitNarrowingTests.chainedFieldAccess","name":"tests.KnullInitNarrowingTests.chainedFieldAccess: chains two field accesses off a nullable receiver","verdict":"pass"}
+{"id":"tests.KnullInitNarrowingTests.fieldOffNullableReceiver","name":"tests.KnullInitNarrowingTests.fieldOffNullableReceiver: reads a field off a nullable receiver bound to a non-null local","verdict":"pass"}
+{"id":"tests.KnullInitNarrowingTests.ternaryWithNullableArm","name":"tests.KnullInitNarrowingTests.ternaryWithNullableArm: binds a non-null local from a ternary whose else arm is nullable","verdict":"pass"}
+{"id":"tests.KotlinNullabilityTests.testAnonymousNullableLambda","name":"tests.KotlinNullabilityTests.testAnonymousNullableLambda: anonymous lambda keeps a Null return","verdict":"pass"}
+{"id":"tests.KotlinNullabilityTests.testGenericReceiverNullableParam","name":"tests.KotlinNullabilityTests.testGenericReceiverNullableParam: generic receiver type arguments decide parameter nullability","verdict":"pass"}
+{"id":"tests.KotlinNullabilityTests.testNamedNullableLocalFunction","name":"tests.KotlinNullabilityTests.testNamedNullableLocalFunction: named local function keeps a Null return","verdict":"pass"}
+{"id":"tests.KotlinNullabilityTests.testNullableComparisonArgument","name":"tests.KotlinNullabilityTests.testNullableComparisonArgument: a nullable receiver comparison keeps its value at a Bool argument","verdict":"pass"}
+{"id":"tests.KotlinNullabilityTests.testNullableComparisonHardening","name":"tests.KotlinNullabilityTests.testNullableComparisonHardening: a nullable receiver comparison survives ctor and array element boundaries","verdict":"pass"}
+{"id":"tests.KotlinNullabilityTests.testNullableLambdaArgument","name":"tests.KotlinNullabilityTests.testNullableLambdaArgument: lambda argument keeps a Null return","verdict":"pass"}
+{"id":"tests.KotlinNullabilityTests.testNullableReceiver","name":"tests.KotlinNullabilityTests.testNullableReceiver: nullable receiver calls preserve present values","verdict":"pass"}
+{"id":"tests.KotlinNullabilityTests.testOptionalDefault","name":"tests.KotlinNullabilityTests.testOptionalDefault: optional parameters emit a native default","verdict":"pass"}
+{"id":"tests.KotlinNullabilityTests.testSortedMapNullableValue","name":"tests.KotlinNullabilityTests.testSortedMapNullableValue: a nullable value type argument keeps sorted map nulls storable","verdict":"pass"}
+{"id":"tests.LocalShadowTests.arrays","name":"tests.LocalShadowTests.arrays: array comprehensions preserve both local values","verdict":"pass"}
+{"id":"tests.LocalShadowTests.shadow","name":"tests.LocalShadowTests.shadow: shadowed locals retain their distinct values","verdict":"pass"}
+{"id":"tests.LocalShadowTests.single","name":"tests.LocalShadowTests.single: ordinary local remains unchanged","verdict":"pass"}
+{"id":"tests.LocalThrowTests.testCaughtLocal","name":"tests.LocalThrowTests.testCaughtLocal: the local fault is caught by the caller","verdict":"pass"}
+{"id":"tests.LocalThrowTests.testLocalArray","name":"tests.LocalThrowTests.testLocalArray: a local call inside an array literal carries the try marker","verdict":"pass"}
+{"id":"tests.LocalThrowTests.testLocalCondition","name":"tests.LocalThrowTests.testLocalCondition: a local call in a condition carries the try marker","verdict":"pass"}
+{"id":"tests.LocalThrowTests.testLocalNested","name":"tests.LocalThrowTests.testLocalNested: a local function throwing through another local function call","verdict":"pass"}
+{"id":"tests.LocalThrowTests.testLocalStep","name":"tests.LocalThrowTests.testLocalStep: a local throwing function call carries the try marker","verdict":"pass"}
+{"id":"tests.LoopWriteTests.branchIncrement","name":"tests.LoopWriteTests.branchIncrement: branch counter write remains a while loop","verdict":"pass"}
+{"id":"tests.LoopWriteTests.closureIncrement","name":"tests.LoopWriteTests.closureIncrement: closure counter write remains a while loop","verdict":"pass"}
+{"id":"tests.LoopWriteTests.nonUnitIncrement","name":"tests.LoopWriteTests.nonUnitIncrement: non-unit counter increment remains a while loop","verdict":"pass"}
+{"id":"tests.LoopWriteTests.tailIncrement","name":"tests.LoopWriteTests.tailIncrement: tail counter increment remains a counted loop","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.guardedAndChain","name":"tests.M2OptionVecTests.guardedAndChain: guarded and-chain reads fields of the proven inner value","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.guardedCopyLocal","name":"tests.M2OptionVecTests.guardedCopyLocal: guarded-copy local reads fields of the proven inner value","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.guardedHolderField","name":"tests.M2OptionVecTests.guardedHolderField: guarded holder field copies the proven inner value","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.indexOfCompared","name":"tests.M2OptionVecTests.indexOfCompared: Vec and String indexOf compared against -1 share the signed domain","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.nullableArrayReceiver","name":"tests.M2OptionVecTests.nullableArrayReceiver: nullable array receiver pushes and joins","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.nullableMapReceiver","name":"tests.M2OptionVecTests.nullableMapReceiver: nullable sorted map receiver reads a stored value","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.nullableSetReceiver","name":"tests.M2OptionVecTests.nullableSetReceiver: nullable sorted set receiver queries membership","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.vecCopy","name":"tests.M2OptionVecTests.vecCopy: Vec copy clones the array","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.vecIndexOf","name":"tests.M2OptionVecTests.vecIndexOf: Vec indexOf finds the element position","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.vecShift","name":"tests.M2OptionVecTests.vecShift: Vec shift removes the first element","verdict":"pass"}
+{"id":"tests.MapHasGetTests.testGuardedLookup","name":"tests.MapHasGetTests.testGuardedLookup: a guarded map lookup lowers to nil coalescing","verdict":"pass"}
+{"id":"tests.M2OptionVecTests.vecUnshift","name":"tests.M2OptionVecTests.vecUnshift: Vec unshift inserts at the front","verdict":"pass"}
+{"id":"tests.MapValueOptionalTests.testValue","name":"tests.MapValueOptionalTests.testValue: a sorted-map value optional carries one optional layer","verdict":"pass"}
+{"id":"tests.MathIntWideningOpsTests.testNegative","name":"tests.MathIntWideningOpsTests.testNegative: Math Int widening handles negative square roots","verdict":"pass"}
+{"id":"tests.MathIntWideningOpsTests.testPositive","name":"tests.MathIntWideningOpsTests.testPositive: Math Int widening preserves floor, ceil, and predicates","verdict":"pass"}
+{"id":"tests.MathIntWideningOpsTests.testZero","name":"tests.MathIntWideningOpsTests.testZero: Math Int widening handles zero","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.absFloat","name":"tests.MathMinMaxTests.absFloat: Math.abs returns the absolute value of the float operand","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.absInt","name":"tests.MathMinMaxTests.absInt: Math.abs accepts an int operand through the float signature","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.intExpression","name":"tests.MathMinMaxTests.intExpression: Math.max widens an int expression against a literal zero","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.floorCeil","name":"tests.MathMinMaxTests.floorCeil: Math.floor rounds down and Math.ceil rounds up as ints","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.intOperands","name":"tests.MathMinMaxTests.intOperands: Math.min and Math.max accept int operands through the float signature","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.maxFloat","name":"tests.MathMinMaxTests.maxFloat: Math.max returns the greater float operand","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.minFloat","name":"tests.MathMinMaxTests.minFloat: Math.min returns the lesser float operand","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.powFloat","name":"tests.MathMinMaxTests.powFloat: Math.pow raises the base to the exponent","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.powInt","name":"tests.MathMinMaxTests.powInt: Math.pow accepts int operands through the float signature","verdict":"pass"}
+{"id":"tests.MathMinMaxTests.roundFloat","name":"tests.MathMinMaxTests.roundFloat: Math.round returns the nearest integer as an int","verdict":"pass"}
+{"id":"tests.MathMinShadowTests.testClamp","name":"tests.MathMinShadowTests.testClamp: Math.min evaluates an operand that reads a local named a","verdict":"pass"}
+{"id":"tests.MathNaNOpsTests.foldedConstantEdges","name":"tests.MathNaNOpsTests.foldedConstantEdges: literal constant edges keep NaN, both infinities, and the f32 flush values","verdict":"pass"}
+{"id":"tests.MathNaNOpsTests.maxValues","name":"tests.MathNaNOpsTests.maxValues: Math.max propagates NaN and handles finite and infinity edges","verdict":"pass"}
+{"id":"tests.MathNaNOpsTests.minValues","name":"tests.MathNaNOpsTests.minValues: Math.min propagates NaN and handles finite and infinity edges","verdict":"pass"}
+{"id":"tests.MultiPatternSwitchTests.testPatterns","name":"tests.MultiPatternSwitchTests.testPatterns: a multi-pattern switch arm keeps every pattern","verdict":"pass"}
+{"id":"tests.MutableBufFieldTests.testField","name":"tests.MutableBufFieldTests.testField: a final StringBuf field mutates and Array.insert names its position","verdict":"pass"}
+{"id":"tests.MutatingCounterTests.bumpTwice","name":"tests.MutatingCounterTests.bumpTwice: a mutating interface method forces the mutable receiver on the trait object","verdict":"pass"}
+{"id":"tests.MutatingCounterTests.concreteBump","name":"tests.MutatingCounterTests.concreteBump: a concrete receiver accumulates through a compound field update","verdict":"pass"}
+{"id":"tests.MutatingCounterTests.readOnly","name":"tests.MutatingCounterTests.readOnly: a read-only implementation keeps the aggregated mutable trait shape","verdict":"pass"}
+{"id":"tests.NarrowLocalSwitchTests.testNarrowedSwitch","name":"tests.NarrowLocalSwitchTests.testNarrowedSwitch: a narrowed enum local resumes an exhaustive switch","verdict":"pass"}
+{"id":"tests.NarrowedOptionReturnTests.pick","name":"tests.NarrowedOptionReturnTests.pick: a narrowed nullable value returns through a fallible owned String slot","verdict":"pass"}
+{"id":"tests.NarrowedSortedReceiverOpsTests.testNarrowedReceiver","name":"tests.NarrowedSortedReceiverOpsTests.testNarrowedReceiver: a nullable sorted receiver keeps the null-coalescing binding","verdict":"pass"}
+{"id":"tests.NegIntSlotOpsTests.negate","name":"tests.NegIntSlotOpsTests.negate: a negated Int reinterprets at the u32 return and argument slots","verdict":"pass"}
+{"id":"tests.NegIntSlotOpsTests.negateConditional","name":"tests.NegIntSlotOpsTests.negateConditional: a negated conditional arm carries the u32 slot type","verdict":"pass"}
+{"id":"tests.NegativeSentinelOpsTests.separatorIndex","name":"tests.NegativeSentinelOpsTests.separatorIndex: a negative sentinel local keeps one domain across its uses","verdict":"pass"}
+{"id":"tests.NilContextTests.testArgument","name":"tests.NilContextTests.testArgument: synthesized optional argument nil is typed","verdict":"pass"}
+{"id":"tests.NilContextTests.testConditional","name":"tests.NilContextTests.testConditional: conditional nil retains its optional payload","verdict":"pass"}
+{"id":"tests.NoSuchElementTests.caught","name":"tests.NoSuchElementTests.caught: a module-listed exception class that only a catch references stays emitted","verdict":"pass"}
+{"id":"tests.NoSuchElementTests.foldedVariantMessage","name":"tests.NoSuchElementTests.foldedVariantMessage: a folded exception reports its variant message text","verdict":"pass"}
+{"id":"tests.NoSuchElementTests.messageRead","name":"tests.NoSuchElementTests.messageRead: a message read off a folded exception value outside a catch lowers to the property","verdict":"pass"}
+{"id":"tests.NullArgsTests.testConditionalArg","name":"tests.NullArgsTests.testConditionalArg: null-guard conditional argument wraps in the Option slot","verdict":"pass"}
+{"id":"tests.NullArgsTests.testExplicitNull","name":"tests.NullArgsTests.testExplicitNull: explicit null materializes a registered default","verdict":"pass"}
+{"id":"tests.NullArgsTests.testNullDefault","name":"tests.NullArgsTests.testNullDefault: null default keeps the nullable parameter in the Option domain","verdict":"pass"}
+{"id":"tests.NullArgsTests.testNullableVariable","name":"tests.NullArgsTests.testNullableVariable: nullable arguments use the default only when null","verdict":"pass"}
+{"id":"tests.NullGuardFieldTests.testFieldGuard","name":"tests.NullGuardFieldTests.testFieldGuard: a field null guard ternary lowers to nil coalescing","verdict":"pass"}
+{"id":"tests.NodeFsBorrowOpsTests.writeProbe","name":"tests.NodeFsBorrowOpsTests.writeProbe: a node:fs extern borrows its String arguments","verdict":"pass"}
+{"id":"tests.NullGuardNarrowTests.testNarrowing","name":"tests.NullGuardNarrowTests.testNarrowing: a null guard narrows the value use in Swift","verdict":"pass"}
+{"id":"tests.NullGuardNestedFieldOpsTests.matchingSpan","name":"tests.NullGuardNestedFieldOpsTests.matchingSpan: two guarded paths compare through their intermediate members","verdict":"pass"}
+{"id":"tests.NullGuardNestedFieldOpsTests.spanLeft","name":"tests.NullGuardNestedFieldOpsTests.spanLeft: a guarded local returns a value read through an intermediate member","verdict":"pass"}
+{"id":"tests.NullGuardNestedFieldOpsTests.startsBefore","name":"tests.NullGuardNestedFieldOpsTests.startsBefore: a guarded local reads through an intermediate member","verdict":"pass"}
+{"id":"tests.NullInitLocalTests.testLabel","name":"tests.NullInitLocalTests.testLabel: a second nil-bound class local names its optional type","verdict":"pass"}
+{"id":"tests.NullInitLocalTests.testPick","name":"tests.NullInitLocalTests.testPick: a class local bound to nil names its optional type","verdict":"pass"}
+{"id":"tests.NullStaticMapTests.testLookup","name":"tests.NullStaticMapTests.testLookup: a null-initialized static map reads through an implicitly unwrapped optional","verdict":"pass"}
+{"id":"tests.NullabilityTests.testCtorFieldLabel","name":"tests.NullabilityTests.testCtorFieldLabel: a nullable constructor argument reaches a nullable property","verdict":"pass"}
+{"id":"tests.NullabilityTests.testNarrowedFloat","name":"tests.NullabilityTests.testNarrowedFloat: a guarded nullable Float read widens after extraction","verdict":"pass"}
+{"id":"tests.NullabilityTests.testNullableToString","name":"tests.NullabilityTests.testNullableToString: nullable toString in argument","verdict":"pass"}
+{"id":"tests.NullabilityTests.testNullableToStringWithParam","name":"tests.NullabilityTests.testNullableToStringWithParam: nullable toString with suffix","verdict":"pass"}
+{"id":"tests.NullableArrayArgumentTests.checkedSum","name":"tests.NullableArrayArgumentTests.checkedSum: a null-checked nullable array unwraps into a borrowed Array parameter","verdict":"pass"}
+{"id":"tests.NullableArrayElemTests.testCollect","name":"tests.NullableArrayElemTests.testCollect: a nullable array element unwraps for a non-optional element type","verdict":"pass"}
+{"id":"tests.NullableArrayTests.nullableIntLiterals","name":"tests.NullableArrayTests.nullableIntLiterals: nullable Int array literals keep every element","verdict":"pass"}
+{"id":"tests.NullableArrayTests.nullableVarElements","name":"tests.NullableArrayTests.nullableVarElements: nullable variables pass through without Some wrapping","verdict":"pass"}
+{"id":"tests.NullableArrayTests.nullableStringLiterals","name":"tests.NullableArrayTests.nullableStringLiterals: nullable String array literals keep every element","verdict":"pass"}
+{"id":"tests.NullableArrayTests.singleNull","name":"tests.NullableArrayTests.singleNull: a single null element stays null","verdict":"pass"}
+{"id":"tests.NullableBufFieldTests.caughtFault","name":"tests.NullableBufFieldTests.caughtFault: a stranded lead in a nullable buffer field faults through the catch","verdict":"pass"}
+{"id":"tests.NullableCallTests.testGuardedToStringResult","name":"tests.NullableCallTests.testGuardedToStringResult: guarded local toString result","verdict":"pass"}
+{"id":"tests.NullableCallTests.testNormalizedToStringResult","name":"tests.NullableCallTests.testNormalizedToStringResult: normalized local toString result","verdict":"pass"}
+{"id":"tests.NullableBufFieldTests.appendGuarded","name":"tests.NullableBufFieldTests.appendGuarded: a buffer field mutation opens the nullable owner with as_mut","verdict":"pass"}
+{"id":"tests.NullableCallTests.testNullableToStringResult","name":"tests.NullableCallTests.testNullableToStringResult: nullable toString result","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.nullFieldLeftOperand","name":"tests.NullableFieldRecordTests.nullFieldLeftOperand: a nullable field on the left of a literal prints nulla","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.bothStatesPrint","name":"tests.NullableFieldRecordTests.bothStatesPrint: every nullable field prints its null and present forms","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.nullFieldRightOperand","name":"tests.NullableFieldRecordTests.nullFieldRightOperand: a nullable field on the right of a literal prints anull","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.nullIntFieldLeftOperand","name":"tests.NullableFieldRecordTests.nullIntFieldLeftOperand: a nullable Int field on the left of a literal prints null","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.nullIntFieldPrintsNull","name":"tests.NullableFieldRecordTests.nullIntFieldPrintsNull: a null Int field prints null","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.nullLocalLeftOperand","name":"tests.NullableFieldRecordTests.nullLocalLeftOperand: a nullable local on the left of a literal prints nulla","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.nullLocalRightOperand","name":"tests.NullableFieldRecordTests.nullLocalRightOperand: a nullable local on the right of a literal prints anull","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.nullStringFieldPrintsNull","name":"tests.NullableFieldRecordTests.nullStringFieldPrintsNull: a null String field prints null","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.presentIntFieldPrintsValue","name":"tests.NullableFieldRecordTests.presentIntFieldPrintsValue: a present Int field prints its value","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.presentStringFieldPrintsValue","name":"tests.NullableFieldRecordTests.presentStringFieldPrintsValue: a present String field prints its value","verdict":"pass"}
+{"id":"tests.NullableFieldRecordTests.presentValueConcatenates","name":"tests.NullableFieldRecordTests.presentValueConcatenates: a present nullable value concatenates on either side","verdict":"pass"}
+{"id":"tests.NullableFloatCompareTests.notZero","name":"tests.NullableFloatCompareTests.notZero: a null-coalescing Float local inequality compares zero in the Float domain","verdict":"pass"}
+{"id":"tests.NullableFloatCompareTests.structuralZero","name":"tests.NullableFloatCompareTests.structuralZero: a null-coalescing Float local compares zero in the Float domain","verdict":"pass"}
+{"id":"tests.NullableIndexTests.testAt","name":"tests.NullableIndexTests.testAt: an optional array index unwraps for the Swift subscript","verdict":"pass"}
+{"id":"tests.NullableInterfaceBranchOpsTests.label","name":"tests.NullableInterfaceBranchOpsTests.label: a nullable interface conditional boxes its concrete arm","verdict":"pass"}
+{"id":"tests.NullableLocalTests.floatLocalKeepsSome","name":"tests.NullableLocalTests.floatLocalKeepsSome: a nullable Float local from a literal compares equal inside Some","verdict":"pass"}
+{"id":"tests.NullableLocalTests.intLocalKeepsSome","name":"tests.NullableLocalTests.intLocalKeepsSome: a nullable Int local from a literal compares equal inside Some","verdict":"pass"}
+{"id":"tests.NullableLocalTests.lookupInitUnwrapped","name":"tests.NullableLocalTests.lookupInitUnwrapped: a createEnum initializer passes through without Some wrapping","verdict":"pass"}
+{"id":"tests.NullableLocalTests.nullBoolStaysNull","name":"tests.NullableLocalTests.nullBoolStaysNull: a null Bool local stays null","verdict":"pass"}
+{"id":"tests.NullableLocalTests.nullableInitUnwrapped","name":"tests.NullableLocalTests.nullableInitUnwrapped: a nullable initializer passes through without double wrapping","verdict":"pass"}
+{"id":"tests.NullableLocalTests.stringLocalKeepsSome","name":"tests.NullableLocalTests.stringLocalKeepsSome: a nullable String local keeps the existing Some wrapping","verdict":"pass"}
+{"id":"tests.NullableStringViewOpsTests.testNullableView","name":"tests.NullableStringViewOpsTests.testNullableView: a nullable String argument unwraps at a str parameter","verdict":"pass"}
+{"id":"tests.NullableToStringTests.testRender","name":"tests.NullableToStringTests.testRender: a narrowed nullable local still unwraps in Swift","verdict":"pass"}
+{"id":"tests.NumberClassifyTests.finiteClassification","name":"tests.NumberClassifyTests.finiteClassification: isFinite accepts finite values and rejects NaN and infinities","verdict":"pass"}
+{"id":"tests.NumberClassifyTests.nanClassification","name":"tests.NumberClassifyTests.nanClassification: isNaN accepts NaN and rejects finite values and infinities","verdict":"pass"}
+{"id":"tests.NumberParsingTests.floatFailure","name":"tests.NumberParsingTests.floatFailure: parseFloat rejects malformed and partial tokens as NaN","verdict":"pass"}
+{"id":"tests.NumberParsingTests.floatSuccess","name":"tests.NumberParsingTests.floatSuccess: parseFloat accepts complete decimal tokens","verdict":"pass"}
+{"id":"tests.NumberParsingTests.intFailure","name":"tests.NumberParsingTests.intFailure: parseInt rejects partial and overflowing tokens as null","verdict":"pass"}
+{"id":"tests.NumberParsingTests.intSuccess","name":"tests.NumberParsingTests.intSuccess: parseInt accepts decimal and hexadecimal tokens","verdict":"pass"}
+{"id":"tests.NumericCoalesceLocalOpsTests.testCoalescedLocal","name":"tests.NumericCoalesceLocalOpsTests.testCoalescedLocal: a coalesced Int local feeds a scalar argument without a bridge","verdict":"pass"}
+{"id":"tests.NumericConversionWideningTests.testAssign","name":"tests.NumericConversionWideningTests.testAssign: Numeric conversion widening assigns Int to Float","verdict":"pass"}
+{"id":"tests.NumericConversionWideningTests.testComparison","name":"tests.NumericConversionWideningTests.testComparison: Numeric conversion widening compares Float and Int","verdict":"pass"}
+{"id":"tests.NumericConversionWideningTests.testInit","name":"tests.NumericConversionWideningTests.testInit: Numeric conversion widening initializes Float from Int","verdict":"pass"}
+{"id":"tests.NumericConversionWideningTests.testParam","name":"tests.NumericConversionWideningTests.testParam: Numeric conversion widening passes Int to Float parameter","verdict":"pass"}
+{"id":"tests.NumericDomainTests.testBeforeChar","name":"tests.NumericDomainTests.testBeforeChar: An i32 index reaches the u32 charCodeAt slot","verdict":"pass"}
+{"id":"tests.NumericConversionWideningTests.testReturn","name":"tests.NumericConversionWideningTests.testReturn: Numeric conversion widening returns Int from Float function","verdict":"pass"}
+{"id":"tests.NumericDomainTests.testCollectOffsets","name":"tests.NumericDomainTests.testCollectOffsets: An i32 offset pushes into a u32 array","verdict":"pass"}
+{"id":"tests.NumericDomainTests.testColonPair","name":"tests.NumericDomainTests.testColonPair: An i32 indexOf result feeds a u32 vec literal","verdict":"pass"}
+{"id":"tests.NumericDomainTests.testFindIndex","name":"tests.NumericDomainTests.testFindIndex: A negative sentinel local assigns from a u32 loop index","verdict":"pass"}
+{"id":"tests.NumericDomainTests.testOffsets","name":"tests.NumericDomainTests.testOffsets: Loop offsets stay in the u32 domain","verdict":"pass"}
+{"id":"tests.NumericDomainTests.testPrefixUnit","name":"tests.NumericDomainTests.testPrefixUnit: A positive-checked index stays unsigned in charCodeAt","verdict":"pass"}
+{"id":"tests.NumericWidenTests.testAssignments","name":"tests.NumericWidenTests.testAssignments: Int assignments widen for Float locals","verdict":"pass"}
+{"id":"tests.NumericWidenTests.testBranchMerges","name":"tests.NumericWidenTests.testBranchMerges: Conditional and switch arms widen for Float results","verdict":"pass"}
+{"id":"tests.NumericWidenTests.testNullableConditional","name":"tests.NumericWidenTests.testNullableConditional: Nullable conditional arms widen for Float results","verdict":"pass"}
+{"id":"tests.NumericWidenTests.testOperands","name":"tests.NumericWidenTests.testOperands: Int operands widen for Float arithmetic","verdict":"pass"}
+{"id":"tests.NumericWidenTests.testReturns","name":"tests.NumericWidenTests.testReturns: Int returns widen for Float results","verdict":"pass"}
+{"id":"tests.OptionalCtorTests.testOptionalCtor","name":"tests.OptionalCtorTests.testOptionalCtor: optional nullable ctor params with differently-named fields render optional","verdict":"pass"}
+{"id":"tests.OptionalInterfaceArgumentOpsTests.render","name":"tests.OptionalInterfaceArgumentOpsTests.render: a concrete implementor boxes once into an optional interface argument","verdict":"pass"}
+{"id":"tests.OptionalMemberTests.testMember","name":"tests.OptionalMemberTests.testMember: a narrowed nullable receiver unwraps at its member read","verdict":"pass"}
+{"id":"tests.OptionalParamNullTests.testClassDefault","name":"tests.OptionalParamNullTests.testClassDefault: omitted class optional parameter falls back to its null default","verdict":"pass"}
+{"id":"tests.OptionalParamNullTests.testIntDefault","name":"tests.OptionalParamNullTests.testIntDefault: omitted Int optional parameter falls back to its null default","verdict":"pass"}
+{"id":"tests.OptionalProjectionTests.testProjections","name":"tests.OptionalProjectionTests.testProjections: a nullable value-type projection unwraps at its member read","verdict":"pass"}
+{"id":"tests.OptionalValueUseTests.testValueUses","name":"tests.OptionalValueUseTests.testValueUses: a nullable value unwraps at the remaining value uses","verdict":"pass"}
+{"id":"tests.OverrideMemberTests.hashMember","name":"tests.OverrideMemberTests.hashMember: a handwritten zero-argument hashCode is emitted as an Any override","verdict":"pass"}
+{"id":"tests.OverrideMemberTests.message","name":"tests.OverrideMemberTests.message: message payloads retain their value","verdict":"pass"}
+{"id":"tests.OverrideMemberTests.ordinary","name":"tests.OverrideMemberTests.ordinary: ordinary members remain ordinary","verdict":"pass"}
+{"id":"tests.ParseIntPushTests.parseAll","name":"tests.ParseIntPushTests.parseAll: a direct Std.parseInt result pushes into a u32 array","verdict":"pass"}
+{"id":"tests.ParseIntPushTests.parseLocal","name":"tests.ParseIntPushTests.parseLocal: a local Std.parseInt result pushes into a u32 array","verdict":"pass"}
+{"id":"tests.PayloadSelfMapOpsTests.selfMappedPayload","name":"tests.PayloadSelfMapOpsTests.selfMappedPayload: keeps a payload enum and exception declared in one module","verdict":"pass"}
+{"id":"tests.PipelineTests.testAll","name":"tests.PipelineTests.testAll: all checks predicate matches all with early exit and returns true for empty","verdict":"pass"}
+{"id":"tests.PipelineTests.testAny","name":"tests.PipelineTests.testAny: any checks predicate matches with early exit and returns false for empty","verdict":"pass"}
+{"id":"tests.PipelineTests.testAssociate","name":"tests.PipelineTests.testAssociate: associate builds sorted map with last-wins on duplicate keys","verdict":"pass"}
+{"id":"tests.PipelineTests.testChained","name":"tests.PipelineTests.testChained: chained pipeline methods expand in source order","verdict":"pass"}
+{"id":"tests.PipelineTests.testFilter","name":"tests.PipelineTests.testFilter: filter keeps matching elements in compact push loop","verdict":"pass"}
+{"id":"tests.PipelineTests.testFirstOrNull","name":"tests.PipelineTests.testFirstOrNull: firstOrNull finds first matching element or returns null","verdict":"pass"}
+{"id":"tests.PipelineTests.testFlatMap","name":"tests.PipelineTests.testFlatMap: flatMap flattens selector array results","verdict":"pass"}
+{"id":"tests.PipelineTests.testForEach","name":"tests.PipelineTests.testForEach: forEach traverses elements in statement position","verdict":"pass"}
+{"id":"tests.PipelineTests.testMap","name":"tests.PipelineTests.testMap: map transforms elements and pre-allocates fill","verdict":"pass"}
+{"id":"tests.PipelineTests.testGroupBy","name":"tests.PipelineTests.testGroupBy: groupBy groups elements into SortedMap with ascending keys and receiver order in buckets","verdict":"pass"}
+{"id":"tests.PipelineTests.testMapNotNull","name":"tests.PipelineTests.testMapNotNull: mapNotNull filters out null selector results","verdict":"pass"}
+{"id":"tests.PipelineTests.testMintCapture","name":"tests.PipelineTests.testMintCapture: mint hygiene protects user locals with pipeline_ prefix","verdict":"pass"}
+{"id":"tests.PipelineTests.testNestedLoop","name":"tests.PipelineTests.testNestedLoop: nested loops rebuild per-iteration pipeline temporaries","verdict":"pass"}
+{"id":"tests.PipelineTests.testShadowing","name":"tests.PipelineTests.testShadowing: lambda parameter shadows outer local variable","verdict":"pass"}
+{"id":"tests.PipelineTests.testSortedBy","name":"tests.PipelineTests.testSortedBy: sortedBy sorts ascending with platform stability on equal keys","verdict":"pass"}
+{"id":"tests.PipelineTests.testSumOfFloat","name":"tests.PipelineTests.testSumOfFloat: sumOfFloat sums float selector values and returns 0.0 for empty","verdict":"pass"}
+{"id":"tests.PipelineTests.testSumOfInt","name":"tests.PipelineTests.testSumOfInt: sumOfInt sums integer selector values and returns 0 for empty","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.envAbsent","name":"tests.PlatformModulesTests.envAbsent: std.Env get reports an absent entry as null","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.envRoundTrip","name":"tests.PlatformModulesTests.envRoundTrip: std.Env set and remove are observable through get","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.pathExpandHome","name":"tests.PlatformModulesTests.pathExpandHome: std.Path expandHome reads HOME through std.Env","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.pathJoinKinds","name":"tests.PlatformModulesTests.pathJoinKinds: std.Path join keeps absolute and device seconds","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.pathDirname","name":"tests.PlatformModulesTests.pathDirname: std.Path dirname follows the kind table","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.fsRoundTrip","name":"tests.PlatformModulesTests.fsRoundTrip: std.Fs write append and read round-trip","verdict":"pass"}
+{"id":"tests.PosterShapeTests.print","name":"tests.PosterShapeTests.print: a class in the business package implements a std-package interface","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.fsReadDir","name":"tests.PlatformModulesTests.fsReadDir: std.Fs readDir omits the dot entries","verdict":"pass"}
+{"id":"tests.PostIncConditionTests.testCondition","name":"tests.PostIncConditionTests.testCondition: a post-increment condition keeps its closure parenthesized","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.fsMakeDirs","name":"tests.PlatformModulesTests.fsMakeDirs: std.Fs makeDirs creates a nested directory","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.pathNormalize","name":"tests.PlatformModulesTests.pathNormalize: std.Path normalizes mixed separators and dot segments","verdict":"pass"}
+{"id":"tests.PlatformModulesTests.pathNormalizeKinds","name":"tests.PlatformModulesTests.pathNormalizeKinds: std.Path normalize follows the kind table","verdict":"pass"}
+{"id":"tests.PrintedCollectionTests.enumElements","name":"tests.PrintedCollectionTests.enumElements: payload enum elements render through the labeled form","verdict":"pass"}
+{"id":"tests.PrintedCollectionTests.collections","name":"tests.PrintedCollectionTests.collections: collection fields use the ruled array form","verdict":"pass"}
+{"id":"tests.PrintedCollectionTests.nullableCollectionKeys","name":"tests.PrintedCollectionTests.nullableCollectionKeys: nullable collection keys order null, elements, then length","verdict":"pass"}
+{"id":"tests.PrintedEnumTests.forms","name":"tests.PrintedEnumTests.forms: enum constructor printed forms","verdict":"pass"}
+{"id":"tests.PrintedRecordTests.explicitMemberWins","name":"tests.PrintedRecordTests.explicitMemberWins: explicit printed member wins","verdict":"pass"}
+{"id":"tests.PrintedCollectionTests.nullableCollectionPrint","name":"tests.PrintedCollectionTests.nullableCollectionPrint: nullable collection fields print null and present forms","verdict":"pass"}
+{"id":"tests.PrintedRecordTests.memberMatchesMacro","name":"tests.PrintedRecordTests.memberMatchesMacro: synthesized member matches RecordStr","verdict":"pass"}
+{"id":"tests.PrintedRecordTests.nestedRecordUsesMember","name":"tests.PrintedRecordTests.nestedRecordUsesMember: nested records use their printed form","verdict":"pass"}
+{"id":"tests.PrivateClassTests.distinctResolutions","name":"tests.PrivateClassTests.distinctResolutions: file-private classes remain private and distinct","verdict":"pass"}
+{"id":"tests.PrintedRecordTests.presentNotePrintsMember","name":"tests.PrintedRecordTests.presentNotePrintsMember: a present nullable record field prints its member text","verdict":"pass"}
+{"id":"tests.PrintedSortedFieldsTests.fields","name":"tests.PrintedSortedFieldsTests.fields: sorted fields use ruled forms","verdict":"pass"}
+{"id":"tests.PrivateCollisionTests.testPrivateCollision","name":"tests.PrivateCollisionTests.testPrivateCollision: module-private types of the same name stay file-scoped","verdict":"pass"}
+{"id":"tests.PrintedRecordTests.standardStringUsesMember","name":"tests.PrintedRecordTests.standardStringUsesMember: Std.string and concatenation use the member","verdict":"pass"}
+{"id":"tests.PrivateDefaultTests.testDefaults","name":"tests.PrivateDefaultTests.testDefaults: a coalescing default may call a private static helper","verdict":"pass"}
+{"id":"tests.PrivateStaticCallTests.testPrivateStaticCall","name":"tests.PrivateStaticCallTests.testPrivateStaticCall: private static referenced by class name lowers under its Dart name","verdict":"pass"}
+{"id":"tests.ProbeChainTests.depth","name":"tests.ProbeChainTests.depth: recursive class fields are boxed","verdict":"pass"}
+{"id":"tests.ProbeShareTests.probe","name":"tests.ProbeShareTests.probe: shared probe module compiles","verdict":"pass"}
+{"id":"tests.PublicGetterPropertyTests.testGetterOnlyConcreteRead","name":"tests.PublicGetterPropertyTests.testGetterOnlyConcreteRead: reads a getter-only property through a concrete class receiver","verdict":"pass"}
+{"id":"tests.PublicGetterPropertyTests.testGetterOnlyInterfaceRead","name":"tests.PublicGetterPropertyTests.testGetterOnlyInterfaceRead: reads a getter-only property through an interface receiver","verdict":"pass"}
+{"id":"tests.PublicGetterPropertyTests.testPublicGetterProperty","name":"tests.PublicGetterPropertyTests.testPublicGetterProperty: reads a public property backed by a private getter across modules","verdict":"pass"}
+{"id":"tests.RangeParameterTests.testCall","name":"tests.RangeParameterTests.testCall: a range-counting call passes its range positionally","verdict":"pass"}
+{"id":"tests.RecordInterfaceOpsTests.dataClassEquality","name":"tests.RecordInterfaceOpsTests.dataClassEquality: data class equality compares interface fields","verdict":"pass"}
+{"id":"tests.RecordInterfaceOpsTests.presentNote","name":"tests.RecordInterfaceOpsTests.presentNote: a present nullable interface field prints its member text","verdict":"pass"}
+{"id":"tests.RecordOrderTests.alignedPrintsAsBefore","name":"tests.RecordOrderTests.alignedPrintsAsBefore: aligned class keeps its printed form","verdict":"pass"}
+{"id":"tests.RecordInterfaceOpsTests.singletonRole","name":"tests.RecordInterfaceOpsTests.singletonRole: a singleton interface field prints its bare name","verdict":"pass"}
+{"id":"tests.RecordInterfaceOpsTests.recordRole","name":"tests.RecordInterfaceOpsTests.recordRole: a record interface field prints its labeled form","verdict":"pass"}
+{"id":"tests.RecordOrderTests.copyRoundTripsAligned","name":"tests.RecordOrderTests.copyRoundTripsAligned: copy round-trips the aligned class","verdict":"pass"}
+{"id":"tests.RecordOrderTests.copyRoundTripsShifted","name":"tests.RecordOrderTests.copyRoundTripsShifted: copy round-trips the reordered class through constructor parameter order","verdict":"pass"}
+{"id":"tests.RecordOrderTests.equalityAcceptsShiftedValues","name":"tests.RecordOrderTests.equalityAcceptsShiftedValues: equality accepts equal values of the reordered class","verdict":"pass"}
+{"id":"tests.RecordOrderTests.shiftedDefaultedPrintsFallback","name":"tests.RecordOrderTests.shiftedDefaultedPrintsFallback: reordered class prints the defaulted parameter's fallback value","verdict":"pass"}
+{"id":"tests.RecordOrderTests.shiftedMatchesRecordStr","name":"tests.RecordOrderTests.shiftedMatchesRecordStr: reordered class prints the same text through RecordStr","verdict":"pass"}
+{"id":"tests.RecordTests.testReorderedOverrides","name":"tests.RecordTests.testReorderedOverrides: reordered overrides apply in declaration order and preserve untouched fields","verdict":"pass"}
+{"id":"tests.RecordOrderTests.shiftedPrintsDeclarationOrder","name":"tests.RecordOrderTests.shiftedPrintsDeclarationOrder: reordered class prints fields in declaration order","verdict":"pass"}
+{"id":"tests.RecordTests.testMultipleOverrides","name":"tests.RecordTests.testMultipleOverrides: multiple overrides replace all specified fields","verdict":"pass"}
+{"id":"tests.RecordTests.testSingleOverride","name":"tests.RecordTests.testSingleOverride: single override replaces only targeted field","verdict":"pass"}
+{"id":"tests.RecordTests.testZeroOverride","name":"tests.RecordTests.testZeroOverride: zero override returns record with all original fields","verdict":"pass"}
+{"id":"tests.RegistryParseArgsTests.help","name":"tests.RegistryParseArgsTests.help: parseArgs reports help usage","verdict":"pass"}
+{"id":"tests.RegistryParseArgsTests.unknown","name":"tests.RegistryParseArgsTests.unknown: parseArgs reports unknown flags","verdict":"pass"}
+{"id":"tests.RegistryParseArgsTests.missingRequired","name":"tests.RegistryParseArgsTests.missingRequired: parseArgs reports missing required flags","verdict":"pass"}
+{"id":"tests.RegistryJsonTests.roundTrip","name":"tests.RegistryJsonTests.roundTrip: JSON preserves escaped nested values and formatting","verdict":"pass"}
+{"id":"tests.RegistrySemverTests.ordering","name":"tests.RegistrySemverTests.ordering: semver orders prereleases before releases","verdict":"pass"}
+{"id":"tests.ResidentBuilderInferOpsTests.testResidentBuilder","name":"tests.ResidentBuilderInferOpsTests.testResidentBuilder: a resident builder binds its key and value types","verdict":"pass"}
+{"id":"tests.ResidentModuleImportTests.testResidentModuleImport","name":"tests.ResidentModuleImportTests.testResidentModuleImport: resident module imports resolve on their own module path","verdict":"pass"}
+{"id":"tests.RuntimeExportTests.testBitsToFloat","name":"tests.RuntimeExportTests.testBitsToFloat: binary32 bit patterns widen to a float","verdict":"pass"}
+{"id":"tests.RuntimeExportTests.testFloatRoundTrip","name":"tests.RuntimeExportTests.testFloatRoundTrip: binary32 bits round-trip through the edge helpers","verdict":"pass"}
+{"id":"tests.RuntimeExportTests.testUStringExports","name":"tests.RuntimeExportTests.testUStringExports: UString code-point helpers are exported from the runtime module","verdict":"pass"}
+{"id":"tests.RuntimeExportTests.testFloatToBits","name":"tests.RuntimeExportTests.testFloatToBits: binary32 float bits widen from a round number","verdict":"pass"}
+{"id":"tests.RustCoalesceTests.assignedStringField","name":"tests.RustCoalesceTests.assignedStringField: a nullable String field assignment owns a borrowed view","verdict":"pass"}
+{"id":"tests.RustCoalesceTests.borrowedStringDefault","name":"tests.RustCoalesceTests.borrowedStringDefault: a coalescing nullable String parameter owns a borrowed view","verdict":"pass"}
+{"id":"tests.RustCoalesceTests.defaultRecord","name":"tests.RustCoalesceTests.defaultRecord: nullable class coalescing materializes optional constructor arguments","verdict":"pass"}
+{"id":"tests.RustCoalesceTests.directArrayStatic","name":"tests.RustCoalesceTests.directArrayStatic: a coalescing nullable array parameter copies a direct array static","verdict":"pass"}
+{"id":"tests.RegistrySha1Tests.hashesBoundaries","name":"tests.RegistrySha1Tests.hashesBoundaries: SHA-1 covers empty and padding boundaries","verdict":"pass"}
+{"id":"tests.RustCoalesceTests.stringTagFrom","name":"tests.RustCoalesceTests.stringTagFrom: a String-backed abstract parameter accepts an owned String","verdict":"pass"}
+{"id":"tests.RustCoalesceTests.substitutedStringDefault","name":"tests.RustCoalesceTests.substitutedStringDefault: an omitted nullable String parameter owns the substituted view","verdict":"pass"}
+{"id":"tests.RustUnionFaultTests.unionFaults","name":"tests.RustUnionFaultTests.unionFaults: union faults preserve deterministic source text","verdict":"pass"}
+{"id":"tests.SealedChildTests.childMessage","name":"tests.SealedChildTests.childMessage: a message-only child of a folded parent keeps the delegated message","verdict":"pass"}
+{"id":"tests.SealedVariantTests.testLabels","name":"tests.SealedVariantTests.testLabels: variant labels distinguish all three classes","verdict":"pass"}
+{"id":"tests.SealedVariantTests.testRecordToString","name":"tests.SealedVariantTests.testRecordToString: record variants print fields in parameter order","verdict":"pass"}
+{"id":"tests.SealedVariantTests.testSingletonToString","name":"tests.SealedVariantTests.testSingletonToString: singleton variant prints its bare name","verdict":"pass"}
+{"id":"tests.SealedVariantTests.testTypeChecks","name":"tests.SealedVariantTests.testTypeChecks: variant type checks include the interface and reject siblings","verdict":"pass"}
+{"id":"tests.Sha256Tests.abc","name":"tests.Sha256Tests.abc: hashes abc","verdict":"pass"}
+{"id":"tests.Sha256Tests.empty","name":"tests.Sha256Tests.empty: hashes the empty byte sequence","verdict":"pass"}
+{"id":"tests.Sha512Tests.abc","name":"tests.Sha512Tests.abc: hashes abc","verdict":"pass"}
+{"id":"tests.Sha256Tests.incremental","name":"tests.Sha256Tests.incremental: matches one-shot and incremental blocks","verdict":"pass"}
+{"id":"tests.Sha512Tests.empty","name":"tests.Sha512Tests.empty: hashes the empty byte sequence","verdict":"pass"}
+{"id":"tests.ShapeTextTests.render","name":"tests.ShapeTextTests.render: an instance of the cross-module implementing class satisfies the interface parameter","verdict":"pass"}
+{"id":"tests.SignedComparisonTests.indexAtOrAboveLimit","name":"tests.SignedComparisonTests.indexAtOrAboveLimit: an ordered comparison with a signed index keeps the absent sentinel below an upper bound","verdict":"pass"}
+{"id":"tests.Sha512Tests.incremental","name":"tests.Sha512Tests.incremental: matches incremental updates","verdict":"pass"}
+{"id":"tests.SignedComparisonTests.indexBelowZero","name":"tests.SignedComparisonTests.indexBelowZero: an ordered comparison with literal zero reinterprets the signed index sentinel","verdict":"pass"}
+{"id":"tests.SignedComparisonTests.indexEqualsLimit","name":"tests.SignedComparisonTests.indexEqualsLimit: an equality comparison with a signed index compares the sentinel","verdict":"pass"}
+{"id":"tests.RegistryPipelineTests.generatesFiles","name":"tests.RegistryPipelineTests.generatesFiles: pipeline generates literal registry files","verdict":"pass"}
+{"id":"tests.SignedComparisonTests.indexBelowLimit","name":"tests.SignedComparisonTests.indexBelowLimit: an ordered comparison with a signed index keeps the absent sentinel below a limit","verdict":"pass"}
+{"id":"tests.SignedComparisonTests.lastIndexEqualsLimit","name":"tests.SignedComparisonTests.lastIndexEqualsLimit: an equality comparison with a signed last index compares the sentinel","verdict":"pass"}
+{"id":"tests.SignedIntArgumentTests.fromIndex","name":"tests.SignedIntArgumentTests.fromIndex: a negated signed index reinterprets into an owned u32 parameter","verdict":"pass"}
+{"id":"tests.SignedIntArgumentTests.shifted","name":"tests.SignedIntArgumentTests.shifted: a signed wrapping sum reinterprets into an owned u32 parameter","verdict":"pass"}
+{"id":"tests.SignedIntConstructorTests.negatedIndex","name":"tests.SignedIntConstructorTests.negatedIndex: a negated signed index reinterprets into an owned u32 constructor slot","verdict":"pass"}
+{"id":"tests.SignedIntAssignOpsTests.advance","name":"tests.SignedIntAssignOpsTests.advance: a u32 local assigned an i32-domain sum reinterprets the result","verdict":"pass"}
+{"id":"tests.SignedLoopBoundOpsTests.fill","name":"tests.SignedLoopBoundOpsTests.fill: a signed loop bound clamps into the u32 range endpoint","verdict":"pass"}
+{"id":"tests.SignedIntConstructorTests.sumIndex","name":"tests.SignedIntConstructorTests.sumIndex: a signed wrapping sum reinterprets into an owned u32 constructor slot","verdict":"pass"}
+{"id":"tests.SortedKeyDomainTests.testDataClassGeneratedEntries","name":"tests.SortedKeyDomainTests.testDataClassGeneratedEntries: DataClass generated entries cover nested enum and arrays","verdict":"pass"}
+{"id":"tests.SortedKeyDomainTests.testDataClassKeyEvidence","name":"tests.SortedKeyDomainTests.testDataClassKeyEvidence: DataClass array and nullable key evidence","verdict":"pass"}
+{"id":"tests.SortedKeyDomainTests.testStringKeyOrder","name":"tests.SortedKeyDomainTests.testStringKeyOrder: String keys UTF-16 code unit ordering with astral and high BMP","verdict":"pass"}
+{"id":"tests.SortedKeyDomainTests.testStructureKeyLookup","name":"tests.SortedKeyDomainTests.testStructureKeyLookup: Structure key lookup hits and misses","verdict":"pass"}
+{"id":"tests.SortedKeyDomainTests.testStructureMapLastWins","name":"tests.SortedKeyDomainTests.testStructureMapLastWins: Structure key SortedMap duplicate key last-put-wins","verdict":"pass"}
+{"id":"tests.SortedKeyDomainTests.testStructureKeyOrder","name":"tests.SortedKeyDomainTests.testStructureKeyOrder: Structure key lexicographic ordering across field types","verdict":"pass"}
+{"id":"tests.SortedKeyDomainTests.testStringKeyLookup","name":"tests.SortedKeyDomainTests.testStringKeyLookup: String key lookup hits and misses","verdict":"pass"}
+{"id":"tests.SortedKeyDomainTests.testStructureSetOperations","name":"tests.SortedKeyDomainTests.testStructureSetOperations: Structure key SortedSet deduplication and ascending ordering","verdict":"pass"}
+{"id":"tests.SortedTableTests.testCodePointNamesLookup","name":"tests.SortedTableTests.testCodePointNamesLookup: CodePointNames lookup hits and misses","verdict":"pass"}
+{"id":"tests.SortedTableTests.testEmptyMap","name":"tests.SortedTableTests.testEmptyMap: SortedMap empty builder produces empty map","verdict":"pass"}
+{"id":"tests.SortedTableTests.testCodePointNamesOrder","name":"tests.SortedTableTests.testCodePointNamesOrder: CodePointNames ascending traversal order","verdict":"pass"}
+{"id":"tests.SortedTableTests.testEmptySet","name":"tests.SortedTableTests.testEmptySet: SortedSet empty builder produces empty set","verdict":"pass"}
+{"id":"tests.SortedTableTests.testSortedSetOperations","name":"tests.SortedTableTests.testSortedSetOperations: SortedSet duplicate key deduplication and ascending ordering","verdict":"pass"}
+{"id":"tests.SortedTableTests.testMapDuplicateKeys","name":"tests.SortedTableTests.testMapDuplicateKeys: SortedMap duplicate key last-put-wins semantics","verdict":"pass"}
+{"id":"tests.StaticExtensionTests.testOwnedExtension","name":"tests.StaticExtensionTests.testOwnedExtension: owned extension renders and evaluates as a receiver method","verdict":"pass"}
+{"id":"tests.StaticExtensionTests.testStringExtension","name":"tests.StaticExtensionTests.testStringExtension: foreign string extension keeps its receiver argument","verdict":"pass"}
+{"id":"tests.StaticExtensionTests.testTopLevelResults","name":"tests.StaticExtensionTests.testTopLevelResults: top-level functions cross module boundaries","verdict":"pass"}
+{"id":"tests.StaticFnTests.testFunctionStatic","name":"tests.StaticFnTests.testFunctionStatic: static function values can be called","verdict":"pass"}
+{"id":"tests.StaticFnTests.testIntStatic","name":"tests.StaticFnTests.testIntStatic: ordinary mutable static remains shared","verdict":"pass"}
+{"id":"tests.StaticRefTests.testCallSite","name":"tests.StaticRefTests.testCallSite: static method at call site is unchanged","verdict":"pass"}
+{"id":"tests.StaticRefTests.testPassToParam","name":"tests.StaticRefTests.testPassToParam: static method passed as value to function-typed parameter","verdict":"pass"}
+{"id":"tests.StaticRefTests.testReassignLocal","name":"tests.StaticRefTests.testReassignLocal: static method assigned in function-typed local","verdict":"pass"}
+{"id":"tests.StaticRefTests.testReturnFn","name":"tests.StaticRefTests.testReturnFn: static method returned as function value","verdict":"pass"}
+{"id":"tests.StaticRefTests.testStaticsOnlyValue","name":"tests.StaticRefTests.testStaticsOnlyValue: statics-only class static method used as value","verdict":"pass"}
+{"id":"tests.StaticRefTests.testStoreLocal","name":"tests.StaticRefTests.testStoreLocal: static method stored in function-typed local","verdict":"pass"}
+{"id":"tests.StaticStateTests.testStaticCollision","name":"tests.StaticStateTests.testStaticCollision: colliding static-only classes retain distinct namespaces","verdict":"pass"}
+{"id":"tests.StaticStateTests.testStaticState","name":"tests.StaticStateTests.testStaticState: static fields round-trip assignments and retain container state","verdict":"pass"}
+{"id":"tests.StdStringSelfRecTests.forms","name":"tests.StdStringSelfRecTests.forms: cyclic enum constructor printed forms","verdict":"pass"}
+{"id":"tests.StdStringPlainClassTests.plainClassAndRecord","name":"tests.StdStringPlainClassTests.plainClassAndRecord: Std.string accepts ordinary classes with toString","verdict":"pass"}
+{"id":"tests.StdStringTests.arrays","name":"tests.StdStringTests.arrays: Std.string renders arrays with ruled separators and element forms","verdict":"pass"}
+{"id":"tests.StdStringTests.floatForms","name":"tests.StdStringTests.floatForms: Std.string uses the ECMAScript float spelling","verdict":"pass"}
+{"id":"tests.StdStringTests.standaloneScalars","name":"tests.StdStringTests.standaloneScalars: Std.string converts standalone scalar operands","verdict":"pass"}
+{"id":"tests.StdStringTests.concatenatedScalars","name":"tests.StdStringTests.concatenatedScalars: Std.string converts scalar operands inside concatenation","verdict":"pass"}
+{"id":"tests.StdStringTests.valueEnumerations","name":"tests.StdStringTests.valueEnumerations: Std.string converts value enumeration operands to constructor names","verdict":"pass"}
+{"id":"tests.StringAppendTests.testAppend","name":"tests.StringAppendTests.testAppend: a string += converts a non-string right side","verdict":"pass"}
+{"id":"tests.StringBufTests.testAddAfterLead","name":"tests.StringBufTests.testAddAfterLead: an add stranding a held lead faults with the held unit","verdict":"pass"}
+{"id":"tests.StringBufTests.testAddChar","name":"tests.StringBufTests.testAddChar: addChar appends BMP characters","verdict":"pass"}
+{"id":"tests.StringBufTests.testAddStrings","name":"tests.StringBufTests.testAddStrings: add appends strings and updates length","verdict":"pass"}
+{"id":"tests.StringBufTests.testCompletePair","name":"tests.StringBufTests.testCompletePair: a lead completed by the immediately following addChar reads as one character","verdict":"pass"}
+{"id":"tests.StringBufTests.testDanglingLead","name":"tests.StringBufTests.testDanglingLead: a dangling lead observed by toString faults with the held unit","verdict":"pass"}
+{"id":"tests.StringBufTests.testEmptyBuffer","name":"tests.StringBufTests.testEmptyBuffer: empty buffer has length zero and empty toString","verdict":"pass"}
+{"id":"tests.StringBufTests.testIncremental","name":"tests.StringBufTests.testIncremental: buffer extends after toString calls","verdict":"pass"}
+{"id":"tests.StringBufTests.testSupplementaryCharacters","name":"tests.StringBufTests.testSupplementaryCharacters: add with supplementary characters counts UTF-16 code units","verdict":"pass"}
+{"id":"tests.StringBufTests.testTrailWithoutLead","name":"tests.StringBufTests.testTrailWithoutLead: a trail without a preceding lead faults with the argument unit","verdict":"pass"}
+{"id":"tests.StringBufThrowTests.testBuildCharFromChecked","name":"tests.StringBufThrowTests.testBuildCharFromChecked: addChar carries a throwing unit through the surrogate guard","verdict":"pass"}
+{"id":"tests.StringBufThrowTests.testCaughtChecked","name":"tests.StringBufThrowTests.testCaughtChecked: the added call fault leaves the buffer expression","verdict":"pass"}
+{"id":"tests.StringBufThrowTests.testBuildFromChecked","name":"tests.StringBufThrowTests.testBuildFromChecked: add carries a throwing argument through the surrogate guard","verdict":"pass"}
+{"id":"tests.StringBufUnionTests.testBuildCharChecked","name":"tests.StringBufUnionTests.testBuildCharChecked: the buffer addChar fault stays a union variant beside the vector throw","verdict":"pass"}
+{"id":"tests.StringBufUnionTests.testBuildChecked","name":"tests.StringBufUnionTests.testBuildChecked: the buffer add fault stays a union variant beside the vector throw","verdict":"pass"}
+{"id":"tests.StringBufUnionTests.testVectorFault","name":"tests.StringBufUnionTests.testVectorFault: the vector throw still arrives through the union","verdict":"pass"}
+{"id":"tests.StringCodeOptionalTests.testOptionalOperands","name":"tests.StringCodeOptionalTests.testOptionalOperands: optional string-code and parsed-array operands unwrap","verdict":"pass"}
+{"id":"tests.StringCodecTests.asciiRoundTrip","name":"tests.StringCodecTests.asciiRoundTrip: encodes and decodes ASCII","verdict":"pass"}
+{"id":"tests.StringCodecTests.astralRoundTrip","name":"tests.StringCodecTests.astralRoundTrip: encodes and decodes an astral character","verdict":"pass"}
+{"id":"tests.StringCodecTests.cjkRoundTrip","name":"tests.StringCodecTests.cjkRoundTrip: encodes and decodes a two-byte character","verdict":"pass"}
+{"id":"tests.StringCodecTests.concatEmpty","name":"tests.StringCodecTests.concatEmpty: concat with an empty operand still copies","verdict":"pass"}
+{"id":"tests.StringCodecTests.concatJoins","name":"tests.StringCodecTests.concatJoins: concat joins both operands in order","verdict":"pass"}
+{"id":"tests.StringCodecTests.concatNoAlias","name":"tests.StringCodecTests.concatNoAlias: concat never shares storage with its operands","verdict":"pass"}
+{"id":"tests.StringCodecTests.emptyEncode","name":"tests.StringCodecTests.emptyEncode: empty string encodes to zero bytes","verdict":"pass"}
+{"id":"tests.StringCodecTests.invalidDecodesToReplacement","name":"tests.StringCodecTests.invalidDecodesToReplacement: invalid bytes decode to U+FFFD","verdict":"pass"}
+{"id":"tests.StringCodecTests.subRangeDecode","name":"tests.StringCodecTests.subRangeDecode: getString decodes a middle sub-range","verdict":"pass"}
+{"id":"tests.StringCodecTests.truncatedSequence","name":"tests.StringCodecTests.truncatedSequence: a truncated multi-byte sequence decodes to U+FFFD","verdict":"pass"}
+{"id":"tests.StringConvTests.testCaseConversions","name":"tests.StringConvTests.testCaseConversions: String case conversions preserve the target-independent rows","verdict":"pass"}
+{"id":"tests.StringConvTests.testHex","name":"tests.StringConvTests.testHex: StringTools.hex renders uppercase and optional padding","verdict":"pass"}
+{"id":"tests.StringIndexOfShadowTests.testDashIndex","name":"tests.StringIndexOfShadowTests.testDashIndex: a string index search does not shadow the receiver's local","verdict":"pass"}
+{"id":"tests.StringSearchFromTests.testFindFrom","name":"tests.StringSearchFromTests.testFindFrom: a string index search keeps its start index","verdict":"pass"}
+{"id":"tests.StringSearchFromTests.testFindLastFrom","name":"tests.StringSearchFromTests.testFindLastFrom: a backwards string search keeps the index it searches from","verdict":"pass"}
+{"id":"tests.StringSearchFromTests.testSecondBlock","name":"tests.StringSearchFromTests.testSecondBlock: a resumed brace scan reads the second block","verdict":"pass"}
+{"id":"tests.StringToolsTests.padLeft","name":"tests.StringToolsTests.padLeft: lpad pads on the left through the runtime module","verdict":"pass"}
+{"id":"tests.StringToolsTests.replace","name":"tests.StringToolsTests.replace: replace swaps substrings through the runtime module","verdict":"pass"}
+{"id":"tests.StringToolsTests.trims","name":"tests.StringToolsTests.trims: ltrim and rtrim strip whitespace through the runtime module","verdict":"pass"}
+{"id":"tests.StringUnitTests.charCodeAtUnitDomain","name":"tests.StringUnitTests.charCodeAtUnitDomain: charCodeAt addresses UTF-16 code units","verdict":"pass"}
+{"id":"tests.StringUnitTests.splitEmptyDelimiter","name":"tests.StringUnitTests.splitEmptyDelimiter: empty delimiter splits one part per code unit","verdict":"pass"}
+{"id":"tests.StringUnitTests.splitEmptyDelimiterSurrogates","name":"tests.StringUnitTests.splitEmptyDelimiterSurrogates: empty delimiter keeps a surrogate pair as two units","verdict":"pass"}
+{"id":"tests.StringUnitTests.substrUnitDomain","name":"tests.StringUnitTests.substrUnitDomain: substr counts UTF-16 code units","verdict":"pass"}
+{"id":"tests.StringUnitTests.unitSurface","name":"tests.StringUnitTests.unitSurface: code-unit reads and splits follow the unit domain","verdict":"pass"}
+{"id":"tests.SubstringDefaultTests.testDerive","name":"tests.SubstringDefaultTests.testDerive: a substring coalescing default lowers through the UTF-16 helper","verdict":"pass"}
+{"id":"tests.SumOfFloatLocalTests.testTotal","name":"tests.SumOfFloatLocalTests.testTotal: sumOfFloat in a local function keeps the Float accumulator","verdict":"pass"}
+{"id":"tests.SumOfFloatLocalTests.testWeighted","name":"tests.SumOfFloatLocalTests.testWeighted: a weighted sumOfFloat in a local function scales the accumulator","verdict":"pass"}
+{"id":"tests.SwiftDefaultTests.testDefaultStyle","name":"tests.SwiftDefaultTests.testDefaultStyle: data class defaults construct a value type static constant","verdict":"pass"}
+{"id":"tests.SwiftGlobalThrowTests.testCurrent","name":"tests.SwiftGlobalThrowTests.testCurrent: a throwing computed accessor force-tries in the property body","verdict":"pass"}
+{"id":"tests.SwiftGlobalThrowTests.testSeed","name":"tests.SwiftGlobalThrowTests.testSeed: a throwing stored static initializer force-tries at the declaration","verdict":"pass"}
+{"id":"tests.SwiftLiteralSafetyOpsTests.testControlText","name":"tests.SwiftLiteralSafetyOpsTests.testControlText: control character in literal renders escaped","verdict":"pass"}
+{"id":"tests.SwiftLiteralSafetyOpsTests.testTrailingPoint","name":"tests.SwiftLiteralSafetyOpsTests.testTrailingPoint: trailing-point float literal renders as zero","verdict":"pass"}
+{"id":"tests.SwitchCaseScopeTests.testMixed","name":"tests.SwitchCaseScopeTests.testMixed: mixed declaring and non-declaring cases coexist","verdict":"pass"}
+{"id":"tests.SwitchCaseScopeTests.testToneInk","name":"tests.SwitchCaseScopeTests.testToneInk: cases declaring multiple locals resolve without collision","verdict":"pass"}
+{"id":"tests.SwitchCaseScopeTests.testToneRow","name":"tests.SwitchCaseScopeTests.testToneRow: multiple cases declaring the same name resolve without collision","verdict":"pass"}
+{"id":"tests.SwitchMergeTests.grouped","name":"tests.SwitchMergeTests.grouped: grouped variant arms preserve both constructors","verdict":"pass"}
+{"id":"tests.SwitchMergeTests.groupedPlainMatches","name":"tests.SwitchMergeTests.groupedPlainMatches: grouped plain arms match without payload bindings","verdict":"pass"}
+{"id":"tests.SwitchMergeTests.single","name":"tests.SwitchMergeTests.single: single variant arms remain distinct","verdict":"pass"}
+{"id":"tests.SwitchNullArmTests.testLabel","name":"tests.SwitchNullArmTests.testLabel: a null variant arm lowers to a unit statement","verdict":"pass"}
+{"id":"tests.SwitchOpsTests.testAssign","name":"tests.SwitchOpsTests.testAssign: switch assign position lowers","verdict":"pass"}
+{"id":"tests.SwitchOpsTests.testConditional","name":"tests.SwitchOpsTests.testConditional: switch inside a conditional arm lowers","verdict":"pass"}
+{"id":"tests.SwitchOpsTests.testDefault","name":"tests.SwitchOpsTests.testDefault: switch default lowers","verdict":"pass"}
+{"id":"tests.SwitchOpsTests.testInitializer","name":"tests.SwitchOpsTests.testInitializer: switch initializer lowers","verdict":"pass"}
+{"id":"tests.SwitchOpsTests.testStatement","name":"tests.SwitchOpsTests.testStatement: switch statement assignment lowers","verdict":"pass"}
+{"id":"tests.TableBuilderInferTests.testBuilders","name":"tests.TableBuilderInferTests.testBuilders: a sorted table builder local pins its value parameter","verdict":"pass"}
+{"id":"tests.TernaryInterfaceTests.testChoose","name":"tests.TernaryInterfaceTests.testChoose: ternary arms widen to the interface they unified on","verdict":"pass"}
+{"id":"tests.TernaryOptionalTests.testChoose","name":"tests.TernaryOptionalTests.testChoose: an optional ternary branch unwraps for a non-optional result","verdict":"pass"}
+{"id":"tests.TestApplicabilityProbeTests.appliesToAll","name":"tests.TestApplicabilityProbeTests.appliesToAll: a test with no except argument applies to every target","verdict":"pass"}
+{"id":"tests.TestApplicabilityProbeTests.excludedOnSwift","name":"tests.TestApplicabilityProbeTests.excludedOnSwift: a test that excludes swift does not run on swift","verdict":"pass"}
+{"id":"tests.ThrowingIndexOfTests.testAt","name":"tests.ThrowingIndexOfTests.testAt: an index search on a throwing receiver marks the closure try","verdict":"pass"}
+{"id":"tests.ThrowingClosureTests.testThrowingClosure","name":"tests.ThrowingClosureTests.testThrowingClosure: a throwing closure matches a zero-argument Void callback","verdict":"pass"}
+{"id":"tests.ToStringTests.explicitToString","name":"tests.ToStringTests.explicitToString: an explicit toString method renders and runs on every target","verdict":"pass"}
+{"id":"tests.TryTests.testCaughtStatement","name":"tests.TryTests.testCaughtStatement: statement region catches overflow into the handler","verdict":"pass"}
+{"id":"tests.TryTests.testClassifyFault","name":"tests.TryTests.testClassifyFault: classify fault maps every variant","verdict":"pass"}
+{"id":"tests.TryTests.testFaultPayload","name":"tests.TryTests.testFaultPayload: payload capture flows through the catch variable","verdict":"pass"}
+{"id":"tests.TryTests.testHandlerReturn","name":"tests.TryTests.testHandlerReturn: handler return leaves the region through the handler","verdict":"pass"}
+{"id":"tests.TryTests.testRegionMessage","name":"tests.TryTests.testRegionMessage: message accessor derives from the variant","verdict":"pass"}
+{"id":"tests.TryTests.testRegionReturn","name":"tests.TryTests.testRegionReturn: return region yields the handler value on fault","verdict":"pass"}
+{"id":"tests.TryTests.testRegionValue","name":"tests.TryTests.testRegionValue: initializer region binds the region value","verdict":"pass"}
+{"id":"tests.Ts2448Tests.nestedLocal","name":"tests.Ts2448Tests.nestedLocal: nested locals do not self-reference","verdict":"pass"}
+{"id":"tests.TypeAliasLocalTests.testCompute","name":"tests.TypeAliasLocalTests.testCompute: a local class alias lowers to a Swift typealias","verdict":"pass"}
+{"id":"tests.TypeParameterCompareTests.testCompare","name":"tests.TypeParameterCompareTests.testCompare: a generic equality compares equal and different values","verdict":"pass"}
+{"id":"tests.UStringResidentTests.testResidentMembers","name":"tests.UStringResidentTests.testResidentMembers: UString member calls resolve through the Dart runtime resident","verdict":"pass"}
+{"id":"tests.UStringTests.testAsciiTier","name":"tests.UStringTests.testAsciiTier: ascii content counts and reads through the general tier","verdict":"pass"}
+{"id":"tests.UStringTests.testBmpTier","name":"tests.UStringTests.testBmpTier: bmp cjk counts and reads by code point","verdict":"pass"}
+{"id":"tests.UStringTests.testReversal","name":"tests.UStringTests.testReversal: character reversal keeps supplementary characters whole","verdict":"pass"}
+{"id":"tests.UStringTests.testRoundTrip","name":"tests.UStringTests.testRoundTrip: code point round trip preserves content","verdict":"pass"}
+{"id":"tests.UStringTests.testSlice","name":"tests.UStringTests.testSlice: slice addresses characters on every storage","verdict":"pass"}
+{"id":"tests.UStringTests.testSubstring","name":"tests.UStringTests.testSubstring: substring addresses utf-16 unit positions on every target","verdict":"pass"}
+{"id":"tests.UStringTests.testSubstringBounds","name":"tests.UStringTests.testSubstringBounds: substring clamps negative, long, reversed, and omitted bounds","verdict":"pass"}
+{"id":"tests.UStringTests.testSupplementaryTier","name":"tests.UStringTests.testSupplementaryTier: supplementary cjk occupies one character index","verdict":"pass"}
+{"id":"tests.UnderscoreParamTests.underscoreParameters","name":"tests.UnderscoreParamTests.underscoreParameters: underscore parameters are readable and independently named","verdict":"pass"}
+{"id":"tests.UnionChainTests.chainedUnion","name":"tests.UnionChainTests.chainedUnion: a repeated callee union stays convertible through a chained caller","verdict":"pass"}
+{"id":"tests.UsizeComparisonTests.lengthExceeds","name":"tests.UsizeComparisonTests.lengthExceeds: a nullable array length compares above an Int limit","verdict":"pass"}
+{"id":"tests.UsizeComparisonTests.withinBounds","name":"tests.UsizeComparisonTests.withinBounds: a nullable array length bounds an index in the u32 comparison domain","verdict":"pass"}
+{"id":"tests.ValuePassingTests.valueFlow","name":"tests.ValuePassingTests.valueFlow: field reads and parameter passes keep values usable","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testAccepted","name":"tests.ValueRecordTests.testAccepted: in-range construction is accepted","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testConstruction","name":"tests.ValueRecordTests.testConstruction: constructor keeps the given fields and validates nothing in range","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testCopyOne","name":"tests.ValueRecordTests.testCopyOne: copy with one override replaces the targeted field","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testCopyReordered","name":"tests.ValueRecordTests.testCopyReordered: copy with reordered overrides keeps parameter order","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testCopyZero","name":"tests.ValueRecordTests.testCopyZero: copy without override keeps every field","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testEquality","name":"tests.ValueRecordTests.testEquality: structural equality compares constructor fields","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testNegativeStart","name":"tests.ValueRecordTests.testNegativeStart: constructor throws on negative start","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testPrintedForm","name":"tests.ValueRecordTests.testPrintedForm: printed form names the class and constructor fields","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testPrivateHolder","name":"tests.ValueRecordTests.testPrivateHolder: private constructor-parameter field survives construction","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testProperty","name":"tests.ValueRecordTests.testProperty: getter-only property computes per read","verdict":"pass"}
+{"id":"tests.ValueRecordTests.testStartAfterEnd","name":"tests.ValueRecordTests.testStartAfterEnd: constructor throws on start after end","verdict":"pass"}
+{"id":"tests.ValueTypeClashTests.clashDoubled","name":"tests.ValueTypeClashTests.clashDoubled: clashing wrapper reads through the colliding member","verdict":"pass"}
+{"id":"tests.ValueTypeCtorBindingTests.testWithSeed","name":"tests.ValueTypeCtorBindingTests.testWithSeed: a value wrapper built from a narrowed field carries the field value","verdict":"pass"}
+{"id":"tests.ValueTypeClashTests.controlMember","name":"tests.ValueTypeClashTests.controlMember: clash-free wrapper reads its representation","verdict":"pass"}
+{"id":"tests.ValueTypeTests.testArithmetic","name":"tests.ValueTypeTests.testArithmetic: value wrapper arithmetic and member call","verdict":"pass"}
+{"id":"tests.ValueTypeTests.testBlankRejected","name":"tests.ValueTypeTests.testBlankRejected: validating wrapper rejects blank construction","verdict":"pass"}
+{"id":"tests.ValueTypeTests.testEquality","name":"tests.ValueTypeTests.testEquality: equal wrapper representations compare equal","verdict":"pass"}
+{"id":"tests.ValueTypeTests.testOptionalIc","name":"tests.ValueTypeTests.testOptionalIc: nullable value wrapper field preserves its presence","verdict":"pass"}
+{"id":"tests.ValueTypeTests.testStaticField","name":"tests.ValueTypeTests.testStaticField: value wrapper static field is preserved","verdict":"pass"}
+{"id":"tests.VecInsertTests.insertAt","name":"tests.VecInsertTests.insertAt: an Array insert widens the u32 position to the Vec usize index","verdict":"pass"}
+{"id":"tests.ValueTypeTests.testRenderedString","name":"tests.ValueTypeTests.testRenderedString: declared wrapper toString returns its representation","verdict":"pass"}
+{"id":"tests.VecSpliceTests.captureRemoved","name":"tests.VecSpliceTests.captureRemoved: vecSpliceDrain: capture the removed sub-array","verdict":"pass"}
+{"id":"tests.VecSpliceTests.removeHead","name":"tests.VecSpliceTests.removeHead: vecSpliceDrain: remove the first n elements","verdict":"pass"}
+{"id":"tests.VecSpliceTests.removeSingle","name":"tests.VecSpliceTests.removeSingle: vecSpliceDrain: remove a single element from the middle","verdict":"pass"}
+{"id":"tests.VectorCodecTests.asciiCodecsRoundTrip","name":"tests.VectorCodecTests.asciiCodecsRoundTrip: ascii codecs round-trip through the Bytes APIs","verdict":"pass"}
+{"id":"tests.VectorCodecTests.byteLengthsPerWidth","name":"tests.VectorCodecTests.byteLengthsPerWidth: block lengths follow the width marker","verdict":"pass"}
+{"id":"tests.VectorCodecTests.magicWidthMapping","name":"tests.VectorCodecTests.magicWidthMapping: magics map to widths, unknown magics answer null","verdict":"pass"}
+{"id":"tests.VectorCodecTests.roundtrip","name":"tests.VectorCodecTests.roundtrip: encode then decode returns the input records","verdict":"pass"}
+{"id":"tests.VectorCodecTests.roundtripF16","name":"tests.VectorCodecTests.roundtripF16: f16 blocks round trip every record","verdict":"pass"}
+{"id":"tests.VectorCodecTests.roundtripF32","name":"tests.VectorCodecTests.roundtripF32: f32 blocks round trip every record","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testArray","name":"tests.VectorCodecTests.testArray: array assertion","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testBool","name":"tests.VectorCodecTests.testBool: boolean assertion","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testBytes","name":"tests.VectorCodecTests.testBytes: bytes assertion","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testEnum","name":"tests.VectorCodecTests.testEnum: enum assertion","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testFloat","name":"tests.VectorCodecTests.testFloat: float assertion","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testInt","name":"tests.VectorCodecTests.testInt: integer assertion","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testString","name":"tests.VectorCodecTests.testString: string assertion","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testNaN","name":"tests.VectorCodecTests.testNaN: nan assertion using ok","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testWithoutDescription","name":"tests.VectorCodecTests.testWithoutDescription","verdict":"pass"}
+{"id":"tests.VectorCodecTests.testStructure","name":"tests.VectorCodecTests.testStructure: structure assertion","verdict":"pass"}
+{"id":"tests.WidgetCoalescingTests.builderDefault","name":"tests.WidgetCoalescingTests.builderDefault: coalescing default constructs builder with omitted defaults","verdict":"pass"}
+{"id":"tests.WidgetCoalescingTests.lensDefault","name":"tests.WidgetCoalescingTests.lensDefault: coalescing default constructs lens in non-main-class module","verdict":"pass"}
+{"id":"tests.Xxh64Tests.digestIsIdempotent","name":"tests.Xxh64Tests.digestIsIdempotent: xxh64 digest remains usable","verdict":"pass"}
+{"id":"tests.Xxh64Tests.streamingChunks","name":"tests.Xxh64Tests.streamingChunks: xxh64 streaming chunks","verdict":"pass"}
+{"id":"tests.Xxh64Tests.vectorTests","name":"tests.Xxh64Tests.vectorTests: xxh64 vectors","verdict":"pass"}
+{"id":"tests.Xxh128Tests.vectors","name":"tests.Xxh128Tests.vectors: xxh128 vectors","verdict":"pass"}

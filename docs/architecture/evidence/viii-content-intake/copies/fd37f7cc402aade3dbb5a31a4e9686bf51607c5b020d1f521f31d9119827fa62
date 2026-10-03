@@ -1,0 +1,39 @@
+#![cfg(test)]
+
+use crate::boring::null_args_ops::NullArgsOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn test_explicit_null() {
+    testlib::run("tests.NullArgsTests.testExplicitNull", "tests.NullArgsTests.testExplicitNull: explicit null materializes a registered default", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[110,111,110,101]), NullArgsOps::null_args_ops_explicit_null().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_nullable_variable() {
+    testlib::run("tests.NullArgsTests.testNullableVariable", "tests.NullArgsTests.testNullableVariable: nullable arguments use the default only when null", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[110,111,110,101]), NullArgsOps::null_args_ops_nullable_variable(None.clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[120]), NullArgsOps::null_args_ops_nullable_variable(Some(UString::from("x"))).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_conditional_arg() {
+    testlib::run("tests.NullArgsTests.testConditionalArg", "tests.NullArgsTests.testConditionalArg: null-guard conditional argument wraps in the Option slot", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[110,111,110,101]), NullArgsOps::null_args_ops_conditional_arg(None.clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[120]), NullArgsOps::null_args_ops_conditional_arg(Some(UString::from("x"))).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_null_default() {
+    testlib::run("tests.NullArgsTests.testNullDefault", "tests.NullArgsTests.testNullDefault: null default keeps the nullable parameter in the Option domain", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[110,117,108,108]), NullArgsOps::null_args_ops_null_default_absent().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[115,101,116]), NullArgsOps::null_args_ops_null_default_present().as_ustr(), UStr::new(&[]));
+    });
+}

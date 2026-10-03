@@ -1,0 +1,15 @@
+#![cfg(test)]
+
+use crate::boring::interface_conditional_ops::InterfaceConditionalOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn choose_text() {
+    testlib::run("tests.InterfaceConditionalTests.chooseText", "tests.InterfaceConditionalTests.chooseText: a conditional interface result boxes each concrete arm", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,108,112,104,97]), InterfaceConditionalOps::interface_conditional_ops_choose_text(true).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98,101,116,97]), InterfaceConditionalOps::interface_conditional_ops_choose_text(false).as_ustr(), UStr::new(&[]));
+    });
+}

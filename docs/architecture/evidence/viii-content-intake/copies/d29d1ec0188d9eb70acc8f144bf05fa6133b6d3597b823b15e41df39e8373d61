@@ -1,0 +1,171 @@
+2560:         The container conversion of an Array<->ReadOnlyArray boundary cast,
+2561:         or null when the cast does not cross the mutable/immutable line
+2562:         (features/18). Mutable Array lowers to TiqianArray while
+2563:         ReadOnlyArray lowers to a reference view over TiqianArray, so implicit
+2564:         casts on the Haxe side render as the Swift view initializer.
+2565:     **/
+2566:     function arrayBoundaryText(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null, destinationOptionalOverride:Null<Bool> = null):String
+2567:         return lowerArrayBoundary(inner, target, actualOptional, destinationOptionalOverride).text;
+2568: 
+2569:     /**
+2570:         Render one boundary and retain its actual result facts. For direct
+2571:         expressions the storage producer is SwiftType's Haxe Array or
+2572:         ReadOnlyArray mapping: locals, fields, parameters, calls, branches,
+2573:         and collection constructors preserve that declared container type.
+2574:         Empty and null literals have their own producer identity. A completed
+2575:         boundary returns the plan's result representation so a consumer need
+2576:         not guess from its rendered text.
+2577:     **/
+2578:     function lowerArrayBoundary(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null,
+2579:             destinationOptionalOverride:Null<Bool> = null):SwiftArrayPreparedOperand {
+2580:         if (!SwiftArrayBoundary.isBoundary(inner.t, target))
+2581:             return fail(inner, "array boundary renderer called for a non-boundary");
+2582:         final defaultSite = coalescingSiteFor(inner);
+2583:         if (defaultSite == null) {
+2584:             switch (inner.expr) {
+2585:                 case TIf(condition, whenTrue, whenFalse):
+2586:                     return lowerArrayConditionalBoundary(inner, condition, whenTrue, whenFalse, target, destinationOptionalOverride);
+2587:                 case _:
+2588:             }
+2589:         }
+2590:         final operand:SwiftArrayPreparedOperand = if (defaultSite != null) {
+2591:             final lowered = lowerCoalescingExpression(defaultSite);
+2592:             {
+2593:                 text: lowered.text,
+2594:                 sourceType: lowered.sourceType,
+2595:                 storage: lowered.storage,
+2596:                 optionality: lowered.optionality,
+2597:                 presenceFact: lowered.presenceFact
+2598:             };
+2599:         } else {
+2600:             final guardedOptional = guardedOptionalBoundaryOperand(inner, target);
+2601:             if (guardedOptional != null) {
+2602:                 guardedOptional;
+2603:             } else {
+2604:                 prepareArrayOperand(inner, actualOptional);
+2605:             }
+2606:         };
+2607:         final plan = SwiftArrayBoundary.prepare(operand, target, destinationOptionalOverride);
+2608:         if (plan == null)
+2609:             return fail(inner, "array boundary has no prepared storage decision");
+2610:         if (plan.elementType == null)
+2611:             return fail(inner, "array boundary is missing its element type");
+2612:         final elementText = types.of(plan.elementType);
+2613:         return {
+2614:             text: arrayRuntimeText(SwiftArrayBoundary.render(plan, operand.text, elementText)),
+2615:             sourceType: target,
+2616:             storage: plan.resultStorage,
+2617:             optionality: plan.resultOptionality,
+2618:             presenceFact: plan.presenceFact
+2619:         };
+2620:     }
+2621: 
+2622:     /** Lower both lazy arms to one destination representation before rendering the conditional. */
+2623:     function lowerArrayConditionalBoundary(inner:TypedExpr, condition:TypedExpr, whenTrue:TypedExpr, whenFalse:TypedExpr, target:Type,
+2624:             destinationOptionalOverride:Null<Bool>):SwiftArrayPreparedOperand {
+2625:         final nilMerge = optionalIfSite(condition, whenTrue, whenFalse);
+2626:         if (nilMerge != null) {
+2627:             final targetValue = lowerArrayBoundary(nilMerge.target, target, null, destinationOptionalOverride);
+2628:             final fallbackValue = lowerArrayBoundary(nilMerge.fallback, target, null, destinationOptionalOverride);
+2629:             final text = targetValue.optionality == SwiftArrayOptionality.RequiredOperand ? targetValue.text : targetValue.text + " ?? " + fallbackValue.text;
+2630:             final optionality = targetValue.optionality == SwiftArrayOptionality.OptionalOperand
+2631:                 && fallbackValue.optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand;
+2632:             final storage = targetValue.storage == SwiftArrayStorage.NullArrayValue ? fallbackValue.storage : targetValue.storage;
+2633:             return {
+2634:                 text: text,
+2635:                 sourceType: inner.t,
+2636:                 storage: storage,
+2637:                 optionality: optionality,
+2638:                 presenceFact: optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayPresenceFact.BranchValuesRequired
+2639:             };
+2640:         }
+2641: 
+2642:         final trueValue = lowerArrayBoundary(whenTrue, target, null, destinationOptionalOverride);
+2643:         final falseValue = lowerArrayBoundary(whenFalse, target, null, destinationOptionalOverride);
+2644:         final optionality = trueValue.optionality == SwiftArrayOptionality.OptionalOperand
+2645:             || falseValue.optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand;
+2646:         if (optionality == SwiftArrayOptionality.OptionalOperand && destinationOptionalOverride == false)
+2647:             return fail(inner, "optional conditional array result cannot satisfy a required boundary");
+2648:         final storage = trueValue.storage == SwiftArrayStorage.NullArrayValue ? falseValue.storage : trueValue.storage;
+2649:         return {
+2650:             text: conditionText(condition) + " ? " + trueValue.text + " : " + falseValue.text,
+2651:             sourceType: inner.t,
+2652:             storage: storage,
+2653:             optionality: optionality,
+2654:             presenceFact: optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayPresenceFact.BranchValuesRequired
+2655:         };
+2656:     }
+2657: 
+2658:     /**
+2659:         Prepare the source of a structural null merge before its contextual
+2660:         result type can hide the source storage. The shared nil-merge decision
+2661:         guarantees one stable target arm and a nil fallback, so lowering the
+2662:         target preserves branch behavior and evaluates it once.
+2663:     **/
+2664:     function guardedOptionalBoundaryOperand(inner:TypedExpr, target:Type):Null<SwiftArrayPreparedOperand> {
+2665:         final nilMerge = switch (inner.expr) {
+2666:             case TIf(condition, whenTrue, whenFalse): optionalIfSite(condition, whenTrue, whenFalse);
+2667:             case _: null;
+2668:         };
+2669:         if (nilMerge == null || !isNullExpr(nilMerge.fallback))
+2670:             return null;
+2671:         final source = nilMerge.target;
+2672:         if (!SwiftArrayBoundary.isOptionalArrayType(source.t)
+2673:             || SwiftArrayBoundary.sourceStorage(source.t) != SwiftArrayStorage.MutableArrayWrapper
+2674:             || !SwiftArrayBoundary.isBoundary(source.t, target))
+2675:             return null;
+2676:         return prepareArrayOperand(source);
+2677:     }
+2678: 
+2679:     /** Prepare one operand's rendered text and actual representation facts together. */
+2680:     function prepareArrayOperand(e:TypedExpr, actualOptional:Null<Bool> = null):SwiftArrayPreparedOperand {
+2681:         final isOptional = actualOptional == null ? arrayOperandOptionality(e) : actualOptional;
+2682:         final recorded = switch (stripWrap(e).expr) {
+2683:             case TLocal(v): localArrayBindingStorages.get(v.id);
+2684:             case _: null;
+2685:         };
+2686:         return {
+2687:             text: arrayOperandText(e),
+2688:             sourceType: e.t,
+2689:             storage: recorded == null ? SwiftArrayBoundary.sourceStorage(e.t, isEmptyArrayDecl(e), isNullLiteral(e)) : recorded,
+2690:             optionality: isOptional ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand,
+2691:             presenceFact: arrayOperandPresenceFact(e)
+2692:         };
+2693:     }
+2694: 
+2695:     /** Actual optionality of the value the current Swift expression lowering produces. */
+2696:     function arrayOperandOptionality(e:TypedExpr):Bool {
+2697:         if (isNarrowed(e))
+2698:             return false;
+2699:         if (ternaryNonNullBothArms(e))
+2700:             return false;
+2701:         switch (stripWrap(e).expr) {
+2702:             case TLocal(v) if (parameterPlansByLocal.exists(v.id)):
+2703:                 return parameterPlansByLocal.get(v.id).bodyOptionality == SwiftArrayOptionality.OptionalOperand;
+2704:             case _:
+2705:         }
+2706:         if (isNullLeafType(e.t) && isNonOptionalDeclared(e))
+2707:             return false;
+2708:         return optionalValued(e) || isNullLeafType(e.t);
+2709:     }
+2710: 
+2711:     function arrayOperandPresenceFact(e:TypedExpr):SwiftArrayPresenceFact {
+2712:         if (isNarrowed(e))
+2713:             return SwiftArrayPresenceFact.GuardProvenPresent;
+2714:         if (ternaryNonNullBothArms(e))
+2715:             return SwiftArrayPresenceFact.BranchValuesRequired;
+2716:         switch (stripWrap(e).expr) {
+2717:             case TLocal(v) if (parameterPlansByLocal.exists(v.id)):
+2718:                 return parameterPlansByLocal.get(v.id).bodyPresenceFact;
+2719:             case _:
+2720:         }
+2721:         if (!SwiftArrayBoundary.isOptionalArrayType(e.t))
+2722:             return SwiftArrayPresenceFact.SourceTypeRequired;
+2723:         if (isNonOptionalDeclared(e))
+2724:             return SwiftArrayPresenceFact.DefaultMaterializedPresent;
+2725:         return SwiftArrayPresenceFact.NoPresenceProof;
+2726:     }
+2727: 
+2728:     /** Whether the type is the mutable Haxe Array, which lowers to TiqianArray. */
+2729:     function isMutableArrayType(t:Null<Type>):Bool {
+2730:         return switch (Context.follow(t)) {

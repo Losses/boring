@@ -1,0 +1,4 @@
+1195c1195
+< boring/value_type_consumer.rs	pub fn value_type_consumer_rendered_id() -> Result<UString, ValueError>
+---
+> boring/value_type_consumer.rs	pub fn value_type_consumer_rendered_id() -> UString

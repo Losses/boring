@@ -1,0 +1,124 @@
+use crate::runtime::sorted_table::SortedMapTable;
+use crate::runtime::sorted_table::SortedMapTableBuilder;
+use crate::runtime::sorted_table::SortedSetTable;
+use crate::runtime::sorted_table::SortedSetTableBuilder;
+use crate::runtime::sorted_table::SortedTable;
+use crate::runtime::u_string::UString;
+use std::sync::Arc;
+
+
+#[derive(Clone, Copy)]
+pub struct EnumSortedKeysOps;
+
+impl EnumSortedKeysOps {
+    pub fn enum_sorted_keys_ops_describe() -> UString {
+        let mut b: SortedSetTableBuilder<EnumTier> = SortedTable::sorted_table_set_builder::<EnumTier>(Arc::new(compare_enum_tier));
+        b.put(&(EnumTier::High));
+        b.put(&(EnumTier::Low));
+        b.put(&(EnumTier::Mid));
+        let s: SortedSetTable<EnumTier> = b.clone().build();
+        let mut out = UString::new();
+        for i in 0..u32::from_ne_bytes(((s.size()) as u32).to_ne_bytes()) {
+            out += &({ let mut __s = UString::new(); __s += (if i == 0 { UString::from("") } else { UString::from(",") }).as_ustr(); __s += UString::from(s.at({ let v: u32 = i; i32::from_ne_bytes(v.to_ne_bytes()) }).name()).as_ustr(); __s });
+        }
+        return out;
+    }
+
+    pub fn enum_sorted_keys_ops_map_order() -> UString {
+        let mut b: SortedMapTableBuilder<EnumTier, u32> = SortedTable::sorted_table_map_builder::<EnumTier, u32>(Arc::new(compare_enum_tier));
+        b.put(&(EnumTier::High), &(3));
+        b.put(&(EnumTier::Low), &(1));
+        b.put(&(EnumTier::Mid), &(2));
+        let m: SortedMapTable<EnumTier, u32> = b.clone().build();
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += UString::from(m.key_at(0i32).name()).as_ustr(); __s += &(UString::from(":")); __s += UString::from((m.value_at(0i32)).to_string().as_str()).as_ustr(); __s += &(UString::from(";")); __s += UString::from(m.key_at(1i32).name()).as_ustr(); __s += &(UString::from(":")); __s += UString::from((m.value_at(1i32)).to_string().as_str()).as_ustr(); __s += &(UString::from(";")); __s += UString::from(m.key_at(2i32).name()).as_ustr(); __s += &(UString::from(":")); __s += UString::from((m.value_at(2i32)).to_string().as_str()).as_ustr(); __s }).as_str());
+    }
+
+    pub fn enum_sorted_keys_ops_has() -> bool {
+        let mut b: SortedSetTableBuilder<EnumTier> = SortedTable::sorted_table_set_builder::<EnumTier>(Arc::new(compare_enum_tier));
+        b.put(&(EnumTier::Mid));
+        let s: SortedSetTable<EnumTier> = b.clone().build();
+        return s.has(&(EnumTier::Mid)) && !s.has(&(EnumTier::High));
+    }
+
+    pub fn enum_sorted_keys_ops_declaration_order() -> UString {
+        let mut b: SortedSetTableBuilder<ReverseTier> = SortedTable::sorted_table_set_builder::<ReverseTier>(Arc::new(compare_reverse_tier));
+        b.put(&(ReverseTier::Earlier));
+        b.put(&(ReverseTier::Later));
+        let s: SortedSetTable<ReverseTier> = b.clone().build();
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += UString::from(s.at(0i32).name()).as_ustr(); __s += &(UString::from(",")); __s += UString::from(s.at(1i32).name()).as_ustr(); __s }).as_str());
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EnumTier {
+    Low,
+    Mid,
+    High,
+}
+
+pub fn compare_enum_tier(a: &EnumTier, b: &EnumTier) -> i32 {
+    if a == b { return 0; }
+    fn rank(v: &EnumTier) -> i32 {
+        match v {
+            EnumTier::Low => 0,
+            EnumTier::Mid => 1,
+            EnumTier::High => 2,
+        }
+    }
+    rank(a) - rank(b)
+}
+
+impl EnumTier {
+    pub fn to_string(&self) -> String {
+        match self {
+            EnumTier::Low => "Low".to_string(),
+            EnumTier::Mid => "Mid".to_string(),
+            EnumTier::High => "High".to_string(),
+        }
+    }
+}
+
+impl EnumTier {
+    pub fn name(&self) -> &'static str {
+        match self {
+            EnumTier::Low => "Low",
+            EnumTier::Mid => "Mid",
+            EnumTier::High => "High",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ReverseTier {
+    Later,
+    Earlier,
+}
+
+pub fn compare_reverse_tier(a: &ReverseTier, b: &ReverseTier) -> i32 {
+    if a == b { return 0; }
+    fn rank(v: &ReverseTier) -> i32 {
+        match v {
+            ReverseTier::Later => 0,
+            ReverseTier::Earlier => 1,
+        }
+    }
+    rank(a) - rank(b)
+}
+
+impl ReverseTier {
+    pub fn to_string(&self) -> String {
+        match self {
+            ReverseTier::Later => "Later".to_string(),
+            ReverseTier::Earlier => "Earlier".to_string(),
+        }
+    }
+}
+
+impl ReverseTier {
+    pub fn name(&self) -> &'static str {
+        match self {
+            ReverseTier::Later => "Later",
+            ReverseTier::Earlier => "Earlier",
+        }
+    }
+}

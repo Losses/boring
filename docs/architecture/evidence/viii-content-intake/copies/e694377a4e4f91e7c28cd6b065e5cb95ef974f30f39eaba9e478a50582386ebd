@@ -1,0 +1,29 @@
+=== baseline ===
+EXEMPT: swift-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+roots guard: PASS (3 exemption(s) in force)
+rc=0
+
+=== DEFEAT B: f32-only extra root added (id sets diverge, guard one-directional) ===
+EXEMPT: swift-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+roots guard: PASS (3 exemption(s) in force)
+rc=0
+
+=== DEFEAT C: stale allowlist entry for a module that is NOT missing ===
+EXEMPT: swift-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+roots guard: PASS (3 exemption(s) in force)
+rc=0
+
+=== DEFEAT A: real root deleted from f32 + one-word exemption ===
+EXEMPT: swift-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+EXEMPT: swift-f32.hxml may omit tests.EarlyReturnTests -- x
+roots guard: PASS (4 exemption(s) in force)
+rc=0
+
+=== whitespace-only reason IS rejected (advertised behaviour holds) ===
+FAIL: allowlist entry without module/target/reason: {"target":"swift","module":"tests.EarlyReturnTests","reason":"   "}
+roots guard: FAILED
+rc=0
+
+NOTE: the rc= values above are 'tail' exit codes because of the pipe; the guard's own exit code was captured separately:
+  baseline/B/C/A -> rc=0 (PASS)
+  whitespace-only reason -> rc=1 (FAILED)  [measured with PIPESTATUS]

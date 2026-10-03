@@ -1,0 +1,13 @@
+METHOD-PROBE owner=dcpe.DoubleEvalControl.callCount scope=static calls=0
+METHOD-PROBE owner=dcpe.DoubleEvalControl.nextKind scope=static calls=0
+METHOD-PROBE owner=dcpe.DoubleEvalControl.reset scope=static calls=0
+METHOD-PROBE owner=dcpe.DoubleEvalControl.doubleOnce scope=static calls=2
+METHOD-PROBE owner=dcpe.DoubleEvalControl.main scope=static calls=0
+METHOD-PROBE owner=dcpe.EvalProbe.callCount scope=static calls=0
+METHOD-PROBE owner=dcpe.EvalProbe.nextKind scope=static calls=0
+METHOD-PROBE owner=dcpe.EvalProbe.reset scope=static calls=0
+METHOD-PROBE owner=dcpe.EvalProbe.promotedOnce scope=static calls=1
+METHOD-PROBE owner=dcpe.EvalProbe.main scope=static calls=0
+BLOCK-PROBE owner=dcpe.DoubleEvalControl.doubleOnce src=tests/haxe/dc-promoted-eval/dcpe/DoubleEvalControl.hx:1(min=1035) switchIndex=1 blockLen=2 prevStmt=TVar(` type=TEnum(dcpe.Kind, 0 params), init=TCall(TField(FStatic(dcpe.DoubleEvalControl.nextKind) on TTypeExpr(TClassDecl(dcpe.DoubleEvalControl))), 0 args)) initCalls=1 subject=TMeta(:exhaustive)(TEnumIndex(TLocal(`))) subjectType=TAbstract(Int, 0 params) cases=3 default=none
+BLOCK-PROBE owner=dcpe.DoubleEvalControl.doubleOnce src=tests/haxe/dc-promoted-eval/dcpe/DoubleEvalControl.hx:1(min=1161) switchIndex=1 blockLen=2 prevStmt=TVar(` type=TEnum(dcpe.Kind, 0 params), init=TCall(TField(FStatic(dcpe.DoubleEvalControl.nextKind) on TTypeExpr(TClassDecl(dcpe.DoubleEvalControl))), 0 args)) initCalls=1 subject=TMeta(:exhaustive)(TEnumIndex(TLocal(`))) subjectType=TAbstract(Int, 0 params) cases=3 default=none
+BLOCK-PROBE owner=dcpe.EvalProbe.promotedOnce src=tests/haxe/dc-promoted-eval/dcpe/EvalProbe.hx:1(min=1393) switchIndex=1 blockLen=2 prevStmt=TVar(` type=TEnum(dcpe.Kind, 0 params), init=TCall(TField(FStatic(dcpe.EvalProbe.nextKind) on TTypeExpr(TClassDecl(dcpe.EvalProbe))), 0 args)) initCalls=1 subject=TMeta(:exhaustive)(TEnumIndex(TLocal(`))) subjectType=TAbstract(Int, 0 params) cases=3 default=none

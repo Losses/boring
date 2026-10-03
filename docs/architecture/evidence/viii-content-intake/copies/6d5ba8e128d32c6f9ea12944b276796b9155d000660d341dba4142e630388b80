@@ -1,0 +1,18 @@
+#[derive(Debug, Clone, PartialEq)]
+pub enum JsonFault {
+    InvalidJson,
+    TrailingInput { position: u32 },
+}
+
+impl std::fmt::Display for JsonFault {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JsonFault::InvalidJson => write!(formatter, "{}", "invalid JSON"),
+            JsonFault::TrailingInput { position } => {
+                write!(formatter, "trailing characters at offset {}", position)
+            }
+        }
+    }
+}
+
+impl std::error::Error for JsonFault {}

@@ -1,0 +1,19 @@
+package boring
+
+import boring.runtime.SortedMapTable
+import boring.runtime.SortedSetTable
+
+data class PrintedSortedFields(val marks: SortedSetTable<Int>, val points: SortedSetTable<PrintedPoint>, val lookup: SortedMapTable<String, Int>, val emptySet: SortedSetTable<Int>, val emptyMap: SortedMapTable<String, Int>) {
+}
+
+
+
+data class PrintedNullableMark(val mark: PrintedMark?) {
+}
+
+fun comparePrintedNullableMark(a: PrintedNullableMark, b: PrintedNullableMark): Int {
+    var cmp = 0
+    cmp = run { val nullableLeft0 = a.mark; val nullableRight0 = b.mark; when { nullableLeft0 == null && nullableRight0 == null -> 0; nullableLeft0 == null -> -1; nullableRight0 == null -> 1; else -> when (nullableLeft0) { PrintedMark.Plain -> 0; is PrintedMark.Ring -> 1; is PrintedMark.Tag -> 2; is PrintedMark.Trail -> 3; is PrintedMark.Aliases -> 4 }.compareTo(when (nullableRight0) { PrintedMark.Plain -> 0; is PrintedMark.Ring -> 1; is PrintedMark.Tag -> 2; is PrintedMark.Trail -> 3; is PrintedMark.Aliases -> 4 }) } }
+    if (cmp != 0) return cmp
+    return 0
+}

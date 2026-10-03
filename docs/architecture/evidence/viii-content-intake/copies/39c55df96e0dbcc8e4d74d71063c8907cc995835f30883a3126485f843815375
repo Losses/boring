@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_dash_index() {
+    testlib::run("tests.StringIndexOfShadowTests.testDashIndex", "tests.StringIndexOfShadowTests.testDashIndex: a string index search does not shadow the receiver's local", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

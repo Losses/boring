@@ -1,0 +1,13 @@
+METRIC DEFINITIONS
+  occurrences = sum of 'grep -o <pat> | wc -l'  (every match)
+  lines       = sum of 'grep -c <pat>' per file    (grep -c semantics)
+
+TREE                               PRECISION unwrap_occ unwrap_ln  Result_occ Result_ln 
+execution-option-c-head-e1c65975   rust      100        97         129        129       
+execution-option-c-head-e1c65975   rust-f32  100        97         126        126       
+execution-option-c-chainA-fixed3   rust      100        97         128        128       
+execution-option-c-chainA-fixed3   rust-f32  100        97         127        127       
+
+NOTE: the head rust-f32 tree has 466 files vs fixed3 508 (see f32-baseline-anomaly.txt);
+      the f32 row above is therefore a whole-tree total over UNEQUAL corpora.
+      On the 466-file COMMON set: unwrap 100 -> 100 (net 0); Result< 126 -> 125 (net -1).

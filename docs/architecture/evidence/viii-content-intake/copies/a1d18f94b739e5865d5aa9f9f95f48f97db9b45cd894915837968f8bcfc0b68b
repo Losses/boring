@@ -1,0 +1,36 @@
+Stage 3 driver-verify attempt: /tmp/swiftarr/execroot/out/integration-a3-evidence/exclusive-runner/attempt-20260929T185600-3077358
+run dir: /tmp/swiftarr/execroot/out/integration-a3-evidence/exclusive-runner/attempt-20260929T185600-3077358/child-evidence/run-1790722560946-3077388
+SEQ   BUNDLE     ACTION STEP                   COMMAND      OUTCOME        EXIT  
+0001  haxe       gen    generate               haxe         normal-exit    0     
+0002  ts         gen    generate               haxe         normal-exit    0     
+0003  kotlin     gen    generate               haxe         normal-exit    0     
+0004  dart       gen    generate               haxe         normal-exit    0     
+0005  rust       gen    generate               haxe         normal-exit    0     
+0006  swift      gen    generate               haxe         normal-exit    0     
+0007  haxe-f32   gen    generate               haxe         normal-exit    0     
+0008  kotlin-f32 gen    generate               haxe         normal-exit    0     
+0009  rust-f32   gen    generate               haxe         normal-exit    0     
+0010  swift-f32  gen    generate               haxe         normal-exit    0     
+0011  haxe       test   build                  haxe         normal-exit    0     
+0012  haxe       test   run                    bun          normal-exit    0     
+0013  ts         test   run                    bun          normal-exit    0     
+0014  kotlin     test   build library jar      kotlinc      normal-exit    0     
+0015  kotlin     test   build tests jar        kotlinc      normal-exit    0     
+0016  kotlin     test   run                    java         normal-exit    0     
+0017  dart       test   run                    dart         normal-exit    0     
+0018  rust       test   build                  cargo        normal-exit    0     
+0019  rust       test   run                    cargo        normal-exit    0     
+0020  swift      test   build library          swiftc       normal-exit    0     
+0021  swift      test   build test executable  swiftc       normal-exit    0     
+0022  swift      test   run                    /tmp/swiftarr/execroot/reference/swift/build/test-runner normal-exit    0     
+0023  haxe-f32   test   build                  haxe         normal-exit    0     
+0024  haxe-f32   test   run                    bun          normal-exit    0     
+0025  kotlin-f32 test   build library jar      kotlinc      normal-exit    0     
+0026  kotlin-f32 test   build tests jar        kotlinc      normal-exit    0     
+0027  kotlin-f32 test   run                    java         normal-exit    0     
+0028  rust-f32   test   build                  cargo        normal-exit    0     
+0029  rust-f32   test   run                    cargo        normal-exit    0     
+0030  swift-f32  test   build library          swiftc       normal-exit    0     
+0031  swift-f32  test   build test executable  swiftc       normal-exit    0     
+0032  swift-f32  test   run                    /tmp/swiftarr/execroot/reference/swift-f32/build/test-runner normal-exit    0     
+0033  haxe       compare manager build          haxe         normal-exit    0     

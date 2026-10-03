@@ -1,0 +1,12 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/package-artifacts.test.ts:
+killed 1 dangling process
+(fail) package artifact emission > two generations of the same inputs produce byte-identical artifacts [420017.38ms]
+  ^ this test timed out after 420000ms.
+
+ 0 pass
+ 10 filtered out
+ 1 fail
+ 22 expect() calls
+Ran 1 test across 1 file. [420.09s]

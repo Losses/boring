@@ -1,0 +1,4 @@
+# shape=call target=swift generated-tree: /home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-s3o7gn/gen/call/swift
+# stage 11 exit 1
+# generation rejected; raw diagnostics below
+tests/haxe/dc-enum-switch-gen/dcsenum/CallSubjectOracle.hx:15: characters 18-28 : swift target: expression block must end in a value statement (features/43)

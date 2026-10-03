@@ -1,0 +1,19 @@
+# switchReturn / switchAssign / switchExpression / tryStatementLines bodies
+switchReturn defined SwiftExpr.hx:5570 (NOT :808; :808 is the TReturn dispatch in stmtLines).
+  :5641-5642  inside switchReturn: OtherStatement arm result value is routed through
+              SwiftArrayBoundary.isBoundary(returnValue.t, currentReturnType)
+              ? arrayBoundaryText(returnValue, currentReturnType) : expr(returnValue)
+  => switchReturn DOES consult the boundary module for arm result values.
+switchAssign :5511 delegates to switchReturn(sw, depth, true) and rewrites "return" lines
+  => inherits the same boundary routing.
+switchExpression :5527 delegates to switchReturn(sw, 1)
+  => inherits the same boundary routing.
+tryStatementLines :5187 delegates body/handler to blockLines -> stmtLines; the TReturn
+  path in stmtLines :811 routes through arrayBoundaryText -> lowerArrayBoundary
+  => try-body returns cross the funnel.
+tryBindingLines :5215+: contains NO SwiftArrayBoundary/lowerArrayBoundary reference
+  => genuinely uncovered binding-position path.
+expr(e) TTry at :1852: `return fail(e, "try region lowers at statement, initializer, or
+  return position")` — verified: generic expression-position try is rejected.
+blockExpression :1200 routes value through arrayBoundaryText :1212
+  => record's "block tail is likewise untraced" is contradicted for this route.

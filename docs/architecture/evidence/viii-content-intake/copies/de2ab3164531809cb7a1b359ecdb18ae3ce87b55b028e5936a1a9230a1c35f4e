@@ -1,0 +1,5 @@
+precision guard: roots /home/losses/Development/tq-workspace/dc-warn/tmp/annotation-root/samples/tests
+scanned 1 file(s), 1 numeric literal(s), 1 outside the binary32 range
+allowed: /home/losses/Development/tq-workspace/dc-warn/tmp/annotation-root/samples/tests/AnnotatedSample.hx:10:52: 1.0e308 [overflow]
+precision guard: every literal stays inside the binary32 range
+exit=0

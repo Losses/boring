@@ -1,0 +1,12 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/sealed-variants.test.ts:
+(pass) @:sealed on a class reports the interface-only error [28444.69ms]
+(pass) self-construction with arguments keeps the static initializer error [31087.65ms]
+(pass) the sanctioned self-construction static uses each target lane [155393.06ms]
+(pass) sealed variant sample trees carry the ruled declaration and printed forms [1.00ms]
+
+ 4 pass
+ 0 fail
+ 37 expect() calls
+Ran 4 tests across 1 file. [214.97s]

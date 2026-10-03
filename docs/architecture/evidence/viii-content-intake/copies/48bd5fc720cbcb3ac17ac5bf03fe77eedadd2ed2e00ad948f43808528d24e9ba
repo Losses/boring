@@ -1,0 +1,205 @@
+package haxe.crypto
+
+import boring.runtime.BytesBuffer
+
+class Sha512 {
+    var state: MutableList<Long>
+    var block: ByteArray
+    var blockPos: Int
+    var totalLength: Long
+    init {
+    this.state = mutableListOf<Long>(((1779033703L shl 32) or (-205731576L and 0xFFFFFFFFL)), ((-1150833019L shl 32) or (-2067093701L and 0xFFFFFFFFL)), ((1013904242L shl 32) or (-23791573L and 0xFFFFFFFFL)), ((-1521486534L shl 32) or (1595750129L and 0xFFFFFFFFL)), ((1359893119L shl 32) or (-1377402159L and 0xFFFFFFFFL)), ((-1694144372L shl 32) or (725511199L and 0xFFFFFFFFL)), ((528734635L shl 32) or (-79577749L and 0xFFFFFFFFL)), ((1541459225L shl 32) or (327033209L and 0xFFFFFFFFL)))
+    this.block = ByteArray(128)
+    this.blockPos = 0
+    this.totalLength = 0.toLong()
+    }
+
+    fun update(data: ByteArray) {
+        var sourcePos = 0
+        while ((sourcePos < data.size)) {
+            this.block[this.blockPos] = (( data[sourcePos].toInt() and 0xFF )).toByte()
+            this.blockPos += 1
+            sourcePos += 1
+            this.totalLength = this.totalLength + 1.toLong()
+            if ((this.blockPos == 128)) {
+                Sha512.processBlock(this.state, this.block)
+                this.blockPos = 0
+            }
+        }
+    }
+
+    fun digest(): ByteArray {
+        val finalState = mutableListOf<Long>()
+        run {
+            finalState.add(this.state[0])
+            finalState.add(this.state[1])
+            finalState.add(this.state[2])
+            finalState.add(this.state[3])
+            finalState.add(this.state[4])
+            finalState.add(this.state[5])
+            finalState.add(this.state[6])
+            finalState.add(this.state[7])
+        }
+        val finalBlock = ByteArray(128)
+        for (i in 0 until this.blockPos) {
+            finalBlock[i] = (( this.block[i].toInt() and 0xFF )).toByte()
+        }
+        finalBlock[this.blockPos] = 128.toByte()
+        val position = this.blockPos + 1
+        if ((position > 112)) {
+            for (i_2 in position until 128) {
+                finalBlock[i_2] = 0.toByte()
+            }
+            Sha512.processBlock(finalState, finalBlock)
+            for (i_3 in 0 until 128) {
+                finalBlock[i_3] = 0.toByte()
+            }
+        } else {
+            for (i_4 in position until 112) {
+                finalBlock[i_4] = 0.toByte()
+            }
+        }
+        run {
+            finalBlock[112] = 0.toByte()
+            finalBlock[113] = 0.toByte()
+            finalBlock[114] = 0.toByte()
+            finalBlock[115] = 0.toByte()
+            finalBlock[116] = 0.toByte()
+            finalBlock[117] = 0.toByte()
+            finalBlock[118] = 0.toByte()
+            finalBlock[119] = 0.toByte()
+            finalBlock[120] = 0.toByte()
+            finalBlock[121] = 0.toByte()
+            finalBlock[122] = 0.toByte()
+            finalBlock[123] = 0.toByte()
+            finalBlock[124] = 0.toByte()
+            finalBlock[125] = 0.toByte()
+            finalBlock[126] = 0.toByte()
+            finalBlock[127] = 0.toByte()
+        }
+        val bitLength = ((this.totalLength) shl ((3) and 63))
+        run {
+            finalBlock[120] = ((bitLength) ushr ((56) and 63)).toInt().toByte()
+            finalBlock[121] = ((bitLength) ushr ((48) and 63)).toInt().toByte()
+            finalBlock[122] = ((bitLength) ushr ((40) and 63)).toInt().toByte()
+            finalBlock[123] = ((bitLength) ushr ((32) and 63)).toInt().toByte()
+            finalBlock[124] = ((bitLength) ushr ((24) and 63)).toInt().toByte()
+            finalBlock[125] = ((bitLength) ushr ((16) and 63)).toInt().toByte()
+            finalBlock[126] = ((bitLength) ushr ((8) and 63)).toInt().toByte()
+            finalBlock[127] = ((bitLength) ushr ((0) and 63)).toInt().toByte()
+        }
+        Sha512.processBlock(finalState, finalBlock)
+        val output = BytesBuffer()
+        for (i_5 in 0 until 8) {
+            val word = finalState[i_5]
+            output.addByte(((word) ushr ((56) and 63)).toInt())
+            output.addByte(((word) ushr ((48) and 63)).toInt())
+            output.addByte(((word) ushr ((40) and 63)).toInt())
+            output.addByte(((word) ushr ((32) and 63)).toInt())
+            output.addByte(((word) ushr ((24) and 63)).toInt())
+            output.addByte(((word) ushr ((16) and 63)).toInt())
+            output.addByte(((word) ushr ((8) and 63)).toInt())
+            output.addByte(word.toInt())
+        }
+        return output.getBytes()
+    }
+
+    companion object {
+        fun make(data: ByteArray): ByteArray {
+            val hash = Sha512()
+            hash.update(data)
+            return hash.digest()
+        }
+
+        private fun processBlock(hash: MutableList<Long>, input: ByteArray) {
+            var words = mutableListOf<Long>()
+            for (i in 0 until 80) {
+                words.add(0.toLong())
+            }
+            for (i_2 in 0 until 16) {
+                val offset = i_2 * 8
+                while (words.size <= i_2) { words.add(0L) }
+                words[i_2] = ((((((((((((( input[offset].toInt() and 0xFF ))) shl (24))) or ((((( input[offset + 1].toInt() and 0xFF ))) shl (16))))) or ((((( input[offset + 2].toInt() and 0xFF ))) shl (8))))) or ((( input[offset + 3].toInt() and 0xFF ))))).toLong() shl 32) or (((((((((((( input[offset + 4].toInt() and 0xFF ))) shl (24))) or ((((( input[offset + 5].toInt() and 0xFF ))) shl (16))))) or ((((( input[offset + 6].toInt() and 0xFF ))) shl (8))))) or ((( input[offset + 7].toInt() and 0xFF ))))).toLong() and 0xFFFFFFFFL))
+            }
+            for (i_3 in 16 until 80) {
+                val s1 = Sha512.gamma1(words[i_3 - 2])
+                val s0 = Sha512.gamma0(words[i_3 - 15])
+                while (words.size <= i_3) { words.add(0L) }
+                words[i_3] = s1 + words[i_3 - 7] + s0 + words[i_3 - 16]
+            }
+            var a = hash[0]
+            var b = hash[1]
+            var c = hash[2]
+            var d = hash[3]
+            var e = hash[4]
+            var f = hash[5]
+            var g = hash[6]
+            var h = hash[7]
+            val k = mutableListOf<Long>(((1116352408L shl 32) or (-685199838L and 0xFFFFFFFFL)), ((1899447441L shl 32) or (602891725L and 0xFFFFFFFFL)), ((-1245643825L shl 32) or (-330482897L and 0xFFFFFFFFL)), ((-373957723L shl 32) or (-2121671748L and 0xFFFFFFFFL)), ((961987163L shl 32) or (-213338824L and 0xFFFFFFFFL)), ((1508970993L shl 32) or (-1241133031L and 0xFFFFFFFFL)), ((-1841331548L shl 32) or (-1357295717L and 0xFFFFFFFFL)), ((-1424204075L shl 32) or (-630357736L and 0xFFFFFFFFL)), ((-670586216L shl 32) or (-1560083902L and 0xFFFFFFFFL)), ((310598401L shl 32) or (1164996542L and 0xFFFFFFFFL)), ((607225278L shl 32) or (1323610764L and 0xFFFFFFFFL)), ((1426881987L shl 32) or (-704662302L and 0xFFFFFFFFL)), ((1925078388L shl 32) or (-226784913L and 0xFFFFFFFFL)), ((-2132889090L shl 32) or (991336113L and 0xFFFFFFFFL)), ((-1680079193L shl 32) or (633803317L and 0xFFFFFFFFL)), ((-1046744716L shl 32) or (-815192428L and 0xFFFFFFFFL)), ((-459576895L shl 32) or (-1628353838L and 0xFFFFFFFFL)), ((-272742522L shl 32) or (944711139L and 0xFFFFFFFFL)), ((264347078L shl 32) or (-1953704523L and 0xFFFFFFFFL)), ((604807628L shl 32) or (2007800933L and 0xFFFFFFFFL)), ((770255983L shl 32) or (1495990901L and 0xFFFFFFFFL)), ((1249150122L shl 32) or (1856431235L and 0xFFFFFFFFL)), ((1555081692L shl 32) or (-1119749164L and 0xFFFFFFFFL)), ((1996064986L shl 32) or (-2096016459L and 0xFFFFFFFFL)), ((-1740746414L shl 32) or (-295247957L and 0xFFFFFFFFL)), ((-1473132947L shl 32) or (766784016L and 0xFFFFFFFFL)), ((-1341970488L shl 32) or (-1728372417L and 0xFFFFFFFFL)), ((-1084653625L shl 32) or (-1091629340L and 0xFFFFFFFFL)), ((-958395405L shl 32) or (1034457026L and 0xFFFFFFFFL)), ((-710438585L shl 32) or (-1828018395L and 0xFFFFFFFFL)), ((113926993L shl 32) or (-536640913L and 0xFFFFFFFFL)), ((338241895L shl 32) or (168717936L and 0xFFFFFFFFL)), ((666307205L shl 32) or (1188179964L and 0xFFFFFFFFL)), ((773529912L shl 32) or (1546045734L and 0xFFFFFFFFL)), ((1294757372L shl 32) or (1522805485L and 0xFFFFFFFFL)), ((1396182291L shl 32) or (-1651133473L and 0xFFFFFFFFL)), ((1695183700L shl 32) or (-1951439906L and 0xFFFFFFFFL)), ((1986661051L shl 32) or (1014477480L and 0xFFFFFFFFL)), ((-2117940946L shl 32) or (1206759142L and 0xFFFFFFFFL)), ((-1838011259L shl 32) or (344077627L and 0xFFFFFFFFL)), ((-1564481375L shl 32) or (1290863460L and 0xFFFFFFFFL)), ((-1474664885L shl 32) or (-1136513023L and 0xFFFFFFFFL)), ((-1035236496L shl 32) or (-789014639L and 0xFFFFFFFFL)), ((-949202525L shl 32) or (106217008L and 0xFFFFFFFFL)), ((-778901479L shl 32) or (-688958952L and 0xFFFFFFFFL)), ((-694614492L shl 32) or (1432725776L and 0xFFFFFFFFL)), ((-200395387L shl 32) or (1467031594L and 0xFFFFFFFFL)), ((275423344L shl 32) or (851169720L and 0xFFFFFFFFL)), ((430227734L shl 32) or (-1194143544L and 0xFFFFFFFFL)), ((506948616L shl 32) or (1363258195L and 0xFFFFFFFFL)), ((659060556L shl 32) or (-544281703L and 0xFFFFFFFFL)), ((883997877L shl 32) or (-509917016L and 0xFFFFFFFFL)), ((958139571L shl 32) or (-976659869L and 0xFFFFFFFFL)), ((1322822218L shl 32) or (-482243893L and 0xFFFFFFFFL)), ((1537002063L shl 32) or (2003034995L and 0xFFFFFFFFL)), ((1747873779L shl 32) or (-692930397L and 0xFFFFFFFFL)), ((1955562222L shl 32) or (1575990012L and 0xFFFFFFFFL)), ((2024104815L shl 32) or (1125592928L and 0xFFFFFFFFL)), ((-2067236844L shl 32) or (-1578062990L and 0xFFFFFFFFL)), ((-1933114872L shl 32) or (442776044L and 0xFFFFFFFFL)), ((-1866530822L shl 32) or (593698344L and 0xFFFFFFFFL)), ((-1538233109L shl 32) or (-561857047L and 0xFFFFFFFFL)), ((-1090935817L shl 32) or (-1295615723L and 0xFFFFFFFFL)), ((-965641998L shl 32) or (-479046869L and 0xFFFFFFFFL)), ((-903397682L shl 32) or (-366583396L and 0xFFFFFFFFL)), ((-779700025L shl 32) or (566280711L and 0xFFFFFFFFL)), ((-354779690L shl 32) or (-840897762L and 0xFFFFFFFFL)), ((-176337025L shl 32) or (-294727304L and 0xFFFFFFFFL)), ((116418474L shl 32) or (1914138554L and 0xFFFFFFFFL)), ((174292421L shl 32) or (-1563912026L and 0xFFFFFFFFL)), ((289380356L shl 32) or (-1090974290L and 0xFFFFFFFFL)), ((460393269L shl 32) or (320620315L and 0xFFFFFFFFL)), ((685471733L shl 32) or (587496836L and 0xFFFFFFFFL)), ((852142971L shl 32) or (1086792851L and 0xFFFFFFFFL)), ((1017036298L shl 32) or (365543100L and 0xFFFFFFFFL)), ((1126000580L shl 32) or (-1676669620L and 0xFFFFFFFFL)), ((1288033470L shl 32) or (-885112138L and 0xFFFFFFFFL)), ((1501505948L shl 32) or (-60457430L and 0xFFFFFFFFL)), ((1607167915L shl 32) or (987167468L and 0xFFFFFFFFL)), ((1816402316L shl 32) or (1246189591L and 0xFFFFFFFFL)))
+            for (i_4 in 0 until 80) {
+                val t1 = Sha512.add4(h, Sha512.sigma1(e), Sha512.choose(e, f, g), Sha512.add(k[i_4], words[i_4]))
+                val t2 = Sha512.add(Sha512.sigma0(a), Sha512.majority(a, b, c))
+                h = g
+                g = f
+                f = e
+                e = Sha512.add(d, t1)
+                d = c
+                c = b
+                b = a
+                a = Sha512.add(t1, t2)
+            }
+            while (hash.size <= 0) { hash.add(0L) }
+            hash[0] = Sha512.add(hash[0], a)
+            while (hash.size <= 1) { hash.add(0L) }
+            hash[1] = Sha512.add(hash[1], b)
+            while (hash.size <= 2) { hash.add(0L) }
+            hash[2] = Sha512.add(hash[2], c)
+            while (hash.size <= 3) { hash.add(0L) }
+            hash[3] = Sha512.add(hash[3], d)
+            while (hash.size <= 4) { hash.add(0L) }
+            hash[4] = Sha512.add(hash[4], e)
+            while (hash.size <= 5) { hash.add(0L) }
+            hash[5] = Sha512.add(hash[5], f)
+            while (hash.size <= 6) { hash.add(0L) }
+            hash[6] = Sha512.add(hash[6], g)
+            while (hash.size <= 7) { hash.add(0L) }
+            hash[7] = Sha512.add(hash[7], h)
+        }
+
+        private fun add(a: Long, b: Long): Long {
+            return a + b
+        }
+
+        private fun add4(a: Long, b: Long, c: Long, d: Long): Long {
+            return a + b + c + d
+        }
+
+        private fun choose(x: Long, y: Long, z: Long): Long {
+            return ((((x) and (y))) xor ((((x).inv()) and (z))))
+        }
+
+        private fun majority(x: Long, y: Long, z: Long): Long {
+            return ((((((x) and (y))) xor (((x) and (z))))) xor (((y) and (z))))
+        }
+
+        private fun rotate(x: Long, n: Int): Long {
+            return ((((x) ushr ((n) and 63))) or (((x) shl ((64 - n) and 63))))
+        }
+
+        private fun sigma0(x: Long): Long {
+            return ((((Sha512.rotate(x, 28)) xor (Sha512.rotate(x, 34)))) xor (Sha512.rotate(x, 39)))
+        }
+
+        private fun sigma1(x: Long): Long {
+            return ((((Sha512.rotate(x, 14)) xor (Sha512.rotate(x, 18)))) xor (Sha512.rotate(x, 41)))
+        }
+
+        private fun gamma0(x: Long): Long {
+            return ((((Sha512.rotate(x, 1)) xor (Sha512.rotate(x, 8)))) xor (((x) ushr ((7) and 63))))
+        }
+
+        private fun gamma1(x: Long): Long {
+            return ((((Sha512.rotate(x, 19)) xor (Sha512.rotate(x, 61)))) xor (((x) ushr ((6) and 63))))
+        }
+    }
+}

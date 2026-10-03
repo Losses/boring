@@ -1,0 +1,58 @@
+use crate::runtime::u_string::UString;
+
+
+pub trait HasName: Send + Sync {
+    fn __haxe_type_name(&self) -> &'static str;
+    fn as_any(&self) -> &dyn std::any::Any;
+    fn clone_box(&self) -> Box<dyn HasName>;
+    fn get_name(&self) -> UString;
+}
+
+impl Clone for Box<dyn HasName> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+impl std::fmt::Debug for dyn HasName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.__haxe_type_name())
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct PublicGetterProperty {
+    pub(crate) value: u32,
+}
+
+impl PublicGetterProperty {
+    pub fn new(value: u32) -> Self {
+        Self {
+            value,
+        }
+    }
+
+    pub fn get_x(&self) -> u32 {
+        return u32::wrapping_add(self.value, 1);
+    }
+
+    pub fn get_name(&self) -> UString {
+        return UString::from("getter-property").to_ustring();
+    }
+}
+
+impl HasName for PublicGetterProperty {
+    fn __haxe_type_name(&self) -> &'static str {
+        "boring.PublicGetterProperty.PublicGetterProperty"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn HasName> {
+        Box::new(self.clone())
+    }
+
+    fn get_name(&self) -> UString {
+        return UString::from("getter-property").to_ustring();
+    }
+}

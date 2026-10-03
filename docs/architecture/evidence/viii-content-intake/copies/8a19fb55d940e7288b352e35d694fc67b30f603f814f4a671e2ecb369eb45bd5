@@ -1,0 +1,39 @@
+package boring
+
+object MathNaNOps {
+    fun minOf(a: Float, b: Float): Float {
+        return kotlin.math.min(a, b)
+    }
+
+    fun maxOf(a: Float, b: Float): Float {
+        return kotlin.math.max(a, b)
+    }
+
+    fun minInts(a: Int, b: Int): Float {
+        return kotlin.math.min((a).toFloat(), (b).toFloat())
+    }
+
+    fun maxInts(a: Int, b: Int): Float {
+        return kotlin.math.max((a).toFloat(), (b).toFloat())
+    }
+
+    fun constantNan(): Float {
+        return Float.NaN
+    }
+
+    fun constantPosInf(): Float {
+        return Float.POSITIVE_INFINITY
+    }
+
+    fun constantNegInf(): Float {
+        return Float.NEGATIVE_INFINITY
+    }
+
+    fun constantOverflow(): Float {
+        return 1e300f
+    }
+
+    fun constantUnderflow(): Float {
+        return 1e-300f
+    }
+}

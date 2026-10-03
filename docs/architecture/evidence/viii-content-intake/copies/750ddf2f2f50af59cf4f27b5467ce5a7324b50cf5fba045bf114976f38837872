@@ -1,0 +1,10 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/sealed-variants.test.ts:
+(pass) the sanctioned self-construction static uses each target lane [113702.79ms]
+
+ 1 pass
+ 3 filtered out
+ 0 fail
+ 11 expect() calls
+Ran 1 test across 1 file. [113.76s]

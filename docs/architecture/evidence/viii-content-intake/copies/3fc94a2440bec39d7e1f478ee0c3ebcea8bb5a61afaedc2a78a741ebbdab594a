@@ -1,0 +1,102 @@
+# option-c.plan identity 段修复报告（PIT-245，t-mun8exgm-2105，分支 prep/option-c-identity-derive）
+
+## 1. 缺陷复述
+冻结的 `boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c.plan` 原
+第 38 行（Stage 1 identity）把 `compiler-pin=2159c657`、`source-reference=source-before1366`
+写成字面量，而 `manifest-sha256=` 是动态计算。用协调态执行根
+（`OPTION_C_ROOT=…/execution-option-c-coord`，清单 1431 条）跑时 rc=0、poststate
+`1431 entries checked, 0 failures` 全部正常，但 stdout 宣称验证的是 2159c657/1366
+那一代 —— provenance 假身份，只有人读 stdout 才能发现。
+
+## 2. 基线（动手前实测，原字节备份于 backup/）
+| 文件 | sha256（改前 = 备份） |
+|---|---|
+| option-c.plan（PIT-244 已修版） | f0b9ddddd6aed386d85cd2f1157329c7b83ae53cebd83dd3388ccb7f40df33ea |
+| option-c-stage-wrapper.sh | c14043c0d68623fa0a378c771ead2f4cc831d678e6f244d90b91443a82c59cc5 |
+| selftest.sh | 961e13070dd1b23ee275b4c1f9c45ce3ab220d8d9fc9f02a9ea19108e04755ab |
+| run-exclusive.sh | 7c332d3369e0643a4aa397b2a6530dab628f86e833b3f049d3fbe51cfedb902f |
+| check-log-integrity.sh | bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a |
+| option-c-poststate.py | 4ad34edf398e175ab72c5e45dc7a23cb0a2efb7c40f078f4a442541823c91105 |
+| option-c-child-records.py | d1199267d87cc635172e8d3a1bdf83150f19c7c87f1faadeefb77c211e7ab573 |
+
+### 回退命令（不用 git）
+```
+cp /home/losses/Development/tq-workspace/dc-warn/out/option-c-identity-fix/backup/option-c.plan \
+   /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c.plan
+```
+（其余 6 文件本次零改动，无需回退；如需整体回退，同目录 backup/ 内 7 个文件均可 cp 回原位。）
+
+## 3. 改动 diff（仅 Stage 1 可执行行 + 头注释；段序/段名/命令语义不变）
+```diff
+-# Root: publication-staging/execution-option-c-2159c657 (HEAD 613b6b40),
+-# compiler pin 2159c657, input identity source-before1366 with its
+-# retained itemized manifest (SOURCE_MANIFEST, provided by the invoker).
++# Root: selected at invocation time via $OPTION_C_ROOT (current
++# coordination run: execution-option-c-coord). Historical background
++# only, NOT this run's generation: the previous execution root
++# execution-option-c-2159c657 (HEAD 613b6b40, tree rebuilt at compiler
++# pin 2159c657) and the earlier identity source-before1366; the current
++# run's identity is attached dynamically by Stage 1 from $OPTION_C_ROOT
++# and $SOURCE_MANIFEST, plus a manifest-entry-count guard
++# (EXPECTED_MANIFEST_ENTRIES, default 1431).
+-#   export OPTION_C_ROOT=<abs path to execution-option-c-2159c657>
+-#   export SOURCE_MANIFEST=<abs path to the source-before1366 itemized manifest>
++#   export OPTION_C_ROOT=<abs path to the execution root, e.g.
++#                        execution-option-c-coord>
++#   export SOURCE_MANIFEST=<abs path to this run's itemized source manifest>
+-# 1366-entry post-state check ALWAYS run (also after failures), and the
++# itemized-manifest post-state check (one entry per manifest line)
++# ALWAYS run (also after failures), and the
+-# and ALL 1366 manifest entries are recomputed (sha256 + exec-bit)
++# and ALL manifest entries are recomputed (sha256 + exec-bit)
+-bash -c 'cd "$1" && echo "compiler-pin=2159c657" && echo "source-reference=source-before1366" && echo "manifest-sha256=$(sha256sum "$SOURCE_MANIFEST" | cut -d" " -f1)" && cat "$SOURCE_MANIFEST"' _ "$OPTION_C_ROOT"
++bash -c 'cd "$1" && echo "compiler-pin=$(basename "$OPTION_C_ROOT")" && echo "source-reference=$(basename "$SOURCE_MANIFEST")" && echo "manifest-sha256=$(sha256sum "$SOURCE_MANIFEST" | cut -d" " -f1)" && expected=${EXPECTED_MANIFEST_ENTRIES:-1431} && actual=$(grep -c "\"path\"" "$SOURCE_MANIFEST") && { [ "$actual" = "$expected" ] || { echo "manifest-entry-count-mismatch: expected=$expected actual=$actual" >&2; exit 9; }; } && cat "$SOURCE_MANIFEST"' _ "$OPTION_C_ROOT"
+```
+新 option-c.plan sha256 = `42517f84a02ea3260f2a0d35cc413a79c70e8651596601312934be42276f4d78`。
+
+### 残留 2159c657/1366 逐条新含义
+- 第 5–6 行：历史背景，明确标注 "Historical background only, NOT this run's generation"。
+- 第 24、39 行：已改为中性表述（itemized-manifest post-state check / ALL manifest entries），不再出现数字。
+- 可执行段：零残留字面量。
+
+## 4. 正控读数（Stage 0–1 副本，协调态，均 rc=0）
+为满足 publication-staging 零写入，正控跑在 `cp -a` 的协调根副本上（字节同、目录名同为
+`execution-option-c-coord`；Stage 0 的 `toolchain-resolution.txt` 写入副本），清单仍读真实
+`p09-coord-state/option-c-source-before.json`。证据：`attempt-pos-final/`。
+- Stage env-guard rc=0；Stage identity rc=0；poststate-rc=0，`post-state: 1431 entries checked, 0 failures`
+- identity stdout 身份字段（实读）：
+  - `compiler-pin=execution-option-c-coord`（= basename "$OPTION_C_ROOT"）
+  - `source-reference=option-c-source-before.json`（= basename "$SOURCE_MANIFEST"）
+  - `manifest-sha256=11e642e846361952611eb5c2068b1b87a69d46f7618019f6fa1793831cc51a47`
+  - 条目数守卫通过（actual=1431 = 默认期望）
+- 注：本机 PATH 需补 haxe/kotlinc（nix store 路径）才能过 Stage 0 工具链探测；两次试验性
+  运行（attempt-pos/attempt-pos2，根名为 root 时 compiler-pin=root）也保存在
+  .tmp-identity-fix/ 供对照，最终证据以 attempt-pos-final/ 为准。
+
+## 5. 负控（临时目录，未污染 publication-staging）
+- (a) `EXPECTED_MANIFEST_ENTRIES=1398`（真实清单）：
+  harness rc=**9**；identity.stderr 原文：
+  `manifest-entry-count-mismatch: expected=1398 actual=1431`；identity.rc=9。证据 `attempt-neg-a/`。
+- (b) 清单截断副本（前 10 条，.tmp-identity-fix/manifest-10.json）：
+  harness rc=**9**；identity.stderr 原文：
+  `manifest-entry-count-mismatch: expected=1431 actual=10`；identity.rc=9。证据 `attempt-neg-b/`。
+
+## 6. loader-identity 断言（真实协调根）
+- 跑前：`ASSERTION RESULT: PASS`，rc=0
+- 跑后：`ASSERTION RESULT: PASS`，rc=0
+
+## 7. 其余 6 文件复验（改后实测 = 基线，逐字不变）
+wrapper c14043c0… / selftest 961e1307… / run-exclusive 7c332d33… / check-log-integrity bebd0cf9… /
+poststate 4ad34edf… / child-records d1199267… 全部一致；`grep -c '_ "$OPTION_C_ROOT"'` = **17**
+（PIT-244 修复完好）；旧 b83a636d 版未被用回。未跑 selftest（PIT-243）。未 git commit/push。
+
+## 8. publication-staging / tiqian 零写入
+本次全部 Stage 运行在 .tmp-identity-fix/ 副本上；真实协调根仅有读取。协调根下
+target/、toolchain-resolution.txt 的 mtime（18:13–18:14）早于本任务首次运行
+（18:15:45），非本会话产生（疑为协调者并行验证）。
+
+## 9. 对等价性的影响
+仅把 Stage 1 identity 的两个字段由字面量改为 `basename` 派生，并新增清单条目数守卫；
+段序、段名、其余命令语义完全不变。守卫只在"代际不符"（条目数 ≠
+${EXPECTED_MANIFEST_ENTRIES:-1431}）时新增一次非零退出（rc=9），正向路径多两条 echo
+派生值，不改任何验证判定逻辑。头注释同步中性化，不再宣称当前运行代际。

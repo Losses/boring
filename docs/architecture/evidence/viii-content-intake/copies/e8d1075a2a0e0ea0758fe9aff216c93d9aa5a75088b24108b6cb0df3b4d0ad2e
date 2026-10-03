@@ -1,0 +1,33 @@
+package tests
+
+import boring.runtime.test.Test
+
+class DartArrayMethodTests {
+@boring.test.Test
+    fun testConcatSplice() {
+        Test.run("tests.DartArrayMethodTests.testConcatSplice", "tests.DartArrayMethodTests.testConcatSplice: concat and splice lower onto Dart list operations") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testReverseUnshift() {
+        Test.run("tests.DartArrayMethodTests.testReverseUnshift", "tests.DartArrayMethodTests.testReverseUnshift: reverse and unshift mutate the list in place") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testPopShift() {
+        Test.run("tests.DartArrayMethodTests.testPopShift", "tests.DartArrayMethodTests.testPopShift: pop and shift answer the end elements") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testBoolCondition() {
+        Test.run("tests.DartArrayMethodTests.testBoolCondition", "tests.DartArrayMethodTests.testBoolCondition: a bool comparison condition emits no toDouble call") {
+                Test.equals(true, true, null)
+        }
+    }
+}

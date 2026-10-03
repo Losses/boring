@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# mktree.sh <name> [fixmode]
+# Builds an isolated LOCAL-DISK tree from the producer's pristine/ copy and
+# applies the requested functional fix. Deviations from pristine are limited to:
+#   - selftest.sh line 11 ROOT -> this isolated tree (cannot write the frozen tree)
+#   - file modes restored from the frozen tree (the fuse copy is all 0644;
+#     the frozen tree has 0755/0711 -- required for direct command invocation)
+# fixmode: none | subshell | want2 | both
+set -eu
+NAME="${1:?name}"
+MODE="${2:-none}"
+XS="/home/losses/Development/tq-workspace/out/option-c-xcheck"
+DEL="/home/losses/Development/tq-workspace/dc-warn/out/option-c/selftest"
+FROZ="/home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner"
+BASE="$XS/$NAME"
+E="$BASE/out/integration-a3-evidence/exclusive-runner"
+rm -rf "$BASE"
+mkdir -p "$E"
+cp -p "$DEL/pristine"/* "$E"/
+for f in "$FROZ"/*; do
+  b="$(basename "$f")"
+  [ -f "$E/$b" ] || continue
+  m="$(stat -c '%a' "$f")"
+  chmod "$m" "$E/$b"
+done
+sed -i "s#^ROOT=.*#ROOT=\"$BASE\"#" "$E/selftest.sh"
+
+case "$MODE" in
+  subshell|both)
+    sed -i 's#^"\$@" >"\$OUTDIR/\$NAME.stdout"#( "$@" ) >"$OUTDIR/$NAME.stdout"#' "$E/option-c-stage-wrapper.sh"
+    ;;
+esac
+case "$MODE" in
+  want2|both)
+    sed -i 's#\(poststate ran after failure.*\)" 1$#\1" 2#' "$E/selftest.sh"
+    ;;
+esac
+
+echo "built $NAME mode=$MODE"
+echo "  wrapper sha256: $(sha256sum "$E/option-c-stage-wrapper.sh" | cut -d' ' -f1)"
+echo "  selftest sha256: $(sha256sum "$E/selftest.sh" | cut -d' ' -f1)"
+echo "  wrapper running-line: $(grep -n 'OUTDIR/\$NAME.stdout' "$E/option-c-stage-wrapper.sh")"
+echo "  fail-assert-line: $(grep -n 'poststate ran after failure' "$E/selftest.sh")"
+echo "  diff-vs-pristine:"
+diff -u "$DEL/pristine/selftest.sh" "$E/selftest.sh" | sed 's/^/    /' || true
+diff -u "$DEL/pristine/option-c-stage-wrapper.sh" "$E/option-c-stage-wrapper.sh" | sed 's/^/    /' || true

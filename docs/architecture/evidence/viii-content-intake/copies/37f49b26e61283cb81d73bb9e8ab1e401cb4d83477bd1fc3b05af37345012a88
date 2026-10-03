@@ -1,0 +1,35 @@
+package tests
+
+import boring.runtime.test.Test
+
+class SignedComparisonTests {
+@boring.test.Test
+    fun indexBelowLimit() {
+        Test.run("tests.SignedComparisonTests.indexBelowLimit", "tests.SignedComparisonTests.indexBelowLimit: an ordered comparison with a signed index keeps the absent sentinel below a limit") {
+        }
+    }
+
+@boring.test.Test
+    fun indexAtOrAboveLimit() {
+        Test.run("tests.SignedComparisonTests.indexAtOrAboveLimit", "tests.SignedComparisonTests.indexAtOrAboveLimit: an ordered comparison with a signed index keeps the absent sentinel below an upper bound") {
+        }
+    }
+
+@boring.test.Test
+    fun indexEqualsLimit() {
+        Test.run("tests.SignedComparisonTests.indexEqualsLimit", "tests.SignedComparisonTests.indexEqualsLimit: an equality comparison with a signed index compares the sentinel") {
+        }
+    }
+
+@boring.test.Test
+    fun lastIndexEqualsLimit() {
+        Test.run("tests.SignedComparisonTests.lastIndexEqualsLimit", "tests.SignedComparisonTests.lastIndexEqualsLimit: an equality comparison with a signed last index compares the sentinel") {
+        }
+    }
+
+@boring.test.Test
+    fun indexBelowZero() {
+        Test.run("tests.SignedComparisonTests.indexBelowZero", "tests.SignedComparisonTests.indexBelowZero: an ordered comparison with literal zero reinterprets the signed index sentinel") {
+        }
+    }
+}

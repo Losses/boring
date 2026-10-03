@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn class_body_runs() {
+    testlib::run("tests.FlushHookProbeTests.classBodyRuns", "tests.FlushHookProbeTests.classBodyRuns: the class body runs and the flush entry stays outside the test id set", || {
+        test_core::TestCore::test_core_equals_int(1i32, 1i32, UStr::new(&[116,104,101,32,112,114,111,98,101,32,99,108,97,115,115,32,98,111,100,121,32,114,117,110,115]));
+    });
+}

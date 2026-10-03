@@ -1,0 +1,3 @@
+# nix develop -c bash -c 'bun run gen:ts'  (exit 0)
+warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture' is dirty
+$ haxe examples/ts.hxml

@@ -1,0 +1,28 @@
+package tests
+
+import boring.StringToolsOps
+import boring.runtime.test.Test
+
+class StringToolsTests {
+@boring.test.Test
+    fun padLeft() {
+        Test.run("tests.StringToolsTests.padLeft", "tests.StringToolsTests.padLeft: lpad pads on the left through the runtime module") {
+                Test.equals("0000ab", StringToolsOps.padLeft("ab", 6), null)
+        }
+    }
+
+@boring.test.Test
+    fun trims() {
+        Test.run("tests.StringToolsTests.trims", "tests.StringToolsTests.trims: ltrim and rtrim strip whitespace through the runtime module") {
+                Test.equals("ab  ", StringToolsOps.ltrim("  ab  "), null)
+                Test.equals("  ab", StringToolsOps.rtrim("  ab  "), null)
+        }
+    }
+
+@boring.test.Test
+    fun replace() {
+        Test.run("tests.StringToolsTests.replace", "tests.StringToolsTests.replace: replace swaps substrings through the runtime module") {
+                Test.equals("a,b,c", StringToolsOps.replaceDelims("a;b;c"), null)
+        }
+    }
+}

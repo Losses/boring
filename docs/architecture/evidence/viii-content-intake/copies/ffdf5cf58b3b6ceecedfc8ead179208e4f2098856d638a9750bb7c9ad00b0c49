@@ -1,0 +1,28 @@
+184:                         resultStorage = ReadOnlyArrayView;
+185:                         resultOptionality = RequiredOperand;
+186:                     }
+187:                 case NullArrayValue:
+188:                     if (destOptional) {
+189:                         operation = PreserveNullArrayValue;
+190:                         resultStorage = NullArrayValue;
+191:                         resultOptionality = OptionalOperand;
+192:                     }
+193:                 case MutableArrayWrapper:
+194:                     if (element != null) {
+195:                         resultStorage = ReadOnlyArrayView;
+196:                         switch (preparedOptionality) {
+197:                             case RequiredOperand:
+198:                                 operation = WrapMutableArrayView;
+199:                                 resultOptionality = RequiredOperand;
+200:                             case OptionalOperand if (destOptional):
+201:                                 operation = MapOptionalMutableArrayView;
+202:                                 resultOptionality = OptionalOperand;
+203:                             case OptionalOperand:
+204:                         }
+205:                     }
+206:                 case ReadOnlyArrayView:
+207:                     if (preparedOptionality == RequiredOperand || destOptional) {
+208:                         operation = KeepPreparedArray;
+209:                     }
+210:                 case OtherArrayStorage:
+211:             }

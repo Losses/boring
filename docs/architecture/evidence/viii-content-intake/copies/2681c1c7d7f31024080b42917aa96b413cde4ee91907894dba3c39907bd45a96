@@ -1,0 +1,16 @@
+#[derive(Clone, Copy)]
+pub struct SignedLoopBoundOps;
+
+impl SignedLoopBoundOps {
+    pub fn signed_loop_bound_ops_fill(p: u32, e: u32) -> u32 {
+        let point_after = i32::wrapping_add(i32::from_ne_bytes(((e) as i32).to_ne_bytes()), 1);
+        if point_after <= 0 {
+            return 0;
+        }
+        let mut total = 0u32;
+        for _ in p..u32::try_from(point_after).unwrap_or(0) {
+            total = u32::wrapping_add(total, 1);
+        }
+        return total;
+    }
+}

@@ -1,0 +1,15 @@
+#![cfg(test)]
+
+use crate::boring::signed_loop_bound_ops::SignedLoopBoundOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn fill() {
+    testlib::run("tests.SignedLoopBoundOpsTests.fill", "tests.SignedLoopBoundOpsTests.fill: a signed loop bound clamps into the u32 range endpoint", || {
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((SignedLoopBoundOps::signed_loop_bound_ops_fill(2, 4)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((SignedLoopBoundOps::signed_loop_bound_ops_fill(2, 4294967293u32)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

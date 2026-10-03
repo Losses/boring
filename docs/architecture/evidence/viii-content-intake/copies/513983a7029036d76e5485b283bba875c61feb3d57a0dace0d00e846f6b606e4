@@ -1,0 +1,35 @@
+#![cfg(test)]
+
+use crate::boring::math_int_widening_ops::MathIntWideningOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_positive() {
+    testlib::run("tests.MathIntWideningOpsTests.testPositive", "tests.MathIntWideningOpsTests.testPositive: Math Int widening preserves floor, ceil, and predicates", || {
+        test_core::TestCore::test_core_equals_int(4i32, i32::from_ne_bytes(((MathIntWideningOps::math_int_widening_ops_floor_of(4)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(4i32, i32::from_ne_bytes(((MathIntWideningOps::math_int_widening_ops_ceil_of(4)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(2.0f64, MathIntWideningOps::math_int_widening_ops_sqrt_of(4), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, MathIntWideningOps::math_int_widening_ops_nan_of(4), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, MathIntWideningOps::math_int_widening_ops_finite_of(4), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_negative() {
+    testlib::run("tests.MathIntWideningOpsTests.testNegative", "tests.MathIntWideningOpsTests.testNegative: Math Int widening handles negative square roots", || {
+    });
+}
+
+#[test]
+fn test_zero() {
+    testlib::run("tests.MathIntWideningOpsTests.testZero", "tests.MathIntWideningOpsTests.testZero: Math Int widening handles zero", || {
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((MathIntWideningOps::math_int_widening_ops_floor_of(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((MathIntWideningOps::math_int_widening_ops_ceil_of(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(0.0f64, MathIntWideningOps::math_int_widening_ops_sqrt_of(0), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, MathIntWideningOps::math_int_widening_ops_nan_of(0), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, MathIntWideningOps::math_int_widening_ops_finite_of(0), UStr::new(&[]));
+    });
+}

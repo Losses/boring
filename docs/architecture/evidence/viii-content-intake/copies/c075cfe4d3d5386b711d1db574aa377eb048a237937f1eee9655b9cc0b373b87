@@ -1,0 +1,1 @@
+s|^    final _g = nextKind();$|    final _g = nextKind();\n    nextKind();|

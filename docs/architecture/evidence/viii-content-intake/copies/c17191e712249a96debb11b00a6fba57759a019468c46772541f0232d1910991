@@ -1,0 +1,64 @@
+package p8l;
+
+/**
+ * P08 behaviour matrix - fixed input B (the lazy-effects attack).
+ *
+ * Three probes, one per observable axis that distinguishes lazy from
+ * eager closure evaluation:
+ *
+ *  - orderProbe:  a closure with an effect in its body is created, then
+ *    another effect happens, then the closure is called once. Lazy (the
+ *    source semantics): the body's effect lands at the call, after the
+ *    step. Eager-at-creation: it lands before the step, and the call
+ *    re-fires it (second effect).
+ *  - countProbe: a closure with an effect in its body is created and
+ *    never called. Lazy: zero effects. Eager-at-creation: one effect.
+ *  - termProbe:  a closure whose body does not terminate is created and
+ *    never called. Lazy: the program completes. Eager-at-creation: the
+ *    program does not complete (infinite recursion).
+ *
+ * The Haxe interpreter run of ClosureLazyOracle is the oracle; the lines
+ * below are the source semantics this input measures.
+ */
+class ClosureLazy {
+    static var order:String = "";
+    static var calls:Int = 0;
+
+    static function step(tag:String):Void {
+        order += tag;
+    }
+
+    public static function orderProbe():String {
+        order = "";
+        calls = 0;
+        var f:Void->Int = function():Int {
+            order += "X";
+            calls += 1;
+            return 5;
+        };
+        step("A");
+        var r = f();
+        return r + ":" + order + ":" + calls;
+    }
+
+    public static function countProbe():String {
+        order = "";
+        var g:Void->Void = function():Void {
+            order += "G";
+        };
+        step("A");
+        return order;
+    }
+
+    public static function termProbe():String {
+        var h:Void->Void = function():Void {
+            spinForever();
+        };
+        step("T");
+        return "term-done";
+    }
+
+    static function spinForever():Void {
+        spinForever();
+    }
+}

@@ -1,0 +1,13 @@
+package tests
+
+import boring.ProbeChain
+import boring.runtime.test.Test
+
+class ProbeChainTests {
+@boring.test.Test
+    fun depth() {
+        Test.run("tests.ProbeChainTests.depth", "tests.ProbeChainTests.depth: recursive class fields are boxed") {
+                Test.equals(1, ProbeChain(ProbeChain(null, 1), 0).depth(), null)
+        }
+    }
+}

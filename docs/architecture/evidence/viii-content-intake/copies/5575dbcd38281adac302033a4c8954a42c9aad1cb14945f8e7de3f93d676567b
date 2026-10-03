@@ -1,0 +1,57 @@
+DUP: boring.HaxeExceptionOps listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:292 /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:299
+DUP: boring.InterfaceArrayLiteralOps listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:486 /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:494
+DUP: boring.MathNaNOps listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:206 /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:210
+DUP: boring.MathNaNTestSupport listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:207 /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:211
+DUP: boring.ProbeUnit listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:134 /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:331
+DUP: tests.HaxeExceptionTests listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:293 /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:300
+DUP: tests.InterfaceArrayLiteralTests listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:487 /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:495
+DUP: tests.MathNaNOpsTests listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:214 /tmp/rgcases/repo/case-f2-trail-cr/kotlin.hxml:226
+DUP: boring.InterfaceArrayLiteralOps listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:486 /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:494
+DUP: boring.NumericConversionWidening listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:323 /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:326
+DUP: boring.ProbeUnit listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:157 /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:333
+DUP: tests.EnumQueriesTests listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:176 /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:180
+DUP: tests.InterfaceArrayLiteralTests listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:487 /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:495
+DUP: tests.MathIntWideningOpsTests listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:178 /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:182
+DUP: tests.NumericConversionWideningTests listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:328 /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:331
+DUP: tests.SwitchOpsTests listed 2 times in the kotlin pair: /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:177 /tmp/rgcases/repo/case-f2-trail-cr/kotlin-f32.hxml:181
+EXEMPT: kotlin-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+COVER: declared unrooted @:test module tests.E0308FiTests for kotlin -- Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module.
+COVER: declared unrooted @:test module tests.f32.PrintedFloatTests for kotlin -- f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json.
+DUP: boring.HaxeExceptionOps listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:283 /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:288
+DUP: boring.InterfaceArrayLiteralOps listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:490 /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:498
+DUP: boring.MathNaNOps listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:200 /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:204
+DUP: boring.MathNaNTestSupport listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:201 /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:205
+DUP: boring.ProbeUnit listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:127 /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:318
+DUP: tests.HaxeExceptionTests listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:284 /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:289
+DUP: tests.InterfaceArrayLiteralTests listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:491 /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:499
+DUP: tests.MathNaNOpsTests listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:208 /tmp/rgcases/repo/case-f2-trail-cr/rust.hxml:219
+DUP: boring.HaxeExceptionOps listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:268 /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:271
+DUP: boring.InterfaceArrayLiteralOps listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:486 /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:494
+DUP: boring.ProbeUnit listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:157 /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:321
+DUP: tests.HaxeExceptionTests listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:269 /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:272
+DUP: tests.InterfaceArrayLiteralTests listed 2 times in the rust pair: /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:487 /tmp/rgcases/repo/case-f2-trail-cr/rust-f32.hxml:495
+EXEMPT: rust-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+COVER: declared unrooted @:test module tests.E0308FiTests for rust -- Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module.
+COVER: declared unrooted @:test module tests.f32.PrintedFloatTests for rust -- f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json.
+DUP: boring.ArraySliceOps listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:24 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:302
+DUP: boring.HaxeExceptionOps listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:289 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:298
+DUP: boring.InterfaceArrayLiteralOps listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:488 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:496
+DUP: boring.MathNaNOps listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:206 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:245
+DUP: boring.MathNaNTestSupport listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:207 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:246
+DUP: boring.ProbeUnit listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:134 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:328
+DUP: tests.HaxeExceptionTests listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:290 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:299
+DUP: tests.InterfaceArrayLiteralTests listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:489 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:497
+DUP: tests.MathNaNOpsTests listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:127 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:210
+DUP: tests.SwiftLiteralSafetyOpsTests listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:265 /tmp/rgcases/repo/case-f2-trail-cr/swift.hxml:274
+DUP: boring.ArraySliceOps listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:61 /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:285
+DUP: boring.HaxeExceptionOps listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:274 /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:281
+DUP: boring.InterfaceArrayLiteralOps listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:482 /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:490
+DUP: boring.ProbeUnit listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:160 /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:328
+DUP: tests.HaxeExceptionTests listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:275 /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:282
+DUP: tests.InterfaceArrayLiteralTests listed 2 times in the swift pair: /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:483 /tmp/rgcases/repo/case-f2-trail-cr/swift-f32.hxml:491
+EXEMPT: swift-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+COVER: declared unrooted @:test module tests.E0308FiTests for swift -- Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module.
+COVER: declared unrooted @:test module tests.f32.PrintedFloatTests for swift -- f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json.
+SUMMARY: 45 duplicate root line(s) reported above (non-fatal; --strict-duplicates makes them fatal)
+roots guard: PASS (3 exemption(s) in force; 6 declared unrooted @:test module(s); 45 duplicate root line(s) reported)
+exit_code=0

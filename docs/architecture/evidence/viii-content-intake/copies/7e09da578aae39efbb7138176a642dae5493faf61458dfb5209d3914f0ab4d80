@@ -1,0 +1,4 @@
+/home/losses/Development/tq-workspace/dc-warn/out/p08-s1/evidence/fixture-selftest/failure-probe/broken.swift:1:19: error: cannot convert value of type 'String' to specified type 'Int'
+1 | let broken: Int = "s"
+  |                   `- error: cannot convert value of type 'String' to specified type 'Int'
+2 | 

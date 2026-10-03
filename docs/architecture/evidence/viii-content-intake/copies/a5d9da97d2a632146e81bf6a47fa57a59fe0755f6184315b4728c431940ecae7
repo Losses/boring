@@ -1,0 +1,5 @@
+{
+  "name": "run-without-scratch",
+  "private": true,
+  "type": "commonjs"
+}

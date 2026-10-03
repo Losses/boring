@@ -1,0 +1,17 @@
+package tests
+
+import boring.runtime.test.Test
+
+class ParseIntPushTests {
+@boring.test.Test
+    fun parseAll() {
+        Test.run("tests.ParseIntPushTests.parseAll", "tests.ParseIntPushTests.parseAll: a direct Std.parseInt result pushes into a u32 array") {
+        }
+    }
+
+@boring.test.Test
+    fun parseLocal() {
+        Test.run("tests.ParseIntPushTests.parseLocal", "tests.ParseIntPushTests.parseLocal: a local Std.parseInt result pushes into a u32 array") {
+        }
+    }
+}

@@ -1,0 +1,13 @@
+checking file tests/ts/array-root.test.ts
+checking file tests/ts/default-args.test.ts
+checking file tests/ts/enum-queries.test.ts
+checking file tests/ts/fn-values.test.ts
+checking file tests/ts/printed-record.test.ts
+checking file tests/ts/record-copy.test.ts
+checking file tests/ts/record-order.test.ts
+checking file tests/ts/sealed-variants.test.ts
+checking file tests/ts/static-extension.test.ts
+checking file tests/ts/static-state.test.ts
+checking file tests/ts/std-string.test.ts
+checking file tests/ts/string-buffer.test.ts
+checking file tests/ts/value-type.test.ts

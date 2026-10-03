@@ -1,0 +1,385 @@
+# PIT-255 修复报告 — Swift 生成器把 `TiqianArray` 再包一层
+
+任务：`t-mun9rz8k-rkir`「修 Swift 生成器把 TiqianArray 再包一层（PIT-255）」
+认领分支（claim）：`swift-arrfix` ← 回并目标 `arch/agent-guided-governance`
+工作树：`dc-warn/worktrees/swift-arrfix`（`git worktree add --detach … e1c65975`，detached，无 commit/push/merge）
+日期：2026-09-29。
+
+---
+
+## 0. 结论摘要
+
+| 层 | 判据 | 读数 | 判定 |
+|---|---|---|---|
+| ① 生成层 | 重生成后 `VectorCodec.swift` 不再双包 | swift 与 swift-f32 均为 `for record in records.toMutableArray() {`；两棵生成树全树 diff 只有这一个文件 | **通过** |
+| ② 编译层（核心） | Swift 腿 child record `outcome=normal-exit` 且 `exit=0` | 0020 建库 **0**（71.5 s）、0021 建测试可执行 **0**、0022 跑测试 **0**；f32 腿 0030/0031/0032 同 **0/0/0**；`swift.jsonl` 729 pass + 1 not_applicable、**0 fail**；`swift-f32.jsonl` 675 + 1、**0 fail** | **通过** |
+| ③ 不回归 | 其它边界渲染文本未变、无新错误 | 源码 diff 仅 2 行；生成树 `ReadOnlyArray(` 104→104、`ReadOnlyArray<T>()` 2→2；其余 8 个目标的生成树逐字节相同；Swift 腿无任何 error 行 | **通过** |
+
+- **修复方向与改动**：仅 `packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx` 的 `render()` 两处渲染文本，去掉多余的一层 `TiqianArray(...)` 包装（§2）。
+- **Stage 3 仍 rc=1**，但**不是** Swift 腿：Swift 腿全绿后 driver 走到 `compare`（record 0033 建管理成功）才失败，报 `Cross-target consistency check failed with 166 divergence(s)`。**归族判定：不是同一族**，且**已被隔离实验证明与本次改动无关**（§6）。
+- **无同族第二处**：Swift 树在 `-swift-version 5` 下**零 error**（只有既有 warning），即修复后没有暴露第二个多包点。
+
+---
+
+## 1. 根因独立确认（不采信任务书，逐条自证）
+
+### 1.1 `toMutableArray()` 的真实返回类型：只有一个定义，恒为 `TiqianArray<Element>`
+
+- 编译器侧真源：`packages/compiler/reflaxe/swift/swiftcompiler/SwiftRuntime.hx:501`
+  （该类在 `public final class ReadOnlyArray<Element>` 内，`SwiftRuntime.hx:487`）
+  `public func toMutableArray() -> TiqianArray<Element> { return TiqianArray(Array(self)) }`
+- 生成侧落地：`reference/swift/gen/Runtime.swift:393` 与 `reference/swift-f32/gen/Runtime.swift:393`，逐字相同。
+  运行输入里生成的 `Runtime.swift` sha256 = `7cf0517be6c720eab1043c2b250e3f543b5c1e7962a0a83f6f81cb8df13f7b1b`。
+- **全树穷举**（`grep -rn "func toMutableArray" --include=*.swift`，含全部 `out/**` 生成/实验树）：
+  **54 处命中，全部是 `public func toMutableArray() -> TiqianArray<Element> { return TiqianArray(Array(self)) }`，
+  0 处返回 `[Element]`，0 处重载、0 处变体。**
+  ⇒ **不存在“按返回类型分支”的必要**，一刀切正确。
+- 反向核验：`ReadOnlyArray` 上也没有别的“转可变”方法可与之混淆；编译器源码里对 `toMutableArray` 的引用
+  **只有** `SwiftArrayBoundary.hx:259/260` 这两处渲染文本（`packages/**` grep 结果）。
+
+### 1.2 `TiqianArray` 的构造器只接受 `[Element]`
+
+`SwiftRuntime.hx:384-387`：
+
+```
+public final class TiqianArray<Element>: Sequence, Collection {
+    public var items: [Element]
+    public init() { self.items = [] }
+    public init(_ items: [Element]) { self.items = items }
+```
+
+于是 `TiqianArray(x)` 要求 `x: [Element]`。传入 `TiqianArray<T>` 只会把 `Element := TiqianArray<T>`，
+再拒绝实参 —— 与实测诊断逐字对应：
+`cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'`。
+（构造器里没有 `init<S: Sequence>` 之类可兜底的签名，`Sequence` 一致性只影响 `for-in`。）
+
+### 1.3 决策逻辑：这两处在什么条件下被选中
+
+`SwiftArrayBoundary.hx:212-223`（**未改动**）：
+
+```haxe
+} else if (destMutable && preparedStorage == ReadOnlyArrayView && element != null) {
+    resultStorage = MutableArrayWrapper;
+    switch (preparedOptionality) {
+        case RequiredOperand:                      operation = CopyReadOnlyIntoMutableArray;
+        case OptionalOperand if (destOptional):    operation = MapOptionalReadOnlyIntoMutableArray;
+        case OptionalOperand:
+    }
+}
+```
+
+- `destMutable` ＝ 目标类型是 Haxe `Array<T>`（`isMutableArray`，:84-90）；
+- `preparedStorage == ReadOnlyArrayView` ＝ 操作数**已经**是只读视图这一**事实**（由 `sourceStorage()` 对 Haxe
+  `ReadOnlyArray` 给出，:153-154；由调用方 `SwiftExpr.lowerArrayBoundary`/`prepareArrayOperand` 记录，不是从文本猜的）；
+- `element != null` ＝ 元素类型已知（:112-141）。
+- 因此：`RequiredOperand` → `CopyReadOnlyIntoMutableArray`（:216）；`OptionalOperand` 且目标可空 →
+  `MapOptionalReadOnlyIntoMutableArray`（:219）。两者的**操作数在 Swift 侧都是 `ReadOnlyArray<T>`**
+  （可选的第二种是 `ReadOnlyArray<T>?`）。
+- 消费点：`SwiftExpr.hx:2607-2614`（`prepare` + `render`），`SwiftDecl.hx:590-604`（字段初始化同理）。
+- 本任务的现场来自**循环降级**：Haxe 源 `samples/boring/VectorCodec.hx:68-73` 写的是
+  `for (index in 0...records.length) { final record = records[index]; … }`，
+  而生成的 Swift 是 `for record in <可变数组副本>` —— 后端在这里合成了一个“只读视图 → 可变数组”的边界，
+  操作数 `records` 即形参 `records:ReadOnlyArray<GlyphMetrics>`（同文件 :68）。
+
+### 1.4 这份不一致是“出生即有”，不是后来才被用坏
+
+`git log -S'toMutableArray'` 与 `git log -S'"TiqianArray(" + operand + ".toMutableArray())"'` 都只命中
+**同一个提交** `e5e21854`（`chore(architecture): checkpoint unfinished Swift arrays and policy migration plan`）。
+该提交里 `SwiftRuntime.hx` 已经是 `-> TiqianArray<Element>`，`SwiftArrayBoundary.hx:259` 已经多包一层；
+其父提交 `a63d919c` 里两者都不存在。即：**这对文本从未一致过**，提交信息自称 "checkpoint unfinished" 也吻合。
+
+---
+
+## 2. 改动（仅两处渲染文本）
+
+`packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx`：
+
+```diff
+@@ -256,8 +256,8 @@ class SwiftArrayBoundary {
+-            case CopyReadOnlyIntoMutableArray: "TiqianArray(" + operand + ".toMutableArray())";
+-            case MapOptionalReadOnlyIntoMutableArray: "(" + operand + ").map { TiqianArray($0.toMutableArray()) }";
++            case CopyReadOnlyIntoMutableArray: operand + ".toMutableArray()";
++            case MapOptionalReadOnlyIntoMutableArray: "(" + operand + ").map { $0.toMutableArray() }";
+```
+
+- 文件 sha256：修前 `f191cdd12d1853c916b92a5f42e9b59a5f392a626cfe850ddeb710042bdb9c8f`（＝ `e1c65975` 提交态）
+  → 修后 `b522865c7b7c388207e3de6b88c7d4337e25aac2690f41d70f6173be065f6575`。
+- `git status --porcelain` 在该工作树里**只有这一个文件**；`SwiftDecl.hx` = `ac657b29…`（＝ `e1c65975` 提交态），
+  **未**把协调树那份在途修改 `0210d207…` 带进来。
+- **未改**：决策逻辑（`prepare()`）、其它 5 个操作的另一套渲染文本、`SwiftRuntime.hx`/`Runtime.swift`。
+- 完整 diff：`PATCH.diff`（sha256 `39692ffc72bbc0a618b45a49cf12f9ed501f102b4e8a3e49d942b995d56456b8`）。
+- **PIT-247 复核**：把 `PATCH.diff` 在临时目录里 `git apply` 到一个**纯净的 `e1c65975` 版本**上，
+  得到 sha256 `b522865c…`，与树内文件逐字节一致（`git apply --check` OK，`diff` 为空）——
+  即交付的 diff 能精确复原树内字节，不是某个中间版本导出的。
+
+`MapOptionalReadOnlyIntoMutableArray` 同样多包：改前 `(op).map { TiqianArray($0.toMutableArray()) }` 的类型是
+`TiqianArray<TiqianArray<T>>?`，改后 `.map { $0.toMutableArray() }` 是 `TiqianArray<T>?`（目标 `TiqianArray<T>?`）。
+语料里**没有活调用点**（见 §7），所以这条的验证是**类型级 + 同族推理**，不是“编译过的实例”：
+`evidence/typeprobe/` 用真实 `Runtime.swift` 编译了四段最小函数，见 §5.4。
+
+---
+
+## 3. 验证 ① 生成层
+
+运行方式：Stage 3 完整重生成（gen 腿 0006 `swift`、0010 `swift-f32` 均 `normal-exit` exit 0）。
+
+| 树 | 修前（e1c65975 + 协调态） | 修后（本次运行） |
+|---|---|---|
+| `reference/swift/gen/boring/VectorCodec.swift:49` | `for record in TiqianArray(records.toMutableArray()) {` | `for record in records.toMutableArray() {` |
+| `reference/swift-f32/gen/boring/VectorCodec.swift:49` | 同上 | 同上 |
+
+- 逐行 diff（swift / swift-f32 各 1 行）与**全树** diff：`evidence/gen/GEN-LAYER.txt`。
+  全树 diff 的结论是：**`swift/gen`、`swift-f32/gen` 里除 `VectorCodec.swift` 外没有任何文件变化**
+  （`_GeneratedFiles.txt` 只差绝对路径，`-x` 排除；两次独立运行的其余生成树此前已核为逐字节相同）。
+- 分类器（`evidence/callsites.py`，逐行判定 `DEF / BUGGY-COPY / BUGGY-MAP / FIXED-COPY / FIXED-MAP`）：
+  修前 **BUGGY-COPY 2、DEF 2**；修后 **FIXED-COPY 2、DEF 2、BUGGY 0**。
+
+---
+
+## 4. 验证 ② 编译层（核心）
+
+- attempt：`attempt-20260929T185600-3077358`，run：`run-1790722560946-3077388`（原 attempt 在 `/tmp/swiftarr/execroot/…`，
+  已在 §7/交付物里归档关键件）。
+- 判据：Swift 腿的 child record `outcome=normal-exit` **且** `exit=0`。
+
+| seq | bundle | action | step | command | outcome | exit | elapsed |
+|---|---|---|---|---|---|---|---|
+| 0020 | swift | test | build library | `swiftc` | **normal-exit** | **0** | 71 473 ms |
+| 0021 | swift | test | build test executable | `swiftc` | **normal-exit** | **0** | 27 999 ms |
+| 0022 | swift | test | run | `reference/swift/build/test-runner` | **normal-exit** | **0** | 87 ms |
+| 0030 | swift-f32 | test | build library | `swiftc` | **normal-exit** | **0** | 60 985 ms |
+| 0031 | swift-f32 | test | build test executable | `swiftc` | **normal-exit** | **0** | 22 534 ms |
+| 0032 | swift-f32 | test | run | `reference/swift-f32/build/test-runner` | **normal-exit** | **0** | 79 ms |
+
+**修前对照**（同配方、独立运行，`dc-warn/out/swift-recipe-verify`，本报告重引其 record 与 stderr）：
+`0020 swift/test/build library swiftc outcome=normal-exit exit=1 elapsed=46 929 ms`，
+stderr 里**唯一**一条主诊断（`grep -cE '^[^ ].*error: '` = 1）：
+
+```
+reference/swift/gen/boring/VectorCodec.swift:49:43: error: cannot convert value of type
+'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'
+```
+
+→ 修后同一步从 **36 B 的诊断 + 46.9 s 早退** 变成 **71.5 s 真编译 + exit 0**，并继续建测试可执行、跑测试。
+
+**测试结果**（`out/test-results/*.jsonl`，本 attempt 由 Swift 腿自己写出）：
+
+- `swift.jsonl`：730 条 = **729 pass** + 1 `not_applicable`，**0 fail**。
+- `swift-f32.jsonl`：676 条 = **675 pass** + 1 `not_applicable`，**0 fail**。
+
+**Stage 3 的分项读数**（`evidence/compile/`）：
+`driver-verify.rc=1`（原因见 §6，非 Swift 腿）、`driver-verify.poststate-rc=91`、
+`post-state: 1433 entries checked, 1 failures` —— 这 1 条**正是**被补丁改动的
+`sha256: packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx`。
+（poststate 语义：清单逐条重算，`return 0 if not fails else 91`，见 `option-c-poststate.py:50`。
+它的“1 failures”在此是**有用证据**：清单 1433 条里**只有我改的这一个文件**发生了变化，其余 1432 条逐字节完好。）
+loader 身份断言跑前/跑后均 **PASS rc=0**。
+
+---
+
+## 5. 验证 ③ 不回归
+
+### 5.1 源码层
+`git diff` 只有 §2 那两个 hunk（同一函数 `render()`），无其它文件改动。
+
+### 5.2 生成层：其它边界渲染文本逐项对照
+`evidence/noregress/RENDER-CENSUS.txt`（脚本 `evidence/render_census.py`，对 `reference/**` 全部 `.swift`）：
+
+| 渲染分支 | 修前 | 修后 |
+|---|---|---|
+| `WrapMutableArrayView` → `ReadOnlyArray(OPERAND)` | 104 | **104** |
+| `MapOptionalMutableArrayView` → `(OP).map { ReadOnlyArray($0) }` | 0 | 0 |
+| `ContextualReadOnlyEmpty` → `ReadOnlyArray<T>()` | 2 | **2** |
+| `CopyReadOnlyIntoMutableArray` 旧文本（双包） | **2** | **0** |
+| `CopyReadOnlyIntoMutableArray` 新文本 | 0 | **2** |
+| `MapOptionalReadOnlyIntoMutableArray` 旧/新文本 | 0 / 0 | 0 / 0 |
+
+更强的读数：**全树 diff** —— `swift/gen` 与 `swift-f32/gen` 相对一次独立的修前运行**只差 `VectorCodec.swift` 一个文件**；
+其余 8 个目标（haxe/ts/kotlin/dart/rust + 三个 f32）的生成树**逐字节相同**
+（`evidence/noregress/OTHER-TARGETS-DIFF.txt`；排除项只有 `_GeneratedFiles.txt`（绝对路径）与
+`test-main.js`/`Cargo.lock`/`out`/`target`/`build` 等构建副产物）。
+
+### 5.3 语料/golden 层
+`tests/**` 里 grep `toMutableArray` = **0 命中**；编译器源码里对该名字的引用只有那两行渲染文本。
+即**没有任何断言/golden 依赖旧的双包文本**，不存在需要同步更新的期望值。
+
+### 5.4 两处渲染文本的类型级正负控（`evidence/typeprobe/`）
+用**真实生成的** `Runtime.swift`（sha `7cf0517b…`）+ raw-store `swiftc` shim 编译四段最小函数：
+
+```
+func probeCopyFixed(_ r: ReadOnlyArray<String>) -> TiqianArray<String> { return r.toMutableArray() }
+func probeMapFixed(_ r: ReadOnlyArray<String>?) -> TiqianArray<String>? { return (r).map { $0.toMutableArray() } }
+```
+
+| 文件 | 内容 | swiftc rc |
+|---|---|---|
+| `POS.swift` | 上面两段（＝修复后渲染文本） | **0** |
+| `NC.swift` | `return TiqianArray(r.toMutableArray())`（＝修复前，必现分支） | **1** |
+| `NC2.swift` | `return (r).map { TiqianArray($0.toMutableArray()) }`（＝修复前，可选分支） | **1** |
+
+`NC.err` 原文：`cannot convert value of type 'TiqianArray<String>' to expected argument type '[TiqianArray<String>]'`
+—— 与真实失败的 `…'TiqianArray<GlyphMetrics>'…'[TiqianArray<GlyphMetrics>]'` **同形**（只差元素类型）；
+`NC2.err` 同族。这也把 `MapOptionalReadOnlyIntoMutableArray` 那条（语料里没有活调用点）从“纸面推理”提升为**可执行类型证据**。
+
+---
+
+## 6. 编译层之后的下一个错误，以及它**不是**同一族
+
+Swift 腿全绿后，driver 继续走到 `compare`：record **0033**（`haxe`, `compare`, `manager build`）exit 0，
+紧接着该 action 失败：
+
+- `driver-verify.stderr`（全文 1 行）：
+  `Error: action "compare" failed: the consistency manager exited with code 1.`
+- 一致性管理器（`tools/test-consistency/Main.hx`，以 kotlin 为 baseline 比较 10 个目标的逐用例 verdict）：
+  `Cross-target consistency check failed with 166 divergence(s):`
+- 逐列统计（736 行表格，`evidence/compile/driver-verify.stdout`）：
+  kotlin-f32 `MISSING` 64、rust-f32 `MISSING` 54、swift-f32 `MISSING` 60、
+  haxe-f32 多出 6 个 baseline 没有的 `tests.f32.PrintedFloatTests.*`（这 6 个在其余 9 列含 baseline 都显示 `MISSING`）；
+  **没有任何一列出现 `FAIL`**，全部是 ID 集合成员差异。
+
+**隔离实验（决定性）** —— 同一批生成物与结果文件，只改管理器的 `--targets/--baseline`
+（脚本 `evidence/compare-isolate.sh`，读数 `evidence/compare-isolation/`）：
+
+| # | `--targets` | rc | divergence |
+|---|---|---|---|
+| A | `haxe,ts,kotlin,dart,rust`（**不含任何 f32，也不含 swift**） | **0** | **0** |
+| B | `haxe,ts,kotlin,dart,rust,haxe-f32,kotlin-f32,rust-f32`（**完全不含 swift**） | 1 | 112 |
+| C | 全部 10 个目标（本次实际运行） | 1 | 166（= 112 + swift-f32 的 54） |
+
+结论：
+1. **A 证明 6 个经典目标（含 swift）逐用例 verdict 与 kotlin baseline 完全一致** —— 本次改动没有引入任何分歧；
+2. **B 证明 compare 的失败与 Swift 腿、与本次补丁无关**：把 swift/swift-f32 完全排除，仍然失败 112 处，
+   且这 112 处全部落在本次**未触碰**的 kotlin-f32/rust-f32/haxe-f32 上；
+3. **归族：不是同一族。** PIT-255 是“Swift 数组边界渲染多包一层”；这里是“f32 变体的测试登记/适用性与 kotlin baseline 不一致”
+   （`AllowAccessTests`、`StringCodecTests`、`PrintedFloatTests` 等 ID 集合差异），与只读数组边界、与 Swift 数组渲染无关；
+4. 因此“下一个错误”应另立任务，**不属于本任务范围**（本任务非目标明确排除了其它目标的既有问题）。
+
+**并且没有同族第二处**：修复后的 Swift 树在 `-swift-version 5` 下**主诊断 error 行数为 0**，
+Swift 腿不是“被下一个错误挡住”，而是完整建库、建测试、跑完测试。任务书担心的
+“另一个边界同样多包”在本语料里不存在（见 §7 的调用点穷举）。
+
+---
+
+## 7. 全部 `toMutableArray` 调用点逐个核对表
+
+穷举口径：`reference/**`（本次运行的 10 个目标生成树 + `gen-tests`）、冻结协调态同目录、
+一次独立的修前运行（`/tmp/swiftshim/execroot`）、以及工作区内的历史生成实验树
+（`boring-wt-architecture/out/**`，只读）。分类脚本 `evidence/callsites.py`（判定规则见其 docstring）。
+
+| # | 文件:行 | 调用文本 | 操作数与其声明类型 | 渲染分支 | 修前判定 | 修后判定 |
+|---|---|---|---|---|---|---|
+| 1 | `reference/swift/gen/boring/VectorCodec.swift:49` | `TiqianArray(records.toMutableArray())` | `records` : `ReadOnlyArray<GlyphMetrics>`（`samples/boring/VectorCodec.hx:68`） | `CopyReadOnlyIntoMutableArray` | **BUGGY-COPY（双包）** | **FIXED-COPY** |
+| 2 | `reference/swift-f32/gen/boring/VectorCodec.swift:49` | 同上 | 同上 | 同上 | **BUGGY-COPY** | **FIXED-COPY** |
+| 3–4 | `out/source-container-policy/gen-2I2toF/swift/gen/scp/CallerCases.swift:31,34` | `TiqianArray(CallerCases.namesDirect().toMutableArray())` | `namesDirect()` : `ReadOnlyArray<String>`（该树 `CallerCases.swift:23` 的返回类型） | `CopyReadOnlyIntoMutableArray` | **BUGGY-COPY（同族第 2 个现场）** | 该树为他人归档产物，未重生成；按同一渲染文本，修后即为 `CallerCases.namesDirect().toMutableArray()` |
+| 5–6 | 同上的 `swift-baseline/gen/scp/CallerCases.swift:31,34` | 同上 | 同上 | 同上 | **BUGGY-COPY** | 同上（未重生成） |
+| 7–8 | `reference/{swift,swift-f32}/gen/Runtime.swift:393` | `public func toMutableArray() -> TiqianArray<Element> { return TiqianArray(Array(self)) }` | 定义本身 | —（DEF，非调用点） | DEF | DEF（未改） |
+
+- **`MapOptionalReadOnlyIntoMutableArray` 的调用点：0 处。** 在本语料的全部生成树（含 `gen-tests` 513+ 文件）与历史实验树里
+  grep `map { TiqianArray(` 与 `map { $0.toMutableArray() }` 均为 0 —— 该分支在被测语料里没有形状覆盖
+  （与 PIT-40「生成器分支没有语料覆盖」同族风险）。它的修复依据是：决策逻辑要求操作数为 `ReadOnlyArray<T>?`，
+  而 `toMutableArray()` 恒返回 `TiqianArray<T>` ⇒ 旧文本必为 `TiqianArray<TiqianArray<T>>?`（§5.4 的 `NC2` 实测 rc=1），
+  新文本为 `TiqianArray<T>?`（`POS` 实测 rc=0）。
+- 生成树里其余 `TiqianArray(...)` 出现处都**不是**这个边界：它们从 Swift 数组字面量/`Array(...)`/`CommandLine.arguments` 构造
+  （`SwiftExpr.hx:1951/3783/4066/4071/4156/4354` 等），或 `ReadOnlyArray(TiqianArray(…))`（`WrapMutableArrayView`，方向相反、本来正确）。
+  这两类都随 Swift 腿编译通过而被覆盖。
+- 结论：**语料里 2 个（+归档树里 4 个）双包现场属同一族，全部由这一处渲染文本负责；无第二处渲染文本需要动。**
+
+---
+
+## 8. 方法、隔离与偏差声明（对照 PIT-243/PIT-249/PIT-250/PIT-256）
+
+**运行输入（重要，必须与交付物区分开）**
+- 交付物 = 工作树 `dc-warn/worktrees/swift-arrfix`：`e1c65975` 提交态 **+ 本次 1 个文件补丁**（干净、无 commit）。
+- 验证运行用的执行根 = `cp -a publication-staging/execution-option-c-coord → /tmp/swiftarr/execroot`（302 M，0.8 s），
+  即**协调态输入**。它相对 `e1c65975` 自带 **6 个他人在途编译器改动**（`dart/DartExpr.hx`、`rust/{Compiler,RustDecl,RustEmissionState,RustExpr}.hx`、
+  `swift/SwiftDecl.hx`＝`0210d207…`，只加了一行 `imports.runtime("BoringException")`，来自已完成的 `t-mun5d99p-op76`）。
+  再加我的 1 个补丁，共 **7 个 `packages/compiler` 文件**与 `e1c65975` 不同（逐文件 hash 核过）。
+  **为什么这样是对的**：这就是链 A/协调态实际使用的输入，也是先前两次探针产出 `VectorCodec.swift` 报错的同一输入；
+  这 6 个在途改动与只读数组边界路径无交集，且 §5.2 已证明其余目标的生成树逐字节未变。
+  **若有人要“在纯 `e1c65975` 上跑”**：那是另一件事（Swift 生成树是否缺 `Runtime.swift` 是 `t-mun5d99p-op76` 的范围），
+  本报告不据此声明更宽的结论。
+- 副本的 `.haxelib/boring/.dev` 被**重写为副本自身路径**（PIT-237），`reflaxe/.dev` 仍指 nix store；
+  跑前/跑后 loader 断言均 **PASS rc=0**。
+
+**隔离（PIT-243）**
+- 独立 `OPTION_C_ROOT=/tmp/swiftarr/execroot`；attempt/`.latest-run`/external 全在副本内；
+  冻结 runner 目录只被当脚本源读取 —— 跑后核验：该目录**没有**出现我的新 attempt（最新仍是 18:12）。
+- plan 用 `dc-warn/out/p7-systempkg-probe/plan-stage3-only.plan` 的**副本**（sha `1502e32c…`，与原件逐字节相同，只含 Stage 3）。
+- 未写 `publication-staging/**`、`boring-wt-architecture/**`、`tiqian/**`、他人 worktree：
+  协调执行根的 `SwiftArrayBoundary.hx` 仍是 `f191cdd1…`，清单仍是 `610099bb…`。
+
+**Swift 工具链接线（PIT-250 / TCN-79-80 配方）**
+- `PATH` 前置 shim：**因 dc-warn 是 fuse.rclone 挂载（无执行位）**，我把
+  `dc-warn/out/swift-recipe-verify/bin/swiftc` 复制到 `/tmp/swiftarr/bin/swiftc` 并 `chmod 755`；
+  两者 sha256 逐字节相同 `d5842a5dabf19b94e48feaba50f690316e389adc6250842f8edcbd36db50e221`（原件也归档为 `evidence/swiftc-shim.bin`）。
+  进度探针确认 driver 用裸名 `swiftc` 经 PATH 解析，`command -v swiftc` → 我的 shim。
+- `BORING_SWIFT_SYSTEM_PACKAGE=/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6`；
+  `SWIFT_SHIM_STATE=/tmp/swiftarr/shim-state[-tp]`（本次独立；类型探针用 `-tp` 以免与主运行争模块缓存）。
+- `nix develop` 用 `XDG_CACHE_HOME=/tmp/swiftarr-nix-cache`；运行内 `XDG_CACHE_HOME=$OPTION_C_ROOT/out/xdg-cache`。
+  读取退出码未接管道（未用 `| tail` 吞 RC）。
+- 未跑全量链 A（另一席在跑，`p09-chainA-work`），未跑 `selftest.sh`（PIT-243）。
+
+**偏差/局限（如实列举）**
+1. `poststate` 报 **1 failure**（＝我改的那个文件）。这是**预期**：清单是“输入未被改动”的断言，而我故意改了这份副本里的一处源码；
+   它同时证明**其余 1432 条未漂移**。`poststate-rc=91`。
+2. `driver-verify.rc=1` 来自 `compare`（§6），与 Swift 腿无关，也不是本任务范围。
+3. `MapOptionalReadOnlyIntoMutableArray` 无活调用点，其证据是类型级正负控而非生成器产出的实例（§5.4、§7）。
+4. 历史实验树 `out/source-container-policy/**` 里的 4 个同族现场**未重生成**（属他人归档产物，只读复核）；
+   本报告据此只说“同一处渲染文本负责该族”，不说“那棵树已验证”。
+5. 语料覆盖面：本任务只主张“Swift 腿在本次 Stage 3 的固定语料下编译并跑通”，不主张 Swift 目标的整体正确性。
+
+---
+
+## 9. 复现命令（尽量逐字）
+
+```bash
+# 1) 工作树与补丁
+git -C /home/losses/Development/tq-workspace/boring worktree add --detach \
+  /home/losses/Development/tq-workspace/dc-warn/worktrees/swift-arrfix e1c65975
+# 手工改 SwiftArrayBoundary.hx:259-260（见 PATCH.diff），或：git apply PATCH.diff
+
+# 2) 隔离执行根
+R=/tmp/swiftarr; rm -rf $R; mkdir -p $R/bin $R/ev
+cp -a /home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord $R/execroot
+cp -p /home/losses/Development/tq-workspace/dc-warn/worktrees/swift-arrfix/packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx \
+      $R/execroot/packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx
+printf '%s\n' "$R/execroot" > $R/execroot/.haxelib/boring/.dev          # PIT-237
+cp -p /home/losses/Development/tq-workspace/dc-warn/out/swift-recipe-verify/bin/swiftc $R/bin/swiftc && chmod 755 $R/bin/swiftc
+cp -p /home/losses/Development/tq-workspace/dc-warn/out/p7-systempkg-probe/plan-stage3-only.plan $R/plan-stage3-only.plan
+
+# 3) 跑 Stage 3（脚本见本目录 run-stage3.sh）
+cd /home/losses/Development/tq-workspace/boring-wt-architecture
+XDG_CACHE_HOME=/tmp/swiftarr-nix-cache nix develop -c bash /tmp/swiftarr/run-stage3.sh   # 约 12 分钟
+
+# 4) 读数
+A=$(cat $R/execroot/out/integration-a3-evidence/exclusive-runner/.latest-run)
+python3 -c "import json;r=json.load(open('$A/child-evidence/run-*/0020/record.json'.replace('run-*','run-1790722560946-3077388')));print(r['outcome'],r['exitStatus'])"
+grep -n toMutableArray $R/execroot/reference/swift/gen/boring/VectorCodec.swift
+
+# 5) compare 隔离实验（§6）
+cd $R/execroot && BORING_TEST_RESULTS_DIR=$R/execroot/out/test-results \
+  node out/test-consistency/manager.js --targets=haxe,ts,kotlin,dart,rust --baseline=kotlin   # rc=0
+```
+
+---
+
+## 10. 交付物
+
+- `REPORT.md`（本文件）、`PATCH.diff`、`FILES.sha256`
+- `evidence/gen/`：`GEN-LAYER.txt`（逐行+全树 diff）、`CALLSITES-{postfix,prefix-baselines,archived-experiment}.txt`
+- `evidence/compile/`：`CHILD-RECORDS.txt`（33 条全表）、`child-records/00{20,21,22,30,31,32}/`（record.json + stdout/stderr 原字节）、
+  `driver-verify.{rc,stderr,stdout,poststate,poststate-rc}`、`harness.log`、`stages/`、
+  `prefix-swiftshim-0020-{record.json,stderr.bin}`（修前对照）、`stage3-run.log`
+- `evidence/typeprobe/`：`POS.swift`/`NC.swift`/`NC2.swift` + `.err` + `CMD.txt`
+- `evidence/compare-isolation/`：`A_nonswift_nof32.*`、`B_noswift_incl_f32.*`、`C_all.*` + 脚本
+- `evidence/noregress/`：`RENDER-CENSUS.txt`、`OTHER-TARGETS-DIFF.txt`
+- `evidence/`：`callsites.py`、`render_census.py`、`census.sh`、`run-stage3.sh`、`plan-stage3-only.plan`、
+  `swiftc-shim.bin`、`loader-assert-before.txt`、`loader-assert-after.txt`
+- `evidence/artifacts/`（PIT-256：判据依赖产物内容就必须归档产物）：
+  `prefix-swift-VectorCodec.swift`、`postfix-swift-{swift,swift-f32}-VectorCodec.swift`、`postfix-swift-Runtime.swift`、
+  `test-results/*.jsonl`（10 个目标本次写出的逐用例 verdict）、`README.txt`（含 §6 隔离实验的最小复现命令）
+- `FILES.sha256`（本目录全部文件，78 行）
+
+**建议的判定**：SOP 判据 1、2、3 均已满足（Swift 腿 `outcome=normal-exit` 且 `exit=0`，无同族残留，不回归证据齐全）。
+本席按规则**停在已开始（doing）**，由队长/人用 `wb_task_update … status=done confirm=` 落板；
+`compare` 的 f32 登记分歧（§6）建议另立任务。

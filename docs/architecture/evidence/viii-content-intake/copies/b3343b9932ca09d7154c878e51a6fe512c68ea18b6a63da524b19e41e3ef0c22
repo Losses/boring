@@ -1,0 +1,20 @@
+ci(tests): run the collected suite so the warning count exists
+
+The standard at docs/specs/style/02-translator-implementation-standard.md:80
+counts the warning lines that name files under the generated trees and
+requires the count to be zero; a counting rule that no suite exercises
+produces no count. No command in this workflow collected tests/**: all 26
+scripts the other jobs run are gen:* or test:<target> variants, and the one
+bun test among them (test:stage1:ts) is scoped to the generated
+reference/ts/gen-tests/.
+
+Add a collected-suite job that runs the repository entry point (bun run test)
+and reports its count and the collected domain. The job is blocking on
+purpose: at this revision the step is red because the baseline recorded in
+docs/architecture/BASELINE-FAILURES.md is not discharged. It carries no
+continue-on-error, no narrowed path argument, and no ignore pattern for a
+failing file.
+
+The generated trees have to exist before the entry point runs: bun test
+matches its positional arguments as path substrings, so 249 of the 303 files
+the baseline run collected live in the generated reference/ts/gen-tests/ tree.

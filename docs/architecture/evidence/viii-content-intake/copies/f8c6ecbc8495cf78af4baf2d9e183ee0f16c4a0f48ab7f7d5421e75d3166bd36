@@ -1,0 +1,11 @@
+# chainA-full: swift real compile error
+27:- 唯一编译错误（stderr 全文仅此一处 error，余为原生告警，未过滤）：
+28:  `reference/swift/gen/boring/VectorCodec.swift:49:43: error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'`
+45:harness.log（过 integrity）、stage-rcs.txt、harness-step-status.txt、identity-fields.txt、stage3-compile-errors.txt、stage3-child-0020/{record.json,stderr.bin}、integrity.txt、latest-run.txt、loader-assert-{pre,post}-run.txt、haxelib-boring-dev-{pre,post}-run.txt、copy-adaptation.txt。
+
+# chainA-rerun: 166 divergences, 160 missing / 6 extra, swift legs exit 0
+9:- **清单重物化**：`manifest-fixed.json`（sha256=`22d165ca788df1669ac6f823fd6d7aad6b42af3d9fab038df7e8386e642c6461`），条目数仍 **1433**；与已签收基线 `publication-staging/p09-coord-state/option-c-source-before.json`（sha `610099bb…`，零写入）逐条 diff **恰好 1 条**：SwiftArrayBoundary.hx `f191cdd1…`→`b522865c…`，mode 不变（evidence/manifest-diff.txt）。
+24:| 4–16 | 13 段 | skipped | blocked-by step-737716045（首败即停） |
+28:- 唯一 rc=1 来源：`Cross-target consistency check failed with 166 divergence(s)` → `Error: action "compare" failed: the consistency manager exited with code 1.`（原文存 evidence/stage3-compare-divergences.txt、stage3-driver-verify.stdout）。
+29:- 166 条分歧**全部落在 f32 腿**：`[haxe-f32]` Extra 6 条（tests.f32.PrintedFloatTests.*，haxe-f32 有、baseline 无）；`[kotlin-f32]/[rust-f32]/[swift-f32]` Missing 共 160 条（60 个不同 test ID，f32 runner 未产出 baseline 中存在的非 f32 测试）。**非 f32 列：736 pass / 0 fail（全绿）。**
+32:  2. 修复唯一改动的 Swift 数组包装路径，其直接效果是 swift/swift-f32 **编译+运行全部 exit=0**、swift 非 f32 列 736 pass/0 fail；若修复引入回归，应表现为 swift 腿 fail 或 MISSING，实际 swift 非 f32 零分歧。

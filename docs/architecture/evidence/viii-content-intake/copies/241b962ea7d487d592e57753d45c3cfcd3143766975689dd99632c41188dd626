@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/null-guard-xcheck
+argv timeout 1800 haxe tests/haxe/xcheck-null-guard2/gen/dart.hxml -D dart-output=/home/losses/Development/tq-workspace/dc-warn/out/null-guard-xcheck/xcheck2-20260929T200642Z/gen-dart -D dart-test-output=/home/losses/Development/tq-workspace/dc-warn/out/null-guard-xcheck/xcheck2-20260929T200642Z/gen-dart-tests

@@ -1,0 +1,14 @@
+#![cfg(test)]
+
+use crate::boring::ctor_omit_ops::CtorOmitOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_omit() {
+    testlib::run("tests.CtorOmitTests.testOmit", "tests.CtorOmitTests.testOmit: constructor omitted trailing defaults materialize", || {
+        test_core::TestCore::test_core_equals_bool(true, (CtorOmitOps::ctor_omit_ops_make()) > (0.0f32), UStr::new(&[]));
+    });
+}

@@ -1,0 +1,3 @@
+PROBE_COMPILE_EXIT=0
+value=Infinity finite=false
+PROBE_RUN_EXIT=0

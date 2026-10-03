@@ -1,0 +1,13 @@
+# shape=promoted target=kotlin generated-tree: /home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-s3o7gn/gen/promoted/kotlin
+# stage 14 exit 0
+# files:
+./build.gradle.kts
+./dcsenum/KindHolder.kt
+./dcsenum/Kind.kt
+./dcsenum/PromotedSubjectOracle.kt
+./_GeneratedFiles.txt
+./runtime/test/TestCore.kt
+./runtime/test/Test.kt
+./std/UStringException.kt
+# --- ./dcsenum/PromotedSubjectOracle.kt ---
+8:            when (_g) {

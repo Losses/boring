@@ -1,0 +1,88 @@
+import * as fs from "node:fs";
+import { execSync } from "node:child_process";
+const files = execSync("git show 40cf0ad0 --name-only --format=", { encoding: "utf8" }).trim().split("\n");
+const diff = execSync("git show 40cf0ad0 --format=", { encoding: "utf8" });
+const perFile = {};
+let cur = null;
+for (const line of diff.split("\n")) {
+  const m = line.match(/^diff --git a\/(\S+) b\/\S+/);
+  if (m) { cur = m[1]; perFile[cur] = []; continue; }
+  if (cur && (line.startsWith("+") || line.startsWith("-")) && !line.startsWith("+++") && !line.startsWith("---"))
+    perFile[cur].push([line[0], line.slice(1)]);
+}
+const refRe = new RegExp(String.raw`(?:\.\./)*reference/[A-Za-z0-9_./\-]+\.(?:rs|swift|ts|kt|dart|hx)`, "g");
+const overrides = {
+  "tests/ts/default-args.test.ts": [
+    "reference/ts/gen/boring/DefaultArgsOps.ts",
+    "reference/kotlin/gen/boring/DefaultArgsOps.kt",
+    "reference/swift/gen/boring/DefaultArgsOps.swift",
+    "reference/rust/gen/boring/default_args_ops.rs",
+  ],
+  "tests/ts/record-copy.test.ts": [
+    "reference/ts/gen/boring/RecordOps.ts",
+    "reference/kotlin/gen/boring/RecordOps.kt",
+    "reference/rust/gen/boring/record_ops.rs",
+  ],
+  "tests/ts/string-buffer.test.ts": [
+    "reference/ts/gen/boring/StringBufOps.ts",
+    "reference/kotlin/gen/boring/StringBufOps.kt",
+    "reference/rust/gen/boring/string_buf_ops.rs",
+    "reference/swift/gen/boring/StringBufOps.swift",
+  ],
+};
+function extractLit(l) {
+  // find toContain("X") / toContain('X') with same-quote match, honoring escapes
+  const m = l.match(/toContain\(\s*(["'])((?:\\.|(?!\1).)*)\1/);
+  if (!m) return null;
+  const q = m[1], raw = m[2];
+  let s = "";
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === "\\" && i + 1 < raw.length) {
+      const n = raw[i + 1];
+      s += n === "n" ? "\n" : n === "t" ? "\t" : n === q ? q : n === "\\" ? "\\" : n;
+      i++;
+    } else s += raw[i];
+  }
+  return s;
+}
+let totalAdd = 0, addMissing = 0, totalDel = 0, delWrong = 0;
+for (const f of files) {
+  const src = fs.readFileSync(f, "utf8");
+  let refPaths;
+  if (overrides[f]) refPaths = overrides[f];
+  else {
+    const s = new Set();
+    for (const m of src.matchAll(refRe)) s.add(m[0].replace(/^(\.\.\/)+/, ""));
+    refPaths = [...s];
+  }
+  const existing = refPaths.filter((p) => fs.existsSync(p));
+  const refText = existing.map((p) => fs.readFileSync(p, "utf8")).join("\n");
+  const entries = perFile[f] ?? [];
+  let a = 0, d = 0;
+  for (const [s, t] of entries) {
+    if (!/toContain|toMatch/.test(t)) continue;
+    const neg = /not\.toContain/.test(t);
+    const L = extractLit(t);
+    if (L === null) continue;
+    const present = refText.includes(L);
+    if (s === "+") {
+      a++; totalAdd++;
+      // .replace( /.../g, "" ) guard: emulate
+      let emuPresent = present;
+      const rm = t.match(/\.replace\(\/(.+?)\/g,\s*""\)/);
+      if (rm) {
+        const re = new RegExp(rm[1], "g");
+        emuPresent = refText.replace(re, "").includes(L);
+      }
+      const ok = neg ? !emuPresent : emuPresent;
+      if (!ok) { addMissing++; console.log(`ADD-WRONG ${f}: ${neg ? "not.toContain" : "toContain"} ${JSON.stringify(L.slice(0, 90))}`); }
+    } else {
+      d++; totalDel++;
+      const ok = neg ? present : !present;
+      if (!ok) { delWrong++; console.log(`DEL-WRONG ${f}: ${neg ? "not.toContain" : "toContain"} ${JSON.stringify(L.slice(0, 90))}`); }
+    }
+  }
+  console.log(`${f}: refFiles=${existing.length} checked added=${a} removed=${d}`);
+}
+console.log(`TOTAL: added=${totalAdd} wrong=${addMissing}; removed=${totalDel} wrong=${delWrong}`);
+process.exit(addMissing === 0 && delWrong === 0 ? 0 : 1);

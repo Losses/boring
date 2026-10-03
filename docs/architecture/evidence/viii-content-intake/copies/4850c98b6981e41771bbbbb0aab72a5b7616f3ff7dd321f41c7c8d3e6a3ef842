@@ -1,0 +1,25 @@
+run=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/attempt-20260929T203448-3297218
+root=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old
+child_evidence_dir=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/attempt-20260929T203448-3297218/child-evidence
+external_dir=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/external-20260929T203448-3297218
+plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/plan-d.txt
+start=2026-09-29T20:34:48-04:00
+step-579954102 status=0
+step-3302635887 status=0
+step-3389077206 status=0
+end=2026-09-29T20:34:48-04:00
+failed_stage=none
+last_status=0
+stage-evidence b1ada6085bf0830e1c513e53876c57fabac0ce7161188b1e5749fc1f2ef25076  step-3302635887.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-3302635887.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-3302635887.stderr
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-3302635887.stdout
+stage-evidence bb57144d0b1f031b8d2b94b45a793b3f783684aabfe868c27ce804b5b1167f6e  step-3389077206.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-3389077206.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-3389077206.stderr
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-3389077206.stdout
+stage-evidence 1acf737035dfbba285e2b8720eff261414f9c1a6803743bd1292282d69acf476  step-579954102.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-579954102.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-579954102.stderr
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-579954102.stdout
+harness end marker sha256=de0613473836ebf66c21ea90f424854e23fc8eae86cd9d0ba15562f870513148

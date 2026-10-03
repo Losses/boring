@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail
+argv bash -c timeout\ 300\ java\ -cp\ out/try-tail/gen/kotlin/run.jar\ TryTailRunKt

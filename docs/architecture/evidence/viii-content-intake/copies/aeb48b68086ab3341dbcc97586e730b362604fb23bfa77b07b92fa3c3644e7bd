@@ -1,0 +1,6 @@
+--- /home/losses/Development/tq-workspace/dc-warn/out/kotlin-manifest/20260929T192808Z-2698141/03-mutate-pom/copy/before.sha256	2026-09-29 15:29:00.000000000 -0400
++++ /home/losses/Development/tq-workspace/dc-warn/out/kotlin-manifest/20260929T192808Z-2698141/03-mutate-pom/copy/after.sha256	2026-09-29 15:29:00.000000000 -0400
+@@ -1,2 +1,2 @@
+ 6a35c56798074fcf82f6c07bcffc277fc2904815f27de5288b0c5b3cfaacf47e  /home/losses/Development/tq-workspace/dc-warn/out/kotlin-manifest/20260929T192808Z-2698141/03-mutate-pom/copy/build.gradle.kts
+-7615f2dfb5d92e27423c8538c20550ed425c0d9d1fb82e0c3195be585666e6e5  /home/losses/Development/tq-workspace/dc-warn/out/kotlin-manifest/20260929T192808Z-2698141/03-mutate-pom/copy/generated-0.1.0.pom
++15d3a0918e127f3a78f4afe5be80661f5900236e46e12f973731218419ae6d96  /home/losses/Development/tq-workspace/dc-warn/out/kotlin-manifest/20260929T192808Z-2698141/03-mutate-pom/copy/generated-0.1.0.pom

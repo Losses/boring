@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_join() {
+    testlib::run("tests.ArrayJoinTests.testJoin", "tests.ArrayJoinTests.testJoin: a non-string array join maps each value to its string form", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

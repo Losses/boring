@@ -1,0 +1,56 @@
+295:         optionality:SwiftArrayOptionality,
+296:         presenceFact:SwiftArrayPresenceFact
+297:     } {
+298:         final value = site.value;
+299:         final valueText = expr(site.valueExpr);
+300:         final parameterPlan = switch (stripWrap(site.valueExpr).expr) {
+301:             case TLocal(v): parameterPlansByLocal.get(v.id);
+302:             case _: null;
+303:         };
+304:         final sourceType = parameterPlan == null ? site.valueExpr.t : parameterPlan.sourceType;
+305:         final sourceStorage = parameterPlan == null ? SwiftArrayBoundary.sourceStorage(sourceType) : parameterPlan.bodyStorage;
+306:         final canProduceNull = DefaultArgExpander.coalescingCanBeNull(value);
+307:         if (parameterPlan != null && parameterPlan.bodyOptionality == SwiftArrayOptionality.RequiredOperand) {
+308:             return {
+309:                 text: valueText,
+310:                 materialized: false,
+311:                 sourceType: sourceType,
+312:                 storage: parameterPlan.bodyStorage,
+313:                 optionality: parameterPlan.bodyOptionality,
+314:                 presenceFact: parameterPlan.bodyPresenceFact
+315:             };
+316:         }
+317:         if (SwiftParameterPlan.coalescingDefaultThrows(value)) {
+318:             return {
+319:                 text: throwingCoalescingText(value, valueText, site.valueExpr.t),
+320:                 materialized: true,
+321:                 sourceType: sourceType,
+322:                 storage: sourceStorage,
+323:                 optionality: canProduceNull ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand,
+324:                 presenceFact: canProduceNull ? SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayPresenceFact.DefaultMaterializedPresent
+325:             };
+326:         }
+327:         if (ternaryNonNullBothArms(site.valueExpr)) {
+328:             return {
+329:                 text: valueText,
+330:                 materialized: false,
+331:                 sourceType: sourceType,
+332:                 storage: sourceStorage,
+333:                 optionality: SwiftArrayOptionality.RequiredOperand,
+334:                 presenceFact: SwiftArrayPresenceFact.BranchValuesRequired
+335:             };
+336:         }
+337:         return {
+338:             text: valueText + " ?? " + coalescingDefaultText(value, site.valueExpr.t),
+339:             materialized: true,
+340:             sourceType: sourceType,
+341:             storage: sourceStorage,
+342:             optionality: canProduceNull ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand,
+343:             presenceFact: canProduceNull ? SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayPresenceFact.DefaultMaterializedPresent
+344:         };
+345:     }
+346: 
+347:     /**
+348:         The body-side conditional for a throwing sanctioned default. The
+349:         `??` operator takes a non-throwing autoclosure on its right, so a
+350:         default that can throw renders as an explicit conditional; the

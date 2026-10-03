@@ -1,0 +1,125 @@
+use crate::boring::float_width::FloatWidth;
+use crate::runtime::u_string::UString;
+use std::fmt::Write;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PrintedBadge {
+    pub mark: PrintedMark,
+    pub width: FloatWidth,
+}
+
+impl PrintedBadge {
+    pub fn new(mark: PrintedMark, width: FloatWidth) -> Self {
+        Self {
+            mark,
+            width,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("PrintedBadge(")); __s += &(UString::from("mark=")); __s += UString::from(format!("{}", (self.mark).clone().to_string()).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("width=")); __s += UString::from(self.width.name()).as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+fn printed_badge_order_0(v: &PrintedMark) -> i32 {
+    match v {
+        PrintedMark::Plain => 0,
+        PrintedMark::Ring { .. } => 1,
+        PrintedMark::Tag { .. } => 2,
+        PrintedMark::Trail { .. } => 3,
+        PrintedMark::Aliases { .. } => 4,
+    }
+}
+
+fn printed_badge_order_1(v: &FloatWidth) -> i32 {
+    match v {
+        FloatWidth::F64 => 0,
+        FloatWidth::F32 => 1,
+        FloatWidth::F16 => 2,
+    }
+}
+
+pub fn compare_printed_badge(a: &PrintedBadge, b: &PrintedBadge) -> i32 {
+    let cmp_mark = match printed_badge_order_0(&a.mark).cmp(&printed_badge_order_0(&b.mark)) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_mark != 0 { return cmp_mark; }
+    let cmp_width = match printed_badge_order_1(&a.width).cmp(&printed_badge_order_1(&b.width)) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_width != 0 { return cmp_width; }
+    0
+}
+
+#[derive(Clone, Copy)]
+pub struct PrintedEnumOps;
+
+impl PrintedEnumOps {
+    pub fn printed_enum_ops_mark_text(mark: PrintedMark) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("mark=")); __s += UString::from(format!("{}", mark.to_string()).as_str()).as_ustr(); __s }).as_str());
+    }
+
+    pub fn printed_enum_ops_mark_value(mark: PrintedMark) -> UString {
+        return UString::from(format!("{}", mark.to_string()).as_str());
+    }
+
+    pub fn printed_enum_ops_badge_text(badge: PrintedBadge) -> UString {
+        return UString::from(format!("{}", badge.to_string()).as_str());
+    }
+
+    pub fn printed_enum_ops_mark_list(marks: &Vec<PrintedMark>) -> UString {
+        return UString::from(format!("{}", {
+        let mut out = String::new();
+        out.push('[');
+        let n = marks.len();
+        let mut i = 0usize;
+        while i < n {
+            if i > 0 { out.push_str(", "); }
+            let _ = write!(out, "{}", marks[i].to_string());
+            i += 1;
+        }
+        out.push(']');
+        out
+    }).as_str());
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PrintedMark {
+    Plain,
+    Ring { diameter: f64 },
+    Tag { text: UString, weight: u32 },
+    Trail { steps: Vec<u32> },
+    Aliases { names: Vec<UString> },
+}
+
+impl PrintedMark {
+    pub fn to_string(&self) -> String {
+        match self {
+            PrintedMark::Plain => "Plain".to_string(),
+            PrintedMark::Ring { diameter } => format!("Ring(diameter={})", (diameter).to_string()),
+            PrintedMark::Tag { text, weight } => format!("Tag(text={}, weight={})", (text).clone(), (weight).to_string()),
+            PrintedMark::Trail { steps } => format!("Trail(steps={})", {
+            let mut out = String::new();
+            out.push('[');
+            let mut j0 = 0usize;
+            while j0 < steps.len() {
+                if j0 > 0 { out.push_str(", "); }
+                let _ = write!(out, "{}", (steps[j0]).to_string());
+                j0 += 1;
+            }
+            out.push(']');
+            out
+        }),
+            PrintedMark::Aliases { names } => format!("Aliases(names={})", {
+            let mut out = String::new();
+            out.push('[');
+            let mut j0 = 0usize;
+            while j0 < names.len() {
+                if j0 > 0 { out.push_str(", "); }
+                let _ = write!(out, "{}", (names[j0]).clone());
+                j0 += 1;
+            }
+            out.push(']');
+            out
+        }),
+        }
+    }
+}

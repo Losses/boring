@@ -1,0 +1,363 @@
+# Ruling: the `OptionalOperand` → required `ReadOnlyArray` refusal in the Swift array boundary
+
+**Date:** 2026-09-30 (America/Toronto) · **Tree:** `boring-wt-architecture` @ `e1c65975` (worktree as run; boundary files at checkpoint `e5e21854`)
+**Toolchain:** haxe 4.3.7, Swift 6.2.4, bun 1.3.13 (see `evidence/provenance.txt` for versions and file hashes)
+
+## Ruling
+
+**DEFECT — in the conditional composition (`SwiftExpr.lowerArrayBoundary` / `lowerArrayConditionalBoundary`), not in the pure planner cell itself.**
+
+Split precisely:
+
+1. **The planner cell is correct policy.** `SwiftArrayBoundary.prepare` refusing a *maybe-absent* operand against a *destination that admits no absence* (the empty `case OptionalOperand:` at `SwiftArrayBoundary.hx:203`) enforces the documented pure-planner rule verbatim: `docs/compiler-policy-interfaces.md:157` — for "Maybe absent value in S / No" — "Establish a valid extraction operation at this use before claiming a present result. … Missing proof cannot be repaired by flipping a result flag." The fixture's own plan-check macro asserts the sibling family's equivalent refusal (`SwiftBoundaryPlanChecks.hx:54-62`, "optional prepared view was accepted as a required operand"), so the repository itself treats that pure rule as policy.
+
+2. **The composite lowering is defective.** For the accepted source `values == null ? [] : values` (a nil-merge whose fallback `[]` is a required value), the documented policy prescribes that the required final result be established *by the composition* — "A nil-merge with a required final result passes an optional intermediate destination to the conversion of the optional left operand. Then it combines that result with the converted fallback. A required fallback establishes a required normal result." (`docs/compiler-policy-interfaces.md:169-173`). The code instead sends the optional target straight at the final required destination (`SwiftExpr.hx:2627`), the planner (correctly) refuses, and the whole accepted program hard-fails at `SwiftExpr.hx:2609`. This is an *unimplemented documented lowering*, recorded in the repository's own checkpoint as an open defect — `docs/investigations/architecture-round-1/swift-checkpoint-todo.md:39-42` (SW04): "The current adapter sends the optional target toward the final required destination too early." (unchecked `- [ ]` item, committed together with the code in the same checkpoint commit).
+
+Consequences of the ruling:
+
+- **The acceptance fixture is NOT wrong.** `coalescedBoundary` is accepted Haxe (Haxe types the ternary as required `Array<Int>` — verified, `evidence/typetest/`), the Haxe oracle runs it and produces the asserted lines, and the governing documents prescribe exactly the behaviour the fixture asserts. The fixture encodes policy; the compiler does not provide it.
+- **The correct behaviour** (what the compiler must emit) is given in §5, with executed evidence that it compiles and matches the oracle against the real generated runtime types.
+- A "CORRECT POLICY" reading (the planner's refusal stands and the fixture should be changed) is **not supported by any document**: no spec, policy, or investigation text records a ruling that this source shape — or any optional-to-required array crossing established by a nil-merge with a required fallback — must be refused. The only refusal the documents state is the pure-planner one, and the same documents assign the composition the duty to satisfy it via the intermediate-optional-destination rule.
+
+## 1. The cell and the failing mechanism (code)
+
+### 1.1 The empty case
+
+`packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx:190-235` (as run; the worktree diff vs `e5e21854` touches only `render()` lines 259-260 and leaves `prepare` identical — verified by `git diff HEAD`):
+
+```haxe
+190:                 case MutableArrayWrapper if (element != null):
+191:                     resultStorage = ReadOnlyArrayView;
+192:                     switch (preparedOptionality) {
+193:                         case RequiredOperand:
+194:                             operation = WrapMutableArrayView;
+195:                             resultOptionality = RequiredOperand;
+196:                         case OptionalOperand if (destOptional):
+197:                             operation = MapOptionalMutableArrayView;
+198:                             resultOptionality = OptionalOperand;
+199:                         case OptionalOperand:
+200:                     }
+```
+(line numbers in this quote block are as displayed by the read tool for the current worktree; the empty case is the line the task statement calls "around line 203" — see `evidence/SwiftArrayBoundary.hx-195-235.txt` for the exact line-numbered capture: the empty `case OptionalOperand:` is at **line 203**, the mirror empty case for the mutable destination at **line 221**.)
+
+So for `source storage = MutableArrayWrapper`, `source optionality = OptionalOperand`, `destination = required ReadOnlyArray`: no operation is selected, `operation` stays null, and:
+
+```haxe
+233:         if (operation == null)
+234:             return null;
+```
+
+### 1.2 The hard failure
+
+`packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:2607-2609`:
+
+```haxe
+2607:         final plan = SwiftArrayBoundary.prepare(operand, target, destinationOptionalOverride);
+2608:         if (plan == null)
+2609:             return fail(inner, "array boundary has no prepared storage decision");
+```
+
+and `SwiftExpr.hx:6995-6998` (`fail` → `Context.error("swift target: " + message, pos)`).
+
+### 1.3 Why the fixture's ternary reaches that cell
+
+`tests/swift-readonly-boundary/boring/ReadOnlyBoundaryOps.hx:233-236`:
+
+```haxe
+    public static function coalescedBoundary(values:Null<Array<Int>>):String {
+        var view:ReadOnlyArray<Int> = values == null ? [] : values;
+        return consumeReadOnlyBoundary(view);
+    }
+```
+
+Trace (all line numbers in `SwiftExpr.hx`):
+
+1. The `var` declaration initializer is a boundary: `SwiftExpr.hx:743` `isBoundary(init.t, v.t)` (dest `ReadOnlyArray<Int>` → `destReadOnly`), then `SwiftExpr.hx:746` `lowerArrayBoundary(init, v.t)`.
+2. `coalescingSiteFor` returns null: the shape `param == null ? default : param` is recognized by `DefaultArgExpander.coalescingSite` (`packages/compiler/DefaultArgExpander.hx:1824-1838`), but `coalescingSiteFor` additionally requires a *registered* default (`SwiftExpr.hx:262-282` + `DefaultArgExpander.hx:1789-1791`); `coalescedBoundary`'s `values` parameter has none.
+3. The TIf route: `SwiftExpr.hx:2584-2586` → `lowerArrayConditionalBoundary`.
+4. Nil-merge recognition: `SwiftExpr.hx:2625` `optionalIfSite` (`SwiftExpr.hx:2072-2105`): condition `values == null` (OpEq, right is null), `target = values` via `optionalGuardTarget` (`SwiftExpr.hx:2112-2119`, TLocal case), `branchIsTarget` matches exactly the false arm → `nilMerge = {target: values, fallback: []}`.
+5. **The defect site**, `SwiftExpr.hx:2627`: `final targetValue = lowerArrayBoundary(nilMerge.target, target, null, destinationOptionalOverride);` — the optional target `values` is lowered against the **final required destination** `ReadOnlyArray<Int>` (and `destinationOptionalOverride` is null: no call site anywhere ever passes a non-null override — grep over all `arrayBoundaryText`/`lowerArrayBoundary` callers, §3.4).
+6. Operand facts for `values`: `prepareArrayOperand` (`SwiftExpr.hx:2680-2704`) → `arrayOperandOptionality`: not `isNarrowed` (no statement-level guard; `narrowedLocals` is empty here — `SwiftExpr.hx:1116-1123`), not a ternary; the `TLocal` parameter-plan branch (`SwiftExpr.hx:2702-2704`) returns `parameterPlansByLocal.get(v.id).bodyOptionality == OptionalOperand`. The parameter plan for a nullable parameter without default: `SwiftParameterPlan.hx:60-76` — `bodyStorage = MutableArrayWrapper`, `bodyIsOptional = isOptionalArrayType(Null<Array<Int>>) = true` → `bodyOptionality = OptionalOperand`, `bodyPresenceFact = NoPresenceProof` (see `SwiftParameterPlan.hx:61-76` comments: "The parameter's exposed Swift type can be optional even when the body shadows it … If the fallback itself is nullable, baseType remains nullable and proves nothing").
+7. `prepare({storage: MutableArrayWrapper, optionality: OptionalOperand, presenceFact: NoPresenceProof}, target: ReadOnlyArray<Int>)` → the empty `case OptionalOperand:` → returns null → `Context.error("swift target: array boundary has no prepared storage decision")`.
+
+**Executed confirmation** (raw logs in `evidence/repro/`):
+
+- `evidence/repro/generate.stderr.log` (Swift generation of the fixture, exit 1):
+  `swift target: array boundary has no prepared storage decision` — the only diagnostic, byte-exact, no other errors.
+- `evidence/repro/oracle.stdout.log` (Haxe oracle, exit 0): includes `coalesced-null=0:empty` and `coalesced-present=1:present` — the source is accepted Haxe with defined semantics.
+- Control: the same run with `coalescedBoundary` removed (scratch copy, `evidence/scratch/`) exits **0** with empty stderr and 6 generated Swift files (`evidence/repro/generate-noc.stderr.log`, `evidence/repro/gen-noc/`). **The failure is caused specifically by `coalescedBoundary`.**
+- Haxe typing probe (`evidence/typetest/TypeProbe.hx`, exit 0): `final asRequired:Array<Int> = (values == null ? [] : values);` typechecks — **Haxe itself types the ternary as required `Array<Int>`**. There is no optional-to-required crossing in the accepted source; the whole expression is a required array by Haxe's own narrowing. The Swift backend's internal choice to lower the arms separately at the boundary must re-establish that requirement — and the documents prescribe exactly how (§2.3).
+
+## 2. The documents
+
+### 2.1 The governing policy: `docs/compiler-policy-interfaces.md`
+
+The document states its own ownership: "The policy decisions … retain ownership of target storage, presence, permissions, and conversion decisions" (cited by `docs/investigations/architecture-round-2/a-source-container-facts.md:14-16`). Its "Conversion to a selected destination" table (`compiler-policy-interfaces.md:146-161`) is the rule for this cell:
+
+```
+146: ## Conversion to a selected destination
+...
+153: | Maybe absent value in S | Yes | Preserve absence and apply the storage operation only to the
+154:   present payload; the result remains maybe absent in D. |
+155: | Maybe absent value in S | No | Establish a valid extraction operation at this use before
+156:   claiming a present result. The proof must match its subject, environment,
+157:   and dependencies. Missing proof cannot be repaired by flipping a result flag. |
+```
+
+That is the rule the planner cell enforces — and it is satisfied *at the use* only when a valid extraction is established. The next paragraphs say what "failure to establish" must do, and how a nil-merge establishes it:
+
+```
+163: Failure to prove an extraction's preconditions is distinct from invalid
+164: source. The lowering owner must use the applicable general translation or
+165: identify the missing compiler ruling for accepted source. Source rejection
+166: requires the specified source-domain rule. This distinction does not permit
+167: silent unwrapping or new null-handling behavior.
+```
+
+```
+169: ## Composition owns the intermediate requirement
+170: 
+171: Composition must name the intermediate representation a nested conversion
+172: needs before the final result type. A nil-merge with a required final result
+173: passes an optional intermediate destination to the conversion of the
+174: optional left operand. Then it combines that result with the converted
+175: fallback. A required fallback establishes a required normal result. …
+176: The conversion planner must not silently assume that a later caller will
+177: reconcile and accept an optional result against a required destination.
+```
+
+Applied to the cell:
+
+- The *planner* must refuse an optional operand against a required destination with no extraction at this use → the empty case is the correct enforcement (§4.2 shows the macro encodes the same rule for the sibling storage family).
+- The *composition* (nil-merge lowering) is *required* to convert the optional left operand through the **optional intermediate destination** and combine with the converted fallback; "A required fallback establishes a required normal result." Our fixture's fallback `[]` is required (the "Contextual empty literal … Once materialized, it is present." — `compiler-policy-interfaces.md:134-135`), so the composition must produce a required result. The code does neither: it sends the optional target at the final required destination (SwiftExpr.hx:2627) and surfaces the planner's refusal as a hard error on accepted source — which is neither "the applicable general translation" (it exists and is documented, lines 171-175) nor "identify the missing compiler ruling" (there is none missing; and no source-domain rule exists to reject the source — §2.2). Both alternatives the policy names for an unprovable extraction are available, and the hard-fail does neither.
+
+### 2.2 No source-domain rule rejects this source
+
+- The Haxe style standard's rejection table is exhaustive by construction: "The violation set grows with the spec set: adding a constraint to any feature or binary spec adds a row here" (`docs/specs/style/01-haxe-style-standard.md:46-47` header + `:81`). Rows V01–V16 (table at `:48-65`) contain **no row** covering nullable arrays, optional-to-required array assignments, or read-only boundary crossings. Nothing in the table can fire on `coalescedBoundary`'s source.
+- Feature spec 18 (immutability) *requires* the conversion at every accepted position, including optionality: "This rule applies to every accepted conversion position, including stored values, parameters, returns, nested elements, and optional values." (`docs/specs/features/18-immutability.md:62-65`). The abstract `from Array<T>` accepts any `Array<T>` (`:26-47`), and at the Haxe level the ternary *is* an `Array<T>` (verified, §1.3).
+- Feature spec 04 (null safety) rules the Rust/TS/Kotlin translations and does not state a Swift array-boundary refusal (`docs/specs/features/04-null-safety-and-optionality.md:5`).
+- `docs/compiler-problem-analysis.md:211-213`: "A missing ruling permits further investigation and an explicit proposal. Existing implementation behavior can define an output-preservation baseline for consolidation, but it cannot resolve a disagreement about intended source semantics." — i.e., the implementation's refusal cannot stand as policy without a specified ruling, and none exists.
+
+**Specification-gap note (distinguished from policy):** no document records a ruling that the *planner cell* is deliberate policy for this particular combination. The cell is *consistent with* the pure-planner row quoted above, and the sibling-family macro assertion (§4.1) makes that consistency explicit, but the documents govern this cell only indirectly (through the pure-planner row and the composition rule). If the question were "is the empty case documented?", the honest answer is: the rule it enforces is documented; the case itself is not individually cited in any document.
+
+### 2.3 The design side: `docs/investigations/architecture-round-1/j-prepared-value-design.md`
+
+The document "rules on this cell" directly.
+
+Composition table, Nil-merge row (`j-prepared-value-design.md:116-121`):
+
+```
+116: | Operation | Required result rule | Optional result rule |
+117: | --- | --- | --- |
+...
+119: | Nil-merge | The guarded target is already required, or the fallback supplies a
+120:   required value when the target is null. | Both target and fallback can be
+121:   null, and the destination permits null. |
+```
+
+For `values == null ? [] : values`: the fallback `[]` supplies a required value when the target is null → the **required result rule is satisfied** → the composition must yield a required result. (The fixture's expected lines `coalesced-null=0:empty` / `coalesced-present=1:present` are exactly that required result at both input points.)
+
+And the direct prohibition (`j-prepared-value-design.md:135-140`):
+
+```
+135: An optional nil-merge target may remain optional during preparation even
+136: when the final result is required: the fallback may supply a required
+137: result. Do not force that target through a required-destination conversion
+138: before the merge has established presence. A prior valid guard may instead
+139: make the prepared target required, in which case the fallback is
+140: unreachable. The mere source `Null<T>` spelling decides neither case.
+```
+
+Line 137-138 is the failure, stated as a prohibition: the current code *does* force the target (`values`) through a required-destination conversion before the merge establishes presence.
+
+The "unverified path stays open" line (task point 2, "around line 86"; actual location `j-prepared-value-design.md:85-86`):
+
+```
+85: An unverified path stays open. It cannot be removed from the acceptance
+86: language to simplify this pilot.
+```
+
+This bars the alternative reading that the refused cell could be dropped from the acceptance language (i.e., the fixture deleted or weakened) to simplify the pilot: the path is unverified, so it stays in the acceptance language, and the compiler must be made to handle it per the rules above.
+
+Context on the document's status: it "remains the reviewed design input" and "the current code's compliance remains unverified" (`j-prepared-value-design.md:13-14`); J1 was stopped mid-implementation (`:5-8`). The checkpoint TODO (SW04, §2.4) is the open work item implementing this very rule.
+
+### 2.4 The checkpoint TODO names the exact defect
+
+`docs/investigations/architecture-round-1/swift-checkpoint-todo.md:39-42` (committed in the same commit `e5e21854` as the code):
+
+```
+39: - [ ] SW04: Convert an optional nil-merge target through the optional form of
+40:   the destination representation. Establish a required result only after a
+41:   required fallback or a valid presence proof. The current adapter sends the
+42:   optional target toward the final required destination too early.
+```
+
+The item is unchecked. The final sentence is a contemporaneous defect diagnosis of precisely the observed failure, and the first two sentences state the correct behaviour. (Also relevant: `:18-25` — "The current branch changes remain unverified … Full Boring verification … are outstanding.")
+
+### 2.5 The same diagnostic was previously classified as a defect, not policy
+
+`docs/investigations/architecture-round-1.md:806-815` records the identical message in a sibling case (stale initializer cache):
+
+```
+806: r10 reproduces it. The diagnostic now comes from a typed consumer of a local
+807: initializer, not from an array read: `SwiftArrayBoundary.prepare` reports no
+808: operation for a `NullReassignOps` source at `tests/support/NullReassignOps.hx:15`
+809: inside the non-null branch: `array boundary has no prepared storage decision`.
+...
+811: Coordinator review classifies the failure as a defect of the stale
+812: initializer cache: `localArrayBindingStorages` binds a storage fact to a local
+813: id across different initializers. The planned fix separates expression results,
+814: binding representations, and scoped flow facts.
+```
+
+And the earlier nullable-fallback failure (round-1 `:837-855`) was diagnosed as "a defect in the conditional producer's representation handoff", with the review demanding "a single structural nil-merge decision, valid branch polarity, one operand preparation, and facts describing the actual result" (`:852-855`). The project's own practice treats this diagnostic family as a lowering defect to be fixed, not a policy refusal.
+
+The J brief's acceptance matrix independently requires this crossing: `j-boundary-implementation.md:171-174`:
+
+```
+171: For each applicable position, vary plain and optional sources and
+172: destinations, including a guarded optional source reaching a required
+173: destination, an optional null-literal fallback to an optional destination, a
+174: default-supplied value at a required destination, and a typed consumer of the
+175: result.
+```
+
+and its repair rule, `j-boundary-implementation.md:104-105`:
+
+```
+104: An unavailable optional optimization must retain the valid general lowering.
+105: If accepted source has no valid lowering, report the missing rule for review.
+```
+
+Here the accepted source *does* have a valid lowering — the one prescribed at `compiler-policy-interfaces.md:171-175` — so neither a retained general lowering nor a "missing rule" report excuses the hard failure. (`j-boundary-implementation.md:198` further: "Do not repair expected values, input programs, or generated output to hide a translator failure.")
+
+## 3. Sibling-cell coherence
+
+### 3.1 What `prepare` accepts and refuses (from `SwiftArrayBoundary.hx:165-248`, as run)
+
+Boundary = `destReadOnly || (destMutable && srcReadOnly)` (`:147-152`), so only these combinations reach `prepare`:
+
+| # | source storage | source optionality | destination | operation | verdict | code |
+|---|---|---|---|---|---|---|
+| 1 | ContextualEmptyLiteral | (required) | required RO | ContextualReadOnlyEmpty | accept | `:184-188` |
+| 2 | ContextualEmptyLiteral | (required) | optional RO | ContextualReadOnlyEmpty | accept | `:184-188` (destOptional branch) |
+| 3 | NullArrayValue | optional | optional RO | PreserveNullArrayValue | accept | `:185-188` |
+| 4 | NullArrayValue | optional | **required RO** | — | **refuse** | `:188` (destOptional gate) |
+| 5 | MutableArrayWrapper | required | RO (either) | WrapMutableArrayView | accept* | `:196-199` |
+| 6 | MutableArrayWrapper | optional | optional RO | MapOptionalMutableArrayView | accept | `:200-202` |
+| 7 | **MutableArrayWrapper** | **optional** | **required RO** | — | **refuse (the cell)** | `:203` (empty case) |
+| 8 | ReadOnlyArrayView | required | RO (either) | KeepPreparedArray | accept | `:206-209` |
+| 9 | ReadOnlyArrayView | optional | optional RO | KeepPreparedArray | accept | `:207-209` |
+| 10 | ReadOnlyArrayView | optional | **required RO** | — | **refuse** | `:207-209` (gate) — *explicitly asserted by the macro*, §4.1 |
+| 11 | OtherArrayStorage | any | any | — | refuse | falls out of `:172-211` — *asserted by the macro* |
+| 12 | ReadOnlyArrayView | required | mutable | CopyReadOnlyIntoMutableArray | accept | `:215-217` |
+| 13 | ReadOnlyArrayView | optional | optional mutable | MapOptionalReadOnlyIntoMutableArray | accept | `:218-220` |
+| 14 | ReadOnlyArrayView | optional | **required mutable** | — | **refuse** | `:221` (empty case, mirror of the cell) |
+| — | any | — | — | — | refuse | `:233-234` (no operation) |
+
+\* Row 5 is further nulled by the contradictory-presence clause `:225-231`: if the Haxe *source type* is `Null<...>` but the flow facts claim `RequiredOperand` without an admissible proof (`LiteralProvenPresent`, `GuardProvenPresent`, `BranchValuesRequired`, `DefaultMaterializedPresent`), `operation = null` — the macro asserts this for the `SourceTypeRequired` fact (`SwiftBoundaryPlanChecks.hx:64-74`, "nullable source was accepted without a presence proof").
+
+### 3.2 Coherence verdict
+
+The accepted set is coherent under exactly one rule: **an optional (maybe-absent) operand may reach a destination only when the destination admits absence; crossing into a destination that admits no absence requires a presence proof established at this use.** Optional→optional is accepted for every storage family (rows 3, 6, 9, 13); optional→required is refused for every storage family (rows 4, 7, 10, 14); the mirror empty case at `:221` (optional view → required mutable) is the same rule on the mutable-destination side.
+
+That asymmetry **is documented**: it is the "Yes/No" pair of rows at `compiler-policy-interfaces.md:153-157` quoted in §2.1, and the planner's prohibition at `:176-177` ("must not … accept an optional result against a required destination"). The *planner* is therefore coherent and policy-conformant.
+
+The incoherence — and the defect — is one level up: the composition must establish the required result *before* or *around* that refusal (nil-merge: optional intermediate destination + required fallback, `compiler-policy-interfaces.md:171-175`; guarded reads: `GuardProvenPresent` — the accepted `guardedRequired` fixture case, `ReadOnlyBoundaryOps.hx:152-157`, works exactly that way; registered defaults: `DefaultMaterializedPresent` — the accepted `registeredDefaultBoundary` case, `:238-244`, works that way). The nil-merge route is the one that does not: `SwiftExpr.hx:2627` passes the final required destination instead of the optional intermediate form. The machinery to express the intermediate form *already exists*: the `destinationOptionalOverride` parameter of `arrayBoundaryText`/`lowerArrayBoundary`/`prepare` (`SwiftExpr.hx:2566`, `2579`, `2607`; `SwiftArrayBoundary.hx:165-167`) — and **no call site ever passes a non-null value** (verified: every caller of `arrayBoundaryText` at `SwiftExpr.hx:811, 1212, 1929, 2535, 2807, 3304, 4720, 5642` passes two arguments; the 4-argument propagations at `:2627-2628, :2642-2643` propagate the entry value, which is always null). The parameter is scaffolding for exactly the SW04 fix, never wired.
+
+Also note the related refusal at `SwiftExpr.hx:2646-2647` ("optional conditional array result cannot satisfy a required boundary"): for *ordinary* (non-nil-merge) conditionals, an optional arm joined against a required destination is refused at the composition level. That refusal is **consistent with policy** — the "Ordinary conditional" row of the same table admits an optional result only "when the destination permits null" (`j-prepared-value-design.md:116-121`) — and it is unreachable from accepted Haxe for this shape anyway (a generic `flag ? optionalArray : literal` typed against a required `ReadOnlyArray` is rejected earlier by the Haxe typer; only the nil-merge shape, where Haxe narrows the result to required, reaches the backend).
+
+## 4. The fixture's own intent
+
+### 4.1 `SwiftBoundaryPlanChecks.hx` tests one half, and asserts the refusal only for the sibling family
+
+`tests/swift-readonly-boundary/boring/SwiftBoundaryPlanChecks.hx`:
+
+- **Lines 76-88 — the mutable family, optional source:** `optionalMutable` = `{sourceType: Null<Array<Int>>, storage: MutableArrayWrapper, optionality: OptionalOperand, presenceFact: NoPresenceProof}`. It is prepared **only against `nullableReadonlyType`** (`Null<ReadOnlyArray<Int>>` — the *optional* destination) and asserted to return `MapOptionalMutableArrayView`:
+
+```haxe
+83:         final optionalMap = SwiftArrayBoundary.prepare(optionalMutable, nullableReadonlyType);
+...
+85:         if (optionalMap == null || optionalMapAgain == null || optionalMap.operation != MapOptionalMutableArrayView
+```
+
+  **The required-destination half of the same cell (`prepare(optionalMutable, readonlyType)`) is never tested — not even as an expected refusal.** (Verified: the only other uses of `optionalMutable` are lines 83-84.)
+- **Lines 54-62 — the view family, optional source → required destination:** the *mirror* cell for `ReadOnlyArrayView` storage IS tested, and **asserted to refuse**:
+
+```haxe
+61:         if (SwiftArrayBoundary.prepare(optionalView, readonlyType) != null)
+62:             throw new haxe.Exception("optional prepared view was accepted as a required operand");
+```
+- **Lines 64-74 — contradictory presence:** `{sourceType: Null<Array<Int>>, storage: MutableArrayWrapper, optionality: RequiredOperand, presenceFact: SourceTypeRequired}` must refuse against **both** required and optional destinations ("nullable source was accepted without a presence proof" / "optional destination repaired contradictory source presence facts") — encoding `SwiftArrayBoundary.hx:225-231`.
+- **Lines 35-52 — OtherArrayStorage** must refuse against required and optional destinations.
+
+**Intent reading.** The macro's author encoded the *pure-planner* rule completely and symmetrically (optional→required refuses; the refusal is asserted for the view family and for contradictory presence) and encoded the *accepted* half of the mutable family (optional→optional, `MapOptionalMutableArrayView`). The macro does **not** assert either outcome for the mutable family's optional→required cell — because at the planner level that cell *is* a refusal by the documented rule. The runtime fixture then adds `coalescedBoundary` (`:233-236`) + oracle calls (`ReadOnlyBoundaryOracle.hx:27-28`) + test expectations (`readonly-boundary.test.ts:45-46`, `"coalesced-null=0:empty"`, `"coalesced-present=1:present"`), which require the *composition* to establish the required result through the same nil-merge. That is not a contradiction inside the fixture: the two halves sit at two different layers (planner vs composition), and the governing documents (§2.1, §2.3) assign exactly this division of labour. The "tested one half and wrote a runtime case requiring the other half" observation is therefore **evidence that the author knew the planner refuses and was asserting the documented composition duty on top of it** — and the composition duty is precisely the unimplemented piece (SW04). If the author had believed the cell should refuse end-to-end, the oracle lines `coalesced-null`/`coalesced-present` would not exist in the accepted oracle at all.
+
+### 4.2 The test demands generation success
+
+`tests/swift-readonly-boundary/readonly-boundary.test.ts:57-60` runs the Swift generation through `run()`, which asserts exit 0 (`:14`), and `:80-83` asserts the Swift runtime output equals the oracle lines and `swiftc` diagnostics are empty. So the acceptance fixture unambiguously requires the cell to work end-to-end. (Executed today: oracle exit 0; generation exit 1 — the fixture cannot run, as stated in the task.)
+
+## 5. What the correct behaviour is, and the evidence that proves it
+
+**Correct behaviour** (per `compiler-policy-interfaces.md:171-175` + `j-prepared-value-design.md:119-121, 135-140`): for the nil-merge `values == null ? [] : values` against required `ReadOnlyArray<T>`, convert the optional target through the **optional intermediate destination** (planner cell row 6 → `MapOptionalMutableArrayView`), convert the fallback `[]` to the contextual required empty (row 1 → `ContextualReadOnlyEmpty`), combine with `??`; the join is required (`RequiredOperand`, presence `BranchValuesRequired`, storage `ReadOnlyArrayView`). Swift rendering for the fixture:
+
+```swift
+let view: ReadOnlyArray<Int32> = (values).map { ReadOnlyArray($0) } ?? ReadOnlyArray<Int32>()
+```
+
+This is the *same idiom the compiler already emits* for the accepted optional-destination half — the control run's generated code, `evidence/repro/gen-noc/boring/ReadOnlyBoundaryOps.swift:257`: `let view: ReadOnlyArray<Int32>? = (values).map { ReadOnlyArray($0) } ?? nil` — differing only in the fallback (`ReadOnlyArray<Int32>()` instead of `nil`) and the result type (required instead of optional).
+
+**Proof (executed, raw logs in `evidence/`):**
+
+1. `evidence/repro/generate.stderr.log` — the defect, reproduced: exit 1, sole diagnostic `swift target: array boundary has no prepared storage decision`.
+2. `evidence/repro/generate-noc.stderr.log` — control (fixture minus `coalescedBoundary`): exit 0, empty stderr → attribution to the cell.
+3. `evidence/typetest/` — Haxe types the ternary as required `Array<Int>` (assignment to `Array<Int>` compiles; runtime `0:[]`, `1:[9]`) → no source-domain basis for refusal; the source is accepted with defined semantics.
+4. `evidence/probe/main.swift` + `evidence/probe/probe.stdout.log` — the policy-specified rendering compiled with `swiftc` (exit 0) against the **real generated runtime types** (`evidence/repro/gen-noc/Runtime.swift`, the `TiqianArray`/`ReadOnlyArray` of the checkpoint's Swift backend) and run from a temp copy (the fuse mount drops exec bits):
+
+```
+coalesced-null=0:empty
+coalesced-present=1:present
+```
+
+   byte-identical to the Haxe oracle lines (`evidence/repro/oracle.stdout.log`) and to the test's expected values (`readonly-boundary.test.ts:45-46`).
+
+**Minimal change consistent with the existing scaffolding:** wire the already-present `destinationOptionalOverride` at the nil-merge target site — `SwiftExpr.hx:2627` would lower `nilMerge.target` against the optional form of the destination (e.g., pass `destinationOptionalOverride = true` for the target's conversion), so `prepare` selects `MapOptionalMutableArrayView` (rows 200-202), and the existing join at `:2629-2639` produces the required result with the `??` composition. The `?? fallback` text assembly (`:2629`) and the required-join facts (`:2630-2638`) already exist and are correct for this case; only the destination routing at `:2627` is wrong. (The generic-conditional refusal at `:2646-2647` stays: for non-nil-merge conditionals the table admits an optional result only when the destination permits null.)
+
+**Evidence that would prove the fix in the tree** (for whoever implements SW04): the focused test `bun tests/swift-readonly-boundary/readonly-boundary.test.ts` passing end-to-end — oracle match, generation exit 0, repeated-generation stability (`:61-70`), empty `swiftc` diagnostics (`:82-83`), and Swift runtime output equal to the 30 expected lines (`:80-81`).
+
+## 6. History finding
+
+- The worktree's only commit touching `SwiftArrayBoundary.hx` (and the fixture, the plan-check macro, the oracle, the test, and the checkpoint TODO) is **`e5e21854` "chore(architecture): checkpoint unfinished Swift arrays and policy migration plan"** (2026-09-28, author "LOSSES Don"). The commit body is **empty** — no commit message or adjacent comment explains the empty `case OptionalOperand:` as deliberate. The whole file (264 lines) arrived in that checkpoint, together with the unchecked SW04 item that diagnoses the exact failure mode ("The current adapter sends the optional target toward the final required destination too early.") and the design document that prescribes the fix.
+- `git log -S "case OptionalOperand"` confirms the empty case was introduced by that single checkpoint commit; there is no earlier history to consult.
+- The worktree as run carries uncommitted changes (other tasks' Rust/Kotlin/Dart work plus a `render()`-only rename in `SwiftArrayBoundary.hx`, lines 259-260: `TiqianArray(x.toMutableArray())` → `x.toMutableArray()`); `prepare` — and hence the cell — is **identical between HEAD and the worktree** (`git diff HEAD` shows the rename only). The failure was reproduced on the worktree as run.
+- Interpretation: the empty case was not a considered, documented policy decision; it is the unimplemented end of the SW04 work item, captured in a checkpoint whose own message says "unfinished".
+
+## 7. What could not be determined, and what would settle it
+
+1. **The exact typed-AST of the failing run.** No AST/producer-fact dump of the failing compile was retained (none exists in the tree; round-1 notes the same for sibling probes, `architecture-round-1.md:583`: "the run retained no typed-AST dump or branch instrumentation"). The trace in §1.3 was established by code reading and is robust to the Haxe arm type either way: `prepareArrayOperand` consults the parameter plan for the parameter's `TLocal` (`SwiftExpr.hx:2702-2704`) and `isNarrowed` requires statement-level guard facts (`SwiftExpr.hx:1116-1123`), of which there are none in `coalescedBoundary`. A typed-AST/producer-fact dump of the failing run (the "lightweight occurrence reference" the design requires, `j-prepared-value-design.md:222-223`) would settle the operand facts with primary evidence.
+2. **An explicit ruling on the planner cell itself.** No document names `MutableArrayWrapper + OptionalOperand + required destination` individually as "deliberate policy"; the governing texts state the *rule* it enforces and the *composition duty* the code violates (both quoted in §2). A document that would settle a "refusal-as-policy" reading would be a new ruling under the "Composition owns the intermediate requirement" section of `docs/compiler-policy-interfaces.md` (or a style-standard rejection row) — and per `docs/compiler-problem-analysis.md:211-213`, implementation behaviour alone cannot establish one. As far as this investigation could determine, **no document covers the cell as a refusal; the documents cover the cell as a duty of the composition.**
+3. **The exact rendering of the fix.** The documents prescribe the *facts* (optional intermediate destination, required fallback, required normal result), not the emitted text. §5's probe proves one concrete correct rendering consistent with the idiom the compiler already emits (`gen-noc` line 257); whether the final fix uses `??` over the optional form or another equivalent shape is an implementation detail open to the SW04 executor, subject to feature 18's runtime requirements (`18-immutability.md:49-65`, shared-storage visibility).
+4. **Scope beyond the nil-merge route.** Whether other positions exhibit the same composition defect (e.g., nested conditionals, returns crossing the boundary at `SwiftExpr.hx:5641-5642`, field initializers at `SwiftDecl.hx:590-604`) was not exhaustively probed; SW04's scope is the optional nil-merge target at a required destination. The `defaultSite`/coalescing route (`lowerCoalescingExpression`, `SwiftExpr.hx:285-360`) and the guard route work in the fixture's passing lines (`default-*`, `guarded-*`), so no defect is evidenced there.
+5. **Runtime verification of the *unfixed* compiler.** By definition the fixed end-to-end run (test.ts lines 57-83) cannot pass until SW04 is implemented; the probe in §5 substitutes for it at the semantics level only.
+
+## 8. Evidence index
+
+`evidence/` (all under `dc-warn/out/refused-cell-ruling/`):
+
+| file | content |
+|---|---|
+| `provenance.txt` | UTC capture time, toolchain versions, worktree HEAD, checkpoint commit, sha256 of every cited file as run |
+| `repro/oracle.stdout.log` / `oracle.stderr.log` | Haxe oracle run (exit 0; `coalesced-null=0:empty`, `coalesced-present=1:present`) |
+| `repro/generate.stdout.log` / `generate.stderr.log` | Swift generation of the fixture as checked out (exit 1; sole diagnostic `swift target: array boundary has no prepared storage decision`) |
+| `repro/generate-noc.stdout.log` / `generate-noc.stderr.log` | control: same run with `coalescedBoundary` removed (exit 0, empty stderr) |
+| `repro/gen-noc/` | generated Swift of the control run (incl. `boring/ReadOnlyBoundaryOps.swift:257`, the accepted-half `?? nil` idiom; `Runtime.swift` runtime types) |
+| `scratch/fixture-noc/`, `scratch/swift-noc.hxml` | the patched fixture + hxml used for the control run |
+| `typetest/TypeProbe.hx` / `typetest.stdout.log` | Haxe typing probe: the ternary is a required `Array<Int>` at source level |
+| `probe/main.swift` / `probe.stdout.log` / `swiftc.stderr.log` | policy-specified rendering compiled against the real generated runtime and run: `coalesced-null=0:empty`, `coalesced-present=1:present` |
+| `SwiftArrayBoundary.hx-195-235.txt`, `SwiftExpr.hx-2605-2650.txt` | exact line-numbered captures of the cited code regions |
+
+(Captures appended at write time; see file listing of `evidence/` for the exact set.)
+
+## 9. Bottom line
+
+The fixture `coalescedBoundary` asserts behaviour that the governing documents (`compiler-policy-interfaces.md:153-157, 163-167, 169-177`; `j-prepared-value-design.md:116-121, 135-140`; `j-boundary-implementation.md:104-105, 171-175`) explicitly require, and the repository's own checkpoint TODO (SW04, `swift-checkpoint-todo.md:39-42`) records the observed failure as an open defect with the cause ("sends the optional target toward the final required destination too early"). The planner's empty case is the correct enforcement of the pure-planner rule and must stay; the defect is that the nil-merge composition (`SwiftExpr.hx:2627`) never performs the documented optional-intermediate-destination conversion, so an accepted Haxe program hard-fails with `array boundary has no prepared storage decision`. **Ruling: DEFECT (composition), not correct policy; the acceptance fixture is correct as written.**

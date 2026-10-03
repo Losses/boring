@@ -1,0 +1,97 @@
+package boring
+
+import boring.runtime.FPHelper
+
+object Fp32 {
+    fun toBits(value: Double): Int {
+        val d = FPHelper.doubleToI64(value)
+        return Fp32.f64HalvesToF32Bits(d.low, d.high)
+    }
+
+    fun fromBits(bits: Int): Double {
+        val sign = ((bits) ushr (31))
+        val exp8 = ((((bits) ushr (23))) and (255))
+        val mant23 = ((bits) and (8388607))
+        if ((exp8 == 255)) {
+            val high = ((((((sign) shl (31))) or (2146435072))) or (((if ((mant23 == 0)) 0 else ((524288) or (((mant23) ushr (3))))))))
+            val low = (((((mant23) and (7)))) shl (29))
+            return FPHelper.i64ToDouble(low, high)
+        }
+        if ((exp8 == 0)) {
+            if ((mant23 == 0)) {
+                return FPHelper.i64ToDouble(0, ((sign) shl (31)))
+            }
+            var mant = mant23
+            var shift = 0
+            while (((((mant) and (8388608))) == 0)) {
+                mant = ((mant) shl (1))
+                shift += 1
+            }
+            val frac = ((mant) and (8388607))
+            val high_2 = ((((((sign) shl (31))) or (((897 - shift) shl (20))))) or (((frac) ushr (3))))
+            val low_2 = (((((frac) and (7)))) shl (29))
+            return FPHelper.i64ToDouble(low_2, high_2)
+        }
+        val high_3 = ((((((sign) shl (31))) or (((exp8 + 896) shl (20))))) or (((mant23) ushr (3))))
+        val low_3 = (((((mant23) and (7)))) shl (29))
+        return FPHelper.i64ToDouble(low_3, high_3)
+    }
+
+    fun f64HalvesToF32Bits(low: Int, high: Int): Int {
+        val sign = ((high) ushr (31))
+        val exp11 = ((((high) ushr (20))) and (2047))
+        if ((exp11 == 2047)) {
+            if (((((high) and (1048575))) == 0 && low == 0)) {
+                return ((((sign) shl (31))) or (2139095040))
+            }
+            return ((((((((sign) shl (31))) or (2139095040))) or (4194304))) or ((((((high) ushr (10))) and (1023)))))
+        }
+        if ((exp11 == 0)) {
+            return ((sign) shl (31))
+        }
+        val mantHigh = ((high) and (1048575))
+        var sig24 = ((((8388608) or (((mantHigh) shl (3))))) or (((low) ushr (29))))
+        val dropped = ((low) and (536870911))
+        val half = 268435456
+        if ((dropped > half || dropped == half && (((sig24) and (1))) == 1)) {
+            sig24 += 1
+        }
+        var e2 = exp11
+        if ((sig24 == 16777216)) {
+            sig24 = 8388608
+            e2 += 1
+        }
+        if ((e2 >= 1151)) {
+            return ((((sign) shl (31))) or (2139095040))
+        }
+        if ((e2 >= 897)) {
+            return ((((((sign) shl (31))) or (((e2 - 896) shl (23))))) or ((((sig24) and (8388607)))))
+        }
+        return ((((sign) shl (31))) or (Fp32.subnormalTarget(mantHigh, low, 896 - e2)))
+    }
+
+    private fun subnormalTarget(mantHigh: Int, low: Int, k: Int): Int {
+        if ((k >= 24)) {
+            return 0
+        }
+        val top = (((((((1048576) or (mantHigh)))) shl (2))) or (((low) ushr (30))))
+        val rest = ((low) and (1073741823))
+        val halfRest = 536870912
+        var h = (if ((k == 0)) top else ((top) ushr (k)))
+        if ((k == 0)) {
+            if ((rest > halfRest || rest == halfRest && (((h) and (1))) == 1)) {
+                h += 1
+            }
+        } else {
+            val r = ((top) and ((((1) shl (k))) - 1))
+            val halfR = ((1) shl (k - 1))
+            if ((r > halfR || r == halfR && rest > 0 || r == halfR && rest == 0 && (((h) and (1))) == 1)) {
+                h += 1
+            }
+        }
+        if ((h == 8388608)) {
+            return 8388608
+        }
+        return h
+    }
+}

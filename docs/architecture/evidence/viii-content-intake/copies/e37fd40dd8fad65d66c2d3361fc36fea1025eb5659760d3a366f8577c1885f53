@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class MultiPatternSwitchTests {
+@boring.test.Test
+    fun testPatterns() {
+        Test.run("tests.MultiPatternSwitchTests.testPatterns", "tests.MultiPatternSwitchTests.testPatterns: a multi-pattern switch arm keeps every pattern") {
+                Test.equals(true, true, null)
+        }
+    }
+}

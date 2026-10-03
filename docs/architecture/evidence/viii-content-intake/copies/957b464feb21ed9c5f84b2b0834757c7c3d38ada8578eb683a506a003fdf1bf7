@@ -1,0 +1,24 @@
+#[derive(Clone, Copy)]
+pub struct MathIntWideningOps;
+
+impl MathIntWideningOps {
+    pub fn math_int_widening_ops_floor_of(x: u32) -> u32 {
+        return u32::from_ne_bytes(((match f64::from(f64::floor(i32::from_ne_bytes(((x) as i32).to_ne_bytes()) as f64)) { v if v.is_nan() => 0i32, v if v >= 2147483648.0 => 2147483647i32, v if v < -2147483648.0 => -2147483648i32, v if v < 0.0 => i32::from_ne_bytes(u32::wrapping_sub(0, match ((0.0 - v).to_bits() >> 52) & 2047 { e if e < 1023 => 0u32, e => u32::try_from((((0.0 - v).to_bits() & 4503599627370495) | 4503599627370496) >> (52 - (e - 1023))).unwrap_or(0) }).to_ne_bytes()), v => i32::from_ne_bytes(match ((v).to_bits() >> 52) & 2047 { e if e < 1023 => 0u32, e => u32::try_from((((v).to_bits() & 4503599627370495) | 4503599627370496) >> (52 - (e - 1023))).unwrap_or(0) }.to_ne_bytes()) }) as u32).to_ne_bytes());
+    }
+
+    pub fn math_int_widening_ops_ceil_of(x: u32) -> u32 {
+        return u32::from_ne_bytes(((match f64::from(f64::ceil(i32::from_ne_bytes(((x) as i32).to_ne_bytes()) as f64)) { v if v.is_nan() => 0i32, v if v >= 2147483648.0 => 2147483647i32, v if v < -2147483648.0 => -2147483648i32, v if v < 0.0 => i32::from_ne_bytes(u32::wrapping_sub(0, match ((0.0 - v).to_bits() >> 52) & 2047 { e if e < 1023 => 0u32, e => u32::try_from((((0.0 - v).to_bits() & 4503599627370495) | 4503599627370496) >> (52 - (e - 1023))).unwrap_or(0) }).to_ne_bytes()), v => i32::from_ne_bytes(match ((v).to_bits() >> 52) & 2047 { e if e < 1023 => 0u32, e => u32::try_from((((v).to_bits() & 4503599627370495) | 4503599627370496) >> (52 - (e - 1023))).unwrap_or(0) }.to_ne_bytes()) }) as u32).to_ne_bytes());
+    }
+
+    pub fn math_int_widening_ops_sqrt_of(x: u32) -> f64 {
+        return (i32::from_ne_bytes(((x) as i32).to_ne_bytes()) as f64).sqrt();
+    }
+
+    pub fn math_int_widening_ops_nan_of(x: u32) -> bool {
+        return (i32::from_ne_bytes(((x) as i32).to_ne_bytes()) as f64).is_nan();
+    }
+
+    pub fn math_int_widening_ops_finite_of(x: u32) -> bool {
+        return (i32::from_ne_bytes(((x) as i32).to_ne_bytes()) as f64).is_finite();
+    }
+}

@@ -1,0 +1,78 @@
+== A. counts / set equality ==
+git ls-tree -r e1c65975        : 1398
+git ls-tree -r 2159c657        : 1366
+new SOURCE_MANIFEST        : 1398 entries, 1398 unique paths
+old SOURCE_MANIFEST        : 1366 entries, 1366 unique paths
+inventory-1398.json        : 1398 paths
+set(new manifest) == set(git e1c65975)      : True
+set(new manifest) == set(inventory)   : True
+set(old manifest) == set(git 2159c657)      : True
+commit resolved e1c65975              : e1c6597514634fd347d392709793cc19bd96c9a2
+commit resolved 2159c657              : 2159c657dcca870950b7bd43aa6e09a21d7cee30
+
+== B. full recompute of every manifest entry (poststate rule: sha256 + S_IXUSR vs mode==100755) ==
+NEW root vs NEW manifest: entries=1398 missing=0 sha256-mismatch=0 exec-bit-mismatch=0
+OLD root vs OLD manifest: entries=1366 missing=0 sha256-mismatch=0 exec-bit-mismatch=0
+
+== C. manifest vs git object content of the pinned commit (1398 blobs recomputed) ==
+manifest sha256 != git blob sha256 (e1c65975): 0 []
+manifest mode   != git tree mode  (e1c65975): 0 []
+
+== D. new root file inventory vs manifest (extra / missing, runtime assets separated) ==
+new root regular files total : 4540 (source-set 1398, runtime 3142), symlinks 293
+source files not in manifest : 0 []
+manifest paths not on disk   : 0 []
+top-level entries            : 32
+top-level entries(old root)  : 33
+non-source top-level items   : ['.haxelib', 'node_modules']
+
+== E. new root source set vs fixed-compiler-e1c65975 snapshot (all 1398 bytes) ==
+snapshot files: 1398 ; in manifest but missing in snapshot: 0 ; snapshot files outside manifest: 0 []
+byte mismatches vs snapshot  : 0 []
+exec-bit diff vs snapshot    : 0 []
+snapshot files matching manifest sha: 1398/1398
+
+== F. two-generation separation ==
+paths common to both manifests        : 1366
+paths only in NEW (e1c65975)          : 32 ['tests/haxe/readonly-alias/README.md', 'tests/haxe/readonly-alias/REVIEW.md', 'tests/haxe/readonly-alias/expected.txt', 'tests/haxe/readonly-alias/gen/dart.hxml', 'tests/haxe/readonly-alias/gen/kotlin.hxml', 'tests/haxe/readonly-alias/gen/rust.hxml', 'tests/haxe/readonly-alias/gen/swift.hxml', 'tests/haxe/readonly-alias/gen/ts.hxml', 'tests/haxe/readonly-alias/native/Main.kt', 'tests/haxe/readonly-alias/native/harness.rs', 'tests/haxe/readonly-alias/native/main.dart', 'tests/haxe/readonly-alias/native/main.js']
+paths only in OLD (2159c657)          : 0 []
+common paths with different sha256    : 4
+  sample: ['docs/architecture-work-plan.md', 'docs/compiler-policy-interfaces.md', 'packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx', 'packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx']
+manifest files identical?             : False (new sha256=0ef7ebb6cd66bded, old sha256=9222932b9fffaba3)
+CONTAMINATION candidates (new root file equals 2159c657 content): 0 []
+differing paths where new root != new manifest: 0 []
+old root vs old manifest on differing paths   : 0 mismatches
+old root non-manifest source files: 9 ['out/env-probe/cache/nix/eval-cache-v6/439ea974c08057c0f623a96ee3ed684935883831b0a7d91c1fbb8fcdcf74a9a2.sqlite', 'out/env-probe/cache/nix/eval-cache-v6/e698125c107eeec0438bb5669e0fdf5d06bafc4eb390a80b103d441172e00728.sqlite', 'out/env-probe/cache/nix/fetcher-cache-v4.sqlite', 'out/env-probe/cache/nix/fetcher-cache-v4.sqlite-shm', 'out/env-probe/cache/nix/fetcher-cache-v4.sqlite-wal', 'out/env-probe/integrity.json', 'out/env-probe/status', 'out/env-probe/stderr', 'out/env-probe/stdout']
+
+== G. runtime assets (.haxelib, node_modules) ==
+.haxelib: new=167 files links=0 | old=167 files links=0 | identical=166 differing=1 | only-new=[] only-old=[]
+   differing: ['boring/.dev']
+   bytes new=2801974 old=2801973
+   files resolving outside new root: 0 []
+node_modules: new=2975 files links=293 | old=2975 files links=293 | identical=2975 differing=0 | only-new=[] only-old=[]
+   differing: []
+   bytes new=46075603 old=46075603
+   files resolving outside new root: 0 []
+
+== H. other trees: writes inside task window (since Tue Sep 29 17:31:00 2026) ==
+fixed-compiler-e1c65975        files+dirs modified in window: 0    (core: 0) []
+     sample: []
+fixed-compiler-2159c657        files+dirs modified in window: 0    (core: 0) []
+     sample: []
+boring-wt-architecture         files+dirs modified in window: 1    (core: 1) ['out/semantic-pass-exceptions.json']
+     sample: [('out/semantic-pass-exceptions.json', 'Tue Sep 29 17:32:47 2026')]
+tiqian                         files+dirs modified in window: 0    (core: 0) []
+     sample: []
+p09-e1c65975(manifest dir)     files+dirs modified in window: 1    (core: 1) ['option-c-source-before.json']
+     sample: [('option-c-source-before.json', 'Tue Sep 29 17:32:30 2026')]
+old execution root (2159c657)  files+dirs modified in window: 0    (core: 0) []
+new execution root (e1c65975)  files+dirs modified in window: 1    (core: 0) []
+
+== I. recorded checksums of pre-existing files ==
+inventory-1398.json: recorded=9892914fa8d9c3fc actual=9892914fa8d9c3fc match=True
+published-tree-equivalence.json: recorded=2f40163255a863b7 actual=2f40163255a863b7 match=True
+anchor 4a50f22467248060 ~ sha256 of concat "sha256  path\n" (sorted) -> bf030ff67992d34b no
+anchor 4a50f22467248060 ~ sha256 of concat "sha256 path\n" (sorted) -> d69f685cfc0afe71 no
+anchor 4a50f22467248060 ~ sha256 of json list (indent=2) -> 0ef7ebb6cd66bded no
+
+DONE

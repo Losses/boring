@@ -1,0 +1,14 @@
+#![cfg(test)]
+
+use crate::boring::swift_default_ops::SwiftDefaultOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_default_style() {
+    testlib::run("tests.SwiftDefaultTests.testDefaultStyle", "tests.SwiftDefaultTests.testDefaultStyle: data class defaults construct a value type static constant", || {
+        test_core::TestCore::test_core_equals_bool(true, SwiftDefaultOps::swift_default_ops_has_default(), UStr::new(&[]));
+    });
+}

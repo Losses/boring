@@ -1,0 +1,16 @@
+scenario	exit	real-assertion	env-timeout	npm-artifact-flake	timeout-cascade	unattributed	attributed/total
+control-A-artifact-no-bytediff	0	1	0	0	0	0	1/1
+control-B-artifact-timeout	0	0	1	0	0	0	1/1
+control-C-cascade-no-timeout	0	1	0	0	0	1	1/1
+control-D-package-shell-249	0	1	0	0	0	0	1/1
+control-E-died-before-summary	0	0	1	0	0	0	1/?
+control-F-buffer-diff-other-file	0	1	0	0	0	0	1/1
+control-G-green-run	0	0	0	0	0	0	0/0
+crafted-assertion	0	1	0	0	0	0	1/1
+crafted-flake	0	0	0	1	0	0	1/1
+crafted-timeout	0	0	2	0	2	0	2/2
+gate-domain-guard	1	7	25	0	8	0	32/32
+gate-missing-log	1	-	-	-	-	-	?/?
+gate-unparseable-count	1	-	-	-	-	-	?/?
+gate-warn-over-baseline	1	1	0	0	0	0	1/1
+retained-baseline	0	7	25	0	8	0	32/32

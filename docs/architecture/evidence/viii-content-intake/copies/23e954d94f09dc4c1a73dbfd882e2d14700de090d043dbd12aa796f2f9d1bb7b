@@ -1,0 +1,9 @@
+# target kotlin
+# generated tree /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen
+9a8283e91ece475762a69c95fb9bfbccd46d4a59e30bac1df0639353562a6bea  /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen/dcpe/EvalProbe.kt
+# --- subject region of /home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen/dcpe/EvalProbe.kt ---
+19:            val _g = EvalProbe.nextKind()
+20:            when (_g) {
+21:    is Kind.A -> acc = 1
+22:    is Kind.B -> acc = _g.value
+23:    is Kind.C -> acc = 3

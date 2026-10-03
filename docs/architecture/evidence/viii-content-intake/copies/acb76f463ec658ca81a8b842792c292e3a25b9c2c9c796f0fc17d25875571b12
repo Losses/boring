@@ -1,0 +1,70 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+
+
+#[test]
+fn null_int_field_prints_null() {
+    testlib::run("tests.NullableFieldRecordTests.nullIntFieldPrintsNull", "tests.NullableFieldRecordTests.nullIntFieldPrintsNull: a null Int field prints null", || {
+    });
+}
+
+#[test]
+fn null_string_field_prints_null() {
+    testlib::run("tests.NullableFieldRecordTests.nullStringFieldPrintsNull", "tests.NullableFieldRecordTests.nullStringFieldPrintsNull: a null String field prints null", || {
+    });
+}
+
+#[test]
+fn present_int_field_prints_value() {
+    testlib::run("tests.NullableFieldRecordTests.presentIntFieldPrintsValue", "tests.NullableFieldRecordTests.presentIntFieldPrintsValue: a present Int field prints its value", || {
+    });
+}
+
+#[test]
+fn present_string_field_prints_value() {
+    testlib::run("tests.NullableFieldRecordTests.presentStringFieldPrintsValue", "tests.NullableFieldRecordTests.presentStringFieldPrintsValue: a present String field prints its value", || {
+    });
+}
+
+#[test]
+fn null_field_left_operand() {
+    testlib::run("tests.NullableFieldRecordTests.nullFieldLeftOperand", "tests.NullableFieldRecordTests.nullFieldLeftOperand: a nullable field on the left of a literal prints nulla", || {
+    });
+}
+
+#[test]
+fn null_field_right_operand() {
+    testlib::run("tests.NullableFieldRecordTests.nullFieldRightOperand", "tests.NullableFieldRecordTests.nullFieldRightOperand: a nullable field on the right of a literal prints anull", || {
+    });
+}
+
+#[test]
+fn null_int_field_left_operand() {
+    testlib::run("tests.NullableFieldRecordTests.nullIntFieldLeftOperand", "tests.NullableFieldRecordTests.nullIntFieldLeftOperand: a nullable Int field on the left of a literal prints null", || {
+    });
+}
+
+#[test]
+fn null_local_left_operand() {
+    testlib::run("tests.NullableFieldRecordTests.nullLocalLeftOperand", "tests.NullableFieldRecordTests.nullLocalLeftOperand: a nullable local on the left of a literal prints nulla", || {
+    });
+}
+
+#[test]
+fn null_local_right_operand() {
+    testlib::run("tests.NullableFieldRecordTests.nullLocalRightOperand", "tests.NullableFieldRecordTests.nullLocalRightOperand: a nullable local on the right of a literal prints anull", || {
+    });
+}
+
+#[test]
+fn present_value_concatenates() {
+    testlib::run("tests.NullableFieldRecordTests.presentValueConcatenates", "tests.NullableFieldRecordTests.presentValueConcatenates: a present nullable value concatenates on either side", || {
+    });
+}
+
+#[test]
+fn both_states_print() {
+    testlib::run("tests.NullableFieldRecordTests.bothStatesPrint", "tests.NullableFieldRecordTests.bothStatesPrint: every nullable field prints its null and present forms", || {
+    });
+}

@@ -1,0 +1,37 @@
+import json, hashlib, os, sys
+base = "/home/losses/Development/tq-workspace/publication-staging/fixed-compiler-e1c65975"
+inv = json.load(open("/home/losses/Development/tq-workspace/publication-staging/p09-e1c65975/inventory-1398.json"))
+files = inv["files"]
+mismatch, missing = [], []
+checked = 0
+for path, meta in files.items():
+    p = os.path.join(base, path)
+    if not os.path.isfile(p):
+        missing.append(path); continue
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    if h.hexdigest() != meta["sha256"] or os.path.getsize(p) != meta["size"]:
+        mismatch.append((path, meta["sha256"], h.hexdigest()))
+    checked += 1
+# on-disk set vs inventory set
+ondisk = set()
+for root, dirs, fnames in os.walk(base):
+    for fn in fnames:
+        rel = os.path.relpath(os.path.join(root, fn), base)
+        ondisk.add(rel)
+extra = sorted(ondisk - set(files))
+print(f"inventory_count={inv['count']} files_entries={len(files)} checked={checked} missing={len(missing)} mismatch={len(mismatch)} extra_on_disk={len(extra)}")
+if missing: print("MISSING:", *missing[:20], sep="\n  ")
+if mismatch:
+    print("MISMATCH:")
+    for m in mismatch[:20]: print("  ", m)
+if extra: print("EXTRA:", *extra[:20], sep="\n  ")
+# driver inputs entries
+for f in ["tools/bundle/driver.hxml","tools/bundle/Driver.hx","tools/bundle/ChildEvidence.hx"]:
+    print(f"inventory[{f}] =", files.get(f))
+# inventory self-hash
+print("inventory_self_sha256 =", hashlib.sha256(open("/home/losses/Development/tq-workspace/publication-staging/p09-e1c65975/inventory-1398.json","rb").read()).hexdigest())
+print("claimed inventory-1398.sha256 =", open("/home/losses/Development/tq-workspace/publication-staging/p09-e1c65975/inventory-1398.sha256").read().split()[0])
+sys.exit(0 if not mismatch and not missing and not extra else 1)

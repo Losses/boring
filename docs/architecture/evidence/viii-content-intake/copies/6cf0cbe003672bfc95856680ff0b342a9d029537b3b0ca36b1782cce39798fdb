@@ -1,0 +1,5 @@
+== HEAD 8613334d (2aadcb69 landed): runHaxe no longer touches the tracked fixture at all ==
+before: count=5 hash=1c2acf93702b177df7179aac156ab94590e844110162d71e4d6fd5b90af3018a mtime=1790797614
+after timeout: count=5 hash=1c2acf93702b177df7179aac156ab94590e844110162d71e4d6fd5b90af3018a mtime=1790797614 (mtime unchanged => no write)
+in-process trace (equals_count at each haxe spawn):
+call 1 cmd=["haxe","out/package-artifacts-id-a.hxml"] equals_count=5

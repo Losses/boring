@@ -1,0 +1,2 @@
+gen-before rc=0
+typecheck-before rc=1

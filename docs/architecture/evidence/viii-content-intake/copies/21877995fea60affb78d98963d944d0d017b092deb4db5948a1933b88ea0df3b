@@ -1,0 +1,8 @@
+package boring
+
+object DartLocalNameFixOps {
+    fun localShadow(): String {
+        val text = "value"
+        return text + "!"
+    }
+}

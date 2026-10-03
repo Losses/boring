@@ -1,0 +1,4 @@
+/home/losses/Development/tq-workspace/dc-warn/ciwire-wt/wt/out/swift-gap-boundary/test-982adb9d-a691-4867-b678-ead6051323ac/failure-probe/broken.swift:1:19: error: cannot convert value of type 'String' to specified type 'Int'
+1 | let broken: Int = "s"
+  |                   `- error: cannot convert value of type 'String' to specified type 'Int'
+2 | 

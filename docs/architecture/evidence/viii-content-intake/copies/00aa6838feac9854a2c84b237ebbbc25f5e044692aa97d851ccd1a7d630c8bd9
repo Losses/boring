@@ -1,0 +1,52 @@
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/out/rust-modkey-fix/scratch/gen-base-225808228695153/xs-twoexc)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: `?` couldn't convert the error to `F2`
+  --> xcheckscope/two_probe.rs:54:69
+   |
+54 |             return Ok(TwoProbe::two_probe_throw_e1(UStr::new(&[97]))?);
+   |                       ----------------------------------------------^ the trait `From<F1>` is not implemented for `F2`
+   |                       |
+   |                       this can't be annotated with `?` because it has type `Result<_, F1>`
+   |
+note: `F2` needs to implement `From<F1>`
+  --> xcheckscope/two_probe.rs:23:1
+   |
+23 | pub enum F2 {
+   | ^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+
+error[E0433]: cannot find type `E1` in this scope
+  --> xcheckscope/two_probe.rs:60:32
+   |
+60 |                     return Err(E1::new(e));
+   |                                ^^ use of undeclared type `E1`
+   |
+help: a trait with a similar name exists
+   |
+60 -                     return Err(E1::new(e));
+60 +                     return Err(Eq::new(e));
+   |
+
+error[E0433]: cannot find type `E2` in this scope
+  --> xcheckscope/two_probe.rs:80:32
+   |
+80 |                     return Err(E2::new(e));
+   |                                ^^ use of undeclared type `E2`
+   |
+help: a trait with a similar name exists
+   |
+80 -                     return Err(E2::new(e));
+80 +                     return Err(Eq::new(e));
+   |
+
+Some errors have detailed explanations: E0277, E0433.
+For more information about an error, try `rustc --explain E0277`.
+warning: `generated` (lib) generated 1 warning
+error: could not compile `generated` (lib) due to 3 previous errors; 1 warning emitted

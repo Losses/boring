@@ -1,0 +1,47 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OverrideMemberRecord {
+    pub value: u32,
+}
+
+impl OverrideMemberRecord {
+    pub fn new(value: u32) -> Self {
+        Self {
+            value,
+        }
+    }
+
+    pub fn hash_of(&self) -> u32 {
+        return self.value;
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("OverrideMemberRecord(")); __s += &(UString::from("value=")); __s += &(UString::from((self.value).to_string().as_str())); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+pub fn compare_override_member_record(a: &OverrideMemberRecord, b: &OverrideMemberRecord) -> i32 {
+    let cmp_value = match i32::from_ne_bytes((*(&a.value)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.value)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_value != 0 { return cmp_value; }
+    0
+}
+
+#[derive(Clone, Copy)]
+pub struct OverrideMemberOps;
+
+impl OverrideMemberOps {
+    pub fn override_member_ops_hash(value: u32) -> u32 {
+        return OverrideMemberRecord::new(value).hash_of();
+    }
+
+    pub fn override_member_ops_ordinary() -> UString {
+        return UString::from("ordinary").to_ustring();
+    }
+
+    pub fn override_member_ops_message(value: &UStr) -> UString {
+        return value.to_ustring();
+    }
+}

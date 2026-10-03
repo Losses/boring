@@ -1,0 +1,15 @@
+--- out/ts-sourcemap-positions/attempt-j6wC700T/gen/OriginShapes.ts	2026-09-29 16:40:49.000000000 -0400
++++ out/ts-sourcemap-positions/attempt-j6wC700T/stage/OriginShapes.ts	2026-09-29 16:40:49.000000000 -0400
+@@ -6,9 +6,9 @@
+   }
+ 
+   public static run(): string {
+-    OriginShapes.pick("direct");
+-    const local = OriginShapes.pick("init");
+-    return OriginShapes.pick("return") + local;
++    OriginShapes.pick(0);
++    const local = OriginShapes.pick(0);
++    return OriginShapes.pick(0) + local;
+   }
+ 
+   public static main(): void {

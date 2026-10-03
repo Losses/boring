@@ -1,0 +1,46 @@
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/out/modkey-xcheck/scratch/gen-attack2-post)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0308]: mismatched types
+  --> xsxm/sib_probe.rs:12:20
+   |
+12 |         return Err(WithPayload::new(F1Fault::One { t: t.to_ustring() }));
+   |                --- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `MsgOnly`, found `WithPayload`
+   |                |
+   |                arguments to this enum variant are incorrect
+   |
+help: the type constructed contains `WithPayload` due to the type of the argument passed
+  --> xsxm/sib_probe.rs:12:16
+   |
+12 |         return Err(WithPayload::new(F1Fault::One { t: t.to_ustring() }));
+   |                ^^^^----------------------------------------------------^
+   |                    |
+   |                    this argument influences the type of `Err`
+note: tuple variant defined here
+  --> /rustc/88d9e12ae178fab0fb5cc050a94da85685d449ea/library/core/src/result.rs:566:4
+
+error[E0277]: `?` couldn't convert the error to `F1Fault`
+  --> xsxm/sib_probe.rs:18:65
+   |
+18 |             return Ok(SibProbe::sib_probe_boom(UStr::new(&[97]))?);
+   |                       ------------------------------------------^ the trait `From<MsgOnly>` is not implemented for `F1Fault`
+   |                       |
+   |                       this can't be annotated with `?` because it has type `Result<_, MsgOnly>`
+   |
+note: `F1Fault` needs to implement `From<MsgOnly>`
+  --> xsxm/sib.rs:21:1
+   |
+21 | pub enum F1Fault {
+   | ^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
+warning: `generated` (lib) generated 1 warning
+error: could not compile `generated` (lib) due to 2 previous errors; 1 warning emitted

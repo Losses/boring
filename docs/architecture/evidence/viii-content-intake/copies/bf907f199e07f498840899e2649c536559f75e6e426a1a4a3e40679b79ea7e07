@@ -1,0 +1,17 @@
+diff --git a/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx b/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+index f59efe24..308bc162 100644
+--- a/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
++++ b/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+@@ -182,6 +182,12 @@ class SwiftDecl {
+                 conformances.push("Equatable");
+             }
+             if (depth == 1) {
++                // The conformance names the runtime base class, so this
++                // file references the runtime package. Record the use: a
++                // tree whose only exception path is caught by its concrete
++                // type names no haxe.Exception and would otherwise omit
++                // Runtime.swift (task t-mun5d99p-op76).
++                imports.runtime("BoringException");
+                 conformances.push("BoringException");
+             } else if (depth >= 2) {
+                 // A deeper exception subclass inherits from its parent

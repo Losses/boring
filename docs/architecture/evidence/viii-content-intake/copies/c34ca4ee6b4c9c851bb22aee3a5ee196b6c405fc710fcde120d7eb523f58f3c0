@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Generate the whole committed Rust fixture corpus into <base>/<key>.
+# usage: bash corpus.sh <state-label> <base-dir>
+# run from worktree root.
+set -uo pipefail
+LABEL="$1"; BASE="$2"
+mkdir -p "$BASE"
+declare -A FIX=(
+	[comp-runtime-obs]=tests/haxe/comparison-runtime-observation/hxml/rust.hxml
+	[enum-comparison]=tests/haxe/enum-comparison/rust-gen.hxml
+	[flow-normalized]=tests/haxe/flow/hxml/normalized-rust.hxml
+	[flow-stable-local]=tests/haxe/flow/hxml/stable-local-rust.hxml
+	[flow]=tests/haxe/flow/rust.hxml
+	[place]=tests/haxe/place/rust-gen.hxml
+	[readonly-alias]=tests/haxe/readonly-alias/gen/rust.hxml
+	[rust-comparison-policy]=tests/haxe/rust-comparison-policy/rust.hxml
+	[rust-comparison-policy-unused]=tests/haxe/rust-comparison-policy/unused-param-key.hxml
+	[signed-key-composition]=tests/haxe/signed-key-composition/hxml/rust.hxml
+	[source-container-policy]=tests/haxe/source-container-policy/gen/rust.hxml
+	[try-tail]=tests/haxe/try-tail/gen/rust.hxml
+	[try-tail-min]=tests/haxe/try-tail-min/gen/rust.hxml
+	[timeout-probe]=tests/timeout-probe/rust.hxml
+)
+: >"$BASE/$LABEL.status.tsv"
+for key in "${!FIX[@]}"; do
+	hxml="${FIX[$key]}"
+	out="$BASE/$key"
+	if [ ! -f "$hxml" ]; then
+		printf '%s\t%s\t%s\n' "$key" "missing-hxml" "$hxml" >>"$BASE/$LABEL.status.tsv"
+		continue
+	fi
+	timeout 600 nix develop -c haxe "$hxml" -D rust-output="$out" >"$BASE/$key.gen.stdout" 2>"$BASE/$key.gen.stderr"
+	st=$?
+	printf '%s\t%s\n' "$key" "$st" >>"$BASE/$LABEL.status.tsv"
+	printf '[%s] %s -> %s\n' "$LABEL" "$key" "$st"
+done

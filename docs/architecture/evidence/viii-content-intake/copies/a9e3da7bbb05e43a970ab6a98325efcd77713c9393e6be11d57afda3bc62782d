@@ -1,0 +1,35 @@
+# Evidence inventory — read this before citing a log
+
+All logs are raw output; no pipelines were used around any command whose exit
+code is reported (`rc` values in primary-06-geometry.txt were captured with
+`$?` immediately after the command, not from a pipeline).
+
+## Valid evidence
+
+| File | What it is | Result |
+|---|---|---|
+| `suite-before.log` | Frozen `selftest.sh` at `961e1307…`, full suite, before the change | rc 0, `33 pass, 0 fail` |
+| `suite-after.log` | Frozen `selftest.sh` at `81090001…`, full suite, after the change | rc 0, `35 pass, 0 fail` |
+| `suite-after-rerun.log` | Same after-run repeated | rc 0, `35 pass, 0 fail`; byte-identical to `suite-after.log` |
+| `primary-00-clean-new.log` | NEW checker on an untampered sealed attempt | rc 0, `INTEGRITY OK` |
+| `primary-01-clean-old.log` | OLD checker on the same untampered sealed attempt | rc 0, `INTEGRITY OK` |
+| `primary-02-noLF-new.log` | **NEW checker on 6 bytes appended with NO LF** | **rc 1, detected** |
+| `primary-03-noLF-old.log` | **OLD checker on the identical dir/bytes** | **rc 0, MISSED (blind spot)** |
+| `primary-04-withLF-new.log` | NEW checker, same 6 bytes + a LF | rc 1, detected |
+| `primary-05-withLF-old.log` | OLD checker, same 6 bytes + a LF | rc 1, detected |
+| `primary-06-geometry.txt` | Byte geometry + all rc values; proves both checkers are read-only on the input | see file |
+| `primary-07-oldchecker-internals.txt` | Old checker's `last`/`total`/`recorded`/`prefix_sha` on the final tampered log — why it misses | `total == last`, `recorded == prefix_sha` |
+| `attribution-lf-vs-nolf.log` | First (independent) LF-vs-noLF A/B, earlier attempt | same table |
+| `mirror-suite-new.log` | Full suite in a `dc-warn` mirror, NEW checker | rc 1 (env-only failures) |
+| `mirror-suite-old.log` | Full suite in the same mirror, OLD checker swapped in | rc 1 (env-only failures + the new control) |
+
+## INVALID — do not cite
+
+| File | Why it is invalid |
+|---|---|
+| `INVALID-suite-oldchecker-broken-env.log` | First attempt at "suite with old checker". It ran a hand-built copy whose `ROOT` was still the frozen tree, so `run-exclusive.sh` wrote attempts to `$ROOT/out/...` (the frozen dir) while the copy's `$E` was read for `.latest-run`; every path therefore resolved to `/stages/*.status`, `/harness.log`. Its `14 pass, 21 fail` is an environment artifact, NOT old-checker behaviour. Kept only for the record. |
+
+`mirror-suite-*.log` are the correction: both arms are complete mirrors of the
+same layout under `dc-warn`, and the ONLY differences between the arms are the
+checker bytes. Their environmental failures are identical in both arms (see
+REPORT.md §3.2).

@@ -1,0 +1,14 @@
+use crate::boring::font_id::FontIdImpl;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct FontIdConsumer;
+
+impl FontIdConsumer {
+    pub fn font_id_consumer_is_prefixed(face: &UStr) -> bool {
+        let id = FontIdImpl::font_id_impl_of(face);
+        return id == UString::from("font:hello");
+    }
+}

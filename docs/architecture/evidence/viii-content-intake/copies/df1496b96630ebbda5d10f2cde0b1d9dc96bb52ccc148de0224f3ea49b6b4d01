@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class FloatModCompareOpsTests {
+@boring.test.Test
+    fun even() {
+        Test.run("tests.FloatModCompareOpsTests.even", "tests.FloatModCompareOpsTests.even: a Float remainder compares zero in the Float domain") {
+        }
+    }
+}

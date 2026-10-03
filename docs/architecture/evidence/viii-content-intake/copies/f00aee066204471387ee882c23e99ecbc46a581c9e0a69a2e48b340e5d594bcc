@@ -1,0 +1,17 @@
+use crate::boring::imp_widget::ImpWidget;
+use crate::runtime::u_string::UStr;
+
+
+#[derive(Clone, PartialEq)]
+pub struct ImpHost {
+    pub widget: ImpWidget,
+}
+
+impl ImpHost {
+    pub fn new(widget: Option<ImpWidget>) -> Self {
+        let widget = widget.unwrap_or_else(|| ImpWidget::new(UStr::new(&[119])));
+        Self {
+            widget: widget,
+        }
+    }
+}

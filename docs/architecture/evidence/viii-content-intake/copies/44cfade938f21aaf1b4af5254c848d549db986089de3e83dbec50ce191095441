@@ -1,0 +1,18 @@
+35:import swiftcompiler.SwiftArrayBoundary.SwiftArrayOptionality;
+36:import swiftcompiler.SwiftArrayBoundary.SwiftArrayPresenceFact;
+37:import swiftcompiler.SwiftArrayBoundary.SwiftArrayPreparedOperand;
+38:import swiftcompiler.SwiftArrayBoundary.SwiftArrayStorage;
+305:        final sourceStorage = parameterPlan == null ? SwiftArrayBoundary.sourceStorage(sourceType) : parameterPlan.bodyStorage;
+743:                final arrayBoundary = SwiftArrayBoundary.isBoundary(init.t, v.t);
+2534:        if (SwiftArrayBoundary.isBoundary(inner.t, target))
+2580:        if (!SwiftArrayBoundary.isBoundary(inner.t, target))
+2607:        final plan = SwiftArrayBoundary.prepare(operand, target, destinationOptionalOverride);
+2614:            text: arrayRuntimeText(SwiftArrayBoundary.render(plan, operand.text, elementText)),
+2672:        if (!SwiftArrayBoundary.isOptionalArrayType(source.t)
+2673:            || SwiftArrayBoundary.sourceStorage(source.t) != SwiftArrayStorage.MutableArrayWrapper
+2674:            || !SwiftArrayBoundary.isBoundary(source.t, target))
+2689:            storage: recorded == null ? SwiftArrayBoundary.sourceStorage(e.t, isEmptyArrayDecl(e), isNullLiteral(e)) : recorded,
+2721:        if (!SwiftArrayBoundary.isOptionalArrayType(e.t))
+2806:        if (SwiftArrayBoundary.isBoundary(value.t, target.t))
+5641:                        && SwiftArrayBoundary.isBoundary(returnValue.t,
+6173:                final bindingStorage = SwiftArrayBoundary.sourceStorage(localType);

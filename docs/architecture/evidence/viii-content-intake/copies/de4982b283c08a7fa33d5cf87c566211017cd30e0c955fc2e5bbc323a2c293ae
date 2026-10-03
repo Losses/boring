@@ -1,0 +1,6 @@
+out/try-tail/gen/kotlin/build.gradle.kts
+out/try-tail/gen/kotlin/_GeneratedFiles.txt
+out/try-tail/gen/kotlin/runtime/test/TestCore.kt
+out/try-tail/gen/kotlin/runtime/test/Test.kt
+out/try-tail/gen/kotlin/std/UStringException.kt
+out/try-tail/gen/kotlin/trytail/TryTailOracle.kt

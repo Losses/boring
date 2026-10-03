@@ -1,0 +1,61 @@
+#![cfg(test)]
+
+use crate::boring::default_arg_shift_ops::DefaultArgShiftOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_explicit_null() {
+    testlib::run("tests.DefaultArgShiftTests.testExplicitNull", "tests.DefaultArgShiftTests.testExplicitNull: explicit null at a parameter-reading default resolves the earlier argument", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,108,112,104,97]), DefaultArgShiftOps::default_arg_shift_ops_call_explicit_null().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98,101,116,97]), DefaultArgShiftOps::default_arg_shift_ops_call_later_given().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_chain_explicit_null() {
+    testlib::run("tests.DefaultArgShiftTests.testChainExplicitNull", "tests.DefaultArgShiftTests.testChainExplicitNull: chain later parameter with explicit null reads the earlier argument", || {
+        test_core::TestCore::test_core_equals_float(9.0f32, DefaultArgShiftOps::default_arg_shift_ops_call_chained_later_null(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_chain_omissions() {
+    testlib::run("tests.DefaultArgShiftTests.testChainOmissions", "tests.DefaultArgShiftTests.testChainOmissions: chain omission forms keep their resolved values", || {
+        test_core::TestCore::test_core_equals_float(5.0f32, DefaultArgShiftOps::default_arg_shift_ops_call_chained_both_omitted(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(7.0f32, DefaultArgShiftOps::default_arg_shift_ops_call_chained_later_omitted(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(9.5f32, DefaultArgShiftOps::default_arg_shift_ops_call_chained_both_given(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_instance_method() {
+    testlib::run("tests.DefaultArgShiftTests.testInstanceMethod", "tests.DefaultArgShiftTests.testInstanceMethod: instance method parameter-reading default resolves the receiver argument", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[99,111,114,101]), DefaultArgShiftOps::default_arg_shift_ops_call_instance_null().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_middle_slot() {
+    testlib::run("tests.DefaultArgShiftTests.testMiddleSlot", "tests.DefaultArgShiftTests.testMiddleSlot: middle slot omitted with later arguments keeps every slot", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,114,101,115,104,58,51,58,57]), DefaultArgShiftOps::default_arg_shift_ops_call_middle_null().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[103,105,118,101,110,58,51,58,55]), DefaultArgShiftOps::default_arg_shift_ops_call_middle_skipped().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_constructor() {
+    testlib::run("tests.DefaultArgShiftTests.testConstructor", "tests.DefaultArgShiftTests.testConstructor: constructor parameter-reading default resolves the constructor argument", || {
+        test_core::TestCore::test_core_equals_float(10.0f32, DefaultArgShiftOps::default_arg_shift_ops_ctor_explicit_null(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(4.5f32, DefaultArgShiftOps::default_arg_shift_ops_ctor_later_given(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_explicit_values() {
+    testlib::run("tests.DefaultArgShiftTests.testExplicitValues", "tests.DefaultArgShiftTests.testExplicitValues: explicit values at every slot are unchanged", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98,101,116,97]), DefaultArgShiftOps::default_arg_shift_ops_call_later_given().as_ustr(), UStr::new(&[]));
+    });
+}

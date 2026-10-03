@@ -1,0 +1,19 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/package-artifacts.test.ts:
+74 |     backup = fs.readFileSync(probe, "utf8");
+75 |     fs.writeFileSync(probe, stub);
+76 |     hidden = true;
+77 |   }
+78 |   try {
+79 |     if (process.env.BORING_PROBE_FAULT) { throw new Error("injected fault while stub is held"); }
+                                                         ^
+error: injected fault while stub is held
+      at runHaxe (/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/package-artifacts.test.ts:79:53)
+      at <anonymous> (/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/package-artifacts.test.ts:145:28)
+(fail) package artifact emission > the npm tarball carries compiled JavaScript plus declarations and runs under plain node [3.00ms]
+
+ 0 pass
+ 10 filtered out
+ 1 fail
+Ran 1 test across 1 file. [64.00ms]

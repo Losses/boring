@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Pre-fix counterfactual on the f32 target, plus a minimal Kotlin probe of the
+# emitted literal form. The repository file is restored before this script ends.
+set -u
+REPO=/home/losses/Development/tq-workspace/boring-wt-architecture
+DC=/home/losses/Development/tq-workspace/dc-warn
+OUT=$DC/out/finite-classify-fix/evidence
+FIXED_SNAPSHOT=$DC/tmp/fixed-NumberClassifyTests.hx
+PREFIX_SNAPSHOT=$DC/tmp/prefix-root/samples/tests/NumberClassifyTests.hx
+TARGET=$REPO/samples/tests/NumberClassifyTests.hx
+PROBE_DIR=$DC/tmp/kotlin-probe
+
+cp "$TARGET" "$FIXED_SNAPSHOT"
+restore() { cp "$FIXED_SNAPSHOT" "$TARGET"; }
+trap restore EXIT
+
+echo "== stage 0: snapshots"
+sha256sum "$FIXED_SNAPSHOT" "$PREFIX_SNAPSHOT"
+
+echo "== stage 1: minimal kotlin probe of the emitted f32 literal form"
+mkdir -p "$PROBE_DIR"
+cat > "$PROBE_DIR/Probe.kt" <<'KOTLIN'
+fun main() {
+    val value: Float = 1.0e308f
+    println("value=" + value + " finite=" + value.isFinite())
+}
+KOTLIN
+kotlinc "$PROBE_DIR/Probe.kt" -include-runtime -d "$PROBE_DIR/probe.jar" > "$OUT/prefix-kotlin-literal-probe.log" 2>&1
+PROBE_COMPILE_EXIT=$?
+echo "PROBE_COMPILE_EXIT=$PROBE_COMPILE_EXIT" >> "$OUT/prefix-kotlin-literal-probe.log"
+if [ "$PROBE_COMPILE_EXIT" -eq 0 ]; then
+    java -cp "$PROBE_DIR/probe.jar" ProbeKt >> "$OUT/prefix-kotlin-literal-probe.log" 2>&1
+    echo "PROBE_RUN_EXIT=$?" >> "$OUT/prefix-kotlin-literal-probe.log"
+fi
+
+echo "== stage 2: put the pre-fix test source in place"
+cp "$PREFIX_SNAPSHOT" "$TARGET"
+grep -n "finite(" "$TARGET"
+
+echo "== stage 3: generate the kotlin f32 tree from the pre-fix source"
+cd "$REPO" || exit 1
+bun run gen:kotlin-f32 > "$OUT/prefix-kotlin-f32-gen.log" 2>&1
+GEN_EXIT=$?
+echo "PREFIX_KOTLIN_F32_GEN_EXIT=$GEN_EXIT" >> "$OUT/prefix-kotlin-f32-gen.log"
+grep -n "finite(" reference/kotlin-f32/gen-tests/tests/NumberClassifyTests.kt >> "$OUT/prefix-kotlin-f32-gen.log" 2>&1
+
+echo "== stage 4: compile and run the kotlin f32 suite against the pre-fix source"
+bun run test:kotlin-f32 > "$OUT/prefix-kotlin-f32-test.log" 2>&1
+PREFIX_TEST_EXIT=$?
+echo "PREFIX_KOTLIN_F32_TEST_EXIT=$PREFIX_TEST_EXIT" >> "$OUT/prefix-kotlin-f32-test.log"
+
+echo "== stage 5: restore the fixed source"
+restore
+sha256sum "$TARGET"
+
+echo "== stage 6: regenerate and rerun the f32 suite on the fixed source"
+bun run gen:kotlin-f32 > "$OUT/postfix-kotlin-f32-rerun-gen.log" 2>&1
+RERUN_GEN_EXIT=$?
+bun run test:kotlin-f32 > "$OUT/postfix-kotlin-f32-rerun-test.log" 2>&1
+RERUN_TEST_EXIT=$?
+echo "POSTFIX_RERUN_GEN_EXIT=$RERUN_GEN_EXIT" >> "$OUT/postfix-kotlin-f32-rerun-gen.log"
+echo "POSTFIX_RERUN_TEST_EXIT=$RERUN_TEST_EXIT" >> "$OUT/postfix-kotlin-f32-rerun-test.log"
+
+echo "== summary"
+echo "PROBE_COMPILE_EXIT=$PROBE_COMPILE_EXIT"
+echo "PREFIX_KOTLIN_F32_GEN_EXIT=$GEN_EXIT"
+echo "PREFIX_KOTLIN_F32_TEST_EXIT=$PREFIX_TEST_EXIT"
+echo "POSTFIX_RERUN_GEN_EXIT=$RERUN_GEN_EXIT"
+echo "POSTFIX_RERUN_TEST_EXIT=$RERUN_TEST_EXIT"
+sha256sum "$TARGET"

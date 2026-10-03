@@ -1,0 +1,48 @@
+warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail-xcheck' is dirty
+   Compiling generated v0.1.0 (/tmp/rt-xcheck/bx-postfix/xs-scope)
+error: argument never used
+  --> xcheckscope/scope_probe.rs:19:44
+   |
+19 |                 write!(formatter, "{}", a, b)
+   |                                   ----     ^ argument never used
+   |                                   |
+   |                                   formatting specifier missing
+
+error[E0425]: cannot find type `Plain` in this scope
+  --> xcheckscope/scope_probe.rs:47:40
+   |
+47 |     pub fn scope_probe_plain_switch(p: Plain) -> u32 {
+   |                                        ^^^^^ not found in this scope
+
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `e2`
+  --> xcheckscope/scope_probe.rs:99:25
+   |
+99 |                     Err(e2) => 3,
+   |                         ^^ help: if this is intentional, prefix it with an underscore: `_e2`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+error[E0433]: cannot find type `Plain` in this scope
+  --> xcheckscope/scope_probe.rs:49:13
+   |
+49 |             Plain::Alpha => 0,
+   |             ^^^^^ use of undeclared type `Plain`
+
+error[E0433]: cannot find type `Plain` in this scope
+  --> xcheckscope/scope_probe.rs:50:13
+   |
+50 |             Plain::Beta { v: _p0 } => _p0,
+   |             ^^^^^ use of undeclared type `Plain`
+
+Some errors have detailed explanations: E0425, E0433.
+For more information about an error, try `rustc --explain E0425`.
+warning: `generated` (lib) generated 2 warnings
+error: could not compile `generated` (lib) due to 4 previous errors; 2 warnings emitted

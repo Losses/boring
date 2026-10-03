@@ -1,0 +1,14 @@
+=== diff: archive swift-archived.hxml vs source swift.hxml (verbatim output) ===
+--- /home/losses/Development/tq-workspace/dc-warn/out/switch-try-gap-verify/fixture/swift.hxml	2026-09-30 01:27:36.000000000 -0400
++++ /home/losses/Development/tq-workspace/dc-warn/out/gap-fixture-archive/fixture/swift-archived.hxml	2026-09-30 02:04:59.000000000 -0400
+@@ -4,8 +4,8 @@
+ -cp packages/compiler/reflaxe/swift/std-shadow
+ -cp packages/compiler/reflaxe/swift
+ -cp samples
+--cp /home/losses/Development/tq-workspace/dc-warn/out/switch-try-gap-verify/fixture
+---macro Intercept.run(['samples', '/home/losses/Development/tq-workspace/dc-warn/out/switch-try-gap-verify/fixture'])
++-cp /home/losses/Development/tq-workspace/dc-warn/out/gap-fixture-archive/fixture
++--macro Intercept.run(['samples', '/home/losses/Development/tq-workspace/dc-warn/out/gap-fixture-archive/fixture'])
+ --macro swiftcompiler.Compiler.use()
+ -D swift-test-runner=native
+ -D runtime-import=@boring/runtime

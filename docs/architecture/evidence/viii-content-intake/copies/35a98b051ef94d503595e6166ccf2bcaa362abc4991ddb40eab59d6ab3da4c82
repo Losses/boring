@@ -1,0 +1,15 @@
+Frozen RECORD.md line-numbered (grep -n), section-2 rows:
+:50 ReadOnlyArray|read-only|required source, **or** optional destination|no|no boundary; pass through. NOT "any": the optional-source -> required-dest sub-cell is REFUSED (see the REFUSED row below)...
+:56 |**OtherArrayStorage**|any|any|no|**REFUSED**: empty `case OtherArrayStorage:` (:210) ... consumers fail ...
+:57 |ReadOnlyArray|read-only position|**optional source -> required dest**|no|**REFUSED: `prepare` returns null -> `fail(...)` at SwiftExpr.hx:2608-2609 / SwiftDecl 600-601.** ...
+:58 |MutableArrayWrapper|read-only position|**optional source -> required dest**|no|**REFUSED**: the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:203`) leaves `operation` null => `prepare` returns null (`:233-234`) => the same consumer failures (`SwiftExpr.hx:2608-2609` / `SwiftDecl.hx:600-601`). Sibling of the row above; the earlier revision did not dispose of it. |
+:59 |ReadOnlyArray|mutable position|**optional source -> required dest**|no|**REFUSED**: empty `case OptionalOperand:` (`:221`) ... same consumer failures. |
+:44 "Axes: source storage x destination requirement x nullability x already-converted."
+:109 "refusals in code, not policy choices."
+:147 "| boundary plan | `SwiftArrayBoundary.prepare(operand, destinationType, override)` | :165 | per crossing | any input fact change |" (ruling's §4.5 quote verbatim)
+:188 "| nil-merge operands (each) | SwiftExpr.hx:2627-2628 | lowerArrayBoundary -> prepare |" (ruling's §4.5 quote verbatim)
+
+RESOLUTION of the 56-vs-58 dispute: the row the ruling rules on (MutableArrayWrapper x
+read-only x optional->required) IS at line 58 of the frozen file; the ruling's :58
+citation and verbatim quote are exact. Line 56 is the OtherArrayStorage row - a different
+row, which needs no re-scoping because its empty case fires regardless of the override.

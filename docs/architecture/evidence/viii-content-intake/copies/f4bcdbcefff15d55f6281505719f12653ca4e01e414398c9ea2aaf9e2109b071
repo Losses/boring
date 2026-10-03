@@ -1,0 +1,11 @@
+fixture	negctl-vs-pristine-lines	pristine-vs-postfix-lines
+try-tail	2	1
+xs-scope	0	1
+xs-twoexc	0	1
+xs-growth	0	0
+xs-xmod	0	2
+xs-generic	0	1
+xs-dead	0	1
+xs-deadcoll	0	1
+xs-samples	0	0
+xs-testmod	0	1

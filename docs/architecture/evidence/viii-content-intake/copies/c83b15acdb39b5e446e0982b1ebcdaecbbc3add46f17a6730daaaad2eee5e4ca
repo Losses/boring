@@ -1,0 +1,45 @@
+package boring
+
+object StaticRefStatics {
+    fun compareStrings(a: String, b: String): Int {
+        return a.length - b.length
+    }
+}
+
+object StaticRefOps {
+    fun render(code: Int): String {
+        return "code:" + code
+    }
+
+    fun takeFn(callback: (Int) -> String): String {
+        return callback(42)
+    }
+
+    fun passToParam(): String {
+        return StaticRefOps.takeFn(StaticRefOps::render)
+    }
+
+    fun storeLocal(): String {
+        val fn = StaticRefOps::render
+        return fn(42)
+    }
+
+    fun returnFn(): (Int) -> String {
+        return StaticRefOps::render
+    }
+
+    fun reassignLocal(): String {
+        var fn = StaticRefOps::render
+        fn = StaticRefOps::render
+        return fn(42)
+    }
+
+    fun staticsOnlyValue(): Int {
+        val cmp = StaticRefStatics::compareStrings
+        return cmp("ab", "a")
+    }
+
+    fun callSite(): String {
+        return StaticRefOps.render(42)
+    }
+}

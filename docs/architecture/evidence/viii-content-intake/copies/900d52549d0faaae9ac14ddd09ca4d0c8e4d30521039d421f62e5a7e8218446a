@@ -1,0 +1,52 @@
+# Option C real verification plan — FROZEN FOR cba REVIEW. NOT EXECUTED.
+# Root: publication-staging/execution-option-c-2159c657 (HEAD 613b6b40),
+# compiler pin 2159c657, input identity source-before1366 with its
+# retained itemized manifest (SOURCE_MANIFEST, provided by the invoker).
+# Invoker wiring (see option-c-plan.md):
+#   export OPTION_C_ROOT=<abs path to execution-option-c-2159c657>
+#   export SOURCE_MANIFEST=<abs path to the source-before1366 itemized manifest>
+#   export EXCLUSIVE_RUNNER_DIR=<this tool directory>
+#   export GIT_CEILING_DIRECTORIES="$OPTION_C_ROOT"
+#   export XDG_CACHE_HOME="$OPTION_C_ROOT/out/xdg-cache"
+#   bash run-exclusive.sh "$ROOT" "$EXCLUSIVE_RUNNER_DIR/option-c.plan"
+# The harness exports BORING_CHILD_EVIDENCE_DIR (driver child records),
+# CHILD_EVIDENCE_DIR, RUN, EXCLUSIVE_EXTERNAL_DIR before the stages.
+# Any nonzero stage status blocks all downstream stages. The ORIGINAL
+# 14-segment verify chain is preserved unchanged; identity attachments
+# are independent stages and never part of the chain. Every command
+# stage goes through option-c-stage-wrapper.sh: original rc saved, the
+# 1366-entry post-state check ALWAYS run (also after failures), and the
+# stage's sealed stdout carries the command output plus the post-state
+# report. The Swift wrapper sandbox denial stands: NO driver-internal
+# retry of any blocked Swift execution; a blocked attempt is its failed
+# child record and this stage fails honestly.
+
+# Stage 0: environment guard + toolchain resolution record. Explicit
+# flake path, local cache, git ceiling, and SOURCE_MANIFEST must all be
+# present; the resolved paths of npm, node, tar, python3, haxe, kotlinc
+# are recorded into sealed stage evidence (existing behavior boundary:
+# npm/node/tar/python3/haxe/kotlinc are used exactly as resolved; no
+# flags are added to any package command).
+"$EXCLUSIVE_RUNNER_DIR/option-c-stage-wrapper.sh" env-guard "$OPTION_C_ROOT" "$SOURCE_MANIFEST" "$EXCLUSIVE_RUNNER_DIR/option-c-poststate.py" "$RUN/option-c" -- bash -c 'cd "$1" && [ -n "$GIT_CEILING_DIRECTORIES" ] && [ -n "$XDG_CACHE_HOME" ] && [ -f "$SOURCE_MANIFEST" ] && { echo "ceiling=$GIT_CEILING_DIRECTORIES"; echo "cache=$XDG_CACHE_HOME"; echo "root=$OPTION_C_ROOT"; echo "manifest=$SOURCE_MANIFEST"; command -v npm; command -v node; command -v tar; command -v python3; command -v haxe; command -v kotlinc; } > toolchain-resolution.txt && test -s toolchain-resolution.txt'
+
+# Stage 1: identity attachment — independent of the chain. Cargo.lock
+# and ALL 1366 manifest entries are recomputed (sha256 + exec-bit)
+# against the actual tree by the post-state check inside the wrapper;
+# the retained manifest's own sha256 and content stream into the sealed
+# stage stdout for post-hoc independent verification. No git archive,
+# no git diff, no HEAD-based checks.
+"$EXCLUSIVE_RUNNER_DIR/option-c-stage-wrapper.sh" identity "$OPTION_C_ROOT" "$SOURCE_MANIFEST" "$EXCLUSIVE_RUNNER_DIR/option-c-poststate.py" "$RUN/option-c" -- bash -c 'cd "$1" && echo "compiler-pin=2159c657" && echo "source-reference=source-before1366" && echo "manifest-sha256=$(sha256sum "$SOURCE_MANIFEST" | cut -d" " -f1)" && cat "$SOURCE_MANIFEST"'
+
+# Stage 2: driver build.
+"$EXCLUSIVE_RUNNER_DIR/option-c-stage-wrapper.sh" driver-build "$OPTION_C_ROOT" "$SOURCE_MANIFEST" "$EXCLUSIVE_RUNNER_DIR/option-c-poststate.py" "$RUN/option-c" -- bash -c 'cd "$1" && haxe tools/bundle/driver.hxml'
+
+# Stage 3: driver verify — 10 target generations and the driver test
+# legs; all child executions are captured as the 33 driver child
+# records under BORING_CHILD_EVIDENCE_DIR. The manager runtime is part
+# of this driver verify — no separate consistency stage exists, so the
+# chain is never altered. The Swift wrapper sandbox denial stands: NO
+# driver-internal retry of any blocked Swift execution; a blocked
+# attempt surfaces as its failed child record and this stage fails
+# honestly.
+"$EXCLUSIVE_RUNNER_DIR/option-c-stage-wrapper.sh" driver-verify "$OPTION_C_ROOT" "$SOURCE_MANIFEST" "$EXCLUSIVE_RUNNER_DIR/option-c-poststate.py" "$RUN/option-c" -- bash -c 'cd "$1" && bun out/bundle/driver.js verify'
+

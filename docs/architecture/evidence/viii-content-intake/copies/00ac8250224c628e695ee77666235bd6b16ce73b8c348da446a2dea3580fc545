@@ -1,0 +1,52 @@
+#![cfg(test)]
+
+use crate::boring::record_interface_ops::Link;
+use crate::boring::record_interface_ops::RecordInterfaceOps;
+use crate::boring::record_interface_ops::RichTextSpan;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn singleton_role() {
+    testlib::run("tests.RecordInterfaceOpsTests.singletonRole", "tests.RecordInterfaceOpsTests.singletonRole: a singleton interface field prints its bare name", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[66,97,99,107,103,114,111,117,110,100]), (UString::from(format!("{}", { let __guard = crate::boring::record_interface_ops::BACKGROUND_INSTANCE.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() }.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        let span = RecordInterfaceOps::record_interface_ops_singleton_span();
+        test_core::TestCore::test_core_equals_string(UStr::new(&[82,105,99,104,84,101,120,116,83,112,97,110,40,114,111,108,101,61,66,97,99,107,103,114,111,117,110,100,44,32,110,111,116,101,61,110,117,108,108,41]), (UString::from(format!("{}", span.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string((UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("RichTextSpan(")); __s += &(UString::from("role=")); __s += UString::from(format!("{}", span.role.to_string()).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("note=")); __s += (match &(span.note) { None => UString::from("null"), Some(__option1) => UString::from(format!("{}", __option1.to_string()).as_str()) }).as_ustr(); __s += &(UString::from(")")); __s }).as_str())).as_ustr(), (UString::from(format!("{}", span.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn record_role() {
+    testlib::run("tests.RecordInterfaceOpsTests.recordRole", "tests.RecordInterfaceOpsTests.recordRole: a record interface field prints its labeled form", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[76,105,110,107,40,116,97,114,103,101,116,61,116,105,113,105,97,110,41]), (UString::from(format!("{}", Link::new(&(UStr::new(&[116,105,113,105,97,110]))).to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        let span = RecordInterfaceOps::record_interface_ops_record_span();
+        test_core::TestCore::test_core_equals_string(UStr::new(&[82,105,99,104,84,101,120,116,83,112,97,110,40,114,111,108,101,61,76,105,110,107,40,116,97,114,103,101,116,61,116,105,113,105,97,110,41,44,32,110,111,116,101,61,66,97,99,107,103,114,111,117,110,100,41]), (UString::from(format!("{}", span.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string((UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("RichTextSpan(")); __s += &(UString::from("role=")); __s += UString::from(format!("{}", span.role.to_string()).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("note=")); __s += (match &(span.note) { None => UString::from("null"), Some(__option3) => UString::from(format!("{}", __option3.to_string()).as_str()) }).as_ustr(); __s += &(UString::from(")")); __s }).as_str())).as_ustr(), (UString::from(format!("{}", span.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn present_note() {
+    testlib::run("tests.RecordInterfaceOpsTests.presentNote", "tests.RecordInterfaceOpsTests.presentNote: a present nullable interface field prints its member text", || {
+        let span = RichTextSpan::new(Box::new({ let __guard = crate::boring::record_interface_ops::BACKGROUND_INSTANCE.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() }), Some(Box::new(Link::new(&(UStr::new(&[110,111,116,101]))))));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[82,105,99,104,84,101,120,116,83,112,97,110,40,114,111,108,101,61,66,97,99,107,103,114,111,117,110,100,44,32,110,111,116,101,61,76,105,110,107,40,116,97,114,103,101,116,61,110,111,116,101,41,41]), (UString::from(format!("{}", span.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string((UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("RichTextSpan(")); __s += &(UString::from("role=")); __s += UString::from(format!("{}", span.role.to_string()).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("note=")); __s += (match &(span.note) { None => UString::from("null"), Some(__option5) => UString::from(format!("{}", __option5.to_string()).as_str()) }).as_ustr(); __s += &(UString::from(")")); __s }).as_str())).as_ustr(), (UString::from(format!("{}", span.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn data_class_equality() {
+    testlib::run("tests.RecordInterfaceOpsTests.dataClassEquality", "tests.RecordInterfaceOpsTests.dataClassEquality: data class equality compares interface fields", || {
+        let left = RecordInterfaceOps::record_interface_ops_singleton_span();
+        let same = (left).clone();
+        let different = RecordInterfaceOps::record_interface_ops_record_span();
+        test_core::TestCore::test_core_equals_bool(true, (left).role.__haxe_type_name() == (same).role.__haxe_type_name() && match (&(left).note, &(same).note) { (Some(__left), Some(__right)) => __left.__haxe_type_name() == __right.__haxe_type_name(), (None, None) => true, _ => false }, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, !((left).role.__haxe_type_name() == (same).role.__haxe_type_name() && match (&(left).note, &(same).note) { (Some(__left), Some(__right)) => __left.__haxe_type_name() == __right.__haxe_type_name(), (None, None) => true, _ => false }), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, (left).role.__haxe_type_name() == (different).role.__haxe_type_name() && match (&(left).note, &(different).note) { (Some(__left), Some(__right)) => __left.__haxe_type_name() == __right.__haxe_type_name(), (None, None) => true, _ => false }, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, !((left).role.__haxe_type_name() == (different).role.__haxe_type_name() && match (&(left).note, &(different).note) { (Some(__left), Some(__right)) => __left.__haxe_type_name() == __right.__haxe_type_name(), (None, None) => true, _ => false }), UStr::new(&[]));
+    });
+}

@@ -1,0 +1,20 @@
+run=/home/losses/Development/tq-workspace/.tmp-identity-fix/attempt-neg-a
+root=/home/losses/Development/tq-workspace/.tmp-identity-fix/execution-option-c-coord
+child_evidence_dir=/home/losses/Development/tq-workspace/.tmp-identity-fix/attempt-neg-a/child-evidence
+external_dir=/home/losses/Development/tq-workspace/.tmp-identity-fix/evidence/external-20260929T181709-2937125
+plan=/home/losses/Development/tq-workspace/.tmp-identity-fix/s01.plan
+start=2026-09-29T18:17:09-04:00
+step-2119220958 status=0
+step-2107514504 status=9
+end=2026-09-29T18:17:10-04:00
+failed_stage=step-2107514504
+last_status=9
+stage-evidence 2dd1a1ee9ae3bf2b45822a3b46c24d15ba86f38a4492cc1b43d268a71b120140  step-2107514504.command
+stage-evidence 2e6d31a5983a91251bfae5aefa1c0a19d8ba3cf601d0e8a706b4cfa9661a6b8a  step-2107514504.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2107514504.stderr
+stage-evidence 5b88f6763f6107d9537d161ecffad41253b1eda5ce5fe57558947ab5ade50e7b  step-2107514504.stdout
+stage-evidence 416860d9c84c89175c5f47f93f6fea75b6067a026b598fbc70508bd3551ea0db  step-2119220958.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-2119220958.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2119220958.stderr
+stage-evidence d73686b193058242695af60b9d96b5e69d73fe6d0752a00608efd29860cba7f9  step-2119220958.stdout
+harness end marker sha256=2140651fb2579afa7ca63760352867d3a72ee3c3fc346fe02cb549a99665b3c8

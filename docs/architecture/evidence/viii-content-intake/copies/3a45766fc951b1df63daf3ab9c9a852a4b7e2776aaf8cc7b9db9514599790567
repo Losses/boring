@@ -1,0 +1,152 @@
+package tests
+
+import boring.ArraySliceOps
+import boring.runtime.test.Test
+
+class ArraySliceTests {
+@boring.test.Test
+    fun testEndPastLength() {
+        Test.run("tests.ArraySliceTests.testEndPastLength", "tests.ArraySliceTests.testEndPastLength: an end past the length returns the elements the array carries") {
+                Test.equals("", ArraySliceOps.sliceText(0, 0, 20), null)
+                Test.equals("1", ArraySliceOps.sliceText(1, 0, 20), null)
+                Test.equals("1,2,3,4,5", ArraySliceOps.sliceText(5, 0, 20), null)
+        }
+    }
+
+@boring.test.Test
+    fun testEndBelowStart() {
+        Test.run("tests.ArraySliceTests.testEndBelowStart", "tests.ArraySliceTests.testEndBelowStart: an end below the start returns the empty slice") {
+                Test.equals("", ArraySliceOps.sliceText(0, 2, 1), null)
+                Test.equals("", ArraySliceOps.sliceText(1, 2, 1), null)
+                Test.equals("", ArraySliceOps.sliceText(5, 2, 1), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNegativeStart() {
+        Test.run("tests.ArraySliceTests.testNegativeStart", "tests.ArraySliceTests.testNegativeStart: a negative start counts from the end of the array") {
+                Test.equals("", ArraySliceOps.sliceText(0, -3, 2), null)
+                Test.equals("1", ArraySliceOps.sliceText(1, -3, 2), null)
+                Test.equals("", ArraySliceOps.sliceText(5, -3, 2), null)
+                Test.equals("1,2,3", ArraySliceOps.sliceText(5, -9, -2), null)
+        }
+    }
+
+@boring.test.Test
+    fun testOmittedEnd() {
+        Test.run("tests.ArraySliceTests.testOmittedEnd", "tests.ArraySliceTests.testOmittedEnd: an omitted end reaches the length of the array") {
+                Test.equals("3,4,5", ArraySliceOps.fromText(5, 2), null)
+                Test.equals("4,5", ArraySliceOps.fromText(5, -2), null)
+                Test.equals("", ArraySliceOps.fromText(5, 9), null)
+                Test.equals("", ArraySliceOps.fromText(0, 0), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNullableReceiver() {
+        Test.run("tests.ArraySliceTests.testNullableReceiver", "tests.ArraySliceTests.testNullableReceiver: a slice through an absent array returns null") {
+                val absent: MutableList<Int>? = null
+                Test.equals("none", ArraySliceOps.nullableText(absent, 0, 2), null)
+                Test.equals("3,4", ArraySliceOps.nullableText(mutableListOf<Int>(3, 4), 0, 20), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNullInitLocal() {
+        Test.run("tests.ArraySliceTests.testNullInitLocal", "tests.ArraySliceTests.testNullInitLocal: a slice on a null-initialized array local clamps as well") {
+                Test.equals("", ArraySliceOps.nullInitText(0), null)
+                Test.equals("1,2,3,4,5", ArraySliceOps.nullInitText(5), null)
+        }
+    }
+
+@boring.test.Test
+    fun testEmptyToTwenty() {
+        Test.run("tests.ArraySliceTests.testEmptyToTwenty", "tests.ArraySliceTests.testEmptyToTwenty: a fixed end of 20 on an empty array returns an empty slice") {
+                Test.equals("", ArraySliceOps.emptyToTwentyText(), null)
+                Test.equals(0, ArraySliceOps.emptyToTwentySize(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testSpliceEmptyBounds() {
+        Test.run("tests.ArraySliceTests.testSpliceEmptyBounds", "tests.ArraySliceTests.testSpliceEmptyBounds: a negative length or a position past the length removes nothing") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testSpliceNegativePosition() {
+        Test.run("tests.ArraySliceTests.testSpliceNegativePosition", "tests.ArraySliceTests.testSpliceNegativePosition: a negative position counts from the end and a long length stops at the tail") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testInsertClamping() {
+        Test.run("tests.ArraySliceTests.testInsertClamping", "tests.ArraySliceTests.testInsertClamping: an insert clamps a negative position and a position past the length") {
+                Test.equals("99", ArraySliceOps.insertText(0, 0), null)
+                Test.equals("99", ArraySliceOps.insertText(0, -9), null)
+                Test.equals("99", ArraySliceOps.insertText(0, 20), null)
+                Test.equals("99,1", ArraySliceOps.insertText(1, 0), null)
+                Test.equals("99,1", ArraySliceOps.insertText(1, -1), null)
+                Test.equals("99,1", ArraySliceOps.insertText(1, -9), null)
+                Test.equals("1,99", ArraySliceOps.insertText(1, 1), null)
+                Test.equals("1,99", ArraySliceOps.insertText(1, 4), null)
+                Test.equals("1,99", ArraySliceOps.insertText(1, 20), null)
+                Test.equals("99,1,2,3,4,5", ArraySliceOps.insertText(5, 0), null)
+                Test.equals("1,99,2,3,4,5", ArraySliceOps.insertText(5, 1), null)
+                Test.equals("1,2,99,3,4,5", ArraySliceOps.insertText(5, -3), null)
+                Test.equals("1,2,3,4,99,5", ArraySliceOps.insertText(5, -1), null)
+                Test.equals("1,2,3,4,99,5", ArraySliceOps.insertText(5, 4), null)
+                Test.equals("1,2,3,4,5,99", ArraySliceOps.insertText(5, 5), null)
+                Test.equals("1,2,3,4,5,99", ArraySliceOps.insertText(5, 6), null)
+                Test.equals("1,2,3,4,5,99", ArraySliceOps.insertText(5, 20), null)
+                Test.equals("99,1,2,3,4,5", ArraySliceOps.insertText(5, -9), null)
+        }
+    }
+
+@boring.test.Test
+    fun testSpliceNegativeLength() {
+        Test.run("tests.ArraySliceTests.testSpliceNegativeLength", "tests.ArraySliceTests.testSpliceNegativeLength: a negative length removes nothing and leaves the array alone") {
+                Test.equals("|", ArraySliceOps.spliceText(0, 0, -1), null)
+                Test.equals("|1", ArraySliceOps.spliceText(1, 0, -1), null)
+                Test.equals("|1,2,3,4,5", ArraySliceOps.spliceText(5, 2, -1), null)
+                Test.equals("|1,2,3,4,5", ArraySliceOps.spliceText(5, -3, -1), null)
+                Test.equals("|1,2,3,4,5", ArraySliceOps.spliceText(5, 20, -1), null)
+        }
+    }
+
+@boring.test.Test
+    fun testSplicePositionPastLength() {
+        Test.run("tests.ArraySliceTests.testSplicePositionPastLength", "tests.ArraySliceTests.testSplicePositionPastLength: a position past the length removes nothing") {
+                Test.equals("|", ArraySliceOps.spliceText(0, 1, 2), null)
+                Test.equals("|", ArraySliceOps.spliceText(0, 20, 1), null)
+                Test.equals("|1", ArraySliceOps.spliceText(1, 2, 1), null)
+                Test.equals("|1", ArraySliceOps.spliceText(1, 20, 20), null)
+                Test.equals("|1,2,3,4,5", ArraySliceOps.spliceText(5, 6, 2), null)
+                Test.equals("|1,2,3,4,5", ArraySliceOps.spliceText(5, 20, 20), null)
+                Test.equals("|1,2,3,4,5", ArraySliceOps.spliceText(5, 5, 2), null)
+        }
+    }
+
+@boring.test.Test
+    fun testSpliceLengthPastEnd() {
+        Test.run("tests.ArraySliceTests.testSpliceLengthPastEnd", "tests.ArraySliceTests.testSpliceLengthPastEnd: a length past the end removes only the tail") {
+                Test.equals("|", ArraySliceOps.spliceText(0, 0, 20), null)
+                Test.equals("1|", ArraySliceOps.spliceText(1, 0, 20), null)
+                Test.equals("2,3,4,5|1", ArraySliceOps.spliceText(5, 1, 20), null)
+                Test.equals("3,4,5|1,2", ArraySliceOps.spliceText(5, 2, 20), null)
+                Test.equals("3,4,5|1,2", ArraySliceOps.spliceText(5, -3, 20), null)
+                Test.equals("5|1,2,3,4", ArraySliceOps.spliceText(5, -1, 20), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNullInitSplice() {
+        Test.run("tests.ArraySliceTests.testNullInitSplice", "tests.ArraySliceTests.testNullInitSplice: a splice on a null-initialized array local clamps as well") {
+                Test.equals("|", ArraySliceOps.nullInitSpliceText(0, 0, 20), null)
+                Test.equals("|1,2,3,4,5", ArraySliceOps.nullInitSpliceText(5, 6, -1), null)
+                Test.equals("1|2,3,4,5", ArraySliceOps.nullInitSpliceText(5, 0, 1), null)
+        }
+    }
+}

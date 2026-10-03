@@ -1,0 +1,62 @@
+# 独立复核报告 — backlog 就绪度审计（readiness-2026-09-29.md）
+
+- 复核日期：2026-09-29（只读复核；唯一写入 = 本文件 + `dc-warn/out/backlog-verify/scratch/` 临时物）
+- 复核者：独立复核 Agent（不同模型）；未修改工作区任何被审对象，未做 git 写，未起后台任务
+- 复核方式：看板原文重读、源码行独立定位、工具链独立复测、4 条抽样任务「最小首条命令」实跑（`timeout 600`）、1 次 Haxe 生成冒烟、1 次 rustc 受控 warning 实证
+- 席位说明：复核未建 git 工作树（禁止 git 写）；只读探针跑在协调树 `boring-wt-architecture`（HEAD=`e1c65975`，含未提交改动），命令中的 `mkdir -p` 目标改指 `scratch/`，其余逐字执行。此替换不影响「输入是否在位、命令是否可跑」的判别。
+
+## 1. 抽样实跑（4 条，覆盖不同目标）
+
+| 抽样 | 目标类型 | 最小首条命令结果 | 输入核查 |
+| --- | --- | --- | --- |
+| `t-mulxx76r-apv6` | 调查型（单判据） | rc=0；`SourceComparisonAnalysis.hx` sha256 `5fffdf21…` | 文件在位（54352 B）；`parameterIdentity` 实测 @ L92 ✓ |
+| `t-mum05sop-cbtu` | 零原生工具链风险（仅五目标 Haxe 生成） | rc=0；5 个 hxml 全部复制成功 | `comparison-runtime-observation/hxml/{ts,kotlin,rust,swift,dart}.hxml` 全在位 ✓ |
+| `t-mum0mp8l-m0a6` | 需原生编译（5 目标） | rc=0；`samples/std/Fs.hx` sha256 `d8098eaf…` | 消费者入口在位；`tests/haxe/resident-consumer-closure/` 尚不存在（待建 = 任务本体，非缺输入）✓ |
+| `t-mum123nj-ywvc` | TS 工具链 | rc=0；tsc 5.9.3；两夹具 sha256 取得 | `ts-source-origin/{OriginSubject.hx,run.sh}` 在位 ✓ |
+
+补充冒烟（对「零原生工具链风险」一条再进一步）：`nix develop -c haxe …/ts.hxml -D ts-output=scratch/ts-gen-smoke2` **rc=0**，产出 `comparison/`、`runtime.ts`、`std/`、`_GeneratedFiles.txt`——hxml 的 `-D <target>-output=` 覆盖模式与 `-lib boring` 解析（经本地 `.haxelib`）实测可用。**4/4 抽样命令真实可跑、输入齐备、无缺失前置。**
+
+## 2. 降级结论（M3 / t-mum29cli-9c9w）独立验证 —— 成立
+
+- `tools/bundle/Driver.hx` **L545**：`if (result.code != 0) { reportStepFailure(…); exit(1); }`（legacy 路径）；捕获路径 **L535**：`if (!execution.succeeded()) { … exit(1); }`。两条路径都只对**非零退出**失败。
+- `tools/bundle/ChildEvidence.hx` **L271–275**：注释 `True only for a normal zero exit with no signal and no launch failure.` + `succeeded()` = `OutcomeNormalExit(status): status == 0`，其余一律 false。
+- `ChildEvidence.hx` **L13** 头注释：`the retained streams are the authority for warning inspection`——留存流是警告核查的 authority（人工/事后），非门禁。
+- 实证：`rustc --edition=2024 -W unused` 编译含未使用变量的样本 → stderr 打出 `warning: unused variable` + `warning: 1 warning emitted`，**rc=0**，产物正常产出。即「门禁只看退出码、留存流只是人工核查权」成立，降级判断正确。
+
+## 3. 合并结论（M2 / t-mum0xvuq-q7tw）独立验证 —— 基本成立（剩余差异描述不全）
+
+读 5 条 doing 任务 description 原文核实重叠：
+
+- `t-mumx5iil-guqs`（fix/runner-compiler-provenance）：为 ts-package-diagnostic-resolution 与 bundle-child-evidence runner 增加 `haxelib path boring` 的 realpath-under-ROOT 断言并记录 compiler provenance；验证含「错误 HAXELIB_PATH 非零失败、正确解析路径记录 boring-resolved-path/哈希」——与 t-mum0xvuq-q7tw 的「记录实际装载路径+哈希、HAXELIB_PATH 对照」**同一目标、同一验证形状**。
+- `t-mun0colg-y4qu`（fix/runner-identity-and-provenance）：把上述两分支整合为对**同一 run.sh**（`ts-package-diagnostic-resolution/{run.sh,package-tsc-wrapper.sh}`、`bundle-child-evidence/run.sh`）的单一补丁；验证含「正确 HAXELIB_PATH 下记录 boring-resolved-path」——与 t-mum0xvuq-q7tw **文件级重叠**（同一 F 证据夹具面）。
+- `t-mumx5bo4-na2g`（tsc runner 身份）：主体是 TSC realpath/sha256/--version，与「编译器字节」不同主体，但与 t-mun0colg-y4qu 共享 `package-tsc-wrapper.sh` 文件。
+- `t-mun0d1bn-klvo`（driver provenance，P09 B2）：主体是 driver 二进制 vs nix store pinned driver 的身份对照——provenance 家族但**主体不同**（driver ≠ 编译器模块）。
+- `t-mumy6e28-80nx`（driver 配置兼容 smoke）：记录 driver 构建/roots 的 argv/cwd/退出码/双流——与 t-mun0d1bn-klvo 记录形状重叠，与本任务仅边缘相关。
+
+**判断：同意合并。** 核心判据（haxelib 解析路径+哈希记录、HAXELIB_PATH 错配对照）确被在途 doing 任务覆盖，且共享 run.sh/F 证据夹具——并行开席会产生竞争写者。**但报告漏列一项剩余差异**：t-mum0xvuq-q7tw 的验证含「故意指向**旧/篡改安装副本**的对照」，而 doing 任务只覆盖「错误 HAXELIB_PATH」（路径不存在），未覆盖「路径存在但内容篡改」。附加判据应含：生成输出清单同运行身份绑定 + 篡改副本对照。
+
+## 4. 环境复测（与报告 0.1 对照）
+
+一致项：haxe 4.3.7 ✓、kotlinc 2.4.10 ✓、dart 3.13.0 ✓、rustc 1.98.0 ✓、node v22.23.3 ✓、bun 1.4.2 ✓、tsc 5.9.3（工作树 node_modules）✓、swiftc 6.2.4 B3 回退配方 rc=0 ✓（输出含 `libc not found` 警告，不影响功能）、`nix develop` + 可写 `XDG_CACHE_HOME` 可用 ✓、协调树 HEAD=`e1c65975` ✓、`HAXELIB_PATH=… haxelib path boring --global` 解析到 2159c657 快照 ✓、固定快照 `publication-staging/fixed-compiler-2159c657/` 在位 ✓。
+
+**偏差项（实测）：**
+
+1. **store 路径工具不可直接用于实际工作**：裸 haxe 直调报 `haxelib: command not found`（`-lib boring` 解析失败）；裸 rustc 报 `can't find crate for std`（缺 rust-std sysroot）。实际工作必须走 `nix develop` 包装（或把 store bin 加 PATH / 配 sysroot）。报告 0.1 表格只测 `--version`，呈现上易被误读为 store 路径可直接用；正文席位约定/E1 其实已写明 nix develop 路径。
+2. **报告给 t-mum29cli-9c9w 的最小首条命令按原文不可执行**：裸 rustc → E0463 无 std；`nix develop` 下 `-o /dev/null` → `couldn't create a temp dir: Permission denied`（rc=1）；且 `rc=$?` 在 `| head -2` 之后捕获的是 head 的 rc（恒 0），掩盖失败。须改写为 `nix develop` + 可写输出目录（改写后实测 rc=0 + warning 正常打出，见第 2 节）。
+3. **看板漂移**：13 条「立即可派」中 `t-mulxx76r-apv6`、`t-mum05sop-cbtu`、`t-mum123nj-ywvc` 现已 doing（审计快照后被认领）。「立即可派」对这 3 条应改读为「已在做」；审计数据源为快照，此漂移不否定就绪结论，但派单口径要更新。
+4. **Dart 假阴性（协调者广播，2026-09-29）**：非终止空值守卫后使用可空值 → 生成裸 `s.length`，`dart analyze` 报 `unchecked_use_of_nullable_value`、AOT exit 254；修复任务 `t-mun3ejy5-16zz` 执行中未集成。凡 Dart 腿含此形状的 5 目标任务（如 `t-mum0mp8l-m0a6`、`t-mum1y9jv-74zm` 等）跑 Dart 腿前须先确认是否踩到该形状，否则结论可能是假阴性。
+5. 小项：swiftc 回退配方输出含 `libc not found` 警告（功能无影响，证据宜记录）。
+
+## 5. 结论档位：**部分可信**
+
+核心结论全部独立复现成立：13 条「立即可派」的最小首条命令真实可跑、输入齐备（4/4 抽样 rc=0 + 生成冒烟成功）；降级（M3）与合并（M2）判断均经源码/原文独立验证成立；环境实测与报告一致。
+
+应改判/修正的条目与偏差：
+
+- **t-mum29cli-9c9w**：降级判断正确，但其「最小首条命令」不可按原文执行（偏差 2）——派单时须改写命令，否则执行者必踩 rustc sysroot 与 /dev temp 两个坑。这是全报告中唯一一条「命令不可跑」的条目。
+- **t-mulxx76r-apv6 / t-mum05sop-cbtu / t-mum123nj-ywvc**：档位应从「立即可派」更新为「已在做」（看板漂移）。
+- **M2 剩余差异**：补列「篡改副本对照」为 t-mun0colg-y4qu 附加判据。
+- **0.1 工具链表**：加注「store 路径仅限 --version 探针，实际工作须 nix develop」。
+- 随单附上 Dart 假阴性警示（偏差 4）与 swiftc libc 警告（偏差 5）。
+
+无「不可信」级反例：未发现与仓库现状矛盾的判据、未发现失效路径引用、未发现虚假的环境声明（偏差均为呈现层面与命令层面，非事实层面）。

@@ -1,0 +1,12 @@
+#!/bin/bash
+set -u
+LABEL="$1"
+REPO=/home/losses/Development/tq-workspace/boring-wt-architecture
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/land-switchexpr/evidence
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+SNAP="$OUT/$LABEL/gap-swift"
+rm -rf "$SNAP" "$REPO/out/land-gap"
+cd "$REPO" || exit 9
+haxe /home/losses/Development/tq-workspace/dc-warn/out/gap-fixture-archive/fixture/swift-archived.hxml -D swift-output=out/land-gap/gen > "$OUT/$LABEL/gap-gen.log" 2>&1
+echo "gap rc=$?" > "$SNAP.rc"
+cp -r "$REPO/out/land-gap/gen" "$SNAP"

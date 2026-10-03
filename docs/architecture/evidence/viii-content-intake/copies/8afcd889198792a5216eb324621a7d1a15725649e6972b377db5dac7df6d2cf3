@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""Classify a bun collected-suite log the way the collected-suite CI job does.
+
+argv[1] = log path. Prints the summary lines, the per-class counts, the
+residual against the ` N fail` summary line, and the failure name set.
+Rules copied from .github/workflows/ci.yml 'Report the counts...' step:
+  - failures come from bun's own "N tests failed:" recap when present,
+    otherwise from the inline "(fail) " body deduplicated by test id;
+  - a failure whose NEXT line is `  ^ this test timed out after Nms.` is a
+    timeout; the npm-artifact flake needs BOTH its test id AND the binary
+    Buffer diff at tests/ts/package-artifacts.test.ts; everything else is an
+    assertion;
+  - `# Unhandled error between tests` is a cascade, attributed to the file
+    section it sits in: timeout-cascade if that section already had a timeout
+    marker, otherwise unattributed-error.
+"""
+import re, sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text(errors="replace").splitlines()
+
+summary = [l for l in lines if re.fullmatch(r" \d+ (pass|fail)", l) or re.fullmatch(r" \d+ errors", l) or l.startswith("Ran ")]
+m = [l for l in lines if re.fullmatch(r" \d+ fail", l)]
+total_fail = int(m[-1].strip().split()[0]) if m else None
+
+# failure lines from the recap
+start = None
+for i, l in enumerate(lines):
+    if re.fullmatch(r"\d+ tests failed:", l):
+        start = i + 1
+        break
+recap = []
+if start is not None:
+    for l in lines[start:]:
+        if re.fullmatch(r" \d+ (pass|fail|skip)", l):
+            break
+        recap.append(l)
+
+if any(l.startswith("(fail) ") for l in recap):
+    source = "bun's 'N tests failed:' recap"
+    fails = [(i, l) for i, l in enumerate(recap) if l.startswith("(fail) ")]
+else:
+    source = "inline body, deduplicated by test id"
+    fails = []
+    seen = set()
+    for i, l in enumerate(lines):
+        if not l.startswith("(fail) "):
+            continue
+        if l in seen:
+            continue
+        seen.add(l)
+        fails.append((i, l))
+
+buf_diff = ('error: expect(received).toEqual(expected)' in lines
+            or any(l.strip() == "error: expect(received).toEqual(expected)" for l in lines))
+buf_diff = any(l == "error: expect(received).toEqual(expected)" for l in lines) and any('"type": "Buffer"' in l for l in lines)
+flake_shape = buf_diff and any(re.match(r"^ *at <anonymous> \(.*/tests/ts/package-artifacts\.test\.ts:", l) for l in lines)
+FLAKE_ID = "package artifact emission > two generations of the same inputs produce byte-identical artifacts"
+
+kinds = []
+if source.startswith("bun"):
+    pairs = [(i, l, recap[i + 1] if i + 1 < len(recap) else "") for i, l in enumerate(recap) if l.startswith("(fail) ")]
+else:
+    pairs = [(i, l, lines[i + 1] if i + 1 < len(lines) else "") for i, l in fails]
+for i, l, nxt in pairs:
+    timed = re.fullmatch(r"  \^ this test timed out after \d+ms\.", nxt) is not None
+    tid = l[7:]
+    tid = re.sub(r" \[[\d.]+ms\]$", "", tid)
+    if timed:
+        kinds.append(("timeout", tid))
+    elif flake_shape and FLAKE_ID in tid:
+        kinds.append(("flake-npm-artifact", tid))
+    else:
+        kinds.append(("assertion", tid))
+
+# cascades
+cur = None
+has_timeout = False
+casc = []
+for l in lines:
+    if re.fullmatch(r"[^ (]+\.test\.ts:", l):
+        cur, has_timeout = l, False
+    if re.fullmatch(r"  \^ this test timed out after \d+ms\.", l):
+        has_timeout = True
+    if l == "# Unhandled error between tests":
+        casc.append(("timeout-cascade" if has_timeout else "unattributed-error", cur))
+
+from collections import Counter
+kc = Counter(k for k, _ in kinds)
+cc = Counter(k for k, _ in casc)
+attributed = sum(kc.values())
+residual = (total_fail - attributed) if total_fail is not None else "unknown"
+
+print("== summary lines ==")
+for l in summary:
+    print(" ", l)
+print("== source of the failure list ==")
+print(" ", source)
+print("== classes ==")
+for k in ("assertion", "timeout", "flake-npm-artifact"):
+    print(f"  {k}: {kc.get(k,0)}")
+for k in ("timeout-cascade", "unattributed-error"):
+    print(f"  {k}: {cc.get(k,0)}")
+print(f"  summary ' N fail' = {total_fail}; attributed = {attributed}; residual = {residual}")
+print("  binary toEqual/Buffer diff present:", buf_diff, "| at the artifact assertion:", flake_shape)
+print("== failing test names, by class ==")
+for k in ("assertion", "timeout", "flake-npm-artifact"):
+    for kind, tid in kinds:
+        if kind == k:
+            print(f"  [{k}] {tid}")
+print("== cascade sites ==")
+for k, f in casc:
+    print(f"  [{k}] {f}")

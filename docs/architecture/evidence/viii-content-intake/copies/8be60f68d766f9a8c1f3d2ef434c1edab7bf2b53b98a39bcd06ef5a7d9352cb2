@@ -1,0 +1,106 @@
+# RECORD section-6 statements about try routes vs the candidate's SW05 hunks
+--- RECORD.md 317-352 ---
+317: ## 6. Unsupported and unresolved cases
+318: 
+319: - **`switchBindingLines` (`SwiftExpr.hx:5486-5490`)** — renders
+320:   `let v = <switchExpression(sw)>` with no boundary consultation for the
+321:   binding's OWN destination. Verified: it delegates to `switchExpression`
+322:   (:5523) → `switchReturn(sw, 1)` (:5524), whose arm check (:5639-5642)
+323:   consults `currentReturnType` only; the binding variable's type is never used
+324:   as a destination, and if `currentReturnType` is not a read-only array no
+325:   consultation happens at all. The reviewer called this "no owner"; precisely:
+326:   the producer is reached, but only with the WRONG destination.
+327: - **`tryReturnLines` (`SwiftExpr.hx:5251`)** — value-form try-region returns.
+328:   The body (:5261) and handler (:5273) values come from `blockValueLines`, and
+329:   the emitted `return <value>` lines (:5269, :5282) bypass the :811 dispatch
+330:   (which `tryReturnLines` is itself dispatched TO at :798-799 instead of).
+331:   This route genuinely lacks boundary consultation.
+332: - **try-region block tail `blockValueLines` (`SwiftExpr.hx:5160-5169`),
+333:   specifically :5168** — `expr(parts.value)`; `expr` (:1841) contains no
+334:   boundary reference anywhere on its path (the file's boundary-reference
+335:   inventory is :305, :743-746, :811, :1212, :1929, :2534-2535, :2566-2567,
+336:   :2578-2614, :2627-2628, :2642-2643, :2672-2674, :2689, :2721, :2806-2807,
+337:   :3304, :4720, :4760, :4863, :5641-5642, :6173 - none inside `expr`).
+338: - **call result position** (as distinct from call ARGUMENTS, which are covered)
+339: - **`tryBindingLines` (:5210-5250)**: verified to have 0 boundary references
+340: - **switch pattern-binding / payload declarations**: never audited
+341: - **`Registered default`** and **`Nested collection element`**: named in
+342:   `j-prepared-value-design.md`. **CORRECTION 12 applies here too** - the earlier
+343:   "SILENTLY ABSENT from both revisions" wording was false: section 4 lists the
+344:   nested-collection consumer at `:1929`, and the registered-default family is
+345:   covered in code at `:284-345`, `:368-376`, `:4757-4778`, `:4860-4881`. What
+346:   remains open is **the semantic ruling**, not the registration.
+347: - interaction of already-converted values with the conditional/nil-merge axis
+348: - evaluation-order/lazy-effect interactions are asserted in the design document
+349:   but are not traced in this record
+350: - **`SwiftExpr.hx:2689`**: falls back to `sourceStorage(e.t, ...)` from the AST
+351:   type when `recorded == null`, which directly contradicts §3's ban on deriving
+352:   facts from AST types. It needs an explicit ruling; this record does not give one.
+
+--- candidate: function boundaries around the SW05 hunks ---
+5168:    function armPrefixThrows(e:TypedExpr):Bool {
+5179:    function blockValueLines(e:TypedExpr, depth:Int):{lines:Array<String>, value:Null<String>} {
+5190:    function catchHeaderLine(c:{v:TVar, expr:TypedExpr}, clsName:String, depth:Int):String {
+5197:    function catchFooterLines(depth:Int):Array<String> {
+5206:    function tryStatementLines(body:TypedExpr, c:{v:TVar, expr:TypedExpr}, depth:Int):Array<String> {
+5229:    function tryBindingLines(v:TVar, region:TypedExpr, depth:Int):Array<String> {
+5275:    function tryReturnLines(region:TypedExpr, depth:Int):Array<String> {
+5322:    function stripToValue(e:TypedExpr):TypedExpr {
+
+--- candidate: landed lines 5245-5300 ---
+5245:         for (l in body.lines)
+5246:             out.push(l);
+5247:         final bodyTry = containsThrowingCall(stripToValue(parts.body)) ? "try " : "";
+5248:         // The binding's declared type (v.t) is this route's actual destination
+5249:         // requirement; both arms convert against it, not the function return
+5250:         // type. (DestinationRequirementCarried)
+5251:         final bodyValueExpr = PolicyQueries.blockValueParts(parts.body).value;
+5252:         if (!armPrefixThrows(parts.body)) {
+5253:             out.push(indent(depth + 1) + name + " = " + bodyTry + destinationValueText(bodyValueExpr, v.t, body.value));
+5254:         }
+5255:         out.push(catchHeaderLine(parts.c, clsName, depth));
+5256:         catchVars.set(parts.c.v.id, true);
+5257:         final handler = blockValueLines(parts.c.expr, depth + 1);
+5258:         catchVars.remove(parts.c.v.id);
+5259:         if (handler.value == null) {
+5260:             return fail(parts.c.expr, "try region handler has no value");
+5261:         }
+5262:         for (l in handler.lines)
+5263:             out.push(l);
+5264:         final handlerTry = containsThrowingCall(stripToValue(parts.c.expr)) ? "try " : "";
+5265:         final handlerValueExpr = PolicyQueries.blockValueParts(parts.c.expr).value;
+5266:         if (!armPrefixThrows(parts.c.expr)) {
+5267:             out.push(indent(depth + 1) + name + " = " + handlerTry + destinationValueText(handlerValueExpr, v.t, handler.value));
+5268:         }
+5269:         for (l in catchFooterLines(depth))
+5270:             out.push(l);
+5271:         return out;
+5272:     }
+5273: 
+5274:     /** Return-position region: both arms return inside the native statement. */
+5275:     function tryReturnLines(region:TypedExpr, depth:Int):Array<String> {
+5276:         final parts = tryRegionParts(region);
+5277:         if (parts == null) {
+5278:             return fail(region, "not a try region");
+5279:         }
+5280:         final clsName = exceptionClassOf(parts.c);
+5281:         if (clsName == null) {
+5282:             return fail(parts.c.expr, "try region catch type is not an exception class");
+5283:         }
+5284:         final out = [indent(depth) + "do {"];
+5285:         final body = blockValueLines(parts.body, depth + 1);
+5286:         if (body.value == null) {
+5287:             return fail(region, "try region body has no value");
+5288:         }
+5289:         for (l in body.lines)
+5290:             out.push(l);
+5291:         final bodyTry = containsThrowingCall(stripToValue(parts.body)) ? "try " : "";
+5292:         // The return contract being satisfied (currentReturnType) is this
+5293:         // route's actual destination requirement. (DestinationRequirementCarried)
+5294:         final bodyValueExpr = PolicyQueries.blockValueParts(parts.body).value;
+5295:         if (!armPrefixThrows(parts.body)) {
+5296:             out.push(indent(depth + 1) + "return " + bodyTry + destinationValueText(bodyValueExpr, currentReturnType, body.value));
+5297:         }
+5298:         out.push(catchHeaderLine(parts.c, clsName, depth));
+5299:         catchVars.set(parts.c.v.id, true);
+5300:         final handler = blockValueLines(parts.c.expr, depth + 1);

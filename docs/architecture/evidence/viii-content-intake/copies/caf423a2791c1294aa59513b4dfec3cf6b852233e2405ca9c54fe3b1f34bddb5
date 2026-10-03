@@ -1,0 +1,22 @@
+#[derive(Clone, Copy)]
+pub struct VecSpliceOps;
+
+impl VecSpliceOps {
+    pub fn vec_splice_ops_remove_single() -> Vec<u32> {
+        let mut out = vec![1, 2, 3];
+        { let _a = &mut (out); let _n = i32::try_from(_a.len()).unwrap_or(0); let _pos = 1i32; let splice_index = if _pos < 0 { let _tail = _n + _pos; if _tail < 0 { 0 } else { _tail } } else if _pos > _n { _n } else { _pos }; let _len = 1i32; let splice_count = if _len < 0 { 0 } else { let _rest = _n - splice_index; if _len < _rest { _len } else { _rest } }; let splice_removed: Vec<_> = _a.drain(usize::try_from(splice_index).unwrap_or(0)..usize::try_from(splice_index + splice_count).unwrap_or(0)).collect(); splice_removed };
+        return out;
+    }
+
+    pub fn vec_splice_ops_capture_removed() -> Vec<u32> {
+        let mut out = vec![10, 20, 30, 40];
+        let removed = { let _a = &mut (out); let _n = i32::try_from(_a.len()).unwrap_or(0); let _pos = 2i32; let splice_index1 = if _pos < 0 { let _tail = _n + _pos; if _tail < 0 { 0 } else { _tail } } else if _pos > _n { _n } else { _pos }; let _len = 1i32; let splice_count1 = if _len < 0 { 0 } else { let _rest = _n - splice_index1; if _len < _rest { _len } else { _rest } }; let splice_removed1: Vec<_> = _a.drain(usize::try_from(splice_index1).unwrap_or(0)..usize::try_from(splice_index1 + splice_count1).unwrap_or(0)).collect(); splice_removed1 };
+        return removed;
+    }
+
+    pub fn vec_splice_ops_remove_head(count: u32) -> Vec<u32> {
+        let mut out = vec![1, 2, 3, 4, 5];
+        { let _a = &mut (out); let _n = i32::try_from(_a.len()).unwrap_or(0); let _pos = 0i32; let splice_index2 = if _pos < 0 { let _tail = _n + _pos; if _tail < 0 { 0 } else { _tail } } else if _pos > _n { _n } else { _pos }; let _len = i32::from_ne_bytes(((count) as i32).to_ne_bytes()); let splice_count2 = if _len < 0 { 0 } else { let _rest = _n - splice_index2; if _len < _rest { _len } else { _rest } }; let splice_removed2: Vec<_> = _a.drain(usize::try_from(splice_index2).unwrap_or(0)..usize::try_from(splice_index2 + splice_count2).unwrap_or(0)).collect(); splice_removed2 };
+        return out;
+    }
+}

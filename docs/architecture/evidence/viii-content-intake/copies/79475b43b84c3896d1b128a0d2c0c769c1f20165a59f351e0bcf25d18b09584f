@@ -1,0 +1,8 @@
+stage swift-run-R1 not reached through swiftc-R1 (producer-swiftc-R1-status-1)
+stage swift-run-R2 not reached through swiftc-R2 (producer-swiftc-R2-status-1)
+stage swift-run-R3 not reached through swiftc-R3 (producer-swiftc-R3-status-1)
+stage swift-run-R5 not reached through swiftc-R5 (producer-swiftc-R5-status-1)
+stage swift-run-R5rec not reached through swiftc-R5rec (producer-swiftc-R5rec-status-1)
+stage swift-run-R6 not reached through swiftc-R6 (producer-swiftc-R6-status-1)
+stage swift-run-all not reached through swiftc-all (producer-swiftc-all-status-1)
+identity step failed: swiftc-version

@@ -1,0 +1,14 @@
+SAME ./build.gradle.kts
+DIFF ./_GeneratedFiles.txt
+DIFF ./runtime/Graphemes.kt
+DIFF ./runtime/GraphemeWalk.kt
+DIFF ./runtime/SortedTable.kt
+DIFF ./runtime/StringTools.kt
+DIFF ./runtime/test/TestCore.kt
+DIFF ./runtime/test/Test.kt
+DIFF ./runtime/UString.kt
+DIFF ./std/UStringException.kt
+DIFF ./varfieldsmartcast/VarFieldSmartCastFinalHolder.kt
+DIFF ./varfieldsmartcast/VarFieldSmartCastHolder.kt
+DIFF ./varfieldsmartcast/VarFieldSmartCastMeasurement.kt
+DIFF ./varfieldsmartcast/VarFieldSmartCastOps.kt

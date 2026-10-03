@@ -1,0 +1,7 @@
+/tmp/vc8/out/pre-P4/gen/mx/MXProbe.swift:44:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+42 |     do {
+43 |         return ReadOnlyArray(QSource.first())
+44 |     } catch is QError {
+   |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+45 |         return ReadOnlyArray(QSource.second())
+46 |     } catch {

@@ -1,0 +1,31 @@
+boring/C1TryOps.swift:7:33: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+ 5 |         let view: ReadOnlyArray<Int32>
+ 6 |         do {
+ 7 |             view = try C1TryOps.throwingProduce(flag)
+   |                                 `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+ 8 |         } catch is C1BoundaryError {
+ 9 |             view = C1TryOps.fallbackArray()
+
+boring/C1TryOps.swift:9:29: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+ 7 |             view = try C1TryOps.throwingProduce(flag)
+ 8 |         } catch is C1BoundaryError {
+ 9 |             view = C1TryOps.fallbackArray()
+   |                             `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+10 |         } catch {
+11 |             throw error
+
+boring/C1TryOps.swift:18:33: error: cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+16 |     public static func tryReturnDest(_ flag: Bool) throws -> ReadOnlyArray<Int32> {
+17 |         do {
+18 |             return try C1TryOps.throwingProduce(flag)
+   |                                 `- error: cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+19 |         } catch is C1BoundaryError {
+20 |             return C1TryOps.fallbackArray()
+
+boring/C1TryOps.swift:20:29: error: cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+18 |             return try C1TryOps.throwingProduce(flag)
+19 |         } catch is C1BoundaryError {
+20 |             return C1TryOps.fallbackArray()
+   |                             `- error: cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+21 |         } catch {
+22 |             throw error

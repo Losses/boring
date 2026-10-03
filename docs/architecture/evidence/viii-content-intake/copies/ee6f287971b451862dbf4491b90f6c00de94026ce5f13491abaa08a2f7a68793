@@ -1,0 +1,9 @@
+package boring;
+
+/** Message-only haxe.Exception subclass (features/06 shape) so the try
+    region's catch names a catchable Swift BoringException subclass. */
+class C1BoundaryError extends haxe.Exception {
+    public function new(message:String) {
+        super(message);
+    }
+}

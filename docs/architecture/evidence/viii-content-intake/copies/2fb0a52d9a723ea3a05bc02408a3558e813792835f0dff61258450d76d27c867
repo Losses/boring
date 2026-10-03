@@ -1,0 +1,11 @@
+package boring
+
+object SealedChildOps {
+    fun describe(error: SealedChildParent): String {
+        return error.message
+    }
+
+    fun childMessage(message: String): String {
+        return SealedChildOps.describe(SealedChildException(message))
+    }
+}

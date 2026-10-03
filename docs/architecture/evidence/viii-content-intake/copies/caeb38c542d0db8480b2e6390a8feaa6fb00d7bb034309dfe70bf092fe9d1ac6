@@ -1,0 +1,9 @@
+== PRE-FIX CONTROL (ab20a8af, restore outside try/finally): SIGTERM mid-run ==
+before: count=5 hash=1c2acf93702b177df7179aac156ab94590e844110162d71e4d6fd5b90af3018a
+bun pid=493145
+wait rc=143 (SIGTERM to bun test); kill state: stub-was-live-at-kill, waited ~2 polls
+after:  count=0 hash=4f910e40a55a653ffe2101bf29362cd0b17dd12df371f5f0e314844d9c007500
+tail of test output:
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/package-artifacts.test.ts:

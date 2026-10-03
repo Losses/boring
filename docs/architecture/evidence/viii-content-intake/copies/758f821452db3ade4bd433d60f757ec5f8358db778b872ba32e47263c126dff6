@@ -1,0 +1,32 @@
+== Tiqian round2 HEAD ==
+8504d230228e8206689a2049bbb84b671c1f079a
+== tracked status ==
+?? boring-architecture-candidate.json
+?? boring-architecture-engine-candidate.json
+?? boring-architecture-protocol-candidate.json
+?? boring-fixed-2159c657-all.json
+?? boring-fixed-2159c657-engine.json
+?? boring-fixed-2159c657-protocol.json
+== Boring HEAD ==
+0a5c42a702d938ca4da39cbcefae2cc450e021fe
+== 2159c657 ancestor-of-HEAD ==
+rc=0
+== commits 2159c657..HEAD ==
+9
+== 0a5c42a7 stat (runbook now tracked) ==
+0a5c42a7 baseline
+ .../architecture-round-1/d-observation.md          |   5 +-
+ .../p09-fixed-matrix-preparation-runbook.md        | 309 +++++++++++++++++++
+ examples/kotlin-f32.hxml                           |  41 +++
+ examples/rust-f32.hxml                             |  33 +++
+ examples/swift-f32.hxml                            |  37 +++
+ package.json                                       |   3 +-
+ .../compiler/reflaxe/dart/dartcompiler/DartExpr.hx |  26 +-
+== flake pin ==
+11:      url = "github:Losses/boring/304ed70c4ba09fe21edadcca4c85f963fd692927";
+== 304ed70c in boring repo ==
+commit
+ancestor rc=1
+150
+== trap check (expect 5) ==
+5

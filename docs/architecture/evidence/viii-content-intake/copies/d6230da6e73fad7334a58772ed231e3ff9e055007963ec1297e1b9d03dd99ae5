@@ -1,0 +1,5 @@
+warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture' is dirty
++ OUT=/home/losses/Development/tq-workspace/dc-warn/out/fixture-parity
++ haxe tests/haxe/swift-rt-probe/gen/swift.hxml -D swift-output=/home/losses/Development/tq-workspace/dc-warn/out/fixture-parity/gen/probe -D swift-test-output=/home/losses/Development/tq-workspace/dc-warn/out/fixture-parity/gen/probe-test
++ haxe tests/haxe/swift-rt-plain/gen/swift.hxml -D swift-output=/home/losses/Development/tq-workspace/dc-warn/out/fixture-parity/gen/plain -D swift-test-output=/home/losses/Development/tq-workspace/dc-warn/out/fixture-parity/gen/plain-test
++ haxe tests/haxe/try-tail/gen/rust.hxml -D rust-output=/home/losses/Development/tq-workspace/dc-warn/out/fixture-parity/gen/rust -D rust-test-output=/home/losses/Development/tq-workspace/dc-warn/out/fixture-parity/gen/rust-test

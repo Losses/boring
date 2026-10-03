@@ -1,0 +1,77 @@
+package boring
+
+object Fp16 {
+    fun f16ToF32Bits(h16: Int): Int {
+        val sign = ((((h16) ushr (15))) and (1))
+        val exp5 = ((((h16) ushr (10))) and (31))
+        val mant10 = ((h16) and (1023))
+        if ((exp5 == 0)) {
+            if ((mant10 == 0)) {
+                return ((sign) shl (31))
+            }
+            var mant = mant10
+            var shift = 0
+            while (((((mant) and (1024))) == 0)) {
+                mant = ((mant) shl (1))
+                shift += 1
+            }
+            return ((((((sign) shl (31))) or (((113 - shift) shl (23))))) or ((((((mant) and (1023)))) shl (13))))
+        }
+        if ((exp5 == 31)) {
+            if ((mant10 == 0)) {
+                return ((((sign) shl (31))) or (2139095040))
+            }
+            return ((((((sign) shl (31))) or (2143289344))) or ((((((mant10) and (1023)))) shl (13))))
+        }
+        return ((((((sign) shl (31))) or (((exp5 + 112) shl (23))))) or (((mant10) shl (13))))
+    }
+
+    fun f32ToF16Bits(b32: Int): Int {
+        val sign = ((b32) ushr (31))
+        val exp8 = ((((b32) ushr (23))) and (255))
+        val mant23 = ((b32) and (8388607))
+        if ((exp8 == 255)) {
+            if ((mant23 == 0)) {
+                return ((((sign) shl (15))) or (31744))
+            }
+            return ((((((sign) shl (15))) or (32256))) or (((mant23) ushr (13))))
+        }
+        if ((exp8 == 0)) {
+            return ((sign) shl (15))
+        }
+        if ((exp8 >= 143)) {
+            return ((((sign) shl (15))) or (31744))
+        }
+        if ((exp8 >= 113)) {
+            var exp5 = exp8 - 112
+            var sig11 = Fp16.roundShift(((mant23) or (8388608)), 13)
+            if ((sig11 == 2048)) {
+                exp5 += 1
+                if ((exp5 >= 31)) {
+                    return ((((sign) shl (15))) or (31744))
+                }
+                sig11 = 1024
+            }
+            return ((((((sign) shl (15))) or (((exp5) shl (10))))) or ((((sig11) and (1023)))))
+        }
+        val shift = 126 - exp8
+        if ((shift > 24)) {
+            return ((sign) shl (15))
+        }
+        val h = Fp16.roundShift(((mant23) or (8388608)), shift)
+        if ((h == 1024)) {
+            return ((((sign) shl (15))) or (1024))
+        }
+        return ((((sign) shl (15))) or (h))
+    }
+
+    private fun roundShift(value: Int, shift: Int): Int {
+        val base = ((value) ushr (shift))
+        val rest = ((value) and ((((1) shl (shift))) - 1))
+        val half = ((1) shl (shift - 1))
+        if ((rest > half || rest == half && (((base) and (1))) == 1)) {
+            return base + 1
+        }
+        return base
+    }
+}

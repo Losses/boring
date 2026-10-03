@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# xc2-markers.sh -- what happens when the end marker appears more than once,
+# and whether anchoring on the LAST match (tail -n 1) can be abused where
+# anchoring on the FIRST (head -n 1) would not.
+set -u
+R=/home/losses/Development/tq-workspace
+SRC="$R/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner"
+NEW="$SRC/check-log-integrity.sh"
+OLD="$R/dc-warn/out/integrity-bytefix/backup/check-log-integrity.sh.orig"
+BASE="attempt-20260929T180809-2918225"
+C="$R/dc-warn/scratch-xcheck2/copy3"
+EV="$R/dc-warn/out/bytefix-xcheck2/evidence"
+mkdir -p "$C" "$EV"
+
+rm -rf "$C/att-clean"; cp -a "$SRC/$BASE" "$C/att-clean"; chmod -R u+rwX "$C/att-clean"
+L="$C/att-clean/harness.log"
+PRIS=$(wc -c <"$L")
+MKT='harness end marker sha256='
+MOFF=$(grep -abo "^$MKT" "$L" | tail -n 1 | cut -d: -f1)
+REALHASH=$(tail -c +$((MOFF+${#MKT}+1)) "$L" | head -n 1 | tr -d '\n')
+echo "pristine=$PRIS marker_off=$MOFF real_hash=$REALHASH" | tee "$EV/xc2-markers.env.txt"
+
+# hypothetical variant: anchor on the FIRST marker line instead of the last
+sed 's/| tail -n 1 |/| head -n 1 |/' "$NEW" > "$C/firstmatch.sh"
+chmod 755 "$C/firstmatch.sh"
+echo "firstmatch variant differs from NEW at: $(diff <(cat "$NEW") <(cat "$C/firstmatch.sh") | head -4 | tr '\n' '|')" >> "$EV/xc2-markers.env.txt"
+
+mk() { rm -rf "$C/$1"; cp -a "$C/att-clean" "$C/$1"; chmod -R u+rwX "$C/$1"; }
+for n in m1 m2 m3 m4; do mk "$n"; done
+
+python3 - "$C/m1/harness.log" <<'PY'
+import sys, hashlib
+p=sys.argv[1]; d=open(p,'rb').read()
+open(p,'ab').write(b"harness end marker sha256="+hashlib.sha256(d).hexdigest().encode()+b"\n")
+PY
+python3 - "$C/m2/harness.log" <<'PY'
+import sys, hashlib
+p=sys.argv[1]; open(p,'ab').write(b"FORGED-PAYLOAD\n")
+d=open(p,'rb').read()
+open(p,'ab').write(b"harness end marker sha256="+hashlib.sha256(d).hexdigest().encode()+b"\n")
+PY
+python3 - "$C/m3/harness.log" <<'PY'
+import sys, hashlib
+p=sys.argv[1]
+for extra in (b"one\n", b"two\n"):
+    open(p,'ab').write(extra)
+    d=open(p,'rb').read()
+    open(p,'ab').write(b"harness end marker sha256="+hashlib.sha256(d).hexdigest().encode()+b"\n")
+PY
+python3 - "$L" "$C/m4/harness.log" "$MOFF" "$PRIS" <<'PY'
+import sys
+src,dst,moff,pris=sys.argv[1],sys.argv[2],int(sys.argv[3]),int(sys.argv[4])
+d=open(src,'rb').read()
+open(dst,'wb').write(d + d[moff:pris])          # verbatim copy of the real marker
+PY
+
+printf '%-6s %8s %6s %6s %6s %6s  %s\n' CASE BYTES NMARK OLD NEW FIRST NOTE > "$EV/xc2-markers.tsv"
+for c in m1 m2 m3 m4; do
+  f="$C/$c/harness.log"
+  nm=$(grep -ac "^$MKT" "$f")
+  o=$(bash "$OLD" "$C/$c" 2>/dev/null); orc=$?
+  n=$(bash "$NEW" "$C/$c" 2>/dev/null); nrc=$?
+  fm=$(bash "$C/firstmatch.sh" "$C/$c" 2>/dev/null); frc=$?
+  printf '%-6s %8s %6s %6s %6s %6s  %s\n' "$c" "$(wc -c <"$f")" "$nm" "$orc" "$nrc" "$frc" "$(printf '%s' "$n" | head -1 | cut -c1-60)" >> "$EV/xc2-markers.tsv"
+  {
+    printf '===== %s  markers=%s bytes=%s\n' "$c" "$nm" "$(wc -c <"$f")"
+    printf -- '-- OLD rc=%s %s\n' "$orc" "$(printf '%s' "$o"|head -1)"
+    printf -- '-- NEW (tail -n 1 anchoring) rc=%s %s\n' "$nrc" "$(printf '%s' "$n"|head -1)"
+    printf -- '-- ALT (head -n 1 anchoring) rc=%s %s\n' "$frc" "$(printf '%s' "$fm"|head -1)"
+  } >> "$EV/xc2-markers.detail.txt"
+done
+cat "$EV/xc2-markers.tsv"

@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""Apply per-test timeout budgets to the intrinsic timeout-class tests.
+
+Convention reused from the repository itself (third argument of bun's
+test(name, fn, TIMEOUT_MS), plus the comment style already present at
+tests/ts/std-string.test.ts:83-85, tests/ts/package-artifacts.test.ts:319-320
+and tests/ts/package-shell.test.ts:113-115).
+
+Every edit below is asserted to match exactly once, so a silent no-op or a
+double substitution aborts the run.
+"""
+import sys, os
+
+TREE = sys.argv[1]
+
+def c1(indent):
+    return (f"{indent}// Full haxe pipeline under load; the explicit timeout raises only the\n"
+            f"{indent}// harness patience for that subprocess, never the asserted behavior.\n")
+
+def cn(indent, n):
+    return (f"{indent}// {n} sequential haxe generations; the explicit timeout raises only the\n"
+            f"{indent}// harness patience for those subprocesses, never the asserted behavior.\n")
+
+EDITS = [
+    # ---------------- one full haxe generation, default 5000 ms -> 120000 -----
+    ("tests/dart/precision-switch.test.ts",
+     '    expect(stderr).toContain("double is the one real storage width");\n  });\n',
+     '    expect(stderr).toContain("double is the one real storage width");\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/precision-switch.test.ts",
+     '    expect(stderr).toContain("number is binary64");\n  });\n',
+     '    expect(stderr).toContain("number is binary64");\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/stringtools-conv.test.ts",
+     '    expect(stderr).toContain("StringTools.hex accepts non-negative arguments only");\n  });\n',
+     '    expect(stderr).toContain("StringTools.hex accepts non-negative arguments only");\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/enum-sorted-keys.test.ts",
+     '    expect(stderr).toContain("enums with payloads are not keys");\n'
+     '  } finally {\n    fs.rmSync(dir, { recursive: true, force: true });\n  }\n});\n',
+     '    expect(stderr).toContain("enums with payloads are not keys");\n'
+     '  } finally {\n    fs.rmSync(dir, { recursive: true, force: true });\n  }\n'
+     + c1("  ") + '}, 120000);\n'),
+
+    ("tests/ts/rust-packages.test.ts",
+     '    expect(fs.existsSync(path.join(output, "outer/inner/probe.rs"))).toBe(true);\n'
+     '  } finally {\n    fs.rmSync(dir, { recursive: true, force: true });\n  }\n});\n',
+     '    expect(fs.existsSync(path.join(output, "outer/inner/probe.rs"))).toBe(true);\n'
+     '  } finally {\n    fs.rmSync(dir, { recursive: true, force: true });\n  }\n'
+     + c1("  ") + '}, 120000);\n'),
+
+    ("tests/ts/rust-bytes-ownership.test.ts",
+     '    expect(fs.readFileSync(path.join(output, "fixture/owned.rs"), "utf8")).toContain("bytes: Vec<u8>");\n'
+     '  } finally {\n    fs.rmSync(dir, { recursive: true, force: true });\n  }\n});\n',
+     '    expect(fs.readFileSync(path.join(output, "fixture/owned.rs"), "utf8")).toContain("bytes: Vec<u8>");\n'
+     '  } finally {\n    fs.rmSync(dir, { recursive: true, force: true });\n  }\n'
+     + c1("  ") + '}, 120000);\n'),
+
+    ("tests/ts/extern-bindings.test.ts",
+     "      expect(probe).toContain('import { Named, Namespace, globalThing } from \"./Externs.ts\";');\n"
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n  });\n',
+     "      expect(probe).toContain('import { Named, Namespace, globalThing } from \"./Externs.ts\";');\n"
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/extern-bindings.test.ts",
+     '      expect(result.output).toContain("extern class Empty carries no @:native and no @:jsRequire");\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n  });\n',
+     '      expect(result.output).toContain("extern class Empty carries no @:native and no @:jsRequire");\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/strict-output.test.ts",
+     '      expect(output).not.toContain("indexOf(2, null)");\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n  });\n',
+     '      expect(output).not.toContain("indexOf(2, null)");\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/strict-output.test.ts",
+     '      expect(output).not.toContain("text.substr(1, null)");\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n  });\n',
+     '      expect(output).not.toContain("text.substr(1, null)");\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/strict-output.test.ts",
+     '      expect(output).toMatch(/const next = 1;[\\s\\S]*return next;/);\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n  });\n',
+     '      expect(output).toMatch(/const next = 1;[\\s\\S]*return next;/);\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/strict-output.test.ts",
+     '      expect(output).toContain("const name: string | null = null;");\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n  });\n',
+     '      expect(output).toContain("const name: string | null = null;");\n'
+     '    } finally {\n      fs.rmSync(result.dir, { recursive: true, force: true });\n    }\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/deferred-locals.test.ts",
+     "    expect(stdout + stderr).toMatch(/(must be initialized|variable 'tier' must be initialized)/i);\n"
+     '  } finally {\n    fs.rmSync(dir, { recursive: true, force: true });\n  }\n});\n',
+     "    expect(stdout + stderr).toMatch(/(must be initialized|variable 'tier' must be initialized)/i);\n"
+     '  } finally {\n    fs.rmSync(dir, { recursive: true, force: true });\n  }\n'
+     + c1("  ") + '}, 120000);\n'),
+
+    ("tests/ts/fn-values.test.ts",
+     '      expect(stdout + stderr).toContain("static function fields accept capture-free initializers only");\n'
+     '    } finally {\n      fs.rmSync(mutationRoot, { recursive: true, force: true });\n    }\n  });\n',
+     '      expect(stdout + stderr).toContain("static function fields accept capture-free initializers only");\n'
+     '    } finally {\n      fs.rmSync(mutationRoot, { recursive: true, force: true });\n    }\n'
+     + c1("    ") + '  }, 120000);\n'),
+
+    ("tests/ts/sealed-variants.test.ts",
+     '    expect(stdout + stderr).toContain("@:sealed applies to interfaces only");\n'
+     '  } finally {\n    fs.rmSync(mutationRoot, { recursive: true, force: true });\n  }\n});\n',
+     '    expect(stdout + stderr).toContain("@:sealed applies to interfaces only");\n'
+     '  } finally {\n    fs.rmSync(mutationRoot, { recursive: true, force: true });\n  }\n'
+     + c1("  ") + '}, 120000);\n'),
+
+    ("tests/ts/sealed-variants.test.ts",
+     '    expect(stdout + stderr).toContain("static field initializers accept null, literal, and empty array forms only");\n'
+     '  } finally {\n    fs.rmSync(mutationRoot, { recursive: true, force: true });\n  }\n});\n',
+     '    expect(stdout + stderr).toContain("static field initializers accept null, literal, and empty array forms only");\n'
+     '  } finally {\n    fs.rmSync(mutationRoot, { recursive: true, force: true });\n  }\n'
+     + c1("  ") + '}, 120000);\n'),
+
+    # ---------------- multi-generation tests, budget too small ----------------
+    ("tests/ts/array-root.test.ts",  # 3 generations, 5000 -> 240000
+     '  expect(rootError).toContain("static field initializers accept null, literal, array, and construction forms only");\n});\n',
+     '  expect(rootError).toContain("static field initializers accept null, literal, array, and construction forms only");\n'
+     + cn("  ", 3) + '}, 240000);\n'),
+
+    ("tests/ts/constructed-state.test.ts",  # 3 generations, 5000 -> 240000
+     '  expect(argumentError).toContain("constructed static field arguments accept literal, enum, array, construction, static field, and static function forms only");\n});\n',
+     '  expect(argumentError).toContain("constructed static field arguments accept literal, enum, array, construction, static field, and static function forms only");\n'
+     + cn("  ", 3) + '}, 240000);\n'),
+
+    ("tests/ts/sealed-variants.test.ts",  # 5 generations, 15000 -> 240000
+     '    expect(trees.rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;\n'
+     '  } finally {\n    fs.rmSync(mutationRoot, { recursive: true, force: true });\n  }\n}, 15000);\n',
+     '    expect(trees.rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;\n'
+     '  } finally {\n    fs.rmSync(mutationRoot, { recursive: true, force: true });\n  }\n'
+     + cn("  ", 5) + '}, 240000);\n'),
+
+    ("tests/ts/static-state.test.ts",  # 1 full generation, 15000 -> 120000
+     '\texpect(stderr).toContain("static field initializers accept null, literal, and empty array forms only");\n}, 15000);\n',
+     '\texpect(stderr).toContain("static field initializers accept null, literal, and empty array forms only");\n'
+     '\t// Full haxe pipeline under load; the explicit timeout raises only the\n'
+     '\t// harness patience for that subprocess, never the asserted behavior.\n'
+     '}, 120000);\n'),
+
+    ("tests/ts/package-artifacts.test.ts",  # 2 generations + 2 tar, 60000 -> 240000
+     '    } finally {\n      fs.rmSync(rustRoot, { recursive: true, force: true });\n'
+     '      fs.rmSync(dartRoot, { recursive: true, force: true });\n    }\n  }, 60_000);\n',
+     '    } finally {\n      fs.rmSync(rustRoot, { recursive: true, force: true });\n'
+     '      fs.rmSync(dartRoot, { recursive: true, force: true });\n    }\n'
+     + cn("    ", 2) + '  }, 240_000);\n'),
+
+    ("tests/ts/std-string.test.ts",  # 5 full generations, 120000 -> 420000
+     '      expect(stderr).toContain("Std.string does not accept Null<T> operands; compare against null first");\n'
+     '    }\n  }, 120000);\n',
+     '      expect(stderr).toContain("Std.string does not accept Null<T> operands; compare against null first");\n'
+     '    }\n' + cn("    ", 5) + '  }, 420000);\n'),
+
+    ("tests/ts/printed-record.test.ts",  # 8 generations, 120000 -> 420000
+     '    } finally {\n      fs.rmSync(mutationRoot, { recursive: true, force: true });\n    }\n  }, 120_000);\n',
+     '    } finally {\n      fs.rmSync(mutationRoot, { recursive: true, force: true });\n    }\n'
+     + cn("    ", 8) + '  }, 420_000);\n'),
+
+    ("tests/ts/value-type.test.ts",  # 15 synchronous generations, 120000 -> 660000
+     '    } finally {\n      fs.rmSync(mutationRoot, { recursive: true, force: true });\n    }\n  }, 120_000);\n',
+     '    } finally {\n      fs.rmSync(mutationRoot, { recursive: true, force: true });\n    }\n'
+     '    // Fifteen sequential synchronous haxe generations: the body never yields,\n'
+     '    // so the runner can only read its timer after the body returns. The\n'
+     '    // explicit timeout raises only the harness patience, never the\n'
+     '    // asserted behavior.\n'
+     '  }, 660_000);\n'),
+]
+
+def main():
+    changed = {}
+    for rel, old, new in EDITS:
+        p = os.path.join(TREE, rel)
+        src = open(p, encoding="utf-8").read()
+        n = src.count(old)
+        if n != 1:
+            raise SystemExit(f"FAIL {rel}: anchor matched {n} times (expected 1)\n---\n{old}")
+        src = src.replace(old, new, 1)
+        open(p, "w", encoding="utf-8").write(src)
+        changed[rel] = changed.get(rel, 0) + 1
+    for rel, n in sorted(changed.items()):
+        print(f"{n:>3} edit(s)  {rel}")
+    print("total files:", len(changed), "total edits:", sum(changed.values()))
+
+main()

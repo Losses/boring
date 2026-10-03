@@ -1,0 +1,14 @@
+#![cfg(test)]
+
+use crate::boring::font_id_consumer::FontIdConsumer;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn make() {
+    testlib::run("tests.FontIdTests.make", "tests.FontIdTests.make: a non-inline static on a sub-type abstract is callable across modules", || {
+        test_core::TestCore::test_core_equals_bool(true, FontIdConsumer::font_id_consumer_is_prefixed(UStr::new(&[104,101,108,108,111])), UStr::new(&[]));
+    });
+}

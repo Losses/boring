@@ -1,0 +1,15 @@
+#![cfg(test)]
+
+use crate::boring::boxed_interface_default_ops::BoxedInterfaceDefaultOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn default_boxes() {
+    testlib::run("tests.BoxedInterfaceDefaultOpsTests.defaultBoxes", "tests.BoxedInterfaceDefaultOpsTests.defaultBoxes: a concrete interface default boxes in the coalescing closure", || {
+        let with_default = BoxedInterfaceDefaultOps::new(Some(Box::new({ let __guard = crate::boring::boxed_interface_default_ops::FILLED_SHAPE_STYLE_INSTANCE.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() })));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,105,108,108,101,100]), with_default.describe().as_ustr(), UStr::new(&[100,101,102,97,117,108,116,32,115,116,121,108,101]));
+    });
+}

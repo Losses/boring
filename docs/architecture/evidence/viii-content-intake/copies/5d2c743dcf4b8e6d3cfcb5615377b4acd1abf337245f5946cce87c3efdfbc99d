@@ -1,0 +1,48 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_element_only() {
+    testlib::run("tests.ArrayIndexSearchTests.testElementOnly", "tests.ArrayIndexSearchTests.testElementOnly: an element-only array search reads the platform overload", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_index_of_from() {
+    testlib::run("tests.ArrayIndexSearchTests.testIndexOfFrom", "tests.ArrayIndexSearchTests.testIndexOfFrom: an array indexOf keeps its start index", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_last_index_of_from() {
+    testlib::run("tests.ArrayIndexSearchTests.testLastIndexOfFrom", "tests.ArrayIndexSearchTests.testLastIndexOfFrom: an array lastIndexOf searches towards index 0 from its start index", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_empty() {
+    testlib::run("tests.ArrayIndexSearchTests.testEmpty", "tests.ArrayIndexSearchTests.testEmpty: an empty array reports a miss in every shape", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_nullable_receiver() {
+    testlib::run("tests.ArrayIndexSearchTests.testNullableReceiver", "tests.ArrayIndexSearchTests.testNullableReceiver: a nullable array receiver keeps its start index", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_string_element() {
+    testlib::run("tests.ArrayIndexSearchTests.testStringElement", "tests.ArrayIndexSearchTests.testStringElement: an array search compares a String element by value", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

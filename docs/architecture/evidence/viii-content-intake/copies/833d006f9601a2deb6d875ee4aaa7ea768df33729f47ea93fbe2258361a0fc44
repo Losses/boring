@@ -1,0 +1,77 @@
+attempt=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/integration-a3-evidence/exclusive-runner/attempt-chainA-fixed2-20260930T002043-3235617
+utc=2026-09-30T00:31:36+00:00
+
+=== harness.log head/tail ===
+run=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/integration-a3-evidence/exclusive-runner/attempt-chainA-fixed2-20260930T002043-3235617
+root=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2
+child_evidence_dir=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/integration-a3-evidence/exclusive-runner/attempt-chainA-fixed2-20260930T002043-3235617/child-evidence
+external_dir=/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/integration-a3-evidence/exclusive-runner/external-20260929T202043-3236910
+plan=/home/losses/Development/tq-workspace/p09-chainA-work/plan/option-c.plan
+start=2026-09-29T20:20:43-04:00
+step-2119220958 status=0
+step-2107514504 status=0
+...
+stage-evidence abd094c90a861bb6ed874d8bdc717a453fdb15ca483cb60f2e26f8081a54d58e  step-2107514504.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-2107514504.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2107514504.stderr
+stage-evidence de3a2632ca4ca7b843058cb823a37dd237931753d348fbf699368a90b9961a21  step-2107514504.stdout
+stage-evidence a6e8c1ea090d8b45f48981c8353987cac08d95b2974a076b9bd933e9f1956d10  step-2119220958.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-2119220958.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2119220958.stderr
+stage-evidence e3ae53cb7f67a5db8bceb454daa8e3b2e6b6c24c4b80d115bf53e1d6a1edff01  step-2119220958.stdout
+stage-evidence 903763cb9153e4d677e79342bdc6698c849a6278a145710ff90e584c2036e65a  step-2132950968.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-2132950968.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2132950968.stderr
+stage-evidence e3ae53cb7f67a5db8bceb454daa8e3b2e6b6c24c4b80d115bf53e1d6a1edff01  step-2132950968.stdout
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-2878747768.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-2956777136.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-308326945.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-3606949787.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-3646290150.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-4247481514.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-4253828906.status
+stage-evidence 846ce925d6a7cf9f83e75a05f529acc05b45764295e4172041ce711f994e81fc  step-488127890.status
+stage-evidence 9bb42aec0fa7c8b1f3c7cd93a2c61c4e1bea9e5677eef544a2ac9b2ef62363c0  step-737716045.command
+stage-evidence 4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  step-737716045.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-737716045.stderr
+stage-evidence 599b032a7814034c8d6ab830ae6cb158136b9a55b9c8fb83814d22bf826d7212  step-737716045.stdout
+harness end marker sha256=a49065cf5d2910a74be396fe40dcd5ecd03bce32e172f5efaac2beeef085f2e5
+
+=== per-stage wrapper rc / post-state ===
+stage            rc   poststate-rc   poststate summary                       
+env-guard        0    0              post-state: 1433 entries checked, 0 failures
+identity         0    0              post-state: 1433 entries checked, 0 failures
+driver-build     0    0              post-state: 1433 entries checked, 0 failures
+driver-verify    1    0              post-state: 1433 entries checked, 0 failures
+authored-tests   -    -              (not reached)                           
+test-haxe        -    -              (not reached)                           
+test-kotlin      -    -              (not reached)                           
+test-intercept   -    -              (not reached)                           
+test-dart        -    -              (not reached)                           
+test-rust        -    -              (not reached)                           
+registry-compile -    -              (not reached)                           
+lint             -    -              (not reached)                           
+typecheck        -    -              (not reached)                           
+check-docs       -    -              (not reached)                           
+gen-vector       -    -              (not reached)                           
+vector-hash      -    -              (not reached)                           
+check-reflaxe    -    -              (not reached)                           
+
+=== harness step statuses ===
+step-2119220958        plan-line-1    0
+step-2107514504        plan-line-2    0
+step-2132950968        plan-line-3    0
+step-737716045         plan-line-4    1
+step-3646290150        plan-line-5    skipped blocked-by step-737716045
+step-1451725318        plan-line-6    skipped blocked-by step-737716045
+step-2878747768        plan-line-7    skipped blocked-by step-737716045
+step-1906832626        plan-line-8    skipped blocked-by step-737716045
+step-4247481514        plan-line-9    skipped blocked-by step-737716045
+step-164514084         plan-line-10   skipped blocked-by step-737716045
+step-2956777136        plan-line-11   skipped blocked-by step-737716045
+step-2061946232        plan-line-12   skipped blocked-by step-737716045
+step-308326945         plan-line-13   skipped blocked-by step-737716045
+step-3606949787        plan-line-14   skipped blocked-by step-737716045
+step-488127890         plan-line-15   skipped blocked-by step-737716045
+step-4253828906        plan-line-16   skipped blocked-by step-737716045
+step-141502349         plan-line-17   skipped blocked-by step-737716045

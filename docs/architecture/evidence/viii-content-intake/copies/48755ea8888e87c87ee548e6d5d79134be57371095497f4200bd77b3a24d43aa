@@ -1,0 +1,15 @@
+package tests
+
+import boring.runtime.test.Test
+import registry.Semver
+
+class RegistrySemverTests {
+@boring.test.Test
+    fun ordering() {
+        Test.run("tests.RegistrySemverTests.ordering", "tests.RegistrySemverTests.ordering: semver orders prereleases before releases") {
+                Test.equals(-1, Semver.compare("1.0.0-alpha.1", "1.0.0-beta"), null)
+                Test.equals(-1, Semver.compare("1.0.0-rc.1", "1.0.0"), null)
+                Test.equals(true, Semver.isPrerelease("2.0.0-dev"), null)
+        }
+    }
+}

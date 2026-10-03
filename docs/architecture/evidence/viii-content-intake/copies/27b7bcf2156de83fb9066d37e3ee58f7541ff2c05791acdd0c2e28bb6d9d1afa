@@ -1,0 +1,39 @@
+# Hashes AFTER the change. Verify with:  sha256sum -c FILES.sha256
+# generated: 2026-09-29T20:38:30-04:00
+# ALL paths absolute so the manifest verifies from any cwd.
+
+# --- frozen runner artifacts (ONLY selftest.sh was changed by this task) ---
+81090001c3907b4ac5005f0ac6eb38e80876c16aa35775c9500a40688a3b34ba  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/selftest.sh
+606cb4f391ba288137ef70caad989c848b96cbb78547efac12bd8527f534e3f7  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/check-log-integrity.sh
+7c332d3369e0643a4aa397b2a6530dab628f86e833b3f049d3fbe51cfedb902f  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/run-exclusive.sh
+c14043c0d68623fa0a378c771ead2f4cc831d678e6f244d90b91443a82c59cc5  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-stage-wrapper.sh
+4ad34edf398e175ab72c5e45dc7a23cb0a2efb7c40f078f4a442541823c91105  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-poststate.py
+d1199267d87cc635172e8d3a1bdf83150f19c7c87f1faadeefb77c211e7ab573  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-child-records.py
+42517f84a02ea3260f2a0d35cc413a79c70e8651596601312934be42276f4d78  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c.plan
+db36aaf878097f186ffdd20b418c3b6389c27cfd6aede22c9c375cf75ec3feb5  /home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/README.md
+
+# --- old line-view checker backup (read-only A/B input; unchanged) ---
+bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a  /home/losses/Development/tq-workspace/dc-warn/out/integrity-bytefix/backup/check-log-integrity.sh.orig
+
+# --- deliverables ---
+d2b79731740eee2205b24d389118d6b39711eebdf08172650ac7024de45400a5  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/REPORT.md
+e797ccd6f3de53ba283d2ac40b1028f0f601837c4b295799b7d39a5a38c60d5e  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/PATCH.diff
+961e13070dd1b23ee275b4c1f9c45ce3ab220d8d9fc9f02a9ea19108e04755ab  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/selftest.sh.orig
+efffcb02f0666eb11becc37902f17805058c25061c0a102e004e250d3ab906f6  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/proof-nolf.sh
+961e13070dd1b23ee275b4c1f9c45ce3ab220d8d9fc9f02a9ea19108e04755ab  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/reverse-test.sh
+a6d1c6832e5a78d593bc08c53664294844c1a778b19a279969a9bc65c0ebd059  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/attribution-lf-vs-nolf.log
+c086f49bf89456de05f099757a88933f98f6dcb288ba6254fe1a33abbd2e0d32  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/INVALID-suite-oldchecker-broken-env.log
+41645c0389380371f5d6bd75b3b4303f23647127518f7ed54e58f0ae9f34a433  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/mirror-suite-new.log
+008b94b17af7139916f869433be9f1776d7de8537c31d1481319c4c12293f5cc  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/mirror-suite-old.log
+2ceb85b39ce70f8c0df1e58facc4115fa4fcfdbcc320bfabb5e7dd17ba4d1a25  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/primary-00-clean-new.log
+2ceb85b39ce70f8c0df1e58facc4115fa4fcfdbcc320bfabb5e7dd17ba4d1a25  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/primary-01-clean-old.log
+01d51b683728c742e8587b220bf2a641af9c0a4983c9cfcc402b7fce53fa3e53  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/primary-02-noLF-new.log
+2ceb85b39ce70f8c0df1e58facc4115fa4fcfdbcc320bfabb5e7dd17ba4d1a25  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/primary-03-noLF-old.log
+aee5fe53274995c5c0dc60392cf4e93a395c0afd35316947ee3479a4c24dfffc  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/primary-04-withLF-new.log
+d2af24a239fd35ef12d5ee4f6c6537db01bdecccbec0f17ff8b09fa3853859ee  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/primary-05-withLF-old.log
+64f81a6d67eabb12aeb1f8a7a009bd3cedecb68a0db2a7a76341f925c838144a  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/primary-06-geometry.txt
+fe6637ef80b71029ad418b4005807a651c0e769056edc086a41e6013bc4f5c24  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/primary-07-oldchecker-internals.txt
+a9e3da7bbb05e43a970ab6a98325efcd77713c9393e6be11d57afda3bc62782d  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/README.md
+9de63c382fc33f6c44df34203aa51ea2efe85facbac52b75de734ddddd47dc76  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/suite-after.log
+9de63c382fc33f6c44df34203aa51ea2efe85facbac52b75de734ddddd47dc76  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/suite-after-rerun.log
+267a38cb05db83fda3b904c2793c0ee149de1b7eda46f61ee2f10e3c2eb3ec79  /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/evidence/suite-before.log

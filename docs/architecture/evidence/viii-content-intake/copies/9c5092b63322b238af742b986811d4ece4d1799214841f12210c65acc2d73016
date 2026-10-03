@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_label() {
+    testlib::run("tests.SwitchNullArmTests.testLabel", "tests.SwitchNullArmTests.testLabel: a null variant arm lowers to a unit statement", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

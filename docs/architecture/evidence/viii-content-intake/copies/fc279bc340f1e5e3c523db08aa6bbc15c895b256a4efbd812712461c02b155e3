@@ -1,0 +1,114 @@
+# 独立审阅：t-mun5d99p-op76 判据 3
+
+任务「修 Swift 生成树缺 Runtime/BoringException 导致编译失败」。
+**判据 3**：独立审阅确认修的是生成文件清单/依赖判定而非工具链问题，且未与 B3 的 SDK 议题混淆。
+
+审阅方：独立审阅 Agent（不同模型），自己的工作树
+`dc-warn/worktrees/swift-rt-xcheck`（`e1c65975` detached），自己自打
+`dc-warn/out/swift-rt/PATCH.diff`，自己的 attempt 目录（不复用执行席 attempt 当证据）。
+审阅日期 2026-09-29（UTC 21:15–21:31）。nix develop 缓存在
+`/tmp/swiftrt-xcheck-nix-cache`；swiftc 用 raw store 6.2.4 + FHS rootfs（与执行席同一 store 路径）。
+
+## 判定：**判据 3 通过**
+
+## ① 独立复现（自己的树、自己的 attempt）
+
+| 相 | 状态 | try-tail | probe | plain（整树配方，同执行席 boundary.sh） |
+|---|---|---|---|---|
+| prefix（pristine，sha ac657b29） | 旧逻辑 | 5 文件，无 Runtime.swift，swiftc **exit 1**，`cannot find type 'BoringException' in scope` @ `std/UStringException.swift:3:32` | 5 文件，**exit 1**，同根因 @ `probe/Probe.swift:3:30` | 5 文件，整树（Plain.swift+std 两文件+native-main）**exit 1**，同一条 std 错误 |
+| postfix（PATCH.diff，sha 0210d207） | 新逻辑 | 6 文件，**仅多 Runtime.swift**，**exit 0** | 6 文件，**exit 0** | 6 文件，**exit 0**，off-fuse 运行 `sum=5` |
+| negctl（git checkout 回旧逻辑再跑，再 re-apply） | 旧逻辑 | 5 文件，**exit 1** | 5 文件，**exit 1** | 5 文件，**exit 1** |
+
+- 16 个生成文件 sha 与执行席 `FILES.sha256` 对应段落**逐条一致**（prefix 5+5+5 组、postfix 6+6+6 组中
+  `_GeneratedFiles.txt`/`Package.swift`/`Runtime.swift` 及各业务文件；Runtime.swift sha
+  `a24d5fa3…` 三夹具字节一致）。
+- 业务文件 sha 在**我的** prefix↔postfix 之间全不变（`ca9b2487`/`36499cfb`/`cb5d8fc3`/`56913097`/`9682c9da`）：
+  修复只改变文件**集合**与 manifest 条目，不改变已生成文件的文本。
+- off-fuse 补充运行（postfix）：try-tail 12 行与 `expected.txt` **逐字节一致**（diff 空，rc 0）、
+  probe `concrete=1`（diff 空）、plain `sum=5`（diff 空）。挂载上 run-bin 无执行位的限制属实（fuse.rclone 无 exec 位）。
+- 注意：审阅脚本首版把 plain 编译集写成只含 `plain/` 模块（漏 `std/`），曾误读为「旧逻辑 plain 可编译」；
+  纠正为整树配方（与执行席 boundary.sh 的 `find` 整树一致）后复跑，旧逻辑 plain 整树 **exit 1**，
+  诊断与执行席 boundary reverted 相同。该错误已在自己的证据里更正，不影响最终判定，
+  但记此以说明独立复跑中控制配方必须与声明的边界实验严格一致。
+
+## ② 修的是依赖判定，不是工具链
+
+- 改动仅一处：`packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx`，
+  `git diff --numstat HEAD` = **6 0**（+6/−0，无其他文件、无删除行）。
+  6 行 = 5 行注释 + 1 行功能代码 `imports.runtime("BoringException");`，
+  位置在 depth==1 异常类 conformance 写入处（patched 190-191）。
+- 源码级根因链（自己的树上独立读出）：
+  - `SwiftDecl.hx` depth==1 分支把 `BoringException` 写进 conformance **文本**，修复前不登记；
+    `Compiler.hx:338` 以 `anyRuntimeUsed()` 门控 Runtime.swift 发射；
+    `anyRuntimeUsed()`（`Compiler.hx:537`）读 `SwiftImports.runtimeNames`
+    （`SwiftImports.hx:19,48,93`），只有显式 `imports.runtime(...)` 才登记。
+  - 其余 BoringException 符号文本发射点均已有登记：`SwiftType.hx:93`（haxe.Exception 类型引用）、
+    `SwiftExpr.hx:3261`（类型表达式）、`SwiftExpr.hx:4928`（`new haxe.Exception`）、
+    `SwiftExpr.hx:4337`（host-edge 抛错辅助，文本落进调用方业务文件）。
+    **本补丁关闭的是最后一个未登记发射点**；定义本身在 `SwiftRuntime.hx:95`（resident，
+    内容在 Runtime.swift 自身，不需要跨文件登记）。
+  - `std.UStringException` 在 `GUARANTEED_STD_MODULES`（`SwiftImports.hx:26`）且由
+    `Compiler.use()`（`Compiler.hx:65-69`）强制类型化 → 每次 Swift 编译必发射
+    `std/UStringException.swift`，其文本引用 `BoringException`。
+- 编译配方前后**完全相同**：同一 raw swiftc 6.2.4 store 路径、同一 FHS rootfs、同一
+  `-Xcc -I`/`-L` 参数（各阶段 argv 在档）；未改任何编译参数、未改诊断、无诊断抑制。
+  变化的唯一输入是**生成的文件集合**（±Runtime.swift）。
+- 无 commit/push/merge；最终树状态 = 已打补丁（` M SwiftDecl.hx` + 三个未跟踪夹具目录），
+  与执行席终态一致。
+
+## ③ 未与 B3 混淆
+
+- B3 = 看板任务 `t-mun0d7xm-mfwb`（P09 B3「Swift libSystemPackage 固化工件与工具链身份判定」，
+  分支 `audit/swift-systempackage-provenance`）：议题是**工具链/SDK 工件身份**（哪个 swiftc 字节、
+  固化工件），与生成文件清单无关。本修复不引用、不触碰该议题的任何对象。
+- `libSystemPackage` 在整个 Swift 目标源码（`packages/compiler/reflaxe/swift/`）**零出现**。
+- `SwiftImports` 里的 `systemPackage`/`needsSystemPackage`（swift-system package，stdlib/17，
+  host-edge 用）是与 runtime 登记**相互独立的旗标**（`SwiftImports.hx:18,61-66`），补丁未触碰。
+- 补丁正文无任何 SDK/`Package.swift`/工具链回退配方改动；`Package.swift` 多出 `"Runtime.swift"`
+  源项是**既有** manifest 逻辑（`Compiler.hx:420-421` `packageManifest()` 在 `anyRuntimeUsed()`
+  为真时加入源项）的自然结果，非本修复所写代码。
+- `warning: libc not found …`：在**自己**的 prefix/postfix/negctl 全部 swiftc 阶段（以及裸
+  `swiftc --version`）一致出现，执行席四组 attempt 的 prefix/negctl（旧逻辑）与
+  postfix/boundary-fixed（新逻辑）stderr 同样一致出现；它是 store 工具链在宿主 FHS 环境下
+  查找 C stdlib 的既有警告，**与缺陷无关、前后一致、不影响退出码判定**（postfix 带着它 exit 0，
+  prefix 的 exit 1 由 BoringException 错误给出）。判定不受其影响。
+
+## ④ 边界实验可信度（补的是缺失依赖，不是多带）
+
+plain 夹具（无任何异常、无任何 haxe.Exception 引用的普通模块）：
+- 旧逻辑：树 5 文件、无 Runtime.swift，**整树 swiftc exit 1**（自己的 negctl/prefix 两次独立复跑 +
+  执行席 boundary reverted 同读数），错误在**保证发射**的 `std/UStringException.swift:3:32`
+  `cannot find type 'BoringException' in scope`。
+- 新逻辑：6 文件、exit 0、off-fuse 运行 `sum=5`。
+
+推论：只要一次 Swift 编译必然发射 `std/UStringException.swift`（其文本引用 BoringException），
+旧逻辑下**任何** Swift 编译（含完全无异常的 plain 模块）都是不自洽的、编译不过的。
+因此 `Runtime.swift` 是「已发射文件的缺失依赖」，不是「被多带的无关文件」。
+（若旧逻辑下 plain 能编译，本结论即不成立——实测不成立。）
+
+## ⑤ 副作用（是否多带 Runtime.swift）
+
+- 已引用 `haxe.Exception` 的编译：修复前 runtime 登记已非空 → Runtime.swift 本就已发射 →
+  文件集合**不变**。
+- 未引用 `haxe.Exception` 但声明 depth==1 异常的编译：修复前其发射文件含 `: BoringException`
+  而符号无定义 → **编译必然失败**（plain/try-tail/probe 三例旧逻辑实测 exit 1）→
+  不存在「原来能编译、现在多带文件」的情形。
+- 唯一可能的集合变化 = 给原本编译不过的树补上 Runtime.swift（+ manifest 两行源项/清单行）。
+- depth≥2 子类 conformance 写父类名、不写 BoringException 符号文本，经 depth==1 祖先登记；
+  若祖先不在发射集，父类名悬空——既有失败模式，执行席已声明不在本修复范围（不确定项 2），
+  审阅方读源码后同意该边界划分。
+
+## ⑥ 证据位置（审阅方自有，未复用执行席 attempt）
+
+- 工作树：`dc-warn/worktrees/swift-rt-xcheck`（e1c65975；终态 = 已打补丁）
+- 驱动脚本：`dc-warn/out/swift-rt-xcheck/xcheck.sh`（自己的 gen+swiftc+off-fuse run 配方）
+- attempt：`xcheck-prefix-20260929T212241Z`（旧逻辑全绿复现）、
+  `xcheck-postfix-20260929T212426Z`（新逻辑 + off-fuse 运行；try-tail run 阶段曾因 fuse
+  负 dentry 缓存误判 no-binary，随后单独补跑 `run-try-tail-from-tmp`，rc 0、12 行 diff 空）、
+  `xcheck-negctl-20260929T212736Z`（旧逻辑负控 + re-apply）
+- B3/工具链混淆核查：`dc-warn/out/swift-rt-xcheck/b3-conflation-checks.txt`
+- off-fuse 二进制：`/home/losses/Development/tq-workspace/out/swift-rt-xcheck/`（{try-tail,probe,plain}-postfix-bin）
+
+## 判据 3 一行证据（可直接粘看板）
+
+判据3独立审阅（不同模型，自己树 swift-rt-xcheck@e1c65975、自己 attempt xcheck-{prefix,postfix,negctl}）：prefix 5 文件 swiftc exit 1 且 `cannot find type 'BoringException' in scope` @std/UStringException.swift:3:32 原文复现、postfix 6 文件仅多 Runtime.swift（sha a24d5fa3 三夹具一致）swiftc exit 0、negctl 回旧逻辑重新 exit 1，16 个生成文件 sha 与执行席 FILES.sha256 逐条一致且业务文件文本 sha 前后不变；改动仅 SwiftDecl.hx depth==1 处 6 行（numstat 6/0，唯一功能行 `imports.runtime("BoringException")`——依赖登记，非工具链/编译参数/诊断），编译配方（raw swiftc 6.2.4 store + FHS + 同 -Xcc/-L）前后相同，补丁正文无 libSystemPackage/SDK/system-library/Package.swift 配方触碰（B3=t-mun0d7xm-mfwb 议题独立），plain 无异常夹具旧逻辑整树亦 exit 1 同错误 → 补的是保证发射 std 文件的缺失依赖而非多带，`libc not found` 为前后一致的既有环境噪声，不构成判据。

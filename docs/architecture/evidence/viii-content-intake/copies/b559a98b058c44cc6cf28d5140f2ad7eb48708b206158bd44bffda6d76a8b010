@@ -1,0 +1,4 @@
+2026-09-29T20:28:13Z
+worktree /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail
+base e1c6597514634fd347d392709793cc19bd96c9a2
+mode-note: tracked-file exec-bit loss on fuse mount is a mount artifact; content clean (git -c core.fileMode=false diff empty)

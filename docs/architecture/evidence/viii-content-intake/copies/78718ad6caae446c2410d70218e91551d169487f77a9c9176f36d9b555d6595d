@@ -1,0 +1,15 @@
+package mx;
+import std.ReadOnlyArray;
+// Attack C: inline helper block at VAR-INITIALIZER position with a declared
+// read-only destination type.
+class AttC {
+	inline static function two(a:Array<Int>):Array<Int> {
+		final s = a.length;
+		return a.slice(s, 0);
+	}
+	public static function run():Int {
+		final h = [1, 2, 3];
+		final v:ReadOnlyArray<Int> = two(h);
+		return v.length;
+	}
+}

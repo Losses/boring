@@ -1,0 +1,3 @@
+kotlin native run exited 1 (crash/exception/trap observation); raw streams in stages/run-kotlin
+swift native compile failed; raw diagnostic in stages/compile-swift
+dart native run exited 255 (crash/exception/trap observation); raw streams in stages/run-dart

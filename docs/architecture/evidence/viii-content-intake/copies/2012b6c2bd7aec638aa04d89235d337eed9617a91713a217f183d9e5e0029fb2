@@ -1,0 +1,13 @@
+patching file tests/ts/array-root.test.ts
+patching file tests/ts/default-args.test.ts
+patching file tests/ts/enum-queries.test.ts
+patching file tests/ts/fn-values.test.ts
+patching file tests/ts/printed-record.test.ts
+patching file tests/ts/record-copy.test.ts
+patching file tests/ts/record-order.test.ts
+patching file tests/ts/sealed-variants.test.ts
+patching file tests/ts/static-extension.test.ts
+patching file tests/ts/static-state.test.ts
+patching file tests/ts/std-string.test.ts
+patching file tests/ts/string-buffer.test.ts
+patching file tests/ts/value-type.test.ts

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat-xcheck
+argv timeout 900 haxe /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat-xcheck/tests/haxe/charcodeat/gen/dart.hxml -D dart-output=/home/losses/Development/tq-workspace/dc-warn/out/charcodeat-xcheck/xatt-20260929T213557Z/dart/gen -D dart-test-output=/home/losses/Development/tq-workspace/dc-warn/out/charcodeat-xcheck/xatt-20260929T213557Z/dart/gen-tests

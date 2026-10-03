@@ -1,0 +1,18 @@
+// Ruling probe: the policy-specified lowering for the refused cell,
+// compiled against the REAL generated runtime types (gen-noc/Runtime.swift).
+// Mirrors ReadOnlyBoundaryOps.coalescedBoundary semantics:
+//   view = values == null ? [] : values   ->   consumeReadOnlyBoundary(view)
+// where the accepted-half idiom is (values).map { ReadOnlyArray($0) } ?? nil
+// (see generated line 257 of the control run). The required-destination
+// form must substitute the required empty fallback and a required result.
+func consumeReadOnlyBoundary(_ view: ReadOnlyArray<Int32>) -> String {
+    return String(view.count) + (view.count == 0 ? ":empty" : ":present")
+}
+
+func coalescedBoundary(_ values: TiqianArray<Int32>?) -> String {
+    let view: ReadOnlyArray<Int32> = (values).map { ReadOnlyArray($0) } ?? ReadOnlyArray<Int32>()
+    return consumeReadOnlyBoundary(view)
+}
+
+print("coalesced-null=" + coalescedBoundary(nil))
+print("coalesced-present=" + coalescedBoundary(TiqianArray<Int32>([9])))

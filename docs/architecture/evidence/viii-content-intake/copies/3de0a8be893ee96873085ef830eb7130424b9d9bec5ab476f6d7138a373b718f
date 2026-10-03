@@ -1,0 +1,8 @@
+side post (coordination tree)
+tree /home/losses/Development/tq-workspace/boring-wt-architecture
+git-rev e1c6597514634fd347d392709793cc19bd96c9a2
+git-dirty yes (6 integrated .hx fixes uncommitted, not touched by this task)
+SwiftDecl.hx 0210d20703769a4e42f2e8a27dd1a1123072a27785e663fc5dbb9b80ef74f973
+fixture run-stages.sh 95e9f62394a3bba01c34e2b65d48d7f9b9ce8e123ce4cbd876007471ca429f31
+gen-file-count 6
+Runtime.swift-at-tree-root yes

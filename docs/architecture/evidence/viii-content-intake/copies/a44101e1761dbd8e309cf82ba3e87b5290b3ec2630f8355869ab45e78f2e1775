@@ -1,0 +1,4 @@
+13:        return s?.size!!
+25:        return s?.size!!
+38:            return s.size
+60:        return t.size

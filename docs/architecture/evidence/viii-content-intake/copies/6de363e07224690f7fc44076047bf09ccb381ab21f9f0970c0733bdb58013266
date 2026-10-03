@@ -1,0 +1,81 @@
+# 判据 3 独立审阅（异模型）：两代身份未混用
+
+- 任务：`t-mun6xxdc-87l5`「为 e1c65975 物化 Option C 执行根与 1398 条 SOURCE_MANIFEST」，判据 3
+- 审阅者：独立 Agent（不同模型），**自写代码**（本目录 `xcheck.py`），不采信被审方脚本结论
+- 审阅窗口：2026-09-29 17:33:49 → 17:39 EDT；`RESULTS.txt` 生成于 17:36
+- **重要时点**：执行根在审阅开始后被改过一个文件（`.haxelib/boring/.dev`，改用新根指向，mtime 17:34:10）。**本报告全部哈希均在 17:34:10 之后重算**，描述的即改后现状；该文件不在 1398 条清单覆盖内，故判据 1/2 的哈希证据不受影响。
+- 只读边界：未写 `publication-staging/**`、`boring-wt-architecture/**`、`tiqian/**`、他人 worktree；未 commit/push/merge；未启动任何 verify/gen/test；未签收。唯一写入为本目录证据文件与 `/tmp` 临时副本（已删除）。
+- 被审资产：新根 `publication-staging/execution-option-c-e1c65975/`、新清单 `p09-e1c65975/option-c-source-before.json`(1398)、生成脚本 `dc-warn/out/p09-root/gen-source-manifest.sh`、其自证 `verify-source-manifest.txt`
+
+## 判定
+
+**判据 3 通过。** 两代身份未混用：新根 = 1398 条 / e1c65975（逐条等于 git 对象内容），旧根 = 1366 条 / 2159c657 完整保留且窗口内零写入；新清单不是旧清单的改名或复制；新根无 2159c657 内容残留。附带 3 条**非阻塞**条件（§C）。
+
+## A. 判据 3 核心：两代未混用
+
+| 检查 | 结果 |
+|---|---|
+| 旧根 `execution-option-c-2159c657/` 内容完整性 | 旧清单 1366 条对旧根磁盘**全量重算 1366/1366 全中，0 缺失 0 sha 不符 0 exec-bit 不符**（复现 poststate 规则） |
+| 旧清单 `publication-staging/option-c-source-before.json` | 1366 条，mtime `2026-09-29 02:10:42`（窗口外），sha256 `9222932b9fffaba3…`；条目集合 == `git ls-tree -r 2159c657`（1366）完全相等 |
+| 旧根窗口内写入 | **0**（17:31 以后无任何文件/目录 mtime 前移） |
+| 旧根 `.haxelib/boring/.dev` | 仍指旧根自身（85 字节，mtime 02:24:32 未变）→ 改写未波及旧根 |
+| 新清单 ≠ 旧清单 | 1366 → 1398；新增 32 条路径（`tests/haxe/readonly-alias/` 18 + `tests/haxe/signed-key-composition/` 14），**旧独有 0 条**；共同 1366 条中 **仅 4 条内容不同**（2 docs + `RustDecl.hx` + `RustExpr.hx`，各差 22/30/29/33 行）；清单文件 sha256 不同（新 `0ef7ebb6cd66bded…` vs 旧 `9222932b9fffaba3…`）→ 非改名/复制 |
+| 新根是否混入 2159c657 内容 | 差异路径上新根一律取 e1c65975 值、旧根一律取 2159c657 值，**交叉污染候选 0**；含二进制全树 grep 旧根路径 **0 命中**；老 commit id 仅出现在 1 个与 e1c65975 git blob 逐字节相同的文档句中（历史说明） |
+| 新根 vs `fixed-compiler-e1c65975` | 1398/1398 逐字节一致（含 exec 位），快照侧无清单外文件、清单侧无快照缺失 |
+
+## B. 判据 1、2 的独立复核（未采信其自证）
+
+- 三方**集合级**相等（不是只比数量）：`git -C boring ls-tree -r e1c65975` = 1398、新清单 1398、`inventory-1398.json` 1398，且两者路径集合与 git 树**完全相同**。
+- 清单**全量重算**（不用抽样）：对磁盘逐条 sha256 + `S_IXUSR==(mode=="100755")`（即 poststate 规则）→ **1398/1398 全中，0 失败**；旧根对照同样 0 失败。
+- 更强一层：用 `git cat-file --batch` 重算 e1c65975 的 **1398 个 blob** sha256，与清单逐条比对 → **0 不符**；mode 取自 `ls-tree` 与清单 **0 不符**。即"清单 = 提交内容"，独立于工作树副本。
+- 新根文件盘点：源码集合 4540 个常规文件中**恰为清单的 1398**，多余 0、缺失 0；非源码顶层项仅 `.haxelib`、`node_modules`（未混入清单）；293 个符号链接全在 node_modules 内、全为相对链接、无一逃出新根。
+
+## C. 条件与风险（不阻塞判据 3，但建议在启动 verify 前处理）
+
+1. **`.dev` 这类运行期指针不在清单覆盖内**（结构性盲区）。本次静默错误正是因为 `.haxelib/boring/.dev` 从旧根复制而来、内容指向 2159c657；若不改，haxe 会从旧根装载编译器而**不报错**，且 poststate 只遍历 1398 条清单、**永远查不出**这一层。本轮爆炸半径实测为 4 个文件（含 `packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx`、`RustExpr.hx` 两个真编译器源码）。
+ → 建议：把 `.haxelib/**` 的两个 `.dev` 与两个 `.current` 纳入一个小型 runtime-asset 清单（值 + mtime）或做**前置换根路径断言**（本报告已给出可复用的 `grep -ra` 命令），使该类错误可被自动检出。
+2. **`.dev` 指向新根是"必要而非充分"的装载身份证据**（回协调者第 4 问）。它只证明 haxelib 侧解析会落到新根目录：`.haxelib/boring/` 下只有 `.dev`、无版本目录，故 `HAXELIB_PATH=$ROOT/.haxelib` 下的 `boring` 解析必经此处，这一点是充分的*路径选择*证据；但 P09 的**装载身份**还取决于 `-cp`/hxml 覆盖、`-lib` 解析顺序、reflaxe 走 nix store（`ch901mw0…-source`，content-addressed，强）而 boring 走可变路径指针（弱）。目录状态无法排除某 stage 用显式 `-cp` 绕过 dev 映射。
+ → 建议（均为 verify 内的证据采集，不在本任务执行）：a) 记录 `haxelib path boring` / `haxelib dev` 的输出；b) 从首个 haxe 编译日志抓**实际解析到的源码绝对路径**并就地 sha256 与清单比对；c) 该组合证据落地后，B2/provenance 的结论才能延用到 P09；仅凭目录状态不足以延用。
+3. **物化的是"提交态"，不是"协调态"**（超出判据 3 范围，但影响 P09 结论解释）。`boring-wt-architecture` HEAD 就是 `e1c65975`，但工作树有 8 个已跟踪文件被改动（mtime ≤ 17:24:30，均早于本任务窗口），含 `DartExpr.hx`=`fee42ecb…`、`RustDecl.hx`、`RustExpr.hx`、`Compiler.hx`、`RustEmissionState.hx`、`SwiftDecl.hx`，另有 4 项未跟踪（`tests/haxe/dc-null-guard-fallthrough/`、`tests/haxe/try-tail-min/` 等）**都不在新根内**。故：对新根跑 P09 验证的是 **commit e1c65975 态**，不是协调工作树态；若目标是后者，须另行物化并重建清单（不可套用本 1398 条）。这是 D1/范围决策，不是判据 3 的缺陷。
+4. **文档数字需校正（非阻塞）**：判据 1 证据里的"27 个顶层项"及生成报告里的"26/28 个顶层项"混用了 `ls`（不计隐藏项）与 `ls -A` 两种口径。准确值：新根 **32**（`ls -A`）/ 27（不计隐藏）；`fixed-compiler-e1c65975` **30**/26；旧根 **33**/28。建议统一写 32（其中源码 30 + `.haxelib`、`node_modules`）。
+5. 顺带发现（历史遗留，非本任务引入）：`fixed-compiler-2159c657/` 有 1367 个文件、比其 1366 条清单多 1 个 `out/semantic-pass-exceptions.json`（mtime 09-29 02:20，窗口外）；`fixed-compiler-e1c65975/` 无此问题（恰好 1398，无多余）。
+6. 未能复现的锚点：报告中的"快照内容清单哈希 `4a50f224…`"。我按三种可想到的算法（排序 `sha256␠␠path` 串接、`sha256 path` 串接、清单 JSON 全文）均未命中（`bf030ff6…`/`d69f685c…`/`0ef7ebb6…`）。方法未文档化，不影响结论（内容已逐字节独立验证），仅提示该锚点当前不可独立复算。
+
+## D. 运行期资产（判据 3 第 4 问）
+
+- 新根 32 顶层项 = `fixed-compiler-e1c65975` 的 30 项源码快照（`cp -a`，逐字节一致）+ `.haxelib` + `node_modules`。
+- 来源实测：`node_modules`（2975 文件 + 293 链接，55M）与旧根**逐文件完全相同（identical 2975，differing 0）**；`.haxelib`（167 文件）与旧根**仅 1 个文件不同，正是 `boring/.dev`**（其余 166 个字节相同）。即两项均**从旧根复制**（快照里没有），与生成报告 §1 自述一致。
+- 必要性：旧根布局同含这两项，Option C plan 的 stage 用 `bun`/`haxe`（`HAXELIB_PATH=$ROOT/.haxelib`）确需之；它们**未**被计入 1398 条清单（清单顶层前缀里没有 `.haxelib`/`node_modules`），poststate 只遍历清单条目，故"清单外资产"本身不会让 Stage 0/1/15 失败——但也因此产生 §C1 的盲区。
+- 风险：`node_modules` 是 2159c657 代旧根副本，若 e1c65975 的 `bun.lock`/`package.json` 有依赖变更则需重装核对（本任务未做，`bun.lock` 两代 sha 相同者未逐一比对依赖树）；`@boring/codec` 等 workspace 链接均为根内相对链接，不指外部。`.haxelib/reflaxe/.dev` 指向 nix store（content-addressed，修订无关）。
+
+## E. 冻结产物 / 协调树零写入（判据 3 第 3 问）
+
+| 树 | 窗口内（17:31:00 起）写入 |
+|---|---|
+| `publication-staging/fixed-compiler-e1c65975/` | **0**；且 1398 个文件全部仍等于清单 sha256 |
+| `publication-staging/fixed-compiler-2159c657/` | **0**；且 1366 个清单文件全部仍等于旧清单 sha256 |
+| `publication-staging/execution-option-c-2159c657/` | **0** |
+| `tiqian/` | **0**（扫描覆盖 38919 文件 / 5453 目录，非空扫描） |
+| `boring-wt-architecture/` | **0 个已跟踪文件**；1 个写入 `out/semantic-pass-exceptions.json`（17:32:47），该文件被 `.gitignore:2: out/` 忽略，且该树同时段还有 17:16 的其他 `out/` 产物 → 属并发会话的生成物，**不可归因于本任务**（本任务写入仅限 `publication-staging/`） |
+| `publication-staging/p09-e1c65975/`（原有文件） | 仅新清单 `option-c-source-before.json`（17:32:30，本任务产物）；`inventory-1398.json`、`published-tree-equivalence.json` 的 sha256 与各自 `.sha256` 记录**逐一相符** → 未被动过 |
+
+## F. 可复算性（判据 3 第 5 问）
+
+- **可重放**：在我自建的临时副本（只挑源码 1398 文件 + inventory，未复制 55M 资产）上 `bash gen-source-manifest.sh <临时根>` 连跑两次，产物与权威清单 **sha256 相同、`cmp` 字节相同**（`0ef7ebb6cd66bded…`）；负向对照：改 1 字节即被检出该条 → 脚本对文件字节敏感、确定性、无隐藏状态。
+- 依赖与写死项：`$1` 为 repo 根（默认用法即 workspace 根），内部固定取 `$1/boring` 的 git、`$1/publication-staging/{execution-option-c-e1c65975,p09-e1c65975}` 两个相对路径；commit 写死为 `e1c6597514634fd347d392709793cc19bd96c9a2`（**有意的版本钉**，不是临时状态）；mode 取自 git 树而非磁盘（与 poststate 的 `S_IXUSR` 语义一致，实测两侧匹配）。
+- 弱点（不影响本次结论）：路径若不在该 commit 树中会 `KeyError`/assert 报错（响亮失败，可接受）；脚本**不检测"多余文件"**（它只遍历 inventory），"0 多余"是其配套 verify 报告另行断言、由我在 §B 独立确认的；无 `--check` 模式。
+
+## G. 判定用证据（可直接粘进看板，一行版）
+
+判据 3 通过（独立审阅/异模型，全部哈希于 `.dev` 修正后 17:34:10→17:39 重算，自写脚本 `dc-warn/out/p09-root-xcheck/xcheck.py`，原始输出同目录 `RESULTS.txt`）：新根源码集合、新清单、`git ls-tree -r e1c65975` **集合级完全相等 = 1398**；清单对磁盘全量重算 sha256+exec-bit **1398/1398 全中 0 失败**，且 1398 条逐条等于 e1c65975 的 `git cat-file` blob 内容（0 不符）；与 `fixed-compiler-e1c65975` **逐字节 0 不符**；旧根 1366 条对旧清单 **1366/1366 全中**、旧根/旧清单窗口内 **0 写入**、旧根 `.dev` 仍指自身；新清单≠旧清单（1366→1398，新增 readonly-alias 18 + signed-key-composition 14，共同条目仅 4 条内容不同），交叉污染候选 **0**、二进制级 grep 旧根路径 **0 命中**；`fixed-compiler-e1c65975/2159c657` 与 `tiqian` 窗口内 **0 写入**，`boring-wt-architecture` 仅其 gitignored `out/` 1 个产物（非本任务）；生成脚本在自建临时副本重放两次**与原清单字节一致**、扰动 1 字节即检出；`.haxelib/boring/.dev` 已指新根、`reflaxe/.dev` 仍指 nix store。附条件（不阻塞）：`.dev` 不在清单覆盖内、属 poststate 结构性盲区，且"指向新根"仅证路径选择、非装载身份，建议 verify 前加 `.dev` 断言/`haxelib path boring` + 编译日志源码路径 sha256 证据；另物化的是 commit 态，协调树 `boring-wt-architecture` 尚含 6 个编译器文件改动（mtime ≤17:24:30）不在新根内。
+
+## H. 复现命令
+
+```bash
+cd /home/losses/Development/tq-workspace
+python3 dc-warn/out/p09-root-xcheck/xcheck.py            # A/B/D/E/F/G 全部原始输出
+grep -ra -l 'execution-option-c-2159c657' publication-staging/execution-option-c-e1c65975/   # 期望 0
+cat publication-staging/execution-option-c-e1c65975/.haxelib/boring/.dev                     # 期望 .../execution-option-c-e1c65975
+cat publication-staging/execution-option-c-e1c65975/.haxelib/reflaxe/.dev                    # 期望 /nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source
+git --no-optional-locks -C boring-wt-architecture diff --name-only HEAD                      # 协调树未提交改动清单
+```

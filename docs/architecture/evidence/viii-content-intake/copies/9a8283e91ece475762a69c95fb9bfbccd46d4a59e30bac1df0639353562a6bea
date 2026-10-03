@@ -1,0 +1,31 @@
+package dcpe
+
+object EvalProbe {
+    @JvmField
+    var callCount: Int = 0
+
+    fun nextKind(): Kind {
+        EvalProbe.callCount = EvalProbe.callCount + 1
+        return Kind.B(21)
+    }
+
+    fun reset() {
+        EvalProbe.callCount = 0
+    }
+
+    fun promotedOnce(): Int {
+        var acc = 0
+        run {
+            val _g = EvalProbe.nextKind()
+            when (_g) {
+    is Kind.A -> acc = 1
+    is Kind.B -> acc = _g.value
+    is Kind.C -> acc = 3
+}
+        }
+        return acc
+    }
+
+    fun main() {
+    }
+}

@@ -1,0 +1,8 @@
+package boring
+
+object FontIdConsumer {
+    fun isPrefixed(face: String): Boolean {
+        val id = FontId_Impl_.of(face)
+        return id == "font:hello"
+    }
+}

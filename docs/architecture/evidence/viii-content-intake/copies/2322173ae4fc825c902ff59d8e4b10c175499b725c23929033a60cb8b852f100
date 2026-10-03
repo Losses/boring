@@ -1,0 +1,8 @@
+<unknown>:0: warning: libc not found for 'x86_64-unknown-linux-gnu'; C stdlib may be unavailable
+tfix.swift:142:43: error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'
+140 | // BUGGY optional form (pre-fix: "(" + operand + ").map { TiqianArray($0.toMutableArray()) }")
+141 | public func buggyOpt(_ records: ReadOnlyArray<GlyphMetrics>?) -> TiqianArray<GlyphMetrics>? {
+142 |     return (records).map { TiqianArray($0.toMutableArray()) }
+    |                                           `- error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'
+143 | }
+144 | 

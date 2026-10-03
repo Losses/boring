@@ -1,0 +1,10 @@
+kotlinc
+-Xallow-kotlin-package
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen-mut/Main.kt
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen-mut/dcpe/DoubleEvalControl.kt
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen-mut/dcpe/EvalProbe.kt
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen-mut/dcpe/Kind.kt
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen-mut/std/UStringException.kt
+-include-runtime
+-d
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/build/kotlin-mut.jar

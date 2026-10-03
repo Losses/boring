@@ -1,0 +1,5 @@
+{
+  "name": "prefix-with-allowlist",
+  "private": true,
+  "type": "commonjs"
+}

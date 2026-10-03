@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class InterfaceFieldLiteralOpsTests {
+@boring.test.Test
+    fun describe() {
+        Test.run("tests.InterfaceFieldLiteralOpsTests.describe", "tests.InterfaceFieldLiteralOpsTests.describe: an interface-typed literal field boxes the concrete value") {
+        }
+    }
+}

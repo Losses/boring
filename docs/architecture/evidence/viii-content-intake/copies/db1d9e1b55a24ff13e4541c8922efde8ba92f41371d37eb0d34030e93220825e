@@ -1,0 +1,110 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/arithmetic-helpers.test.ts:
+(pass) arithmetic helpers generated tree > No standalone Arithmetic or IntRange module is generated in any target [1.00ms]
+(pass) arithmetic helpers generated tree > TS inlines arithmetic helpers and abstracts into native comparison operators and ternaries
+(pass) arithmetic helpers generated tree > Kotlin inlines arithmetic helpers into native comparison operators and if-expressions
+(pass) arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks [1.00ms]
+
+tests/ts/compiler-scope.test.ts:
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestClassFlush.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ComparatorPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ExpressionBlockNorm.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SealedVariantHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/FloatPrecision.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticFieldHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/EnumQueryExpander.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TerminationAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ValueTypeSupport.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceLocalPresenceAnalysis.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestApplicability.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ConstantFold.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/NameConversion.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SemanticExceptionLedger.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/FusionPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/VarFusionPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/RuntimeResidents.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestCollector.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SemanticPassRegistry.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/EnumCycleDetector.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceOriginTrace.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PackageArtifacts.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DataTableHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PolicyQueries.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DataTables.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceContainerAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestClassEntries.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ValueTypePlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ExpressionPredicates.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TypeCheckHelper.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/AssignTargetPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DefaultArgExpander.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StructuralKeyValidator.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticReferenceScan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PackageShell.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/RuntimeConfig.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PipelineExpander.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticFunctionMarkers.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceOriginFragment.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceComparisonAnalysis.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/Intercept.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsStringBufParams.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsDecl.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsImports.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsRuntime.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/Compiler.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/ExternBindings.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsTestBinding.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsType.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinType.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinRuntime.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinNameEscape.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinComparisonPlan.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinTestBinding.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinPreparedFunction.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/Compiler.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinAccessGrants.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinEmissionState.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinImports.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinDecl.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/LoopCounterGuard.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustShape.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustImports.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustTestBinding.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustShapeParse.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustType.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustRuntime.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx carries no banned identifier [1.00ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/DeadInitializerMatchFusion.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/ParenFold.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustConversions.hx carries no banned identifier
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier [2.00ms]
+
+tests/ts/loop-structure.test.ts:
+(pass) loop structure > reference/ts/src carries no functional iteration, loop closures, or unhoisted bounds [8.00ms]
+(pass) loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds [33.00ms]
+(pass) loop structure > samples carries no functional iteration, loop closures, or unhoisted bounds [60.00ms]
+(pass) loop structure > reference/rust/src carries no functional iteration, loop closures, or unhoisted bounds [1.00ms]
+(pass) loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds [81.00ms]
+
+tests/ts/sorted-key-domains.test.ts:
+(pass) sorted key domains generated tree > TS generated tree exports comparison function for structure keys
+(pass) sorted key domains generated tree > Structure key builder call site injects the comparator reference
+(pass) sorted key domains generated tree > Int key builder call site binds the resident comparator
+(pass) sorted key domains generated tree > String key builder call site binds the resident comparator
+(pass) sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum
+
+tests/ts/sorted-dataclass-keys.test.ts:
+(pass) sorted dataClass key generated trees > pins dataClass computed key properties [1.00ms]
+(pass) sorted dataClass key generated trees > pins nullable folded constructor defaults
+(pass) sorted dataClass key generated trees > pins mutation evidence fixtures
+(pass) sorted dataClass key generated trees > pins resident comparators [1.00ms]
+
+ 94 pass
+ 0 fail
+ 705 expect() calls
+Ran 94 tests across 5 files. [257.00ms]

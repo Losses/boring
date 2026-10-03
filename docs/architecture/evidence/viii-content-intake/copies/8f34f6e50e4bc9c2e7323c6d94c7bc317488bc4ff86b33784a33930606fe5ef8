@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Collect RUNTIME LOADER EVIDENCE from an actual haxe compile (usage: bash collect-loader-evidence.sh <execution-root> <out-dir> -- <haxe args...>).
+# Evidence captured:
+#  E1 haxelib path <lib> for every lib in .haxelib  -> which tree each -lib resolves to AT VERIFY TIME
+#  E2 haxe --version + which haxe                    -> compiler binary identity
+#  E3 sourcemap "sources" of the produced output     -> every .hx file the compiler ACTUALLY loaded (absolute paths)
+#  E4 sha256 of each loaded .hx, in place            -> byte identity of loaded sources
+#  E5 comparison of E4 against SOURCE_MANIFEST / runtime-assets expectation is done by verify (this script only emits facts).
+set -euo pipefail
+ROOT="${1:?execution root}"; OUT="${2:?out dir}"; shift 2; [ "${1:-}" = "--" ] && shift
+mkdir -p "$OUT"
+{ haxe --version; command -v haxe; } > "$OUT/E2-compiler-identity.txt" 2>&1
+: > "$OUT/E1-haxelib-paths.txt"
+for lib in "$(ls "$ROOT/.haxelib")"; do
+  { echo "== $lib =="; haxelib path "$lib"; } >> "$OUT/E1-haxelib-paths.txt" 2>&1
+done
+HAXE_ARGS=("$@")
+haxe "${HAXE_ARGS[@]}" -D source-map 2>&1 | tee "$OUT/E3-compile-log.txt"
+JS=$(printf '%s\n' "${HAXE_ARGS[@]}" | grep -E '\.js$' | head -1 || true)
+python3 - "$OUT" "${JS:-out.js}" <<'PY'
+import json, os, sys, hashlib
+out, js = sys.argv[1], sys.argv[2]
+sm_path = os.path.splitext(js)[0] + ".js.map" if not js.endswith(".map") else js
+sm = json.load(open(sm_path))
+srcs = sorted(set(sm["sources"]))
+with open(os.path.join(out, "E3-loaded-sources.txt"), "w") as f:
+    f.write("\n".join(srcs) + "\n")
+with open(os.path.join(out, "E4-loaded-sources.sha256"), "w") as f:
+    for s in srcs:
+        p = s.replace("file://", "")
+        h = hashlib.sha256(open(p, "rb").read()).hexdigest() if os.path.isfile(p) else "MISSING"
+        f.write(f"{h}  {p}\n")
+print(f"E3: {len(srcs)} loaded sources; E4 hashes written")
+PY
+echo "loader evidence -> $OUT"

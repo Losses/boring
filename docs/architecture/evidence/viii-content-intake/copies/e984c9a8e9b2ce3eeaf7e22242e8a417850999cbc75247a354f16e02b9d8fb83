@@ -1,0 +1,11 @@
+# manifest recipe candidates tried against the claimed 8cd8daf19241369d (tree=/tmp/vc8/sweep/fix, normalised)
+A find . -type f|sort|xargs sha256sum|sha256sum: 96ec2fc3b7ca21ec03299ef90d6dac35dd54b9c24289e909c4678017fe23b650
+B swift only: e738c26a1dcbe1bbcb188c17cc880269bb3ba3a7f1514fe8d644c2477ab47f8a
+C gen only: 95816af29370990f829e15510332bd313e3198e2268bed3fb73480e3c2b8dba7
+E no ./ prefix: 82b63e86e823c08fa36de9237243f33bb38bcb65943f3678836722bdb045d193
+F digests only: dab0cc5b840aff76e16ebcc39a408d03276040e5d3019faf3864559b7fe4defc
+G tar -T sorted: a65c6826663e54692ff459e1ac13124494a80a8680fba692ab7c3aaf1092cf4e
+I path list only: dd0d80f11688c440df8e89430d13547c9a9469f044cb49095549437fa58b77d8
+K find order -exec: ddb3d0f3f9516a312c78ae58dd8509a865fc3ed3ece55082d32aafc64dd3a71c
+L name size: 68559d96ba0bbe221a1f94d9d3cf66ba3527ba64f5e5cc7810c928504947db1d
+claimed: 8cd8daf19241369d

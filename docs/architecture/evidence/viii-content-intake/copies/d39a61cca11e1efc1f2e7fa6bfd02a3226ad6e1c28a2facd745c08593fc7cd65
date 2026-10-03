@@ -1,0 +1,14 @@
+package tests
+
+import boring.PosterTextRender
+import boring.RenderShapeTextOps
+import boring.runtime.test.Test
+
+class PosterShapeTests {
+@boring.test.Test
+    fun print() {
+        Test.run("tests.PosterShapeTests.print", "tests.PosterShapeTests.print: a class in the business package implements a std-package interface") {
+                Test.equals("poster:hi", RenderShapeTextOps.print(PosterTextRender(), "hi"), null)
+        }
+    }
+}

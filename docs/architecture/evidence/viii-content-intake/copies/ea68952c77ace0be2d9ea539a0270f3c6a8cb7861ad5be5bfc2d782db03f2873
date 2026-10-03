@@ -1,0 +1,8 @@
+side pre (pristine commit, detached worktree)
+tree /home/losses/Development/tq-workspace/ttsfix-pre
+git-rev e1c6597514634fd347d392709793cc19bd96c9a2
+git-dirty no (tracked files pristine; only the copied fixture dir is untracked)
+SwiftDecl.hx ac657b299c8bbc0d9fc52e74ebce6dc7d23f291c33a7fd2c05f74afc0379f272
+fixture run-stages.sh 95e9f62394a3bba01c34e2b65d48d7f9b9ce8e123ce4cbd876007471ca429f31
+gen-file-count 5
+Runtime.swift-at-tree-root no

@@ -1,0 +1,22 @@
+package boring
+
+data class NullableFieldRecord(val name: String, val label: String? = null, val code: Int? = null, val words: MutableList<String>? = null) {
+
+    fun labelPlusLiteral(): String {
+        return this.label + "l"
+    }
+
+    fun literalPlusLabel(): String {
+        return "l" + this.label
+    }
+
+    fun codePlusLiteral(): String {
+        return (this.code).toString() + "c"
+    }
+
+    override fun toString(): String {
+        return "NullableFieldRecord(" + "name=" + this.name + ", " + "code=" + this.code + ", " + "label=" + this.label + ", " + "words=" + ((if ((this.words == null)) "null" else run { val sb = StringBuilder(); sb.append('['); val n = (this.words)!!.size; var i = 0; while (i < n) { if (i > 0) { sb.append(", "); }; sb.append((this.words)!![i]); i += 1; }; sb.append(']'); sb.toString() })) + ")"
+    }
+}
+
+

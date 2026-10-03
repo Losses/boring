@@ -1,0 +1,18 @@
+SEALED STDOUT COMPOSITION (arithmetic check on the reference attempt)
+step-737716045.stdout (sealed, in manifest) = 69768 bytes
+  inner stdout (UNSEALED option-c/driver-verify.stdout) = 69373
+  inner stderr (UNSEALED option-c/driver-verify.stderr) = 305
+  poststate report printed by python + cat by wrapper  = 2 x 45 = 90
+  sum = 69768
+
+=> the sealed file is a bare concatenation [inner stdout][inner stderr][poststate x2], no delimiter;
+   the per-stream split exists only in the UNSEALED option-c/ copies.
+
+ENV-GUARD stage (sealed) stdout = 90 bytes:
+   post-state: 1431 entries checked, 0 failures$
+   post-state: 1431 entries checked, 0 failures$
+   => the toolchain-resolution.txt content is NOT here; it goes to $OPTION_C_ROOT/toolchain-resolution.txt
+   existing copies found:
+     ./.tmp-identity-fix/execution-option-c-coord/toolchain-resolution.txt
+     ./publication-staging/execution-option-c-coord/toolchain-resolution.txt
+   (poststate print + wrapper cat explains the doubling: see dc-warn/out/option-c/selftest/REPORT.md 3.)

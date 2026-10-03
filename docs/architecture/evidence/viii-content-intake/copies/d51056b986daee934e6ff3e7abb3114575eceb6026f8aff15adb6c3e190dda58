@@ -1,0 +1,44 @@
+package tests
+
+import boring.RuntimeExportOps
+import boring.runtime.test.Test
+
+class RuntimeExportTests {
+@boring.test.Test
+    fun testFloatToBits() {
+        Test.run("tests.RuntimeExportTests.testFloatToBits", "tests.RuntimeExportTests.testFloatToBits: binary32 float bits widen from a round number") {
+                Test.equals(1065353216, RuntimeExportOps.floatToBits(1.0), null)
+                Test.equals(1056964608, RuntimeExportOps.floatToBits(0.5), null)
+                Test.equals(1075838976, RuntimeExportOps.floatToBits(2.5), null)
+        }
+    }
+
+@boring.test.Test
+    fun testBitsToFloat() {
+        Test.run("tests.RuntimeExportTests.testBitsToFloat", "tests.RuntimeExportTests.testBitsToFloat: binary32 bit patterns widen to a float") {
+                Test.equals(1.0, RuntimeExportOps.bitsToFloat(1065353216), null)
+                Test.equals(0.5, RuntimeExportOps.bitsToFloat(1056964608), null)
+                Test.equals(2.5, RuntimeExportOps.bitsToFloat(1075838976), null)
+        }
+    }
+
+@boring.test.Test
+    fun testFloatRoundTrip() {
+        Test.run("tests.RuntimeExportTests.testFloatRoundTrip", "tests.RuntimeExportTests.testFloatRoundTrip: binary32 bits round-trip through the edge helpers") {
+                Test.equals(1.0, RuntimeExportOps.roundTripFloat(1.0), null)
+                Test.equals(0.5, RuntimeExportOps.roundTripFloat(0.5), null)
+                Test.equals(2.5, RuntimeExportOps.roundTripFloat(2.5), null)
+        }
+    }
+
+@boring.test.Test
+    fun testUStringExports() {
+        Test.run("tests.RuntimeExportTests.testUStringExports", "tests.RuntimeExportTests.testUStringExports: UString code-point helpers are exported from the runtime module") {
+                Test.equals(6, RuntimeExportOps.asciiCount(), null)
+                Test.equals(116, RuntimeExportOps.codeAt("tiqian", 0), null)
+                Test.equals(null, RuntimeExportOps.codeAt("tiqian", 6), null)
+                Test.equals("tiqian", RuntimeExportOps.codePointsRoundTrip("tiqian"), null)
+                Test.equals("提椠排版", RuntimeExportOps.codePointsRoundTrip("提椠排版"), null)
+        }
+    }
+}

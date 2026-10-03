@@ -1,0 +1,59 @@
+package boring;
+
+import std.ReadOnlyArray;
+
+/** Class-2 fixtures: a switch whose destination (the binding's own type)
+    differs from the enclosing function's return type (String). The wrong
+    destination consulted by the arm lowering is the discriminator. */
+class C2SwitchOps {
+    /** Binding route (switchBindingLines): destination is the local's
+        ReadOnlyArray<Int>; the function returns String. */
+    public static function switchBindingDest(flag:Bool):String {
+        final choice = flag ? C2Choice.Values([1, 2]) : C2Choice.Marker(0);
+        var view:ReadOnlyArray<Int> = switch (choice) {
+            case Values(values): values;
+            case Marker(_): fallbackArray();
+        };
+        return consumeView(view, 1);
+    }
+
+    /** Expression-position probe: the same switch as a call argument, where
+        the call-site argument machinery converts against the parameter. */
+    public static function switchExprDest(flag:Bool):String {
+        final choice = flag ? C2Choice.Values([1, 2]) : C2Choice.Marker(0);
+        return consumeView(switch (choice) {
+            case Values(values): values;
+            case Marker(_): fallbackArray();
+        }, 1);
+    }
+
+    /** Return-position negative control: destination equals currentReturnType
+        (ReadOnlyArray<Int>), which is genuinely correct there; the arm carries
+        an explicit return so the arm consult fires against the right type. */
+    public static function switchReturnDest(flag:Bool):ReadOnlyArray<Int> {
+        final choice = flag ? C2Choice.Values([1, 2]) : C2Choice.Marker(0);
+        return switch (choice) {
+            case Values(values): return values;
+            case Marker(_): return fallbackArray();
+        };
+    }
+
+    /** Negative control: same binding syntax, but the local's type is
+        Array<Int> so no boundary is crossed. */
+    public static function switchBindingNoCross(flag:Bool):String {
+        final choice = flag ? C2Choice.Values([1, 2]) : C2Choice.Marker(0);
+        var values:Array<Int> = switch (choice) {
+            case Values(v): v;
+            case Marker(_): fallbackArray();
+        };
+        return values[0] + ":" + values.length;
+    }
+
+    public static function fallbackArray():Array<Int> {
+        return [9];
+    }
+
+    public static function consumeView(values:ReadOnlyArray<Int>, marker:Int):String {
+        return values[0] + ":" + marker + ":" + values.length;
+    }
+}

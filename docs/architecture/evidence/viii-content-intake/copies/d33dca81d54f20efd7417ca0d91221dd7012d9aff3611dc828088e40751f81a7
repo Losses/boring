@@ -1,0 +1,51 @@
+package tests
+
+import boring.Background
+import boring.Link
+import boring.RecordInterfaceOps
+import boring.RichTextSpan
+import boring.runtime.test.Test
+
+class RecordInterfaceOpsTests {
+@boring.test.Test
+    fun singletonRole() {
+        Test.run("tests.RecordInterfaceOpsTests.singletonRole", "tests.RecordInterfaceOpsTests.singletonRole: a singleton interface field prints its bare name") {
+                Test.equals("Background", Background.instance.toString(), null)
+                val span = RecordInterfaceOps.singletonSpan()
+                Test.equals("RichTextSpan(role=Background, note=null)", span.toString(), null)
+                Test.equals("RichTextSpan(" + "role=" + span.role.toString() + ", " + "note=" + ((if ((span.note == null)) "null" else span.note.toString())) + ")", span.toString(), null)
+        }
+    }
+
+@boring.test.Test
+    fun recordRole() {
+        Test.run("tests.RecordInterfaceOpsTests.recordRole", "tests.RecordInterfaceOpsTests.recordRole: a record interface field prints its labeled form") {
+                Test.equals("Link(target=tiqian)", Link("tiqian").toString(), null)
+                val span = RecordInterfaceOps.recordSpan()
+                Test.equals("RichTextSpan(role=Link(target=tiqian), note=Background)", span.toString(), null)
+                Test.equals("RichTextSpan(" + "role=" + span.role.toString() + ", " + "note=" + ((if ((span.note == null)) "null" else span.note.toString())) + ")", span.toString(), null)
+        }
+    }
+
+@boring.test.Test
+    fun presentNote() {
+        Test.run("tests.RecordInterfaceOpsTests.presentNote", "tests.RecordInterfaceOpsTests.presentNote: a present nullable interface field prints its member text") {
+                val span = RichTextSpan(Background.instance, Link("note"))
+                Test.equals("RichTextSpan(role=Background, note=Link(target=note))", span.toString(), null)
+                Test.equals("RichTextSpan(" + "role=" + span.role.toString() + ", " + "note=" + ((if ((span.note == null)) "null" else span.note.toString())) + ")", span.toString(), null)
+        }
+    }
+
+@boring.test.Test
+    fun dataClassEquality() {
+        Test.run("tests.RecordInterfaceOpsTests.dataClassEquality", "tests.RecordInterfaceOpsTests.dataClassEquality: data class equality compares interface fields") {
+                val left = RecordInterfaceOps.singletonSpan()
+                val same = left
+                val different = RecordInterfaceOps.recordSpan()
+                Test.equals(true, left == same, null)
+                Test.equals(false, left != same, null)
+                Test.equals(false, left == different, null)
+                Test.equals(true, left != different, null)
+        }
+    }
+}

@@ -1,0 +1,15 @@
+run=/tmp/p9-stage3-shim/execroot/out/integration-a3-evidence/exclusive-runner/attempt-20260929T185337-3073504
+root=/tmp/p9-stage3-shim/execroot
+child_evidence_dir=/tmp/p9-stage3-shim/execroot/out/integration-a3-evidence/exclusive-runner/attempt-20260929T185337-3073504/child-evidence
+external_dir=/tmp/p9-stage3-shim/execroot/out/integration-a3-evidence/exclusive-runner/external-20260929T185337-3073504
+plan=/tmp/p9-stage3-shim/plan-stage3-only.plan
+start=2026-09-29T18:53:37-04:00
+step-737716045 status=1
+end=2026-09-29T19:02:31-04:00
+failed_stage=step-737716045
+last_status=1
+stage-evidence f2e24d0741dd8edc482b095f968042b978bb38c0a873a952b43040acaab2511a  step-737716045.command
+stage-evidence 4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  step-737716045.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-737716045.stderr
+stage-evidence c7c4f743e400d665fe7e7f0a5a78a19880526894737d6e9a1e4bcff5b0e3f5c6  step-737716045.stdout
+harness end marker sha256=9109096a6d23749be375a3d2918ac6f9d475e61b50895558b13adab1efb0e784

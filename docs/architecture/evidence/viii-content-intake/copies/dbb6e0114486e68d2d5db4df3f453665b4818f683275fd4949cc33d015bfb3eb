@@ -1,0 +1,108 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn inline_field_arguments() {
+    testlib::run("tests.ExpressionBlockTests.inlineFieldArguments", "tests.ExpressionBlockTests.inlineFieldArguments: inline field arguments work in string concatenation", || {
+        let holder = ExpressionBlockHolder::new(&(UStr::new(&[97,24456,38271])), 1u32, 3u32);
+        test_core::TestCore::test_core_equals_string(UStr::new(&[60,24456,38271,62]), (UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("<")); __s += UString::from(format!("{}", {
+    let s = (holder.text).to_ustring().clone();
+    let from = holder.from;
+    let to = holder.to;
+    u_string::slice(s.as_ustr(), i32::from_ne_bytes(((from) as i32).to_ne_bytes()), i32::from_ne_bytes(((to) as i32).to_ne_bytes()))
+}).as_str()).as_ustr(); __s += &(UString::from(">")); __s }).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn multiple_declarations() {
+    testlib::run("tests.ExpressionBlockTests.multipleDeclarations", "tests.ExpressionBlockTests.multipleDeclarations: expression blocks support multiple declarations", || {
+        let holder = ExpressionBlockHolder::new(&(UStr::new(&[97,98,99,100,101,102])), 1u32, 2u32);
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98]), (UString::from(format!("{}", {
+    let text = (holder.text).to_ustring().clone();
+    let from = holder.from;
+    let to = holder.to;
+    let start = from;
+    let end = to;
+    u_string::slice(text.as_ustr(), i32::from_ne_bytes(((start) as i32).to_ne_bytes()), i32::from_ne_bytes(((end) as i32).to_ne_bytes()))
+}).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn binary_operand() {
+    testlib::run("tests.ExpressionBlockTests.binaryOperand", "tests.ExpressionBlockTests.binaryOperand: expression blocks can be binary operands", || {
+        let holder = ExpressionBlockHolder::new(&(UStr::new(&[97,98,99,100,101,102])), 1u32, 2u32);
+        test_core::TestCore::test_core_equals_bool(true, { let mut __s = UString::new(); __s += UString::from(format!("{}", {
+    let text = (holder.text).to_ustring().clone();
+    let from = holder.from;
+    let to = holder.to;
+    let start = from;
+    let end = to;
+    u_string::slice(text.as_ustr(), i32::from_ne_bytes(((start) as i32).to_ne_bytes()), i32::from_ne_bytes(((end) as i32).to_ne_bytes()))
+}).as_str()).as_ustr(); __s += &(UString::from("")); __s } == UString::from("b"), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn nested_field_chain() {
+    testlib::run("tests.ExpressionBlockTests.nestedFieldChain", "tests.ExpressionBlockTests.nestedFieldChain: nested record field chains trigger the lowering", || {
+        let holder = ExpressionBlockHolder::new(&(UStr::new(&[97,98,99,100,101,102])), 1u32, 2u32);
+        let nested = ExpressionBlockOuter::new(ExpressionBlockInner::new((holder).clone()));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98]), (UString::from(format!("{}", {
+    let s = (nested.inner.holder.text).to_ustring();
+    let from = nested.inner.holder.from;
+    let to = nested.inner.holder.to;
+    u_string::slice(s.as_ustr(), i32::from_ne_bytes(((from) as i32).to_ne_bytes()), i32::from_ne_bytes(((to) as i32).to_ne_bytes()))
+}).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[derive(Clone, PartialEq)]
+pub struct ExpressionBlockHolder {
+    pub text: UString,
+    pub from: u32,
+    pub to: u32,
+}
+
+impl ExpressionBlockHolder {
+    pub fn new(text: &UStr, from: u32, to: u32) -> Self {
+        Self {
+            text: text.to_ustring(),
+            from,
+            to,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct ExpressionBlockInner {
+    pub holder: ExpressionBlockHolder,
+}
+
+impl ExpressionBlockInner {
+    pub fn new(holder: ExpressionBlockHolder) -> Self {
+        Self {
+            holder,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct ExpressionBlockOuter {
+    pub inner: ExpressionBlockInner,
+}
+
+impl ExpressionBlockOuter {
+    pub fn new(inner: ExpressionBlockInner) -> Self {
+        Self {
+            inner,
+        }
+    }
+}

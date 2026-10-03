@@ -1,0 +1,46 @@
+#![cfg(test)]
+
+use crate::boring::borrowed_array_boundary_ops::BorrowedArrayBoundaryOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn wrap() {
+    testlib::run("tests.BorrowedArrayBoundaryTests.wrap", "tests.BorrowedArrayBoundaryTests.wrap: a borrowed array parameter fills an owned nullable constructor slot", || {
+        let holder = BorrowedArrayBoundaryOps::borrowed_array_boundary_ops_wrap(&vec![1, 2, 3]);
+        test_core::TestCore::test_core_equals_bool(true, holder.has_values(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn read_only_wrap() {
+    testlib::run("tests.BorrowedArrayBoundaryTests.readOnlyWrap", "tests.BorrowedArrayBoundaryTests.readOnlyWrap: a borrowed array parameter fills an owned nullable ReadOnlyArray slot", || {
+        let holder = BorrowedArrayBoundaryOps::borrowed_array_boundary_ops_read_only_wrap(&vec![1, 2]);
+        test_core::TestCore::test_core_equals_bool(true, holder.has_values(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn nullable_return() {
+    testlib::run("tests.BorrowedArrayBoundaryTests.nullableReturn", "tests.BorrowedArrayBoundaryTests.nullableReturn: a borrowed array parameter fills an owned nullable return slot", || {
+        let values = BorrowedArrayBoundaryOps::borrowed_array_boundary_ops_nullable_return(&vec![4, 5]);
+        test_core::TestCore::test_core_equals_bool(true, values.is_some(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn rebind() {
+    testlib::run("tests.BorrowedArrayBoundaryTests.rebind", "tests.BorrowedArrayBoundaryTests.rebind: an owned array local clones a borrowed array assignment", || {
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((BorrowedArrayBoundaryOps::borrowed_array_boundary_ops_rebind(&vec![7, 8])) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn choose() {
+    testlib::run("tests.BorrowedArrayBoundaryTests.choose", "tests.BorrowedArrayBoundaryTests.choose: a conditional array result clones the borrowed arm", || {
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((u32::try_from((BorrowedArrayBoundaryOps::borrowed_array_boundary_ops_choose(&vec![7, 8], true).len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((u32::try_from((BorrowedArrayBoundaryOps::borrowed_array_boundary_ops_choose(&vec![7, 8], false).len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

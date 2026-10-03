@@ -1,0 +1,13 @@
+package tests
+
+import boring.DartLocalNameFixOps
+import boring.runtime.test.Test
+
+class DartLocalNameFixTests {
+@boring.test.Test
+    fun localShadow() {
+        Test.run("tests.DartLocalNameFixTests.localShadow", "tests.DartLocalNameFixTests.localShadow: local declarations avoid shadowing their initializer") {
+                Test.equals("value!", DartLocalNameFixOps.localShadow(), null)
+        }
+    }
+}

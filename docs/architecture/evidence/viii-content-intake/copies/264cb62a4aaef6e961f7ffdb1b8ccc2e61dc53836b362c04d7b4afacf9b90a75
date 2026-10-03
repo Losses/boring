@@ -1,0 +1,22 @@
+#![cfg(test)]
+
+use crate::boring::borrowed_receiver_boundary_ops::BorrowedReceiverBoundaryOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn snapshot_label() {
+    testlib::run("tests.BorrowedReceiverBoundaryTests.snapshotLabel", "tests.BorrowedReceiverBoundaryTests.snapshotLabel: a borrowed receiver fills an owned constructor slot", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[114,111,111,116]), BorrowedReceiverBoundaryOps::borrowed_receiver_boundary_ops_snapshot_label().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn pick_label() {
+    testlib::run("tests.BorrowedReceiverBoundaryTests.pickLabel", "tests.BorrowedReceiverBoundaryTests.pickLabel: a borrowed receiver fills an owned conditional return slot", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[114,111,111,116]), BorrowedReceiverBoundaryOps::borrowed_receiver_boundary_ops_pick_label(true).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[111,116,104,101,114]), BorrowedReceiverBoundaryOps::borrowed_receiver_boundary_ops_pick_label(false).as_ustr(), UStr::new(&[]));
+    });
+}

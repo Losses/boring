@@ -1,0 +1,37 @@
+use crate::runtime::sorted_table::SortedMapTable;
+use crate::runtime::sorted_table::SortedMapTableBuilder;
+use crate::runtime::sorted_table::SortedTable;
+use crate::runtime::u_string::UString;
+use std::fmt::Write;
+use std::sync::Arc;
+
+
+#[derive(Clone, Copy)]
+pub struct CodePointNames;
+
+impl CodePointNames {
+    pub(crate) fn code_point_names_create_table() -> SortedMapTable<u32, UString> {
+        let mut b: SortedMapTableBuilder<u32, UString> = SortedTable::sorted_table_map_builder::<u32, UString>(Arc::new(|a, b| SortedTable::sorted_table_compare_ints(i32::from_ne_bytes(((*a) as i32).to_ne_bytes()), i32::from_ne_bytes(((*b) as i32).to_ne_bytes()))));
+        b.put(&(65), &(UString::from("LATIN CAPITAL LETTER A")).to_ustring());
+        b.put(&(32), &(UString::from("SPACE")).to_ustring());
+        b.put(&(66), &(UString::from("LATIN CAPITAL LETTER B")).to_ustring());
+        b.put(&(10), &(UString::from("LINE FEED")).to_ustring());
+        b.put(&(48), &(UString::from("DIGIT ZERO")).to_ustring());
+        return b.clone().build();
+    }
+
+    pub fn code_point_names_name_of(code_point: u32) -> Option<UString> {
+        let table: SortedMapTable<u32, UString> = CodePointNames::code_point_names_create_table();
+        return table.get(&(code_point));
+    }
+
+    pub fn code_point_names_describe_order() -> UString {
+        let table: SortedMapTable<u32, UString> = CodePointNames::code_point_names_create_table();
+        let mut parts: Vec<UString> = vec![];
+        let count = u32::from_ne_bytes(((table.size()) as u32).to_ne_bytes());
+        for i in 0..count {
+            parts.push(UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from((table.key_at({ let v: u32 = i; i32::from_ne_bytes(v.to_ne_bytes()) })).to_string().as_str())); __s += &(UString::from("=")); __s += table.value_at({ let v: u32 = i; i32::from_ne_bytes(v.to_ne_bytes()) }).as_ustr(); __s }).as_str()));
+        }
+        return UString::from(format!("{}", { let joined = parts; let mut out = String::new(); let n = joined.len(); let mut index = 0usize; while index < n { if index > 0 { out.push_str("; "); } let _ = write!(out, "{}", joined[index]); index += 1; } UString::from(out.as_str()) }).as_str());
+    }
+}

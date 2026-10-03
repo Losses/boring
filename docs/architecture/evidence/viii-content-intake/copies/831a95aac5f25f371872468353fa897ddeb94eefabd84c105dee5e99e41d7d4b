@@ -1,0 +1,78 @@
+# 独立审阅（不同模型）— 判据 3：t-mun8wag1-okd2「同步协调态执行根漂移并重建清单为 1433」
+
+审阅范围：PIT-249 修复的独立复核——`publication-staging/execution-option-c-coord/`（执行根）+
+`publication-staging/p09-coord-state/option-c-source-before.json`（1433 清单）vs 协调树
+`boring-wt-architecture`（活树，HEAD = e1c65975）与旧备份
+`dc-warn/out/coord-state-sync/backup/option-c-source-before.1431.json`。
+方法：全部独立复算（自写脚本，**未**调用执行席 verify-manifest.sh/scan-drift.sh）；
+协调树/执行根/p09-coord-state 全程只读；仅写本目录。
+
+## 判定：判据 3 通过（附 2 项披露，均非本次同步引入）
+
+## 1. 口径自洽 — PASS
+- `git -C boring ls-tree -r e1c65975 | wc -l` = **1398**（协调树 HEAD 即 e1c65975）。
+- 自行遍历协调树未跟踪夹具：`tests/haxe/{try-tail,try-tail-min,swift-rt-probe,swift-rt-plain,dc-null-guard-fallthrough}` + `tests/support/stage-check-control.sh` = **35** 个文件（与 git 未跟踪非忽略集 36 相减 1 个未跟踪 doc 自洽）。
+- 期望集合 = 1398 + 35 = **1433**；新清单条目 = **1433**（唯一 path 1433，重复 0）。
+- 集合级相等：**missing 0 / extra 0**。
+- 全量重算 1433 条 sha256 + exec-bit（自写脚本）：**failures 0**（0 缺 / 0 不符 / 0 多）。
+（证据：check1-enum-verify.py / check1.out）
+
+## 2. 未纳入他人在途改动 — PASS
+- `docs/investigations/architecture-round-1/d-observation.md`、`tests/support/stage-check.sh`：
+  在执行根中**存在**，但字节 = e1c65975 **提交态**（≠ 协调树脏版）；清单 sha256 = 提交态 sha →
+  按「不纳入」正确状态确认：执行根保留提交态字节，脏版**未被同步**。
+- 未跟踪 doc `docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md`：
+  不在执行根（漂移扫描 MISSING）→ 未纳入。
+- **披露 A（基线 provenance，非同步缺陷）**：协调树另有 **6 个 tracked 脏 .hx** 编译器文件
+  （`DartExpr.hx`、`rustcompiler/{Compiler,RustDecl,RustEmissionState,RustExpr}.hx`、`SwiftDecl.hx`，
+  协调树 mtime 17:24:30，为其他在途任务的 Rust fault-variant growth / 跨目标修复，diff 6–45 行）。
+  执行根与清单携带其 **17:24 脏字节**——系 17:50 快照基线继承（1431 备份中条目逐字节一致，本次同步未触碰；
+  「不改其它条目」约束下本任务也不得改动）。当前执行根与协调树**逐字节一致（0 漂移）**。
+- **披露 B（4 处 exec-bit-only 差异，字节相同，全部为 1431 基线既有条目）**：
+  - `tests/haxe/kotlin-staticfn-prepared-init/run-focused.sh`、`ts-template-newline-escape/run-{datatable,focused}.sh`：
+    协调树本地 chmod（711，未提交），执行根 644 = git 提交态 100644 = 清单 100644；
+  - `tests/support/stage-check-control.sh`（未跟踪新增）：协调树 600，执行根 755 = 清单 100755。
+  清单 ↔ 执行根自洽（check1 的 0 失败已覆盖）；执行根对前 3 个文件忠实于 git 提交态。
+（证据：check3-baseline-dirty.py / check3.out、check3b-dirty.py / check3b.out、check6b、check6c）
+
+## 3. 未改其它条目 — PASS
+1431 备份（sha256 `11e642e8…` 与其 FILES.sha256 一致，1431 唯一条目）vs 新 1433 逐条比对：
+- 删除 0；
+- **新增恰 2**：`tests/haxe/swift-rt-probe/run-stages.sh`、`tests/haxe/swift-rt-plain/run-stages.sh`
+  （均 100755，sha `5762ed8c…`，两侧内容相同）；
+- **同路径替换恰 2**：`dc-null-guard-fallthrough/run.sh`（sha `c2af31d3…`→`c09ff2d1…`）、
+  `try-tail/run-stages.sh`（sha `4c16c218…`→`95e9f623…`，mode 均保持 100755）；
+- **其余 1429 条 path/sha256/mode 逐条不变**（含披露 A 的 6 个 .hx 条目与披露 B 的 4 个条目）。
+（证据：check4-backup-cmp.py / check4.out）
+
+## 4. 执行位 — PASS
+4 项已知文件：实际文件 **755**、清单 **100755**、执行根字节 = 协调树字节（fuse 丢位未发生）：
+- swift-rt-probe / swift-rt-plain /run-stages.sh（协调树 18:00:50 → 执行根同步 18:23:40）
+- dc-null-guard-fallthrough/run.sh（协调树 18:04:02 → 执行根同步 18:23:40）
+- try-tail/run-stages.sh（协调树 18:22:25 → 执行根同步 18:27:03，协调者补第 4 项）
+清单重建 mtime 18:28:07。
+（证据：check5-exbit.py / check5.out）
+
+## 5. loader 身份 — PASS
+`bash dc-warn/out/loader-identity/assert-loader-identity.sh …/execution-option-c-coord` → **RC=0**
+（boring/.dev 指向该根本身；reflaxe/.dev 指向 /nix/store/ch901mw0…-source；format 3.8.0 / formatter 1.18.0 锁定）。
+`.haxelib/boring/.dev` 内容 = `/home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord`
+（指向该根本身），mtime 17:50:50 未变。
+（证据：loader-assert.out）
+
+## 6. 剩余漂移 — 与期望一致
+独立全量漂移扫描（协调树 1398 tracked + 36 未跟踪非忽略 = 1434，逐字节 + exec-bit vs 执行根）：
+- **内容级：MATCH 1431 / DIFFER 2 / MISSING 1**
+  - DIFFER = 恰为 2 个 tracked 在途改动（d-observation.md、stage-check.sh，按设计排除）；
+  - MISSING = 未跟踪 doc runbook（非源码/夹具，按设计排除）；
+  - 35 个夹具文件 0 漂移（4 项已知同步后全部 MATCH）。
+- 与执行席 18:25 扫描相比无新增内容漂移；新增可见项仅为披露 B 的 4 处 exec-bit-only 差异
+  （内容字节相同，既有基线条目，清单自洽）。
+
+## 看板一行证据（判据 3）
+独立审阅(不同模型)判据3通过：口径自洽1398+35=1433、missing 0/extra 0、独立全量重算1433条sha256+exec-bit 0不符；2个tracked在途项未纳入(执行根留e1c65975提交态字节、清单sha=提交态)；与1431备份逐条比=新增恰2+同路径替换恰2(均已知项)+其余1429条不变；4项磁盘755/清单100755且与协调树逐字节一致；loader RC=0且.dev指向该根本身；全量漂移扫描仅剩2个tracked在途DIFFER+1未跟踪doc MISSING(按设计排除)；披露：基线含6个他人在途.hx编译器字节(17:24、17:50快照继承、本次同步条目未变、当前0漂移)及4处exec-bit-only既有差异(清单↔执行根自洽)。
+
+## 交付物
+本目录：REVIEW.md、check1-enum-verify.py/.out、check3-baseline-dirty.py/.out、
+check3b-dirty.py/.out、check4-backup-cmp.py/.out、check5-exbit.py/.out、
+check6-drift-scan.py/.out、check6b-exbit-triage.py/.out、check6c-exbit-detail.py/.out、loader-assert.out。

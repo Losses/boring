@@ -1,0 +1,122 @@
+commit 9f26e1ef79fd315e4722f5d305bfd4c1c3df96b1
+Author: LOSSES Don <1384036+Losses@users.noreply.github.com>
+Date:   Wed Sep 30 13:23:34 2026 -0400
+
+    ci(tests): run the collected suite so the warning count exists
+    
+    The standard at docs/specs/style/02-translator-implementation-standard.md:80
+    counts the warning lines that name files under the generated trees and
+    requires the count to be zero; a counting rule that no suite exercises
+    produces no count. No command in this workflow collected tests/**: all 26
+    scripts the other jobs run are gen:* or test:<target> variants, and the one
+    bun test among them (test:stage1:ts) is scoped to the generated
+    reference/ts/gen-tests/.
+    
+    Add a collected-suite job that runs the repository entry point (bun run test)
+    and reports its count and the collected domain. The job is blocking on
+    purpose: at this revision the step is red because the baseline recorded in
+    docs/architecture/BASELINE-FAILURES.md is not discharged. It carries no
+    continue-on-error, no narrowed path argument, and no ignore pattern for a
+    failing file.
+    
+    The generated trees have to exist before the entry point runs: bun test
+    matches its positional arguments as path substrings, so 249 of the 303 files
+    the baseline run collected live in the generated reference/ts/gen-tests/ tree.
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index b5879051..1176a5a2 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -259,3 +259,92 @@ jobs:
+           }
+           EOF
+           (cd envprobe && CC="${CC:-clang}" swift build) && PROBE_FROM_BASH=bashvalue LD_LIBRARY_PATH="$BORING_SWIFT_LIBDISPATCH:${LD_LIBRARY_PATH:-}" envprobe/.build/debug/EnvProbe.exe
++
++  # Contract 3 (docs/architecture/ARCHITECTURAL-CONTRACTS.md) makes the warning
++  # count an acceptance criterion: docs/specs/style/02-translator-implementation-standard.md:80
++  # requires counting the warning lines in the target suite output that name
++  # files under the generated trees, and requires that count to be zero. A
++  # counting rule that no suite exercises produces no count, and until this job
++  # no command in this workflow collected `tests/**`: all 26 scripts the other
++  # jobs run are `gen:*` / `test:<target>` variants, and the single `bun test`
++  # among them (`test:stage1:ts`) is scoped to the generated
++  # `reference/ts/gen-tests/`. This job runs the repository's own entry point
++  # (`bun run test` = `bun test tests/ packages/registry/tests/`) so the count
++  # exists on every run.
++  #
++  # A separate job on purpose: the count must not depend on the target matrix
++  # above having succeeded, and `bun run test` needs generated trees of its own
++  # (see "Generate the trees the collected suite reads").
++  collected-suite:
++    name: collected suite (bun run test)
++    runs-on: ubuntu-latest
++    timeout-minutes: 180
++    steps:
++      - uses: actions/checkout@v4
++      - uses: DeterminateSystems/nix-installer-action@v17
++      # The collected suite builds and runs Swift
++      # (tests/swift-readonly-boundary/readonly-boundary.test.ts runs swiftc),
++      # so it needs the same userns relaxation as the linux job.
++      - name: Allow user namespaces for the Swift FHS wrapper
++        run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0 || true
++      - name: Restore nix closure
++        uses: actions/cache@v4
++        with:
++          path: nix-closure.nar
++          key: nix-closure-linux-${{ hashFiles('flake.lock') }}
++          restore-keys: nix-closure-linux-
++      - name: Import nix closure
++        if: hashFiles('nix-closure.nar') != ''
++        run: sudo nix-store --import < nix-closure.nar || true
++      # `bun test` matches its positional arguments as path substrings, not as
++      # an allowlist, so the entry point also collects the generated
++      # `reference/ts/gen-tests/**` tree: 249 of the 303 files the baseline run
++      # recorded. Generating first is what keeps the count taken over the
++      # recorded domain; skipping it would silently count 54 files instead, and
++      # the domain report below would show the smaller number.
++      - name: Generate the trees the collected suite reads
++        run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart'
++      # BLOCKING ON PURPOSE - do not add `continue-on-error`. At the revision
++      # that wires this in the step is RED: docs/architecture/BASELINE-FAILURES.md
++      # records the inherited baseline for this exact command (1001 pass / 32
++      # fail / 8 errors), and docs/architecture-work-plan.md:417 requires that
++      # record - it does not waive the standard. `continue-on-error`, a narrowed
++      # path argument, or an ignore pattern for a failing file would be the
++      # waiver that rule forbids. `set -o pipefail` keeps the suite's exit code
++      # as the step's exit code while the log is retained for the report below.
++      - name: Collected suite (contract 3 count)
++        run: |
++          set -o pipefail
++          mkdir -p out
++          nix develop -c bash -c 'bun run test' 2>&1 | tee out/collected-suite.log
++      - name: Report the count and the collection domain
++        if: always()
++        run: |
++          LOG=out/collected-suite.log
++          test -f "$LOG" || { echo "::error::no log at $LOG - the collected suite never ran"; exit 1; }
++          {
++            echo '## Collected suite - contract 3 count'
++            echo
++            echo 'Standard: `docs/specs/style/02-translator-implementation-standard.md:80` counts the'
++            echo 'warning lines naming files under the generated trees and requires the count to be zero.'
++            echo
++            echo '```'
++            grep -E '^ [0-9]+ (pass|fail)$|^ [0-9]+ errors$|^Ran [0-9]+ tests across [0-9]+ files' "$LOG" || echo '(no summary line: the run did not reach a summary)'
++            echo '```'
++            echo
++            echo 'Collected domain (top-level directories - the count means nothing without it):'
++            echo
++            echo '```'
++            grep -oE '^[^ (]+\.test\.ts:' "$LOG" | sed 's/:$//' | sed 's|^\([^/]*/[^/]*\)/.*|\1|' | sort | uniq -c | sort -rn || true
++            echo '```'
++            echo
++            echo 'Baseline: `docs/architecture/BASELINE-FAILURES.md` (recorded per'
++            echo '`docs/architecture-work-plan.md:417`; a baseline finding does not waive the standard).'
++          } | tee -a "$GITHUB_STEP_SUMMARY"
++          # Domain guard: the generated out/ tree must never be swept into the
++          # count. If it is, the count was taken over a different domain than
++          # the recorded baseline and must not be read as one.
++          if grep -qE '^out/.*\.test\.ts:' "$LOG"; then
++            echo "::error::the collected domain contains files under out/ - the generated tree is being swept into the count"
++            exit 1
++          fi

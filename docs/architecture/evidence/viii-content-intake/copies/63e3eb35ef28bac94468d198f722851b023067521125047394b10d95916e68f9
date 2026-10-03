@@ -1,0 +1,7 @@
+xcheck postfix at 2026-09-29T21:25:12Z
+e1c65975 merge: integrate fix/rust-readonly-alias-emitter (0701762d) into Rust fix candidate
+ M packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+?? tests/haxe/swift-rt-plain/
+?? tests/haxe/swift-rt-probe/
+?? tests/haxe/try-tail/
+0210d20703769a4e42f2e8a27dd1a1123072a27785e663fc5dbb9b80ef74f973  packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx

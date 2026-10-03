@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Full drift scan: coord tree (boring-wt-architecture, READ-ONLY) vs execution
+# root (execution-option-c-coord). Covers every tracked file (working-tree
+# bytes) plus every untracked file (fixtures + docs). Reports MATCH / DIFFER /
+# MISSING per path. No writes to either tree.
+set -uo pipefail
+R="${1:-/home/losses/Development/tq-workspace}"
+COORD="$R/boring-wt-architecture"
+ROOT="$R/publication-staging/execution-option-c-coord"
+python3 - "$COORD" "$ROOT" <<'PY'
+import hashlib, os, subprocess, sys
+coord, root = sys.argv[1:3]
+tracked = subprocess.check_output(['git','-C',coord,'ls-files']).decode().splitlines()
+status = subprocess.check_output(['git','-C',coord,'status','--porcelain']).decode().splitlines()
+untracked = []
+for line in status:
+    if line.startswith('??'):
+        p = line[3:].strip()
+        base = os.path.join(coord, p)
+        if os.path.isdir(base):
+            for dp, dn, fn in os.walk(base):
+                for f in fn:
+                    untracked.append(os.path.relpath(os.path.join(dp,f), coord))
+        else:
+            untracked.append(p)
+def sha(p):
+    h = hashlib.sha256()
+    with open(p,'rb') as fh:
+        for chunk in iter(lambda: fh.read(1<<20), b''):
+            h.update(chunk)
+    return h.hexdigest()
+match = differ = missing = 0
+for p in sorted(set(tracked) | set(untracked)):
+    c = os.path.join(coord, p)
+    r = os.path.join(root, p)
+    tag = 'U' if p in untracked else 'T'
+    if not os.path.isfile(r):
+        missing += 1
+        print(f"MISSING [{tag}] {p}")
+    elif sha(c) != sha(r):
+        differ += 1
+        print(f"DIFFER  [{tag}] {p}")
+    else:
+        match += 1
+print(f"--- summary: tracked={len(tracked)} untracked={len(untracked)} "
+      f"total={len(set(tracked)|set(untracked))} MATCH={match} DIFFER={differ} MISSING={missing}")
+PY

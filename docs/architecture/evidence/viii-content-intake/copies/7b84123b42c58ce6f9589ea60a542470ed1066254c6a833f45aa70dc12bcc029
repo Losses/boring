@@ -1,0 +1,22 @@
+package tests
+
+import boring.NullableBufFieldOps
+import boring.runtime.test.Test
+
+class NullableBufFieldTests {
+@boring.test.Test
+    fun appendGuarded() {
+        Test.run("tests.NullableBufFieldTests.appendGuarded", "tests.NullableBufFieldTests.appendGuarded: a buffer field mutation opens the nullable owner with as_mut") {
+                Test.equals("hi", NullableBufFieldOps.appendGuarded(true, "hi"), null)
+                Test.equals("", NullableBufFieldOps.appendGuarded(false, "hi"), null)
+        }
+    }
+
+@boring.test.Test
+    fun caughtFault() {
+        Test.run("tests.NullableBufFieldTests.caughtFault", "tests.NullableBufFieldTests.caughtFault: a stranded lead in a nullable buffer field faults through the catch") {
+                Test.equals("fault", NullableBufFieldOps.caughtFault(true, 55296, "x"), null)
+                Test.equals("", NullableBufFieldOps.caughtFault(false, 55296, "x"), null)
+        }
+    }
+}

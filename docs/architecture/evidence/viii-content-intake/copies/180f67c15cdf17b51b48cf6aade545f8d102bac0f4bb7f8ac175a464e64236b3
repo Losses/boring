@@ -1,0 +1,26 @@
+use crate::runtime::u_string::UString;
+use std::sync::Mutex;
+
+
+pub(crate) static ALLOW_HOST_COUNTER: Mutex<u32> = Mutex::new(40);
+
+#[derive(Clone, PartialEq)]
+pub struct AllowHost {
+    pub(crate) tag: UString,
+}
+
+impl AllowHost {
+    pub fn new() -> Self {
+        Self {
+            tag: UString::from("host"),
+        }
+    }
+
+    pub(crate) fn secret_method(&self) -> UString {
+        return UString::from("m").to_ustring();
+    }
+
+    pub(crate) fn allow_host_secret_static(v: u32) -> u32 {
+        return u32::wrapping_add(v, 1);
+    }
+}

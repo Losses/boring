@@ -1,0 +1,65 @@
+PANIC ANALYSIS: can the `.unwrap()` in the fixed artifact actually panic?
+
+Site (fixed3, reference/rust/gen/boring/value_type_consumer.rs, lines 66-69):
+
+    pub fn value_type_consumer_rendered_id() -> UString {
+        let id = FontFaceId::new(UStr::new(&[102,97,99,101])).unwrap();
+        return UString::from((id).to_string().as_str());
+    }
+
+The callee's emitted body (reference/rust/gen/boring/value_type_ops.rs, lines 44-50;
+this file is BYTE-IDENTICAL in both trees):
+
+    impl FontFaceId {
+        pub fn new(value: &UStr) -> Result<Self, ValueError> {
+            if value.trim() == UString::from("") {
+                return Err(ValueError::BlankValue);
+            }
+            return Ok(Self(value.to_ustring()));
+        }
+
+So `new` returns Err if and only if `value.trim()` equals the empty UString.
+
+The argument is the constant `UStr::new(&[102,97,99,101])`:
+
+    102 = 'f'   97 = 'a'   99 = 'c'   101 = 'e'   ->  "face"
+
+`UStr::new` is a zero-cost cast (reference/rust/gen/runtime/u_string.rs:22-26):
+
+    pub fn new<S: AsRef<[u16]> + ?Sized>(s: &S) -> &UStr {
+        unsafe { &*(s.as_ref() as *const [u16] as *const UStr) }
+    }
+
+`trim` (runtime/u_string.rs:70-87) removes only the whitespace set
+{0x09-0x0D, 0x20, 0x85, 0xA0, 0x1680, 0x2000-0x200A, 0x2028, 0x2029, 0x202F,
+0x205F, 0x3000, 0xFEFF}. None of 0x66, 0x61, 0x63, 0x65 is in that set, so
+
+    "face".trim()  ==  UString(vec![0x66,0x61,0x63,0x65])   (length 4)
+
+`UString::from("")` (runtime/u_string.rs:170-174) is
+
+    fn from(s: &str) -> UString { UString(s.encode_utf16().collect()) }
+
+which for the empty `&str` is `UString(vec![])`, length 0. `UString` is
+`pub struct UString(Vec<u16>)` with a derived `PartialEq` (line 15-16), so the
+comparison is a 4-vs-0 element comparison and is false.
+
+The two loops in `trim` cannot panic: `start < end <= units.len()` guards every
+index, and the final `units[start..end]` slice has `start <= end <= len`.
+`to_ustring` is `UString(self.0.to_vec())` (line 33-35), which cannot panic.
+
+CONCLUSION: for the value actually passed, `FontFaceId::new` returns `Ok`, so the
+`.unwrap()` CANNOT panic. The `Err` arm is unreachable *for this constant
+argument*, not unreachable in general: the same `FontFaceId::new` returns
+`Err(ValueError::BlankValue)` for the blank string " ", which the sibling sample
+function `ValueTypeConsumer.blankRejected()` (samples/boring/ValueTypeConsumer.hx:31-39)
+relies on, and the sibling test `test_blank_rejected` exercises.
+
+So the fixed form is a LATENT contract defect, not an active crash:
+  * it cannot crash on this argument;
+  * but the signature `-> UString` now states that the operation cannot fail,
+    while the underlying source operation can.
+
+NOT VERIFIED: that the emitted crate compiles and its tests pass. No Haxe
+generation and no `cargo` build/test were run (they would write build output
+inside the audited trees).

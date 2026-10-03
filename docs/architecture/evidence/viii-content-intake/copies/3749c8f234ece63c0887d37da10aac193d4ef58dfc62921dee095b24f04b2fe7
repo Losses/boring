@@ -1,0 +1,4 @@
+82d7e3a40635070a13b76753ab82b83841f1d95b5ab4e0fe58dfbb4a437b9b9c  tests/haxe/ts-sourcemap-three-positions/OriginShapes.hx
+10cd7c82e07af2f067d07a6822a74d218c834843946d7478d73d1fdfc8e8afcf  tests/haxe/ts-sourcemap-three-positions/ts-sourcemap-positions.hxml
+6d9938e545ce80095abfd790855470fad09c8c0ecdb925c804c4d2613ecdef16  tests/haxe/ts-sourcemap-three-positions/run-focused.sh
+817a556de95be814e084d87cbec8f93ec65f156cdf2b10957250df71b9ca00b6  tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs

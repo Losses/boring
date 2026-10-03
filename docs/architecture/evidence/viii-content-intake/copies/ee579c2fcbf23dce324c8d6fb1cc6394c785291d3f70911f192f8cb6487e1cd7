@@ -1,0 +1,26 @@
+package boring
+
+fun ExtensionMode.modeLabel(suffix: String): String {
+    return (if ((this == ExtensionMode.Hot)) "hot" + suffix else "cold" + suffix)
+}
+
+fun String.stringLabel(prefix: String): String {
+    return prefix + this
+}
+
+private fun ExtensionMode.privateModeLabel(): String {
+    if ((this == ExtensionMode.Hot)) {
+        return "private-hot"
+    }
+    return "private-cold"
+}
+
+fun ExtensionMode.modeWithPrivate(): String {
+    return this.privateModeLabel()
+}
+
+enum class ExtensionMode {
+    Cold,
+    Hot
+}
+fun compareExtensionMode(a: ExtensionMode, b: ExtensionMode): Int = a.ordinal - b.ordinal

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# 回退命令：把冻结运行器两个文件恢复为原始字节（不使用 git）。
+# 用后请自行核对 sha256 回到基线（见 SHA256SUMS.baseline.txt）。
+set -e
+R=/home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner
+B=/home/losses/Development/tq-workspace/dc-warn/out/option-c/freeze-apply/backup
+cp -p "$B/option-c-stage-wrapper.sh" "$B/selftest.sh" "$R/"
+chmod +x "$R"/*.sh
+(cd "$B" && sha256sum -c SHA256SUMS.baseline.txt)

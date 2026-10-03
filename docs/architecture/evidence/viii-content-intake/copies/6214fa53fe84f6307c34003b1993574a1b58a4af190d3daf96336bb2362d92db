@@ -1,0 +1,3 @@
+bash /tmp/rt-xcheck/run-all.sh pristine \
+ "tests/haxe/try-tail:/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail-xcheck/tests/haxe/try-tail/expected.txt:tests/haxe/try-tail/native/harness.rs:prefix-try-tail" \
+ "tests/haxe/try-tail-min:/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail-xcheck/tests/haxe/try-tail-min/expected.txt:tests/haxe/try-tail-min/native/harness.rs:prefix-try-tail-min"

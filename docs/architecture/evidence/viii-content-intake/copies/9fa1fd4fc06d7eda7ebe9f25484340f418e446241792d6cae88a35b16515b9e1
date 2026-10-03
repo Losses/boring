@@ -1,0 +1,44 @@
+use crate::dcpe::kind::Kind;
+use std::sync::Mutex;
+
+
+pub static DOUBLE_EVAL_CONTROL_CALL_COUNT: Mutex<u32> = Mutex::new(0);
+
+#[derive(Clone, Copy)]
+pub struct DoubleEvalControl;
+
+impl DoubleEvalControl {
+
+    pub fn double_eval_control_next_kind() -> Kind {
+        { let __rhs_value = u32::wrapping_add({ let __guard = DOUBLE_EVAL_CONTROL_CALL_COUNT.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() }, 1); *DOUBLE_EVAL_CONTROL_CALL_COUNT.lock().unwrap_or_else(|e| e.into_inner()) = __rhs_value; };
+        return Kind::B { value: 21 };
+    }
+
+    pub fn double_eval_control_reset() {
+        *DOUBLE_EVAL_CONTROL_CALL_COUNT.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+    }
+
+    pub fn double_eval_control_double_once() -> u32 {
+        let mut acc: u32;
+        {
+            let _g = DoubleEvalControl::double_eval_control_next_kind();
+            let _ = match _g {
+    Kind::A => acc = 1u32,
+    Kind::B { value: _p0 } => acc = _p0,
+    Kind::C => acc = 3u32,
+};
+        }
+        {
+            let _g = DoubleEvalControl::double_eval_control_next_kind();
+            let _ = match _g {
+    Kind::A => acc = u32::wrapping_add(acc, 1),
+    Kind::B { value: _p0 } => acc = u32::wrapping_add(acc, _p0),
+    Kind::C => acc = u32::wrapping_add(acc, 3),
+};
+        }
+        return acc;
+    }
+
+    pub fn double_eval_control_main() {
+    }
+}

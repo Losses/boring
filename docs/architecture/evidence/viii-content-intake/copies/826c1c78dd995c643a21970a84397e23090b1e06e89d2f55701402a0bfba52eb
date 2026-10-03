@@ -1,0 +1,99 @@
+package tests
+
+import boring.ArrayAccessOps
+import boring.runtime.test.Test
+
+class ArrayAccessTests {
+@boring.test.Test
+    fun testWriteSplit() {
+        Test.run("tests.ArrayAccessTests.testWriteSplit", "tests.ArrayAccessTests.testWriteSplit: split results support written array access") {
+                Test.equals("x", ArrayAccessOps.writeSplit("a,b"), null)
+        }
+    }
+
+@boring.test.Test
+    fun testReadSplit() {
+        Test.run("tests.ArrayAccessTests.testReadSplit", "tests.ArrayAccessTests.testReadSplit: split results support read array access") {
+                Test.equals("a", ArrayAccessOps.readSplit("a,b"), null)
+        }
+    }
+
+@boring.test.Test
+    fun testCompositePart() {
+        Test.run("tests.ArrayAccessTests.testCompositePart", "tests.ArrayAccessTests.testCompositePart: composite StringBuf part can read its first character") {
+                Test.equals(65, ArrayAccessOps.compositeStringBufPart("A"), null)
+        }
+    }
+
+@boring.test.Test
+    fun testSimplePart() {
+        Test.run("tests.ArrayAccessTests.testSimplePart", "tests.ArrayAccessTests.testSimplePart: simple StringBuf part can read its first character") {
+                Test.equals(65, ArrayAccessOps.simpleStringBufPart("A"), null)
+        }
+    }
+
+@boring.test.Test
+    fun testGrowNullableSlots() {
+        Test.run("tests.ArrayAccessTests.testGrowNullableSlots", "tests.ArrayAccessTests.testGrowNullableSlots: an index write past the end grows a nullable-element array") {
+                val slots = ArrayAccessOps.growNullableSlots()
+                Test.equals(4, slots.size, null)
+                Test.equals(7, slots[3], null)
+                Test.equals(true, slots[0] == null, null)
+                Test.equals(true, slots[1] == null, null)
+                Test.equals(true, slots[2] == null, null)
+        }
+    }
+
+@boring.test.Test
+    fun testGrowValueSlots() {
+        Test.run("tests.ArrayAccessTests.testGrowValueSlots", "tests.ArrayAccessTests.testGrowValueSlots: an index write past the end grows a value-element array") {
+                val slots = ArrayAccessOps.growValueSlots()
+                Test.equals(3, slots.size, null)
+                Test.equals(5, slots[2], null)
+                Test.equals(true, slots[0] == 0, null)
+                Test.equals(true, slots[1] == 0, null)
+        }
+    }
+
+@boring.test.Test
+    fun testGrowFieldSlots() {
+        Test.run("tests.ArrayAccessTests.testGrowFieldSlots", "tests.ArrayAccessTests.testGrowFieldSlots: an index loop over an empty array field grows it") {
+                val slots = ArrayAccessOps.filledHolder(3)
+                Test.equals(4, slots.size, null)
+                Test.equals(0, slots[0], null)
+                Test.equals(30, slots[3], null)
+        }
+    }
+
+@boring.test.Test
+    fun testGrowFloatSlots() {
+        Test.run("tests.ArrayAccessTests.testGrowFloatSlots", "tests.ArrayAccessTests.testGrowFloatSlots: an index write past the end grows a float-element array") {
+                val slots = ArrayAccessOps.growFloatSlots()
+                Test.equals(3, slots.size, null)
+                Test.equals(1.5f, slots[2], null)
+                Test.equals(true, slots[0] == 0.0f, null)
+                Test.equals(true, slots[1] == 0.0f, null)
+        }
+    }
+
+@boring.test.Test
+    fun testGrowFloatFieldSlots() {
+        Test.run("tests.ArrayAccessTests.testGrowFloatFieldSlots", "tests.ArrayAccessTests.testGrowFloatFieldSlots: an index loop over an empty float array field grows it") {
+                val slots = ArrayAccessOps.filledFloatHolder(2)
+                Test.equals(3, slots.size, null)
+                Test.equals(3.0f, slots[2], null)
+                Test.equals(0.0f, slots[0], null)
+        }
+    }
+
+@boring.test.Test
+    fun testWriteInsideSlots() {
+        Test.run("tests.ArrayAccessTests.testWriteInsideSlots", "tests.ArrayAccessTests.testWriteInsideSlots: writes inside an array keep their slots") {
+                val slots = ArrayAccessOps.writeInsideSlots()
+                Test.equals(5, slots.size, null)
+                Test.equals(20, slots[1], null)
+                Test.equals(40, slots[3], null)
+                Test.equals(50, slots[4], null)
+        }
+    }
+}

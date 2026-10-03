@@ -1,0 +1,15 @@
+baseline kotlin records: 730
+
+target        records  missing_vs_base  extra_vs_base  verdict_mismatch
+kotlin           730                0              0                0
+haxe             730                0              0                0
+ts               730                0              0                0
+dart             730                0              0                0
+rust             730                0              0                0
+swift            730                0              0                1
+haxe-f32         736                0              6                0
+kotlin-f32       672               58              0                0
+rust-f32         682               48              0                0
+swift-f32        676               54              0                1
+
+TOTAL over non-baseline targets: missing=160 extra=6 verdict_mismatch=2

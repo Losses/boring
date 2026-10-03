@@ -1,0 +1,13 @@
+package xsxm;
+
+/** ATTACK FIXTURE: two payload enums in ONE module. Owners sit in two
+    DIFFERENT modules, so `exceptionPayloads` (class-module keyed) does NOT
+    collide, but `payloadEnumNames`/`payloadEnumOwners`/`payloadEnumModules`
+    (enum-module keyed) do. */
+enum F1Fault {
+	One(t:String);
+}
+
+enum F2Fault {
+	Two(t:String);
+}

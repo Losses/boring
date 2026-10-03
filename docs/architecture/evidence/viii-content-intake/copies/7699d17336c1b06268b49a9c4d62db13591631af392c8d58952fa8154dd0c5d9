@@ -1,0 +1,23 @@
+NC.swift:3:26: error: cannot convert value of type 'TiqianArray<String>' to expected argument type '[TiqianArray<String>]'
+1 | // PIT-255 negative control: the PRE-FIX render texts (double wrap).
+2 | func probeCopyBroken(_ r: ReadOnlyArray<String>) -> TiqianArray<String> {
+3 |     return TiqianArray(r.toMutableArray())
+  |                          `- error: cannot convert value of type 'TiqianArray<String>' to expected argument type '[TiqianArray<String>]'
+4 | }
+5 | 
+
+NC.swift:3:12: error: cannot convert return expression of type 'TiqianArray<TiqianArray<String>>' to return type 'TiqianArray<String>'
+1 | // PIT-255 negative control: the PRE-FIX render texts (double wrap).
+2 | func probeCopyBroken(_ r: ReadOnlyArray<String>) -> TiqianArray<String> {
+3 |     return TiqianArray(r.toMutableArray())
+  |            `- error: cannot convert return expression of type 'TiqianArray<TiqianArray<String>>' to return type 'TiqianArray<String>'
+4 | }
+5 | 
+
+/tmp/swiftarr/execroot/reference/swift/gen/Runtime.swift:276:32: note: arguments to generic parameter 'Element' ('TiqianArray<String>' and 'String') are expected to be equal
+ 274 | /// The class mirrors the [T] API (subscript, count, push, indexOf, ...)
+ 275 | /// so generated code reads naturally instead of spelling out .items.
+ 276 | public final class TiqianArray<Element>: Sequence, Collection {
+     |                                `- note: arguments to generic parameter 'Element' ('TiqianArray<String>' and 'String') are expected to be equal
+ 277 |     public var items: [Element]
+ 278 |     public init() { self.items = [] }

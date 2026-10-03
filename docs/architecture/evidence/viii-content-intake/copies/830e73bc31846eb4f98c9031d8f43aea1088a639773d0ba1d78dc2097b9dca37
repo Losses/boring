@@ -1,0 +1,1 @@
+bash -c cd\ \"\$1\"\ \&\&\ eval\ \"\$2\" _ /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-new/out/integration-a3-evidence/exclusive-runner/attempt-20260929T203445-3296000 echo\ ok\ \>\ artifact-a.txt 

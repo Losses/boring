@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Generate Option C SOURCE_MANIFEST for execution root execution-option-c-e1c65975
+# Source-of-truth: inventory-1398.json (paths) + git e1c65975 (modes) + file bytes (sha256)
+# Usage: bash gen-source-manifest.sh <repo-root>   # repo root = tq-workspace
+set -euo pipefail
+R="${1:?repo root}"
+ST="$R/publication-staging"
+ROOT="$ST/execution-option-c-e1c65975"
+OUT="$ST/p09-e1c65975/option-c-source-before.json"
+INV="$ST/p09-e1c65975/inventory-1398.json"
+python3 - "$R" "$ROOT" "$INV" "$OUT" <<'PY'
+import json, hashlib, subprocess, sys, os
+repo, root, inv_path, out_path = sys.argv[1:5]
+inv = json.load(open(inv_path))['files']
+tree = 'e1c6597514634fd347d392709793cc19bd96c9a2'
+modes = {}
+out = subprocess.check_output(['git','-C',os.path.join(repo,'boring'),'ls-tree','-r',tree]).decode()
+for line in out.splitlines():
+    meta, path = line.split('\t', 1)
+    modes[path.replace('"','').encode().decode('unicode_escape')] = meta.split()[0]
+result = []
+missing = []
+for path in inv:
+    full = os.path.join(root, path)
+    if not os.path.isfile(full):
+        missing.append(path); continue
+    h = hashlib.sha256(open(full,'rb').read()).hexdigest()
+    result.append({"path": path, "sha256": h, "mode": modes[path]})
+assert not missing, missing
+json.dump(result, open(out_path,'w'), indent=2, ensure_ascii=False)
+print(f"wrote {len(result)} entries -> {out_path}")
+PY

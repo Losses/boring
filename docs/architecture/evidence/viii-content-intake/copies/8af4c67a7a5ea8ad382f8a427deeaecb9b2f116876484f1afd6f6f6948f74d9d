@@ -1,0 +1,319 @@
+package std
+
+import boring.runtime.Env
+
+object Path {
+    private fun kind(p: String): Int {
+        if ((p.startsWith("\\\\?\\") || p.startsWith("\\\\.\\"))) {
+            return 0
+        }
+        if ((p.startsWith("\\\\"))) {
+            return 1
+        }
+        if ((p.length >= 2 && p[1].toString() == ":")) {
+            val c = p[0].toString().lowercase()
+            val letter = c >= "a" && c <= "z"
+            if ((letter)) {
+                val sep = (if ((p.length >= 3)) p[2].toString() else "")
+                if ((sep == "/" || sep == "\\")) {
+                    return 2
+                }
+                return 3
+            }
+        }
+        if ((p.length >= 1 && p[0].toString() == "\\")) {
+            return 4
+        }
+        if ((p.length >= 1 && p[0].toString() == "/")) {
+            if ((p.length >= 2 && p[1].toString() == "/")) {
+                return (if ((Path.hasUncShape(p))) 1 else 6)
+            }
+            return 5
+        }
+        return 7
+    }
+
+    private fun hasUncShape(p: String): Boolean {
+        val n = p.length
+        var i = 2
+        var segments = 0
+        while ((i < n)) {
+            if ((Path.isSep(p, i))) {
+                i++
+                continue
+            }
+            segments++
+            while ((i < n && !Path.isSep(p, i))) {
+                i++
+            }
+            if ((segments >= 2)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun isSep(p: String, index: Int): Boolean {
+        if ((index < 0 || index >= p.length)) {
+            return false
+        }
+        val c = p[index].toString()
+        return c == "/" || c == "\\"
+    }
+
+    private fun translated(p: String): String {
+        return p.split("\\").joinToString("/")
+    }
+
+    private fun lastSep(p: String, from: Int): Int {
+        var last = -1
+        var i = from
+        while ((i < p.length)) {
+            if ((Path.isSep(p, i))) {
+                last = i
+            }
+            i++
+        }
+        return last
+    }
+
+    private fun rootEnd(t: String, k: Int): Int {
+        if ((k == 0)) {
+            return t.length
+        }
+        if ((k == 1)) {
+            return Path.uncRootEnd(t)
+        }
+        if ((k == 2)) {
+            return 3
+        }
+        if ((k == 3)) {
+            return 2
+        }
+        if ((k == 4 || k == 5)) {
+            return 1
+        }
+        if ((k == 6)) {
+            return 2
+        }
+        return 0
+    }
+
+    private fun uncRootEnd(t: String): Int {
+        val n = t.length
+        var i = 2
+        var segment = 0
+        while ((i < n)) {
+            if ((Path.isSep(t, i))) {
+                i++
+                continue
+            }
+            segment++
+            while ((i < n && !Path.isSep(t, i))) {
+                i++
+            }
+            if ((segment >= 2)) {
+                return i
+            }
+        }
+        return n
+    }
+
+    fun join(a: String, b: String): String {
+        val kb = Path.kind(b)
+        if ((kb == 0 || kb == 1 || kb == 2 || kb == 5 || kb == 6)) {
+            return b
+        }
+        if ((a == "")) {
+            return Path.normalize(b)
+        }
+        if ((Path.kind(a) == 0)) {
+            return b
+        }
+        if ((Path.isSep(a, a.length - 1))) {
+            return Path.normalize(a + b)
+        }
+        return Path.normalize(a + "/" + b)
+    }
+
+    fun dirname(p: String): String {
+        if ((p == "")) {
+            return "."
+        }
+        val k = Path.kind(p)
+        if ((k == 0)) {
+            return p
+        }
+        val t = Path.translated(p)
+        val root = Path.rootEnd(t, k)
+        if ((k == 1)) {
+            val end = Path.uncRootEnd(t)
+            if ((t.length == end)) {
+                return t
+            }
+            val dir = Path.cutDirname(t, end)
+            return (if ((dir == "")) run { val _s = t; val _from = 0; val _to = end; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) } else dir)
+        }
+        if ((k == 3)) {
+            if ((Path.lastSep(t, 2) < 0)) {
+                return "."
+            }
+        }
+        if ((k == 4 && t.length == 1)) {
+            return "/"
+        }
+        if ((k == 5 && t.length == 1)) {
+            return "/"
+        }
+        if ((k == 6 && t.length == 2)) {
+            return t
+        }
+        val dir_2 = Path.cutDirname(t, root)
+        if ((k == 2)) {
+            if ((dir_2 == "")) {
+                return run { val _s = t; val _from = 0; val _to = 3; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+            }
+            return dir_2
+        }
+        if ((k == 4 || k == 5)) {
+            if ((dir_2 == "")) {
+                return "/"
+            }
+            return dir_2
+        }
+        if ((k == 6)) {
+            if ((dir_2 == "")) {
+                return "//"
+            }
+            return dir_2
+        }
+        return (if ((dir_2 == "")) "." else dir_2)
+    }
+
+    private fun cutDirname(t: String, root: Int): String {
+        var end = t.length
+        while ((end > root && Path.isSep(t, end - 1))) {
+            end--
+        }
+        if ((end <= root)) {
+            return ""
+        }
+        val last = Path.lastSep(t, root)
+        if ((last < root)) {
+            return ""
+        }
+        if ((last == 0)) {
+            return "/"
+        }
+        return run { val _s = t; val _from = 0; val _to = last; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+    }
+
+    fun normalize(p: String): String {
+        val k = Path.kind(p)
+        if ((k == 0)) {
+            return p
+        }
+        val t = Path.translated(p)
+        if ((k == 3)) {
+            return t
+        }
+        val root = Path.rootEnd(t, k)
+        if ((k == 1 && t.length == root)) {
+            return t
+        }
+        val prefix = run { val _s = t; val _from = 0; val _to = root; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+        val tail = run { val _s = t; val _from = root; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; _s.substring(_start) }
+        if ((k == 2 || k == 4 || k == 5 || k == 6)) {
+            if ((tail == "")) {
+                return prefix
+            }
+        }
+        val kept = mutableListOf<String>()
+        var depth = 0
+        val segments = tail.split("/")
+        var i = 0
+        while ((i < segments.size)) {
+            val segment = segments[i]
+            if ((segment == "" || segment == ".")) {
+                i++
+            } else {
+                if ((segment == "..")) {
+                    if ((depth > 0 && kept[depth - 1] == "..")) {
+                        depth = Path.stackPush(kept, depth, segment)
+                    } else {
+                        if ((depth > 0)) {
+                            depth--
+                        } else {
+                            if ((k == 7)) {
+                                depth = Path.stackPush(kept, depth, segment)
+                            }
+                        }
+                    }
+                    i++
+                } else {
+                    depth = Path.stackPush(kept, depth, segment)
+                    i++
+                }
+            }
+        }
+        if ((k == 1 && depth == 0)) {
+            return prefix
+        }
+        val bodyParts = mutableListOf<String>()
+        var j = 0
+        while ((j < depth)) {
+            bodyParts.add(kept[j])
+            j++
+        }
+        val body = bodyParts.joinToString("/")
+        if ((body == "")) {
+            return (if ((prefix == "")) "." else prefix)
+        }
+        if ((k == 1)) {
+            return prefix + "/" + body
+        }
+        return prefix + body
+    }
+
+    private fun stackPush(kept: MutableList<String>, depth: Int, segment: String): Int {
+        if ((depth < kept.size)) {
+            if (kept.size <= depth) { kept.addAll(java.util.Collections.nCopies<String>(depth + 1 - kept.size, null)) }
+            kept[depth] = segment
+        } else {
+            kept.add(segment)
+        }
+        return depth + 1
+    }
+
+    fun expandHome(p: String): String {
+        if ((p == "~" || p.startsWith("~/") || p.startsWith("~\\"))) {
+            val home = Path.homeDir()
+            if ((home == null)) {
+                return p
+            }
+            if ((home == "")) {
+                return p
+            }
+            if ((p.length == 1)) {
+                return home
+            }
+            val rest = run { val _s = p; val _from = 2; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; _s.substring(_start) }
+            if ((rest == "")) {
+                return home
+            }
+            return home + "/" + Path.normalize(rest)
+        }
+        return p
+    }
+
+    private fun homeDir(): String? {
+        val home = Env.get("HOME")
+        if ((home == null)) {
+            return Env.get("USERPROFILE")
+        }
+        if ((home == "")) {
+            return Env.get("USERPROFILE")
+        }
+        return home
+    }
+}

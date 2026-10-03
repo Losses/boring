@@ -1,0 +1,36 @@
+#![cfg(test)]
+
+use crate::boring::vec_splice_ops::VecSpliceOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn remove_single() {
+    testlib::run("tests.VecSpliceTests.removeSingle", "tests.VecSpliceTests.removeSingle: vecSpliceDrain: remove a single element from the middle", || {
+        let result = VecSpliceOps::vec_splice_ops_remove_single();
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((u32::try_from((result.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(1i32, { let v: u32 = result[0usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(3i32, { let v: u32 = result[1usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn capture_removed() {
+    testlib::run("tests.VecSpliceTests.captureRemoved", "tests.VecSpliceTests.captureRemoved: vecSpliceDrain: capture the removed sub-array", || {
+        let removed = VecSpliceOps::vec_splice_ops_capture_removed();
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((u32::try_from((removed.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(30i32, { let v: u32 = removed[0usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn remove_head() {
+    testlib::run("tests.VecSpliceTests.removeHead", "tests.VecSpliceTests.removeHead: vecSpliceDrain: remove the first n elements", || {
+        let result = VecSpliceOps::vec_splice_ops_remove_head(3);
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((u32::try_from((result.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(4i32, { let v: u32 = result[0usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(5i32, { let v: u32 = result[1usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[]));
+    });
+}

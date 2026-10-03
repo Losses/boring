@@ -1,0 +1,27 @@
+package tests
+
+import boring.MutatingCounterOps
+import boring.runtime.test.Test
+
+class MutatingCounterTests {
+@boring.test.Test
+    fun bumpTwice() {
+        Test.run("tests.MutatingCounterTests.bumpTwice", "tests.MutatingCounterTests.bumpTwice: a mutating interface method forces the mutable receiver on the trait object") {
+                Test.equals(3, MutatingCounterOps.bumpTwice(), null)
+        }
+    }
+
+@boring.test.Test
+    fun readOnly() {
+        Test.run("tests.MutatingCounterTests.readOnly", "tests.MutatingCounterTests.readOnly: a read-only implementation keeps the aggregated mutable trait shape") {
+                Test.equals(0, MutatingCounterOps.readOnly(), null)
+        }
+    }
+
+@boring.test.Test
+    fun concreteBump() {
+        Test.run("tests.MutatingCounterTests.concreteBump", "tests.MutatingCounterTests.concreteBump: a concrete receiver accumulates through a compound field update") {
+                Test.equals(3, MutatingCounterOps.bumpThriceConcrete(), null)
+        }
+    }
+}

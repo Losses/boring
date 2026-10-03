@@ -1,0 +1,75 @@
+===== pos  (harness.log 2622 bytes, pristine 2622)
+-- OLD rc=0
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+-- NEW rc=0
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+===== negA1  (harness.log 2623 bytes, pristine 2622)
+-- OLD rc=0
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+-- NEW rc=1
+INTEGRITY FAIL: content after the end marker (1 byte(s) past the marker line, byte 2622 of 2623)
+===== negA6  (harness.log 2628 bytes, pristine 2622)
+-- OLD rc=0
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+-- NEW rc=1
+INTEGRITY FAIL: content after the end marker (6 byte(s) past the marker line, byte 2622 of 2628)
+===== negA5000  (harness.log 7622 bytes, pristine 2622)
+-- OLD rc=0
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+-- NEW rc=1
+tail: write error: Broken pipe
+INTEGRITY FAIL: content after the end marker (5000 byte(s) past the marker line, byte 2622 of 7622)
+===== negB1  (harness.log 2629 bytes, pristine 2622)
+-- OLD rc=1
+INTEGRITY FAIL: content after the end marker (lines 31..31)
+-- NEW rc=1
+INTEGRITY FAIL: content after the end marker (7 byte(s) past the marker line, byte 2622 of 2629)
+===== negB2  (harness.log 2622 bytes, pristine 2622)
+-- OLD rc=0
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+-- NEW rc=0
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+===== negB3  (harness.log 2622 bytes, pristine 2622)
+-- OLD rc=1
+INTEGRITY FAIL: stage evidence hash changed
+  2d1
+  < 4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  step-737716045.status
+  8a8
+  > 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-737716045.status
+-- NEW rc=1
+INTEGRITY FAIL: stage evidence hash changed
+  2d1
+  < 4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  step-737716045.status
+  8a8
+  > 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-737716045.status
+===== negB4  (harness.log 2622 bytes, pristine 2622)
+-- OLD rc=1
+INTEGRITY FAIL: stage evidence set differs from manifest
+--- manifest only:
+  deleted: step-2119220958.stderr
+--- actual only (unmanifested):
+-- NEW rc=1
+INTEGRITY FAIL: stage evidence set differs from manifest
+--- manifest only:
+  deleted: step-2119220958.stderr
+--- actual only (unmanifested):
+===== negC1  (harness.log 1000 bytes, pristine 2622)
+-- OLD rc=1
+INTEGRITY FAIL: no end marker (unsealed log)
+-- NEW rc=1
+INTEGRITY FAIL: no end marker (unsealed log)
+===== negC2  (harness.log 2556 bytes, pristine 2622)
+-- OLD rc=1
+INTEGRITY FAIL: no end marker (unsealed log)
+-- NEW rc=1
+INTEGRITY FAIL: no end marker (unsealed log)
+===== negD  (harness.log 2726 bytes, pristine 2622)
+-- OLD rc=1
+INTEGRITY FAIL: content after the end marker (lines 32..32)
+-- NEW rc=1
+INTEGRITY FAIL: content after the end marker (13 byte(s) past the marker line, byte 2713 of 2726)
+===== negE  (harness.log 2733 bytes, pristine 2622)
+-- OLD rc=0
+INTEGRITY OK: sealed at line 32, sha 9737cc38aef07d1fc94810225aee49242fde63ca16b07594b8d709c70bb9e775, stage manifest exact
+-- NEW rc=0
+INTEGRITY OK: sealed at line 32, sha 9737cc38aef07d1fc94810225aee49242fde63ca16b07594b8d709c70bb9e775, stage manifest exact

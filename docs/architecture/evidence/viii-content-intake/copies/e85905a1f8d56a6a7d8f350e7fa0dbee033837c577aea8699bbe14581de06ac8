@@ -1,0 +1,56 @@
+use crate::runtime::u_string::UString;
+
+
+pub trait WidgetKind: Send + Sync {
+    fn __haxe_type_name(&self) -> &'static str;
+    fn as_any(&self) -> &dyn std::any::Any;
+    fn clone_box(&self) -> Box<dyn WidgetKind>;
+    fn kind(&self) -> UString;
+}
+
+impl Clone for Box<dyn WidgetKind> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+impl std::fmt::Debug for dyn WidgetKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.__haxe_type_name())
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct WidgetBuilder {
+    pub scale: u32,
+    pub bias: u32,
+}
+
+impl WidgetBuilder {
+    pub fn new(scale: Option<u32>, bias: Option<u32>) -> Self {
+        Self {
+            scale: match &(scale) { None => 1, Some(__option) => *__option },
+            bias: match &(bias) { None => 2, Some(__option1) => *__option1 },
+        }
+    }
+
+    pub fn kind(&self) -> UString {
+        return UString::from("widget").to_ustring();
+    }
+}
+
+impl WidgetKind for WidgetBuilder {
+    fn __haxe_type_name(&self) -> &'static str {
+        "boring.WidgetKind.WidgetBuilder"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn WidgetKind> {
+        Box::new(self.clone())
+    }
+
+    fn kind(&self) -> UString {
+        return UString::from("widget").to_ustring();
+    }
+}

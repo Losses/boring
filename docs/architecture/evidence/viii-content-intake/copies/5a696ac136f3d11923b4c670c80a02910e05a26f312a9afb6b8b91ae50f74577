@@ -1,0 +1,11 @@
+warning: unused variable: `x`
+ --> /dev/fd/63:1:15
+  |
+1 | fn main(){let x=1u32;}
+  |               ^ help: if this is intentional, prefix it with an underscore: `_x`
+  |
+  = note: `-W unused-variables` implied by `-W unused`
+  = help: to override `-W unused` add `#[allow(unused_variables)]`
+
+warning: 1 warning emitted
+

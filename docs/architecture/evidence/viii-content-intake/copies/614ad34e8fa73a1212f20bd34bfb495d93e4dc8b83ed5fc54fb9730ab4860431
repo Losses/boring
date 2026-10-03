@@ -1,0 +1,38 @@
+package registry
+
+import boring.runtime.Process
+import java.nio.file.Files
+import java.nio.file.Paths
+import std.Path
+
+object Main {
+    private fun readTree(root: String, rel: String, out: MutableList<InputRecord>) {
+        val full = (if ((rel == "")) root else Path.join(root, rel))
+        if ((Files.isDirectory(Paths.get(full)))) {
+            val names = Files.newDirectoryStream(Paths.get(full)).use { s -> s.map { it.fileName.toString() }.toMutableList() }
+            for (name in names) {
+                Main.readTree(root, (if ((rel == "")) name else rel + "/" + name), out)
+            }
+        } else {
+            out.add(InputRecord(path = rel, content = Files.readString(Paths.get(full)), inputRecord = 1))
+        }
+    }
+
+    fun main() {
+        val config = Core.parseArgs(Process.args())
+        if ((Files.exists(Paths.get(config.output)) && Files.newDirectoryStream(Paths.get(config.output)).use { s -> s.map { it.fileName.toString() }.toMutableList() }.size > 0)) {
+            throw CoreException.Config("output directory is not empty")
+        }
+        val records = mutableListOf<InputRecord>()
+        if ((!Files.exists(Paths.get(config.tree)))) {
+            throw CoreException.Config(config.tree + ": missing tree")
+        }
+        Main.readTree(config.tree, "", records)
+        val files = Core.generate(records, config)
+        for (file in files) {
+            val p = Path.join(config.output, file.path)
+            Files.createDirectories(Paths.get(Path.dirname(p)))
+            Files.writeString(Paths.get(p), file.content)
+        }
+    }
+}

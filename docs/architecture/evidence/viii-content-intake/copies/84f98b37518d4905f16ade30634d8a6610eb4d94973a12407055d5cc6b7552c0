@@ -1,0 +1,6 @@
+measured-file /tmp/tmleak-gen-pristine/boring/value_exception.rs
+cmd1 (cwd /tmp/tmleak-gen-pristine) sha256sum boring/value_exception.rs
+cmd2 (cwd /tmp/tmleak-gen-pristine) grep -c "ValueExceptionFault" boring/value_exception.rs
+cmd3 (cwd /tmp/tmleak-gen-pristine) grep -c "ExceptionFault" boring/value_exception.rs
+cmd4 (cwd /tmp/tmleak-gen-pristine) grep -n "Fault" boring/value_exception.rs
+cmd5 (cwd /tmp/tmleak-gen-pristine) grep -rn "ValueExceptionFault" .  -- whole gen tree (excl target)

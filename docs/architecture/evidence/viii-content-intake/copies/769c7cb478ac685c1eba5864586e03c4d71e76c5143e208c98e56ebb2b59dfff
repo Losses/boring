@@ -1,0 +1,7 @@
+fixture	swift-rt-probe
+root	/tmp/swiftfix-pre
+e1c6597514634fd347d392709793cc19bd96c9a2
+fa42ce5e0c71c9f5c305c7f8511b78df321840133d63db15cdbca693a60b060a  tests/haxe/swift-rt-probe/probe/Probe.hx
+6e678b292ea14cba388d1de2e9a5b1e00c3d5f2c0143e160344272543e489fdf  tests/haxe/swift-rt-probe/gen/swift.hxml
+021563407040ad4e0dc0dc6aa8494ab0d0f1b2df1a76f5373c4d4b5ceb42f414  tests/haxe/swift-rt-probe/native/native-main.swift
+a68022103c1e6f8b38b02b4620f4f39b2c090a63f094b1fe5efe283c0f2be5e7  tests/haxe/swift-rt-probe/expected.txt

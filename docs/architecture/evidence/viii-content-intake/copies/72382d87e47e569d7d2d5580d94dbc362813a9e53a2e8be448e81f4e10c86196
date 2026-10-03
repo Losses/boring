@@ -1,0 +1,332 @@
+# Cross-check of `dc-warn/out/p1-scoped-run/REPORT.md`
+
+Date: 2026-09-30. Cross-checker output dir: `dc-warn/out/p1-run-xcheck/`.
+Subject: the scoped bun run of the 13 `tests/ts/*.test.ts` files in `COMPOSITE.diff` (P1),
+P1-only vs P1+compiler-fixes (P2), plus its four findings.
+
+## 0. Method, and what this cross-check did NOT do
+
+**Not run:** no `bun test`, no `haxe` invocation, by this cross-check. The scoped suite
+(~12 min) was not repeated, per instruction. **Every statement below is either (a) read
+directly from the repository/copies/diff sources — marked *verified in source* — or (b) read
+from the run's retained logs and artifact files — marked *log states*.** Where a conclusion
+rests on the author's two runs rather than on my own execution, it says so.
+
+Read-only outside this output dir. Nothing in `boring-wt-architecture/`, `dc-warn/out/`, or
+`/tmp/p1run/` was modified. Scratch work (patch replay, the two mapping scripts) is under
+`evidence/scratch/` and `evidence/*.py`.
+
+Useful fidelity result first (*verified in source*): as of this cross-check the repository
+working tree still matches the snapshot the run used — `git status --porcelain` shows 21
+entries, and every one of those files is byte-identical to its `/tmp/p1run/base` counterpart;
+the 13 test files are byte-identical to `base`; `SwiftExpr.hx` md5 is
+`00f4fba363b9887ec62899579e9d28b9` in repo, `base` and `cfg-a`, `c59680ad…` in `cfg-b`. So the
+retained copies are a faithful stand-in for the current tree, which makes the source reading
+below decisive rather than stale.
+
+I also reproduced the two configurations from scratch (*verified in source*):
+`base + COMPOSITE.diff` == `/tmp/p1run/cfg-a` for all 53 `tests/ts/*.test.ts` files, and
+`base + INTEGRATION.diff` reproduces `cfg-b`'s `SwiftExpr.hx` md5-for-md5. The run's claim
+that P1 applies cleanly (exit 0, no rejects) therefore holds independently.
+
+## 1. Verdict table
+
+| # | Finding | Verdict | One-line basis |
+|---|---|---|---|
+| 1 | Pre-existing red at `array-root.test.ts:18`, unrelated to the patch, red at HEAD | **CONFIRMED** | Expected substring is absent from the committed Swift file; test aborts at L18 before L28; patch's only array-root hunk is at L28; both files unmodified vs HEAD. One explanatory sentence in §5 is imprecise. |
+| 2 | The nine other failures are environment timeouts, not patch problems | **CONFIRMED (substance) / IMPRECISE (support)** | All nine show `timed out after Nms` with budgets matching the test source; measured 21.80–28.90 s/run. But value-type was *not* killed (it completed at 351 s), printed-record is 8 runs not 4, and §3's "only assertion failure in the whole run" contradicts §2. |
+| 3 | Zero test flips, byte-identical outcome sets | **CONFIRMED as a reading of the retained logs** (not independently reproduced) | Outcome files are byte-identical (md5 `19184b12…`); I re-derived them from the raw logs and got the same 69 lines; whole-log timing-stripped diff shows no outcome difference. Rests on the author's two runs. |
+| 4 | The run cannot show the compiler fixes are needed; result level vs code-path level | **SOUND core / IMPRECISE mechanism** | The two-level distinction is made explicitly and the conclusion follows. But "coupled runs are killed by timeout in both configurations" is falsified for value-type; "masked coupling" overstates what the evidence shows. |
+
+## 2. Finding 1 — the pre-existing array-root red: CONFIRMED
+
+*Verified in source.* The test (`tests/ts/array-root.test.ts`, unmodified vs HEAD, md5
+`e594de0bd65809c4d70f2663823f65a9`):
+
+```
+L18:    expect(read("reference/swift/gen/boring/ArrayRootStateOps.swift")).toContain(
+L19:      "static let readOnlyInts: [Int32] = Array(TiqianArray([10, 20, 30]))",
+L20:    );
+```
+
+The committed reference (`reference/swift/gen/boring/ArrayRootStateOps.swift`, unmodified vs
+HEAD, md5 `1de81f1650646f53e35cf58e64833d23`):
+
+```
+L4:     public static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))
+```
+
+The expected substring is absent: `grep -Fc` returns `0`, and a direct string containment
+check returns `False`. `ReadOnlyArray<Int32>` cannot contain the literal `[Int32]`, and the
+committed line is not the old `Array(TiqianArray([...]))` form. The report quotes the actual
+`Received:` value verbatim and it matches L4 character-for-character, including
+`ReadOnlyArray(TiqianArray<Int32>(...))`.
+
+**Failure order confirmed.** `control-base-array-root.log:16` records
+`at <anonymous> (/tmp/p1run/base/tests/ts/array-root.test.ts:18:72)` — the first failing
+assertion is L18, so L25–L30 (the Rust block) are never evaluated. The control ran the
+**unpatched** `base` copy (path in the log confirms it), and the earlier assertions L10–L16
+(TS, Kotlin) passed first, so L18 really is the first red. This is *log states*, but
+consistent with the source I read.
+
+**The patch does not touch that line.** *Verified in source*: the only array-root hunk in
+`COMPOSITE.diff` is
+
+```
+@@ -25,7 +25,7 @@
+-    expect(rust).toContain("LazyLock<Vec<String>>");
++    expect(rust).toContain("LazyLock<Vec<UString>>");
+```
+
+i.e. changed file-line 28, not 18. The report's statement is exact on this point.
+
+**Configuration-independence confirmed.** *Verified in source*:
+`git diff --stat HEAD -- tests/ts/array-root.test.ts reference/swift/gen/boring/ArrayRootStateOps.swift`
+is empty at HEAD `0a5c42a702d938ca4da39cbcefae2cc450e021fe`, and neither file appears in the
+21 uncommitted entries, so the L18/L4 mismatch exists at HEAD and under every patch
+combination. *Verified in source* additionally: the committed Rust reference does contain
+`LazyLock<Vec<UString>>` (`array_root_state_ops.rs:9`) and not the old `<String>` form, so
+P1's L28 change would pass **if reached** — and the run is right that it is not reached.
+
+**One imprecision in the report's explanation.** §5 ends "The prior report's substring
+spot-checks covered only the lines P1 *changes*, which is how this one was missed." The
+earlier report in fact *did* spot-check this very file's P1 line (`patch-independence/REPORT.md`
+§4: "`array_root_state_ops.rs` has `LazyLock<Vec<UString>>`, old absent"). The real cause of
+the miss is that the earlier check only ever compared *P1's changed lines* against the
+reference and **never executed the test**, so a red on an unchanged line ahead of the changed
+one was invisible. The substance of the finding is unaffected; the diagnosis is off by one
+step.
+
+## 3. Finding 2 — nine environment timeouts: CONFIRMED in substance, IMPRECISE in support
+
+*Verified in source* (budgets) and *log states* (observations).
+
+Every non-assertion failure in `cfg-a-bun.log` and `cfg-b-bun.log` is reported as
+`^ this test timed out after Nms`, and each N matches the third argument (or its absence) in
+the test source:
+
+| failing test | log | source |
+|---|---|---|
+| `small array initializer mutation rules retain all three diagnostics` (array-root) | 5000 ms | `array-root.test.ts:64` test, no third arg → bun default |
+| `a capturing static initializer reports the ruled Rust error` (fn-values) | 5000 ms | `fn-values.test.ts:90`, no third arg |
+| `@:sealed on a class reports the interface-only error` (sealed) | 5000 ms | `sealed-variants.test.ts:101`, no third arg |
+| `self-construction with arguments keeps the static initializer error` (sealed) | 5000 ms | `sealed-variants.test.ts:147`, no third arg |
+| `the sanctioned self-construction static uses each target lane` (sealed) | 15000 ms | `sealed-variants.test.ts:212` `}, 15000);` |
+| `static initializer mutation is rejected with the sanctioned error` (static-state) | 15000 ms | `static-state.test.ts:66` `}, 15000);` |
+| `marker and explicit-member mutations affect the four emitted members` (printed-record) | 120000 ms | `printed-record.test.ts:226` `}, 120_000);` |
+| `nullable operands are rejected on every target` (std-string) | 120000 ms | `std-string.test.ts:98` `}, 120000);` |
+| `rejects each invalid marker shape with the ruled error on every target` (value-type) | 120000 ms | `value-type.test.ts:149` `}, 120_000);` |
+
+**Measured per-run cost: confirmed.** From the run's own logs, passing tests that spawn exactly
+one haxe subprocess: `cfg-a` 23440.59 / 23511.59 / 28899.50 ms; `cfg-b` 22852.57 / 21802.59 /
+27725.47 ms → **21.80–28.90 s**, exactly the range the report states. So the nine timed-out
+tests each need between one and fifteen ~23 s subprocesses against 5/15/120 s budgets. The
+attribution is arithmetically sound.
+
+**"Not a mismatch of a patch-changed expectation": confirmed as far as it was observed.** An
+assertion that completed and failed would surface as an AssertionError (or, for an abandoned
+body, as one of the `# Unhandled error between tests` blocks); all nine instead carry the
+timeout marker. Apart from the array-root pre-existing red, the only two assertion errors in
+the whole run are the sealed-variants unhandled rejections at `sealed-variants.test.ts:141` and
+`:189`, where `Received: ""` — the
+signature of a killed subprocess, not of a wrong expectation — and neither expectation line is
+touched by P1 (P1's only sealed-variants change is L245). *Verified in source*: those are the
+only assertion-error sites in both logs.
+
+**Three supporting imprecisions, none of which changes the attribution:**
+
+1. **value-type was not "killed".** Its failing test (`value-type.test.ts:132-149`) is
+   reported at **351144.87 ms** against a 120000 ms budget, and its helper uses
+   `Bun.spawnSync` (`value-type.test.ts:75`), which blocks the event loop so bun's timer
+   cannot preempt it. 351 s ≈ 15 runs × ~23 s, and the test's `mkdtemp` dir
+   (`.value-type-mutation-*`, L133) is absent from both copies — its `finally` rmSync (L147)
+   ran. *Verified in source + on disk.* So value-type ran **to completion** in both
+   configurations and merely carries a timeout verdict; §7/§8.2's "killed tail … value-type
+   swift runs" is wrong for this test.
+2. **printed-record is 8 haxe runs, not 4** (4 targets × 2 variants, `printed-record.test.ts:211-222`);
+   the budget arithmetic is nonetheless fatal (≥174 s > 120 s). The run's own leftover-dir
+   evidence shows it died in the dart explicit-member run.
+3. **§3's "the 9th (array-root, §5) is the only assertion failure in the whole run" contradicts
+   §2**, which correctly calls the two sealed-variants unhandled blocks "assertion rejections".
+   Literally there are three assertion-error sites (array-root:18 plus sealed-variants:141 and
+   :189); only one is a *failed test* by assertion. The count 10 fail / 2 errors is right; the
+   sentence is not.
+
+## 4. Finding 3 — "zero test flips": CONFIRMED as a reading of the retained logs
+
+*Log states, independently re-derived; not reproduced by me.*
+
+- `diff cfg-a-outcomes-no-timing.txt cfg-b-outcomes-no-timing.txt` → empty; both files md5
+  `19184b128f08a5b427b5b309ea7c1f1d`.
+- I re-derived the outcome list from the raw logs myself
+  (`grep -E '^\(pass\)|^\(fail\)' cfg-{a,b}-bun.log | sed 's/ \[[0-9.]+ms\]$//'`): 69 lines
+  each, byte-identical between configurations, and byte-identical to the author's derived
+  files. The derived evidence is therefore faithful to the raw logs, not a hand-written summary.
+- Whole-log comparison with timings replaced by a token leaves only (i) which line bun attaches
+  a timing to (a bun reporting quirk — the timing tag moves between the first reported test of
+  a file) and (ii) `/tmp/p1run/cfg-a` vs `/tmp/p1run/cfg-b` absolute paths. No outcome differs.
+- Same 49 pass / 10 fail / 2 errors / 4415 expect() calls summary, same per-file tallies, same
+  two unhandled-error source lines in both logs.
+
+**Dependency on a run I am not repeating:** the claim is a statement about *these two bun
+processes*, which I did not re-run. It is confirmed as an accurate description of the retained
+artifacts; it is not confirmed as a reproducible property of the tree (a re-run under different
+load could plausibly move a marginal test, e.g. std-string's five-run loop, across a budget).
+The author's framing of it — "no test flipped between the two configurations" — is the correct
+strength.
+
+## 5. Finding 4 — the coupling reasoning: sound core, imprecise mechanism
+
+The report's §7 has exactly the right two-level structure, and its §7 net sentence correctly
+refuses the inference from "no flip" to "the fixes are unneeded". Assessed part by part:
+
+**Code-path premise: verified.** *Verified in source*: `cfg-a`/`base`/repo
+`SwiftExpr.hx:2609` is `return fail(inner, "array boundary has no prepared storage decision");`
+and `fail()` is `Context.error("swift target: " + message, pos)` (L6995–6999), i.e. an aborting
+error, consistent with the preflight message in `preflight-cfg-a.log`. `destinationValueText`
+occurs 0 times in `cfg-a` and 5 times in `cfg-b` (whose L2609 is different code), and I
+reproduced `cfg-b`'s compiler file md5 from `INTEGRATION.diff` independently. The four
+swift-spawning tests are also correctly identified (*verified in source*:
+`printed-record.test.ts:66`, `sealed-variants.test.ts:31`, `value-type.test.ts:27`,
+`std-string.test.ts:89` spawning `haxe examples/${target}.hxml` with `target === "swift"`).
+The preflight's *exit codes* (1 / 0) are **log states**; I did not re-run haxe.
+
+**The "masked coupling" characterisation is where it overreaches.** The evidence the report
+itself collects shows the fix is not on these probes' executed paths *for these inputs*, not
+that it is there but hidden:
+
+- *Verified on disk (disk state left by the author's runs)*: `/tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8`
+  vs `/tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP` differ **only in the six `.hxml` files**,
+  and only because those embed each copy's absolute paths. Every generated source output is
+  byte-identical, e.g. `removed-marker/swift/boring/PrintedRecord.swift` md5
+  `271b096cd50eba60a214c5f19913dfa2` in both, `removed-marker/swift/Package.swift` md5
+  `1d88db3b2f0b2a8b1bc6cbee8975aa29` in both. P2 changes nothing this probe emits.
+- value-type's 15 runs completed in the P1-only tree with the ruled marker diagnostic
+  (see §3 above), i.e. the `SwiftExpr.hx:2609` `fail()` did not fire for those inputs either.
+
+So the accurate formulation is **"latent coupling on a shared code path, not exercised by
+these inputs"**, rather than "real but masked coupling exists". The distinction matters
+because "masked" implies the dependency is present but unobservable, whereas for at least
+printed-record and value-type it is demonstrably absent at the result level.
+
+**The mechanism offered for the masking is not uniform.** "The tests' 5s/15s/120s budgets are
+smaller than this environment's measured ~23 s-per-haxe-run cost, so the coupled runs are
+killed by timeout in both configurations" is falsified for value-type (completed, 351 s) and is
+marginal for std-string (5 runs × 21.80 s = 109 s < 120 s could fit). For those two, the
+no-flip observations are *positive* evidence of no result-level dependency, not budget-masked
+silence. For the 5 s/15 s tests the mechanism holds (≥109 s of needed work against a 15 s cap).
+
+**Does it distinguish result level from code-path level?** Yes — §7's two bullets are exactly
+that distinction, and the closing sentence draws the right non-inference. The failure is one of
+wording and of one over-general mechanism, not of the logical structure. *Verified in source*
+that the original reminder's premises are real: P1-only Swift generation does abort at the
+documented site for the readonly-boundary input, and the budgets really are at or below this
+environment's per-run cost — the report is right that this scope cannot demonstrate need.
+
+## 6. Decision-relevant answer: what does this run license?
+
+**It licenses (all four rest on my own source verification unless marked):**
+
+1. **Mechanical:** P1 applies cleanly to this snapshot — reproduced independently
+   (`base + COMPOSITE.diff` == `cfg-a` for all 53 test files; `INTEGRATION.diff` reproduces
+   `cfg-b`'s compiler file). *Verified in source.*
+2. **Expectation consistency for what was executed:** of P1's 57 added lines, **51 lie inside
+   test bodies that passed** and **4 more** are module-scope table entries consumed by passing
+   tests (`printed-record.test.ts:46,51` via the L174 test; `record-order.test.ts:45,46`). So
+   **55 of 57** added expectations are exercised-and-passing in this environment. *Verified in
+   source* by mapping each added line to its enclosing test and that test's outcome.
+3. **No new red attributable to P1 in these 13 files:** every failure is either the
+   pre-existing `array-root.test.ts:18` red (present at HEAD, untouched by either patch) or a
+   budget/timeout failure. Nothing observed is a P1 expectation mismatching committed output.
+4. **Configurations don't differ at the result level here:** P1-only and P1+P2 produced the same
+   49/10/2 outcome set with zero flips. *Log states, re-derived, not re-run.*
+
+**It does not license:**
+
+1. **"The 13 files are green."** They are not: 49 pass / 10 fail / 2 errors, exit code 1, in
+   both configurations. Whatever P1's consistency is, the scoped suite is red.
+2. **That all of P1's changes are covered.** Exactly **two** of the 57 added lines sit in
+   unobservable regions, and the report owns only one of them:
+   - `array-root.test.ts:28` — acknowledged (§5, §8.3); the test aborts at L18.
+   - **`printed-record.test.ts:88` — not acknowledged.** The added
+     `signature: "pub fn to_string(&self) -> UString"` for the rust entry of `mutationTargets`
+     is consumed only at `printed-record.test.ts:211`, inside the test that timed out; the run
+     was killed during the dart iteration (its leftover dir has no `*-rust.hxml`), so the rust
+     iteration never began. §5's "Every other P1-updated expectation *was* exercised and
+     passes in both configs (… printed-record member test …)" is therefore **wrong as written**:
+     only the two `memberTrees` additions (L46, L51) are covered by the passing member test;
+     the third printed-record addition is not covered at all.
+3. **That the unreached tails of the eight genuinely-killed tests pass.** The run establishes
+   "no completed assertion failed", not "the remaining assertions pass". (For value-type alone
+   the body completed, so its assertions are covered.)
+4. **That P2 is unnecessary in general, or that P1 and P2 are code-independent.** It shows no
+   result-level difference for these inputs, under a toolchain where the Swift failure mode is
+   masked by input selection and budgets. §7's own net sentence says this correctly.
+5. **Anything about correctness of generated code.** The tests are string/regex containment
+   against committed `reference/**` files; no `swiftc`, no `cargo`, no execution. §6 states
+   this, and it is right.
+
+## 7. Is the author's framing ("CONSISTENCY, not correctness; green ≠ correct") right?
+
+**Right in its core, slightly too strong on coverage, and mis-worded in one place.**
+
+- The disclaimer about correctness is correct and is the most important sentence in the report:
+  containment tests plus no downstream compiler means a green result could only ever be
+  expectation-consistency, and the run nowhere claims more.
+- **"green"** is inapposite: the run is not green (49/59, exit 1), so "green ≠ correct" answers
+  a question nobody should be asking about this result. The honest formulation is narrower:
+  *"no new red among the assertions that completed, plus a reproduced structural isolation
+  check (P1 applies cleanly; P2 removes the `SwiftExpr.hx:2609` abort for its probe)"*.
+- The one place the framing drifts toward overclaiming is §5's blanket "every other P1-updated
+  expectation was exercised and passes" — falsified by `printed-record.test.ts:88`. With that
+  line corrected, the framing is if anything *too modest*: the run does license a usable,
+  narrow engineering claim (P1's expectations are consistent with committed output for 55/57
+  lines; P1 introduces no new red; P2 changes nothing these 13 files observe), which is enough
+  to land P1 as a test-expectation catch-up while the two uncovered lines and the pre-existing
+  red are tracked separately — but not enough to call the suite healthy.
+
+## 8. Not verified (with blockers)
+
+1. **Any re-execution.** No bun/haxe run by this cross-check. Blocker: explicit instruction not
+   to repeat the scoped suite (cost + shared-tree contention). Everything about pass/fail
+   *outcomes* is therefore "the log states", including findings 2 and 3.
+2. **Preflight exit codes (1 / 0) and the `haxe tests/swift-readonly-boundary` run itself.**
+   Blocker: would require invoking haxe in `/tmp/p1run/cfg-a`, modifying the author's retained
+   copies; not done. The *message* and the *site* are verified in source; the exit codes are
+   log-stated.
+3. **Whether the committed `ReadOnlyArray` reference form was produced by the coordination
+   tree's uncommitted compiler edits.** Same as the run's §8.5 — observed, not established.
+4. **Full-suite and other-target consistency.** Out of scope by instruction.
+5. **The exact earlier tree state.** The run's §1 says the copies inherit "25 pre-existing
+   uncommitted entries"; `git status --porcelain` now shows **21**, and `base` matches the
+   current tree for those files. Immaterial to all four findings, but the "25" does not
+   reproduce today (other agents share this tree).
+
+## 9. Bottom line
+
+All four findings survive with corrections. Finding 1 is exactly right and is the run's real
+contribution: a genuine pre-existing, configuration-independent red that the earlier
+substring-only check could not see, correctly scoped as untouched by P1 and blocking P1's own
+array-root Rust assertion. Finding 2's attribution is right, though one of its nine timeouts
+(value-type) actually completed and one budget count (printed-record) is off by a factor of
+two. Finding 3 is an accurate reading of the retained logs, not a re-run. Finding 4's
+two-level logic is sound and its conclusion — this scope cannot demonstrate that the compiler
+fixes are needed — follows; but its "masked coupling" wording and its "killed in both
+configurations" mechanism outrun the evidence in the same direction that makes the no-flip
+result *stronger*, not weaker.
+
+The record should carry two corrections: **`printed-record.test.ts:88` is a third
+unexercised P1 expectation** (56/57 covered, not "every other"), and **value-type's coupled
+runs completed rather than being killed**. Neither correction creates a correctness claim the
+run did not already refuse.
+
+## 10. Evidence index (`evidence/`)
+
+- `verification-log.txt` — every check performed, with the command and the result
+- `quotes.txt` — the exact file:line quotes used above
+- `added-line-map.txt`, `added_line_map.py` — all 57 P1 added lines → enclosing test → outcome
+- `hunk-test-map.txt`, `hunk_test_map.py` — hunk → test mapping, with changed lines printed
+- `x-derived-cfg-{a,b}.txt`, `x-author-cfg-a-outcomes.txt` — independently re-derived outcome sets
+- `x-timingstripped-cfg-{a,b}.log` — whole logs with timings replaced, to show the only diffs
+- `scratch/prepatch/` — `base` tests + `COMPOSITE.diff` applied, used for the byte comparison
+- `scratch/p2/` — `base` `SwiftExpr.hx` + `INTEGRATION.diff` applied (md5 `c59680ad…`)

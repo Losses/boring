@@ -1,0 +1,4 @@
+package dcsenum
+
+class KindHolder(var state: Kind) {
+}

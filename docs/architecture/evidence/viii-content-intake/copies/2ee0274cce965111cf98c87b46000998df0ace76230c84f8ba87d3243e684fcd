@@ -1,0 +1,7 @@
+<unknown>:0: warning: libc not found for 'x86_64-unknown-linux-gnu'; C stdlib may be unavailable
+<unknown>:0: warning: libc not found for 'x86_64-unknown-linux-gnu'; C stdlib may be unavailable
+<unknown>:0: warning: libc not found for 'x86_64-unknown-linux-gnu'; C stdlib may be unavailable
+<unknown>:0: warning: libc not found for 'x86_64-unknown-linux-gnu'; C stdlib may be unavailable
+error: link command failed with exit code 1 (use -v to see invocation)
+Scrt1.o:function _start:(.text+0x1b): error: undefined reference to 'main'
+clang: error: linker command failed with exit code 1 (use -v to see invocation)

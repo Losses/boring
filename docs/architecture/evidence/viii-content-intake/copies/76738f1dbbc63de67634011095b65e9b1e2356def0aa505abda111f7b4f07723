@@ -1,0 +1,1 @@
+package shell requires a relative runtime import: a by-name runtime import names a package the manifest cannot declare; pass runtime-import a relative specifier or package-shell none

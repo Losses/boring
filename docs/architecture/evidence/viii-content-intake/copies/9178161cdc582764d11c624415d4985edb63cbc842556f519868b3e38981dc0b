@@ -1,0 +1,13 @@
+package tests
+
+import boring.DataClassRangeEqOps
+import boring.runtime.test.Test
+
+class DataClassRangeEqTests {
+@boring.test.Test
+    fun testDataClassRangeEq() {
+        Test.run("tests.DataClassRangeEqTests.testDataClassRangeEq", "tests.DataClassRangeEqTests.testDataClassRangeEq: DataClass with TextRange field supports == comparison") {
+                Test.equals(true, DataClassRangeEqOps.rangesEqual(), "struct with TextRange field compares with ==")
+        }
+    }
+}

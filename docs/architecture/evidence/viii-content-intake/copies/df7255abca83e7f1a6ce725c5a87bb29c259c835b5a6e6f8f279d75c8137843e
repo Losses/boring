@@ -1,0 +1,140 @@
+# REPORT — try-tail 夹具 swift 腿同型 glob 修复（TCN-71；PIT-242 同型）
+
+日期 2026-09-30（本地 18:2x）。任务：`tests/haxe/try-tail/run-stages.sh` 的 **swift 腿**仍用只扫子目录的旧式 glob 组编译集，`Runtime.swift` 生成在**生成树根**、结构性落在 glob 之外，使该腿对 +6 `SwiftDecl` 补丁无判别力（异模型审阅记 TCN-71）。只改 `tests/haxe/try-tail/`；未 commit/push/merge。
+
+## 0. 两态身份（同一条夹具命令，唯一变量 = 编译树）
+
+| | post | pre |
+|---|---|---|
+| 树 | `boring-wt-architecture`（协调树工作字节） | `ttsfix-pre`（`git worktree add --detach … e1c65975`） |
+| git rev | `e1c65975` + 6 个已集成 `.hx` 未提交 | `e1c65975`（tracked 洁净） |
+| `SwiftDecl.hx` | `0210d207…`（含 +6） | `ac657b29…`（无 +6） |
+| 夹具 `run-stages.sh` | `95e9f623…` | **同字节** `95e9f623…` |
+| 生成树 | 6 文件（含树根 `Runtime.swift`） | 5 文件（**无** `Runtime.swift`） |
+
+pre 树是干净 worktree，自身没有 `tests/haxe/try-tail/`（协调树里该目录未跟踪），故夹具目录从协调树**原样复制**：`diff -r` = IDENTICAL-TREE（14/14 文件字节相同，`FILES.sha256` 在档）。两侧都跑**同一条夹具命令**、同一 nix develop 环境、同一 argv 构造。
+
+## 1. 缺陷与修法
+
+原 swift 腿（**raw 分支 119 行、wrapper 分支 121 行各一处**，两处同型）组编译集为
+`$(find std trytail -name '*.swift')`——只扫两个子目录。`BoringException` 只定义在生成树**根**的 `Runtime.swift`，而 +6 补丁（`imports.runtime("BoringException")`）正是决定这个文件**发不发射**的那 6 行。于是 pre/post 用旧写法编译得到**同构读数**：这条腿实际断言的是"`Runtime.swift` 在不在 argv 里"，与补丁无关。
+
+**修法（与已复审通过的 `swift-rt-probe`/`swift-rt-plain` 同型）**：编译集改全生成树 glob
+
+```
+find "$AGEN" -name '*.swift' ! -name native-main.swift ! -name Package.swift | sort | tr '\n' ' '
+```
+
+三处伴随改动（都只为让证据可核，不改断言语义）：
+
+1. glob 在**外层 shell 求值**后再作为实参进 `bash -c`，因此每个 stage 的 `argv` 归档记录的是**真实文件列表**——旧写法归档的是未求值的 `$(find std trytail …)`（PIT-242 教训之一：argv 不可核）。
+2. 新增只读归档 `stages/compile-swift/tree-root.txt`（`runtime-swift-present yes|no`）与 `sources.txt`（逐行编译集）。
+3. raw/wrapper 两分支**同型修改**（当前环境下实际执行的是 raw 分支；见 §5.1）。
+
+**未改**：`[ $? != 0 ]`、`not_reached`、`run-swift`、`compare-swift` 及 diff 逻辑全部原样——该腿仍是 gen → compile → run → 与 `expected.txt` 比对。ts/kotlin/rust/dart 四条腿未动。
+
+## 2. 判别性（核心）：同一条夹具命令，pre/post 读数不同
+
+`EV=<交付目录>/{pre,post}`，`bash tests/haxe/try-tail/run-stages.sh swift`。
+
+| 项 | pre (`ac657b29`) | post (`0210d207`) |
+|---|---|---|
+| cwd | `/home/losses/Development/tq-workspace/ttsfix-pre` | `/home/losses/Development/tq-workspace/boring-wt-architecture` |
+| `Runtime.swift` 在生成树 | **no** | **yes** |
+| 编译集源文件数 | 3（`std/UStringException.swift`、`std/UStringFault.swift`、`trytail/TryTailOracle.swift`） | **4**（+ 树根 `Runtime.swift`） |
+| `compile-swift` 数字退出码 | **1** | **0** |
+| error 诊断数（`^<abs>:<l>:<c>: error:`） | **2** | **0** |
+| 其中 `cannot find type 'BoringException'` 行 | **2**（1 诊断 + 1 caret note） | **0** |
+| 其中 `'super' cannot be used in class` 行 | **2**（1 诊断 + 1 caret note） | **0** |
+| compile stdout / stderr 字节 | 0 / 966 | 0 / 2248（**0 error**；5×`libc not found` + 6×`will never be executed` 警告） |
+| `run-swift` | **not-reached**（生产者 compile 阻塞） | **0**，12 行 |
+| `compare-swift`（vs `expected.txt`） | not-reached | **0（diff 空，12/12 一致）** |
+
+pre 侧 stderr 典型诊断（`pre/stages/compile-swift/stderr` 原文）：
+
+```
+std/UStringException.swift:3:32: error: cannot find type 'BoringException' in scope
+ 3 | public class UStringException: BoringException {
+std/UStringException.swift:8:9: error: 'super' cannot be used in class 'UStringException' because it has no superclass
+ 8 |         super.init(message: UStringException.describe(fault))
+```
+
+### 2.1 argv 并列（全文，未删节；各 stage 的 `argv` 同时归档 cwd + `%q` 转义 argv + 分离 stdout/stderr + 数字 status）
+
+**pre**：
+```
+cwd /home/losses/Development/tq-workspace/ttsfix-pre
+argv bash -c cd\ out/try-tail/gen/swift\ \&\&\ cp\ /home/losses/Development/tq-workspace/ttsfix-pre/tests/haxe/try-tail/native/native-main.swift\ native-main.swift\ \&\&\ sha256sum\ native-main.swift\ \>harness.sha256\ \&\&\ cd\ /home/losses/Development/tq-workspace/dc-warn/out/try-tail-swift-fix/pre/swift-shim\ \&\&\ LD_LIBRARY_PATH=\'/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/usr/lib64:/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/lib64:/usr/lib64:/usr/lib\'\ timeout\ 1800\ /nix/store/j1bfa7mw323wmp6pfrn1qkchxv61wk2n-swift-toolchain-6.2.4-al2/usr/bin/swiftc\ -o\ /home/losses/Development/tq-workspace/ttsfix-pre/out/try-tail/gen/swift/run-bin\ /home/losses/Development/tq-workspace/ttsfix-pre/out/try-tail/gen/swift/std/UStringException.swift\ /home/losses/Development/tq-workspace/ttsfix-pre/out/try-tail/gen/swift/std/UStringFault.swift\ /home/losses/Development/tq-workspace/ttsfix-pre/out/try-tail/gen/swift/trytail/TryTailOracle.swift\ \ /home/losses/Development/tq-workspace/ttsfix-pre/out/try-tail/gen/swift/native-main.swift\ -Xcc\ -I/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/usr/include\ -L/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/usr/lib64\ -L/nix/store/7sh9061yj9yl20ndc00rqw4d0bd80m1j-gcc-15.3.0/lib/gcc/x86_64-unknown-linux-gnu/15.3.0\ -L/nix/store/r48746qznwqxxl9qzd8f08ny8mg1dg2y-gcc-15.3.0-lib/lib\ -L/nix/store/0d8g8n0a11v6f5m2h416ajyxmnkwc3md-glibc-2.42-67/lib
+
+```
+
+**post**：
+```
+cwd /home/losses/Development/tq-workspace/boring-wt-architecture
+argv bash -c cd\ out/try-tail/gen/swift\ \&\&\ cp\ /home/losses/Development/tq-workspace/boring-wt-architecture/tests/haxe/try-tail/native/native-main.swift\ native-main.swift\ \&\&\ sha256sum\ native-main.swift\ \>harness.sha256\ \&\&\ cd\ /home/losses/Development/tq-workspace/dc-warn/out/try-tail-swift-fix/post/swift-shim\ \&\&\ LD_LIBRARY_PATH=\'/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/usr/lib64:/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/lib64:/usr/lib64:/usr/lib\'\ timeout\ 1800\ /nix/store/j1bfa7mw323wmp6pfrn1qkchxv61wk2n-swift-toolchain-6.2.4-al2/usr/bin/swiftc\ -o\ /home/losses/Development/tq-workspace/boring-wt-architecture/out/try-tail/gen/swift/run-bin\ /home/losses/Development/tq-workspace/boring-wt-architecture/out/try-tail/gen/swift/Runtime.swift\ /home/losses/Development/tq-workspace/boring-wt-architecture/out/try-tail/gen/swift/std/UStringException.swift\ /home/losses/Development/tq-workspace/boring-wt-architecture/out/try-tail/gen/swift/std/UStringFault.swift\ /home/losses/Development/tq-workspace/boring-wt-architecture/out/try-tail/gen/swift/trytail/TryTailOracle.swift\ \ /home/losses/Development/tq-workspace/boring-wt-architecture/out/try-tail/gen/swift/native-main.swift\ -Xcc\ -I/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/usr/include\ -L/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/usr/lib64\ -L/nix/store/7sh9061yj9yl20ndc00rqw4d0bd80m1j-gcc-15.3.0/lib/gcc/x86_64-unknown-linux-gnu/15.3.0\ -L/nix/store/r48746qznwqxxl9qzd8f08ny8mg1dg2y-gcc-15.3.0-lib/lib\ -L/nix/store/0d8g8n0a11v6f5m2h416ajyxmnkwc3md-glibc-2.42-67/lib
+
+```
+
+两态 argv 的命令**形式逐字相同**（同一夹具字节、同一 `swiftc` 绝对路径、同一 `-Xcc/-L`/`LD_LIBRARY_PATH`、同一 `-o <gen>/run-bin`、同一 "先 `cd $GEN` 复制 harness、再 `cd <EV>/swift-shim` 编译" 结构）；差异只有三处、且全部是"哪棵树/哪个证据目录"与**源文件集合**：① 树根路径（`ttsfix-pre` vs `boring-wt-architecture`）；② EV shim 目录（`…/pre/swift-shim` vs `…/post/swift-shim`，仅为 crt 对象的 CWD 相对解析）；③ **pre 的源列表没有 `…/gen/swift/Runtime.swift`，post 有**——第 ③ 项就是判别项，且它由 glob 自动产生（旧写法两侧都自动缺失）。
+
+### 2.2 2×2 对照：旧写法 vs 新写法 × pre vs post
+
+用**同一棵树、同一环境**、只把 swift 编译集块换回旧写法的对照脚本（`oldglob/control-run-stages.sh`，sha 与改动前协调树字节 `4c16c218…` 逐字节相同）重跑：
+
+| 树 | 编译集写法 | `compile-swift` | error 诊断 | `BoringException` 行 | `super` 行 | run | compare |
+|---|---|---|---|---|---|---|---|
+| pre | **旧**（`find std trytail`） | 1 | 2 | 2 | 2 | not-reached | not-reached |
+| post | **旧** | 1 | 2 | 2 | 2 | not-reached | not-reached |
+| pre | **新**（全树 glob） | 1 | 2 | 2 | 2 | not-reached | not-reached |
+| post | **新** | **0** | **0** | **0** | **0** | **0**（12 行） | **0**（diff 空） |
+
+前两行**逐字段同构**——这就是旧写法的失效形态：post 树上补丁明明生效（树根多出 `Runtime.swift`，`tree-root.txt` 记 `yes`），旧 glob 却看不见它，于是 pre ≡ post，夹具测的是 argv 而非补丁。新写法下 post 是四格里**唯一**类型检查归零且跑到 compare 的一格。
+
+## 3. 为什么现在这条腿能判别
+
+1. **文件集合覆盖判别对象**：`Runtime.swift` 的**发射与否**正是 +6 补丁的作用；全树 glob 保证"发射了就一定进编译集"，于是判据从"argv 里有没有 Runtime.swift"回到"补丁在不在"。pre 缺它 → 引用它的 `std/UStringException.swift` 立刻在**类型检查期**报 `cannot find type 'BoringException'`；post 有它 → 类型检查归零并链出可执行、跑出 12/12。
+2. **读数刻意不同且可归因**：pre 的失败不是环境/工具链造成——同一 nix develop、同一 `swiftc` 绝对路径、同一 `LD_LIBRARY_PATH`、同一 argv 构造；唯一变量是 `SwiftDecl.hx` 的 6 行（`FILES.sha256` 在档）。
+3. **argv 在档**：真实编译集进入 `argv`/`sources.txt`，复核者不必依赖我的叙述即可重放并核对（PIT-242 的直接教训）。
+4. **反证在档**：`post/oldglob/` 证明 post 树在旧写法下**仍然失败**，排除"post 通过是因为别的原因"。
+
+## 4. Rust 腿未回归（同树、夹具同一次调用）
+
+在协调树跑 `bash tests/haxe/try-tail/run-stages.sh rust`（`post/rust-leg/`）：
+
+| 阶段 | 数字退出码 | 读数 |
+|---|---|---|
+| `compile-rust`（`cargo build --offline`） | **0** | error 诊断 **0**，E0599 **0** |
+| `run-rust` | **0** | 12 行 |
+| `compare-rust` | **0** | `diff` 输出 0 字节（12/12 与 `expected.txt` 一致） |
+
+与 PIT-242 / 复核记录的 post 读数一致（该腿 pre 为 cargo 101 / 8×E0599，判别力此前已确证）。我这侧的改动只落在 `case swift)` 内，rust 腿无回归。
+
+## 5. 环境限制与不确定项（如实记录）
+
+1. **只跑了 raw 分支**：容器内 flake `swiftc` wrapper 被宿主拒（`swiftc-wrapper-probe.*` 在档，与 fsmissing 会话报告的"宿主拒绝 user namespace"一致），脚本按既有办法回退 store raw `swiftc` 6.2.4 + FHS rootfs + shim cwd（`swift-toolchain.txt` = `mode raw`）。wrapper 分支与 raw 分支**同型修改**，但未经运行期验证。
+2. **夹具既有缺陷，本次未改**：`[ $? != 0 ] && { not_reached compile-swift $? … }` 里的 `$?` 取的是 `[` 测试的退出码（0），所以 `status.tsv` 记成 `producer-compile-swift-status-0`。真实生产者数字退出码在 `stages/compile-swift/status`（pre=1 / post=0），本报告一律以该文件为准。该模式在 5 条腿完全相同，属任务范围外（"只改编译集/argv"），故只记录未修——**建议另开任务**。
+3. post stderr 非空但**零 error**：5×`libc not found`（raw swiftc 环境的已知告警）+ 6×`will never be executed`（与 D 观察"尾值仍文本可达"一致，非本任务引入）。
+4. 本任务只跑 try-tail 的 swift 腿与 rust 腿；未跑 ts/kotlin/dart 腿、未跑全量 verify。
+5. 同型写法还在别处（**只报不改**，超出本任务范围）：`tests/haxe/readonly-alias/run.sh:430,432`（显式列了 `$gen/Runtime.swift` 故等效安全）、`tests/haxe/source-container-policy/native/swift.sh:16`（显式列了 `Runtime.swift`）、`comparison-runtime-observation/run.sh:412` 与 `signed-key-composition/run.sh:394`（`find "$SWIFT_DIR"` 已是全树，需各自定性）。
+
+## 6. 协调树卫生
+
+- `git status --porcelain` 与基线 `dc-warn/out/fixture-parity/final-git-status.txt` **逐行相同**（`coord-git-status.txt`）。
+- 6 个已集成生产 `.hx`：sha 未变、mtime 全为 `2026-09-29 17:24:30`（早于本任务窗口），见 `FILES.sha256`。
+- 唯一改动文件：`tests/haxe/try-tail/run-stages.sh`（`4c16c218…` → `95e9f623…`，**755**，`bash -n` 通过）。未碰他人未提交项、未碰 `publication-staging/**` 与 `tiqian/**`；未 commit/push/merge。
+- 为跑 pre 态新建 detached worktree `ttsfix-pre`（`e1c65975`，tracked 洁净），并在其中复制夹具（未跟踪）；未写任何他人 worktree。
+
+## 7. 归档结构
+
+```
+dc-warn/out/try-tail-swift-fix/
+├── REPORT.md（本文）
+├── PATCH.diff          pre-fix(4c16c218) -> post-fix(95e9f623) 的 unified diff
+├── FILES.sha256        两树夹具 14 文件 sha256+mode、改动前后 sha、6 个生产 .hx
+├── pre/   identity.txt、gen-tree.{files,sha256}、runtime-swift.txt、gen.{stdout,stderr}、
+│          fixture-sha256.txt、swift-toolchain.txt、status.tsv、fixture.{stdout,stderr}、
+│          stages/{compile-swift,run-swift,compare-swift}/{argv,stdout,stderr,status}、
+│          stages/compile-swift/{tree-root.txt,sources.txt}、
+│          oldglob/{control-run-stages.sh,stages/…}（旧写法对照）
+└── post/  同上，另 rust-leg/{stages/…}（Rust 腿未回归）
+```

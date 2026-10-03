@@ -1,0 +1,13 @@
+package boring
+
+object HaxeExceptionOps {
+    fun throwFault(message: String) {
+        throw HaxeExceptionFault(message)
+    }
+
+    fun throwJoined(lead: String, tail: String) {
+        throw HaxeExceptionFault(lead + tail)
+    }
+}
+
+class HaxeExceptionFault(override val message: String) : RuntimeException(message)

@@ -1,0 +1,11 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/static-state.test.ts:
+killed 1 dangling process
+(fail) static initializer mutation is rejected with the sanctioned error [15000.73ms]
+  ^ this test timed out after 15000ms.
+
+ 0 pass
+ 5 filtered out
+ 1 fail
+Ran 1 test across 1 file. [15.03s]

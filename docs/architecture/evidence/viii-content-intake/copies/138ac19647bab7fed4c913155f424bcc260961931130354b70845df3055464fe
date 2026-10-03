@@ -1,0 +1,7 @@
+// Harness for the dc-null-guard-fallthrough probe: prints the probe
+// result lines; the analyzer observation comes from `dart analyze`.
+import 'dc_guard.dart' as dcguard;
+
+void main() {
+  print(dcguard.DcGuard.run());
+}

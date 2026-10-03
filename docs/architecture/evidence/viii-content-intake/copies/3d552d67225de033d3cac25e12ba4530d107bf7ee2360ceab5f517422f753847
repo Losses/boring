@@ -1,0 +1,66 @@
+utc=2026-09-30T00:17:51+00:00
+--- HEAD ---
+e1c6597514634fd347d392709793cc19bd96c9a2
+--- git diff --numstat (tracked) ---
+3	2	docs/investigations/architecture-round-1/d-observation.md
+41	0	examples/kotlin-f32.hxml
+33	0	examples/rust-f32.hxml
+37	0	examples/swift-f32.hxml
+24	2	packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
+209	1	packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+34	0	packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+7	0	packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+11	1	packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+2	2	packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx
+6	0	packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+6	1	samples/tests/NumberClassifyTests.hx
+22	3	tests/support/stage-check.sh
+--- sha256 of named fix files ---
+b522865c7b7c388207e3de6b88c7d4337e25aac2690f41d70f6173be065f6575  packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx
+07896d15a5b718b8af750b7f8ebe78f8feee5d2cfb450ad34dcb0a5df237a91b  packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+addebfd8151e274af29fba92bfda2437e063a0472d7eb66b59a2d50f7bfa4adf  examples/kotlin-f32.hxml
+91a8fd710d14151a40766d44bdbfa68165f4be81c553268a463bff28c4fb8255  examples/rust-f32.hxml
+68013176720b64b089a07cc286521d4b06e1829828274a71ac34e337fa03fd6d  examples/swift-f32.hxml
+e5508bb442daaeb6655fb1a149ab4a853f5365af415bba3fddf9e854dba980db  tools/roots-guard/check-roots-guard.sh
+34d336ce68b08e686a12dbf5ca43bd89495d470b2ac5278624bdffc93da471a9  tools/roots-guard/roots-allowlist.json
+--- registerThrownExceptionVariant present? ---
+2
+--- f32 hxml insertion counts (diff vs HEAD) ---
+41	0	examples/kotlin-f32.hxml
+33	0	examples/rust-f32.hxml
+37	0	examples/swift-f32.hxml
+--- roots guard run ---
+EXEMPT: kotlin-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+EXEMPT: rust-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+EXEMPT: swift-f32.hxml may omit registry.Main -- registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact.
+roots guard: PASS (3 exemption(s) in force)
+roots-guard rc=0
+--- tools/roots-guard present ---
+total 16
+drwxr-xr-x  2 losses users 4096 Sep 29 20:11 .
+drwxr-xr-x 15 losses users 4096 Sep 29 20:15 ..
+-rwxr-xr-x  1 losses users 2981 Sep 29 20:11 check-roots-guard.sh
+-rwxr-xr-x  1 losses users  837 Sep 29 20:11 roots-allowlist.json
+--- git status porcelain (top) ---
+ M docs/investigations/architecture-round-1/d-observation.md
+ M examples/kotlin-f32.hxml
+ M examples/rust-f32.hxml
+ M examples/swift-f32.hxml
+ M packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+ M packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx
+ M packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+ M samples/tests/NumberClassifyTests.hx
+ M tests/support/stage-check.sh
+?? docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md
+?? tests/haxe/dc-null-guard-fallthrough/
+?? tests/haxe/swift-rt-plain/
+?? tests/haxe/swift-rt-probe/
+?? tests/haxe/try-tail-min/
+?? tests/haxe/try-tail/
+?? tests/support/stage-check-control.sh
+?? tools/precision-guard/
+?? tools/roots-guard/

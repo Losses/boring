@@ -1,0 +1,12 @@
+package boring
+
+class ProbeChain(val parent: ProbeChain? = null, val tag: Int) {
+
+    fun depth(): Int {
+        val p = this.parent
+        if ((p == null)) {
+            return 0
+        }
+        return 1 + p.depth()
+    }
+}

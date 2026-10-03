@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class OptionalValueUseTests {
+@boring.test.Test
+    fun testValueUses() {
+        Test.run("tests.OptionalValueUseTests.testValueUses", "tests.OptionalValueUseTests.testValueUses: a nullable value unwraps at the remaining value uses") {
+                Test.equals(true, true, null)
+        }
+    }
+}

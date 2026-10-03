@@ -1,0 +1,8 @@
+27d54a3fd87deab087794c2f78ad119865c2ffb2188be712285da672fb80e61a  ../p08-behaviour-review/REPORT.md
+9886fe25c9c5ea392958b3ec2167c7903934d0f1593b25a7ae90633bba45b24e  evidence/RECORD.current.md
+# Anchor verified 2026-09-30 (America/Toronto session):
+#   boundary-policy-record/RECORD.md = 9886fe25c9c5ea392958b3ec2167c7903934d0f1593b25a7ae90633bba45b24e, 390 lines  [RECOMPUTED, matches FREEZE §4]
+#   p08-behaviour-review/REPORT.md   = (above), 577 lines
+# No retained copy of the superseded 367-line / 4d348992 revision exists anywhere in dc-warn/
+#   (searched: grep -r '4d348992' -> only references, no content). Old-text quotes for §6 are
+#   therefore taken from the strikethrough the 390-line revision itself preserves at :280-284.

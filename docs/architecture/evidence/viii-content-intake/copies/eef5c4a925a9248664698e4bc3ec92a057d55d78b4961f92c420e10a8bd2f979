@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Independent reviewer: check 1 (caliber self-consistency) + check 2 (full sha256+exec-bit recompute).
+
+Self-written (does NOT reuse the workers' verify-manifest.sh).
+Scope:
+  expected set = 1398 tracked files at e1c65975 (from git)
+               + all files under boring-wt-architecture/tests/haxe/{try-tail,try-tail-min,swift-rt-probe,swift-rt-plain,dc-null-guard-fallthrough}
+               + boring-wt-architecture/tests/support/stage-check-control.sh
+"""
+import hashlib, json, os, subprocess, sys
+
+WS = "/home/losses/Development/tq-workspace"
+GIT = os.path.join(WS, "boring")
+COORD = os.path.join(WS, "boring-wt-architecture")
+EXEC = os.path.join(WS, "publication-staging", "execution-option-c-coord")
+MANIFEST = os.path.join(WS, "publication-staging", "p09-coord-state", "option-c-source-before.json")
+COMMIT = "e1c65975"
+
+FIXTURE_DIRS = ["tests/haxe/try-tail", "tests/haxe/try-tail-min", "tests/haxe/swift-rt-probe",
+                "tests/haxe/swift-rt-plain", "tests/haxe/dc-null-guard-fallthrough"]
+FIXTURE_EXTRA = ["tests/support/stage-check-control.sh"]
+
+def sha256_file(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+# --- baseline: tracked files at e1c65975 ---
+out = subprocess.run(["git", "-C", GIT, "ls-tree", "-r", "--name-only", COMMIT],
+                     check=True, capture_output=True, text=True).stdout
+baseline = set(l for l in out.splitlines() if l)
+print(f"baseline (git -C boring ls-tree -r {COMMIT}): {len(baseline)}")
+
+# --- fixtures: walk the 5 dirs + stage-check-control.sh in the live coord tree ---
+fixture = set()
+for d in FIXTURE_DIRS:
+    root = os.path.join(COORD, d)
+    if not os.path.isdir(root):
+        print(f"MISSING FIXTURE DIR: {d}"); continue
+    for dirpath, dirnames, filenames in os.walk(root):
+        for fn in filenames:
+            fixture.add(os.path.relpath(os.path.join(dirpath, fn), COORD))
+for f in FIXTURE_EXTRA:
+    p = os.path.join(COORD, f)
+    if os.path.isfile(p):
+        fixture.add(f)
+    else:
+        print(f"MISSING FIXTURE FILE: {f}")
+print(f"fixtures (5 untracked fixture dirs + stage-check-control.sh): {len(fixture)}")
+
+expected = baseline | fixture
+overlap = baseline & fixture
+print(f"baseline∩fixture overlap: {len(overlap)} {sorted(overlap)[:5]}")
+print(f"expected set size: {len(expected)}")
+
+# --- manifest ---
+manifest = json.load(open(MANIFEST))
+mpaths = [e["path"] for e in manifest]
+print(f"manifest entries: {len(mmanifest if False else manifest)}")
+mset = set(mpaths)
+print(f"manifest unique paths: {len(mset)}")
+dups = [p for p in mset if mpaths.count(p) > 1]
+print(f"duplicate paths in manifest: {len(dups)} {sorted(dups)[:5]}")
+
+missing = sorted(expected - mset)   # expected but not in manifest
+extra   = sorted(mset - expected)   # in manifest but not expected
+print(f"missing (expected - manifest): {len(missing)}")
+for p in missing: print("  MISSING:", p)
+print(f"extra (manifest - expected): {len(extra)}")
+for p in extra: print("  EXTRA:", p)
+
+# --- full sha256 + exec-bit recompute over every manifest entry ---
+fails = []
+for e in manifest:
+    p = os.path.join(EXEC, e["path"])
+    if not os.path.isfile(p) or os.path.islink(p):
+        fails.append((e["path"], "absent-or-symlink")); continue
+    actual = sha256_file(p)
+    if actual != e["sha256"]:
+        fails.append((e["path"], f"sha mismatch: manifest {e['sha256'][:12]} vs disk {actual[:12]}")); continue
+    st = os.stat(p)
+    disk_exec = bool(st.st_mode & 0o111)
+    want_exec = e["mode"] == "100755"
+    if disk_exec != want_exec:
+        fails.append((e["path"], f"exec-bit mismatch: mode {e['mode']} vs disk {oct(st.st_mode & 0o777)}"))
+print(f"entries: {len(manifest)} / failures: {len(fails)}")
+for p, why in fails[:40]: print("  FAIL:", p, why)
+
+# summary
+ok = (not missing and not extra and not dups and not fails
+      and len(baseline) == 1398 and len(manifest) == 1433 and len(expected) == 1433)
+print("CHECK1+2 VERDICT:", "PASS" if ok else "FAIL")
+sys.exit(0 if ok else 1)

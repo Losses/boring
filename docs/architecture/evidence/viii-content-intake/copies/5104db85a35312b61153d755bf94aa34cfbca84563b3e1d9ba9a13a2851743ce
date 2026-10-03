@@ -1,0 +1,34 @@
+package tests
+
+import boring.FloatLiteralOps
+import boring.runtime.test.Test
+
+class FloatLiteralOpsTests {
+@boring.test.Test
+    fun testArgLeadingDot() {
+        Test.run("tests.FloatLiteralOpsTests.testArgLeadingDot", "tests.FloatLiteralOpsTests.testArgLeadingDot: leading-dot float in argument position lowers") {
+                Test.equals(0.001, FloatLiteralOps.argLeadingDot(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testLocalLeadingDotNeg() {
+        Test.run("tests.FloatLiteralOpsTests.testLocalLeadingDotNeg", "tests.FloatLiteralOpsTests.testLocalLeadingDotNeg: negative leading-dot float in initializer position lowers") {
+                Test.equals(-0.1, FloatLiteralOps.localLeadingDotNeg(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testArgSmall() {
+        Test.run("tests.FloatLiteralOpsTests.testArgSmall", "tests.FloatLiteralOpsTests.testArgSmall: small-magnitude leading-dot float in argument position lowers") {
+                Test.equals(0.25, FloatLiteralOps.argSmall(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testLocalSmallNeg() {
+        Test.run("tests.FloatLiteralOpsTests.testLocalSmallNeg", "tests.FloatLiteralOpsTests.testLocalSmallNeg: negative small-magnitude leading-dot float in initializer position lowers") {
+                Test.equals(-0.5, FloatLiteralOps.localSmallNeg(), null)
+        }
+    }
+}

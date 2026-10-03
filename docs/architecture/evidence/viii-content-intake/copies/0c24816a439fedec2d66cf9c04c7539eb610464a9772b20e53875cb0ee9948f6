@@ -1,0 +1,55 @@
+# Candidate patch — ADJUDICATION ONLY, not applied. Read-only adjudication;
+# a human decides which option (or both) to apply.
+#
+# ---------------------------------------------------------------------------
+# Option A (minimal): fix the stale expectations so the test matches the
+# fixture's actual contract. consumeReadOnlyBoundary emits "<length>:<empty|present>",
+# never "<element>:<length>".
+# --- a/tests/swift-readonly-boundary/readonly-boundary.test.ts
++++ b/tests/swift-readonly-boundary/readonly-boundary.test.ts
+@@ -43,8 +43,8 @@
+     "return=13:2",
+     "enum=5:1",
+-    "branch-true=1:1",
+-    "branch-false=2:1",
++    "branch-true=1:present",
++    "branch-false=1:present",
+     "coalesced-null=0:empty",
+     "coalesced-present=1:present",
+ 
+# ---------------------------------------------------------------------------
+# Option B (recommended follow-up): make the fixture actually discriminate the
+# two branches. With the current consumer both branches yield a length-1 array,
+# so "1:present" is produced regardless of `flag` — the test cannot detect a
+# backend that picks the wrong branch. Emit the element too, so branch selection
+# is observable. Three files change in lockstep:
+#
+# --- a/tests/swift-readonly-boundary/boring/ReadOnlyBoundaryOps.hx
++++ b/tests/swift-readonly-boundary/boring/ReadOnlyBoundaryOps.hx
+@@
+     public static function consumeReadOnlyBoundary(view:ReadOnlyArray<Int>):String {
+-        return view.length + (view.length == 0 ? ":empty" : ":present");
++        return view.length + ":" + (view.length == 0 ? "empty" : view[0] + ":present");
+     }
+ 
+# --- a/tests/swift-readonly-boundary/boring/ReadOnlyBoundaryOracle.hx
+#    (no change needed — it only formats "branch-X=" + result)
+#
+# --- a/tests/swift-readonly-boundary/readonly-boundary.test.ts
++++ b/tests/swift-readonly-boundary/readonly-boundary.test.ts
+@@
+-    "branch-true=1:1",
+-    "branch-false=2:1",
++    "branch-true=1:1:present",
++    "branch-false=1:2:present",
+@@
+-    "coalesced-null=0:empty",
+-    "coalesced-present=1:present",
+-    "default-omitted=0:empty",
+-    "default-null=0:empty",
+-    "default-present=1:present",
++    "coalesced-null=0:empty",
++    "coalesced-present=1:9:present",
++    "default-omitted=0:empty",
++    "default-null=0:empty",
++    "default-present=1:10:present",

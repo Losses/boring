@@ -1,0 +1,124 @@
+# 独立审阅：t-mun4m6gk-jh6t 判据 3（不同模型，attempt: p09-driver-xcheck）
+
+日期：2026-09-29。审阅者工作树：`dc-warn/worktrees/p09-driver-xcheck`（本审阅自建，
+`git -C boring worktree add --detach … e1c65975`，detached @ `e1c6597514634fd347d392709793cc19bd96c9a2`，
+1398 文件）。nix 缓存放 `XDG_CACHE_HOME=/tmp/p09-driver-xcheck-nix-cache`（fuse 例外，已遵守）。
+全程只读冻结区；未 commit/push/merge，未签收。证据目录：`attempt-1/`
+（`inputs-3way.sha256`、`inventory-recheck.txt`、`rebuild-stdout.log`、`rebuild-stderr.log`、
+`verify-inventory.py`、`evidence-summary.txt`）。
+
+## 判定：判据 3 通过
+
+## 1) 输入来源：快照而非脏树 —— 确认
+
+三编译输入 `tools/bundle/{driver.hxml,Driver.hx,ChildEvidence.hx}` 的 sha256（`attempt-1/inputs-3way.sha256`）：
+
+| 来源 | driver.hxml | Driver.hx | ChildEvidence.hx |
+|---|---|---|---|
+| 快照 `publication-staging/fixed-compiler-e1c65975/` | `8432f799…bc1d87` | `749a7782…d82a7` | `bc5f4404…fc9dd3b` |
+| 执行席树 `dc-warn/worktrees/driver-rebuild/`（编译用副本） | 同左 | 同左 | 同左 |
+| 脏协调树 `boring-wt-architecture/`（工作区） | 同左 | 同左 | 同左 |
+| 本审阅新树 `p09-driver-xcheck/` | 同左 | 同左 | 同左 |
+| `git -C boring show e1c65975:tools/bundle/<f>` | 同左 | 同左 | 同左 |
+
+即：执行席实际编译的三文件与固定快照**逐字节一致**，且与 git 固定修订一致；三哈希也与执行席
+`inputs-before.sha256`/`inputs-after.sha256`/`driver-identity.json`/快照清单
+`inventory-1398.json` 条目完全相符。需要说明：本例中脏协调树的这三个文件恰好与 git 版一致
+（它的脏在别处：`d-observation.md`、`stage-check.sh`、3 个 mode 翻转、2 个 untracked 文件，
+mtime 均 ≤ 09-29 14:54），所以"脏树与快照不同"的实证形态没有出现；来源判定由
+(快照≡执行席输入≡git 固定修订) + (快照 1398 条全量完好) 成立。执行席树是同一 boring 仓库
+e1c65975 的 detached 检出，tracked 输入天然是 git 内容（11 个 `M` 全是 100755→100644 mode
+伪差异，0 insertions/0 deletions，fuse 检出产物，本审阅新树复现同样现象）；hxml 无 `-lib`
+外部依赖，编译自包含（`-cp tools/bundle -main Driver -js out/bundle/driver.js`）。
+
+## 2) 冻结区未被改动 —— 确认
+
+- **快照全量复算**（`attempt-1/inventory-recheck.txt`，脚本 `verify-inventory.py`）：
+  `publication-staging/fixed-compiler-e1c65975/**` 对 `p09-e1c65975/inventory-1398.json`
+  1398/1398 条 sha256+size 全部一致，missing=0，extra=0；清单自哈希
+  `9892914fa8d9…8295f` 与 `inventory-1398.sha256` 一致。
+- **mtime 佐证**：快照目录内最新文件 mtime = 2026-09-29 12:32:46（快照创建时点），
+  目录 mtime 13:25；`p09-e1c65975/` 各文件 13:28–13:29 —— 全部早于执行窗口（16:27–16:37）。
+- **`boring-wt-architecture`**：脏文件 mtime 最晚 14:54（`stage-check.sh`/`stage-check-control.sh`），
+  runbook 未跟踪文件 mtime 12:09:38 —— 均早于执行窗口；该 runbook 副本的 blob 哈希
+  `434fad6c…` 与 PATCH a 侧完全相同，证明执行席**没有**把改动写回协调树。执行席对其仅有
+  读取（`.haxelib` 复制，mtime 09-27 的既有目录）。
+- **`tiqian/**`**：最新文件 13:30（`out/p09-e1c65975-round2-prep/`，早于窗口）；仓库内脏
+  （`Cargo.lock`、`boring-pristine.json`）mtime 09-27，为既有状态。
+
+## 3) 重建可复现 —— 确认（字节级）
+
+本审阅在自己的新树（无 .haxelib、无任何预置文件）重跑：
+`XDG_CACHE_HOME=/tmp/p09-driver-xcheck-nix-cache nix develop -c haxe tools/bundle/driver.hxml`
+（cwd = 树根，argv 与 `driver-identity.json` 完全一致），haxe **4.3.7**（本环境实测），
+exit **0**（`rebuild-stdout.log`/`rebuild-stderr.log`；stderr 仅 nix "Git tree dirty" 警告，
+源自上述 11 个 mode 伪差异，与构建无关）。
+
+- 本审阅产物：`out/bundle/driver.js` sha256 **`bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53`**，
+  **52,779 B** —— 与执行席产物**逐字节相同**（执行席树内产物也独立重算，同值）。
+- 本树三输入编译前后哈希不变（同 §1 三值）。
+
+结论：在 haxe 4.3.7 下该重建**可复现**（同一 host、同 flake、同 argv/cwd 双次独立构建字节一致）；
+跨版本/跨 host 未验证（超出判据 3 范围）。
+
+## 4) runbook PATCH 核实
+
+`dc-warn/out/p09-runbook/PATCH.diff`（138 行，单文件）：
+
+- **(a) 结构**：仅 1 个文件头，无 `old mode`/`new mode` 行；
+  `git -C dc-warn/worktrees/p09-runbook apply --check -R PATCH.diff` **干净**
+  （反向可打 → 工作树内容 = b 侧）；正向 `--check` 拒绝（已应用，符合预期）。
+  a 侧 blob `434fad6c…` = 协调树 runbook 副本哈希；b 侧 `65ed435a…` = 工作树副本哈希；
+  `FILES.sha256` 三条全部复算一致。runbook 确为 untracked：
+  `git ls-tree e1c65975` 无此路径、`git log --all` 零提交、各分支 HEAD 均无。
+- **(b) B2/B3/B4**：B2 段改写为 "closed by snapshot rebuild (option a)"，pre-blockers
+  标题注明 "B2 closed, B3 and B4 still open"；B3（L97）、B4（L150）标题与正文**未被触碰**，
+  未被顺带闭合。
+- **(c) store 路径**：driver 表行改标 "historical pin; not the matrix driver"，
+  `af6aeef8…`/`a8f5ef0e…` 两个哈希保留；B2 正文另有 "Historical pin, retained" 段。
+- **(d) 残余**：`roots`/`--output` 在本计划下不可达、未来计划使用即需重裁 —— 保留。
+- **等价裁定的独立复核**（支持 B2 正文的两条关键事实）：
+  - 冻结 prep 目录 `tiqian/out/p09-e1c65975-round2-prep/` 独立 grep：`--output`/`--with-pack`
+    **零命中**；`roots` 命中全部是 `rootsFile` 字段/注释，无 `roots` 动作调用。
+  - 编辑后 runbook 的 Sequence（步骤 1–4）只调用 `gen` / `test` / `compare --project`。
+  - 动作面（独立源码提取验证）：`304ed70c packages/driver`（`git archive 304ed70c packages/driver`
+    → `/tmp/p09xcheck-304ed70c`）有 `roots` 动作（Main.hx:560）、`--output`（:533/:548）、
+    host 相关 DYLD 分支（Plan.hx:146）；快照 `e1c65975 tools/bundle/Driver.hx` 两者皆无
+    （usage :942、"the actions are gen, test, pack, compare, verify" :978），重建产物中
+    DYLD 字面量 0 处、`--output` 0 处。两版 driver 都不读
+    `BORING_SWIFT_LIBDISPATCH`/`BORING_SWIFT_DYNAMIC_LINKER`，都读
+    `BORING_SWIFT_SYSTEM_PACKAGE`。
+
+### ⚠ 发现的一处措辞错误（过度声明，须修正，不影响判据 3）
+
+PATCH 的 Residual 段写道："relative to the pinned `304ed70c` driver, **the rebuilt driver
+adds** a `roots` action, an `--output` option, and a darwin-only DYLD branch."
+**方向反了**。实测事实相反：重建 driver **缺少**（而非新增）`roots`/`--output`，且**没有**
+darwin DYLD 分支（产物 0 处；304ed70c 才有 host 相关 DYLD）。实际风险形态也随之反置：
+未来若计划调用 `roots`/`--output`，重建 driver 会 `unknown action "roots"` **失败**
+（而不是"多出来的能力"）。裁定的操作后果（未来计划用即失效、需重裁）表述正确，
+但机制描述失实，且与同一交付内 driver-rebuild REPORT §④ 的表格自相矛盾。
+**建议**：将 Residual 段改为 "the rebuilt driver lacks the `roots` action, the `--output`
+option, and the host-dependent DYLD branch that the pinned `304ed70c` driver has"。
+此为 p09-runbook 交付的文档缺陷，不改变输入来源与冻结区结论。
+
+## 5) 判定与一行证据
+
+- **判据 3：通过**。输入三文件五方哈希一致（快照=执行席=协调树=本审阅树=git e1c65975），
+  快照 1398/1398 全量复算完好且 mtime 全部早于执行窗口；协调树与 tiqian 无任何窗口内写入；
+  独立重跑 haxe 4.3.7 字节级复现 `bf2450d3…`。
+- 看板一行证据（判据 3）：
+  「独立审阅(p09-driver-xcheck)：三输入 8432f799…/749a7782…/bc5f4404… 在快照/driver-rebuild/
+  boring-wt-architecture/审阅新树/git show e1c65975 五方一致；快照 inventory 1398/1398 全量
+  复算 0 差异 0 缺失 0 多余；冻结区最新 mtime(12:32/14:54/13:30)均早于执行窗口(16:27–16:37)；
+  新 e1c65975 树独立重跑 haxe 4.3.7 产物字节一致 bf2450d3…(52779B,exit 0)；runbook PATCH
+  单文件、无 mode 行、git apply --check -R 干净，唯 Residual 段 roots/--output/DYLD 方向
+  反置需修措辞。」
+- **`driverSourceRevisionVerified: true` 可否置位：可以**。矩阵 driver 即固定快照
+  e1c65975 自身源码经 haxe 4.3.7 重建，修订身份按构造成立且双次独立构建字节复现；
+  计划动作面（gen/test/compare --project）独立核实在重建 driver 动作面内。
+  置位前提（两条，均已有证据或仅需文字修正）：① runbook Residual 段方向性措辞修正
+  （见 §4 ⚠）；② 保留 "roots/--output 在本计划不可达、未来使用即重裁" 的残余声明
+  （现有 PATCH 已含）。语义等价层面（gen/test/compare 内部逐步语义未逐行 diff，
+  driver-rebuild REPORT §⑤.2 已如实声明）不构成"修订已验证"的缺口——修订验证针对的是
+  来源修订本身，而非与 304ed70c 的行为等价。

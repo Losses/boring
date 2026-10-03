@@ -1,0 +1,6 @@
+haxe
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/tests/haxe/dc-promoted-eval/gen/kotlin.hxml
+-D
+kotlin-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen
+-D
+kotlin-test-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/kotlin-gen-tests

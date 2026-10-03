@@ -1,0 +1,43 @@
+# REVIEW — t-mum13s6o-mogl 判据 3（独立审阅）
+
+审阅者：独立审阅 agent（非执行者）。日期：2026-09-29。
+真实工作树（git worktree list 确认）：/home/losses/Development/tq-workspace/boring/dc-warn/worktrees/kotlin-manifest（/home/losses/Development/tq-workspace/dc-warn/worktrees/kotlin-manifest 不存在）。被审脚本 tests/package/dc-kotlin-manifest-version/{check.sh,run.sh,README.md}；证据 dc-warn/out/kotlin-manifest/（REPORT.md、PATCH.diff、FILES.sha256、attempt 20260929T192808Z-2698141）。全部实验在本 review/ 目录隔离副本中以 bash 重跑；未写 /tmp，未改执行者交付。
+
+## 1. 交付核对（sha256）
+
+- check.sh a3d16efd258301f8e1ee229ee515a1f2c2702488a7e03bb464575b5d6497c78b — 与 FILES.sha256 一致，PATCH.diff 含对应 diff
+- run.sh   1b0d2a2f44588971c1dd6e7df40d85bf26ef4a53d67a0f1c8acc49b16d2497b5 — 一致
+- README.md 9ff7db3ab74f99595f90f5b41043c5c94044b867a4f893a1adfa943468757011 — 一致
+
+dc-warn 为 fuse.rclone 挂载不保留可执行位（均 -rw-------）；mode-only 差异与执行者 git-status-snapshot.txt/mode-diff-summary.txt 相符，以 bash 调用不受影响。
+
+## 2. 正控重跑
+
+argv: bash check.sh case/build.gradle.kts case/maven/generated-0.1.0.pom
+（gradle sha256 6a35c56798074fcf82f6c07bcffc277fc2904815f27de5288b0c5b3cfaacf47e；pom 7615f2dfb5d92e27423c8538c20550ed425c0d9d1fb82e0c3195be585666e6e5）
+输出: kotlin-gradle-plugin-version=2.4.10 (case/build.gradle.kts:3) / kotlin-stdlib-pom-version=2.4.10 (case/maven/generated-0.1.0.pom:12) / result=MATCH，rc=0。
+
+判据 3 核验：脚本全文无 2.4.10 字面量（无硬编码）；两值分别 grep（gradle:46-53）与 awk 块作用域（pom:60-102）从两个不同文件解析；POM 仅取 org.jetbrains.kotlin:kotlin-stdlib dependency 块内的 <version>，项目自身 <version>(0.1.0) 不在块内不被读取——排除"自比/比包版本"假一致。解析失败路径实测 bash check.sh missing.gradle <pom> → rc=2。
+
+## 3. 负控（审阅自造变异）
+
+N1 仅 POM 2.4.10→2.4.11（行12），变异后 sha256 ccd8943675444c30b1c94f47420e92672c2b44acc1e4c229b4f8a7c20a5a0928 → MISMATCH（2.4.10 vs 2.4.11）rc=1
+N2 仅 gradle version "2.4.10"→"2.4.9"（行3），变异后 sha256 df1828cf4a56de404b26f82eb0d4f430a98f583166ca5bedac046a6a33169726 → MISMATCH（2.4.9 vs 2.4.10）rc=1
+N3 两处同改 9.9.9，gradle a8a776f5dfca1547017bf879aa95fb81f6cd04e87113cbd84e87104376a7b02a / pom 5dc82f66e17740e8e830694a933f7ee0a1f9ef2745d26d6ecf2364daa64c52a8 → MATCH（9.9.9 vs 9.9.9）rc=0
+
+N3 判定：应当 rc=0。检查契约是"同一生成的两个清单文件互比一致"（捕获单侧升级），不是"清单=宿主工具链期望"；两处同改仍自洽，若报 rc=1 反而说明存在隐藏期望值。实测 rc=0 证实纯互比，行为正确。范围边界（非缺陷）：生成器整体产出错误版本不在本检查职责内，由上游生成器证据（Compiler.hx:417 / PackageArtifacts.hx:387-388）覆盖。
+
+argv、分离流（out.pos/negpom/neggradle/negboth.{stdout,stderr}）与前后 sha256 均留存本目录。
+
+## 4. 宿主 kotlinc 独立性
+
+check.sh 全文不引用 kotlinc/--version/工具链。实测：PATH 前置假 kotlinc（echo "kotlinc 1.9.0"，fakebin/kotlinc），PATH=review/fakebin:$PATH bash check.sh <gradle> <pom> → 输出与正控逐字相同，rc=0 不变。未把浮动宿主 kotlinc 版本混作清单版本：成立（未安装工具链）。
+
+## 5. 结论
+
+通过（检查确能捕获单侧升级且不依赖宿主）。
+
+判据 3 一行证据（可粘看板）：
+判据3（独立审阅）：review 副本重跑 bash check.sh case/build.gradle.kts case/maven/generated-0.1.0.pom（gradle sha256=6a35c567…、pom=7615f2df…）→ 2.4.10（gradle:3）vs 2.4.10（pom:12，kotlin-stdlib 块）rc=0；自造负控：仅改 POM→rc=1（pom sha256=ccd89436…）、仅改 gradle→rc=1（gradle sha256=df1828cf…）、两处同改 9.9.9→rc=0（应然：纯双文件互比、无隐藏工具链期望）；假 kotlinc(1.9.0) 上 PATH 重跑 rc=0 不变；脚本无硬编码版本、两解析来自不同文件、解析失败 rc=2；check.sh sha256=a3d16efd… 与 FILES.sha256 一致。报告：dc-warn/out/kotlin-manifest/review/REVIEW.md
+
+发现的问题：无阻断项。备注（非缺陷）：(a) N3 表明检查不验证清单版本与工具链期望相符，属设计范围；(b) 挂载无执行位，需 bash 调用。

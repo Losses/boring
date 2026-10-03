@@ -1,0 +1,34 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_find() {
+    testlib::run("tests.ArrayMethodSwiftTests.testFind", "tests.ArrayMethodSwiftTests.testFind: indexOf lowers onto firstIndex with the -1 miss", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_copy_concat() {
+    testlib::run("tests.ArrayMethodSwiftTests.testCopyConcat", "tests.ArrayMethodSwiftTests.testCopyConcat: copy and concat lower onto native array operations", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_ends() {
+    testlib::run("tests.ArrayMethodSwiftTests.testEnds", "tests.ArrayMethodSwiftTests.testEnds: pop shift and unshift lower onto the mutating array members", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_splice() {
+    testlib::run("tests.ArrayMethodSwiftTests.testSplice", "tests.ArrayMethodSwiftTests.testSplice: splice returns the removed sub-array", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

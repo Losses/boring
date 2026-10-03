@@ -1,0 +1,6 @@
+phase=base-xs-crossmod fixtures=xs-crossmod
+--- compiler state ---
+1cdc0ebd1e6edb9d1b9e4ff59768036e5f1b0f9f8ee2833b95c3f716e243fc47  packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+f8f97e51852f82fa41dbe019fe47141c8199b2b103574047198fd427683bf3b5  packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+7c4dfce04caf150e88e1eefed56c89150574636d4b38d9e1df79614c61ec88dc  packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+34e3e211fc9897f1f7831196cd818b311af24af53427adbbaa3c5ddd452c2534  packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx

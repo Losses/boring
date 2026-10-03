@@ -1,0 +1,14 @@
+## first recorded manager compare output: attempt-20260929T185600-3077358 (post-Swift-fix swiftarr root)
+file: out/integration-a3-evidence/exclusive-runner/attempt-20260929T185600-3077358/stages/step-737716045.stdout
+md5: fbd6ec8c3a1736806c5a416472ee0b66 (== dc-warn/out/swift-arrayboundary-fix/evidence/compile/stages/step-737716045.stdout)
+
+--- summary + Extra lines:
+795:Cross-target consistency check failed with 166 divergence(s):
+956:  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsComputedShortestTextOnNullableFields
+957:  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsNonFiniteFloatFields
+958:  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsNullableFloatCollectionForm
+959:  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsShortestFloatText
+960:  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsShortestFloatTextOnCollectionElements
+961:  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsWholeNegativeAndNullFloatFields
+
+--- pre-fix first attempt (185249, execution-option-c-coord): aborted at stage 3 (swift build library, TiqianArray error) before compare; no manager output exists for it. p09-chainA-full/REPORT.md section 3.

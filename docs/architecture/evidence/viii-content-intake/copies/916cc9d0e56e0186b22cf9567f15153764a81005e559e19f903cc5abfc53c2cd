@@ -1,0 +1,55 @@
+# Stage 4 (`authored-tests`) — controlled low-load rerun
+
+## Method
+Two runs of the SAME command (`bun run test`) on the SAME execution root
+(`p09-chainA-work/execution-option-c-chainA-fixed3`), differing only in machine load.
+
+- attempt 1: INVALID — bare shell PATH, no `haxe`; 3.08s; 937 pass/78 fail.
+  Artifact of my mistake. Recorded in ATTEMPT-LOG.txt. NOT a reading.
+- attempt 2 (this): toolchain PATH taken verbatim from the successful run's
+  `evidence/env.json`; load 2.73 vs 6.25 for the harness run.
+
+## Result
+| | high load (harness) | low load (this) |
+|---|---|---|
+| pass | 984 | 985 |
+| fail | 49 | 48 |
+| errors | 7 | 7 |
+| wall time | 1705.26s | 1626.34s |
+
+Unique failing-test-name set comparison:
+- high-load unique names: 49
+- low-load unique names: 48
+- intersection: 48
+- cleared by lowering load: 1
+- new at low load: 0
+
+## Conclusion
+Lowering machine load cleared exactly ONE of 49 failures. The remaining 48 are
+REPRODUCIBLE AT LOW LOAD, i.e. NOT environmental. Composition: 41 are followed
+by a timeout marker; 31 carry real `expect()` assertion errors (sets overlap).
+
+This REFUTES the earlier claim that the Stage 4 failures were mainly
+high-load timeouts. The executing agent's census ({ASSERT:25, TIMEOUT:24}) was
+right; my two intermediate summaries were wrong both times.
+
+## Attribution status — NOT YET DONE
+Which of the 48 are (a) pre-existing at e1c65975, (b) introduced by our applied
+changes, or (c) new, is NOT established here. One case IS established:
+`value wrapper generated trees > ... FontFaceId(pub String)` — pre-existing
+(TCN-112): committed test expects `String`, generator emits `UString`,
+`RustDecl.hx` UString count HEAD=18 == current=18, and our diff added 0 UString lines.
+The rest require a same-command run against a HEAD-source tree and a per-name
+diff — bun's interleaved dual printing makes stdout-only attribution unreliable.
+
+## Verification of the deduped failure list (by the coordinator)
+`dc-warn/out/stage4-attribution/failures-lowload-unique.txt` (48 names) was compared
+against an independently derived dedup of the same stdout:
+    only-in-agent: 0   only-in-my-list: 0   common: 48
+-> the extraction is verified correct.
+
+Note for anyone reproducing this comparison: use `LC_ALL=C`, and remember that
+`sed 's/^(fail) //'` (BRE) is the correct form — an unescaped-paren pattern
+silently fails to strip the prefix and makes two identical sets look disjoint.
+Two of my intermediate comparisons reported a false "REAL DIFFERENCE" for
+exactly that reason; the sets were identical throughout.

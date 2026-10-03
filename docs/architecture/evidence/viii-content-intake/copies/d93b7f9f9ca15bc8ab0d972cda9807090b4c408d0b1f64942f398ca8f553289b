@@ -1,0 +1,8 @@
+# Guard harness provenance (extracted verbatim, no modification)
+source_branch=fix/roots-guard-defeat-classes
+source_commit=1cafaa424bb1317d2e6242a048c9641a70526fa2
+guard_blob=601048856cb857ede3bb452d2cea24ae3654f078
+allowlist_blob=0e67a12fca2e6616833b6a691f02d183ef1aab1e
+baseline_blob=853e716cbae59e85084c0d89984529a0cd95532b
+2026-09-30T22:26:45Z
+haxe_version=unknown

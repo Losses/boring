@@ -1,0 +1,7 @@
+package boring
+
+object FontId_Impl_ {
+    fun of(face: String): String {
+        return "font:" + face
+    }
+}

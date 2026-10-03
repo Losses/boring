@@ -1,0 +1,10 @@
+
+/home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat/packages/compiler/
+-D boring=0.0.1
+--macro registerDefinesDescriptionFile('/home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat/defines.json', 'boring')
+/home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat/.haxelib/format/3,8,0/
+-D format=3.8.0
+--macro nullSafety("reflaxe")
+--macro reflaxe.ReflectCompiler.Start()
+/nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source/src/
+-D reflaxe=3.0.0

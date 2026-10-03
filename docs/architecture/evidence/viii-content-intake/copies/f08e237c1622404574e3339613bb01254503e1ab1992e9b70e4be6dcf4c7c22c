@@ -1,0 +1,104 @@
+// Read-only staleness scan v2: per test file, resolve the set of gen-tree
+// files it reads (direct paths, relative gen paths, var-based joins) and check
+// every toContain string-literal fragment against the UNION of those files.
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+const REPO = "/home/losses/Development/tq-workspace/boring-wt-architecture";
+const TREE = "/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed3";
+
+function* listTestFiles(dir) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) yield* listTestFiles(p);
+    else if (/\.test\.(ts|js|tsx|jsx|mts|cts|mjs)$/.test(e.name)) yield p;
+  }
+}
+
+// var name -> reference base, from `const XGenDir = path.resolve(__dirname, "../../<base>");`
+const varBases = new Map();
+const literalPaths = new Set();
+const joinTargets = []; // {var, rel}
+
+function collect(content) {
+  let m;
+  const re1 = /const (\w+)\s*=\s*path\.resolve\(__dirname,\s*["'`](\.\.\/)*([^"'`]+?)\/?["'`]\)/g;
+  while ((m = re1.exec(content))) {
+    const base = m[3].replace(/^reference\//, "");
+    varBases.set(m[1], base); // base like "reference/ts/gen" minus? m[3] is e.g. reference/ts/gen or ts/gen
+  }
+  const re2 = /path\.join\((\w+),\s*["'`]([^"'`]+)["'`]\)/g;
+  while ((m = re2.exec(content))) joinTargets.push({ v: m[1], rel: m[2] });
+  const re3 = /path\.join\(path\.resolve\(__dirname,\s*["'`](?:\.\.\/)*([^"'`]+?)\/?["'`]\),\s*["'`]([^"'`]+)["'`]\)/g;
+  while ((m = re3.exec(content))) literalPaths.add(m[1] + "/" + m[2]);
+  const re4 = /["'`]((?:reference\/)?[a-z0-9-]*\/gen(?:-tests)?\/[^"'`\n)]+\.(?:rs|ts|kt|swift|dart|js))["'`]/g;
+  while ((m = re4.exec(content))) literalPaths.add(m[1]);
+  // relative "ts/gen/..." or "rust/gen/..." (read("ts/gen/boring/X.ts") style, root=../../reference)
+  const re5 = /["'`]\b((?:ts|kotlin|kotlin-f32|swift|swift-f32|rust|rust-f32|haxe|haxe-f32)\/gen(?:-tests)?\/[^"'`\n)]+\.(?:rs|ts|kt|swift|dart|js))["'`]/g;
+  while ((m = re5.exec(content))) literalPaths.add("reference/" + m[1]);
+  return { varBases: [...varBases.entries()], joinTargets: [...joinTargets], literalPaths: [...literalPaths] };
+}
+
+function baseOfVar(v, content) {
+  // explicit definition
+  const dm = content.match(new RegExp("const " + v + "\\s*=\\s*path\\.resolve\\(__dirname,\\s*[\"'`](?:\\.\\./)*([^\"'`]+?)/?[\"'`]"));
+  if (dm) return dm[1];
+  // suffix convention: tsGenDir -> reference/ts/gen ; dartGenDir -> reference/dart/gen ; swiftGenDir -> reference/swift/gen ; rustGenDir -> reference/rust/gen ; kotlinGenDir -> reference/kotlin/gen
+  const sm = v.match(/^(ts|kotlin|kotlin-f32|swift|swift-f32|rust|rust-f32|haxe|haxe-f32|dart)GenDir$/i);
+  if (sm) return "reference/" + sm[1] + "/gen";
+  return null;
+}
+
+const fileCache = new Map();
+function treeContent(rel) {
+  if (fileCache.has(rel)) return fileCache.get(rel);
+  const full = path.join(TREE, rel);
+  let v = null;
+  try { if (fs.statSync(full).isFile()) v = fs.readFileSync(full, "utf8"); } catch { v = null; }
+  fileCache.set(rel, v);
+  return v;
+}
+
+const rows = [];
+const testFiles = [...listTestFiles(path.join(REPO, "tests")), ...listTestFiles(path.join(REPO, "packages/registry/tests"))];
+for (const tf of testFiles) {
+  const rel = path.relative(REPO, tf);
+  const content = fs.readFileSync(tf, "utf8");
+  varBases.clear(); literalPaths.clear(); joinTargets.length = 0;
+  const c = collect(content);
+  const files = new Set(c.literalPaths);
+  for (const { v, rel: r } of c.joinTargets) {
+    const b = baseOfVar(v, content);
+    if (b) files.add(b.replace(/\/$/, "") + "/" + r);
+  }
+  // toContain fragments, distinguishing not.toContain guards
+  const fragList = [];
+  const reFrag = /(not\.)?toContain\((["'`])((?:(?!\2).)*)\2\)/g;
+  let m;
+  while ((m = reFrag.exec(content))) {
+    const f = m[3];
+    if (f.length >= 5 && !f.includes("__dirname")) fragList.push({ frag: f, negative: !!m[1], line: content.slice(0, m.index).split("\n").length });
+  }
+  const frags = new Set(fragList.map((x) => x.frag));
+  if (frags.size === 0 || files.size === 0) {
+    rows.push({ test: rel, note: frags.size ? "no files resolved" : "no fragments", frags: frags.size, files: files.size });
+    continue;
+  }
+  const contents = [...files].map(treeContent);
+  const missing = [...files].filter((f, i) => contents[i] === null);
+  const meta = new Map(fragList.map((x) => [x.frag, x]));
+  for (const f of frags) {
+    const hit = contents.some((ct) => ct !== null && ct.includes(f));
+    const mm = meta.get(f);
+    rows.push({ test: rel, line: mm ? mm.line : null, negative: mm ? mm.negative : null, frag: f.replace(/\n/g, "\\n").slice(0, 110), status: hit ? "PRESENT" : missing.length ? "STALE-OR-MISSING" : "STALE", missingFiles: missing.length });
+  }
+}
+fs.writeFileSync("staleness-scan-v2.jsonl", rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+const stale = rows.filter((r) => r.status === "STALE");
+const som = rows.filter((r) => r.status === "STALE-OR-MISSING");
+const pres = rows.filter((r) => r.status === "PRESENT");
+console.log(`fragments: ${rows.filter((r) => r.status).length}  PRESENT: ${pres.length}  STALE: ${stale.length}  STALE-OR-MISSING: ${som.length}`);
+console.log("--- STALE ---");
+for (const r of stale) console.log(`${r.test}\t${r.frag}`);
+console.log("--- STALE-OR-MISSING ---");
+for (const r of som) console.log(`${r.test}\tmiss=${r.missingFiles}\t${r.frag}`);

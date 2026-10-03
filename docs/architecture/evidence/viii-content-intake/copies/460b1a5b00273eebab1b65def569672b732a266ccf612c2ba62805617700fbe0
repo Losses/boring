@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# xc2-batch.sh -- independent full batch comparison: OLD vs NEW checker over
+# every attempt-* directory.  rc is read directly, never through a pipe.
+set -u
+R=/home/losses/Development/tq-workspace
+SRC="$R/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner"
+NEW="$SRC/check-log-integrity.sh"
+OLD="$R/dc-warn/out/integrity-bytefix/backup/check-log-integrity.sh.orig"
+EV="$R/dc-warn/out/bytefix-xcheck2/evidence"
+OUT="$EV/xc2-batch-table.tsv"
+
+echo "checker hashes at batch start:" > "$EV/xc2-batch.env.txt"
+echo "  OLD $(sha256sum "$OLD" | cut -d' ' -f1)" >> "$EV/xc2-batch.env.txt"
+echo "  NEW $(sha256sum "$NEW" | cut -d' ' -f1)" >> "$EV/xc2-batch.env.txt"
+echo "  started $(date -Is)" >> "$EV/xc2-batch.env.txt"
+
+printf 'attempt\told_rc\tnew_rc\told_msg\tnew_msg\n' > "$OUT"
+mapfile -t DIRS < <(cd "$SRC" && find . -maxdepth 1 -mindepth 1 -name 'attempt-*' -type d | sed 's|^\./||' | sort)
+echo "attempt dirs found: ${#DIRS[@]}" >> "$EV/xc2-batch.env.txt"
+
+for d in "${DIRS[@]}"; do
+  o=$(bash "$OLD" "$SRC/$d" 2>/dev/null); orc=$?
+  n=$(bash "$NEW" "$SRC/$d" 2>/dev/null); nrc=$?
+  printf '%s\t%s\t%s\t%s\t%s\n' "$d" "$orc" "$nrc" \
+     "$(printf '%s' "$o" | head -1 | cut -c1-70)" \
+     "$(printf '%s' "$n" | head -1 | cut -c1-70)" >> "$OUT"
+done
+
+echo "  finished $(date -Is)" >> "$EV/xc2-batch.env.txt"
+{
+  echo "attempt dirs          : ${#DIRS[@]}"
+  echo "old rc=0 / rc=1       : $(awk -F'\t' 'NR>1&&$2==0' "$OUT" | wc -l) / $(awk -F'\t' 'NR>1&&$2!=0' "$OUT" | wc -l)"
+  echo "new rc=0 / rc=1       : $(awk -F'\t' 'NR>1&&$3==0' "$OUT" | wc -l) / $(awk -F'\t' 'NR>1&&$3!=0' "$OUT" | wc -l)"
+  echo "rc disagreements      : $(awk -F'\t' 'NR>1&&$2!=$3' "$OUT" | wc -l)"
+  echo "  old_pass -> new_fail: $(awk -F'\t' 'NR>1&&$2==0&&$3!=0' "$OUT" | wc -l)"
+  echo "  old_fail -> new_pass: $(awk -F'\t' 'NR>1&&$2!=0&&$3==0' "$OUT" | wc -l)"
+  echo "attempt-2026* only:"
+  echo "  old rc=0 / rc=1     : $(awk -F'\t' 'NR>1&&$1~/^attempt-2026/&&$2==0' "$OUT" | wc -l) / $(awk -F'\t' 'NR>1&&$1~/^attempt-2026/&&$2!=0' "$OUT" | wc -l)"
+  echo "  new rc=0 / rc=1     : $(awk -F'\t' 'NR>1&&$1~/^attempt-2026/&&$3==0' "$OUT" | wc -l) / $(awk -F'\t' 'NR>1&&$1~/^attempt-2026/&&$3!=0' "$OUT" | wc -l)"
+  echo "same-message agreement: $(awk -F'\t' 'NR>1&&$4==$5' "$OUT" | wc -l) / $(awk -F'\t' 'NR>1' "$OUT" | wc -l)"
+} | tee "$EV/xc2-batch-summary.txt"

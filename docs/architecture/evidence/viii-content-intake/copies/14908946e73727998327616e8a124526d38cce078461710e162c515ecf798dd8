@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Phase C: verify each affected file with its final budgets (full-file scoped
+# run, no --timeout, no -t). No pipes around exit codes.
+set -u
+EV=/home/losses/Development/tq-workspace/dc-warn/out/timeout-budget-fix/evidence
+REPO=/home/losses/Development/tq-workspace/boring-wt-architecture
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+cd "$REPO"
+
+v() { # v <label> <file>
+  local label=$1 file=$2
+  echo "pre-guard=$(grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx) start=$(date -u +%FT%TZ)" > "$EV/$label.rc"
+  bun test "$file" > "$EV/$label.log" 2>&1
+  local rc=$?
+  echo "post-guard=$(grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx) end=$(date -u +%FT%TZ) rc=$rc" >> "$EV/$label.rc"
+  echo "[$label] rc=$rc"
+}
+
+v C-dart-precision    tests/dart/precision-switch.test.ts
+v C-ts-precision      tests/ts/precision-switch.test.ts
+v C-strict-output     tests/ts/strict-output.test.ts
+v C-enum-sorted       tests/ts/enum-sorted-keys.test.ts
+v C-array-root        tests/ts/array-root.test.ts
+v C-constructed       tests/ts/constructed-state.test.ts
+v C-rust-packages     tests/ts/rust-packages.test.ts
+v C-rust-bytes        tests/ts/rust-bytes-ownership.test.ts
+v C-sealed-variants   tests/ts/sealed-variants.test.ts
+v C-extern            tests/ts/extern-bindings.test.ts
+v C-stringtools       tests/ts/stringtools-conv.test.ts
+v C-deferred          tests/ts/deferred-locals.test.ts
+v C-fn-values         tests/ts/fn-values.test.ts
+v C-static-state      tests/ts/static-state.test.ts
+v C-readonly          tests/swift-readonly-boundary/readonly-boundary.test.ts
+v C-printed-record    tests/ts/printed-record.test.ts
+v C-std-string        tests/ts/std-string.test.ts
+v C-value-type        tests/ts/value-type.test.ts
+v C-pkg-artifacts     tests/ts/package-artifacts.test.ts
+echo "PHASE-C-DONE"

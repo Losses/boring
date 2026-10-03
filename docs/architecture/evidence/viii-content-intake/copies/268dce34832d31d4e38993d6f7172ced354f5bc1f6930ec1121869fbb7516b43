@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -u
+F=/tmp/vc8/fixtures/attack
+for t in pre mid fix; do
+  for a in A B C D E F G H I J K; do
+    bash /tmp/vc8/gen.sh $t "AT$a" $F "mx.Att$a" mx.MXSupport.QSource mx.MXSupport.QError
+  done
+done

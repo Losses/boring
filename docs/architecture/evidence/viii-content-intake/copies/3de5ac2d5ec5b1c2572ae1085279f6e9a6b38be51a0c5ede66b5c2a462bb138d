@@ -1,0 +1,11 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/printed-record.test.ts:
+(pass) record printed-member generated trees > four non-native targets synthesize the constructor-ordered member [1.00ms]
+(pass) record printed-member generated trees > Kotlin keeps native data-class printing and renders explicit text
+(pass) record printed-member generated trees > marker and explicit-member mutations affect the four emitted members [260035.77ms]
+
+ 3 pass
+ 0 fail
+ 88 expect() calls
+Ran 3 tests across 1 file. [260.08s]

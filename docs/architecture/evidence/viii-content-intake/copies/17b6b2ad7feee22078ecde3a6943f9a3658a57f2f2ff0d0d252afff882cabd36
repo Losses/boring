@@ -1,0 +1,3 @@
+interpreter bash inside the invoking nix develop environment
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/place-ts-swift
+argv node out/place/runs/place-ts-swift-k85ORK/case-all/ts-out/ts-main.js

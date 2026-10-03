@@ -1,0 +1,13 @@
+#if macro
+import haxe.macro.Compiler;
+import haxe.macro.Context;
+
+class Setup {
+	public static function run():Void {
+		Compiler.addGlobalMetadata("", "@:build(XCheck.run())", true, true);
+		// Runs with every module fully typed, so method-level binders are
+		// observable (a @:build hook runs before the host's methods type).
+		Context.onAfterTyping(XCheck.afterTyping);
+	}
+}
+#end

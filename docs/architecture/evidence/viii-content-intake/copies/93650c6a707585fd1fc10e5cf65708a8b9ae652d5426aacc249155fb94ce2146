@@ -1,0 +1,452 @@
+# Boundary policy record: Swift ordinary read-only array boundary
+
+Status: DRAFT for independent review. Revision-specific: all code citations are
+against the coordination tree working copy (HEAD `e1c65975` plus uncommitted
+applied edits). Produced per the architectural instruction that the next move is
+to ACCEPT A BOUNDARY POLICY RECORD rather than repair another symptom.
+
+## 1. Source semantic ruling and accepted input domain
+
+The boundary exists when a Haxe array value crosses into a Swift position whose
+destination storage differs from the source storage. The source-side meaning is
+carried by `SwiftArrayStorage`; the destination requirement is carried by the
+destination type at the consuming position.
+
+Accepted input domain for this record: ordinary read-only arrays and their
+optional and literal forms, at positions enumerated in section 4.
+
+**CORRECTION 9 — the exclusion clause is WITHDRAWN (found by the Codex
+architectural consult, and it is the most serious defect in this record).** An
+earlier revision ended the paragraph above with "Explicitly NOT in this record:
+... and **any position not listed in section 4**." That clause is void, and it
+must be understood as void rather than revised:
+
+- The design document forbids exactly that move:
+  `j-prepared-value-design.md:81` - *"An unverified path stays open; it cannot be
+  removed from the accepted language to simplify this pilot."*
+- The clause let **incomplete discovery reduce the obligations**: the less I
+  enumerated, the more I could declare out of scope. That inverts the purpose of
+  an inventory.
+
+**Replacement rule, which governs this record:** the accepted language and its
+semantic oracle have **authority independent of this inventory**. A position not
+listed in section 4 is **NOT thereby excluded** - it remains an **open obligation**
+against this record. Section 6 lists the open obligations I have identified;
+that list is a lower bound on what is owed, not a definition of scope.
+
+Two exclusions remain, and they are **substantive scope statements, not
+inventory gaps**, each with its own authority to be cited: `@:native`-typed
+arrays, and arrays produced by target intrinsics that bypass `SwiftExpr`.
+Neither may be extended by silence.
+
+## 2. Finite decision table
+
+Axes: source storage x destination requirement x nullability x already-converted.
+
+| source storage | destination needs | nullability | already converted | decision |
+|---|---|---|---|---|
+| MutableArrayWrapper | read-only position | required | no | convert on entry; single wrap |
+| MutableArrayWrapper | read-only position | optional | no | convert inside the optional branch only |
+| ReadOnlyArray | read-only position | required source, **or** optional destination | no | no boundary; pass through. NOT "any": the optional-source → required-dest sub-cell is REFUSED (see the REFUSED row below), so the earlier "any" contradicted that row. |
+| ReadOnlyArray | mutable position | required | no | convert (copy) |
+| MutableArrayWrapper | mutable position | any | no | no boundary |
+| any | any | literal empty | n/a | retain literal identity until materialization — EXCEPT any mutable destination: `prepare`'s mutable branch (`SwiftArrayBoundary.hx:212`) admits only `ReadOnlyArrayView` sources, so a `ContextualEmptyLiteral` matches **no branch** ⇒ `operation` stays null ⇒ REFUSED (`:233-234`). (Earlier revision said "any | any".) |
+| any | any | literal null | n/a | retain no-presence proof; do not fabricate storage — EXCEPT a read-only **required** destination: the `NullArrayValue` case requires `destOptional` (`SwiftArrayBoundary.hx:187-192`), so `operation` stays null ⇒ REFUSED (`:233-234`). (Earlier revision said "any | any".) **PLANNER-CELL REFUSAL ONLY (CORRECTION 13).** The refusal is the `destOptional` gate at `SwiftArrayBoundary.hx:188`; an explicit `destinationOptionalOverride = true` selects `PreserveNullArrayValue` (`:189-191`). Not demonstrated reachable as a nil-merge target (see section 6, new bullet). |
+| any | any | any | yes | MUST NOT convert again (no double wrap) |
+| **OtherArrayStorage** | any | any | no | **REFUSED**: the empty `case OtherArrayStorage:` (`SwiftArrayBoundary.hx:210`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ consumers fail (`SwiftExpr.hx:2608-2609`, `SwiftDecl.hx:600-601`) |
+| ReadOnlyArray | read-only position | **optional source → required dest** | no | **REFUSED: `prepare` returns null → `fail(...)` at SwiftExpr.hx:2608-2609 / SwiftDecl 600-601.** The earlier row claiming "pass through" is WRONG for this cell. **PLANNER-CELL REFUSAL ONLY (CORRECTION 13).** This is `prepare`'s verdict when the destination presented to it admits no absence. It is **not** an end-to-end refusal of this source shape: as a nil-merge target the composition presents the **optional intermediate destination** (`destinationOptionalOverride = true`) and the cell converts via `KeepPreparedArray` (`SwiftArrayBoundary.hx:207`), the required final result being established by the `??` join with a required fallback. |
+| MutableArrayWrapper | read-only position | **optional source → required dest** | no | **REFUSED**: the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:203`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ the same consumer failures (`SwiftExpr.hx:2608-2609` / `SwiftDecl.hx:600-601`). Sibling of the row above; the earlier revision did not dispose of it. **PLANNER-CELL REFUSAL ONLY (CORRECTION 13).** Valid for every caller that presents a required destination unchanged (e.g. `SwiftDecl.hx:599`, a two-argument `prepare` call). As a nil-merge target the composition presents the optional intermediate destination (`destinationOptionalOverride = true`, `SwiftExpr.hx:2627` coordination / `:2646` candidate) and the cell converts via `MapOptionalMutableArrayView` (`SwiftArrayBoundary.hx:200-202`). The override is the composition duty prescribed at `docs/compiler-policy-interfaces.md:171-173`, not an exemption from this row. |
+| ReadOnlyArray | mutable position | **optional source → required dest** | no | **REFUSED**: the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:221`) leaves `operation` null ⇒ `prepare` returns null (`:233-234`) ⇒ the same consumer failures. Sibling of the row above; the earlier revision did not dispose of it. **PLANNER-CELL REFUSAL ONLY (CORRECTION 13).** Same scope as the two rows above; as a nil-merge target the optional intermediate destination is presented and the cell converts via `MapOptionalReadOnlyIntoMutableArray` (`SwiftArrayBoundary.hx:218-220`). |
+| any | **mutable position** | literal null | n/a | `isBoundary` = false ⇒ **no decision taken at all** (not a "retain identity" case) |
+| any | any | presence fact absent, no proof | n/a | **veto: no presence proof ⇒ do not fabricate storage** (row was implicit; now explicit) |
+| any (nil-merge **target**) | any | optional source | no | **COMPOSITION SUPPLIES THE INTERMEDIATE DESTINATION**: the nil-merge composition lowers the optional target against the **optional** form of the destination (`destinationOptionalOverride = true`; `SwiftExpr.hx:2627` coordination / `:2646` candidate) and lowers the fallback against the final destination (`:2647` only (`:2628` is `return fail(...)` in the candidate)); the result is required only through the `??` join with a required fallback. Prescribed by `docs/compiler-policy-interfaces.md:171-173` with `j-prepared-value-design.md:135-137`; see CORRECTION 13. |
+
+**CORRECTION 10 (the table was STILL not closed - named by the third review,
+ACCEPTABLE-WITH-NAMED-CORRECTIONS, corrections N1-N4).** CORRECTION 6 said the
+table "enumerates the cells I have traced"; the rows above now dispose of every
+`SwiftArrayStorage` variant and name the refused cells the earlier rows papered
+over:
+
+- **`OtherArrayStorage`** was "no rule"; the code REFUSES it (empty case at
+  `SwiftArrayBoundary.hx:210` ⇒ null plan at `:233-234` ⇒ consumer failures),
+  at any destination.
+- **two sibling optional → required refusal cells** were absent entirely:
+  `MutableArrayWrapper` × read-only × optional × required dest (empty case
+  `:203`) and `ReadOnlyArray` × mutable × optional × required dest (empty case
+  `:221`). The reviewer located them at ":203-204" and ":221-222"; the empty
+  cases are exactly `:203` and `:221` (`:204`/`:222` are the switch's closing
+  braces), and those are the lines cited.
+- **the literal rows said "any | any" for cells the code refuses**: literal
+  null at a read-only required destination (`:187-192`), and literal empty at
+  a mutable destination (`:212`). WHERE THE CODE DISAGREES WITH THE REVIEWER,
+  THE CODE WINS: the reviewer located the empty-literal refusal at a *required*
+  mutable destination; the code refuses it at a mutable destination regardless
+  of destination optionality, because only `ReadOnlyArrayView` sources enter
+  the mutable branch.
+- **the `ReadOnlyArray | read-only | any` row is restricted**, which resolves
+  the internal contradiction of a row sitting in the same table as a newer row
+  declaring one of its sub-cells WRONG.
+
+All reviewer-supplied line numbers in this correction were verified against the
+code before being written; none required replacing, only the precision noted.
+
+**CORRECTION 6 (the table was NOT CLOSED over the storage enum - found by
+independent reviewer 1).** `SwiftArrayStorage` (`SwiftArrayBoundary.hx:9-15`)
+has FIVE variants: `MutableArrayWrapper`, `ReadOnlyArrayView`,
+`ContextualEmptyLiteral`, `NullArrayValue`, **`OtherArrayStorage`**. My table
+named only read-only/mutable/literal forms and never disposed of
+`OtherArrayStorage`, so it was not closed. Likewise:
+
+- **the "already converted" axis has no code field at all.** The no-double-wrap
+  guard holds where probed (`KeepPreparedArray`; single `toMutableArray()` via
+  `SwiftRuntime:501`), but it is enforced by a code path, not by a recorded fact,
+  so the table row is aspirational rather than a producer-backed rule.
+- **`isBoundary` can be false at a conversion-requiring-looking position** (the
+  mutable-destination literal-null cell above), which means "no boundary" and
+  "no decision" are distinct outcomes the table previously conflated.
+
+The correct claim for §2 is therefore: the table enumerates the cells **I have
+traced**, not all cells the mechanism can reach. Cells listed as REFUSED are
+refusals in code, not policy choices.
+
+The "already converted" row is the axis whose violation produced the observed
+double-wrap defect (`TiqianArray(records.toMutableArray())`).
+
+**CORRECTION 13 - the decision table was NOT CLOSED over the destination-optionality
+override (found by the P08 candidate freeze, `FREEZE.md` section 4.3; ruled by
+`dc-warn/out/override-ruling/REPORT.md`).** `prepare` takes a third input the section-2
+axes do not carry: `destinationOptionalOverride` (`SwiftArrayBoundary.hx:173`), which
+replaces the destination's own optionality for the whole decision. Section 3 already
+registers it (`:147` - `prepare(operand, destinationType, override)`), and section 4
+already registers the nil-merge operands that thread it (`SwiftExpr.hx:2627-2628`), but no
+section-2 row models it, so three REFUSED rows and one literal row read as end-to-end
+verdicts when they are planner verdicts under the default (`override == null`).
+
+The override is not an exemption; it is the composition duty stated verbatim at
+`docs/compiler-policy-interfaces.md:171-173` - "A nil-merge with a required final result
+passes an **optional intermediate destination** to the optional left operand's
+conversion." - with `j-prepared-value-design.md:135-137` and the repository's own SW04
+work item (`docs/investigations/architecture-round-1/swift-checkpoint-todo.md:39-42`).
+The planner rule at `compiler-policy-interfaces.md:155-157` is untouched: the override
+changes *which destination is presented* at one conversion, not what `prepare` does with
+the destination it is given. Verified: `SwiftArrayBoundary.hx` is byte-identical before
+and after the candidate (sha256
+`b522865c7b7c388207e3de6b88c7d4337e25aac2690f41d70f6173be065f6575`).
+
+The override axis is **already live before the candidate**, at the registered-default
+call-argument routes at candidate `SwiftExpr.hx:4779`/`:4882` (baseline coords `:4760`/`:4863`) (`true`), so rows 57-59 were already
+superseded as end-to-end claims for those routes; the candidate extends the same rule to
+the nil-merge routes.
+
+Precondition that must be stated with the row: the intermediate optional destination is
+prescribed for a nil-merge **whose final result is required** (or whose destination admits
+absence, where it is a no-op). Unconditional `true` is permitted today because it is
+extensionally equal at every existing call site, but the record's rule is the
+precondition.
+
+## 3. Authoritative producer per fact
+
+Each fact has exactly ONE producer. No consumer may re-derive a fact from an AST
+type or from printed text.
+
+**CORRECTION 7 (this ban is VIOLATED in the code - it must be scoped, not
+absolute; found by independent reviewer 1, verified by me).** The sentence above
+was stated as a property of the code. It is not. At least four live
+re-derivations exist:
+
+1. **`nilMergeChainNonOptional`** (SwiftExpr.hx:2048) takes a **String** and
+   derives optionality via `text.lastIndexOf(" ?? ")`. Consumers: **:4776 and
+   :4879** - inside the call-argument functions this record lists as *covered*.
+   That is a fact derived from PRINTED TEXT.
+2. **`blockExpression:1203`** and the closure declaration at **`switchExpression:5525`** (its delegation is at :5524) declare the closure
+   result type from the AST type while the value is converted per
+   `currentReturnType`, so the declared representation can diverge from the plan.
+3. **`switchAssign`/`switchStatement` (:5508-5515)** re-target an
+   already-converted value using the enclosing return type as destination rather
+   than the actual destination - the design document's named anti-pattern (J3).
+4. **`platformModuleCall:4349-4355`** wraps intrinsic results in `TiqianArray`
+   from the declared AST return type, text only - a second conversion authority.
+
+Correct claim: the ban is a **design rule the mechanism aspires to**; the four
+sites above are **known violations requiring their own rulings**. This record
+does NOT assert the ban holds today.
+
+| fact | authoritative producer | file | scope | invalidated by |
+|---|---|---|---|---|
+| boundary existence | `SwiftArrayBoundary.isBoundary(source, destination)` | SwiftArrayBoundary.hx:144 | per (source,destination) pair | change to either type |
+| source storage | `SwiftArrayBoundary.sourceStorage(t, emptyLit, nullLit)` | :148 | per source expression | change to source type or literal-ness |
+| optionality | `SwiftArrayOptionality` values set at operand construction | SwiftDecl.hx:591; **SwiftExpr.hx:2690** (NOT 2689 - that line is `storage:`) | per operand | change to operand nullability |
+| presence proof | `SwiftArrayPresenceFact` values | SwiftDecl.hx:597; SwiftExpr.hx:**2691** (`presenceFact:`) and `:2711-2726`, `:324/:334/:343`, `:2638/:2654`; SwiftParameterPlan.hx:71-80 | per operand | literal-ness change |
+| boundary plan | `SwiftArrayBoundary.prepare(operand, destinationType, override)` | :165 | per crossing | any input fact change; `override` is the composition's intermediate-destination requirement (CORRECTION 13), **not** an AST fact, and its producer is the composition, not the operand |
+| target text | `SwiftArrayBoundary.render(plan, operandText, elementText)` | :251 | per plan | plan change |
+| parameter body storage | `SwiftParameterPlan` -> `sourceStorage(baseType)` | SwiftParameterPlan.hx:60 | per parameter | signature change |
+
+**CORRECTION 8 - the JOIN INVARIANT (raised by independent reviewer 1; I
+verified the code).** Both join sites pick ONE arm's storage field rather than
+computing a join:
+
+- nil-merge, SwiftExpr.hx:**2632**: `storage = targetValue.storage == NullArrayValue ? fallbackValue.storage : targetValue.storage`
+- conditional, SwiftExpr.hx:**2648**: `storage = trueValue.storage == NullArrayValue ? falseValue.storage : trueValue.storage`
+
+This is sound **only under an invariant that is nowhere written down**: that both
+arms were prepared against the *same* destination, so their `storage` fields are
+comparable and the non-null arm is representative. If the arms were prepared
+against different destinations, the copy silently mislabels the result.
+
+The invariant therefore belongs here as an explicit precondition:
+
+> **JOIN PRECONDITION.** For any join (conditional or nil-merge), every arm MUST
+> have been prepared against the shared destination before the join is formed.
+> The join then takes the non-null arm's storage verbatim.
+
+This record does not establish that the precondition holds on all join paths;
+`:2632`/`:2648` are recorded as *assuming* it.
+
+## 4. Producer/consumer inventory (every migrated path)
+
+Traced call sites; each must consume the section-3 facts rather than re-derive.
+
+| path | consumption site | consumes |
+|---|---|---|
+| declaration/field initializer (STATIC fields only) | SwiftDecl.hx:590, 599, 604 | sourceStorage, presenceFact, prepare, render |
+| expression-level crossing | SwiftExpr.hx:2607, 2614 | prepare, render |
+| parameter body normalization | SwiftExpr.hx:305; SwiftParameterPlan.hx:60 | sourceStorage / parameterPlan.bodyStorage |
+| local binding | SwiftExpr.hx:743, 6173 | isBoundary, sourceStorage |
+| cast and completed conversion | SwiftExpr.hx:2534, 2580 | isBoundary |
+| conditional / nil-merge operand | SwiftExpr.hx:2673-2674; storage at **2689**, optionality at **2690**, presence at **2691** | isBoundary, sourceStorage |
+| **switch arm** (reached via `switchReturn` :5570 -> `armLines` :5615) | **SwiftExpr.hx:5641-5642, inside `armLines`** (NOT in `switchReturn`) | isBoundary, arrayBoundaryText |
+| **assignment rendering** | SwiftExpr.hx:2806 | isBoundary |
+| call argument | SwiftExpr.hx:4779, 4882 (candidate; baseline 4760, 4863) | lowerArrayBoundary -> prepare |
+| conditional arms (each) | SwiftExpr.hx:2642-2643 | lowerArrayBoundary -> prepare |
+| nil-merge operands (each) | SwiftExpr.hx:2627-2628 | lowerArrayBoundary -> prepare; the **target** also consumes the composition override (`true`, :2627) |
+
+**CORRECTION 4 (five live consumption sites were MISSING - found by independent
+reviewer 1; I verified each in code).** The above table was described as "every
+migrated path". It was not. These five are absent from both earlier revisions:
+
+| path | site | consumes | note |
+|---|---|---|---|
+| **plain statement-level `return`** | SwiftExpr.hx:811 | arrayBoundaryText -> funnel | the MOST COMMON crossing in the domain; the table's "return through typed consumer" row had no plain-return site at all |
+| **block tail** (expression position) | SwiftExpr.hx:1212 (`blockExpression`) | arrayBoundaryText -> funnel | §6 claimed "block tail: untraced" - false, it exists in code |
+| **nested collection element** | SwiftExpr.hx:1929 (`TArrayDecl`) | arrayBoundaryText -> funnel | this is the design document's *Nested collection element* family - absent from this record entirely |
+| **second call-argument consumer** | SwiftExpr.hx:3304 (`argTexts`) | arrayBoundaryText -> funnel | distinct from 4779/4882 (candidate; baseline 4760/4863); used by `callArgTexts` |
+| **enum constructor arguments** | SwiftExpr.hx:4720 (`enumConstruct`) | arrayBoundaryText -> funnel | never mentioned |
+
+All five route through `arrayBoundaryText` -> `lowerArrayBoundary`, i.e. they DO
+reach the single producer. Their omission is why my earlier "complete caller set"
+and "block tail untraced" claims both failed.
+
+**CORRECTION 5 (the "every crossing converges on ONE function" sentence was
+FALSE - found by independent reviewer 1).** There are **two** independent entry
+points into `prepare`/`render`, not one:
+
+1. **`lowerArrayBoundary`** (SwiftExpr.hx:2578) - calls `prepare` at :2607 and
+   `render` at :2614; 8 direct call sites (746, 2567, 2627, 2628, 2642, 2643,
+   4779, 4882 candidate coords; baseline 4760, 4863), none outside SwiftExpr.hx.
+2. **`SwiftDecl.hx:599` and `:604` call `SwiftArrayBoundary.prepare` and
+   `.render` DIRECTLY**, bypassing `lowerArrayBoundary` entirely. That is this
+   record's own §4 row 1, so the sentence contradicted the table beneath it.
+
+`arrayBoundaryText` (:2566) is a **third** entry delegating into (1); it has 9
+call sites of which I listed only 4 - five were omitted (see CORRECTION 4).
+
+So "one funnel" is an overstatement. The defensible statement is: **`prepare` is
+the single place where a plan is produced**, but it is entered from **two
+independent coordinator paths plus a wrapper**, and any completeness argument
+must account for all three.
+
+**CORRECTION 2 (my earlier "complete caller set" was WRONG - found by an
+independent reviewer).** The previous revision claimed the funnel's complete
+caller set was the 8 direct sites (746, 2567, 2627, 2628, 2642, 2643, 4760,
+4863). That omitted a SECOND ENTRY: `arrayBoundaryText` (defined :2566) is a
+thin wrapper that delegates to `lowerArrayBoundary` at :2567, and it has **8
+further call sites**: :811, :1212, :1929, :2535, :2807, :3304, :4720, :5642.
+
+The full entry set is therefore **16**: 8 direct + 8 via `arrayBoundaryText`.
+I under-counted because I searched for `lowerArrayBoundary` only and did not
+follow the wrapper. This is exactly the class of omission the acceptance
+condition is meant to catch, and it is recorded here rather than silently fixed.
+
+A consumer either routes through this funnel or it does not - so "one producer
+per fact" is mechanically checkable, not nominal.
+
+**CORRECTION 1 (previous revision was wrong).** The earlier revision of this
+record listed "call result" among the unresolved families. That is inaccurate
+for call ARGUMENTS: `SwiftExpr.hx:4760` and `:4863` do route through
+`lowerArrayBoundary` into `prepare`. What remains unowned is the CALL RESULT
+position itself (a call whose returned array then crosses), which is not traced
+here.
+
+**CORRECTION 3 (my "structurally absent" claim about switch/try was FALSE -
+found by independent reviewer 2, and I verified the falsification myself).**
+The previous revision asserted that `switchReturn`, `switchAssign`,
+`switchStatement`, `switchExpression`, `tryStatementLines` had 0 references to
+the boundary module and that switch/try results therefore bypass the producer.
+That is wrong. My grep examined the **dispatch sites** (:808/:819-820/:821/:1855/:823). NOTE: an earlier revision wrote ":816" here; 816 is a closing brace, the real `switchAssign` dispatch is 819-820 and its definition is 5508.
+rather than the **definitions**:
+
+- **`switchReturn` (:5570-5614) does NOT itself consult the boundary.** The
+  `isBoundary` call at **:5641-5642** lives in **`armLines` (:5615-5653)**, which
+  `switchReturn` reaches via its call at **:5604**. Earlier revisions of this
+  record asserted `switchReturn`'s "body DOES consult the boundary at :5641-5642"
+  - that misattribution was inherited from `boundary-review-glm/REPORT.md:19` and
+  survived three revisions before an independent cross-check caught it
+  (`external-consult-xcheck/REPORT.md`). The correct statement is the one above.
+- `switchAssign` (:5508) delegates via `switchReturn(sw, depth, true)` (:5509).
+- `switchExpression` (:5523) delegates via `switchReturn(sw, 1)` at **:5524** (NOT :5525 - 5525 is the `types.of(sw.t)` line cited in CORRECTION 7 item 2; citing 5525 here contradicted that block).
+- `switchStatement` (:5492) likewise routes to `switchReturn`.
+- try-body STATEMENT returns cross the funnel via `:811`. (PARTIALLY WRONG -
+  see CORRECTION 11 in §6: VALUE-form try returns route through `tryReturnLines`
+  (:5251) and `blockValueLines` (:5168) and bypass :811 entirely.)
+
+So switch and try DO reach the single producer (for try, only STATEMENT-form
+returns do - see CORRECTION 11 in §6). My earlier "0 references"
+verification grepped the wrong line range and produced a **false structural
+claim** - an overcorrection on top of my first undercount.
+
+The TRUE open set is narrower AND different:
+
+- **call result position** (as distinct from call arguments, which are covered);
+- **`tryBindingLines` (candidate :5229-5273; baseline :5210-5250)** - the one family I re-checked directly and
+  which genuinely has **0** boundary references;
+- **switch pattern-binding / payload declarations** - never audited at all;
+- ~~two design-document families that are SILENTLY ABSENT from BOTH revisions:
+  *Registered default* and *Nested collection element*. The latter is not merely
+  absent from the prose: `:1929` uses `arrayBoundaryText(x, elemType)`, an
+  element-position consumer this record never mentions.~~
+
+  **CORRECTION 12 — the paragraph above was FALSE and contradicted section 4.**
+  It survived several revisions until an independent behaviour review
+  (`p08-behaviour-review/REPORT.md`) caught it, and it is withdrawn here rather
+  than silently deleted:
+
+  - ***Nested collection element* is NOT absent from this record.** Section 4
+    lists it explicitly (`:1929`, `TArrayDecl`). The earlier claim that this
+    record "never mentions" it was written before CORRECTION 4 added that row,
+    and was never reconciled afterwards. **What is genuinely outstanding is
+    narrower and must not be overstated:** section 4 registers the *consumer
+    site* only; this record has **not ruled** on the family's semantic
+    requirement (the design document requires the enclosing constructor to
+    supply the container representation independently).
+  - ***Registered default* is NOT absent from the code.** The same review
+    verified coverage at `:284-345`, `:368-376`, `:4757-4778` and `:4860-4881`.
+    The correct characterisation is **incompletely registered in section 4**,
+    not "silently absent".
+  - The root cause is a process one worth recording: sections were edited in
+    separate rounds and **never subjected to a cross-section consistency
+    check**. Two independent contradictions were produced this way.
+
+The design document names open owners
+(`j-prepared-value-design.md`, §Producer inventory, closing paragraph).
+This record does NOT claim them.
+
+## 5. Target realization rules
+
+Target syntax stays out of the source semantic decision: `prepare` returns a
+plan and `render` produces text. Conversion form is `toMutableArray()`; the
+corrected single-wrap form is `X.toMutableArray()` (not
+`TiqianArray(X.toMutableArray())`).
+
+## 6. Unsupported and unresolved cases
+
+- **`switchBindingLines` (`SwiftExpr.hx:5486-5490`)** — renders
+  `let v = <switchExpression(sw)>` with no boundary consultation for the
+  binding's OWN destination. Verified: it delegates to `switchExpression`
+  (:5523) → `switchReturn(sw, 1)` (:5524), whose arm check (:5639-5642)
+  consults `currentReturnType` only; the binding variable's type is never used
+  as a destination, and if `currentReturnType` is not a read-only array no
+  consultation happens at all. The reviewer called this "no owner"; precisely:
+  the producer is reached, but only with the WRONG destination.
+- **`tryReturnLines` (`SwiftExpr.hx:5251`)** — value-form try-region returns.
+  The body (:5261) and handler (:5273) values come from `blockValueLines`, and
+  the emitted `return <value>` lines (:5269, :5282) bypass the :811 dispatch
+  (which `tryReturnLines` is itself dispatched TO at :798-799 instead of).
+  This route genuinely lacks boundary consultation.
+- **try-region block tail `blockValueLines` (`SwiftExpr.hx:5160-5169`),
+  specifically :5168** — `expr(parts.value)`; `expr` (:1841) contains no
+  boundary reference anywhere on its path (the file's boundary-reference
+  inventory is :305, :743-746, :811, :1212, :1929, :2534-2535, :2566-2567,
+  :2578-2614, :2627-2628, :2642-2643, :2672-2674, :2689, :2721, :2806-2807,
+  :3304, :4720, :4760, :4863, :5641-5642, :6173 - none inside `expr`).
+- **call result position** (as distinct from call ARGUMENTS, which are covered)
+- **`tryBindingLines` (candidate :5229-5273; baseline :5210-5250)** and **`tryReturnLines` (candidate :5275-~5312; baseline :5251-5287)**: verified to have 0 boundary
+  references **as of the revision this was written** - **this is no longer true of the candidate.**
+  The P08 candidate patch inserts the `destinationValueText` funnel into both routes
+  (`SwiftExpr.hx:5253`/`:5267` (tryBindingLines) and `:5296`/`:5310` (tryReturnLines), in the candidate tree), which **falsifies this bullet and the
+  sibling boundary-reference inventory bullet (now at `:367-371`)**. Recorded as a **record-staleness introduced by the candidate**: these
+  two bullets describe the pre-candidate state and must land with the patch, not be read as current.
+  (Found by the record-cell correction pass; it flagged the staleness but correctly did not edit it,
+  because the override ruling's section 4 did not name these bullets.)
+- **switch pattern-binding / payload declarations**: never audited
+- **`Registered default`** and **`Nested collection element`**: named in
+  `j-prepared-value-design.md`. **CORRECTION 12 applies here too** - the earlier
+  "SILENTLY ABSENT from both revisions" wording was false: section 4 lists the
+  nested-collection consumer at `:1929`, and the registered-default family is
+  covered in code at `:284-345`, `:368-376`, `:4757-4778`, `:4860-4881`. What
+  remains open is **the semantic ruling**, not the registration.
+- interaction of already-converted values with the conditional/nil-merge axis
+- evaluation-order/lazy-effect interactions are asserted in the design document
+  but are not traced in this record
+- **`SwiftExpr.hx:2689`**: falls back to `sourceStorage(e.t, ...)` from the AST
+  type when `recorded == null`, which directly contradicts §3's ban on deriving
+  facts from AST types. It needs an explicit ruling; this record does not give one.
+
+- **`destinationOptionalOverride` reachability (CORRECTION 13).** The override makes the
+  override-sensitive gates convert (`SwiftArrayBoundary.hx:188`, `:200-202`, `:207`,
+  `:218-220`). Which accepted source forms reach a nil-merge target with each storage and
+  source optionality is **not** established by this record. In particular the plan-check
+  macro fabricates the `ReadOnlyArrayView x optional` operand
+  (`tests/swift-readonly-boundary/boring/SwiftBoundaryPlanChecks.hx:54-62`) rather than
+  reaching it from source.
+- **nil-merge missing required-destination check.** The nil-merge branch
+  (`SwiftExpr.hx:2645-2658` candidate) has no counterpart to the ordinary-conditional
+  guard at `:2665-2666` ("optional conditional array result cannot satisfy a required
+  boundary"), so a nullable fallback joined against a required destination can be returned
+  as `OptionalOperand` with no failure - the outcome
+  `compiler-policy-interfaces.md:176-177` forbids. Dormant today (no caller passes
+  `destinationOptionalOverride = false`); pre-existing, not introduced by the candidate.
+
+**CORRECTION 11 (three routes with no owner of their own - named by the third
+review, correction N7, and each verified in code before being written here).**
+`switchBindingLines` (:5486-5490), `tryReturnLines` (:5251), and the try-region
+block tail `blockValueLines` (:5160-5169, specifically :5168) are added to the
+list above. All three reviewer-supplied line ranges are exact. The first
+reaches the producer only under `currentReturnType`; the latter two do not
+reach it at all. This also refines CORRECTION 3's try claim in §4: only
+STATEMENT-form try returns cross via :811.
+
+**NOTE (do not repeat my error).** An earlier revision of §6 claimed switch and
+try results were "structurally absent" with 0 boundary references. That was
+FALSE - see CORRECTION 3 in §4. Switch and try DO reach the single producer.
+The lines above are the genuinely open set.
+
+## 7. What would make this record ACCEPTED
+
+An independent reviewer can start here, take any accepted source form from
+section 4, trace it to exactly one fact producer in section 3, and then to every
+consumer.
+
+**The negative half must NOT be stated absolutely.** The earlier revision
+required the reviewer to "find NO consumer deriving the result from an AST type
+or printed text". That is unachievable as written, because **four such
+re-derivations are already known** (CORRECTION 7: `nilMergeChainNonOptional`
+:2048 consumed at :4776/:4879; closure declarations at :1203 and :5525-the-declaration (delegation :5524); switch
+re-targeting at :5508-5515; `platformModuleCall` at :4349-4355). Demanding their
+absence would make the record unpassable by construction.
+
+The achievable condition is: **every known re-derivation is either eliminated or
+individually ruled on**, each ruling recorded against the fact it affects - not a
+claim that none exist. A focused fixture passing remains NOT acceptance.
+
+## 8. What this record does NOT prove
+
+It does not prove the mechanism is correct; it records who owns which fact and
+where it is consumed. It does not cover the four unresolved producer families.
+It is not a regression result. It has not been independently reviewed yet.
+
+
+<!-- Coordinate-frame note added by the coordinator after the reanchor-v2 pass: this record
+     mixes baseline and candidate SwiftExpr.hx line numbers in places, because the two trees
+     differ (7001 vs 7041 lines). Where a citation is candidate-relative it now says so.
+     Verified call sites: destinationValueText at 5253/5267/5296/5310; declaration at 2580;
+     registered-default `true` sites at 4779/4882 (candidate) = 4760/4863 (baseline). -->

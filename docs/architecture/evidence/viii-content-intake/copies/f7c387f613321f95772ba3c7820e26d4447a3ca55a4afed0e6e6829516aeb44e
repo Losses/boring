@@ -1,0 +1,11 @@
+warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture' is dirty
+finiteClassification: FAILED -> test failed: tests.NumberClassifyTests.finiteClassification
+  expected: true
+  actual:   false
+nanClassification: PASSED
+exit=0
+=== same probe against the compiled fixed class in out/kotlin-f32/tests.jar ===
+warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture' is dirty
+finiteClassification: PASSED
+nanClassification: PASSED
+exit=0

@@ -1,0 +1,58 @@
+package boring
+
+data class CompareGateBoolInner(val enabled: Boolean) {
+}
+
+
+
+data class CompareGateBoolOuter(val inner: CompareGateBoolInner) {
+}
+
+
+
+data class CompareGateSafeInner(val rank: Int, val label: String) {
+}
+
+fun compareCompareGateSafeInner(a: CompareGateSafeInner, b: CompareGateSafeInner): Int {
+    var cmp = 0
+    cmp = a.rank.compareTo(b.rank)
+    if (cmp != 0) return cmp
+    cmp = a.label.compareTo(b.label)
+    if (cmp != 0) return cmp
+    return 0
+}
+
+data class CompareGateSafeOuter(val inner: CompareGateSafeInner) {
+}
+
+fun compareCompareGateSafeOuter(a: CompareGateSafeOuter, b: CompareGateSafeOuter): Int {
+    var cmp = 0
+    cmp = boring.compareCompareGateSafeInner(a.inner, b.inner)
+    if (cmp != 0) return cmp
+    return 0
+}
+
+data class CompareGateBoolGrand(val value: CompareGateBoolOuter) {
+}
+
+
+
+data class CompareGateSafeGrand(val value: CompareGateSafeOuter) {
+}
+
+fun compareCompareGateSafeGrand(a: CompareGateSafeGrand, b: CompareGateSafeGrand): Int {
+    var cmp = 0
+    cmp = boring.compareCompareGateSafeOuter(a.value, b.value)
+    if (cmp != 0) return cmp
+    return 0
+}
+
+object CompareGateOps {
+    fun boolNested(): CompareGateBoolOuter {
+        return CompareGateBoolOuter(CompareGateBoolInner(true))
+    }
+
+    fun safeNested(): CompareGateSafeGrand {
+        return CompareGateSafeGrand(CompareGateSafeOuter(CompareGateSafeInner(1, "a")))
+    }
+}

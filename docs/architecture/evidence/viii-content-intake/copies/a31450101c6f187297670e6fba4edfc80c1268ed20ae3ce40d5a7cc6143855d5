@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/null-guard-xcheck
+argv timeout 900 dart analyze --fatal-infos .

@@ -1,0 +1,101 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use std::sync::LazyLock;
+
+
+#[derive(Clone, PartialEq)]
+pub struct Frame {
+    pub label: UString,
+}
+
+impl Frame {
+    pub fn new(label: &UStr) -> Self {
+        Self {
+            label: label.to_ustring(),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct FrameBase;
+
+impl FrameBase {
+    pub const FRAME_BASE_FACTOR: f32 = 1.5f32;
+}
+
+pub static BUILT_IN_FRAME_FRAME: LazyLock<Frame> = LazyLock::new(|| Frame::new(&(UStr::new(&[99,114,111,115,115,45,99,108,97,115,115]))));
+
+#[derive(Clone, Copy)]
+pub struct BuiltInFrame;
+
+impl BuiltInFrame {
+}
+
+pub static FRAME_POLICY_WEIGHTED: LazyLock<FramePolicy> = LazyLock::new(|| FramePolicy::new(&(UStr::new(&[119,101,105,103,104,116,101,100])), FrameMode::Weighted { weight: FrameBase::FRAME_BASE_FACTOR }, vec![UString::from("a").to_ustring(), UString::from("b").to_ustring()].to_vec()));
+
+pub static FRAME_POLICY_PLAIN: LazyLock<FramePolicy> = LazyLock::new(|| FramePolicy::new(&(UStr::new(&[112,108,97,105,110])), (FrameMode::Plain).clone(), vec![].to_vec()));
+
+pub static FRAME_POLICY_IMPORTED: LazyLock<FramePolicy> = LazyLock::new(|| FramePolicy::new(&(UStr::new(&[105,109,112,111,114,116,101,100])), (FrameMode::Plain).clone(), vec![UString::from("cross-class").to_ustring()].to_vec()));
+
+pub static FRAME_POLICY_GENERATED: LazyLock<FramePolicy> = LazyLock::new(|| FramePolicy::new(&(UStr::new(&[103,101,110,101,114,97,116,101,100])), (FrameMode::Plain).clone(), vec![].to_vec()));
+
+#[derive(Clone, PartialEq)]
+pub struct FramePolicy {
+    pub label: UString,
+    pub mode: FrameMode,
+    pub values: Vec<UString>,
+}
+
+impl FramePolicy {
+    pub fn new(label: &UStr, mode: FrameMode, values: Vec<UString>) -> Self {
+        Self {
+            label: label.to_ustring(),
+            mode,
+            values,
+        }
+    }
+
+    pub fn value_count_text(&self) -> UString {
+        return UString::from((u32::try_from(((self.values).clone().len()) & 0xFFFF_FFFF).unwrap_or(0)).to_string().as_str());
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ConstructedStateOps;
+
+impl ConstructedStateOps {
+    pub fn constructed_state_ops_labels() -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += ((*FRAME_POLICY_WEIGHTED).clone().label).to_ustring().as_ustr(); __s += &(UString::from(",")); __s += ((*FRAME_POLICY_PLAIN).clone().label).to_ustring().as_ustr(); __s += &(UString::from(",")); __s += ((*FRAME_POLICY_IMPORTED).clone().label).to_ustring().as_ustr(); __s += &(UString::from(",")); __s += ((*FRAME_POLICY_GENERATED).clone().label).to_ustring().as_ustr(); __s }).as_str());
+    }
+
+    pub fn constructed_state_ops_weight() -> f32 {
+        return FrameBase::FRAME_BASE_FACTOR;
+    }
+
+    pub fn constructed_state_ops_first_lengths() -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += (*FRAME_POLICY_WEIGHTED).clone().value_count_text().as_ustr(); __s += &(UString::from(",")); __s += (*FRAME_POLICY_PLAIN).clone().value_count_text().as_ustr(); __s }).as_str());
+    }
+
+    pub fn constructed_state_ops_cross_class_text() -> UString {
+        return (((*BUILT_IN_FRAME_FRAME).clone().label).to_ustring()).clone();
+    }
+
+    pub fn constructed_state_ops_generated_label() -> UString {
+        return (((*FRAME_POLICY_GENERATED).clone().label).to_ustring()).clone();
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FrameMode {
+    Plain,
+    Weighted { weight: f32 },
+}
+
+impl FrameMode {
+    pub fn to_string(&self) -> String {
+        match self {
+            FrameMode::Plain => "Plain".to_string(),
+            FrameMode::Weighted { weight } => format!("Weighted(weight={})", (weight).to_string()),
+        }
+    }
+}

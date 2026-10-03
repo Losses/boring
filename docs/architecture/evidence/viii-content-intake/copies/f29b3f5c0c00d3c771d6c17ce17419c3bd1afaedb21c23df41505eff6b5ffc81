@@ -1,0 +1,19 @@
+package tests
+
+import boring.runtime.test.Test
+
+class DartCoalesceStaticTests {
+@boring.test.Test
+    fun testPreset() {
+        Test.run("tests.DartCoalesceStaticTests.testPreset", "tests.DartCoalesceStaticTests.testPreset: omitted constructor defaults resolve through coalescing statics") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testPartial() {
+        Test.run("tests.DartCoalesceStaticTests.testPartial", "tests.DartCoalesceStaticTests.testPartial: an explicit null argument inlines the cross-module static default") {
+                Test.equals(true, true, null)
+        }
+    }
+}

@@ -1,0 +1,72 @@
+package tests
+
+import boring.PrintedCollection
+import boring.PrintedEnumCollection
+import boring.PrintedFlag
+import boring.PrintedNullableCollection
+import boring.PrintedPoint
+import boring.comparePrintedNullableCollection
+import boring.runtime.SortedTable
+import boring.runtime.test.Test
+
+class PrintedCollectionTests {
+@boring.test.Test
+    fun collections() {
+        Test.run("tests.PrintedCollectionTests.collections", "tests.PrintedCollectionTests.collections: collection fields use the ruled array form") {
+                val v = PrintedCollection(mutableListOf<String>("alpha", "beta"), mutableListOf<Int>(1, 2), mutableListOf<PrintedPoint>(PrintedPoint(1, 2)), mutableListOf<MutableList<Int>>(mutableListOf<Int>(1, 2), mutableListOf<Int>(3)), mutableListOf<String>())
+                val expected = "PrintedCollection(names=[alpha, beta], counts=[1, 2], points=[PrintedPoint(x=1, y=2)], matrix=[[1, 2], [3]], none=[])"
+                Test.equals(expected, v.toString(), null)
+                Test.equals(expected, "PrintedCollection(" + "names=" + run { val sb = StringBuilder(); sb.append('['); val n = v.names.size; var i = 0; while (i < n) { if (i > 0) { sb.append(", "); }; sb.append(v.names[i]); i += 1; }; sb.append(']'); sb.toString() } + ", " + "counts=" + run { val sb = StringBuilder(); sb.append('['); val n = v.counts.size; var i = 0; while (i < n) { if (i > 0) { sb.append(", "); }; sb.append(v.counts[i]); i += 1; }; sb.append(']'); sb.toString() } + ", " + "points=" + run { val sb = StringBuilder(); sb.append('['); val n = v.points.size; var i = 0; while (i < n) { if (i > 0) { sb.append(", "); }; sb.append(v.points[i].toString()); i += 1; }; sb.append(']'); sb.toString() } + ", " + "matrix=" + run { val sb = StringBuilder(); sb.append('['); val n = v.matrix.size; var i = 0; while (i < n) { if (i > 0) { sb.append(", "); }; sb.append(run { val sb = StringBuilder(); sb.append('['); val n = v.matrix[i].size; var i1 = 0; while (i1 < n) { if (i1 > 0) { sb.append(", "); }; sb.append(v.matrix[i][i1]); i1 += 1; }; sb.append(']'); sb.toString() }); i += 1; }; sb.append(']'); sb.toString() } + ", " + "none=" + run { val sb = StringBuilder(); sb.append('['); val n = v.none.size; var i = 0; while (i < n) { if (i > 0) { sb.append(", "); }; sb.append(v.none[i]); i += 1; }; sb.append(']'); sb.toString() } + ")", null)
+        }
+    }
+
+@boring.test.Test
+    fun enumElements() {
+        Test.run("tests.PrintedCollectionTests.enumElements", "tests.PrintedCollectionTests.enumElements: payload enum elements render through the labeled form") {
+                val v = PrintedEnumCollection(mutableListOf<PrintedFlag>(PrintedFlag.Silent, PrintedFlag.Steps(2)))
+                Test.equals("PrintedEnumCollection(flags=[Silent, Steps(count=2)])", v.toString(), null)
+        }
+    }
+
+@boring.test.Test
+    fun nullableCollectionPrint() {
+        Test.run("tests.PrintedCollectionTests.nullableCollectionPrint", "tests.PrintedCollectionTests.nullableCollectionPrint: nullable collection fields print null and present forms") {
+                val none = PrintedNullableCollection(null)
+                Test.equals("PrintedNullableCollection(words=null)", none.toString(), null)
+                val present = PrintedNullableCollection(mutableListOf<String>("alpha", "beta"))
+                Test.equals("PrintedNullableCollection(words=[alpha, beta])", present.toString(), null)
+        }
+    }
+
+@boring.test.Test
+    fun nullableCollectionKeys() {
+        Test.run("tests.PrintedCollectionTests.nullableCollectionKeys", "tests.PrintedCollectionTests.nullableCollectionKeys: nullable collection keys order null, elements, then length") {
+                val doubleNull = SortedTable.mapBuilder<PrintedNullableCollection, String>(::comparePrintedNullableCollection)
+                doubleNull.put(PrintedNullableCollection(null), "first")
+                doubleNull.put(PrintedNullableCollection(null), "second")
+                val doubleNullMap = doubleNull.build()
+                Test.equals(1, doubleNullMap.size(), "two null keys collapse to one entry")
+                Test.equals("second", doubleNullMap.valueAt(0), "the later null-keyed put survives")
+                val nullFirst = SortedTable.mapBuilder<PrintedNullableCollection, String>(::comparePrintedNullableCollection)
+                nullFirst.put(PrintedNullableCollection(mutableListOf<String>("alpha")), "value")
+                nullFirst.put(PrintedNullableCollection(null), "null")
+                val nullFirstMap = nullFirst.build()
+                Test.equals(2, nullFirstMap.size(), "null and value keys stay distinct")
+                Test.equals("null", nullFirstMap.valueAt(0), "null sorts before a present array")
+                Test.equals("value", nullFirstMap.valueAt(1), "the present key follows the null key")
+                val sameElements = SortedTable.mapBuilder<PrintedNullableCollection, String>(::comparePrintedNullableCollection)
+                sameElements.put(PrintedNullableCollection(mutableListOf<String>("alpha", "beta")), "first")
+                sameElements.put(PrintedNullableCollection(mutableListOf<String>("alpha", "beta")), "second")
+                val sameElementsMap = sameElements.build()
+                Test.equals(1, sameElementsMap.size(), "equal array keys collapse to one entry")
+                Test.equals("second", sameElementsMap.valueAt(0), "the later equal-keyed put survives")
+                val prefixLength = SortedTable.mapBuilder<PrintedNullableCollection, String>(::comparePrintedNullableCollection)
+                prefixLength.put(PrintedNullableCollection(mutableListOf<String>("alpha", "beta")), "long")
+                prefixLength.put(PrintedNullableCollection(mutableListOf<String>("alpha")), "short")
+                val prefixLengthMap = prefixLength.build()
+                Test.equals(2, prefixLengthMap.size(), "prefix and longer keys stay distinct")
+                Test.equals("short", prefixLengthMap.valueAt(0), "a prefix array sorts before its extension")
+                Test.equals("long", prefixLengthMap.valueAt(1), "the longer array follows its prefix")
+        }
+    }
+}

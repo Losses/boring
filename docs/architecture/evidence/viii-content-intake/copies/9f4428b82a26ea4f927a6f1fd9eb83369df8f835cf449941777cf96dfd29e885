@@ -1,0 +1,20 @@
+test-assertion audit — Haxe-String spellings asserted across tests/
+generated at: 2026-09-30T02:10:37+00:00
+revision: e1c6597514634fd347d392709793cc19bd96c9a2
+
+== commands ==
+grep -rn 'UString' tests/ | wc -l
+grep -rln 'UString' tests/ | wc -l
+grep -rn 'pub struct [A-Za-z0-9_]*(pub String)' tests/
+grep -rn 'pub [a-z_]*: String' tests/
+
+== results ==
+assertions/mentions of UString in tests/           : 61
+test files mentioning UString                      : 16
+assertions expecting a generated-tree host String  : 1
+
+the single host-String assertion in tests/:
+/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/value-type.test.ts:125:    expect(rust).toContain("#[derive(Debug, Clone, PartialEq, Eq, Hash)]\npub struct FontFaceId(pub String);");
+
+no test asserts absence of UString:
+grep -rn 'not.toContain("UString' tests/  -> 0 matches

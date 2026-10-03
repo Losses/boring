@@ -1,0 +1,20 @@
+scope: every attempt-* directory under
+  boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/ (222 dirs)
+
+old checker: sha256 bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a (pristine bytes, backup/check-log-integrity.sh.orig)
+new checker: sha256 606cb4f391ba288137ef70caad989c848b96cbb78547efac12bd8527f534e3f7 (installed)
+
+old exit codes: rc=0 150  rc=1 72  
+new exit codes: rc=0 150  rc=1 72  
+
+numeric attempt-2026* only (215 dirs):
+  old: rc=0 148  rc=1 67  
+  new: rc=0 148  rc=1 67  
+
+per-attempt rc differences: 0
+  -> old-pass/new-fail regressions: 0
+  -> new detections (old-pass/new-fail class), listed below:
+  -> old-fail/new-pass (loosened judgement, must be zero): 0
+
+note: no real attempt carries the byte-level tamper, so the batch shows zero
+differences. The new detection is proven by control negA (evidence/controls.tsv).

@@ -1,0 +1,54 @@
+package boring
+
+object LoopWriteOps {
+    fun tailIncrement(n: Int): Int {
+        var total = 0
+        var i = 1
+        val bound = n
+        while ((i < bound)) {
+            total += i
+            i += 1
+        }
+        return total
+    }
+
+    fun branchIncrement(n: Int): Int {
+        var total = 0
+        var i = 1
+        val bound = n
+        while ((i < bound)) {
+            total += i
+            if ((i == 2)) {
+                i++
+            }
+            i += 1
+        }
+        return total
+    }
+
+    fun nonUnitIncrement(n: Int): Int {
+        var total = 0
+        var i = 1
+        val bound = n
+        while ((i < bound)) {
+            total += i
+            i += 2
+        }
+        return total
+    }
+
+    fun closureIncrement(n: Int): Int {
+        var total = 0
+        var i = 1
+        val bound = n
+        val advance = fun() {
+    i++
+}
+        while ((i < bound)) {
+            total += i
+            advance()
+            i += 1
+        }
+        return total
+    }
+}

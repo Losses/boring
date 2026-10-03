@@ -1,0 +1,27 @@
+BOARD ROW (read via wb_task_show, 2026-09-30 ~08:24Z)
+
+id           t-munu29i9-70b7
+title        修 W1：Swift switchExplicitReturn 吞掉 return（各臂被丢弃、.two 分支返回错值）
+             —— 按 work-plan:415 属验收失败且此前无属主
+milestone    Boring 架构治理（首批跨目标契约与固定版本回归）  [m-mulwvr32-3jht, order 70]
+branch       fix/swift-switch-explicit-return
+baseBranch   arch/agent-guided-governance
+status       todo        <-- created, NOT yet claimed: still no owner
+severity     high
+complexity   medium
+priority     high
+createdAt    2026-09-30T08:18:16.353Z
+timeline     seq 1 board created with 3 SOP criteria
+             seq 2 board note: "branch fix/swift-switch-explicit-return unread by but: spawnSync but ENOENT"
+sop          (1) generated switchExplicitReturn arms keep their value
+             (2) Gap fixture swiftc -typecheck zero diagnostics: 0 error AND 0 warning
+                 (work-plan:415 does not waive a baseline)
+             (3) .two branch returns the correct value -- EXECUTION check, not compile-only
+
+The row's own description ASSERTS the conclusion of the analysis under review
+("按 work-plan:415 属验收失败"; "⇒ 它目前阻塞 P08 的义务 2"). That assertion is therefore
+downstream of the analysis, not independent corroboration of it.
+
+Also on the board: the P08 gate row exists as the analysis says:
+  id t-munq08t2-rgxp, branch gate/p08-swift-readonly-boundary,
+  base arch/agent-guided-governance, status todo, severity high, complexity high.

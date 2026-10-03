@@ -1,0 +1,16 @@
+hunk	file	header	step	lines-changed	justification
+1	SwiftExpr.hx	@@ -805,7 +805,9 (return-position TSwitch call)	(c)	+3/-1	Wires the return-position switch route to its real destination: passes currentReturnType as switchReturn's new 4th argument; pure route wiring, no (a) content.
+2	SwiftExpr.hx	@@ -2566,6 +2568,23 (new helper)	(c)	+17/-0	Adds destinationValueText(value, destination, fallback) — the (c) helper every try-route hunk calls; not referenced by (a) or (x).
+3	SwiftExpr.hx	@@ -2624,7 +2643,7 (nil-merge target arm)	(a)	+1/-1	THE SW04 one-liner: lowerArrayBoundary(nilMerge.target, target, null, true). Serves only the nil-merge optional-destination fix; prerequisite for (c)'s fixture verification. NOTE: STEP-GROUPED.diff annotated this hunk [STEP C] and hunk 4 [STEP A] — off-by-one; corrected here (hunks unchanged).
+4	SwiftExpr.hx	@@ -5226,8 +5245,12 (tryBindingLines body arm)	(c)	+4/-1	try binding arm converts against binding's v.t via destinationValueText.
+5	SwiftExpr.hx	@@ -5239,8 +5262,9 (tryBindingLines handler arm)	(c)	+2/-1	same route, catch arm: destinationValueText(handlerValueExpr, v.t, ...).
+6	SwiftExpr.hx	@@ -5265,8 +5289,11 (tryReturnLines body arm)	(c)	+4/-1	try return arm converts against currentReturnType via destinationValueText.
+7	SwiftExpr.hx	@@ -5278,8 +5305,9 (tryReturnLines handler arm)	(c)	+2/-1	same route, catch arm: destinationValueText(handlerValueExpr, currentReturnType, ...).
+8	SwiftExpr.hx	@@ -5506,7 +5534,10 (switchAssign)	(c)	+4/-1	switch-in-assignment route passes target.t to switchReturn.
+9	SwiftExpr.hx	@@ -5521,7 +5552,10 (switchExpression)	(c)	+4/-1	switch-expression route passes sw.t to switchReturn.
+10	SwiftExpr.hx	@@ -5567,7 +5601,7 (switchReturn signature)	(c)	+1/-1	threads destination:Null<Type> parameter; no (a) content.
+11	SwiftExpr.hx	@@ -5601,7 +5635,7 (switchReturn -> armLines call)	(c)	+1/-1	forwards destination into armLines; part of the (c) threading.
+12	SwiftExpr.hx	@@ -5612,7 +5646,7 (armLines signature)	(c)	+1/-1	armLines gains destination:Null<Type>; (c) threading only.
+13	SwiftExpr.hx	@@ -5630,16 +5664,22 (armLines OtherStatement)	(c)	+8/-2	arm value lowering honours the explicit destination; the core (c) arm-level change.
+14	SwiftArrayBoundary.hx	@@ -158,6 +158,29 (literalOperand + contract doc)	(x)	+23/-0	Adds SwiftArrayBoundary.literalOperand(text, sourceType, emptyLiteral, nullLiteral) next to sourceStorage and documents the LiteralProvenPresent contract beside the fact. From PATCH.diff hunk 1, byte-identical; its old-side context (coordination tree) verified.
+15	SwiftDecl.hx	@@ -587,15 +587,7 (static-field rewiring)	(x)	+1/-14	Static read-only array field path calls literalOperand(rendered, init.t, isEmpty, isNull); inline storage/optionality/presenceFact derivations deleted. From PATCH.diff hunk 4, byte-identical.

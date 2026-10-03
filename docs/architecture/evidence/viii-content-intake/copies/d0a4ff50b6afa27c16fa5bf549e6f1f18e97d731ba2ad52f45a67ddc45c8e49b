@@ -1,0 +1,13 @@
+package tests
+
+import boring.ResidentModuleImportOps
+import boring.runtime.test.Test
+
+class ResidentModuleImportTests {
+@boring.test.Test
+    fun testResidentModuleImport() {
+        Test.run("tests.ResidentModuleImportTests.testResidentModuleImport", "tests.ResidentModuleImportTests.testResidentModuleImport: resident module imports resolve on their own module path") {
+                Test.equals(null, ResidentModuleImportOps.mapLookup(), "resident stays off the module path outside ts")
+        }
+    }
+}

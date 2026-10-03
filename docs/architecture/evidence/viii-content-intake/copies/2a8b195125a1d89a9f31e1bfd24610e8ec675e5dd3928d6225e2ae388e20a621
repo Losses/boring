@@ -1,0 +1,634 @@
+bun test v1.4.2 (744846f84)
+
+tests/rust-reference-consistency.test.ts:
+(pass) rust reference tree consistency > the resolved repository root is the repository [1.35ms]
+(pass) rust reference tree consistency > the reference tree exists and is populated [0.69ms]
+(pass) rust reference tree consistency > every module the Rust test suite imports resolves in the generated tree [40.73ms]
+(pass) rust reference tree consistency > the data-class comparator module the Rust suite imports is present [0.36ms]
+
+tests/bundle-child-evidence/bundle-child-evidence.test.ts:
+(pass) child execution evidence > Driver.step integration > a successful step retains both streams and runs its command once [414.72ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps its status, both streams, and the driver failure exit [113.38ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps the same failure exit without capture [100.81ms]
+(pass) child execution evidence > Driver.step integration > without the evidence setting the driver keeps its previous behaviour [337.63ms]
+(pass) child execution evidence > Driver.step integration > a capture write failure after a zero exit child fails the driver [368.50ms]
+(pass) child execution evidence > Driver.step integration > an evidence parent that is a regular file fails the driver before a run [40.04ms]
+465 |       try {
+466 |         writeProject(dir, successfulArgs(dir));
+467 |         const outcome = runDriver(dir, ["gen", "child", "--project", "boring.json"], {
+468 |           BORING_CHILD_EVIDENCE_DIR: parent,
+469 |         });
+470 |         expect(outcome.status).toBe(1);
+                                     ^
+error: expect(received).toBe(expected)
+
+Expected: 1
+Received: 0
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/bundle-child-evidence/bundle-child-evidence.test.ts:470:32)
+(fail) child execution evidence > Driver.step integration > a read only evidence parent fails the driver before any run is created [324.16ms]
+(pass) child execution evidence > retained outcome fields > a missing executable claims no stream file and is not a normal exit [126.67ms]
+(pass) child execution evidence > retained outcome fields > a command the host refuses to accept raises instead of returning an outcome [47.07ms]
+(pass) child execution evidence > retained outcome fields > a working directory that is not a directory keeps the host code of its launch failure [44.81ms]
+(pass) child execution evidence > retained outcome fields > a signaled child is distinct from a launch failure and from success [63.54ms]
+(pass) child execution evidence > retained outcome fields > a nonzero child keeps its exact status and both streams [63.89ms]
+(pass) child execution evidence > retained outcome fields > byte sequences survive including forms that are not valid UTF-8 [48.03ms]
+(pass) child execution evidence > retained outcome fields > a stream beyond the capture limit keeps its output and is marked incomplete [64.44ms]
+(pass) child execution evidence > retained outcome fields > a stderr-only child beyond the capture limit retains its stderr [55.57ms]
+(pass) child execution evidence > retained outcome fields > captured and uncaptured children observe the same argv, cwd, and environment [71.49ms]
+(pass) child execution evidence > retained outcome fields > repeated runs keep separate records and never reuse an earlier run [102.73ms]
+(pass) child execution evidence > retained outcome fields > a same name allocation resolves exclusively and keeps its own identity [37.60ms]
+(pass) child execution evidence > retained outcome fields > the production conversion validates each host value it is handed [122.32ms]
+(pass) child execution evidence > retained outcome fields > the project identity names the project path and its content [266.07ms]
+
+tests/dart/precision-switch.test.ts:
+(pass) float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error [39742.07ms]
+
+tests/driver/compare-coverage.test.ts:
+31 |   return { code: result.exitCode, output: result.stdout.toString() + result.stderr.toString() };
+32 | }
+33 | 
+34 | test("a consumer comparison skips repository mechanism coverage", () => {
+35 |   const result = compare(project());
+36 |   expect(result.code).toBe(0);
+                           ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/compare-coverage.test.ts:36:23)
+(fail) a consumer comparison skips repository mechanism coverage [30.38ms]
+43 |   mkdirSync(marker, { recursive: true });
+44 |   writeFileSync(join(marker, "mechanism-coverage.json"),
+45 |     JSON.stringify({ covered: [], uncoveredAllowlist: [] }));
+46 |   const result = compare(dir);
+47 |   expect(result.code).toBe(1);
+48 |   expect(result.output).toContain("ComparatorPlan is missing from coverage data");
+                             ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "ComparatorPlan is missing from coverage data"
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/compare-coverage.test.ts:48:25)
+(fail) a project mechanism declaration enforces coverage [22.61ms]
+53 |   const marker = join(dir, "tools", "test-consistency");
+54 |   mkdirSync(marker, { recursive: true });
+55 |   writeFileSync(join(marker, "mechanism-coverage.json"), "{bad");
+56 |   const result = compare(dir);
+57 |   expect(result.code).toBe(1);
+58 |   expect(result.output).toContain("Invalid mechanism coverage file:");
+                             ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Invalid mechanism coverage file:"
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/compare-coverage.test.ts:58:25)
+(fail) a malformed mechanism declaration reports its path [23.07ms]
+
+tests/driver/driver.test.ts:
+33 | test("compare ignores configurations without tests and runs outside the boring checkout", () => {
+34 |   const { dir, file } = fixture({});
+35 |   mkdirSync(join(dir, "results"));
+36 |   writeFileSync(join(dir, "results", "reference.jsonl"), '{"id":"same","name":"same","verdict":"pass"}\n');
+37 |   const result = run(file, ["compare"]);
+38 |   expect(result.code).toBe(0);
+                           ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:38:23)
+(fail) compare ignores configurations without tests and runs outside the boring checkout [4.32ms]
+47 |   mkdirSync(join(dir, "results"));
+48 |   writeFileSync(join(dir, "results", "reference.jsonl"), '{"id":"same","name":"same","verdict":"pass"}\n');
+49 |   writeFileSync(join(dir, "results", "other.jsonl"), '{"id":"same","name":"same","verdict":"fail"}\n');
+50 |   const result = run(file, ["compare"]);
+51 |   expect(result.code).toBe(1);
+52 |   expect(result.output).toContain("Verdict mismatch on same");
+                             ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Verdict mismatch on same"
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:52:25)
+(fail) compare reports a verdict mismatch [3.96ms]
+57 |     { id: "reference", target: "ts" }, { id: "alternate", target: "ts", compare: false },
+58 |   ] });
+59 |   mkdirSync(join(dir, "results"));
+60 |   writeFileSync(join(dir, "results", "reference.jsonl"), '{"id":"same","name":"same","verdict":"pass"}\n');
+61 |   const result = run(file, ["compare"]);
+62 |   expect(result.code).toBe(0);
+                           ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:62:23)
+(fail) compare excludes a tested configuration marked compare=false [3.76ms]
+66 | 
+67 | test("baseline must participate in compare", () => {
+68 |   const { file } = fixture({ bundles: [{ id: "reference", target: "ts", compare: false }] });
+69 |   const result = run(file, ["compare"]);
+70 |   expect(result.code).toBe(1);
+71 |   expect(result.output).toContain('baseline "reference" must participate in compare');
+                             ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "baseline \"reference\" must participate in compare"
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:71:25)
+(fail) baseline must participate in compare [3.48ms]
+75 |   const { file } = fixture({ bundles: [
+76 |     { id: "reference", target: "ts" }, { id: "header", target: "ts", test: false, compare: true },
+77 |   ] });
+78 |   const result = run(file, ["compare"]);
+79 |   expect(result.code).toBe(1);
+80 |   expect(result.output).toContain('bundle "header": compare=true requires test=true');
+                             ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "bundle \"header\": compare=true requires test=true"
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:80:25)
+(fail) a configuration cannot compare results without tests [3.57ms]
+82 | 
+83 | test("explicit test rejects a configuration marked test=false", () => {
+84 |   const { file } = fixture({});
+85 |   const result = run(file, ["test", "header"]);
+86 |   expect(result.code).toBe(1);
+87 |   expect(result.output).toContain("test=false");
+                             ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "test=false"
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:87:25)
+(fail) explicit test rejects a configuration marked test=false [3.61ms]
+89 | 
+90 | test("baseline must have tests", () => {
+91 |   const { file } = fixture({ baseline: "header" });
+92 |   const result = run(file, ["compare"]);
+93 |   expect(result.code).toBe(1);
+94 |   expect(result.output).toContain('baseline "header" must have tests');
+                             ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "baseline \"header\" must have tests"
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:94:25)
+(fail) baseline must have tests [3.60ms]
+103 |   const fakeHaxe = join(bin, "haxe");
+104 |   writeFileSync(fakeHaxe, "#!/bin/sh\nexit 0\n");
+105 |   chmodSync(fakeHaxe, 0o755);
+106 |   writeFileSync(join(dir, "write-marker.ts"), 'await Bun.write("marker.txt", "generated");\n');
+107 |   const result = run(file, ["gen", "reference"], { PATH: bin + ":" + process.env.PATH });
+108 |   expect(result.code).toBe(0);
+                            ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:108:23)
+(fail) gen runs afterGen with the project as working directory [3.74ms]
+132 |   writeFileSync(join(output, "driver.test.ts"), ${JSON.stringify(generated)});
+133 | }
+134 | `);
+135 |   chmodSync(fakeHaxe, 0o755);
+136 |   const result = run(file, ["verify", "--with-pack"], { PATH: bin + ":" + process.env.PATH });
+137 |   expect(result.code).toBe(0);
+                            ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:137:23)
+(fail) verify with pack ignores configurations without package metadata [3.90ms]
+143 |   const { file } = fixture({ bundles: [
+144 |     { id: "reference", target: "ts", run: { env: { BORING_TEST_RESULTS: "wrong.jsonl" } } },
+145 |   ] });
+146 |   const result = run(file, ["compare"]);
+147 |   expect(result.code).toBe(1);
+148 |   expect(result.output).toContain('bundle "reference": run.env may not set BORING_TEST_RESULTS');
+                              ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "bundle \"reference\": run.env may not set BORING_TEST_RESULTS"
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:148:25)
+(fail) run.env cannot replace the driver's results file [3.69ms]
+158 |   writeFileSync(join(bin, "tsc"), "#!/bin/sh\nexit 0\n");
+159 |   chmodSync(join(bin, "haxe"), 0o755);
+160 |   chmodSync(join(bin, "tsc"), 0o755);
+161 |   const argLog = join(dir, "haxe-args.txt");
+162 |   const result = run(file, ["pack", "reference"], { PATH: bin + ":" + process.env.PATH, BORING_ARG_LOG: argLog });
+163 |   expect(result.code).toBe(0);
+                            ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:163:23)
+(fail) pack passes the declared license to the compiler [3.56ms]
+168 |   const { file } = fixture({ bundles: [
+169 |     { id: "reference", target: "ts", package: { name: "demo", version: "1.0.0", license: "" } },
+170 |   ] });
+171 |   const result = run(file, ["compare"]);
+172 |   expect(result.code).toBe(1);
+173 |   expect(result.output).toContain('bundle "reference": package license must not be empty');
+                              ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "bundle \"reference\": package license must not be empty"
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:173:25)
+(fail) package license must be a nonempty string when declared [4.82ms]
+188 |   writeFileSync(join(dir, "src", "demo", "ATest.hx"), "package demo; class ATest { public static function value():Int return 5; }\n");
+189 |   writeFileSync(join(dir, "src", "demo", "nested", "Nested.hx"), "package demo.nested; class Nested { public static function value():Int return 3; }\n");
+190 |   const rootsFile = join(dir, "classes.hxml");
+191 |   writeFileSync(rootsFile, "stale\n");
+192 |   const roots = run(file, ["roots", "core", "--output", "classes.hxml"]);
+193 |   expect(roots.code).toBe(0);
+                           ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:193:22)
+(fail) sourceSet compiles listed types and direct package members [3.93ms]
+204 | 
+205 | test("sourceSet rejects an unknown name", () => {
+206 |   const { file } = fixture({ bundles: [{ id: "reference", target: "ts", sourceSet: "missing" }] });
+207 |   const result = run(file, ["gen", "reference"]);
+208 |   expect(result.code).toBe(1);
+209 |   expect(result.output).toContain('bundle "reference": unknown source set "missing"');
+                              ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "bundle \"reference\": unknown source set \"missing\""
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:209:25)
+(fail) sourceSet rejects an unknown name [3.36ms]
+216 |   });
+217 |   mkdirSync(join(dir, "src", "demo"), { recursive: true });
+218 |   writeFileSync(join(dir, "src", "demo", "Helper.hx"), "package demo; class Helper {}\n");
+219 |   const result = run(file, ["roots", "core", "--output", "classes.hxml"]);
+220 |   expect(result.code).toBe(1);
+221 |   expect(result.output).toContain('source set "core": no modules ending in "Test"');
+                              ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "source set \"core\": no modules ending in \"Test\""
+Received: "error: Module not found \"/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/out/driver/driver.js\"\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/driver/driver.test.ts:221:25)
+(fail) sourceSet discovery rejects an empty matching directory [3.71ms]
+
+tests/swift-gap-boundary/gap-boundary.test.ts:
+59 |   // Gap.swift:117. Per the gate-owner ruling of the round-145 review, a build-phase diagnostic
+60 |   // COUNTS against 02-translator-implementation-standard.md:78/:80 -- the standard applies
+61 |   // "without warnings" to the generated code's compilation and :80 counts suite warning lines.
+62 |   // So the final goal remains ZERO diagnostics under -c as well, and this row is a recorded,
+63 |   // unwaived deviation, not compliance.
+64 |   const typecheck = Bun.spawnSync(
+                             ^
+error: Executable not found in $PATH: "swiftc"
+  path: "swiftc",
+ errno: -2,
+  code: "ENOENT"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/swift-gap-boundary/gap-boundary.test.ts:64:25)
+(fail) archived gap.Gap counterexample generates and its Swift typechecks [51401.27ms]
+115 | 
+116 | test("failure-mode probe: the harness detects a broken Swift source", async () => {
+117 |   const probeDir = `${out}/failure-probe`;
+118 |   await Bun.$`mkdir -p ${probeDir}`;
+119 |   await Bun.write(`${probeDir}/broken.swift`, `let broken: Int = "s"\n`);
+120 |   const result = Bun.spawnSync(["swiftc", "-typecheck", `${probeDir}/broken.swift`], { cwd: root, stdout: "pipe", stderr: "pipe" });
+                           ^
+error: Executable not found in $PATH: "swiftc"
+  path: "swiftc",
+ errno: -2,
+  code: "ENOENT"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/swift-gap-boundary/gap-boundary.test.ts:120:22)
+(fail) failure-mode probe: the harness detects a broken Swift source [6.72ms]
+
+tests/swift-readonly-boundary/readonly-boundary.test.ts:
+3 | const root = `${import.meta.dir}/../..`;
+4 | const out = Bun.env.BORING_READONLY_BOUNDARY_OUT ?? `${root}/out/readonly-boundary/test-${crypto.randomUUID()}`;
+5 | const generated = `${out}/gen`;
+6 | 
+7 | async function run(command: string[], label: string): Promise<string> {
+8 |   const result = Bun.spawnSync(command, { cwd: root, stdout: "pipe", stderr: "pipe" });
+                         ^
+error: Executable not found in $PATH: "swiftc"
+  path: "swiftc",
+ errno: -2,
+  code: "ENOENT"
+
+      at run (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/swift-readonly-boundary/readonly-boundary.test.ts:8:22)
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/swift-readonly-boundary/readonly-boundary.test.ts:79:9)
+(fail) Swift read-only array boundary shares storage and preserves flow [90023.61ms]
+
+tests/ts/arithmetic-helpers.test.ts:
+(pass) arithmetic helpers generated tree > No standalone Arithmetic or IntRange module is generated in any target [17.28ms]
+(pass) arithmetic helpers generated tree > TS inlines arithmetic helpers and abstracts into native comparison operators and ternaries [34.50ms]
+(pass) arithmetic helpers generated tree > Kotlin inlines arithmetic helpers into native comparison operators and if-expressions [26.13ms]
+(pass) arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks [16.38ms]
+
+tests/ts/array-iteration.test.ts:
+(pass) array element iteration generated tree > TypeScript uses a single-read indexed bound for all array subjects [20.12ms]
+(pass) array element iteration generated tree > Kotlin emits element for loops [17.54ms]
+(pass) array element iteration generated tree > Rust emits element for loops [19.07ms]
+(pass) array element iteration generated tree > Swift emits element for loops [31.04ms]
+(pass) array element iteration generated tree > Dart emits element for loops [28.43ms]
+
+tests/ts/array-root.test.ts:
+(pass) small static array initializer trees > each target uses the ruled array declaration [96.99ms]
+(pass) small array initializer mutation rules retain all three diagnostics [79791.58ms]
+
+tests/ts/block-width.test.ts:
+(pass) block float widths > F32 committed binary decodes to the JSON records [38.62ms]
+(pass) block float widths > F32 re-encoding the decoded records reproduces the committed bytes [1.69ms]
+(pass) block float widths > F32 travels under the BRG2 magic [0.33ms]
+(pass) block float widths > F32 records occupy 24 bytes each [0.03ms]
+(pass) block float widths > F16 committed binary decodes to the JSON records [17.60ms]
+(pass) block float widths > F16 re-encoding the decoded records reproduces the committed bytes [0.69ms]
+(pass) block float widths > F16 travels under the BRG3 magic [0.24ms]
+(pass) block float widths > F16 records occupy 14 bytes each
+(pass) block float widths > unknown width magics are rejected as BadMagic [0.39ms]
+(pass) binary16 edge constants > binary16 patterns widen to exact binary32 bits [0.02ms]
+(pass) binary16 edge constants > binary32 patterns narrow with round-to-nearest-even [0.02ms]
+
+tests/ts/capture-switch-ops.test.ts:
+(pass) capture switch generated trees > pins captured switch lowering in generated targets [73.17ms]
+
+tests/ts/codec.test.ts:
+(pass) BinaryWriter and BinaryReader > u16 and u32 round trip in big-endian order [0.49ms]
+(pass) BinaryWriter and BinaryReader > f64 round trip preserves the bit pattern [0.37ms]
+(pass) BinaryWriter and BinaryReader > ascii writes one byte per character [0.02ms]
+(pass) BinaryWriter and BinaryReader > buffer grows past the initial capacity [0.16ms]
+(pass) vector format > round trip preserves records and length [0.07ms]
+(pass) vector format > decode rejects a wrong magic with the BadMagic variant [0.07ms]
+(pass) vector format > decode rejects trailing bytes with the TrailingBytes variant [0.04ms]
+(pass) vector format > decode rejects a truncated vector with the UnexpectedEof variant [0.03ms]
+
+tests/ts/compiler-scope.test.ts:
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/AssignTargetPlan.hx carries no banned identifier [0.18ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ComparatorPlan.hx carries no banned identifier [18.30ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ConstantFold.hx carries no banned identifier [17.95ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DataTableHelper.hx carries no banned identifier [0.28ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DataTables.hx carries no banned identifier [18.69ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/DefaultArgExpander.hx carries no banned identifier [1.09ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/EnumCycleDetector.hx carries no banned identifier [0.27ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/EnumQueryExpander.hx carries no banned identifier [0.38ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ExpressionBlockNorm.hx carries no banned identifier [0.14ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ExpressionPredicates.hx carries no banned identifier [0.27ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/FloatPrecision.hx carries no banned identifier [0.19ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/FusionPlan.hx carries no banned identifier [0.14ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/Intercept.hx carries no banned identifier [0.48ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/NameConversion.hx carries no banned identifier [0.35ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PackageArtifacts.hx carries no banned identifier [0.17ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PackageShell.hx carries no banned identifier [0.10ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PipelineExpander.hx carries no banned identifier [0.50ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/PolicyQueries.hx carries no banned identifier [0.43ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/RuntimeConfig.hx carries no banned identifier [0.12ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/RuntimeResidents.hx carries no banned identifier [0.31ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SealedVariantHelper.hx carries no banned identifier [0.12ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SemanticExceptionLedger.hx carries no banned identifier [0.36ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SemanticPassRegistry.hx carries no banned identifier [0.31ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceComparisonAnalysis.hx carries no banned identifier [0.41ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceContainerAnalysis.hx carries no banned identifier [0.42ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceLocalPresenceAnalysis.hx carries no banned identifier [18.29ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceOriginFragment.hx carries no banned identifier [0.29ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/SourceOriginTrace.hx carries no banned identifier [0.23ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticFieldHelper.hx carries no banned identifier [0.40ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticFunctionMarkers.hx carries no banned identifier [0.13ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StaticReferenceScan.hx carries no banned identifier [16.42ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/StructuralKeyValidator.hx carries no banned identifier [0.52ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TerminationAnalysis.hx carries no banned identifier [18.12ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestApplicability.hx carries no banned identifier [0.32ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestClassEntries.hx carries no banned identifier [18.77ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestClassFlush.hx carries no banned identifier [0.27ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TestCollector.hx carries no banned identifier [17.72ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/TypeCheckHelper.hx carries no banned identifier [0.24ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ValueTypePlan.hx carries no banned identifier [0.22ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/ValueTypeSupport.hx carries no banned identifier [0.41ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/VarFusionPlan.hx carries no banned identifier [0.12ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/Compiler.hx carries no banned identifier [0.24ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/ExternBindings.hx carries no banned identifier [0.20ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsDecl.hx carries no banned identifier [0.21ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx carries no banned identifier [0.60ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsImports.hx carries no banned identifier [0.17ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsRuntime.hx carries no banned identifier [0.15ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsStringBufParams.hx carries no banned identifier [0.13ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsTestBinding.hx carries no banned identifier [0.11ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/ts/tscompiler/TsType.hx carries no banned identifier [0.13ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/Compiler.hx carries no banned identifier [0.26ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinAccessGrants.hx carries no banned identifier [0.16ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinComparisonPlan.hx carries no banned identifier [0.13ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinDecl.hx carries no banned identifier [0.22ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinEmissionState.hx carries no banned identifier [0.13ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinExpr.hx carries no banned identifier [0.71ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinImports.hx carries no banned identifier [0.13ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinNameEscape.hx carries no banned identifier [0.17ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinPreparedFunction.hx carries no banned identifier [0.14ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinRuntime.hx carries no banned identifier [0.14ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinTestBinding.hx carries no banned identifier [0.12ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/kotlin/kotlincompiler/KotlinType.hx carries no banned identifier [0.17ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx carries no banned identifier [0.74ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/DeadInitializerMatchFusion.hx carries no banned identifier [0.16ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/LoopCounterGuard.hx carries no banned identifier [0.15ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/ParenFold.hx carries no banned identifier [0.22ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustConversions.hx carries no banned identifier [0.16ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx carries no banned identifier [0.66ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx carries no banned identifier [0.18ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier [3.15ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustImports.hx carries no banned identifier [0.30ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustRuntime.hx carries no banned identifier [0.44ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustShape.hx carries no banned identifier [0.27ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustShapeParse.hx carries no banned identifier [0.27ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustTestBinding.hx carries no banned identifier [0.22ms]
+(pass) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustType.hx carries no banned identifier [0.28ms]
+
+tests/ts/constructed-state.test.ts:
+(pass) constructed static initializer trees > each target uses its ruled declaration and Rust read lane [95.17ms]
+(pass) constructed static mutation rules retain all three diagnostics [80048.62ms]
+
+tests/ts/constructor-statements.test.ts:
+(pass) constructor statement initialization safety > keeps body locals and lowered temporaries out of the initializer list [28.07ms]
+(pass) constructor statement initialization safety > keeps parameter-to-field assignments represented in the generated constructor [0.40ms]
+
+tests/ts/data-tables.test.ts:
+(pass) data tables TypeScript generation and behavior > ScriptEvidenceTable emits new Int32Array table form without per-element unrolling [0.24ms]
+(pass) data tables TypeScript generation and behavior > WordCharacterTable emits new Int32Array table form without per-element unrolling [0.20ms]
+(pass) data tables TypeScript generation and behavior > PayloadTextTable emits new Int32Array table form without per-element unrolling [0.28ms]
+(pass) data tables TypeScript generation and behavior > PayloadTextTable emits direct length and index reads, no per-access Array.from [0.22ms]
+(pass) data tables TypeScript generation and behavior > PayloadTextTable full decode loop finishes within bounded time and memory [0.70ms]
+(pass) data tables TypeScript generation and behavior > ScriptEvidenceTable.classify operates correctly on generated tree [0.08ms]
+(pass) data tables TypeScript generation and behavior > WordCharacterTable.contains operates correctly on generated tree [0.04ms]
+(pass) data tables TypeScript generation and behavior > PayloadTextTable operates correctly on generated tree [0.09ms]
+(pass) data tables TypeScript generation and behavior > CodePointNames operates correctly on generated tree [0.31ms]
+
+tests/ts/default-args.test.ts:
+(pass) default argument expansion generated tree > TS generated tree emits full-arity calls and clean method signatures [19.38ms]
+(pass) default argument expansion generated tree > Kotlin generated tree emits native defaults and full-arity calls [23.21ms]
+(pass) default argument expansion generated tree > Rust generated tree emits full-arity calls and clean method signatures [0.99ms]
+(pass) default argument expansion generated tree > Swift generated tree lowers parameter-reading coalescing defaults in the body [1.00ms]
+(pass) default argument expansion generated tree > Dart generated tree normalizes coalescing defaults in the body [16.91ms]
+
+tests/ts/deferred-locals.test.ts:
+(pass) deferred locals retain each target's sanctioned declaration form [56.27ms]
+(pass) a missing deferred assignment is rejected by the Kotlin tree build [27371.73ms]
+
+tests/ts/degradation-lvalue.test.ts:
+(pass) degradation granularity runtime witnesses > array element slot writes land and read back the stored record [0.51ms]
+(pass) degradation granularity runtime witnesses > element field reads through the mutated array observe prior writes [0.06ms]
+(pass) degradation granularity runtime witnesses > data table classify keeps index reads on the full table (no per-access copy) [0.10ms]
+
+tests/ts/enum-queries.test.ts:
+(pass) enum value queries generated trees > TypeScript emits frozen values, collection and lookup with a literal loop bound [1.08ms]
+(pass) enum value queries generated trees > Kotlin uses enum class, entries and element iteration [39.20ms]
+(pass) enum value queries generated trees > Swift uses raw value cases, CaseIterable and element iteration [1.07ms]
+(pass) enum value queries generated trees > Dart uses enhanced enum labels, lookup and element iteration [34.61ms]
+(pass) enum value queries generated trees > Rust emits ALL, name, from_name and a literal range [1.32ms]
+(fail) enum value queries generated trees > no generated target retains a Type static call [6623.82ms]
+  ^ this test timed out after 5000ms.
+
+tests/ts/enum-sorted-keys.test.ts:
+(pass) enum sorted key generated trees > pins parameterless enum comparator definitions [1.96ms]
+(pass) enum sorted key generated trees > pins qualified Dart comparator references [0.74ms]
+(pass) payload enums are rejected as sorted keys [25009.65ms]
+
+tests/ts/error-structure.test.ts:
+(pass) typed error structure > reference/ts/src contains no bare Error construction [6.02ms]
+(pass) typed error structure > samples/boring contains no bare haxe.Exception construction [88.89ms]
+
+tests/ts/extern-bindings.test.ts:
+(pass) TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once [29352.21ms]
+(pass) TypeScript extern binding modules > rejects a value reference to an empty module [32341.68ms]
+
+tests/ts/fn-values.test.ts:
+(pass) first-class function value generated trees > all five targets emit the probe module [180.83ms]
+(pass) first-class function value generated trees > TypeScript, Kotlin, Swift, and Dart keep static function storage [1.31ms]
+(pass) first-class function value generated trees > Rust uses one boxed representation and adapts indirect lengths [27.33ms]
+(pass) first-class function value generated trees > Rust's f32 tree carries the same function-value lowering [29.33ms]
+(pass) first-class function value generated trees > Rust bounds every function-value position with Send and Sync [37.06ms]
+(pass) first-class function value generated trees > Rust's f32 tree bounds the resident comparator [18.96ms]
+(pass) static function field capture validation > a capturing static initializer reports the ruled Rust error [25476.46ms]
+
+tests/ts/generated-tree.test.ts:
+(pass) generated tree behavior > decode matches the oracle field by field [5.50ms]
+(pass) generated tree behavior > encode reproduces the fixture bytes exactly [3.16ms]
+(pass) generated tree behavior > reachable exception variants match the oracle [1.57ms]
+(pass) generated tree behavior > counts at or above 2^31 throw CountOverflow before any record byte is read [0.62ms]
+(pass) generated tree behavior > sort orders by code point and is idempotent [0.53ms]
+(pass) generated tree behavior > decoded records and their array are frozen [0.43ms]
+(pass) generated tree behavior > slot assignment through a mutable view throws TypeError [0.98ms]
+(pass) generated tree behavior > array growth through a mutable view throws TypeError [0.28ms]
+(pass) generated tree behavior > record field assignment through a mutable view throws TypeError [0.28ms]
+
+tests/ts/loop-structure.test.ts:
+(pass) loop structure > reference/ts/src carries no functional iteration, loop closures, or unhoisted bounds [157.58ms]
+318 | 
+319 | describe("loop structure", () => {
+320 |   for (const tree of SOURCE_TREES) {
+321 |     test(`${tree.label} carries no functional iteration, loop closures, or unhoisted bounds`, async () => {
+322 |       const hits = await scanTree(tree);
+323 |       expect(hits).toEqual([]);
+                         ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   {
++     "detail": "head iterates instead of indexing: for (const entry of env)",
++     "file": "/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/ts/../../reference/ts/gen/boring/ProcessOps.ts",
++     "kind": "for-head",
++     "line": 8,
++   },
++ ]
+
+- Expected  - 1
++ Received  + 8
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/ts/loop-structure.test.ts:323:20)
+(fail) loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds [4346.49ms]
+(fail) loop structure > samples carries no functional iteration, loop closures, or unhoisted bounds [5000.07ms]
+  ^ this test timed out after 5000ms.
+(pass) loop structure > reference/rust/src carries no functional iteration, loop closures, or unhoisted bounds [20.71ms]
+(fail) loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds [5000.08ms]
+  ^ this test timed out after 5000ms.
+
+tests/ts/number-classify.test.ts:
+(pass) number classification generated tree > Math.isFinite and Math.isNaN render as native predicates on every target [79.36ms]
+
+tests/ts/number-parsing.test.ts:
+(pass) number parsing renderings > all target trees use the validated implementation [227.82ms]
+
+tests/ts/package-artifacts.test.ts:
+127 |   test("the npm tarball carries compiled JavaScript plus declarations and runs under plain node", async () => {
+128 |     const root = tempRoot("npm");
+129 |     try {
+130 |       const hxml = rewriteHxml("ts.hxml", root, [`-D package-tsc=${TSC}`]);
+131 |       const result = await runHaxe("package-artifacts-npm.hxml", hxml);
+132 |       expect(result.stderr).toBe("");
+                                  ^
+error: expect(received).toBe(expected)
+
+- ""
++ "package-tsc-capture: /home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/node_modules/typescript/bin/tsc: /usr/bin/env: bad interpreter: Permission denied
++ package-tsc failed with exit code 126:
++ /home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/node_modules/typescript/bin/tsc -p /tmp/boring-artifacts-npm-fQr0bo/ts/.package-npm-stage
++ source resolution: Unmapped (tsc emitted no parseable file location)
++ child stdout and stderr were forwarded unchanged on their respective process streams
++ "
+
+- Expected  - 1
++ Received  + 6
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/ts/package-artifacts.test.ts:132:29)
+(fail) package artifact emission > the npm tarball carries compiled JavaScript plus declarations and runs under plain node [35695.90ms]
+(pass) package artifact emission > the cargo crate and the Pub archive keep the tree at the root [98528.21ms]
+(pass) package artifact emission > the Swift zip carries the tree at the root [35422.18ms]
+(pass) package artifact emission > the Kotlin target packs a Maven repository directory with a compiled jar [54092.16ms]
+328 |         {hxml: "dart.hxml", file: "dart/generated-0.1.0.tar.gz", extra: []},
+329 |         {hxml: "kotlin.hxml", file: "kotlin/maven/generated/generated/0.1.0/generated-0.1.0.jar", extra: ["-D package-kotlinc=kotlinc"]},
+330 |       ];
+331 |       for(const pkg of packages) {
+332 |         const a = await runHaxe(`package-artifacts-id-a.hxml`, rewriteHxml(pkg.hxml, first, pkg.extra));
+333 |         expect(a.stderr).toBe("");
+                               ^
+error: expect(received).toBe(expected)
+
+- ""
++ "package-tsc-capture: /home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/node_modules/typescript/bin/tsc: /usr/bin/env: bad interpreter: Permission denied
++ package-tsc failed with exit code 126:
++ /home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/node_modules/typescript/bin/tsc -p /tmp/boring-artifacts-identity-a-ek9ZeL/ts/.package-npm-stage
++ source resolution: Unmapped (tsc emitted no parseable file location)
++ child stdout and stderr were forwarded unchanged on their respective process streams
++ "
+
+- Expected  - 1
++ Received  + 6
+
+      at <anonymous> (/home/losses/Development/tq-workspace/dc-warn/cs-42c805d3/tests/ts/package-artifacts.test.ts:333:26)
+(fail) package artifact emission > two generations of the same inputs produce byte-identical artifacts [45230.71ms]
+(pass) package artifact emission > an invalid package-artifacts value aborts the compile [32502.99ms]

@@ -1,0 +1,34 @@
+package tests
+
+import boring.LoopWriteOps
+import boring.runtime.test.Test
+
+class LoopWriteTests {
+@boring.test.Test
+    fun tailIncrement() {
+        Test.run("tests.LoopWriteTests.tailIncrement", "tests.LoopWriteTests.tailIncrement: tail counter increment remains a counted loop") {
+                Test.equals(15, LoopWriteOps.tailIncrement(6), null)
+        }
+    }
+
+@boring.test.Test
+    fun branchIncrement() {
+        Test.run("tests.LoopWriteTests.branchIncrement", "tests.LoopWriteTests.branchIncrement: branch counter write remains a while loop") {
+                Test.equals(12, LoopWriteOps.branchIncrement(6), null)
+        }
+    }
+
+@boring.test.Test
+    fun nonUnitIncrement() {
+        Test.run("tests.LoopWriteTests.nonUnitIncrement", "tests.LoopWriteTests.nonUnitIncrement: non-unit counter increment remains a while loop") {
+                Test.equals(9, LoopWriteOps.nonUnitIncrement(7), null)
+        }
+    }
+
+@boring.test.Test
+    fun closureIncrement() {
+        Test.run("tests.LoopWriteTests.closureIncrement", "tests.LoopWriteTests.closureIncrement: closure counter write remains a while loop") {
+                Test.equals(9, LoopWriteOps.closureIncrement(6), null)
+        }
+    }
+}

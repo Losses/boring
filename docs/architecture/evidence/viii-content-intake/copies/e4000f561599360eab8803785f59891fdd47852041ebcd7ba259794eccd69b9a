@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class BoxedInterfaceDefaultOpsTests {
+@boring.test.Test
+    fun defaultBoxes() {
+        Test.run("tests.BoxedInterfaceDefaultOpsTests.defaultBoxes", "tests.BoxedInterfaceDefaultOpsTests.defaultBoxes: a concrete interface default boxes in the coalescing closure") {
+        }
+    }
+}

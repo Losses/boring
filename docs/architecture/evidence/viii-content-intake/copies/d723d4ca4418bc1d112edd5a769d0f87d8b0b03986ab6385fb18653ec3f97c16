@@ -1,0 +1,25 @@
+use crate::boring::nullable_receiver::NullableReceiver;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct NullableCallOps2;
+
+impl NullableCallOps2 {
+    pub fn nullable_call_ops2_nullable_to_string_result(value: Option<NullableReceiver>) -> UString {
+        let v = (value).clone();
+        return UString::from(format!("{}", v.as_ref().unwrap().to_string()).as_str());
+    }
+
+    pub fn nullable_call_ops2_normalized_to_string_result(value: Option<NullableReceiver>) -> UString {
+        let v = match &(value) { None => NullableReceiver::new(), Some(__option) => (*__option).clone() };
+        return UString::from(format!("{}", v.to_string()).as_str());
+    }
+
+    pub fn nullable_call_ops2_guarded_to_string_result(value: Option<NullableReceiver>) -> UString {
+        if value.is_none() {
+            return UString::from("missing receiver").to_ustring();
+        }
+        return UString::from(format!("{}", value.as_ref().unwrap().to_string()).as_str());
+    }
+}

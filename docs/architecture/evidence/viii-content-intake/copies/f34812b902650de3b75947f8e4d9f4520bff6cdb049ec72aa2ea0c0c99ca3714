@@ -1,0 +1,110 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct ArrayAccessOps;
+
+impl ArrayAccessOps {
+    pub fn array_access_ops_write_split(text: &UStr) -> UString {
+        let mut parts = u_string::split(&text, &UString::from(","));
+        { while parts.len() <= 0usize { parts.push(UString::new()); } parts[0usize] = UString::from("x").to_ustring(); };
+        return (parts[0usize]).clone();
+    }
+
+    pub fn array_access_ops_read_split(text: &UStr) -> UString {
+        let parts = u_string::split(&text, &UString::from(","));
+        return (parts[0usize]).clone();
+    }
+
+    pub fn array_access_ops_composite_string_buf_part(value: &UStr) -> u32 {
+        return u_string::unit_at(&value, 0u32).unwrap_or(0);
+    }
+
+    pub fn array_access_ops_simple_string_buf_part(value: &UStr) -> u32 {
+        return u_string::unit_at(&value, 0u32).unwrap_or(0);
+    }
+
+    pub fn array_access_ops_grow_nullable_slots() -> Vec<Option<u32>> {
+        let mut slots: Vec<Option<u32>> = vec![];
+        { while slots.len() <= 3usize { slots.push(None); } slots[3usize] = Some(7); };
+        return slots;
+    }
+
+    pub fn array_access_ops_grow_value_slots() -> Vec<u32> {
+        let mut slots: Vec<u32> = vec![];
+        { while slots.len() <= 2usize { slots.push(0); } slots[2usize] = 5u32; };
+        return slots;
+    }
+
+    pub fn array_access_ops_write_inside_slots() -> Vec<u32> {
+        let mut slots = vec![1, 2, 3, 4];
+        { while slots.len() <= 1usize { slots.push(0); } slots[1usize] = 20u32; };
+        { while slots.len() <= 3usize { slots.push(0); } slots[3usize] = 40u32; };
+        { let __grow_idx5 = usize::try_from(u32::try_from((slots.len()) & 0xFFFF_FFFF).unwrap_or(0)).unwrap_or(0); while slots.len() <= __grow_idx5 { slots.push(0); } slots[__grow_idx5] = 50u32; };
+        return slots;
+    }
+
+    pub fn array_access_ops_filled_holder(count: u32) -> Vec<Option<u32>> {
+        let holder = ArrayGrowthHolder::new(count);
+        return holder.read_all();
+    }
+
+    pub fn array_access_ops_grow_float_slots() -> Vec<f64> {
+        let mut slots: Vec<f64> = vec![];
+        { while slots.len() <= 2usize { slots.push(0.0); } slots[2usize] = 1.5f64; };
+        return slots;
+    }
+
+    pub fn array_access_ops_filled_float_holder(count: u32) -> Vec<f64> {
+        let holder = FloatGrowthHolder::new(count);
+        return holder.read_all();
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct FloatGrowthHolder {
+    pub slots: Vec<f64>,
+}
+
+impl FloatGrowthHolder {
+    pub fn new(count: u32) -> Self {
+    let mut slots = vec![];
+        let mut i = 0u32;
+        while (i32::from_ne_bytes(((i) as i32).to_ne_bytes())) <= i32::from_ne_bytes(((count) as i32).to_ne_bytes()) {
+            { while slots.len() <= usize::try_from(i).unwrap_or(0) { slots.push(0.0); } slots[usize::try_from(i).unwrap_or(0)] = format!("{}", (i32::from_ne_bytes(((i) as i32).to_ne_bytes()))).parse::<f64>().unwrap_or(0.0) * 1.5f64; };
+            i = u32::wrapping_add(i, 1);
+        }
+        Self {
+            slots: slots,
+        }
+    }
+
+    pub fn read_all(&self) -> Vec<f64> {
+        return ((self.slots).clone()).clone();
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct ArrayGrowthHolder {
+    pub slots: Vec<Option<u32>>,
+}
+
+impl ArrayGrowthHolder {
+    pub fn new(count: u32) -> Self {
+    let mut slots = vec![];
+        let mut i = 0u32;
+        while (i32::from_ne_bytes(((i) as i32).to_ne_bytes())) <= i32::from_ne_bytes(((count) as i32).to_ne_bytes()) {
+            { while slots.len() <= usize::try_from(i).unwrap_or(0) { slots.push(None); } slots[usize::try_from(i).unwrap_or(0)] = Some(u32::wrapping_mul(i, 10)); };
+            i = u32::wrapping_add(i, 1);
+        }
+        Self {
+            slots: slots,
+        }
+    }
+
+    pub fn read_all(&self) -> Vec<Option<u32>> {
+        return ((self.slots).clone()).clone();
+    }
+}

@@ -1,0 +1,13 @@
+# recipe reproduction — 2026-09-29T18:37:24-04:00
+cwd: /tmp/swiftshim/recipe (clean dir, created from zero)
+argv: $D/usr/bin/swiftc -sdk $PWD/sdk -module-cache-path $PWD/mc t.swift -o t
+input t.swift sha256: 8c97159a4a304b639d2f3c075cbdf226bc6e2d869d3589fe389c88275d569ab2
+compile exit: 0
+run: ./t -> stdout 'hello from swift', exit 0
+minimal runtime LD_LIBRARY_PATH ($D/usr/lib/swift/linux only) also exit 0
+
+## negative control 1 (LD_LIBRARY_PATH without FHS at compile)
+exit 127; swiftc: error while loading shared libraries: libncurses.so.6: cannot open shared object file
+
+## negative control 2 (XDG_CACHE_HOME=/nonexistent, warm module cache present)
+exit 0 — cache was warm in -module-cache-path; XDG cache only matters cold

@@ -1,0 +1,12 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/strict-output.test.ts:
+(pass) strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays [22490.56ms]
+(pass) strict TypeScript emitter output > single-argument substr drops its synthesized null length [24398.52ms]
+(pass) strict TypeScript emitter output > switch-expression cases render preceding statements before their value [23594.54ms]
+(pass) strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types [24356.52ms]
+
+ 4 pass
+ 0 fail
+ 14 expect() calls
+Ran 4 tests across 1 file. [94.87s]

@@ -1,0 +1,13 @@
+/home/losses/Development/tq-workspace/boring/node_modules/.bin/tsc
+--strict
+--target
+ES2022
+--moduleResolution
+node
+--allowImportingTsExtensions
+--rewriteRelativeImportExtensions
+--outDir
+/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-lb9Oej/ts-js
+--rootDir
+/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-lb9Oej/ts-gen
+/home/losses/Development/tq-workspace/dc-warn/out/promoted-eval/pe-lb9Oej/ts-gen/driver.ts

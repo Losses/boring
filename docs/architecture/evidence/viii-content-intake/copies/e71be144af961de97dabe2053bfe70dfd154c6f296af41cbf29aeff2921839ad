@@ -1,0 +1,63 @@
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/rust-keyfix-xcheck-wt/out/keyfix-xcheck/gen-frozen-223532/xs-twoexc-faultnames)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: `?` couldn't convert the error to `E2PayloadFault`
+  --> xcheckscope/two_probe.rs:71:69
+   |
+71 |             return Ok(TwoProbe::two_probe_throw_e1(UStr::new(&[97]))?);
+   |                       ----------------------------------------------^ the trait `From<E1PayloadFault>` is not implemented for `E2PayloadFault`
+   |                       |
+   |                       this can't be annotated with `?` because it has type `Result<_, E1PayloadFault>`
+   |
+note: `E2PayloadFault` needs to implement `From<E1PayloadFault>`
+  --> xcheckscope/two_probe.rs:23:1
+   |
+23 | pub enum E2PayloadFault {
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+
+error[E0599]: no variant, associated function, or constant named `E1Fault` found for enum `E2PayloadFault` in the current scope
+  --> xcheckscope/two_probe.rs:77:48
+   |
+23 | pub enum E2PayloadFault {
+   | ----------------------- variant, associated function, or constant `E1Fault` not found for this enum
+...
+77 |                     return Err(E2PayloadFault::E1Fault(E1::new(e)));
+   |                                                ^^^^^^^ variant, associated function, or constant not found in `E2PayloadFault`
+   |
+help: there is a variant with a similar name
+   |
+77 -                     return Err(E2PayloadFault::E1Fault(E1::new(e)));
+77 +                     return Err(E2PayloadFault::E2Fault(E1::new(e)));
+   |
+
+error[E0433]: cannot find type `E1` in this scope
+  --> xcheckscope/two_probe.rs:77:56
+   |
+77 |                     return Err(E2PayloadFault::E1Fault(E1::new(e)));
+   |                                                        ^^ use of undeclared type `E1`
+   |
+help: a struct with a similar name exists
+   |
+77 -                     return Err(E2PayloadFault::E1Fault(E1::new(e)));
+77 +                     return Err(E2PayloadFault::E1Fault(E2::new(e)));
+   |
+
+warning: unused variable: `e2`
+   --> xcheckscope/two_probe.rs:100:25
+    |
+100 |                     Err(e2) => 6,
+    |                         ^^ help: if this is intentional, prefix it with an underscore: `_e2`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0277, E0433, E0599.
+For more information about an error, try `rustc --explain E0277`.
+warning: `generated` (lib) generated 2 warnings
+error: could not compile `generated` (lib) due to 3 previous errors; 2 warnings emitted

@@ -1,0 +1,33 @@
+=== A. All lines mentioning lowerArrayBoundary ===
+swiftcompiler/SwiftExpr.hx:746:                    boundaryResult = lowerArrayBoundary(init, v.t);
+swiftcompiler/SwiftExpr.hx:2567:        return lowerArrayBoundary(inner, target, actualOptional, destinationOptionalOverride).text;
+swiftcompiler/SwiftExpr.hx:2578:    function lowerArrayBoundary(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null,
+swiftcompiler/SwiftExpr.hx:2627:            final targetValue = lowerArrayBoundary(nilMerge.target, target, null, destinationOptionalOverride);
+swiftcompiler/SwiftExpr.hx:2628:            final fallbackValue = lowerArrayBoundary(nilMerge.fallback, target, null, destinationOptionalOverride);
+swiftcompiler/SwiftExpr.hx:2642:        final trueValue = lowerArrayBoundary(whenTrue, target, null, destinationOptionalOverride);
+swiftcompiler/SwiftExpr.hx:2643:        final falseValue = lowerArrayBoundary(whenFalse, target, null, destinationOptionalOverride);
+swiftcompiler/SwiftExpr.hx:4760:                        final prepared = lowerArrayBoundary(args[i], p, null, true);
+swiftcompiler/SwiftExpr.hx:4863:                    final prepared = lowerArrayBoundary(args[i], p, null, true);
+
+=== B. All lines mentioning arrayBoundaryText ===
+swiftcompiler/SwiftExpr.hx:811:                        var retText = readOnlyReturn ? arrayBoundaryText(ret, currentReturnType) : returnValue(ret);
+swiftcompiler/SwiftExpr.hx:1212:            && StaticFieldHelper.isReadOnlyArrayType(currentReturnType) ? arrayBoundaryText(value, currentReturnType) : expr(value);
+swiftcompiler/SwiftExpr.hx:1929:                            && StaticFieldHelper.isReadOnlyArrayType(elemType) ? arrayBoundaryText(x, elemType) : expr(x);
+swiftcompiler/SwiftExpr.hx:2535:            return arrayBoundaryText(inner, target);
+swiftcompiler/SwiftExpr.hx:2566:    function arrayBoundaryText(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null, destinationOptionalOverride:Null<Bool> = null):String
+swiftcompiler/SwiftExpr.hx:2807:            return arrayBoundaryText(value, target.t);
+swiftcompiler/SwiftExpr.hx:3304:                    arrayBoundaryText(a, pt);
+swiftcompiler/SwiftExpr.hx:4720:            && StaticFieldHelper.isReadOnlyArrayType(pt) ? arrayBoundaryText(a,
+swiftcompiler/SwiftExpr.hx:5642:                            currentReturnType) ? arrayBoundaryText(returnValue, currentReturnType) : expr(returnValue) : expr(s);
+
+=== C. All direct SwiftArrayBoundary.prepare calls ===
+swiftcompiler/SwiftDecl.hx:599:                final plan = SwiftArrayBoundary.prepare(operand, field.type);
+swiftcompiler/SwiftExpr.hx:2607:        final plan = SwiftArrayBoundary.prepare(operand, target, destinationOptionalOverride);
+
+=== D. All SwiftArrayBoundary.render calls ===
+swiftcompiler/SwiftDecl.hx:604:                    rendered = SwiftArrayBoundary.render(plan, operand.text, elementText);
+swiftcompiler/SwiftExpr.hx:2614:            text: arrayRuntimeText(SwiftArrayBoundary.render(plan, operand.text, elementText)),
+
+=== E. Callers of armLines ===
+5604:                for (l in armLines(c.expr, depth + 2, reservedPayloadNames))
+5615:    function armLines(e:TypedExpr, depth:Int, reservedPayloadNames:Bool = false):Array<String> {

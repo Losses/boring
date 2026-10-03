@@ -1,0 +1,72 @@
+use crate::runtime::sorted_table::SortedTable;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RangeMark {
+    pub start: u32,
+    pub end: u32,
+}
+
+impl RangeMark {
+    pub fn new(start: u32, end: u32) -> Self {
+        Self {
+            start,
+            end,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("RangeMark(")); __s += &(UString::from("start=")); __s += &(UString::from((self.start).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("end=")); __s += &(UString::from((self.end).to_string().as_str())); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+pub fn compare_range_mark(a: &RangeMark, b: &RangeMark) -> i32 {
+    let cmp_start = match i32::from_ne_bytes((*(&a.start)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.start)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_start != 0 { return cmp_start; }
+    let cmp_end = match i32::from_ne_bytes((*(&a.end)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.end)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_end != 0 { return cmp_end; }
+    0
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpanQuery {
+    pub range: RangeMark,
+    pub label: UString,
+}
+
+impl SpanQuery {
+    pub fn new(range: RangeMark, label: &UStr) -> Self {
+        Self {
+            range,
+            label: label.to_ustring(),
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("SpanQuery(")); __s += &(UString::from("range=")); __s += UString::from(format!("{}", (self.range).clone().to_string()).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("label=")); __s += (self.label).to_ustring().as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+pub fn compare_span_query(a: &SpanQuery, b: &SpanQuery) -> i32 {
+    let cmp_range = compare_range_mark(&a.range, &b.range);
+    if cmp_range != 0 { return cmp_range; }
+    let cmp_label = SortedTable::sorted_table_compare_strings((&a.label).as_ustr(), (&b.label).as_ustr());
+    if cmp_label != 0 { return cmp_label; }
+    0
+}
+
+#[derive(Clone, Copy)]
+pub struct DataClassRangeEqOps;
+
+impl DataClassRangeEqOps {
+    pub fn data_class_range_eq_ops_ranges_equal() -> bool {
+        let a = SpanQuery::new(RangeMark::new(1u32, 5u32), &(UStr::new(&[97,108,112,104,97])));
+        let b = SpanQuery::new(RangeMark::new(1u32, 5u32), &(UStr::new(&[97,108,112,104,97])));
+        let c = SpanQuery::new(RangeMark::new(1u32, 6u32), &(UStr::new(&[97,108,112,104,97])));
+        let equal = (a.range).clone().start == (b.range).clone().start && (a.range).clone().end == (b.range).clone().end && (a.label).to_ustring() == (b.label).to_ustring();
+        let different = (a.range).clone().start != (c.range).clone().start || (a.range).clone().end != (c.range).clone().end || (a.label).to_ustring() != (c.label).to_ustring();
+        return equal && different;
+    }
+}

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Wait (event-driven, no sleep) until no other `bun test` suite is running, then run the after suite.
+set -u
+TREE="$1"; OUT="$2"; RUNNER="$3"
+mkdir -p "$OUT"
+log="$OUT/window.txt"
+{
+  echo "waiter start $(date -Is)  load=$(cut -d' ' -f1-3 /proc/loadavg)"
+} >> "$log"
+for i in $(seq 1 60); do
+  others=$(ps -eo pid,args | awk '/bun (test|run test)/ && $0 !~ /awk/ {print $1}')
+  if [ -z "$others" ]; then
+    echo "iteration $i: quiet" >> "$log"
+    break
+  fi
+  pids=""
+  for p in $others; do pids="$pids --pid=$p"; done
+  echo "iteration $i: blocking on$pids" >> "$log"
+  # shellcheck disable=SC2086
+  tail $pids -f /dev/null
+done
+other=$(ps -eo pid,args | awk '/bun (test|run test)/ && $0 !~ /awk/ {print $1}' | wc -l)
+echo "pre-start other-suite count: $other  load=$(cut -d' ' -f1-3 /proc/loadavg)  $(date -Is)" >> "$log"
+bash "$RUNNER" "$TREE" "$OUT"

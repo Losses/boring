@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class DartCoalesceSiblingTests {
+@boring.test.Test
+    fun testSibling() {
+        Test.run("tests.DartCoalesceSiblingTests.testSibling", "tests.DartCoalesceSiblingTests.testSibling: a static call site binds sibling defaults to caller arguments") {
+                Test.equals(true, true, null)
+        }
+    }
+}

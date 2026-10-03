@@ -1,0 +1,55 @@
+#![cfg(test)]
+
+use crate::boring::bytes_ops::BytesOps;
+use crate::runtime::bytes_buffer::BytesBuffer;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn fixed_mutation() {
+    testlib::run("tests.BytesTests.fixedMutation", "tests.BytesTests.fixedMutation: allocates and mutates fixed-length bytes", || {
+        let bytes = BytesOps::bytes_ops_build();
+        test_core::TestCore::test_core_equals_int(8i32, i32::from_ne_bytes(((u32::try_from((bytes.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((u32::from(bytes[0usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((u32::from(bytes[1usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(11i32, i32::from_ne_bytes(((u32::from(bytes[2usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(12i32, i32::from_ne_bytes(((u32::from(bytes[3usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(13i32, i32::from_ne_bytes(((u32::from(bytes[4usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(165i32, i32::from_ne_bytes(((u32::from(bytes[5usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(165i32, i32::from_ne_bytes(((u32::from(bytes[6usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((u32::from(bytes[7usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn buffer_add() {
+    testlib::run("tests.BytesTests.bufferAdd", "tests.BytesTests.bufferAdd: appends whole byte segments through add", || {
+        let first = BytesOps::bytes_ops_build();
+        let mut second = vec![0u8; 2usize];
+        second[0usize] = 66u8;
+        second[1usize] = 67u8;
+        let mut buffer = BytesBuffer::new();
+        buffer.add(&first);
+        buffer.add(&second);
+        let joined = buffer.get_bytes();
+        test_core::TestCore::test_core_equals_int(10i32, i32::from_ne_bytes(((u32::try_from((joined.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((u32::from(joined[0usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(67i32, i32::from_ne_bytes(((u32::from(joined[9usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        second[0usize] = 255u8;
+        test_core::TestCore::test_core_equals_int(66i32, i32::from_ne_bytes(((u32::from(joined[8usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn buffer_add_empty() {
+    testlib::run("tests.BytesTests.bufferAddEmpty", "tests.BytesTests.bufferAddEmpty: add with an empty argument appends nothing", || {
+        let mut buffer = BytesBuffer::new();
+        buffer.add_byte(u8::try_from((7) & 0xFF).unwrap_or(0));
+        buffer.add(&vec![0u8; 0usize]);
+        let out = buffer.get_bytes();
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((u32::try_from((out.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(7i32, i32::from_ne_bytes(((u32::from(out[0usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

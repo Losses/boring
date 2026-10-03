@@ -1,0 +1,213 @@
+########## kotlin.hxml vs kotlin-f32.hxml
+4,5d3
+< boring.AllowGuest
+< boring.AllowHost
+23d20
+< boring.BytesOps
+47d43
+< boring.DataClassRangeEqOps
+59d54
+< boring.ExceptionChainProbe
+69d63
+< boring.FloatLiteralOps
+74,75d67
+< boring.FontId
+< boring.FontIdConsumer
+84,86d75
+< boring.GlyphCluster
+< boring.GlyphClusterHolder
+< boring.GlyphClusterReader
+90,91d78
+< boring.ImpHost
+< boring.ImpWidget
+94d80
+< boring.InstanceDefaults
+115d100
+< boring.LoopWriteOps
+120d104
+< boring.MathMinMaxOps
+141d124
+< boring.NullableFieldRecord
+155d137
+< boring.NumberClassifyOps
+164d145
+< boring.OptionalParamNull
+213d193
+< boring.SortedDataClassKeysOps
+233d212
+< boring.SwiftLiteralSafetyOps
+273d251
+< tests.AllowAccessTests
+289d266
+< tests.BytesTests
+319d295
+< tests.EarlyReturnTests
+325d300
+< tests.ExceptionChainProbeTests
+331d305
+< tests.FloatLiteralOpsTests
+337d310
+< tests.FontIdTests
+345d317
+< tests.GlyphClusterTests
+350d321
+< tests.ImpDefaultTests
+353d323
+< tests.InstanceDefaultsTests
+375d344
+< tests.LoopWriteTests
+380d348
+< tests.MathMinMaxTests
+393d360
+< tests.NoSuchElementTests
+413d379
+< tests.NumberClassifyTests
+422d387
+< tests.OptionalParamNullTests
+431d395
+< tests.PosterShapeTests
+462d425
+< tests.ShapeTextTests
+475d437
+< tests.StdStringPlainClassTests
+482d443
+< tests.StringCodecTests
+487d447
+< tests.StringToolsTests
+493d452
+< tests.SwiftLiteralSafetyOpsTests
+(rc=1)
+########## rust.hxml vs rust-f32.hxml
+4,5d3
+< boring.AllowGuest
+< boring.AllowHost
+23d20
+< boring.BytesOps
+47d43
+< boring.DataClassRangeEqOps
+59d54
+< boring.ExceptionChainProbe
+74,75d68
+< boring.FontId
+< boring.FontIdConsumer
+84,86d76
+< boring.GlyphCluster
+< boring.GlyphClusterHolder
+< boring.GlyphClusterReader
+92,93d81
+< boring.ImpHost
+< boring.ImpWidget
+96d83
+< boring.InstanceDefaults
+122d108
+< boring.MathMinMaxOps
+156d141
+< boring.NumberClassifyOps
+210d194
+< boring.SortedDataClassKeysOps
+270d253
+< tests.AllowAccessTests
+286d268
+< tests.BytesTests
+316d297
+< tests.EarlyReturnTests
+322d302
+< tests.ExceptionChainProbeTests
+334d313
+< tests.FontIdTests
+342d320
+< tests.GlyphClusterTests
+347d324
+< tests.ImpDefaultTests
+350d326
+< tests.InstanceDefaultsTests
+377d352
+< tests.MathMinMaxTests
+390d364
+< tests.NoSuchElementTests
+410d383
+< tests.NumberClassifyTests
+428d400
+< tests.PosterShapeTests
+459d430
+< tests.ShapeTextTests
+472d442
+< tests.StdStringPlainClassTests
+479d448
+< tests.StringCodecTests
+484d452
+< tests.StringToolsTests
+487d454
+< tests.SumOfFloatLocalTests
+(rc=1)
+########## swift.hxml vs swift-f32.hxml
+4,5d3
+< boring.AllowGuest
+< boring.AllowHost
+23d20
+< boring.BytesOps
+47d43
+< boring.DataClassRangeEqOps
+59d54
+< boring.ExceptionChainProbe
+69d63
+< boring.FloatLiteralOps
+74,75d67
+< boring.FontId
+< boring.FontIdConsumer
+84,86d75
+< boring.GlyphCluster
+< boring.GlyphClusterHolder
+< boring.GlyphClusterReader
+90,91d78
+< boring.ImpHost
+< boring.ImpWidget
+94d80
+< boring.InstanceDefaults
+120d105
+< boring.MathMinMaxOps
+154d138
+< boring.NumberClassifyOps
+163d146
+< boring.OptionalParamNull
+208d190
+< boring.SortedDataClassKeysOps
+267d248
+< tests.AllowAccessTests
+283d263
+< tests.BytesTests
+313d292
+< tests.EarlyReturnTests
+319d297
+< tests.ExceptionChainProbeTests
+325d302
+< tests.FloatLiteralOpsTests
+331d307
+< tests.FontIdTests
+339d314
+< tests.GlyphClusterTests
+344d318
+< tests.ImpDefaultTests
+347d320
+< tests.InstanceDefaultsTests
+374d346
+< tests.MathMinMaxTests
+387d358
+< tests.NoSuchElementTests
+407d377
+< tests.NumberClassifyTests
+416d385
+< tests.OptionalParamNullTests
+425d393
+< tests.PosterShapeTests
+456d423
+< tests.ShapeTextTests
+469d435
+< tests.StdStringPlainClassTests
+476d441
+< tests.StringCodecTests
+481d445
+< tests.StringToolsTests
+484d447
+< tests.SumOfFloatLocalTests
+(rc=1)

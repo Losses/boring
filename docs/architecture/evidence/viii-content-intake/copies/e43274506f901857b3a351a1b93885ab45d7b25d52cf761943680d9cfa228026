@@ -1,0 +1,14 @@
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BoundsEm {
+    pub x_min: f32,
+    pub y_min: f32,
+    pub x_max: f32,
+    pub y_max: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GlyphMetrics {
+    pub code_point: u32,
+    pub advance_em: f32,
+    pub bounds: BoundsEm,
+}

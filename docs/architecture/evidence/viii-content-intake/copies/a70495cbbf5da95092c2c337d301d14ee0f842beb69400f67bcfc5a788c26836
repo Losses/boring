@@ -1,0 +1,138 @@
+diff --git a/docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md b/docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md
+index 434fad6c..65ed435a 100644
+--- a/docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md
++++ b/docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md
+@@ -16,7 +16,8 @@ disagree with them must stop the run, not be papered over.
+ | Compiler snapshot | `publication-staging/fixed-compiler-2159c657/` (gitless copy; 1366 entries) | `publication-staging/published-tree-equivalence.json` (equivalent: true, no missing/extra/mismatch) and per-file inventory `publication-staging/option-c-source-before.json` (1366 path/sha256/mode entries) + `architecture-workspaces/tiqian-validation-round2/out/tiqian-prep/artifacts/snapshot-fixed-compiler-2159c657-inventory.sha256` (1366 lines) |
+ | Tiqian fixed revision | `8504d230228e8206689a2049bbb84b671c1f079a` | detached HEAD of `architecture-workspaces/tiqian-validation-round2`; `git status` clean for tracked files; 6 untracked config files are hash-pinned below |
+ | Derived preparation | `architecture-workspaces/tiqian-validation-round2/out/tiqian-fixed-2159c657-prep/` (manifest.json, hxml/ x12, haxelib/, library-resolution/, attempt-ts-001/run.py) | all 30 manifest hashes (15 originals + 15 derived) independently recomputed 2026-09-29: all match. `status: preparation-only-not-executed`, `generationStarted: false` |
+-| Driver wrapper | `/nix/store/9jh8smxb2p24lralfj7gnnj806xcx788-boring-driver-0.0.1/bin/boring`, sha256 `af6aeef816ea615239e1d2cf17471aa3969d965a36993491e8446b166970289d`; `share/boring/driver.js` sha256 `a8f5ef0e3c49198a542190d505a0ad50add6af29afa48ff6ed5875971bb8de57` | manifest fields `driverWrapperSha256` / `driverJsSha256`; re-asserted inside every attempt runner (`attempt-ts-001/run.py` L20-21) |
++| Driver wrapper (historical pin; not the matrix driver) | `/nix/store/9jh8smxb2p24lralfj7gnnj806xcx788-boring-driver-0.0.1/bin/boring`, sha256 `af6aeef816ea615239e1d2cf17471aa3969d965a36993491e8446b166970289d`; `share/boring/driver.js` sha256 `a8f5ef0e3c49198a542190d505a0ad50add6af29afa48ff6ed5875971bb8de57` | manifest fields `driverWrapperSha256` / `driverJsSha256`; re-asserted inside every attempt runner (`attempt-ts-001/run.py` L20-21). Pinned `304ed70c` artifact, retained as provenance |
++| Matrix driver (rebuilt from the snapshot; see B2) | `out/bundle/driver.js` sha256 `bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53` (52,779 bytes), built with haxe 4.3.7, argv `haxe tools/bundle/driver.hxml` | `dc-warn/out/driver-rebuild/` (`driver-identity.json`, `driver-js.sha256`, `haxe-version.txt`) |
+ | Coordinator worktree state | HEAD `c9e2cff97b18ce8387708d33667b56687ab7ea1b` on `arch/agent-guided-governance` | the two commits after `2159c657` (`f2aa3633`, `c9e2cff9`) touch only `docs/` (verified with `git diff --stat 2159c657..HEAD`), so the fixed revision remains the newest compiler state |
+ 
+ The 15 hash-pinned originals are the twelve HXMLs and three project files
+@@ -28,7 +29,7 @@ under `out/architecture-candidate-inputs/` plus
+ `protocol-c.hxml` derived file is byte-identical to its original (it is
+ excluded from the path-resolution pass; see blocker B4).
+ 
+-## Pre-blockers (none may be treated as passed by default)
++## Pre-blockers (none may be treated as passed by default; B2 closed, B3 and B4 still open)
+ 
+ ### B1 Rust fix candidates are frozen out of the fixed revision
+ 
+@@ -44,27 +45,54 @@ the fixed tree. If either Rust fix lands and must be covered by this
+ acceptance, the fixed revision is re-selected and static preparation is
+ re-run from the start; the existing preparation does not carry those changes.
+ 
+-### B2 Driver provenance is unverified (`driverSourceRevisionVerified: false`)
+-
+-The matrix would run the flake-pinned driver (Boring `304ed70c`,
+-`packages/driver/`) while the compiler comes from the fixed `2159c657`
+-snapshot. At `2159c657` the driver source lives at `tools/bundle/Driver.hx`
+-(`packages/driver/` no longer exists in that tree), and no evidence records
+-that the two driver sources are semantically equivalent. The manifest records
+-`driverSourceRevisionVerified: false`. Additionally, the `304ed70c`
+-`driver.js` does not read `BORING_SWIFT_LIBDISPATCH` or
+-`BORING_SWIFT_DYNAMIC_LINKER` (those are consumed by the `2159c657`
+-repository's own `package.json`/CI/test scripts), so the Swift runtime
+-environment must be exported by the executor, not by the driver. Closure
+-options, in decreasing preference: (a) rebuild the driver from the snapshot's
+-`tools/bundle/driver.hxml` with `haxe 4.3.7`
+-(`haxe /home/losses/Development/tq-workspace/publication-staging/fixed-compiler-2159c657/tools/bundle/driver.hxml`,
+-run with `bun`) and record the new wrapper hash in a new manifest; (b) diff
+-`304ed70c packages/driver` against `2159c657 tools/bundle` and record a
+-semantic-equivalence ruling with the diff retained; (c) only if (a)/(b) are
+-rejected: run with the pinned driver and record the residual risk in the
+-regression conclusion (driver = orchestration of haxe/cargo/kotlinc/swiftc;
+-the compiler itself is pinned by the explicit `-cp` paths).
++### B2 Driver provenance: closed by snapshot rebuild (option a; was `driverSourceRevisionVerified: false`)
++
++Status: **closed (option a)**. The isolated tree
++`dc-warn/worktrees/driver-rebuild` (detached at `e1c65975`) compiled the
++snapshot's own `tools/bundle/driver.hxml` under `nix develop -c` with
++haxe 4.3.7: argv `haxe tools/bundle/driver.hxml`, cwd = tree root, exit 0.
++Product `out/bundle/driver.js` sha256
++`bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53`
++(52,779 bytes). The three compile inputs (driver.hxml
++`8432f79927b2ad65e9d7b795df3f06ac513cb5082aff4fbafc586b7146bc1d87`,
++Driver.hx
++`749a778241d9ad2c3d9e1ca921a1975003f5260422cbfdf7edf08c91788d82a7`,
++ChildEvidence.hx
++`bc5f44040497f8075a64692de0b52f4a1f3923ba832778aa8e2f2ccccfc9dd3b`) hashed
++identically before and after the build; the snapshot was not written.
++Minimal usability was probed read-only with bun: no-arg invocation prints the
++`gen|test|pack|compare|verify` usage line and exits 2; `--help` is rejected
++with exit 1; `--project` with a missing file enters loadProject and exits 1.
++Evidence directory: `dc-warn/out/driver-rebuild/` (REPORT.md,
++driver-identity.json, driver-js.sha256, haxe-version.txt,
++inputs-before.sha256, inputs-after.sha256, run-*.log).
++
++Equivalence ruling: the sequence below executes only the `gen`, `test`, and
++`compare --project` actions (steps 1-4). Independent greps over the frozen
++plan and the prep directory for `roots`, `--output`, and `--with-pack` find
++hits only inside hxml comments, with no invocation. For the commands this
++plan executes, the snapshot-rebuilt driver is therefore drop-in
++equivalent, and `driverSourceRevisionVerified` may be recorded as true with
++`driverJsSha256` =
++`bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53`,
++`haxeVersion` = `4.3.7`, and the build argv above.
++
++Residual (unreachable under this plan): relative to the pinned `304ed70c`
++driver, the rebuilt driver adds a `roots` action, an `--output` option, and a
++darwin-only DYLD branch. Neither driver reads `BORING_SWIFT_LIBDISPATCH` or
++`BORING_SWIFT_DYNAMIC_LINKER`; both read `BORING_SWIFT_SYSTEM_PACKAGE`. If a
++future plan introduces the `roots` action or the `--output` option, this
++closure no longer applies and the equivalence ruling must be re-made before
++running.
++
++Historical pin, retained (not the matrix driver): the flake store path
++`/nix/store/9jh8smxb2p24lralfj7gnnj806xcx788-boring-driver-0.0.1` with
++wrapper sha256
++`af6aeef816ea615239e1d2cf17471aa3969d965a36993491e8446b166970289d` and
++`share/boring/driver.js` sha256
++`a8f5ef0e3c49198a542190d505a0ad50add6af29afa48ff6ed5875971bb8de57` records
++where the pinned `304ed70c` artifact came from; the matrix runs the snapshot
++rebuild above and never the pinned artifact.
+ 
+ ### B3 Swift toolchain: flake wrapper broken in this environment; fallback recipe verified; SystemPackage shared library not built
+ 
+@@ -177,8 +205,11 @@ byte-streamed `stdout` / `stderr`, numeric `status`, `parsed-modules.json`,
+ `outputs.json`, `integrity.json` (`unchanged` + `returncode`). `XDG_CACHE_HOME`
+ and `TMPDIR` point inside the attempt dir and are writability-probed first.
+ 
+-Driver CLI (from `driver.js` usage line):
++Driver CLI (from the pinned driver's usage line):
+ `boring <gen|test|pack|compare|verify|roots> [<id>...] [--project <file>] [--with-pack] [--output <file>]`.
++This plan invokes only `gen`, `test`, and `compare --project`; the `roots`
++action and the `--output`/`--with-pack` options are not used (see B2 for the
++equivalence scope and the residual).
+ 
+ Sequence (engine and protocol groups run sequentially, per the preparation
+ review):
+@@ -215,8 +246,10 @@ through source coverage, not by dropping absent observations).
+ After the matrix completes (or aborts), re-run and record: the 30-manifest
+ hash recomputation; the 1366-entry compiler inventory digest;
+ `git status --short` in the consumer checkout (tracked tree must still be
+-clean); `git rev-parse HEAD` in both checkouts; the driver wrapper/driver.js
+-hash asserts. Any drift voids the attempt and requires a new attempt dir; the
++clean); `git rev-parse HEAD` in both checkouts; the driver hash asserts (the
++rebuilt `driver.js` sha256 `bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53`
++per B2; the store-path wrapper pin stays recorded as historical provenance).
++Any drift voids the attempt and requires a new attempt dir; the
+ drifted attempt is retained as historical evidence, never deleted or
+ rewritten.
+ 
+@@ -238,8 +271,10 @@ The regression conclusion may only cite: the fixed revision pair
+ `8504d230228e8206689a2049bbb84b671c1f079a`), the per-bundle test-ID sets from
+ the results JSONL, and the invariant re-verification above. The uncovered
+ scope must be listed explicitly in the conclusion: (1) `protocol-c`
+-`afterGen` (B4, unauthorized at preparation time); (2) driver provenance
+-residual (B2, unless closed by rebuild or diff ruling); (3) Swift obligations
++`afterGen` (B4, unauthorized at preparation time); (2) the driver residual
++(B2): provenance itself is closed by the snapshot rebuild, but the `roots`
++action and the `--output` option remain unreachable under this plan and any
++future plan that uses them voids the closure; (3) Swift obligations
+ blocked on the `libSystemPackage` shared library and the fallback toolchain
+ recipe (B3); (4) the two in-flight Rust fixes, frozen out by B1; (5) anything
+ whose stage aborted, with its numeric exit code and captured streams retained.

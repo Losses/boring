@@ -1,0 +1,76 @@
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/out/rust-modkey-fix/scratch/gen-base-225713059113129/xs-crossmod)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: `?` couldn't convert the error to `F2Fault`
+  --> xsxm/cross_probe.rs:54:73
+   |
+54 |             return Ok(CrossProbe::cross_probe_throw_e1(UStr::new(&[97]))?);
+   |                       --------------------------------------------------^ the trait `From<F1Fault>` is not implemented for `F2Fault`
+   |                       |
+   |                       this can't be annotated with `?` because it has type `Result<_, F1Fault>`
+   |
+note: `F2Fault` needs to implement `From<F1Fault>`
+  --> xsxm/cross_probe.rs:23:1
+   |
+23 | pub enum F2Fault {
+   | ^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+
+error[E0599]: no variant, associated function, or constant named `E1Fault` found for enum `F2Fault` in the current scope
+  --> xsxm/cross_probe.rs:60:41
+   |
+23 | pub enum F2Fault {
+   | ---------------- variant, associated function, or constant `E1Fault` not found for this enum
+...
+60 |                     return Err(F2Fault::E1Fault(E1::new(e.fault)));
+   |                                         ^^^^^^^ variant, associated function, or constant not found in `F2Fault`
+
+error[E0433]: cannot find type `E1` in this scope
+  --> xsxm/cross_probe.rs:60:49
+   |
+60 |                     return Err(F2Fault::E1Fault(E1::new(e.fault)));
+   |                                                 ^^ use of undeclared type `E1`
+   |
+help: a trait with a similar name exists
+   |
+60 -                     return Err(F2Fault::E1Fault(E1::new(e.fault)));
+60 +                     return Err(F2Fault::E1Fault(Eq::new(e.fault)));
+   |
+
+error[E0609]: no field `fault` on type `F2Fault`
+  --> xsxm/cross_probe.rs:60:59
+   |
+60 |                     return Err(F2Fault::E1Fault(E1::new(e.fault)));
+   |                                                           ^^^^^ unknown field
+
+error[E0599]: no variant, associated function, or constant named `E2Fault` found for enum `F2Fault` in the current scope
+  --> xsxm/cross_probe.rs:80:41
+   |
+23 | pub enum F2Fault {
+   | ---------------- variant, associated function, or constant `E2Fault` not found for this enum
+...
+80 |                     return Err(F2Fault::E2Fault(E2::new(e)));
+   |                                         ^^^^^^^ variant, associated function, or constant not found in `F2Fault`
+
+error[E0433]: cannot find type `E2` in this scope
+  --> xsxm/cross_probe.rs:80:49
+   |
+80 |                     return Err(F2Fault::E2Fault(E2::new(e)));
+   |                                                 ^^ use of undeclared type `E2`
+   |
+help: a trait with a similar name exists
+   |
+80 -                     return Err(F2Fault::E2Fault(E2::new(e)));
+80 +                     return Err(F2Fault::E2Fault(Eq::new(e)));
+   |
+
+Some errors have detailed explanations: E0277, E0433, E0599, E0609.
+For more information about an error, try `rustc --explain E0277`.
+warning: `generated` (lib) generated 1 warning
+error: could not compile `generated` (lib) due to 6 previous errors; 1 warning emitted

@@ -1,0 +1,102 @@
+diff --git a/tmp/__h b/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed3/tools/test-consistency/Main.hx
+index 62b65c8a..23dfbbf0 100644
+--- a/tmp/__h
++++ b/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed3/tools/test-consistency/Main.hx
+@@ -68,6 +68,52 @@ class Main {
+         return null;
+     }
+ 
++    /**
++        The declared-extra allowlist of the project the results directory
++        belongs to, or null when no project up the chain declares one.
++        The nearest ancestor holding
++        tools/test-consistency/extra-id-allowlist.json names the project.
++        An entry declares a test id that a target legitimately carries
++        while the baseline does not -- for example the f32-only oracle
++        tests collected from samples/tests/f32 under the precision switch
++        (feature spec 44), which the binary64 baseline excludes by
++        design. Every entry must state a reason; a reasonless entry is
++        rejected like a reasonless uncovered-mechanism entry.
++    **/
++    static function findExtraAllowlist(resultsDir:String):Null<String> {
++        var dir:String = Syntax.code("require('path').resolve({0})", resultsDir);
++        final marker = "tools/test-consistency/extra-id-allowlist.json";
++        while (true) {
++            final candidate:String = Syntax.code("require('path').join({0}, {1})", dir, marker);
++            if (exists(candidate)) {
++                return candidate;
++            }
++            final parent:String = Syntax.code("require('path').dirname({0})", dir);
++            if (parent == dir) {
++                break;
++            }
++            dir = parent;
++        }
++        return null;
++    }
++
++    static function loadExtraAllowlist(path:String):Map<String, String> {
++        final allowlist = new Map<String, String>();
++        if (!exists(path)) {
++            return allowlist;
++        }
++        final data:Dynamic = Json.parse(readFile(path));
++        final entries:Array<Dynamic> = data.extras;
++        for (entry in entries) {
++            if (entry.id == null || entry.reason == null || StringTools.trim(entry.reason) == "") {
++                printErr("Error: Every declared extra id requires an id and a reason.\n");
++                exit(1);
++            }
++            allowlist.set(entry.id, entry.reason);
++        }
++        return allowlist;
++    }
++
+     static function checkMechanismCoverage(allIds:Array<String>, path:String):Bool {
+         if (!exists(path)) {
+             printErr('Error: Missing mechanism coverage file: $path\\n');
+@@ -263,6 +309,10 @@ class Main {
+         final allIds = [for (id in allIdsMap.keys()) id];
+         allIds.sort(Reflect.compare);
+ 
++        final extraAllowlistPath = findExtraAllowlist(resultsDir);
++        final extraAllowlist = loadExtraAllowlist(extraAllowlistPath == null ? "" : extraAllowlistPath);
++        final declaredExtras:Array<String> = [];
++
+         final baselineRecords = targetRecords.get(baselineTarget);
+         if (baselineRecords == null || allIds.length == 0) {
+             printErr('Error: Baseline target \'$baselineTarget\' produced no test records.\n');
+@@ -318,7 +368,19 @@ class Main {
+ 
+                 if (target != baselineTarget) {
+                     if (baseRec == null && rec != null) {
+-                        divergences.push('[$target] Extra test ID not in baseline: $id');
++                        if (extraAllowlist.exists(id)) {
++                            // A declared extra: the project states why this
++                            // id legitimately exists outside the baseline
++                            // (an entry without a reason is rejected at
++                            // load), so it is reported as declared instead
++                            // of counted as a divergence.
++                            final tag = '[$target] $id -- ${extraAllowlist.get(id)}';
++                            if (!declaredExtras.contains(tag)) {
++                                declaredExtras.push(tag);
++                            }
++                        } else {
++                            divergences.push('[$target] Extra test ID not in baseline: $id');
++                        }
+                     } else if (baseRec != null && rec == null) {
+                         divergences.push('[$target] Missing test ID present in baseline: $id');
+                     } else if (baseRec != null && rec != null) {
+@@ -375,6 +437,12 @@ class Main {
+             print("Mechanism coverage: skipped; the results directory declares no mechanisms.");
+         }
+         final allDivergences = divergences.concat(bothDivergences);
++        if (declaredExtras.length > 0) {
++            print('Declared extra test ids (not in baseline, allowlisted): ${declaredExtras.length}');
++            for (d in declaredExtras) {
++                print('  - $d');
++            }
++        }
+         if (allDivergences.length == 0 && coverageOk) {
+             print('All ${targets.length} targets (${targets.join(", ")}) are 100% consistent across ${allIds.length} tests.');
+             exit(0);

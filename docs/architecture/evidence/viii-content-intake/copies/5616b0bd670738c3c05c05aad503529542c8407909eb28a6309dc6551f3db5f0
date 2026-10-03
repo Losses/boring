@@ -1,0 +1,42 @@
+## provenance cross-check 2026-09-30T02:51:53Z
+rust-fixed-xcheck HEAD=e1c6597514634fd347d392709793cc19bd96c9a2
+rust-fixed-xcheck-pre HEAD=e1c6597514634fd347d392709793cc19bd96c9a2
+rust-regression-fix HEAD=e1c6597514634fd347d392709793cc19bd96c9a2
+rust-trytail-xcheck HEAD=e1c6597514634fd347d392709793cc19bd96c9a2
+rust-payload-key HEAD=e1c6597514634fd347d392709793cc19bd96c9a2
+rust-thrown-gap HEAD=e1c6597514634fd347d392709793cc19bd96c9a2
+rust-fixed-xcheck xs-dead/gen/rust.hxml 81dabd41a3329bbc1857fea8d257a5203b22ae14f738e66475868ca3a0e53fa1
+rust-fixed-xcheck xs-dead/xcheckscope/DeadProbe.hx 1623aef92cf4a87ecc3d1aaac7b9fbd473d71716d9688a91a3fa40995fa5fc56
+rust-fixed-xcheck xs-deadcoll/xcheckscope/DeadCollProbe.hx 2717265d906972639e8a854cb13e688a78775da51133a2c73696e7b20835e356
+rust-fixed-xcheck xs-twoexc/xcheckscope/TwoProbe.hx b89fec49e44f2b11aff7196604dd3bb2839bba24a34dc64fb055cea5f61f9e07
+rust-fixed-xcheck-pre xs-dead/gen/rust.hxml 81dabd41a3329bbc1857fea8d257a5203b22ae14f738e66475868ca3a0e53fa1
+rust-fixed-xcheck-pre xs-dead/xcheckscope/DeadProbe.hx 1623aef92cf4a87ecc3d1aaac7b9fbd473d71716d9688a91a3fa40995fa5fc56
+rust-fixed-xcheck-pre xs-deadcoll/xcheckscope/DeadCollProbe.hx 2717265d906972639e8a854cb13e688a78775da51133a2c73696e7b20835e356
+rust-fixed-xcheck-pre xs-twoexc/xcheckscope/TwoProbe.hx b89fec49e44f2b11aff7196604dd3bb2839bba24a34dc64fb055cea5f61f9e07
+rust-regression-fix xs-dead/gen/rust.hxml 81dabd41a3329bbc1857fea8d257a5203b22ae14f738e66475868ca3a0e53fa1
+rust-regression-fix xs-dead/xcheckscope/DeadProbe.hx 1623aef92cf4a87ecc3d1aaac7b9fbd473d71716d9688a91a3fa40995fa5fc56
+rust-regression-fix xs-deadcoll/xcheckscope/DeadCollProbe.hx 2717265d906972639e8a854cb13e688a78775da51133a2c73696e7b20835e356
+rust-regression-fix xs-twoexc/xcheckscope/TwoProbe.hx b89fec49e44f2b11aff7196604dd3bb2839bba24a34dc64fb055cea5f61f9e07
+rust-trytail-xcheck xs-dead/gen/rust.hxml 81dabd41a3329bbc1857fea8d257a5203b22ae14f738e66475868ca3a0e53fa1
+rust-trytail-xcheck xs-dead/xcheckscope/DeadProbe.hx 1623aef92cf4a87ecc3d1aaac7b9fbd473d71716d9688a91a3fa40995fa5fc56
+rust-trytail-xcheck xs-deadcoll/xcheckscope/DeadCollProbe.hx 2717265d906972639e8a854cb13e688a78775da51133a2c73696e7b20835e356
+rust-trytail-xcheck xs-twoexc/xcheckscope/TwoProbe.hx b89fec49e44f2b11aff7196604dd3bb2839bba24a34dc64fb055cea5f61f9e07
+rust-regression-fix xs-scope/expected.txt dcf78eb3b007915234e37e4987fd1d2df0ed5c04ad42948f73cdb9b40c3f4aa5
+rust-trytail-xcheck xs-scope/expected.txt dcf78eb3b007915234e37e4987fd1d2df0ed5c04ad42948f73cdb9b40c3f4aa5
+--- compiler-state materialization (uncommitted) ---
+== rust-regression-fix ==
+ M packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+== rust-fixed-xcheck ==
+ M packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+== rust-thrown-gap ==
+ M packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+?? packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx.bak

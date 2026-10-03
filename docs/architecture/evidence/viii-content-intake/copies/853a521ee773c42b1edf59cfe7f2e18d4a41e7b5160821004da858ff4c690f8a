@@ -1,0 +1,155 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, PartialEq)]
+pub struct RustCoalesceRecord {
+    pub font_families: Vec<UString>,
+    pub font_size: f64,
+    pub locale: UString,
+    pub font_weight: u32,
+    pub italic: bool,
+}
+
+impl RustCoalesceRecord {
+    pub fn new(font_families: Option<Vec<UString>>, font_size: Option<f64>, locale: Option<UString>, font_weight: Option<u32>, italic: Option<bool>) -> Self {
+        let font_families = font_families.unwrap_or_else(|| vec![]);
+        Self {
+            font_families: font_families,
+            font_size: match &(font_size) { None => 16.0f64, Some(__option) => *__option },
+            locale: match &(locale) { None => UString::from("zh-Hans"), Some(__option1) => __option1.to_ustring() },
+            font_weight: match &(font_weight) { None => 400, Some(__option2) => *__option2 },
+            italic: match &(italic) { None => false, Some(__option3) => *__option3 },
+        }
+    }
+
+    pub fn describe(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += (self.locale).to_ustring().as_ustr(); __s += &(UString::from(":")); __s += UString::from(format!("{}", crate::runtime::fp_helper::FPHelper::format_float(self.font_size)).as_str()).as_ustr(); __s += &(UString::from(":")); __s += UString::from((self.font_weight).to_string().as_str()).as_ustr(); __s += &(UString::from(":")); __s += UString::from((self.italic).to_string().as_str()).as_ustr(); __s += &(UString::from(":")); __s += UString::from((u32::try_from(((self.font_families).clone().len()) & 0xFFFF_FFFF).unwrap_or(0)).to_string().as_str()).as_ustr(); __s }).as_str());
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct RustCoalesceHolder {
+    pub record: RustCoalesceRecord,
+}
+
+impl RustCoalesceHolder {
+    pub fn new(record: Option<RustCoalesceRecord>) -> Self {
+        Self {
+            record: match &(record) { None => RustCoalesceRecord::new(Some(vec![]), Some(16.0f64), Some(UString::from("zh-Hans")), Some(400), Some(false)), Some(__option4) => (*__option4).clone() },
+        }
+    }
+
+    pub fn describe(&self) -> UString {
+        return self.record.describe();
+    }
+}
+
+pub static RUST_COALESCE_OPS_INT_DEFAULTS: [u32; 3] = [7, 8, 9];
+
+#[derive(Clone, Copy)]
+pub struct RustCoalesceOps;
+
+impl RustCoalesceOps {
+
+    pub fn rust_coalesce_ops_resolved_ints() -> u32 {
+        return RustCoalesceIntRecord::new(Some(RUST_COALESCE_OPS_INT_DEFAULTS.to_vec())).count();
+    }
+
+    pub fn rust_coalesce_ops_locale_from(value: &UStr) -> UString {
+        return ((RustCoalesceRecord::new(Some(vec![]), Some(16.0), Some((value).to_ustring()), Some(400), Some(false)).locale).to_ustring()).clone();
+    }
+
+    pub fn rust_coalesce_ops_display_default(text: &UStr) -> UString {
+        return ((RustCoalesceTextRecord::new(text, Some(text.to_ustring())).display).to_ustring()).clone();
+    }
+
+    pub fn rust_coalesce_ops_tag_from(value: &UStr) -> bool {
+        let name = value.to_uppercase();
+        return RustCoalesceStringTagHolder::new(name.as_ustr()).has_tag();
+    }
+
+    pub fn rust_coalesce_ops_assigned_label(value: &UStr) -> bool {
+        let mut holder = RustCoalesceStringHolder::new();
+        holder.set_label(value);
+        return holder.has_label();
+    }
+
+    pub fn rust_coalesce_ops_rust_output_string_default() -> UString {
+        return ((RustCoalesceRecord::new(Some(vec![]), Some(16.0), Some(UString::from("zh-Hans")), Some(400), Some(false)).locale).to_ustring()).clone();
+    }
+
+    pub fn rust_coalesce_ops_resolve(value: Option<RustCoalesceRecord>) -> UString {
+        return RustCoalesceHolder::new((value).clone()).describe();
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct RustCoalesceTextRecord {
+    pub display: UString,
+}
+
+impl RustCoalesceTextRecord {
+    pub fn new(text: &UStr, display: Option<UString>) -> Self {
+        let display = display.unwrap_or_else(|| text.to_ustring());
+        Self {
+            display: display,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct RustCoalesceStringTagHolder {
+    pub tag: UString,
+}
+
+impl RustCoalesceStringTagHolder {
+    pub fn new(tag: &UStr) -> Self {
+        Self {
+            tag: tag.to_ustring(),
+        }
+    }
+
+    pub fn has_tag(&self) -> bool {
+        return true;
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct RustCoalesceStringHolder {
+    pub label: Option<UString>,
+}
+
+impl RustCoalesceStringHolder {
+    pub fn new() -> Self {
+        Self {
+            label: None,
+        }
+    }
+
+    pub fn set_label(&mut self, value: &UStr) {
+        self.label = Some(value.to_ustring());
+    }
+
+    pub fn has_label(&self) -> bool {
+        return (self.label).clone().is_some();
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct RustCoalesceIntRecord {
+    pub values: Vec<u32>,
+}
+
+impl RustCoalesceIntRecord {
+    pub fn new(values: Option<Vec<u32>>) -> Self {
+        let values = values.unwrap_or_else(|| vec![]);
+        Self {
+            values: values,
+        }
+    }
+
+    pub fn count(&self) -> u32 {
+        return u32::try_from(((self.values).clone().len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+}

@@ -1,0 +1,10 @@
+commit:        2aadcb6978d81705379892d2b382671b3458e753
+tree:          91151878a6ba0890fda27eddb438d277ac8e9555
+mode:          verify-export
+total files:   1455
+hashed:        1455
+mismatches:    1
+file-list sha256: 551628d37f8fdd4532a91dc0ab8d430c4ee9b1fe006b104df6ae9ea0dc49f0f0
+verdict:       FAIL
+  MISMATCH samples/boring/MathNaNTestSupport.hx: blob mismatch: recorded f3849049fe96d32cfed77bce2cea0977822af3f4, export hashes b76cd6f2c5c78ecae96669aec3bdd5d1e36e6ead
+EXIT=1

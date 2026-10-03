@@ -1,0 +1,11 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/swift-gap-boundary/gap-boundary.test.ts:
+  recorded 0 pending build-phase diagnostic(s) - see pending-build-warnings.log
+(pass) archived gap.Gap counterexample generates and its Swift typechecks [53704.76ms]
+(pass) failure-mode probe: the harness detects a broken Swift source [113.00ms]
+
+ 2 pass
+ 0 fail
+ 15 expect() calls
+Ran 2 tests across 1 file. [53.89s]

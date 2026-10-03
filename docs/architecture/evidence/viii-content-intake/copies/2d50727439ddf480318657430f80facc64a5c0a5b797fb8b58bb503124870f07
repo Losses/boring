@@ -1,0 +1,12 @@
+use crate::boring::nullable_receiver::NullableReceiver;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct NullableCallOps;
+
+impl NullableCallOps {
+    pub fn nullable_call_ops_nullable_to_string_result(value: Option<NullableReceiver>) -> UString {
+        return UString::from(format!("{}", value.as_ref().unwrap().to_string()).as_str());
+    }
+}

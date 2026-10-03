@@ -1,0 +1,47 @@
+package boring
+
+object ArrayIndexSearchOps {
+    fun values(): MutableList<Int> {
+        return mutableListOf<Int>(5, 7, 9, 11, 7, 13)
+    }
+
+    fun indexOfElement(values: MutableList<Int>, x: Int): Int {
+        return values.indexOf(x)
+    }
+
+    fun indexOfFrom(values: MutableList<Int>, x: Int, from: Int): Int {
+        return run { val _a = values; val _n = _a.size; val _x = x; val _from = from; val _start = if (_from < 0) maxOf(_n + _from, 0) else _from; if (_start >= _n) -1 else { val _i = _a.subList(_start, _n).indexOf(_x); if (_i < 0) -1 else _i + _start } }
+    }
+
+    fun lastIndexOfElement(values: MutableList<Int>, x: Int): Int {
+        return values.lastIndexOf(x)
+    }
+
+    fun lastIndexOfFrom(values: MutableList<Int>, x: Int, from: Int): Int {
+        return run { val _a = values; val _n = _a.size; val _x = x; val _from = from; val _start = if (_from < 0) _n + _from else if (_from >= _n) _n - 1 else _from; if (_start < 0) -1 else _a.subList(0, _start + 1).lastIndexOf(_x) }
+    }
+
+    fun indexOfString(values: MutableList<String>, x: String, from: Int): Int {
+        return run { val _a = values; val _n = _a.size; val _x = x; val _from = from; val _start = if (_from < 0) maxOf(_n + _from, 0) else _from; if (_start >= _n) -1 else { val _i = _a.subList(_start, _n).indexOf(_x); if (_i < 0) -1 else _i + _start } }
+    }
+
+    fun lastIndexOfString(values: MutableList<String>, x: String, from: Int): Int {
+        return run { val _a = values; val _n = _a.size; val _x = x; val _from = from; val _start = if (_from < 0) _n + _from else if (_from >= _n) _n - 1 else _from; if (_start < 0) -1 else _a.subList(0, _start + 1).lastIndexOf(_x) }
+    }
+
+    fun lastIndexOfTextEnd(text: String, x: String): Int {
+        return text.lastIndexOf(x)
+    }
+
+    fun indexOfFromNullable(values: MutableList<Int>?, x: Int, from: Int): Int? {
+        return values?.let { _a -> val _n = _a.size; val _x = x; val _from = from; val _start = if (_from < 0) maxOf(_n + _from, 0) else _from; if (_start >= _n) -1 else { val _i = _a.subList(_start, _n).indexOf(_x); if (_i < 0) -1 else _i + _start } }
+    }
+
+    fun lastIndexOfFromNullable(values: MutableList<Int>?, x: Int, from: Int): Int? {
+        return values?.let { _a -> val _n = _a.size; val _x = x; val _from = from; val _start = if (_from < 0) _n + _from else if (_from >= _n) _n - 1 else _from; if (_start < 0) -1 else _a.subList(0, _start + 1).lastIndexOf(_x) }
+    }
+
+    fun empty(): MutableList<Int> {
+        return mutableListOf<Int>()
+    }
+}

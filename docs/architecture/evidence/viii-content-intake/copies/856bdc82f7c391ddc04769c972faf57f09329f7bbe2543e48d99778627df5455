@@ -1,0 +1,26 @@
+# Instrumented sweep: switchExpression sites, sw.t (derived) vs destination (contract supplied)
+# Instrumented compiler = pure patch + #if sevtrace comment emission (SEVTRACE lines in generated output).
+# dest=<fallback> marks the no-contract expr route (line 1857 TSwitch dispatch).
+=== gap ===
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=std.ReadOnlyArray<Int> used=std.ReadOnlyArray<Int>
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=<fallback> used=std.ReadOnlyArray<Int>
+=== probeA ===
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=std.ReadOnlyArray<Int> used=std.ReadOnlyArray<Int>
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=std.ReadOnlyArray<Int> used=std.ReadOnlyArray<Int>
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=std.ReadOnlyArray<Int> used=std.ReadOnlyArray<Int>
+=== probeB ===
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=std.ReadOnlyArray<Int> used=std.ReadOnlyArray<Int>
+// SEVTRACE EXPR sw=Null<std.ReadOnlyArray<Int>> dest=Null<std.ReadOnlyArray<Int>> used=Null<std.ReadOnlyArray<Int>>
+// SEVTRACE EXPR sw=Array<Int> dest=Array<Int> used=Array<Int>
+=== probeC ===
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=std.ReadOnlyArray<Int> used=std.ReadOnlyArray<Int>
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=std.ReadOnlyArray<Int> used=std.ReadOnlyArray<Int>
+=== probeE ===
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=<fallback> used=std.ReadOnlyArray<Int>
+=== divd ===
+// SEVTRACE EXPR sw=Null<Int> dest=Null<Int> used=Null<Int>
+// SEVTRACE EXPR sw=std.ReadOnlyArray<Int> dest=std.ReadOnlyArray<Int> used=std.ReadOnlyArray<Int>
+// SEVTRACE EXPR sw=Float dest=Float used=Float
+// SEVTRACE EXPR sw=Float dest=Float used=Float
+// SEVTRACE EXPR sw=Null<Int> dest=Null<Int> used=Null<Int>
+// SEVTRACE EXPR sw=Null<std.ReadOnlyArray<Int>> dest=Null<std.ReadOnlyArray<Int>> used=Null<std.ReadOnlyArray<Int>>

@@ -1,0 +1,22 @@
+package tests
+
+import boring.InheritCtorOps
+import boring.runtime.test.Test
+
+class InheritCtorTests {
+@boring.test.Test
+    fun messageValue() {
+        Test.run("tests.InheritCtorTests.messageValue", "tests.InheritCtorTests.messageValue: inherited data-class constructors preserve message values") {
+                val value = InheritCtorOps("inherited message")
+                Test.equals("inherited message", value.message, null)
+        }
+    }
+
+@boring.test.Test
+    fun constructionAndCatch() {
+        Test.run("tests.InheritCtorTests.constructionAndCatch", "tests.InheritCtorTests.constructionAndCatch: inherited data-class construction preserves the second message") {
+                val value = InheritCtorOps("caught message")
+                Test.equals("caught message", value.message, null)
+        }
+    }
+}

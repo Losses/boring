@@ -1,0 +1,103 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use std::sync::Arc;
+
+
+pub trait NameResolver: Send + Sync {
+    fn __haxe_type_name(&self) -> &'static str;
+    fn as_any(&self) -> &dyn std::any::Any;
+    fn clone_box(&self) -> Box<dyn NameResolver>;
+    fn resolve(&self, id: &UStr) -> UString;
+}
+
+impl Clone for Box<dyn NameResolver> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+impl std::fmt::Debug for dyn NameResolver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.__haxe_type_name())
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct BuiltInNameResolver {
+}
+
+impl BuiltInNameResolver {
+    pub const fn new() -> Self {
+        Self {
+        }
+    }
+
+    pub fn resolve(&self, id: &UStr) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("built-in:")); __s += id; __s }).as_str());
+    }
+}
+
+impl NameResolver for BuiltInNameResolver {
+    fn __haxe_type_name(&self) -> &'static str {
+        "boring.FnValuesOps.BuiltInNameResolver"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn NameResolver> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&self, id: &UStr) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("built-in:")); __s += id; __s }).as_str());
+    }
+}
+
+pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> UString = move |id| {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("tag")); __s += &(UString::from((id).to_string().as_str())); __s }).as_str());
+};
+
+#[derive(Clone)]
+pub struct FnValuesOps {
+    pub style_at: Arc<dyn Fn(u32) -> UString + Send + Sync>,
+    pub resolver: Box<dyn NameResolver>,
+}
+
+impl FnValuesOps {
+    pub fn new(style_at: Arc<dyn Fn(u32) -> UString + Send + Sync>, resolver: Box<dyn NameResolver>) -> Self {
+        Self {
+            style_at,
+            resolver,
+        }
+    }
+
+    pub fn style_label(&self, index: u32) -> UString {
+        return (self.style_at)(index);
+    }
+
+    pub fn resolve_label(&self, id: &UStr) -> UString {
+        return self.resolver.resolve(id);
+    }
+
+    pub fn fn_values_ops_apply_picker(values: &Vec<UString>, pick: Arc<dyn Fn(u32) -> UString + Send + Sync>) -> UString {
+        return pick(u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1));
+    }
+
+    pub fn fn_values_ops_map_one<T: Clone>(value: &T, convert: Arc<dyn Fn(&T) -> T + Send + Sync>) -> T {
+        return convert(value);
+    }
+
+    pub fn fn_values_ops_stored_local() -> UString {
+        let render: Arc<dyn Fn(u32) -> UString + Send + Sync + 'static> = {  Arc::new(move |code| {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("u")); __s += &(UString::from((code).to_string().as_str())); __s }).as_str());
+}) };
+        return render(19968);
+    }
+
+    pub fn fn_values_ops_make_prefixer(prefix: &UStr) -> Arc<dyn Fn(&UStr) -> UString + Send + Sync + '_> {
+        let joined: Arc<dyn Fn(&UStr) -> UString + Send + Sync + '_> = { let prefix = (prefix).to_ustring(); Arc::new(move |suffix| {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += prefix.as_ustr(); __s += suffix; __s }).as_str());
+}) };
+        return joined;
+    }
+}

@@ -1,0 +1,17 @@
+SPECIAL(symlink/nonregular) count 0 []
+NON_MANIFEST_ROOT_FILES 3769 ignored 3768 NOT_ignored 1
+   NOT_IGNORED_EXTRA: toolchain-resolution.txt 70f5e2dc25458490 0o644
+
+BACKUP n=1431 MANIFEST n=1433
+ removed: []
+ added  : ['tests/haxe/swift-rt-plain/run-stages.sh', 'tests/haxe/swift-rt-probe/run-stages.sh']
+ replaced: ['tests/haxe/dc-null-guard-fallthrough/run.sh', 'tests/haxe/try-tail/run-stages.sh']
+ unchanged count: 1429
+
+GEN DIFFER count 39
+ root newer: 39 coord newer: 0
+ sample mtimes: [('_GeneratedFiles.txt', '00:22:59', '18:09:56'), ('pipeline_ops.dart', '23:07:12', '18:09:56'), ('printed_collection.dart', '23:07:12', '18:09:56'), ('printed_enum_ops.dart', '23:07:12', '18:09:56'), ('printed_sorted_fields.dart', '23:07:12', '18:09:56')]
+
+COORD 600-mode files 38
+  time buckets: Counter({'21:36': 14, '23:55': 9, '22:31': 7, '01:51': 2, '01:44': 2, '17:57': 1, '14:54': 1, '01:21': 1, '21:55': 1})
+  sample: [('docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md', '09-29 17:57:17'), ('tests/support/stage-check-control.sh', '09-29 14:54:32'), ('tests/haxe/kotlin-comparison-consumer/rejected.hxml', '09-28 21:36:49'), ('tests/haxe/kotlin-comparison-consumer/pidentity.hxml', '09-28 21:36:49'), ('tests/haxe/kotlin-comparison-consumer/pid/ParameterIdentityProbe.hx', '09-28 21:36:49'), ('tests/haxe/kotlin-comparison-consumer/pid/native/Main.kt', '09-28 21:36:49')]

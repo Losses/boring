@@ -1,0 +1,12 @@
+package tests;
+
+import boring.NumberClassifyOps;
+import std.Test;
+
+class AnnotatedSample {
+    @:test("an out-of-range literal stays allowed when the line carries the marker")
+    public static function allowed():Void {
+        // precision-guard: allow f32-overflow the case asserts the flush to infinity
+        Test.equals(true, NumberClassifyOps.finite(1.0e308));
+    }
+}

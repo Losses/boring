@@ -1,0 +1,19 @@
+package tests
+
+import boring.runtime.test.Test
+
+class TestApplicabilityProbeTests {
+@boring.test.Test
+    fun appliesToAll() {
+        Test.run("tests.TestApplicabilityProbeTests.appliesToAll", "tests.TestApplicabilityProbeTests.appliesToAll: a test with no except argument applies to every target") {
+                Test.ok(true, "applies to all targets")
+        }
+    }
+
+@boring.test.Test
+    fun excludedOnSwift() {
+        Test.run("tests.TestApplicabilityProbeTests.excludedOnSwift", "tests.TestApplicabilityProbeTests.excludedOnSwift: a test that excludes swift does not run on swift") {
+                Test.ok(true, "runs on every target except swift")
+        }
+    }
+}

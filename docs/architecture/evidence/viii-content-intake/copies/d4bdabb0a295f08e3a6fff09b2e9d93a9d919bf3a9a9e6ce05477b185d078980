@@ -1,0 +1,3 @@
+FAIL: allowlist: exempt[3] keys must be exactly target,module,reason (got expires,module,reason,target)
+roots guard: FAILED
+exit_code=1

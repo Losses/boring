@@ -1,0 +1,126 @@
+# Fixture + input identities — every hash RECOMPUTED by me with sha256sum
+
+==============================================================
+## A. Archived counterexample fixture (gap archive)
+root: dc-warn/out/gap-fixture-archive/
+==============================================================
+-- fixture sources --
+150315585b0a4aee5df5d1f9f24e217a2c5f747717aa6161eb1032769b057048  fixture/gap/Gap.hx
+e77170fefcf49214873fbe7f448e1c1656de087dd1172cbf8475d8e5e7e60c90  fixture/readonly-head.hxml
+940921aa3d9bfe7932e17ed8f166cd1700772c49421b7fa1a8c94f175a3b8f41  fixture/readonly-head2.hxml
+72624696f51a14db37f349a7aa78e1b7ff00a9e2ddfccf705d36d6ee835ad3de  fixture/swift-archived.hxml
+2150ebac87cba6d3ad903451599e16eb25bcf6d67e46e993bf7964820e6a4b97  fixture/swift-probe-last.hxml
+b1a93d4e2911166ad001695c0c4393fa1ffda8fdcc1bc16c49770bebdbdcfaca  fixture/swift-probe.hxml
+9975df1a0380f1c01e1bfc57bacb024880592bb48b005f48289789f294e1f328  fixture/swift-throw.hxml
+c2f8236089bd8bb1cba3bd27bd62c4964985260648677a53216f90f2a328988d  fixture/swift.hxml
+-- archived generated Swift (PRE-patch / defective state) --
+af957085d270b76563a4ba2da3914862f1bac9de668c167742a0938c0249be41  generated-repro/Package.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  generated-repro/Runtime.swift
+319dd269abd2d3b85ab06ca2eae432033c841bf405d37e0282efe1e6c26a49aa  generated-repro/_GeneratedFiles.txt
+01cbbb8193f73c095eb05a24c8874e7366399194e8bd607ec9e50073779b227b  generated-repro/gap/Gap.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  generated-repro/std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  generated-repro/std/UStringFault.swift
+af957085d270b76563a4ba2da3914862f1bac9de668c167742a0938c0249be41  generated/Package.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  generated/Runtime.swift
+319dd269abd2d3b85ab06ca2eae432033c841bf405d37e0282efe1e6c26a49aa  generated/_GeneratedFiles.txt
+01cbbb8193f73c095eb05a24c8874e7366399194e8bd607ec9e50073779b227b  generated/gap/Gap.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  generated/std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  generated/std/UStringFault.swift
+-- archive's own FILES.sha256 self-check --
+sha256sum -c FILES.sha256 -> 51 OK, 0 FAILED
+
+==============================================================
+## B. Acceptance fixture sources  (coordination tree tests/swift-readonly-boundary/)
+==============================================================
+11511b36b4a29ceca74be6ca985d7e6ddb54fce8a521fe7da6a340c10ae7c2c2  ./ReadOnlyBoundaryRuntimeTests.swift
+edcdf4f5edb79d05badcf29fb1d717698f9ac263bb7f7ba1272fb3b04741e966  ./boring/ReadOnlyBoundaryOps.hx
+12d5a005580b171bddd95e6e5a6d5dd5ce2ffb4a287d37cc26b8c6b344cf3953  ./boring/ReadOnlyBoundaryOracle.hx
+789f42d734fc459e3262b8b5414ec6326b108f6e340bd3740c84056152efb6db  ./boring/SwiftBoundaryPlanChecks.hx
+c1b6abdcd474da8227460aa24e84f6725f620aea3367a193cd41e19ac4d8f801  ./oracle.hxml
+1fe2f482ce4b10a689538720b59c0da2c2f925b693bf6da85ec0ff6e7e57ce54  ./readonly-boundary.test.ts
+e891207150c71f3656c19a3da1f21e84f5b80f7fc8ec0e8a4230d27411f9762a  ./swift.hxml
+(the worktree dc-warn/swc-try-fix-wt/wt copy is byte-identical: all 7 hashes equal)
+(tests/ subdir is empty — no files)
+
+==============================================================
+## C. Discriminating route fixtures  dc-warn/out/route-fixtures/fixtures/
+==============================================================
+ee6f287971b451862dbf4491b90f6c00de94026ce5f13491abaa08a2f7a68793  ./c1-try/boring/C1BoundaryError.hx
+096d6bb75f8155aedaf6f690b04ab031d914f50ea0995ab6b73ef609543f2f55  ./c1-try/boring/C1TryOps.hx
+7a27360e413e1445cdb293626c26fdb298ae05cf3e50a7a8f79d67b559e0cda9  ./c1-try/boring/C1TryOracle.hx
+bb69866cdb723b2ebfe157e127aae0b82d927a48aa5ec66fa4a29ca78e523588  ./c1-try/swift.hxml
+99aa8de163f7a8d2f4e7e63d9a6026e6a1751fa756225b7d9ca6a0f14f15ca0c  ./c2-switch/boring/C2Choice.hx
+c1ca5b33dc09457704169f5015f9324cd3b10175b8bbfe0b70493e869190cb15  ./c2-switch/boring/C2SwitchOps.hx
+b31ae17e3607608e6525da5bb06009420be765888d63773aa1e527663f08d8e6  ./c2-switch/boring/C2SwitchOracle.hx
+4ee70af86e956164472a9adf5d1a713f2d7c4f736f0e0916a12eaa99112030c2  ./c2-switch/swift.hxml
+938be43f1f921558e5316b2acad4f742a1163604e53d5130d8b71d0bb4932550  ./c3-assign/boring/C3AssignOps.hx
+0edee129fb8707b0ddf705149da285068bb03b963a7c7c8968d87196acd327db  ./c3-assign/boring/C3AssignOracle.hx
+bbd94b572409c52e2f6eebc73f9737649194d1fbd261b30f5d530378fba377a8  ./c3-assign/boring/C3Choice.hx
+49641ba916b5eb94b1d6a44d8dff11075f40da8e5856cba0201bcffc39a81658  ./c3-assign/swift.hxml
+ee6f287971b451862dbf4491b90f6c00de94026ce5f13491abaa08a2f7a68793  ./negative-only/c1/boring/C1BoundaryError.hx
+52ff88693b5dd53d1a4acd59cdc0d293b0987b614fea9ff6072fe70fd2954ab8  ./negative-only/c1/boring/NegC1Ops.hx
+3435017af765f29821b5d7c5af63595fd66ba6d50f220e8f3560e0d3e7de2a49  ./negative-only/c1/boring/NegC1Oracle.hx
+99aa8de163f7a8d2f4e7e63d9a6026e6a1751fa756225b7d9ca6a0f14f15ca0c  ./negative-only/c2/boring/C2Choice.hx
+c5ddae984e08a01aea7155082b7376f69c6766f006ea52111d7cc25c91308c42  ./negative-only/c2/boring/NegC2Ops.hx
+60f93ff444523323f0e123e38d60c421b53808ca0728996505ee5fb3aa0aae8f  ./negative-only/c2/boring/NegC2Oracle.hx
+bbd94b572409c52e2f6eebc73f9737649194d1fbd261b30f5d530378fba377a8  ./negative-only/c3/boring/C3Choice.hx
+b36ced86ddc8587ae256609522b9b21322f47a824776b7788705e7f73c4e411c  ./negative-only/c3/boring/NegC3Ops.hx
+635fb01754b8456943d00ae6b57b5e86110aed3a06b3cfbf52101efef4ad251f  ./negative-only/c3/boring/NegC3Oracle.hx
+
+-- author's PRE-patch generated Swift for those fixtures (evidence/) --
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  c1-generated-swift/Runtime.swift
+3e92930f50a324957d5a7ced6a4d0de22d8a78a502e1170ca35341a868b520a4  c1-generated-swift/Test.swift
+6462220e808d3b735244305f74ed4a70addb3864c4455250e72934b4865ab23e  c1-generated-swift/_GeneratedFiles.txt
+3add08fe6974e159c50bf512c753eaa8fdd52a7d61a66272013565dbd5e35f32  c1-generated-swift/boring/C1BoundaryError.swift
+66668b55bbbe73f5cf0dc44d6c7403e9baade25fc08bd9c15f239be491c87286  c1-generated-swift/boring/C1TryOps.swift
+8c70d0c1ef6ad66c3129c610bf111fb72c5e975d236c3d3e41d3355e155b6b40  c1-generated-swift/boring/C1TryOracle.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  c1-generated-swift/std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  c1-generated-swift/std/UStringFault.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  c2-generated-swift/Runtime.swift
+3e92930f50a324957d5a7ced6a4d0de22d8a78a502e1170ca35341a868b520a4  c2-generated-swift/Test.swift
+4d7848e4314b908b0e1e1b4724129bc5fce3de8362c8801101bd6d1a8ce573f8  c2-generated-swift/_GeneratedFiles.txt
+009e38cbabb20f9e6e60d2176d220a28c78d4ecc2835ccd6b73e841d4cbc825d  c2-generated-swift/boring/C2Choice.swift
+4cc06d4a8d5400fd3bb2fe244d1ed92bb75fd83ea23f14d1aaeefff64b067da1  c2-generated-swift/boring/C2SwitchOps.swift
+11064ace98cd3c3a04d80a85fd7beed5133ef3fed01720504320807864aebb44  c2-generated-swift/boring/C2SwitchOracle.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  c2-generated-swift/std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  c2-generated-swift/std/UStringFault.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  c3-generated-swift/Runtime.swift
+3e92930f50a324957d5a7ced6a4d0de22d8a78a502e1170ca35341a868b520a4  c3-generated-swift/Test.swift
+68640e1a9fe4d5c3e79e08b73dffad2e50f22f56d6264a8c8ac80c79cea9d6f1  c3-generated-swift/_GeneratedFiles.txt
+131157de476631579473a4614b2a18545763667c9c3472518bda2edf78840807  c3-generated-swift/boring/C3AssignOps.swift
+da1fa3b8c88e8c4628f5902fdf74bccf24f244b4cd48c9a8ce639cf6ca9c1dce  c3-generated-swift/boring/C3AssignOracle.swift
+e4aa6e06294556f576eddbc9f4d370c4c05eca65a21925fa12e44f0434f97a63  c3-generated-swift/boring/C3Choice.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  c3-generated-swift/std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  c3-generated-swift/std/UStringFault.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  neg-c1-generated-swift/Runtime.swift
+3e92930f50a324957d5a7ced6a4d0de22d8a78a502e1170ca35341a868b520a4  neg-c1-generated-swift/Test.swift
+4b1900fb55933b5db26b43b071b9314aa7a3a3e0588e20fef31283d4ad5ef90c  neg-c1-generated-swift/_GeneratedFiles.txt
+3add08fe6974e159c50bf512c753eaa8fdd52a7d61a66272013565dbd5e35f32  neg-c1-generated-swift/boring/C1BoundaryError.swift
+b1280220a43e23815f1fded72f54b2516b5e951ac09aaeacd07e510c19576286  neg-c1-generated-swift/boring/NegC1Ops.swift
+8cf0948c8a8fc8a59cb49cdb95741a41e9e8cce9b57a3c41ee8d8745b8477e33  neg-c1-generated-swift/boring/NegC1Oracle.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  neg-c1-generated-swift/std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  neg-c1-generated-swift/std/UStringFault.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  neg-c2-generated-swift/Runtime.swift
+3e92930f50a324957d5a7ced6a4d0de22d8a78a502e1170ca35341a868b520a4  neg-c2-generated-swift/Test.swift
+c25360f8945343977d904d88b1d01c6c5528a8ebbb0e31044bd4501c31ea25bc  neg-c2-generated-swift/_GeneratedFiles.txt
+009e38cbabb20f9e6e60d2176d220a28c78d4ecc2835ccd6b73e841d4cbc825d  neg-c2-generated-swift/boring/C2Choice.swift
+36eda5201257ce13a7d2186adacaf36f53ae0d9cced142e23fa40abeeec8fc67  neg-c2-generated-swift/boring/NegC2Ops.swift
+b4d005098c3f90f3b52df4cb8e56229ee93d1c6ccf96200e3733e7dcb0e9e1a7  neg-c2-generated-swift/boring/NegC2Oracle.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  neg-c2-generated-swift/std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  neg-c2-generated-swift/std/UStringFault.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  neg-c3-generated-swift/Runtime.swift
+3e92930f50a324957d5a7ced6a4d0de22d8a78a502e1170ca35341a868b520a4  neg-c3-generated-swift/Test.swift
+f1fa2e196f39de421a9aa33debc8673ffcba3101e75aa76066fcdc64961e318e  neg-c3-generated-swift/_GeneratedFiles.txt
+e4aa6e06294556f576eddbc9f4d370c4c05eca65a21925fa12e44f0434f97a63  neg-c3-generated-swift/boring/C3Choice.swift
+18f189af8b83c318dcfe0faab2a4119de11f3e5c53c994b6c5a6cfcde0119c6f  neg-c3-generated-swift/boring/NegC3Ops.swift
+18670089b80bd4453b2f00958e21cdb39e27da866394378c88d3e4249d4d5f87  neg-c3-generated-swift/boring/NegC3Oracle.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  neg-c3-generated-swift/std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  neg-c3-generated-swift/std/UStringFault.swift
+
+-- author's PRE-patch swiftc stderr logs (diagnostic counts recomputed) --
+5f4b3ce3169ecb657c86428f9c0d3a628528a05dc3ed92d62088be11c455f93b  errors=4 warnings=0  (c1-swiftc.stderr.log)
+2f3aba3499025b7ce53d70b48c34cdec217b5bacdce6e020002922e132c38be8  errors=2 warnings=0  (c2-swiftc.stderr.log)
+35f549eb35c82206d150cda7f0bb3e7d205861b2a6b82a0ac2ec54a6edc21614  errors=2 warnings=0  (c3-swiftc.stderr.log)
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  errors=0 warnings=0  (neg-c1-swiftc.stderr.log)
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  errors=0 warnings=0  (neg-c2-swiftc.stderr.log)
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  errors=0 warnings=0  (neg-c3-swiftc.stderr.log)

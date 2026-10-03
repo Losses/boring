@@ -1,0 +1,10 @@
+package boring
+
+object ExceptionCatchOps {
+    fun causeMessage(cause: RuntimeException?): String {
+        if ((cause == null)) {
+            return "none"
+        }
+        return (cause.message ?: "")
+    }
+}

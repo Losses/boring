@@ -1,0 +1,4 @@
+unique names per run: HEAD=48 DIRTY=48 ; intersection=48
+per-name assertion fingerprint identical (kind + error + Expected + Received + at-location): 48 / 48
+differences: 0
+

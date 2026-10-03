@@ -1,0 +1,22 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/package-shell.test.ts:
+244 |       const hxml = rewriteHxml(fs.readFileSync(path.join(REPO_ROOT, "examples/ts.hxml"), "utf8"), {
+245 |         tsOutput: tree,
+246 |         testOutput: path.join(tree, "../boring-shell-byname-tests"),
+247 |       });
+248 |       const result = await runHaxe("package-shell-byname.hxml", hxml);
+249 |       expect(result.exitCode).not.toBe(0);
+                                        ^
+error: expect(received).not.toBe(expected)
+
+Expected: not 0
+
+      at <anonymous> (/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/package-shell.test.ts:249:35)
+(fail) package shell emission > a by-name runtime import with an emitted manifest aborts the compile [30007.42ms]
+
+ 0 pass
+ 5 filtered out
+ 1 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [30.06s]

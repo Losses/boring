@@ -1,0 +1,48 @@
+PASS plan-A exit
+  
+PASS plan-A stage file count
+PASS plan-A child capture wired
+PASS plan-A statuses all zero
+PASS plan-A attempt sealed and stage evidence verified
+PASS plan-B exit
+  
+PASS plan-B failing status recorded
+PASS plan-B downstream skipped
+PASS plan-B skipped stage produced no artifact
+PASS plan-B blocker named in sealed log
+PASS plan-B attempt sealed and stage evidence verified
+PASS plan-C exit
+  
+PASS plan-C records plan errors
+PASS plan-C specific error text
+PASS stale attempt path rejected
+PASS stale rejection names the reason
+ln: failed to create symbolic link '/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/attempt-link': Input/output error
+FAIL symlink attempt path rejected (got 0, want 65)
+PASS plan-F traversal exit
+  
+PASS plan-F traversal error text
+FAIL plan-G internal symlink exit (got 65, want 0)
+  
+PASS plan-G no attempt file resolves outside
+PASS plan-G attempt sealed and stage evidence verified
+PASS plan-D exit
+  
+PASS late writer reaped before seal
+PASS plan-D attempt sealed and stage evidence verified
+PASS post-end append detected
+PASS plan-A no-LF append exit
+  
+FAIL post-end append without trailing newline detected (got 0, want 1)
+dummy manifest: 6 entries
+FAIL option-C pass exit (got 126, want 0)
+  
+FAIL option-C poststate report in sealed stdout (got 0, want 2)
+FAIL option-C original failure exit (got 126, want 7)
+  
+FAIL option-C original rc preserved (got 126, want 7)
+FAIL option-C poststate ran after failure (got 0, want 2)
+FAIL option-C poststate drift exit (got 126, want 91)
+  
+FAIL option-C drift poststate report retained (got 0, want 1)
+self-test: 25 pass, 10 fail

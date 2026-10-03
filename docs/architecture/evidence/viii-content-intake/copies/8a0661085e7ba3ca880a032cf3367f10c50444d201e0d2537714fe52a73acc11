@@ -1,0 +1,74 @@
+package xg
+
+object XGuard {
+    fun p2Fall(flag: Boolean): Int {
+        val s = (if ((flag)) "abc" else null)
+        var seen = 0
+        if ((s == null)) {
+            seen = 1
+        }
+        if ((seen == 1)) {
+            return -1
+        }
+        return s?.size!!
+    }
+
+    fun p3Reassign(flag: Boolean): Int {
+        var s = (if ((flag)) "abc" else null)
+        if ((s == null)) {
+            val pad = 1
+            if ((pad < 0)) {
+                return -1
+            }
+        }
+        s = (if ((flag)) "xy" else null)
+        return s?.size!!
+    }
+
+    fun p4ReGuard(flag: Boolean): Int {
+        val s = (if ((flag)) "abc" else null)
+        var seen = 0
+        if ((s == null)) {
+            seen = 1
+        }
+        if ((seen == 1)) {
+            return -1
+        }
+        if ((s != null)) {
+            return s.size
+        }
+        return -2
+    }
+
+    fun p5Return(flag: Boolean): String? {
+        val s = (if ((flag)) "abc" else null)
+        var seen = 0
+        if ((s == null)) {
+            seen = 1
+        }
+        if ((seen == 1)) {
+            return null
+        }
+        return s
+    }
+
+    fun p7Term(flag: Boolean): Int {
+        val t = (if ((flag)) "def" else null)
+        if ((t == null)) {
+            return -1
+        }
+        return t.size
+    }
+
+    fun run(): String {
+        val a = XGuard.p2Fall(true)
+        val b = XGuard.p3Reassign(true)
+        val c = XGuard.p4ReGuard(true)
+        val d = XGuard.p5Return(true)
+        val e = XGuard.p7Term(true)
+        return "p2=\${a}\np3=\${b}\np4=\${c}\np5=\${d}\np7=\${e}"
+    }
+
+    private fun main() {
+    }
+}

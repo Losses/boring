@@ -1,0 +1,10 @@
+path | git-mode@e1c65975 | old1431 (sha12,mode) | new1433 (sha12,mode) | entry-unchanged-vs-backup
+tests/haxe/kotlin-staticfn-prepared-init/run-focused.sh | 1748433601cc42600dd71fb6f62f90fd60ad7df6 | 07032561dcca,100644 | 07032561dcca,100644 | True
+tests/haxe/ts-template-newline-escape/run-datatable.sh | 80afd33f22ddf3c2ae0c987c6ba8e40d97ced7f8 | d95afad092a0,100644 | d95afad092a0,100644 | True
+tests/haxe/ts-template-newline-escape/run-focused.sh | 15d0e8860cb3bc48d367e7fb521d04e239358314 | 0b856823da0e,100644 | 0b856823da0e,100644 | True
+tests/support/stage-check-control.sh | (untracked) | 546149b4537a,100755 | 546149b4537a,100755 | True
+
+byte-only scan: scope=1434 MATCH=1431 DIFFER=2 MISSING=1
+  DIFFER: docs/investigations/architecture-round-1/d-observation.md
+  DIFFER: tests/support/stage-check.sh
+  MISSING: docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md

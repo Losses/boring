@@ -1,0 +1,27 @@
+[
+ {
+  "path": "Cargo.lock",
+  "sha256": "2888eb1ae63d13407a7959f06d6ba2cd15bbf929539281ced9d829cb9b071eb4",
+  "mode": "100644"
+ },
+ {
+  "path": "app.txt",
+  "sha256": "8a8f60ecb09b7e64c6d5214a8043865e608507db8c3f61f995eae6d078875901",
+  "mode": "100644"
+ },
+ {
+  "path": "tests/vectors/roundtrip-f16.bin",
+  "sha256": "d3e18d5234c0d1987e4572024debe0bfa0302030bfd7bdde095a798eedd1225c",
+  "mode": "100644"
+ },
+ {
+  "path": "tests/vectors/roundtrip-f32.bin",
+  "sha256": "cb5f5f065b93f4d82beceb793a18aa6a1beecd64a2882f7f3741323b85c59e7d",
+  "mode": "100644"
+ },
+ {
+  "path": "tests/vectors/roundtrip.bin",
+  "sha256": "47de97e16916cd2d895d58e6406cf39c7aec6f4b29a114d53f1d1d8a652c625b",
+  "mode": "100644"
+ }
+]

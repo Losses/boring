@@ -1,0 +1,136 @@
+# CI/test-harness wiring for durable collection — delivery report
+
+Worktree: `dc-warn/ciwire-wt/wt/` (rsync of `dc-warn/swc-try-fix-wt/wt/`, which carries the
+verified Swift fixes; local git, baseline commit `0a5c42a7` on top of the copied history).
+The coordination tree `boring-wt-architecture` was never written to. Environment: PATH from
+`dc-warn/out/chainA-fixed-rerun/evidence/env.json`; `haxe` always run with cwd = tree root.
+All exit codes captured directly from the command, never through a pipe. Raw logs in `evidence/`.
+
+## 1. Blocker fix — adjudicated `branch-*` repair (FIXTURE.diff)
+
+Applied `dc-warn/out/branchfixture-fix/PATCH.diff` verbatim (2 files, 4 changed lines):
+`consumeReadOnlyBoundary` now observes the element
+(`view.length + ":" + (view.length == 0 ? "empty" : view[0] + ":present")`), and the
+expectations change to `branch-true=1:1:present`, `branch-false=1:2:present`,
+`coalesced-present=1:9:present`. No test was deleted, skipped, or loosened: both lists keep
+exactly 30 entries in the same order; each changed value adds an element assertion on top of the
+old length/presence assertion and is derivable from the code (Ops.hx:222-236).
+
+**Adjudication-draft correction re-verified myself before applying** (as instructed):
+`grep -rn consumeReadOnlyBoundary` over the whole worktree finds exactly two callers —
+`branchBoundary` (Ops.hx:226) and `coalescedBoundary` (Ops.hx:235). `registeredDefaultBoundary`
+(Ops.hx:238) inlines its own format string and does **not** call the shared consumer, so
+`default-present=1:present` must NOT change — the draft's `1:10:present` would have broken the
+test. The applied patch leaves all `default-*` lines untouched.
+
+## 2. Counterexample fixture relocation + driver
+
+New, verbatim-where-possible:
+
+| file | content |
+|---|---|
+| `tests/swift-gap-boundary/gap/Gap.hx` | byte-identical copy of `gap-fixture-archive/fixture/gap/Gap.hx` (sha256 `15031558…7048` verified equal) |
+| `tests/swift-gap-boundary/swift.hxml` | the archive's `swift-archived.hxml` with the absolute `-cp`/`Intercept.run` paths made repo-relative (`tests/swift-gap-boundary`) and the output `-D` defaults dropped (driver passes them per run) |
+| `tests/swift-gap-boundary/gap-boundary.test.ts` | bun:test driver, house style of `readonly-boundary.test.ts` |
+
+Driver assertions, in order: fresh out dir (gitignored `out/swift-gap-boundary/test-<uuid>/`,
+overridable via `BORING_GAP_BOUNDARY_OUT`); **generation exit 0**; double-generation
+byte-identity; **`swiftc -typecheck` over `gap/Gap.swift`, `Runtime.swift`,
+`std/UStringException.swift`, `std/UStringFault.swift`**; and a second, always-green
+**failure-mode probe** that feeds a deliberately broken Swift file to `swiftc -typecheck` and
+asserts nonzero exit + `error` in stderr — proving the harness can fail (a shim that silently
+exits 0 cannot masquerade as a pass). It writes only inside the out dir; no tracked path is ever
+opened for writing.
+
+**Diagnostics policy — decided nothing, implemented the narrow green form, flagged for the
+decider.** The task asked for "zero diagnostics". On this worktree the fixture typechecks with
+**0 errors but 2 known W1 unused-result warnings**
+(`result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]`), which the review's
+condition 1 explicitly reserves to the gate owner ("A reviewer cannot waive an obligation; only
+the owner can"). A strict zero-diagnostics assertion would therefore land **red**. I implemented
+the strict *error* assertion (0 `: error:` lines) plus a pin on the exact known-warning text
+(both must be present — the warnings are pinned as a contract, not allowed away silently).
+Flipping to strict zero-diagnostics is a one-line change (`expect(diagnostics.trim()).toBe("")`)
+and is currently red; that flip **is** the policy decision reserved to the decider, together with
+the warning allowlist route (review condition 1). Stated explicitly: as landed, the test does not
+yet enforce "zero diagnostics"; it enforces "zero errors + exactly the two known W1 warnings".
+
+## 3. Empirical collection finding — `tests/**` alone is NOT sufficient; a CI change is required
+
+Measured, not assumed:
+
+1. **Local collection needs no script change.** `bun test <dir>` recurses and `bun test`
+   accepts multiple directory operands — verified with fresh probes
+   (`evidence/ciwire-recursion.log`: nested `a/nested/deep/probe.test.ts` found from `bun test a`,
+   exit 0; `evidence/ciwire-multidir.log`: two dir operands, 2 pass, exit 0). Both new/kept
+   fixtures are collected by the existing `"test": "bun test tests/ packages/registry/tests/"`
+   script, demonstrated for real by the runs below.
+2. **CI never collects them.** `grep -n 'bun test\|bun run test' .github/workflows/ci.yml`
+   (exit 0, lines 35/135/199) shows only `bun run test:<target>` variants and
+   `bun run test:swift`; there is **no** bare `bun run test` and no `bun test tests/` anywhere.
+   So placing fixtures under `tests/**` makes them locally collected only. A CI guard requires
+   touching `ci.yml`.
+
+## 4. The two CI paths (CI-PATHS.diff) — no recommendation
+
+Both are generated as applyable diffs against this tree's `.github/workflows/ci.yml`; each appends
+one step to the linux chain (line 35) and the macos chain (line 135). The windows job (line 199)
+is unchanged in both.
+
+- **PATH A — `bun run test`.** Commits CI to the *entire* bun:test suite:
+  `tests/**` + `packages/registry/tests/**`, including `tests/ts/package-artifacts.test.ts`
+  (the tracked-file stub writer, §6) and every other currently local-only check. Consequence:
+  **CI turns red on the current baseline** — the suite contains known-red/local-only checks, and
+  this delivery's own blocker history shows the acceptance fixture was red until today. Red CI
+  stops meaning "this PR broke it" and starts meaning "something is wrong, including known-wrong".
+  Commits the project to keeping the whole suite green (or triaging it immediately) and to the
+  120-minute job budget absorbing the suite's runtime (a full `bun test tests/` run measured
+  ≈29 minutes on this machine; CI hardware differs — not verified).
+- **PATH B — `bun test tests/swift-readonly-boundary/ tests/swift-gap-boundary/`.** Collects
+  exactly the two fixtures and nothing else. No `package.json` change either way. Consequence:
+  CI gains two focused, currently-green guards; the rest of `tests/**` stays CI-invisible, the
+  blind spot persists, and a second collection surface now exists that can drift from
+  `bun run test` (a future test placed under `tests/` is silently uncollected in CI again).
+
+Both paths were syntax-checked by construction (sed edit + revert; `git diff` shows the exact
+insertions); neither was executed under `nix develop` (see §7).
+
+## 5. Run evidence (exit codes direct)
+
+| command (cwd = worktree root) | exit | result |
+|---|---|---|
+| `bun test tests/swift-gap-boundary/` | **0** | 2 pass / 0 fail, 14 expect() calls, 57.28s (`evidence/gap-bun-test.log`); typecheck status file = 0, `: error:` count 0, `#no-usage` count 4 (2 warnings × Swift's 2-line rendering), matching the archive's W1 signature |
+| `bun test tests/swift-readonly-boundary/` (repaired expectations) | **0** | 1 pass / 0 fail, 16 expect() calls, 85.65s (`evidence/ciwire-ro-test2.log`) |
+| same, first attempt | **1** | timed out at the in-test 60s budget under machine contention (`evidence/ciwire-ro-test.log`); same failure class as branchfixture-fix REPORT §7; retried with a *verification-only* raised timeout (60_000→600_000) and reverted afterwards — the delivered file carries the original 60s and the exact PATCH diff (`git diff --stat` = 2 files, 4 lines) |
+| failure-mode probe (inside the driver) | green | `swiftc -typecheck` on `let broken: Int = "s"` → nonzero exit, stderr contains `error` (`evidence/failure-probe.stderr.log`, `failure-probe.status`) |
+| collection probes | 0 / 0 | `evidence/ciwire-recursion.log`, `evidence/ciwire-multidir.log` |
+| trap check `grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx` | 5 before every run, 5 after every run | intact throughout |
+
+Distinguishing note: for the gap fixture, **generation exit 0 and typecheck exit 0 are separate
+assertions on separate processes** (`generate.status` vs `typecheck.status`); generation alone was
+never treated as success.
+
+## 6. The `package-artifacts` trap
+
+Checked before and after every run: `grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx`
+= 5 at start, 5 at end; never 0, no git restore needed. My driver does not share the hazard: it
+writes nothing outside the gitignored out dir (no tracked file is ever opened for writing, no
+`try/finally` needed because there is no save/restore of tracked state). The residual hazard class
+is documented in gap-ci-plan §4: `Bun.spawnSync` has no timeout, so a hung `haxe`/`swiftc` would
+hang the test process (bun's 60s test timeout abandons the test, "killed 1 dangling process" was
+observed in `ciwire-ro-test.log`).
+
+## 7. Not verified, with blockers
+
+1. **CI execution under `nix develop`** — neither PATH option was run as CI would
+   (no nix push/PR). The diffs are textual insertions into the existing chain; the chain's own
+   health on the final tree is the decider's data point. Blocker: no CI run possible from here.
+2. **nix Swift vs the pinned shim (6.2.4)** for the gap fixture's typecheck. All evidence here
+   comes from the shim on PATH. The W1 warning shape is standard frontend behavior; not proven on
+   the nix toolchain.
+3. **The full `bun run test` red set** (PATH A's blast radius) — not enumerated; the
+   ≈29-minute suite run is out of scope per instructions (other agents working). PATH A therefore
+   ships with a known-unknown red set.
+4. **`packages/registry/tests/` contents** — not read; PATH A collects them sight unseen.
+5. **Whether the strict zero-diagnostics flip stays red after the gate-owner's W1 ruling** —
+   depends on condition 1's resolution, which is outside this task.

@@ -1,0 +1,39 @@
+package tests
+
+import boring.MathIntWideningOps
+import boring.runtime.test.Test
+
+class MathIntWideningOpsTests {
+@boring.test.Test
+    fun testPositive() {
+        Test.run("tests.MathIntWideningOpsTests.testPositive", "tests.MathIntWideningOpsTests.testPositive: Math Int widening preserves floor, ceil, and predicates") {
+                Test.equals(4, MathIntWideningOps.floorOf(4), null)
+                Test.equals(4, MathIntWideningOps.ceilOf(4), null)
+                Test.equals(2.0f, MathIntWideningOps.sqrtOf(4), null)
+                Test.equals(false, MathIntWideningOps.nanOf(4), null)
+                Test.equals(true, MathIntWideningOps.finiteOf(4), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNegative() {
+        Test.run("tests.MathIntWideningOpsTests.testNegative", "tests.MathIntWideningOpsTests.testNegative: Math Int widening handles negative square roots") {
+                Test.equals(-4, MathIntWideningOps.floorOf(-4), null)
+                Test.equals(-4, MathIntWideningOps.ceilOf(-4), null)
+                Test.ok(MathIntWideningOps.sqrtOf(-4) != MathIntWideningOps.sqrtOf(-4), "sqrt(-4) is NaN")
+                Test.equals(false, MathIntWideningOps.nanOf(-4), null)
+                Test.equals(true, MathIntWideningOps.finiteOf(-4), null)
+        }
+    }
+
+@boring.test.Test
+    fun testZero() {
+        Test.run("tests.MathIntWideningOpsTests.testZero", "tests.MathIntWideningOpsTests.testZero: Math Int widening handles zero") {
+                Test.equals(0, MathIntWideningOps.floorOf(0), null)
+                Test.equals(0, MathIntWideningOps.ceilOf(0), null)
+                Test.equals(0.0f, MathIntWideningOps.sqrtOf(0), null)
+                Test.equals(false, MathIntWideningOps.nanOf(0), null)
+                Test.equals(true, MathIntWideningOps.finiteOf(0), null)
+        }
+    }
+}

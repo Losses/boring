@@ -1,0 +1,15 @@
+package boring
+
+object IntFloatAddOps {
+    fun addIntLeft(_n: Int): Float {
+        return 3.5f
+    }
+
+    fun addIntRight(_n: Int): Float {
+        return 3.5f
+    }
+
+    fun addNested(_n: Int): Float {
+        return -1.0f
+    }
+}

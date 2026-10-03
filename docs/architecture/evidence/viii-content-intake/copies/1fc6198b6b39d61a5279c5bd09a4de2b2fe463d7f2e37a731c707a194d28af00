@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_iterate() {
+    testlib::run("tests.ForInOptionalTests.testIterate", "tests.ForInOptionalTests.testIterate: a for-in over a guarded nullable array unwraps", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

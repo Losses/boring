@@ -1,0 +1,3 @@
+mutated shell line 3:
+  before:     kotlin("jvm") version "2.4.10"
+  after:      kotlin("jvm") version "2.5.99"

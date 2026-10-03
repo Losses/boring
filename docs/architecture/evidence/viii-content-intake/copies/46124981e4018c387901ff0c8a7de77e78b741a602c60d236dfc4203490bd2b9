@@ -1,0 +1,7 @@
+/home/losses/Development/tq-workspace/boring-wt-architecture/out/p8l-matrix/current/gen/p8l/ClosureLazy.swift:43:21: warning: function call causes an infinite recursion
+41 | 
+42 |     private static func spinForever() -> Void {
+43 |         ClosureLazy.spinForever()
+   |                     `- warning: function call causes an infinite recursion
+44 |     }
+45 | }

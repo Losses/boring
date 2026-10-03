@@ -1,0 +1,48 @@
+package tests
+
+import boring.ValueTypeConsumer
+import boring.runtime.test.Test
+
+class ValueTypeTests {
+@boring.test.Test
+    fun testArithmetic() {
+        Test.run("tests.ValueTypeTests.testArithmetic", "tests.ValueTypeTests.testArithmetic: value wrapper arithmetic and member call") {
+                Test.equals(6.0f, ValueTypeConsumer.arithmetic(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testEquality() {
+        Test.run("tests.ValueTypeTests.testEquality", "tests.ValueTypeTests.testEquality: equal wrapper representations compare equal") {
+                Test.equals(true, ValueTypeConsumer.equalRepresentations(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testStaticField() {
+        Test.run("tests.ValueTypeTests.testStaticField", "tests.ValueTypeTests.testStaticField: value wrapper static field is preserved") {
+                Test.equals(0.0f, ValueTypeConsumer.staticValue(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testBlankRejected() {
+        Test.run("tests.ValueTypeTests.testBlankRejected", "tests.ValueTypeTests.testBlankRejected: validating wrapper rejects blank construction") {
+                Test.equals(true, ValueTypeConsumer.blankRejected(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testOptionalIc() {
+        Test.run("tests.ValueTypeTests.testOptionalIc", "tests.ValueTypeTests.testOptionalIc: nullable value wrapper field preserves its presence") {
+                Test.equals(2.0f, ValueTypeConsumer.optionalIcPresent(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testRenderedString() {
+        Test.run("tests.ValueTypeTests.testRenderedString", "tests.ValueTypeTests.testRenderedString: declared wrapper toString returns its representation") {
+                Test.equals("face", ValueTypeConsumer.renderedId(), null)
+        }
+    }
+}

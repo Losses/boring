@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Executes the two CI step bodies extracted from .github/workflows/ci.yml the way
+# GitHub Actions does (`bash -e <step script>`, cwd = repo root), three times:
+#   A. collected file intact          -> the step succeeds
+#   B. a guarded assertion broken     -> the step fails (L5 discrimination)
+#   C. synthetic out/ header in log   -> the domain guard fails
+# Exit codes are captured directly from the step process, never through a pipe.
+set -u
+E="$(cd "$(dirname "$0")" && pwd)"
+REPO=/home/losses/Development/tq-workspace/boring-wt-architecture
+TARGET=tests/bundle-child-evidence/bundle-child-evidence.test.ts
+export XDG_CACHE_HOME="$E/nix-cache"     # sandbox: ~/.cache/nix is read-only here; CI has no such need
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+export GITHUB_STEP_SUMMARY="$E/github-step-summary.md"
+cd "$REPO" || exit 9
+echo "### environment: bun=$(bun --version) nix=$(which nix) cwd=$(pwd)"
+
+echo
+echo "=========== A. intact ==========="
+: > "$GITHUB_STEP_SUMMARY"
+bash -e "$E/step-collected-suite.local.sh"; echo "A/run-step exit=$?"
+bash -e "$E/step-report-count.sh";          echo "A/report-step exit=$?"
+cp out/collected-suite.log "$E/run-A-collected-suite.log"
+cp "$GITHUB_STEP_SUMMARY" "$E/run-A-step-summary.md"
+echo "--- A step summary ---"; cat "$GITHUB_STEP_SUMMARY"
+
+echo
+echo "=========== B. guarded assertion deliberately broken ==========="
+echo "guard file before: Test.equals=$(grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx) sha256=$(sha256sum samples/boring/MathNaNTestSupport.hx | cut -d' ' -f1)"
+sed -i 's/expect(readBytes(record.stdoutPath).length).toBe(record.stdoutBytes);/expect(readBytes(record.stdoutPath).length).toBe(record.stdoutBytes + 1);/' "$TARGET"
+git diff --stat "$TARGET"
+bash -e "$E/step-collected-suite.local.sh"; echo "B/run-step exit=$?"
+bash -e "$E/step-report-count.sh";          echo "B/report-step exit=$?"
+cp out/collected-suite.log "$E/run-B-collected-suite.log"
+cp "$GITHUB_STEP_SUMMARY" "$E/run-B-step-summary.md"
+echo "--- B step summary ---"; cat "$GITHUB_STEP_SUMMARY"
+git checkout HEAD -- "$TARGET"
+echo "restored; git diff for target: [$(git diff --name-only -- "$TARGET")]  Test.equals=$(grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx) sha256=$(sha256sum samples/boring/MathNaNTestSupport.hx | cut -d' ' -f1)"
+
+echo
+echo "=========== C. domain guard negative control ==========="
+cp out/collected-suite.log "$E/run-C-backup.log"
+printf 'out/dup/tests/ts/synthetic-sweep.test.ts:\n' >> out/collected-suite.log
+: > "$GITHUB_STEP_SUMMARY"
+bash -e "$E/step-report-count.sh"; echo "C/report-step exit=$?  (expected 1)"
+cp "$GITHUB_STEP_SUMMARY" "$E/run-C-step-summary.md"
+cp out/collected-suite.log "$E/run-C-collected-suite-synthetic.log"
+cp "$E/run-C-backup.log" out/collected-suite.log
+echo "--- C step summary ---"; tail -6 "$GITHUB_STEP_SUMMARY"
+echo
+echo "### final: git status --porcelain for the target and the guard file:"
+git status --porcelain -- "$TARGET" samples/boring/MathNaNTestSupport.hx
+echo "(empty above = both clean)"

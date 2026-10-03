@@ -1,0 +1,5 @@
+out/try-tail/gen/swift/_GeneratedFiles.txt
+out/try-tail/gen/swift/Package.swift
+out/try-tail/gen/swift/std/UStringException.swift
+out/try-tail/gen/swift/std/UStringFault.swift
+out/try-tail/gen/swift/trytail/TryTailOracle.swift

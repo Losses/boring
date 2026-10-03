@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt-xcheck
+argv haxe tests/haxe/try-tail/gen/swift.hxml -D swift-output=out/swift-rt-xcheck/gen/swift -D swift-test-output=out/swift-rt-xcheck/gen/try-tail-test

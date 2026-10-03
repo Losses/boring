@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Emit FILES.sha256 for the deliverable: patch, report, evidence, raw runs, patched files.
+set -u
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/test-timeout-budget
+AFTER=/home/losses/Development/tq-workspace/tth-work/after
+cd "$OUT" || exit 1
+{
+  sha256sum PATCH.diff REPORT.md
+  find evidence -type f | LC_ALL=C sort | while read -r f; do sha256sum "$f"; done
+  find runs -type f | LC_ALL=C sort | while read -r f; do sha256sum "$f"; done
+  find . -maxdepth 1 -type f \( -name '*.py' -o -name '*.sh' \) | sed 's#^\./##' | LC_ALL=C sort | while read -r f; do sha256sum "$f"; done
+  diff -rq /home/losses/Development/tq-workspace/tth-work/base/tests "$AFTER/tests" \
+    | sed -E 's#^Files .*base/(.*) and .*#\1#' | LC_ALL=C sort | while read -r f; do sha256sum "$AFTER/$f"; done
+} > FILES.sha256
+echo "FILES.sha256 entries: $(grep -c '' FILES.sha256)"

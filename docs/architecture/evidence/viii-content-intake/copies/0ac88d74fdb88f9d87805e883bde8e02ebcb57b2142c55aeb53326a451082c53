@@ -1,0 +1,71 @@
+HEAD       reference files (build/out/target/maven excluded) = 3777
+OURS+RES   reference files (build/out/target/maven excluded) = 3914
+DIRTY      reference files (build/out/target/maven excluded) = 3917
+
+=== HEAD vs OURS+RES ===
+  identical=3750  HEAD-only=1  OURS+RES-only=138  content-differs=26
+  -- OURS+RES-only by subtree:
+       reference/kotlin-f32/gen           30
+       reference/kotlin-f32/gen-tests     20
+       reference/rust-f32/gen             42
+       reference/swift-f32/gen            27
+       reference/swift-f32/gen-tests      19
+  -- content-differs:
+       reference/dart/gen-tests/tests/number_classify_tests.dart
+       reference/dart/gen/_GeneratedFiles.txt
+       reference/haxe-f32/gen/generate-main-f32.js
+       reference/haxe/gen/generate-main.js
+       reference/kotlin-f32/gen-tests/TestMain.kt
+       reference/kotlin-f32/gen/_GeneratedFiles.txt
+       reference/kotlin/gen-tests/tests/NumberClassifyTests.kt
+       reference/kotlin/gen/_GeneratedFiles.txt
+       reference/rust-f32/gen/_GeneratedFiles.txt
+       reference/rust-f32/gen/boring/mod.rs
+       reference/rust-f32/gen/boring/value_type_consumer.rs
+       reference/rust-f32/gen/runtime/mod.rs
+       reference/rust-f32/gen/std/mod.rs
+       reference/rust-f32/gen/tests/mod.rs
+       reference/rust-f32/gen/tests/value_type_tests.rs
+       reference/rust/gen/boring/value_type_consumer.rs
+       reference/rust/gen/tests/number_classify_tests.rs
+       reference/rust/gen/tests/value_type_tests.rs
+       reference/swift-f32/gen-tests/TestMain.swift
+       reference/swift-f32/gen/_GeneratedFiles.txt
+       reference/swift-f32/gen/boring/VectorCodec.swift
+       reference/swift/gen-tests/tests/NumberClassifyTests.swift
+       reference/swift/gen/_GeneratedFiles.txt
+       reference/swift/gen/boring/VectorCodec.swift
+       reference/ts/gen-tests/tests/NumberClassifyTests.test.ts
+       reference/ts/gen/_GeneratedFiles.txt
+
+### KEY FILES: HEAD / OURS+RES / DIRTY sha (first 12) ###
+  reference/rust/gen/boring/value_type_consumer.rs           ed51f003209e 6af9443949d7 6af9443949d7   [HEAD!=OURS+RES]
+  reference/rust-f32/gen/boring/value_type_consumer.rs       8e09ee6fb68b d5431ee0e30f d5431ee0e30f   [HEAD!=OURS+RES]
+  reference/rust/gen/tests/value_type_tests.rs               2f9327d76ecc 2effd14b2806 2effd14b2806   [HEAD!=OURS+RES]
+  reference/rust-f32/gen/tests/value_type_tests.rs           c2355d89a905 a33fbb78c9c5 a33fbb78c9c5   [HEAD!=OURS+RES]
+  reference/swift/gen/boring/VectorCodec.swift               27bd6adfcb49 c93646a06b6b c93646a06b6b   [HEAD!=OURS+RES]
+  reference/swift-f32/gen/boring/VectorCodec.swift           d31718772493 a09b27b50dec a09b27b50dec   [HEAD!=OURS+RES]
+  reference/rust/gen/tests/number_classify_tests.rs          663feea84ee5 411e029d555c 411e029d555c   [HEAD!=OURS+RES]
+  reference/ts/gen/boring/SortedDataClassKeysOps.ts          fa3ac7fc2551 fa3ac7fc2551 fa3ac7fc2551   [HEAD==OURS+RES]
+  reference/rust/gen/runtime/u_string.rs                     e6d94109d016 e6d94109d016 e6d94109d016   [HEAD==OURS+RES]
+  reference/rust/gen/boring/platform_ops.rs                  1cc836675a31 1cc836675a31 1cc836675a31   [HEAD==OURS+RES]
+  reference/dart/gen/lib/boring/pipeline_ops.dart            9d0b73d9f6ed 9d0b73d9f6ed 68f2eca4ea96   [HEAD==OURS+RES]
+  reference/rust/gen/boring/value_type_ops.rs                279e5095684e 279e5095684e 279e5095684e   [HEAD==OURS+RES]
+
+=== OURS+RES vs DIRTY ===
+  identical=3905  OURS+RES-only=0  DIRTY-only=3  content-differs=9
+  -- DIRTY-only by subtree:
+       reference/haxe-f32/gen             1
+       reference/haxe/gen                 1
+       reference/rust-f32/gen             1
+  -- content-differs:
+       reference/dart/gen/_GeneratedFiles.txt
+       reference/dart/gen/lib/boring/pipeline_ops.dart
+       reference/dart/gen/lib/registry/core.dart
+       reference/dart/gen/lib/registry/json.dart
+       reference/kotlin-f32/gen/_GeneratedFiles.txt
+       reference/kotlin/gen/_GeneratedFiles.txt
+       reference/swift-f32/gen/_GeneratedFiles.txt
+       reference/swift/gen/_GeneratedFiles.txt
+       reference/ts/gen/_GeneratedFiles.txt
+

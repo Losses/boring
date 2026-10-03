@@ -1,0 +1,18 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp samples/haxe
+-cp packages/registry/src
+-cp /home/losses/Development/tq-workspace/dc-warn/out/route-fixtures/fixtures/c1-try
+--macro Intercept.run(['samples', 'packages/registry/src', '/home/losses/Development/tq-workspace/dc-warn/out/route-fixtures/fixtures/c1-try'])
+--macro swiftcompiler.Compiler.use()
+--macro haxe.macro.Context.getType("runtime.TestCore")
+-main boring.C1TryOracle
+-D swift-output=out/route-fixtures/c1-try/gen
+-D package-shell=none
+-D runtime-emit=.
+-D runtime-import=@boring/runtime
+-D swift-test-output=out/route-fixtures/c1-try/tests
+-D swift-test-runner=native

@@ -1,0 +1,5 @@
+gen		0	zero
+prep		0	zero
+compile-swift		0	data
+run-swift		0	zero
+compare-swift		0	0-identical-nonzero-differs

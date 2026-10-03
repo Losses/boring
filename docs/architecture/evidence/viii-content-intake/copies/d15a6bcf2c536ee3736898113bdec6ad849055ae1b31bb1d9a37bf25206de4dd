@@ -1,0 +1,15 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct SwiftLiteralSafetyOps;
+
+impl SwiftLiteralSafetyOps {
+    pub fn swift_literal_safety_ops_trailing_point() -> f64 {
+        return 0.0f64;
+    }
+
+    pub fn swift_literal_safety_ops_control_text() -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("before")); __s += &(UString::from("")); __s += &(UString::from("after")); __s }).as_str());
+    }
+}

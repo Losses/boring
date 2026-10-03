@@ -1,0 +1,54 @@
+   Compiling generated v0.1.0 (/tmp/rt-xcheck/bx-pristine/xs-scope)
+error: argument never used
+  --> xcheckscope/scope_probe.rs:18:44
+   |
+18 |                 write!(formatter, "{}", a, b)
+   |                                   ----     ^ argument never used
+   |                                   |
+   |                                   formatting specifier missing
+
+error[E0425]: cannot find type `Plain` in this scope
+  --> xcheckscope/scope_probe.rs:30:40
+   |
+30 |     pub fn scope_probe_plain_switch(p: Plain) -> u32 {
+   |                                        ^^^^^ not found in this scope
+
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0599]: no variant, associated function, or constant named `PExFault` found for enum `PFault` in the current scope
+  --> xcheckscope/scope_probe.rs:79:40
+   |
+ 6 | pub enum PFault {
+   | --------------- variant, associated function, or constant `PExFault` not found for this enum
+...
+79 |                     return Err(PFault::PExFault(PEx::new(e)));
+   |                                        ^^^^^^^^ variant, associated function, or constant not found in `PFault`
+
+error[E0433]: cannot find type `PEx` in this scope
+  --> xcheckscope/scope_probe.rs:79:49
+   |
+79 |                     return Err(PFault::PExFault(PEx::new(e)));
+   |                                                 ^^^ use of undeclared type `PEx`
+
+error[E0433]: cannot find type `Plain` in this scope
+  --> xcheckscope/scope_probe.rs:32:13
+   |
+32 |             Plain::Alpha => 0,
+   |             ^^^^^ use of undeclared type `Plain`
+
+error[E0433]: cannot find type `Plain` in this scope
+  --> xcheckscope/scope_probe.rs:33:13
+   |
+33 |             Plain::Beta { v: _p0 } => _p0,
+   |             ^^^^^ use of undeclared type `Plain`
+
+Some errors have detailed explanations: E0425, E0433, E0599.
+For more information about an error, try `rustc --explain E0425`.
+warning: `generated` (lib) generated 1 warning
+error: could not compile `generated` (lib) due to 6 previous errors; 1 warning emitted

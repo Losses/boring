@@ -1,0 +1,6 @@
+phase=reverse fixtures=xs-crossmod xt-twoexc-emit-rev xs-twoexc-faultnames
+--- compiler state ---
+a60c77c599f26c989497c14e4b120d74e557dfd7dd7019c0bca92da2dd29669b  packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+df77f3dc62fbfe6b4afce2329e3a06f2723e63705fbcb15cfd3bece472877ad3  packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+173751f3653c120decc2020db00f83eaf6fb7185bcb66fd5ab6845dba2c08b1a  packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+79366af255843c3ae8b9a0ec1a5f3605a4d3e8e14ecf01d6ec185bc9bd23957a  packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx

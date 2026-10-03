@@ -1,0 +1,4 @@
+# sha256 of every file this change touches, after the change
+# paths are relative to the boring-wt-architecture worktree root
+e3bd0cd23b30f6948becf681030ec402ee59380f31f1ff21bdf172de5ce8c80e  samples/tests/NumberClassifyTests.hx
+7be40923586157c04840cffdd2aa28080cd420ba94464f6438ce3684f68160fa  tools/precision-guard/check.ts

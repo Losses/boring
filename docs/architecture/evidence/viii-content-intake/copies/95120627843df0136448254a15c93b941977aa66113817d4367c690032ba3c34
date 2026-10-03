@@ -1,0 +1,8 @@
+package boring
+
+object NoSuchElementThrower {
+    fun missing(): Int {
+        throw NoSuchElementFaultException.Missing
+        return 0
+    }
+}

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/boring-wt-architecture
+argv timeout 300 dart lib/dcguard/zz_run.dart

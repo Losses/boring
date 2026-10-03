@@ -1,0 +1,23 @@
+package tests
+
+import boring.runtime.Env
+import boring.runtime.test.Test
+import java.nio.file.Files
+import java.nio.file.Paths
+
+class FlushHookProbeTests {
+@boring.test.Test
+    fun classBodyRuns() {
+        Test.run("tests.FlushHookProbeTests.classBodyRuns", "tests.FlushHookProbeTests.classBodyRuns: the class body runs and the flush entry stays outside the test id set") {
+                Test.equals(1, 1, "the probe class body runs")
+        }
+    }
+
+    fun flushTestTrace() {
+        val directory = Env.get("BORING_FLUSH_PROBE_DIR")
+        if ((directory == null)) {
+            return
+        }
+        Files.writeString(Paths.get(directory + "/FlushHookProbeTests.txt"), "flushed")
+    }
+}

@@ -1,0 +1,12 @@
+#[derive(Clone, Copy)]
+pub struct NumberClassifyOps;
+
+impl NumberClassifyOps {
+    pub fn number_classify_ops_finite(value: f32) -> bool {
+        return (value).is_finite();
+    }
+
+    pub fn number_classify_ops_nan(value: f32) -> bool {
+        return (value).is_nan();
+    }
+}

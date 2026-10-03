@@ -1,0 +1,36 @@
+# Claim spot-checks 2026-09-30T02:17:43-04:00
+== A4 prepareArrayOperand (SwiftExpr.hx:2682-2692): storage classified from e.t when no local record ==
+sed: can't read packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx: No such file or directory
+
+== A5 switchAssign delegates to switchReturn then rewrites text (5508-5516) ==
+sed: can't read packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx: No such file or directory
+
+== A7 package-artifacts.test.ts runHaxe: stub write + restore after await, no try/finally ==
+sed: can't read tests/ts/package-artifacts.test.ts: No such file or directory
+
+== B3 armLines uses currentReturnType (810-811) ==
+sed: can't read packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx: No such file or directory
+
+== B4 blockValueLines line 5168 expr(parts.value); tryBindingLines 5210; tryReturnLines 5251 ==
+sed: can't read packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx: No such file or directory
+
+== A3 comparison consumers present in all five targets ==
+grep: packages/compiler/reflaxe: No such file or directory
+
+== A10 xpost.cargo.err warning lines ==
+7
+
+== A11 roots-guard probe extra/Seen.hx has NO package declaration ==
+class Seen { public static var V:Float = 1.5; }
+
+== A19 Tiqian pinned revision in work plan ==
+grep: docs/architecture-work-plan.md: No such file or directory
+
+== A20 boring.json bundle count ==
+grep: boring.json: No such file or directory
+grep: boring.json: No such file or directory
+
+== PIT-255 fix landed uncommitted in coordination tree (SwiftArrayBoundary.hx diff) ==
+fatal: ambiguous argument 'packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'

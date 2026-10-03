@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_private_collision() {
+    testlib::run("tests.PrivateCollisionTests.testPrivateCollision", "tests.PrivateCollisionTests.testPrivateCollision: module-private types of the same name stay file-scoped", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

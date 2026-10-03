@@ -1,0 +1,186 @@
+# Adversarial cross-check: `tools/roots-guard/check-roots-guard.sh` hardening
+
+**Reviewer role:** independent adversarial verification. I did not write any of the reviewed code.
+**Reviewed revision:** `boring-wt-architecture` @ `e1c65975` (working tree carries the *fixed* `examples/*-f32.hxml`).
+**Deliverable under test:** `dc-warn/out/roots-guard-hardening/{REPORT.md,PATCH.diff,evidence/}`.
+**My scratch (real trees, not `dc-warn`):** `/home/losses/Development/tq-workspace/rgx-scratch/` — `patchcheck/` (patch applied), `cases/<case>/repo/` (repo-shaped case trees), `stage1-5.sh` (generators).
+**Raw logs:** `evidence/` in this directory.
+
+## 0. Verdict in one paragraph
+
+The producer's **three stated defeats are genuinely closed** and every "before/after" exit code in their §1–§3 reproduces exactly (I rebuilt each case myself): DEFEAT A/B/C were `rc=0` on the original script and are `rc=1` on the hardened one, for the intended reasons, and the hardened guard still PASSes the current tree and still emits exactly **111** pre-fix FAIL lines (41/33/37). The header's four invariants do match the code as the header words them. **But the hardening closes the three defeats only in their shortest form, and I found six defeat classes that still produce `rc=0` on a real divergence** — the headline ones being (1) the "reason" test is shape-only, so the *minimal* bypass is four nonsense words totalling 24 characters, (2) Haxe honours leading-whitespace / trailing-whitespace / trailing-CR root lines that the guard's regex silently drops, (3) `--macro include('pkg')` / `haxe.macro.Compiler.include('pkg')` injects modules into one side of a pair and the guard never reads `--macro` lines at all, (4) `-cp` divergence is not checked (drop `-cp samples` from `swift-f32.hxml` → PASS), (5) a root deleted from **both** files is only caught when the module declares `@:test`, and (6) a real `@:test` module dropped from both files can be silenced by one junk-shaped `unrootedTestModules` line. Items 1–3 are *new executable defeats* with `rc=0` measured on the hardened script.
+
+## 1. Method and the rc-measurement discipline
+
+* Patch applied **in my own scratch copy**: `cd rgx-scratch/patchcheck && patch -p1 < PATCH.diff` → rc=0; resulting sha256 `8efdd4da…` (script) and `c25b3807…` (allowlist), i.e. **identical to the hashes the producer's REPORT claims**.
+* `git apply --check` from the repo root → **rc=0** (`evidence/01-git-apply-check.txt`).
+* Every case is a repo-shaped tree (`examples/` real copy + `samples|packages|tests|tools|.haxelib|haxelib.json` linked, or fully real for the two faithful cases) at `$here/../..`, so `$here/../..` discovery, `-cp` resolution and `-lib`/`.haxelib` lookup all run exactly as in-tree.
+* Exit codes were measured **directly, never through a pipe**: `( cd "$CASE" && bash tools/roots-guard/check-roots-guard.sh "$@" ) > log 2>&1; rc=$?` then `printf 'exit_code=%s\n' "$rc" >> log`. Each log ends with its own `exit_code=` line.
+* Compiler-side experiments used the real toolchain: `/nix/store/98pb92k7…-haxe-4.3.7/bin/haxe` (`haxe --version` → `4.3.7`).
+* I did not modify `boring-wt-architecture`, the runner, or `publication-staging/**` (`evidence/02-shared-tree-state.txt`): both shared-tree guard files still hash to the originals (`e5508bb4…`, `34d336ce…`), `tools/roots-guard/` is still untracked, and the only tracked modifications (` M examples/{kotlin,rust,swift}-f32.hxml`) are the pre-existing roots fix from before this session (mtimes 20:05, my session started ~22:2x).
+* `evidence/07-counts.tsv` gives FAIL/EXEMPT/DUP/COVER per case; `evidence/00-summary-rc.tsv` the rc of every case.
+
+## 2. Control table
+
+Command form per case: `cd <case>/repo && bash tools/roots-guard/check-roots-guard.sh [args]`, rc captured directly.
+
+| # | case | mutation / invocation | expected | observed rc | verdict |
+|---|---|---|---|---|---|
+| 1 | `orig-baseline` | original script, no mutation | 0 | **0** | PASS, `3 exemption(s)` |
+| 2 | `orig-defeatA` | f32 loses `tests.EarlyReturnTests` + exempt reason `"x"` | 0 (defeat) | **0** | **DEFEAT reproduced** (`EXEMPT … -- x`, PASS 4) |
+| 3 | `orig-defeatB` | `tests.F32OnlyDivergentTests` appended to `swift-f32.hxml` | 0 (defeat) | **0** | **DEFEAT reproduced** |
+| 4 | `orig-defeatC` | dead exemption for `boring.ArraySliceOps` | 0 (defeat) | **0** | **DEFEAT reproduced**, entry never mentioned |
+| 5 | `orig-wsreason` | reason `"   "` | 1 | **1** | rejected (pre-existing) |
+| 6 | `orig-prefix` | current bases + `git show e1c65975:examples/*-f32.hxml` | 1 | **1** | 111 FAIL (41/33/37) |
+| 7 | `hard-baseline` | hardened, current tree | 0 | **0** | PASS `3 exemption(s) … 6 declared unrooted … 45 duplicate` |
+| 8 | `hard-oldallowlist` | hardened + **unchanged** repo allowlist | 1 | **1** | 6 coverage FAILs (both new declarations are load-bearing) |
+| 9 | `hard-defeatA` | as #2 | 1 | **1** | 2 FAIL: `exempt[3]: … (1 word(s): "x")` + missing-root |
+| 10 | `hard-defeatB` | as #3 | 1 | **1** | 2 FAIL: f32-only divergence + phantom existence |
+| 11 | `hard-defeatB-real` | f32-only **real** root `std.Graphemes` | 1 | **1** | exactly 1 FAIL (direction check alone) |
+| 12 | `hard-defeatC` | as #4 | 1 | **1** | `stale exemption: {target=swift, module=boring.ArraySliceOps} …` |
+| 13 | `hard-wsreason` | reason `"   "` | 1 | **1** | `blank/whitespace-only reason` |
+| 14 | `hard-tinyreason` | f32 root deleted + reason `"todo"` | 1 | **1** | `reason is not a substantive sentence … need >= 4 words` |
+| 15 | `hard-prefix` | as #6 | 1 | **1** | **111** FAIL, `41 kotlin / 33 rust / 37 swift`, **0 other FAIL lines** |
+| 16 | `new-defeatA-noexempt` | f32 root deleted, **no** exemption | 1 | **1** | missing-root FAIL (baseline for §3-F8) |
+| 17 | `new-tamper-base` | root deleted from the **base** file | 1 | **1** | f32-only divergence FAIL |
+| 18 | `new-phantom` | root with no `.hx` | 1 | **1** | divergence + `does not resolve to any .hx` |
+| 19 | `new-foreign-root` | `repo.OnlyExistsElsewhere` in both files | 1 | **1** | existence FAIL |
+| 20 | `new-include-missing` | dangling `.hxml` include | 1 | **1** | `unresolved hxml include` |
+| 21 | `new-cycle` | `a→b→a` include | 1 | **1** | `hxml include cycle at …/cycle-a.hxml` |
+| 22 | `new-self-cycle` | `self-cycle.hxml` includes itself | 1 | **1** | `hxml include cycle at …/self-cycle.hxml` |
+| 23 | `new-alias-cycle` | `./alias-cycle.hxml` self-include | 1 | **1** | `hxml include depth exceeded` (not "cycle" — see F12) |
+| 24 | `new-depth9` | 9-deep include chain | 1 | **1** | `hxml include depth exceeded` |
+| 25 | `new-include-ok` | a root moved into a shared nested include in **both** files | 0 | **0** | include-aware, no false positive |
+| 26 | `new-main-ok` | a root written as `-main …` in both files | 0 | **0** | `-main` roots matched |
+| 27 | `new-main-no-newline` | fragment ends `-main` with no trailing newline | 1 | **1** | `'-main' without a module argument` |
+| 28 | `new-main-two-args` | `-main std.Graphemes extra` | 1 | **1** | `malformed -main module path: std.Graphemes extra` |
+| 29 | `new-dup-pair` | same module in both files, twice in f32 | 0 | **0** | `46 duplicate root line(s) reported`, not fatal |
+| 30 | `new-dup-pair-strict` | same case + `--strict-duplicates` | 1 | **1** | 3 × `--strict-duplicates: duplicate root line(s) in the <t> pair` |
+| 31 | `new-live-exempt` | f32-only real root **with** a substantive reason | 0 | **0** | `EXEMPT: swift-f32.hxml adds std.Graphemes …` — exemptions still work |
+| 32 | `new-cross-target-exempt` | swift root deleted, exemption declared for **rust** | 1 | **1** | missing-root + `stale exemption {target=rust…}` (no key leakage) |
+| 33 | `new-case-trick` | exemption module `tests.earlyreturntests` (wrong case) | 1 | **1** | missing-root + stale |
+| 34 | `new-bothsections-dup` | same `(target,module)` in `exempt` and `unrootedTestModules` | 1 | **1** | `duplicate/conflicting entry for target kotlin module …` |
+| 35 | `new-unroot-stale` | declare an already-rooted module as unrooted | 1 | **1** | `stale unrootedTestModules declaration` |
+| 36 | `new-badkeys` | entry gains an `expires` key | 1 | **1** | `entry keys must be exactly target,module,reason` |
+| 37 | `new-topkey` | unknown top-level `extraSection` | 1 | **1** | `unknown top-level key in allowlist` |
+| 38 | `new-badexempt-target` | `target: "dart"` | 1 | **1** | `target must be one of kotlin/rust/swift or *` |
+| 39 | `new-badexempt-module` | `module: "not a module path!"` | 1 | **1** | `module is not a plausible dotted module path` |
+| 40 | `new-noallowlist` | allowlist file removed | 1 | **1** | fail-closed, no crash |
+| 41 | `new-badjson` | truncated JSON | 1 | **1** | `allowlist is not valid JSON` |
+| 42 | `new-bogus-option` | `--bogus` | 2 | **2** | usage error, distinct from FAILED |
+| 43 | `new-extra-positional` | `<dir> extra-arg` | 2 | **2** | `unexpected argument` |
+| 44 | `new-missing-examples` | `/nonexistent-examples-dir` | 1 | **1** | `examples directory not found` |
+| 45 | `new-norepo` | no repo-shaped ancestor | 1 | **1** | `cannot locate the repository root …` |
+| 46 | `new-nomutation` | guard run, tree hashed before/after | 0 | **0** | `NO_MUTATION=confirmed` (identical tree hash) |
+| 47 | `realrepo-baseline` | fully real copy (samples+packages+tests+tools), `.haxelib` linked | 0 | **0** | PASS |
+| 48 | `realrepo-nohaxelib` | same, `.haxelib` removed | 0 | **0** | PASS — producer §5 claim reproduced faithfully |
+
+Boundary controls on the documented reason thresholds (see F1): `exact23` (4 words/23 chars) → **rc=1** `reason too short (23 chars, need >= 24)`; `exact24` (4 words/24 chars) → **rc=0**; `words3` (3 words/40 chars) → rc=1; `tiny4` (4 words/10 chars) → rc=1; `reason-nonstring` (JSON number) → rc=1 `reason is not a string`; `nbsp`/`zwsp4` → rc=1; `zwsp-spaced`, `cyrillic-only` → rc=1 `reason contains no prose`; `tab-inside` → rc=1.
+
+## 3. NEW defeat attempts (headline)
+
+All measurements below are on the **hardened** script with the **patched** allowlist, rc captured directly.
+
+| # | attempt (mutation) | rc | intended reason? | finding |
+|---|---|---|---|---|
+| **F1** | delete real root `tests.EarlyReturnTests` from `swift-f32.hxml`; exemption reason `"zzz qqq wwww vvvvvvvvvvvv"` (4 words / 26 chars, meaningless) | **0** | **no** | **DEFEAT.** `EXEMPT: swift-f32.hxml may omit tests.EarlyReturnTests -- zzz qqq wwww vvvvvvvvvvvv`. Same with `"todo todo todo todo todo!"`, with `"§±§±§±§±§± ①②③④⑤⑥⑦ ✗✓✗✓✗✓ abcdef"`, and with `"аааааа ббббббб ввввввв abc"`. The **minimal** bypass is exactly 4 words / 24 chars: `"aaaa bbbb cccc dddxxxxxx"` → rc=0; 23 chars → rc=1. The reason test is shape-only; nothing checks meaning. The header calls it "a substantive sentence (>= 24 chars, >= 4 words, not a placeholder …)" — the symbol-salad string satisfies the code but is not a substantive sentence. **DEFEAT A is closed only for reasons shorter than 24 characters.** |
+| **F2** | append `"  std.Graphemes"` (2 leading spaces) to `swift-f32.hxml` only | **0** | **no** | **DEFEAT.** Guard regex `^[A-Za-z_]…$` (line 312) drops the line silently; **Haxe 4.3.7 honours it** (`evidence/05-haxe-whitespace-experiment.txt`: `   NoSuchModuleXYZ` → `Type not found : NoSuchModuleXYZ`, rc=1; `   Ok` → rc=0). Same for `"\tstd.Graphemes"`, `"std.Graphemes "` (trailing space) and `"std.Graphemes\r"` (CR) → all **rc=0**. Four working forms of DEFEAT B. The guard is *stricter* than Haxe here, so it cannot distinguish "ignored" from "absent". |
+| **F3** | append `-cp extra` + `--macro include('extra')` (or `--macro haxe.macro.Compiler.include('extra')`) to `swift-f32.hxml` only, with `extra/Seen.hx` in the tree | **0** | **no** | **DEFEAT.** The guard skips every `-*` line (line 297), so all `--macro` lines are invisible — yet `Compiler.include` force-adds modules to the compilation. Proved with haxe 4.3.7 in a minimal project (`evidence/06-haxe-macro-include-experiment.txt`): control rc=0 / `MAIN_RAN`; with `include('extra')` rc=1 / `SEEN_INCLUDE`; the short form behaves identically. One line injects a whole package into the f32 side. The header's exhaustive enumeration "A root is a bare module-path line …, a `-main <module>` argument, or any root of a nested `.hxml` include" is therefore **not** the compiler's root set. |
+| **F4** | remove `-cp samples` from `swift-f32.hxml` (root list unchanged) | **0** | **no** | **DEFEAT (build-breaking divergence).** The f32 bundle can no longer resolve any `tests.*`/`boring.*` root on its own classpath; the guard's classpath set is the **union over all six files** and the f32 file's own `-cp` lines are never compared with the base file's. (Base has `-cp samples/haxe` too and f32 does not — that pre-existing asymmetry is likewise unreported.) |
+| **F5** | delete a root with **no** `@:test` (`boring.BytesOps`) from **both** `kotlin.hxml` and `kotlin-f32.hxml` | **0** | **no** | **DEFEAT of the "missing from both" closure.** Coverage only fires for `@:test` modules. The producer's REPORT §6 lists `both-deleted` as extra enforcement; that closure is partial (their case used `tests.EarlyReturnTests`, a `@:test` module). |
+| **F6** | delete the real `@:test` module `tests.NumberClassifyTests` from **both** kotlin files **and** declare it in `unrootedTestModules` with reason `"qqqq wwww eeee rrrr tttt yyyy"` | **0** | **no** | **DEFEAT.** `COVER: declared unrooted @:test module tests.NumberClassifyTests for kotlin -- qqqq wwww eeee rrrr tttt yyyy`. The escape hatch is one line plus 24 chars of gibberish, i.e. the detection in F5's counterpart is only as strong as allowlist discipline. |
+| **F7** | delete `tests.EarlyReturnTests` from **all three** `*-f32.hxml` and add one entry `{"target":"*","module":"tests.EarlyReturnTests","reason":"qqqq wwww eeee rrrr tttt yyyy"}` | **0** | by design (`*` documented) | **One reason authorises three targets** (3 EXEMPT lines for that module; 6 exemptions in force counting `registry.Main`). Fine as documented, but a reviewer should know the blast radius of a single junk-shaped entry. |
+| **F8** | run the deleted-root case with `ROOTS_GUARD_ALLOWLIST=<permissive file with a junk-shaped reason>` | **0** (vs **rc=1** for the identical tree with the shipped allowlist) | **no** | **Undocumented bypass surface.** Line 76 supports `ROOTS_GUARD_ALLOWLIST`, but the header documents only `ROOTS_GUARD_REPO_ROOT` (lines 50, 105). Anyone able to set the environment can point the guard at an arbitrary allowlist; combined with F1, 24 characters of gibberish then exempt any regression. |
+| **F9** | root `EvidenceProbe` (exists only at `tests/bundle-child-evidence/probe/EvidenceProbe.hx`, on **no** guarded classpath) added to **both** swift files | **0** | by-design fallback | Union + repo-wide-`.hx` fallback (lines 321-347) accepts a root no classpath can supply. Producer admits this (§5.5, §7.5) and the header words it accurately; still a false-PASS surface for "every root resolves". |
+| **F10** | add `samples/probe/ProbeTests.hx` containing `@:test`, rooted nowhere | **0** | by-design domain | Coverage scans only `<guarded-cp>/tests` (line 365). It never sees `ProbeTests`. **Already true in-tree:** `tests/timeout-probe/probe/TimeoutProbeTests.hx` and `tests/haxe/swift-runtime-closure/closureFixture/ClosureTests.hx` (modules `probe.TimeoutProbeTests`, `closureFixture.ClosureTests`) declare `@:test`, are roots of **no** examples pair, and are outside the coverage domain, because the repo-root `tests/` is not a guarded classpath (`samples/tests` is the only `<cp>/tests`). |
+| **F11** | `bash check-roots-guard.sh --help` | 0 | n/a | `usage()` prints `sed -n '2,46p'` (line 57) and line 46 is the `# Usage:` line, so the printed help **omits lines 47-53** (examples-dir default, `--repo-root` documentation, `# Exit: 0 = PASS, 1 = FAILED, 2 = usage error`). Cosmetic, but it is a docs/code mismatch inside the file whose theme is "docs must not be stronger than the code" (`evidence/04-help-truncation.txt`). |
+| **F12** | `alias-cycle.hxml` includes `./alias-cycle.hxml` | 1 | yes (fail-closed) | Cycle detection compares path strings, so the aliased self-include is caught only by the depth limit: `hxml include depth exceeded at …/examples/././././././././alias-cycle.hxml`, not `hxml include cycle`. Message-quality only; rc is correct. |
+| **F13** | — | — | — | Producer hygiene: `dc-warn/scratch-roots-guard/hardened/…/roots-allowlist.json` is **stale** vs `PATCH.diff` (only the `tests.E0308FiTests` reason prose differs; `bd4b4544…` vs `c25b3807…`). `PATCH.diff` matches the hash quoted in their REPORT and is the authoritative artifact. The script copy is byte-identical (`8efdd4da…`). |
+| **F14** | — | — | — | Robustness note: the fallback index is a `find` that does **not** follow symlinks, so a checkout with symlinked source dirs makes the guard fail (fail-closed) where the real tree passes. I first hit this myself with a symlink-farm case (`new-nohaxelib` rc=1, 15 FAILs); the faithful real-copy control (`realrepo-nohaxelib`) is **rc=0**, so the producer's §5 claim stands. Impact on the real repo: none today (no symlinks under the repo, checked). |
+
+### Attempts I made that the guard correctly rejected (no defeat)
+
+Cross-target exemption (keyed on `target|module`, no leakage); wrong-case module name; duplicate `(target,module)` across sections; stale `unrootedTestModules`; unknown entry key; unknown top-level key; `target: "dart"`; malformed module; missing allowlist; truncated JSON; non-string reason; tab-in-reason; NBSP-only, ZWSP-only, ZWSP-spaced and Cyrillic-only reasons; 3-word and 10-char reasons; self-include, 2-cycle, 9-deep chain, dangling include inside an include; bare `-main` at EOF without newline; `-main` with two tokens; phantom module; base-side deletion; `--bogus` (rc=2); extra positional (rc=2); missing examples dir; no repo root.
+
+## 4. Per-invariant verdict: does the header match enforcement?
+
+| header invariant | enforced as worded? | evidence | caveat |
+|---|---|---|---|
+| **(1) ROOT-SET EQUALITY, BOTH DIRECTIONS** — base-only and f32-only both reported and fatal; root = bare module line, `-main <module>`, or nested `.hxml` include (depth ≤ 8) | **YES** | `comm -23` / `comm -13` (lines 415-416); base-only → `hard-defeatA`/`new-tamper-base` rc=1; f32-only (real module) → `hard-defeatB-real` rc=1, exactly one FAIL; include following → `new-include-ok` rc=0 | The *definition* of "root" is incomplete relative to Haxe: F2 (whitespace/CR forms Haxe honours, dropped here) and F3 (`--macro include`) defeat the invariant's purpose; F4 shows classpaths are outside it. The enumeration of three root forms reads as exhaustive — that part **does** overclaim relative to the compiler. |
+| **(2) DECLARED DIVERGENCE** — `(target,module)` asymmetry, must be LIVE, target ∈ {kotlin,rust,swift,\*}, module plausible, reason ≥24 chars / ≥4 words / not placeholder, no duplicate, no unknown keys | **YES as coded** | stale → `hard-defeatC`, `new-cross-target-exempt`; structural → cases 36-39; duplicate → case 34; `*` expansion → `new-star-3for1-fixed` (3 keys) | Two wording gaps. (a) "or for a non-guarded target, is a **STALE** exemption and fails" — a non-guarded target is rejected structurally (`target must be one of …`), never as stale. (b) "a **substantive** sentence" is not what the code tests: F1's symbol salad and `todo todo todo todo todo!` pass. This is the one place where the header's adverb is stronger than the code. |
+| **(3) ROOT EXISTENCE** — every root of both files and every allowlist module must resolve on the guarded classpaths or, as fallback, anywhere in the repo | **YES** | `new-foreign-root`/`new-phantom` rc=1 `does not resolve to any .hx`; allowlist modules checked too (lines 485, 494); dangling include rc=1 | The fallback is disclosed in the same sentence, so no overclaim — but F9 shows a real module on no classpath still passes, so "existence" ≠ "compilable root". The report's §7.5 admits this; "A typo or phantom module fails" is true and does not imply the converse. |
+| **(4) TEST-MODULE COVERAGE** + duplicate reporting | **YES** | `hard-oldallowlist` rc=1 with exactly 6 FAILs; `new-both-deleted-kotlin` rc=1; `new-unroot-stale` rc=1; 45 DUP lines reported, `--strict-duplicates` rc=1 | Domain is `<guarded-cp>/tests` only (F10: `samples/tests`, 253 files; the 2 in-tree off-classpath `@:test` modules are invisible). The `unrootedTestModules` escape hatch is reason-checked by shape only (F6). Duplicates are correctly non-fatal by default, and the documented 45 count is right. |
+
+**Bottom line on the header:** it does what the task demanded — the withdrawn claim is withdrawn and nothing in it is *false about the code* — with the two small wording defects above (non-guarded target ≠ "stale"; "substantive" is not enforced). Where the guard actually fails is not the header's honesty but the header's **model of Haxe**: three root forms are enumerated as exhaustive, and the compiler honours more (F2, F3).
+
+## 5. Discrimination is preserved
+
+* **Pre-fix hxml** (`git show e1c65975:examples/{kotlin,rust,swift}-f32.hxml` + current bases): **rc=1**, **111** `FAIL:` lines, split **41 kotlin / 33 rust / 37 swift**, and the non-`omits root module` count is **0** (`evidence/hard-prefix.txt`). The original script on the same inputs gives the same 111 = 41/33/37 (`evidence/orig-prefix.txt`). The report's count and split are exact.
+* **Current tree**: **rc=0**, `roots guard: PASS (3 exemption(s) in force; 6 declared unrooted @:test module(s); 45 duplicate root line(s) reported)` with the three `registry.Main` `EXEMPT:` lines (`evidence/hard-baseline.txt`).
+* **Not a no-op:** 30+ cases above produce rc=1/rc=2 for the intended reasons, and the failure messages name the file, the module, and the fix.
+* **No over-firing on the normal tree:** baseline rc=0 and zero `FAIL` lines; anti-over-blocking controls `new-live-exempt`, `new-main-ok`, `new-include-ok`, `new-dup-pair` all rc=0. The only non-fatal noise is the 45 pre-existing duplicate lines, reported, not fatal, exactly as documented.
+* Independent duplicate recount (`evidence/dup-recount.txt`): kotlin 8/8, rust 8/5, swift 10/6, **TOTAL=45** — matches the guard's `45` and the REPORT.
+* Cross-checks of header side-claims: `PrintedFloatTests.hx` has exactly **6** `@:test` cases and all 6 appear in `tools/test-consistency/extra-id-allowlist.json`; `rust_output` (the `#if` guarding `E0308FiTests`) is defined nowhere under `examples/`, `packages/`, `defines.json`; there is no `dart-f32.hxml`/`ts-f32.hxml`.
+
+## 6. Producer-report discrepancies (all minor)
+
+1. `dc-warn/scratch-roots-guard/hardened/roots-allowlist.json` is stale vs `PATCH.diff` (F13). The REPORT's hash actually describes the patched file, so the artifact that ships is consistent; the scratch copy is not.
+2. REPORT §6 lists `both-deleted` under "Extra enforcement" without noting that it only works because that module declares `@:test` (F5).
+3. REPORT §5's `.haxelib`-removed claim is correct, but it is only reproducible in a tree whose source dirs are **real** (`realrepo-nohaxelib` rc=0); a symlink-farm tree fails 15 existence checks (F14). Worth stating as a prerequisite if anyone re-runs it.
+4. REPORT §7.10 already flags that in-place installation was not verified. I verified `git apply --check` rc=0 and patched-byte identity, and reproduced the in-tree invocation in repo-shaped copies (`$here/../..` discovery) rc=0. Writing into the shared worktree stays undone by constraint, not by doubt.
+
+## 7. What this guard does NOT cover (as hardened)
+
+1. **Meaning of an exemption reason.** Only shape: ≥24 chars, ≥4 words, non-blank, no tab/newline, not one of ~30 placeholder tokens, contains 3 ASCII letters. Four nonsense words totalling 24 characters exempt any real regression (F1), and one such line covers three targets via `*` (F7).
+2. **Root spellings Haxe accepts but the regex drops** — leading whitespace/tab, trailing whitespace, trailing CR (F2). No check compares the file's token set with Haxe's; `haxe` is not invoked.
+3. **`--macro` side effects**, notably `Compiler.include`/`include('pkg')`, which add modules to one side only; also any other macro that changes what is compiled (F3). `--next`/`--each` multi-compilation files are likewise flattened into one root set.
+4. **Classpath and library divergence.** `-cp`/`-lib` sets are unioned across all six files (F4: removing `-cp samples` from `swift-f32.hxml` passes). Per-file compilation reachability is not modelled.
+5. **Roots removed from both files** unless the module declares `@:test` (F5). There is no pinned baseline root set to compare against.
+6. **`@:test` modules outside `<guarded-cp>/tests`** — including two that already exist in-tree under the repo-root `tests/` (F10).
+7. **Test ids, `@:test` case sets, module bodies, and runtime behaviour** under binary32 vs binary64 — the producer's own §7.1, unchanged. `samples/tests/f32/PrintedFloatTests.hx`'s 6 f32-only ids remain invisible here (declared in `tools/test-consistency/extra-id-allowlist.json`).
+8. **Existence ≠ compilability.** The union + repo-wide fallback accepts a module no classpath provides (F9), and a root on the wrong target's classpath passes.
+9. **The bypass surfaces are environmental.** `ROOTS_GUARD_ALLOWLIST` (undocumented) and `--repo-root`/`ROOTS_GUARD_REPO_ROOT` change what is checked; a caller who can set them can silence checks (F8, and the producer's §7.6).
+10. **Not wired into CI.** `package.json` still only runs `bun tools/precision-guard/check.ts` in its verify chain (producer §7.11, re-checked), so none of this is enforced automatically; the guard is only as strong as the person who runs it with `--strict-duplicates`.
+11. **`--help` is truncated** (F11), so the documented usage is not what a user sees from the flag.
+
+## 8. Reproduction
+
+```bash
+WS=/home/losses/Development/tq-workspace
+S=$WS/rgx-scratch                      # my scratch (needs symlinks -> not under dc-warn)
+R=$WS/boring-wt-architecture
+OUT=$WS/dc-warn/out/roots-guard-xcheck
+
+# 1. apply the patch in my own copy
+mkdir -p "$S/patchcheck/tools/roots-guard"
+cp "$R/tools/roots-guard/"* "$S/patchcheck/tools/roots-guard/"
+cd "$S/patchcheck" && cp "$WS/dc-warn/out/roots-guard-hardening/PATCH.diff" . && patch -p1 < PATCH.diff
+#    -> sha256 8efdd4da… / c25b3807…
+
+# 2. rerun every table entry (each case is a repo-shaped tree)
+cd "$S" && bash stage1.sh && bash stage2.sh && bash stage3.sh && bash stage4.sh && bash stage5.sh
+
+# 3. one case by hand, rc measured directly (never through a pipe)
+cd "$S/cases/new-nonsense-reason/repo" && bash tools/roots-guard/check-roots-guard.sh > "$OUT/evidence/reenact.txt" 2>&1; echo "rc=$?"
+
+# 4. the compiler-side proof of F2/F3 (haxe 4.3.7 from the nix store)
+/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe "$S/hx1/ws_missing.hxml"   # Type not found : NoSuchModuleXYZ
+/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe "$S/hx2/inc.hxml"         # SEEN_INCLUDE
+```
+
+## 9. Evidence index (`evidence/`)
+
+| file | contents |
+|---|---|
+| `00-summary-rc.tsv`, `07-counts.tsv` | rc of every case; per-case FAIL/EXEMPT/DUP/COVER/OK counts (only logs carrying an `exit_code=` marker) |
+| — | every case log ends with its own `exit_code=<rc>` line; the non-case files (`01`–`06`, `dup-recount.txt`, `nomutation.txt`, `x1-hardened-realrepo.txt`) are environment/compiler evidence and carry no marker by design |
+| `01-git-apply-check.txt` | `git apply --check` rc=0; patched-file hashes |
+| `02-shared-tree-state.txt` | shared-tree git status + the two original hashes (unmodified) |
+| `03-patch-vs-producer-scratch.txt` | patched vs `dc-warn/scratch-roots-guard/hardened` diff (F13) |
+| `04-help-truncation.txt` | `--help` output vs header lines 46-53 (F11) |
+| `05-haxe-whitespace-experiment.txt` | haxe 4.3.7 accepts leading-space/tab/trailing-space/CR root lines (F2) |
+| `06-haxe-macro-include-experiment.txt` | `include('extra')` and the short form force-compile a module (F3) |
+| `dup-recount.txt` | independent duplicate count = 45 (8/8, 8/5, 10/6) |
+| `nomutation.txt` | tree hash identical before/after a guard run |
+| `orig-*.txt`, `hard-*.txt` | producer-case reproductions (see §2) |
+| `new-*.txt` | all my new attempts, each ending in `exit_code=<rc>` (F1-F14) |

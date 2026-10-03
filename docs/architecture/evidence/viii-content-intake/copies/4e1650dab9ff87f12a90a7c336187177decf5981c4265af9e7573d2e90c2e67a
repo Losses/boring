@@ -1,0 +1,58 @@
+### Failure attribution (why this run is red)
+
+Source: the 'N tests failed:' recap (bun's authoritative, deduplicated list).
+A failure is one `(fail)` line; the summary line ` N fail` is the total this must add up to.
+
+| class | count | what it means |
+|---|---:|---|
+| real assertion failure | 7 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 25 | carries `this test timed out after Nms` - machine contention, not product |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 8 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+Attribution is not waiver: every class above is still a failing test and this job is still red on
+any of them. Nothing here converts a failure into a pass, and no gate below is relaxed.
+
+**Real assertion failures** - 7 (sample, bounded at 5):
+
+```
+arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks
+compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier
+loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds
+loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds
+sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum
+... (2 more truncated)
+```
+
+**Environment / timeout failures** - 25 (sample, bounded at 5):
+
+```
+float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error
+record printed-member generated trees > marker and explicit-member mutations affect the four emitted members
+float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error
+strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays
+strict TypeScript emitter output > single-argument substr drops its synthesized null length
+... (20 more truncated)
+```
+
+**Timeout cascades** - 8 (sample, bounded at 5):
+
+```
+tests/ts/strict-output.test.ts:
+tests/ts/strict-output.test.ts:
+tests/ts/strict-output.test.ts:
+tests/ts/package-artifacts.test.ts:
+tests/ts/sealed-variants.test.ts:
+... (3 more truncated)
+```
+
+Reconciliation: 32 failed test(s) attributed against the summary line's
+`32 fail`; residual 0. A non-zero residual means the log's
+failure text is not fully classified by these rules - say so, never round it away.
+
+Limits of these rules, recorded rather than hidden: the timeout class needs the literal
+\`this test timed out after Nms\` marker, so a test the runner kills without that marker
+lands in `assertion`; the cascade rule needs the file-scope association bun does not
+print itself; and a cascade in a file with no timeout is deliberately left unattributed.
+Classifying a log is not running the suite - these counts describe this log only.

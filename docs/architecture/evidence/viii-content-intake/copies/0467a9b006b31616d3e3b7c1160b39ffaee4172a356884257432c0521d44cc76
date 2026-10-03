@@ -1,0 +1,46 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+
+
+#[derive(Clone, Copy)]
+pub struct DartCharNullOps;
+
+impl DartCharNullOps {
+    pub fn dart_char_null_ops_arg_shape(s: &UStr) -> u32 {
+        return DartCharNullOps::dart_char_null_ops_clamp(*(u_string::unit_at(&s, 0u32)).as_ref().unwrap());
+    }
+
+    pub(crate) fn dart_char_null_ops_clamp(c: u32) -> u32 {
+        return if c > 2147483647 { 0 } else { c };
+    }
+
+    pub fn dart_char_null_ops_bound_arg_shape(s: &UStr) -> u32 {
+        let code = u_string::unit_at(&s, 0u32).unwrap_or(0);
+        return DartCharNullOps::dart_char_null_ops_clamp(code);
+    }
+
+    pub fn dart_char_null_ops_compare_shape(s: &UStr) -> bool {
+    let __units = u_string::units(&s);
+    let __count = u_string::unit_count(&s);
+        let high = u_string::unit_at_from(&__units, 1u32).unwrap_or(0);
+        let low = u_string::unit_at_from(&__units, 0u32).unwrap_or(0);
+        return (i32::from_ne_bytes(((high) as i32).to_ne_bytes())) < (i32::from_ne_bytes(((low) as i32).to_ne_bytes()));
+    }
+
+    pub fn dart_char_null_ops_return_shape(s: &UStr) -> u32 {
+        return u_string::unit_at(&s, 2u32).unwrap_or(0);
+    }
+
+    pub fn dart_char_null_ops_annotated_compare_shape(s: &UStr) -> bool {
+    let __units1 = u_string::units(&s);
+    let __count1 = u_string::unit_count(&s);
+        let high = u_string::unit_at_from(&__units1, 1u32).unwrap_or(0);
+        let low = u_string::unit_at_from(&__units1, 0u32).unwrap_or(0);
+        return (i32::from_ne_bytes(((high) as i32).to_ne_bytes())) < (i32::from_ne_bytes(((low) as i32).to_ne_bytes()));
+    }
+
+    pub fn dart_char_null_ops_annotated_bound_arg_shape(s: &UStr) -> u32 {
+        let code = u_string::unit_at(&s, 0u32).unwrap_or(0);
+        return DartCharNullOps::dart_char_null_ops_clamp(code);
+    }
+}

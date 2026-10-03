@@ -1,0 +1,3 @@
+grep -c ValueExceptionFault rc=1 (grep exits 1 when count is 0)
+grep -c ExceptionFault rc=1
+grep -n Fault rc=1

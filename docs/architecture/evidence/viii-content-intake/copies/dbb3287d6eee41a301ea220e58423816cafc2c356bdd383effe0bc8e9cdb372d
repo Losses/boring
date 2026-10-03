@@ -1,0 +1,62 @@
+#[derive(Clone, PartialEq)]
+pub struct NullGuardNestedSpan {
+    pub left: f32,
+    pub right: f32,
+}
+
+impl NullGuardNestedSpan {
+    pub fn new(left: f32, right: f32) -> Self {
+        Self {
+            left,
+            right,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct NullGuardNestedHolder {
+    pub span: NullGuardNestedSpan,
+}
+
+impl NullGuardNestedHolder {
+    pub fn new(span: NullGuardNestedSpan) -> Self {
+        Self {
+            span,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct NullGuardNestedFieldOps;
+
+impl NullGuardNestedFieldOps {
+    pub fn null_guard_nested_field_ops_starts_before(holder: Option<NullGuardNestedHolder>, end: f32) -> bool {
+        return match &(holder) { Some(__option) => __option.span.left < (end), None => false };
+    }
+
+    pub fn null_guard_nested_field_ops_matching_span(holder: Option<NullGuardNestedHolder>, other: NullGuardNestedHolder) -> bool {
+        match &(holder) {
+            Some(__option1) => {
+                if __option1.span.left == other.span.left {
+                return true;
+                }
+            }
+            None => {
+            }
+        }
+        return false;
+    }
+
+    pub fn null_guard_nested_field_ops_span_left(holder: Option<NullGuardNestedHolder>) -> f32 {
+        match &(holder) {
+            Some(__option2) => {
+                if __option2.span.left < (10.0f32) {
+                return __option2.span.left;
+                }
+            }
+            None => {
+            }
+        }
+        return 0.0f32;
+    }
+}

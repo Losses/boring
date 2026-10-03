@@ -1,0 +1,53 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DFault {
+    Only { tag: UString },
+    DExceptionFault(Box<crate::xcheckscope::dead_probe::DException>),
+}
+
+impl std::fmt::Display for DFault {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DFault::Only { tag } => {
+                write!(formatter, "{}", tag)
+            }
+            DFault::DExceptionFault(inner) => write!(formatter, "{:?}", inner),
+        }
+    }
+}
+
+impl std::error::Error for DFault {}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DException {
+    pub fault: DFault,
+}
+impl DException {
+    pub fn new(fault: DFault) -> Self {
+        DException { fault }
+    }
+}
+impl std::fmt::Display for DException {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}", self.fault)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct DeadProbe;
+
+impl DeadProbe {
+    pub fn dead_probe_live_fault(v: DFault) -> u32 {
+        return {
+    let _g = match v { DFault::Only { tag, .. } => tag };
+    let t = (_g).clone();
+    u_string::unit_count(&(t))
+};
+    }
+
+    pub fn dead_probe_main() {
+    }
+}

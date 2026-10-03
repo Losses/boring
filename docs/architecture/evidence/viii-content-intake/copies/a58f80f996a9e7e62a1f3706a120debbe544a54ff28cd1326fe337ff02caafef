@@ -1,0 +1,60 @@
+# REPORT — fix/dart-nullguard-mutation-closure (task t-mun44ta0-aw1p)
+
+Repo `boring` @ **e1c65975**, isolated worktree `dc-warn/worktrees/dart-fix2`
+(detached, uncommitted; 自建，不复用 dart-fix 树；`.haxelib/boring/.dev` 已指向本树)。
+`DartExpr.hx` sha256：
+- 修复前（基线 e1c65975）`a123fe5981b95e98803d2d9881580caf6b4474bce2833d65e6131d00e99f57d0`
+- 仅带 (1)（= dart-fix 交付态）`859e6f4b8de5212305f1907e9e55d784be36979235db53c24a2a59a9eef81301` —— **prefix 以此为“修复前”态**
+- 修复后（(1)+(2)+(3)）`fee42ecb85e85ca333591ea885c2cee150b3852d1e52b7720f2ce94f8eac0c09`
+
+## ① 三条写入面与最小反例
+
+`packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx`（修复前行号基于 859e6f4b 态）：
+
+1. **fall-through 守卫**（~916–918 `nonNullLocals.set` 无 `branchTerminates` 门控）：
+   反例 p2（`if (s==null){…}` 不终止后 `s.length` → `unchecked_use_of_nullable_value`）。
+   已由前一执行席修复并实测通过；本次自 dart-fix 的 `PATCH.diff` 原样带上（`git apply` 单文件 hunk，净 +8/−2，修复后行 922–930）。
+2. **守卫后重新赋值面**：`markMutated`（现 4859 行）在 `scanLocals` 预扫描期（methodBody 入口 ~450 行）执行 `nonNullLocals.remove`，早于渲染期的 924 行写入，**永远删不掉渲染期写入的条目**；且 922–924 的置位原本也无 `mutated` 门控。反例 **p10**（终止守卫 + `s = flag?"xy":null;` + `s.length`）：prefix 报
+   `error - dc_guard.dart:41:12 unchecked_use_of_nullable_value`（“Variable 's' could not be promoted due to an assignment”）。
+3. **闭包泄漏面**：`functionLiteral`（修复前 1651–1663）只 save/clear/restore `flowPromotedNonNull`，`nonNullLocals` 原样带入闭包体。反例 **p11**（终止守卫后 `final f = () -> s.length;`）：prefix 闭包内 emit 裸 `s.length`（probe 行 49）；因捕获局部被后端发为 `final`、Dart 会对 final 局部做闭包内提升，该形 analyzer 恰好接受——泄漏表现为**错误的提升 emit**而非报错；任务原文的报错实测（fall-through 守卫形状）在带上 (1) 后已不复现（p9，见⑤）。
+
+夹具 `tests/haxe/dc-null-guard-fallthrough/`：自 dart-fix 树复制（其 p8/p9 已含任务 (2)(3) 形状），本任务**新增 p10/p11**（终止守卫变体，与 (1) 解耦地隔离 (2)(3) 面），`expected.txt` 扩为 6 行。既有形状 p2（fall-through 判别）、p7（终止守卫正控）、p8/p9 全部保留。
+
+## ② 改动点
+
+仅 `DartExpr.hx`（相对 859e6f4b 态 `numstat` **24/2**）+ 夹具新增 6 文件：
+- (2) 922–930：`nonNullLocals.set` 加 `&& !mutated.exists(guarded.id)`，门控形态与 913–915 行 `flowPromotedNonNull` 完全对齐；未删任何行，终止情形仍照常写入 `nonNullLocals`（913–915 与 922–930 双通道都在），p7 实测仍发 `t.length`（无 `!`，postfix probe 行 16），不招 `unnecessary_non_null_assertion`。
+- (3) 1656–1670：`functionLiteral` 内对 `nonNullLocals` 做与 `ClosurePromotionReset` 相同的 save/clear/restore。
+- 夹具：`DcGuard.hx`（103 行，含 p10/p11 及注释）、`expected.txt`（6 行）、`run.sh`（128 行，证据目录 `dc-warn/out/dart-fix2/<attempt>`、env `DC_DART_FIX2_ATTEMPT`）、`gen/dart.hxml`、`gen/kotlin.hxml`、`native/main.dart`（Dart harness 打印，无 Haxe `trace`）。
+
+`numstat-all.txt` 记录全树 diff：另有 **12 个 `0 0` 条目为 fuse 剔除执行位的 mode 伪差异（100755→100644），无内容改动**，已全部剔除出 `PATCH.diff`；`PATCH.diff` 恰 7 个文件（`git diff --numstat -- <7 files>` 无 0 0 条目混入）。
+
+## ③ 三段原始证据（各 attempt 目录含 argv/cwd/分离 stdout/stderr/数字 status/输入前后 sha256）
+
+**prefix `prefix-20260929T202735Z`**（DartExpr=859e6f4b，即 (1) 已带、(2)(3) 未修）：
+gen rc=0；`dart analyze` **rc=3**：`error - lib/dcguard/dc_guard.dart:41:12 … unchecked_use_of_nullable_value`（p10，写面 2）+ 夹具自带 unused warning；`dart compile exe` **rc=254**、`dart run` rc=254（原始编译诊断在 `stages/dart-compile/stderr`，含 go/non-promo-write context 指向 40:3 的 `s = …`）；`dart-compare` rc=1。
+生成片段 probe：行 41 `return s.length;`（应 `s!`）、行 49 `final f = () => s.length;`（写面 3 泄漏的提升）。
+p2/p8/p9 已正确（`s!.length`）——(1) 单独已覆盖 fall-through 面。
+
+**postfix `postfix-20260929T202853Z`**（fee42ecb）：gen rc=0；`dart analyze` **0 error**（仅 2 条 warning：夹具自带 unused + p11 闭包内 `unnecessary_non_null_assertion`，见⑤；`--fatal-infos` 下 rc=2）；compile rc=0、run rc=0、**compare rc=0**，输出 `p2=5 p7=5 p8=2 p9=4 p10=2 p11=4` 与 expected 逐行一致。probe：行 8/24 `s!.length`、行 41 `s!.length`（写面 2 修复）、行 49 `() => s!.length`（写面 3 修复）、行 16 `t.length` 不变。Kotlin 对照不变（`s?.size!!` ×4）。输入前后 sha256 一致。
+
+**negctrl `negctrl-20260929T203101Z`**：把 expected 的 `p7=5` 篡改为 `p7=99` 重跑 → compile/run rc=0 但 **`dart-compare` rc=1**（corrected 链 compare 亦 rc=1），diff 原文在 `stages/dart-compare/stdout`——测试抓得住回退。expected 已还原（该改动仅存于 attempt 记录）。
+
+三个 attempt 的 `input-hashes-before/after` 均 identical。
+
+## ④ 既有形状不回归
+
+postfix 对 prefix（及 dart-fix 报告的 p2/p7 基线）：p2 输出 5、emit `s!.length` 不变；p7 输出 5、emit `t.length`（无 `!`）不变；p8/p9 输出与 emit 不变；Kotlin 对照四行不变。p10/p11 运行值 2/4 与手算一致。
+
+## ⑤ 残角与不确定项
+
+- **已知残角（任务指定记录）**：非空字面量初始化的死守卫输入可能发 `s!` 触发 warning 级 `unnecessary_non_null_assertion`，属 `FlowPromotedDedup` 家族独立去重，不在本任务范围。同类现象本次新增一处：(3) 修复后 p11 闭包内发 `s!.length`，因捕获局部为 Dart-final、Dart 自身已提升，analyzer 报 warning（非 error，compile/run/compare 全 rc=0）。若后续做该去重可顺带消除。
+- **写面 3 的报错级可达性**：带上 (1)+(2) 后，剩余能进闭包的 `nonNullLocals` 提升源里，被 `mutated` 的已被 (2) 门控；未被 mutated 的局部在 Dart 侧为 final（Dart 闭包内提升），故本夹具中 (3) 的效果是消除错误的裸读 emit 而非消除 analyzer error。错误级闭包泄漏仍理论可达（如 coalescing-default 可选参数 443 行置位 + 闭包捕获，参数在 Dart 侧非 final），但构造需注册 VCoalescing 默认值，超出本夹具纪律，未覆盖。
+- 早先的 `prefix-20260929T201449Z/201654Z/201917Z/202100Z` 为夹具成形过程的中间 attempt，保留未删，**canonical prefix = 20260929T202735Z**。
+- dart-analyze rc=2 来自 `--fatal-infos` 把 warning 升级，非 error；与 dart-fix 交付一致未动。
+- 仓库其他既有夹具未全量重跑（任务禁止全量 verify）；若其他夹具有「终止守卫后再赋值同局部」或「闭包读取守卫提升局部」形状，行为变化方向为多 emitting 保守 `!`（analyzer 安全）。
+
+## 交付物
+
+- 隔离树 `dc-warn/worktrees/dart-fix2/`（未 commit）
+- `PATCH.diff`（7 文件）、`FILES.sha256`、`numstat-all.txt`、`HEAD.txt`、本 REPORT

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt
+argv bash -c cd\ out/swift-rt/gen/probe\ \&\&\ LD_LIBRARY_PATH=\'/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/usr/lib64:/nix/store/xq9k8vi7gqw0wn592p95wzvzf3wzn4kh-swift-6.2.4-fhs-fhsenv-rootfs/lib64:/nix/store/j1bfa7mw323wmp6pfrn1qkchxv61wk2n-swift-toolchain-6.2.4-al2/usr/lib/swift/linux:/usr/lib64:/usr/lib\'\ timeout\ 300\ ./run-bin

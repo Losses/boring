@@ -1,0 +1,33 @@
+sha256sum: '<target>.before  (== backup/check-log-integrity.sh.orig, 2641 B)': No such file or directory
+'<target>.before  (== backup/check-log-integrity.sh.orig, 2641 B)': FAILED open or read
+sha256sum: FROZEN/check-log-integrity.sh: No such file or directory
+FROZEN/check-log-integrity.sh: FAILED open or read
+sha256sum: FROZEN/run-exclusive.sh: No such file or directory
+FROZEN/run-exclusive.sh: FAILED open or read
+sha256sum: FROZEN/option-c-stage-wrapper.sh: No such file or directory
+FROZEN/option-c-stage-wrapper.sh: FAILED open or read
+sha256sum: FROZEN/selftest.sh: No such file or directory
+FROZEN/selftest.sh: FAILED open or read
+sha256sum: FROZEN/option-c-plan.md: No such file or directory
+FROZEN/option-c-plan.md: FAILED open or read
+sha256sum: FROZEN/README.md: No such file or directory
+FROZEN/README.md: FAILED open or read
+./backup/check-log-integrity.sh.orig: OK
+./evidence/base-attempt.txt: OK
+./evidence/batch-summary.txt: OK
+./evidence/batch-table.tsv: OK
+./evidence/blindspot-repro.txt: OK
+./evidence/boundaries.sh: OK
+./evidence/comparison-method-selfcheck.txt: OK
+./evidence/controls-bytefix.sh: OK
+./evidence/controls.detail.txt: OK
+./evidence/controls.env.txt: OK
+./evidence/controls.tsv: OK
+./evidence/edge-cases.txt: OK
+./evidence/final-recheck.txt: OK
+./evidence/known-boundaries.txt: OK
+./evidence/runall.sh: OK
+./PATCH.diff: OK
+./REPORT.md: OK
+./ROLLBACK.sh: OK
+sha256sum: WARNING: 7 listed files could not be read

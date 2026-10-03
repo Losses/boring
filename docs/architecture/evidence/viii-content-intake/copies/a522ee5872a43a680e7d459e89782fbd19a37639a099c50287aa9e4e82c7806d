@@ -1,0 +1,58 @@
+# Run-state finding: `string-family-fix-resume/evidence/after-extended-full.log`
+
+Log: 343 lines, 30 776 bytes, mtime 2026-09-30 00:52 (last write). Worktree used:
+`/home/losses/Development/tq-workspace/string-family-resume-wt/wt` (stack traces at log lines
+52, 79, 100, 121, 141, 175, 317, 340).
+
+## Verdict: the run did NOT complete.
+
+### Evidence
+1. **No final tally.** bun test always ends with a summary block
+   (`N pass / M fail / K expect() calls / Ran N tests across M files. [duration]`).
+   Every targeted log of the same agent has it (e.g. targeted-1 line 121:
+   `Ran 23 tests across 5 files. [25.16s]`). This log has none.
+2. **The last line is a bare test result, mid-file.** Line 343 (final line of the file):
+   `(pass) package artifact emission > the Swift zip carries the tree at the root [29680.48ms]`
+   inside `tests/ts/package-artifacts.test.ts` — no error, no summary after it. The file simply
+   stops; the process was killed (or the session ended) mid-run.
+3. **Coverage is far below a full suite.** The log contains 24 test-file headers and 157 test
+   results (141 `(pass)` + 16 `(fail)`). The completed sibling's full suite on the same tree is
+   `Ran 1033 tests across 303 files`. The run covered ~15% of tests / ~8% of files.
+4. **Timing.** The resume patch's mtime is 00:47; the log's last write 00:52. The run started
+   ~00:47 and produced its last byte ~00:52 (≈5 min), after which nothing more was written.
+   The resume agent's artifacts stop there.
+
+### How far it got, and what it shows
+Files covered (in log order): bundle-child-evidence (22 pass), dart/precision-switch (1 fail:
+5001.91 ms timeout), ts/printed-record (1 pass — the patched test
+`four non-native targets synthesize the constructor-ordered member` PASSES, i.e. the resume
+patch WAS applied when this run started; 1 fail: the 120002.91 ms haxe-budget timeout of the
+mutation test), ts/arithmetic-helpers (1 fail at 1.00 ms — pre-existing gen drift, neither patch
+touches this file), ts/precision-switch (1 fail timeout), ts/strict-output (4 fail timeouts with
+`Received: 143` = SIGTERM'd haxe children), ts/vector, ts/pipeline-map-store,
+ts/platform-modules (all pass), ts/enum-sorted-keys (1 fail timeout), ts/printed-enum,
+ts/number-classify, ts/error-structure (pass), ts/array-root (1 fail at 1.00 ms — the pre-existing
+Swift drift at test line 18, `ReadOnlyArray<Int32>` vs expected `[Int32] = Array(...)`; the
+patched Rust line 28 is never reached because the Swift assertion at line 18 fails first),
+ts/runtime-entry, ts/capture-switch-ops, ts/constructed-state (1 fail timeout),
+ts/rust-packages (1 fail timeout), ts/record-copy (3 pass — patched test passes),
+ts/generated-tree, ts/static-extension (5 pass — patched Rust test passes),
+ts/rust-bytes-ownership (1 fail timeout), ts/compiler-scope (1 fail at 2.00 ms — pre-existing
+banned-identifier in base-tree `RustExpr.hx`, not patch-related), ts/package-artifacts
+(npm tarball pass at 30 s; cargo/Pub fail at 60001.95 ms timeout with unhandled
+`expect(dartResult.exitCode).toBe(0) / Received: 143`; Swift zip pass at 29.68 s — then the log
+ends).
+
+**All 16 failures in the truncated log are names already failing in the completed sibling's
+BEFORE-48 census** (no patch-attributable failure appears in the portion that ran). But the run
+died before it reached the files carrying most of the resume patch's fixes
+(`default-args`, `enum-queries`, `fn-values`, `sealed-variants`, `static-state`, `std-string`,
+`string-buffer`, `value-type` — none of them appears in the log), so this log proves **nothing**
+about the patched state of those files. Its evidentiary value is: (a) the patch was applied at
+run start, (b) no NEW failure in the ~15% that ran, (c) the host was spawning SIGTERM'd
+children (143 cluster) — resource pressure during that window.
+
+### What this log does NOT show
+- Any final pass/fail counts, any unique failing-name set, any `Ran N tests` line.
+- Whether the suite would have finished cleanly; whether NEW failures appear in the
+  never-reached 85% of the suite. That is what my re-run provides.

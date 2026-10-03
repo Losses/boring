@@ -1,0 +1,17 @@
+package boring.runtime
+
+import kotlin.system.exitProcess
+
+object Process {
+    private var programArgs: MutableList<String> = mutableListOf()
+
+    fun storeArgs(args: Array<String>) {
+        programArgs = args.toMutableList()
+    }
+
+    fun args(): MutableList<String> = programArgs
+
+    fun exit(code: Int) {
+        exitProcess(code)
+    }
+}

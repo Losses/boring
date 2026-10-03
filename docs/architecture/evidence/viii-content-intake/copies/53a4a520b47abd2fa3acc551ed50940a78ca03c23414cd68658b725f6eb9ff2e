@@ -1,0 +1,163 @@
+# CROSS-CHECK of `override-ruling/REPORT.md` (independent re-verification)
+
+Verifier: independent cross-check. Every check below was re-run against source, not taken
+from the ruling. Frozen record verified first: **sha256
+`9886fe25c9c5ea392958b3ec2167c7903934d0f1593b25a7ae90633bba45b24e`, 390 lines — MATCHES the
+pinned value** (`evidence/01-identity-and-hash.txt`). All checks proceed against a valid anchor.
+
+## Per-claim verdicts
+
+| # | Claim | Verdict | Key evidence |
+|---|---|---|---|
+| 1 | Decisive quotation verbatim & says what the ruling claims | **CONFIRMED** | see 1.1 |
+| 2 | Exactly one "optional intermediate" in `docs/`; no end-to-end refusal recorded | **CONFIRMED** | see 1.2 |
+| 3 | Record row is a planner-cell verdict misread as end-to-end | **CONFIRMED**, with a line-number correction **against the task brief** (row is at :58, not :56) | see 1.3 |
+| 4 | Forced override at `SwiftExpr.hx:2646`, `:2647` is the fallback | **CONFIRMED** | see 1.4 |
+| 5 | Rows 57/58/59 + `:188` gate flipped; `:4760`/`:4863` pre-existing & diff-untouched | **CONFIRMED** (candidate-tree line numbers are `:4779`/`:4882`) | see 1.5 |
+| 6 | Supplied record text (§4) accurate & self-consistent | **CONFIRMED**, minor wording notes | see 1.6 |
+
+### 1.1 The decisive quotation — CONFIRMED
+
+`docs/compiler-policy-interfaces.md:171-173` reads, verbatim:
+
+> "A nil-merge with a required final result passes an **optional intermediate destination**
+> to the optional left operand's conversion. It then combines that result with the converted
+> fallback. A required fallback establishes a required normal result."
+
+I diffed the ruling's quotation character-for-character against the file: exact, including
+the bold markup. Section title `:169` is "Composition owns intermediate requirements"; the
+closing prohibition `:176-177` is "The conversion planner must never accept an optional
+result against a required destination by silently assuming some later caller will reconcile
+it." The context **supports** the ruling's reading rather than qualifying it: `:174-175`
+("A nullable fallback leaves the result nullable unless valid control-flow evidence removes
+every absent outcome") confirms the sentence is conditioned on the *final result*, and
+`:176-177` prohibits what the planner would do — not what the composition does when it
+*changes the destination presented*. The companion texts check out verbatim too:
+`j-prepared-value-design.md:135-137` and `swift-checkpoint-todo.md:39-42` (SW04) — both
+reproduced exactly in `evidence/06-doc-citations.txt`.
+
+### 1.2 The negative check — CONFIRMED
+
+Re-run (`evidence/03-searches.txt`):
+- `grep -rn "optional intermediate" docs/` → **exactly one hit**: `compiler-policy-interfaces.md:171`.
+  (The contiguous phrase "intermediate destination" scores zero because it wraps across the
+  171/172 line break; the ruling's "one occurrence" claim survives under either phrasing.)
+- No document in `docs/` records an end-to-end refusal of an optional-source →
+  required-destination array crossing. All `refus*` hits are unrelated (tutorial block
+  widths, binary version-mismatch, artifact overwrite, grapheme-table merge). No
+  falsification here.
+
+### 1.3 Row scope — CONFIRMED, and the brief's line number is wrong, not the ruling's
+
+The row the ruling rules on is at **`RECORD.md:58`** of the frozen file — I confirmed by
+`grep -n`. Line **56 is a different row** (`OtherArrayStorage`), which needs no re-scoping:
+its empty `case` fires regardless of the override, so its refusal genuinely is end-to-end
+for any array crossing. The ruling's verbatim quote of `:58` matches the frozen text
+exactly (`evidence/04-record-rows.txt`). On scope, the row's own wording supports the
+planner reading:
+
+> Columns are the planner's inputs (`:44` "source storage x destination requirement x
+> nullability x already-converted"); the justification is entirely `prepare`'s switch
+> ("the empty `case OptionalOperand:` (`SwiftArrayBoundary.hx:203`) leaves `operation` null
+> ⇒ `prepare` returns null (`:233-234`)"); and the consumer clause is an *inference* —
+> "⇒ the same consumer failures (`SwiftExpr.hx:2608-2609` / `SwiftDecl.hx:600-601`)" — which
+> holds only for callers presenting the destination unchanged. I verified
+> `SwiftDecl.hx:599` calls `prepare(operand, field.type)` with two arguments.
+
+Caveat honestly stated: the row does not *say* "planner-only"; the planner scoping is an
+argument from its columns and justification, not an explicit label. That is exactly why a
+correction (the ruling's CORRECTION 13) rather than a deletion is the right remedy. Also
+verified: `SwiftArrayBoundary.hx:203` is the empty case, `:233-234` the null return,
+coordination `SwiftExpr.hx:2608-2609` the `fail(...)`.
+
+### 1.4 Line-number correction — CONFIRMED
+
+Candidate tree `SwiftExpr.hx`:
+- `:2646` `final targetValue = lowerArrayBoundary(nilMerge.target, target, null, true);`
+- `:2647` `final fallbackValue = lowerArrayBoundary(nilMerge.fallback, target, null, destinationOptionalOverride);`
+- `INTEGRATION.diff` hunk `@@ -2624,7 +2643,7 @@` changes exactly the target line. The
+  freeze's `:2647` was wrong; the ruling's `:2646` is right.
+
+### 1.5 Neighbouring cells — CONFIRMED
+
+- Gates verified in `SwiftArrayBoundary.hx` (byte-identical in both trees, sha256
+  `b522865c...f6575` — I hashed both): `:200-202` (A1, `MapOptionalMutableArrayView`),
+  `:207-208` (A2, `KeepPreparedArray`), `:218-220` (A3, `MapOptionalReadOnlyIntoMutableArray`),
+  `:188-192` (A4, `PreserveNullArrayValue`), `:173` (override replaces `destOptional`).
+- Pre-existing override: coordination tree `SwiftExpr.hx:4760` and `:4863` both read
+  `lowerArrayBoundary(args[i], p, null, true)`. `INTEGRATION.diff` touches only
+  `SwiftExpr.hx`, and its hunks (`@-805, @-2566, @-2624, @-5226...@-5630`) skip both lines:
+  **genuinely unchanged by the diff**. In the candidate tree they sit at `:4779`/`:4882`
+  (shifted by the +17-line hunk); the ruling consistently cites the coordination numbers and
+  says so, so this is not an error.
+- Call-site audit: no caller passes `false` in either tree — the ruling's "dead `false`
+  branch / dormant" statements hold (`evidence/05-code-lines.txt`).
+
+### 1.6 Supplied record text (§4) — CONFIRMED with minor notes
+
+- Its verbatim quotes of the lines it replaces (`:147`, `:188`) are exact against the frozen
+  file. Row-append texts match the verified code (`:207`, `:200-202`, `:218-220`, `:188-192`,
+  `:2646`/`:2647`, join at `:2648-2650`).
+- It accurately reflects what the ruling established, *including* its own hedges: the
+  precondition ("required final result"), the A4 non-reachability admission, the A2/A3
+  reachability gap (§4.6 first bullet), and the C3 dormant defect (§4.6 second bullet).
+- Self-consistency: applying it removes the end-to-end reading of rows 57-59 without
+  touching row 56 (correctly — that refusal survives any override) and does not contradict
+  `:50` (which already cross-references the refused sub-cell) or `:109`. Minor notes, none
+  contradiction-creating: (a) the new §4.3 row smuggles a fifth axis ("nil-merge target")
+  into a 4-axis table — CORRECTION 13 explains this, but the axis declaration at `:44` is
+  not amended; (b) §4.1's row-57 append says the required result is established "by the `??`
+  join with a required fallback" — accurate for the candidate join, but the record text
+  could note that the join is the *only* requiredness mechanism, which is precisely the C3
+  gap; the §4.6 bullet covers it, so this is a placement nit, not an error.
+
+## 2. Falsification attempt against the category (SPEC-PRESCRIBED)
+
+Strongest case **for** SPEC-VIOLATING / under-specified:
+
+1. **The flag-flip reading.** `compiler-policy-interfaces.md:157`: "Missing proof cannot be
+   repaired by changing the result flag." The candidate flips a flag (`destinationOptionalOverride = true`)
+   to convert an optional source toward a required destination — textually the exact move
+   the planner section forbids. *Answer:* the flag changed is not the result flag; it selects
+   **which destination is presented**, and `:171-173` prescribes exactly that presentation at
+   the composition layer. The two-layer split (ruling §1.1) resolves this, and
+   `j-prepared-value-design.md:135-137` ("Do not force that target through a
+   required-destination conversion") and SW04 (`swift-checkpoint-todo.md:39-42`) show the
+   repository already recorded the *old* behaviour as the defect. The falsification fails.
+2. **The unconditional-form gap (real, but already scoped out).** The policy conditions on
+   "a required final result"; the candidate forces `true` unconditionally. With a nullable
+   fallback both arms can stay `OptionalOperand` (`:2649-2650`) and be returned against a
+   required destination with no failure — what `:176-177` forbids (the ruling's own C3).
+   *Answer:* the ruling never claims the unconditional rule is prescribed — it classes it
+   SPEC-PERMITTED-BUT-UNRECORDED (ruling line 16-21), verified no caller passes `false`
+   (extensional equivalence), and puts the missing check into the proposed record text
+   (§4.6). This is the one place the headline "the candidate is NOT SPEC-VIOLATING" is
+   broader than the reasoning beneath it: the *written patch* escapes spec-violation only
+   via the extensional-equality argument, not via prescription. A decider should read the
+   headline as scoped to the required-final-result behaviour.
+3. **Reachability under-determined.** Whether A2/A3 shapes can even reach a nil-merge target
+   from accepted source is unestablished (plan-check operands are fabricated). *Answer:* the
+   ruling admits this explicitly (§5, §6) and the record text marks it unestablished. It
+   cannot falsify the category; it bounds it.
+
+I could not construct a falsification that the ruling's own evidence does not already
+address. The category **survives**, with the caveat in (2).
+
+## 3. Final verdict: **CONFIRMED**
+
+All six claims verified against source. Two precisions, neither damaging:
+- The task brief's "row ~56" is wrong; the ruled row is at frozen `RECORD.md:58` (line 56 is
+  the OtherArrayStorage row, correctly left unamended by the ruling).
+- The headline category SPEC-PRESCRIBED is sound for the prescribed behaviour; the
+  *unconditional written form* rests on permitted-and-extensionally-equal reasoning, which
+  the ruling itself says and its record text preserves.
+
+Could not settle (static analysis only, matching the ruling's own limits):
+- End-to-end execution of the fixture route (`:746` → conditional → `:2646`); traced
+  statically, not run (no exec under the fuse mount).
+- Source reachability of A2/A3/A4 shapes into a nil-merge target — no composition matrix
+  exists in the repo; the ruling's §6 table is accurate on this.
+- Whether the C2 `fail()` surfaces in the new SW05 hunks have a compliant source-domain rule —
+  no such rule document exists (re-verified absent).
+
+Nothing was modified outside `dc-warn/out/override-ruling-xcheck/`.

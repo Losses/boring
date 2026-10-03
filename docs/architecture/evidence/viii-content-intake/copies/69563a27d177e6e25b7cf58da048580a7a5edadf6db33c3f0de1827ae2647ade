@@ -1,0 +1,15 @@
+gen-try-tail observed=0
+tree-try-tail observed=5
+compile-try-tail observed=1
+libc-warning-count-try-tail observed=1
+gen-probe observed=0
+tree-probe observed=5
+compile-probe observed=1
+libc-warning-count-probe observed=1
+gen-plain observed=0
+tree-plain observed=5
+compile-plain observed=1
+libc-warning-count-plain observed=2
+run-try-tail-from-tmp observed=no-binary-compile-status-1
+run-probe-from-tmp observed=no-binary-compile-status-1
+run-plain-from-tmp observed=no-binary-compile-status-1

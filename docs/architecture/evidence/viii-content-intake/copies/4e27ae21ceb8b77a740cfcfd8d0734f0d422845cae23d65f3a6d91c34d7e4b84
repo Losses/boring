@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class NullGuardFieldTests {
+@boring.test.Test
+    fun testFieldGuard() {
+        Test.run("tests.NullGuardFieldTests.testFieldGuard", "tests.NullGuardFieldTests.testFieldGuard: a field null guard ternary lowers to nil coalescing") {
+                Test.equals(true, true, null)
+        }
+    }
+}

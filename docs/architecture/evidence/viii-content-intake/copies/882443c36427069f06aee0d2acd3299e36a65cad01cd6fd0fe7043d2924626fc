@@ -1,0 +1,7 @@
+-cp /home/losses/Development/tq-workspace/dc-warn/worktrees/param-fix-xcheck/packages/compiler
+-cp /home/losses/Development/tq-workspace/dc-warn/worktrees/param-fix-xcheck/tests/haxe/dc-same-type-parameter/fixture
+-cp /home/losses/Development/tq-workspace/dc-warn/worktrees/param-fix-xcheck/tests/haxe/dc-xcheck/probe
+-cp /home/losses/Development/tq-workspace/dc-warn/worktrees/param-fix-xcheck/tests/haxe/dc-xcheck
+-main XCheckMain
+--macro Setup.run()
+--interp

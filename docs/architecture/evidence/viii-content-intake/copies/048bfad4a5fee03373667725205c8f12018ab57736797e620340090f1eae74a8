@@ -1,0 +1,15 @@
+=== environment baseline at rerun start ===
+utc 2026-09-30T01:18:38Z
+ 21:18:38  up 6 days 23:42,  0 users,  load average: 5.10, 5.61, 6.02
+               total        used        free      shared  buff/cache   available
+Mem:              92          74          13          56          61          17
+=== concurrent heavy procs ===
+%CPU% COMMAND
+50.0% bash
+23.7% ninfer-serve
+14.3% /run/current-system/sw/bin/rclone
+13.2% /nix/store/dv7nmy6vyqz3vjf2yzbrxfskak4ryr82-zen-beta-bi
+=== root under test ===
+p09-chainA-work/execution-option-c-chainA-fixed3
+allowlist sha: fab8b03661524db4
+Main.hx sha: 24333b7570f54085

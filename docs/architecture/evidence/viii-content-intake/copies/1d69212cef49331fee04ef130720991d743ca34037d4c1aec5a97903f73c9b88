@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Four-way attribution of failure-name sets across three runs.
+
+  HEAD  = pristine e1c65975 source tree            (run 1)
+  OURS  = HEAD + only our 10 changed paths         (run 2)
+  DIRTY = chainA-fixed3, the coordination dirty tree (the 48 under study)
+
+Buckets
+  a-pre-existing-at-HEAD   : fails at HEAD too
+  b-introduced-by-ours     : passes at HEAD, fails on HEAD+our-changes
+  c-other-inflight-files   : passes on HEAD+our-changes but fails on the dirty tree
+                             -> owed to the other in-flight edits / the gutted
+                                MathNaNTestSupport.hx / stage-check.sh
+  d-unclassified           : every other combination
+"""
+import re
+import sys
+
+
+def load(path):
+    names, kind, seen = set(), {}, set()
+    lines = open(path, encoding="utf-8", errors="replace").read().split("\n")
+    for i, line in enumerate(lines):
+        m = re.match(r"^\(fail\) (.*)$", line)
+        if not m:
+            continue
+        n = re.sub(r" \[\d+(\.\d+)?ms\]$", "", m.group(1))
+        names.add(n)
+        if n not in seen:
+            seen.add(n)
+            blk = "\n".join(lines[max(0, i - 60):i + 3])
+            kind[n] = "TIMEOUT" if re.search(r"this test timed out after \d+ms", blk) else "ASSERT"
+    return names, kind
+
+
+def main():
+    head_p, ours_p, dirty_p, out_p = sys.argv[1:5]
+    labels = sys.argv[5:8] if len(sys.argv) > 7 else ["HEAD", "OURS", "DIRTY"]
+    H, hk = load(head_p)
+    O, ok = load(ours_p)
+    D, dk = load(dirty_p)
+    kind = {}
+    for d in (hk, ok, dk):
+        kind.update(d)
+    rows = []
+    for n in sorted(H | O | D):
+        if n in H:
+            b = "a-pre-existing-at-HEAD"
+        elif n in O:
+            b = "b-introduced-by-ours"
+        elif n in D:
+            b = "c-other-inflight-files"
+        else:
+            b = "d-unclassified"
+        rows.append((b, kind.get(n, "?"), n))
+    counts = {}
+    for b, _, _ in rows:
+        counts[b] = counts.get(b, 0) + 1
+    out = []
+    out.append("%s=%d %s=%d %s=%d union=%d" % (labels[0], len(H), labels[1], len(O), labels[2], len(D), len(H | O | D)))
+    out.append("counts: %s" % counts)
+    out.append("")
+    out.append("%-26s %-8s %s" % ("BUCKET", "KIND", "TEST NAME"))
+    for b, k, n in rows:
+        out.append("%-26s %-8s %s" % (b, k, n))
+    out.append("")
+    out.append("--- set arithmetic ---")
+    out.append("in DIRTY and in HEAD                     : %d" % len(D & H))
+    out.append("in DIRTY, not in HEAD                    : %d" % len(D - H))
+    out.append("in DIRTY, not in HEAD, not in OURS       : %d" % len(D - H - O))
+    out.append("in HEAD, not in DIRTY                    : %d" % len(H - D))
+    out.append("in OURS, not in DIRTY                    : %d" % len(O - D))
+    out.append("in HEAD, not in OURS                     : %d" % len(H - O))
+    text = "\n".join(out) + "\n"
+    open(out_p, "w").write(text)
+    print(text)
+
+
+if __name__ == "__main__":
+    main()

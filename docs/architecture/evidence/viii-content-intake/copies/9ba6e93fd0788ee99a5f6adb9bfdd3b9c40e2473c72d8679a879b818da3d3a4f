@@ -1,0 +1,15 @@
+/tmp/p08-l5/eager-cl/ClosureLazy.swift:20:13: warning: initialization of immutable value '_e' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+18 |     return 5
+19 | }
+20 |         let _e = f() // L5-BROKEN: thunk evaluated at creation
+   |             `- warning: initialization of immutable value '_e' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+21 |         ClosureLazy.step("A")
+22 |         let r: Int32 = f()
+
+/tmp/p08-l5/eager-cl/ClosureLazy.swift:44:21: warning: function call causes an infinite recursion
+42 | 
+43 |     private static func spinForever() -> Void {
+44 |         ClosureLazy.spinForever()
+   |                     `- warning: function call causes an infinite recursion
+45 |     }
+46 | }

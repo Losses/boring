@@ -1,0 +1,25 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct ParseIntPushOps;
+
+impl ParseIntPushOps {
+    pub fn parse_int_push_ops_parse_all(values: &Vec<UString>) -> Vec<u32> {
+        let mut out: Vec<u32> = vec![];
+        for value in values {
+            out.push(u32::from_ne_bytes(((u_string::parse_i32(&(value)).unwrap()) as u32).to_ne_bytes()));
+        }
+        return out;
+    }
+
+    pub fn parse_int_push_ops_parse_local(values: &Vec<UString>) -> Vec<u32> {
+        let mut out: Vec<u32> = vec![];
+        for value in values {
+            let parsed = u_string::parse_i32(&(value));
+            out.push(u32::from_ne_bytes(((parsed.unwrap()) as u32).to_ne_bytes()));
+        }
+        return out;
+    }
+}

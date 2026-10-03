@@ -1,0 +1,23 @@
+=== permission / mode check ===
+755 boring-wt-architecture/tests/haxe/swift-rt-probe/run-stages.sh
+755 boring-wt-architecture/tests/haxe/swift-rt-plain/run-stages.sh
+=== sha256 of shipped scripts vs FILES.sha256 ===
+5762ed8ce42cba8b4814d9e7dee2e2a4b001380c560c7cafe8e1e77782084071  boring-wt-architecture/tests/haxe/swift-rt-probe/run-stages.sh
+5762ed8ce42cba8b4814d9e7dee2e2a4b001380c560c7cafe8e1e77782084071  boring-wt-architecture/tests/haxe/swift-rt-plain/run-stages.sh
+=== PATCH.diff applied reproduction ===
+plain hunk -> 5762ed8ce42cba8b4814... (MATCHES actual)
+probe hunk -> 575e0d2313cb2d17ec90... (MISMATCH: usage comment has stray 'a/' prefix)
+diff:
+3c3
+< # Usage: EV=<evidence dir> bash a/tests/haxe/swift-rt-probe/run-stages.sh
+---
+> # Usage: EV=<evidence dir> bash tests/haxe/swift-rt-probe/run-stages.sh
+=== 6 integrated .hx sha256 (coord tree) ===
+fee42ecb85e85ca333591ea885c2cee150b3852d1e52b7720f2ce94f8eac0c09  boring-wt-architecture/packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
+24f79c275c0c493d0848f0c66fcbc1b6ebf2050aa9121dea4d1d9fb44a761a03  boring-wt-architecture/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+985b5ad79373473ce1468a46a246427241ea3133a4ee60127ee4176939ac7a8f  boring-wt-architecture/packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+2f2119d85b2ab769ab4b605588da02f627154881c67399f3169f371b76e517b5  boring-wt-architecture/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+cb18968c53b51f666dcaf87460e2768077a5d6dab978806cd914d10ce855ee1e  boring-wt-architecture/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+0210d20703769a4e42f2e8a27dd1a1123072a27785e663fc5dbb9b80ef74f973  boring-wt-architecture/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+=== frozen zones in window 17:58-18:05: 0 files ===
+=== coord HEAD e1c6597514634fd347d392709793cc19bd96c9a2 ===

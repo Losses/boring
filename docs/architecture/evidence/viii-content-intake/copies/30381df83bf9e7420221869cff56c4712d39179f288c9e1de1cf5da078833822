@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Independent re-run of the three key controls in MY worktree.
+set -u
+WT=/home/losses/Development/tq-workspace/dc-warn/worktrees/param-fix-xcheck
+SRC=$WT/packages/compiler/SourceComparisonAnalysis.hx
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/param-fix-xcheck
+export XDG_CACHE_HOME=/tmp/param-xcheck-nix-cache
+POSTFILE=/tmp/xcheck-post.hx
+PREFILE=/tmp/xcheck-pre.hx
+NEGFILE=/tmp/xcheck-neg.hx
+
+cp "$SRC" "$POSTFILE"
+git -C "$WT" show HEAD:packages/compiler/SourceComparisonAnalysis.hx >"$PREFILE"
+# negative control: pre-fix body spliced into the patched file
+python3 - "$POSTFILE" "$NEGFILE" <<'PY'
+import io, sys
+s = io.open(sys.argv[1], encoding='utf-8').read()
+start = s.index('    function sameTypeParameter(')
+end = s.index('    static function isTypeParameter(')
+body = '''    function sameTypeParameter(left:Ref<ClassType>, right:Ref<ClassType>):Bool {
+        // NEGATIVE CONTROL: original pointer-only comparison restored.
+        return left == right;
+    }
+
+'''
+io.open(sys.argv[2], 'w', encoding='utf-8').write(s[:start] + body + s[end:])
+PY
+
+phase() { # name variant
+	local name="$1" variant="$2"
+	cp "$variant" "$SRC"
+	mkdir -p "$OUT/$name"
+	echo "=== PHASE $name  src_sha256=$(sha256sum "$SRC" | cut -d' ' -f1)"
+	bash "$WT/tests/haxe/dc-same-type-parameter/run.sh" "$OUT/$name/dedup" >"$OUT/$name/dedup.log" 2>&1
+	echo "dedup run.sh exit=$(grep -c '^CHECK-FAIL' "$OUT/$name/dedup.log") fail-lines; verdict=$(grep 'run.sh verdict' "$OUT/$name/dedup.log")"
+	grep -E '^(DEDUP|LIMITED|CONTROL)' "$OUT/$name/dedup/probe.stdout" | sed 's/^/  /'
+	bash "$WT/tests/haxe/dc-xcheck/run.sh" "$OUT/$name/xcheck" >"$OUT/$name/xcheck.log" 2>&1
+	echo "  xcheck haxe exit=$(cat "$OUT/$name/xcheck/exit.txt")"
+	grep -E '^(ID|COLLIDE total|SLOT|OVER|UNDER)' "$OUT/$name/xcheck/probe.stdout" | sed 's/^/  /'
+}
+
+phase 2-pre  "$PREFILE"
+phase 3-negctl "$NEGFILE"
+phase 4-post "$POSTFILE"
+cp "$POSTFILE" "$SRC"
+echo "=== restored src_sha256=$(sha256sum "$SRC" | cut -d' ' -f1)"
+echo "expected post b848f11fa0e67af2f2c29a6014c0ba9a945e30b9084e53ed2fd133973c5e3745"

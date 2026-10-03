@@ -1,0 +1,3 @@
++ nix develop -c haxe tools/bundle/driver.hxml
+warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/p09-driver-xcheck' is dirty
++ echo BUILD_EXIT:0

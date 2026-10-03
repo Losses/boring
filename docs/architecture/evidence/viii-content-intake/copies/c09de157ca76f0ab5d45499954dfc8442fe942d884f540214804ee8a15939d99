@@ -1,0 +1,21 @@
+package boring
+
+@JvmInline
+value class ClashCount(val count: Float) {
+
+    fun count(): Float {
+        return count
+    }
+
+    fun doubled(): Float {
+        return count * 2.0f
+    }
+}
+
+@JvmInline
+value class PlainCount(val value: Float) {
+
+    fun read(): Float {
+        return value
+    }
+}

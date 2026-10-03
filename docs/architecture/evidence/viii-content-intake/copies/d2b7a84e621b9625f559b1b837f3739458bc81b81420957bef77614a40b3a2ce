@@ -1,0 +1,12 @@
+HEAD=8504d230228e8206689a2049bbb84b671c1f079a
+TREE=a314ba3b38a9cac6bee61ff60ec69d06cca34cdf
+--- git status --short
+?? boring-architecture-candidate.json
+?? boring-architecture-engine-candidate.json
+?? boring-architecture-protocol-candidate.json
+?? boring-fixed-2159c657-all.json
+?? boring-fixed-2159c657-engine.json
+?? boring-fixed-2159c657-protocol.json
+--- outputs/results existence
+ls: cannot access 'out/tiqian-fixed-2159c657-prep/outputs': No such file or directory
+ls: cannot access 'out/tiqian-fixed-2159c657-prep/results': No such file or directory

@@ -1,0 +1,89 @@
+# 扩展 TS 诊断源映射至初始化与返回 — 观察报告（attempt kllZ8FCF）
+
+- 修订：`e1c65975`（detached worktree `dc-warn/worktrees/ts-sourcemap`，未 commit）
+- 日期：2026-09-29；全部结论来自该字节上的实测，非静态推断
+- 环境：`nix develop -c haxe ...`（generation exit 0）；真实 tsc 为 **5.9.3**
+  （`package.json` 钉 `^5.9.0`，`bun.lock` 锁 `typescript@5.9.3`；因 fuse.rclone 不支持
+  symlink，把只读的 `boring/node_modules/typescript` 解引用复制到本树
+  `out/tsc/node_modules/` 后运行 `node .../typescript/bin/tsc --version` → 5.9.3）。
+  其余工具链走 `nix develop`，无其他环境偏差。
+
+## ① 三位置 authored 输入与预期回溯行为
+
+夹具 `tests/haxe/ts-sourcemap-three-positions/OriginShapes.hx`（Haxe 接受输入，
+generation.exit=0），`OriginShapes.run()` 内同一调用形状出现三次：
+
+| # | authored 行（OriginShapes.hx） | 位置 | 生成的 TS 行（OriginShapes.ts） | 预期回溯 |
+|---|---|---|---|---|
+| 1 | `pick("direct");` | 直接调用语句（stmtLines `default:` 分支，`expr(e)+";"`） | L9 `OriginShapes.pick("direct");` | noteDirectCall 登记 → **mapped** |
+| 2 | `final local = pick("init");` | TVar 初始化（stmtLines TVar 分支） | L10 `const local = OriginShapes.pick("init");` | 无登记 → **Unmapped** |
+| 3 | `return pick("return") + local;` | TReturn 表达式（stmtLines TReturn 分支） | L11 `return OriginShapes.pick("return") + local;` | 无登记 → **Unmapped** |
+
+runner（`run-focused.sh`）把三行的字符串实参同改为数字 `0`（injected.diff 保留，
+每处仍单行），制造**同一 TS2345** 三连发，再用 `resolve-origins.mjs` 把 tsc 坐标对
+`OriginShapes.ts.origins.json`（`-D ts-source-origins` 产物）求解。
+
+## ② 真实 tsc 诊断 + sidecar 解析结果
+
+真实 tsc：`strict-tsc.exit = 2`，三行各报一条（stdout，stderr 空）：
+
+```
+OriginShapes.ts(9,23):  error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+OriginShapes.ts(10,37): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+OriginShapes.ts(11,30): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+```
+
+sidecar 解析（resolve.stdout 全文见 attempt 目录）：
+
+| 生成行 | 位置 | verdict | 理由 / origin |
+|---|---|---|---|
+| L9 | 直接调用 | **mapped** | occurrenceId `OriginShapes.OriginShapes.run#000001`，source `OriginShapes.hx` 774–788（即 authored 第 21 行 `pick("direct");`） |
+| L10 | TVar 初始化 | **Unmapped** | 无 sidecar span 覆盖该坐标（defaultResolution=`Unmapped`） |
+| L11 | TReturn | **Unmapped** | 同上 |
+| L1–L3（对照） | 文件头 | **合法 Unmapped** | span status=unmapped，reason=`generated-header` |
+
+sidecar 共 3 个 span（generated-header + 两条 mapped：L9 与 main 的 L15），
+`coordinateUnit=utf16-code-units`，输入与产物哈希见
+`attempt-kllZ8FCF/inputs.before/after.sha256`（前后一致）。
+
+## ③ noteDirectCall 唯一调用点与分支守卫的当前字节确认
+
+- `packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx`
+  sha256 `296fbe894fe5ae99bd81695ef1667f70a8d8ef926f4e23322889fd9b40259695`
+  - L392 `SourceOriginTrace.beforeRewrites(f.expr, ...)`（重写前遍历，确认）
+  - L574 `case TVar(v, init) if (init != null):` … L591 渲染 `const/let … = …;`，
+    **无 noteDirectCall**
+  - L634 `case TReturn(ret):` … L643 `return …;`，**无 noteDirectCall**
+  - L667 `originTrace.noteDirectCall(e, originLineIndex, rendered)` —— 全仓唯二出现
+    （另一处是定义），仅存在于 stmtLines 的 `default:` fallback 分支；
+    `originLineIndex` 形参只由 `blockLines(..., originTrace)` 线程化传入（L729）
+- `packages/compiler/SourceOriginTrace.hx`
+  sha256 `ede8be21c5f0f2d7807bbb97a9727258d781626213956e3e9009fec351860075`
+  - L70–71 行内含 `\n` 即跳过；L72–74 节点缺失/二次访问置 `ambiguous=true`
+    （L42–45）/callee 或 args 身份不匹配即跳过；`fragment()`（L93–112）仅输出
+    `emitted==1 && !ambiguous` 的整行 span
+- 其他四目标 dart/kotlin/rust/swift（`packages/compiler/reflaxe/{dart,kotlin,rust,swift}`）
+  grep `origins` 命中 **0** —— 无 sidecar 机制属**结构性缺席**，不是漏测，
+  不能用本结论外推。
+
+## ④ 结论
+
+**仅直接调用可回溯；TVar 初始化与 TReturn 两处的同一 TS2345 给出可解释 Unmapped**
+（理由：这两条语句路径从不进入 `noteDirectCall` 唯一调用点，sidecar 中不存在覆盖其
+坐标的 span，回落 defaultResolution=Unmapped）。生成 helper 的 Unmapped（如
+`generated-header`）为合法缺席，与前者性质不同。
+
+## ⑤ 行级映射的粒度限制
+
+L9 的 mapped span 是 **L9 第 1–33 列的整行**（`fragment()` 以整行为单位登记
+`entry.lineIndex`），不是节点精确 span：该行任何坐标（无论指向 callee、实参还是
+结尾分号）都归因到同一 occurrenceId。诊断若落在行内的非调用部分会错归因到调用节点
+（行级错归因风险）；三位置实测中 TS2345 恰好落在调用内，故归因正确。
+
+## 交付
+
+- 树内夹具：`tests/haxe/ts-sourcemap-three-positions/`（4 文件）
+- `PATCH.diff`（仅夹具，剔除 run.sh mode 噪声：11 个 M 全为 `100755→100644` mode-only）
+- `FILES.sha256`；证据 `attempt-kllZ8FCF/`（generation/tsc/resolve 的
+  stdout/stderr/exit/command、injected.diff、inputs 前后哈希）
+- 判据 3 的独立审阅未由本执行者执行、未签收

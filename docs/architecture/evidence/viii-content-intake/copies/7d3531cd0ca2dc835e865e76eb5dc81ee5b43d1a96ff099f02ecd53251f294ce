@@ -1,0 +1,15 @@
+#![cfg(test)]
+
+use crate::boring::ink_text_shaper::InkTextShaper;
+use crate::boring::shape_text_ops::ShapeTextOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn render() {
+    testlib::run("tests.ShapeTextTests.render", "tests.ShapeTextTests.render: an instance of the cross-module implementing class satisfies the interface parameter", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[105,110,107,58,104,105]), ShapeTextOps::shape_text_ops_render(Box::new(InkTextShaper::new()), UStr::new(&[104,105])).as_ustr(), UStr::new(&[]));
+    });
+}

@@ -1,0 +1,26 @@
+#![cfg(test)]
+
+use crate::boring::constructor_statement_ops::ConstructorStatementOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_comprehension() {
+    testlib::run("tests.ConstructorStatementTests.testComprehension", "tests.ConstructorStatementTests.testComprehension: constructor lowers array comprehension fill", || {
+        let value = ConstructorStatementOps::new(2u32, vec![].to_vec());
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((u32::try_from((value.filled.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[99,111,110,115,116,114,117,99,116,111,114,32,102,105,108,108,32,108,101,110,103,116,104]));
+        test_core::TestCore::test_core_equals_int(0i32, { let v: u32 = value.filled[2usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[99,111,110,115,116,114,117,99,116,111,114,32,102,105,108,108,32,118,97,108,117,101]));
+    });
+}
+
+#[test]
+fn test_pipeline_block_lambda() {
+    testlib::run("tests.ConstructorStatementTests.testPipelineBlockLambda", "tests.ConstructorStatementTests.testPipelineBlockLambda: constructor lowers pipeline call with block lambda", || {
+        let value = ConstructorStatementOps::new(0u32, vec![1, 4].to_vec());
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((u32::try_from((value.mapped.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[99,111,110,115,116,114,117,99,116,111,114,32,112,105,112,101,108,105,110,101,32,108,101,110,103,116,104]));
+        test_core::TestCore::test_core_equals_int(2i32, { let v: u32 = value.mapped[0usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[99,111,110,115,116,114,117,99,116,111,114,32,112,105,112,101,108,105,110,101,32,102,105,114,115,116]));
+        test_core::TestCore::test_core_equals_int(5i32, { let v: u32 = value.mapped[1usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[99,111,110,115,116,114,117,99,116,111,114,32,112,105,112,101,108,105,110,101,32,115,101,99,111,110,100]));
+    });
+}

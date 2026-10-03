@@ -1,0 +1,43 @@
+package boring
+
+data class PrintedCollection(val names: List<String>, val counts: MutableList<Int>, val points: List<PrintedPoint>, val matrix: MutableList<MutableList<Int>>, val none: MutableList<String>) {
+}
+
+
+
+data class PrintedEnumCollection(val flags: List<PrintedFlag>) {
+}
+
+fun comparePrintedEnumCollection(a: PrintedEnumCollection, b: PrintedEnumCollection): Int {
+    var cmp = 0
+    cmp = run { val sequenceLeft0 = a.flags; val sequenceRight0 = b.flags; var index0 = 0; var difference0 = 0; while (index0 < sequenceLeft0.size && index0 < sequenceRight0.size) { difference0 = when (sequenceLeft0[index0]) { PrintedFlag.Silent -> 0; is PrintedFlag.Steps -> 1 }.compareTo(when (sequenceRight0[index0]) { PrintedFlag.Silent -> 0; is PrintedFlag.Steps -> 1 }); if (difference0 != 0) break; index0 += 1 }; if (difference0 != 0) difference0 else sequenceLeft0.size.compareTo(sequenceRight0.size) }
+    if (cmp != 0) return cmp
+    return 0
+}
+
+data class PrintedPoint(val x: Int, val y: Int) {
+}
+
+fun comparePrintedPoint(a: PrintedPoint, b: PrintedPoint): Int {
+    var cmp = 0
+    cmp = a.x.compareTo(b.x)
+    if (cmp != 0) return cmp
+    cmp = a.y.compareTo(b.y)
+    if (cmp != 0) return cmp
+    return 0
+}
+
+data class PrintedNullableCollection(var words: List<String>?) {
+}
+
+fun comparePrintedNullableCollection(a: PrintedNullableCollection, b: PrintedNullableCollection): Int {
+    var cmp = 0
+    cmp = run { val nullableLeft0 = a.words; val nullableRight0 = b.words; when { nullableLeft0 == null && nullableRight0 == null -> 0; nullableLeft0 == null -> -1; nullableRight0 == null -> 1; else -> run { val sequenceLeft1 = nullableLeft0; val sequenceRight1 = nullableRight0; var index1 = 0; var difference1 = 0; while (index1 < sequenceLeft1.size && index1 < sequenceRight1.size) { difference1 = sequenceLeft1[index1].compareTo(sequenceRight1[index1]); if (difference1 != 0) break; index1 += 1 }; if (difference1 != 0) difference1 else sequenceLeft1.size.compareTo(sequenceRight1.size) } } }
+    if (cmp != 0) return cmp
+    return 0
+}
+
+sealed interface PrintedFlag {
+    data object Silent : PrintedFlag
+    data class Steps(val count: Int) : PrintedFlag
+}

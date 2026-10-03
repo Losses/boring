@@ -1,0 +1,17 @@
+package tests
+
+import boring.runtime.test.Test
+
+class NegIntSlotOpsTests {
+@boring.test.Test
+    fun negate() {
+        Test.run("tests.NegIntSlotOpsTests.negate", "tests.NegIntSlotOpsTests.negate: a negated Int reinterprets at the u32 return and argument slots") {
+        }
+    }
+
+@boring.test.Test
+    fun negateConditional() {
+        Test.run("tests.NegIntSlotOpsTests.negateConditional", "tests.NegIntSlotOpsTests.negateConditional: a negated conditional arm carries the u32 slot type") {
+        }
+    }
+}

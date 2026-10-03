@@ -1,0 +1,25 @@
+$HAXE = /nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe
+plain        rc=0  first-line=
+ws_ok        rc=0  first-line=
+ws_missing   rc=1  first-line=Type not found : NoSuchModuleXYZ
+ts_missing   rc=1  first-line=Type not found : NoSuchModuleXYZ
+cr_missing   rc=1  first-line=Type not found : NoSuchModuleXYZ
+tab_missing  rc=1  first-line=Type not found : NoSuchModuleXYZ
+
+hxml bytes (cat -A):
+-- ws_missing.hxml
+-cp cp$
+--no-output$
+   NoSuchModuleXYZ$
+-- ts_missing.hxml
+-cp cp$
+--no-output$
+NoSuchModuleXYZ   $
+-- cr_missing.hxml
+-cp cp$
+--no-output$
+NoSuchModuleXYZ^M$
+-- tab_missing.hxml
+-cp cp$
+--no-output$
+^INoSuchModuleXYZ$

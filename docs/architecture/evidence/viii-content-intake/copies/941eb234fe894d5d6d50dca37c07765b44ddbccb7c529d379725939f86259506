@@ -1,0 +1,95 @@
+# Do the two architecture consultations really agree?
+
+**Subject documents:** `dc-warn/out/sol-architecture-consult/ASTRA-ANSWER.md` (86 lines) and `SOL2-ARCH-ANSWER.md` (125 lines), both read in full, against `QUESTION.md`.
+**Repository:** `boring-wt-architecture` @ HEAD `e1c6597514…` (read-only; the working tree also carries the 2-line `SwiftArrayBoundary.hx` `render()` fix — verified via `git diff --stat`, see evidence/e06 note).
+**Method:** code readings and retained-report readings only. No builds, no tests, no writes outside this directory. Every claim below is labelled **[V]** (I verified it against the repository or a retained executed report) or **[A]** (the document asserts it; I did not establish it).
+**Prior cross-check:** `dc-warn/astra-claims-xcheck/REPORT.md` (found one Astra claim IMPRECISE, one under-described). Both of those findings survive this audit and do not change the agreement picture.
+
+---
+
+## 1. Agreement table
+
+| # | Recommendation | Astra | Sol2 | Verdict |
+|---|---|---|---|---|
+| 1 | Keep Swift read-only array boundary as the P08 mechanism | yes (§1) | yes (§1) | **both-agree** |
+| 2 | Do not accept the current candidate yet | yes (headline) | yes (headline) | **both-agree** — but note §3-P1 below: neither pins down what "the current candidate" physically is |
+| 3 | **Order of steps** | d → a → c → b (headline + §2 table) | headline says d → a → **b → c**, but its own §2 numbered list is d → a → **c → b** with the rationale "Implementation precedes final candidate review because reviewers need a completed, stable object" | **they-differ cosmetically, and the difference is a typo** — Sol2's headline contradicts Sol2's own enumeration and rationale. Substantively the orders are identical |
+| 4 | Baseline decision: fund restoration separately; keep P09's full meaning (no weakening) | yes (§3) | yes (§3) | **both-agree** |
+| 5 | SW04 disposition: keep the planner's refusal of an unproved optional→required conversion; nil-merge must convert through an optional intermediate destination | yes (§1) | yes (§1, "My disposition is precise") | **both-agree**, citing the same authorities (`compiler-policy-interfaces.md:169`, `j-prepared-value-design.md` J2) [V: both citations exist and say this] |
+| 6 | Switch/try consumption repair: destination must come from the actual position (binding/assignment/parameter/return), not the enclosing return type | yes (§2 step c) | yes (§2 step 3) | **both-agree**; independently confirmed by astra-xcheck §A/§B [V] |
+| 7 | Freeze + two independent reviews of the same candidate, both must accept | yes (§2 step b) | yes (§2 step 4) | **both-agree** |
+| 8 | Generation-exit-zero and empty swiftc diagnostics are necessary but not sufficient | yes (§4) | yes (§4) | **both-agree** |
+| 9 | Durable CI/test collection of the focused suite is part of the candidate's delivery | yes (§4 evidence table + corrected CI claim) | yes (§4, "Require durable collection") | **both-agree**. I verified the underlying gap: `ci.yml`'s main step invokes only targeted `bun run test:*` commands and never the root `bun run test` that collects `tests/swift-readonly-boundary` (evidence/e04); `package.json` `verify` does run `bun run test` [V] |
+| 10 | Qualify "the destination requirement has no producer at all" | yes (§4) | yes (§4) | **both-agree** — and the qualification is the correct reading (§3-P4 below) |
+| 11 | One authoritative account per fact per occurrence, not "exactly one producer function per fact category" | yes (§4) | yes (§4) | **both-agree** |
+| 12 | Do not combine the separate scratch-repair results (48→25 timeout, 48→35 string) to predict a combined baseline; take one fresh combined measurement | yes (§3) | yes (§3) | **both-agree**. The 48 and the timeout detail check out [V: stage4-attribution REPORT:3-20 (48 pre-existing, fingerprint-identical, measurement not inference); test-timeout-budget REPORT:353 ("now failing on an assertion instead: 1")] |
+| 13 | Producer families as completion denominator | Astra: references "the accepted producer/consumer inventory" and hedges ("any other unresolved obligations") without a count | Sol2: "Keep the approved **eleven** producer families as the completion domain" | **they-differ (mildly)** — Sol2 commits to a closed count of eleven; Astra treats the inventory as open. See §3-P2: eleven is a correct count of the table but the design doc does not close the set |
+| 14 | The mutating test stub (`package-artifacts.test.ts`) | Astra: includes the "focused CI collection change" before freeze; does not address the stub beyond the brief | Sol2: try/finally restoration "insufficient for acceptance integrity"; fund **removal of the substitution** from the acceptance procedure | **one-only (Sol2, stronger)** — Sol2's extension is plausible but unproven (see §5) |
+| 15 | Cancel categories (duplicate audits, superseded-candidate prep, broad surveys, speculative tooling, hygiene) | yes (§6 table) | yes (§6 table) | **both-agree in kind**; neither names concrete IDs (Astra explicitly says it would need the board export) |
+| 16 | "Stop retrying the unavailable review provider; record setup failure as setup failure" | absent | yes (§5) | **one-only (Sol2)** — assessed in §4 |
+| 17 | Double-wrap (PIT-255) status | Astra: "is in this boundary renderer itself. It belongs to the candidate's runtime compatibility obligations" (i.e. still a candidate obligation) | Sol2: "The double-wrap repair is present in the inspected working file; its retained run reaches comparison and fails there" (i.e. fixed, residual is the f32 divergence) | **they-differ on framing**; Sol2 is factually right — the 2-line fix is in the working tree [V: `git diff --stat HEAD` = 2 insertions/2 deletions on `SwiftArrayBoundary.hx`; `swift-arrayboundary-fix/REPORT.md` records swift legs 0/0/0 after it] — but this does not change any step of the order |
+
+**Bottom line:** on every substantive recommendation the two documents agree; the only headline-order discrepancy is an internal typo in Sol2 (its §2 list matches Astra's order exactly). Agreement this complete is exactly what you would expect when both answer the same brief, read the same six-row responsibility map, and are shown the same evidence set. It is weak evidence of independent correctness, which is why §3 matters more than §1.
+
+---
+
+## 2. Shared premises — audited against the repository
+
+### P1. Both assume P08's "candidate" is a compiler-implementation change to be rejected — unestablished
+Both headline "reject the current candidate for acceptance." Neither states what artefact that candidate currently is. In the programme's own terms P08 reads: "Delegate reproduction and behavior tests, **then** implementation. Independently review both before accepting a candidate" (`docs/architecture-work-plan.md` gate checklist, ~L216) [V]. What actually exists: a behaviour review (`dc-warn/out/p08-behaviour-review/REPORT.md`), refused-cell reproduction evidence, and the landed 2-line `render()` fix — no SW04 implementation exists yet [V: no nil-merge/optional-intermediate change in `SwiftExpr.hx:2623-2645`; the `destinationOptionalOverride` machinery exists but is passed null at the nil-merge site, per astra-xcheck §C]. So "reject the current candidate" is at best shorthand for "do not let the behaviour review's green partial evidence stand for acceptance." Harmless in direction, but if anyone executes it as "reject a compiler patch," they would be rejecting an object that does not exist. **Premise adopted, not checked — flag, do not act on the wording.**
+
+### P2. "The eleven producer families" — count verified, closure NOT established
+Sol2: "Keep the approved eleven producer families as the completion domain." I counted the table in `j-prepared-value-design.md` ("Producer inventory required before implementation", ~L86-100): **exactly 11 rows** (local/field/parameter read; literal and construction; call; cast/conversion; ordinary conditional; structural nil-merge; registered default; block tail; switch result and pattern binding; try result; nested collection element) [V, evidence/e01]. So "eleven" is accurate as a count. But the document nowhere states the number, and nowhere closes the set — the opposite: "An unverified path stays open; it cannot be removed from the accepted language to simplify this pilot," and "The source inventory in this review identifies **open owners** for calls, blocks, switches, and try result paths" [V]. Treating eleven as the closed denominator is therefore Sol2's gloss, not the design's ruling. Astra's phrasing ("any other unresolved obligations in the accepted producer/consumer inventory") is the defensible one.
+
+### P3. "The baseline is red in three places" — the numbers both cite check out; "three" is historical, not current
+- **Stage 4, 48 failures:** `stage4-attribution/REPORT.md:3-20` — 48 unique failures, 100% pre-existing at `e1c65975`, identical assertion fingerprints 48/48 across trees, explicitly a measurement [V]. Astra's caveat (the attribution is limited by an execution copy with a gutted `MathNaNTestSupport.hx` helper) is also in that report at §1.3 [V].
+- **Swift compile error (PIT-255):** `p09-chainA-full/REPORT.md` — `VectorCodec.swift:49:43: cannot convert 'TiqianArray<GlyphMetrics>' to '[TiqianArray<GlyphMetrics>]'`, classified a real toolchain rejection of generated code, not an environment failure [V].
+- **166 f32 divergences:** `p09-chainA-rerun/REPORT.md` — after the 1-file `SwiftArrayBoundary.hx` fix, all swift legs exit 0; failure moves to `compare`: "166 divergence(s)", all on f32 legs, 160 Missing + 6 Extra, non-f32 736 pass / 0 fail [V]. Astra's decomposition (160+6, not 166 numerical disagreements) matches `f32-divergence-xcheck/REPORT.md` C1/C2 (confirmed) [V].
+**The shared error risk:** "red in three places" stacks three observations from *different input states and different stages* (Stage-3 before the fix, Stage-3 after the fix, Stage-4 on a dirty execution copy). Sol2 says this explicitly (§3 state distinction); Astra says it in different words ("successive Stage-3 observations", "166 is a historical baseline observation"). Both are right, and both cite their numbers accurately. The residual today is: the 166 divergence membership problem + the 48 Stage-4 residuals — two places, not three.
+
+### P4. "The destination requirement has no producer at all" — the qualification is right; the original claim is wrong
+Origin: this phrase is **not in `QUESTION.md`**; it comes from `p08-behaviour-review/REPORT.md:149`, whose own row is self-contradictory — carrier "**no producer at all**" while the same row lists each caller computing it (local `:743`, return `:811/:5642`, assignment `:2806`, parameter `:3303/:4756/:4859`, element `:1929`, enum `:4720`, field `SwiftDecl.hx:599`, cast `:2534`) [V, evidence/e07].
+Code check (per the task, `SwiftExpr.hx:2680-2726` and `SwiftParameterPlan.hx:65-80`) [V, evidence/e02, e03]: the destination is an explicit `Type` **argument** threaded from every consumer position; `prepareArrayOperand` computes the *operand's* facts (optionality/presence), and `SwiftParameterPlan.forArgument` demonstrably produces `(OptionalOperand, NoPresenceProof)` pairs for optional body types — i.e. facts are produced; what is missing is an owned, enforced account of *which requirement applies at each handoff* (the routes catalogued in astra-xcheck §D). **Verdict: Astra's and Sol2's qualified version is correct; "no producer at all" is false and was falsified by the very table that stated it.** Both consultations corrected this independently — this is a case where they agree because they are right, not merely because they share a brief.
+
+---
+
+## 3. Unexamined brief-adoption findings
+
+1. **Sol2 adopts the requester's claim that a P08 board row now exists** ("Your update … supersedes the landing list's earlier absence finding") without checking it [A — no board export exists in the retained evidence]. Astra does the opposite: flags that its retained board extract predates the row and asks for the export. The landing list had found **zero** board tasks for P08 (`arc-landing-list/REPORT.md:50,139`) [V]. Sol2's supersession rests entirely on the requester's word.
+2. **Sol2 adopts "the five failed attempts to reach another model"** (§5) [A]. I found no repository or retained report recording five failed procurement attempts. The advice built on it (§4 below) is still sound, but the factual premise is unverified.
+3. **Both adopt the requester's diagnosis as substantially correct** (QUESTION Q1 invited challenge; both largely endorse with qualifications — the "verification-dense, decision-poor" framing). Astra sharpens it ("failure to execute and enforce an existing contract, rather than absence of another architectural explanation"); Sol2 reframes it as authorization discipline. Neither independently checked the brief's "~50 agent-rounds" or its claim that the work was "almost entirely at the VERIFICATION layer" — plausible, unverifiable from the repository alone. Low risk, but note the echoed framing.
+4. **Both accept "P00–P07 and P11 done" from the brief** — this one checks out: the gate checklist marks P11 `[x]` and says "P08–P10 and P12 remain open pending accepted fixed-input regression evidence" [V, `architecture-work-plan.md` ~L134, L216-231].
+5. **Astra's "Your CI finding is supported"** — the CI finding is not in `QUESTION.md` (so it came from a follow-up update); Astra did verify it against `package.json` and `ci.yml`, and corrected one over-claim in the independent review [V — I re-verified: evidence/e04].
+6. **Both adopt the fixture description** (`values == null ? [] : values` → required `ReadOnlyArray`) from the behaviour reviews rather than re-deriving it; it matches `ReadOnlyBoundaryOps.hx:233-236` per astra-xcheck §C [V via the prior cross-check, not independently re-read here].
+
+---
+
+## 4. The "stop retrying that route" instruction (Sol2 §5)
+
+**Coherent, with one condition.** Sol2 says: stop spending a sixth round on the unavailable review provider; assign an available independent reviewer "under the existing review rules"; if none is available, record a capacity blocker; preserve the two-review requirement; "record setup failure as setup failure."
+
+- **It does not conflict with the programme's rules.** The work plan requires independence of *reviewer from implementer over a recorded snapshot or integrated revision*, not a specific provider [V, `architecture-work-plan.md` ~L138-139: "independent reviewers inspect a recorded snapshot or an integrated revision"]. P08's text requires that reproduction/tests **and** implementation each be independently reviewed — Sol2 explicitly preserves that. Recording a setup failure separately matches the plan's own evidence discipline ("Record any baseline failure separately, including its revision and reproduction" [V, ~L415]).
+- **The other consultation's existence strengthens, not weakens, the advice.** Astra was obtained successfully, demonstrating the *architectural* question never needed the unavailable route. The five (alleged) failures were procurement failures; treating them as evidence that more procurement was needed would repeat the verification-density pattern both consultations diagnose.
+- **The one condition:** "an available independent reviewer" is only equivalent if it is genuinely independent of the implementer and of the behaviour reviewer whose work is being corrected (both consultations lean heavily on `p08-behaviour-review`). Sol2 asserts equivalence ("under the existing review rules"); the owner should confirm the substitute satisfies the plan's independence language before treating P08's two-review requirement as satisfiable this way. If it does not, the correct outcome is Sol2's own fallback — a recorded capacity blocker — not silent substitution.
+
+---
+
+## 5. What I would NOT act on
+
+1. **Sol2's headline order "d → a → b → c" as written.** It contradicts Sol2's own §2 list and rationale; the operative order for both documents is d → a → c → b. Adopt the enumerated order, and fix the typo before anyone cites the headline.
+2. **"Keep the approved eleven producer families as the completion domain" as a closed denominator.** The design doc gives an 11-row open inventory and explicitly forbids shrinking the accepted language to fit it (§3-P2). Use the inventory as open; Astra's hedge is the actionable version.
+3. **Sol2's "fund removal of that substitution from the acceptance procedure" (the test stub) as an unconditional obligation.** The brief's verified finding is that a *killed* test leaves the stub behind (no try/finally) [A→V for the mechanism being real: `stage4-attribution/REPORT.md` §1.3 shows a gutted helper in the dirty execution tree]. Sol2's stronger claim — that even *successful* restoration is insufficient (concurrent readers, consumption of authoritative source) — is asserted, not demonstrated. Remove the substitution only after one targeted check of whether generation actually consumes the stub during the relevant suite, or simply fix try/finally first and re-measure; do not fund an acceptance-procedure redesign on an unproven premise.
+4. **Sol2's minimization that the refused cell "adds little" as a third axis (§4).** The route census in astra-claims-xcheck §D shows the step-(c) scope bundles at least four distinct mechanisms (two no-contact bypasses, wrong-`currentReturnType` parameterisation, printed-line string surgery) plus a second plan producer in `SwiftDecl.hx`. Execute step (c) as multiple fixes with per-route discriminating fixtures, not as one "consumption repair."
+5. **Any cost, date, or "remaining failures" figure derived from these documents.** Both correctly refuse to price restoration from the supplied counts; nothing in either document licenses a budget number yet. The required inputs are the ones both list (combined residual measurement, bounded divergence account, Tiqian execution route) — none exist in the retained evidence today.
+
+---
+
+## Evidence index
+- `evidence/e01-j-families.txt` — J design producer-family table (11 rows) + openness language
+- `evidence/e02-prepareArrayOperand.txt` — `SwiftExpr.hx:2680-2726` (operand facts; destination is a threaded argument)
+- `evidence/e03-paramplan.txt` — `SwiftParameterPlan.hx:63-82` (`(OptionalOperand, NoPresenceProof)` pairing)
+- `evidence/e04-ci.txt` — `ci.yml` main step (no root `bun run test`) vs `package.json` `verify`
+- `evidence/e05-stage4.txt` — stage4-attribution: 48 pre-existing, measurement, gutted-helper confound
+- `evidence/e06-chainA.txt` — chainA full (real swift compile error) and rerun (166 = 160 Missing + 6 Extra; swift legs green)
+- `evidence/e07-behviour-review-phrase.txt` — origin of the "no producer at all" phrase (p08-behaviour-review:149)
+- `evidence/e08-timeout.txt` — test-timeout-budget: 25 remain, 1 timeout → assertion failure

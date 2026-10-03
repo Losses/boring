@@ -1,0 +1,17 @@
+package tests
+
+import boring.runtime.test.Test
+
+class NullableFloatCompareTests {
+@boring.test.Test
+    fun structuralZero() {
+        Test.run("tests.NullableFloatCompareTests.structuralZero", "tests.NullableFloatCompareTests.structuralZero: a null-coalescing Float local compares zero in the Float domain") {
+        }
+    }
+
+@boring.test.Test
+    fun notZero() {
+        Test.run("tests.NullableFloatCompareTests.notZero", "tests.NullableFloatCompareTests.notZero: a null-coalescing Float local inequality compares zero in the Float domain") {
+        }
+    }
+}

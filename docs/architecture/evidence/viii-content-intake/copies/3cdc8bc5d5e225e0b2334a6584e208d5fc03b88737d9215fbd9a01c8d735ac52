@@ -1,0 +1,14 @@
+package mx;
+import std.ReadOnlyArray;
+// Attack A: inline helper block at RETURN position; helper value Array<Int>,
+// enclosing member contract ReadOnlyArray<Int>.
+class AttA {
+	inline static function two(a:Array<Int>):Array<Int> {
+		final s = a.length;
+		return a.slice(s, 0);
+	}
+	public static function run():ReadOnlyArray<Int> {
+		final h = [1, 2, 3];
+		return two(h);
+	}
+}

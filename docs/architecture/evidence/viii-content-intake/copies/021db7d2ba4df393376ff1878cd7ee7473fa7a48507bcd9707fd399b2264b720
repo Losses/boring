@@ -1,0 +1,21 @@
+diff --git a/tmp/__h b/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed3/package.json
+index d6274801..1d4554c5 100644
+--- a/tmp/__h
++++ b/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed3/package.json
+@@ -31,6 +31,7 @@
+     "check:ledger": "bun tools/ledger-check/check.ts",
+     "check:registry": "bun tools/registry-guard/backstop.ts",
+     "check:mapping": "bun tools/type-mapping/check.ts",
++    "check:precision": "bun tools/precision-guard/check.ts",
+     "gen:vector": "bun tools/gen-vector.ts",
+     "gen:ts": "haxe examples/ts.hxml",
+     "gen:kotlin": "haxe examples/kotlin.hxml",
+@@ -43,7 +44,7 @@
+     "check:reflaxe": "haxe -lib reflaxe -cp examples -main Smoke -js out/haxe/reflaxe-smoke.js",
+     "commit": "bun tools/commit/commit.ts",
+     "install:hooks": "bun tools/git-hooks/install.ts",
+-    "verify": "haxe tools/bundle/driver.hxml && bun out/bundle/driver.js verify && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:dart && bun run test:rust && haxe packages/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run gen:vector && bun run check:reflaxe",
++    "verify": "haxe tools/bundle/driver.hxml && bun out/bundle/driver.js verify && bun run test && bun run test:haxe && bun run test:kotlin && bun run test:intercept && bun run test:dart && bun run test:rust && haxe packages/registry/compile.hxml && bun run lint && bun run typecheck && bun run check:docs && bun run check:precision && bun run gen:vector && bun run check:reflaxe",
+   },
+   "devDependencies": {
+     "@boring/codec": "workspace:*",

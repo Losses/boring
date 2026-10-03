@@ -1,0 +1,9 @@
+package boring
+
+object PrivateClassPeerOps {
+    fun resolve(): String {
+        return Resolution("second").value
+    }
+    private class Resolution(val value: String) {
+    }
+}

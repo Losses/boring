@@ -1,0 +1,15 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NoSuchElementNote {
+    Note { text: UString },
+}
+
+impl NoSuchElementNote {
+    pub fn to_string(&self) -> String {
+        match self {
+            NoSuchElementNote::Note { text } => format!("Note(text={})", (text).clone()),
+        }
+    }
+}

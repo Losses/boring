@@ -1,0 +1,15 @@
+diff -ru '--exclude=_GeneratedFiles.txt' /tmp/bx/out/pre-stmt/gen/mx/MXStmt.swift /tmp/bx/out/fix-stmt/gen/mx/MXStmt.swift
+--- /tmp/bx/out/pre-stmt/gen/mx/MXStmt.swift	2026-09-30 12:41:26.260601584 -0400
++++ /tmp/bx/out/fix-stmt/gen/mx/MXStmt.swift	2026-09-30 12:48:52.716954841 -0400
+@@ -10,9 +10,9 @@
+     switch c {
+         case .qOne:
+             let first = QSource.first()
+-            first
++            return ReadOnlyArray(first)
+         case .qTwo:
+-            QSource.second()
++            return ReadOnlyArray(QSource.second())
+     }
+ }
+         return QSource.view(f(c))

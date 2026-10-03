@@ -1,0 +1,33 @@
+package boring
+
+object ArrayIterationOps {
+    fun sumValues(values: MutableList<Int>): Int {
+        var total = 0
+        for (item in values) {
+            total += item
+        }
+        return total
+    }
+
+    fun countReadOnly(values: List<Int>): Int {
+        var total = 0
+        for (item in values) {
+            total += item
+        }
+        return total
+    }
+
+    fun sumField(holder: Holder): Int {
+        var total = 0
+        run {
+            val _g1 = holder.values
+            for (item in _g1) {
+                total += item
+            }
+        }
+        return total
+    }
+}
+
+class Holder(val values: MutableList<Int>) {
+}

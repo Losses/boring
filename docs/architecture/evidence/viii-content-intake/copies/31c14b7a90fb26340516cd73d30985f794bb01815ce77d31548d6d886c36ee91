@@ -1,0 +1,20 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn applies_to_all() {
+    testlib::run("tests.TestApplicabilityProbeTests.appliesToAll", "tests.TestApplicabilityProbeTests.appliesToAll: a test with no except argument applies to every target", || {
+        test_core::TestCore::test_core_ok(true, UStr::new(&[97,112,112,108,105,101,115,32,116,111,32,97,108,108,32,116,97,114,103,101,116,115]));
+    });
+}
+
+#[test]
+fn excluded_on_swift() {
+    testlib::run("tests.TestApplicabilityProbeTests.excludedOnSwift", "tests.TestApplicabilityProbeTests.excludedOnSwift: a test that excludes swift does not run on swift", || {
+        test_core::TestCore::test_core_ok(true, UStr::new(&[114,117,110,115,32,111,110,32,101,118,101,114,121,32,116,97,114,103,101,116,32,101,120,99,101,112,116,32,115,119,105,102,116]));
+    });
+}

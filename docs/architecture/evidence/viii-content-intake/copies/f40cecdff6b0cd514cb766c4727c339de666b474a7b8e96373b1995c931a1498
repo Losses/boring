@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class UnionChainTests {
+@boring.test.Test
+    fun chainedUnion() {
+        Test.run("tests.UnionChainTests.chainedUnion", "tests.UnionChainTests.chainedUnion: a repeated callee union stays convertible through a chained caller") {
+                Test.equals(true, true, null)
+        }
+    }
+}

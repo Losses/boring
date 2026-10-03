@@ -1,0 +1,35 @@
+use std::sync::Arc;
+
+
+#[derive(Clone, Copy)]
+pub struct DartNullPushOps;
+
+impl DartNullPushOps {
+    pub fn dart_null_push_ops_push_null_into_nullable_array() -> Option<u32> {
+        let mut xs: Vec<Option<u32>> = vec![];
+        xs.push(Some(1));
+        xs.push(None);
+        return xs[1usize];
+    }
+
+    pub fn dart_null_push_ops_push_value_into_nullable_array() -> Option<u32> {
+        let mut xs: Vec<Option<u32>> = vec![];
+        xs.push(Some(1));
+        xs.push(Some(2));
+        return xs[1usize];
+    }
+
+    pub fn dart_null_push_ops_nullable_closure_returns_null() -> Option<u32> {
+        let f: Arc<dyn Fn() -> Option<u32> + Send + Sync + 'static> = {  Arc::new(move || {
+        return None;
+}) };
+        return f();
+    }
+
+    pub fn dart_null_push_ops_nullable_closure_returns_value() -> Option<u32> {
+        let f: Arc<dyn Fn() -> Option<u32> + Send + Sync + 'static> = {  Arc::new(move || {
+        return Some(7);
+}) };
+        return f();
+    }
+}

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix-xcheck
+argv timeout 900 haxe tests/haxe/xcheck-dart-fix/gen/dart.hxml -D dart-output=/home/losses/Development/tq-workspace/dc-warn/out/dart-fix-xcheck/negctrl2-20260929T195000Z/gen-dart -D dart-test-output=/home/losses/Development/tq-workspace/dc-warn/out/dart-fix-xcheck/negctrl2-20260929T195000Z/gen-dart-tests

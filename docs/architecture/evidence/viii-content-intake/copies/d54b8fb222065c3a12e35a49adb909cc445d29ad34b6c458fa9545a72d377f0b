@@ -1,0 +1,85 @@
+package tests
+
+import boring.runtime.test.Test
+import haxe.crypto.Xxh64
+
+class Xxh64Tests {
+@boring.test.Test
+    fun vectorTests() {
+        Test.run("tests.Xxh64Tests.vectorTests", "tests.Xxh64Tests.vectorTests: xxh64 vectors") {
+                val names = mutableListOf<String>("empty", "abc", "digits", "bytes0to255", "len1", "len16", "len17", "len63", "len64", "len65", "len127", "len128", "len129", "len239", "len240", "len241", "len1003", "len1004")
+                val zeros = mutableListOf<String>("ef46db3751d8e999", "44bc2cf5ad770999", "8cb841db40e6ae83", "1facbe8406cd904b", "a96c7f0ce858bbb7", "a19ad429b02bc413", "fe9f0feb7eeedc09", "5c320a0d2707057f", "7bbabbc45729d17e", "f3980c34bae65dc1", "4822f4e67f60ea91", "725a5b9b3bedfe94", "28fc8362643627d7", "88fdd7285946d2b3", "d430520ae3ed2fc6", "d3f50496d5bf27e0", "6225f49abc0f2191", "c4d238ceb73c051c")
+                val seeds = mutableListOf<String>("6ec6d05f61c7e7a7", "a7cb2aac405e36c7", "3005bb411ed586b8", "0b8d47fe1516af3e", "0c810166b30122a5", "0e3f56e88f759a50", "5006e8f2eec7efea", "355cc1872a486c6e", "ea2d5e8a98bec153", "e6f9eb9a843fa660", "009ef173a99f39eb", "40d43049ef11db9a", "63583bd491b95d3b", "66ff4a95ff37cf60", "f790e8a0c6467c05", "de6ba969db713bae", "bf845a9712242dfd", "5ffac0cf3e10779b")
+                for (i in 0 until names.size) {
+                    val data = CryptoTestSupport.data(names[i])
+                    Test.equals(zeros[i], CryptoTestSupport.i64Hex(Xxh64.make(data, 0.toLong())), null)
+                    Test.equals(seeds[i], CryptoTestSupport.i64Hex(Xxh64.make(data, ((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))), null)
+                }
+        }
+    }
+
+@boring.test.Test
+    fun streamingChunks() {
+        Test.run("tests.Xxh64Tests.streamingChunks", "tests.Xxh64Tests.streamingChunks: xxh64 streaming chunks") {
+                val data = CryptoTestSupport.data("len240")
+                run {
+                    run {
+                        val step = 1
+                        val h = Xxh64(((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))
+                        var p = 0
+                        while ((p < data.size)) {
+                            val n = (if ((step < data.size - p)) step else data.size - p)
+                            h.update(data.copyOfRange(p, p + n))
+                            p += n
+                        }
+                        Test.equals(CryptoTestSupport.i64Hex(Xxh64.make(data, ((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))), CryptoTestSupport.i64Hex(h.digest()), null)
+                    }
+                    run {
+                        val step_2 = 3
+                        val h_2 = Xxh64(((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))
+                        var p_2 = 0
+                        while ((p_2 < data.size)) {
+                            val n_2 = (if ((step_2 < data.size - p_2)) step_2 else data.size - p_2)
+                            h_2.update(data.copyOfRange(p_2, p_2 + n_2))
+                            p_2 += n_2
+                        }
+                        Test.equals(CryptoTestSupport.i64Hex(Xxh64.make(data, ((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))), CryptoTestSupport.i64Hex(h_2.digest()), null)
+                    }
+                    run {
+                        val step_3 = 7
+                        val h_3 = Xxh64(((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))
+                        var p_3 = 0
+                        while ((p_3 < data.size)) {
+                            val n_3 = (if ((step_3 < data.size - p_3)) step_3 else data.size - p_3)
+                            h_3.update(data.copyOfRange(p_3, p_3 + n_3))
+                            p_3 += n_3
+                        }
+                        Test.equals(CryptoTestSupport.i64Hex(Xxh64.make(data, ((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))), CryptoTestSupport.i64Hex(h_3.digest()), null)
+                    }
+                    run {
+                        val step_4 = 31
+                        val h_4 = Xxh64(((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))
+                        var p_4 = 0
+                        while ((p_4 < data.size)) {
+                            val n_4 = (if ((step_4 < data.size - p_4)) step_4 else data.size - p_4)
+                            h_4.update(data.copyOfRange(p_4, p_4 + n_4))
+                            p_4 += n_4
+                        }
+                        Test.equals(CryptoTestSupport.i64Hex(Xxh64.make(data, ((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))), CryptoTestSupport.i64Hex(h_4.digest()), null)
+                    }
+                }
+        }
+    }
+
+@boring.test.Test
+    fun digestIsIdempotent() {
+        Test.run("tests.Xxh64Tests.digestIsIdempotent", "tests.Xxh64Tests.digestIsIdempotent: xxh64 digest remains usable") {
+                val h = Xxh64(((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)))
+                h.update(CryptoTestSupport.data("len1"))
+                val first = h.digest()
+                Test.equals(CryptoTestSupport.i64Hex(first), CryptoTestSupport.i64Hex(h.digest()), null)
+                h.update(CryptoTestSupport.data("len16"))
+                Test.equals("03558a350cde4fc8", CryptoTestSupport.i64Hex(h.digest()), null)
+        }
+    }
+}

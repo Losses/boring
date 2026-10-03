@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class EnumLookupTests {
+@boring.test.Test
+    fun testRoundTrip() {
+        Test.run("tests.EnumLookupTests.testRoundTrip", "tests.EnumLookupTests.testRoundTrip: a createEnum result unwraps before a name read") {
+                Test.equals(true, true, null)
+        }
+    }
+}

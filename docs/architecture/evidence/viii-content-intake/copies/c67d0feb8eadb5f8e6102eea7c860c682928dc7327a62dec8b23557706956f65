@@ -1,0 +1,140 @@
+package tests
+
+import boring.BinaryReader
+import boring.BinaryWriter
+import boring.FloatWidth
+import boring.VectorCodec
+import boring.VectorException
+import boring.runtime.test.Test
+import tests.TestHelper
+
+class VectorCodecTests {
+@boring.test.Test
+    fun roundtrip() {
+        Test.run("tests.VectorCodecTests.roundtrip", "tests.VectorCodecTests.roundtrip: encode then decode returns the input records") {
+                val records = TestData.glyphSamples()
+                val decoded = VectorCodec.decode(VectorCodec.encode(records, FloatWidth.F64))
+                TestHelper.assertEquals(records, decoded, "decode(encode(records)) must equal the input")
+        }
+    }
+
+@boring.test.Test
+    fun roundtripF32() {
+        Test.run("tests.VectorCodecTests.roundtripF32", "tests.VectorCodecTests.roundtripF32: f32 blocks round trip every record") {
+                val records = TestData.glyphSamples()
+                val decoded = VectorCodec.decode(VectorCodec.encode(records, FloatWidth.F32))
+                TestHelper.assertEquals(records, decoded, "decode(encode(records, F32)) must equal the input")
+        }
+    }
+
+@boring.test.Test
+    fun roundtripF16() {
+        Test.run("tests.VectorCodecTests.roundtripF16", "tests.VectorCodecTests.roundtripF16: f16 blocks round trip every record") {
+                val records = TestData.glyphSamples()
+                val decoded = VectorCodec.decode(VectorCodec.encode(records, FloatWidth.F16))
+                TestHelper.assertEquals(records, decoded, "decode(encode(records, F16)) must equal the input")
+        }
+    }
+
+@boring.test.Test
+    fun byteLengthsPerWidth() {
+        Test.run("tests.VectorCodecTests.byteLengthsPerWidth", "tests.VectorCodecTests.byteLengthsPerWidth: block lengths follow the width marker") {
+                Test.equals(184, VectorCodec.byteLength(4, FloatWidth.F64), "four records occupy 184 bytes at f64")
+                Test.equals(104, VectorCodec.byteLength(4, FloatWidth.F32), "four records occupy 104 bytes at f32")
+                Test.equals(64, VectorCodec.byteLength(4, FloatWidth.F16), "four records occupy 64 bytes at f16")
+        }
+    }
+
+@boring.test.Test
+    fun magicWidthMapping() {
+        Test.run("tests.VectorCodecTests.magicWidthMapping", "tests.VectorCodecTests.magicWidthMapping: magics map to widths, unknown magics answer null") {
+                Test.equals("BRG1", VectorCodec.magicOf(FloatWidth.F64), "F64 travels under BRG1")
+                Test.equals("BRG2", VectorCodec.magicOf(FloatWidth.F32), "F32 travels under BRG2")
+                Test.equals("BRG3", VectorCodec.magicOf(FloatWidth.F16), "F16 travels under BRG3")
+                Test.ok(VectorCodec.widthOfMagic("BRG4") == null, "unknown magics answer null")
+        }
+    }
+
+@boring.test.Test
+    fun testBool() {
+        Test.run("tests.VectorCodecTests.testBool", "tests.VectorCodecTests.testBool: boolean assertion") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testInt() {
+        Test.run("tests.VectorCodecTests.testInt", "tests.VectorCodecTests.testInt: integer assertion") {
+                Test.equals(42, 42, null)
+        }
+    }
+
+@boring.test.Test
+    fun testFloat() {
+        Test.run("tests.VectorCodecTests.testFloat", "tests.VectorCodecTests.testFloat: float assertion") {
+                Test.equals(0.5, 0.5, null)
+        }
+    }
+
+@boring.test.Test
+    fun testString() {
+        Test.run("tests.VectorCodecTests.testString", "tests.VectorCodecTests.testString: string assertion") {
+                Test.equals("hello\nworld\ttest", "hello\nworld\ttest", null)
+        }
+    }
+
+@boring.test.Test
+    fun testBytes() {
+        Test.run("tests.VectorCodecTests.testBytes", "tests.VectorCodecTests.testBytes: bytes assertion") {
+                TestHelper.assertEquals(TestData.sampleBytes(), TestData.sampleBytes(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testArray() {
+        Test.run("tests.VectorCodecTests.testArray", "tests.VectorCodecTests.testArray: array assertion") {
+                TestHelper.assertEquals(mutableListOf<Int>(1, 2, 3), mutableListOf<Int>(1, 2, 3), null)
+        }
+    }
+
+@boring.test.Test
+    fun testStructure() {
+        Test.run("tests.VectorCodecTests.testStructure", "tests.VectorCodecTests.testStructure: structure assertion") {
+                TestHelper.assertEquals(TestData.sampleBounds(), TestData.sampleBounds(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testEnum() {
+        Test.run("tests.VectorCodecTests.testEnum", "tests.VectorCodecTests.testEnum: enum assertion") {
+                TestHelper.assertEquals(VectorException.BadMagic, VectorException.BadMagic, null)
+        }
+    }
+
+@boring.test.Test
+    fun testNaN() {
+        Test.run("tests.VectorCodecTests.testNaN", "tests.VectorCodecTests.testNaN: nan assertion using ok") {
+                val nanVal = Double.NaN
+                Test.ok(nanVal != nanVal, "NaN is not equal to itself under IEEE-754")
+        }
+    }
+
+@boring.test.Test
+    fun testWithoutDescription() {
+        Test.run("tests.VectorCodecTests.testWithoutDescription", "tests.VectorCodecTests.testWithoutDescription") {
+                Test.ok(true, null)
+        }
+    }
+
+@boring.test.Test
+    fun asciiCodecsRoundTrip() {
+        Test.run("tests.VectorCodecTests.asciiCodecsRoundTrip", "tests.VectorCodecTests.asciiCodecsRoundTrip: ascii codecs round-trip through the Bytes APIs") {
+                val writer = BinaryWriter()
+                writer.writeAscii("BRG9")
+                Test.equals("BRG9", BinaryReader(writer.finish()).readAscii(4), null)
+                val wide = BinaryWriter()
+                wide.writeAscii("汉")
+                Test.equals("汉", BinaryReader(wide.finish()).readAscii(3), null)
+        }
+    }
+}

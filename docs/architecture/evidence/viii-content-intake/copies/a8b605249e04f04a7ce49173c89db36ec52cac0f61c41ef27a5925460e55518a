@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/null-guard-xcheck
+argv diff -u /home/losses/Development/tq-workspace/dc-warn/worktrees/null-guard-xcheck/tests/haxe/xcheck-null-guard/expected.txt /home/losses/Development/tq-workspace/dc-warn/out/null-guard-xcheck/xcheck-20260929T200743Z/stages/c2-run/stdout

@@ -1,0 +1,29 @@
+#![cfg(test)]
+
+use crate::boring::float_compound_assign_ops::FloatCompoundAssignOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn scaled() {
+    testlib::run("tests.FloatCompoundAssignOpsTests.scaled", "tests.FloatCompoundAssignOpsTests.scaled: a Float compound assignment widens an Int right side", || {
+        test_core::TestCore::test_core_equals_bool(true, FloatCompoundAssignOps::float_compound_assign_ops_scaled(250.0f64) == 2.5f64, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, FloatCompoundAssignOps::float_compound_assign_ops_scaled(0.25f64) == 2.5f64, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn step_total() {
+    testlib::run("tests.FloatCompoundAssignOpsTests.stepTotal", "tests.FloatCompoundAssignOpsTests.stepTotal: a Float accumulator widens each Int increment", || {
+        test_core::TestCore::test_core_equals_bool(true, FloatCompoundAssignOps::float_compound_assign_ops_step_total() == 3.0f64, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn walk() {
+    testlib::run("tests.FloatCompoundAssignOpsTests.walk", "tests.FloatCompoundAssignOpsTests.walk: add and subtract compound assignments widen Int right sides", || {
+        test_core::TestCore::test_core_equals_bool(true, FloatCompoundAssignOps::float_compound_assign_ops_walk(5.0f64) == 6.0f64, UStr::new(&[]));
+    });
+}

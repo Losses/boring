@@ -1,0 +1,14 @@
+package tests
+
+import boring.PayloadSelfMapException
+import boring.runtime.test.Test
+
+class PayloadSelfMapOpsTests {
+@boring.test.Test
+    fun selfMappedPayload() {
+        Test.run("tests.PayloadSelfMapOpsTests.selfMappedPayload", "tests.PayloadSelfMapOpsTests.selfMappedPayload: keeps a payload enum and exception declared in one module") {
+                val error = PayloadSelfMapException.make()
+                Test.equals("payload self-map", error.message, null)
+        }
+    }
+}

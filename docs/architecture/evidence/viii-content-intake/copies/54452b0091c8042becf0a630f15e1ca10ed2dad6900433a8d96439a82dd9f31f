@@ -1,0 +1,65 @@
+run directory out/place/runs/place-aZ31Np
+verdict recorded
+verdict qualifier recorded-with-not-reached-stages
+stages declared 48 recorded 48
+findings
+stage harness-build-all not reached through rustc-all (producer-rustc-all-status-1)
+stage harness-run-all not reached through rustc-all (producer-rustc-all-status-1)
+stage harness-build-R5 not reached through rustc-R5 (producer-rustc-R5-status-1)
+stage harness-run-R5 not reached through rustc-R5 (producer-rustc-R5-status-1)
+status rows
+stage	expected	observed	producer
+paired-js-compile-all	zero	0	paired-js-compile-all
+paired-js-run-all	zero	0	paired-js-run-all
+rust-gen-all	data	0	rust-gen-all
+rustc-all	data	1	rustc-all
+harness-build-all	not-reached	producer-rustc-all-status-1	rustc-all
+harness-run-all	not-reached	producer-rustc-all-status-1	rustc-all
+readfault-compile	zero	0	readfault-compile
+readfault-run	program-failure	1	readfault-run
+reject-getter-assign	source-rejection	1	reject-getter-assign
+reject-final-field-assign	source-rejection	1	reject-final-field-assign
+reject-readonly-element	source-rejection	1	reject-readonly-element
+reject-final-local	source-rejection	1	reject-final-local
+paired-js-compile-R1	zero	0	paired-js-compile-R1
+paired-js-run-R1	zero	0	paired-js-run-R1
+rust-gen-R1	data	0	rust-gen-R1
+rustc-R1	data	0	rustc-R1
+harness-build-R1	data	0	harness-build-R1
+harness-run-R1	data	0	harness-run-R1
+paired-js-compile-R2	zero	0	paired-js-compile-R2
+paired-js-run-R2	zero	0	paired-js-run-R2
+rust-gen-R2	data	0	rust-gen-R2
+rustc-R2	data	0	rustc-R2
+harness-build-R2	data	0	harness-build-R2
+harness-run-R2	data	0	harness-run-R2
+paired-js-compile-R3	zero	0	paired-js-compile-R3
+paired-js-run-R3	zero	0	paired-js-run-R3
+rust-gen-R3	data	0	rust-gen-R3
+rustc-R3	data	0	rustc-R3
+harness-build-R3	data	0	harness-build-R3
+harness-run-R3	data	0	harness-run-R3
+paired-js-compile-R5	zero	0	paired-js-compile-R5
+paired-js-run-R5	zero	0	paired-js-run-R5
+rust-gen-R5	data	0	rust-gen-R5
+rustc-R5	data	1	rustc-R5
+harness-build-R5	not-reached	producer-rustc-R5-status-1	rustc-R5
+harness-run-R5	not-reached	producer-rustc-R5-status-1	rustc-R5
+paired-js-compile-R5rec	zero	0	paired-js-compile-R5rec
+paired-js-run-R5rec	zero	0	paired-js-run-R5rec
+rust-gen-R5rec	data	0	rust-gen-R5rec
+rustc-R5rec	data	0	rustc-R5rec
+harness-build-R5rec	data	0	harness-build-R5rec
+harness-run-R5rec	data	0	harness-run-R5rec
+paired-js-compile-R6	zero	0	paired-js-compile-R6
+paired-js-run-R6	zero	0	paired-js-run-R6
+rust-gen-R6	data	0	rust-gen-R6
+rustc-R6	data	0	rustc-R6
+harness-build-R6	data	0	harness-build-R6
+harness-run-R6	data	0	harness-run-R6
+diagnostic checks
+stage	expected-diagnostic	found
+reject-getter-assign	This expression cannot be accessed for writing	yes
+reject-final-field-assign	This expression cannot be accessed for writing	yes
+reject-readonly-element	No @:arrayAccess function	yes
+reject-final-local	Cannot assign to final	yes

@@ -1,0 +1,4 @@
+package boring
+
+class ImpHost(val widget: ImpWidget = ImpWidget()) {
+}

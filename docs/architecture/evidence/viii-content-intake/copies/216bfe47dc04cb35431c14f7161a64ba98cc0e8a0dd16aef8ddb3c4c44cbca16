@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_compare() {
+    testlib::run("tests.TypeParameterCompareTests.testCompare", "tests.TypeParameterCompareTests.testCompare: a generic equality compares equal and different values", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

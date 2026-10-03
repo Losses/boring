@@ -1,0 +1,105 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn ascii_round_trip() {
+    testlib::run("tests.StringCodecTests.asciiRoundTrip", "tests.StringCodecTests.asciiRoundTrip: encodes and decodes ASCII", || {
+        let bytes = UString::from("abc").as_bytes().to_vec();
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((u32::try_from((bytes.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(97i32, i32::from_ne_bytes(((u32::from(bytes[0usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,98,99]), UString::from(String::from_utf8_lossy(&bytes[0usize..usize::try_from(0 + 3).unwrap_or(0)]).into_owned().as_str()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn cjk_round_trip() {
+    testlib::run("tests.StringCodecTests.cjkRoundTrip", "tests.StringCodecTests.cjkRoundTrip: encodes and decodes a two-byte character", || {
+        let bytes = UString::from("汉").as_bytes().to_vec();
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((u32::try_from((bytes.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(230i32, i32::from_ne_bytes(((u32::from(bytes[0usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[27721]), UString::from(String::from_utf8_lossy(&bytes[0usize..usize::try_from(0 + 3).unwrap_or(0)]).into_owned().as_str()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn astral_round_trip() {
+    testlib::run("tests.StringCodecTests.astralRoundTrip", "tests.StringCodecTests.astralRoundTrip: encodes and decodes an astral character", || {
+        let bytes = UString::from("𠮷").as_bytes().to_vec();
+        test_core::TestCore::test_core_equals_int(4i32, i32::from_ne_bytes(((u32::try_from((bytes.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[55362,57271]), UString::from(String::from_utf8_lossy(&bytes[0usize..usize::try_from(0 + 4).unwrap_or(0)]).into_owned().as_str()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn empty_encode() {
+    testlib::run("tests.StringCodecTests.emptyEncode", "tests.StringCodecTests.emptyEncode: empty string encodes to zero bytes", || {
+        let bytes = UString::from("").as_bytes().to_vec();
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((u32::try_from((bytes.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[]), UString::from(String::from_utf8_lossy(&bytes[0usize..usize::try_from(0 + 0).unwrap_or(0)]).into_owned().as_str()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn invalid_decodes_to_replacement() {
+    testlib::run("tests.StringCodecTests.invalidDecodesToReplacement", "tests.StringCodecTests.invalidDecodesToReplacement: invalid bytes decode to U+FFFD", || {
+        let mut bytes = vec![0u8; 2usize];
+        bytes[0usize] = 195u8;
+        bytes[1usize] = 195u8;
+        test_core::TestCore::test_core_equals_string(UStr::new(&[65533,65533]), UString::from(String::from_utf8_lossy(&bytes[0usize..usize::try_from(0 + 2).unwrap_or(0)]).into_owned().as_str()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn truncated_sequence() {
+    testlib::run("tests.StringCodecTests.truncatedSequence", "tests.StringCodecTests.truncatedSequence: a truncated multi-byte sequence decodes to U+FFFD", || {
+        let bytes = UString::from("汉").as_bytes().to_vec();
+        test_core::TestCore::test_core_equals_string(UStr::new(&[65533]), UString::from(String::from_utf8_lossy(&bytes[0usize..usize::try_from(0 + 2).unwrap_or(0)]).into_owned().as_str()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn sub_range_decode() {
+    testlib::run("tests.StringCodecTests.subRangeDecode", "tests.StringCodecTests.subRangeDecode: getString decodes a middle sub-range", || {
+        let bytes = UString::from("a汉b").as_bytes().to_vec();
+        test_core::TestCore::test_core_equals_string(UStr::new(&[27721]), UString::from(String::from_utf8_lossy(&bytes[1usize..usize::try_from(1 + 3).unwrap_or(0)]).into_owned().as_str()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn concat_joins() {
+    testlib::run("tests.StringCodecTests.concatJoins", "tests.StringCodecTests.concatJoins: concat joins both operands in order", || {
+        let left = UString::from("ab").as_bytes().to_vec();
+        let right = UString::from("汉").as_bytes().to_vec();
+        let joined = { let mut v = left.to_vec(); v.extend_from_slice(&right); v };
+        test_core::TestCore::test_core_equals_int(5i32, i32::from_ne_bytes(((u32::try_from((joined.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(97i32, i32::from_ne_bytes(((u32::from(joined[0usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,98,27721]), UString::from(String::from_utf8_lossy(&joined[0usize..usize::try_from(0 + 5).unwrap_or(0)]).into_owned().as_str()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn concat_empty() {
+    testlib::run("tests.StringCodecTests.concatEmpty", "tests.StringCodecTests.concatEmpty: concat with an empty operand still copies", || {
+        let left = UString::from("ab").as_bytes().to_vec();
+        let right = vec![0u8; 0usize];
+        let joined = { let mut v = left.to_vec(); v.extend_from_slice(&right); v };
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((u32::try_from((joined.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,98]), UString::from(String::from_utf8_lossy(&joined[0usize..usize::try_from(0 + 2).unwrap_or(0)]).into_owned().as_str()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn concat_no_alias() {
+    testlib::run("tests.StringCodecTests.concatNoAlias", "tests.StringCodecTests.concatNoAlias: concat never shares storage with its operands", || {
+        let mut left = UString::from("ab").as_bytes().to_vec();
+        let right = UString::from("cd").as_bytes().to_vec();
+        let joined = { let mut v = left.to_vec(); v.extend_from_slice(&right); v };
+        left[0usize] = 122u8;
+        test_core::TestCore::test_core_equals_int(97i32, i32::from_ne_bytes(((u32::from(joined[0usize])) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

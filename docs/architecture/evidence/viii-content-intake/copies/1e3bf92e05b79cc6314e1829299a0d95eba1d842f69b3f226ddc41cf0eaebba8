@@ -1,0 +1,11 @@
+package boring
+
+data class InheritCtorOps(val message: String) {
+}
+
+fun compareInheritCtorOps(a: InheritCtorOps, b: InheritCtorOps): Int {
+    var cmp = 0
+    cmp = a.message.compareTo(b.message)
+    if (cmp != 0) return cmp
+    return 0
+}

@@ -1,0 +1,39 @@
+mx/MXProbe.swift:41:35: error: declared closure result 'ReadOnlyArray<Int32>' is incompatible with return type 'TiqianArray<Int32>'
+ 39 | 
+ 40 |     public static func pFastPlain(_ flag: Bool) -> Int32 {
+ 41 |         let f = { (flag: Bool) -> ReadOnlyArray<Int32> in PSource.first() }
+    |                                   `- error: declared closure result 'ReadOnlyArray<Int32>' is incompatible with return type 'TiqianArray<Int32>'
+ 42 |         return PSource.view(f(flag))
+ 43 |     }
+
+mx/MXProbe.swift:63:12: error: cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+ 61 |     let n: Int32 = MXProbe.len(({ () -> TiqianArray<Int32> in
+ 62 |     let s: Int32 = Int32(src.count)
+ 63 |     return ReadOnlyArray(({ () in let _a = src; let _n = _a.count; let _f = Int(s); let _s = _f < 0 ? max(_n + _f, 0) : min(_f, _n); let _t = Int(0); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n); let _e = _e0 < _s ? _s : _e0; return TiqianArray(Array(_a[_s..<_e])) }()))
+    |            `- error: cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+ 64 | })())
+ 65 |     if n < 0 {
+
+mx/MXProbe.swift:88:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 86 |     do {
+ 87 |         return ReadOnlyArray(PSource.first())
+ 88 |     } catch is PError {
+    |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 89 |         return ReadOnlyArray(PSource.second())
+ 90 |     } catch {
+
+mx/MXProbe.swift:106:13: warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+104 |         case .pOne:
+105 |             let first = PSource.first()
+106 |             ReadOnlyArray(first)
+    |             `- warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+107 |         case .pTwo:
+108 |             ReadOnlyArray(PSource.second())
+
+mx/MXProbe.swift:108:13: warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+106 |             ReadOnlyArray(first)
+107 |         case .pTwo:
+108 |             ReadOnlyArray(PSource.second())
+    |             `- warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+109 |     }
+110 | }

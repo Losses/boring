@@ -1,0 +1,106 @@
+--- a/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx	2026-09-29 21:00:13.000000000 -0400
++++ b/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx	2026-09-29 21:15:44.000000000 -0400
+@@ -1031,6 +1031,10 @@
+                                             state.payloadEnumOwners.set(payload.module, cls.name);
+                                             state.payloadEnumNames.set(payload.module, payload.name);
+                                             state.exceptionPayloads.set(cls.module, payload.module);
++                                            // The module-keyed entries above collide when two
++                                            // payload exception classes share a module; record
++                                            // the same pair under the class's own identity.
++                                            state.exceptionPayloadEnums.set(cls.module + "::" + cls.name, {module: payload.module, name: payload.name});
+                                         case _:
+                                     }
+                                     if (!hasPayload && RustDecl.isMessageOnlyException(cls))
+@@ -2235,10 +2239,18 @@
+     function regionErrorNameOf(c:{v:TVar, expr:TypedExpr}):Null<String> {
+         switch (Context.follow(c.v.t)) {
+             case TInst(cls, _):
+-                final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
++                final caught = cls.get();
++                // The caught class's own payload first: the module-keyed
++                // fallbacks below cannot tell two exception classes of one
++                // module apart, and naming the other class's payload enum
++                // mistypes the catch region (`?` then fails to convert).
++                final payload = state.exceptionPayloadEnums.get(caught.module + "::" + caught.name);
++                if (payload != null)
++                    return payload.name;
++                final messageOnly = state.messageOnlyExceptions.get(caught.module);
+                 if (messageOnly != null)
+                     return messageOnly;
+-                final enumModule = state.exceptionPayloads.get(cls.get().module);
++                final enumModule = state.exceptionPayloads.get(caught.module);
+                 if (enumModule == null)
+                     return null;
+                 return state.payloadEnumNames.exists(enumModule) ? state.payloadEnumNames.get(enumModule) : enumModule.substr(enumModule.lastIndexOf(".") + 1);
+@@ -2486,12 +2498,18 @@
+                 if (payloadEnum == null)
+                     return;
+                 // The payload enum this class actually carries must be the
+-                // one recorded for its module; otherwise the module key
+-                // belongs to a different exception and the growth variant
+-                // would attach to an unrelated enum.
+-                final enumName = state.payloadEnumNames.get(payloadEnum.module);
+-                if (enumName == null || enumName != payloadEnum.name)
++                // one recorded for this class; otherwise no payload pair was
++                // recorded for it and the growth variant would attach to an
++                // unrelated enum. Reading the class-keyed map is what keeps
++                // the gate satisfiable when two exception classes share one
++                // module: the payload enum's module is the same string for
++                // both, so a module lookup returns whichever class was
++                // scanned last and silently dropped every other class's
++                // registration (and with it its class-level struct emission).
++                final recorded = state.exceptionPayloadEnums.get(cls.module + "::" + cls.name);
++                if (recorded == null || recorded.module != payloadEnum.module || recorded.name != payloadEnum.name)
+                     return;
++                final enumName = recorded.name;
+                 if (state.isSyntheticErrorType(enumName))
+                     return;
+                 // A throw inside a cfg(test) module references the variant
+--- a/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx	2026-09-29 21:00:13.000000000 -0400
++++ b/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx	2026-09-29 21:15:44.000000000 -0400
+@@ -33,6 +33,21 @@
+     **/
+     public final payloadEnumNames:Map<String, String> = [];
+ 
++    /**
++        Maps an exception class, keyed "<class module>::<class name>", to the
++        payload enum its constructor carries. The three maps above key on the
++        payload enum's MODULE, and every type declared in one Haxe file shares
++        that file's module: two payload exception classes in one module write
++        the same key, so the later write replaces the earlier class's payload
++        identity and the module key cannot say which payload belongs to which
++        class. This map keeps that identity per class, so the growth-variant
++        registration gate (Compiler.registerThrownExceptionVariant) and the
++        try-region error name (Compiler.regionErrorNameOf) resolve the payload
++        of the class in hand rather than of whichever class was scanned last.
++        (ThrowFaultVariantGrowth)
++    **/
++    public final exceptionPayloadEnums:Map<String, {module:String, name:String}> = [];
++
+     /** Message-only exception classes are represented by their own Rust error enum. */
+     public final messageOnlyExceptions:Map<String, String> = [];
+ 
+--- a/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx	2026-09-29 21:00:13.000000000 -0400
++++ b/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx	2026-09-29 21:15:45.000000000 -0400
+@@ -5850,10 +5850,18 @@
+     function caughtPayloadEnum(c:{v:TVar, expr:TypedExpr}):Null<{name:String, module:String}> {
+         switch (Context.follow(c.v.t)) {
+             case TInst(cls, _):
+-                final messageOnly = state.messageOnlyExceptions.get(cls.get().module);
++                final caught = cls.get();
++                // The caught class's own payload first: the module-keyed maps
++                // below key on the payload enum's module, which two exception
++                // classes of one Haxe file share, so they answer for whichever
++                // class was scanned last and mistype this region.
++                final recorded = state.exceptionPayloadEnums.get(caught.module + "::" + caught.name);
++                if (recorded != null)
++                    return {name: recorded.name, module: recorded.module};
++                final messageOnly = state.messageOnlyExceptions.get(caught.module);
+                 if (messageOnly != null)
+-                    return {name: messageOnly, module: cls.get().module};
+-                final enumModule = state.exceptionPayloads.get(cls.get().module);
++                    return {name: messageOnly, module: caught.module};
++                final enumModule = state.exceptionPayloads.get(caught.module);
+                 if (enumModule == null) {
+                     return null;
+                 }

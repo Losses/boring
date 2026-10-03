@@ -1,0 +1,3 @@
+FAIL: allowlist: exempt[0].module registry.Main: reason is too short to be an exemption sentence (3 word(s): "tiny reason here"); need >= 4 words
+roots guard: FAILED
+exit_code=1

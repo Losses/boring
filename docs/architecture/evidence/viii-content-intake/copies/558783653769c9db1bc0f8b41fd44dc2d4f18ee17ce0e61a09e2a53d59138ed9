@@ -1,0 +1,11 @@
+package boring
+
+object NumberClassifyOps {
+    fun finite(value: Double): Boolean {
+        return (value).isFinite()
+    }
+
+    fun nan(value: Double): Boolean {
+        return (value).isNaN()
+    }
+}

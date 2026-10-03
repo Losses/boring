@@ -1,0 +1,33 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct SignedComparisonOps;
+
+impl SignedComparisonOps {
+    pub fn signed_comparison_ops_index_below_limit(text: &UStr, limit: u32) -> bool {
+        return (u_string::find_from(&(text), UString::from("x").as_ustr(), 0)) < (i32::from_ne_bytes(((limit) as i32).to_ne_bytes()));
+    }
+
+    pub fn signed_comparison_ops_index_at_or_above_limit(text: &UStr, limit: u32) -> bool {
+        return (u_string::find_from(&(text), UString::from("x").as_ustr(), 0)) >= i32::from_ne_bytes(((limit) as i32).to_ne_bytes());
+    }
+
+    pub fn signed_comparison_ops_index_equals_limit(text: &UStr, limit: u32) -> bool {
+        return u32::from_ne_bytes(((u_string::find_from(&(text), UString::from("x").as_ustr(), 0)) as u32).to_ne_bytes()) == limit;
+    }
+
+    pub fn signed_comparison_ops_last_index_equals_limit(text: &UStr, limit: u32) -> bool {
+        return u32::from_ne_bytes(((match (text).rfind(&UString::from("x")) { Some(v) => i32::from_ne_bytes(u32::try_from((v) & 4294967295).unwrap_or(0).to_ne_bytes()), None => -1 }) as u32).to_ne_bytes()) == limit;
+    }
+
+    pub fn signed_comparison_ops_index_below_zero(text: &UStr) -> bool {
+        return (u32::from_ne_bytes(((u_string::find_from(&(text), UString::from("x").as_ustr(), 0)) as u32).to_ne_bytes())) > 2147483647;
+    }
+
+    pub fn signed_comparison_ops_element_below_zero(values: &Vec<u32>, needle: u32) -> bool {
+        return (u32::from_ne_bytes(((match values.iter().position(|e| e == &needle) { Some(v) => i32::from_ne_bytes(u32::try_from(v).unwrap_or(0).to_ne_bytes()), None => -1 }) as u32).to_ne_bytes())) > 2147483647;
+    }
+}

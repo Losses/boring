@@ -1,0 +1,43 @@
+package tests
+
+import boring.EnumQueriesOps
+import boring.runtime.test.Test
+
+class EnumQueriesTests {
+@boring.test.Test
+    fun names() {
+        Test.run("tests.EnumQueriesTests.names", "tests.EnumQueriesTests.names: enum collections preserve declaration order and constructor names") {
+                Test.equals("F64,F32,F16", EnumQueriesOps.names(), null)
+        }
+    }
+
+@boring.test.Test
+    fun counts() {
+        Test.run("tests.EnumQueriesTests.counts", "tests.EnumQueriesTests.counts: enum collection counts fold through direct and alias reads") {
+                Test.equals(3, EnumQueriesOps.directCount(), null)
+                Test.equals(3, EnumQueriesOps.aliasCount(), null)
+        }
+    }
+
+@boring.test.Test
+    fun lookup() {
+        Test.run("tests.EnumQueriesTests.lookup", "tests.EnumQueriesTests.lookup: enum name lookup round trips and misses return empty") {
+                Test.equals(true, EnumQueriesOps.roundTrips(), null)
+                Test.equals("empty", EnumQueriesOps.unknown(), null)
+        }
+    }
+
+@boring.test.Test
+    fun second() {
+        Test.run("tests.EnumQueriesTests.second", "tests.EnumQueriesTests.second: enum queries cover a second value enumeration") {
+                Test.equals("Read,Write", EnumQueriesOps.secondEnum(), null)
+        }
+    }
+
+@boring.test.Test
+    fun lookupName() {
+        Test.run("tests.EnumQueriesTests.lookupName", "tests.EnumQueriesTests.lookupName: enumConstructor on a createEnum result unwraps the nullable lookup") {
+                Test.equals("Read", EnumQueriesOps.lookupName(), null)
+        }
+    }
+}

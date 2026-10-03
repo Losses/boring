@@ -1,0 +1,17 @@
+use crate::boring::nullable_receiver::NullableReceiver;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct NullabilityOps;
+
+impl NullabilityOps {
+    pub fn nullability_ops_nullable_to_string(value: Option<NullableReceiver>) -> UString {
+        return UString::from(format!("{}", value.as_ref().unwrap().to_string()).as_str());
+    }
+
+    pub fn nullability_ops_nullable_to_string_with_param(value: Option<NullableReceiver>, suffix: &UStr) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += UString::from(format!("{}", value.as_ref().unwrap().to_string()).as_str()).as_ustr(); __s += suffix; __s }).as_str());
+    }
+}

@@ -1,0 +1,20 @@
+idx bundle exitStatus captureComplete captureError argv[:3]
+0001 haxe 0 True None -cp samples -cp
+0002 ts 0 True None -cp samples -cp
+0003 kotlin 0 True None -cp samples -cp
+0004 dart 0 True None -cp samples -cp
+0005 rust 0 True None -cp samples -cp
+0006 swift 0 True None -cp samples -cp
+0007 haxe-f32 0 True None -cp samples -cp
+0008 kotlin-f32 0 True None -cp samples -cp
+0009 rust-f32 0 True None -cp samples -cp
+0010 swift-f32 0 True None -cp samples -cp
+0011 haxe 0 True None -cp /home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord/reference/hax
+0012 haxe 0 True None /home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord/reference/haxe/ge
+0013 ts 0 True None test /home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord/reference/ts
+0014 kotlin 0 True None /home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord/reference/kotlin/
+0015 kotlin 0 True None -cp /home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord/reference/kot
+0016 kotlin 0 True None -cp /home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord/reference/kot
+0017 dart 0 True None /home/losses/Development/tq-workspace/publication-staging/execution-option-c-coord/reference/dart/ge
+0018 rust 0 True None test --no-run
+0019 rust 0 True None test

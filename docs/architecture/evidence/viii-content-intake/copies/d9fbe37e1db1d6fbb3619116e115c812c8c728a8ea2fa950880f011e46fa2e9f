@@ -1,0 +1,3 @@
+FAIL: allowlist: unrootedTestModules[2].module tests.NumberClassifyTests: reason contains a padded/gibberish token (three or more consecutive repeats of one character): "qqqq"
+roots guard: FAILED
+exit_code=1

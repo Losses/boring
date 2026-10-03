@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class NarrowedOptionReturnTests {
+@boring.test.Test
+    fun pick() {
+        Test.run("tests.NarrowedOptionReturnTests.pick", "tests.NarrowedOptionReturnTests.pick: a narrowed nullable value returns through a fallible owned String slot") {
+        }
+    }
+}

@@ -1,0 +1,7 @@
+package boring
+
+class InkTextShaper : TextShaper {
+    override fun shape(text: String): String {
+        return "ink:" + text
+    }
+}

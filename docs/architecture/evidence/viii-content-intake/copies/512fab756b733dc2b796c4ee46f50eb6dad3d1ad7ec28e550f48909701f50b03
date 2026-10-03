@@ -1,0 +1,8 @@
+set -uo pipefail
+echo "### PRISTINE xs-samples xs-testmod"
+bash /tmp/rt-xcheck/bx2-all.sh pristine build xs-samples xs-testmod
+cp /tmp/rt-xcheck/bx-pristine/status2.tsv /tmp/rt-xcheck/bx-pristine/status2-bx3.tsv
+echo "### POSTFIX xs-samples xs-testmod"
+bash /tmp/rt-xcheck/bx2-all.sh postfix build xs-samples xs-testmod
+cp /tmp/rt-xcheck/bx-postfix/status2.tsv /tmp/rt-xcheck/bx-postfix/status2-bx3.tsv
+echo "### DONE"

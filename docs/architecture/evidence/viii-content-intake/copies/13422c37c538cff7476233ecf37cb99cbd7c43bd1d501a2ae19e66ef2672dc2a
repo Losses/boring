@@ -1,0 +1,5 @@
+fixture sha256: 0fff62893ff3598f0b32ecb8b8ff032b45d312069ac354403baf62c35e38e1fb  /home/losses/Development/tq-workspace/dc-warn/out/lambda-claim-xcheck/evidence/fixture/MXLambda.hx
+candidate generated sha256: d5361406c7eea2a1b91c6db7cb63972b0b624e50549797552495a51253a7daec  /home/losses/Development/tq-workspace/dc-warn/out/lambda-claim-xcheck/evidence/generated/MXLambda-cand.swift
+base generated sha256: ac34a4b4e916fd870842a4f98073cf7f7d48b9428aa49f8cd94a431c7821fa97  /home/losses/Development/tq-workspace/dc-warn/out/lambda-claim-xcheck/evidence/generated/MXLambda-base.swift
+
+swiftc typecheck: cand rc=1 errors=7 warnings=2 ; base rc=1 errors=13 warnings=0

@@ -1,0 +1,15 @@
+#![cfg(test)]
+
+use crate::boring::poster_text_render::PosterTextRender;
+use crate::boring::render_shape_text_ops::RenderShapeTextOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn print() {
+    testlib::run("tests.PosterShapeTests.print", "tests.PosterShapeTests.print: a class in the business package implements a std-package interface", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[112,111,115,116,101,114,58,104,105]), RenderShapeTextOps::render_shape_text_ops_print(Box::new(PosterTextRender::new()), UStr::new(&[104,105])).as_ustr(), UStr::new(&[]));
+    });
+}

@@ -1,0 +1,15 @@
+file:///home/losses/Development/tq-workspace/dc-warn/worktrees/ts-sourcemap-xcheck/tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs:33
+			for (let i = 0; i < p.line - 1; i++) o += lines[i].length + 1;
+			                                                   ^
+
+TypeError: Cannot read properties of undefined (reading 'length')
+    at pos (file:///home/losses/Development/tq-workspace/dc-warn/worktrees/ts-sourcemap-xcheck/tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs:33:55)
+    at containingSpan (file:///home/losses/Development/tq-workspace/dc-warn/worktrees/ts-sourcemap-xcheck/tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs:36:11)
+    at file:///home/losses/Development/tq-workspace/dc-warn/worktrees/ts-sourcemap-xcheck/tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs:45:39
+    at Array.map (<anonymous>)
+    at file:///home/losses/Development/tq-workspace/dc-warn/worktrees/ts-sourcemap-xcheck/tests/haxe/ts-sourcemap-three-positions/resolve-origins.mjs:43:23
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.3

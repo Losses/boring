@@ -1,0 +1,15 @@
+boring/C2SwitchOps.swift:9:20: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+ 7 |     switch choice {
+ 8 |         case .values(let values):
+ 9 |             return values
+   |                    `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+10 |         case .marker(_):
+11 |             return C2SwitchOps.fallbackArray()
+
+boring/C2SwitchOps.swift:22:20: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+20 |     switch choice {
+21 |         case .values(let values):
+22 |             return values
+   |                    `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+23 |         case .marker(_):
+24 |             return C2SwitchOps.fallbackArray()

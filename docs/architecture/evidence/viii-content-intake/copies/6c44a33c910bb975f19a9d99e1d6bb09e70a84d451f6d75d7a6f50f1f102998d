@@ -1,0 +1,3 @@
+kotlin-gradle-plugin-version=2.4.9 (neg-gradle/build.gradle.kts:3)
+kotlin-stdlib-pom-version=2.4.10 (neg-gradle/maven/generated-0.1.0.pom:12)
+result=MISMATCH: single-sided version change detected between the two artifacts of one generation

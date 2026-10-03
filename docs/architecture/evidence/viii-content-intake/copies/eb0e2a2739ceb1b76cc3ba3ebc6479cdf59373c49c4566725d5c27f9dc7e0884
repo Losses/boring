@@ -1,0 +1,95 @@
+a/tests/haxe/try-tail-min/... /dev/null	2026-09-22 21:36:18.530607732 -0400
++++ tests/haxe/try-tail-min/expected.txt	2026-09-29 17:08:26.000000000 -0400
+@@ -0,0 +1,2 @@
++rethrow-handler=3
++plain-throw=1
+a/tests/haxe/try-tail-min/... /dev/null	2026-09-22 21:36:18.530607732 -0400
++++ tests/haxe/try-tail-min/gen/rust.hxml	2026-09-29 17:08:26.000000000 -0400
+@@ -0,0 +1,14 @@
++# Rust generation of the try-tail-min minimal fixture.
++# The runner passes -D rust-output=... on the command line.
++-lib reflaxe
++-lib boring
++-cp packages/compiler
++-cp packages/compiler/reflaxe/rust/std-shadow
++-cp packages/compiler/reflaxe/rust
++-cp tests/haxe/try-tail-min
++-cp samples
++--macro Intercept.run(['samples', 'tests/haxe/try-tail-min'])
++--macro rustcompiler.Compiler.use()
++-D runtime-import=crate::runtime
++-D runtime-emit=runtime
++trytailmin.MinOracle
+a/tests/haxe/try-tail-min/... /dev/null	2026-09-22 21:36:18.530607732 -0400
++++ tests/haxe/try-tail-min/native/harness.rs	2026-09-29 17:09:29.000000000 -0400
+@@ -0,0 +1,6 @@
++// Rust native harness for the try-tail-min fixture.
++fn main() {
++    use generated::trytailmin::min_oracle::MinOracle;
++    println!("rethrow-handler={}", MinOracle::min_oracle_rethrow_handler());
++    println!("plain-throw={}", MinOracle::min_oracle_plain_throw());
++}
+a/tests/haxe/try-tail-min/... /dev/null	2026-09-22 21:36:18.530607732 -0400
++++ tests/haxe/try-tail-min/trytailmin/MinOracle.hx	2026-09-29 17:08:26.000000000 -0400
+@@ -0,0 +1,61 @@
++package trytailmin;
++
++/**
++	Minimal reproduction fixture for the Rust ThrowFaultVariantGrowth fix
++	(task t-mun5d97u-c4md): a rethrow of a caught exception value
++	(`throw new MinException(e.fault)`) must grow its payload fault enum
++	with the wrapping variant the throw references, and the exception class
++	must emit beside the enum. plainThrow() covers the constructor-shaped
++	throw that lowers to the payload directly and must stay byte-identical.
++**/
++enum MinFault {
++	Only(tag:String);
++}
++
++class MinException extends haxe.Exception {
++	public final fault:MinFault;
++
++	public function new(fault:MinFault) {
++		this.fault = fault;
++		super(describe(fault));
++	}
++
++	public static function describe(_fault:MinFault):String {
++		return switch (_fault) {
++			case Only(tag): tag;
++		};
++	}
++}
++
++class MinOracle {
++	public static function mustThrow(tag:String):Void {
++		throw new MinException(MinFault.Only(tag));
++	}
++
++	// Rethrow-of-value: the shape that names the growth variant.
++	public static function rethrowHandler():Int {
++		var v = 0;
++		try {
++			mustThrow("rethrow");
++		} catch (e:MinException) {
++			final h = try {
++				throw new MinException(e.fault);
++				99;
++			} catch (e2:MinException) {
++				3;
++			}
++			v = h;
++		}
++		return v;
++	}
++
++	// Constructor-shaped throw: lowers to the payload directly, no variant.
++	public static function plainThrow():Int {
++		return try {
++			mustThrow("plain");
++			99;
++		} catch (e:MinException) {
++			1;
++		}
++	}
++}

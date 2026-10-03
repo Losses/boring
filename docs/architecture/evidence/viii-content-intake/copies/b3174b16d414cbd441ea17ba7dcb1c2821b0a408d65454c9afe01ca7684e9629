@@ -1,0 +1,11 @@
+set -u
+export OPTION_C_ROOT="/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-arrfix"
+export SOURCE_MANIFEST="/home/losses/Development/tq-workspace/dc-warn/out/p09-chainA-rerun/manifest-fixed.json"
+export EXCLUSIVE_RUNNER_DIR="/home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner"
+export GIT_CEILING_DIRECTORIES="/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-arrfix"
+export XDG_CACHE_HOME="/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-arrfix/out/xdg-cache"
+export EXPECTED_MANIFEST_ENTRIES=1433
+export BORING_SWIFT_SYSTEM_PACKAGE=/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6
+export SWIFT_SHIM_STATE="/home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-state-arrfix"
+export PATH="/home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-bin:$PATH"
+exec bash "/home/losses/Development/tq-workspace/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/run-exclusive.sh" "/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-arrfix" "/home/losses/Development/tq-workspace/p09-chainA-work/plan/option-c.plan"

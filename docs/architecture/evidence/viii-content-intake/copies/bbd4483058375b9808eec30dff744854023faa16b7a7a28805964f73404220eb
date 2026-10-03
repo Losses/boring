@@ -1,0 +1,7 @@
+source_sha256=b848f11fa0e67af2f2c29a6014c0ba9a945e30b9084e53ed2fd133973c5e3745
+variant=fn-post.hx
+haxe=4.3.7
+baseline_commit=e1c6597514634fd347d392709793cc19bd96c9a2
+dedup_runsh_exit=0
+xcheck_exit=0
+unbounded_haxe_exit=0

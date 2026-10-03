@@ -1,0 +1,4 @@
+out/try-tail/gen/ts/_GeneratedFiles.txt
+out/try-tail/gen/ts/std/UStringException.ts
+out/try-tail/gen/ts/std/UStringFault.ts
+out/try-tail/gen/ts/trytail/TryTailOracle.ts

@@ -1,0 +1,35 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InlineDefaultOps {
+    pub marker: u32,
+    pub region: u32,
+    pub count: u32,
+}
+
+impl InlineDefaultOps {
+    pub fn new(region: u32, marker: Option<u32>, count: Option<u32>) -> Self {
+        let marker = marker.unwrap_or_else(|| 0);
+        let count = count.unwrap_or_else(|| region);
+        Self {
+            region,
+            marker: marker,
+            count: count,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("InlineDefaultOps(")); __s += &(UString::from("marker=")); __s += &(UString::from((self.marker).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("region=")); __s += &(UString::from((self.region).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("count=")); __s += &(UString::from((self.count).to_string().as_str())); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+pub fn compare_inline_default_ops(a: &InlineDefaultOps, b: &InlineDefaultOps) -> i32 {
+    let cmp_marker = match i32::from_ne_bytes((*(&a.marker)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.marker)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_marker != 0 { return cmp_marker; }
+    let cmp_region = match i32::from_ne_bytes((*(&a.region)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.region)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_region != 0 { return cmp_region; }
+    let cmp_count = match i32::from_ne_bytes((*(&a.count)).to_ne_bytes()).cmp(&i32::from_ne_bytes((*(&b.count)).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };
+    if cmp_count != 0 { return cmp_count; }
+    0
+}

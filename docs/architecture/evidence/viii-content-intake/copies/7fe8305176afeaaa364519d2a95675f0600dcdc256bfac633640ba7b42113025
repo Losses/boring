@@ -1,0 +1,13 @@
+package tests
+
+import boring.OptionalCtorOps
+import boring.runtime.test.Test
+
+class OptionalCtorTests {
+@boring.test.Test
+    fun testOptionalCtor() {
+        Test.run("tests.OptionalCtorTests.testOptionalCtor", "tests.OptionalCtorTests.testOptionalCtor: optional nullable ctor params with differently-named fields render optional") {
+                Test.equals("default/7|x/3", OptionalCtorOps.render(), null)
+        }
+    }
+}

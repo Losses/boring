@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Option C post-state check: recompute the full before-manifest.
+
+Reads the retained itemized manifest (SOURCE_MANIFEST) and recomputes,
+for every one of its entries, the actual file's sha256 and exec-bit
+inside the verification root. Prints one line per file and a summary
+into stdout (the caller seals this as stage evidence), then exits 0
+only when every entry matches. A drift, a missing file, or a wrong
+exec-bit is recorded per file and fails the check. Run after every
+stage, including after a failed stage, so the post-state and the
+partial products of a failed run are retained as sealed evidence.
+"""
+import hashlib
+import json
+import os
+import stat
+import sys
+
+
+def main():
+    if len(sys.argv) != 4:
+        print("usage: option-c-poststate.py <root> <manifest.json> <report-out>")
+        return 90
+    root = sys.argv[1]
+    manifest_path = sys.argv[2]
+    report_out = sys.argv[3]
+    entries = json.load(open(manifest_path))
+    if not isinstance(entries, list):
+        print("manifest must be a JSON list")
+        return 90
+    fails = []
+    for entry in entries:
+        path = os.path.join(root, entry["path"])
+        if not os.path.isfile(path):
+            fails.append("missing: " + entry["path"])
+            print("FAIL missing: " + entry["path"])
+            continue
+        digest = hashlib.sha256(open(path, "rb").read()).hexdigest()
+        if digest != entry["sha256"]:
+            fails.append("sha256: " + entry["path"])
+            print("FAIL sha256: " + entry["path"] + " actual=" + digest)
+        executable = bool(os.stat(path).st_mode & stat.S_IXUSR)
+        want_exec = entry["mode"] == "100755"
+        if executable != want_exec:
+            fails.append("exec-bit: " + entry["path"])
+            print("FAIL exec-bit: " + entry["path"] + " actual=%s want_exec=%s" % (executable, want_exec))
+    summary = "post-state: %d entries checked, %d failures" % (len(entries), len(fails))
+    print(summary)
+    open(report_out, "w").write(chr(10).join(fails + [summary]) + chr(10))
+    return 0 if not fails else 91
+
+
+if __name__ == "__main__":
+    sys.exit(main())

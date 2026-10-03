@@ -1,0 +1,5 @@
+# Pre-fix source used for the guard and counterfactual runs
+# Copied from dc-warn/tmp/prefix-root/samples/tests/NumberClassifyTests.hx on 2026-09-30
+# Verified equal to 'git -C boring-wt-architecture show HEAD:samples/tests/NumberClassifyTests.hx'
+
+7e592560cdb13cc87ac123e96ef105ac651b386ca816459a4c21f887de1f2bcb  /home/losses/Development/tq-workspace/dc-warn/out/finite-classify-fix/evidence/prefix-source/NumberClassifyTests.hx

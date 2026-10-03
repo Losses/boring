@@ -1,0 +1,194 @@
+# Discovery-semantics probes (bun 1.3.13, synthetic trees)
+
+===== P1a: bun test tests/ packages/registry/tests/  (bunfig out/** ignore ACTIVE) =====
+bun test v1.3.13 (bf2e2cec)
+
+tests/empty/none.test.ts:
+
+tests/ts/b.spec.ts:
+(pass) stub
+
+tests/ts/zero.test.ts:
+(pass) stub
+
+tests/ts/e.test.tsx:
+(pass) stub
+
+tests/ts/a.test.ts:
+(pass) stub
+
+tests/deep/nested/deep.test.ts:
+(pass) stub
+
+reference/ts/gen-tests/gen.test.ts:
+(pass) stub
+
+packages/registry/tests/c.test.ts:
+(pass) stub
+
+ 7 pass
+ 0 fail
+ 7 expect() calls
+Ran 7 tests across 8 files. [164.00ms]
+
+===== P1b: same argv, bunfig.toml REMOVED =====
+bun test v1.3.13 (bf2e2cec)
+
+tests/empty/none.test.ts:
+
+tests/ts/b.spec.ts:
+(pass) stub
+
+tests/ts/zero.test.ts:
+(pass) stub
+
+tests/ts/e.test.tsx:
+(pass) stub
+
+tests/ts/a.test.ts:
+(pass) stub
+
+tests/deep/nested/deep.test.ts:
+(pass) stub
+
+reference/ts/gen-tests/gen.test.ts:
+(pass) stub
+
+packages/registry/tests/c.test.ts:
+(pass) stub
+
+out/dup/tests/ts/d.test.ts:
+(pass) stub
+
+ 8 pass
+ 0 fail
+ 8 expect() calls
+Ran 8 tests across 9 files. [170.00ms]
+
+===== P1c: same argv, no bunfig, --path-ignore-patterns='out/**' =====
+bun test v1.3.13 (bf2e2cec)
+
+tests/empty/none.test.ts:
+
+tests/ts/b.spec.ts:
+(pass) stub
+
+tests/ts/zero.test.ts:
+(pass) stub
+
+tests/ts/e.test.tsx:
+(pass) stub
+
+tests/ts/a.test.ts:
+(pass) stub
+
+tests/deep/nested/deep.test.ts:
+(pass) stub
+
+reference/ts/gen-tests/gen.test.ts:
+(pass) stub
+
+packages/registry/tests/c.test.ts:
+(pass) stub
+
+ 7 pass
+ 0 fail
+ 7 expect() calls
+Ran 7 tests across 8 files. [50.00ms]
+
+===== P2a: bun test tests/  (node_modules/pkg/tests/f.test.ts present) =====
+bun test v1.3.13 (bf2e2cec)
+
+tests/x.spec.ts:
+(pass) stub
+
+tests/ts/a.test.ts:
+(pass) stub
+
+src/tests/b.test.ts:
+(pass) stub
+
+reference/ts/gen-tests/e.test.ts:
+(pass) stub
+
+packages/registry/tests/d.test.ts:
+(pass) stub
+
+ 5 pass
+ 0 fail
+ 5 expect() calls
+Ran 5 tests across 5 files. [44.00ms]
+
+===== P2c: bare 'bun test' =====
+bun test v1.3.13 (bf2e2cec)
+
+tests/x.spec.ts:
+(pass) stub
+
+tests/ts/a.test.ts:
+(pass) stub
+
+src/tests/b.test.ts:
+(pass) stub
+
+reference/ts/gen-tests/e.test.ts:
+(pass) stub
+
+packages/registry/tests/d.test.ts:
+(pass) stub
+
+ 5 pass
+ 0 fail
+ 5 expect() calls
+Ran 5 tests across 5 files. [48.00ms]
+
+===== P3: bun test reference/ts/gen-tests/ (the existing test:stage1:ts scope) =====
+bun test v1.3.13 (bf2e2cec)
+
+reference/ts/gen-tests/a.test.ts:
+(pass) stub
+
+ 1 pass
+ 0 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [195.00ms]
+
+===== C-prime: entry-point argv WITHOUT bunfig on the REAL repo =====
+bun test v1.3.13 (bf2e2cec)
+
+tests/bundle-child-evidence/bundle-child-evidence.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '/home/losses/Development/tq-workspace/boring-wt-architecture/tests/bundle-child-evidence/bundle-child-evidence.test.ts' from ''
+-------------------------------
+
+
+tests/swift-gap-boundary/gap-boundary.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '/home/losses/Development/tq-workspace/boring-wt-architecture/tests/swift-gap-boundary/gap-boundary.test.ts' from ''
+-------------------------------
+
+
+tests/dart/precision-switch.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '/home/losses/Development/tq-workspace/boring-wt-architecture/tests/dart/precision-switch.test.ts' from ''
+-------------------------------
+
+
+tests/ts/printed-record.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/printed-record.test.ts' from ''
+-------------------------------
+
+error: Cannot read directory "/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/arithmetic-helpers.test.ts": ProcessFdQuotaExceeded
+
+error: Cannot read directory "/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts": EMFILE
+
+error: ModuleNotFound resolving "/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/arithmetic-helpers.test.ts" (entry point)

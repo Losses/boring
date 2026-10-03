@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_access_grant() {
+    testlib::run("tests.AccessGrantTests.testAccessGrant", "tests.AccessGrantTests.testAccessGrant: an @:access peer reads private members across classes", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

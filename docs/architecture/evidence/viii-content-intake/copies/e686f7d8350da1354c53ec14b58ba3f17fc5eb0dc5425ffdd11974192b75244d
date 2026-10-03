@@ -1,0 +1,45 @@
+#![cfg(test)]
+
+use crate::boring::numeric_conversion_widening::NumericConversionWidening;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_comparison() {
+    testlib::run("tests.NumericConversionWideningTests.testComparison", "tests.NumericConversionWideningTests.testComparison: Numeric conversion widening compares Float and Int", || {
+        test_core::TestCore::test_core_equals_bool(true, NumericConversionWidening::numeric_conversion_widening_compare_equal(1.0f32, 1), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, NumericConversionWidening::numeric_conversion_widening_compare_equal(1.0f32, 2), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, NumericConversionWidening::numeric_conversion_widening_compare_not_equal(1.0f32, 1), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NumericConversionWidening::numeric_conversion_widening_compare_not_equal(1.0f32, 2), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_return() {
+    testlib::run("tests.NumericConversionWideningTests.testReturn", "tests.NumericConversionWideningTests.testReturn: Numeric conversion widening returns Int from Float function", || {
+        test_core::TestCore::test_core_equals_float(5.0f32, NumericConversionWidening::numeric_conversion_widening_return_int_as_float(5), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_init() {
+    testlib::run("tests.NumericConversionWideningTests.testInit", "tests.NumericConversionWideningTests.testInit: Numeric conversion widening initializes Float from Int", || {
+        test_core::TestCore::test_core_equals_float(16.0f32, NumericConversionWidening::numeric_conversion_widening_init_float(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_assign() {
+    testlib::run("tests.NumericConversionWideningTests.testAssign", "tests.NumericConversionWideningTests.testAssign: Numeric conversion widening assigns Int to Float", || {
+        test_core::TestCore::test_core_equals_float(42.0f32, NumericConversionWidening::numeric_conversion_widening_assign_int_to_float(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_param() {
+    testlib::run("tests.NumericConversionWideningTests.testParam", "tests.NumericConversionWideningTests.testParam: Numeric conversion widening passes Int to Float parameter", || {
+        test_core::TestCore::test_core_equals_float(9.0f32, NumericConversionWidening::numeric_conversion_widening_call_float_param(), UStr::new(&[]));
+    });
+}

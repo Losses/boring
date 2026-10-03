@@ -1,0 +1,169 @@
+# Provenance drift: the 30-hash manifest vs the pinned originals
+
+Date: 2026-09-30 (America/Toronto). Read-only with respect to every repository,
+worktree, the manifest, and all pinned files. All writes were to this output
+directory. Raw evidence in `evidence/`; full per-file table in `DRIFT.tsv`.
+
+**Headline.** The 13/30 mismatch is **reproduced by my own recomputation** (not taken
+from the feasibility report). **All 13 drifted files are generated artifacts, not
+hand-written inputs.** The manifest pinned the *outputs of preparation attempt-01*
+(2026-09-28); a later run of the same prep tool (attempt-03, 2026-09-29 13:26 local)
+**regenerated the same output paths in place against a different candidate worktree**.
+The pinned content is fully recoverable and hash-verified inside the attempt-01
+attempt directory. The defect is the prep step's shared output path, not tampering
+with hand-written inputs. Recommended remedy: **do not re-pin**; restore the
+`architecture-candidate-inputs` tree verbatim from attempt-01's retained outputs and
+fix the prep step to write per-attempt output dirs. Details and limits below.
+
+---
+
+## 1. The manifest (exact path)
+
+`/home/losses/Development/tq-workspace/architecture-workspaces/tiqian-validation-round2/out/tiqian-fixed-2159c657-prep/manifest.json`
+
+mtime 2026-09-29 02:43:44 local (America/Toronto). 30 entries: 15 `originals` + 15 `derived`. `status: preparation-only-not-executed`,
+`consumerCommit 8504d230228e8206689a2049bbb84b671c1f079a`.
+
+## 2. Recomputation (verified by me, not from the report)
+
+I recomputed sha256 for **all 30** entries (evidence/recompute-full.txt, DRIFT.tsv):
+
+- **17 MATCH / 13 MISMATCH.** Mismatches: 11 under
+  `out/architecture-candidate-inputs/hxml/*.hxml` + 2
+  `boring-architecture-{engine,protocol}-candidate.json` (consumer root). All 13 are
+  in the `originals` group; **0 of the 15 `derived` (live) inputs mismatch.**
+  This matches the feasibility report's 13/30 exactly, now independently verified.
+- Every mismatching file's mtime is **2026-09-29 13:26:59** (epoch 1790702819.93),
+  i.e. ~10 h 43 min **after** the manifest's mtime (02:43:44). All 15 derived files
+  predate the manifest (mtimes 02:36–02:43).
+
+Per-file pinned vs current values: `DRIFT.tsv` (30 rows + header).
+
+## 3. Ruling on the 11 hxml files: GENERATED ARTIFACTS (evidence-backed)
+
+Three independent lines of evidence:
+
+1. **Content is machine-expanded.** Each file is an expansion of a hand-written
+   driver `engine-haxe/targets/<target>.hxml` (via its include chain
+   `targets/<t>.hxml → kotlin-common/common/classes.hxml`) with a mechanical prefix
+   replacement `.haxelib/boring/git` → an absolute candidate-worktree path, plus a
+   leading `-v`. The self-describing diff is retained per file in
+   `out/architecture-candidate-inputs/diffs/<t>.hxml.diff`
+   (header: `--- expanded-source(engine-haxe/targets/dart.hxml)` /
+   `+++ out/architecture-candidate-inputs/hxml/dart.hxml`).
+2. **The generator self-identifies.** The sibling `mapping-manifest.json` (same
+   mtime 13:26) records `attempt: attempt-03-20260929T172659Z-2627546`,
+   `toolRevision: 2`, per-bundle `prefixReplacements`, `noOldPrefixRemaining`,
+   `leadingV` checks — i.e. a deterministic generation step, generator
+   `out/architecture-t2/prepare.py` (present on disk).
+3. **The pinned content is attempt-01's output, byte for byte.** I hashed every file
+   under `out/architecture-t2/attempt-01-20260928T093930Z-1613971/outputs/` and
+   matched **all 15** manifest `originals` hashes against attempt-01's retained
+   outputs (13 changed files plus the 2 unchanged ones), including all 3 candidate
+   JSONs (evidence/recompute-full.txt companion run; method above, output in
+   `evidence/attempt-01-manifest.json` context). Attempt-01's hxml reference
+   `/home/losses/Development/tq-workspace/boring-wt-architecture/...`; attempt-03's
+   regenerated files reference
+   `/home/losses/Development/tq-workspace/boring-wt-rust-candidate/...`
+   (candidate HEAD `e1c65975…` per mapping-manifest.json).
+
+**Consequence:** the drift is not an uncontrolled in-place write of hand-written
+inputs. It is the prep tool's **attempt-03 run overwriting the shared output
+directory `out/architecture-candidate-inputs/` that attempt-01 had written and that
+the manifest had then pinned**. The hand-written sources
+(`engine-haxe/targets/*.hxml`, consumer commit `8504d230`) were never touched; they
+are not themselves hash-pinned by this manifest — that is a manifest design gap.
+
+**Git history:** not available for these paths — `git status`/`git log` in the
+consumer worktree show nothing for `out/architecture-candidate-inputs` (the whole
+`out/` tree is untracked/gitignored). Blocker noted in §7; the attempt dirs are the
+de-facto history and are sufficient.
+
+## 4. The 2 candidate JSONs: also generated, same generator, same attempt
+
+`boring-architecture-engine-candidate.json` and
+`boring-architecture-protocol-candidate.json` begin with a comment naming their
+generator: *"Generated by out/architecture-t2/prepare.py
+attempt-03-20260929T172659Z-2627546"* (evidence: file heads; DRIFT.tsv mtimes
+13:26:59). They are T2 derived candidate project files whose only role is to point
+bundle `rootsFile` at the derived HXMLs. So yes — they are derived from the hxml
+generation step (same attempt, same tool), not independent sources.
+`boring-architecture-candidate.json` (the third JSON, the driver feature-spec file)
+did **not** change between attempts, which is why it still matches.
+
+## 5. Runbook invariant assessment (quoted, not paraphrased)
+
+`boring-wt-architecture/docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md`, §"Invariant re-verification after the run" (L249–256):
+
+> After the matrix completes (or aborts), re-run and record: the 30-manifest
+> hash recomputation; the 1366-entry compiler inventory digest; …
+> **Any drift voids the attempt** and requires a new attempt dir; the drifted
+> attempt is retained as historical evidence, never deleted or rewritten.
+
+Precisely: the invariant recomputes the same 30 paths pinned in
+`tiqian-fixed-2159c657-prep/manifest.json` and requires all 30 to equal their pinned
+values. It is evaluated over **all 30, originals included**, not only the live
+derived inputs. **The 13 mismatches trip it** — in fact it already fails *before*
+the run: any P09 matrix run executed today would be voided at the post-run check,
+and honestly also at any pre-run check, by drift that the stage commands themselves
+did not cause (the stage commands consume the derived inputs; the runbook classifies
+`out/architecture-candidate-inputs/` as "retained for provenance, **never a live
+input**", L265).
+
+## 6. Remedy (justified) — restore + fix the generator; do NOT re-pin
+
+**Why not re-pin:** re-pinning would write attempt-03's hashes into a manifest whose
+entire purpose is the `fixed-2159c657` preparation — but attempt-03's outputs are
+the expansion against candidate `e1c65975`/`boring-wt-rust-candidate`, i.e. content
+of a **different candidate lineage** than the manifest's derived inputs
+(`publication-staging/fixed-compiler-2159c657/...`). Re-pinning would make the
+check pass while pinning provably wrong-lineage provenance, and would legitimize
+the in-place overwrite of already-pinned outputs. That is exactly the defect.
+
+**Recommended, in order:**
+
+1. **Restore the pinned originals byte-for-byte** from the retained attempt
+   directory (all 15 verified as exact hash matches):
+   `cp out/architecture-t2/attempt-01-20260929…/outputs/out/architecture-candidate-inputs/hxml/*.hxml out/architecture-candidate-inputs/hxml/` and the two JSONs from
+   `…/outputs/`. After restore, re-run the 30-hash recomputation: expected 30/30
+   match. (Not executed by me — pinned files are outside my write scope; the
+   commands above are the proposal. No `REPIN.diff` is produced because re-pinning
+   is explicitly not recommended.)
+2. **Fix the prep step (the actual defect):** `out/architecture-t2/prepare.py`
+   (toolRevision 2) must write to a per-attempt output directory
+   (`out/architecture-t2/attempt-NN…/outputs/…`, which it already populates) and
+   **never** also publish to the shared, manifest-pinned
+   `out/architecture-candidate-inputs/` path. If a stable-path view is needed, make
+   it a symlink-free copy made *before* the manifest is written and never rewritten.
+3. **Record the deviation** (attempt-03's in-place rewrite) in the prep history:
+   the drifted 13:26 state is preserved verbatim in
+   `attempt-03-…/outputs/` and `mapping-manifest.json` — nothing is lost; a one-line
+   note in the prep records (or a follow-up runbook amendment, per the feasibility
+   report's staleness list) is enough.
+4. **Optionally, in a future manifest revision**, pin the true hand-written sources
+   (`engine-haxe/targets/*.hxml` at consumer `8504d230`) as originals, so provenance
+   anchors sources rather than one generator's outputs.
+
+## 7. Not verified / limits
+
+- **Git history of the drifted files:** not verifiable — the paths are untracked
+  (consumer `out/` tree is gitignored); no git record exists. The attempt-01/03
+  retained output directories serve as the history instead.
+- **Who/what invoked attempt-03:** the attempt dirs and mapping-manifest prove the
+  tool, revision, timestamps, and candidate lineage, but I did not find a shell
+  log identifying the invoking session. Not verified; blocker: no invocation log
+  located on disk (I did not exhaustively search `/tmp`-class locations).
+- **Restore procedure:** proposed, not executed (no write access to the pinned
+  tree; also a hard rule of this task). The 30/30 post-restore expectation is an
+  inference from hash-verified attempt-01 copies, not an observed result.
+- **The 1366-entry inventory digest** and all matrix stage behavior: not examined
+  (out of scope; stages must not run before the Boring-side revision is decided).
+
+## 8. Method
+
+All hashes recomputed with Python hashlib from file bytes; mtimes from os.stat;
+manifest parsed as JSON. Exit codes observed directly. Nothing outside this output
+directory was written; no pinned file, manifest, runbook, or tracked file was
+modified. Evidence: `evidence/recompute-full.txt` (full 30-row recompute),
+`evidence/DRIFT.tsv` (…in parent dir), `evidence/mapping-manifest-attempt03.json`,
+`evidence/attempt-01-manifest.json`, `evidence/attempt-03-manifest.json`.

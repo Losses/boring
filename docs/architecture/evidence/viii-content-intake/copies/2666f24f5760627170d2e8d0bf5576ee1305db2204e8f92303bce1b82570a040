@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# Stage 3: remaining new-defeat attempts, structural controls, and honest-negative checks.
+set -u
+. "$(dirname "$0")/xlib.sh"
+
+root_del() { python3 - "$1" "$2" <<'PY'
+import sys
+p, mod = sys.argv[1], sys.argv[2]
+lines = open(p, encoding="utf-8").read().split("\n")
+open(p, "w", encoding="utf-8").write("\n".join(l for l in lines if l.strip() != mod))
+PY
+}
+alw_add() { python3 - "$@" <<'PY'
+import json, sys
+p, section, target, mod, reason = sys.argv[1:6]
+d = json.load(open(p, encoding="utf-8"))
+d.setdefault(section, []).append({"target": target, "module": mod, "reason": reason})
+json.dump(d, open(p, "w", encoding="utf-8"), indent=2)
+PY
+}
+alw_raw() { python3 - "$@" <<'PY'
+import json, sys
+p = sys.argv[1]
+json.dump(json.loads(sys.argv[2]), open(p, "w", encoding="utf-8"), indent=2)
+PY
+}
+
+echo "########## '*' wildcard: one reason, three real regressions ##########"
+new_case new-star-3for1-fixed hard
+for t in kotlin rust swift; do root_del "$CASE/examples/$t-f32.hxml" tests.EarlyReturnTests; done
+alw_add "$CASE/tools/roots-guard/roots-allowlist.json" exempt '*' tests.EarlyReturnTests "qqqq wwww eeee rrrr tttt yyyy"
+run_case new-star-3for1-fixed
+
+echo "########## whitespace / unicode-lookalike reasons ##########"
+for spec in "nbsp:\u00a0\u00a0\u00a0\u00a0" "zwsp4:\u200b\u200b\u200b\u200b" "zwsp-spaced:\u200b \u200b \u200b \u200b" "cyrillic-only:аааааааа бббббббб вввввввв гггггггг" "tab-inside:abcdefgh ijklmnop\tqrstuv wx"; do
+    name="${spec%%:*}"; reason="${spec#*:}"
+    new_case "new-reason-$name" hard
+    root_del "$CASE/examples/swift-f32.hxml" tests.EarlyReturnTests
+    alw_add "$CASE/tools/roots-guard/roots-allowlist.json" exempt swift tests.EarlyReturnTests "$reason"
+    run_case "new-reason-$name"
+done
+
+new_case new-reason-nonstring hard
+root_del "$CASE/examples/swift-f32.hxml" tests.EarlyReturnTests
+python3 - "$CASE/tools/roots-guard/roots-allowlist.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+d["exempt"].append({"target": "swift", "module": "tests.EarlyReturnTests", "reason": 12345678901234567890})
+json.dump(d, open(sys.argv[1], "w", encoding="utf-8"), indent=2)
+PY
+run_case new-reason-nonstring
+
+echo "########## coverage: module missing from BOTH files (kotlin) ##########"
+new_case new-both-deleted-kotlin hard
+root_del "$CASE/examples/kotlin.hxml" tests.NumberClassifyTests
+root_del "$CASE/examples/kotlin-f32.hxml" tests.NumberClassifyTests
+run_case new-both-deleted-kotlin
+
+echo "########## coverage: @:test module OUTSIDE any tests/ dir of a guarded classpath ##########"
+new_case new-coverage-outside-tests hard realsamples
+mkdir -p "$CASE/samples/probe"
+cat > "$CASE/samples/probe/ProbeTests.hx" <<'EOF'
+class ProbeTests {
+    @:test("probe test that no guarded pair roots")
+    static function probeCase():Void {}
+}
+EOF
+run_case new-coverage-outside-tests
+
+echo "########## coverage: stale unrootedTestModules declaration ##########"
+new_case new-unroot-stale hard
+alw_add "$CASE/tools/roots-guard/roots-allowlist.json" unrootedTestModules kotlin tests.NumberClassifyTests "qqqq wwww eeee rrrr tttt yyyy"
+run_case new-unroot-stale
+
+echo "########## structural allowlist validation ##########"
+new_case new-badkeys hard
+alw_add "$CASE/tools/roots-guard/roots-allowlist.json" exempt swift tests.EarlyReturnTests "qqqq wwww eeee rrrr tttt yyyy"
+python3 - "$CASE/tools/roots-guard/roots-allowlist.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p))
+d["exempt"][-1]["expires"] = "2026-01-01"
+json.dump(d, open(p, "w"), indent=2)
+PY
+run_case new-badkeys
+
+new_case new-badexempt-target hard
+alw_add "$CASE/tools/roots-guard/roots-allowlist.json" exempt dart tests.EarlyReturnTests "qqqq wwww eeee rrrr tttt yyyy"
+run_case new-badexempt-target
+
+new_case new-badexempt-module hard
+alw_add "$CASE/tools/roots-guard/roots-allowlist.json" exempt swift "not a module path!" "qqqq wwww eeee rrrr tttt yyyy"
+run_case new-badexempt-module
+
+new_case new-topkey hard
+python3 - "$CASE/tools/roots-guard/roots-allowlist.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p)); d["extraSection"] = []
+json.dump(d, open(p, "w"), indent=2)
+PY
+run_case new-topkey
+
+new_case new-noallowlist hard
+rm "$CASE/tools/roots-guard/roots-allowlist.json"
+run_case new-noallowlist
+
+new_case new-badjson hard
+printf '{ "exempt": [ {"target": ' > "$CASE/tools/roots-guard/roots-allowlist.json"
+run_case new-badjson
+
+echo "########## other producer claims ##########"
+new_case new-tamper-base hard
+root_del "$CASE/examples/swift.hxml" tests.EarlyReturnTests
+run_case new-tamper-base
+
+new_case new-phantom hard
+printf 'tests.NoSuchModuleAaa\n' >> "$CASE/examples/swift-f32.hxml"
+run_case new-phantom
+
+new_case new-include-missing hard
+printf 'fragment-that-does-not-exist.hxml\n' >> "$CASE/examples/swift-f32.hxml"
+run_case new-include-missing
+
+new_case new-bogus-option hard
+run_case new-bogus-option --bogus
+
+new_case new-extra-positional hard
+run_case new-extra-positional "$CASE/examples" extra-arg
+
+echo "########## not-a-repo / missing examples (fail-closed) ##########"
+new_case new-missing-examples hard
+run_case new-missing-examples /nonexistent-examples-dir
+
+mkdir -p "$S/cases/new-norepo/tools/roots-guard" "$S/cases/new-norepo/examples"
+cp "$HARD_SH" "$S/cases/new-norepo/tools/roots-guard/check-roots-guard.sh"
+cp "$HARD_ALW" "$S/cases/new-norepo/tools/roots-guard/roots-allowlist.json"
+cp -a "$R/examples/." "$S/cases/new-norepo/examples/"
+CASE="$S/cases/new-norepo"
+run_case new-norepo
+
+echo "done"

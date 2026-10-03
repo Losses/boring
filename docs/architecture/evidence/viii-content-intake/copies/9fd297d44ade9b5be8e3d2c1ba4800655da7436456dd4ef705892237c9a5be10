@@ -1,0 +1,2 @@
+the emitted Kotlin tree does not compile as a whole; the library build excludes runtime/test (see kotlin-build-whole)
+swift-build did not reach the compiler: the pinned swiftc wrapper failed before compiling anything (see stages/*-swift-build/stderr)

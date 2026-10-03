@@ -1,0 +1,129 @@
+# Swift 生成树缺 Runtime/BoringException — 修复报告
+
+任务 `t-mun5d99p-op76`（分支 `fix/swift-generated-tree-runtime`，base `arch/agent-guided-governance`）。
+工作树 `/home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt`，固定修订 `e1c65975`（detached）。
+交付 = 该工作树 + 本目录 `{REPORT.md, PATCH.diff, FILES.sha256}` + 各 attempt 证据目录。
+工具链身份见各 attempt `swift-toolchain.txt`：store 6.2.4 raw `swiftc` + FHS rootfs（与 try-tail attempt-tail-01 相同 store 路径）。
+所有 haxe 生成与 swiftc 编译在 flake 的 `nix develop` 内运行（`XDG_CACHE_HOME=/tmp/swift-rt-nix-cache`，fuse 缓存例外已遵守）。
+
+## ① 复现（修复前原始诊断 + 生成文件清单对比）
+
+独立复现：把 try-tail 12 形状夹具**只读复制**进本树（`tests/haxe/try-tail/`，sha256 与原始证据 `input-hashes.txt` 逐条一致），
+另加本任务专属最小夹具 `tests/haxe/swift-rt-probe/`（一个具体异常类，只被其具体类型 catch，全编译不出现 `haxe.Exception` 类型/构造引用）
+与边界夹具 `tests/haxe/swift-rt-plain/`（无任何异常的普通模块）。
+
+生成命令（与夹具 hxml 约定一致）：
+`haxe tests/haxe/try-tail/gen/swift.hxml -D swift-output=out/swift-rt/gen/swift -D swift-test-output=out/swift-rt/gen/swift-test`
+
+**修复前生成树（5 个文件，无 Runtime.swift）**：
+```
+_GeneratedFiles.txt
+Package.swift
+std/UStringException.swift
+std/UStringFault.swift
+trytail/TryTailOracle.swift
+```
+（probe 夹具同构：`_GeneratedFiles.txt / Package.swift / probe/Probe.swift / std/UStringException.swift / std/UStringFault.swift`）
+
+**swiftc 原始诊断（prefix，exit 1；stderr 原文见 `prefix-20260929T205757Z/stages/{compile-swift,compile-probe}/stderr`）**：
+
+try-tail 树（与 t-mum2ad8j-wgf4 原始证据逐字一致）：
+```
+/home/.../out/swift-rt/gen/swift/std/UStringException.swift:3:32: error: cannot find type 'BoringException' in scope
+  3 | public class UStringException: BoringException {
+/home/.../out/swift-rt/gen/swift/std/UStringException.swift:8:9: error: 'super' cannot be used in class 'UStringException' because it has no superclass
+```
+probe 树（同一根因，多一条 throw 侧证据）：
+```
+/home/.../out/swift-rt/gen/probe/probe/Probe.swift:3:30: error: cannot find type 'BoringException' in scope
+/home/.../out/swift-rt/gen/probe/probe/Probe.swift:8:9: error: 'super' cannot be used in class 'ProbeException' because it has no superclass
+/home/.../out/swift-rt/gen/probe/probe/Probe.swift:26:15: error: thrown expression type 'ProbeException' does not conform to 'Error'
+```
+（`warning: libc not found … C stdlib may be unavailable` 为宿主环境噪声，与缺陷无关。）
+
+**清单前后对比（同一夹具、同一命令）**：修复前 5 文件 → 修复后 6 文件，多出声明 `BoringException` 的 `Runtime.swift`
+（sha `a24d5fa3…`；两夹具生成的 Runtime.swift 字节一致）。业务文件 `std/UStringException.swift`、`std/UStringFault.swift`、
+`trytail/TryTailOracle.swift`、`probe/Probe.swift` 修复前后 **sha256 完全不变**（见 FILES.sha256 两组清单）。
+`Package.swift` 与 `_GeneratedFiles.txt` 相应多出 `Runtime.swift` 源项（SwiftPM `sources: ["Runtime.swift", "std", "trytail"]`）。
+
+## ② 最小落点与改动
+
+**根因**：Swift 目标把整棵生成树放进同一个 Swift module；`Runtime.swift`（内含 `public class BoringException: Error`，
+`packages/compiler/reflaxe/swift/swiftcompiler/SwiftRuntime.hx:95`）是否发射由 `Compiler.generateFilesManually()`
+（`…/swiftcompiler/Compiler.hx:338`）的 `anyRuntimeUsed()` 门控，而 `anyRuntimeUsed()` 读的是每个模块的
+`SwiftImports.runtimeNames`（`…/SwiftImports.hx:42,92`）——只有显式 `imports.runtime(...)` 调用才登记。
+`haxe.Exception` 的类型引用（`SwiftType.hx:93`）、类型表达式（`SwiftExpr.hx:3261`）、`new haxe.Exception(...)`
+（`SwiftExpr.hx:4928`）都登记；但**异常类的声明本身**在 `SwiftDecl.hx:184-185`（depth==1 分支）把
+`BoringException` 写进 conformance 文本时**没有登记**——生成的文件文本引用了 runtime 符号，依赖判定却看不见它。
+只要一次编译的所有 catch/throw 都用具体异常类型（try-tail 正是如此），runtime 引用计数为零 → `Runtime.swift` 缺失 →
+所有含 `BoringException` conformance 的文件（含每次必发的保证 std 模块 `std/UStringException.swift`）编译失败。
+（depth>=2 分支 conformance 写父类名，BoringException 经由其 depth==1 祖先的发射进入，无需重复登记；
+`super.init(message:)` 调用不出现符号文本，经继承链解析，同文件同 context，亦无需单独登记。）
+
+**改动（唯一被修改的受控文件，6 行插入、0 行删除）**：
+`packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx`（HEAD 处 184 行起）：
+```diff
+             if (depth == 1) {
++                // The conformance names the runtime base class, so this
++                // file references the runtime package. Record the use: a
++                // tree whose only exception path is caught by its concrete
++                // type names no haxe.Exception and would otherwise omit
++                // Runtime.swift (task t-mun5d99p-op76).
++                imports.runtime("BoringException");
+                 conformances.push("BoringException");
+             } else if (depth >= 2) {
+```
+sha256 前 `ac657b29…` → 后 `0210d207…`；numstat `6 0`（见 FILES.sha256；补丁原文 `PATCH.diff`）。
+专属最小夹具：`tests/haxe/swift-rt-probe/`（4 文件，untracked）。
+
+## ③ prefix / postfix / negctl 三段证据
+
+attempt 目录（每目录含 `identity.txt`、`input-hashes{,-after}.txt`（逐条相等=只读源未被改）、`status.tsv`、
+`swift-toolchain.txt`、`stages/<stage>/{argv,status,stdout,stderr}`、`trees/*.files|sha256`）：
+
+| 段 | 目录 | try-tail：gen/树/swiftc | probe：gen/树/swiftc | run |
+|---|---|---|---|---|
+| prefix（修复前） | `prefix-20260929T205757Z` | 0 / 5 文件 / **exit 1**（缺 BoringException，原文见 ①） | 0 / 5 文件 / **exit 1** | not-reached（producer 编译失败） |
+| postfix（修复后） | `postfix-20260929T205917Z` | 0 / **6 文件（+Runtime.swift）** / **exit 0（编译通过）** | 0 / **6 文件（+Runtime.swift）** / **exit 0** | 见下 |
+| negctl（恢复旧逻辑） | `negctl-20260929T210140Z` | 0 / 5 文件 / **exit 1**（BoringException 复现） | 0 / 5 文件 / **exit 1**（复现） | not-reached |
+
+negctl 方法：`git checkout -- SwiftDecl.hx` 恢复 HEAD 版本（sha 回到 `ac657b29…`）跑 attempt，再 `git apply PATCH.diff`
+恢复修复（sha 回到 `0210d207…`，工作树终态=修复态）。
+
+**运行阶段声明**：postfix 的规范 `run-swift`/`run-probe` 阶段 exit 126，stderr 原文
+`timeout: failed to run command './run-bin': Permission denied`——`run-bin` 由 swiftc 写在 dc-warn（fuse.rclone）上，
+该挂载剥离执行位（`ls -l` 为 `-rw-r--r--`），属环境限制而非缺陷。补充阶段 `run-<fixture>-from-tmp`
+（argv 在档：同一 `run-bin` 拷到 /tmp 并 `chmod +x` 后运行）：try-tail **exit 0**，输出 12 行与 `expected.txt` 逐行一致
+（`compare-swift-from-tmp` exit 0，diff 为空）；probe **exit 0**，输出 `concrete=1` 与期望一致。
+即：编译阶段完全通过；运行阶段在 fuse 执行位限制下规范路径 not-reached，off-fuse 补充路径全链通过。
+若按任务口径只主张编译阶段：postfix 主张 = 生成 exit 0 + 生成集补齐 Runtime.swift + swiftc exit 0。
+
+## ④ 边界（清单/依赖判定改动是否影响其它 Swift 场景）
+
+改动只**增加** runtime 引用登记（depth==1 异常类声明处），从不删除既有登记，`anyRuntimeUsed()` 门控对原先发射
+Runtime.swift 的编译保持原样——**没有任何此前可编译的树因此增减文件**。
+唯一的可见变化：此前不发射 Runtime.swift 的编译（= 不显式引用 `haxe.Exception`/runtime 符号的普通编译）现在也发射。
+而这恰是**修正而非多带**：`std.UStringException`/`std.UStringFault` 是保证 std 模块
+（`SwiftImports.hx:26` GUARANTEED_STD_MODULES + `Compiler.use()` 强制 `Context.getType("std.UStringException")`），
+**每次 Swift 编译都必然发射** `std/UStringException.swift`，其文本引用 `BoringException`。实验证据
+（`boundary-20260929T210907Z`，plain 夹具=无异常的普通模块 `plain.Plain.add`）：
+- 旧逻辑（reverted 相）：树 5 文件、无 Runtime.swift，swiftc **exit 1**，错误正是 `std/UStringException.swift:3:32 cannot find type 'BoringException'`——即修复前**普通模块的生成树本来就编译不过**；
+- 新逻辑（fixed 相）：树 6 文件、多且仅多 `Runtime.swift`，swiftc **exit 0**，off-fuse 运行输出 `sum=5` 与期望一致。
+结论：普通（无异常/runtime）模块不会"多带"无关文件——它本来就拖着引用 BoringException 的 `std/UStringException.swift`，
+Runtime.swift 是该已发射文件的缺失依赖，补上后树才自洽。
+
+## ⑤ 不确定项
+
+1. **运行阶段的规范路径受 fuse 执行位限制**（exit 126）。off-fuse 补充运行全过，但严格意义上"在本挂载上直接运行生成物"未达成；
+   若审阅要求挂载内运行，需要挂载侧恢复执行位（超出本任务边界）。
+2. **depth>=2 依赖祖先发射**：若某个 depth==1 祖先类不在发射集（超出源作用域且非保证模块），其子类 conformance 引用的
+   父类名本身即悬空——这是既有的、与本缺陷无关的失败模式，本修复不覆盖（也覆盖不了，父类缺失时登记 BoringException 无济于事）。
+3. **Package.swift 源项形式**：`runtime-emit=.` 时 manifest 以文件级源 `"Runtime.swift"` 列出（`Compiler.hx:421` 既有逻辑），
+   本任务未改 manifest 生成；SwiftPM 接受文件级源，raw swiftc 路径不受影响。
+4. 未验证 `runtime-emit` 指向子目录（如 `runtime`）时 Package.swift 顶层目录项的行为——与既有逻辑一致，非本修复引入，未在 attempt 中覆盖。
+5. 全量 verify 未跑（任务边界：不跑全量、不集成）；本树未 commit/push/merge，`tests/haxe/try-tail/` 为本树的只读副本（与源逐 hash 一致）。
+
+## 与 B3 的区分
+
+本修复仅改 Swift 侧生成文件清单/依赖判定（`SwiftDecl.hx` 6 行 + 夹具），不碰 SDK/`libSystemPackage`/工具链回退配方；
+attempt 中的 `libc not found` 警告为既有环境噪声，前后三段一致出现，不作为判据。

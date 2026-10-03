@@ -1,0 +1,3 @@
+<unknown>:0: warning: libc not found for 'x86_64-unknown-linux-gnu'; C stdlib may be unavailable
+swiftc --version without LD_LIBRARY_PATH:
+/nix/store/j1bfa7mw323wmp6pfrn1qkchxv61wk2n-swift-toolchain-6.2.4-al2/usr/bin/swiftc: error while loading shared libraries: libncurses.so.6: cannot open shared object file: No such file or directory

@@ -1,0 +1,69 @@
+GOVERNING CITATIONS (verbatim, extracted from the audited tree)
+Tree: execution-option-c-chainA-fixed3  (docs are byte-identical to head:
+  compiler-policy-architecture.md  sha256:16 95faeddc7265046a in BOTH)
+
+--- docs/specs/features/06-errors-and-results.md : 316 ---
+  - Rust: all fallible operations return `Result<T, DomainError>` with structured variants. Candidate 1.
+
+--- docs/specs/features/06-errors-and-results.md : 302,303 ---
+  | Rust Candidate 1 (Result enum) | Return values pass in CPU registers without stack unwinding overhead. | Explicit Result return types require caller handling and prevent silent error ignoring. | Error variant definitions are centralized in the crate error enum. | The question mark operator provides idiomatic error propagation to Rust engineers. |
+  | Rust Candidate 2 (Panics) | Normal path executes quickly but panics incur heavy unwind table execution. | Function signatures hide failure possibilities from callers. | Error strings are duplicated across individual panic call sites. | Unhandled panics crash host processes unexpectedly. |
+
+--- docs/specs/features/06-errors-and-results.md : 369,375 ---
+  Fallibility absorption: a domain fully handled by a region's clauses
+  does not infect the enclosing function on the Rust target. The
+  fallibility fixpoint walks a `TTry` by absorbing the caught enum's
+  edges from the body and keeping every edge of the handler expressions,
+  so a wrapper that converts reader faults to its own domain lowers as
+  an infallible-to-the-caller function only when no uncaught domain
+  escapes it.
+
+--- docs/specs/features/06-errors-and-results.md : 399 ---
+  Kotlin `runCatching` and catch-all `Result` returns are banned in codec code because they capture programming errors alongside domain failures. Rust panic and `Box<dyn Error>` returns are banned for the reasons in the judgment table.
+
+--- docs/specs/features/06-errors-and-results.md : 389,395 ---
+  - Any other Haxe `Int` bound inside a function with no error domain
+    lowers as `usize::try_from(bound).unwrap_or(0)`, the same infallible
+    T3 index form the backend uses for Haxe `Int` index positions. Haxe
+    `Int` maps to `u32` on the Rust target and `usize::try_from(u32)`
+    succeeds on every supported target, so the `unwrap_or(0)` arm is
+    unreachable and a reserved capacity of zero stays a valid hint. A
+    non-`Int` bound in a no-error-domain function stays rejected.
+
+--- docs/compiler-policy-interfaces.md : 163,167 ---
+  Failure to prove an extraction's preconditions is distinct from invalid source.
+  The lowering owner must use an applicable general translation or identify the
+  missing compiler ruling for accepted source. A source rejection requires the
+  specified source-domain rule. This distinction does not authorize a silent
+  unwrap or a new null-handling behavior.
+
+--- docs/specs/stdlib/08-string-buffer.md : 68,71 ---
+    read of the unit vector. `toString` emits the dangling-lead check and
+    `String::from_utf16(&buf).map_err(...)` returning through the
+    enclosing function's `Result`, so a buffer operation sites its
+    fallibility in `std.UStringFault` like a `std.UString` construction
+
+--- docs/specs/features/19-testing.md : 440,447 ---
+  fn vector_codec_tests_roundtrip() {
+      testlib::run("tests.VectorCodecTests.roundtrip", "tests.VectorCodecTests.roundtrip: encode then decode returns the input records", || {
+          let records = TestData::glyph_samples();
+          let decoded = VectorCodec::decode(&VectorCodec::encode(&records).unwrap()).unwrap();
+          assert_equals_vec_glyph_metrics(&records, &decoded, &("decode(encode(records)) must equal the input"));
+      });
+  }
+  ```
+
+--- docs/specs/README.md : 71 ---
+  | 06 | [06-errors-and-results.md](features/06-errors-and-results.md) | Complete | Exceptions, Result types, and error propagation. |
+
+--- docs/compiler-policy-architecture.md : 101 ---
+  | D: Control-flow results | Branch values, return/assignment/discard intent, reachable exits, structured joins | A's representation facts and B's flow facts; target construction that preserves nested scopes without rewriting return text |
+
+--- docs/compiler-policy-architecture.md : 103 ---
+  | F: Evidence and diagnostics | Occurrence lineage, policy decision records, source mapping, child output retention, layered conformance | Shared identity/result interfaces; observation consumers that expose decisions without participating in selection |
+
+--- docs/compiler-policy-architecture.md : 29 ---
+  | Target representation policy | Storage, parameter/body/return representation, object sharing, numeric width, error and container representation | Semantic facts and declared target capabilities |
+
+--- docs/compiler-policy-architecture.md : 31 ---
+  | Target construction | Structured values, places, statements, exits, temporaries, declarations, and helper calls | Selected plans and prepared operands; target syntax rules |

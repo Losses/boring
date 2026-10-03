@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class AccessGrantTests {
+@boring.test.Test
+    fun testAccessGrant() {
+        Test.run("tests.AccessGrantTests.testAccessGrant", "tests.AccessGrantTests.testAccessGrant: an @:access peer reads private members across classes") {
+                Test.equals(true, true, null)
+        }
+    }
+}

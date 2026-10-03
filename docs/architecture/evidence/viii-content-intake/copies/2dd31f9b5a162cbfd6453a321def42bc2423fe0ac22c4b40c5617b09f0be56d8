@@ -1,0 +1,66 @@
+===== pos             harness.log 2622 bytes (pristine 2622, delta 0)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+-- NEW rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+===== negA1           harness.log 2623 bytes (pristine 2622, delta 1)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: content after the end marker (1 byte(s) past the marker line, byte 2622 of 2623)] stderr=[]
+===== negA6           harness.log 2628 bytes (pristine 2622, delta 6)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: content after the end marker (6 byte(s) past the marker line, byte 2622 of 2628)] stderr=[]
+===== negA5000        harness.log 7622 bytes (pristine 2622, delta 5000)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: content after the end marker (5000 byte(s) past the marker line, byte 2622 of 7622)] stderr=[tail: write error: Broken pipe]
+===== negA200k        harness.log 202622 bytes (pristine 2622, delta 200000)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: content after the end marker (200000 byte(s) past the marker line, byte 2622 of 202622)] stderr=[tail: error writing 'standard output': Broken pipe]
+===== negB1           harness.log 2629 bytes (pristine 2622, delta 7)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: content after the end marker (lines 31..31)] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: content after the end marker (7 byte(s) past the marker line, byte 2622 of 2629)] stderr=[]
+===== negB2           harness.log 2622 bytes (pristine 2622, delta 0)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: stage evidence hash changed|  3a4|] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: stage evidence hash changed|  3a4|] stderr=[]
+===== negB3           harness.log 2622 bytes (pristine 2622, delta 0)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: stage evidence hash changed|  2d1|] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: stage evidence hash changed|  2d1|] stderr=[]
+===== negB4           harness.log 2622 bytes (pristine 2622, delta 0)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: stage evidence set differs from manifest|--- manifest only:|] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: stage evidence set differs from manifest|--- manifest only:|] stderr=[]
+===== trunc1          harness.log 2621 bytes (pristine 2622, delta -1)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+-- NEW rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+===== trunc_nl        harness.log 1000 bytes (pristine 2622, delta -1622)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: no end marker (unsealed log)] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: no end marker (unsealed log)] stderr=[]
+===== trunc_bare      harness.log 2557 bytes (pristine 2622, delta -65)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded , actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded , actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)] stderr=[]
+===== trunc_hash      harness.log 2621 bytes (pristine 2622, delta -1)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+-- NEW rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+===== trunc_half      harness.log 2589 bytes (pristine 2622, delta -33)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee8, actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee8, actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)] stderr=[]
+===== trunc_all       harness.log 2531 bytes (pristine 2622, delta -91)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: no end marker (unsealed log)] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: no end marker (unsealed log)] stderr=[]
+===== mid_marker      harness.log 2713 bytes (pristine 2622, delta 91)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, actual 509a398a9666aefd9c8a6e1a77e60400b2d578d734b5d7ee1256d3a0fd70531b)] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, actual 509a398a9666aefd9c8a6e1a77e60400b2d578d734b5d7ee1256d3a0fd70531b)] stderr=[]
+===== crlf            harness.log 2652 bytes (pristine 2622, delta 30)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, actual 9b5ce801e1712f3a806905ba29027b36facdcc6ed85172b7dda9457d7fea0c5d)] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, actual 9b5ce801e1712f3a806905ba29027b36facdcc6ed85172b7dda9457d7fea0c5d)] stderr=[]
+===== mid_and_tail    harness.log 2809 bytes (pristine 2622, delta 187)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: content after the end marker (lines 33..33)] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: content after the end marker (5 byte(s) past the marker line, byte 2804 of 2809)] stderr=[]
+===== tail_only_marker harness.log 2622 bytes (pristine 2622, delta 0)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+-- NEW rc=0 stdout=[INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact] stderr=[]
+===== relast_bogus    harness.log 2622 bytes (pristine 2622, delta 0)
+-- OLD rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)] stderr=[]
+-- NEW rc=1 stdout=[INTEGRITY FAIL: prefix sha mismatch (recorded ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)] stderr=[]
+===== negE            harness.log 2733 bytes (pristine 2622, delta 111)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 32, sha 9737cc38aef07d1fc94810225aee49242fde63ca16b07594b8d709c70bb9e775, stage manifest exact] stderr=[]
+-- NEW rc=0 stdout=[INTEGRITY OK: sealed at line 32, sha 9737cc38aef07d1fc94810225aee49242fde63ca16b07594b8d709c70bb9e775, stage manifest exact] stderr=[]
+===== negE2           harness.log 2721 bytes (pristine 2622, delta 99)
+-- OLD rc=0 stdout=[INTEGRITY OK: sealed at line 32, sha 59488deeede6f400f53d6f05ad7c1bc162a1a92da8e587c15d75cbd4e31c3fbb, stage manifest exact] stderr=[]
+-- NEW rc=0 stdout=[INTEGRITY OK: sealed at line 32, sha 59488deeede6f400f53d6f05ad7c1bc162a1a92da8e587c15d75cbd4e31c3fbb, stage manifest exact] stderr=[]

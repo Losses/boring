@@ -1,0 +1,21 @@
+--- selftest-before.sh	2026-09-29 20:32:06.000000000 -0400
++++ selftest-after.sh	2026-09-29 20:31:59.000000000 -0400
+@@ -153,6 +153,18 @@
+ bash "$E/check-log-integrity.sh" "$latest_a" >/dev/null 2>&1
+ check "post-end append detected" "$?" 1
+ 
++# Sealed-log integrity, byte view: the same post-end append WITHOUT a
++# trailing newline must be caught too. A fresh sealed attempt is used so
++# that the only difference from the control above is the missing LF: the
++# 6 appended bytes form no new line, so the line count is unchanged and a
++# line-view check sees nothing, while the byte-offset check sees exactly
++# 6 bytes past the marker line.
++run_case "plan-A no-LF append" "$PLAN_A" 0
++latest_nolf=$(cat "$E/.latest-run")
++printf 'abcdef' >>"$latest_nolf/harness.log"
++bash "$E/check-log-integrity.sh" "$latest_nolf" >/dev/null 2>&1
++check "post-end append without trailing newline detected" "$?" 1
++
+ # ---- Option C aux files: wrapper + post-state + record inspector ----
+ OC="$E/option-c-dummy"
+ rm -rf "$OC"

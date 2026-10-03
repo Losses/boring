@@ -1,0 +1,64 @@
+    Checking boring-codec-gen v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/scratch-xcheck/copy/reference/rust/gen)
+warning: unused import: `DerefMut`
+  --> reference/rust/gen/runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `cfg_test_probe::*`
+   --> reference/rust/gen/boring/mod.rs:236:9
+    |
+236 | pub use cfg_test_probe::*;
+    |         ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DerefMut`
+  --> reference/rust/gen/runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+
+warning: function `byte_to_unit` is never used
+   --> reference/rust/gen/runtime/u_string.rs:737:4
+    |
+737 | fn byte_to_unit(s: &str, byte: usize) -> u32 {
+    |    ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+  --> reference/rust/gen/runtime/u_string.rs:62:25
+   |
+62 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+   |                         ^^^^^                       ^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+   |                         |
+   |                         the lifetime is elided here
+   |
+   = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+   = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+   |
+62 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<'_, u16>> {
+   |                                                                      +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> reference/rust/gen/runtime/u_string.rs:280:25
+    |
+280 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+    |                         ^^^^^                       ^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                         |
+    |                         the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+280 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<'_, u16>> {
+    |                                                                      +++
+
+warning: `boring-codec-gen` (lib) generated 4 warnings (run `cargo fix --lib -p boring-codec-gen` to apply 3 suggestions)
+warning: `boring-codec-gen` (lib test) generated 5 warnings (3 duplicates) (run `cargo fix --lib -p boring-codec-gen --tests` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.95s
+RUST64_CHECK_RC=0

@@ -1,0 +1,90 @@
+#![cfg(test)]
+
+use crate::boring::math_min_max_ops::MathMinMaxOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn min_float() {
+    testlib::run("tests.MathMinMaxTests.minFloat", "tests.MathMinMaxTests.minFloat: Math.min returns the lesser float operand", || {
+        test_core::TestCore::test_core_equals_float(1.5f64, MathMinMaxOps::math_min_max_ops_smaller(1.5f64, 2.5f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(1.5f64, MathMinMaxOps::math_min_max_ops_smaller(2.5f64, 1.5f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(-3.0f64, MathMinMaxOps::math_min_max_ops_smaller(-3.0f64, -1.0f64), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn max_float() {
+    testlib::run("tests.MathMinMaxTests.maxFloat", "tests.MathMinMaxTests.maxFloat: Math.max returns the greater float operand", || {
+        test_core::TestCore::test_core_equals_float(2.5f64, MathMinMaxOps::math_min_max_ops_larger(1.5f64, 2.5f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(2.5f64, MathMinMaxOps::math_min_max_ops_larger(2.5f64, 1.5f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(-1.0f64, MathMinMaxOps::math_min_max_ops_larger(-3.0f64, -1.0f64), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn int_operands() {
+    testlib::run("tests.MathMinMaxTests.intOperands", "tests.MathMinMaxTests.intOperands: Math.min and Math.max accept int operands through the float signature", || {
+        test_core::TestCore::test_core_equals_float(4.0f64, MathMinMaxOps::math_min_max_ops_smaller_of_ints(4, 9), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(9.0f64, MathMinMaxOps::math_min_max_ops_larger_of_ints(4, 9), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn int_expression() {
+    testlib::run("tests.MathMinMaxTests.intExpression", "tests.MathMinMaxTests.intExpression: Math.max widens an int expression against a literal zero", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn abs_float() {
+    testlib::run("tests.MathMinMaxTests.absFloat", "tests.MathMinMaxTests.absFloat: Math.abs returns the absolute value of the float operand", || {
+        test_core::TestCore::test_core_equals_float(2.5f64, MathMinMaxOps::math_min_max_ops_abs_value(-2.5f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(2.5f64, MathMinMaxOps::math_min_max_ops_abs_value(2.5f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(0.0f64, MathMinMaxOps::math_min_max_ops_abs_value(-0.0f64), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn abs_int() {
+    testlib::run("tests.MathMinMaxTests.absInt", "tests.MathMinMaxTests.absInt: Math.abs accepts an int operand through the float signature", || {
+        test_core::TestCore::test_core_equals_float(7.0f64, MathMinMaxOps::math_min_max_ops_abs_of_ints(7), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn pow_float() {
+    testlib::run("tests.MathMinMaxTests.powFloat", "tests.MathMinMaxTests.powFloat: Math.pow raises the base to the exponent", || {
+        test_core::TestCore::test_core_equals_float(8.0f64, MathMinMaxOps::math_min_max_ops_power(2.0f64, 3.0f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(0.25f64, MathMinMaxOps::math_min_max_ops_power(2.0f64, -2.0f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(1.0f64, MathMinMaxOps::math_min_max_ops_power(5.0f64, 0.0f64), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn pow_int() {
+    testlib::run("tests.MathMinMaxTests.powInt", "tests.MathMinMaxTests.powInt: Math.pow accepts int operands through the float signature", || {
+        test_core::TestCore::test_core_equals_float(9.0f64, MathMinMaxOps::math_min_max_ops_power_of_ints(3, 2), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn round_float() {
+    testlib::run("tests.MathMinMaxTests.roundFloat", "tests.MathMinMaxTests.roundFloat: Math.round returns the nearest integer as an int", || {
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((MathMinMaxOps::math_min_max_ops_rounded(2.5f64)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((MathMinMaxOps::math_min_max_ops_rounded(2.4f64)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((MathMinMaxOps::math_min_max_ops_rounded(0.4f64)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn floor_ceil() {
+    testlib::run("tests.MathMinMaxTests.floorCeil", "tests.MathMinMaxTests.floorCeil: Math.floor rounds down and Math.ceil rounds up as ints", || {
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((MathMinMaxOps::math_min_max_ops_floored(2.7f64)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((MathMinMaxOps::math_min_max_ops_ceiled(2.1f64)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((MathMinMaxOps::math_min_max_ops_floored(0.4f64)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

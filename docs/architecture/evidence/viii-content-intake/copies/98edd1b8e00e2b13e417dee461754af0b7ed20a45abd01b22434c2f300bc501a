@@ -1,0 +1,24 @@
+file | summary | Extra | Missing | Verdict | Name | FailureMsg
+dc-warn/out/f32-divergence/evidence/2x2-reproduction.txt | failed with 112 divergence | 0 | 0 | 0 | 0 | 0
+dc-warn/out/f32-divergence/evidence/first-run-timeline.txt | failed with 166 divergence | 6 | 0 | 0 | 0 | 0
+dc-warn/out/f32-divergence/evidence/manager-cellC.log | failed with 112 divergence | 6 | 106 | 0 | 0 | 0
+dc-warn/out/f32-divergence/evidence/manager-cellD.log | failed with 166 divergence | 6 | 160 | 0 | 0 | 0
+dc-warn/out/f32-divergence/REPORT.md | failed with 166 divergence | 4 | 1 | 0 | 0 | 0
+dc-warn/out/f32-divergence-xcheck/evidence/A-divregion.txt | failed with 166 divergence | 6 | 160 | 0 | 0 | 0
+dc-warn/out/f32-divergence-xcheck/evidence/allowlist-impact-noallow.log | failed with 9 divergence | 6 | 0 | 3 | 0 | 0
+dc-warn/out/f32-divergence-xcheck/evidence/allowlist-impact-withallow.log | failed with 3 divergence | 0 | 0 | 3 | 0 | 0
+dc-warn/out/f32-divergence-xcheck/evidence/allowlist-mask-probe.log | failed with 3 divergence | 0 | 0 | 3 | 0 | 0
+dc-warn/out/f32-divergence-xcheck/evidence/B-divregion.txt | failed with 166 divergence | 6 | 160 | 0 | 0 | 0
+dc-warn/out/f32-divergence-xcheck/evidence/xcellC.log | failed with 2 divergence | 0 | 0 | 2 | 0 | 0
+dc-warn/out/f32-divergence-xcheck/evidence/xcellD.log | failed with 3 divergence | 0 | 0 | 3 | 0 | 0
+dc-warn/out/f32-divergence-xcheck/evidence/xprefix-cellC.log | failed with 112 divergence | 6 | 106 | 0 | 0 | 0
+dc-warn/out/f32-divergence-xcheck/evidence/xprefix-cellD.log | failed with 166 divergence | 6 | 160 | 0 | 0 | 0
+dc-warn/out/f32-roots-fix/evidence/manager-all10-postfix.log | failed with 3 divergence | 0 | 0 | 3 | 0 | 0
+dc-warn/out/p09-chainA-rerun/evidence/stage3-compare-divergences.txt | failed with 166 divergence | 6 | 160 | 0 | 0 | 0
+dc-warn/out/p09-chainA-rerun/evidence/stage3-driver-verify.stdout | failed with 166 divergence | 6 | 160 | 0 | 0 | 0
+dc-warn/out/p09-chainA-rerun/REPORT.md | failed with 166 divergence | 0 | 0 | 0 | 0 | 0
+dc-warn/out/swift-arrayboundary-fix/evidence/compile/driver-verify.stdout | failed with 166 divergence | 6 | 160 | 0 | 0 | 0
+dc-warn/out/swift-arrayboundary-fix/evidence/compile/stages/step-737716045.stdout | failed with 166 divergence | 6 | 160 | 0 | 0 | 0
+dc-warn/out/swift-arrayboundary-fix/REPORT.md | failed with 166 divergence | 0 | 0 | 0 | 0 | 0
+p09-chainA-work/execution-option-c-arrfix/out/integration-a3-evidence/exclusive-runner/attempt-20260929T192316-3118975/option-c/driver-verify.stdout | failed with 166 divergence | 6 | 160 | 0 | 0 | 0
+p09-chainA-work/execution-option-c-arrfix/out/integration-a3-evidence/exclusive-runner/attempt-20260929T192316-3118975/stages/step-737716045.stdout | failed with 166 divergence | 6 | 160 | 0 | 0 | 0

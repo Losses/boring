@@ -1,0 +1,58 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, PartialEq)]
+pub struct NullArgsSpan {
+    pub label: UString,
+    pub extra: UString,
+}
+
+impl NullArgsSpan {
+    pub fn new(label: &UStr, extra: Option<UString>) -> Self {
+        let extra = extra.unwrap_or_else(|| UString::from("none"));
+        Self {
+            label: label.to_ustring(),
+            extra: extra,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct NullDefaultSpan {
+    pub tier: Option<UString>,
+}
+
+impl NullDefaultSpan {
+    pub fn new(tier: Option<UString>) -> Self {
+        let tier = tier.or_else(|| None);
+        Self {
+            tier: tier,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct NullArgsOps;
+
+impl NullArgsOps {
+    pub fn null_args_ops_explicit_null() -> UString {
+        return (NullArgsSpan::new(&(UStr::new(&[97])), Some(UString::from("none"))).extra).clone();
+    }
+
+    pub fn null_args_ops_nullable_variable(v: Option<UString>) -> UString {
+        return (NullArgsSpan::new(&(UStr::new(&[97])), v.clone()).extra).clone();
+    }
+
+    pub fn null_args_ops_conditional_arg(v: Option<UString>) -> UString {
+        return (NullArgsSpan::new(&(UStr::new(&[97])), Some((match &(v) { None => UString::from("none"), Some(__option) => __option.to_ustring() }).to_ustring())).extra).clone();
+    }
+
+    pub fn null_args_ops_null_default_absent() -> UString {
+        return if NullDefaultSpan::new(None).tier.is_none() { UString::from("null") } else { UString::from("set") };
+    }
+
+    pub fn null_args_ops_null_default_present() -> UString {
+        return if NullDefaultSpan::new(Some(UString::from("x"))).tier.is_none() { UString::from("null") } else { UString::from("set") };
+    }
+}

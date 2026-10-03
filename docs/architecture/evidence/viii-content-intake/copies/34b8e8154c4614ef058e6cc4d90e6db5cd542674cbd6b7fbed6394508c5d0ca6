@@ -1,0 +1,148 @@
+OLD checker sha256 bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a (expected bebd0cf9026ec97d7afdc1a5ebccf8a9213e04aedfa77e2b3be487d79580fe5a)
+NEW checker sha256 606cb4f391ba288137ef70caad989c848b96cbb78547efac12bd8527f534e3f7 (expected 606cb4f391ba288137ef70caad989c848b96cbb78547efac12bd8527f534e3f7)
+
+pos1           old_rc=0 new_rc=0 log_bytes=2622
+  -- OLD:
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+  -- NEW:
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+pos2           old_rc=0 new_rc=0 log_bytes=3173
+  -- OLD:
+INTEGRITY OK: sealed at line 36, sha 340f264391c272ae6c5ff38c2db7e611a65468a7e08e21b2f701c6de4eb02e32, stage manifest exact
+  -- NEW:
+INTEGRITY OK: sealed at line 36, sha 340f264391c272ae6c5ff38c2db7e611a65468a7e08e21b2f701c6de4eb02e32, stage manifest exact
+negA1_b1       old_rc=0 new_rc=1 log_bytes=2623
+  -- OLD:
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+  -- NEW:
+INTEGRITY FAIL: content after the end marker (1 byte(s) past the marker line, byte 2622 of 2623)
+negA6_b1       old_rc=0 new_rc=1 log_bytes=2628
+  -- OLD:
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+  -- NEW:
+INTEGRITY FAIL: content after the end marker (6 byte(s) past the marker line, byte 2622 of 2628)
+negA6_b2       old_rc=0 new_rc=1 log_bytes=2628
+  -- OLD:
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+  -- NEW:
+INTEGRITY FAIL: content after the end marker (6 byte(s) past the marker line, byte 2622 of 2628)
+negA19_b1      old_rc=0 new_rc=1 log_bytes=2641
+  -- OLD:
+INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+  -- NEW:
+INTEGRITY FAIL: content after the end marker (19 byte(s) past the marker line, byte 2622 of 2641)
+negB1_b1       old_rc=1 new_rc=1 log_bytes=2644
+  -- OLD:
+INTEGRITY FAIL: content after the end marker (lines 31..31)
+  -- NEW:
+INTEGRITY FAIL: content after the end marker (22 byte(s) past the marker line, byte 2622 of 2644)
+negB1_b2       old_rc=1 new_rc=1 log_bytes=3195
+  -- OLD:
+INTEGRITY FAIL: content after the end marker (lines 37..37)
+  -- NEW:
+INTEGRITY FAIL: content after the end marker (22 byte(s) past the marker line, byte 3173 of 3195)
+negB2          old_rc=1 new_rc=1 log_bytes=2622
+  -- OLD:
+INTEGRITY FAIL: stage evidence hash changed
+  3a4
+  > 5a852458e03f299f571f6d670e8cd1ed8d1c5ca97156408bbe370932267ce192  step-2320672395.stdout
+  10d10
+  < d575aec2aa2883ebf96464e35b448ce3376461811a73c827770e6bab8244afcd  step-2320672395.stdout
+  -- NEW:
+INTEGRITY FAIL: stage evidence hash changed
+  3a4
+  > 5a852458e03f299f571f6d670e8cd1ed8d1c5ca97156408bbe370932267ce192  step-2320672395.stdout
+  10d10
+  < d575aec2aa2883ebf96464e35b448ce3376461811a73c827770e6bab8244afcd  step-2320672395.stdout
+negB3          old_rc=1 new_rc=1 log_bytes=2622
+  -- OLD:
+INTEGRITY FAIL: stage evidence hash changed
+  2d1
+  < 4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  step-737716045.status
+  8a8
+  > 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-737716045.status
+  -- NEW:
+INTEGRITY FAIL: stage evidence hash changed
+  2d1
+  < 4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  step-737716045.status
+  8a8
+  > 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-737716045.status
+negB4          old_rc=1 new_rc=1 log_bytes=2622
+  -- OLD:
+INTEGRITY FAIL: stage evidence set differs from manifest
+--- manifest only:
+  deleted: step-2119220958.stderr
+--- actual only (unmanifested):
+  -- NEW:
+INTEGRITY FAIL: stage evidence set differs from manifest
+--- manifest only:
+  deleted: step-2119220958.stderr
+--- actual only (unmanifested):
+e_nolf         old_rc=0 new_rc=0 log_bytes=90
+  -- OLD:
+INTEGRITY OK: sealed at line 1, sha e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, stage manifest exact
+  -- NEW:
+INTEGRITY OK: sealed at line 1, sha e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, stage manifest exact
+e_nomark       old_rc=1 new_rc=1 log_bytes=18
+  -- OLD:
+INTEGRITY FAIL: no end marker (unsealed log)
+  -- NEW:
+INTEGRITY FAIL: no end marker (unsealed log)
+e_prefix       old_rc=1 new_rc=1 log_bytes=44
+  -- OLD:
+INTEGRITY FAIL: prefix sha mismatch (recorded deadbeef, actual 31f21b1dae81d3f32f40e38134bc688e6f7df4f08dde1d7d2cda3c4b59104e1c)
+  -- NEW:
+INTEGRITY FAIL: prefix sha mismatch (recorded deadbeef, actual 31f21b1dae81d3f32f40e38134bc688e6f7df4f08dde1d7d2cda3c4b59104e1c)
+multi0         old_rc=0 new_rc=0 log_bytes=2713
+  -- OLD:
+INTEGRITY OK: sealed at line 31, sha cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1, stage manifest exact
+  -- NEW:
+INTEGRITY OK: sealed at line 31, sha cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1, stage manifest exact
+multi1         old_rc=1 new_rc=1 log_bytes=2713
+  -- OLD:
+INTEGRITY FAIL: prefix sha mismatch (recorded a48a9d23e98030a095535d75961759abd5ffeb90c21787a4bd18c12d51140402, actual cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1)
+  -- NEW:
+INTEGRITY FAIL: prefix sha mismatch (recorded a48a9d23e98030a095535d75961759abd5ffeb90c21787a4bd18c12d51140402, actual cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1)
+multi2         old_rc=1 new_rc=1 log_bytes=2712
+  -- OLD:
+INTEGRITY FAIL: prefix sha mismatch (recorded a48a9d23e98030a095535d75961759abd5ffeb90c21787a4bd18c12d51140402, actual cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1)
+  -- NEW:
+INTEGRITY FAIL: prefix sha mismatch (recorded a48a9d23e98030a095535d75961759abd5ffeb90c21787a4bd18c12d51140402, actual cddcb972cc34a7ac4374a985e0778c5528714581b3a69b431ec2f31d18d4f2d1)
+multi3         old_rc=1 new_rc=1 log_bytes=2713
+  -- OLD:
+INTEGRITY FAIL: stage evidence hash changed
+  3a4
+  > 5a852458e03f299f571f6d670e8cd1ed8d1c5ca97156408bbe370932267ce192  step-2320672395.stdout
+  10d10
+  < d575aec2aa2883ebf96464e35b448ce3376461811a73c827770e6bab8244afcd  step-2320672395.stdout
+  -- NEW:
+INTEGRITY FAIL: stage evidence hash changed
+  3a4
+  > 5a852458e03f299f571f6d670e8cd1ed8d1c5ca97156408bbe370932267ce192  step-2320672395.stdout
+  10d10
+  < d575aec2aa2883ebf96464e35b448ce3376461811a73c827770e6bab8244afcd  step-2320672395.stdout
+multi1         old_rc=0 new_rc=0 log_bytes=2725
+  -- OLD:
+INTEGRITY OK: sealed at line 32, sha a48a9d23e98030a095535d75961759abd5ffeb90c21787a4bd18c12d51140402, stage manifest exact
+  -- NEW:
+INTEGRITY OK: sealed at line 32, sha a48a9d23e98030a095535d75961759abd5ffeb90c21787a4bd18c12d51140402, stage manifest exact
+multi2         old_rc=0 new_rc=0 log_bytes=2724
+  -- OLD:
+INTEGRITY OK: sealed at line 32, sha a48a9d23e98030a095535d75961759abd5ffeb90c21787a4bd18c12d51140402, stage manifest exact
+  -- NEW:
+INTEGRITY OK: sealed at line 32, sha a48a9d23e98030a095535d75961759abd5ffeb90c21787a4bd18c12d51140402, stage manifest exact
+multi3b        old_rc=0 new_rc=0 log_bytes=2622
+  -- OLD:
+INTEGRITY OK: sealed at line 30, sha 80344e6c20b3b71bfc3c2fe115c2c5648341c92176588134632b756bc4ce45d5, stage manifest exact
+  -- NEW:
+INTEGRITY OK: sealed at line 30, sha 80344e6c20b3b71bfc3c2fe115c2c5648341c92176588134632b756bc4ce45d5, stage manifest exact
+negA6_b2       old_rc=0 new_rc=1 log_bytes=3179
+  -- OLD:
+INTEGRITY OK: sealed at line 36, sha 340f264391c272ae6c5ff38c2db7e611a65468a7e08e21b2f701c6de4eb02e32, stage manifest exact
+  -- NEW:
+INTEGRITY FAIL: content after the end marker (6 byte(s) past the marker line, byte 3173 of 3179)
+negA1_b2       old_rc=0 new_rc=1 log_bytes=3174
+  -- OLD:
+INTEGRITY OK: sealed at line 36, sha 340f264391c272ae6c5ff38c2db7e611a65468a7e08e21b2f701c6de4eb02e32, stage manifest exact
+  -- NEW:
+INTEGRITY FAIL: content after the end marker (1 byte(s) past the marker line, byte 3173 of 3174)

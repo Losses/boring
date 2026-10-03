@@ -1,0 +1,72 @@
+package boring
+
+import boring.runtime.Env
+import boring.runtime.Process
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
+import std.Path
+
+object PlatformOps {
+    fun exists(path: String): Boolean {
+        return Files.exists(Paths.get(path))
+    }
+
+    fun readText(path: String): String {
+        return Files.readString(Paths.get(path))
+    }
+
+    fun writeAppendRead(path: String, first: String, second: String): String {
+        Files.writeString(Paths.get(path), first)
+        Files.writeString(Paths.get(path), second, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+        return Files.readString(Paths.get(path))
+    }
+
+    fun makeDirsCheck(path: String): Boolean {
+        Files.createDirectories(Paths.get(path))
+        return Files.isDirectory(Paths.get(path))
+    }
+
+    fun listDir(path: String): MutableList<String> {
+        return Files.newDirectoryStream(Paths.get(path)).use { s -> s.map { it.fileName.toString() }.toMutableList() }
+    }
+
+    fun envGet(key: String): String {
+        val value = Env.get(key)
+        return (if ((value == null)) "<absent>" else value)
+    }
+
+    fun envRoundTrip(key: String, value: String): String {
+        Env.set(key, value)
+        val afterSet = Env.get(key)
+        Env.remove(key)
+        val afterRemove = Env.get(key)
+        return PlatformOps.textOr(afterSet, "<null>") + "|" + PlatformOps.textOr(afterRemove, "<absent>")
+    }
+
+    private fun textOr(value: String?, marker: String): String {
+        return (if ((value == null)) marker else value)
+    }
+
+    fun firstArg(): String {
+        val args = Process.args()
+        return (if ((args.size > 0)) args[0] else "<none>")
+    }
+
+    fun join(a: String, b: String): String {
+        return Path.join(a, b)
+    }
+
+    fun dirname(p: String): String {
+        return Path.dirname(p)
+    }
+
+    fun normalize(p: String): String {
+        return Path.normalize(p)
+    }
+
+    fun home(): String {
+        val value = Env.get("PLATFORM_TEST_HOME")
+        return (if ((value == null)) "<absent>" else value)
+    }
+}

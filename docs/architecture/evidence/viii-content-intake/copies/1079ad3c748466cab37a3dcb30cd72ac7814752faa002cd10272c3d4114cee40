@@ -1,0 +1,148 @@
+# REVIEW (判据 3) — Dart fall-through 空值守卫修复的独立审阅（不同模型）
+
+- 审阅人：独立审阅 Agent（与执行席、第一轮复核均不同模型）
+- 被审对象：任务 `t-mun3ejy5-16zz`（branch `fix/dart-fallthrough-nullguard`）对
+  `packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx` 的 +8/−2 修复
+- 审阅工作树：`dc-warn/worktrees/dart-fix-xcheck`（本审阅自建，detached @ e1c65975，
+  补丁由本审阅从 `dc-warn/out/dart-fix/PATCH.diff` 自行 `git apply`，未复制对方树）
+- 工具链：Haxe 4.3.7 / Dart SDK 3.13.0（`nix develop`，`XDG_CACHE_HOME=/tmp/dart-xcheck-nix-cache`）
+- 本审阅夹具（自写，不复用对方夹具）：`tests/haxe/xcheck-dart-fix/`，12 形状：
+  p2/p7/p8/p9（对方/第一轮已测形状，本树复现）+ **p10–p17（对方未测形状）**：
+  p10 终止守卫+重赋值再用、p11 null-defaulting 守卫体、p12 循环体内 fall-through 守卫（用点在循环外）、
+  p13 嵌套 if 内 fall-through 守卫、p14 switch（case null / case v）、p15 try/catch 内 fall-through 守卫、
+  p16 参数上的 fall-through 守卫、p17 `!= null` scoped 臂对照
+- 证据目录（本审阅自有，含各阶段 argv/stdout/stderr/status 与输入前后 sha256）：
+  `pre-20260929T180000Z`、`post-20260929T183000Z`、`negctrl-20260929T190000Z`、
+  `negctrl2-20260929T195000Z`、`p10fix-20260929T193000Z`
+
+## 1. 判定（三档）
+
+**有条件通过**：改动面正确——仅 `DartExpr.hx` 单文件 +8/−2，只删不加（仅移除 promotion
+写入，任何分支语义都未被放宽：p7/p14/p17 字节不变、Kotlin 输出字节不变）；fall-through
+缺陷族（p2/p8/p9 + 本审阅新发现的 p12/p13/p15/p16 四个泄漏面）在本树复现修复，p7 保持
+裸 `t.length`（证实未用"直接删 918"的粗暴解法）。**但**：修复门控与 913–915 **未完全
+对齐**——917–919 只加了 `branchTerminates(t)`，漏了 914 行的 `!mutated.exists(guarded.id)`；
+本审阅找到可达反例 **p10**（终止守卫后重赋值再用），修复后仍发裸 `t.length`，analyzer
+error 41:12 + AOT 254。必须补：门控补齐 `!mutated`（一行）+ p10 形状入夹具。本审阅已用
+`p10fix-20260929T193000Z` 验证该一行补法：0 error、编译/运行/比对全 0，且与补丁态生成物
+只差第 41 行（`t.length`→`t!.length`），p7 仍裸。
+
+## 2. 判据 1：字节核对（本审阅独立计算）
+
+- 修复前 `DartExpr.hx` sha256（本树 @e1c65975，打补丁前）=
+  `a123fe5981b95e98803d2d9881580caf6b4474bce2833d65e6131d00e99f57d0`（与报告一致）
+- 从 `dc-warn/out/dart-fix/PATCH.diff` 自行 `git apply` 后 =
+  `859e6f4b8de5212305f1907e9e55d784be36979235db53c24a2a59a9eef81301`（与报告一致）
+- 对方工作树 `dc-warn/worktrees/dart-fix` 同文件实测 sha256 = `859e6f4b…`，
+  7 个文件哈希与 `FILES.sha256` 全中（只读核对）
+- 本树 `git diff --numstat`：内容改动仅 `8 2 packages/.../DartExpr.hx`；
+  另 11 条 `0 0`（`tests/.../run.sh`、`tools/git-hooks/commit-msg` 等）经
+  `git diff --summary` 确认全部是 `mode change 100755 => 100644` 的 fuse 伪差异
+  （rclone 挂载剔除执行位），与本审阅打补丁前即存在的干净树状态相同，非补丁引入
+- 本树 `git diff` 的 DartExpr.hx 段与 `PATCH.diff` 对应段逐字节一致（index 行除外）
+- 门控文本核对（补丁后）：
+  - 913–915 `flowPromotedNonNull`：`guarded != null && f == null && !isNotNullGuard(c)
+    && !mutated.exists(guarded.id) && branchTerminates(t)`
+  - 917–919 `nonNullLocals`：`guarded != null && f == null && !isNotNullGuard(c)
+    && branchTerminates(t)` —— **无 `!mutated` 项**，与"完全对齐"的表述不符（§4）
+
+## 3. 判据 2：修复前后对照（本审阅自己工作树，12 形状）
+
+| 形状 | 修复前 emit（行:位点，analyze） | 修复后 emit | 判定 |
+|---|---|---|---|
+| p2 fall-through | `s.length` 裸，error 8:12 | `s!.length` | 修复 |
+| p7 终止守卫 | `t.length` 裸，干净 | `t.length` 裸，干净 | **不变（非粗暴删 918）** |
+| p8 守卫后重赋值 | `s.length` 裸，error 24:12 | `s!.length` | 修复 |
+| p9 闭包 | `() => s.length`，error 31:21 | `() => s!.length` | 修复 |
+| **p10 终止+重赋值** | `t.length` 裸，error 41:12（+Dart 自注 non-promo-write@40:3） | `t.length` 裸，**error 41:12 仍在** | **反例：未修复** |
+| p11 null-defaulting | `s.length` 裸，干净 | `s!.length`，warning 49:11 unnecessary_non_null_assertion | 更保守，仅 warning（与报告 §⑥ 预测一致） |
+| p12 循环内 fall-through | `s.length` 裸，error 61:12（写入泄漏过循环回边） | `s!.length` | 修复（新面） |
+| p13 嵌套 if | `s.length` 裸，error 70:12（泄漏出嵌套块） | `s!.length` | 修复（新面） |
+| p14 switch | `v!.length`，干净 | `v!.length`，干净 | 不变（无第二条写入路径） |
+| p15 try/catch | `s.length` 裸，error 91:12（泄漏过 catch） | `s!.length` | 修复（新面） |
+| p16 参数守卫 | `v.length` 裸，error 97:12 | `v!.length` | 修复（新面） |
+| p17 `!= null` 臂 | 臂内 `s.length` 裸，干净 | 臂内 `s.length` 裸，干净 | 不变（scoped 路径未动） |
+
+- 原始退出码：pre（`pre-20260929T180000Z`）gen-dart 0 / dart-analyze **3**（8 error +
+  1 warning）/ dart-compile **254** / dart-run 254 / dart-compare 1 / gen-kotlin 0；
+  post（`post-20260929T183000Z`）gen-dart 0 / dart-analyze **3**（**仅 p10 1 error** +
+  2 warning）/ dart-compile **254**（因 p10）/ dart-run 254 / dart-compare 1 /
+  gen-kotlin 0。两 attempt 输入前后 sha256 identical。
+- **Kotlin 对照**：同输入 gen-kotlin 产物修复前后逐字节一致
+  （sha256 `69c115252bce5e5e4c673e1e693a7656b9b5900efbc970e099dcc11c9d2fddd6`，
+  落空面保守 `s?.size!!`、p7 裸 `t.size`）——补丁只影响 Dart 目标。
+- p7 双通道结论复核：p7 的 then 臂 `return -1` 使 `branchTerminates` 为真且 `t` 未被
+  `mutated` 记录（scanLocals 预扫描无赋值）→ 917–919 照写 `nonNullLocals` →
+  `provenNonNull` 真 → 2013/2189 行发裸 `t.length`，与修复前逐字节一致。实测成立。
+
+## 4. 判据 3："唯一写入面"断言的独立挑战
+
+**静态审计（本审阅独立 grep 全触点）**：`nonNullLocals` 写入点仅
+443（coalescing 参数）、835（非空初始化，`!mutated` 门控）、868（coalescing 局部）、
+900（`!= null` scoped，wasProven 恢复）、**918（本修复对象）**、1748（`&&` 链 scoped，
+1765 恢复，`!mutated` 门控）；移除点 432/480（每函数 clear）、903/1765（scoped 恢复）、
+4839 `markMutated`（仅 `scanLocals` 预扫描期）。`provenNonNull`(4602) 只读
+`nonNullLocals`；`requiredValueText`(2189) 与 `instanceFieldReceiver`(2013) 的 `!`
+抑制都以它为据；`functionLiteral`(1644) 只清 `flowPromotedNonNull`。**fall-through
+守卫驱动的提升写入只有 918 一处**——断言本身成立，且被本审阅 6 个新形状实证
+（p10–p16 的行为与单写入模型逐条吻合）。
+
+**但断言的另一半不成立：门控不完整。** `mutated` 在渲染前预扫描期整函数建立
+（448 行先于 450 行渲染），`markMutated` 对 `nonNullLocals` 的移除发生在 918 写入**之前**，
+对渲染期写入无效。917–919 漏掉 `!mutated.exists(guarded.id)` 后，**"终止守卫 + 其后重赋值
++ 再用"**（p10）的写入照旧发生且无法被杀：`branchTerminates` 为真 → 写入 → 重赋值后的
+使用点 `provenNonNull` 真 → 发裸 `t.length`。实测（§3 p10 行）：修复前后均
+`unchecked_use_of_nullable_value` 41:12 + AOT 254。Haxe 4.3.7 对 p10 源码 typecheck
+通过（gen-dart rc=0）→ 该形状**可从良型 Haxe 代码到达**，不是病态输入。
+REPORT 与任务描述所称"916–918 与 913–915 完全对齐"不准确：补丁只补了
+`branchTerminates(t)`。
+
+**已验证的补法**（`p10fix-20260929T193000Z`，本审阅在自树加一行
+`!mutated.exists(guarded.id)`，variant sha256 `c12b0974bf9c5d791e08bbf3bc95e9a75c212cd54a3427d0a61f51ec06f44c24`）：
+dart-analyze **0 error**（仅剩 2 个已知 warning：夹具 unused 变量 + p11 保守 `!`）、
+dart-compile 0、dart-run 0（输出 `p2=5 p7=5 p8=2 p9=4 p10=2 p11=2 p12=3 p13=2
+p14=2 p15=2 p16=2 p17=2`）、dart-compare 0；与补丁态生成物 diff 仅第 41 行
+（`t.length`→`t!.length`），p7 第 16 行仍裸 `t.length`——补法外科式精确，不影响其它形状。
+
+**B 包迁移边界（判据 3 要求给出）**：修复与残留都不越出 `DartExpr.hx` 的 Dart 目标
+发射；共享分析（SourceLocalPresenceAnalysis 等）、Kotlin 生产者、其它目标零改动
+（Kotlin 字节一致实证）。两个独立残留，不属本任务范围：
+(a) p11 型 null-defaulting 输入修复后招 warning 级 `unnecessary_non_null_assertion`，
+属 `FlowPromotedDedup` 家族（2013 行应同时参考 `flowPromotedNonNull`）；
+(b) p10 门控缺口（本审阅反例），补法已验证，应作为本任务收尾的一行改动而非 B 包事项。
+另记工具链 quirk（与修复无关）：dart 宏构建下 Haxe 4.3.7 的 V14/V20 拒绝
+`catch (e:Dynamic)` 与 `catch (e:haxe.Exception)`（含子类），`catch (e:String)` 可通过；
+p15 据此取形。
+
+## 5. 判据 4：负控有效性
+
+- 对方 `negctrl`（p7 期望 5→99）/`negctrl2`（p9 期望 4→77）只读复核：
+  dart-run rc=0（程序真实运行、输出 `p7=5`/`p9=4`），dart-compare rc=1，
+  diff 恰为被篡改行（`-p7=99 +p7=5` / `-p9=77 +p9=4`），输入前后哈希 identical
+  → 失败来自期望值被改错，非夹具/harness 损坏。✓
+- 本审阅自跑负控（篡改副本 p7=99 + p10=77）：`negctrl-20260929T190000Z`（注意：
+  该 attempt 的输入哈希记录为 variant 态 `c12b0974…`——因本审阅在 attempt 起始哈希
+  落盘前后完成了 p10fix variant 的一行编辑；harness 完整性结论不受影响）与
+  `negctrl2-20260929T195000Z`（对恢复后的 `859e6f4b…` 补丁态，输入哈希
+  `859e6f4b…` 前后 identical）：前者的 dart-run rc=0、全 12 行正确输出
+  （`p7=5`/`p10=2`），compare diff 恰为被篡改两行（`-p7=99 +p7=5`、
+  `-p10=77 +p10=2`）；后者的 dart-run rc=254（补丁态下 p10 真实静态错误
+  阻断 JIT，与 post attempt 一致），compare rc=1、diff 为含篡改行的期望
+  对空输出。合看：程序健康时输出正确且 compare 只报被篡改行，期望值被改
+  必然 rc=1。测试能抓住回退，负控有效。✓
+
+## 6. 复算入口
+
+```
+# 审阅树（detached @ e1c65975 + 自行打上的 PATCH.diff + 自写夹具）
+git -C /home/losses/Development/tq-workspace/boring worktree list | grep dart-fix-xcheck
+cd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix-xcheck
+sha256sum packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx   # 859e6f4b…（补丁态）
+# 重跑（attempt 目录拒绝覆盖；XDG_CACHE_HOME 不可放 dc-warn fuse 上）
+XDG_CACHE_HOME=/tmp/dart-xcheck-nix-cache nix develop -c bash tests/haxe/xcheck-dart-fix/run.sh
+```
+
+- 只读资产未写：`boring-wt-architecture`、`publication-staging/**`、`tiqian/**`、
+  他人 worktree（`dart-fix`/`dart-fix2`/`null-guard`/`null-guard-xcheck` 等仅读）。
+- 本审阅未 commit/push/merge；p10fix variant 仅存在于自树实验（已还原为补丁态
+  `859e6f4b…`，`git diff --numstat` 复验 8 2）。

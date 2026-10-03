@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
+argv timeout 900 haxe -lib reflaxe -lib boring -cp packages/compiler -cp samples -cp tests/haxe/charcodeat -cp tests/haxe/charcodeat/probes --macro Intercept.run\(\[\'samples\'\,\ \'tests/haxe/charcodeat\'\,\ \'tests/haxe/charcodeat/probes\'\]\) -main PCodeint -js /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212458Z/probes/codeint-boring.js

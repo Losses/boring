@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class IntFloatAddTests {
+@boring.test.Test
+    fun testAdd() {
+        Test.run("tests.IntFloatAddTests.testAdd", "tests.IntFloatAddTests.testAdd: an Int operand widens in a mixed Float addition") {
+                Test.equals(true, true, null)
+        }
+    }
+}

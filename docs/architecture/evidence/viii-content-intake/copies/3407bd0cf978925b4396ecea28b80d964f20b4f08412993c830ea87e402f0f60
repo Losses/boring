@@ -1,0 +1,40 @@
+#![cfg(test)]
+
+use crate::boring::null_guard_nested_field_ops::NullGuardNestedFieldOps;
+use crate::boring::null_guard_nested_field_ops::NullGuardNestedHolder;
+use crate::boring::null_guard_nested_field_ops::NullGuardNestedSpan;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn starts_before() {
+    testlib::run("tests.NullGuardNestedFieldOpsTests.startsBefore", "tests.NullGuardNestedFieldOpsTests.startsBefore: a guarded local reads through an intermediate member", || {
+        let holder = NullGuardNestedHolder::new(NullGuardNestedSpan::new(2.0f64, 4.0f64));
+        test_core::TestCore::test_core_equals_bool(true, NullGuardNestedFieldOps::null_guard_nested_field_ops_starts_before(Some((holder).clone()), 3.0f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, NullGuardNestedFieldOps::null_guard_nested_field_ops_starts_before(Some((holder).clone()), 1.0f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, NullGuardNestedFieldOps::null_guard_nested_field_ops_starts_before(None, 3.0f64), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn matching_span() {
+    testlib::run("tests.NullGuardNestedFieldOpsTests.matchingSpan", "tests.NullGuardNestedFieldOpsTests.matchingSpan: two guarded paths compare through their intermediate members", || {
+        let holder = NullGuardNestedHolder::new(NullGuardNestedSpan::new(2.0f64, 4.0f64));
+        let same = NullGuardNestedHolder::new(NullGuardNestedSpan::new(2.0f64, 9.0f64));
+        let other = NullGuardNestedHolder::new(NullGuardNestedSpan::new(1.0f64, 4.0f64));
+        test_core::TestCore::test_core_equals_bool(true, NullGuardNestedFieldOps::null_guard_nested_field_ops_matching_span(Some((holder).clone()), (same).clone()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, NullGuardNestedFieldOps::null_guard_nested_field_ops_matching_span(Some((holder).clone()), (other).clone()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn span_left() {
+    testlib::run("tests.NullGuardNestedFieldOpsTests.spanLeft", "tests.NullGuardNestedFieldOpsTests.spanLeft: a guarded local returns a value read through an intermediate member", || {
+        let holder = NullGuardNestedHolder::new(NullGuardNestedSpan::new(2.0f64, 4.0f64));
+        test_core::TestCore::test_core_equals_bool(true, NullGuardNestedFieldOps::null_guard_nested_field_ops_span_left(Some((holder).clone())) == 2.0f64, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullGuardNestedFieldOps::null_guard_nested_field_ops_span_left(Some(NullGuardNestedHolder::new(NullGuardNestedSpan::new(12.0f64, 4.0f64)))) == 0.0f64, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullGuardNestedFieldOps::null_guard_nested_field_ops_span_left(None) == 0.0f64, UStr::new(&[]));
+    });
+}

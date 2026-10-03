@@ -1,0 +1,23 @@
+package boring
+
+object MathIntWideningOps {
+    fun floorOf(x: Int): Int {
+        return (kotlin.math.floor((x).toDouble())).toInt()
+    }
+
+    fun ceilOf(x: Int): Int {
+        return (kotlin.math.ceil((x).toDouble())).toInt()
+    }
+
+    fun sqrtOf(x: Int): Double {
+        return kotlin.math.sqrt((x).toDouble())
+    }
+
+    fun nanOf(x: Int): Boolean {
+        return ((x).toDouble()).isNaN()
+    }
+
+    fun finiteOf(x: Int): Boolean {
+        return ((x).toDouble()).isFinite()
+    }
+}

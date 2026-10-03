@@ -1,0 +1,90 @@
+# STEP-GROUPED DIFF — partition of INTEGRATION.diff into independently reviewable steps
+
+Prepared 2026-09-30. Read-only reorganisation of
+`dc-warn/out/integration-manifest/INTEGRATION.diff` (13 hunks, +54/−15, one file:
+`packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx`) into step (a) and
+step (c). **No compiler behaviour changed — hunks are reproduced verbatim**;
+the only new lines are `#` comment lines, which GNU patch skips (verified below).
+The coordination tree, the source worktrees, and all tests were NOT modified;
+all work happened in `/tmp/sg/` scratch copies.
+
+## 1. Partition (all 13 hunks accounted for — see HUNK-INVENTORY.tsv)
+
+| Step | Hunks | Content |
+|---|---|---|
+| **(a)** SW04 nil-merge | **1 of 13** — hunk 3 (`@@ -2624`) | one line: `lowerArrayBoundary(nilMerge.target, target, null, true)` |
+| **(c)** destination handoff | **12 of 13** — hunks 1,2,4,5,6,7,8,9,10,11,12,13 | `destinationValueText` helper + `destination:Null<Type>` threading + 5 route wirings |
+
+No hunk serves both steps. Each hunk is a contiguous edit serving exactly one
+concern: hunk 3 changes only the nil-merge arm (no (c) route); every other hunk
+adds/wires the destination plumbing and never touches the nil-merge line. The
+step-(a) hunk is 1 line, so it splits out cleanly with zero entanglement.
+
+## 2. Artefacts
+
+- `STEP-A.diff` — step (a) alone (header + hunk 3, new-side start renumbered to
+  +2624 since no preceding hunks apply). Applies to the coordination tree as-is.
+- `STEP-C.diff` — step (c) alone, **diffed against the tree with STEP-A applied**
+  (generated mechanically: `diff -u` of the (a)-applied tree vs the
+  INTEGRATION-applied tree). **(c) presupposes (a)** — it cannot be applied
+  standalone, because (a) is a prerequisite for the fixture generation that
+  verifies (c), and STEP-C's old-side context is the (a)-applied file. Say so in
+  review: apply STEP-A first, then STEP-C.
+- `STEP-GROUPED.diff` — the ORIGINAL hunks in the ORIGINAL order, each preceded
+  by `# [STEP A]` / `# [STEP C]` comment lines citing that step's evidence.
+  One applicable file; GNU patch skips the comment lines (verified: dry-run rc=0,
+  apply rc=0, result byte-identical to INTEGRATION's result).
+- `HUNK-INVENTORY.tsv` — hunk → step → one-line justification, all 13 rows.
+- `evidence/` — raw patch/dry-run logs and the (empty = success) byte-identity
+  diff logs.
+
+Review headers (what each step does / verifies / does NOT verify / presupposes)
+are embedded at the top of each .diff file.
+
+## 3. Verification — exit codes measured directly, never through a pipe
+
+Base for (a)/(grouped): fresh copies of the coordination tree
+`boring-wt-architecture` (e1c65975 + uncommitted changes, as of this session).
+Base for (c): a fresh copy with STEP-A actually applied. PATH from
+`dc-warn/out/chainA-fixed-rerun/evidence/env.json` (not needed for patching but
+matches house env).
+
+| Check | rc |
+|---|---|
+| `patch -p1 --dry-run` STEP-A vs coordination tree | **0** (`evidence/dryrun-STEP-A.log`) |
+| `patch -p1` STEP-A apply | **0** (`evidence/apply-STEP-A.log`) |
+| `patch -p1 --dry-run` STEP-C vs coordination+STEP-A tree | **0** (`evidence/dryrun-STEP-C.log`) |
+| `patch -p1` STEP-C apply | **0** (`evidence/apply-STEP-C.log`) |
+| `patch -p1 --dry-run` STEP-GROUPED vs coordination tree | **0** (`evidence/dryrun-STEP-GROUPED.log`) |
+| `patch -p1` STEP-GROUPED apply | **0** (`evidence/apply-STEP-GROUPED.log`) |
+| `patch -p1 --dry-run` INTEGRATION.diff vs coordination tree (control) | **0** (`evidence/dryrun-INTEGRATION.log`) |
+
+### 4. Byte-identity proof: STEP-A + STEP-C == INTEGRATION.diff
+
+On fresh copies: tree1 ← STEP-A then STEP-C; tree2 ← INTEGRATION.diff.
+
+- `diff -rq` on the Swift backend directory (`packages/compiler/reflaxe/swift`):
+  **rc=0, no output** — byte-identical (`evidence/byteidentity-AC-vs-INTEGRATION.log`).
+- `diff -rq` on the WHOLE tree (excl .git/out/node_modules): **rc=0** —
+  byte-identical (`evidence/byteidentity-AC-vs-INTEGRATION-whole-tree.log`).
+- `cmp` of the patched `SwiftExpr.hx`: **rc=0**.
+- Cross-check: the INTEGRATION-applied file is `cmp`-identical (rc=0) to the
+  fix-2 worktree's `SwiftExpr.hx` (`dc-warn/swc-try-fix-wt/wt/...`), matching the
+  integration-manifest claim.
+- STEP-GROUPED applied result `cmp` vs INTEGRATION applied result: **rc=0**.
+
+Nothing dropped, nothing altered: the partition is complete and
+behaviour-preserving by construction (hunks byte-identical to the originals;
+only `#` lines added, which patch discards).
+
+## 5. What this does NOT verify
+
+- **Compiler behaviour is NOT re-verified here.** This session only proved
+  apply-cleanliness and byte-identity of the split. Behavioural evidence remains
+  the cited reports: step (a) → `dc-warn/sw04-xcheck/REPORT.md` (7 adversarial
+  probes, CONFIRMED); step (c) → `dc-warn/out/armlines-separability/REPORT.md`
+  (c1/c2/c3 green) + `dc-warn/out/route-fixtures-xcheck/REPORT.md`; combined →
+  `dc-warn/out/integration-manifest/REPORT.md` §4a (fixture swiftc 12 errors → 0).
+- STEP-C standalone applicability: intentionally NOT provided (impossible by
+  design — (c) presupposes (a)).
+- Nothing unverifiable was encountered; no blockers.

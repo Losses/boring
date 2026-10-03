@@ -1,0 +1,118 @@
+### 6.1 Raw runs
+
+| | before (`runs/before`) | after (`runs/after`) |
+|---|---|---|
+| tree | /home/losses/Development/tq-workspace/tth-work/before | /home/losses/Development/tq-workspace/tth-work/after |
+| utc start | 2026-09-29T21:55:44-04:00 | 2026-09-29T23:03:18-04:00 |
+| utc end | 2026-09-29T22:26:06-04:00 | 2026-09-29T23:45:48-04:00 |
+| wall (s, self-reported) | 1822 | 2550 |
+| load at start | 4.03 4.08 4.09 | 7.36 6.81 6.61 |
+| load at end | 5.99 6.09 6.19 | 6.68 7.17 7.53 |
+| exit code | 1 | 1 |
+| pass | 985 | 1008 |
+| fail | 48 | 25 |
+| errors | 7 | ? |
+| `Ran ... [s]` | 1822.17 | 2549.55 |
+| unique failing names | **48** | **25** |
+|   of which timed out | 24 | 0 |
+
+### 6.2 Unique-failing-name set difference
+
+| set | count |
+|---|---|
+| only in BEFORE (cleared) | 23 |
+| only in AFTER (new) | 0 |
+| in both | 25 |
+
+**Cleared** (present before, absent after):
+
+- `@:sealed on a class reports the interface-only error` — before: timeout at 5000.92 ms; after: **pass** at 23479.58 ms
+- `Rust borrows input Bytes fields and owns allocated Bytes fields` — before: timeout at 5000.91 ms; after: **pass** at 27025.51 ms
+- `Rust emits one module layer per Haxe package segment` — before: timeout at 5000.91 ms; after: **pass** at 25775.53 ms
+- `Std.string lowering > nullable operands are rejected on every target` — before: timeout at 120000.94 ms; after: **pass** at 155632.19 ms
+- `StringTools conversions lowering > negative hex arguments report the named domain error` — before: timeout at 5001.91 ms; after: **pass** at 29961.46 ms
+- `TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once` — before: timeout at 5000.91 ms; after: **pass** at 25342.54 ms
+- `TypeScript extern binding modules > rejects a value reference to an empty module` — before: timeout at 5001.91 ms; after: **pass** at 24901.55 ms
+- `a missing deferred assignment is rejected by the Kotlin tree build` — before: timeout at 5001.91 ms; after: **pass** at 28093.49 ms
+- `constructed static mutation rules retain all three diagnostics` — before: timeout at 5000.91 ms; after: **pass** at 71985.68 ms
+- `float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error` — before: timeout at 5000.91 ms; after: **pass** at 27011.51 ms
+- `float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error` — before: timeout at 5000.91 ms; after: **pass** at 25476.54 ms
+- `package artifact emission > the cargo crate and the Pub archive keep the tree at the root` — before: timeout at 60000.95 ms; after: **pass** at 90101.36 ms
+- `payload enums are rejected as sorted keys` — before: timeout at 5000.91 ms; after: **pass** at 23478.57 ms
+- `self-construction with arguments keeps the static initializer error` — before: timeout at 5000.92 ms; after: **pass** at 24068.56 ms
+- `small array initializer mutation rules retain all three diagnostics` — before: timeout at 5000.91 ms; after: **pass** at 69916.73 ms
+- `static function field capture validation > a capturing static initializer reports the ruled Rust error` — before: timeout at 5000.91 ms; after: **pass** at 25455.54 ms
+- `static initializer mutation is rejected with the sanctioned error` — before: timeout at 15000.75 ms; after: **pass** at 31466.43 ms
+- `strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types` — before: timeout at 5000.91 ms; after: **pass** at 22618.59 ms
+- `strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays` — before: timeout at 5000.91 ms; after: **pass** at 23444.58 ms
+- `strict TypeScript emitter output > single-argument substr drops its synthesized null length` — before: timeout at 5000.91 ms; after: **pass** at 22922.58 ms
+- `strict TypeScript emitter output > switch-expression cases render preceding statements before their value` — before: timeout at 5001.91 ms; after: **pass** at 22716.59 ms
+- `the sanctioned self-construction static uses each target lane` — before: timeout at 15000.75 ms; after: **pass** at 124489.75 ms
+- `value wrapper generated trees > rejects each invalid marker shape with the ruled error on every target` — before: timeout at 380439.5 ms; after: **pass** at 378035.16 ms
+
+**New: none.**
+
+### 6.3 The 24 budget-changed tests, one by one
+
+| # | test | before | after |
+|---|---|---|---|
+| 1 | `@:sealed on a class reports the interface-only error` | timeout at 5000.92 ms | **pass** at 23479.58 ms |
+| 2 | `Rust borrows input Bytes fields and owns allocated Bytes fields` | timeout at 5000.91 ms | **pass** at 27025.51 ms |
+| 3 | `Rust emits one module layer per Haxe package segment` | timeout at 5000.91 ms | **pass** at 25775.53 ms |
+| 4 | `Std.string lowering > nullable operands are rejected on every target` | timeout at 120000.94 ms | **pass** at 155632.19 ms |
+| 5 | `StringTools conversions lowering > negative hex arguments report the named domain error` | timeout at 5001.91 ms | **pass** at 29961.46 ms |
+| 6 | `TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once` | timeout at 5000.91 ms | **pass** at 25342.54 ms |
+| 7 | `TypeScript extern binding modules > rejects a value reference to an empty module` | timeout at 5001.91 ms | **pass** at 24901.55 ms |
+| 8 | `a missing deferred assignment is rejected by the Kotlin tree build` | timeout at 5001.91 ms | **pass** at 28093.49 ms |
+| 9 | `constructed static mutation rules retain all three diagnostics` | timeout at 5000.91 ms | **pass** at 71985.68 ms |
+| 10 | `float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error` | timeout at 5000.91 ms | **pass** at 27011.51 ms |
+| 11 | `float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error` | timeout at 5000.91 ms | **pass** at 25476.54 ms |
+| 12 | `package artifact emission > the cargo crate and the Pub archive keep the tree at the root` | timeout at 60000.95 ms | **pass** at 90101.36 ms |
+| 13 | `payload enums are rejected as sorted keys` | timeout at 5000.91 ms | **pass** at 23478.57 ms |
+| 14 | `record printed-member generated trees > marker and explicit-member mutations affect the four emitted members` | timeout at 120000.91 ms | **assert failure** at 196572.43 ms |
+| 15 | `self-construction with arguments keeps the static initializer error` | timeout at 5000.92 ms | **pass** at 24068.56 ms |
+| 16 | `small array initializer mutation rules retain all three diagnostics` | timeout at 5000.91 ms | **pass** at 69916.73 ms |
+| 17 | `static function field capture validation > a capturing static initializer reports the ruled Rust error` | timeout at 5000.91 ms | **pass** at 25455.54 ms |
+| 18 | `static initializer mutation is rejected with the sanctioned error` | timeout at 15000.75 ms | **pass** at 31466.43 ms |
+| 19 | `strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types` | timeout at 5000.91 ms | **pass** at 22618.59 ms |
+| 20 | `strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays` | timeout at 5000.91 ms | **pass** at 23444.58 ms |
+| 21 | `strict TypeScript emitter output > single-argument substr drops its synthesized null length` | timeout at 5000.91 ms | **pass** at 22922.58 ms |
+| 22 | `strict TypeScript emitter output > switch-expression cases render preceding statements before their value` | timeout at 5001.91 ms | **pass** at 22716.59 ms |
+| 23 | `the sanctioned self-construction static uses each target lane` | timeout at 15000.75 ms | **pass** at 124489.75 ms |
+| 24 | `value wrapper generated trees > rejects each invalid marker shape with the ruled error on every target` | timeout at 380439.5 ms | **pass** at 378035.16 ms |
+
+- passed after the budget change: **23**
+- still timed out: **0** 
+- now failing on an assertion instead: **1** ['record printed-member generated trees > marker and explicit-member mutations affect the four emitted members']
+
+### 6.4 Remaining failures after the change
+
+25 unique failing names remain. Classes: 0 timeout, 25 assertion.
+
+| # | remaining failure | class |
+|---|---|---|
+| 1 | `Std.string lowering > Rust standalone scalars use to_string` | assert |
+| 2 | `Swift read-only array boundary shares storage and preserves flow` | assert |
+| 3 | `arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks` | assert |
+| 4 | `compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier` | assert |
+| 5 | `default argument expansion generated tree > Rust generated tree emits full-arity calls and clean method signatures` | assert |
+| 6 | `default argument expansion generated tree > Swift generated tree lowers parameter-reading coalescing defaults in the body` | assert |
+| 7 | `enum value queries generated trees > Rust emits ALL, name, from_name and a literal range` | assert |
+| 8 | `first-class function value generated trees > Rust bounds every function-value position with Send and Sync` | assert |
+| 9 | `first-class function value generated trees > Rust uses one boxed representation and adapts indirect lengths` | assert |
+| 10 | `first-class function value generated trees > Rust's f32 tree carries the same function-value lowering` | assert |
+| 11 | `loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds` | assert |
+| 12 | `loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds` | assert |
+| 13 | `package shell emission > a by-name runtime import with an emitted manifest aborts the compile` | assert |
+| 14 | `record copy generated tree > Rust generated tree emits struct instantiation in declaration order` | assert |
+| 15 | `record print field order generated trees > four non-native targets synthesize the member for both classes in declaration order` | assert |
+| 16 | `record printed-member generated trees > four non-native targets synthesize the constructor-ordered member` | assert |
+| 17 | `record printed-member generated trees > marker and explicit-member mutations affect the four emitted members` | assert |
+| 18 | `sealed variant sample trees carry the ruled declaration and printed forms` | assert |
+| 19 | `small static array initializer trees > each target uses the ruled array declaration` | assert |
+| 20 | `sorted dataClass key generated trees > pins resident comparators` | assert |
+| 21 | `sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum` | assert |
+| 22 | `static fields generated trees > Rust uses Mutex guards and the direct constant lane` | assert |
+| 23 | `static fields generated trees > Swift keeps array statics mutable for value-semantic append` | assert |
+| 24 | `top-level and extension function lowering > Rust uses an inherent impl only for the owned receiver` | assert |
+| 25 | `value wrapper generated trees > renders the five target representations and member forms` | assert |

@@ -1,0 +1,16 @@
+
+running 11 tests
+test bad_magic_is_rejected ... ok
+test boundary_count_is_rejected ... ok
+test decoded_binary_matches_expected_records ... ok
+test huge_count_is_rejected ... ok
+test reencoding_reproduces_the_committed_bytes ... ok
+test round_trip_preserves_every_record ... ok
+test sort_by_code_point_is_stable_on_equal_keys ... ok
+test sort_by_code_point_matches_the_shared_oracle ... ok
+test trailing_bytes_are_rejected ... ok
+test truncated_input_is_rejected ... ok
+test u16_and_u32_round_trip_in_big_endian_order ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

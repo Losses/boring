@@ -1,0 +1,25 @@
+diff -ru --label green/xs-twoexc --label brkX2/xs-twoexc green/xs-twoexc brkX2/xs-twoexc
+--- green/xs-twoexc
++++ brkX2/xs-twoexc
+@@ -38,21 +38,6 @@
+ 
+ impl std::error::Error for F2 {}
+ 
+-#[derive(Debug, Clone, PartialEq)]
+-pub struct E2 {
+-    pub fault: F2,
+-}
+-impl E2 {
+-    pub fn new(fault: F2) -> Self {
+-        E2 { fault }
+-    }
+-}
+-impl std::fmt::Display for E2 {
+-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+-        write!(formatter, "{}", self.fault)
+-    }
+-}
+-
+ #[derive(Clone, Copy)]
+ pub struct TwoProbe;
+ 

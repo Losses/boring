@@ -1,0 +1,13 @@
+--- /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix-xcheck/tests/haxe/xcheck-dart-fix-negctrl/expected.txt	2026-09-29 16:31:21.000000000 -0400
++++ /home/losses/Development/tq-workspace/dc-warn/out/dart-fix-xcheck/negctrl-20260929T190000Z/stages/dart-run/stdout	2026-09-29 16:31:55.000000000 -0400
+@@ -1,8 +1,8 @@
+ p2=5
+-p7=99
++p7=5
+ p8=2
+ p9=4
+-p10=77
++p10=2
+ p11=2
+ p12=3
+ p13=2

@@ -1,0 +1,53 @@
+package boring
+
+data class RecordOrderShifted(val a: Int, val c: String, val b: Int = 0) {
+
+    override fun toString(): String {
+        return "RecordOrderShifted(" + "a=" + this.a + ", " + "b=" + this.b + ", " + "c=" + this.c + ")"
+    }
+}
+
+fun compareRecordOrderShifted(a: RecordOrderShifted, b: RecordOrderShifted): Int {
+    var cmp = 0
+    cmp = a.a.compareTo(b.a)
+    if (cmp != 0) return cmp
+    cmp = a.b.compareTo(b.b)
+    if (cmp != 0) return cmp
+    cmp = a.c.compareTo(b.c)
+    if (cmp != 0) return cmp
+    return 0
+}
+
+data class RecordOrderAligned(val a: Int, val b: Int, val c: String) {
+}
+
+fun compareRecordOrderAligned(a: RecordOrderAligned, b: RecordOrderAligned): Int {
+    var cmp = 0
+    cmp = a.a.compareTo(b.a)
+    if (cmp != 0) return cmp
+    cmp = a.b.compareTo(b.b)
+    if (cmp != 0) return cmp
+    cmp = a.c.compareTo(b.c)
+    if (cmp != 0) return cmp
+    return 0
+}
+
+object RecordOrderOps {
+    fun shiftedPrinted(): String {
+        return RecordOrderShifted(1, "x", 5).toString()
+    }
+
+    fun shiftedDefaulted(): String {
+        return RecordOrderShifted(1, "x").toString()
+    }
+
+    fun alignedPrinted(): String {
+        return RecordOrderAligned(1, 5, "x").toString()
+    }
+
+    fun shiftedEqual(): Boolean {
+        val left = RecordOrderShifted(1, "x", 5)
+        val right = RecordOrderShifted(1, "x", 5)
+        return left.a == right.a && left.b == right.b && left.c == right.c
+    }
+}

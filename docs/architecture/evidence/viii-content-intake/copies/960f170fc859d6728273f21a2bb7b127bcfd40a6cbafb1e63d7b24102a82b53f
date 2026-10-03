@@ -1,0 +1,6 @@
+inventory_count=1398 files_entries=1398 checked=1398 missing=0 mismatch=0 extra_on_disk=0
+inventory[tools/bundle/driver.hxml] = {'sha256': '8432f79927b2ad65e9d7b795df3f06ac513cb5082aff4fbafc586b7146bc1d87', 'size': 217}
+inventory[tools/bundle/Driver.hx] = {'sha256': '749a778241d9ad2c3d9e1ca921a1975003f5260422cbfdf7edf08c91788d82a7', 'size': 44736}
+inventory[tools/bundle/ChildEvidence.hx] = {'sha256': 'bc5f44040497f8075a64692de0b52f4a1f3923ba832778aa8e2f2ccccfc9dd3b', 'size': 31799}
+inventory_self_sha256 = 9892914fa8d9c3fc06179653f4c4591d65da5a193a2461e69a4cf740e7a8295f
+claimed inventory-1398.sha256 = 9892914fa8d9c3fc06179653f4c4591d65da5a193a2461e69a4cf740e7a8295f

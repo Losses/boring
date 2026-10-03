@@ -1,0 +1,124 @@
+{
+ "rows": [
+  {
+   "name": "Std.string lowering > Rust standalone scalars use to_string",
+   "file": "tests/ts/std-string.test.ts",
+   "verdict": "identical"
+  },
+  {
+   "name": "Swift read-only array boundary shares storage and preserves flow",
+   "file": "tests/swift-readonly-boundary/readonly-boundary.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks",
+   "file": "tests/ts/arithmetic-helpers.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier",
+   "file": "tests/ts/compiler-scope.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "default argument expansion generated tree > Rust generated tree emits full-arity calls and clean method signatures",
+   "file": "tests/ts/default-args.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "default argument expansion generated tree > Swift generated tree lowers parameter-reading coalescing defaults in the body",
+   "file": "tests/ts/default-args.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "enum value queries generated trees > Rust emits ALL, name, from_name and a literal range",
+   "file": "tests/ts/enum-queries.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "first-class function value generated trees > Rust bounds every function-value position with Send and Sync",
+   "file": "tests/ts/fn-values.test.ts",
+   "verdict": "identical"
+  },
+  {
+   "name": "first-class function value generated trees > Rust uses one boxed representation and adapts indirect lengths",
+   "file": "tests/ts/fn-values.test.ts",
+   "verdict": "identical"
+  },
+  {
+   "name": "first-class function value generated trees > Rust's f32 tree carries the same function-value lowering",
+   "file": "tests/ts/fn-values.test.ts",
+   "verdict": "identical"
+  },
+  {
+   "name": "loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds",
+   "file": "tests/ts/loop-structure.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds",
+   "file": "tests/ts/loop-structure.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "package shell emission > a by-name runtime import with an emitted manifest aborts the compile",
+   "file": "tests/ts/package-shell.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "record copy generated tree > Rust generated tree emits struct instantiation in declaration order",
+   "file": "tests/ts/record-copy.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "record print field order generated trees > four non-native targets synthesize the member for both classes in declaration order",
+   "file": "tests/ts/record-order.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "record printed-member generated trees > four non-native targets synthesize the constructor-ordered member",
+   "file": "tests/ts/printed-record.test.ts",
+   "verdict": "identical"
+  },
+  {
+   "name": "sealed variant sample trees carry the ruled declaration and printed forms",
+   "file": "tests/ts/sealed-variants.test.ts",
+   "verdict": "identical"
+  },
+  {
+   "name": "small static array initializer trees > each target uses the ruled array declaration",
+   "file": "tests/ts/array-root.test.ts",
+   "verdict": "identical"
+  },
+  {
+   "name": "sorted dataClass key generated trees > pins resident comparators",
+   "file": "tests/ts/sorted-dataclass-keys.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum",
+   "file": "tests/ts/sorted-key-domains.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "static fields generated trees > Rust uses Mutex guards and the direct constant lane",
+   "file": "tests/ts/static-state.test.ts",
+   "verdict": "identical"
+  },
+  {
+   "name": "static fields generated trees > Swift keeps array statics mutable for value-semantic append",
+   "file": "tests/ts/static-state.test.ts",
+   "verdict": "identical"
+  },
+  {
+   "name": "top-level and extension function lowering > Rust uses an inherent impl only for the owned receiver",
+   "file": "tests/ts/static-extension.test.ts",
+   "verdict": "file not in patch at all"
+  },
+  {
+   "name": "value wrapper generated trees > renders the five target representations and member forms",
+   "file": "tests/ts/value-type.test.ts",
+   "verdict": "identical"
+  }
+ ]
+}

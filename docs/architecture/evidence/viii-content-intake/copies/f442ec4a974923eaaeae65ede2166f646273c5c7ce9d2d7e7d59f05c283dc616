@@ -1,0 +1,26 @@
+735:                     // the emitted annotation is plain while the Haxe type keeps
+736:                     // its Null wrapper; a value use must not unwrap it.
+737:                     // (CoalescingLocalPlainBinding)
+738:                     nonOptionalDeclared.set(v.id, true);
+739:                 }
+740:                 final annotation = hasTypeAnnotation ? ": " + (optionalNullAnnotation ? types.of(localType) + "?" : types.of(localType)) : "";
+741:                 final unwrapNullableInitializer = isNullLeafType(init.t) && coalescing == null && !isNullLeafType(v.t) && hasTypeAnnotation
+742:                     && !optionalNullAnnotation;
+743:                 final arrayBoundary = SwiftArrayBoundary.isBoundary(init.t, v.t);
+744:                 var boundaryResult:Null<SwiftArrayPreparedOperand> = null;
+745:                 var initText = if (arrayBoundary) {
+746:                     boundaryResult = lowerArrayBoundary(init, v.t);
+747:                     boundaryResult.text;
+748:                 } else switch (init.expr) {
+749:                     case TFunction(fn): functionLiteralNamed(v.name, fn);
+750:                     default: {
+751:                             final narrowedInit = isNarrowedLocalRead(init);
+752:                             if (narrowedInit)
+753:                                 nonOptionalInferred.set(v.id, true);
+754:                             var rendered = narrowedInit ? narrowedLocalText(init) : expr(init);
+755:                             if (optionalValued(init) && hasTypeAnnotation && !narrowedInit && !isNullLeafType(v.t) && !optionalNullAnnotation
+756:                                 && !StringTools.endsWith(rendered, "!"))
+757:                                 rendered += "!";
+758:                             rendered;
+759:                         }
+760:                 };

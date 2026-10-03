@@ -1,0 +1,51 @@
+#![cfg(test)]
+
+use crate::boring::nullable_local_ops::LocalProbe;
+use crate::boring::nullable_local_ops::NullableLocalOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn int_local_keeps_some() {
+    testlib::run("tests.NullableLocalTests.intLocalKeepsSome", "tests.NullableLocalTests.intLocalKeepsSome: a nullable Int local from a literal compares equal inside Some", || {
+        test_core::TestCore::test_core_equals_bool(true, NullableLocalOps::nullable_local_ops_int_local_matches(&vec![Some(1), Some(2)]), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn float_local_keeps_some() {
+    testlib::run("tests.NullableLocalTests.floatLocalKeepsSome", "tests.NullableLocalTests.floatLocalKeepsSome: a nullable Float local from a literal compares equal inside Some", || {
+        test_core::TestCore::test_core_equals_bool(true, NullableLocalOps::nullable_local_ops_float_local_matches(&vec![Some(0.5f32), Some(1.5f32)]), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn null_bool_stays_null() {
+    testlib::run("tests.NullableLocalTests.nullBoolStaysNull", "tests.NullableLocalTests.nullBoolStaysNull: a null Bool local stays null", || {
+        test_core::TestCore::test_core_equals_bool(true, NullableLocalOps::nullable_local_ops_bool_local_is_null(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn string_local_keeps_some() {
+    testlib::run("tests.NullableLocalTests.stringLocalKeepsSome", "tests.NullableLocalTests.stringLocalKeepsSome: a nullable String local keeps the existing Some wrapping", || {
+        test_core::TestCore::test_core_equals_bool(true, NullableLocalOps::nullable_local_ops_string_local_matches(&vec![Some(UString::from("a").to_ustring()), Some(UString::from("b").to_ustring())]), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn nullable_init_unwrapped() {
+    testlib::run("tests.NullableLocalTests.nullableInitUnwrapped", "tests.NullableLocalTests.nullableInitUnwrapped: a nullable initializer passes through without double wrapping", || {
+        test_core::TestCore::test_core_equals_bool(true, NullableLocalOps::nullable_local_ops_nullable_init_passes_through(&vec![Some(7), Some(8)]), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn lookup_init_unwrapped() {
+    testlib::run("tests.NullableLocalTests.lookupInitUnwrapped", "tests.NullableLocalTests.lookupInitUnwrapped: a createEnum initializer passes through without Some wrapping", || {
+        test_core::TestCore::test_core_equals_bool(true, NullableLocalOps::nullable_local_ops_lookup_local_passes_through(LocalProbe::Alpha), UStr::new(&[]));
+    });
+}

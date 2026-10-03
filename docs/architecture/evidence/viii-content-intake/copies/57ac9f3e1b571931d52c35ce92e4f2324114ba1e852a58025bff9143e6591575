@@ -1,0 +1,53 @@
+package mx;
+
+import std.ReadOnlyArray;
+import mx.MXSupport.QError;
+import mx.MXSupport.QSource;
+
+/**
+	P4: expression block (features/43) inside a lambda, isolated.
+	The block's own closure result is the inline helper's Array<Int>, but
+	blockExpression consults currentReturnType -- which the fix reseeds to
+	the lambda's ReadOnlyArray<Int>. The block value's real destination is
+	the len() parameter, NOT the lambda result.
+	P5: the same block outside any lambda (control; must not change).
+**/
+class MXProbe {
+	static function len(a:Array<Int>):Int
+		return a.length;
+
+	inline static function two(a:Array<Int>):Array<Int> {
+		final s = a.length;
+		return a.slice(s, 0);
+	}
+
+	public static function pBlockInLambda(flag:Bool):Int {
+		var f = function():ReadOnlyArray<Int> {
+			final src:Array<Int> = QSource.first();
+			final view:ReadOnlyArray<Int> = src;
+			final n:Int = len(two(src));
+			if (n < 0) {
+				throw new QError();
+			}
+			return view;
+		}
+		return QSource.view(f());
+	}
+
+	public static function pBlockInMember():Int {
+		final src:Array<Int> = QSource.first();
+		return len(two(src));
+	}
+
+	public static function pMatchingMulti(flag:Bool):ReadOnlyArray<Int> {
+		var f = function(flag:Bool):ReadOnlyArray<Int> {
+			if (flag) throw new QError();
+			return try {
+				QSource.first();
+			} catch (e:QError) {
+				QSource.second();
+			}
+		}
+		return f(flag);
+	}
+}

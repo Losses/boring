@@ -1,0 +1,10 @@
+package boring
+
+@JvmInline
+value class ProbeUnit(val value: Int) {
+
+    companion object {
+        val ZERO: ProbeUnit = ProbeUnit(0)
+        val ZERO_INT: ProbeUnit = ProbeUnit(0)
+    }
+}

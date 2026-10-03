@@ -1,0 +1,20 @@
+package p8l;
+
+/**
+ * Oracle entry for the closure-lazy fixed input. The interpreter build
+ * (the oracle) prints the lines; the Swift build mirrors the acceptance
+ * fixture shape and leaves printing to the hand-written @main shim.
+ */
+class ClosureLazyOracle {
+    public static function main():Void {
+        #if !swift_output
+        trace("order=" + ClosureLazy.orderProbe());
+        trace("count=" + ClosureLazy.countProbe());
+        trace("term=" + ClosureLazy.termProbe());
+        #else
+        ClosureLazy.orderProbe();
+        ClosureLazy.countProbe();
+        ClosureLazy.termProbe();
+        #end
+    }
+}

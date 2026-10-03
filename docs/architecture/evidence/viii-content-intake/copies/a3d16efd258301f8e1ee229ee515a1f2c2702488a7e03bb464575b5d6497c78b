@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# dc-kotlin-manifest-version check
+#
+# Verifies the cross-file version contract of one Kotlin generation: the
+# Kotlin Gradle plugin version the generated `build.gradle.kts` declares
+# and the `kotlin-stdlib` version the generated Maven POM declares must
+# be the same version.
+#
+# The two values are parsed independently, each from its own file:
+#   1. build.gradle.kts: the `kotlin("jvm") version "<v>"` plugin line
+#      (feature spec 24, ruling 8: a plain JVM module, one Kotlin plugin).
+#   2. the POM: the `<version>` inside the
+#      `<dependency>` block whose groupId is `org.jetbrains.kotlin` and
+#      whose artifactId is `kotlin-stdlib` only. The project's own
+#      `<version>` (the package version of the generated artifact) is a
+#      different field and is never consulted, which is what keeps the
+#      two parses independent.
+#
+# The check reads no toolchain. The host `kotlinc` that compiles the jar
+# (spec 25, `package-kotlinc`) is a floating build tool; spec 24 ruling 9
+# states the plugin version is a dialect floor, not the host compiler's
+# version. This check therefore never invokes or reads the host
+# kotlinc: a single-sided upgrade of either manifest field is a mismatch
+# no matter what toolchain built the artifacts.
+#
+# Usage:  check.sh <build.gradle.kts> <pom>
+# Exit:   0  the two versions are equal
+#         1  the two versions differ (single-sided upgrade / drift)
+#         2  usage or parse error (missing file, missing or ambiguous
+#            version line): a parse failure never reports a match
+# ---------------------------------------------------------------------------
+set -u
+
+[ "$#" -eq 2 ] || { echo "usage: $0 <build.gradle.kts> <pom>" >&2; exit 2; }
+GRADLE=$1
+POM=$2
+[ -f "$GRADLE" ] || { echo "check: not a file: $GRADLE" >&2; exit 2; }
+[ -f "$POM" ] || { echo "check: not a file: $POM" >&2; exit 2; }
+
+# --- parse 1: the Gradle Kotlin JVM plugin version -------------------------
+# The shell manifest is a fixed block (spec 24 ruling 8), so exactly one
+# line may carry the plugin version. Anything else (no line, two lines, a
+# different shape) is a parse error: the check cannot decide and must not
+# pass.
+plugin_hits=$(grep -nE '^[[:space:]]*kotlin\("jvm"\)[[:space:]]+version[[:space:]]+"[0-9]+(\.[0-9]+)*"[[:space:]]*$' "$GRADLE" || true)
+plugin_count=$(printf '%s\n' "$plugin_hits" | grep -c . || true)
+if [ "$plugin_count" -ne 1 ]; then
+  echo "check: expected exactly one kotlin(\"jvm\") version line in $GRADLE, found $plugin_count" >&2
+  exit 2
+fi
+GRADLE_LINE=${plugin_hits%%:*}
+GRADLE_VERSION=$(printf '%s\n' "$plugin_hits" | sed -E 's/^[0-9]+:[[:space:]]*kotlin\("jvm"\)[[:space:]]+version[[:space:]]+"([0-9]+(\.[0-9]+)*)"[[:space:]]*$/\1/')
+
+# --- parse 2: the kotlin-stdlib version of the POM -------------------------
+# Block-scoped parse: only a <dependency> block whose groupId is
+# org.jetbrains.kotlin and whose artifactId is kotlin-stdlib qualifies;
+# its version is the first <version> inside that block. The project-level
+# <version> sits outside any dependency block and is never reached.
+POM_INFO=$(awk '
+  /<dependency>/ { inblock = 1; group = ""; artifact = ""; version = ""; vline = 0; next }
+  /<\/dependency>/ {
+    if (inblock && group == "org.jetbrains.kotlin" && artifact == "kotlin-stdlib") {
+      hits++
+      if (hits == 1) { v1 = version; l1 = vline }
+    }
+    inblock = 0
+    next
+  }
+  inblock {
+    line = $0
+    sub(/^[[:space:]]+/, "", line)
+    sub(/[[:space:]]+$/, "", line)
+    if (line ~ /^<groupId>/) {
+      v = line; sub(/^<groupId>/, "", v); sub(/<\/groupId>$/, "", v); group = v
+    } else if (line ~ /^<artifactId>/) {
+      v = line; sub(/^<artifactId>/, "", v); sub(/<\/artifactId>$/, "", v); artifact = v
+    } else if (line ~ /^<version>/) {
+      v = line; sub(/^<version>/, "", v); sub(/<\/version>$/, "", v); version = v; vline = NR
+    }
+  }
+  END {
+    if (hits == 0)    print "none\t-"
+    else if (hits > 1) print "doubled\t-"
+    else               print "ok\t" l1
+  }
+' "$POM")
+pom_state=${POM_INFO%%$'\t'*}
+pom_line=${POM_INFO#*$'\t'}
+case "$pom_state" in
+  ok)
+    POM_VERSION=$(sed -n "${pom_line}p" "$POM" | sed -E 's/^[[:space:]]*<version>(.*)<\/version>[[:space:]]*$/\1/')
+    ;;
+  none)
+    echo "check: no org.jetbrains.kotlin:kotlin-stdlib dependency block in $POM" >&2
+    exit 2
+    ;;
+  doubled)
+    echo "check: multiple org.jetbrains.kotlin:kotlin-stdlib dependency blocks in $POM" >&2
+    exit 2
+    ;;
+esac
+
+# --- verdict -----------------------------------------------------------------
+echo "kotlin-gradle-plugin-version=$GRADLE_VERSION ($GRADLE:$GRADLE_LINE)"
+echo "kotlin-stdlib-pom-version=$POM_VERSION ($POM:$pom_line)"
+if [ "$GRADLE_VERSION" = "$POM_VERSION" ]; then
+  echo "result=MATCH"
+  exit 0
+else
+  echo "result=MISMATCH: single-sided version change detected between the two artifacts of one generation"
+  exit 1
+fi

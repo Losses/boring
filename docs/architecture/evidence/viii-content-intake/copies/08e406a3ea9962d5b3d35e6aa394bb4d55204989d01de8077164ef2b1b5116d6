@@ -1,0 +1,41 @@
+package boring
+
+object Int64Ops {
+    fun carry(): Long {
+        return ((0L shl 32) or (-1L and 0xFFFFFFFFL)) + 1.toLong()
+    }
+
+    fun mulAnchors(): Long {
+        return ((-1640531535L shl 32) or (-2048144761L and 0xFFFFFFFFL)) * ((-1028477379L shl 32) or (668265295L and 0xFFFFFFFFL))
+    }
+
+    fun mulIntAnchor(value: Long): Long {
+        return value * 3.toLong()
+    }
+
+    fun rotate(value: Long, distance: Int): Long {
+        return ((((value) ushr ((distance) and 63))) or (((value) shl ((64 - distance) and 63))))
+    }
+
+    fun bitMix(value: Long): Long {
+        val upperMask = ((-1431655766L shl 32) or (1431655765L and 0xFFFFFFFFL))
+        val lowerMask = ((1431655765L shl 32) or (-1431655766L and 0xFFFFFFFFL))
+        return ((((value) xor (upperMask))) or (((value) and (lowerMask))))
+    }
+
+    fun high(value: Long): Int {
+        return (value shr 32).toInt()
+    }
+
+    fun low(value: Long): Int {
+        return value.toInt()
+    }
+
+    fun below(a: Long, b: Long): Boolean {
+        return a < b
+    }
+
+    fun atOrBelow(a: Long, b: Long): Boolean {
+        return a <= b
+    }
+}

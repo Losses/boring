@@ -1,0 +1,15 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/std-string.test.ts:
+(pass) Std.string lowering > generated trees contain no unresolved Std reference [207.00ms]
+(pass) Std.string lowering > Kotlin concatenation keeps Std.string scalar operands bare
+(pass) Std.string lowering > enum operands use each target constructor-name read [1.00ms]
+(pass) Std.string lowering > Rust standalone scalars use to_string
+(pass) Std.string lowering > array operands use one single-pass builder in every target
+(pass) Std.string lowering > unsupported operands report the named error [36818.50ms]
+(pass) Std.string lowering > nullable operands are rejected on every target [198730.12ms]
+
+ 7 pass
+ 0 fail
+ 2402 expect() calls
+Ran 7 tests across 1 file. [235.80s]

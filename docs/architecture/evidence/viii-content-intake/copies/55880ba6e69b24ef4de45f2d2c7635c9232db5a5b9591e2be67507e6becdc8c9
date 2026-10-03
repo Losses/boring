@@ -1,0 +1,95 @@
+/tmp/bx/out/pre-witness/gen/mx/MXLambda.swift:37:25: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+ 35 |     }
+ 36 |     do {
+ 37 |         return MXSource.first()
+    |                         `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+ 38 |     } catch is MXError {
+ 39 |         return MXSource.second()
+
+/tmp/bx/out/pre-witness/gen/mx/MXLambda.swift:78:16: error: cannot convert value of type 'ReadOnlyArray<String>' to closure result type 'ReadOnlyArray<Int32>'
+ 76 |     }
+ 77 |     do {
+ 78 |         return ReadOnlyArray<String>()
+    |                `- error: cannot convert value of type 'ReadOnlyArray<String>' to closure result type 'ReadOnlyArray<Int32>'
+ 79 |     } catch is MXError {
+ 80 |         return ReadOnlyArray(MXSource.second())
+
+/tmp/bx/out/pre-witness/gen/Runtime.swift:378:34: note: arguments to generic parameter 'Element' ('String' and 'Int32') are expected to be equal
+376 | 
+377 | /// Read-only reference view over the same slots held by a TiqianArray.
+378 | public final class ReadOnlyArray<Element>: RandomAccessCollection {
+    |                                  `- note: arguments to generic parameter 'Element' ('String' and 'Int32') are expected to be equal
+379 |     public typealias Index = Int
+380 |     private let backing: TiqianArray<Element>
+
+/tmp/bx/out/pre-witness/gen/mx/MXLambda.swift:97:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 95 |     do {
+ 96 |         view = ReadOnlyArray(MXSource.first())
+ 97 |     } catch is MXError {
+    |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 98 |         view = ReadOnlyArray(MXSource.second())
+ 99 |     } catch {
+
+/tmp/bx/out/pre-witness/gen/mx/MXLambda.swift:114:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+112 |     do {
+113 |         return ReadOnlyArray(MXSource.first())
+114 |     } catch is MXError {
+    |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+115 |         return ReadOnlyArray(MXSource.second())
+116 |     } catch {
+
+/tmp/bx/out/pre-witness/gen/mx/MXLambda.swift:131:29: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+129 |     switch c {
+130 |         case .one:
+131 |             return MXSource.first()
+    |                             `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+132 |         case .two:
+133 |             return MXSource.second()
+
+/tmp/bx/out/pre-witness/gen/mx/MXLambda.swift:147:20: error: cannot convert value of type 'ReadOnlyArray<String>' to closure result type 'ReadOnlyArray<Int32>'
+145 |     switch c {
+146 |         case .one:
+147 |             return ReadOnlyArray<String>()
+    |                    `- error: cannot convert value of type 'ReadOnlyArray<String>' to closure result type 'ReadOnlyArray<Int32>'
+148 |         case .two:
+149 |             return ReadOnlyArray(MXSource.first())
+
+/tmp/bx/out/pre-witness/gen/Runtime.swift:378:34: note: arguments to generic parameter 'Element' ('String' and 'Int32') are expected to be equal
+376 | 
+377 | /// Read-only reference view over the same slots held by a TiqianArray.
+378 | public final class ReadOnlyArray<Element>: RandomAccessCollection {
+    |                                  `- note: arguments to generic parameter 'Element' ('String' and 'Int32') are expected to be equal
+379 |     public typealias Index = Int
+380 |     private let backing: TiqianArray<Element>
+
+/tmp/bx/out/pre-witness/gen/mx/MXLambda.swift:164:16: error: cannot convert value of type 'ReadOnlyArray<String>' to closure result type 'ReadOnlyArray<Int32>'
+162 |         return ReadOnlyArray(MXSource.first())
+163 |     } catch is MXError {
+164 |         return ReadOnlyArray<String>()
+    |                `- error: cannot convert value of type 'ReadOnlyArray<String>' to closure result type 'ReadOnlyArray<Int32>'
+165 |     } catch {
+166 |         throw error
+
+/tmp/bx/out/pre-witness/gen/Runtime.swift:378:34: note: arguments to generic parameter 'Element' ('String' and 'Int32') are expected to be equal
+376 | 
+377 | /// Read-only reference view over the same slots held by a TiqianArray.
+378 | public final class ReadOnlyArray<Element>: RandomAccessCollection {
+    |                                  `- note: arguments to generic parameter 'Element' ('String' and 'Int32') are expected to be equal
+379 |     public typealias Index = Int
+380 |     private let backing: TiqianArray<Element>
+
+/tmp/bx/out/pre-witness/gen/mx/MXLambda.swift:174:36: error: declared closure result 'ReadOnlyArray<Int32>' is incompatible with return type 'Void'
+172 | 
+173 |     public static func jSwitchStatement(_ c: MXChoice) -> Int32 {
+174 |         let f = { (c: MXChoice) -> ReadOnlyArray<Int32> in
+    |                                    `- error: declared closure result 'ReadOnlyArray<Int32>' is incompatible with return type 'Void'
+175 |     switch c {
+176 |         case .one:
+
+/tmp/bx/out/pre-witness/gen/mx/MXLambda.swift:191:25: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+189 |     }
+190 |     do {
+191 |         return MXSource.first()
+    |                         `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+192 |     } catch is MXError {
+193 |         return MXSource.second()

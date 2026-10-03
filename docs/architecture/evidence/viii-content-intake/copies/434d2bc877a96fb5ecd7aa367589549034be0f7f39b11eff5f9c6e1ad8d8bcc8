@@ -1,0 +1,21 @@
+2525:         };
+2526:     }
+2527: 
+2528:     /**
+2529:         A checked Haxe cast renders as a Swift force-cast only when the
+2530:         target is not already an accepted form of the source; upcasts and
+2531:         coercions stay transparent.
+2532:     **/
+2533:     function castText(inner:TypedExpr, target:Type):String {
+2534:         if (SwiftArrayBoundary.isBoundary(inner.t, target))
+2535:             return arrayBoundaryText(inner, target);
+2536:         final rendered = expr(inner);
+2537:         // Haxe unifies Int with Float, so an Int operand in a Float cast is
+2538:         // transparent; Swift needs the explicit conversion.
+2539:         if (isFloatLeafType(target) && isIntType(emittedType(inner)) && !isFloatTyped(inner))
+2540:             return intToFloatText(rendered);
+2541:         // features/18: a Haxe Array<->ReadOnlyArray implicit cast crosses the
+2542:         // mutable/immutable container boundary, and the two lower to different
+2543:         // Swift types (TiqianArray vs the ReadOnlyArray view); the unify check
+2544:         // below would accept the cast silently, so the container conversion
+2545:         // renders first.

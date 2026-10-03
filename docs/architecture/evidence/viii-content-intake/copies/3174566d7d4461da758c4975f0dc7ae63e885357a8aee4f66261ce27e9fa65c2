@@ -1,0 +1,4 @@
+lib/dcguard/dc_guard.dart:8:12: Error: Property 'length' cannot be accessed on 'String?' because it is potentially null.
+Try accessing using ?. instead.
+  return s.length;
+           ^^^^^^

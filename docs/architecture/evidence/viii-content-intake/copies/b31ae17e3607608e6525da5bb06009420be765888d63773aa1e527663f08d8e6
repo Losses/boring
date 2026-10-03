@@ -1,0 +1,17 @@
+package boring;
+
+class C2SwitchOracle {
+    public static function main():Void {
+        #if !swift_output
+        trace("switch-binding=" + C2SwitchOps.switchBindingDest(true));
+        trace("switch-expr=" + C2SwitchOps.switchExprDest(true));
+        trace("switch-return=" + C2SwitchOps.switchReturnDest(true));
+        trace("switch-binding-nocross=" + C2SwitchOps.switchBindingNoCross(true));
+        #else
+        C2SwitchOps.switchBindingDest(true);
+        C2SwitchOps.switchExprDest(true);
+        C2SwitchOps.switchReturnDest(true);
+        C2SwitchOps.switchBindingNoCross(true);
+        #end
+    }
+}

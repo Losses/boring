@@ -1,0 +1,59 @@
+diff -ru /home/losses/Development/tq-workspace/dc-warn/out/rust-payload-key/evidence/pre/gen/pk/payload_key_probe.rs /home/losses/Development/tq-workspace/dc-warn/out/rust-payload-key/evidence/post/gen/pk/payload_key_probe.rs
+--- /home/losses/Development/tq-workspace/dc-warn/out/rust-payload-key/evidence/pre/gen/pk/payload_key_probe.rs	2026-09-30 18:01:44.000000000 -0400
++++ /home/losses/Development/tq-workspace/dc-warn/out/rust-payload-key/evidence/post/gen/pk/payload_key_probe.rs	2026-09-30 18:06:46.000000000 -0400
+@@ -5,6 +5,7 @@
+ #[derive(Debug, Clone, PartialEq)]
+ pub enum E2Fault {
+     Two { tag: UString },
++    E2Fault(Box<crate::pk::payload_key_probe::E2>),
+ }
+ 
+ impl std::fmt::Display for E2Fault {
+@@ -13,6 +14,7 @@
+             E2Fault::Two { tag } => {
+                 write!(formatter, "{}", tag)
+             }
++            E2Fault::E2Fault(inner) => write!(formatter, "{:?}", inner),
+         }
+     }
+ }
+@@ -20,6 +22,21 @@
+ impl std::error::Error for E2Fault {}
+ 
+ #[derive(Debug, Clone, PartialEq)]
++pub struct E2 {
++    pub fault: E2Fault,
++}
++impl E2 {
++    pub fn new(fault: E2Fault) -> Self {
++        E2 { fault }
++    }
++}
++impl std::fmt::Display for E2 {
++    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        write!(formatter, "{}", self.fault)
++    }
++}
++
++#[derive(Debug, Clone, PartialEq)]
+ pub enum E1Fault {
+     One { tag: UString },
+     E1Fault(Box<crate::pk::payload_key_probe::E1>),
+@@ -87,14 +104,14 @@
+ 
+     pub fn payload_key_probe_rethrow_e2() -> u32 {
+         let mut v = 0u32;
+-        let __outcome1: Result<u32, E1Fault> = (|| {
++        let __outcome1: Result<u32, E2Fault> = (|| {
+             return Ok(PayloadKeyProbe::payload_key_probe_throw_e2(UStr::new(&[98]))?);
+         })();
+         match __outcome1 {
+             Ok(_) => {}
+             Err(e) => {
+-                let h: u32 = match (|| -> Result<u32, E1Fault> {
+-                    return Err(E1Fault::E2Fault(E2::new(e)));
++                let h: u32 = match (|| -> Result<u32, E2Fault> {
++                    return Err(E2Fault::E2Fault(Box::new(E2::new(e))));
+                 })() {
+                     Ok(__value1) => __value1,
+                     Err(e2) => 7,

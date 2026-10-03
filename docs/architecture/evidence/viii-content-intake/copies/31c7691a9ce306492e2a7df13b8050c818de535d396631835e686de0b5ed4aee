@@ -1,0 +1,32 @@
+package tests
+
+import boring.StaticCollisionOps
+import boring.StaticStateClient
+import boring.StaticStateOps
+import boring.runtime.test.Test
+
+class StaticStateTests {
+@boring.test.Test
+    fun testStaticCollision() {
+        Test.run("tests.StaticStateTests.testStaticCollision", "tests.StaticStateTests.testStaticCollision: colliding static-only classes retain distinct namespaces") {
+                Test.equals("float:1.5", StaticCollisionOps.floatValue(1.5f), "float static result")
+                Test.equals("int:7", StaticCollisionOps.intValue(7), "int static result")
+        }
+    }
+
+@boring.test.Test
+    fun testStaticState() {
+        Test.run("tests.StaticStateTests.testStaticState", "tests.StaticStateTests.testStaticState: static fields round-trip assignments and retain container state") {
+                StaticStateOps.setCurrent("own")
+                Test.equals("own", StaticStateOps.readCurrent(), "assignment from the declaring class")
+                StaticStateClient.install("other")
+                Test.equals("other", StaticStateOps.readCurrent(), "assignment from another class")
+                StaticStateOps.record("first")
+                StaticStateOps.record("second")
+                Test.equals(2, StaticStateOps.sectionCount(), "static container growth")
+                Test.equals("first", StaticStateOps.firstSection(), "first recorded section")
+                Test.equals(4096, StaticStateOps.limit, "scalar static constant")
+                Test.equals("empty", StaticStateOps.emptyMark, "string static constant")
+        }
+    }
+}

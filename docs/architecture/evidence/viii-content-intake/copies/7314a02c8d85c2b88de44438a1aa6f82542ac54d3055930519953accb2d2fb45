@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class MapHasGetTests {
+@boring.test.Test
+    fun testGuardedLookup() {
+        Test.run("tests.MapHasGetTests.testGuardedLookup", "tests.MapHasGetTests.testGuardedLookup: a guarded map lookup lowers to nil coalescing") {
+                Test.equals(true, true, null)
+        }
+    }
+}

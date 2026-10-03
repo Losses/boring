@@ -1,0 +1,4 @@
+Exception in thread "main" java.lang.NullPointerException
+	at charcodeat.CharCodeAtOracle.codeInt(CharCodeAtOracle.kt:27)
+	at CharCodeAtRunKt.main(CharCodeAtRun.kt:14)
+	at CharCodeAtRunKt.main(CharCodeAtRun.kt)

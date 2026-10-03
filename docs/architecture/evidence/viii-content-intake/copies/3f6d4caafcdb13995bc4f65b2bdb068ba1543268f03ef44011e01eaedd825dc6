@@ -1,0 +1,62 @@
+== pre (HEAD e1c65975) ==
+ac657b299c8bbc0d9fc52e74ebce6dc7d23f291c33a7fd2c05f74afc0379f272  packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx (pre)
+== post (fixed worktree) ==
+0210d20703769a4e42f2e8a27dd1a1123072a27785e663fc5dbb9b80ef74f973  packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+
+== new fixture files (untracked, added by this task) ==
+fa42ce5e0c71c9f5c305c7f8511b78df321840133d63db15cdbca693a60b060a  tests/haxe/swift-rt-probe/probe/Probe.hx
+6e678b292ea14cba388d1de2e9a5b1e00c3d5f2c0143e160344272543e489fdf  tests/haxe/swift-rt-probe/gen/swift.hxml
+021563407040ad4e0dc0dc6aa8494ab0d0f1b2df1a76f5373c4d4b5ceb42f414  tests/haxe/swift-rt-probe/native/native-main.swift
+a68022103c1e6f8b38b02b4620f4f39b2c090a63f094b1fe5efe283c0f2be5e7  tests/haxe/swift-rt-probe/expected.txt
+d335c34693f330ffd1bf2102aaee2a97d8db7baee9ae85b04bca66a030958c2f  tests/haxe/swift-rt-plain/plain/Plain.hx
+e0d64be649a15162c149a5b5ae0f260716b9aaa8111ce1227bd492b68cdfebc1  tests/haxe/swift-rt-plain/gen/swift.hxml
+0892e23402c86840dad52c1bdb3bf15941483c1546e8cbfb30a84a154f4f02d1  tests/haxe/swift-rt-plain/native/native-main.swift
+8c0ea9432c7bba1de062c246e3397cf01d4418edc88623a7cf8d851f12938d69  tests/haxe/swift-rt-plain/expected.txt
+
+== generated tree: try-tail fixture, prefix (pre-fix, 5 files) ==
+24103c33014b7e920830c104859016965bab3fb396ef238b5f11cbd3d994e312  _GeneratedFiles.txt
+dce86b42bef709d3e120ab1e743895f6cc6c5c755a1c058c9a0bd9f09a85a208  Package.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  std/UStringFault.swift
+cb5d8fc39a6fa213ff8c64ee34c2943cd5ef0bc817f96cd9154e16f8b27a91d0  trytail/TryTailOracle.swift
+
+== generated tree: try-tail fixture, postfix (fixed, 6 files) ==
+b17f7b5b6385b4a9d3e3ced040d2b2af1f2d32236d4da86da850160e61cfe3bc  _GeneratedFiles.txt
+e46a6636d0a87f98e55a00cd698b5bb19236109a7ad70962386b765c05ffa571  Package.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  Runtime.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  std/UStringFault.swift
+cb5d8fc39a6fa213ff8c64ee34c2943cd5ef0bc817f96cd9154e16f8b27a91d0  trytail/TryTailOracle.swift
+
+== generated tree: probe fixture, prefix (pre-fix, 5 files) ==
+f50c47cfe3153b1f2f7e7eaaf59f7aab85022ce3fdfff912423d379167c313ad  _GeneratedFiles.txt
+7a5d39094afbe3fc509f7dc04ddd6236719f3560eb1ccc560ce688781335d8ee  Package.swift
+56913097ab5cde9aa703f319618633ef56b75957cbb8dd1bc880a89ed0b11be0  probe/Probe.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  std/UStringFault.swift
+
+== generated tree: probe fixture, postfix (fixed, 6 files) ==
+79428d18aac29d40db9d6e04b454e52e40ab4417464bf6f97a9d64e1e6ad3710  _GeneratedFiles.txt
+fe1eaa97d9403f3d83f21b3b7b4ec870746c9e9357bf506809bfe049483c1a29  Package.swift
+56913097ab5cde9aa703f319618633ef56b75957cbb8dd1bc880a89ed0b11be0  probe/Probe.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  Runtime.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  std/UStringFault.swift
+
+== generated tree: plain fixture, boundary fixed (6 files) ==
+b6fd66d350b2f1f15c55055893fb8eeaa39e91c8481d0c2b3eaa89d88da0838f  Package.swift
+9682c9da32668e024133fd686ca4a4c7531f37037b8c10f5fdbfeaeca425ef57  plain/Plain.swift
+a24d5fa3f7ec5fec2732fd671598b348a494268bcb1e63a178c5266373587795  Runtime.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  std/UStringFault.swift
+
+== generated tree: plain fixture, boundary reverted (5 files) ==
+473ace6a1b2ac3301f1660a755ffc3cf7ea77b9ffd012d1dacbb75acdd61b363  Package.swift
+9682c9da32668e024133fd686ca4a4c7531f37037b8c10f5fdbfeaeca425ef57  plain/Plain.swift
+ca9b248766df8131cd04dabfbba9976dd56ad7c021f3718e658681356297c0a4  std/UStringException.swift
+36499cfbd939a8f73e1d00ae030c74f4e58007898a9beb74410b69ce7ba40b3e  std/UStringFault.swift
+
+== deliverables ==
+bf907f199e07f498840899e2649c536559f75e6e426a1a4a3e40679b79ea7e07  PATCH.diff
+f625676be6925803b30dd6716eefcf08f7a6a2edc1aa85cc5350c776512563ac  REPORT.md
+(FILES.sha256 excludes its own hash; verify the two lines above against the files.)

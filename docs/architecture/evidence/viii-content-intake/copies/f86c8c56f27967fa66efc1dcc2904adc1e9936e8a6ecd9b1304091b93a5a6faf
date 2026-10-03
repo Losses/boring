@@ -1,0 +1,63 @@
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/out/rust-payload-key/evidence/control-faultnames/pre-gen)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: `?` couldn't convert the error to `E1PayloadFault`
+  --> pkf/fault_name_probe.rs:91:82
+   |
+91 |             return Ok(FaultNameProbe::fault_name_probe_throw_e2(UStr::new(&[98]))?);
+   |                       -----------------------------------------------------------^ the trait `From<E2PayloadFault>` is not implemented for `E1PayloadFault`
+   |                       |
+   |                       this can't be annotated with `?` because it has type `Result<_, E2PayloadFault>`
+   |
+note: `E1PayloadFault` needs to implement `From<E2PayloadFault>`
+  --> pkf/fault_name_probe.rs:23:1
+   |
+23 | pub enum E1PayloadFault {
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+
+error[E0599]: no variant, associated function, or constant named `E2Fault` found for enum `E1PayloadFault` in the current scope
+  --> pkf/fault_name_probe.rs:97:48
+   |
+23 | pub enum E1PayloadFault {
+   | ----------------------- variant, associated function, or constant `E2Fault` not found for this enum
+...
+97 |                     return Err(E1PayloadFault::E2Fault(E2::new(e)));
+   |                                                ^^^^^^^ variant, associated function, or constant not found in `E1PayloadFault`
+   |
+help: there is a variant with a similar name
+   |
+97 -                     return Err(E1PayloadFault::E2Fault(E2::new(e)));
+97 +                     return Err(E1PayloadFault::E1Fault(E2::new(e)));
+   |
+
+error[E0433]: cannot find type `E2` in this scope
+  --> pkf/fault_name_probe.rs:97:56
+   |
+97 |                     return Err(E1PayloadFault::E2Fault(E2::new(e)));
+   |                                                        ^^ use of undeclared type `E2`
+   |
+help: a struct with a similar name exists
+   |
+97 -                     return Err(E1PayloadFault::E2Fault(E2::new(e)));
+97 +                     return Err(E1PayloadFault::E2Fault(E1::new(e)));
+   |
+
+warning: unused variable: `e2`
+  --> pkf/fault_name_probe.rs:80:25
+   |
+80 |                     Err(e2) => 5,
+   |                         ^^ help: if this is intentional, prefix it with an underscore: `_e2`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0277, E0433, E0599.
+For more information about an error, try `rustc --explain E0277`.
+warning: `generated` (lib) generated 2 warnings
+error: could not compile `generated` (lib) due to 3 previous errors; 2 warnings emitted

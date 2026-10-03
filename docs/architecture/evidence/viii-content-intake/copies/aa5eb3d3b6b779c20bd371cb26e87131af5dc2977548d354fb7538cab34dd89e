@@ -1,0 +1,7 @@
+out/readonly-boundary/current/gen/boring/ReadOnlyBoundaryOps.swift
+out/readonly-boundary/current/gen/boring/ReadOnlyBoundaryOracle.swift
+out/readonly-boundary/current/gen/_GeneratedFiles.txt
+out/readonly-boundary/current/gen/Runtime.swift
+out/readonly-boundary/current/gen/std/UStringException.swift
+out/readonly-boundary/current/gen/std/UStringFault.swift
+out/readonly-boundary/current/gen/Test.swift

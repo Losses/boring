@@ -1,0 +1,42 @@
+#[derive(Clone, Copy)]
+pub struct Int64Ops;
+
+impl Int64Ops {
+    pub fn int64_ops_carry() -> i64 {
+        return (0i64 << 32 | 4294967295i64).wrapping_add(1i64);
+    }
+
+    pub fn int64_ops_mul_anchors() -> i64 {
+        return (2654435761i64 << 32 | 2246822535i64).wrapping_mul(3266489917i64 << 32 | 668265295i64);
+    }
+
+    pub fn int64_ops_mul_int_anchor(value: i64) -> i64 {
+        return (value).wrapping_mul(3i64);
+    }
+
+    pub fn int64_ops_rotate(value: i64, distance: u32) -> i64 {
+        return i64::from_ne_bytes(u64::from_ne_bytes((value).to_ne_bytes()).wrapping_shr(distance).to_ne_bytes()) | value.wrapping_shl(u32::wrapping_sub(64, distance));
+    }
+
+    pub fn int64_ops_bit_mix(value: i64) -> i64 {
+        let upper_mask = 2863311530i64 << 32 | 1431655765i64;
+        let lower_mask = 1431655765i64 << 32 | 2863311530i64;
+        return value ^ upper_mask | value & lower_mask;
+    }
+
+    pub fn int64_ops_high(value: i64) -> u32 {
+        return u32::try_from((value >> 32) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn int64_ops_low(value: i64) -> u32 {
+        return u32::try_from((value) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn int64_ops_below(a: i64, b: i64) -> bool {
+        return a < b;
+    }
+
+    pub fn int64_ops_at_or_below(a: i64, b: i64) -> bool {
+        return a <= b;
+    }
+}

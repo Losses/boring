@@ -1,0 +1,16 @@
+package boring
+
+object FloatArrayAnnoOps {
+    fun sumOf(values: MutableList<Double>): Double {
+        var total = 0.0
+        for (v in values) {
+            total += v
+        }
+        return total
+    }
+
+    fun verify(): Boolean {
+        val floats = mutableListOf<Double>(1.5, 2.0, 3.5)
+        return FloatArrayAnnoOps.sumOf(floats) == 7.0
+    }
+}

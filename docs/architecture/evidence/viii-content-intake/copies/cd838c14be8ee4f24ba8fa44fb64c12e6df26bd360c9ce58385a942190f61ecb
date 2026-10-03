@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+TREE=/tmp/verify-2aadcb69/wt
+L=/tmp/verify-2aadcb69/logs; mkdir -p "$L"
+F="$TREE/samples/boring/MathNaNTestSupport.hx"
+check() { c=$(grep -c 'Test.equals' "$F" || true); s=$(sha256sum "$F" | cut -c1-16); echo "[guard $1] Test.equals=$c sha16=$s"; if [ "${c:-0}" != "5" ]; then echo "FIXTURE-CORRUPT at $1"; exit 9; fi; }
+echo "=== tree under test: $TREE (git archive of 2aadcb69) ==="
+check start
+echo; echo "=== BATCH A: pre-fix input state = STUBBED fixture, pre-fix module-list filter, 3 generations ==="
+FILTER=1 bun /tmp/verify-2aadcb69/scripts/repro-verify.mjs "$TREE" stub 3 prefix-stub 2>&1 | tee "$L/A-prefix-stub.log"
+check afterA
+echo; echo "=== BATCH B: post-fix harness (no mutation, no filter), REAL fixture, 5 generations ==="
+bun /tmp/verify-2aadcb69/scripts/repro-verify.mjs "$TREE" real 5 postfix-real 2>&1 | tee "$L/B-postfix-real-5gen.log"
+check afterB
+echo; echo "=== BATCH C: pre-fix input state = REAL fixture + pre-fix filter, 2 generations ==="
+FILTER=1 bun /tmp/verify-2aadcb69/scripts/repro-verify.mjs "$TREE" real 2 prefix-real-filter 2>&1 | tee "$L/C-prefix-real-filter.log"
+check afterC
+echo "ALL-BATCHES-DONE"

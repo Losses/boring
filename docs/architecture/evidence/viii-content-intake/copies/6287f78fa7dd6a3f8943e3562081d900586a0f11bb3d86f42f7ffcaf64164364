@@ -1,0 +1,8 @@
+timeout
+900
+haxe
+/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch/tests/haxe/dc-enum-switch-gen/gen/promoted-swift.hxml
+-D
+swift-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch/../../out/enum-switch/es-VHFjIw/gen/promoted/swift
+-D
+swift-test-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch/../../out/enum-switch/es-VHFjIw/gen/promoted/swift/test-host

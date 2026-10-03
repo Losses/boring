@@ -1,0 +1,13 @@
+package tests
+
+import boring.PrivateStaticCallOps
+import boring.runtime.test.Test
+
+class PrivateStaticCallTests {
+@boring.test.Test
+    fun testPrivateStaticCall() {
+        Test.run("tests.PrivateStaticCallTests.testPrivateStaticCall", "tests.PrivateStaticCallTests.testPrivateStaticCall: private static referenced by class name lowers under its Dart name") {
+                Test.equals("empty", PrivateStaticCallOps.render(), null)
+        }
+    }
+}

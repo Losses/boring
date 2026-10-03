@@ -1,0 +1,17 @@
+--- /home/losses/Development/tq-workspace/dc-warn/swc-try-fix-wt/wt/packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx	2026-09-30 03:13:35.000000000 -0400
++++ packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx	2026-09-30 03:13:35.000000000 -0400
+@@ -2337,8 +2337,14 @@
+ 
+     function functionLiteral(f:TFunc):String {
+         final previousOptional = currentFuncReturnsOptional;
++        final previousReturn = currentReturnType;
+         currentFuncReturnsOptional = isNullLeafType(f.t);
++        // TFunc.t is the lambda's own return contract; every return
++        // conversion inside the body must satisfy it, not the enclosing
++        // member's unrelated return type. (LambdaReturnContract)
++        currentReturnType = Context.follow(f.t);
+         final result = functionLiteralInner(f);
++        currentReturnType = previousReturn;
+         currentFuncReturnsOptional = previousOptional;
+         return result;
+     }

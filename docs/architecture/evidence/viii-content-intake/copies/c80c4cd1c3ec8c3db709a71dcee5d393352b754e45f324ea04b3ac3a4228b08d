@@ -1,0 +1,633 @@
+{
+ "float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error": {
+  "file": "tests/dart/precision-switch.test.ts",
+  "line": 12,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 600,
+  "calls": [
+   "Response",
+   "all",
+   "async",
+   "expect",
+   "resolve",
+   "spawn",
+   "text",
+   "toBe",
+   "toContain"
+  ]
+ },
+ "record printed-member generated trees > marker and explicit-member mutations affect the four emitted members": {
+  "file": "tests/ts/printed-record.test.ts",
+  "line": 208,
+  "budget": 120000,
+  "elapsed": [
+   120000.92
+  ],
+  "spawn_literals": [],
+  "body_len": 978,
+  "calls": [
+   "async",
+   "expect",
+   "for",
+   "generateMutation",
+   "indexOf",
+   "join",
+   "mkdtempSync",
+   "outerClass",
+   "rmSync",
+   "toBe",
+   "toBeGreaterThanOrEqual",
+   "toContain"
+  ]
+ },
+ "float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error": {
+  "file": "tests/ts/precision-switch.test.ts",
+  "line": 12,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 584,
+  "calls": [
+   "Response",
+   "all",
+   "async",
+   "expect",
+   "resolve",
+   "spawn",
+   "text",
+   "toBe",
+   "toContain"
+  ]
+ },
+ "strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays": {
+  "file": "tests/ts/strict-output.test.ts",
+  "line": 31,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [],
+  "body_len": 783,
+  "calls": [
+   "async",
+   "compileFixture",
+   "expect",
+   "indexOf",
+   "join",
+   "readFileSync",
+   "rmSync",
+   "run",
+   "toBe",
+   "toContain"
+  ]
+ },
+ "strict TypeScript emitter output > single-argument substr drops its synthesized null length": {
+  "file": "tests/ts/strict-output.test.ts",
+  "line": 50,
+  "budget": 5000,
+  "elapsed": [
+   5001.91
+  ],
+  "spawn_literals": [],
+  "body_len": 600,
+  "calls": [
+   "async",
+   "compileFixture",
+   "expect",
+   "join",
+   "readFileSync",
+   "rmSync",
+   "run",
+   "substr",
+   "toBe",
+   "toContain"
+  ]
+ },
+ "strict TypeScript emitter output > switch-expression cases render preceding statements before their value": {
+  "file": "tests/ts/strict-output.test.ts",
+  "line": 65,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [],
+  "body_len": 770,
+  "calls": [
+   "async",
+   "compileFixture",
+   "expect",
+   "join",
+   "readFileSync",
+   "rmSync",
+   "run",
+   "switch",
+   "toBe",
+   "toContain",
+   "toMatch"
+  ]
+ },
+ "strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types": {
+  "file": "tests/ts/strict-output.test.ts",
+  "line": 86,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [],
+  "body_len": 831,
+  "calls": [
+   "async",
+   "compileFixture",
+   "expect",
+   "join",
+   "push",
+   "readFileSync",
+   "rmSync",
+   "run",
+   "toBe",
+   "toContain"
+  ]
+ },
+ "payload enums are rejected as sorted keys": {
+  "file": "tests/ts/enum-sorted-keys.test.ts",
+  "line": 57,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 1884,
+  "calls": [
+   "Heavy",
+   "Response",
+   "addGlobalMetadata",
+   "all",
+   "async",
+   "build",
+   "builder",
+   "describe",
+   "expect",
+   "join",
+   "mkdirSync",
+   "mkdtempSync",
+   "put",
+   "resolve",
+   "rmSync",
+   "run",
+   "size",
+   "spawn",
+   "text",
+   "tmpdir",
+   "toBe",
+   "toContain",
+   "use",
+   "writeFileSync"
+  ]
+ },
+ "small array initializer mutation rules retain all three diagnostics": {
+  "file": "tests/ts/array-root.test.ts",
+  "line": 64,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [],
+  "body_len": 1092,
+  "calls": [
+   "async",
+   "compileMutation",
+   "expect",
+   "function",
+   "join",
+   "make",
+   "toContain"
+  ]
+ },
+ "constructed static mutation rules retain all three diagnostics": {
+  "file": "tests/ts/constructed-state.test.ts",
+  "line": 56,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [],
+  "body_len": 1112,
+  "calls": [
+   "Probe",
+   "async",
+   "compileMutation",
+   "expect",
+   "function",
+   "join",
+   "make",
+   "new",
+   "toContain"
+  ]
+ },
+ "Rust emits one module layer per Haxe package segment": {
+  "file": "tests/ts/rust-packages.test.ts",
+  "line": 8,
+  "budget": 5000,
+  "elapsed": [
+   5001.91
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 1678,
+  "calls": [
+   "Response",
+   "all",
+   "async",
+   "existsSync",
+   "expect",
+   "join",
+   "mkdirSync",
+   "mkdtempSync",
+   "readFileSync",
+   "rmSync",
+   "run",
+   "spawn",
+   "text",
+   "tmpdir",
+   "toBe",
+   "toContain",
+   "toEqual",
+   "use",
+   "value",
+   "writeFileSync"
+  ]
+ },
+ "Rust borrows input Bytes fields and owns allocated Bytes fields": {
+  "file": "tests/ts/rust-bytes-ownership.test.ts",
+  "line": 8,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 2001,
+  "calls": [
+   "Owned",
+   "Response",
+   "all",
+   "alloc",
+   "async",
+   "expect",
+   "join",
+   "make",
+   "mkdirSync",
+   "mkdtempSync",
+   "new",
+   "readFileSync",
+   "rmSync",
+   "run",
+   "spawn",
+   "text",
+   "tmpdir",
+   "toContain",
+   "toEqual",
+   "use",
+   "writeFileSync"
+  ]
+ },
+ "package artifact emission > the cargo crate and the Pub archive keep the tree at the root": {
+  "file": "tests/ts/package-artifacts.test.ts",
+  "line": 217,
+  "budget": 60000,
+  "elapsed": [
+   60000.96
+  ],
+  "spawn_literals": [
+   "dart"
+  ],
+  "body_len": 1705,
+  "calls": [
+   "async",
+   "existsSync",
+   "expect",
+   "for",
+   "join",
+   "rewriteHxml",
+   "rmSync",
+   "runHaxe",
+   "some",
+   "sort",
+   "startsWith",
+   "tarList",
+   "tempRoot",
+   "toBe",
+   "toContain",
+   "toEqual"
+  ]
+ },
+ "static initializer mutation is rejected with the sanctioned error": {
+  "file": "tests/ts/static-state.test.ts",
+  "line": 57,
+  "budget": 15000,
+  "elapsed": [
+   15000.74
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 472,
+  "calls": [
+   "Response",
+   "all",
+   "async",
+   "expect",
+   "spawn",
+   "text",
+   "toBe",
+   "toContain"
+  ]
+ },
+ "@:sealed on a class reports the interface-only error": {
+  "file": "tests/ts/sealed-variants.test.ts",
+  "line": 101,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 1642,
+  "calls": [
+   "Response",
+   "addGlobalMetadata",
+   "all",
+   "async",
+   "build",
+   "dirname",
+   "expect",
+   "join",
+   "mkdirSync",
+   "mkdtempSync",
+   "rmSync",
+   "run",
+   "spawn",
+   "text",
+   "toBe",
+   "toContain",
+   "use",
+   "writeFileSync"
+  ]
+ },
+ "self-construction with arguments keeps the static initializer error": {
+  "file": "tests/ts/sealed-variants.test.ts",
+  "line": 147,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 1844,
+  "calls": [
+   "NoneDrawKind",
+   "Response",
+   "addGlobalMetadata",
+   "all",
+   "async",
+   "build",
+   "dirname",
+   "expect",
+   "join",
+   "mkdirSync",
+   "mkdtempSync",
+   "new",
+   "rmSync",
+   "run",
+   "spawn",
+   "text",
+   "toBe",
+   "toContain",
+   "use",
+   "writeFileSync"
+  ]
+ },
+ "the sanctioned self-construction static uses each target lane": {
+  "file": "tests/ts/sealed-variants.test.ts",
+  "line": 195,
+  "budget": 15000,
+  "elapsed": [
+   15001.74
+  ],
+  "spawn_literals": [],
+  "body_len": 1065,
+  "calls": [
+   "NoneDrawKind",
+   "allow",
+   "async",
+   "expect",
+   "for",
+   "generateSelfConstruction",
+   "join",
+   "mkdtempSync",
+   "new",
+   "rmSync",
+   "toContain"
+  ]
+ },
+ "value wrapper generated trees > rejects each invalid marker shape with the ruled error on every target": {
+  "file": "tests/ts/value-type.test.ts",
+  "line": 132,
+  "budget": 120000,
+  "elapsed": [
+   324732.29
+  ],
+  "spawn_literals": [],
+  "body_len": 873,
+  "calls": [
+   "entries",
+   "expect",
+   "for",
+   "join",
+   "mkdirSync",
+   "mkdtempSync",
+   "replaceAll",
+   "rmSync",
+   "runMutation",
+   "toBe",
+   "toContain",
+   "writeFileSync"
+  ]
+ },
+ "TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once": {
+  "file": "tests/ts/extern-bindings.test.ts",
+  "line": 39,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [],
+  "body_len": 1332,
+  "calls": [
+   "async",
+   "compileFixture",
+   "expect",
+   "join",
+   "match",
+   "read",
+   "readFileSync",
+   "rmSync",
+   "toBe",
+   "toContain",
+   "value"
+  ]
+ },
+ "TypeScript extern binding modules > rejects a value reference to an empty module": {
+  "file": "tests/ts/extern-bindings.test.ts",
+  "line": 65,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [],
+  "body_len": 514,
+  "calls": [
+   "async",
+   "compileFixture",
+   "expect",
+   "join",
+   "read",
+   "rmSync",
+   "toBe",
+   "toContain",
+   "value"
+  ]
+ },
+ "Std.string lowering > nullable operands are rejected on every target": {
+  "file": "tests/ts/std-string.test.ts",
+  "line": 87,
+  "budget": 120000,
+  "elapsed": [
+   120001.9
+  ],
+  "spawn_literals": [
+   "dart",
+   "haxe"
+  ],
+  "body_len": 540,
+  "calls": [
+   "Response",
+   "async",
+   "expect",
+   "for",
+   "spawn",
+   "text",
+   "toBe",
+   "toContain"
+  ]
+ },
+ "StringTools conversions lowering > negative hex arguments report the named domain error": {
+  "file": "tests/ts/stringtools-conv.test.ts",
+  "line": 71,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 416,
+  "calls": [
+   "Response",
+   "async",
+   "expect",
+   "spawn",
+   "text",
+   "toBe",
+   "toContain"
+  ]
+ },
+ "a missing deferred assignment is rejected by the Kotlin tree build": {
+  "file": "tests/ts/deferred-locals.test.ts",
+  "line": 20,
+  "budget": 5000,
+  "elapsed": [
+   5001.91
+  ],
+  "spawn_literals": [
+   "haxe",
+   "kotlinc"
+  ],
+  "body_len": 2338,
+  "calls": [
+   "Response",
+   "all",
+   "async",
+   "dirname",
+   "expect",
+   "if",
+   "join",
+   "mkdirSync",
+   "mkdtempSync",
+   "readFileSync",
+   "replace",
+   "rmSync",
+   "run",
+   "spawn",
+   "text",
+   "tierOf",
+   "tmpdir",
+   "toBe",
+   "toEqual",
+   "toMatch",
+   "use",
+   "writeFileSync"
+  ]
+ },
+ "static function field capture validation > a capturing static initializer reports the ruled Rust error": {
+  "file": "tests/ts/fn-values.test.ts",
+  "line": 90,
+  "budget": 5000,
+  "elapsed": [
+   5000.91
+  ],
+  "spawn_literals": [
+   "haxe"
+  ],
+  "body_len": 2109,
+  "calls": [
+   "Response",
+   "addGlobalMetadata",
+   "all",
+   "async",
+   "build",
+   "dirname",
+   "expect",
+   "function",
+   "join",
+   "mkdirSync",
+   "mkdtempSync",
+   "read",
+   "replace",
+   "rmSync",
+   "run",
+   "spawn",
+   "text",
+   "toBe",
+   "toContain",
+   "use",
+   "writeFileSync"
+  ]
+ }
+}

@@ -1,0 +1,53 @@
+ID OwnerA.T pack=[xc.OwnerA] module=xc.CrossOwner name=T key=xc.OwnerA|xc.CrossOwner|T
+ID OwnerB.T pack=[xc.OwnerB] module=xc.CrossOwner name=T key=xc.OwnerB|xc.CrossOwner|T
+ID OwnerC.U pack=[xc.OwnerC] module=xc.CrossOwner name=U key=xc.OwnerC|xc.CrossOwner|U
+ID Solo.T pack=[xc.Solo] module=xc.Solo name=T key=xc.Solo|xc.Solo|T
+ID Boxed.T pack=[revp9.Boxed] module=revp9.Boxed name=T key=revp9.Boxed|revp9.Boxed|T
+ID Generic.T pack=[revp9.Generic] module=revp9.Generic name=T key=revp9.Generic|revp9.Generic|T
+ID Pair.S pack=[revp9.Pair] module=revp9.Pair name=S key=revp9.Pair|revp9.Pair|S
+COLLIDE OwnerA.T vs OwnerB.T sameKey:false
+COLLIDE OwnerA.T vs OwnerC.U sameKey:false
+COLLIDE OwnerA.T vs Solo.T sameKey:false
+COLLIDE OwnerA.T vs Boxed.T sameKey:false
+COLLIDE OwnerA.T vs Generic.T sameKey:false
+COLLIDE OwnerA.T vs Pair.S sameKey:false
+COLLIDE OwnerB.T vs OwnerC.U sameKey:false
+COLLIDE OwnerB.T vs Solo.T sameKey:false
+COLLIDE OwnerB.T vs Boxed.T sameKey:false
+COLLIDE OwnerB.T vs Generic.T sameKey:false
+COLLIDE OwnerB.T vs Pair.S sameKey:false
+COLLIDE OwnerC.U vs Solo.T sameKey:false
+COLLIDE OwnerC.U vs Boxed.T sameKey:false
+COLLIDE OwnerC.U vs Generic.T sameKey:false
+COLLIDE OwnerC.U vs Pair.S sameKey:false
+COLLIDE Solo.T vs Boxed.T sameKey:false
+COLLIDE Solo.T vs Generic.T sameKey:false
+COLLIDE Solo.T vs Pair.S sameKey:false
+COLLIDE Boxed.T vs Generic.T sameKey:false
+COLLIDE Boxed.T vs Pair.S sameKey:false
+COLLIDE Generic.T vs Pair.S sameKey:false
+COLLIDE total:0 (expected 0: every pair is a distinct declaration)
+SLOT ownParameterSlot(OwnerB.T, owner=OwnerA) = null (expected null)
+SLOT schemaParameterIndex(OwnerB.T, [OwnerA.T]) = null (expected null)
+SLOT ownParameterSlot(OwnerA.T, owner=OwnerA) = 0 (expected 0)
+OVER distinct-binders shared:false (expected false) va:true vb:true
+OVER concrete Int/String shared:false (expected false)
+OVER Mix<OwnerA.T,OwnerB.T> shared:false (expected false)
+UNDER Same<OwnerA.T> shared:true (expected true)
+UNDER Diamond<OwnerA.T> a==b:true (expected true)
+UNDER Diamond<OwnerA.T> a==c-depth2:true (expected true)
+UNDER Diamond nested allComplete:true (expected true)
+REC budget=8 distinctNextChainNodes:1 closedOnRepeat:true reachedCap:false (expected 1 distinct + closed)
+REC chain completeStates:1 of 1 (expected all)
+REC budget3 nested state:Complete
+REC concrete-Int budget3 nested state:Complete (concrete control)
+ID Host.f<T> arg pack=[f] module=xc.MethodParams name=T key=f|xc.MethodParams|T
+ID Host class binder pack=[xc.Host] module=xc.MethodParams name=T key=xc.Host|xc.MethodParams|T
+ID Host2.g<T> arg pack=[g] module=xc.MethodParams name=T key=g|xc.MethodParams|T
+ID Host2.h<T> arg pack=[h] module=xc.MethodParams name=T key=h|xc.MethodParams|T
+ID Host2.f<T> arg pack=[f] module=xc.MethodParams name=T key=f|xc.MethodParams|T
+ID Host2 class binder pack=[xc.Host2] module=xc.MethodParams name=U key=xc.Host2|xc.MethodParams|U
+METH observable:true Host.f=f|xc.MethodParams|T Host2.g=g|xc.MethodParams|T Host2.h=h|xc.MethodParams|T
+METH two method binders named T in one class collide:false (expected false)
+METH same method name+module, different class (Host.f vs Host2.f):f|xc.MethodParams|T vs f|xc.MethodParams|T collide:true
+xcheck main reached, trigger=true

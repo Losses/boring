@@ -1,0 +1,40 @@
+tests.VectorCodecTests.asciiCodecsRoundTrip                             | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.byteLengthsPerWidth                              | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.magicWidthMapping                                | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.roundtrip                                        | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.roundtripF16                                     | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.roundtripF32                                     | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testArray                                        | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testBool                                         | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testBytes                                        | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testEnum                                         | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testFloat                                        | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testInt                                          | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testNaN                                          | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testString                                       | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testStructure                                    | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.VectorCodecTests.testWithoutDescription                           | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.WidgetCoalescingTests.builderDefault                              | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.WidgetCoalescingTests.lensDefault                                 | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.Xxh128Tests.vectors                                               | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.Xxh64Tests.digestIsIdempotent                                     | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.Xxh64Tests.streamingChunks                                        | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.Xxh64Tests.vectorTests                                            | pass    | pass    | pass              | pass    | pass    | pass           | pass     | pass       | pass     | pass          
+tests.f32.PrintedFloatTests.printsComputedShortestTextOnNullableFields  | MISSING | MISSING | MISSING           | MISSING | MISSING | MISSING        | pass     | MISSING    | MISSING  | MISSING       
+tests.f32.PrintedFloatTests.printsNonFiniteFloatFields                  | MISSING | MISSING | MISSING           | MISSING | MISSING | MISSING        | pass     | MISSING    | MISSING  | MISSING       
+tests.f32.PrintedFloatTests.printsNullableFloatCollectionForm           | MISSING | MISSING | MISSING           | MISSING | MISSING | MISSING        | pass     | MISSING    | MISSING  | MISSING       
+tests.f32.PrintedFloatTests.printsShortestFloatText                     | MISSING | MISSING | MISSING           | MISSING | MISSING | MISSING        | pass     | MISSING    | MISSING  | MISSING       
+tests.f32.PrintedFloatTests.printsShortestFloatTextOnCollectionElements | MISSING | MISSING | MISSING           | MISSING | MISSING | MISSING        | pass     | MISSING    | MISSING  | MISSING       
+tests.f32.PrintedFloatTests.printsWholeNegativeAndNullFloatFields       | MISSING | MISSING | MISSING           | MISSING | MISSING | MISSING        | pass     | MISSING    | MISSING  | MISSING       
+
+Mechanism coverage: covered 27 / allowlisted 0
+Declared extra test ids (not in baseline, allowlisted): 6
+  - [haxe-f32] tests.f32.PrintedFloatTests.printsComputedShortestTextOnNullableFields -- f32-only oracle test (feature spec 44): see the printsShortestFloatText entry -- samples/tests/f32 is collected only under the f32 precision switch.
+  - [haxe-f32] tests.f32.PrintedFloatTests.printsNonFiniteFloatFields -- f32-only oracle test (feature spec 44): see the printsShortestFloatText entry -- samples/tests/f32 is collected only under the f32 precision switch.
+  - [haxe-f32] tests.f32.PrintedFloatTests.printsNullableFloatCollectionForm -- f32-only oracle test (feature spec 44): see the printsShortestFloatText entry -- samples/tests/f32 is collected only under the f32 precision switch.
+  - [haxe-f32] tests.f32.PrintedFloatTests.printsShortestFloatText -- f32-only oracle test (feature spec 44): only the f32 bundle group collects samples/tests/f32 (haxe f32 TestCollector; the three non-haxe f32 hxml roots do not list tests.f32.*), and the binary64 baseline excludes that directory by design; shortest-binary32-text assertions are only meaningful under -D float-precision=f32.
+  - [haxe-f32] tests.f32.PrintedFloatTests.printsShortestFloatTextOnCollectionElements -- f32-only oracle test (feature spec 44): see the printsShortestFloatText entry -- samples/tests/f32 is collected only under the f32 precision switch.
+  - [haxe-f32] tests.f32.PrintedFloatTests.printsWholeNegativeAndNullFloatFields -- f32-only oracle test (feature spec 44): see the printsShortestFloatText entry -- samples/tests/f32 is collected only under the f32 precision switch.
+All 10 targets (haxe, ts, kotlin, dart, rust, swift, haxe-f32, kotlin-f32, rust-f32, swift-f32) are 100% consistent across 736 tests.
+
+bundle driver: ok

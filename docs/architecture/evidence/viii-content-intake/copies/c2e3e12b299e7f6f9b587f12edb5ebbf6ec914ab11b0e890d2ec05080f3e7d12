@@ -1,0 +1,10 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/value-type.test.ts:
+(pass) value wrapper generated trees > rejects each invalid marker shape with the ruled error on every target [353652.26ms]
+
+ 1 pass
+ 1 filtered out
+ 0 fail
+ 30 expect() calls
+Ran 1 test across 1 file. [353.70s]

@@ -1,0 +1,112 @@
+[
+  {
+    "path": "docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md",
+    "sha256": "ec355f96d4435d934161b86b0470368cc1de5b320e746b510bb8ef05c951699b",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/_GeneratedFiles.txt",
+    "sha256": "9c52cf6d51d5986f9bea4130297f80bd7f031ba5659d25adeb0004e9437761ee",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/Core.ts",
+    "sha256": "e5a81a62abf444dd162d5369977951b2289705510bbeee6a29c7a600fe6045a8",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/CoreException.ts",
+    "sha256": "ec969ee75e17c549f5a5a2e99e71fcd6777b023ec8c5f1bc9ced53c4322f919d",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/CoreFault.ts",
+    "sha256": "d9bda762426d9c4b3d027191f56f4bc5cbc1ca4c8fde7d5d1d169e39940b67a9",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/Json.ts",
+    "sha256": "20083514b65b28b8765eb115ccbb0fada226772e652c0a4130fca8baa46867ca",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/JsonException.ts",
+    "sha256": "aa9d93feece56f6d004b989ca4063636f687fb30a47beb29631609a147e125fa",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/JsonFault.ts",
+    "sha256": "e745007f2858966fad887cae81274fc49c0998146beeccc3c9926a9834d82da8",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/Main.ts",
+    "sha256": "b96070269d645e0ac741ab7ff65cf021c38592ce515519dddf584077b20947ef",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/Release.ts",
+    "sha256": "dfe543550fb43aad19303bfaff7fac8eec70346f8d3baac4844a7a1d619ab23f",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/Semver.ts",
+    "sha256": "2e3b75c5d3411ad0f9f9bb96766ef9e50e9fc0d7b28042189f7f5c4d6a7f3578",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/SemverException.ts",
+    "sha256": "6177000be925ce08df4e8a823c6375e1d68cab2eef711e95dd333c3f748737eb",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/SemverFault.ts",
+    "sha256": "6da61bf86e288450bbc50b39d3e2fe5fa72bf08a42c93e22b23e4858e3d84a79",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/registry/Sha1.ts",
+    "sha256": "b1f34593b3f678f74eca05a556bcdf5b5233a564a1613f9c0d612c9eb702036d",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/runtime.ts",
+    "sha256": "9b4cf7ad35b0c679d907c000713594637ef41811e936050d02742a0c6e71e062",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/std/Path.ts",
+    "sha256": "8d42603c9faef097cc810bf5fab99c12689d70184e9241ed0701b60c10c0334f",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/std/UStringException.ts",
+    "sha256": "232849f763270f00db6f85d0bf108c019d2f6691665e286f05f4efd33b5967dc",
+    "mode": "100644"
+  },
+  {
+    "path": "packages/registry/gen/std/UStringFault.ts",
+    "sha256": "87e1514baa7cd150a114f7ac8407e8559d1d47a66dd1ec894cd7b3f7ed0df0c9",
+    "mode": "100644"
+  },
+  {
+    "path": "tools/precision-guard/check.ts",
+    "sha256": "7be40923586157c04840cffdd2aa28080cd420ba94464f6438ce3684f68160fa",
+    "mode": "100644"
+  },
+  {
+    "path": "tools/roots-guard/check-roots-guard.sh",
+    "sha256": "e5508bb442daaeb6655fb1a149ab4a853f5365af415bba3fddf9e854dba980db",
+    "mode": "100755"
+  },
+  {
+    "path": "tools/roots-guard/roots-allowlist.json",
+    "sha256": "34d336ce68b08e686a12dbf5ca43bd89495d470b2ac5278624bdffc93da471a9",
+    "mode": "100755"
+  },
+  {
+    "path": "tools/test-consistency/extra-id-allowlist.json",
+    "sha256": "fab8b03661524db4d011fa364f38465ec1e66159d4d5359a13f58d0463007f93",
+    "mode": "100644"
+  }
+]

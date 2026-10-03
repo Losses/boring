@@ -1,0 +1,20 @@
+package xc;
+
+/** Two separate method-level binders both named T in ONE class, plus a
+    class-level binder named T on the class itself. */
+class Host<T> {
+	public function new() {}
+
+	public function f<T>(v:T):T return v;
+}
+
+class Host2<U> {
+	public function new() {}
+
+	public function g<T>(v:T):T return v;
+
+	public function h<T>(v:T):T return v;
+
+	/** Same method name as Host.f, same module, own binder name T. */
+	public function f<T>(v:T):T return v;
+}

@@ -1,0 +1,243 @@
+docs/architecture/ARCHITECTURAL-CONTRACTS.md (path): [coinage] contracts: docs/architecture/ARCHITECTURAL-CONTRACTS.md
+docs/architecture/ACCEPTANCE-REFLECTION.md:1: [em-dash] \u2014: # Acceptance and reflection record — first round
+docs/architecture/ACCEPTANCE-REFLECTION.md:13: [em-dash] \u2014: # P10 ACCEPTANCE AND REFLECTION RECORD — first round (draft for gate sign-off)
+docs/architecture/ACCEPTANCE-REFLECTION.md:23: [contrast] ,\s+not\s: **Status of this document:** DRAFT. It is the *record*, not a verdict change: the candidate
+docs/architecture/ACCEPTANCE-REFLECTION.md:32: [em-dash] \u2014: ## 1. Acceptance verdict — NOT ACCEPTED
+docs/architecture/ACCEPTANCE-REFLECTION.md:35: [metaphor] freeze: `FREEZE-BUNDLE = b664c91cd09ba6b80517e809feca90a7995f68b84b81589126fed525da1a3878`
+docs/architecture/ACCEPTANCE-REFLECTION.md:36: [metaphor] freeze: [DOC, `p08-candidate-freeze/FREEZE.md` §6.1, independently recomputed there by
+docs/architecture/ACCEPTANCE-REFLECTION.md:37: [metaphor] freeze: `freeze-xcheck/REPORT.md`]) is NOT ACCEPTED.**
+docs/architecture/ACCEPTANCE-REFLECTION.md:41: [em-dash] \u2014: 1. **Implementation review — verdict REJECT, four named conditions**
+docs/architecture/ACCEPTANCE-REFLECTION.md:45: [em-dash] \u2014: - **Condition 1 — Obligation 2 (legal generated output, zero diagnostics).** "On the
+docs/architecture/ACCEPTANCE-REFLECTION.md:48: [em-dash] \u2014: `1`). Fix or obtain a written gate ruling" — either stop `switchStatement` from
+docs/architecture/ACCEPTANCE-REFLECTION.md:52: [em-dash] \u2014: - **Condition 2 — Obligation 1 (actual destinations; lambda defect).** "`currentReturnType`
+docs/architecture/ACCEPTANCE-REFLECTION.md:54: [em-dash] \u2014: `functionLiteral` … the sites the candidate repaired with it — `tryReturnLines`
+docs/architecture/ACCEPTANCE-REFLECTION.md:55: [em-dash] \u2014: `:5296/:5310`, the return-position switch `:810`, the `armLines` fallback `:5675` —
+docs/architecture/ACCEPTANCE-REFLECTION.md:56: [coinage] contract: still borrow the enclosing function's unrelated return type whenever the return contract
+docs/architecture/ACCEPTANCE-REFLECTION.md:57: [coinage] contract: belongs to a lambda." Required: carry the actual return contract; acceptance evidence
+docs/architecture/ACCEPTANCE-REFLECTION.md:59: [em-dash] \u2014: - **Condition 3 — Obligation 1 (in-scope reconstruction removed).** "`switchExpression`
+docs/architecture/ACCEPTANCE-REFLECTION.md:62: [coinage] contract: annotation." Required: explicit destination parameter from the owning contract. The
+docs/architecture/ACCEPTANCE-REFLECTION.md:64: [contrast] ,\s+not\s: that the condition "rests on obligation 1's wording, not on a demonstrated failure."
+docs/architecture/ACCEPTANCE-REFLECTION.md:65: [contrast] ,\s+not\s: - **Condition 4 — delivery/collection, not the patch.** "the repo's own collector
+docs/architecture/ACCEPTANCE-REFLECTION.md:65: [em-dash] \u2014: - **Condition 4 — delivery/collection, not the patch.** "the repo's own collector
+docs/architecture/ACCEPTANCE-REFLECTION.md:71: [em-dash] \u2014: 2. **Behaviour review — does not accept** (`p08-behaviour-review/REPORT.md`, re-anchored
+docs/architecture/ACCEPTANCE-REFLECTION.md:82: [em-dash] \u2014: [DOC]: `SOL2-ARCH-ANSWER.md` — "reject the current candidate for acceptance"; `ASTRA-ANSWER.md`
+docs/architecture/ACCEPTANCE-REFLECTION.md:83: [em-dash] \u2014: — "reject acceptance of the current checkpoint." Both prescribe the order
+docs/architecture/ACCEPTANCE-REFLECTION.md:84: [metaphor] freeze: (d) baseline budget decision → (a) SW04 → (c) switch/try destination repair → (b) freeze +
+docs/architecture/ACCEPTANCE-REFLECTION.md:87: [metaphor] freeze: 4. **The candidate freeze itself** [DOC, `FREEZE.md` status line]: "the *implementation* is
+docs/architecture/ACCEPTANCE-REFLECTION.md:89: [metaphor] freeze: obligation audit finds all three obligations **PARTIAL, not sufficient**. The freeze
+docs/architecture/ACCEPTANCE-REFLECTION.md:89: [contrast] ,\s+not\s: obligation audit finds all three obligations **PARTIAL, not sufficient**. The freeze
+docs/architecture/ACCEPTANCE-REFLECTION.md:90: [metaphor] freeze: cross-check (`freeze-xcheck/REPORT.md`) verdict is **CONFIRMED** (identity and
+docs/architecture/ACCEPTANCE-REFLECTION.md:92: [em-dash] \u2014: (line-citation slip), F3 (lazy-effect conflation) — none of which accepts the candidate.
+docs/architecture/ACCEPTANCE-REFLECTION.md:99: [em-dash] \u2014: ### Post-review delivery work — what it changes, and what it does not
+docs/architecture/ACCEPTANCE-REFLECTION.md:101: [metaphor] swallow: A defect on the critical path was fixed after the reviews: **W1**, the swallowed arm `return`
+docs/architecture/ACCEPTANCE-REFLECTION.md:107: [em-dash] \u2014: **This discharges implementation-review Condition 1 via its first remedy** (stop the splice —
+docs/architecture/ACCEPTANCE-REFLECTION.md:108: [contrast] \brather than\b: the fix removes `switchStatement`'s text splice rather than obtaining an allowlist), **but it
+docs/architecture/ACCEPTANCE-REFLECTION.md:114: [contrast] ,\s+not\s: 2–4 were adjudicated against the frozen candidate, not this one;
+docs/architecture/ACCEPTANCE-REFLECTION.md:115: [coinage] contract: - Conditions 2 and 3 (lambda return contract; `switchExpression` destination) have **no
+docs/architecture/ACCEPTANCE-REFLECTION.md:116: [em-dash] \u2014: recorded repair or re-measurement** — nothing in the retained reports shows a probeE-shaped
+docs/architecture/ACCEPTANCE-REFLECTION.md:117: [em-dash] \u2014: input typechecking clean on any tree [NOT ESTABLISHED — blocker: no such report exists in
+docs/architecture/ACCEPTANCE-REFLECTION.md:120: [em-dash] \u2014: or collector change [NOT ESTABLISHED — same blocker];
+docs/architecture/ACCEPTANCE-REFLECTION.md:122: [coinage] surface: `will never be executed` warning on the fixed fixture, which `-typecheck` does not surface
+docs/architecture/ACCEPTANCE-REFLECTION.md:130: [em-dash] \u2014: Grouping the round's findings by kind, and by **who owns the fault** — the distinction a
+docs/architecture/ACCEPTANCE-REFLECTION.md:133: [em-dash] \u2014: to me, so I cannot cite or verify it — **NOT ESTABLISHED**].
+docs/architecture/ACCEPTANCE-REFLECTION.md:135: [em-dash] \u2014: ### 2.1 Unmet obligation — the candidate's fault (or its delivery's)
+docs/architecture/ACCEPTANCE-REFLECTION.md:139: [coinage] surface: | Gap-fixture 2 diagnostics + wrong `.two` control exit (W1) | impl-review Cond. 1; FREEZE §5.2; behaviour review Q5 | candidate's defect surface; **pre-existing** in base (byte-identical function, base emits same warnings [DOC, FREEZE §5.2]) — but the *obligation* is the candidate's to discharge |
+docs/architecture/ACCEPTANCE-REFLECTION.md:139: [metaphor] freeze: | Gap-fixture 2 diagnostics + wrong `.two` control exit (W1) | impl-review Cond. 1; FREEZE §5.2; behaviour review Q5 | candidate's defect surface; **pre-existing** in base (byte-identical function, base emits same warnings [DOC, FREEZE §5.2]) — but the *obligation* is the candidate's to discharge |
+docs/architecture/ACCEPTANCE-REFLECTION.md:139: [em-dash] \u2014: | Gap-fixture 2 diagnostics + wrong `.two` control exit (W1) | impl-review Cond. 1; FREEZE §5.2; behaviour review Q5 | candidate's defect surface; **pre-existing** in base (byte-identical function, base emits same warnings [DOC, FREEZE §5.2]) — but the *obligation* is the candidate's to discharge |
+docs/architecture/ACCEPTANCE-REFLECTION.md:140: [coinage] contract: | Lambda return-contract defect (`currentReturnType` not rebound) — measured, survives the patch | impl-review §4.1, Cond. 2 | candidate (its claim was false); defect pre-existing in base |
+docs/architecture/ACCEPTANCE-REFLECTION.md:140: [em-dash] \u2014: | Lambda return-contract defect (`currentReturnType` not rebound) — measured, survives the patch | impl-review §4.1, Cond. 2 | candidate (its claim was false); defect pre-existing in base |
+docs/architecture/ACCEPTANCE-REFLECTION.md:142: [metaphor] freeze: | In-scope reconstruction not removed: 9 derivation sites, candidate removes none, string surgery still load-bearing | impl-review §3; FREEZE §5.1; behaviour review Q4 | candidate + pre-existing architecture |
+docs/architecture/ACCEPTANCE-REFLECTION.md:143: [metaphor] freeze: | Branches indistinguishable by the fixture; "distinguish both branches" untestable as written | FREEZE §5.3; branch-expectation-ruling (quoted there) | **missing documentation/fixture authorship** — expectation wrong "at birth" (template copy-paste, squash commit `e5e21854` [DOC, FREEZE §5.3]) |
+docs/architecture/ACCEPTANCE-REFLECTION.md:143: [em-dash] \u2014: | Branches indistinguishable by the fixture; "distinguish both branches" untestable as written | FREEZE §5.3; branch-expectation-ruling (quoted there) | **missing documentation/fixture authorship** — expectation wrong "at birth" (template copy-paste, squash commit `e5e21854` [DOC, FREEZE §5.3]) |
+docs/architecture/ACCEPTANCE-REFLECTION.md:145: [metaphor] freeze: | Stale tracked expectation `branch-true=1:1`/`branch-false=2:1` reds the collector | impl-review §4.6; FREEZE §7.16 | **pre-existing repo state**, not the patch |
+docs/architecture/ACCEPTANCE-REFLECTION.md:145: [contrast] ,\s+not\s: | Stale tracked expectation `branch-true=1:1`/`branch-false=2:1` reds the collector | impl-review §4.6; FREEZE §7.16 | **pre-existing repo state**, not the patch |
+docs/architecture/ACCEPTANCE-REFLECTION.md:147: [contrast] ,\s+not\s: ### 2.2 Stale or drifting assets — documentation fault, not candidate fault
+docs/architecture/ACCEPTANCE-REFLECTION.md:147: [em-dash] \u2014: ### 2.2 Stale or drifting assets — documentation fault, not candidate fault
+docs/architecture/ACCEPTANCE-REFLECTION.md:151: [metaphor] freeze: | Governing `RECORD.md` drifted through ≥6 revisions (131→186→279→362→367→390 lines) and moved *after* the behaviour review was written, so the two reviews initially could not cite the same governing record | FREEZE §4.1–4.2 [DOC]; drift chain quoted from consult/review reports; **the 390-line endpoint VERIFIED by me: sha256 `9886fe25c9c5ea392958b3ec2167c7903934d0f1593b25a7ae90633bba45b24e`, 390 lines** |
+docs/architecture/ACCEPTANCE-REFLECTION.md:152: [em-dash] \u2014: | Record's §6 open set contradicted its own §4 ("SILENTLY ABSENT" claims false) — fixed by CORRECTION 12 after the behaviour review caught it | RECORD CORRECTION 12 (`:285-302`) [VERIFIED by reading the record]; re-anchored review §3.3 items 5–6 |
+docs/architecture/ACCEPTANCE-REFLECTION.md:154: [contrast] ,\s+not\s: | Record declared the `MutableArrayWrapper × optional → required` cell REFUSED end-to-end while the candidate's SW04 override makes it succeed on a live route — later adjudicated SPEC-PREScribed (planner-cell verdict mis-scoped) | override-ruling [DOC]; override-ruling-xcheck CONFIRMED with a line correction (:58, not :56) |
+docs/architecture/ACCEPTANCE-REFLECTION.md:154: [em-dash] \u2014: | Record declared the `MutableArrayWrapper × optional → required` cell REFUSED end-to-end while the candidate's SW04 override makes it succeed on a live route — later adjudicated SPEC-PREScribed (planner-cell verdict mis-scoped) | override-ruling [DOC]; override-ruling-xcheck CONFIRMED with a line correction (:58, not :56) |
+docs/architecture/ACCEPTANCE-REFLECTION.md:155: [metaphor] freeze: | Archive's `swiftc-version.log` is a failed invocation, not a version | FREEZE §3.4 |
+docs/architecture/ACCEPTANCE-REFLECTION.md:155: [contrast] ,\s+not\s: | Archive's `swiftc-version.log` is a failed invocation, not a version | FREEZE §3.4 |
+docs/architecture/ACCEPTANCE-REFLECTION.md:156: [metaphor] freeze: | Freeze record's hash for `swc-try-fix-wt/REPORT.md` irreproducible (F1); line slip on the OtherArrayStorage row (F2); lazy-effect conflation (F3) | freeze-xcheck §7 |
+docs/architecture/ACCEPTANCE-REFLECTION.md:158: [contrast] ,\s+not\s: ### 2.3 Specification gap — genuine open ruling, not defect
+docs/architecture/ACCEPTANCE-REFLECTION.md:158: [em-dash] \u2014: ### 2.3 Specification gap — genuine open ruling, not defect
+docs/architecture/ACCEPTANCE-REFLECTION.md:166: [em-dash] \u2014: ### 2.4 Process defect — how the round worked on itself
+docs/architecture/ACCEPTANCE-REFLECTION.md:170: [metaphor] freeze: | Coordinator amended the record citing the **wrong row** (`:56` instead of `:58`) by grepping a keyword; an independent cross-check caught it and the amendment was **reverted** | FREEZE §4.3 "Citation note (REVERTED)" [DOC] |
+docs/architecture/ACCEPTANCE-REFLECTION.md:170: [contrast] \binstead of\b: | Coordinator amended the record citing the **wrong row** (`:56` instead of `:58`) by grepping a keyword; an independent cross-check caught it and the amendment was **reverted** | FREEZE §4.3 "Citation note (REVERTED)" [DOC] |
+docs/architecture/ACCEPTANCE-REFLECTION.md:172: [metaphor] freeze: | Freeze taken while the implementation review was still writing (no REPORT existed at 03:55); reviews and record moved concurrently | FREEZE §5.0; freeze-xcheck timeline note |
+docs/architecture/ACCEPTANCE-REFLECTION.md:173: [metaphor] freeze: | A candidate report claim ("29 lines" runtime match) contradicted by measurement (30) | FREEZE §7.15 |
+docs/architecture/ACCEPTANCE-REFLECTION.md:174: [em-dash] \u2014: | Summary assessments contradicted by retained evidence ("oracle gap, small" — rejected by SOL2; archive README's CI claim contradicted by `ci.yml`) | SOL2 §1; behaviour review Q5 |
+docs/architecture/ACCEPTANCE-REFLECTION.md:198: [em-dash] \u2014: reviewer corrections N1–N4 (`record-corrections/REPORT.md` [VERIFIED — its REPORT states
+docs/architecture/ACCEPTANCE-REFLECTION.md:204: [em-dash] \u2014: 2. **The reverted correction — stated honestly.** During the override adjudication the
+docs/architecture/ACCEPTANCE-REFLECTION.md:209: [metaphor] freeze: and caught the error [DOC — FREEZE §4.3, which preserves the revert note verbatim]. So:
+docs/architecture/ACCEPTANCE-REFLECTION.md:209: [em-dash] \u2014: and caught the error [DOC — FREEZE §4.3, which preserves the revert note verbatim]. So:
+docs/architecture/ACCEPTANCE-REFLECTION.md:211: [contrast] ,\s+not\s: cross-check, not the author, that caught it.
+docs/architecture/ACCEPTANCE-REFLECTION.md:212: [em-dash] \u2014: 3. **The record-cell-scope fix — prepared but NOT applied to the frozen record.**
+docs/architecture/ACCEPTANCE-REFLECTION.md:217: [contrast] ,\s+not\s: fixed. **Status: the corrected record is a pending artifact, not the governing one**;
+docs/architecture/ACCEPTANCE-REFLECTION.md:224: [metaphor] freeze: 5. **The candidate freeze** (`FREEZE.md` [VERIFIED by reading; hashes independently
+docs/architecture/ACCEPTANCE-REFLECTION.md:225: [metaphor] freeze: recomputed by freeze-xcheck, 28/29 MATCH]): identity record + obligation audit; establishes
+docs/architecture/ACCEPTANCE-REFLECTION.md:226: [metaphor] freeze: the freeze bundle hash, the byte-for-byte reproduction recipe, and the honest
+docs/architecture/ACCEPTANCE-REFLECTION.md:229: [metaphor] freeze: manifest's "+54/−15" diff-stat error corrected to **+55/−15** (freeze-xcheck row 7
+docs/architecture/ACCEPTANCE-REFLECTION.md:233: [contrast] ,\s+not\s: `4581308d`, not the coordination tree, and **must not be applied there**; regenerated
+docs/architecture/ACCEPTANCE-REFLECTION.md:242: [em-dash] \u2014: the exact times of the 131→279-line revisions [NOT ESTABLISHED — the drift chain is quoted
+docs/architecture/ACCEPTANCE-REFLECTION.md:249: [em-dash] \u2014: ### Tier 1 — blocking acceptance of a P08 candidate
+docs/architecture/ACCEPTANCE-REFLECTION.md:251: [coinage] contract: 1. **Implementation-review Condition 2** — actual return contract for lambda bodies
+docs/architecture/ACCEPTANCE-REFLECTION.md:251: [em-dash] \u2014: 1. **Implementation-review Condition 2** — actual return contract for lambda bodies
+docs/architecture/ACCEPTANCE-REFLECTION.md:254: [em-dash] \u2014: 2. **Condition 3** — explicit destination for `switchExpression`/`switchBindingLines` from
+docs/architecture/ACCEPTANCE-REFLECTION.md:255: [coinage] contract: the owning contract. No repair retained. [NOT ESTABLISHED]
+docs/architecture/ACCEPTANCE-REFLECTION.md:256: [em-dash] \u2014: 3. **Condition 4** — owner ruling on the stale `branch-*` expectation; both focused
+docs/architecture/ACCEPTANCE-REFLECTION.md:260: [metaphor] freeze: consultations' freeze rule the affected acceptance evidence must be renewed. No post-W1
+docs/architecture/ACCEPTANCE-REFLECTION.md:261: [metaphor] freeze: freeze or review exists.
+docs/architecture/ACCEPTANCE-REFLECTION.md:262: [em-dash] \u2014: 5. **Adoption or explicit rejection of `record-cell-fix/RECORD.corrected.md`** — the
+docs/architecture/ACCEPTANCE-REFLECTION.md:268: [em-dash] \u2014: ### Tier 2 — blocking only the next gate (P09)
+docs/architecture/ACCEPTANCE-REFLECTION.md:279: [metaphor] land: 9. CI/collection work from Tier-1 item 3 must land before P09 can cite "durable collection."
+docs/architecture/ACCEPTANCE-REFLECTION.md:281: [em-dash] \u2014: ### Tier 3 — non-blocking
+docs/architecture/ACCEPTANCE-REFLECTION.md:283: [metaphor] freeze: 10. Freeze-xcheck findings F1–F3 (irreproducible hash on a disclaimed file; line slip;
+docs/architecture/ACCEPTANCE-REFLECTION.md:284: [em-dash] \u2014: lazy-effect conflation) — record-quality items.
+docs/architecture/ACCEPTANCE-REFLECTION.md:286: [metaphor] freeze: artifact of candidate-generated output exists (FREEZE §3.1, §7.14) — a provenance
+docs/architecture/ACCEPTANCE-REFLECTION.md:286: [em-dash] \u2014: artifact of candidate-generated output exists (FREEZE §3.1, §7.14) — a provenance
+docs/architecture/ACCEPTANCE-REFLECTION.md:287: [contrast] ,\s+not\s: inconvenience, not a gate blocker.
+docs/architecture/ACCEPTANCE-REFLECTION.md:294: [em-dash] \u2014: ## 5. Reflection — what this round got wrong, in mechanism
+docs/architecture/ACCEPTANCE-REFLECTION.md:297: [em-dash] \u2014: as discriminating had byte-identical generated trees pre/post — cited in both behaviour
+docs/architecture/ACCEPTANCE-REFLECTION.md:307: [metaphor] freeze: candidate-plus-record" the freeze clause requires. Fix adopted late (freeze the record,
+docs/architecture/ACCEPTANCE-REFLECTION.md:309: [em-dash] \u2014: not accompany sign-off** — the same lesson as the record's own anchor warnings.
+docs/architecture/ACCEPTANCE-REFLECTION.md:312: [contrast] ,\s+not\s: cross-check re-reading against the candidate tree, and the fix was a **revert**, not a
+docs/architecture/ACCEPTANCE-REFLECTION.md:314: [em-dash] \u2014: every governing-text change needs an independent citation check before adoption — the
+docs/architecture/ACCEPTANCE-REFLECTION.md:323: [em-dash] \u2014: who can waive it — the gate owner. The implementation review's refusal ("a reviewer cannot
+docs/architecture/ACCEPTANCE-REFLECTION.md:329: [em-dash] \u2014: and declaring the class closed. Even the round's success — the W1 fix achieving 0
+docs/architecture/ACCEPTANCE-REFLECTION.md:330: [em-dash] \u2014: diagnostics — is single-axis evidence: the lambda destination defect and the collection gap
+docs/architecture/ACCEPTANCE-REFLECTION.md:333: [metaphor] freeze: 6. **Verification language slipped into secondhand claims.** The freeze's own §8 discipline
+docs/architecture/ACCEPTANCE-REFLECTION.md:334: [em-dash] \u2014: ([MINE]/[QUOTED], never blended) exists because earlier artifacts blended them — e.g. the
+docs/architecture/ACCEPTANCE-REFLECTION.md:338: [metaphor] freeze: 7. **Concurrent production of the object and its audit.** The freeze was taken at 03:55 while
+docs/architecture/ACCEPTANCE-REFLECTION.md:340: [metaphor] freeze: mid-session. The audits then had to spend effort establishing timeline facts (freeze-xcheck's
+docs/architecture/ACCEPTANCE-REFLECTION.md:341: [metaphor] freeze: timeline note, F1's irreproducible stat). Mechanism: freeze events and review events need a
+docs/architecture/ACCEPTANCE-REFLECTION.md:342: [metaphor] freeze: declared order; a freeze taken against an in-flight review is a snapshot of a conversation,
+docs/architecture/ACCEPTANCE-REFLECTION.md:345: [em-dash] \u2014: with non-overlapping mandates worked — review 2 caught a lambda defect review 1's frame
+docs/architecture/ACCEPTANCE-REFLECTION.md:347: [metaphor] freeze: The freeze + cross-check + independent-ruling chain caught every documented error in this
+docs/architecture/ACCEPTANCE-REFLECTION.md:364: [em-dash] \u2014: - Where the corrected record (`RECORD.corrected.md`) stands in adoption terms — prepared
+docs/architecture/BASELINE-FAILURES.md:1: [contrast] ,\s+not\s: # Baseline failures — recorded, not waived
+docs/architecture/BASELINE-FAILURES.md:1: [em-dash] \u2014: # Baseline failures — recorded, not waived
+docs/architecture/BASELINE-FAILURES.md:13: [em-dash] \u2014: `Cannot find module ... from ''` plus EMFILE. Gitignoring `out/` does not help —
+docs/architecture/BASELINE-FAILURES.md:24: [coinage] corpus: same test corpus but could not collect at all.
+docs/architecture/BASELINE-FAILURES.md:33: [contrast] ,\s+not\s: ## 1. Cause (bisection, not argument)
+docs/architecture/BASELINE-FAILURES.md:35: [em-dash] \u2014: - Real tree, `bun test tests/ts/array-root.test.ts`: exit 1 before any test runs —
+docs/architecture/BASELINE-FAILURES.md:50: [em-dash] \u2014: gitignored does not help — bun's discovery does not respect .gitignore. The
+docs/architecture/BASELINE-FAILURES.md:81: [em-dash] \u2014: - **Exit code: 1** (due to the baseline failures enumerated below — collection
+docs/architecture/BASELINE-FAILURES.md:86: [em-dash] \u2014: ### Pre-existing red (deterministic assertion failures, complete in ms) — 6
+docs/architecture/BASELINE-FAILURES.md:88: [em-dash] \u2014: 1. `arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks` [1 ms] — `expect().toBe` mismatch on generated Rust tree content.
+docs/architecture/BASELINE-FAILURES.md:89: [em-dash] \u2014: 2. `compiler boundary > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier` [2 ms] — banned identifier present in tracked source.
+docs/architecture/BASELINE-FAILURES.md:90: [em-dash] \u2014: 3. `loop structure > reference/ts/gen carries no functional iteration...` [50 ms] — generated reference tree contains banned iteration constructs.
+docs/architecture/BASELINE-FAILURES.md:91: [em-dash] \u2014: 4. `loop structure > reference/rust/gen carries no functional iteration...` [125 ms] — same class, Rust gen tree.
+docs/architecture/BASELINE-FAILURES.md:92: [em-dash] \u2014: 5. `sorted dataClass key generated trees > pins resident comparators` [1 ms] — generated-tree content mismatch.
+docs/architecture/BASELINE-FAILURES.md:93: [em-dash] \u2014: 6. `sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum` [1 ms] — generated-tree content mismatch.
+docs/architecture/BASELINE-FAILURES.md:95: [contrast] \brather than\b: Reason they are pre-existing rather than caused by the fix: the fix only changes
+docs/architecture/BASELINE-FAILURES.md:98: [em-dash] \u2014: clean pre-fix copy was not possible for these — `reference/*/gen` is gitignored
+docs/architecture/BASELINE-FAILURES.md:99: [contrast] ,\s+not\s: and absent there — so "pre-existing" rests on the mechanism argument above, not a
+docs/architecture/BASELINE-FAILURES.md:99: [em-dash] \u2014: and absent there — so "pre-existing" rests on the mechanism argument above, not a
+docs/architecture/BASELINE-FAILURES.md:102: [em-dash] \u2014: ### Environment timeout under machine contention — 26
+docs/architecture/BASELINE-FAILURES.md:106: [em-dash] \u2014: - 5000 ms (bun default; the tests set no own timeout): 17 fails, incl. `tests/ts/array-root.test.ts` (which reproduces its timeout in the clean pre-fix copy too — this class pre-dates the fix), `strict TypeScript emitter output` ×4, `float precision` ×2, extern-bindings ×2, StringTools, Kotlin deferred assignment, Rust module layers, Rust Bytes borrows, payload enums, array/static-mutation rules, `@:sealed`, self-construction.
+docs/architecture/BASELINE-FAILURES.md:107: [metaphor] lane: - 15000 ms own budget exceeded: 2 (`static initializer mutation`, `sanctioned self-construction static target lanes`).
+docs/architecture/BASELINE-FAILURES.md:109: [metaphor] lane: - 120000 ms own budget exceeded: 2 (`record printed-member mutations`, `Std.string lowering nullable operands`), plus `value wrapper generated trees > rejects each invalid marker shape` (360 s wall, 120 s budget — multiple target lanes each hitting the budget).
+docs/architecture/BASELINE-FAILURES.md:109: [em-dash] \u2014: - 120000 ms own budget exceeded: 2 (`record printed-member mutations`, `Std.string lowering nullable operands`), plus `value wrapper generated trees > rejects each invalid marker shape` (360 s wall, 120 s budget — multiple target lanes each hitting the budget).
+docs/architecture/BASELINE-FAILURES.md:113: [contrast] ,\s+not\s: these are environment results, not product defects. Corroboration: the identical
+docs/architecture/BASELINE-FAILURES.md:116: [em-dash] \u2014: ### Infrastructure — 8 (counted in "8 errors", orthogonal to the 32)
+docs/architecture/GATE-LEDGER.md:1: [em-dash] \u2014: # Gate ledger — P08 / P09 / P10 / P12
+docs/architecture/GATE-LEDGER.md:14: [em-dash] \u2014: ## P08 — "Delegate reproduction and behavior tests, then implementation." (`work-plan:216`, unchecked)
+docs/architecture/GATE-LEDGER.md:18: [coinage] contract: | 1 | Correct fact-and-requirement handoffs; in-scope reconstruction removed | **PARTIAL** | `dc-warn/out/switchexpr-destination/REPORT.md` [DOC] — the reconstruction IS removed on both routes (measured: output unchanged, `sw.t == destination` at all 15 contract-carrying sites); the destination-owner mechanism is **not** enforced structurally (that work was ordered stopped by the ruling) | seat 3 |
+docs/architecture/GATE-LEDGER.md:18: [em-dash] \u2014: | 1 | Correct fact-and-requirement handoffs; in-scope reconstruction removed | **PARTIAL** | `dc-warn/out/switchexpr-destination/REPORT.md` [DOC] — the reconstruction IS removed on both routes (measured: output unchanged, `sw.t == destination` at all 15 contract-carrying sites); the destination-owner mechanism is **not** enforced structurally (that work was ordered stopped by the ruling) | seat 3 |
+docs/architecture/GATE-LEDGER.md:19: [metaphor] freeze: | 2 | Legal generated output — zero diagnostics on the same candidate inputs | **FAIL** | `Gap` fixture yields 2 `[#no-usage]` warnings under the pinned standard `02-translator-implementation-standard.md:78/:80` [MINE: I ran it]; the W1 fix removes them but is **not in the frozen candidate** (`FREEZE` status line) | seat 1 / re-freeze |
+docs/architecture/GATE-LEDGER.md:19: [em-dash] \u2014: | 2 | Legal generated output — zero diagnostics on the same candidate inputs | **FAIL** | `Gap` fixture yields 2 `[#no-usage]` warnings under the pinned standard `02-translator-implementation-standard.md:78/:80` [MINE: I ran it]; the W1 fix removes them but is **not in the frozen candidate** (`FREEZE` status line) | seat 1 / re-freeze |
+docs/architecture/GATE-LEDGER.md:20: [metaphor] freeze: | 3 | Preserved source behaviour (branches distinguishable, alias, lifetime, single evaluation, lazy effects, control exits) | **PARTIAL** | `dc-warn/out/p08-candidate-freeze/FREEZE.md` §5.3 [DOC]; branch discrimination was broken and is now repaired (`d1180768`); **lazy effects were never measured** (F3, recorded) | seat 4 |
+docs/architecture/GATE-LEDGER.md:23: [metaphor] land: **P08 overall: NOT PASSED.** The candidate is REJECT; a post-review fix (W1) landed
+docs/architecture/GATE-LEDGER.md:26: [em-dash] \u2014: ## P09 — "Run the candidate's required Boring checks and Tiqian checks on fixed revisions…" (`work-plan:218`, unchecked)
+docs/architecture/GATE-LEDGER.md:30: [em-dash] \u2014: | 1 | A recorded revision pair | **FAIL** | Tiqian side settled (`8504d230`); **Boring side undecided** — three-way (`2159c657` prepared / `e1c65975` partial / `0a5c42a7` nothing) [DOC: `out/p09-tiqian-feasibility/`] | gate owner; decision work ordered stopped pending a stable candidate |
+docs/architecture/GATE-LEDGER.md:31: [em-dash] \u2014: | 2 | Boring checks executed | **NOT ESTABLISHED** | no run exists | — |
+docs/architecture/GATE-LEDGER.md:33: [contrast] \bnot [^.]{0,60} but\b: | 4 | Logs, generated-output identity, warning results preserved | **NOT ESTABLISHED** | preparation artefacts exist but no run produced them | — |
+docs/architecture/GATE-LEDGER.md:33: [em-dash] \u2014: | 4 | Logs, generated-output identity, warning results preserved | **NOT ESTABLISHED** | preparation artefacts exist but no run produced them | — |
+docs/architecture/GATE-LEDGER.md:34: [em-dash] \u2014: | 5 | Baseline debt has a finite recorded list | **PASS** | `docs/architecture/BASELINE-FAILURES.md` — 1033 tests collected, 1001 pass / 32 fail / 8 errors, classified into 6 pre-existing assertions (judged by mechanism, limit stated), 26 environment timeouts (all budget-marked), 8 cascade errors; recorded per `work-plan:417` with revision and reproduction | — |
+docs/architecture/GATE-LEDGER.md:38: [em-dash] \u2014: ## P10 — "Classify review failures, revise the appropriate documents, and publish the first round's acceptance and reflection record." (`work-plan:220`, unchecked)
+docs/architecture/GATE-LEDGER.md:42: [em-dash] \u2014: | 1 | Review failures classified | **PASS (drafted)** | `out/p10-reflection/ACCEPTANCE-REFLECTION.md` — four kinds × owner (candidate fault / pre-existing repo state / missing documentation) [DOC] | — |
+docs/architecture/GATE-LEDGER.md:43: [metaphor] land: | 2 | Appropriate documents revised | **PARTIAL** | record corrections landed in the working copy; **the frozen record revision is now 452 lines**, and two reviews' citations were re-anchored (`out/reanchor-v2/`) | seat 5 |
+docs/architecture/GATE-LEDGER.md:44: [contrast] ,\s+not\s: | 3 | Acceptance and reflection record published | **PARTIAL** | drafted and complete, **but lives in scratch `dc-warn/out/`, not in the repository** | seat 5 |
+docs/architecture/GATE-LEDGER.md:48: [em-dash] \u2014: ## P12 — "Publish the programme review, accepted revisions, evidence gaps, and next scheduled mechanisms. Close the goal only when its criteria hold." (`work-plan:225`, unchecked)
+docs/architecture/GATE-LEDGER.md:52: [em-dash] \u2014: | 1 | Five-target survey mapping failures to responsibilities, unknowns recorded | **PASS (first-cycle reading)** | `out/p12-programme-review/PROGRAMME-REVIEW.md` §1 [DOC]; expanded-scope reading NOT ESTABLISHED | — |
+docs/architecture/GATE-LEDGER.md:53: [em-dash] \u2014: | 2 | Documents with clear ownership for each decision kind | **PASS** | `work-plan:36-72` [DOC]; independently re-verified in `out/p12-xcheck/` | — |
+docs/architecture/GATE-LEDGER.md:56: [em-dash] \u2014: | 5 | Later task exercises revised guidance, with failures recorded | **PASS (with caveats)** | P11 fixture accepted; `x-guidance-evaluation.md:95`; the plan's own caveat "Passing tests alone do not establish this condition." | — |
+docs/architecture/GATE-LEDGER.md:66: [metaphor] freeze: `bf7dde2c…` = `FREEZE` §6.2's candidate hash) plus four board-accepted fix rows and
+docs/architecture/GATE-LEDGER.md:69: [metaphor] freeze: version control, which is what P08 condition 1 and the re-freeze both need.
+docs/architecture/LAYERED-VERIFICATION.md:44: [em-dash] \u2014: 实际 **56/57**——`printed-record.test.ts:88` 只在超时的测试里被消费，
+docs/architecture/LAYERED-VERIFICATION.md:52: [em-dash] \u2014: **实例**：`value-type` 的耦合运行**并非被杀死**——`Bun.spawnSync` 阻塞 bun 定时器，
+docs/architecture/LAYERED-VERIFICATION.md:66: [em-dash] \u2014: | — | **`bun run test`（收集 `tests/**`）** | **否**（`ci.yml` 26 脚本中为 0） |
+docs/architecture/LAYERED-VERIFICATION.md:76: [em-dash] \u2014: - **`swiftc -c` 是否应取代 `-typecheck` 成为所有 Swift 验收的口径** ——
+docs/architecture/MANAGEMENT-RULING.md:148: [em-dash] \u2014: 最致命的是 **3.1：把核验权重放大到超过执行**；但更根本的表述是：协调者没有建立“执行—集成—验收”的单一流水线，也没有把席位容量绑定到可交付目标上。
+docs/architecture/PROBLEM-CLASSIFICATION.md:27: [coinage] contract: lambda 缺陷（`dc-warn/out/lambda-return-contract/`）的机制是：
+docs/architecture/PROBLEM-CLASSIFICATION.md:59: [em-dash] \u2014: 3. **类的属主与站点所在位置可以不同**（D 类就是如此）——
+docs/architecture/README.md:8: [coinage] contracts: | `ARCHITECTURAL-CONTRACTS.md` | **架构契约**（接口两端各自承诺什么） |
+docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:9: [contrast] ,\s+not\s: disagree with them must stop the run, not be papered over.
+docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:44: [metaphor] land: the fixed tree. If either Rust fix lands and must be covered by this
+docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:225: [contrast] ,\s+not\s: the engine baseline `kotlin-f32`; use the two group files, not `all`, so
+docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:239: [em-dash] \u2014: bundles — the three-protocol-root union).
+docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:245: [contrast] ,\s+not\s: through source coverage, not by dropping absent observations).
+docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:259: [em-dash] \u2014: ## Stale inputs — do not reuse as live inputs
+docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:266: [contrast] ,\s+not\s: | consumer `.haxelib/` (pinned `304ed70c` mapping created by the flake shellHook) | must be shadowed by the prep haxelib dir for the whole run; any haxelib lookup through it would load the pinned compiler, not the fixed one |
+docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:268: [contrast] ,\s+not\s: | `out/tiqian-fixed-2159c657-prep/attempt-ts-001/` | dry recipe (never executed; `outputs/ts` absent); its `run.py` is the template for new attempt runners, not evidence of a completed stage |
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:808: [coinage] contract: // The return contract being satisfied is the actual
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:1216: [coinage] contract: // or lambda's return contract: reading currentReturnType here
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:1217: [coinage] contract: // converted the value to that contract's read-only array whenever one
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:1220: [coinage] contract: // helper's Array<Int>, the contract is the lambda's ReadOnlyArray).
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:2352: [coinage] contract: // TFunc.t is the lambda's own return contract; every return-position site
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:2590: [coinage] contract: parameter, or the return contract being satisfied -- instead of being
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:2590: [contrast] \binstead of\b: parameter, or the return contract being satisfied -- instead of being
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:5265: [contrast] ,\s+not\s: // requirement; both arms convert against it, not the function return
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:5308: [coinage] contract: // The return contract being satisfied (currentReturnType) is this
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:5542: [metaphor] swallow: // the line text: that splice swallowed an explicit arm return and
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:5550: [contrast] \binstead of\b: // destination for every arm value; arms lower against it instead of the
+packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx:5665: [contrast] \brather than\b: // statement rather than a plain last statement. Only the last
+tests/haxe/dc-null-guard-fallthrough/dcguard/DcGuard.hx:6: [em-dash] \u2014: Haxe `trace` — the harness prints, mirroring the readonly-alias
+tests/haxe/dc-null-guard-fallthrough/dcguard/DcGuard.hx:27: [coinage] surface: p10 isolates the render-time re-assignment surface on top of a
+tests/haxe/dc-null-guard-fallthrough/dcguard/DcGuard.hx:33: [coinage] surface: p11 isolates the closure-leak surface on top of a TERMINATING
+tests/haxe/dc-null-guard-fallthrough/dcguard/DcGuard.hx:81: [coinage] \b(?!top-levels?\b)[a-z]+-levels?\b: // rather than an error here; p10 covers the error-level case.
+tests/haxe/dc-null-guard-fallthrough/dcguard/DcGuard.hx:81: [contrast] \brather than\b: // rather than an error here; p10 covers the error-level case.
+tests/haxe/dc-null-guard-fallthrough/run.sh:15: [metaphor] land: # Evidence lands outside the worktree. Default is the workspace dc-warn layout
+tests/haxe/dc-null-guard-fallthrough/run.sh:18: [contrast] \binstead of\b: # parent exists) or the run stops here instead of writing into a path that
+tests/haxe/dc-null-guard-fallthrough/run.sh:93: [contrast] \binstead of\b: # fuse mount drops the executable bit; run JIT instead of the AOT exe
+tests/haxe/dc-null-guard-fallthrough/run.sh:110: [contrast] \binstead of\b: # fuse mount drops the executable bit; run JIT instead of the AOT exe
+tests/haxe/readonly-alias/README.md:10: [coinage] contract: same spec is a separate contract and is out of scope here.
+tests/haxe/readonly-alias/README.md:41: [em-dash] \u2014: - `roalias/ReadOnlyAliasOracle.hx` — the five shape functions plus the
+tests/haxe/readonly-alias/README.md:46: [em-dash] \u2014: - `roalias/AliasHolder.hx`, `roalias/BoundaryResult.hx` — holder and result
+tests/haxe/readonly-alias/README.md:48: [em-dash] \u2014: - `oracle.hxml` — Haxe JS oracle (Intercept + `-main ReadOnlyAliasOracle`).
+tests/haxe/readonly-alias/README.md:49: [em-dash] \u2014: - `gen/{ts,kotlin,rust,swift,dart}.hxml` — per-target generation input; the
+tests/haxe/readonly-alias/README.md:51: [em-dash] \u2014: - `native/{main.js,Main.kt,harness.rs,native-main.swift,main.dart}` — the
+tests/haxe/readonly-alias/README.md:56: [em-dash] \u2014: ### S — ordinary alias on the then-known targets
+tests/haxe/readonly-alias/README.md:74: [em-dash] \u2014: ### D — Swift readonly boundary probe
+tests/haxe/readonly-alias/README.md:90: [em-dash] \u2014: ### X — view-lifetime exercise
+tests/haxe/readonly-alias/README.md:106: [coinage] contract: ## Evidence layout and contract
+tests/haxe/readonly-alias/README.md:162: [coinage] contract: protection of feature 18 (separate contract; this fixture only exercises
+tests/haxe/readonly-alias/REVIEW.md:1: [em-dash] \u2014: # REVIEW — 独立审阅：普通只读视图共享别名证据（五目标）
+tests/haxe/readonly-alias/REVIEW.md:40: [em-dash] \u2014: ### 3.2 TypeScript — 共享引用
+tests/haxe/readonly-alias/REVIEW.md:48: [em-dash] \u2014: 运行时容器共享 —— 与 spec 普通转换语义一致。
+tests/haxe/readonly-alias/REVIEW.md:50: [em-dash] \u2014: ### 3.3 Kotlin — 共享可变列表
+tests/haxe/readonly-alias/REVIEW.md:56: [em-dash] \u2014: ### 3.4 Dart — 共享列表
+tests/haxe/readonly-alias/REVIEW.md:62: [em-dash] \u2014: ### 3.5 Swift — 当前共享视图
+tests/haxe/readonly-alias/REVIEW.md:74: [em-dash] \u2014: backing 的引用，写入经原数组可见 —— 当前 Swift emitter 产生共享视图，
+tests/haxe/readonly-alias/REVIEW.md:80: [em-dash] \u2014: ### 3.6 Rust — 克隆位置模型与两处 emitter 缺陷
+tests/haxe/readonly-alias/REVIEW.md:98: [em-dash] \u2014: producer：`BoundaryResult::new((view).clone(), (original).clone())` ——
+tests/haxe/readonly-alias/REVIEW.md:106: [em-dash] \u2014: 转换皆失败"的解释 —— 两处是定位明确、可独立修复的生成代码缺陷
+tests/haxe/readonly-alias/roalias/ReadOnlyAliasOracle.hx:7: [coinage] contract: shared-container contract (feature 18 ruling). It consolidates the
+tests/haxe/swift-rt-plain/run-stages.sh:13: [contrast] ,\s+not\s: # fixture measured "Runtime.swift in argv", not the patch. Assertion
+tests/haxe/swift-rt-probe/run-stages.sh:13: [contrast] ,\s+not\s: # fixture measured "Runtime.swift in argv", not the patch. Assertion
+tests/haxe/try-tail/run-stages.sh:12: [contrast] \binstead of\b: # different layout fails loudly instead of silently cd-ing into the wrong
+tests/haxe/try-tail/run-stages.sh:128: [contrast] \binstead of\b: # the actual file list instead of an unevaluated glob. Assertion
+tests/swift-readonly-boundary/readonly-boundary.test.ts:84: [metaphor] land: // TEMP-MEASURE: final justified budget lands in the budget-fix commit
+tests/ts/package-artifacts.test.ts:250: [metaphor] land: // TEMP-MEASURE: final justified budget lands in the budget-fix commit
+tests/ts/printed-record.test.ts:226: [metaphor] land: // TEMP-MEASURE: final justified budget lands in the budget-fix commit
+tests/ts/static-state.test.ts:53: [metaphor] lane: // The sanctioned &UStr constant lane builds its literal through pointer
+tests/ts/static-state.test.ts:54: [metaphor] lane: // casts (`as *const [u16] as *const ...UStr`); strip exactly that lane
+tests/ts/std-string.test.ts:98: [metaphor] land: // TEMP-MEASURE: final justified budget lands in the budget-fix commit
+tests/ts/value-type.test.ts:149: [metaphor] land: // TEMP-MEASURE: final justified budget lands in the budget-fix commit
+
+hits: 238.
+This tool is an automated checklist; the word list and sentence patterns are incomplete and grow with each correction.
+Each hit is a candidate for manual judgment; rewrite the ones that violate the rules.
+Automated checking does not replace reading the final text.

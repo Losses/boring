@@ -1,0 +1,17 @@
+#![cfg(test)]
+
+use crate::boring::nullable_string_view_ops::NullableStringViewOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn test_nullable_view() {
+    testlib::run("tests.NullableStringViewOpsTests.testNullableView", "tests.NullableStringViewOpsTests.testNullableView: a nullable String argument unwraps at a str parameter", || {
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((NullableStringViewOps::nullable_string_view_ops_length_or_zero(None.clone())) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((NullableStringViewOps::nullable_string_view_ops_length_or_zero(Some(UString::from("abc")))) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

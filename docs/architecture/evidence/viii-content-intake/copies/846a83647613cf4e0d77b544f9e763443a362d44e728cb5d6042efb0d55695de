@@ -1,0 +1,3 @@
+/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-head-e1c65975/reference/swift/gen/boring/VectorCodec.swift:49:43: error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'
+Error: bundle "swift", action "test", step "build library" failed with exit code 1.
+|                                           `- error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'

@@ -1,0 +1,16 @@
+use crate::boring::widget_cart::WidgetLens;
+use crate::boring::widget_kind::WidgetBuilder;
+
+
+#[derive(Clone, Copy)]
+pub struct WidgetAssembly;
+
+impl WidgetAssembly {
+    pub fn widget_assembly_build(b: Option<WidgetBuilder>) -> WidgetBuilder {
+        return match &(b) { None => WidgetBuilder::new(Some(1), Some(2)), Some(__option) => (*__option).clone() };
+    }
+
+    pub fn widget_assembly_lens(l: Option<WidgetLens>) -> WidgetLens {
+        return match &(l) { None => WidgetLens::new(Some(3)), Some(__option1) => (*__option1).clone() };
+    }
+}

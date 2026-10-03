@@ -1,0 +1,1 @@
+Error: bundle "swift": the generated tree imports SystemPackage, which the swift toolchain does not ship; build the module (e.g. from the apple/swift-system sources pinned by Package.resolved) and point BORING_SWIFT_SYSTEM_PACKAGE at the directory holding SystemPackage.swiftmodule and its shared library

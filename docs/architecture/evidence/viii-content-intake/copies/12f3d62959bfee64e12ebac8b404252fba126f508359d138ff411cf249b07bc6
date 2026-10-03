@@ -1,0 +1,40 @@
+package boring
+
+object FunctionalOps {
+    fun lambdaSum(values: MutableList<Double>): Double {
+        var total = 0.0
+        for (value in values) {
+            total += value
+        }
+        return total
+    }
+
+    fun functionalSum(values: MutableList<Double>): Double {
+        var pipeline_result = 0.0
+        for (value in values) {
+            pipeline_result += value
+        }
+        return pipeline_result
+    }
+
+    fun lambdaIter(values: MutableList<Int>): Int {
+        var total = 0
+        for (value in values) {
+            total += value
+        }
+        return total
+    }
+
+    fun functionalForEach(values: MutableList<Int>): Int {
+        var total = 0
+        for (value in values) {
+            total += value
+        }
+        return total
+    }
+
+    fun verify(): Boolean {
+        val ints = mutableListOf<Int>(1, 2, 3, 4)
+        return FunctionalOps.lambdaSum(mutableListOf<Double>(1.5, 2.0, 3.5)) == 7.0 && FunctionalOps.functionalSum(mutableListOf<Double>(1.5, 2.0, 3.5)) == 7.0 && FunctionalOps.lambdaIter(ints) == 10 && FunctionalOps.functionalForEach(ints) == 10
+    }
+}

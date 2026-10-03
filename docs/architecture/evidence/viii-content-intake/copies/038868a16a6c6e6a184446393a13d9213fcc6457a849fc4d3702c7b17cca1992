@@ -1,0 +1,36 @@
+run=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/attempt-link
+root=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old
+child_evidence_dir=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/attempt-link/child-evidence
+external_dir=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/external-20260929T203447-3297031
+plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/plan-a.txt
+start=2026-09-29T20:34:47-04:00
+step-465796038 status=0
+step-3394438868 status=0
+step-3160280793 status=0
+step-1407658089 status=0
+step-2003673043 status=0
+/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/mirror-old/out/integration-a3-evidence/exclusive-runner/run-exclusive.sh: line 225: require_fresh_dir: command not found
+end=2026-09-29T20:34:47-04:00
+failed_stage=none
+last_status=0
+stage-evidence d604a59d1974cf533640bf303f1a59e33b03b09f65ad053c58ba514a6986b733  step-1407658089.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-1407658089.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-1407658089.stderr
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-1407658089.stdout
+stage-evidence 1b57a6f8fe9d3505e38b02e6b10a969304cefb7a00d41eed7fcfd285cc8891d7  step-2003673043.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-2003673043.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2003673043.stderr
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2003673043.stdout
+stage-evidence 6ed0fd33fa4e45a148c6d5c0ad9d9aa6e13b6d7e31219f44dbe25e8e3092762a  step-3160280793.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-3160280793.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-3160280793.stderr
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-3160280793.stdout
+stage-evidence ba6098575bad82a700188d537ecadd2778a47155f7365c6a4bb985a4b6d751ce  step-3394438868.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-3394438868.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-3394438868.stderr
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-3394438868.stdout
+stage-evidence f3d08f5548468050b30d1037d611bf9b3c5a4890749494edf9a1bec9d95e9494  step-465796038.command
+stage-evidence 9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  step-465796038.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-465796038.stderr
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-465796038.stdout
+harness end marker sha256=a32b6f47b4632a21b1ebf1802d11a0e535963f51ce461a34b54fa5c814166c01

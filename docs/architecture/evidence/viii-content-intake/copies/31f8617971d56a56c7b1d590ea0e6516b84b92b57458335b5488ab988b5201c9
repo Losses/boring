@@ -1,0 +1,3 @@
+error: 819587153a04170de46f49d913592f0fbea638ce^{commit}: expected commit type, but the object dereferences to blob type
+gate-proof: '819587153a04170de46f49d913592f0fbea638ce' does not resolve to a commit object (nonexistent hash, or a blob/tree/tag was given)
+EXIT=1

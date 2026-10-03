@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class SignedLoopBoundOpsTests {
+@boring.test.Test
+    fun fill() {
+        Test.run("tests.SignedLoopBoundOpsTests.fill", "tests.SignedLoopBoundOpsTests.fill: a signed loop bound clamps into the u32 range endpoint") {
+        }
+    }
+}

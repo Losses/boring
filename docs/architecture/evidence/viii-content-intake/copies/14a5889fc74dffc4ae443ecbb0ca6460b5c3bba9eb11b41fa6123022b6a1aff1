@@ -1,0 +1,13 @@
+{
+  "name": "generated",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./place/*": "./place/*.ts",
+    "./std/*": "./std/*.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

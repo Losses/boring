@@ -1,0 +1,13 @@
+package tests
+
+import boring.SwiftDefaultOps
+import boring.runtime.test.Test
+
+class SwiftDefaultTests {
+@boring.test.Test
+    fun testDefaultStyle() {
+        Test.run("tests.SwiftDefaultTests.testDefaultStyle", "tests.SwiftDefaultTests.testDefaultStyle: data class defaults construct a value type static constant") {
+                Test.equals(true, SwiftDefaultOps.hasDefault(), null)
+        }
+    }
+}

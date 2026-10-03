@@ -1,0 +1,3 @@
+compile-rust		0	data
+run-rust		0	zero
+compare-rust		0	0-identical-nonzero-differs

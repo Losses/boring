@@ -1,0 +1,8 @@
+post xs-crossmod gen=0 cargo=0 genrel=/home/losses/Development/tq-workspace/dc-warn/out/rust-module-keyed/scratch/gen-post-175531313753311/xs-crossmod
+post xt-twoexc-emit-rev gen=0 cargo=0 genrel=/home/losses/Development/tq-workspace/dc-warn/out/rust-module-keyed/scratch/gen-post-175556952695400/xt-twoexc-emit-rev
+post xs-twoexc-faultnames gen=0 cargo=0 genrel=/home/losses/Development/tq-workspace/dc-warn/out/rust-module-keyed/scratch/gen-post-175621636470881/xs-twoexc-faultnames
+post xt-classemit gen=0 cargo=0 genrel=/home/losses/Development/tq-workspace/dc-warn/out/rust-module-keyed/scratch/gen-post-175646218556249/xt-classemit
+post xt-twoexc-emit gen=0 cargo=0 genrel=/home/losses/Development/tq-workspace/dc-warn/out/rust-module-keyed/scratch/gen-post-175712044854832/xt-twoexc-emit
+post xs-twoexc gen=0 cargo=101 genrel=/home/losses/Development/tq-workspace/dc-warn/out/rust-module-keyed/scratch/gen-post-175738253023854/xs-twoexc
+post xs-twoexc-swapped gen=0 cargo=101 genrel=/home/losses/Development/tq-workspace/dc-warn/out/rust-module-keyed/scratch/gen-post-175803973786002/xs-twoexc-swapped
+post xt-oneexc-nofault gen=0 cargo=101 genrel=/home/losses/Development/tq-workspace/dc-warn/out/rust-module-keyed/scratch/gen-post-175830048976608/xt-oneexc-nofault

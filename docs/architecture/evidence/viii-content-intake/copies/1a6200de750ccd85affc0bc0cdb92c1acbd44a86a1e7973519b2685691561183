@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail-xcheck
+argv nix develop -c haxe tests/haxe/try-tail/gen/rust.hxml -D rust-output=/tmp/rt-xcheck/run-postfix-try-tail

@@ -1,0 +1,4 @@
+Cross-target consistency check failed with 3 divergence(s):
+  * [kotlin-f32] Verdict mismatch on tests.NumberClassifyTests.finiteClassification: baseline=pass, actual=fail
+  * [rust-f32] Verdict mismatch on tests.NumberClassifyTests.finiteClassification: baseline=pass, actual=fail
+  * [swift-f32] Verdict mismatch on tests.NumberClassifyTests.finiteClassification: baseline=pass, actual=fail

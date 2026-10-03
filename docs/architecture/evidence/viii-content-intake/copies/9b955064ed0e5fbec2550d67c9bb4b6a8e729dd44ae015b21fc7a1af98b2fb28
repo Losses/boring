@@ -1,0 +1,44 @@
+use crate::registry::core::Core;
+use crate::registry::core::InputRecord;
+use crate::registry::core_exception::CoreFault;
+use crate::runtime::fs::Fs;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use crate::std::path::Path;
+
+
+#[derive(Clone, Copy)]
+pub struct Main;
+
+impl Main {
+    pub(crate) fn main_read_tree(root: &UStr, rel: &UStr, out: &mut Vec<InputRecord>) {
+        let full = if rel == UString::from("") { (root.to_ustring()).clone() } else { Path::path_join(root, rel).to_ustring() };
+        if Fs::is_directory(full.as_ustr()) {
+            let names = Fs::read_dir(full.as_ustr());
+            for name in &names {
+                Main::main_read_tree(root, if rel == UString::from("") { name.to_ustring() } else { UString::from(format!("{}", { let mut __s = UString::new(); __s += rel; __s += &(UString::from("/")); __s += name.as_ustr(); __s }).as_str()) }.as_ustr(), out);
+            }
+        } else {
+            out.push(InputRecord { path: rel.to_ustring(), content: Fs::read_text(full.as_ustr()).clone(), input_record: 1 });
+        }
+    }
+
+    pub fn main_main() -> Result<(), CoreFault> {
+        let config = Core::core_parse_args(&std::env::args().skip(1).map(|__a| UString::from(__a.as_str())).collect::<Vec<UString>>())?;
+        if Fs::exists((config.output).to_ustring().as_ustr()) && (i32::from_ne_bytes(((u32::try_from((Fs::read_dir((config.output).to_ustring().as_ustr()).len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes())) > (0) {
+            return Err(CoreFault::Config { text: UString::from("output directory is not empty") });
+        }
+        let mut records: Vec<InputRecord> = vec![];
+        if !Fs::exists((config.tree).to_ustring().as_ustr()) {
+            return Err(CoreFault::Config { text: UString::from(format!("{}", { let mut __s = UString::new(); __s += (config.tree).to_ustring().as_ustr(); __s += &(UString::from(": missing tree")); __s }).as_str()) });
+        }
+        Main::main_read_tree((config.tree).to_ustring().as_ustr(), UStr::new(&[]), &mut records);
+        let files = Core::core_generate(&records, (config).clone())?;
+        for file in &files {
+            let p = Path::path_join((config.output).to_ustring().as_ustr(), (file.path).to_ustring().as_ustr());
+            Fs::make_dirs(Path::path_dirname(p.as_ustr()).as_ustr());
+            Fs::write_text(p.as_ustr(), (file.content).to_ustring().as_ustr());
+        }
+        Ok(())
+    }
+}

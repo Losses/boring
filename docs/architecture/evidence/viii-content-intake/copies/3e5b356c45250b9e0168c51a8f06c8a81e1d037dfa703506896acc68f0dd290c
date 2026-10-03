@@ -1,0 +1,33 @@
+(fail) a missing deferred assignment is rejected by the Kotlin tree build
+(fail) arithmetic helpers generated tree > Rust inlines arithmetic helpers into native comparison operators and if-blocks
+(fail) compiler boundary: no compiled-package or sample names > packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx carries no banned identifier
+(fail) constructed static mutation rules retain all three diagnostics
+(fail) float precision switch on the Dart target > float-precision=f32 aborts the Dart compile with the startup error
+(fail) float precision switch on the TypeScript target > float-precision=f32 aborts the TS compile with the startup error
+(fail) loop structure > reference/rust/gen carries no functional iteration, loop closures, or unhoisted bounds
+(fail) loop structure > reference/ts/gen carries no functional iteration, loop closures, or unhoisted bounds
+(fail) package artifact emission > the cargo crate and the Pub archive keep the tree at the root
+(fail) package shell emission > a by-name runtime import with an emitted manifest aborts the compile
+(fail) payload enums are rejected as sorted keys
+(fail) record printed-member generated trees > marker and explicit-member mutations affect the four emitted members
+(fail) Rust borrows input Bytes fields and owns allocated Bytes fields
+(fail) Rust emits one module layer per Haxe package segment
+(fail) @:sealed on a class reports the interface-only error
+(fail) self-construction with arguments keeps the static initializer error
+(fail) small array initializer mutation rules retain all three diagnostics
+(fail) small static array initializer trees > each target uses the ruled array declaration
+(fail) sorted dataClass key generated trees > pins resident comparators
+(fail) sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum
+(fail) static function field capture validation > a capturing static initializer reports the ruled Rust error
+(fail) static initializer mutation is rejected with the sanctioned error
+(fail) Std.string lowering > nullable operands are rejected on every target
+(fail) strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types
+(fail) strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays
+(fail) strict TypeScript emitter output > single-argument substr drops its synthesized null length
+(fail) strict TypeScript emitter output > switch-expression cases render preceding statements before their value
+(fail) StringTools conversions lowering > negative hex arguments report the named domain error
+(fail) Swift read-only array boundary shares storage and preserves flow
+(fail) the sanctioned self-construction static uses each target lane
+(fail) TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once
+(fail) TypeScript extern binding modules > rejects a value reference to an empty module
+(fail) value wrapper generated trees > rejects each invalid marker shape with the ruled error on every target

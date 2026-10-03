@@ -1,0 +1,81 @@
+# Adjudication: `array-root.test.ts:18` vs `reference/swift/gen/boring/ArrayRootStateOps.swift:4`
+
+Date: 2026-09-30. Work copy: `dc-warn/arroot-wt/wt/` (rsync of `dc-warn/ciwire-wt/wt/`, generation verified working). Read-only repo: `boring-wt-architecture/` (untouched; md5 of `MathNaNTestSupport.hx` stub = 5 `Test.equals` before and after every run).
+
+## 1. The conflict, verified directly
+
+- `tests/ts/array-root.test.ts:18-20` (tracked):
+  ```ts
+  expect(read("reference/swift/gen/boring/ArrayRootStateOps.swift")).toContain(
+    "static let readOnlyInts: [Int32] = Array(TiqianArray([10, 20, 30]))",
+  );
+  ```
+- `reference/swift/gen/boring/ArrayRootStateOps.swift:4` (generated):
+  ```
+  public static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))
+  ```
+
+`grep -Fc 'static let readOnlyInts: [Int32] = Array(TiqianArray([10, 20, 30]))'` on the Swift file = **0**. The prior assertions at :10 (TS) and :15-16 (Kotlin) pass, so `:18` is the first red and the test aborts there; the Rust block at :25-:30, including `:28`, is never evaluated. Reproduced live: the control run log `p1-run-xcheck` cites the abort at `:18:72`, and my own baseline-free execution of the fixed-expectation file (below) shows the run only proceeds past `:18` once the pin is corrected.
+
+## 2. Ruling: (A) the expectation is stale. The generator is correct.
+
+**The pinned artifact is generated output, not a committed source of truth.** `.gitignore:38` ignores `reference/swift/gen/`; `git ls-files` does not know the Swift file and `git log -- <file>` is empty. There is no "committed Swift reference" that could have regressed — the file is exactly what the current generator emits.
+
+**Fresh generation reproduces the file byte-for-byte at the contested line.** In `dc-warn/arroot-wt/wt/`, `haxe examples/swift.hxml` (cwd = tree root, exit 0, log `evidence/gen-swift.log`) emits at `reference/swift/gen/boring/ArrayRootStateOps.swift:4`:
+
+```
+public static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))
+```
+
+identical to the repo copy. So the committed form is the *current, reproducible* generator output, and the test pin — last touched by `1eb13e3a` ("refresh pins to the sanctioned swift tiqian-array and strict unwrap forms", which moved the pin from `[10, 20, 30]` to `Array(TiqianArray([10, 20, 30]))`) — has fallen one generator revision behind again.
+
+**The source declares a read-only view, and the generator preserves it.** `samples/boring/ArrayRootStateOps.hx:13`:
+
+```haxe
+public static final readOnlyInts:ReadOnlyArray<Int> = [10, 20, 30];
+```
+
+The pin's expected Swift type `[Int32]` (a value-type Swift `Array`) does not correspond to the declared Haxe type; the emitted `ReadOnlyArray<Int32>` does. Hypothesis B would have the generator flatten a declared `ReadOnlyArray<Int>` to a plain Swift array — that would be the regression, and it is not what happens.
+
+**Specification.** `docs/specs/style/02-translator-implementation-standard.md:70` (§ Emission quality / Runtime names): *"The ordinary read-only array view is `ReadOnlyArray<T>`."* The boundary policy record (`dc-warn/out/boundary-policy-record/RECORD.md`, sha256 verified `9886fe25c9c5ea392958b3ec2167c7903934d0f1593b25a7ae90633bba45b24e`, 390 lines) row at line 50: `ReadOnlyArray` in a **read-only position** with a required source is **pass-through, no boundary conversion** — which is exactly `ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))`: the view wraps the lowered reference array with no copy. (`ReadOnlyArray` × *mutable* position would require a convert/copy — row :51 — not this case.)
+
+**Swift type-consistency, by construction.** No `swiftc` is available in this environment, so the generated file was **not** compiled; this is a static reading, stated explicitly as the limit of verification. In `reference/swift/gen/Runtime.swift`: `ReadOnlyArray<Element>` is a `final class: RandomAccessCollection` with `public init(_ backing: TiqianArray<Element>)` (:377-:382), and `TiqianArray<Element>` has `public init(_ items: [Element])` (:279). The emitted line therefore chains two existing initializers with consistent element types (`Int32` throughout). Conversely, the *pinned* old form `static let readOnlyInts: [Int32] = Array(TiqianArray([10, 20, 30]))` does not even match the generated declaration's shape and would contradict the Haxe-declared `ReadOnlyArray<Int>` — it is not a form the current pipeline can produce for this declaration.
+
+**Git history.** `reference/swift/gen/...`: untracked/ignored, no history. `tests/ts/array-root.test.ts`: created `5ee7fc88` ("cover small array roots"), last modified `1eb13e3a`, which has repeatedly chased the generator's Swift pin and is behind once more. Pattern consistent with (A).
+
+## 3. Blast radius
+
+`grep -rn 'Array(TiqianArray(' tests/ts/` across the whole `tests/ts/` tree: **exactly one hit** — `tests/ts/array-root.test.ts:19`. No sibling test pins the stale shape. (`1eb13e3a` already refreshed `default-args.test.ts` and `static-state.test.ts` in the same commit.) A separate, *different* stale pin exists in the **same file** at `:28`: the generated Rust has `LazyLock<Vec<UString>>` (`array_root_state_ops.rs:9`), the test expects `LazyLock<Vec<String>>`. That is P1's COMPOSITE.diff hunk (test line 28), out of scope here; FIX.diff deliberately does not touch it.
+
+## 4. The fix (delivered as `FIX.diff`, not applied to the tracked tree)
+
+Replace the stale substring expectation at `tests/ts/array-root.test.ts:19` with the reproducible generated form:
+
+```diff
+-      "static let readOnlyInts: [Int32] = Array(TiqianArray([10, 20, 30]))",
++      "static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))",
+```
+
+Justified entirely from fresh generated output (`evidence/gen-swift.log`, emitted line 4) and the spec/boundary rows above. No assertion is weakened: the replacement pins strictly more structure (explicit view type, explicit element type, view-over-backing form) than the old pin.
+
+## 5. Coverage: `:28` becomes reachable — demonstrated
+
+All runs in `dc-warn/arroot-wt/wt/`, `bun test tests/ts/array-root.test.ts -t "each target uses the ruled array declaration"`:
+
+1. **Swift pin fixed only** (`evidence/bun-array-root-fixed.log`): execution passes `:18`, the TS/Kotlin/Swift/Dart/Rust-scalar assertions, and **fails at `:28:18`** — `expect(rust).toContain("LazyLock<Vec<String>>")` vs received `LazyLock<Vec<UString>>`. This proves `:28` is now **reached and evaluated**; its failure is the *second*, independent stale pin already scheduled for fix in P1's COMPOSITE.diff (`LazyLock<Vec<String>>` → `LazyLock<Vec<UString>>`), not a consequence of my change.
+2. **Swift pin + the P1 `:28` pin refreshed (demonstration only)** (`evidence/bun-array-root-fixed-both.log`): **exit 0, 1 pass, 10 expect() calls** — the whole first test, including `:28`-`:30`, goes green. (run 1 stopped at 8 `expect()` calls when `:28` threw; run 2 evaluates all 10, including the three Rust `toContain`s at `:28`-`:30` — the point is the test now runs to completion instead of dying at `:18`.)
+
+The second (`compileMutation`) test in the file was **not** run here and its known 5000 ms contention timeout is unrelated to this conflict. Test file in the work copy was restored from the pre-fix copy after the demonstration run.
+
+## 6. Unverified / limits
+
+- **Swift type-check**: not executed — no `swiftc`/Swift toolchain for the check in this environment. Consistency argued statically from `Runtime.swift` declarations (§2). Note the tree *does* have a `test:swift` script (`swift build`), so a maintainer with the toolchain can close this.
+- **Boundary policy record**: hash and line count verified; its array rows were read as quoted; I did not re-derive the boundary matrix from `SwiftArrayBoundary.hx` independently.
+- `reference/rust/gen/...` tracked status not checked; its `UString` content was read from the generated file directly.
+
+## Evidence index (`evidence/`)
+
+- `gen-swift.log` — fresh `haxe examples/swift.hxml`, exit 0.
+- `bun-array-root-fixed.log` — run 1: `:28` reached, fails on `Vec<String>` pin.
+- `bun-array-root-fixed-both.log` — run 2 (demo): exit 0, full test green.
+- `test-fix-in-copy.diff` — the exact edit applied in the work copy for the runs.

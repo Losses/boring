@@ -1,0 +1,554 @@
+{"test":"tests/bundle-child-evidence/bundle-child-evidence.test.ts","note":"no files resolved","frags":18,"files":0}
+{"test":"tests/dart/precision-switch.test.ts","note":"no files resolved","frags":2,"files":0}
+{"test":"tests/ts/printed-record.test.ts","line":120,"negative":true,"frag":"@:dataClass\\nclass PrintedRecord","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/printed-record.test.ts","line":127,"negative":false,"frag":"return \"explicit\";","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/printed-record.test.ts","line":197,"negative":true,"frag":"toString","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/printed-record.test.ts","line":204,"negative":false,"frag":"override fun toString(): String","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/printed-record.test.ts","line":221,"negative":false,"frag":"explicit","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":39,"negative":true,"frag":"Arithmetic.","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":53,"negative":true,"frag":"IntRange","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":28,"negative":false,"frag":"return value >= low && value <= high;","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":29,"negative":false,"frag":"return (value < floor ? floor : value);","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":30,"negative":false,"frag":"return (value > ceiling ? ceiling : value);","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":31,"negative":false,"frag":"return value >= range_start && value <= range_end;","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":41,"negative":false,"frag":"return value >= low && value <= high","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":42,"negative":false,"frag":"return (if ((value < floor)) floor else value)","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":43,"negative":false,"frag":"return (if ((value > ceiling)) ceiling else value)","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":44,"negative":false,"frag":"return value >= range_start && value <= range_end","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":52,"negative":true,"frag":"Arithmetic::","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":54,"negative":false,"frag":"return (value) >= (low) && (value) <= (high);","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":55,"negative":false,"frag":"return if (value) < (floor) { floor } else { value };","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":56,"negative":false,"frag":"return if (value) > (ceiling) { ceiling } else { value };","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/arithmetic-helpers.test.ts","line":57,"negative":false,"frag":"return (value) >= (range_start) && (value) <= (range_end);","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/precision-switch.test.ts","note":"no files resolved","frags":2,"files":0}
+{"test":"tests/ts/strict-output.test.ts","note":"no files resolved","frags":8,"files":0}
+{"test":"tests/ts/vector.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/pipeline-map-store.test.ts","note":"no files resolved","frags":3,"files":0}
+{"test":"tests/ts/platform-modules.test.ts","note":"no files resolved","frags":11,"files":0}
+{"test":"tests/ts/enum-sorted-keys.test.ts","line":17,"negative":false,"frag":"fun compareEnumTier(a: EnumTier, b: EnumTier): Int = a.ordinal - b.ordinal","status":"PRESENT","missingFiles":10}
+{"test":"tests/ts/enum-sorted-keys.test.ts","line":29,"negative":false,"frag":"int compareEnumTier(EnumTier a, EnumTier b) => a.index.compareTo(b.index);","status":"STALE-OR-MISSING","missingFiles":10}
+{"test":"tests/ts/enum-sorted-keys.test.ts","line":44,"negative":false,"frag":"printed_collection.comparePrintedNullableCollection","status":"STALE-OR-MISSING","missingFiles":10}
+{"test":"tests/ts/enum-sorted-keys.test.ts","line":45,"negative":false,"frag":"enum_sorted_keys_ops.describe()","status":"STALE-OR-MISSING","missingFiles":10}
+{"test":"tests/ts/enum-sorted-keys.test.ts","line":91,"negative":false,"frag":"enums with payloads are not keys","status":"STALE-OR-MISSING","missingFiles":10}
+{"test":"tests/ts/printed-enum.test.ts","line":9,"negative":false,"frag":"PrintedBadge","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/printed-enum.test.ts","line":11,"negative":false,"frag":"PrintedMark","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/printed-enum.test.ts","line":22,"negative":false,"frag":"Trail","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/printed-enum.test.ts","line":23,"negative":false,"frag":"Aliases","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/number-classify.test.ts","note":"no files resolved","frags":10,"files":0}
+{"test":"tests/ts/error-structure.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/array-root.test.ts","line":15,"negative":false,"frag":"val readOnlyInts: List<Int> = listOf(10, 20, 30)","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/array-root.test.ts","line":16,"negative":false,"frag":"val mutableInts: MutableList<Int> = mutableListOf<Int>(40, 50)","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/array-root.test.ts","line":27,"negative":false,"frag":"pub static ARRAY_ROOT_STATE_OPS_MUTABLE_INTS: [u32; 2] = [40, 50];","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/array-root.test.ts","line":28,"negative":false,"frag":"LazyLock<Vec<String>>","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/array-root.test.ts","line":29,"negative":false,"frag":"LazyLock<Vec<ArrayRootKind>>","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/array-root.test.ts","line":30,"negative":false,"frag":"LazyLock::new","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/array-root.test.ts","line":72,"negative":false,"frag":"static field initializers accept null, literal, and empty array forms only","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/array-root.test.ts","line":81,"negative":false,"frag":"constructed static field arguments accept literal, enum, array, construction, static field, and static functio","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/array-root.test.ts","line":91,"negative":false,"frag":"static field initializers accept null, literal, array, and construction forms only","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/runtime-entry.test.ts","note":"no fragments","frags":0,"files":2}
+{"test":"tests/ts/capture-switch-ops.test.ts","line":16,"negative":false,"frag":"describe","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/capture-switch-ops.test.ts","line":17,"negative":false,"frag":"messageLength","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/constructed-state.test.ts","line":23,"negative":false,"frag":"LazyLock<FramePolicy>","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/constructed-state.test.ts","line":24,"negative":false,"frag":"LazyLock::new","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/constructed-state.test.ts","line":25,"negative":true,"frag":"#[allow(non_upper_case_globals)]","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/constructed-state.test.ts","line":26,"negative":false,"frag":"(*FRAME_POLICY_WEIGHTED).clone()","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/constructed-state.test.ts","line":60,"negative":false,"frag":"static field initializers accept null, literal, and empty array forms only","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/constructed-state.test.ts","line":65,"negative":false,"frag":"static field initializers accept null, literal, array, and construction forms only","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/constructed-state.test.ts","line":70,"negative":false,"frag":"constructed static field arguments accept literal, enum, array, construction, static field, and static functio","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/rust-packages.test.ts","note":"no files resolved","frags":3,"files":0}
+{"test":"tests/ts/record-copy.test.ts","line":16,"negative":false,"frag":"return { id: item.id, name: item.name, score: newScore, active: item.active };","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/record-copy.test.ts","line":19,"negative":false,"frag":"return { id: item.id, name: newName, score: item.score, active: newActive };","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/record-copy.test.ts","line":22,"negative":false,"frag":"return { id: newId, name: newName, score: newScore, active: item.active };","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/record-copy.test.ts","line":30,"negative":false,"frag":"return ItemRecord(id = item.id, name = item.name, score = newScore, active = item.active)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/record-copy.test.ts","line":31,"negative":false,"frag":"return ItemRecord(id = item.id, name = newName, score = item.score, active = newActive)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/record-copy.test.ts","line":32,"negative":false,"frag":"return ItemRecord(id = newId, name = newName, score = newScore, active = item.active)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/record-copy.test.ts","line":40,"negative":false,"frag":"return ItemRecord { id: item.id, name: (item.name).to_string().clone(), score: new_score, active: item.active ","status":"STALE","missingFiles":0}
+{"test":"tests/ts/record-copy.test.ts","line":41,"negative":false,"frag":"return ItemRecord { id: item.id, name: new_name.to_string(), score: item.score, active: new_active };","status":"STALE","missingFiles":0}
+{"test":"tests/ts/record-copy.test.ts","line":42,"negative":false,"frag":"return ItemRecord { id: new_id, name: new_name.to_string(), score: new_score, active: item.active };","status":"STALE","missingFiles":0}
+{"test":"tests/ts/generated-tree.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/static-extension.test.ts","line":18,"negative":false,"frag":"export function publicValue(value: number): number","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":19,"negative":false,"frag":"function privateValue(value: number): number","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":86,"negative":true,"frag":"class FileLevelOps","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":21,"negative":false,"frag":"return privateValue(value);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":23,"negative":false,"frag":"return publicValue(7);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":26,"negative":false,"frag":"export function modeLabel(mode: ExtensionMode, suffix: string): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":27,"negative":false,"frag":"export function stringLabel(value: string, prefix: string): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":28,"negative":false,"frag":"function privateModeLabel(mode: ExtensionMode): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":95,"negative":true,"frag":"class ExtensionOps","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":41,"negative":false,"frag":"fun publicValue(value: Int): Int","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":42,"negative":false,"frag":"private fun privateValue(value: Int): Int","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":43,"negative":true,"frag":"object FileLevelOps","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":65,"negative":false,"frag":"return publicValue(7)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":88,"negative":true,"frag":"FileLevelOps.","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":47,"negative":false,"frag":"fun ExtensionMode.modeLabel(suffix: String): String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":48,"negative":false,"frag":"fun String.stringLabel(prefix: String): String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":49,"negative":false,"frag":"private fun ExtensionMode.privateModeLabel(): String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":50,"negative":true,"frag":"object ExtensionOps","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":99,"negative":true,"frag":"ExtensionOps.","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":62,"negative":false,"frag":"func publicValue(_ value: Int32) -> Int32","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":63,"negative":false,"frag":"private func privateValue(_ value: Int32) -> Int32","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":64,"negative":true,"frag":"enum FileLevelOps","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":68,"negative":false,"frag":"extension ExtensionMode {","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":69,"negative":false,"frag":"extension String {","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":70,"negative":false,"frag":"func modeLabel(_ suffix: String) -> String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":71,"negative":false,"frag":"func stringLabel(_ prefix: String) -> String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":72,"negative":true,"frag":"enum ExtensionOps","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":84,"negative":false,"frag":"int publicValue(int value)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":85,"negative":false,"frag":"int _privateValue(int value)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":87,"negative":false,"frag":"return file_level_ops.publicValue(7);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":90,"negative":false,"frag":"extension ExtensionModeExtension on ExtensionMode {","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":91,"negative":false,"frag":"extension StringExtension on String {","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":93,"negative":false,"frag":"String modeLabel(String suffix)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":94,"negative":false,"frag":"String stringLabel(String prefix)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":96,"negative":false,"frag":"import 'extension_ops.dart';","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":108,"negative":false,"frag":"pub fn public_value(value: u32) -> u32","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":109,"negative":false,"frag":"fn private_value(value: u32) -> u32","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":110,"negative":true,"frag":"struct FileLevelOps","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":111,"negative":false,"frag":"return public_value(7);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":112,"negative":true,"frag":"FileLevelOps::","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":114,"negative":false,"frag":"impl ExtensionMode {","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":115,"negative":false,"frag":"pub fn mode_label(&self, suffix: &str) -> String","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":116,"negative":false,"frag":"pub fn string_label(value: &str, prefix: &str) -> String","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":117,"negative":true,"frag":"struct ExtensionOps","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-extension.test.ts","line":120,"negative":true,"frag":"ExtensionOps::","status":"STALE","missingFiles":0}
+{"test":"tests/ts/rust-bytes-ownership.test.ts","note":"no files resolved","frags":2,"files":0}
+{"test":"tests/ts/compiler-scope.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/package-artifacts.test.ts","note":"no files resolved","frags":27,"files":0}
+{"test":"tests/ts/data-tables.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/static-state.test.ts","line":11,"negative":false,"frag":"public static current: string | null = null;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":12,"negative":false,"frag":"private static readonly sections: string[] = [];","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":13,"negative":false,"frag":"public static readonly limit: number = 4096;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":14,"negative":false,"frag":"StaticStateOps.current = value;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":15,"negative":false,"frag":"StaticStateOps.sections.push(section);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":20,"negative":false,"frag":"var current: String? = null","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":21,"negative":false,"frag":"private val sections: MutableList<String> = mutableListOf<String>()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":22,"negative":false,"frag":"const val limit: Int = 4096","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":31,"negative":false,"frag":"StaticStateOps.current = value","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":28,"negative":false,"frag":"static var current: String? = nil","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":29,"negative":false,"frag":"private static var sections: TiqianArray<String> = TiqianArray([])","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":30,"negative":false,"frag":"static let limit: Int32 = 4096","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":36,"negative":false,"frag":"String? current = null;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":37,"negative":false,"frag":"final List<String> _sections = <String>[];","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":38,"negative":false,"frag":"final int limit = 4096;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":39,"negative":false,"frag":"current = value;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":40,"negative":false,"frag":"_sections.add(section);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":45,"negative":false,"frag":"pub static STATIC_STATE_OPS_CURRENT: Mutex<Option<String>> = Mutex::new(None);","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":46,"negative":false,"frag":"static STATIC_STATE_OPS_SECTIONS: Mutex<Vec<String>> = Mutex::new(vec![]);","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":47,"negative":false,"frag":"pub const STATIC_STATE_OPS_LIMIT: u32 = 4096;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":48,"negative":false,"frag":"STATIC_STATE_OPS_CURRENT.lock().unwrap_or_else(|e| e.into_inner())","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":49,"negative":false,"frag":"*STATIC_STATE_OPS_CURRENT.lock().unwrap_or_else(|e| e.into_inner()) = Some(value.to_string());","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":50,"negative":false,"frag":"STATIC_STATE_OPS_SECTIONS.lock().unwrap_or_else(|e| e.into_inner()).push(section.to_string());","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":51,"negative":true,"frag":"unwrap()","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":52,"negative":true,"frag":"expect(","status":"STALE","missingFiles":0}
+{"test":"tests/ts/static-state.test.ts","line":65,"negative":false,"frag":"static field initializers accept null, literal, and empty array forms only","status":"STALE","missingFiles":0}
+{"test":"tests/ts/sealed-variants.test.ts","line":141,"negative":false,"frag":"@:sealed applies to interfaces only","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":189,"negative":false,"frag":"static field initializers accept null, literal, and empty array forms only","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":227,"negative":false,"frag":"public static readonly instance: NoneDrawKind = new NoneDrawKind();","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":223,"negative":false,"frag":"val instance: NoneDrawKind = NoneDrawKind()","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":232,"negative":false,"frag":"static let instance: NoneDrawKind = NoneDrawKind()","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":238,"negative":false,"frag":"static final instance = NoneDrawKind();","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":243,"negative":true,"frag":"#[allow(non_upper_case_globals)]","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":244,"negative":false,"frag":"pub static NONE_DRAW_KIND_INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":222,"negative":false,"frag":"sealed interface DrawKind","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":224,"negative":false,"frag":"data class StripeDrawKind(val strokeWidth: Double, val gapLength: Double) : DrawKind","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":225,"negative":false,"frag":"data class DotDrawKind(val dotDiameter: Double, val gapLength: Double) : DrawKind","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":239,"negative":false,"frag":"return \"NoneDrawKind\";","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":240,"negative":false,"frag":"StripeDrawKind(strokeWidth=","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":241,"negative":false,"frag":"DotDrawKind(dotDiameter=","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":233,"negative":false,"frag":"return \"NoneDrawKind\"","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":237,"negative":false,"frag":"abstract class DrawKind","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":245,"negative":false,"frag":"return \"NoneDrawKind\".to_string();","status":"STALE-OR-MISSING","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":246,"negative":false,"frag":"\"StripeDrawKind(\"","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/sealed-variants.test.ts","line":247,"negative":false,"frag":"\"DotDrawKind(\"","status":"PRESENT","missingFiles":6}
+{"test":"tests/ts/loop-structure.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/value-type.test.ts","line":85,"negative":false,"frag":"export type Ic = number;","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":86,"negative":false,"frag":"export function toPx(value: Ic, emPx: number): number","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":87,"negative":false,"frag":"export function plus(a: Ic, b: Ic): Ic","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":88,"negative":false,"frag":"export function negate(a: Ic): Ic","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":89,"negative":false,"frag":"export const ZERO: Ic = 0.0;","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":90,"negative":false,"frag":"export type FontFaceId = string;","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":91,"negative":false,"frag":"export function makeFontFaceId(value: string): FontFaceId","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":92,"negative":true,"frag":"class Ic","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":95,"negative":false,"frag":"const total = plus(first, ZERO);","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":96,"negative":false,"frag":"return toString(id);","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":99,"negative":false,"frag":"@JvmInline\\nvalue class Ic(val count: Double)","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":100,"negative":false,"frag":"operator fun plus(other: Ic): Ic","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":101,"negative":false,"frag":"operator fun unaryMinus(): Ic","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":102,"negative":false,"frag":"companion object","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":103,"negative":false,"frag":"val ZERO: Ic = Ic(0.0)","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":106,"negative":false,"frag":"struct Ic: Equatable, Hashable","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":107,"negative":false,"frag":"let count: Double","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":108,"negative":false,"frag":"static func +(lhs: Ic, rhs: Ic) -> Ic","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":109,"negative":false,"frag":"static prefix func -(value: Ic) -> Ic","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":110,"negative":false,"frag":"struct FontFaceId: Equatable, Hashable, CustomStringConvertible","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":113,"negative":false,"frag":"extension type Ic(double count)","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":114,"negative":false,"frag":"Ic operator +(Ic other)","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":115,"negative":false,"frag":"Ic operator -()","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":116,"negative":false,"frag":"static final Ic ZERO = Ic(0.0)","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":117,"negative":false,"frag":"FontFaceId makeFontFaceId(String value)","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":120,"negative":false,"frag":"#[derive(Debug, Clone, PartialEq)]\\npub struct Ic(pub f64);","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":121,"negative":true,"frag":"pub struct Ic(pub f64);\\n\\nimpl Eq","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":122,"negative":false,"frag":"impl std::ops::Add for Ic","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":123,"negative":false,"frag":"impl std::ops::Neg for Ic","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":124,"negative":false,"frag":"impl std::fmt::Display for FontFaceId","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":125,"negative":false,"frag":"#[derive(Debug, Clone, PartialEq, Eq, Hash)]\\npub struct FontFaceId(pub String);","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":128,"negative":false,"frag":"#[derive(Debug, Clone, PartialEq)]\\npub struct Ic(pub f32);","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/value-type.test.ts","line":129,"negative":true,"frag":"pub struct Ic(pub f32);\\n\\nimpl Eq","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/extern-bindings.test.ts","note":"no files resolved","frags":7,"files":0}
+{"test":"tests/ts/default-args.test.ts","line":20,"negative":false,"frag":"public static greet(name: string, prefix: string): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":21,"negative":false,"frag":"public static configure(base: number, offset: number, scale: number, flag: boolean): number","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":22,"negative":false,"frag":"public formatLabel(label: string | null, sep: string): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":23,"negative":false,"frag":"public static describeTag(tag: string, detail?: string | null): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":24,"negative":false,"frag":"public static openMode(id: number, mode: Mode): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":25,"negative":false,"frag":"public static adjust(value: number, step: number): number","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":26,"negative":false,"frag":"public static greetWithPrefix(name: string, prefix: string | null = null): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":27,"negative":false,"frag":"const normalized = prefix ?? name;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":28,"negative":false,"frag":"public static sizeLabel(items?: string[] | null): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":29,"negative":false,"frag":"public static fieldAccessSample(items: string[], count: number | null = null): number","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":30,"negative":false,"frag":"const normalized = count ?? items.length;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":31,"negative":false,"frag":"public static localeSample(lang: string, fallback: string | null = null): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":33,"negative":false,"frag":"public static methodCallSample(text: string, normalized: string | null = null): string","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":34,"negative":false,"frag":"const value = normalized ?? text.toUpperCase();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":35,"negative":false,"frag":"public static staticCallSample(value: number, clamped: number | null = null): number","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":36,"negative":false,"frag":"const result = clamped ?? DefaultArgsOps.clampBase(value);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":37,"negative":false,"frag":"const normalized = fallback ?? SortedTable.setBuilder<number>(SortedTable.compareInts).build();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":38,"negative":false,"frag":"public static staticFieldSample(value: number, bound: number | null = null): number","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":39,"negative":false,"frag":"const normalized = bound ?? StaticStateOps.limit;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":40,"negative":false,"frag":"const v = p ?? this.normalizationField;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":41,"negative":false,"frag":"const w = q ?? loc;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":42,"negative":false,"frag":"const w = q ?? this.fallbackCount;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":43,"negative":false,"frag":"const v = p ?? this.fallbackCount;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":49,"negative":false,"frag":"public static chainedCoalescing(fallback: number | null = null, value: number | null = null): number","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":50,"negative":false,"frag":"const resolvedValue = value ?? (fallback ?? 2.5);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":51,"negative":false,"frag":"export class ChainedPaint","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":52,"negative":false,"frag":"constructor(radius: number | null = null, followRadius: number | null = null)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":291,"negative":false,"frag":"this.followRadius = followRadius ?? (radius ?? 0.0);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":54,"negative":false,"frag":"return DefaultArgsOps.chainedCoalescing();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":59,"negative":false,"frag":"public static readonly Default: CoalescingPreset = new CoalescingPreset();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":60,"negative":false,"frag":"constructor(base: number | null = null, ceiling: number | null = null)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":61,"negative":false,"frag":"this.ceiling = ceiling ?? 0.5;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":62,"negative":false,"frag":"CoalescingPreset(base=${this.base}, ceiling=${this.ceiling})","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":66,"negative":false,"frag":"constructor(familyNames: string[] | null = null)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":67,"negative":false,"frag":"public static infinityDefault(value: number | null = null): number","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":68,"negative":false,"frag":"const normalized = value ?? Infinity;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":69,"negative":false,"frag":"public static mapDefault(value: Map<string, number> | null = null): Map<string, number>","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":70,"negative":false,"frag":"const normalized = value ?? new Map();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":71,"negative":false,"frag":"return DefaultArgsOps.infinityDefault();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":72,"negative":false,"frag":"return DefaultArgsOps.mapDefault();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":73,"negative":true,"frag":"infinityDefault(null)","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":74,"negative":true,"frag":"mapDefault(null)","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":77,"negative":false,"frag":"return DefaultArgsOps.greet(\"Ada\", \"Hello\");","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":78,"negative":false,"frag":"return DefaultArgsOps.configure(100, 20, 1.5, true);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":79,"negative":false,"frag":"return DefaultArgsOps.configure(100, 20, 2.5, true);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":80,"negative":false,"frag":"return DefaultArgsOps.configure(100, 10, 2.5, true);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":81,"negative":false,"frag":"return ops.formatLabel(\"item\", \"-\");","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":82,"negative":false,"frag":"return ops.formatLabel(null, \"-\");","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":83,"negative":false,"frag":"return DefaultArgsOps.describeTag(\"alpha\", null);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":84,"negative":false,"frag":"return DefaultArgsOps.openMode(1, Mode.Read);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":85,"negative":false,"frag":"return DefaultArgsOps.adjust(20.0, -5.0);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":86,"negative":false,"frag":"return localAdd(x, 100);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":87,"negative":false,"frag":"return localAdd(x, 200);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":88,"negative":false,"frag":"return greeter.say(\"Sam\", \"User\");","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":97,"negative":false,"frag":"fun greet(name: String, prefix: String = \"Hello\"): String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":98,"negative":false,"frag":"fun configure(base: Int, offset: Int = 10, scale: Double = 2.5, flag: Boolean = true): Double","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":100,"negative":false,"frag":"fun describeTag(tag: String, detail: String? = null): String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":101,"negative":false,"frag":"fun openMode(id: Int, mode: Mode = Mode.Read): String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":102,"negative":false,"frag":"fun adjust(value: Double, step: Double = -5.0): Double","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":105,"negative":false,"frag":"fun greetWithPrefix(name: String, prefix: String = name): String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":106,"negative":false,"frag":"fun fieldAccessSample(items: MutableList<String>, count: Int = items.size): Int","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":108,"negative":false,"frag":"fun methodCallSample(text: String, normalized: String = text.uppercase()): String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":109,"negative":false,"frag":"fun staticCallSample(value: Int, clamped: Int = DefaultArgsOps.clampBase(value)): Int","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":110,"negative":false,"frag":"val normalized = fallback ?: SortedTable.setBuilder<Int>(SortedTable::compareInts).build()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":111,"negative":false,"frag":"fun staticFieldSample(value: Int, bound: Int = StaticStateOps.limit): Int","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":112,"negative":false,"frag":"fun binarySample(value: Int, offset: Int = value + 1): Int","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":113,"negative":false,"frag":"val v = p ?: this.normalizationField","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":114,"negative":false,"frag":"val w = q ?: loc","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":115,"negative":false,"frag":"val w = q ?: this.fallbackCount","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":116,"negative":false,"frag":"val v = p ?: this.fallbackCount","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":121,"negative":false,"frag":"fun chainedCoalescing(fallback: Double = 2.5, value: Double = fallback): Double","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":122,"negative":false,"frag":"class ChainedPaint(var radius: Double = 0.0, var followRadius: Double = radius)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":127,"negative":false,"frag":"data class CoalescingPreset(val base: Double = 0.125, val ceiling: Double = 0.5)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":128,"negative":false,"frag":"val Default: CoalescingPreset = CoalescingPreset()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":131,"negative":false,"frag":"class DefaultArgsOps(var familyNames: MutableList<String> = mutableListOf<String>())","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":132,"negative":false,"frag":"fun infinityDefault(value: Double = Double.POSITIVE_INFINITY): Double","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":133,"negative":false,"frag":"fun mapDefault(value: MutableMap<String, Int> = mutableMapOf()): MutableMap<String, Int>","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":271,"negative":false,"frag":"return DefaultArgsOps.infinityDefault()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":272,"negative":false,"frag":"return DefaultArgsOps.mapDefault()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":138,"negative":false,"frag":"return DefaultArgsOps.greet(\"Ada\", \"Hello\")","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":139,"negative":false,"frag":"return DefaultArgsOps.configure(100, 20, 1.5, true)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":140,"negative":false,"frag":"return DefaultArgsOps.configure(100, 20, 2.5, true)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":141,"negative":false,"frag":"return DefaultArgsOps.configure(100, 10, 2.5, true)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":142,"negative":false,"frag":"return ops.formatLabel(\"item\", \"-\")","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":143,"negative":false,"frag":"return ops.formatLabel(null, \"-\")","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":144,"negative":false,"frag":"return DefaultArgsOps.describeTag(\"alpha\", null)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":145,"negative":false,"frag":"return DefaultArgsOps.openMode(1, Mode.Read)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":146,"negative":false,"frag":"return DefaultArgsOps.adjust(20.0, -5.0)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":147,"negative":false,"frag":"return localAdd(x, 100)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":148,"negative":false,"frag":"return localAdd(x, 200)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":149,"negative":false,"frag":"return greeter.say(\"Sam\", \"User\")","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":158,"negative":false,"frag":"pub fn default_args_ops_greet(name: &str, prefix: &str) -> String","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":159,"negative":false,"frag":"pub fn default_args_ops_configure(base: u32, offset: u32, scale: f64, flag: bool) -> f64","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":160,"negative":false,"frag":"pub fn format_label(&self, label: Option<String>, sep: &str) -> String","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":161,"negative":false,"frag":"pub fn default_args_ops_describe_tag(tag: &str, detail: Option<String>) -> String","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":162,"negative":false,"frag":"pub fn default_args_ops_open_mode(id: u32, mode: Mode) -> String","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":163,"negative":false,"frag":"pub fn default_args_ops_adjust(value: f64, step: f64) -> f64","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":166,"negative":false,"frag":"pub fn default_args_ops_greet_with_prefix(name: &str, prefix: Option<String>) -> String","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":167,"negative":false,"frag":"let prefix = prefix.unwrap_or_else(|| name.to_string());","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":168,"negative":false,"frag":"pub fn default_args_ops_field_access_sample(items: &Vec<String>, count: Option<u32>) -> u32","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":169,"negative":false,"frag":"let count = count.unwrap_or_else(|| match u32::try_from((items).len())","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":171,"negative":false,"frag":"let normalized = normalized.unwrap_or_else(|| text.to_uppercase());","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":172,"negative":false,"frag":"let clamped = clamped.unwrap_or_else(|| DefaultArgsOps::default_args_ops_clamp_base(value));","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":173,"negative":false,"frag":"SortedTable::sorted_table_set_builder::<u32>","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":174,"negative":false,"frag":"pub fn default_args_ops_static_field_sample(value: u32, bound: Option<u32>) -> u32","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":175,"negative":false,"frag":"let bound = bound.unwrap_or_else(|| StaticStateOps::STATIC_STATE_OPS_LIMIT);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":176,"negative":false,"frag":"let offset = offset.unwrap_or_else(|| value + 1);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":177,"negative":false,"frag":"pub fn instance_field_normalization(&self, p: Option<String>) -> String","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":178,"negative":false,"frag":"pub fn earlier_local_normalization(&self, seed: &str, q: Option<String>) -> String","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":179,"negative":false,"frag":"let v = match &(p) { None => self.fallback_count, Some(__option4) => *__option4 };","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":180,"negative":false,"frag":"let w = match &(q) { None => self.fallback_count, Some(__option5) => *__option5 };","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":185,"negative":false,"frag":"pub fn new(family_names: Option<Vec<String>>) -> Self","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":186,"negative":false,"frag":"let family_names = family_names.unwrap_or_else(|| vec![]);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":187,"negative":false,"frag":"pub fn default_args_ops_infinity_default(value: Option<f64>) -> f64","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":188,"negative":false,"frag":"let value = value.unwrap_or_else(|| f64::INFINITY);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":189,"negative":false,"frag":"pub fn default_args_ops_map_default(value: Option<HashMap<String, u32>>) -> HashMap<String, u32>","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":190,"negative":false,"frag":"let value = value.unwrap_or_else(|| HashMap::new());","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":191,"negative":false,"frag":"return DefaultArgsOps::default_args_ops_infinity_default(None);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":192,"negative":false,"frag":"return DefaultArgsOps::default_args_ops_map_default(None);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":195,"negative":false,"frag":"return DefaultArgsOps::default_args_ops_greet(&\"Ada\", &\"Hello\");","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":196,"negative":false,"frag":"return DefaultArgsOps::default_args_ops_configure(100, 20, 1.5f64, true);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":197,"negative":false,"frag":"return DefaultArgsOps::default_args_ops_configure(100, 20, 2.5f64, true);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":198,"negative":false,"frag":"return DefaultArgsOps::default_args_ops_configure(100, 10, 2.5f64, true);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":199,"negative":false,"frag":"return ops.format_label(Some(\"item\".to_string()), &\"-\");","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":200,"negative":false,"frag":"return ops.format_label(None, &\"-\");","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":201,"negative":false,"frag":"return DefaultArgsOps::default_args_ops_describe_tag(&\"alpha\", None);","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":202,"negative":false,"frag":"return DefaultArgsOps::default_args_ops_open_mode(1, Mode::Read);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":203,"negative":false,"frag":"return DefaultArgsOps::default_args_ops_adjust(20.0f64, -5.0f64);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":204,"negative":false,"frag":"return local_add(x, 100);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":205,"negative":false,"frag":"return local_add(x, 200);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":206,"negative":false,"frag":"return greeter.say(&\"Sam\", &\"User\");","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":210,"negative":false,"frag":"pub fn default_args_ops_chained_coalescing(fallback: Option<f64>, value: Option<f64>) -> f64","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":211,"negative":false,"frag":"let fallback = fallback.unwrap_or_else(|| 2.5);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":212,"negative":false,"frag":"let value = value.unwrap_or_else(|| fallback);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":213,"negative":false,"frag":"let follow_radius = follow_radius.unwrap_or_else(|| radius);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":218,"negative":false,"frag":"pub static COALESCING_PRESET_DEFAULT: LazyLock<CoalescingPreset> = LazyLock::new(|| CoalescingPreset::new(Some","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":219,"negative":true,"frag":"return \"CoalescingPreset\".to_string();","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":227,"negative":false,"frag":"init(_ familyNames: [String] = [])","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":228,"negative":false,"frag":"static func infinityDefault(_ value: Double = Double.infinity) -> Double","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":229,"negative":false,"frag":"static func mapDefault(_ value: [String: Int32] = [:]) -> [String: Int32]","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":232,"negative":false,"frag":"static func greetWithPrefix(_ name: String, _ prefix: String? = nil) -> String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":233,"negative":false,"frag":"let prefix = prefix ?? name;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":234,"negative":false,"frag":"static func fieldAccessSample(_ items: [String], _ count: Int32? = nil) -> Int32","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":235,"negative":false,"frag":"let count = count ?? Int32(items.count);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":236,"negative":false,"frag":"static func localeSample(_ lang: String, _ fallback: String? = nil) -> String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":238,"negative":false,"frag":"let normalized = normalized ?? text.uppercased();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":239,"negative":false,"frag":"let clamped = clamped ?? DefaultArgsOps.clampBase(value);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":240,"negative":false,"frag":"fallback ?? SortedTable.setBuilder(SortedTable.compareInts).build()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":241,"negative":false,"frag":"static func staticFieldSample(_ value: Int32, _ bound: Int32 = StaticStateOps.limit) -> Int32","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":242,"negative":false,"frag":"let offset = offset ?? value &+ 1;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":243,"negative":false,"frag":"func instanceFieldNormalization(_ p: String? = Optional<String>.none) -> String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":244,"negative":false,"frag":"func earlierLocalNormalization(_ seed: String, _ q: String? = Optional<String>.none) -> String","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":245,"negative":false,"frag":"let v: Int32? = p ?? self.fallbackCount","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":246,"negative":false,"frag":"let w: Int32? = q ?? self.fallbackCount","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":248,"negative":false,"frag":"static func chainedCoalescing(_ fallback: Double = 2.5, _ value: Double? = nil) -> Double","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":249,"negative":false,"frag":"let value = value ?? fallback;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":250,"negative":false,"frag":"init(_ radius: Double = 0.0, _ followRadius: Double? = nil)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":251,"negative":false,"frag":"let followRadius = followRadius ?? radius;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":255,"negative":false,"frag":"static let Default: CoalescingPreset = CoalescingPreset()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":256,"negative":false,"frag":"return \"CoalescingPreset(base=\\\\(self.base), ceiling=\\\\(self.ceiling))\"","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":297,"negative":true,"frag":"return \"CoalescingPreset\"","status":"STALE","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":265,"negative":false,"frag":"DefaultArgsOps([List<String>? familyNames])","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":266,"negative":false,"frag":"this.familyNames = familyNames ?? <String>[];","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":267,"negative":false,"frag":"static double infinityDefault([double? value])","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":268,"negative":false,"frag":"final double normalized = value ?? double.infinity;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":269,"negative":false,"frag":"static Map<String, int> mapDefault([Map<String, int>? value])","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":270,"negative":false,"frag":"final Map<String, int> normalized = value ?? <String, int>{};","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":273,"negative":false,"frag":"static String greetWithPrefix(String name, [String? prefix])","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":274,"negative":false,"frag":"final String normalized = prefix ?? name;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":275,"negative":false,"frag":"static int fieldAccessSample(List<String> items, [int? count])","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":276,"negative":false,"frag":"final int normalized = count ?? items.length;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":277,"negative":false,"frag":"static String localeSample(String lang, [String? fallback])","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":279,"negative":false,"frag":"final String value = normalized ?? text.toUpperCase();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":280,"negative":false,"frag":"final int result = clamped ?? DefaultArgsOps.clampBase(value);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":281,"negative":false,"frag":"fallback ?? runtime.SortedTable.setBuilder<int>(runtime.SortedTable.compareInts).build()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":282,"negative":false,"frag":"static int staticFieldSample(int value, [int? bound])","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":283,"negative":false,"frag":"final int normalized = bound ?? static_state_ops.limit;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":284,"negative":false,"frag":"final int result = offset ?? value + 1;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":285,"negative":false,"frag":"final String v = p ?? this.normalizationField;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":286,"negative":false,"frag":"final String w = q ?? loc;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":287,"negative":false,"frag":"final int v = p ?? this._fallbackCount;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":288,"negative":false,"frag":"final int w = q ?? this._fallbackCount;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":290,"negative":false,"frag":"final double resolvedValue = value ?? (fallback ?? 2.5);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":295,"negative":false,"frag":"static final CoalescingPreset Default = CoalescingPreset(0.125, 0.5);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/default-args.test.ts","line":296,"negative":false,"frag":"CoalescingPreset([double? base, double? ceiling])","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":15,"negative":true,"frag":"new StringBuf","status":"STALE","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":16,"negative":true,"frag":"std.StringBuf","status":"STALE","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":17,"negative":false,"frag":"let buf = \"\";","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":18,"negative":false,"frag":"buf += a;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":19,"negative":false,"frag":"buf += String.fromCharCode(codeA);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":20,"negative":false,"frag":"return buf.length;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":21,"negative":false,"frag":"buf.charCodeAt(buf.length - 1)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":22,"negative":false,"frag":"throw new UStringException({ kind: \"UnpairedSurrogate\", unit: tail });","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":30,"negative":false,"frag":"val buf = StringBuilder()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":31,"negative":false,"frag":"buf.append(a)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":32,"negative":false,"frag":"buf.append((codeA).toChar())","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":33,"negative":false,"frag":"return buf.length","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":34,"negative":false,"frag":"buf.lastOrNull()?.code ?: -1","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":35,"negative":false,"frag":"throw UStringException.UnpairedSurrogate(tail)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":43,"negative":false,"frag":"let mut buf = Vec::<u16>::new();","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":44,"negative":false,"frag":"buf.extend(a.encode_utf16());","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":45,"negative":false,"frag":"buf.push(u16::try_from((code_a) & 0xFFFF).unwrap_or(0));","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":46,"negative":false,"frag":"return Ok(u32::try_from((buf.len()) & 0xFFFF_FFFF).unwrap_or(0));","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":47,"negative":false,"frag":"String::from_utf16(buf.as_slice())","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":48,"negative":false,"frag":"UStringFault::UnpairedSurrogate { unit: u32::from(unit) }","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":49,"negative":false,"frag":"UStringFault::InvalidCodePoint { code: _p0 } => u32::wrapping_add(1000, _p0),","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":50,"negative":true,"frag":"String::new()","status":"STALE","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":51,"negative":true,"frag":"push_str","status":"STALE","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":52,"negative":true,"frag":"encode_utf16().count()","status":"STALE","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":60,"negative":false,"frag":"var buf = [UInt16]()","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":61,"negative":false,"frag":"buf += Array(a.utf16)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":62,"negative":false,"frag":"String(decoding: buf, as: UTF16.self)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":63,"negative":false,"frag":"UStringFault.unpairedSurrogate","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":71,"negative":false,"frag":"var buf = <int>[]","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":72,"negative":false,"frag":"buf.addAll(a.codeUnits)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":73,"negative":false,"frag":"String.fromCharCodes(buf)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":74,"negative":false,"frag":"UStringFaultUnpairedSurrogate","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/string-buffer.test.ts","line":75,"negative":false,"frag":"return String.fromCharCodes(buf);","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/try-region.test.ts","line":19,"negative":false,"frag":"error instanceof VectorException","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/try-region.test.ts","line":20,"negative":false,"frag":"throw error;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/try-region.test.ts","line":21,"negative":false,"frag":"catch (error: VectorException)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/try-region.test.ts","line":22,"negative":false,"frag":"Result<(), VectorError>","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/try-region.test.ts","line":23,"negative":false,"frag":"Err(error) =>","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/try-region.test.ts","line":24,"negative":false,"frag":"catch let error as VectorException","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/try-region.test.ts","line":25,"negative":false,"frag":"catch {","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/try-region.test.ts","line":26,"negative":false,"frag":"on vector_exception.VectorException catch (error)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/std-string.test.ts","line":31,"negative":false,"frag":"return \"string=\" + value","status":"PRESENT","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":32,"negative":false,"frag":"return \"int=\" + value","status":"PRESENT","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":33,"negative":false,"frag":"return \"float=\" + boring.runtime.FPHelper.formatFloat(value)","status":"PRESENT","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":34,"negative":false,"frag":"return \"bool=\" + value","status":"PRESENT","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":35,"negative":true,"frag":"\"string=\" + (value).toString()","status":"STALE-OR-MISSING","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":45,"negative":false,"frag":"value.kind","status":"PRESENT","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":46,"negative":false,"frag":"value.name","status":"PRESENT","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":47,"negative":false,"frag":"value.rawValue","status":"PRESENT","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":48,"negative":false,"frag":"value.label","status":"PRESENT","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":49,"negative":false,"frag":"value.name()","status":"PRESENT","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":54,"negative":false,"frag":"pub fn std_string_ops_int_value(value: u32) -> String {\\n        return (value).to_string();","status":"STALE-OR-MISSING","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":82,"negative":false,"frag":"Std.string accepts scalars, enum values, records, and arrays of them only","status":"STALE-OR-MISSING","missingFiles":5}
+{"test":"tests/ts/std-string.test.ts","line":96,"negative":false,"frag":"Std.string does not accept Null<T> operands; compare against null first","status":"STALE-OR-MISSING","missingFiles":5}
+{"test":"tests/ts/block-width.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/printed-collection.test.ts","line":22,"negative":true,"frag":".map(","status":"STALE","missingFiles":0}
+{"test":"tests/ts/printed-collection.test.ts","line":23,"negative":true,"frag":"joinToString(","status":"STALE","missingFiles":0}
+{"test":"tests/ts/printed-collection.test.ts","line":24,"negative":true,"frag":".joined(","status":"STALE","missingFiles":0}
+{"test":"tests/ts/printed-collection.test.ts","line":34,"negative":true,"frag":"toString","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/printed-sorted-fields.test.ts","line":21,"negative":false,"frag":"marks","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/printed-sorted-fields.test.ts","line":22,"negative":false,"frag":"points","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/printed-sorted-fields.test.ts","line":23,"negative":false,"frag":"lookup","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/printed-sorted-fields.test.ts","line":31,"negative":false,"frag":"data class PrintedSortedFields","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/printed-sorted-fields.test.ts","line":32,"negative":true,"frag":"fun toString","status":"STALE","missingFiles":0}
+{"test":"tests/ts/printed-sorted-fields.test.ts","line":33,"negative":true,"frag":"fun marksAt","status":"STALE","missingFiles":0}
+{"test":"tests/ts/printed-sorted-fields.test.ts","line":34,"negative":true,"frag":"fun lookupKeyAt","status":"STALE","missingFiles":0}
+{"test":"tests/ts/enum-queries.test.ts","note":"no files resolved","frags":20,"files":0}
+{"test":"tests/ts/sorted-key-domains.test.ts","line":12,"negative":false,"frag":"export function compareClusterTag(","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/sorted-key-domains.test.ts","line":13,"negative":false,"frag":"export function compareSubTag(","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/sorted-key-domains.test.ts","line":19,"negative":false,"frag":"SortedTable.mapBuilder<ClusterTag, number>(compareClusterTag)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/sorted-key-domains.test.ts","line":20,"negative":false,"frag":"SortedTable.setBuilder<ClusterTag>(compareClusterTag)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/sorted-key-domains.test.ts","line":27,"negative":false,"frag":"SortedTable.mapBuilder<number, string>(SortedTable.compareInts)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/sorted-key-domains.test.ts","line":28,"negative":true,"frag":"function compare","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/sorted-key-domains.test.ts","line":35,"negative":false,"frag":"SortedTable.mapBuilder<string, number>(SortedTable.compareStrings)","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/sorted-key-domains.test.ts","line":42,"negative":false,"frag":"let capacity = usize::try_from(u32::from_ne_bytes((set.size()).to_ne_bytes())).unwrap_or(0);","status":"STALE","missingFiles":0}
+{"test":"tests/ts/sorted-key-domains.test.ts","line":43,"negative":false,"frag":"let mut scores = Vec::with_capacity(capacity);","status":"STALE","missingFiles":0}
+{"test":"tests/ts/array-iteration.test.ts","note":"no files resolved","frags":12,"files":0}
+{"test":"tests/ts/constructor-statements.test.ts","note":"no files resolved","frags":4,"files":0}
+{"test":"tests/ts/stringtools-conv.test.ts","line":79,"negative":false,"frag":"StringTools.hex accepts non-negative arguments only","status":"STALE","missingFiles":0}
+{"test":"tests/ts/record-order.test.ts","line":73,"negative":false,"frag":"data class RecordOrderShifted(val a: Int, val c: String, val b: Int = 0)","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/record-order.test.ts","line":82,"negative":false,"frag":"RecordOrderAligned(val a: Int, val b: Int, val c: String)","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/record-order.test.ts","line":83,"negative":true,"frag":"toString","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/record-order.test.ts","line":184,"negative":false,"frag":"@:dataClass requires every constructor parameter to be a class field","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/record-order.test.ts","line":197,"negative":false,"frag":"data class RecordOrderShifted","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/record-order.test.ts","line":198,"negative":true,"frag":"override fun toString","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/deferred-locals.test.ts","line":13,"negative":false,"frag":"let tier: number;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/deferred-locals.test.ts","line":14,"negative":false,"frag":"var tier: Int","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/deferred-locals.test.ts","line":15,"negative":false,"frag":"var tier: Int32","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/deferred-locals.test.ts","line":16,"negative":false,"frag":"int tier;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/deferred-locals.test.ts","line":17,"negative":false,"frag":"let tier: u32;","status":"PRESENT","missingFiles":0}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":19,"negative":false,"frag":"val isEmpty: Boolean get() = get_isEmpty()","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":20,"negative":false,"frag":"var isEmpty: Bool { get_isEmpty() }","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":24,"negative":false,"frag":"bool get isEmpty => get_isEmpty();","status":"STALE-OR-MISSING","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":28,"negative":false,"frag":"locale: string | null =","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":29,"negative":false,"frag":"locale: String? =","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":30,"negative":false,"frag":"_ locale: String? = nil","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":31,"negative":false,"frag":"[String? locale]","status":"STALE-OR-MISSING","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":38,"negative":false,"frag":"arrayMutations","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":39,"negative":false,"frag":"array_mutations","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":61,"negative":false,"frag":"fontfamilies","status":"STALE-OR-MISSING","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":63,"negative":false,"frag":"locale","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":66,"negative":false,"frag":"a.start","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":67,"negative":false,"frag":"cmp_start","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":70,"negative":false,"frag":"PrintedBadgemarkOrder","status":"PRESENT","missingFiles":9}
+{"test":"tests/ts/sorted-dataclass-keys.test.ts","line":71,"negative":false,"frag":"printed_badge_mark_order","status":"STALE-OR-MISSING","missingFiles":9}
+{"test":"tests/ts/fn-values.test.ts","line":22,"negative":false,"frag":"FnValuesOps","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":28,"negative":false,"frag":"public static defaultTag: (id: number) => string =","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":42,"negative":false,"frag":"defaultTag","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":32,"negative":false,"frag":"companion object","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":33,"negative":false,"frag":"val defaultTag: (Int) -> String = fun(id: Int): String","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":34,"negative":false,"frag":"return \"tag\" + id","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":37,"negative":false,"frag":"static let defaultTag: (Int32) -> String =","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":41,"negative":false,"frag":"static final String Function(int) defaultTag =","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":47,"negative":false,"frag":"pub style_at: Arc<dyn Fn(u32) -> String + Send + Sync>","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":48,"negative":false,"frag":"pub resolver: Box<dyn NameResolver>","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":49,"negative":false,"frag":"pub fn new(style_at: Arc<dyn Fn(u32) -> String + Send + Sync>, resolver: Box<dyn NameResolver>)","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":50,"negative":false,"frag":"pub fn fn_values_ops_apply_picker(values: &Vec<String>, pick: Arc<dyn Fn(u32) -> String + Send + Sync>)","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":51,"negative":false,"frag":"return pick(u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1));","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":52,"negative":false,"frag":"pub fn fn_values_ops_make_prefixer(prefix: &str) -> Arc<dyn Fn(&str) -> String + Send + Sync + '_>","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":65,"negative":false,"frag":"Arc::new(move |suffix|","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":66,"negative":false,"frag":"pub static FN_VALUES_OPS_DEFAULT_TAG: fn(i32) -> String =","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":58,"negative":false,"frag":"Box::new(BuiltInNameResolver::new())","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":63,"negative":false,"frag":"Arc<dyn Fn(u32) -> String + Send + Sync>","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":64,"negative":false,"frag":"Box<dyn NameResolver>","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":67,"negative":false,"frag":"u32::wrapping_sub(u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0), 1)","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":72,"negative":false,"frag":"pub fn static_ref_ops_take_fn(callback: Arc<dyn Fn(u32) -> String + Send + Sync>)","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":73,"negative":false,"frag":"let r#fn: Arc<dyn Fn(u32) -> String + Send + Sync> = Arc::new(StaticRefOps::static_ref_ops_render);","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":74,"negative":false,"frag":"pub fn static_ref_ops_return_fn() -> Arc<dyn Fn(u32) -> String + Send + Sync + 'static>","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":75,"negative":false,"frag":"let cmp: Arc<dyn Fn(&str, &str) -> u32 + Send + Sync> = Arc::new(StaticRefStatics::static_ref_statics_compare_","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":78,"negative":false,"frag":"pub fn sorted_table_map_builder<K: Clone, V: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>)","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":85,"negative":false,"frag":"pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":84,"negative":false,"frag":"pub fn sorted_table_set_builder<K: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>)","status":"PRESENT","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":107,"negative":false,"frag":"capturedPrefix + id","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/fn-values.test.ts","line":137,"negative":false,"frag":"static function fields accept capture-free initializers only","status":"STALE-OR-MISSING","missingFiles":4}
+{"test":"tests/ts/package-shell.test.ts","line":132,"negative":false,"frag":"from \"../runtime.ts\"","status":"STALE-OR-MISSING","missingFiles":1}
+{"test":"tests/ts/package-shell.test.ts","line":232,"negative":false,"frag":"package-shell accepts emit or none","status":"STALE-OR-MISSING","missingFiles":1}
+{"test":"tests/ts/package-shell.test.ts","line":250,"negative":false,"frag":"package shell requires a relative runtime import","status":"STALE-OR-MISSING","missingFiles":1}
+{"test":"tests/ts/package-shell.test.ts","line":264,"negative":false,"frag":"// swift-tools-version:6.0","status":"STALE-OR-MISSING","missingFiles":1}
+{"test":"tests/ts/package-shell.test.ts","line":265,"negative":false,"frag":".package(url: \"https://github.com/apple/swift-system\", exact: \"1.6.6\")","status":"STALE-OR-MISSING","missingFiles":1}
+{"test":"tests/ts/package-shell.test.ts","line":266,"negative":false,"frag":"name: \"Codec\"","status":"STALE-OR-MISSING","missingFiles":1}
+{"test":"tests/ts/package-shell.test.ts","line":267,"negative":false,"frag":"name: \"BoringSwiftTests\"","status":"STALE-OR-MISSING","missingFiles":1}
+{"test":"tests/ts/package-shell.test.ts","line":268,"negative":false,"frag":"name: \"BoringSwiftTestsF32\"","status":"STALE-OR-MISSING","missingFiles":1}
+{"test":"tests/ts/switch-ops.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/read-only.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/vector-sort.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/codec.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"tests/ts/number-parsing.test.ts","line":9,"negative":false,"frag":"Number.parseFloat","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":10,"negative":false,"frag":"Number.parseInt","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":11,"negative":false,"frag":"charCodeAt","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":12,"negative":false,"frag":"Number.NaN","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":13,"negative":false,"frag":"-2147483648","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":14,"negative":true,"frag":"RegExp","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":15,"negative":true,"frag":".replace(","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":16,"negative":true,"frag":".test(","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":19,"negative":false,"frag":"toDoubleOrNull","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":19,"negative":false,"frag":"toIntOrNull","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":29,"negative":false,"frag":"2147483647","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":28,"negative":true,"frag":"NumberParsing","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":37,"negative":false,"frag":"guard let n = Int64(digits, radix: hex ? 16 : 10) else { return nil }","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":38,"negative":false,"frag":"return value >= -2147483648 && value <= 2147483647 ? Int32(value) : nil","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":39,"negative":false,"frag":"return parseIntRuntime(value)","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":40,"negative":true,"frag":"NSRegularExpression","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":40,"negative":true,"frag":"import Foundation","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":29,"negative":false,"frag":"tryParse","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":31,"negative":false,"frag":"u_string::parse_f64(&(value))","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":31,"negative":false,"frag":"u_string::parse_i32(&(value))","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":32,"negative":false,"frag":"-> Option<i32>","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":32,"negative":true,"frag":"parse::<","status":"STALE-OR-MISSING","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":33,"negative":false,"frag":"u_string::parse_f32(&(value))","status":"PRESENT","missingFiles":2}
+{"test":"tests/ts/number-parsing.test.ts","line":34,"negative":false,"frag":"toFloatOrNull","status":"PRESENT","missingFiles":2}
+{"test":"tests/swift-readonly-boundary/readonly-boundary.test.ts","note":"no fragments","frags":0,"files":0}
+{"test":"packages/registry/tests/package-registry.test.ts","note":"no files resolved","frags":5,"files":0}

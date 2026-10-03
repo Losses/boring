@@ -1,0 +1,23 @@
+package tests
+
+import boring.SumOfFloatLocalOps
+import boring.runtime.test.Test
+
+class SumOfFloatLocalTests {
+@boring.test.Test
+    fun testTotal() {
+        Test.run("tests.SumOfFloatLocalTests.testTotal", "tests.SumOfFloatLocalTests.testTotal: sumOfFloat in a local function keeps the Float accumulator") {
+                Test.equals(6.0, SumOfFloatLocalOps.total(mutableListOf<Double>(1.5, 2.0, 2.5)), null)
+                Test.equals(7.25, SumOfFloatLocalOps.total(mutableListOf<Double>(1.5, 2.5, 3.25)), null)
+                Test.equals(0.0, SumOfFloatLocalOps.total(mutableListOf<Double>()), null)
+        }
+    }
+
+@boring.test.Test
+    fun testWeighted() {
+        Test.run("tests.SumOfFloatLocalTests.testWeighted", "tests.SumOfFloatLocalTests.testWeighted: a weighted sumOfFloat in a local function scales the accumulator") {
+                Test.equals(12.0, SumOfFloatLocalOps.weighted(mutableListOf<Double>(1.5, 2.0, 2.5), 2.0), null)
+                Test.equals(14.5, SumOfFloatLocalOps.weighted(mutableListOf<Double>(1.5, 2.5, 3.25), 2.0), null)
+        }
+    }
+}

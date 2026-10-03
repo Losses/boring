@@ -1,0 +1,14 @@
+#![cfg(test)]
+
+use crate::boring::interface_fallible_ops::InterfaceFallibleOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn value() {
+    testlib::run("tests.InterfaceFallibleOpsTests.value", "tests.InterfaceFallibleOpsTests.value: a call through a throwing interface method propagates its error", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[118,97,108,117,101,51]), InterfaceFallibleOps::interface_fallible_ops_value(3).unwrap().as_ustr(), UStr::new(&[]));
+    });
+}

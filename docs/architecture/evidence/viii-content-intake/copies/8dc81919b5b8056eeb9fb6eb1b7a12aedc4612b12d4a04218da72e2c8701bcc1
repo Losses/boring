@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class MapValueOptionalTests {
+@boring.test.Test
+    fun testValue() {
+        Test.run("tests.MapValueOptionalTests.testValue", "tests.MapValueOptionalTests.testValue: a sorted-map value optional carries one optional layer") {
+                Test.equals(true, true, null)
+        }
+    }
+}

@@ -1,0 +1,23 @@
+/tmp/lfx/out/fixed-stmt/gen/mx/MXStmt.swift:13:13: warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+11 |         case .qOne:
+12 |             let first = QSource.first()
+13 |             ReadOnlyArray(first)
+   |             `- warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+14 |         case .qTwo:
+15 |             ReadOnlyArray(QSource.second())
+
+/tmp/lfx/out/fixed-stmt/gen/mx/MXStmt.swift:15:13: warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+13 |             ReadOnlyArray(first)
+14 |         case .qTwo:
+15 |             ReadOnlyArray(QSource.second())
+   |             `- warning: result of 'ReadOnlyArray<Element>' initializer is unused [#no-usage]
+16 |     }
+17 | }
+
+/tmp/lfx/out/fixed-stmt/gen/mx/MXStmt.swift:17:1: error: missing return in closure expected to return 'ReadOnlyArray<Int32>'
+15 |             ReadOnlyArray(QSource.second())
+16 |     }
+17 | }
+   | `- error: missing return in closure expected to return 'ReadOnlyArray<Int32>'
+18 |         return QSource.view(f(c))
+19 |     }

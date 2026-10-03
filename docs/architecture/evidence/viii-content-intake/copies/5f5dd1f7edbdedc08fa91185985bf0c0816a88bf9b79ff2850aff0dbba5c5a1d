@@ -1,0 +1,2637 @@
+diff --git a/tools/roots-guard/check-roots-guard.sh b/tools/roots-guard/check-roots-guard.sh
+index e6249796..60104885 100644
+--- a/tools/roots-guard/check-roots-guard.sh
++++ b/tools/roots-guard/check-roots-guard.sh
+@@ -1,33 +1,713 @@
+ #!/usr/bin/env bash
+ # Roots-manifest consistency guard (precision-switch bundles).
+ #
+-# Invariant (feature specs 19 and 23): every root module listed in a base
+-# target's hxml must also be listed in that target's f32 variant, so the
+-# cross-target test id set stays equal across the precision switch. The f32
+-# roots lists are hand-maintained; this guard catches the drift that left
+-# the 2026-09-04..09-26 test modules out of the f32 binaries (see
+-# dc-warn/out/f32-divergence/REPORT.md).
++# WHAT THIS SCRIPT ACTUALLY ENFORCES -- nothing stronger.  (An earlier header
++# claimed it kept "the cross-target test id set equal"; the guard never reads a
++# module body or a test id, so that claim is withdrawn.  It compares
++# root-module LISTS, which is necessary but not sufficient for equal id sets.)
+ #
+-# A pair may carry an explicit exemption in roots-allowlist.json, but every
+-# entry must state a reason; reasonless exemptions are rejected.
++# For each guarded target T in {kotlin,rust,swift}, with
++#   B = examples/T.hxml        F = examples/T-f32.hxml
+ #
+-# Usage: check-roots-guard.sh [examples-dir]
++#  (1) ROOT-SET EQUALITY, BOTH DIRECTIONS.  root(B) == root(F).
++#      A module in B but not F ("base-only") and a module in F but not B
++#      ("f32-only") are both reported, and either one fails the guard.
++#      A root is:
++#        (i)   a bare module-path line `Ident(.Ident)*`,
++#        (ii)  a `-main <module>` argument,
++#        (iii) any root of a nested `.hxml` include (depth <= 8),
++#        (iv) none.  `--macro include('X')` and
++#             `--macro haxe.macro.Compiler.include('X')` are PARSED but
++#             contribute no roots: measured with haxe 4.3.7, a complete
++#             module argument (present, absent, or even a malformed name
++#             such as `no-such-pkg`) is a SILENT NO-OP (rc=0, the compiled
++#             class set is unchanged -- the argument is not a root); the
++#             one case where the line changes compilation is an argument
++#             that names a PACKAGE DIRECTORY on the file's own classpath
++#             (e.g. `include('extra')` when `extra/` is on -cp): haxe then
++#             rejects the file with
++#             "Invalid commandline class : extra.X should be X" (rc=1),
++#             and this guard fails the file the same way.  That is the
++#             only include() effect modelled; nothing else is.
++
++#      Line grammar follows haxe 4.3.7, measured (evidence/05-* in
++#      dc-warn/out/roots-guard-f2/evidence/): surrounding whitespace
++#      (space, tab) and a trailing CR are trimmed exactly as the compiler
++#      trims them, so a root line with a leading space/tab, a trailing space,
++#      or a trailing CR is a ROOT here (and a failure when it diverges),
++#      never silently dropped.  A line that carries two tokens, or an inline
++#      '#' inside the argument, is REJECTED here, exactly as the compiler
++#      rejects it ("Could not process argument ... Invalid character").  A
++#      line that is neither a recognised flag, an include, nor a module path
++#      fails; it is no longer silently dropped.
++#      OUT OF SCOPE, explicitly: every other `--macro` line --
++#      haxe.macro.Compiler.keep, haxe.macro.Compiler.addGlobalMetadata, and
++#      custom macros such as Intercept.run -- and every other flag line.
++#      Whatever modules those force-keep, force-add, or otherwise change are
++#      NOT part of the root set this guard models, and this header does not
++#      claim otherwise.  (A one-sided `--macro` that changes the compiled
++#      module set through a non-include macro is therefore undetectable here
++#      by design; only the include('X') reject case of (iv) is modelled.)
++
++#  (2) DECLARED DIVERGENCE.  roots-allowlist.json `exempt` entries authorise a
++#      specific (target, module) asymmetry.  An entry must be LIVE: that module
++#      must really be the asymmetric one for that target; an entry for a
++#      guarded target whose module is symmetric for it (present in both files,
++#      or absent from both) is a STALE exemption and fails.  Entries are
++#      structurally validated: target in {kotlin,rust,swift,*} (anything else
++#      fails the structural check), module a plausible dotted module path, and
++#      a reason that passes the shape checks below.  NO MEANING CHECK: the
++#      reason checks verify SHAPE ONLY -- at least 4 whitespace-separated
++#      words, at least 24 characters, no tab/newline, not a single known
++#      placeholder token, at least three ASCII letters, no repeated-token
++#      spam (one token occupying half or more of the words, so "todo todo
++#      todo todo todo!" fails), and no padded/gibberish token (three or
++#      more consecutive repeats of one character, so the minimal
++#      four-word 24-character bypass "aaaa bbbb cccc dddxxxxxx" fails).
++#      A well-shaped but meaningless reason (e.g. "alpha beta gamma delta
++#      oxen") still passes: a script cannot verify that prose is
++#      meaningful, so a reviewer has to read the reason.  A single
++#      `target: "*"` entry authorises the same
++#      (module, reason) for all three guarded targets at once (one entry =
++#      up to three EXEMPT/UNROOT effects); that blast radius is by design.
++#  (3) ROOT EXISTENCE, PER FILE.  Every root of a file must resolve to a
++#      real .hx on the classpath THAT FILE declares: its own -cp/-lib lines
++#      plus the -cp/-lib lines of the .hxml files it includes.  A root that
++#      only another file's classpath provides fails -- classpath sets are
++#      checked per file, not unioned (removing `-cp samples` from one f32
++#      file is a failure).  No repo-wide fallback applies to file roots.
++#      Modules named by the allowlist or by the root floor are resolved
++#      against the union of all guarded classpaths, with a repo-wide .hx
++#      fallback; for those, existence is still not compilability (a module
++#      no single file's classpath provides can still pass if the union or
++#      the fallback sees it).
++#  (4) TEST-MODULE COVERAGE.  Every .hx under a `tests/` directory of a
++#      guarded classpath (the union of all six files' classpaths) that
++#      declares `@:test` must be a root of at least one of B/F.  A test
++#      module missing from BOTH files used to be invisible; it now fails
++#      unless declared in allowlist section `unrootedTestModules` (also
++#      shape-checked and stale-checked -- and, when it was rooted at the
++#      last baseline refresh, caught by (5) even with a well-shaped
++#      declaration).
++#  (5) ROOT FLOOR.  roots-baseline.txt pins the root set at the moment it
++#      was last refreshed: every pinned (target, module) must still be a
++#      root of at least one of the pair's files.  (1) compares the two
++#      files against each other, so a root deleted from BOTH files is
++#      invisible to it; (5) catches that deletion (whether or not the
++#      module declares @:test).  The shipped baseline is the root set of
++#      the current tree (union of each pair's two files, one line per
++#      module).  If a root-set change is deliberate, refresh the floor with
++#      `--print-baseline > roots-baseline.txt`; the floor check is
++#      fail-closed when the file is missing.
++#
++# REPORTED BUT NOT FATAL (use --strict-duplicates to fail on them):
++#   * duplicate root lines inside one pair.  The shipped hxml files currently
++#     contain 45 such lines; duplicates cannot change the module set, they are
++#     inert, and this guard does not modify examples/**.  They are printed with
++#     file:line and counted so they stop being invisible.
++#
++# NOT COVERED (the header never claims these):
++#   * the meaning of a reason (shape only, see (2));
++#   * side effects of non-include `--macro` lines and of all other flag lines
++#     (see (1)); `--next`/`--each` multi-compilation files are flattened into
++#     one root set;
++#   * @:test modules outside a <guarded-classpath>/tests directory, including
++#     any under the repository-root tests/ (coverage scans the guarded
++#     classpaths' tests/ directories only);
++#   * compilability of allowlist/floor modules beyond existence (see (3));
++#   * test ids, @:test case sets, module bodies, runtime behaviour under
++#     binary32/binary64.  `samples/tests/f32/PrintedFloatTests.hx` ships 6
++#     f32-only ids that this guard cannot see (declared in
++#     tools/test-consistency/extra-id-allowlist.json);
++#   * dart/ts pairs are not guarded (no -f32 variant);
++#   * bypass surfaces: ROOTS_GUARD_ALLOWLIST (see below) and --repo-root /
++#     ROOTS_GUARD_REPO_ROOT redirect what is checked; a caller who can set
++#     them can point the guard at any allowlist or tree, so a PASS is only
++#     as strong as the provenance of the allowlist and the tree it ran on.
++#
++# Usage: check-roots-guard.sh [examples-dir] [--repo-root=PATH]
++#                       [--strict-duplicates] [--print-baseline]
++#
++#   examples-dir        default: <script>/../../examples
++#   --repo-root=PATH    repository root used for module-source resolution
++#                       (also honoured: ROOTS_GUARD_REPO_ROOT).  If discovery
++#                       fails the guard FAILS rather than skipping the checks.
++#   --strict-duplicates fail on duplicate root lines (see above)
++#   --print-baseline    print the current root floor (one `target<TAB>module`
++#                       line per module of the union of each pair's root
++#                       sets) and exit; use it to refresh
++#                       roots-baseline.txt after a deliberate root change.
++#
++# Environment:
++#   ROOTS_GUARD_REPO_ROOT   repository root (same as --repo-root=PATH)
++#   ROOTS_GUARD_ALLOWLIST   path of the allowlist (default:
++#                       <script>/roots-allowlist.json).  Documented
++#                       override: a PASS produced with a non-default
++#                       allowlist is only as strong as that file.
++#
++# Exit: 0 = PASS, 1 = FAILED, 2 = usage error.
+ set -u
++
++usage() {
++    local last
++    last="$(grep -n '^set -u$' "$0" | head -n1 | cut -d: -f1)"
++    sed -n "2,$((last - 1))p" "$0"
++}
++
++examples=""
++repo_override="${ROOTS_GUARD_REPO_ROOT:-}"
++strict_dups=0
++print_baseline=0
++while [ "$#" -gt 0 ]; do
++    case "$1" in
++        --repo-root=*)       repo_override="${1#*=}" ;;
++        --strict-duplicates) strict_dups=1 ;;
++        --print-baseline)    print_baseline=1 ;;
++        -h|--help)           usage; exit 0 ;;
++        -*)                  echo "FAIL: unknown option: $1"; exit 2 ;;
++        *)                   if [ -z "$examples" ]; then examples="$1";
++                              else echo "FAIL: unexpected argument: $1"; exit 2; fi ;;
++    esac
++    shift
++done
++
+ here="$(cd "$(dirname "$0")" && pwd)"
+-examples="${1:-$here/../../examples}"
+-allowlist="$here/roots-allowlist.json"
++allowlist="${ROOTS_GUARD_ALLOWLIST:-$here/roots-allowlist.json}"
++baseline="$here/roots-baseline.txt"
++examples="${examples:-$here/../../examples}"
++if [ ! -d "$examples" ]; then
++    echo "FAIL: examples directory not found: $examples"
++    echo "roots guard: FAILED"
++    exit 1
++fi
++examples="$(cd "$examples" && pwd)"
++
++# ---------------------------------------------------------------- repo root --
++looks_like_repo() {
++    local d="$1"
++    [ -f "$d/haxelib.json" ] && [ -d "$d/samples" ] && [ -d "$d/packages" ]
++}
++repo="$repo_override"
++if [ -z "$repo" ]; then
++    d="$here"
++    while :; do
++        if looks_like_repo "$d"; then repo="$d"; break; fi
++        case "$d" in
++            /) repo=""; break ;;
++            *) d="${d%/*}"
++               [ -n "$d" ] || { d="/"; }
++               ;;
++        esac
++    done
++fi
++if [ -z "$repo" ] || ! looks_like_repo "$repo"; then
++    echo "FAIL: could not discover repository root (need haxelib.json + samples/ + packages/); pass --repo-root=PATH"
++    echo "roots guard: FAILED"
++    exit 1
++fi
++repo="$(cd "$repo" && pwd)"
++
+ fail=0
+ exemptions=0
+-list_reason() {
+-    node -e '
+-        const fs=require("fs");
+-        const mod=process.argv[1], target=process.argv[2], p=process.argv[3];
+-        if(!fs.existsSync(p)) process.exit(0);
+-        const list=JSON.parse(fs.readFileSync(p,"utf8")).exempt||[];
+-        const hit=list.find(e=>e.module===mod&&e.target===target);
+-        if(hit&&hit.reason) console.log(hit.reason);
+-    ' "$1" "$2" "$3"
++unrooted_decls=0
++dup_lines=0
++floor_pins=0
++
++tmpd="$(mktemp -d "${TMPDIR:-/tmp}/roots-guard.XXXXXX")"
++trap 'rm -rf "$tmpd"' EXIT
++
++# ---------------------------------------------------------------- allowlist --
++if [ ! -f "$allowlist" ]; then
++    echo "FAIL: allowlist not found: $allowlist"
++    echo "roots guard: FAILED"
++    exit 1
++fi
++node -e '
++const fs = require("fs");
++const raw = fs.readFileSync(process.argv[1], "utf8");
++let doc;
++try { doc = JSON.parse(raw); }
++catch (e) { console.log("FAIL: allowlist is not valid JSON: " + e.message); process.exit(1); }
++if (doc === null || typeof doc !== "object" || Array.isArray(doc)) {
++    console.log("FAIL: allowlist root must be a JSON object"); process.exit(1);
++}
++const allowed = new Set(["exempt", "unrootedTestModules"]);
++for (const k of Object.keys(doc)) if (!allowed.has(k))
++    console.log("FAIL: unknown top-level key: " + JSON.stringify(k));
++const GUARDED = new Set(["kotlin", "rust", "swift", "*"]);
++const PLACEHOLDER = new Set(["", "x", "todo", "n/a", "na", "none", "fixme", "xxx", "placeholder", "reason"]);
++function moduleOk(s) { return typeof s === "string" && /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(s); }
++function reasonProblem(r) {
++    if (typeof r !== "string") return "reason is not a string";
++    const t = r.trim();
++    if (!t) return "blank/whitespace-only reason";
++    if (/[\t\n\r]/.test(t)) return "reason contains a tab or newline";
++    const words = t.split(/\s+/);
++    if (words.length < 4) return "reason is too short to be an exemption sentence (" + words.length +
++        " word(s): " + JSON.stringify(t) + "); need >= 4 words";
++    if (t.length < 24) return "reason too short (" + t.length + " chars, need >= 24)";
++    if (PLACEHOLDER.has(t.toLowerCase())) return "reason is a placeholder token: " + JSON.stringify(t);
++    if (!/[A-Za-z]{3}/.test(t)) return "reason contains no prose";
++    for (const w of words) {
++        if (/(.)\1{2,}/.test(w))
++            return "reason contains a padded/gibberish token (three or more consecutive repeats of one character): " +
++                JSON.stringify(w);
++    }
++    const cnt = {};
++    let mxTok = "", mxN = 0;
++    for (const w of words) {
++        const k = w.toLowerCase();
++        cnt[k] = (cnt[k] || 0) + 1;
++        if (cnt[k] > mxN) { mxN = cnt[k]; mxTok = k; }
++    }
++    if (mxN >= Math.ceil(words.length / 2))
++        return "reason is repeated-token spam (" + mxN + " of " + words.length +
++            " words are " + JSON.stringify(mxTok) + ")";
++    return "";
++}
++function checkEntry(section, i, e) {
++    if (e === null || typeof e !== "object" || Array.isArray(e))
++        return section + "[" + i + "] is not an object";
++    const keys = Object.keys(e).sort();
++    const want = ["module", "reason", "target"];
++    if (keys.join(",") !== want.join(","))
++        return section + "[" + i + "] keys must be exactly target,module,reason (got " +
++            keys.join(",") + ")";
++    if (!GUARDED.has(e.target))
++        return section + "[" + i + "].target must be one of kotlin/rust/swift/* (got " +
++            JSON.stringify(e.target) + ")";
++    if (!moduleOk(e.module))
++        return section + "[" + i + "].module is not a plausible dotted module path: " +
++            JSON.stringify(e.module);
++    const rp = reasonProblem(e.reason);
++    if (rp) return section + "[" + i + "].module " + e.module + ": " + rp;
++    return "";
++}
++const seen = new Set();
++let bad = 0;
++for (const section of ["exempt", "unrootedTestModules"]) {
++    const arr = doc[section];
++    if (arr === undefined) continue;
++    if (!Array.isArray(arr)) {
++        console.log("FAIL: " + section + " must be an array"); bad = 1; continue;
++    }
++    for (let i = 0; i < arr.length; i++) {
++        const p = checkEntry(section, i, arr[i]);
++        if (p) { console.log("FAIL: allowlist: " + p); bad = 1; continue; }
++        const t = arr[i].target === "*" ? ["kotlin", "rust", "swift"] : [arr[i].target];
++        for (const tt of t) {
++            const k = section + "|" + tt + "|" + arr[i].module;
++            if (seen.has(k)) {
++                console.log("FAIL: allowlist: duplicate " + section + " entry for target " +
++                    tt + " module " + arr[i].module); bad = 1;
++            }
++            seen.add(k);
++        }
++    }
++}
++process.exit(bad ? 1 : 0);
++' "$allowlist"
++if [ $? -ne 0 ]; then
++    echo "roots guard: FAILED"
++    exit 1
++fi
++
++declare -a ex_keys=() un_keys=()
++declare -A ex_reason=() un_reason=()
++node -e '
++const fs = require("fs");
++const doc = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
++for (const s of ["exempt", "unrootedTestModules"]) {
++    for (const e of doc[s] || []) {
++        for (const t of (e.target === "*" ? ["kotlin", "rust", "swift"] : [e.target]))
++            process.stdout.write(s + "\t" + t + "\t" + e.module + "\t" +
++                e.reason.replace(/\n/g, " ") + "\n");
++    }
++}
++' "$allowlist" > "$tmpd/entries.tsv"
++while IFS=$'\t' read -r sect t mod reason; do
++    if [ "$sect" = "exempt" ]; then ex_keys+=("$t|$mod"); ex_reason["$t|$mod"]="$reason"
++                                   else un_keys+=("$t|$mod"); un_reason["$t|$mod"]="$reason"; fi
++done < "$tmpd/entries.tsv"
++
++# ------------------------------------------------------- root floor (5) -----
++FLOOR_MODULES=()
++declare -A FLOOR_SEEN=()
++if [ "$print_baseline" -eq 0 ]; then
++    if [ ! -f "$baseline" ]; then
++        echo "FAIL: root-floor baseline not found: $baseline (fail-closed); regenerate it with --print-baseline after a deliberate root-set change"
++        fail=1
++    else
++        bln=0
++        while IFS= read -r bline || [ -n "$bline" ]; do
++            bln=$((bln + 1))
++            bt="${bline#"${bline%%[![:space:]]*}"}"
++            bt="${bt%"${bt##*[![:space:]]}"}"
++            if [ -z "$bt" ] || [[ "$bt" == \#* ]]; then continue; fi
++            fbt=""; fbm=""; fbextra=""
++            IFS=$'\t' read -r fbt fbm fbextra <<< "$bt"
++            if [ -z "$fbt" ] || [ -z "$fbm" ] || [ -n "$fbextra" ]; then
++                echo "FAIL: $baseline:$bln: malformed root-floor line (want exactly target<TAB>module): $bline"
++                fail=1
++                continue
++            fi
++            case "$fbt" in
++                kotlin|rust|swift) : ;;
++                *) echo "FAIL: $baseline:$bln: target must be one of kotlin/rust/swift (got: $fbt)"; fail=1; continue ;;
++            esac
++            if [[ "$fbm" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$ ]]; then :; else
++                echo "FAIL: $baseline:$bln: module is not a plausible dotted module path: $fbm"
++                fail=1
++                continue
++            fi
++            if [ -n "${FLOOR_SEEN[$fbt|$fbm]:-}" ]; then
++                echo "FAIL: $baseline:$bln: duplicate root-floor entry for target $fbt module $fbm (first seen at line ${FLOOR_SEEN[$fbt|$fbm]})"
++                fail=1
++                continue
++            fi
++            FLOOR_SEEN["$fbt|$fbm"]="$bln"
++            FLOOR_MODULES+=("$fbt"$'\t'"$fbm")
++        done < "$baseline"
++        floor_pins=${#FLOOR_MODULES[@]}
++    fi
++fi
++
++# ------------------------------------------------------------- collection ----
++declare -A CP_SEEN=()
++CP_ALL=()
++declare -A FILE_CP=()
++declare -A INCLUDE_ARGS=()
++INCLUDE_STACK=""
++C_QUIET=0
++
++c_fail() {
++    fail=1
++    [ "$C_QUIET" -eq 1 ] && return 0
++    printf '%s\n' "$1" >&2
++}
++
++note_cp() {
++    [ -d "$1" ] || return 0
++    local abs
++    abs="$(cd "$1" && pwd)"
++    [ -n "${CP_SEEN[$abs]:-}" ] && return 0
++    CP_SEEN["$abs"]=1
++    CP_ALL+=("$abs")
++}
++
++# note_cp_for: record a classpath dir for the global union (allowlist/floor
++# existence, coverage) AND for the top-level file it came from (per-file
++# existence check).  $1 = top file, $2 = dir (relative or absolute).
++note_cp_for() {
++    local top="$1" d="$2"
++    [ -d "$d" ] || return 0
++    local abs
++    abs="$(cd "$d" && pwd)"
++    note_cp "$abs"
++    case $'\n'"${FILE_CP[$top]:-}"$'\n' in
++        *$'\n'"$abs"$'\n'*) : ;;
++        *) FILE_CP["$top"]="${FILE_CP[$top]:-}${FILE_CP[$top]:+$'\n'}$abs" ;;
++    esac
++}
++
++lib_classpath() {
++    local lib="$1" cur dev hj cp proj rel
++    cur="$repo/.haxelib/$lib/.current"
++    dev="$repo/.haxelib/$lib/.dev"
++    if [ -f "$dev" ] && [ -d "$(cat "$dev" 2>/dev/null)" ]; then
++        cp="$(cat "$dev")"
++        proj="$cp"
++        hj="$cp/haxelib.json"
++    elif [ -f "$cur" ] && [ -d "$(cat "$cur" 2>/dev/null)" ]; then
++        cp="$(cat "$cur")"
++        proj="$cp"
++        if [ -f "$cp/haxelib.json" ]; then
++            hj="$cp/haxelib.json"
++        elif [ -f "$repo/haxelib.json" ] && [ "$(basename "$cp")" = "$lib" ]; then
++            hj="$repo/haxelib.json"
++            proj="$repo"
++        else
++            hj=""
++        fi
++    else
++        return 0
++    fi
++    # A haxelib dev/current install contributes the project's classPath
++    # (relative to the project path) to the compiler, which is what haxe
++    # actually uses; a dev install's project path is the .dev target.
++    # Fall back to the raw install directory when haxelib.json/classPath
++    # is absent.
++    if [ -n "$hj" ] && [ -f "$hj" ] && command -v node >/dev/null 2>&1; then
++        cp="$(node -e 'const d=require(process.argv[1]);const c=d.classPath;if(Array.isArray(c))c.forEach(x=>console.log(x));else if(typeof c==="string")console.log(c);' "$hj" 2>/dev/null)"
++        if [ -n "$cp" ]; then
++            while IFS= read -r rel; do
++                [ -n "$rel" ] && [ -d "$proj/$rel" ] && printf '%s\n' "$proj/$rel"
++            done <<< "$cp"
++            return 0
++        fi
++    fi
++    [ -d "$cp" ] && printf '%s\n' "$cp"
++}
++
++
++collect_roots() {
++    local f="$1" depth="$2" top="${3:-}" line lineno ref base line_t macro_rest inc_pkg pat
++    [ -n "$top" ] || top="$f"
++    if [ ! -f "$f" ]; then
++        c_fail "FAIL: missing file: $f"
++        return 0
++    fi
++    case " $INCLUDE_STACK " in
++        *" $f "*) c_fail "FAIL: hxml include cycle at $f"; return 0 ;;
++    esac
++    if [ "$depth" -gt 8 ]; then
++        c_fail "FAIL: hxml include depth exceeded at $f"
++        return 0
++    fi
++    INCLUDE_STACK="$INCLUDE_STACK $f"
++    lineno=0
++    while IFS= read -r line || [ -n "$line" ]; do
++        lineno=$((lineno + 1))
++        # haxe 4.3.7 trims surrounding whitespace (space/tab) and a trailing
++        # CR on hxml lines (measured, evidence/05-*); classify the trimmed
++        # line so such lines are roots here, never silently dropped.
++        line_t="${line#"${line%%[![:space:]]*}"}"
++        line_t="${line_t%"${line_t##*[![:space:]]}"}"
++        case "$line_t" in
++            ''|'#'*|';'*) continue ;;
++            -main|--main)
++                c_fail "FAIL: $f:$lineno: '$line_t' without a module argument"; continue ;;
++            -main[[:space:]]*|--main[[:space:]]*)
++                ref="$(printf '%s' "$line_t" | sed 's/^-\{1,2\}main[[:space:]]*//; s/[[:space:]]*$//')"
++                case "$ref" in
++                    '') c_fail "FAIL: $f:$lineno: -main without a module argument" ;;
++                    *[[:space:]]*) c_fail "FAIL: $f:$lineno: -main with multiple tokens: $line_t (haxe rejects multi-token argument lines)" ;;
++                    *[!A-Za-z0-9_.]*|[!A-Za-z_]*) c_fail "FAIL: $f:$lineno: malformed -main module path: $ref" ;;
++                    *) printf '%s\t%s\t%s\n' "$ref" "$(basename "$f")" "$lineno" ;;
++                esac
++                continue ;;
++            -cp|--cp|-cp[[:space:]]*|--cp[[:space:]]*)
++                ref="$(printf '%s' "$line_t" | sed 's/^-\{1,2\}cp[[:space:]]*//; s/[[:space:]]*$//')"
++                if [ -z "$ref" ]; then
++                    c_fail "FAIL: $f:$lineno: -cp without a directory"
++                else
++                    for base in "$repo" "$examples" "$(dirname "$f")" "$PWD"; do
++                        note_cp_for "$top" "$base/$ref"
++                    done
++                    case "$ref" in /*) note_cp_for "$top" "$ref" ;; esac
++                fi
++                continue ;;
++            -lib|--lib|-lib[[:space:]]*|--lib[[:space:]]*)
++                ref="$(printf '%s' "$line_t" | sed 's/^-\{1,2\}lib[[:space:]]*//; s/[[:space:]]*$//')"
++                if [ -z "$ref" ]; then
++                    c_fail "FAIL: $f:$lineno: -lib without a library name"
++                else
++                    while IFS= read -r cpdir; do
++                        note_cp_for "$top" "$cpdir"
++                    done < <(lib_classpath "$ref")
++                fi
++                continue ;;
++            --macro*|-macro*)
++                # include('X') / haxe.macro.Compiler.include('X) arguments are
++                # recorded for the per-file reject check (measured semantics,
++                # header (iv)): a package-directory argument makes haxe
++                # reject the file; every other argument is a silent no-op
++                # and contributes no roots.  Every other --macro line is out
++                # of scope by design (header (1)).
++                macro_rest="${line_t#*macro}"
++                macro_rest="${macro_rest#"${macro_rest%%[![:space:]]*}"}"
++                inc_pkg=""
++                for pat in \
++                    "haxe\.macro\.Compiler\.include\('([^']+)'\)" \
++                    'haxe\.macro\.Compiler\.include\("([^"]+)"\)' \
++                    "include\('([^']+)'\)" \
++                    'include\("([^"]+)"\)'
++                do
++                    if [[ "$macro_rest" =~ ^[[:space:]]*$pat[[:space:]]*$ ]]; then
++                        inc_pkg="${BASH_REMATCH[1]}"
++                        break
++                    fi
++                done
++                if [ -n "$inc_pkg" ]; then
++                    case $'\n'"${INCLUDE_ARGS[$top]:-}"$'\n' in
++                        *$'\n'"$inc_pkg"$'\n'*) : ;;
++                        *) INCLUDE_ARGS["$top"]="${INCLUDE_ARGS[$top]:-}${INCLUDE_ARGS[$top]:+$'\n'}$inc_pkg" ;;
++                    esac
++                fi
++
++                continue ;;
++            -*|+*) continue ;;
++        esac
++        case "$line_t" in
++            *.hxml)
++                ref=""
++                for base in "$(dirname "$f")" "$examples" "$repo" "$PWD"; do
++                    if [ -f "$base/$line_t" ]; then ref="$base/$line_t"; break; fi
++                done
++                if [ -z "$ref" ]; then
++                    c_fail "FAIL: $f:$lineno: unresolved hxml include: $line_t"
++                else
++                    collect_roots "$ref" $((depth + 1)) "$top"
++                fi
++                continue ;;
++        esac
++        # A bare argument line: haxe takes the WHOLE trimmed line as one
++        # argument, so anything but a single module token is rejected
++        # (measured: "Could not process argument ... Invalid character").
++        if [[ "$line_t" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$ ]]; then
++            printf '%s\t%s\t%s\n' "$line_t" "$f" "$lineno"
++        elif [[ "$line_t" =~ ^[A-Za-z_][A-Za-z0-9_.]*$ ]]; then
++            c_fail "FAIL: $f:$lineno: malformed root module path: $line_t"
++        elif [[ "$line_t" =~ [[:space:]] ]] || [[ "$line_t" == *'#'* ]]; then
++            c_fail "FAIL: $f:$lineno: malformed hxml argument line (multi-token or inline '#' not honoured by haxe; the whole argument is rejected): $line_t"
++        else
++            c_fail "FAIL: $f:$lineno: unrecognised hxml line (not a flag, an include, or a module path): $line_t"
++        fi
++    done < "$f"
++    INCLUDE_STACK="${INCLUDE_STACK% "$f"}"
++}
++
++# include() reject check (measured semantics, header (iv)): for top-level
++# file $1, each --macro include('X') argument that names a package
++# directory on the file's own classpath (a dir $d/X with no module file
++# $d/X.hx) makes haxe reject the file with "Invalid commandline class :
++# X.Y should be Y"; fail the file the same way.  Every other argument is a
++# measured silent no-op (rc=0, no root contributed) and emits nothing.
++include_reject_check() {
++    local top="$1" args="${INCLUDE_ARGS[$1]:-}" X d
++    [ -n "$args" ] || return 0
++    while IFS= read -r X; do
++        [ -n "$X" ] || continue
++        for d in ${FILE_CP[$top]:-}; do
++            [ -d "$d/$X" ] && [ ! -f "$d/$X.hx" ] && {
++                echo "FAIL: $(basename "$top"): --macro include('$X'): argument names a package directory ($d/$X) rather than a module; haxe 4.3.7 rejects this file (measured: \"Invalid commandline class : ${X}.* should be *\", rc=1) and compiles nothing; name the module instead, or drop the include"
++                fail=1
++                break
++            }
++        done
++    done <<< "$args"
+ }
++
++
++# Build a sorted index of module names provided by the cp dirs listed (one
++# per line) in $1, written to $2.
++make_cp_index() {
++    local d rel hx out="$2"
++    : > "$out"
++    while IFS= read -r d; do
++        [ -n "$d" ] && [ -d "$d" ] || continue
++        while IFS= read -r hx; do
++            rel="${hx#"$d"/}"
++            rel="${rel%.hx}"
++            printf '%s\n' "${rel//\//.}"
++        done < <(find "$d" -type f -name '*.hx' | sort) >> "$out"
++    done < "$1"
++    sort -u "$out" -o "$out"
++}
++
++# ------------------------------------------------------------------ prescan --
++# Populate the global classpath union (and per-file sets) before coverage.
++for t in kotlin rust swift; do
++    for suff in "" "-f32"; do
++        f="$examples/$t$suff.hxml"
++        if [ -f "$f" ]; then
++            C_QUIET=1
++            collect_roots "$f" 0 "$f" > /dev/null
++            C_QUIET=0
++        fi
++    done
++done
++
++
++# --------------------------------------------------------------- resolution --
++# Union of all guarded classpaths (index) + repo-wide fallback.  Used for
++# allowlist/root-floor modules only.
++make_cp_index <(printf '%s\n' ${CP_ALL[@]+"${CP_ALL[@]}"}) "$tmpd/idx.all"
++
++# Repo-wide fallback index: every .hx under the repo (skipping installed
++# libraries, dependencies, and build output) as dotted module names.
++# Built once; membership is a single grep, not a per-module find.
++find "$repo" -path "$repo/.haxelib" -prune -o -path "$repo/node_modules" -prune \
++    -o -type f -name '*.hx' -print 2>/dev/null |
++while IFS= read -r hx; do
++    rel="${hx#"$repo"/}"
++    rel="${rel%.hx}"
++    printf '%s\n' "${rel//\//.}"
++done | sort -u > "$tmpd/idx.fallback"
++declare -A RESOLVED=()
++RESOLVED_PATH=""
++resolve_module() {
++    local m="$1"
++    if [ -n "${RESOLVED[$m]:-}" ]; then RESOLVED_PATH="${RESOLVED[$m]}"; return 0; fi
++    if grep -qx -- "$m" "$tmpd/idx.all"; then
++        RESOLVED["$m"]=1
++        RESOLVED_PATH=""
++        return 0
++    fi
++    if grep -qx -- "$m" "$tmpd/idx.fallback"; then
++        RESOLVED["$m"]=fallback
++        RESOLVED_PATH=""
++        return 0
++    fi
++    return 1
++}
++
++# --print-baseline: emit the current root floor and stop.
++if [ "$print_baseline" -eq 1 ]; then
++    : > "$tmpd/pb.out"
++    for t in kotlin rust swift; do
++        b="$examples/$t.hxml"
++        f="$examples/$t-f32.hxml"
++        : > "$tmpd/pb.$t.base"
++        : > "$tmpd/pb.$t.f32"
++        collect_roots "$b" 0 "$b" > "$tmpd/pb.$t.base"
++        collect_roots "$f" 0 "$f" > "$tmpd/pb.$t.f32"
++
++        cat "$tmpd/pb.$t.base" "$tmpd/pb.$t.f32" | cut -f1 | sort -u | while IFS= read -r m; do
++            [ -n "$m" ] && printf '%s\t%s\n' "$t" "$m"
++        done >> "$tmpd/pb.out"
++    done
++    if [ "$fail" -ne 0 ]; then
++        echo "FAIL: refusing to print a root-floor baseline: the tree does not parse cleanly (see diagnostics above)"
++        echo "roots guard: FAILED"
++        exit 1
++    fi
++    cat "$tmpd/pb.out"
++    exit 0
++fi
++
++# @:test coverage scan: every .hx under a tests/ directory of a guarded
++# classpath that declares @:test, keyed by module path relative to that
++# classpath dir (so <cp>/tests/Foo.hx is module tests.Foo).  Built once,
++# after the prescan populated the classpath union.
++declare -A SCAN_MODULES=()
++scan_found=0
++for d in ${CP_ALL[@]+"${CP_ALL[@]}"}; do
++    tdir="$d/tests"
++    [ -d "$tdir" ] || continue
++    scan_found=1
++    while IFS= read -r f; do
++        grep -q '@:test' "$f" 2>/dev/null || continue
++        rel="${f#"$d"/}"
++        rel="${rel%.hx}"
++        SCAN_MODULES["${rel//\//.}"]="$f"
++    done < <(find "$tdir" -type f -name '*.hx' | sort)
++done
++if [ "$scan_found" -eq 0 ]; then
++    echo "FAIL: no tests/ directory found under any guarded classpath (checked: ${CP_ALL[*]:-none}); the @:test coverage check cannot run"
++    fail=1
++fi
++mapfile -t SCAN_MOD_LIST < <(printf '%s\n' ${SCAN_MODULES[@]+"${!SCAN_MODULES[@]}"} | sort)
++
++declare -A EX_USED=() UN_USED=()
++# ------------------------------------------------------------- per target ---
++# The global union is only used for allowlist/floor module existence and for
++# the coverage scan; the per-target checks below work per file.
++R_ANY=0
++while IFS= read -r d; do
++    [ -n "$d" ] && [ -d "$d/tests" ] && R_ANY=1
++done < <(printf '%s\n' ${CP_ALL[@]+"${CP_ALL[@]}"})
++
+ for target in kotlin rust swift; do
+     base="$examples/$target.hxml"
+     f32="$examples/$target-f32.hxml"
+@@ -35,46 +715,191 @@ for target in kotlin rust swift; do
+     for f in "$base" "$f32"; do
+         if [ ! -f "$f" ]; then
+             echo "FAIL: missing file: $f"
+-            fail=1; ok=0
++            fail=1
++            ok=0
+         fi
+     done
+     [ "$ok" -eq 1 ] || continue
+-    # A roots line is a bare module path: identifier segments joined by dots.
+-    missing="$(comm -23 \
+-        <(grep -E '^[A-Za-z_][A-Za-z0-9_.]*$' "$base" | sort -u) \
+-        <(grep -E '^[A-Za-z_][A-Za-z0-9_.]*$' "$f32" | sort -u))"
+-    if [ -z "$missing" ]; then
+-        echo "OK: $target-f32.hxml roots cover $target.hxml"
+-        continue
++    base_name="$(basename "$base")"
++    f32_name="$(basename "$f32")"
++
++    : > "$tmpd/roots.base"
++    : > "$tmpd/roots.f32"
++    C_QUIET=0
++    collect_roots "$base" 0 "$base" > "$tmpd/roots.base"
++    collect_roots "$f32" 0 "$f32" > "$tmpd/roots.f32"
++    # (1-iv) include() reject check, per file (needs the per-file cp sets)
++    include_reject_check "$base"
++    include_reject_check "$f32"
++
++
++    # (3) per-file classpath existence, strict (no repo-wide fallback)
++    printf '%s\n' ${FILE_CP[$base]:-} | sort -u > "$tmpd/cp.base"
++    printf '%s\n' ${FILE_CP[$f32]:-} | sort -u > "$tmpd/cp.f32"
++    make_cp_index "$tmpd/cp.base" "$tmpd/idx.base"
++    make_cp_index "$tmpd/cp.f32" "$tmpd/idx.f32"
++    for side in base f32; do
++        if [ "$side" = "base" ]; then rname="$(basename "$base")"; else rname="$f32_name"; fi
++        rf="$tmpd/roots.$side"
++        idx="$tmpd/idx.$side"
++        comm -23 <(cut -f1 "$rf" | sort -u) "$idx" > "$tmpd/missing.$side"
++        while IFS= read -r mod; do
++            [ -n "$mod" ] || continue
++            at="$(awk -F'\t' -v m="$mod" '$1 == m { print $2 ":" $3; exit }' "$rf")"
++            echo "FAIL: $rname:$at root module $mod does not resolve to any .hx on the classpath $rname itself declares (its -cp/-lib lines and those of its includes); add the missing -cp/-lib line to $rname"
++            fail=1
++        done < "$tmpd/missing.$side"
++    done
++
++    # (dup) duplicate root lines inside one pair
++    for side in base f32; do
++        rf="$tmpd/roots.$side"
++        if [ "$side" = "base" ]; then rname="$base_name"; else rname="$f32_name"; fi
++        dups="$(cut -f1 "$rf" | sort | uniq -d)"
++        if [ -n "$dups" ]; then
++            while IFS= read -r mod; do
++                [ -n "$mod" ] || continue
++                at="$(awk -F'\t' -v m="$mod" '$1 == m { print $2 ":" $3; exit }' "$rf")"
++                echo "DUP: $rname:$at module $mod appears on multiple root lines in this pair"
++                dup_lines=$((dup_lines + 1))
++            done <<< "$dups"
++        fi
++    done
++    if [ "$strict_dups" -eq 1 ] && [ "$dup_lines" -gt 0 ]; then
++        echo "FAIL: $dup_lines duplicate root line(s) in the $target pair (strict-duplicates)"
++        fail=1
+     fi
++
++    # (1) root-set equality, both directions
++    cut -f1 "$tmpd/roots.base" | sort -u > "$tmpd/set.base"
++    cut -f1 "$tmpd/roots.f32" | sort -u > "$tmpd/set.f32"
++    comm -23 "$tmpd/set.base" "$tmpd/set.f32" > "$tmpd/only.base"
++    comm -13 "$tmpd/set.base" "$tmpd/set.f32" > "$tmpd/only.f32"
++
++    # EX_USED is per-target (checked within the iteration); UN_USED
++    # accumulates across targets (checked after the loop).
++    EX_USED=()
++    while IFS= read -r mod; do
++        [ -n "$mod" ] || continue
++        at="$(awk -F'\t' -v m="$mod" '$1 == m { print $2 ":" $3; exit }' "$tmpd/roots.base")"
++        key="$target|$mod"
++        if [ -n "${ex_reason[$key]:-}" ]; then
++            exemptions=$((exemptions + 1))
++            EX_USED["$key"]=1
++            echo "EXEMPT: $f32_name omits root module $mod (base-only, at $at); declared in allowlist: ${ex_reason[$key]}"
++        else
++            echo "FAIL: $f32_name omits root module $mod (present in $base_name at $at); the f32 bundle would lose a root that the base bundle compiles"
++            fail=1
++        fi
++    done < "$tmpd/only.base"
+     while IFS= read -r mod; do
+-        [ -z "$mod" ] && continue
+-        reason="$(list_reason "$mod" "$target" "$allowlist")"
+-        if [ -n "$reason" ]; then
+-            exemptions=$((exemptions+1))
+-            echo "EXEMPT: $target-f32.hxml may omit $mod -- $reason"
++        [ -n "$mod" ] || continue
++        at="$(awk -F'\t' -v m="$mod" '$1 == m { print $2 ":" $3; exit }' "$tmpd/roots.f32")"
++        key="$target|$mod"
++        if [ -n "${ex_reason[$key]:-}" ]; then
++            exemptions=$((exemptions + 1))
++            EX_USED["$key"]=1
++            echo "EXEMPT: $base_name omits root module $mod (f32-only, at $at); declared in allowlist: ${ex_reason[$key]}"
+         else
+-            echo "FAIL: $target-f32.hxml omits root module $mod (present in $target.hxml); add it, or exempt it with a reason in $allowlist"
++            echo "FAIL: $base_name omits root module $mod (present in $f32_name at $at); the base bundle would compile a root the f32 bundle does not"
++            fail=1
++        fi
++    done < "$tmpd/only.f32"
++
++    # (5) root floor: every pinned module must still be rooted in at least
++    # one of the pair's files (a root deleted from BOTH files is invisible
++    # to (1), which compares the two files against each other).
++    for fl in ${FLOOR_MODULES[@]+"${FLOOR_MODULES[@]}"}; do
++        fbt="${fl%%$'\t'*}"
++        fbm="${fl#*$'\t'}"
++        [ "$fbt" = "$target" ] || continue
++        in_base=0
++        in_f32=0
++        grep -qx -- "$fbm" "$tmpd/set.base" && in_base=1
++        grep -qx -- "$fbm" "$tmpd/set.f32" && in_f32=1
++        if [ "$in_base" -eq 0 ] && [ "$in_f32" -eq 0 ]; then
++            echo "FAIL: root-floor: $fbm is pinned in $baseline (rooted in the $target pair at the last baseline refresh) but is a root of neither $base_name nor $f32_name; a root deleted from BOTH files is invisible to the pair-equality check -- restore it, or refresh the baseline with --print-baseline if the deletion is deliberate"
++            fail=1
++        fi
++    done
++
++    # (4) @:test coverage under guarded classpaths (scan built once above)
++    for mod in ${SCAN_MOD_LIST[@]+"${SCAN_MOD_LIST[@]}"}; do
++        if grep -qx -- "$mod" "$tmpd/set.base" || grep -qx -- "$mod" "$tmpd/set.f32"; then
++            continue
++        fi
++        unmatch=""
++        for k in ${un_keys[@]+"${un_keys[@]}"}; do
++            kt="${k%%|*}"
++            km="${k#*|}"
++            if [ "$km" = "$mod" ] && { [ "$kt" = "*" ] || [ "$kt" = "$target" ]; }; then
++                unmatch="$k"
++                break
++            fi
++        done
++        if [ -n "$unmatch" ]; then
++            unrooted_decls=$((unrooted_decls + 1))
++            UN_USED["$unmatch"]=1
++            echo "UNROOT: $mod declares @:test in ${SCAN_MODULES[$mod]} but is a root of neither $base_name nor $f32_name; declared in allowlist: ${un_reason[$unmatch]}"
++        else
++            echo "FAIL: $mod declares @:test in ${SCAN_MODULES[$mod]} but is a root of neither $base_name nor $f32_name; an @:test module missing from both files is a regression unless declared in allowlist section unrootedTestModules"
++            fail=1
++        fi
++    done
++
++    # (stale) allowlist entries that no longer describe the tree
++    for key in ${ex_keys[@]+"${ex_keys[@]}"}; do
++        [ -z "$key" ] && continue
++        kt="${key%%|*}"
++        km="${key#*|}"
++        case "$kt" in
++            kotlin|rust|swift) [ "$kt" = "$target" ] || continue ;;
++        esac
++        if [ -z "${EX_USED[$key]:-}" ]; then
++            echo "STALE: allowlist exempts $km for target $kt but the module is not asymmetric for it now (present in both files, or absent from both); drop the entry"
+             fail=1
+         fi
+-    done <<< "$missing"
++    done
+ done
+-if [ -f "$allowlist" ]; then
+-    node -e '
+-        const fs=require("fs");
+-        const list=JSON.parse(fs.readFileSync(process.argv[1],"utf8")).exempt||[];
+-        let bad=0;
+-        for(const e of list){
+-            if(!e.module||!e.target||!e.reason||!String(e.reason).trim()){
+-                console.error("FAIL: allowlist entry without module/target/reason: "+JSON.stringify(e));
+-                bad=1;
+-            }
+-        }
+-        process.exit(bad);
+-    ' "$allowlist" || fail=1
++
++# (stale) unrootedTestModules entries that no longer describe the tree
++for key in ${un_keys[@]+"${un_keys[@]}"}; do
++    [ -z "$key" ] && continue
++    kt="${key%%|*}"
++    km="${key#*|}"
++    if [ -z "${UN_USED[$key]:-}" ]; then
++        echo "STALE: allowlist declares $km unrooted for target $kt but no such unrooted @:test module exists now; drop the entry"
++        fail=1
++    fi
++done
++
++# Existence of every module named by the allowlist or the root floor
++# (union of all guarded classpaths + repo-wide fallback).
++declare -A CHECKMOD=()
++for key in ${ex_keys[@]+"${ex_keys[@]}"}; do
++    [ -z "$key" ] && continue
++    CHECKMOD["${key#*|}"]=1
++done
++for key in ${un_keys[@]+"${un_keys[@]}"}; do
++    [ -z "$key" ] && continue
++    CHECKMOD["${key#*|}"]=1
++done
++for fl in ${FLOOR_MODULES[@]+"${FLOOR_MODULES[@]}"}; do
++    CHECKMOD["${fl#*$'\t'}"]=1
++done
++for m in ${CHECKMOD[@]+"${!CHECKMOD[@]}"}; do
++    if ! resolve_module "$m"; then
++        echo "FAIL: allowlist/root-floor module $m does not resolve to any .hx on the guarded classpaths or anywhere under $repo"
++        fail=1
++    fi
++done
++
++if [ "$dup_lines" -gt 0 ]; then
++    echo "SUMMARY: $dup_lines duplicate root line(s) reported above (non-fatal; --strict-duplicates makes them fatal)"
+ fi
+ if [ "$fail" -ne 0 ]; then
+     echo "roots guard: FAILED"
+     exit 1
+ fi
+-echo "roots guard: PASS ($exemptions exemption(s) in force)"
++echo "roots guard: PASS ($exemptions exemption(s) in force; $unrooted_decls declared unrooted @:test module(s); $dup_lines duplicate root line(s) reported; $floor_pins pinned root(s) in root-floor)"
++exit 0
+diff --git a/tools/roots-guard/roots-allowlist.json b/tools/roots-guard/roots-allowlist.json
+index 281689cf..0e67a12f 100644
+--- a/tools/roots-guard/roots-allowlist.json
++++ b/tools/roots-guard/roots-allowlist.json
+@@ -15,5 +15,17 @@
+       "module": "registry.Main",
+       "reason": "registry.Main is the binary64 packaging/demo entry root (no @:test cases); f32 bundles declare no package/pack action and their reference tree intentionally carries no Main artifact."
+     }
++  ],
++  "unrootedTestModules": [
++    {
++      "target": "*",
++      "module": "tests.E0308FiTests",
++      "reason": "Orphan rust-only probe: the file is wrapped in `#if rust_output` and neither that define nor the module appears in any examples/*.hxml, so it is a root of no guarded pair; declared here so the coverage check stays fatal instead of silently ignoring an uncollected @:test module."
++    },
++    {
++      "target": "*",
++      "module": "tests.f32.PrintedFloatTests",
++      "reason": "f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json."
++    }
+   ]
+ }
+diff --git a/tools/roots-guard/roots-baseline.txt b/tools/roots-guard/roots-baseline.txt
+new file mode 100644
+index 00000000..853e716c
+--- /dev/null
++++ b/tools/roots-guard/roots-baseline.txt
+@@ -0,0 +1,1650 @@
++kotlin	boring.AbstractStaticDefault
++kotlin	boring.AccessPeer
++kotlin	boring.AccessTarget
++kotlin	boring.AllowGuest
++kotlin	boring.AllowHost
++kotlin	boring.ArithmeticOps
++kotlin	boring.ArrayAccessOps
++kotlin	boring.ArrayIndexSearchOps
++kotlin	boring.ArrayIterationOps
++kotlin	boring.ArrayJoinOps
++kotlin	boring.ArrayMethodSwiftOps
++kotlin	boring.ArrayRootStateOps
++kotlin	boring.ArraySliceOps
++kotlin	boring.BinaryReader
++kotlin	boring.BinaryWriter
++kotlin	boring.BorrowedArrayBoundaryOps
++kotlin	boring.BorrowedIterationSubjectOps
++kotlin	boring.BorrowedLoopItemBoundaryOps
++kotlin	boring.BorrowedReceiverBoundaryOps
++kotlin	boring.BorrowedStringReturnOps
++kotlin	boring.BoxedInterfaceDefaultOps
++kotlin	boring.BranchedOptionalFieldOps
++kotlin	boring.BytesOps
++kotlin	boring.CaptureSwitchOps
++kotlin	boring.CfgTestProbe
++kotlin	boring.CloneDeriveGapOps
++kotlin	boring.ClosureStringViewOps
++kotlin	boring.ClusterTags
++kotlin	boring.CodePointNames
++kotlin	boring.ComparatorGateOps
++kotlin	boring.CompareGateOps
++kotlin	boring.ConsoleShimOps
++kotlin	boring.ConstructedStateOps
++kotlin	boring.ConstructorStatementOps
++kotlin	boring.CtorOmitOps
++kotlin	boring.CtorOptArgOps
++kotlin	boring.DartArrayMethodOps
++kotlin	boring.DartCharNullOps
++kotlin	boring.DartCoalesceKind
++kotlin	boring.DartCoalesceReceiver
++kotlin	boring.DartCoalesceSiblingOps
++kotlin	boring.DartCoalesceStaticOps
++kotlin	boring.DartEmptyArrayFixOps
++kotlin	boring.DartLocalNameFixOps
++kotlin	boring.DartNullPushOps
++kotlin	boring.DataClassCtorGuardOps
++kotlin	boring.DataClassRangeEqOps
++kotlin	boring.DefaultArgShiftOps
++kotlin	boring.DefaultArgsOps
++kotlin	boring.DefaultBuilderOps
++kotlin	boring.DefaultParamUnwrapOps
++kotlin	boring.DeferredLocalsOps
++kotlin	boring.DivTableOps
++kotlin	boring.DowncastOps
++kotlin	boring.EnumLookupOps
++kotlin	boring.EnumQueriesOps
++kotlin	boring.EnumSortedKeysOps
++kotlin	boring.ExceptionCatchOps
++kotlin	boring.ExceptionChainProbe
++kotlin	boring.ExceptionTypeOps
++kotlin	boring.ExtensionConsumer
++kotlin	boring.ExtensionOps
++kotlin	boring.FallibleLocalFunctionOps
++kotlin	boring.FileLevelConsumer
++kotlin	boring.FileLevelOps
++kotlin	boring.FloatArrayAnnoOps
++kotlin	boring.FloatCompoundAssignOps
++kotlin	boring.FloatFieldLiteralOps
++kotlin	boring.FloatLiteralOps
++kotlin	boring.FloatModCompareOps
++kotlin	boring.FloatModOps
++kotlin	boring.FloatTernaryArmOps
++kotlin	boring.FnValuesOps
++kotlin	boring.FontId
++kotlin	boring.FontIdConsumer
++kotlin	boring.ForInOptionalOps
++kotlin	boring.Fp16
++kotlin	boring.Fp32
++kotlin	boring.FPHelperRustOps
++kotlin	boring.FPHelperSwiftOps
++kotlin	boring.FunctionalLocalOps
++kotlin	boring.FunctionalOps
++kotlin	boring.FusedPushThrowOps
++kotlin	boring.GlyphCluster
++kotlin	boring.GlyphClusterHolder
++kotlin	boring.GlyphClusterReader
++kotlin	boring.GlyphMetrics
++kotlin	boring.GraphemeOps
++kotlin	boring.HaxeExceptionOps
++kotlin	boring.ImpHost
++kotlin	boring.ImpWidget
++kotlin	boring.InheritCtorOps
++kotlin	boring.InlineDefaultOps
++kotlin	boring.InstanceDefaults
++kotlin	boring.Int64Ops
++kotlin	boring.IntDivisionOps
++kotlin	boring.InterfaceArrayLiteralOps
++kotlin	boring.InterfaceConditionalOps
++kotlin	boring.InterfaceFallibleOps
++kotlin	boring.InterfaceFieldLiteralOps
++kotlin	boring.InterfaceFieldRecordOps
++kotlin	boring.InterfaceGetterProperty
++kotlin	boring.InterfaceIdentityOps
++kotlin	boring.InterfaceThrowOps
++kotlin	boring.InterfaceUnionBeta
++kotlin	boring.InterfaceUnionOps
++kotlin	boring.IntFloatAddOps
++kotlin	boring.IntFloatCtorOps
++kotlin	boring.IntFloatSignOps
++kotlin	boring.IntToFloatCtorOps
++kotlin	boring.JvmFieldPrivateOps
++kotlin	boring.KnullInitNarrowing
++kotlin	boring.LocalShadowOps
++kotlin	boring.LocalThrowOps
++kotlin	boring.LoopWriteOps
++kotlin	boring.M2OptionVecOps
++kotlin	boring.MapHasGetOps
++kotlin	boring.MapValueOptionalOps
++kotlin	boring.MathIntWideningOps
++kotlin	boring.MathMinMaxOps
++kotlin	boring.MathMinShadowOps
++kotlin	boring.MathNaNOps
++kotlin	boring.MathNaNTestSupport
++kotlin	boring.MultiPatternSwitchOps
++kotlin	boring.MutableBufFieldOps
++kotlin	boring.MutatingCounterOps
++kotlin	boring.NarrowedOptionReturnOps
++kotlin	boring.NarrowedSortedReceiverOps
++kotlin	boring.NarrowLocalSwitchOps
++kotlin	boring.NegativeSentinelOps
++kotlin	boring.NegIntSlotOps
++kotlin	boring.NilContextOps
++kotlin	boring.NodeFsBorrowOps
++kotlin	boring.NullabilityOps
++kotlin	boring.NullableArrayArgumentOps
++kotlin	boring.NullableArrayElemOps
++kotlin	boring.NullableArrayOps
++kotlin	boring.NullableBufFieldOps
++kotlin	boring.NullableCallOps
++kotlin	boring.NullableCallOps2
++kotlin	boring.NullableFieldRecord
++kotlin	boring.NullableFloatCompareOps
++kotlin	boring.NullableIndexOps
++kotlin	boring.NullableInterfaceBranchOps
++kotlin	boring.NullableLocalOps
++kotlin	boring.NullableReceiver
++kotlin	boring.NullableStringViewOps
++kotlin	boring.NullableToStringOps
++kotlin	boring.NullGuardFieldMetrics
++kotlin	boring.NullGuardFieldOps
++kotlin	boring.NullGuardNarrowOps
++kotlin	boring.NullGuardNestedFieldOps
++kotlin	boring.NullInitLocalOps
++kotlin	boring.NullStaticMapOps
++kotlin	boring.NumberClassifyOps
++kotlin	boring.NumberParsingOps
++kotlin	boring.NumericCoalesceLocalOps
++kotlin	boring.NumericConversionWidening
++kotlin	boring.NumericDomainOps
++kotlin	boring.NumericWidenOps
++kotlin	boring.OptionalCtorOps
++kotlin	boring.OptionalInterfaceArgumentOps
++kotlin	boring.OptionalMemberOps
++kotlin	boring.OptionalParamNull
++kotlin	boring.OptionalProjectionOps
++kotlin	boring.OptionalValueUseHolder
++kotlin	boring.OptionalValueUseMetrics
++kotlin	boring.OptionalValueUseOps
++kotlin	boring.OverrideMemberOps
++kotlin	boring.ParseIntPushOps
++kotlin	boring.PayloadSelfMapOps
++kotlin	boring.PayloadTextTable
++kotlin	boring.PipelineOps
++kotlin	boring.PlainLabel
++kotlin	boring.PlatformOps
++kotlin	boring.PostIncConditionOps
++kotlin	boring.PrintedCollection
++kotlin	boring.PrintedCustom
++kotlin	boring.PrintedEnumOps
++kotlin	boring.PrintedRecord
++kotlin	boring.PrintedSortedFields
++kotlin	boring.PrivateClassOps
++kotlin	boring.PrivateClassPeerOps
++kotlin	boring.PrivateCollisionAlpha
++kotlin	boring.PrivateCollisionBeta
++kotlin	boring.PrivateDefaultOps
++kotlin	boring.PrivateHolder
++kotlin	boring.PrivateStaticCallOps
++kotlin	boring.ProbeChain
++kotlin	boring.ProbeUnit
++kotlin	boring.PublicGetterProperty
++kotlin	boring.RangeParameterOps
++kotlin	boring.RecordInterfaceOps
++kotlin	boring.RecordOps
++kotlin	boring.RecordOrderOps
++kotlin	boring.ResidentBuilderInferOps
++kotlin	boring.ResidentModuleImportOps
++kotlin	boring.RuntimeExportOps
++kotlin	boring.RustCoalesceOps
++kotlin	boring.RustIterOps
++kotlin	boring.ScriptEvidenceTable
++kotlin	boring.ScriptNames
++kotlin	boring.SealedChildCause
++kotlin	boring.SealedChildException
++kotlin	boring.SealedChildOps
++kotlin	boring.SealedChildParent
++kotlin	boring.SealedVariantOps
++kotlin	boring.SignedComparisonOps
++kotlin	boring.SignedIntArgumentOps
++kotlin	boring.SignedIntAssignOps
++kotlin	boring.SignedIntConstructorOps
++kotlin	boring.SignedLoopBoundOps
++kotlin	boring.SortedDataClassKeysOps
++kotlin	boring.StaticCollisionOps
++kotlin	boring.StaticFnOps
++kotlin	boring.StaticRefOps
++kotlin	boring.StaticStateOps
++kotlin	boring.StdStringOps
++kotlin	boring.StdStringSelfRecOps
++kotlin	boring.StringAppendOps
++kotlin	boring.StringBufOps
++kotlin	boring.StringBufThrowOps
++kotlin	boring.StringBufUnionOps
++kotlin	boring.StringCodeOptionalOps
++kotlin	boring.StringConvOps
++kotlin	boring.StringIndexOfShadowOps
++kotlin	boring.StringSearchFromOps
++kotlin	boring.StringUnitOps
++kotlin	boring.SubstringDefaultOps
++kotlin	boring.SumOfFloatLocalOps
++kotlin	boring.SwiftDefaultOps
++kotlin	boring.SwiftGlobalThrowOps
++kotlin	boring.SwiftLiteralSafetyOps
++kotlin	boring.SwitchCaseScopeOps
++kotlin	boring.SwitchMergeOps
++kotlin	boring.SwitchNullArmOps
++kotlin	boring.SwitchOps
++kotlin	boring.TableBuilderInferOps
++kotlin	boring.TernaryInterfaceOps
++kotlin	boring.TernaryOptionalOps
++kotlin	boring.ThrowingClosureOps
++kotlin	boring.ThrowingIndexOfOps
++kotlin	boring.ToStringOps
++kotlin	boring.TryOps
++kotlin	boring.Ts2448Ops
++kotlin	boring.TypeAliasLocalOps
++kotlin	boring.TypeParameterCompareOps
++kotlin	boring.UnderscoreParamOps
++kotlin	boring.UnionChainOps
++kotlin	boring.UsizeComparisonOps
++kotlin	boring.UStringOps
++kotlin	boring.UStringResidentOps
++kotlin	boring.ValueError
++kotlin	boring.ValueException
++kotlin	boring.ValuePassingOps
++kotlin	boring.ValueRecord
++kotlin	boring.ValueTypeClashOps
++kotlin	boring.ValueTypeConsumer
++kotlin	boring.ValueTypeCtorBindingOps
++kotlin	boring.ValueTypeOps
++kotlin	boring.VecInsertOps
++kotlin	boring.VecSpliceOps
++kotlin	boring.VectorCodec
++kotlin	boring.VectorError
++kotlin	boring.VectorException
++kotlin	boring.VectorSort
++kotlin	boring.WidgetAssembly
++kotlin	boring.WidgetCart
++kotlin	boring.WidgetKind
++kotlin	boring.WordCharacterTable
++kotlin	haxe.crypto.Crc
++kotlin	haxe.crypto.CrcModel
++kotlin	haxe.crypto.Sha256
++kotlin	haxe.crypto.Sha512
++kotlin	haxe.crypto.Xxh128
++kotlin	haxe.crypto.Xxh64
++kotlin	registry.Core
++kotlin	registry.CoreException
++kotlin	registry.CoreFault
++kotlin	registry.Json
++kotlin	registry.JsonException
++kotlin	registry.JsonFault
++kotlin	registry.Main
++kotlin	registry.Release
++kotlin	registry.Semver
++kotlin	registry.SemverException
++kotlin	registry.SemverFault
++kotlin	registry.Sha1
++kotlin	runtime.Graphemes
++kotlin	runtime.GraphemeWalk
++kotlin	runtime.SortedTable
++kotlin	runtime.TestCore
++kotlin	runtime.UString
++kotlin	std.Functional
++kotlin	std.ReadOnlyArray
++kotlin	std.SortedMap
++kotlin	std.SortedSet
++kotlin	tests.AbstractStaticDefaultTests
++kotlin	tests.AccessGrantTests
++kotlin	tests.AllowAccessTests
++kotlin	tests.ArithmeticTests
++kotlin	tests.ArrayAccessTests
++kotlin	tests.ArrayIndexSearchTests
++kotlin	tests.ArrayJoinTests
++kotlin	tests.ArrayMethodSwiftTests
++kotlin	tests.ArrayRootTests
++kotlin	tests.ArraySliceTests
++kotlin	tests.BlockScopeUnrollTests
++kotlin	tests.BorrowedArrayBoundaryTests
++kotlin	tests.BorrowedIterationSubjectOpsTests
++kotlin	tests.BorrowedLoopItemBoundaryTests
++kotlin	tests.BorrowedReceiverBoundaryTests
++kotlin	tests.BorrowedStringReturnTests
++kotlin	tests.BoxedInterfaceDefaultOpsTests
++kotlin	tests.BranchedOptionalFieldOpsTests
++kotlin	tests.BytesTests
++kotlin	tests.CaptureSwitchOpsTests
++kotlin	tests.CloneDeriveGapTests
++kotlin	tests.ClosureStringViewOpsTests
++kotlin	tests.ComparatorGateTests
++kotlin	tests.CompareGateTests
++kotlin	tests.ConsoleShimTests
++kotlin	tests.ConstructedStateTests
++kotlin	tests.ConstructorStatementTests
++kotlin	tests.CrcTests
++kotlin	tests.CryptoTestSupport
++kotlin	tests.CtorOmitTests
++kotlin	tests.CtorOptArgTests
++kotlin	tests.DartArrayMethodTests
++kotlin	tests.DartCharNullTests
++kotlin	tests.DartCoalesceSiblingTests
++kotlin	tests.DartCoalesceStaticTests
++kotlin	tests.DartEmptyArrayFixTests
++kotlin	tests.DartLocalNameFixTests
++kotlin	tests.DartNullPushTests
++kotlin	tests.DataClassCtorGuardTests
++kotlin	tests.DataClassRangeEqTests
++kotlin	tests.DataTableTests
++kotlin	tests.DefaultArgShiftTests
++kotlin	tests.DefaultArgsTests
++kotlin	tests.DefaultBuilderTests
++kotlin	tests.DefaultParamUnwrapTests
++kotlin	tests.DeferredLocalsTests
++kotlin	tests.DivTableTests
++kotlin	tests.DowncastTests
++kotlin	tests.EarlyReturnTests
++kotlin	tests.EnumLookupTests
++kotlin	tests.EnumQueriesProbes
++kotlin	tests.EnumQueriesTests
++kotlin	tests.EnumSortedKeysTests
++kotlin	tests.ExceptionCatchTests
++kotlin	tests.ExceptionChainProbeTests
++kotlin	tests.ExceptionTypeOpsTests
++kotlin	tests.ExpressionBlockTests
++kotlin	tests.FallibleLocalFunctionTests
++kotlin	tests.FloatCompoundAssignOpsTests
++kotlin	tests.FloatFieldLiteralOpsTests
++kotlin	tests.FloatLiteralOpsTests
++kotlin	tests.FloatModCompareOpsTests
++kotlin	tests.FloatModTests
++kotlin	tests.FloatTernaryArmTests
++kotlin	tests.FlushHookProbeTests
++kotlin	tests.FnValuesTests
++kotlin	tests.FontIdTests
++kotlin	tests.ForInOptionalTests
++kotlin	tests.Fp16Tests
++kotlin	tests.Fp32Tests
++kotlin	tests.FPHelperRustTests
++kotlin	tests.FPHelperSwiftTests
++kotlin	tests.FunctionalLocalTests
++kotlin	tests.FusedPushThrowTests
++kotlin	tests.GlyphClusterTests
++kotlin	tests.GraphemeTests
++kotlin	tests.HandWrittenLoopPositionSupport
++kotlin	tests.HandWrittenLoopPositionTests
++kotlin	tests.HaxeExceptionTests
++kotlin	tests.ImpDefaultTests
++kotlin	tests.InheritCtorTests
++kotlin	tests.InlineDefaultTests
++kotlin	tests.InstanceDefaultsTests
++kotlin	tests.Int64Tests
++kotlin	tests.IntDivisionTests
++kotlin	tests.InterfaceArrayLiteralTests
++kotlin	tests.InterfaceConditionalTests
++kotlin	tests.InterfaceFallibleOpsTests
++kotlin	tests.InterfaceFieldLiteralOpsTests
++kotlin	tests.InterfaceFieldRecordTests
++kotlin	tests.InterfaceGetterPropertyTests
++kotlin	tests.InterfaceIdentityTests
++kotlin	tests.InterfaceThrowTests
++kotlin	tests.InterfaceUnionTests
++kotlin	tests.IntFloatAddTests
++kotlin	tests.IntFloatCtorTests
++kotlin	tests.IntFloatSignTests
++kotlin	tests.IntToFloatCtorTests
++kotlin	tests.JvmFieldPrivateTests
++kotlin	tests.KnullInitNarrowingTests
++kotlin	tests.KotlinEntryProbeTests
++kotlin	tests.KotlinNullabilityTests
++kotlin	tests.LocalShadowTests
++kotlin	tests.LocalThrowTests
++kotlin	tests.LoopWriteTests
++kotlin	tests.M2OptionVecTests
++kotlin	tests.MapHasGetTests
++kotlin	tests.MapValueOptionalTests
++kotlin	tests.MathIntWideningOpsTests
++kotlin	tests.MathMinMaxTests
++kotlin	tests.MathMinShadowTests
++kotlin	tests.MathNaNOpsTests
++kotlin	tests.MultiPatternSwitchTests
++kotlin	tests.MutableBufFieldTests
++kotlin	tests.MutatingCounterTests
++kotlin	tests.NarrowedOptionReturnTests
++kotlin	tests.NarrowedSortedReceiverOpsTests
++kotlin	tests.NarrowLocalSwitchTests
++kotlin	tests.NegativeSentinelOpsTests
++kotlin	tests.NegIntSlotOpsTests
++kotlin	tests.NilContextTests
++kotlin	tests.NodeFsBorrowOpsTests
++kotlin	tests.NoSuchElementTests
++kotlin	tests.NullabilityTests
++kotlin	tests.NullableArrayArgumentTests
++kotlin	tests.NullableArrayElemTests
++kotlin	tests.NullableArrayTests
++kotlin	tests.NullableBufFieldTests
++kotlin	tests.NullableCallTests
++kotlin	tests.NullableFieldRecordTests
++kotlin	tests.NullableFloatCompareTests
++kotlin	tests.NullableIndexTests
++kotlin	tests.NullableInterfaceBranchOpsTests
++kotlin	tests.NullableLocalTests
++kotlin	tests.NullableStringViewOpsTests
++kotlin	tests.NullableToStringTests
++kotlin	tests.NullArgsTests
++kotlin	tests.NullGuardFieldTests
++kotlin	tests.NullGuardNarrowTests
++kotlin	tests.NullGuardNestedFieldOpsTests
++kotlin	tests.NullInitLocalTests
++kotlin	tests.NullStaticMapTests
++kotlin	tests.NumberClassifyTests
++kotlin	tests.NumberParsingTests
++kotlin	tests.NumericCoalesceLocalOpsTests
++kotlin	tests.NumericConversionWideningTests
++kotlin	tests.NumericDomainTests
++kotlin	tests.NumericWidenTests
++kotlin	tests.OptionalCtorTests
++kotlin	tests.OptionalInterfaceArgumentOpsTests
++kotlin	tests.OptionalMemberTests
++kotlin	tests.OptionalParamNullTests
++kotlin	tests.OptionalProjectionTests
++kotlin	tests.OptionalValueUseTests
++kotlin	tests.OverrideMemberTests
++kotlin	tests.ParseIntPushTests
++kotlin	tests.PayloadSelfMapOpsTests
++kotlin	tests.PipelineTests
++kotlin	tests.PlatformModulesTests
++kotlin	tests.PlatformModulesTestSupport
++kotlin	tests.PosterShapeTests
++kotlin	tests.PostIncConditionTests
++kotlin	tests.PrintedCollectionTests
++kotlin	tests.PrintedEnumTests
++kotlin	tests.PrintedRecordTests
++kotlin	tests.PrintedSortedFieldsTests
++kotlin	tests.PrivateClassTests
++kotlin	tests.PrivateCollisionTests
++kotlin	tests.PrivateDefaultTests
++kotlin	tests.PrivateStaticCallTests
++kotlin	tests.ProbeChainTests
++kotlin	tests.ProbeShareTests
++kotlin	tests.PublicGetterPropertyTests
++kotlin	tests.RangeParameterTests
++kotlin	tests.RecordInterfaceOpsTests
++kotlin	tests.RecordOrderTests
++kotlin	tests.RecordTests
++kotlin	tests.RegistryJsonTests
++kotlin	tests.RegistryParseArgsTests
++kotlin	tests.RegistryPipelineTests
++kotlin	tests.RegistrySemverTests
++kotlin	tests.RegistrySha1Tests
++kotlin	tests.ResidentBuilderInferOpsTests
++kotlin	tests.ResidentModuleImportTests
++kotlin	tests.RuntimeExportTests
++kotlin	tests.RustCoalesceTests
++kotlin	tests.RustUnionFaultTests
++kotlin	tests.SealedChildTests
++kotlin	tests.SealedVariantTests
++kotlin	tests.Sha256Tests
++kotlin	tests.Sha512Tests
++kotlin	tests.ShapeTextTests
++kotlin	tests.SignedComparisonTests
++kotlin	tests.SignedIntArgumentTests
++kotlin	tests.SignedIntAssignOpsTests
++kotlin	tests.SignedIntConstructorTests
++kotlin	tests.SignedLoopBoundOpsTests
++kotlin	tests.SortedKeyDomainTests
++kotlin	tests.SortedTableTests
++kotlin	tests.StaticExtensionProbes
++kotlin	tests.StaticExtensionTests
++kotlin	tests.StaticFnTests
++kotlin	tests.StaticRefTests
++kotlin	tests.StaticStateTests
++kotlin	tests.StdStringPlainClassTests
++kotlin	tests.StdStringSelfRecTests
++kotlin	tests.StdStringTests
++kotlin	tests.StringAppendTests
++kotlin	tests.StringBufTests
++kotlin	tests.StringBufThrowTests
++kotlin	tests.StringBufUnionTests
++kotlin	tests.StringCodecTests
++kotlin	tests.StringCodeOptionalTests
++kotlin	tests.StringConvTests
++kotlin	tests.StringIndexOfShadowTests
++kotlin	tests.StringSearchFromTests
++kotlin	tests.StringToolsTests
++kotlin	tests.StringUnitTests
++kotlin	tests.SubstringDefaultTests
++kotlin	tests.SumOfFloatLocalTests
++kotlin	tests.SwiftDefaultTests
++kotlin	tests.SwiftGlobalThrowTests
++kotlin	tests.SwiftLiteralSafetyOpsTests
++kotlin	tests.SwitchCaseScopeTests
++kotlin	tests.SwitchMergeTests
++kotlin	tests.SwitchNullArmTests
++kotlin	tests.SwitchOpsTests
++kotlin	tests.TableBuilderInferTests
++kotlin	tests.TernaryInterfaceTests
++kotlin	tests.TernaryOptionalTests
++kotlin	tests.TestApplicabilityProbeTests
++kotlin	tests.TestData
++kotlin	tests.ThrowingClosureTests
++kotlin	tests.ThrowingIndexOfTests
++kotlin	tests.ToStringTests
++kotlin	tests.TryTests
++kotlin	tests.Ts2448Tests
++kotlin	tests.TypeAliasLocalTests
++kotlin	tests.TypeParameterCompareTests
++kotlin	tests.UnderscoreParamTests
++kotlin	tests.UnionChainTests
++kotlin	tests.UsizeComparisonTests
++kotlin	tests.UStringResidentTests
++kotlin	tests.UStringTests
++kotlin	tests.ValuePassingTests
++kotlin	tests.ValueRecordProbes
++kotlin	tests.ValueRecordTests
++kotlin	tests.ValueTypeClashTests
++kotlin	tests.ValueTypeCtorBindingTests
++kotlin	tests.ValueTypeTests
++kotlin	tests.VecInsertTests
++kotlin	tests.VecSpliceTests
++kotlin	tests.VectorCodecTests
++kotlin	tests.WidgetCoalescingTests
++kotlin	tests.Xxh128Tests
++kotlin	tests.Xxh64Tests
++rust	boring.AbstractStaticDefault
++rust	boring.AccessPeer
++rust	boring.AccessTarget
++rust	boring.AllowGuest
++rust	boring.AllowHost
++rust	boring.ArithmeticOps
++rust	boring.ArrayAccessOps
++rust	boring.ArrayIndexSearchOps
++rust	boring.ArrayIterationOps
++rust	boring.ArrayJoinOps
++rust	boring.ArrayMethodSwiftOps
++rust	boring.ArrayRootStateOps
++rust	boring.ArraySliceOps
++rust	boring.BinaryReader
++rust	boring.BinaryWriter
++rust	boring.BorrowedArrayBoundaryOps
++rust	boring.BorrowedIterationSubjectOps
++rust	boring.BorrowedLoopItemBoundaryOps
++rust	boring.BorrowedReceiverBoundaryOps
++rust	boring.BorrowedStringReturnOps
++rust	boring.BoxedInterfaceDefaultOps
++rust	boring.BranchedOptionalFieldOps
++rust	boring.BytesOps
++rust	boring.CaptureSwitchOps
++rust	boring.CfgTestProbe
++rust	boring.CloneDeriveGapOps
++rust	boring.ClosureStringViewOps
++rust	boring.ClusterTags
++rust	boring.CodePointNames
++rust	boring.ComparatorGateOps
++rust	boring.CompareGateOps
++rust	boring.ConsoleShimOps
++rust	boring.ConstructedStateOps
++rust	boring.ConstructorStatementOps
++rust	boring.CtorOmitOps
++rust	boring.CtorOptArgOps
++rust	boring.DartArrayMethodOps
++rust	boring.DartCharNullOps
++rust	boring.DartCoalesceKind
++rust	boring.DartCoalesceReceiver
++rust	boring.DartCoalesceSiblingOps
++rust	boring.DartCoalesceStaticOps
++rust	boring.DartEmptyArrayFixOps
++rust	boring.DartLocalNameFixOps
++rust	boring.DartNullPushOps
++rust	boring.DataClassCtorGuardOps
++rust	boring.DataClassRangeEqOps
++rust	boring.DefaultArgShiftOps
++rust	boring.DefaultArgsOps
++rust	boring.DefaultBuilderOps
++rust	boring.DefaultParamUnwrapOps
++rust	boring.DeferredLocalsOps
++rust	boring.DivTableOps
++rust	boring.DowncastOps
++rust	boring.EnumLookupOps
++rust	boring.EnumQueriesOps
++rust	boring.EnumSortedKeysOps
++rust	boring.ExceptionCatchOps
++rust	boring.ExceptionChainProbe
++rust	boring.ExceptionTypeOps
++rust	boring.ExtensionConsumer
++rust	boring.ExtensionOps
++rust	boring.FallibleLocalFunctionOps
++rust	boring.FileLevelConsumer
++rust	boring.FileLevelOps
++rust	boring.FloatArrayAnnoOps
++rust	boring.FloatCompoundAssignOps
++rust	boring.FloatFieldLiteralOps
++rust	boring.FloatLiteralOps
++rust	boring.FloatModCompareOps
++rust	boring.FloatModOps
++rust	boring.FloatTernaryArmOps
++rust	boring.FnValuesOps
++rust	boring.FontId
++rust	boring.FontIdConsumer
++rust	boring.ForInOptionalOps
++rust	boring.Fp16
++rust	boring.Fp32
++rust	boring.FPHelperRustOps
++rust	boring.FPHelperSwiftOps
++rust	boring.FunctionalLocalOps
++rust	boring.FunctionalOps
++rust	boring.FusedPushThrowOps
++rust	boring.GlyphCluster
++rust	boring.GlyphClusterHolder
++rust	boring.GlyphClusterReader
++rust	boring.GlyphMetrics
++rust	boring.GraphemeOps
++rust	boring.GuardedBox
++rust	boring.GuardedRect
++rust	boring.HaxeExceptionOps
++rust	boring.ImpHost
++rust	boring.ImpWidget
++rust	boring.InheritCtorOps
++rust	boring.InlineDefaultOps
++rust	boring.InstanceDefaults
++rust	boring.Int64Ops
++rust	boring.IntDivisionOps
++rust	boring.InterfaceArrayLiteralOps
++rust	boring.InterfaceConditionalOps
++rust	boring.InterfaceFallibleOps
++rust	boring.InterfaceFieldLiteralOps
++rust	boring.InterfaceFieldRecordOps
++rust	boring.InterfaceGetterProperty
++rust	boring.InterfaceIdentityOps
++rust	boring.InterfaceThrowOps
++rust	boring.InterfaceUnionBeta
++rust	boring.InterfaceUnionOps
++rust	boring.IntFloatAddOps
++rust	boring.IntFloatCtorOps
++rust	boring.IntFloatSignOps
++rust	boring.IntToFloatCtorOps
++rust	boring.JvmFieldPrivateOps
++rust	boring.KnullInitNarrowing
++rust	boring.LocalShadowOps
++rust	boring.LocalThrowOps
++rust	boring.LoopWriteOps
++rust	boring.M2OptionVecOps
++rust	boring.MapHasGetOps
++rust	boring.MapValueOptionalOps
++rust	boring.MathIntWideningOps
++rust	boring.MathMinMaxOps
++rust	boring.MathMinShadowOps
++rust	boring.MathNaNOps
++rust	boring.MathNaNTestSupport
++rust	boring.MultiPatternSwitchOps
++rust	boring.MutableBufFieldOps
++rust	boring.MutatingCounterOps
++rust	boring.NarrowedOptionReturnOps
++rust	boring.NarrowedSortedReceiverOps
++rust	boring.NarrowLocalSwitchOps
++rust	boring.NegativeSentinelOps
++rust	boring.NegIntSlotOps
++rust	boring.NilContextOps
++rust	boring.NodeFsBorrowOps
++rust	boring.NullabilityOps
++rust	boring.NullableArrayArgumentOps
++rust	boring.NullableArrayElemOps
++rust	boring.NullableArrayOps
++rust	boring.NullableBufFieldOps
++rust	boring.NullableCallOps
++rust	boring.NullableCallOps2
++rust	boring.NullableFloatCompareOps
++rust	boring.NullableIndexOps
++rust	boring.NullableInterfaceBranchOps
++rust	boring.NullableLocalOps
++rust	boring.NullableReceiver
++rust	boring.NullableStringViewOps
++rust	boring.NullableToStringOps
++rust	boring.NullGuardFieldMetrics
++rust	boring.NullGuardFieldOps
++rust	boring.NullGuardNarrowOps
++rust	boring.NullGuardNestedFieldOps
++rust	boring.NullInitLocalOps
++rust	boring.NullStaticMapOps
++rust	boring.NumberClassifyOps
++rust	boring.NumberParsingOps
++rust	boring.NumericCoalesceLocalOps
++rust	boring.NumericConversionWidening
++rust	boring.NumericDomainOps
++rust	boring.NumericWidenOps
++rust	boring.OptionalCtorOps
++rust	boring.OptionalInterfaceArgumentOps
++rust	boring.OptionalMemberOps
++rust	boring.OptionalParamNull
++rust	boring.OptionalProjectionOps
++rust	boring.OptionalValueUseHolder
++rust	boring.OptionalValueUseMetrics
++rust	boring.OptionalValueUseOps
++rust	boring.OverrideMemberOps
++rust	boring.ParseIntPushOps
++rust	boring.PayloadSelfMapOps
++rust	boring.PayloadTextTable
++rust	boring.PipelineOps
++rust	boring.PlainLabel
++rust	boring.PlatformOps
++rust	boring.PostIncConditionOps
++rust	boring.PrintedCollection
++rust	boring.PrintedCustom
++rust	boring.PrintedEnumOps
++rust	boring.PrintedRecord
++rust	boring.PrintedSortedFields
++rust	boring.PrivateClassOps
++rust	boring.PrivateClassPeerOps
++rust	boring.PrivateCollisionAlpha
++rust	boring.PrivateCollisionBeta
++rust	boring.PrivateDefaultOps
++rust	boring.PrivateHolder
++rust	boring.PrivateStaticCallOps
++rust	boring.ProbeChain
++rust	boring.ProbeUnit
++rust	boring.PublicGetterProperty
++rust	boring.RangeParameterOps
++rust	boring.RecordInterfaceOps
++rust	boring.RecordOps
++rust	boring.RecordOrderOps
++rust	boring.ResidentBuilderInferOps
++rust	boring.ResidentModuleImportOps
++rust	boring.RuntimeExportOps
++rust	boring.RustCoalesceOps
++rust	boring.RustIterOps
++rust	boring.ScriptEvidenceTable
++rust	boring.ScriptNames
++rust	boring.SealedVariantOps
++rust	boring.SignedComparisonOps
++rust	boring.SignedIntArgumentOps
++rust	boring.SignedIntAssignOps
++rust	boring.SignedIntConstructorOps
++rust	boring.SignedLoopBoundOps
++rust	boring.SortedDataClassKeysOps
++rust	boring.StaticCollisionOps
++rust	boring.StaticFnOps
++rust	boring.StaticLazyDefaultOps
++rust	boring.StaticRefOps
++rust	boring.StaticStateOps
++rust	boring.StdStringOps
++rust	boring.StdStringSelfRecOps
++rust	boring.StringAppendOps
++rust	boring.StringBufOps
++rust	boring.StringBufThrowOps
++rust	boring.StringBufUnionOps
++rust	boring.StringCodeOptionalOps
++rust	boring.StringConvOps
++rust	boring.StringIndexOfShadowOps
++rust	boring.StringSearchFromOps
++rust	boring.StringUnitOps
++rust	boring.SubstringDefaultOps
++rust	boring.SwiftDefaultOps
++rust	boring.SwiftGlobalThrowOps
++rust	boring.SwiftLiteralSafetyOps
++rust	boring.SwitchCaseScopeOps
++rust	boring.SwitchMergeOps
++rust	boring.SwitchNullArmOps
++rust	boring.SwitchOps
++rust	boring.TableBuilderInferOps
++rust	boring.TernaryInterfaceOps
++rust	boring.TernaryOptionalOps
++rust	boring.ThrowingClosureOps
++rust	boring.ThrowingIndexOfOps
++rust	boring.ToStringOps
++rust	boring.TryOps
++rust	boring.Ts2448Ops
++rust	boring.TypeAliasLocalOps
++rust	boring.TypeParameterCompareOps
++rust	boring.UnderscoreParamOps
++rust	boring.UnionChainOps
++rust	boring.UsizeComparisonOps
++rust	boring.UStringOps
++rust	boring.UStringResidentOps
++rust	boring.ValueError
++rust	boring.ValueException
++rust	boring.ValuePassingOps
++rust	boring.ValueRecord
++rust	boring.ValueTypeClashOps
++rust	boring.ValueTypeConsumer
++rust	boring.ValueTypeCtorBindingOps
++rust	boring.ValueTypeOps
++rust	boring.VecInsertOps
++rust	boring.VecSpliceOps
++rust	boring.VectorCodec
++rust	boring.VectorError
++rust	boring.VectorException
++rust	boring.VectorSort
++rust	boring.WidgetAssembly
++rust	boring.WidgetCart
++rust	boring.WidgetKind
++rust	boring.WordCharacterTable
++rust	haxe.crypto.Crc
++rust	haxe.crypto.CrcModel
++rust	haxe.crypto.Sha256
++rust	haxe.crypto.Sha512
++rust	haxe.crypto.Xxh128
++rust	haxe.crypto.Xxh64
++rust	registry.Core
++rust	registry.CoreException
++rust	registry.CoreFault
++rust	registry.Json
++rust	registry.JsonException
++rust	registry.JsonFault
++rust	registry.Main
++rust	registry.Release
++rust	registry.Semver
++rust	registry.SemverException
++rust	registry.SemverFault
++rust	registry.Sha1
++rust	runtime.Graphemes
++rust	runtime.GraphemeWalk
++rust	runtime.SortedTable
++rust	runtime.TestCore
++rust	runtime.UString
++rust	std.Functional
++rust	std.ReadOnlyArray
++rust	std.SortedMap
++rust	std.SortedSet
++rust	tests.AbstractStaticDefaultTests
++rust	tests.AccessGrantTests
++rust	tests.AllowAccessTests
++rust	tests.ArithmeticTests
++rust	tests.ArrayAccessTests
++rust	tests.ArrayIndexSearchTests
++rust	tests.ArrayJoinTests
++rust	tests.ArrayMethodSwiftTests
++rust	tests.ArrayRootTests
++rust	tests.ArraySliceTests
++rust	tests.BlockScopeUnrollTests
++rust	tests.BorrowedArrayBoundaryTests
++rust	tests.BorrowedIterationSubjectOpsTests
++rust	tests.BorrowedLoopItemBoundaryTests
++rust	tests.BorrowedReceiverBoundaryTests
++rust	tests.BorrowedStringReturnTests
++rust	tests.BoxedInterfaceDefaultOpsTests
++rust	tests.BranchedOptionalFieldOpsTests
++rust	tests.BytesTests
++rust	tests.CaptureSwitchOpsTests
++rust	tests.CloneDeriveGapTests
++rust	tests.ClosureStringViewOpsTests
++rust	tests.ComparatorGateTests
++rust	tests.CompareGateTests
++rust	tests.ConsoleShimTests
++rust	tests.ConstructedStateTests
++rust	tests.ConstructorStatementTests
++rust	tests.CrcTests
++rust	tests.CryptoTestSupport
++rust	tests.CtorOmitTests
++rust	tests.CtorOptArgTests
++rust	tests.DartArrayMethodTests
++rust	tests.DartCharNullTests
++rust	tests.DartCoalesceSiblingTests
++rust	tests.DartCoalesceStaticTests
++rust	tests.DartEmptyArrayFixTests
++rust	tests.DartLocalNameFixTests
++rust	tests.DartNullPushTests
++rust	tests.DataClassCtorGuardTests
++rust	tests.DataClassRangeEqTests
++rust	tests.DataTableTests
++rust	tests.DefaultArgShiftTests
++rust	tests.DefaultArgsTests
++rust	tests.DefaultBuilderTests
++rust	tests.DefaultParamUnwrapTests
++rust	tests.DeferredLocalsTests
++rust	tests.DivTableTests
++rust	tests.DowncastTests
++rust	tests.EarlyReturnTests
++rust	tests.EnumLookupTests
++rust	tests.EnumQueriesProbes
++rust	tests.EnumQueriesTests
++rust	tests.EnumSortedKeysTests
++rust	tests.ExceptionCatchTests
++rust	tests.ExceptionChainProbeTests
++rust	tests.ExceptionTypeOpsTests
++rust	tests.ExpressionBlockTests
++rust	tests.FallibleLocalFunctionTests
++rust	tests.FloatCompoundAssignOpsTests
++rust	tests.FloatFieldLiteralOpsTests
++rust	tests.FloatLiteralOpsTests
++rust	tests.FloatModCompareOpsTests
++rust	tests.FloatModTests
++rust	tests.FloatTernaryArmTests
++rust	tests.FlushHookProbeTests
++rust	tests.FnValuesTests
++rust	tests.FontIdTests
++rust	tests.ForInOptionalTests
++rust	tests.Fp16Tests
++rust	tests.Fp32Tests
++rust	tests.FPHelperRustTests
++rust	tests.FPHelperSwiftTests
++rust	tests.FunctionalLocalTests
++rust	tests.FusedPushThrowTests
++rust	tests.GlyphClusterTests
++rust	tests.GraphemeTests
++rust	tests.HandWrittenLoopPositionSupport
++rust	tests.HandWrittenLoopPositionTests
++rust	tests.HaxeExceptionTests
++rust	tests.ImpDefaultTests
++rust	tests.InheritCtorTests
++rust	tests.InlineDefaultTests
++rust	tests.InstanceDefaultsTests
++rust	tests.Int64Tests
++rust	tests.IntDivisionTests
++rust	tests.InterfaceArrayLiteralTests
++rust	tests.InterfaceConditionalTests
++rust	tests.InterfaceFallibleOpsTests
++rust	tests.InterfaceFieldLiteralOpsTests
++rust	tests.InterfaceFieldRecordTests
++rust	tests.InterfaceGetterPropertyTests
++rust	tests.InterfaceIdentityTests
++rust	tests.InterfaceThrowTests
++rust	tests.InterfaceUnionTests
++rust	tests.IntFloatAddTests
++rust	tests.IntFloatCtorTests
++rust	tests.IntFloatSignTests
++rust	tests.IntToFloatCtorTests
++rust	tests.JvmFieldPrivateTests
++rust	tests.KnullInitNarrowingTests
++rust	tests.KotlinEntryProbeTests
++rust	tests.KotlinNullabilityTests
++rust	tests.LocalShadowTests
++rust	tests.LocalThrowTests
++rust	tests.LoopWriteTests
++rust	tests.M2OptionVecTests
++rust	tests.MapHasGetTests
++rust	tests.MapValueOptionalTests
++rust	tests.MathIntWideningOpsTests
++rust	tests.MathMinMaxTests
++rust	tests.MathMinShadowTests
++rust	tests.MathNaNOpsTests
++rust	tests.MultiPatternSwitchTests
++rust	tests.MutableBufFieldTests
++rust	tests.MutatingCounterTests
++rust	tests.NarrowedOptionReturnTests
++rust	tests.NarrowedSortedReceiverOpsTests
++rust	tests.NarrowLocalSwitchTests
++rust	tests.NegativeSentinelOpsTests
++rust	tests.NegIntSlotOpsTests
++rust	tests.NilContextTests
++rust	tests.NodeFsBorrowOpsTests
++rust	tests.NoSuchElementTests
++rust	tests.NullabilityTests
++rust	tests.NullableArrayArgumentTests
++rust	tests.NullableArrayElemTests
++rust	tests.NullableArrayTests
++rust	tests.NullableBufFieldTests
++rust	tests.NullableCallTests
++rust	tests.NullableFieldRecordTests
++rust	tests.NullableFloatCompareTests
++rust	tests.NullableIndexTests
++rust	tests.NullableInterfaceBranchOpsTests
++rust	tests.NullableLocalTests
++rust	tests.NullableStringViewOpsTests
++rust	tests.NullableToStringTests
++rust	tests.NullArgsTests
++rust	tests.NullGuardFieldTests
++rust	tests.NullGuardNarrowTests
++rust	tests.NullGuardNestedFieldOpsTests
++rust	tests.NullInitLocalTests
++rust	tests.NullStaticMapTests
++rust	tests.NumberClassifyTests
++rust	tests.NumberParsingTests
++rust	tests.NumericCoalesceLocalOpsTests
++rust	tests.NumericConversionWideningTests
++rust	tests.NumericDomainTests
++rust	tests.NumericWidenTests
++rust	tests.OptionalCtorTests
++rust	tests.OptionalInterfaceArgumentOpsTests
++rust	tests.OptionalMemberTests
++rust	tests.OptionalParamNullTests
++rust	tests.OptionalProjectionTests
++rust	tests.OptionalValueUseTests
++rust	tests.OverrideMemberTests
++rust	tests.ParseIntPushTests
++rust	tests.PayloadSelfMapOpsTests
++rust	tests.PipelineTests
++rust	tests.PlatformModulesTests
++rust	tests.PlatformModulesTestSupport
++rust	tests.PosterShapeTests
++rust	tests.PostIncConditionTests
++rust	tests.PrintedCollectionTests
++rust	tests.PrintedEnumTests
++rust	tests.PrintedRecordTests
++rust	tests.PrintedSortedFieldsTests
++rust	tests.PrivateClassTests
++rust	tests.PrivateCollisionTests
++rust	tests.PrivateDefaultTests
++rust	tests.PrivateStaticCallTests
++rust	tests.ProbeChainTests
++rust	tests.ProbeShareTests
++rust	tests.PublicGetterPropertyTests
++rust	tests.RangeParameterTests
++rust	tests.RecordInterfaceOpsTests
++rust	tests.RecordOrderTests
++rust	tests.RecordTests
++rust	tests.RegistryJsonTests
++rust	tests.RegistryParseArgsTests
++rust	tests.RegistryPipelineTests
++rust	tests.RegistrySemverTests
++rust	tests.RegistrySha1Tests
++rust	tests.ResidentBuilderInferOpsTests
++rust	tests.ResidentModuleImportTests
++rust	tests.RuntimeExportTests
++rust	tests.RustCoalesceTests
++rust	tests.RustUnionFaultTests
++rust	tests.SealedChildTests
++rust	tests.SealedVariantTests
++rust	tests.Sha256Tests
++rust	tests.Sha512Tests
++rust	tests.ShapeTextTests
++rust	tests.SignedComparisonTests
++rust	tests.SignedIntArgumentTests
++rust	tests.SignedIntAssignOpsTests
++rust	tests.SignedIntConstructorTests
++rust	tests.SignedLoopBoundOpsTests
++rust	tests.SortedKeyDomainTests
++rust	tests.SortedTableTests
++rust	tests.StaticExtensionProbes
++rust	tests.StaticExtensionTests
++rust	tests.StaticFnTests
++rust	tests.StaticRefTests
++rust	tests.StaticStateTests
++rust	tests.StdStringPlainClassTests
++rust	tests.StdStringSelfRecTests
++rust	tests.StdStringTests
++rust	tests.StringAppendTests
++rust	tests.StringBufTests
++rust	tests.StringBufThrowTests
++rust	tests.StringBufUnionTests
++rust	tests.StringCodecTests
++rust	tests.StringCodeOptionalTests
++rust	tests.StringConvTests
++rust	tests.StringIndexOfShadowTests
++rust	tests.StringSearchFromTests
++rust	tests.StringToolsTests
++rust	tests.StringUnitTests
++rust	tests.SubstringDefaultTests
++rust	tests.SumOfFloatLocalTests
++rust	tests.SwiftDefaultTests
++rust	tests.SwiftGlobalThrowTests
++rust	tests.SwiftLiteralSafetyOpsTests
++rust	tests.SwitchCaseScopeTests
++rust	tests.SwitchMergeTests
++rust	tests.SwitchNullArmTests
++rust	tests.SwitchOpsTests
++rust	tests.TableBuilderInferTests
++rust	tests.TernaryInterfaceTests
++rust	tests.TernaryOptionalTests
++rust	tests.TestApplicabilityProbeTests
++rust	tests.TestData
++rust	tests.ThrowingClosureTests
++rust	tests.ThrowingIndexOfTests
++rust	tests.ToStringTests
++rust	tests.TryTests
++rust	tests.Ts2448Tests
++rust	tests.TypeAliasLocalTests
++rust	tests.TypeParameterCompareTests
++rust	tests.UnderscoreParamTests
++rust	tests.UnionChainTests
++rust	tests.UsizeComparisonTests
++rust	tests.UStringResidentTests
++rust	tests.UStringTests
++rust	tests.ValuePassingTests
++rust	tests.ValueRecordProbes
++rust	tests.ValueRecordTests
++rust	tests.ValueTypeClashTests
++rust	tests.ValueTypeCtorBindingTests
++rust	tests.ValueTypeTests
++rust	tests.VecInsertTests
++rust	tests.VecSpliceTests
++rust	tests.VectorCodecTests
++rust	tests.WidgetCoalescingTests
++rust	tests.Xxh128Tests
++rust	tests.Xxh64Tests
++swift	boring.AbstractStaticDefault
++swift	boring.AccessPeer
++swift	boring.AccessTarget
++swift	boring.AllowGuest
++swift	boring.AllowHost
++swift	boring.ArithmeticOps
++swift	boring.ArrayAccessOps
++swift	boring.ArrayIndexSearchOps
++swift	boring.ArrayIterationOps
++swift	boring.ArrayJoinOps
++swift	boring.ArrayMethodSwiftOps
++swift	boring.ArrayRootStateOps
++swift	boring.ArraySliceOps
++swift	boring.BinaryReader
++swift	boring.BinaryWriter
++swift	boring.BorrowedArrayBoundaryOps
++swift	boring.BorrowedIterationSubjectOps
++swift	boring.BorrowedLoopItemBoundaryOps
++swift	boring.BorrowedReceiverBoundaryOps
++swift	boring.BorrowedStringReturnOps
++swift	boring.BoxedInterfaceDefaultOps
++swift	boring.BranchedOptionalFieldOps
++swift	boring.BytesOps
++swift	boring.CaptureSwitchOps
++swift	boring.CfgTestProbe
++swift	boring.CloneDeriveGapOps
++swift	boring.ClosureStringViewOps
++swift	boring.ClusterTags
++swift	boring.CodePointNames
++swift	boring.ComparatorGateOps
++swift	boring.CompareGateOps
++swift	boring.ConsoleShimOps
++swift	boring.ConstructedStateOps
++swift	boring.ConstructorStatementOps
++swift	boring.CtorOmitOps
++swift	boring.CtorOptArgOps
++swift	boring.DartArrayMethodOps
++swift	boring.DartCharNullOps
++swift	boring.DartCoalesceKind
++swift	boring.DartCoalesceReceiver
++swift	boring.DartCoalesceSiblingOps
++swift	boring.DartCoalesceStaticOps
++swift	boring.DartEmptyArrayFixOps
++swift	boring.DartLocalNameFixOps
++swift	boring.DartNullPushOps
++swift	boring.DataClassCtorGuardOps
++swift	boring.DataClassRangeEqOps
++swift	boring.DefaultArgShiftOps
++swift	boring.DefaultArgsOps
++swift	boring.DefaultBuilderOps
++swift	boring.DefaultParamUnwrapOps
++swift	boring.DeferredLocalsOps
++swift	boring.DivTableOps
++swift	boring.DowncastOps
++swift	boring.EnumLookupOps
++swift	boring.EnumQueriesOps
++swift	boring.EnumSortedKeysOps
++swift	boring.ExceptionCatchOps
++swift	boring.ExceptionChainProbe
++swift	boring.ExceptionTypeOps
++swift	boring.ExtensionConsumer
++swift	boring.ExtensionOps
++swift	boring.FallibleLocalFunctionOps
++swift	boring.FileLevelConsumer
++swift	boring.FileLevelOps
++swift	boring.FloatArrayAnnoOps
++swift	boring.FloatCompoundAssignOps
++swift	boring.FloatFieldLiteralOps
++swift	boring.FloatLiteralOps
++swift	boring.FloatModCompareOps
++swift	boring.FloatModOps
++swift	boring.FloatTernaryArmOps
++swift	boring.FnValuesOps
++swift	boring.FontId
++swift	boring.FontIdConsumer
++swift	boring.ForInOptionalOps
++swift	boring.Fp16
++swift	boring.Fp32
++swift	boring.FPHelperRustOps
++swift	boring.FPHelperSwiftOps
++swift	boring.FunctionalLocalOps
++swift	boring.FunctionalOps
++swift	boring.FusedPushThrowOps
++swift	boring.GlyphCluster
++swift	boring.GlyphClusterHolder
++swift	boring.GlyphClusterReader
++swift	boring.GlyphMetrics
++swift	boring.GraphemeOps
++swift	boring.HaxeExceptionOps
++swift	boring.ImpHost
++swift	boring.ImpWidget
++swift	boring.InheritCtorOps
++swift	boring.InlineDefaultOps
++swift	boring.InstanceDefaults
++swift	boring.Int64Ops
++swift	boring.IntDivisionOps
++swift	boring.InterfaceArrayLiteralOps
++swift	boring.InterfaceConditionalOps
++swift	boring.InterfaceFallibleOps
++swift	boring.InterfaceFieldLiteralOps
++swift	boring.InterfaceFieldRecordOps
++swift	boring.InterfaceGetterProperty
++swift	boring.InterfaceIdentityOps
++swift	boring.InterfaceThrowOps
++swift	boring.InterfaceUnionBeta
++swift	boring.InterfaceUnionOps
++swift	boring.IntFloatAddOps
++swift	boring.IntFloatCtorOps
++swift	boring.IntFloatSignOps
++swift	boring.IntToFloatCtorOps
++swift	boring.JvmFieldPrivateOps
++swift	boring.KnullInitNarrowing
++swift	boring.LocalShadowOps
++swift	boring.LocalThrowOps
++swift	boring.LoopWriteOps
++swift	boring.M2OptionVecOps
++swift	boring.MapHasGetOps
++swift	boring.MapValueOptionalOps
++swift	boring.MathIntWideningOps
++swift	boring.MathMinMaxOps
++swift	boring.MathMinShadowOps
++swift	boring.MathNaNOps
++swift	boring.MathNaNTestSupport
++swift	boring.MultiPatternSwitchOps
++swift	boring.MutableBufFieldOps
++swift	boring.MutatingCounterOps
++swift	boring.NarrowedOptionReturnOps
++swift	boring.NarrowedSortedReceiverOps
++swift	boring.NarrowLocalSwitchOps
++swift	boring.NegativeSentinelOps
++swift	boring.NegIntSlotOps
++swift	boring.NilContextOps
++swift	boring.NodeFsBorrowOps
++swift	boring.NullabilityOps
++swift	boring.NullableArrayArgumentOps
++swift	boring.NullableArrayElemOps
++swift	boring.NullableArrayOps
++swift	boring.NullableBufFieldOps
++swift	boring.NullableCallOps
++swift	boring.NullableCallOps2
++swift	boring.NullableFloatCompareOps
++swift	boring.NullableIndexOps
++swift	boring.NullableInterfaceBranchOps
++swift	boring.NullableLocalOps
++swift	boring.NullableReceiver
++swift	boring.NullableStringViewOps
++swift	boring.NullableToStringOps
++swift	boring.NullGuardFieldMetrics
++swift	boring.NullGuardFieldOps
++swift	boring.NullGuardNarrowOps
++swift	boring.NullGuardNestedFieldOps
++swift	boring.NullInitLocalOps
++swift	boring.NullStaticMapOps
++swift	boring.NumberClassifyOps
++swift	boring.NumberParsingOps
++swift	boring.NumericCoalesceLocalOps
++swift	boring.NumericConversionWidening
++swift	boring.NumericDomainOps
++swift	boring.NumericWidenOps
++swift	boring.OptionalCtorOps
++swift	boring.OptionalInterfaceArgumentOps
++swift	boring.OptionalMemberOps
++swift	boring.OptionalParamNull
++swift	boring.OptionalProjectionOps
++swift	boring.OptionalValueUseHolder
++swift	boring.OptionalValueUseMetrics
++swift	boring.OptionalValueUseOps
++swift	boring.OverrideMemberOps
++swift	boring.ParseIntPushOps
++swift	boring.PayloadSelfMapOps
++swift	boring.PayloadTextTable
++swift	boring.PipelineOps
++swift	boring.PlainLabel
++swift	boring.PlatformOps
++swift	boring.PostIncConditionOps
++swift	boring.PrintedCollection
++swift	boring.PrintedCustom
++swift	boring.PrintedEnumOps
++swift	boring.PrintedRecord
++swift	boring.PrintedSortedFields
++swift	boring.PrivateClassOps
++swift	boring.PrivateClassPeerOps
++swift	boring.PrivateCollisionAlpha
++swift	boring.PrivateCollisionBeta
++swift	boring.PrivateDefaultOps
++swift	boring.PrivateHolder
++swift	boring.PrivateStaticCallOps
++swift	boring.ProbeChain
++swift	boring.ProbeUnit
++swift	boring.PublicGetterProperty
++swift	boring.RangeParameterOps
++swift	boring.RecordInterfaceOps
++swift	boring.RecordOps
++swift	boring.RecordOrderOps
++swift	boring.ResidentBuilderInferOps
++swift	boring.ResidentModuleImportOps
++swift	boring.RuntimeExportOps
++swift	boring.RustCoalesceOps
++swift	boring.RustIterOps
++swift	boring.ScriptEvidenceTable
++swift	boring.ScriptNames
++swift	boring.SealedVariantOps
++swift	boring.SignedComparisonOps
++swift	boring.SignedIntArgumentOps
++swift	boring.SignedIntAssignOps
++swift	boring.SignedIntConstructorOps
++swift	boring.SignedLoopBoundOps
++swift	boring.SortedDataClassKeysOps
++swift	boring.StaticCollisionOps
++swift	boring.StaticFnOps
++swift	boring.StaticRefOps
++swift	boring.StaticStateOps
++swift	boring.StdStringOps
++swift	boring.StdStringSelfRecOps
++swift	boring.StringAppendOps
++swift	boring.StringBufOps
++swift	boring.StringBufThrowOps
++swift	boring.StringBufUnionOps
++swift	boring.StringCodeOptionalOps
++swift	boring.StringConvOps
++swift	boring.StringIndexOfShadowOps
++swift	boring.StringSearchFromOps
++swift	boring.StringUnitOps
++swift	boring.SubstringDefaultOps
++swift	boring.SwiftDefaultOps
++swift	boring.SwiftGlobalThrowOps
++swift	boring.SwiftLiteralSafetyOps
++swift	boring.SwitchCaseScopeOps
++swift	boring.SwitchMergeOps
++swift	boring.SwitchNullArmOps
++swift	boring.SwitchOps
++swift	boring.TableBuilderInferOps
++swift	boring.TernaryInterfaceOps
++swift	boring.TernaryOptionalOps
++swift	boring.ThrowingClosureOps
++swift	boring.ThrowingIndexOfOps
++swift	boring.ToStringOps
++swift	boring.TryOps
++swift	boring.Ts2448Ops
++swift	boring.TypeAliasLocalOps
++swift	boring.TypeParameterCompareOps
++swift	boring.UnderscoreParamOps
++swift	boring.UnionChainOps
++swift	boring.UsizeComparisonOps
++swift	boring.UStringOps
++swift	boring.UStringResidentOps
++swift	boring.ValueError
++swift	boring.ValueException
++swift	boring.ValuePassingOps
++swift	boring.ValueRecord
++swift	boring.ValueTypeClashOps
++swift	boring.ValueTypeConsumer
++swift	boring.ValueTypeCtorBindingOps
++swift	boring.ValueTypeOps
++swift	boring.VecInsertOps
++swift	boring.VecSpliceOps
++swift	boring.VectorCodec
++swift	boring.VectorError
++swift	boring.VectorException
++swift	boring.VectorSort
++swift	boring.WidgetAssembly
++swift	boring.WidgetCart
++swift	boring.WidgetKind
++swift	boring.WordCharacterTable
++swift	haxe.crypto.Crc
++swift	haxe.crypto.CrcModel
++swift	haxe.crypto.Sha256
++swift	haxe.crypto.Sha512
++swift	haxe.crypto.Xxh128
++swift	haxe.crypto.Xxh64
++swift	registry.Core
++swift	registry.CoreException
++swift	registry.CoreFault
++swift	registry.Json
++swift	registry.JsonException
++swift	registry.JsonFault
++swift	registry.Main
++swift	registry.Release
++swift	registry.Semver
++swift	registry.SemverException
++swift	registry.SemverFault
++swift	registry.Sha1
++swift	runtime.Graphemes
++swift	runtime.GraphemeWalk
++swift	runtime.SortedTable
++swift	runtime.TestCore
++swift	runtime.UString
++swift	std.Functional
++swift	std.ReadOnlyArray
++swift	std.SortedMap
++swift	std.SortedSet
++swift	tests.AbstractStaticDefaultTests
++swift	tests.AccessGrantTests
++swift	tests.AllowAccessTests
++swift	tests.ArithmeticTests
++swift	tests.ArrayAccessTests
++swift	tests.ArrayIndexSearchTests
++swift	tests.ArrayJoinTests
++swift	tests.ArrayMethodSwiftTests
++swift	tests.ArrayRootTests
++swift	tests.ArraySliceTests
++swift	tests.BlockScopeUnrollTests
++swift	tests.BorrowedArrayBoundaryTests
++swift	tests.BorrowedIterationSubjectOpsTests
++swift	tests.BorrowedLoopItemBoundaryTests
++swift	tests.BorrowedReceiverBoundaryTests
++swift	tests.BorrowedStringReturnTests
++swift	tests.BoxedInterfaceDefaultOpsTests
++swift	tests.BranchedOptionalFieldOpsTests
++swift	tests.BytesTests
++swift	tests.CaptureSwitchOpsTests
++swift	tests.CloneDeriveGapTests
++swift	tests.ClosureStringViewOpsTests
++swift	tests.ComparatorGateTests
++swift	tests.CompareGateTests
++swift	tests.ConsoleShimTests
++swift	tests.ConstructedStateTests
++swift	tests.ConstructorStatementTests
++swift	tests.CrcTests
++swift	tests.CryptoTestSupport
++swift	tests.CtorOmitTests
++swift	tests.CtorOptArgTests
++swift	tests.DartArrayMethodTests
++swift	tests.DartCharNullTests
++swift	tests.DartCoalesceSiblingTests
++swift	tests.DartCoalesceStaticTests
++swift	tests.DartEmptyArrayFixTests
++swift	tests.DartLocalNameFixTests
++swift	tests.DartNullPushTests
++swift	tests.DataClassCtorGuardTests
++swift	tests.DataClassRangeEqTests
++swift	tests.DataTableTests
++swift	tests.DefaultArgShiftTests
++swift	tests.DefaultArgsTests
++swift	tests.DefaultBuilderTests
++swift	tests.DefaultParamUnwrapTests
++swift	tests.DeferredLocalsTests
++swift	tests.DivTableTests
++swift	tests.DowncastTests
++swift	tests.EarlyReturnTests
++swift	tests.EnumLookupTests
++swift	tests.EnumQueriesProbes
++swift	tests.EnumQueriesTests
++swift	tests.EnumSortedKeysTests
++swift	tests.ExceptionCatchTests
++swift	tests.ExceptionChainProbeTests
++swift	tests.ExceptionTypeOpsTests
++swift	tests.ExpressionBlockTests
++swift	tests.FallibleLocalFunctionTests
++swift	tests.FloatCompoundAssignOpsTests
++swift	tests.FloatFieldLiteralOpsTests
++swift	tests.FloatLiteralOpsTests
++swift	tests.FloatModCompareOpsTests
++swift	tests.FloatModTests
++swift	tests.FloatTernaryArmTests
++swift	tests.FlushHookProbeTests
++swift	tests.FnValuesTests
++swift	tests.FontIdTests
++swift	tests.ForInOptionalTests
++swift	tests.Fp16Tests
++swift	tests.Fp32Tests
++swift	tests.FPHelperRustTests
++swift	tests.FPHelperSwiftTests
++swift	tests.FunctionalLocalTests
++swift	tests.FusedPushThrowTests
++swift	tests.GlyphClusterTests
++swift	tests.GraphemeTests
++swift	tests.HandWrittenLoopPositionSupport
++swift	tests.HandWrittenLoopPositionTests
++swift	tests.HaxeExceptionTests
++swift	tests.ImpDefaultTests
++swift	tests.InheritCtorTests
++swift	tests.InlineDefaultTests
++swift	tests.InstanceDefaultsTests
++swift	tests.Int64Tests
++swift	tests.IntDivisionTests
++swift	tests.InterfaceArrayLiteralTests
++swift	tests.InterfaceConditionalTests
++swift	tests.InterfaceFallibleOpsTests
++swift	tests.InterfaceFieldLiteralOpsTests
++swift	tests.InterfaceFieldRecordTests
++swift	tests.InterfaceGetterPropertyTests
++swift	tests.InterfaceIdentityTests
++swift	tests.InterfaceThrowTests
++swift	tests.InterfaceUnionTests
++swift	tests.IntFloatAddTests
++swift	tests.IntFloatCtorTests
++swift	tests.IntFloatSignTests
++swift	tests.IntToFloatCtorTests
++swift	tests.JvmFieldPrivateTests
++swift	tests.KnullInitNarrowingTests
++swift	tests.KotlinEntryProbeTests
++swift	tests.KotlinNullabilityTests
++swift	tests.LocalShadowTests
++swift	tests.LocalThrowTests
++swift	tests.LoopWriteTests
++swift	tests.M2OptionVecTests
++swift	tests.MapHasGetTests
++swift	tests.MapValueOptionalTests
++swift	tests.MathIntWideningOpsTests
++swift	tests.MathMinMaxTests
++swift	tests.MathMinShadowTests
++swift	tests.MathNaNOpsTests
++swift	tests.MultiPatternSwitchTests
++swift	tests.MutableBufFieldTests
++swift	tests.MutatingCounterTests
++swift	tests.NarrowedOptionReturnTests
++swift	tests.NarrowedSortedReceiverOpsTests
++swift	tests.NarrowLocalSwitchTests
++swift	tests.NegativeSentinelOpsTests
++swift	tests.NegIntSlotOpsTests
++swift	tests.NilContextTests
++swift	tests.NodeFsBorrowOpsTests
++swift	tests.NoSuchElementTests
++swift	tests.NullabilityTests
++swift	tests.NullableArrayArgumentTests
++swift	tests.NullableArrayElemTests
++swift	tests.NullableArrayTests
++swift	tests.NullableBufFieldTests
++swift	tests.NullableCallTests
++swift	tests.NullableFieldRecordTests
++swift	tests.NullableFloatCompareTests
++swift	tests.NullableIndexTests
++swift	tests.NullableInterfaceBranchOpsTests
++swift	tests.NullableLocalTests
++swift	tests.NullableStringViewOpsTests
++swift	tests.NullableToStringTests
++swift	tests.NullArgsTests
++swift	tests.NullGuardFieldTests
++swift	tests.NullGuardNarrowTests
++swift	tests.NullGuardNestedFieldOpsTests
++swift	tests.NullInitLocalTests
++swift	tests.NullStaticMapTests
++swift	tests.NumberClassifyTests
++swift	tests.NumberParsingTests
++swift	tests.NumericCoalesceLocalOpsTests
++swift	tests.NumericConversionWideningTests
++swift	tests.NumericDomainTests
++swift	tests.NumericWidenTests
++swift	tests.OptionalCtorTests
++swift	tests.OptionalInterfaceArgumentOpsTests
++swift	tests.OptionalMemberTests
++swift	tests.OptionalParamNullTests
++swift	tests.OptionalProjectionTests
++swift	tests.OptionalValueUseTests
++swift	tests.OverrideMemberTests
++swift	tests.ParseIntPushTests
++swift	tests.PayloadSelfMapOpsTests
++swift	tests.PipelineTests
++swift	tests.PlatformModulesTests
++swift	tests.PlatformModulesTestSupport
++swift	tests.PosterShapeTests
++swift	tests.PostIncConditionTests
++swift	tests.PrintedCollectionTests
++swift	tests.PrintedEnumTests
++swift	tests.PrintedRecordTests
++swift	tests.PrintedSortedFieldsTests
++swift	tests.PrivateClassTests
++swift	tests.PrivateCollisionTests
++swift	tests.PrivateDefaultTests
++swift	tests.PrivateStaticCallTests
++swift	tests.ProbeChainTests
++swift	tests.ProbeShareTests
++swift	tests.PublicGetterPropertyTests
++swift	tests.RangeParameterTests
++swift	tests.RecordInterfaceOpsTests
++swift	tests.RecordOrderTests
++swift	tests.RecordTests
++swift	tests.RegistryJsonTests
++swift	tests.RegistryParseArgsTests
++swift	tests.RegistryPipelineTests
++swift	tests.RegistrySemverTests
++swift	tests.RegistrySha1Tests
++swift	tests.ResidentBuilderInferOpsTests
++swift	tests.ResidentModuleImportTests
++swift	tests.RuntimeExportTests
++swift	tests.RustCoalesceTests
++swift	tests.RustUnionFaultTests
++swift	tests.SealedChildTests
++swift	tests.SealedVariantTests
++swift	tests.Sha256Tests
++swift	tests.Sha512Tests
++swift	tests.ShapeTextTests
++swift	tests.SignedComparisonTests
++swift	tests.SignedIntArgumentTests
++swift	tests.SignedIntAssignOpsTests
++swift	tests.SignedIntConstructorTests
++swift	tests.SignedLoopBoundOpsTests
++swift	tests.SortedKeyDomainTests
++swift	tests.SortedTableTests
++swift	tests.StaticExtensionProbes
++swift	tests.StaticExtensionTests
++swift	tests.StaticFnTests
++swift	tests.StaticRefTests
++swift	tests.StaticStateTests
++swift	tests.StdStringPlainClassTests
++swift	tests.StdStringSelfRecTests
++swift	tests.StdStringTests
++swift	tests.StringAppendTests
++swift	tests.StringBufTests
++swift	tests.StringBufThrowTests
++swift	tests.StringBufUnionTests
++swift	tests.StringCodecTests
++swift	tests.StringCodeOptionalTests
++swift	tests.StringConvTests
++swift	tests.StringIndexOfShadowTests
++swift	tests.StringSearchFromTests
++swift	tests.StringToolsTests
++swift	tests.StringUnitTests
++swift	tests.SubstringDefaultTests
++swift	tests.SumOfFloatLocalTests
++swift	tests.SwiftDefaultTests
++swift	tests.SwiftGlobalThrowTests
++swift	tests.SwiftLiteralSafetyOpsTests
++swift	tests.SwitchCaseScopeTests
++swift	tests.SwitchMergeTests
++swift	tests.SwitchNullArmTests
++swift	tests.SwitchOpsTests
++swift	tests.TableBuilderInferTests
++swift	tests.TernaryInterfaceTests
++swift	tests.TernaryOptionalTests
++swift	tests.TestApplicabilityProbeTests
++swift	tests.TestData
++swift	tests.ThrowingClosureTests
++swift	tests.ThrowingIndexOfTests
++swift	tests.ToStringTests
++swift	tests.TryTests
++swift	tests.Ts2448Tests
++swift	tests.TypeAliasLocalTests
++swift	tests.TypeParameterCompareTests
++swift	tests.UnderscoreParamTests
++swift	tests.UnionChainTests
++swift	tests.UsizeComparisonTests
++swift	tests.UStringResidentTests
++swift	tests.UStringTests
++swift	tests.ValuePassingTests
++swift	tests.ValueRecordProbes
++swift	tests.ValueRecordTests
++swift	tests.ValueTypeClashTests
++swift	tests.ValueTypeCtorBindingTests
++swift	tests.ValueTypeTests
++swift	tests.VecInsertTests
++swift	tests.VecSpliceTests
++swift	tests.VectorCodecTests
++swift	tests.WidgetCoalescingTests
++swift	tests.Xxh128Tests
++swift	tests.Xxh64Tests

@@ -1,0 +1,104 @@
+// boring's own bundle project (feature spec 59). The driver derives every
+// output directory (<outRoot>/<id>/gen and <outRoot>/<id>/gen-tests) and
+// every results path (<resultsDir>/<id>.jsonl) from this file; none of
+// them is named here.
+{
+  "outRoot": "reference",
+  "resultsDir": "out/test-results",
+  "baseline": "kotlin",
+  "sourceRoots": ["samples", "packages/registry/src"],
+  "bundles": [
+    {
+      "id": "haxe",
+      "target": "haxe",
+      "rootsFile": "tests/haxe/generate-main.hxml",
+      "build": {
+        "args": [
+          "-lib", "reflaxe",
+          "-cp", "packages/compiler",
+          "--macro", "Intercept.run(['samples', 'packages/registry/src'])",
+          "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+          "-D", "analyzer-optimize",
+          "-D", "boring_oracle"
+        ]
+      }
+    },
+    {
+      "id": "ts",
+      "target": "ts",
+      "rootsFile": "examples/ts.hxml",
+      "package": { "name": "boring-codec", "version": "0.1.0" }
+    },
+    {
+      "id": "kotlin",
+      "target": "kotlin",
+      "rootsFile": "examples/kotlin.hxml",
+      "build": {
+        "args": ["-Xallow-kotlin-package"]
+      },
+      "package": { "name": "boring-codec", "version": "0.1.0" }
+    },
+    {
+      "id": "dart",
+      "target": "dart",
+      "rootsFile": "examples/dart.hxml"
+    },
+    {
+      "id": "rust",
+      "target": "rust",
+      "rootsFile": "examples/rust.hxml"
+    },
+    {
+      "id": "swift",
+      "target": "swift",
+      "rootsFile": "examples/swift.hxml",
+      "haxeArgs": ["-D", "swift-test-import=Codec"],
+      "build": {
+        "args": ["-swift-version", "5"]
+      }
+    },
+    {
+      "id": "haxe-f32",
+      "target": "haxe",
+      "precision": "f32",
+      "rootsFile": "tests/haxe/generate-main-f32.hxml",
+      "haxeArgs": ["-D", "haxe-test-main=TestMainF32"],
+      "build": {
+        "args": [
+          "-lib", "reflaxe",
+          "-cp", "packages/compiler",
+          "--macro", "Intercept.run(['samples', 'packages/registry/src'])",
+          "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+          "-D", "analyzer-optimize",
+          "-D", "boring_oracle",
+          "-D", "float-precision=f32"
+        ]
+      }
+    },
+    {
+      "id": "kotlin-f32",
+      "target": "kotlin",
+      "precision": "f32",
+      "rootsFile": "examples/kotlin-f32.hxml",
+      "build": {
+        "args": ["-Xallow-kotlin-package"]
+      }
+    },
+    {
+      "id": "rust-f32",
+      "target": "rust",
+      "precision": "f32",
+      "rootsFile": "examples/rust-f32.hxml"
+    },
+    {
+      "id": "swift-f32",
+      "target": "swift",
+      "precision": "f32",
+      "rootsFile": "examples/swift-f32.hxml",
+      "haxeArgs": ["-D", "swift-test-import=CodecF32"],
+      "build": {
+        "args": ["-swift-version", "5"]
+      }
+    }
+  ]
+}

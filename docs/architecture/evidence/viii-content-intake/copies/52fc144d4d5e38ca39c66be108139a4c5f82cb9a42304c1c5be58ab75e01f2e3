@@ -1,0 +1,26 @@
+class GapOracle {
+	static function rep(l:String, v:Int):Void trace(l + "=" + v);
+	static function main():Void {
+		var C = gap.Gap.GapChoice;
+		rep("controlTernary-true", gap.Gap.controlTernary(true));
+		rep("controlTernary-false", gap.Gap.controlTernary(false));
+		rep("switchLocal-one", gap.Gap.switchLocal(C.One));
+		rep("switchLocal-two", gap.Gap.switchLocal(C.Two));
+		try { rep("tryLocal-true", gap.Gap.tryLocal(true)); rep("tryLocal-false", gap.Gap.tryLocal(false)); } catch (e:Dynamic) { trace("tryLocal-threw"); }
+		rep("switchReturnPosition-one", gap.Gap.switchReturnPosition(C.One).length);
+		rep("switchReturnPosition-two", gap.Gap.switchReturnPosition(C.Two).length);
+		rep("switchReturnLocal-one", gap.Gap.GapExtra.switchReturnLocal(C.One, [7, 8]).length);
+		rep("ifReturnPosition-true", gap.Gap.GapExtra.ifReturnPosition(true).length);
+		rep("switchArgument-one", gap.Gap.GapExtra.switchArgument(C.One));
+		rep("switchArgument-two", gap.Gap.GapExtra.switchArgument(C.Two));
+		rep("staticValues", gap.Gap.GapStatics.values.length);
+		rep("switchExplicitReturn-one", gap.Gap.GapExplicitReturn.switchExplicitReturn(C.One).length);
+		rep("switchExplicitReturn-two", gap.Gap.GapExplicitReturn.switchExplicitReturn(C.Two).length);
+		try { rep("tryReturn-true", gap.Gap.GapPaths.tryReturn(true).length); rep("tryReturn-false", gap.Gap.GapPaths.tryReturn(false).length); } catch (e:Dynamic) { trace("tryReturn-threw"); }
+		rep("switchAssignPath-one", gap.Gap.GapPaths.switchAssignPath(C.One));
+		rep("switchAssignPath-two", gap.Gap.GapPaths.switchAssignPath(C.Two));
+		rep("switchStatementPath-one", gap.Gap.GapPaths2.switchStatementPath(C.One));
+		rep("switchStatementPath-two", gap.Gap.GapPaths2.switchStatementPath(C.Two));
+		try { rep("tryStatementAssignPath-true", gap.Gap.GapPaths2.tryStatementAssignPath(true)); rep("tryStatementAssignPath-false", gap.Gap.GapPaths2.tryStatementAssignPath(false)); } catch (e:Dynamic) { trace("tryStatementAssignPath-threw"); }
+	}
+}

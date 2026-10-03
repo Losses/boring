@@ -1,0 +1,15 @@
+run=/tmp/swiftarr/execroot/out/integration-a3-evidence/exclusive-runner/attempt-20260929T185600-3077358
+root=/tmp/swiftarr/execroot
+child_evidence_dir=/tmp/swiftarr/execroot/out/integration-a3-evidence/exclusive-runner/attempt-20260929T185600-3077358/child-evidence
+external_dir=/tmp/swiftarr/execroot/out/integration-a3-evidence/exclusive-runner/external-20260929T185600-3077358
+plan=/tmp/swiftarr/plan-stage3-only.plan
+start=2026-09-29T18:56:00-04:00
+step-737716045 status=1
+end=2026-09-29T19:08:11-04:00
+failed_stage=step-737716045
+last_status=1
+stage-evidence 0ed90ee997743a5fbf01ee3a9ee2f7e93b98d3852cf64968bca2cf63fba14a7b  step-737716045.command
+stage-evidence 4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  step-737716045.status
+stage-evidence e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-737716045.stderr
+stage-evidence 6abb14dd78f42911c427ace06233571014f17cfb84186e507482b9dbe62d5997  step-737716045.stdout
+harness end marker sha256=b76b728c2c61c773b67c1a79706475d04fb00e498a95ebeb012c774feb61141b

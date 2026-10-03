@@ -1,0 +1,11 @@
+baseline (git -C boring ls-tree -r e1c65975): 1398
+fixtures (5 untracked fixture dirs + stage-check-control.sh): 35
+baseline∩fixture overlap: 0 []
+expected set size: 1433
+manifest entries: 1433
+manifest unique paths: 1433
+duplicate paths in manifest: 0 []
+missing (expected - manifest): 0
+extra (manifest - expected): 0
+entries: 1433 / failures: 0
+CHECK1+2 VERDICT: PASS

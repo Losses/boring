@@ -1,0 +1,33 @@
+#![cfg(test)]
+
+use crate::boring::static_collision_ops::StaticCollisionOps;
+use crate::boring::static_state_ops::StaticStateClient;
+use crate::boring::static_state_ops::StaticStateOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_static_collision() {
+    testlib::run("tests.StaticStateTests.testStaticCollision", "tests.StaticStateTests.testStaticCollision: colliding static-only classes retain distinct namespaces", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,108,111,97,116,58,49,46,53]), StaticCollisionOps::static_collision_ops_float_value(1.5f32).as_ustr(), UStr::new(&[102,108,111,97,116,32,115,116,97,116,105,99,32,114,101,115,117,108,116]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[105,110,116,58,55]), StaticCollisionOps::static_collision_ops_int_value(7).as_ustr(), UStr::new(&[105,110,116,32,115,116,97,116,105,99,32,114,101,115,117,108,116]));
+    });
+}
+
+#[test]
+fn test_static_state() {
+    testlib::run("tests.StaticStateTests.testStaticState", "tests.StaticStateTests.testStaticState: static fields round-trip assignments and retain container state", || {
+        StaticStateOps::static_state_ops_set_current(UStr::new(&[111,119,110]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[111,119,110]), StaticStateOps::static_state_ops_read_current().as_ustr(), UStr::new(&[97,115,115,105,103,110,109,101,110,116,32,102,114,111,109,32,116,104,101,32,100,101,99,108,97,114,105,110,103,32,99,108,97,115,115]));
+        StaticStateClient::static_state_client_install(UStr::new(&[111,116,104,101,114]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[111,116,104,101,114]), StaticStateOps::static_state_ops_read_current().as_ustr(), UStr::new(&[97,115,115,105,103,110,109,101,110,116,32,102,114,111,109,32,97,110,111,116,104,101,114,32,99,108,97,115,115]));
+        StaticStateOps::static_state_ops_record(UStr::new(&[102,105,114,115,116]));
+        StaticStateOps::static_state_ops_record(UStr::new(&[115,101,99,111,110,100]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((StaticStateOps::static_state_ops_section_count()) as i32).to_ne_bytes()), UStr::new(&[115,116,97,116,105,99,32,99,111,110,116,97,105,110,101,114,32,103,114,111,119,116,104]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,105,114,115,116]), StaticStateOps::static_state_ops_first_section().as_ustr(), UStr::new(&[102,105,114,115,116,32,114,101,99,111,114,100,101,100,32,115,101,99,116,105,111,110]));
+        test_core::TestCore::test_core_equals_int(4096i32, i32::from_ne_bytes(((StaticStateOps::STATIC_STATE_OPS_LIMIT) as i32).to_ne_bytes()), UStr::new(&[115,99,97,108,97,114,32,115,116,97,116,105,99,32,99,111,110,115,116,97,110,116]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[101,109,112,116,121]), StaticStateOps::STATIC_STATE_OPS_EMPTY_MARK.to_ustring().as_ustr(), UStr::new(&[115,116,114,105,110,103,32,115,116,97,116,105,99,32,99,111,110,115,116,97,110,116]));
+    });
+}

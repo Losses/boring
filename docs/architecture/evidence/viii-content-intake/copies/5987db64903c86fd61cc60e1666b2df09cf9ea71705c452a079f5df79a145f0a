@@ -1,0 +1,9 @@
+attempt-20260929T185337-3073504 run-1790722417812-3073531 (20 records)
+0001-0010 haxe generate x10 exit=0
+0011 haxe build exit=0; 0012,0013 bun run exit=0
+0014 kotlinc build library jar exit=0; 0015 kotlinc build tests jar exit=0; 0016 java run exit=0
+0017 dart run exit=0; 0018 cargo build exit=0; 0019 cargo run exit=0
+0020 swiftc "build library" outcome=normal-exit exit=1 elapsed=62454ms cwd=/tmp/p9-stage3-shim/execroot
+     argv: swiftc -emit-library -emit-module -I /nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6 <gen+tests .swift> -swift-version 5 -module-name Codec -o reference/swift/build/libCodec.so
+     stderr 4850B: 1 unique error VectorCodec.swift:49:43 (cannot convert 'TiqianArray<GlyphMetrics>' to '[TiqianArray<GlyphMetrics>]'), rest warnings. 0 occurrences of "bwrap".
+No records after 0020: "build test executable" and swift run leg not reached (build library fails first).

@@ -1,0 +1,24 @@
+#![cfg(test)]
+
+use crate::boring::glyph_cluster::GlyphCluster;
+use crate::boring::glyph_cluster_holder::GlyphClusterHolder;
+use crate::boring::glyph_cluster_reader::GlyphClusterReader;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn first_range() {
+    testlib::run("tests.GlyphClusterTests.firstRange", "tests.GlyphClusterTests.firstRange: a data-class member reads off a ReadOnlyArray field element", || {
+        let holder = GlyphClusterHolder::new(vec![(GlyphCluster::new(3u32, 0u32, 4u32)).clone(), (GlyphCluster::new(7u32, 4u32, 8u32)).clone()]);
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((GlyphClusterReader::glyph_cluster_reader_first_range((holder).clone())) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn first_returned_range() {
+    testlib::run("tests.GlyphClusterTests.firstReturnedRange", "tests.GlyphClusterTests.firstReturnedRange: a data-class member reads off a ReadOnlyArray return element", || {
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((GlyphClusterReader::glyph_cluster_reader_first_returned_range()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

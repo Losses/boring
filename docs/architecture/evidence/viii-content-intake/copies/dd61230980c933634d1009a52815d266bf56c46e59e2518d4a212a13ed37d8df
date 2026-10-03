@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class NullableInterfaceBranchOpsTests {
+@boring.test.Test
+    fun label() {
+        Test.run("tests.NullableInterfaceBranchOpsTests.label", "tests.NullableInterfaceBranchOpsTests.label: a nullable interface conditional boxes its concrete arm") {
+        }
+    }
+}

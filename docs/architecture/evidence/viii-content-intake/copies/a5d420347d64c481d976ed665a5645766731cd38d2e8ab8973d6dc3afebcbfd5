@@ -1,0 +1,50 @@
+# Commands actually run (rust-thrown-class-gap investigation)
+
+All generation/compile work happened in the scratch worktree
+`/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-thrown-gap`
+(created with `git worktree add --detach ... e1c65975` from
+`boring-wt-architecture`), never in the coordination tree.
+
+`XDG_CACHE_HOME=$PWD/.nix-cache` is required: the default `~/.cache/nix`
+fetcher DB is read-only under this session's file sandbox and `nix develop`
+fails with `attempt to write a readonly database`.
+
+## Setup
+    git -C .../boring-wt-architecture worktree add --detach .../dc-warn/worktrees/rust-thrown-gap e1c65975
+    # copy the 4 uncommitted fixed compiler files from the coordination tree working tree
+    for f in Compiler RustDecl RustEmissionState RustExpr; do cp <coord>/packages/compiler/reflaxe/rust/rustcompiler/$f.hx <scratch>/packages/compiler/reflaxe/rust/rustcompiler/$f.hx; done
+    cp -a .../dc-warn/worktrees/rust-trytail-xcheck/tests/haxe/xs-twoexc <scratch>/tests/haxe/
+    nix develop -c bash -c 'haxe --version; cargo --version'      # 4.3.7 / 1.98.0
+
+## Generation (one fixture at a time)
+    nix develop -c haxe tests/haxe/<fixture>/gen/rust.hxml -D rust-output=out/rust-thrown-gap/gen/<dir>
+
+## Compile the generated Rust (offline; target dir inside the scratch tree)
+    nix develop -c bash -c 'cd out/rust-thrown-gap/gen/<dir> && CARGO_TARGET_DIR=<scratch>/out/rust-thrown-gap/cargo-target-<name> cargo build --offline'
+
+## Fixtures generated / built
+    xs-twoexc            (the family under investigation, copied from the xcheck scratch tree)
+    xs-twoexc-swapped    (SAME source, only the two enum+class blocks reordered: E2 first, E1 second)
+    xs-twoexc-faultnames (SAME source, only the payload enum names changed F1->E1PayloadFault, F2->E2PayloadFault)
+    xt-classemit         (NEW, discriminating: one payload exception class, rethrown by value)
+    xt-twoexc-emit       (NEW, discriminating: two payload exception classes in one module, E1 last)
+
+## Instrumented runs (scratch copy only; instrumentation reverted afterwards)
+    # added Sys.println() at every early return of Compiler.registerThrownExceptionVariant
+    #   and at the single payloadEnumNames write (Compiler.hx:1032)
+    nix develop -c haxe tests/haxe/xs-twoexc/gen/rust.hxml -D rust-output=out/rust-thrown-gap/gen/xs-twoexc-trace
+    nix develop -c haxe tests/haxe/xs-twoexc-swapped/gen/rust.hxml -D rust-output=out/rust-thrown-gap/gen/xs-twoexc-swapped-trace2
+
+## Simulated breaks (scratch copy of the compiler only)
+    # break X1 (Compiler.hx, scan side): drop `state.exceptionClassRefs.set(...)` at line 2523,
+    #   keep registerFaultConversion -> the enum growth variant survives, only the struct disappears.
+    # break X2 (RustDecl.hx, emission side): desynchronize the gate key at line 1021
+    #   (`... + "#never"`), so the class-level emission block never runs.
+    # each break: regenerate xs-twoexc / xt-classemit / xt-twoexc-emit, then cargo build --offline
+    # afterwards the 4 files were restored from the coordination tree and their sha256 re-verified
+    #   (evidence/scratch-compiler-hashes.txt)
+
+## Provenance checks
+    sha256sum <the 4 compiler files>                       # session start and after each restore
+    diff -u evidence/Compiler.hx.pristine-fixed <coord>/.../Compiler.hx   # coordination drift (comments only)
+    # comment/statement-stripped comparison of both Compiler.hx revisions -> 2164 identical lines

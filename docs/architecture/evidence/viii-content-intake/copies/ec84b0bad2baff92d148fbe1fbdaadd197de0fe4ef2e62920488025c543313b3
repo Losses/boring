@@ -1,0 +1,32 @@
+# Collection-domain experiment
+
+## state-present absolute path set
+non-generated = 55
+generated     = 249
+total         = 304
+
+## report-step pipeline on the state-present domain
+    249 reference/ts
+     50 tests/ts
+      1 tests/swift-readonly-boundary
+      1 tests/swift-gap-boundary
+      1 tests/dart
+      1 tests/bundle-child-evidence
+      1 packages/registry
+
+## real-bun discovery: state WITHOUT generated tree (synthetic 55-file tree)
+ 0 fail
+ 55 expect() calls
+Ran 55 tests across 55 files. [85.00ms]
+
+## real-bun discovery: state WITH generated tree added (+249)
+ 0 fail
+ 304 expect() calls
+Ran 304 tests across 304 files. [312.00ms]
+
+## gen:ts determinism + no tracked-file change
+gen-tests manifest before gen:ts: 790312bae25832d7d2de3e42c8b8c49ff83f5536d6eb57bb891836f0dd8e365c  -
+gen-tests manifest after  gen:ts: 790312bae25832d7d2de3e42c8b8c49ff83f5536d6eb57bb891836f0dd8e365c  -
+tracked-file status diff before/after gen:ts:
+22d21
+< ?? .constructed-static-mutation-PYeRlo/

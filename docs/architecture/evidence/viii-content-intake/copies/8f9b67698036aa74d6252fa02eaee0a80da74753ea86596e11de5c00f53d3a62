@@ -1,0 +1,50 @@
+use crate::runtime::u_string::UStr;
+
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FloatWidth {
+    F64,
+    F32,
+    F16,
+}
+
+pub fn compare_float_width(a: &FloatWidth, b: &FloatWidth) -> i32 {
+    if a == b { return 0; }
+    fn rank(v: &FloatWidth) -> i32 {
+        match v {
+            FloatWidth::F64 => 0,
+            FloatWidth::F32 => 1,
+            FloatWidth::F16 => 2,
+        }
+    }
+    rank(a) - rank(b)
+}
+
+impl FloatWidth {
+    pub fn to_string(&self) -> String {
+        match self {
+            FloatWidth::F64 => "F64".to_string(),
+            FloatWidth::F32 => "F32".to_string(),
+            FloatWidth::F16 => "F16".to_string(),
+        }
+    }
+}
+
+impl FloatWidth {
+    pub const ALL: [FloatWidth; 3] = [FloatWidth::F64, FloatWidth::F32, FloatWidth::F16];
+    pub fn name(&self) -> &'static str {
+        match self {
+            FloatWidth::F64 => "F64",
+            FloatWidth::F32 => "F32",
+            FloatWidth::F16 => "F16",
+        }
+    }
+    pub fn from_name(name: &UStr) -> Option<FloatWidth> {
+        match name.to_utf8_lossy().as_str() {
+            "F64" => Some(FloatWidth::F64),
+            "F32" => Some(FloatWidth::F32),
+            "F16" => Some(FloatWidth::F16),
+            _ => None,
+        }
+    }
+}

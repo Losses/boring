@@ -1,0 +1,65 @@
+# Evidence hash manifest — f32 e2e re-verification
+# captured: 2026-09-30T00:39:59Z
+# tree: /home/losses/Development/tq-workspace/boring-wt-architecture
+# git HEAD: e1c6597514634fd347d392709793cc19bd96c9a2
+
+## deployment targets (coordination tree, sha256)
+24333b7570f54085a155d699ee5a2492319365c5669dd9a37bbc0c1fa73cf7d5  tools/test-consistency/Main.hx
+e5508bb442daaeb6655fb1a149ab4a853f5365af415bba3fddf9e854dba980db  tools/roots-guard/check-roots-guard.sh
+34d336ce68b08e686a12dbf5ca43bd89495d470b2ac5278624bdffc93da471a9  tools/roots-guard/roots-allowlist.json
+fab8b03661524db4d011fa364f38465ec1e66159d4d5359a13f58d0463007f93  tools/test-consistency/extra-id-allowlist.json
+addebfd8151e274af29fba92bfda2437e063a0472d7eb66b59a2d50f7bfa4adf  examples/kotlin-f32.hxml
+91a8fd710d14151a40766d44bdbfa68165f4be81c553268a463bff28c4fb8255  examples/rust-f32.hxml
+68013176720b64b089a07cc286521d4b06e1829828274a71ac34e337fa03fd6d  examples/swift-f32.hxml
+
+## git blob SHA1 (tracked identity)
+23dfbbf0e5960161e8764fa151ebcbae7ae8b05a  tools/test-consistency/Main.hx
+6ba7aca6707af9538346eac75759de34c6977424  examples/kotlin-f32.hxml
+c54ad512b2fade4bd99ef662cecc55bd74068213  examples/rust-f32.hxml
+6e41e03535dd029516f82b96e13d7befa4e197d6  examples/swift-f32.hxml
+
+## built manager.js
+6ed00fec2da779e2e9a7dc7447dda42f9b87d2e51284eaab9501af9ecf914d5e  out/test-consistency/manager.js
+6ed00fec2da779e2e9a7dc7447dda42f9b87d2e51284eaab9501af9ecf914d5e  /home/losses/Development/tq-workspace/dc-warn/out/f32-e2e-reverify/scratch/build/out/test-consistency/manager.js
+
+## result sets used
+-- current/live set (p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results) --
+3e4132fd8d7f55871c0d480d3622d07785ce051e477d7b85faecba77701a62fa  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/dart.jsonl
+851d80c07d408fc1471f4293dcb10b6632a4244c7686ed192ed2bb1a36594da8  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/haxe-f32.jsonl
+069bf82a8b8ebee6cd0fb2989d48f234311334217c87535353522cf3ef356206  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/haxe.jsonl
+f9eb207e471d8c162fff9055d0c1d12f343ad8b4ea7a9fc97c310ed354975773  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/kotlin-f32.jsonl
+f9eb207e471d8c162fff9055d0c1d12f343ad8b4ea7a9fc97c310ed354975773  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/kotlin.jsonl
+47f6d796540addf6498a498d7cd4fed3aa50d6aea4449c99093e7e1d80f20056  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/rust-f32.jsonl
+58c6f5fc1a8b439e3ed47dafc04318911007a1e98e7018841bfa8fef959d56d2  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/rust.jsonl
+fa2d6a10ebdf133fc2958cc856097fd6cca182b28e7190478fbe35f88164eb4a  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/swift-f32.jsonl
+fa2d6a10ebdf133fc2958cc856097fd6cca182b28e7190478fbe35f88164eb4a  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/swift.jsonl
+f304a35bff5c93ee52accc727979831591f51fdba9d343c90c4c5160e6ac2450  /home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed2/out/test-results/ts.jsonl
+-- legacy 19:52 set (/tmp/f32fix/execroot/out/test-results) --
+3e4132fd8d7f55871c0d480d3622d07785ce051e477d7b85faecba77701a62fa  /tmp/f32fix/execroot/out/test-results/dart.jsonl
+851d80c07d408fc1471f4293dcb10b6632a4244c7686ed192ed2bb1a36594da8  /tmp/f32fix/execroot/out/test-results/haxe-f32.jsonl
+069bf82a8b8ebee6cd0fb2989d48f234311334217c87535353522cf3ef356206  /tmp/f32fix/execroot/out/test-results/haxe.jsonl
+c3ae012d39a2cd3559591b494f6ff3cfa57fc74afbfc17136a62c54ecb848e7f  /tmp/f32fix/execroot/out/test-results/kotlin-f32.jsonl
+f9eb207e471d8c162fff9055d0c1d12f343ad8b4ea7a9fc97c310ed354975773  /tmp/f32fix/execroot/out/test-results/kotlin.jsonl
+5c588125c7a6d70452892b063adae0d4623630c05f7b96bdc9e0386955e4dc74  /tmp/f32fix/execroot/out/test-results/rust-f32.jsonl
+7c1e1e4c289695c34e4b9d24d31b40cab3c0bae553baa6e2236f0d3805d2ac61  /tmp/f32fix/execroot/out/test-results/rust.jsonl
+24225eb4e7a61f2df22160734cd80a39d0acc6c2a02d7846eda7792404932acb  /tmp/f32fix/execroot/out/test-results/swift-f32.jsonl
+fa2d6a10ebdf133fc2958cc856097fd6cca182b28e7190478fbe35f88164eb4a  /tmp/f32fix/execroot/out/test-results/swift.jsonl
+c8e45d29a0b99085cff28b1743a49415b2554274a749b2459ea2f4554b9d8bf6  /tmp/f32fix/execroot/out/test-results/ts.jsonl
+-- pre-hxml-fix 166 set (dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results) --
+3e4132fd8d7f55871c0d480d3622d07785ce051e477d7b85faecba77701a62fa  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/dart.jsonl
+851d80c07d408fc1471f4293dcb10b6632a4244c7686ed192ed2bb1a36594da8  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/haxe-f32.jsonl
+069bf82a8b8ebee6cd0fb2989d48f234311334217c87535353522cf3ef356206  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/haxe.jsonl
+23da70ba5d0e41b20e9728edf49670b6a87e8e601c794a79123fdec639aa10f5  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/kotlin-f32.jsonl
+f9eb207e471d8c162fff9055d0c1d12f343ad8b4ea7a9fc97c310ed354975773  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/kotlin.jsonl
+99d72c9e15a255173834c31ed8c8dd71310b104494d06ce85c7fd262199f8df4  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/rust-f32.jsonl
+fb33250d72a806b334a2d8f48dd21a2397ffbd4b9565cc6f724f786b41ce833a  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/rust.jsonl
+a4cbbdc05667ca34073f850ab9fb03a875a8d6d8d3442bd93aa3b50c225e7392  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/swift-f32.jsonl
+fa2d6a10ebdf133fc2958cc856097fd6cca182b28e7190478fbe35f88164eb4a  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/swift.jsonl
+c8e45d29a0b99085cff28b1743a49415b2554274a749b2459ea2f4554b9d8bf6  /home/losses/Development/tq-workspace/dc-warn/out/swift-arrayboundary-fix/evidence/artifacts/test-results/ts.jsonl
+
+## cited/authenticated artifacts
+17aa6cb55c1ef1f3499f7666b7392def409fbc2f835f870f0339775de662fd50  /tmp/f32fix/mgr-all.log
+17aa6cb55c1ef1f3499f7666b7392def409fbc2f835f870f0339775de662fd50  /home/losses/Development/tq-workspace/dc-warn/out/f32-roots-fix/evidence/manager-all10-postfix.log
+edce2164c90991960963f885cb77aa7f9ab28544f4866cb96c9e9c1926eb9087  /tmp/f32fix/rust-f32-test.log
+be17e13d2f0c686c1bd743f8dcb5b5a9cdf8111ad4980884c41bf9bd5ac51756  /home/losses/Development/tq-workspace/dc-warn/out/f32-roots-fix/evidence/guard-prefix-FAIL.log
+4ac0fe3a79b4e79c5ca3234deb3ae265b9eca60947f6829f35fc0cf7fbddad8f  /home/losses/Development/tq-workspace/dc-warn/out/f32-roots-fix/PATCH.diff

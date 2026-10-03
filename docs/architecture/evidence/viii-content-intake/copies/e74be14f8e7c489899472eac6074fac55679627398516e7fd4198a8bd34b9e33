@@ -1,0 +1,122 @@
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `e`
+  --> trytail/try_tail_oracle.rs:53:17
+   |
+53 |             Err(e) => 1,
+   |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `e`
+  --> trytail/try_tail_oracle.rs:64:17
+   |
+64 |             Err(e) => 1,
+   |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e2`
+  --> trytail/try_tail_oracle.rs:81:25
+   |
+81 |                     Err(e2) => 3,
+   |                         ^^ help: if this is intentional, prefix it with an underscore: `_e2`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:104:17
+    |
+104 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:124:17
+    |
+124 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e2`
+   --> trytail/try_tail_oracle.rs:151:25
+    |
+151 |                     Err(e2) => 3,
+    |                         ^^ help: if this is intentional, prefix it with an underscore: `_e2`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:170:17
+    |
+170 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:186:17
+    |
+186 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e2`
+   --> trytail/try_tail_oracle.rs:208:25
+    |
+208 |                     Err(e2) => 3,
+    |                         ^^ help: if this is intentional, prefix it with an underscore: `_e2`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:222:17
+    |
+222 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:233:17
+    |
+233 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e2`
+   --> trytail/try_tail_oracle.rs:250:25
+    |
+250 |                     Err(e2) => 3,
+    |                         ^^ help: if this is intentional, prefix it with an underscore: `_e2`
+
+warning: function `byte_to_unit` is never used
+   --> runtime/u_string.rs:765:4
+    |
+765 | fn byte_to_unit(s: &str, byte: usize) -> u32 {
+    |    ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+  --> runtime/u_string.rs:62:25
+   |
+62 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+   |                         ^^^^^                       ^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+   |                         |
+   |                         the lifetime is elided here
+   |
+   = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+   = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+   |
+62 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<'_, u16>> {
+   |                                                                      +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> runtime/u_string.rs:290:25
+    |
+290 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+    |                         ^^^^^                       ^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                         |
+    |                         the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+290 |     pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<'_, u16>> {
+    |                                                                      +++
+
+warning: `generated` (lib) generated 16 warnings (run `cargo fix --lib -p generated` to apply 15 suggestions)
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/out/rust-growth-id/evidence/corpus/try-tail)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.55s

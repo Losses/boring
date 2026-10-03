@@ -1,0 +1,10 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/deferred-locals.test.ts:
+(pass) a missing deferred assignment is rejected by the Kotlin tree build [24681.56ms]
+
+ 1 pass
+ 1 filtered out
+ 0 fail
+ 3 expect() calls
+Ran 1 test across 1 file. [24.72s]

@@ -1,0 +1,116 @@
+=== '# Unhandled error between tests' blocks — HEAD run ===
+79:# Unhandled error between tests
+80--------------------------------
+81-34 |       "class Probe {",
+82-35 |       "  public static function run(text:String, values:Array<Int>):Int return text.indexOf(\"x\") + values.indexOf(2);",
+83-36 |       "}", "",
+84-37 |     ].join("\n"));
+85-38 |     try {
+--
+100:# Unhandled error between tests
+101--------------------------------
+102-51 |     const result = await compileFixture([
+103-52 |       "package fixtures;",
+104-53 |       "class Probe { public static function run(text:String):String return text.substr(1); }", "",
+105-54 |     ].join("\n"));
+106-55 |     try {
+--
+121:# Unhandled error between tests
+122--------------------------------
+123-72 |       "    case Other: 2;",
+124-73 |       "  };",
+125-74 |       "}", "",
+126-75 |     ].join("\n"));
+127-76 |     try {
+--
+366:# Unhandled error between tests
+367--------------------------------
+368-233 |         expect(entry.startsWith("package/")).toBe(false);
+369-234 |       }
+370-235 | 
+371-236 |       const dartResult = await runHaxe("package-artifacts-dart.hxml", rewriteHxml("dart.hxml", dartRoot));
+372-237 |       expect(dartResult.stderr).toBe("");
+--
+443:# Unhandled error between tests
+444--------------------------------
+445-136 |       proc.exited,
+446-137 |       new Response(proc.stdout).text(),
+447-138 |       new Response(proc.stderr).text(),
+448-139 |     ]);
+449-140 |     expect(exitCode).not.toBe(0);
+--
+464:# Unhandled error between tests
+465--------------------------------
+466-184 |       proc.exited,
+467-185 |       new Response(proc.stdout).text(),
+468-186 |       new Response(proc.stderr).text(),
+469-187 |     ]);
+470-188 |     expect(exitCode).not.toBe(0);
+--
+629:# Unhandled error between tests
+630--------------------------------
+631-45 |       "class Probe {",
+632-46 |       "  public static function read():Int return Namespace.value() + Named.value() + GlobalThing.value() + Namespace.value();",
+633-47 |       "}", "",
+634-48 |     ].join("\n"));
+635-49 |     try {
+
+=== same, DIRTY low-load run ===
+80:# Unhandled error between tests
+81--------------------------------
+82-34 |       "class Probe {",
+83-35 |       "  public static function run(text:String, values:Array<Int>):Int return text.indexOf(\"x\") + values.indexOf(2);",
+84-36 |       "}", "",
+85-37 |     ].join("\n"));
+86-38 |     try {
+--
+101:# Unhandled error between tests
+102--------------------------------
+103-51 |     const result = await compileFixture([
+104-52 |       "package fixtures;",
+105-53 |       "class Probe { public static function run(text:String):String return text.substr(1); }", "",
+106-54 |     ].join("\n"));
+107-55 |     try {
+--
+122:# Unhandled error between tests
+123--------------------------------
+124-72 |       "    case Other: 2;",
+125-73 |       "  };",
+126-74 |       "}", "",
+127-75 |     ].join("\n"));
+128-76 |     try {
+--
+367:# Unhandled error between tests
+368--------------------------------
+369-233 |         expect(entry.startsWith("package/")).toBe(false);
+370-234 |       }
+371-235 | 
+372-236 |       const dartResult = await runHaxe("package-artifacts-dart.hxml", rewriteHxml("dart.hxml", dartRoot));
+373-237 |       expect(dartResult.stderr).toBe("");
+--
+444:# Unhandled error between tests
+445--------------------------------
+446-136 |       proc.exited,
+447-137 |       new Response(proc.stdout).text(),
+448-138 |       new Response(proc.stderr).text(),
+449-139 |     ]);
+450-140 |     expect(exitCode).not.toBe(0);
+--
+465:# Unhandled error between tests
+466--------------------------------
+467-184 |       proc.exited,
+468-185 |       new Response(proc.stdout).text(),
+469-186 |       new Response(proc.stderr).text(),
+470-187 |     ]);
+471-188 |     expect(exitCode).not.toBe(0);
+--
+630:# Unhandled error between tests
+631--------------------------------
+632-45 |       "class Probe {",
+633-46 |       "  public static function read():Int return Namespace.value() + Named.value() + GlobalThing.value() + Namespace.value();",
+634-47 |       "}", "",
+635-48 |     ].join("\n"));
+636-49 |     try {
+
+=== counts
+HEAD=7  DIRTY-lowload=7  DIRTY-harness=7

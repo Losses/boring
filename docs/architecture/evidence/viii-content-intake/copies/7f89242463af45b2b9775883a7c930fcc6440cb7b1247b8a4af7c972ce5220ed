@@ -1,0 +1,156 @@
+   Compiling generated v0.1.0 (/home/losses/Development/tq-workspace/dc-warn/out/fixture-parity-xcheck/pre/gen/rust)
+warning: unused import: `DerefMut`
+  --> runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0599]: no variant, associated function, or constant named `TryTailExceptionFault` found for enum `TryTailFault` in the current scope
+  --> trytail/try_tail_oracle.rs:61:46
+   |
+ 6 | pub enum TryTailFault {
+   | --------------------- variant, associated function, or constant `TryTailExceptionFault` not found for this enum
+...
+61 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+   |                                              ^^^^^^^^^^^^^^^^^^^^^ variant, associated function, or constant not found in `TryTailFault`
+
+error[E0433]: cannot find type `TryTailException` in this scope
+  --> trytail/try_tail_oracle.rs:61:68
+   |
+61 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+   |                                                                    ^^^^^^^^^^^^^^^^ use of undeclared type `TryTailException`
+
+error[E0599]: no variant, associated function, or constant named `TryTailExceptionFault` found for enum `TryTailFault` in the current scope
+  --> trytail/try_tail_oracle.rs:81:46
+   |
+ 6 | pub enum TryTailFault {
+   | --------------------- variant, associated function, or constant `TryTailExceptionFault` not found for this enum
+...
+81 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+   |                                              ^^^^^^^^^^^^^^^^^^^^^ variant, associated function, or constant not found in `TryTailFault`
+
+error[E0433]: cannot find type `TryTailException` in this scope
+  --> trytail/try_tail_oracle.rs:81:68
+   |
+81 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+   |                                                                    ^^^^^^^^^^^^^^^^ use of undeclared type `TryTailException`
+
+error[E0599]: no variant, associated function, or constant named `TryTailExceptionFault` found for enum `TryTailFault` in the current scope
+   --> trytail/try_tail_oracle.rs:101:46
+    |
+  6 | pub enum TryTailFault {
+    | --------------------- variant, associated function, or constant `TryTailExceptionFault` not found for this enum
+...
+101 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                              ^^^^^^^^^^^^^^^^^^^^^ variant, associated function, or constant not found in `TryTailFault`
+
+error[E0433]: cannot find type `TryTailException` in this scope
+   --> trytail/try_tail_oracle.rs:101:68
+    |
+101 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                                                    ^^^^^^^^^^^^^^^^ use of undeclared type `TryTailException`
+
+error[E0599]: no variant, associated function, or constant named `TryTailExceptionFault` found for enum `TryTailFault` in the current scope
+   --> trytail/try_tail_oracle.rs:121:46
+    |
+  6 | pub enum TryTailFault {
+    | --------------------- variant, associated function, or constant `TryTailExceptionFault` not found for this enum
+...
+121 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                              ^^^^^^^^^^^^^^^^^^^^^ variant, associated function, or constant not found in `TryTailFault`
+
+error[E0433]: cannot find type `TryTailException` in this scope
+   --> trytail/try_tail_oracle.rs:121:68
+    |
+121 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                                                    ^^^^^^^^^^^^^^^^ use of undeclared type `TryTailException`
+
+error[E0599]: no variant, associated function, or constant named `TryTailExceptionFault` found for enum `TryTailFault` in the current scope
+   --> trytail/try_tail_oracle.rs:131:46
+    |
+  6 | pub enum TryTailFault {
+    | --------------------- variant, associated function, or constant `TryTailExceptionFault` not found for this enum
+...
+131 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                              ^^^^^^^^^^^^^^^^^^^^^ variant, associated function, or constant not found in `TryTailFault`
+
+error[E0433]: cannot find type `TryTailException` in this scope
+   --> trytail/try_tail_oracle.rs:131:68
+    |
+131 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                                                    ^^^^^^^^^^^^^^^^ use of undeclared type `TryTailException`
+
+error[E0599]: no variant, associated function, or constant named `TryTailExceptionFault` found for enum `TryTailFault` in the current scope
+   --> trytail/try_tail_oracle.rs:188:46
+    |
+  6 | pub enum TryTailFault {
+    | --------------------- variant, associated function, or constant `TryTailExceptionFault` not found for this enum
+...
+188 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                              ^^^^^^^^^^^^^^^^^^^^^ variant, associated function, or constant not found in `TryTailFault`
+
+error[E0433]: cannot find type `TryTailException` in this scope
+   --> trytail/try_tail_oracle.rs:188:68
+    |
+188 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                                                    ^^^^^^^^^^^^^^^^ use of undeclared type `TryTailException`
+
+error[E0599]: no variant, associated function, or constant named `TryTailExceptionFault` found for enum `TryTailFault` in the current scope
+   --> trytail/try_tail_oracle.rs:230:46
+    |
+  6 | pub enum TryTailFault {
+    | --------------------- variant, associated function, or constant `TryTailExceptionFault` not found for this enum
+...
+230 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                              ^^^^^^^^^^^^^^^^^^^^^ variant, associated function, or constant not found in `TryTailFault`
+
+error[E0433]: cannot find type `TryTailException` in this scope
+   --> trytail/try_tail_oracle.rs:230:68
+    |
+230 |                     return Err(TryTailFault::TryTailExceptionFault(TryTailException::new(e)));
+    |                                                                    ^^^^^^^^^^^^^^^^ use of undeclared type `TryTailException`
+
+warning: unused variable: `e`
+  --> trytail/try_tail_oracle.rs:36:17
+   |
+36 |             Err(e) => 1,
+   |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `e`
+  --> trytail/try_tail_oracle.rs:47:17
+   |
+47 |             Err(e) => 1,
+   |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:153:17
+    |
+153 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:169:17
+    |
+169 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:205:17
+    |
+205 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `e`
+   --> trytail/try_tail_oracle.rs:216:17
+    |
+216 |             Err(e) => 1,
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+Some errors have detailed explanations: E0433, E0599.
+For more information about an error, try `rustc --explain E0433`.
+warning: `generated` (lib) generated 7 warnings
+error: could not compile `generated` (lib) due to 14 previous errors; 7 warnings emitted

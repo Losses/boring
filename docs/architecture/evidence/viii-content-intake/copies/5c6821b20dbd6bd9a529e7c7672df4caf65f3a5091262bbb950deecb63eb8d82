@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
+argv bash -c cd\ /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212026Z/ts/gen\ \&\&\ timeout\ 120\ bun\ run-bundle.js

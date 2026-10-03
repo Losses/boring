@@ -1,0 +1,2 @@
+./boring/value_exception.rs:6:    ValueExceptionFault(Box<crate::boring::value_exception::ValueException>),
+./boring/value_exception.rs:15:            ValueError::ValueExceptionFault(inner) => write!(formatter, "{:?}", inner),

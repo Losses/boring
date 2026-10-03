@@ -1,0 +1,20 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_seed() {
+    testlib::run("tests.SwiftGlobalThrowTests.testSeed", "tests.SwiftGlobalThrowTests.testSeed: a throwing stored static initializer force-tries at the declaration", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_current() {
+    testlib::run("tests.SwiftGlobalThrowTests.testCurrent", "tests.SwiftGlobalThrowTests.testCurrent: a throwing computed accessor force-tries in the property body", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

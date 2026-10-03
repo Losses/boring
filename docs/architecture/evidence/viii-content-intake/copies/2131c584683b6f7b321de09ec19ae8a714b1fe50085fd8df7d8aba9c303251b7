@@ -1,0 +1,69 @@
+#![cfg(test)]
+
+use crate::boring::int_division_ops::IntDivisionOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_quotient() {
+    testlib::run("tests.IntDivisionTests.testQuotient", "tests.IntDivisionTests.testQuotient: an Int quotient assigned to a Float keeps the fraction", || {
+        test_core::TestCore::test_core_equals_float(3.5f64, IntDivisionOps::int_division_ops_quotient(7, 2), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(0.5f64, IntDivisionOps::int_division_ops_quotient(1, 2), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(2.0f64, IntDivisionOps::int_division_ops_quotient(4, 2), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_negative_quotient() {
+    testlib::run("tests.IntDivisionTests.testNegativeQuotient", "tests.IntDivisionTests.testNegativeQuotient: negative Int operands keep the Float quotient", || {
+        test_core::TestCore::test_core_equals_float(-3.5f64, IntDivisionOps::int_division_ops_quotient(4294967289u32, 2), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(-3.5f64, IntDivisionOps::int_division_ops_quotient(7, 4294967294u32), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(3.5f64, IntDivisionOps::int_division_ops_quotient(4294967289u32, 4294967294u32), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_zero_divisor() {
+    testlib::run("tests.IntDivisionTests.testZeroDivisor", "tests.IntDivisionTests.testZeroDivisor: an Int quotient over a zero divisor reaches infinity", || {
+        test_core::TestCore::test_core_equals_float(f64::INFINITY, IntDivisionOps::int_division_ops_quotient(7, 0), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(f64::NEG_INFINITY, IntDivisionOps::int_division_ops_quotient(4294967289u32, 0), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_offset() {
+    testlib::run("tests.IntDivisionTests.testOffset", "tests.IntDivisionTests.testOffset: a layout offset keeps the fractional quotient", || {
+        test_core::TestCore::test_core_equals_float(7.5f64, IntDivisionOps::int_division_ops_offset(10, 3, 4), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(2.5f64, IntDivisionOps::int_division_ops_offset(5, 1, 2), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(5.0f64, IntDivisionOps::int_division_ops_offset(10, 2, 4), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_scaled() {
+    testlib::run("tests.IntDivisionTests.testScaled", "tests.IntDivisionTests.testScaled: an Int quotient takes part in a Float multiply and add", || {
+        test_core::TestCore::test_core_equals_float(15.5f64, IntDivisionOps::int_division_ops_scaled(10, 3, 4, 0.5f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(21.0f64, IntDivisionOps::int_division_ops_scaled(10, 2, 4, 11.0f64), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_truncated() {
+    testlib::run("tests.IntDivisionTests.testTruncated", "tests.IntDivisionTests.testTruncated: the truncating spelling keeps integer division", || {
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((IntDivisionOps::int_division_ops_truncated(7, 2)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(-3i32, i32::from_ne_bytes(((IntDivisionOps::int_division_ops_truncated(4294967289u32, 2)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((IntDivisionOps::int_division_ops_truncated(4294967289u32, 4294967293u32)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((IntDivisionOps::int_division_ops_remainder(7, 2)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(-1i32, i32::from_ne_bytes(((IntDivisionOps::int_division_ops_remainder(4294967289u32, 2)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_floored() {
+    testlib::run("tests.IntDivisionTests.testFloored", "tests.IntDivisionTests.testFloored: a floored Int quotient floors the Float quotient", || {
+        test_core::TestCore::test_core_equals_float(3.0f64, IntDivisionOps::int_division_ops_floored(7, 2), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(-4.0f64, IntDivisionOps::int_division_ops_floored(4294967289u32, 2), UStr::new(&[]));
+    });
+}

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# run-scoped.sh <label> <file...> [extra bun test args...]
+# Runs `bun test` scoped to the given files, captures log + real exit code (no pipes).
+set -u
+EV=/home/losses/Development/tq-workspace/dc-warn/out/timeout-budget-fix/evidence
+label=$1; shift
+files=()
+extra=()
+mode=files
+for a in "$@"; do
+  if [ "$mode" = files ]; then files+=("$a"); else extra+=("$a"); fi
+  [ "$a" = "--" ] && mode=extra
+done
+cd /home/losses/Development/tq-workspace/boring-wt-architecture
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+echo "pre-guard=$(grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx)" >> "$EV/$label.rc"
+bun test "${files[@]}" "${extra[@]}" > "$EV/$label.log" 2>&1
+rc=$?
+echo "$rc" >> "$EV/$label.rc"
+echo "post-guard=$(grep -c 'Test.equals' samples/boring/MathNaNTestSupport.hx)" >> "$EV/$label.rc"
+echo "[$label] exit=$rc"

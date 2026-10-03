@@ -1,0 +1,73 @@
+package boring
+
+import std.UStringException
+
+object StringBufThrowOps {
+    private fun checkedLabel(count: Int): String {
+        if ((count == 0)) {
+            throw UStringException.InvalidCodePoint(11)
+        }
+        return "item-" + count
+    }
+
+    private fun classifyFault(fault: UStringException): Int {
+        return when (fault) {
+            is UStringException.InvalidCodePoint -> 3000 + fault.code
+            is UStringException.UnpairedSurrogate -> 4000 + fault.unit
+        }
+    }
+
+    fun buildFromChecked(count: Int): String {
+        val buf = StringBuilder()
+        val tail = buf.lastOrNull()?.code ?: -1
+        if (tail >= 55296 && tail <= 56319 && (StringBufThrowOps.checkedLabel(count)).length > 0 && !((StringBufThrowOps.checkedLabel(count))[0].code >= 56320 && (StringBufThrowOps.checkedLabel(count))[0].code <= 57343)) {
+            throw UStringException.UnpairedSurrogate(tail)
+        }
+        buf.append((StringBufThrowOps.checkedLabel(count)))
+        val tail2 = buf.lastOrNull()?.code ?: -1
+        if (tail2 >= 55296 && tail2 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail2)
+        }
+        return buf.toString()
+    }
+
+    fun caughtChecked(count: Int): Int {
+        val value = try {
+            val buf = StringBuilder()
+            val tail3 = buf.lastOrNull()?.code ?: -1
+            if (tail3 >= 55296 && tail3 <= 56319 && (StringBufThrowOps.checkedLabel(count)).length > 0 && !((StringBufThrowOps.checkedLabel(count))[0].code >= 56320 && (StringBufThrowOps.checkedLabel(count))[0].code <= 57343)) {
+                throw UStringException.UnpairedSurrogate(tail3)
+            }
+            buf.append((StringBufThrowOps.checkedLabel(count)))
+            0
+        } catch (error: UStringException) {
+            StringBufThrowOps.classifyFault(error)
+        }
+        return value
+    }
+
+    private fun checkedUnit(count: Int): Int {
+        if ((count == 0)) {
+            throw UStringException.InvalidCodePoint(13)
+        }
+        return 65
+    }
+
+    fun buildCharFromChecked(count: Int): String {
+        val buf = StringBuilder()
+        val tail4 = buf.lastOrNull()?.code ?: -1
+        if (StringBufThrowOps.checkedUnit(count) >= 56320 && StringBufThrowOps.checkedUnit(count) <= 57343) {
+            if (!(tail4 >= 55296 && tail4 <= 56319)) {
+                throw UStringException.UnpairedSurrogate(StringBufThrowOps.checkedUnit(count))
+            }
+        } else if (tail4 >= 55296 && tail4 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail4)
+        }
+        buf.append((StringBufThrowOps.checkedUnit(count)).toChar())
+        val tail5 = buf.lastOrNull()?.code ?: -1
+        if (tail5 >= 55296 && tail5 <= 56319) {
+            throw UStringException.UnpairedSurrogate(tail5)
+        }
+        return buf.toString()
+    }
+}

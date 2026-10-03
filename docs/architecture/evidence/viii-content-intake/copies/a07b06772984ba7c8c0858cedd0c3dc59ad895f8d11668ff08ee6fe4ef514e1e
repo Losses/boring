@@ -1,0 +1,64 @@
+# place 观察扩展：TypeScript 与 Swift 两腿（t-mum082vs-rj70）
+
+分支 `audit/dc-place-ts-swift`；固定修订 `e1c6597514634fd347d392709793cc19bd96c9a2`；
+隔离工作树 `dc-warn/worktrees/place-ts-swift`（fuse.rclone，无执行位/symlink）。
+本次运行目录：`dc-warn/out/place-ts-swift/attempt-20260929T2012-k85ORK/run-k85ORK`，
+verdict `recorded`，qualifier `recorded-with-not-reached-stages`。
+
+## ① 基线身份（只记录、不改写）
+
+来源：协调树 `boring-wt-architecture/out/place/runs/place-aZ31Np/`（只读复制到
+`attempt-20260929T2012-k85ORK/baseline/`，含 summary/identity/hashes 及其 sha256）。
+该基线 self-reported 修订、Haxe 4.3.7 / bun / rustc，verdict `recorded`（同 qualifier）。
+
+JS（bun，paired-js-run）与 Rust（native harness）既有读数：
+
+| case | JS | Rust |
+|------|----|------|
+| R1 | a[0]=90 a.length=3 original[0]=17 | a[0]=97 a.length=3 original[0]=10 |
+| R2 | box.value[0]=70 original[0]=15 | 75 / 10 |
+| R3 | shelf.items[0]=13 | 10 |
+| R5 | inner=5 item=2 deep=5 | rustc 失败 E0507（cannot move out of `self.outer.mid.inner`），runtime 未到达 |
+| R5rec | inner=5 item=2 deep=5 | inner=5 item=2 deep=5 |
+| R6 | bucket.items.length=3 | 3 |
+
+authored 输入 `place/PlaceObserveStatic.hx`（sha256 5ea460f9…，见 identity.txt）
+原样使用，未改写任何 authored fixture / compiler / spec 文件。
+
+## ② 阶段矩阵（本次新腿，原始状态见 run-k85ORK）
+
+每例（R1/R2/R3/R5/R5rec/R6/all）六阶段：
+
+- **ts-gen-*** haxe→reflaxe/ts：exit 0，全部成功
+- **tsc-*** tsc 5.9.3（`--strict --module nodenext --rewriteRelativeImportExtensions`）：exit 0，全部成功
+- **ts-run-*** node 22.23.2：exit 0，全部成功
+- **swift-gen-*** haxe→reflaxe/swift：exit 0，全部成功（仅生成树，无运行声明）
+- **swiftc-***：exit 1；stderr 原文 `bwrap: setting up uid map: Permission denied`（flake 包装的 6.2.4+FHS 工具链在 bwrap uid map 处被拒）。每个 case 另记一行 `env-not-reached-<label> = environment-not-reached / bwrap-denied`。6.2.4 store 工具链 + FHS rootfs 的绕行需要写只读 store 或建 symlink，本挂载做不到 → **Swift 编译/运行：环境未到达**，未伪造任何 Swift 读数。Materializing SDK 的尝试未做（会被只读 store 阻断），记录为环境边界而非工具失败。
+- **swift-run-***：not-reached（producer swiftc-* status 1）。
+
+identity：haxe 4.3.7、node v22.23.2、tsc 5.9.3（digest 8d5fa5bd…）、swiftc-version 探测
+即 bwrap 拒绝原文（identity-failures.txt 记 1 条，属环境未到达非缺陷）。
+
+## ③ 输入前后哈希
+
+- 输入：`place/PlaceObserveStatic.hx` 5ea460f9…（生成/编译/运行各阶段均复算记录于 hashes.txt）
+- 交付文件见 `FILES.sha256`（ts-gen.hxml f37d0cd3…、swift-gen.hxml 5027ff91…、run-ts-swift.sh 9d9d7263…、native/ts-main.ts b80c150a…）
+- 全部阶段输入/输出 digest 在 `run-k85ORK/hashes.txt`；authored 源 18 文件清单在 identity.txt。
+
+## ④ 结论
+
+**TS 在全部六个形状上逐字复现 JS 基线读数**：R1 90/3/17、R2 70/15、R3 13、R5 inner=5 item=2 deep=5、R5rec 同值、R6 length=3。因此：
+
+- R1/R2 的 JS↔Rust 分歧（克隆 vs 重绑定）在 TS 上站在 JS 一侧，Rust 侧是另一行为；
+- R3 getter 元素写在 TS 上落在底层数组（13），Rust 侧丢写（10）；
+- R5 在 TS 完整编译运行（复现 JS 的 item 丢写 item=2），Rust 被编译阻断 E0507 —— R5 的分歧是「Rust 编译不可达 vs JS/TS 可达且丢写」，不是一个运行值分歧；
+- R5rec、R6 三方（JS/TS/Rust）一致。
+
+按目标区分：TS 腿无编译阻断、无静默写复活；写回分歧的形状是 R1/R2/R3/R5（Rust 侧），R5rec/R6 全目标一致。**Swift 全部未到达（环境），不对 Swift 作任何读数。**
+
+## ⑤ 不确定项
+
+1. tsc 不是 nix pinned 工具：pin 在 shell 里缺 typescript，用的是 host 路径 `tiqian-pin-advance/node_modules/typescript/bin/tsc`（5.9.3，digest 已记）。编译行为绑定该版本。
+2. Swift 腿未到达的确切边界（bwrap 权限）未进一步归因；若换非 bwrap 环境需重跑 swiftc/swift-run，生成树已在 run 目录留档（swift-gen-*）。
+3. 工作树有 11 个 mode-only 伪差异（fuse 挂载无执行位，numstat 0 0），已从 PATCH.diff 剔除并注明。
+4. `--strict` 下 tsc 全过；未测更宽松/更严 flags，不代表其它 tsc 配置。

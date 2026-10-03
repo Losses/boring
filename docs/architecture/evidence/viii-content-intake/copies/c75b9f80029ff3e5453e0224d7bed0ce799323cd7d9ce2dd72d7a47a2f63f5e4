@@ -1,0 +1,24 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+
+
+#[derive(Clone, Copy)]
+pub struct NumberParsingOps;
+
+impl NumberParsingOps {
+    pub fn number_parsing_ops_parse_float(value: &UStr) -> f64 {
+        return u_string::parse_f64(&(value));
+    }
+
+    pub fn number_parsing_ops_parse_int(value: &UStr) -> Option<i32> {
+        return u_string::parse_i32(&(value));
+    }
+
+    pub fn number_parsing_ops_failed_float(value: &UStr) -> bool {
+        return (u_string::parse_f64(&(value))).is_nan();
+    }
+
+    pub fn number_parsing_ops_failed_int(value: &UStr) -> bool {
+        return u_string::parse_i32(&(value)).is_none();
+    }
+}

@@ -1,0 +1,78 @@
+use crate::boring::fp16::Fp16;
+use crate::boring::fp32::Fp32;
+use crate::boring::vector_exception::VectorError;
+use crate::runtime::fp_helper::FPHelper;
+use crate::runtime::u_string::UString;
+
+
+pub struct BinaryReader<'a> {
+    pub(crate) bytes: &'a [u8],
+    pub(crate) offset: u32,
+}
+
+impl<'a> BinaryReader<'a> {
+    pub fn new(bytes: &'a [u8]) -> Self {
+        Self {
+            bytes,
+            offset: 0,
+        }
+    }
+
+    fn ensure_remaining(&self, length: u32) -> Result<(), VectorError> {
+        if i32::from_ne_bytes(((u32::wrapping_sub(u32::try_from((self.bytes.len()) & 0xFFFF_FFFF).unwrap_or(0), self.offset)) as i32).to_ne_bytes()) < (i32::from_ne_bytes(((length) as i32).to_ne_bytes())) {
+            return Err(VectorError::UnexpectedEof);
+        }
+        Ok(())
+    }
+
+    pub fn read_u16(&mut self) -> Result<u16, VectorError> {
+        let _ = self.ensure_remaining(2)?;
+        let value = u16::from_be_bytes([
+    (self.bytes[usize::try_from(self.offset).unwrap_or(0)]),
+    (self.bytes[usize::try_from(self.offset + 1).unwrap_or(0)])
+]);
+        self.offset += 2;
+        return Ok(value);
+    }
+
+    pub fn read_u32(&mut self) -> Result<u32, VectorError> {
+        let _ = self.ensure_remaining(4)?;
+        let value = u32::from_be_bytes([
+    (self.bytes[usize::try_from(self.offset).unwrap_or(0)]),
+    (self.bytes[usize::try_from(self.offset + 1).unwrap_or(0)]),
+    (self.bytes[usize::try_from(self.offset + 2).unwrap_or(0)]),
+    (self.bytes[usize::try_from(self.offset + 3).unwrap_or(0)])
+]);
+        self.offset += 4;
+        return Ok(value);
+    }
+
+    pub fn read_f64(&mut self) -> Result<f32, VectorError> {
+        let high = self.read_u32()?;
+        let low = self.read_u32()?;
+        return Ok(FPHelper::i64_to_f32(low, high));
+    }
+
+    pub fn read_f32(&mut self) -> Result<f32, VectorError> {
+        return Ok(Fp32::fp32_from_bits(self.read_u32()?));
+    }
+
+    pub fn read_f16(&mut self) -> Result<f32, VectorError> {
+        return Ok(Fp32::fp32_from_bits(Fp16::fp16_f16_to_f32_bits(u32::from(self.read_u16()?))));
+    }
+
+    pub fn read_ascii(&mut self, length: u32) -> Result<UString, VectorError> {
+        let _ = self.ensure_remaining(length)?;
+        let text = UString::from(String::from_utf8_lossy(&self.bytes[usize::try_from(self.offset).unwrap_or(0)..usize::try_from(self.offset + length).unwrap_or(0)]).into_owned().as_str());
+        self.offset += length;
+        return Ok(text);
+    }
+
+    pub fn remaining(&self) -> u32 {
+        return u32::wrapping_sub(u32::try_from((self.bytes.len()) & 0xFFFF_FFFF).unwrap_or(0), self.offset);
+    }
+
+    pub fn consumed(&self) -> u32 {
+        return self.offset;
+    }
+}

@@ -1,0 +1,107 @@
+package tests
+
+import boring.PrivateHolder
+import boring.ValueRecord
+import boring.runtime.test.Test
+
+class ValueRecordTests {
+@boring.test.Test
+    fun testConstruction() {
+        Test.run("tests.ValueRecordTests.testConstruction", "tests.ValueRecordTests.testConstruction: constructor keeps the given fields and validates nothing in range") {
+                val record = ValueRecord(2, 7, "span")
+                Test.equals(2, record.start, null)
+                Test.equals(7, record.end, null)
+                Test.equals("span", record.label, null)
+        }
+    }
+
+@boring.test.Test
+    fun testProperty() {
+        Test.run("tests.ValueRecordTests.testProperty", "tests.ValueRecordTests.testProperty: getter-only property computes per read") {
+                val record = ValueRecord(2, 7, "span")
+                Test.equals(5, record.length, null)
+        }
+    }
+
+@boring.test.Test
+    fun testStartAfterEnd() {
+        Test.run("tests.ValueRecordTests.testStartAfterEnd", "tests.ValueRecordTests.testStartAfterEnd: constructor throws on start after end") {
+                Test.equals(true, ValueRecordProbes.ctorRejected(8, 3), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNegativeStart() {
+        Test.run("tests.ValueRecordTests.testNegativeStart", "tests.ValueRecordTests.testNegativeStart: constructor throws on negative start") {
+                Test.equals(true, ValueRecordProbes.ctorRejected(-1, 3), null)
+        }
+    }
+
+@boring.test.Test
+    fun testAccepted() {
+        Test.run("tests.ValueRecordTests.testAccepted", "tests.ValueRecordTests.testAccepted: in-range construction is accepted") {
+                Test.equals(false, ValueRecordProbes.ctorRejected(0, 0), null)
+        }
+    }
+
+@boring.test.Test
+    fun testCopyZero() {
+        Test.run("tests.ValueRecordTests.testCopyZero", "tests.ValueRecordTests.testCopyZero: copy without override keeps every field") {
+                val record = ValueRecord(2, 7, "span")
+                val copy = ValueRecord(record.start, record.end, record.label)
+                Test.equals(2, copy.start, null)
+                Test.equals(7, copy.end, null)
+                Test.equals("span", copy.label, null)
+        }
+    }
+
+@boring.test.Test
+    fun testCopyOne() {
+        Test.run("tests.ValueRecordTests.testCopyOne", "tests.ValueRecordTests.testCopyOne: copy with one override replaces the targeted field") {
+                val record = ValueRecord(2, 7, "span")
+                val copy = ValueRecord(record.start, 9, record.label)
+                Test.equals(2, copy.start, null)
+                Test.equals(9, copy.end, null)
+                Test.equals("span", copy.label, null)
+        }
+    }
+
+@boring.test.Test
+    fun testCopyReordered() {
+        Test.run("tests.ValueRecordTests.testCopyReordered", "tests.ValueRecordTests.testCopyReordered: copy with reordered overrides keeps parameter order") {
+                val record = ValueRecord(2, 7, "span")
+                val copy = ValueRecord(4, record.end, "renamed")
+                Test.equals(4, copy.start, null)
+                Test.equals(7, copy.end, null)
+                Test.equals("renamed", copy.label, null)
+        }
+    }
+
+@boring.test.Test
+    fun testEquality() {
+        Test.run("tests.ValueRecordTests.testEquality", "tests.ValueRecordTests.testEquality: structural equality compares constructor fields") {
+                val left = ValueRecord(2, 7, "span")
+                val same = ValueRecord(2, 7, "span")
+                val other = ValueRecord(2, 8, "span")
+                Test.equals(true, left.start == same.start && left.end == same.end && left.label == same.label, null)
+                Test.equals(false, left.start == other.start && left.end == other.end && left.label == other.label, null)
+        }
+    }
+
+@boring.test.Test
+    fun testPrintedForm() {
+        Test.run("tests.ValueRecordTests.testPrintedForm", "tests.ValueRecordTests.testPrintedForm: printed form names the class and constructor fields") {
+                val record = ValueRecord(2, 7, "span")
+                Test.equals("ValueRecord(start=2, end=7, label=span)", "ValueRecord(" + "start=" + record.start + ", " + "end=" + record.end + ", " + "label=" + record.label + ")", null)
+        }
+    }
+
+@boring.test.Test
+    fun testPrivateHolder() {
+        Test.run("tests.ValueRecordTests.testPrivateHolder", "tests.ValueRecordTests.testPrivateHolder: private constructor-parameter field survives construction") {
+                val holder = PrivateHolder(10, 20)
+                Test.equals(10, holder.shown, null)
+                Test.equals(30, holder.total(), null)
+        }
+    }
+}

@@ -1,0 +1,93 @@
+import json, os, hashlib, subprocess
+WS='/home/losses/Development/tq-workspace'
+COORD=os.path.join(WS,'boring-wt-architecture')
+ROOT=os.path.join(WS,'publication-staging/execution-option-c-coord')
+MAN=os.path.join(WS,'publication-staging/p09-coord-state/option-c-source-before.json')
+OUT=os.path.join(WS,'dc-warn/out/coord-baseline-xcheck2')
+SKIP={'.git','node_modules','out','target','.haxelib','.direnv','.dev'}
+
+def sha_file(p):
+    h=hashlib.sha256()
+    with open(p,'rb') as f:
+        for c in iter(lambda: f.read(1<<20), b''): h.update(c)
+    return h.hexdigest()
+def perm(p): return os.lstat(p).st_mode & 0o777
+def walk(base):
+    d={}
+    for dp,dns,fns in os.walk(base):
+        dns[:]=[x for x in dns if x not in SKIP]
+        for fn in fns:
+            fp=os.path.join(dp,fn)
+            d[os.path.relpath(fp,base)]=(sha_file(fp),perm(fp))
+    return d
+def git(*a):
+    r=subprocess.run(['git','-C',COORD]+list(a),capture_output=True)
+    return r.returncode,r.stdout,r.stderr
+
+coord=walk(COORD); root=walk(ROOT)
+_,tb,_=git('ls-tree','-r','e1c65975')
+tree={}
+for ln in tb.decode().splitlines():
+    meta,path=ln.split('\t',1); m,typ,s=meta.split(' '); tree[path]=s
+_,tracked_b,_=git('ls-files','-z'); tracked=set(tracked_b.decode().split('\0')[:-1])
+_,unt_b,_=git('ls-files','-o','--exclude-standard','-z'); untracked=set(unt_b.decode().split('\0')[:-1])
+man=json.load(open(MAN)); man_map={e['path']:e for e in man}
+
+res={}
+differ=[];modeonly=[];missing=[];extra=[]
+for p in sorted(set(coord)|set(root)):
+    c=coord.get(p); r=root.get(p)
+    if c and not r: missing.append((p,c[0],oct(c[1])[2:]))
+    elif r and not c: extra.append((p,r[0],oct(r[1])[2:]))
+    elif c[0]!=r[0]: differ.append((p,c[0],r[0],oct(c[1])[2:],oct(r[1])[2:]))
+    elif c[1]!=r[1]: modeonly.append((p,oct(c[1])[2:],oct(r[1])[2:],c[0]))
+res['counts']={'coord_walk':len(coord),'root_walk':len(root),'differ':len(differ),
+  'modeonly':len(modeonly),'missing_in_root':len(missing),'extra_in_root':len(extra)}
+
+def cls(p):
+    t=[]
+    if p in tracked: t.append('tracked')
+    elif p in untracked: t.append('untracked')
+    else: t.append('ignored-or-other')
+    t.append('in_manifest' if p in man_map else 'not_in_manifest')
+    t.append('in_commit' if p in tree else 'not_in_commit')
+    return '/'.join(t)
+
+# gitignore check
+def ignored(p):
+    rc,_,_=git('check-ignore','-q','--',p)
+    return rc==0
+
+def commit_sha(p):
+    if p not in tree: return None
+    rc,b,_=git('cat-file','blob',tree[p])
+    return hashlib.sha256(b).hexdigest() if rc==0 else None
+
+third=[];commit_inherit=[]
+for p in sorted(set(coord)|set(root)):
+    r=root.get(p)
+    if not r: continue
+    c=coord.get(p)
+    if c and c[0]==r[0]: continue
+    csha=commit_sha(p)
+    if csha is not None and r[0]==csha:
+        commit_inherit.append((p,cls(p),c[0] if c else None,r[0]))
+    else:
+        third.append((p,cls(p),'ignored=%s'%ignored(p),c[0] if c else None,r[0],csha))
+res['differ']=differ; res['modeonly']=modeonly; res['missing']=missing; res['extra']=extra
+res['commit_inherit']=commit_inherit; res['third']=third
+
+print('COUNTS',json.dumps(res['counts']))
+for name,rows in [('DIFFER(coord!=root)',differ),('MODEONLY',modeonly),('MISSING_in_root',missing)]:
+    print('\n== %s (%d)'%(name,len(rows)))
+    for r in rows: print('  ',r,'  ['+cls(r[0])+']')
+print('\n== EXTRA_in_root (%d)'%len(extra))
+import collections
+print('   by top:',collections.Counter(p.split('/')[0] for p,_,_ in extra))
+print('   ignored?',collections.Counter(ignored(p) for p,_,_ in extra))
+for r in extra[:20]: print('   ',r)
+print('\n== COMMIT-STATE inherited in root, coord differs/absent (%d)'%len(commit_inherit))
+for r in commit_inherit: print('  ',r)
+print('\n== THIRD-GEN (root != commit AND root != coord) (%d)'%len(third))
+for r in third[:60]: print('  ',r)
+json.dump(res,open(os.path.join(OUT,'s3-fullwalk.json'),'w'),indent=1,default=str)

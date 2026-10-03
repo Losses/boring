@@ -1,0 +1,31 @@
+1915:                 return typeExpr(t);
+1916:             case TParenthesis(inner):
+1917:                 return expr(inner);
+1918:             case TObjectDecl(fields):
+1919:                 return objectLiteral(e, fields);
+1920:             case TArrayDecl(elems):
+1921:                 final elemType = switch (e.t) {
+1922:                     case TInst(_, params) if (params.length > 0): params[0];
+1923:                     case _: null;
+1924:                 };
+1925:                 final elemFloat = isFloatLeafType(elemType);
+1926:                 final renderedElems = [
+1927:                     for (x in elems) {
+1928:                         var t = elemType != null
+1929:                             && StaticFieldHelper.isReadOnlyArrayType(elemType) ? arrayBoundaryText(x, elemType) : expr(x);
+1930:                         if (elemFloat && isIntType(emittedType(x))) t = intToFloatText(t);
+1931:                         // A non-optional element type rejects a nullable
+1932:                         // element; the element unwraps at the literal. A
+1933:                         // compound element carries the wrap in parentheses so
+1934:                         // the bang binds to the whole value, and a null
+1935:                         // literal has no value to unwrap.
+1936:                         // (ArrayLiteralElementDemand)
+1937:                         if (elemType != null && !isNullLeafType(elemType) && optionalValued(x) && !isNullLiteral(x) && !StringTools.endsWith(t,
+1938:                             "!")) t = switch (stripWrap(x).expr) {
+1939:                                 case TLocal(_): t + "!";
+1940:                                 case _: "(" + t + ")!";
+1941:                             };
+1942:                         t;
+1943:                     }
+1944:                 ];
+1945:                 final inner = "[" + renderedElems.join(", ") + "]";

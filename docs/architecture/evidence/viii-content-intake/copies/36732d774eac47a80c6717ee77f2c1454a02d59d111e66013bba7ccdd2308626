@@ -1,0 +1,33 @@
+package mx;
+
+import std.ReadOnlyArray;
+
+/**
+	Guard for the case the blockExpression conversion originally existed for
+	(fcdb6142, "render read-only array returns as native literals"): an inline
+	helper's block whose trailing value is an ARRAY LITERAL, consumed by a
+	read-only slot. Element inference of the literal must survive the removal
+	of the blockExpression conversion.
+**/
+class MXBlockLit {
+	inline static function lit():Array<Int> {
+		final s = 1;
+		return [s, 2];
+	}
+
+	static function viewLen(a:ReadOnlyArray<Int>):Int
+		return a.length;
+
+	// block values are array literals; the enclosing member IS read-only
+	public static function litArg():ReadOnlyArray<Int> {
+		final n = viewLen(lit());
+		final out:ReadOnlyArray<Int> = src();
+		if (n < 0) {
+			return out;
+		}
+		return out;
+	}
+
+	static function src():Array<Int>
+		return [7, 8];
+}

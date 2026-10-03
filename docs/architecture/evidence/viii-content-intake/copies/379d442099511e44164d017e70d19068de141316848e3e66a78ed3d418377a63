@@ -1,0 +1,29 @@
+package tests
+
+import boring.NumberClassifyOps
+import boring.runtime.test.Test
+
+class NumberClassifyTests {
+@boring.test.Test
+    fun finiteClassification() {
+        Test.run("tests.NumberClassifyTests.finiteClassification", "tests.NumberClassifyTests.finiteClassification: isFinite accepts finite values and rejects NaN and infinities") {
+                Test.equals(true, NumberClassifyOps.finite(0.0), null)
+                Test.equals(true, NumberClassifyOps.finite(-1.5), null)
+                Test.equals(true, NumberClassifyOps.finite(3.0e38), null)
+                Test.equals(false, NumberClassifyOps.finite(Double.NaN), null)
+                Test.equals(false, NumberClassifyOps.finite(Double.POSITIVE_INFINITY), null)
+                Test.equals(false, NumberClassifyOps.finite(Double.NEGATIVE_INFINITY), null)
+        }
+    }
+
+@boring.test.Test
+    fun nanClassification() {
+        Test.run("tests.NumberClassifyTests.nanClassification", "tests.NumberClassifyTests.nanClassification: isNaN accepts NaN and rejects finite values and infinities") {
+                Test.equals(true, NumberClassifyOps.nan(Double.NaN), null)
+                Test.equals(false, NumberClassifyOps.nan(0.0), null)
+                Test.equals(false, NumberClassifyOps.nan(-1.5), null)
+                Test.equals(false, NumberClassifyOps.nan(Double.POSITIVE_INFINITY), null)
+                Test.equals(false, NumberClassifyOps.nan(Double.NEGATIVE_INFINITY), null)
+        }
+    }
+}

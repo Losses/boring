@@ -1,0 +1,15 @@
+fixture	changed-files	changed-file-names
+try-tail	1	Files /tmp/rt-xcheck/gen-pristine/try-tail/trytail/try_tail_oracle.rs and /tmp/rt-xcheck/gen-postfix/try-tail/trytail/try_tail_oracle.rs differ
+try-tail-min	1	Files /tmp/rt-xcheck/gen-pristine/try-tail-min/trytailmin/min_oracle.rs and /tmp/rt-xcheck/gen-postfix/try-tail-min/trytailmin/min_oracle.rs differ
+enum-comparison	0	
+flow	0	
+flow-normalized	0	
+flow-stable-local	0	
+place	0	
+readonly-alias	0	
+rust-comparison-policy	0	
+rust-comparison-policy-unused	0	
+signed-key-composition	0	
+source-container-policy	0	
+comp-runtime-obs	0	
+timeout-probe	0	

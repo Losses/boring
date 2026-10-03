@@ -1,0 +1,48 @@
+import json, re, os
+repo = "/home/losses/Development/tq-workspace/boring-wt-architecture"
+tset = json.load(open("/home/losses/Development/tq-workspace/dc-warn/out/test-timeout-budget/evidence/timeout-set.json"))
+
+def body(src, start_idx):
+    """Return text of the call starting at the first '(' at/after start_idx, balanced."""
+    i = src.index("(", start_idx)
+    depth = 0
+    j = i
+    while j < len(src):
+        c = src[j]
+        if c == "(": depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0: return src[i:j+1]
+        j += 1
+    return src[i:]
+
+spawn_re = re.compile(r"Bun\.(spawn|spawnSync|\$)\s*\(\s*\[?\s*([^\]]*?)\]", re.S)
+cmd_re = re.compile(r'"([^"\n]+)"')
+wo_re = re.compile(r'"(haxe|kotlinc|kotlinc-jvm|java|node|cargo|swiftc|dart|tar|python3|git|bun|npm|tsc)"')
+
+out = {}
+for t in tset:
+    p = os.path.join(repo, t["file"])
+    matches = t["lines"]
+    if not matches:
+        out[t["name"]] = {"file": t["file"], "error": "test not located"}
+        continue
+    line = matches[0]
+    lines = open(p, encoding="utf-8").read().split("\n")
+    # find the test( call at or before this line
+    pre = "\n".join(lines[:line])
+    idx = pre.rfind("test(")
+    call = body("\n".join(lines), idx)
+    cmds = []
+    for m in re.finditer(r'"((?:haxe|kotlinc|java|node|cargo|swiftc|dart|tar|python3|git|npm|tsc))"', call):
+        cmds.append(m.group(1))
+    # classify: does the body reference a helper function?
+    helpers = re.findall(r'(?:await\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(', call)
+    out[t["name"]] = {"file": t["file"], "line": line, "budget": t["budget"],
+                      "elapsed": t["elapsed"], "spawn_literals": sorted(set(cmds)),
+                      "body_len": len(call), "calls": sorted(set(helpers))}
+    print(f'--- {t["file"]}:{line}  budget={t["budget"]} elapsed={t["elapsed"]}')
+    print(f'    name: {t["name"]}')
+    print(f'    literal spawn binaries in body: {sorted(set(cmds)) or "NONE DIRECTLY"}')
+    print(f'    calls made: {", ".join(sorted(set(helpers))[:14])}')
+json.dump(out, open("/home/losses/Development/tq-workspace/dc-warn/out/test-timeout-budget/evidence/spawn-census.json","w"), indent=1)

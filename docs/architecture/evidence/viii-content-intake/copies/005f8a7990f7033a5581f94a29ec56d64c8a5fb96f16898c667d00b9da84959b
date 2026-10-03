@@ -1,0 +1,7 @@
+label: host-identity
+cwd: /home/losses/Development/tq-workspace/boring/dc-warn/worktrees/kotlin-manifest
+argv:
+  bash
+  -c
+  echo "kotlinc: $(command -v kotlinc)"; kotlinc -version 2>&1; echo "java: $(command -v java)"; java -version 2>&1; echo "haxe: $(command -v haxe)"; haxe --version 2>&1
+input-sha256 (see inputs.sha256):

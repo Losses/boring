@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""Independent cross-check of publication-staging/p09-e1c65975/inventory-1398.json."""
+import hashlib, json, os
+
+ROOT = "/home/losses/Development/tq-workspace"
+INV = os.path.join(ROOT, "publication-staging/p09-e1c65975/inventory-1398.json")
+SNAP = os.path.join(ROOT, "publication-staging/fixed-compiler-e1c65975")
+CLAIMED = "4a50f224"
+
+inv = json.load(open(INV))
+files = inv["files"]
+print(f"inventory format={inv.get('format')} count={inv.get('count')} files={len(files)}")
+
+mismatch, missing = [], []
+for path, meta in files.items():
+    full = os.path.join(SNAP, path)
+    if not os.path.isfile(full):
+        missing.append(path); continue
+    h = hashlib.sha256(open(full, "rb").read()).hexdigest()
+    size = os.path.getsize(full)
+    if h != meta["sha256"] or size != meta["size"]:
+        mismatch.append((path, meta["sha256"], h, meta["size"], size))
+
+on_disk = set()
+for dirpath, dirnames, filenames in os.walk(SNAP):
+    for fn in filenames:
+        on_disk.add(os.path.relpath(os.path.join(dirpath, fn), SNAP))
+extra = sorted(on_disk - set(files))
+
+print(f"recomputed={len(files)-len(missing)} missing={len(missing)} mismatch={len(mismatch)} extra={len(extra)}")
+if missing: print("  MISSING:", missing[:5])
+if mismatch: print("  MISMATCH:", mismatch[:5])
+if extra: print("  EXTRA:", extra[:5])
+
+entries = list(files.items())
+se = sorted(entries, key=lambda kv: kv[0])
+h = lambda b: hashlib.sha256(b).hexdigest()
+c = {}
+c["sorted 'sha256  path\\n'"] = "".join(f"{m['sha256']}  {p}\n" for p, m in se).encode()
+c["insertion 'sha256  path\\n'"] = "".join(f"{m['sha256']}  {p}\n" for p, m in entries).encode()
+c["sorted 'sha256 path\\n'"] = "".join(f"{m['sha256']} {p}\n" for p, m in se).encode()
+c["sorted 'path  sha256\\n'"] = "".join(f"{p}  {m['sha256']}\n" for p, m in se).encode()
+c["sorted 'sha256  size  path\\n'"] = "".join(f"{m['sha256']}  {m['size']}  {p}\n" for p, m in se).encode()
+c["sorted 'size  sha256  path\\n'"] = "".join(f"{m['size']}  {m['sha256']}  {p}\n" for p, m in se).encode()
+c["sorted 'sha256  path' joined by \\n"] = "\n".join(f"{m['sha256']}  {p}" for p, m in se).encode()
+c["json files map indent=2 sort_keys"] = json.dumps({p: files[p] for p, _ in se}, indent=2, sort_keys=True).encode()
+c["json files map compact sort_keys"] = json.dumps(files, separators=(",", ":"), sort_keys=True).encode()
+c["json files map indent=2 as-stored"] = json.dumps(files, indent=2).encode()
+c["json sha256 list sorted"] = json.dumps([m["sha256"] for _, m in se]).encode()
+c["concat sha256 sorted"] = "".join(m["sha256"] for _, m in se).encode()
+c["git ls-tree style"] = "".join(f"100644 blob {m['sha256']}\t{p}\n" for p, m in se).encode()
+c["inventory json file bytes"] = open(INV, "rb").read()
+
+print("\n--- combination hash hunt (claimed prefix 4a50f224) ---")
+found = False
+for name, blob in c.items():
+    d = h(blob)
+    mark = "  <<< MATCH" if d.startswith(CLAIMED) else ""
+    if mark: found = True
+    print(f"  {d[:16]}  {name}{mark}")
+print("FOUND" if found else "no candidate matched 4a50f224")
+
+for name in ("inventory-1398.sha256", "published-tree-equivalence.sha256"):
+    p = os.path.join(os.path.dirname(INV), name)
+    if os.path.exists(p): print(f"\n{name}: {open(p).read().strip()}")
+print("\nactual sha256(inventory-1398.json) =", h(open(INV, "rb").read()))

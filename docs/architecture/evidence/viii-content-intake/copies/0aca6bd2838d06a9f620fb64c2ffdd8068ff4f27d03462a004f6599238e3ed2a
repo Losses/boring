@@ -1,0 +1,50 @@
+### coordination tree dirty-state snapshot ###
+captured: 2026-09-30T00:40:31Z
+HEAD: e1c6597514634fd347d392709793cc19bd96c9a2
+
+--- git status --porcelain=v1 ---
+ M docs/investigations/architecture-round-1/d-observation.md
+ M examples/kotlin-f32.hxml
+ M examples/rust-f32.hxml
+ M examples/swift-f32.hxml
+ M package.json
+ M packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+ M packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+ M packages/compiler/reflaxe/swift/swiftcompiler/SwiftArrayBoundary.hx
+ M packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+ M samples/tests/NumberClassifyTests.hx
+ M tests/support/stage-check.sh
+ M tools/test-consistency/Main.hx
+?? docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md
+?? tests/haxe/dc-null-guard-fallthrough/
+?? tests/haxe/swift-rt-plain/
+?? tests/haxe/swift-rt-probe/
+?? tests/haxe/try-tail-min/
+?? tests/haxe/try-tail/
+?? tests/support/stage-check-control.sh
+?? tools/precision-guard/
+?? tools/roots-guard/
+?? tools/test-consistency/extra-id-allowlist.json
+
+--- git diff --shortstat HEAD (tracked) ---
+ 15 files changed, 507 insertions(+), 14 deletions(-)
+
+--- f32-relevant working-tree file hashes ---
+addebfd8151e274af29fba92bfda2437e063a0472d7eb66b59a2d50f7bfa4adf  examples/kotlin-f32.hxml
+91a8fd710d14151a40766d44bdbfa68165f4be81c553268a463bff28c4fb8255  examples/rust-f32.hxml
+68013176720b64b089a07cc286521d4b06e1829828274a71ac34e337fa03fd6d  examples/swift-f32.hxml
+e3bd0cd23b30f6948becf681030ec402ee59380f31f1ff21bdf172de5ce8c80e  samples/tests/NumberClassifyTests.hx
+24333b7570f54085a155d699ee5a2492319365c5669dd9a37bbc0c1fa73cf7d5  tools/test-consistency/Main.hx
+e5508bb442daaeb6655fb1a149ab4a853f5365af415bba3fddf9e854dba980db  tools/roots-guard/check-roots-guard.sh
+34d336ce68b08e686a12dbf5ca43bd89495d470b2ac5278624bdffc93da471a9  tools/roots-guard/roots-allowlist.json
+fab8b03661524db4d011fa364f38465ec1e66159d4d5359a13f58d0463007f93  tools/test-consistency/extra-id-allowlist.json
+57ee49976511892c4490eb490315e49f494774a7d3f23ed2811184acfe1a8a0a  packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+
+--- tracked? (git ls-files) ---
+tools/roots-guard/check-roots-guard.sh                  UNTRACKED
+tools/roots-guard/roots-allowlist.json                  UNTRACKED
+tools/test-consistency/extra-id-allowlist.json          UNTRACKED
+tools/test-consistency/Main.hx                          TRACKED

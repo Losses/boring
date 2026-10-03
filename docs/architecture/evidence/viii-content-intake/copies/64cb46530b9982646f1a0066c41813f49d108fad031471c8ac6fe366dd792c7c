@@ -1,0 +1,19 @@
+set -u
+WT=/home/losses/Development/tq-workspace/dc-warn/worktrees/param-fix-xcheck
+SRC=$WT/packages/compiler/SourceComparisonAnalysis.hx
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/param-fix-xcheck
+export XDG_CACHE_HOME=/tmp/param-xcheck-nix-cache
+cp "$SRC" /tmp/xcheck-post.hx
+for pair in "7-unbounded-pre:/tmp/xcheck-pre.hx" "8-unbounded-post:/tmp/xcheck-post.hx"; do
+  name="${pair%%:*}"; variant="${pair##*:}"
+  cp "$variant" "$SRC"
+  mkdir -p "$OUT/$name"
+  echo "=== PHASE $name src=$(sha256sum "$SRC" | cut -d' ' -f1)"
+  XCHECK_UNBOUNDED=1 timeout -s KILL 150 nix develop "$WT" -c bash -lc "haxe $WT/tests/haxe/dc-xcheck/build.hxml" \
+    >"$OUT/$name/probe.stdout" 2>"$OUT/$name/probe.stderr"
+  echo "  haxe exit=$?"
+  grep -E '^(UNBOUNDED|REC budget=8)' "$OUT/$name/probe.stdout" | sed 's/^/  /'
+  tail -4 "$OUT/$name/probe.stderr" | sed 's/^/  ERR: /'
+done
+cp /tmp/xcheck-post.hx "$SRC"
+echo "=== restored $(sha256sum "$SRC" | cut -d' ' -f1)"

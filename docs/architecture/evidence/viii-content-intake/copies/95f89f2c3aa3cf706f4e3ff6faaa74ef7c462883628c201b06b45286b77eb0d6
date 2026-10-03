@@ -1,0 +1,16 @@
+#![cfg(test)]
+
+use crate::boring::negative_sentinel_ops::NegativeSentinelOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn separator_index() {
+    testlib::run("tests.NegativeSentinelOpsTests.separatorIndex", "tests.NegativeSentinelOpsTests.separatorIndex: a negative sentinel local keeps one domain across its uses", || {
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((NegativeSentinelOps::negative_sentinel_ops_separator_index(UStr::new(&[97,98,45,99,100]))) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((NegativeSentinelOps::negative_sentinel_ops_separator_index(UStr::new(&[45]))) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(-1i32, i32::from_ne_bytes(((NegativeSentinelOps::negative_sentinel_ops_separator_index(UStr::new(&[97,98]))) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

@@ -1,0 +1,23 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/value-type.test.ts:
+120 |     expect(rust).toContain("#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub f64);");
+121 |     expect(rust).not.toContain("pub struct Ic(pub f64);\n\nimpl Eq");
+122 |     expect(rust).toContain("impl std::ops::Add for Ic");
+123 |     expect(rust).toContain("impl std::ops::Neg for Ic");
+124 |     expect(rust).toContain("impl std::fmt::Display for FontFaceId");
+125 |     expect(rust).toContain("#[derive(Debug, Clone, PartialEq, Eq, Hash)]\npub struct FontFaceId(pub String);");
+                       ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "#[derive(Debug, Clone, PartialEq, Eq, Hash)]\npub struct FontFaceId(pub String);"
+Received: "use crate::boring::value_exception::ValueError;\nuse crate::runtime::u_string::UStr;\nuse crate::runtime::u_string::UString;\n\n\n#[derive(Debug, Clone, PartialEq)]\npub struct Ic(pub f64);\n\nimpl Ic {\n    pub fn new(value: f64) -> Self {\n        return Self(value);\n    }\n\n    pub fn to_px(&self, em_px: f64) -> f64 {\n        return self.0 * em_px;\n    }\n\n    pub fn zero() -> Ic { Ic(0.0f64) }\n}\n\nimpl std::ops::Add for Ic {\n    type Output = Ic;\n    fn add(self, rhs: Ic) -> Ic {\n        return Ic(self.0 + rhs.0);\n    }\n}\n\nimpl std::ops::Neg for Ic {\n    type Output = Ic;\n    fn neg(self) -> Ic {\n        return Ic(-self.0);\n    }\n}\n\nimpl std::fmt::Display for Ic {\n    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n        write!(formatter, \"{}\", self.0)\n    }\n}\n\n#[derive(Debug, Clone, PartialEq, Eq, Hash)]\npub struct FontFaceId(pub UString);\n\nimpl FontFaceId {\n    pub fn new(value: &UStr) -> Result<Self, ValueError> {\n        if value.trim() == UString::from(\"\") {\n            return Err(ValueError::BlankValue);\n        }\n        return Ok(Self(value.to_ustring()));\n    }\n\n    fn to_string(&self) -> UString {\n        return self.0.clone();\n    }\n}\n\nimpl std::fmt::Display for FontFaceId {\n    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n        write!(formatter, \"{}\", self.to_string())\n    }\n}\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/vte-probe/tests/ts/value-type.test.ts:125:18)
+(fail) value wrapper generated trees > renders the five target representations and member forms [1.00ms]
+
+ 0 pass
+ 1 filtered out
+ 1 fail
+ 31 expect() calls
+Ran 1 test across 1 file. [42.00ms]

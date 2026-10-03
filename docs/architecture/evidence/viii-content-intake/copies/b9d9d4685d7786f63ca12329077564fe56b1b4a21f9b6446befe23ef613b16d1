@@ -1,0 +1,19 @@
+set -u
+WT=/home/losses/Development/tq-workspace/dc-warn/worktrees/param-fix-xcheck
+SRC=$WT/packages/compiler/SourceComparisonAnalysis.hx
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/param-fix-xcheck
+export XDG_CACHE_HOME=/tmp/param-xcheck-nix-cache
+cp "$SRC" /tmp/xcheck-post.hx
+git -C "$WT" show HEAD:packages/compiler/SourceComparisonAnalysis.hx >/tmp/xcheck-pre.hx
+for pair in "5-pre-rec:/tmp/xcheck-pre.hx" "6-post-rec:/tmp/xcheck-post.hx"; do
+  name="${pair%%:*}"; variant="${pair##*:}"
+  cp "$variant" "$SRC"
+  mkdir -p "$OUT/$name"
+  echo "=== PHASE $name src=$(sha256sum "$SRC" | cut -d' ' -f1)"
+  timeout 900 bash "$WT/tests/haxe/dc-xcheck/run.sh" "$OUT/$name/xcheck" >"$OUT/$name/xcheck.log" 2>&1
+  echo "  haxe exit=$(cat "$OUT/$name/xcheck/exit.txt" 2>/dev/null)"
+  grep -E '^(COLLIDE total|OVER|UNDER|REC)' "$OUT/$name/xcheck/probe.stdout" | sed 's/^/  /'
+  tail -3 "$OUT/$name/xcheck/probe.stderr" | sed 's/^/  ERR: /'
+done
+cp /tmp/xcheck-post.hx "$SRC"
+echo "=== restored $(sha256sum "$SRC" | cut -d' ' -f1)"

@@ -1,0 +1,131 @@
+#![cfg(test)]
+
+use crate::boring::platform_ops::PlatformOps;
+use crate::runtime::env::Env;
+use crate::runtime::fs::Fs;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use crate::std::path::Path;
+use crate::tests::platform_modules_test_support::PlatformModulesTestSupport;
+
+
+#[test]
+fn fs_round_trip() {
+    testlib::run("tests.PlatformModulesTests.fsRoundTrip", "tests.PlatformModulesTests.fsRoundTrip: std.Fs write append and read round-trip", || {
+        PlatformModulesTestSupport::platform_modules_test_support_ensure_dir();
+        let path = PlatformModulesTestSupport::platform_modules_test_support_text_path(UStr::new(&[114,111,117,110,100,116,114,105,112]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,105,114,115,116,115,101,99,111,110,100]), PlatformOps::platform_ops_write_append_read(path.as_ustr(), UStr::new(&[102,105,114,115,116]), UStr::new(&[115,101,99,111,110,100])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, Fs::exists(path.as_ustr()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, Fs::is_directory(PlatformModulesTestSupport::PLATFORM_MODULES_TEST_SUPPORT_DIR.to_ustring().as_ustr()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn fs_make_dirs() {
+    testlib::run("tests.PlatformModulesTests.fsMakeDirs", "tests.PlatformModulesTests.fsMakeDirs: std.Fs makeDirs creates a nested directory", || {
+        PlatformModulesTestSupport::platform_modules_test_support_ensure_dir();
+        let nested = { let mut __s = UString::new(); __s += PlatformModulesTestSupport::PLATFORM_MODULES_TEST_SUPPORT_DIR.to_ustring().as_ustr(); __s += &(UString::from("/a/b/c")); __s };
+        test_core::TestCore::test_core_equals_bool(true, PlatformOps::platform_ops_make_dirs_check(nested.as_ustr()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, Fs::is_directory(UString::from(format!("{}", { let mut __s = UString::new(); __s += PlatformModulesTestSupport::PLATFORM_MODULES_TEST_SUPPORT_DIR.to_ustring().as_ustr(); __s += &(UString::from("/a/b")); __s }).as_str()).as_ustr()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn fs_read_dir() {
+    testlib::run("tests.PlatformModulesTests.fsReadDir", "tests.PlatformModulesTests.fsReadDir: std.Fs readDir omits the dot entries", || {
+        PlatformModulesTestSupport::platform_modules_test_support_ensure_dir();
+        test_core::TestCore::test_core_equals_bool(true, PlatformModulesTestSupport::platform_modules_test_support_no_dot_entries(PlatformModulesTestSupport::PLATFORM_MODULES_TEST_SUPPORT_DIR.to_ustring().as_ustr()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, Fs::exists(PlatformModulesTestSupport::PLATFORM_MODULES_TEST_SUPPORT_DIR.to_ustring().as_ustr()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn env_round_trip() {
+    testlib::run("tests.PlatformModulesTests.envRoundTrip", "tests.PlatformModulesTests.envRoundTrip: std.Env set and remove are observable through get", || {
+        let key = UString::from("BORING_PLATFORM_TEST_KEY").to_ustring();
+        test_core::TestCore::test_core_equals_string(UStr::new(&[118,97,108,117,101,124,60,97,98,115,101,110,116,62]), PlatformOps::platform_ops_env_round_trip(key.as_ustr(), UStr::new(&[118,97,108,117,101])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn env_absent() {
+    testlib::run("tests.PlatformModulesTests.envAbsent", "tests.PlatformModulesTests.envAbsent: std.Env get reports an absent entry as null", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[60,97,98,115,101,110,116,62]), PlatformOps::platform_ops_env_get(UStr::new(&[66,79,82,73,78,71,95,80,76,65,84,70,79,82,77,95,84,69,83,84,95,65,66,83,69,78,84])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn path_normalize() {
+    testlib::run("tests.PlatformModulesTests.pathNormalize", "tests.PlatformModulesTests.pathNormalize: std.Path normalizes mixed separators and dot segments", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,47,98,47,99]), PlatformOps::platform_ops_normalize(UStr::new(&[97,92,98,47,99])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,47,99]), PlatformOps::platform_ops_normalize(UStr::new(&[97,47,46,47,98,47,46,46,47,99])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[46,46,47,98]), PlatformOps::platform_ops_normalize(UStr::new(&[97,47,46,46,47,46,46,47,98])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,98]), PlatformOps::platform_ops_normalize(UStr::new(&[47,97,47,46,46,47,98])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[67,58,47,98]), PlatformOps::platform_ops_normalize(UStr::new(&[67,58,92,97,92,46,46,92,98])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[67,58,47]), PlatformOps::platform_ops_normalize(UStr::new(&[67,58,92,97,92,46,46,92])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,47,98]), PlatformOps::platform_ops_join(UStr::new(&[97]), UStr::new(&[98])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,97,98,115]), PlatformOps::platform_ops_join(UStr::new(&[97]), UStr::new(&[47,97,98,115])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[67,58,47,119,105,110]), PlatformOps::platform_ops_join(UStr::new(&[97]), UStr::new(&[67,58,47,119,105,110])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn path_dirname() {
+    testlib::run("tests.PlatformModulesTests.pathDirname", "tests.PlatformModulesTests.pathDirname: std.Path dirname follows the kind table", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[46]), PlatformOps::platform_ops_dirname(UStr::new(&[46])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[46]), PlatformOps::platform_ops_dirname(UStr::new(&[])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47]), PlatformOps::platform_ops_dirname(UStr::new(&[47])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[67,58,47]), PlatformOps::platform_ops_dirname(UStr::new(&[67,58,47,97])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,47,98]), PlatformOps::platform_ops_dirname(UStr::new(&[97,47,98,47,99])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[46]), PlatformOps::platform_ops_dirname(UStr::new(&[97])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,47,115,47,115,104,97,114,101]), PlatformOps::platform_ops_dirname(UStr::new(&[47,47,115,47,115,104,97,114,101,47,97])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,47,115,47,115,104,97,114,101]), PlatformOps::platform_ops_dirname(UStr::new(&[92,92,115,92,115,104,97,114,101,92,97])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47]), PlatformOps::platform_ops_dirname(UStr::new(&[47,97])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,47,115,47,115,104,97,114,101]), PlatformOps::platform_ops_dirname(UStr::new(&[47,47,115,47,115,104,97,114,101])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn path_normalize_kinds() {
+    testlib::run("tests.PlatformModulesTests.pathNormalizeKinds", "tests.PlatformModulesTests.pathNormalizeKinds: std.Path normalize follows the kind table", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[92,92,63,92,67,58,92,120]), PlatformOps::platform_ops_normalize(UStr::new(&[92,92,63,92,67,58,92,120])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[92,92,63,92,67,58,92,97,92,46,46,92,120]), PlatformOps::platform_ops_normalize(UStr::new(&[92,92,63,92,67,58,92,97,92,46,46,92,120])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,47,115,47,115,104,97,114,101,47,98]), PlatformOps::platform_ops_normalize(UStr::new(&[47,47,115,47,115,104,97,114,101,47,97,47,46,46,47,98])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,47,115,47,115,104,97,114,101]), PlatformOps::platform_ops_normalize(UStr::new(&[47,47,115,47,115,104,97,114,101,47,97,47,46,46,47,46,46])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[67,58,97,47,46,46,47,98]), PlatformOps::platform_ops_normalize(UStr::new(&[67,58,97,92,46,46,92,98])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,47,97,47,98]), PlatformOps::platform_ops_normalize(UStr::new(&[47,47,97,47,98])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn path_join_kinds() {
+    testlib::run("tests.PlatformModulesTests.pathJoinKinds", "tests.PlatformModulesTests.pathJoinKinds: std.Path join keeps absolute and device seconds", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[92,92,63,92,67,58,92,120]), PlatformOps::platform_ops_join(UStr::new(&[97]), UStr::new(&[92,92,63,92,67,58,92,120])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,47,115,47,115,104,97,114,101]), PlatformOps::platform_ops_join(UStr::new(&[97]), UStr::new(&[47,47,115,47,115,104,97,114,101])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[67,58,47,119,105,110]), PlatformOps::platform_ops_join(UStr::new(&[97]), UStr::new(&[67,58,47,119,105,110])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,97,98,115]), PlatformOps::platform_ops_join(UStr::new(&[97]), UStr::new(&[47,97,98,115])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,47,98]), PlatformOps::platform_ops_join(UStr::new(&[97]), UStr::new(&[98])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn path_expand_home() {
+    testlib::run("tests.PlatformModulesTests.pathExpandHome", "tests.PlatformModulesTests.pathExpandHome: std.Path expandHome reads HOME through std.Env", || {
+        let original = Env::get(UStr::new(&[72,79,77,69]));
+        Env::set(UStr::new(&[72,79,77,69]), UStr::new(&[47,104,111,109,101,47,112,114,111,98,101]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,104,111,109,101,47,112,114,111,98,101]), Path::path_expand_home(UStr::new(&[126])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,104,111,109,101,47,112,114,111,98,101,47,120]), Path::path_expand_home(UStr::new(&[126,47,120])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,104,111,109,101,47,112,114,111,98,101]), Path::path_expand_home(UStr::new(&[126,92])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[47,97,98,115]), Path::path_expand_home(UStr::new(&[47,97,98,115])).as_ustr(), UStr::new(&[]));
+        match &(original) {
+            Some(__option) => {
+                Env::set(UStr::new(&[72,79,77,69]), __option.as_ustr());
+            }
+            None => {
+                Env::remove(UStr::new(&[72,79,77,69]));
+            }
+        }
+    });
+}

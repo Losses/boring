@@ -1,0 +1,66 @@
+import json, os, hashlib, subprocess, collections
+WS='/home/losses/Development/tq-workspace'
+COORD=os.path.join(WS,'boring-wt-architecture')
+ROOT=os.path.join(WS,'publication-staging/execution-option-c-coord')
+MAN=os.path.join(WS,'publication-staging/p09-coord-state/option-c-source-before.json')
+BACK=os.path.join(WS,'dc-warn/out/coord-state-sync/backup/option-c-source-before.1431.json')
+SKIP={'.git','node_modules','out','target','.haxelib','.direnv','.dev'}
+def sha(p):
+    h=hashlib.sha256()
+    with open(p,'rb') as f:
+        for c in iter(lambda:f.read(1<<20),b''): h.update(c)
+    return h.hexdigest()
+def git(*a):
+    r=subprocess.run(['git','-C',COORD]+list(a),capture_output=True); return r.returncode,r.stdout,r.stderr
+# symlink / special mode check
+special=[]
+for base in (COORD,ROOT):
+    for dp,dns,fns in os.walk(base):
+        dns[:]=[d for d in dns if d not in SKIP]
+        for fn in fns:
+            fp=os.path.join(dp,fn); st=os.lstat(fp)
+            if not os.path.isfile(fp) or os.path.islink(fp): special.append((os.path.relpath(fp,base),oct(st.st_mode)))
+print('SPECIAL(symlink/nonregular) count',len(special), special[:5])
+# non-manifest root files: ignored?
+man={e['path'] for e in json.load(open(MAN))}
+nonman=[]
+for dp,dns,fns in os.walk(ROOT):
+    dns[:]=[d for d in dns if d not in SKIP]
+    for fn in fns:
+        p=os.path.relpath(os.path.join(dp,fn),ROOT)
+        if p not in man: nonman.append(p)
+rc,ig,_=git('check-ignore','--stdin')
+# batch check-ignore
+proc=subprocess.run(['git','-C',COORD,'check-ignore','--stdin'],input=('\n'.join(nonman)).encode(),capture_output=True)
+ignored=set(proc.stdout.decode().splitlines())
+notign=[p for p in nonman if p not in ignored]
+print('NON_MANIFEST_ROOT_FILES',len(nonman),'ignored',len(ignored),'NOT_ignored',len(notign))
+for p in notign: print('   NOT_IGNORED_EXTRA:',p, sha(os.path.join(ROOT,p))[:16], oct(os.lstat(os.path.join(ROOT,p)).st_mode&0o777))
+# backup comparison
+if os.path.isfile(BACK):
+    b=json.load(open(BACK)); bm={e['path']:e for e in b}; m={e['path']:e for e in json.load(open(MAN))}
+    print('\nBACKUP n=%d MANIFEST n=%d'%(len(bm),len(m)))
+    print(' removed:',sorted(set(bm)-set(m)))
+    print(' added  :',sorted(set(m)-set(bm)))
+    rep=[p for p in set(bm)&set(m) if bm[p]['sha256']!=m[p]['sha256'] or bm[p]['mode']!=m[p]['mode']]
+    print(' replaced:',sorted(rep))
+    print(' unchanged count:',len(set(bm)&set(m))-len(rep))
+# mtime of gen diffs
+d=json.load(open(os.path.join(WS,'dc-warn/out/coord-baseline-xcheck2/s3-fullwalk.json')))
+gen=[r for r in d['differ'] if r[0].startswith('reference/')]
+print('\nGEN DIFFER count',len(gen))
+mt=[(r[0],os.path.getmtime(os.path.join(COORD,r[0])),os.path.getmtime(os.path.join(ROOT,r[0]))) for r in gen]
+newer_root=sum(1 for _,c,rr in mt if rr>c); newer_coord=sum(1 for _,c,rr in mt if c>rr)
+import datetime
+print(' root newer:',newer_root,'coord newer:',newer_coord)
+print(' sample mtimes:',[(p.split('/')[-1],datetime.datetime.fromtimestamp(c).strftime('%H:%M:%S'),datetime.datetime.fromtimestamp(rr).strftime('%H:%M:%S')) for p,c,rr in mt[:5]])
+# 600-mode coord files mtimes
+m600=[]
+for dp,dns,fns in os.walk(COORD):
+    dns[:]=[x for x in dns if x not in SKIP]
+    for fn in fns:
+        fp=os.path.join(dp,fn)
+        if os.lstat(fp).st_mode&0o777==0o600: m600.append((os.path.relpath(fp,COORD),datetime.datetime.fromtimestamp(os.path.getmtime(fp)).strftime('%m-%d %H:%M:%S')))
+print('\nCOORD 600-mode files',len(m600))
+print('  time buckets:',collections.Counter(t.split(' ')[1][:5] for _,t in m600))
+print('  sample:',m600[:6])

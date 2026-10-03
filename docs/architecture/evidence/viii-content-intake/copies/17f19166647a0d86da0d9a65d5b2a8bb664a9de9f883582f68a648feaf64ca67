@@ -1,0 +1,39 @@
+### regenerated Swift tree after the fix (3rd Stage-3 leg? no: gen leg 0006/0010), VectorCodec.swift
+--- swift     :
+49:        for record in records.toMutableArray() {
+--- swift-f32 :
+49:        for record in records.toMutableArray() {
+
+### pre-fix vs post-fix: VectorCodec.swift diff (swift)
+--- /tmp/swiftshim/execroot/reference/swift/gen/boring/VectorCodec.swift	2026-09-29 18:11:26.057743793 -0400
++++ /tmp/swiftarr/execroot/reference/swift/gen/boring/VectorCodec.swift	2026-09-29 18:59:39.567285397 -0400
+@@ -46,7 +46,7 @@
+         let writer = BinaryWriter()
+         writer.writeAscii(VectorCodec.magicOf(width))
+         writer.writeU32(Int32(records.count))
+-        for record in TiqianArray(records.toMutableArray()) {
++        for record in records.toMutableArray() {
+             writer.writeU32(record.codePoint)
+             if width == FloatWidth.f64 {
+                 writer.writeF64(record.advanceEm)
+DIFF_RC=1
+
+### pre-fix vs post-fix: VectorCodec.swift diff (swift-f32)
+--- /tmp/swiftshim/execroot/reference/swift-f32/gen/boring/VectorCodec.swift	2026-09-29 18:13:28.872797276 -0400
++++ /tmp/swiftarr/execroot/reference/swift-f32/gen/boring/VectorCodec.swift	2026-09-29 19:02:40.941680429 -0400
+@@ -46,7 +46,7 @@
+         let writer = BinaryWriter()
+         writer.writeAscii(VectorCodec.magicOf(width))
+         writer.writeU32(Int32(records.count))
+-        for record in TiqianArray(records.toMutableArray()) {
++        for record in records.toMutableArray() {
+             writer.writeU32(record.codePoint)
+             if width == FloatWidth.f64 {
+                 writer.writeF64(record.advanceEm)
+DIFF_RC=1
+
+### whole-tree diff pre-fix(independent run) -> post-fix, dirs: swift/gen swift-f32/gen (excluding _GeneratedFiles.txt)
+Files /tmp/swiftshim/execroot/reference/swift/gen/boring/VectorCodec.swift and /tmp/swiftarr/execroot/reference/swift/gen/boring/VectorCodec.swift differ
+swift/gen DIFF_RC=1
+Files /tmp/swiftshim/execroot/reference/swift-f32/gen/boring/VectorCodec.swift and /tmp/swiftarr/execroot/reference/swift-f32/gen/boring/VectorCodec.swift differ
+swift-f32/gen DIFF_RC=1

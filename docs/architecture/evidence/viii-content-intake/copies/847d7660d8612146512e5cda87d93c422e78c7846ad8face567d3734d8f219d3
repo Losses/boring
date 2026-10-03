@@ -1,0 +1,9 @@
+# bun merges every file's stderr into the main log -> the domain guard false-positives
+
+case C log tail:
+(pass) child execution evidence > retained outcome fields > the project identity names the project path and its content [246.00ms]
+
+ 19 pass
+ 0 fail
+ 220 expect() calls
+Ran 19 tests across 1 file. [2.68s]

@@ -1,0 +1,15 @@
+tests/ts/array-root.test.ts: refFiles=5 checked added=1 removed=1
+tests/ts/default-args.test.ts: refFiles=4 checked added=19 removed=19
+tests/ts/enum-queries.test.ts: refFiles=10 checked added=1 removed=1
+tests/ts/fn-values.test.ts: refFiles=10 checked added=11 removed=11
+tests/ts/printed-record.test.ts: refFiles=10 checked added=0 removed=0
+tests/ts/record-copy.test.ts: refFiles=3 checked added=3 removed=3
+tests/ts/record-order.test.ts: refFiles=8 checked added=0 removed=0
+tests/ts/sealed-variants.test.ts: refFiles=5 checked added=1 removed=1
+tests/ts/static-extension.test.ts: refFiles=20 checked added=4 removed=4
+tests/ts/static-state.test.ts: refFiles=5 checked added=6 removed=6
+tests/ts/std-string.test.ts: refFiles=5 checked added=1 removed=1
+DEL-WRONG tests/ts/string-buffer.test.ts: toContain "String::from_utf16(buf.as_slice())"
+tests/ts/string-buffer.test.ts: refFiles=4 checked added=1 removed=1
+tests/ts/value-type.test.ts: refFiles=7 checked added=1 removed=1
+TOTAL: added=49 wrong=0; removed=49 wrong=1

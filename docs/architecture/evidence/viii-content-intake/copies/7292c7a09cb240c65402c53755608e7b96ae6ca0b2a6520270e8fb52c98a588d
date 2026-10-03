@@ -1,0 +1,25 @@
+docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md 100644 OK    root=ec355f96d4435d93 coord=ec355f96d4435d93
+packages/registry/gen/_GeneratedFiles.txt                    100644 OK    root=9c52cf6d51d5986f coord=9c52cf6d51d5986f
+packages/registry/gen/registry/Core.ts                       100644 OK    root=e5a81a62abf444dd coord=e5a81a62abf444dd
+packages/registry/gen/registry/CoreException.ts              100644 OK    root=ec969ee75e17c549 coord=ec969ee75e17c549
+packages/registry/gen/registry/CoreFault.ts                  100644 OK    root=d9bda762426d9c4b coord=d9bda762426d9c4b
+packages/registry/gen/registry/Json.ts                       100644 OK    root=20083514b65b28b8 coord=20083514b65b28b8
+packages/registry/gen/registry/JsonException.ts              100644 OK    root=aa9d93feece56f6d coord=aa9d93feece56f6d
+packages/registry/gen/registry/JsonFault.ts                  100644 OK    root=e745007f2858966f coord=e745007f2858966f
+packages/registry/gen/registry/Main.ts                       100644 OK    root=b96070269d645e0a coord=b96070269d645e0a
+packages/registry/gen/registry/Release.ts                    100644 OK    root=dfe543550fb43aad coord=dfe543550fb43aad
+packages/registry/gen/registry/Semver.ts                     100644 OK    root=2e3b75c5d3411ad0 coord=2e3b75c5d3411ad0
+packages/registry/gen/registry/SemverException.ts            100644 OK    root=6177000be925ce08 coord=6177000be925ce08
+packages/registry/gen/registry/SemverFault.ts                100644 OK    root=6da61bf86e288450 coord=6da61bf86e288450
+packages/registry/gen/registry/Sha1.ts                       100644 OK    root=b1f34593b3f678f7 coord=b1f34593b3f678f7
+packages/registry/gen/runtime.ts                             100644 OK    root=9b4cf7ad35b0c679 coord=9b4cf7ad35b0c679
+packages/registry/gen/std/Path.ts                            100644 OK    root=8d42603c9faef097 coord=8d42603c9faef097
+packages/registry/gen/std/UStringException.ts                100644 OK    root=232849f763270f00 coord=232849f763270f00
+packages/registry/gen/std/UStringFault.ts                    100644 OK    root=87e1514baa7cd150 coord=87e1514baa7cd150
+tools/precision-guard/check.ts                               100644 OK    root=7be40923586157c0 coord=7be40923586157c0
+tools/roots-guard/check-roots-guard.sh                       100755 OK    root=e5508bb442daaeb6 coord=e5508bb442daaeb6
+tools/roots-guard/roots-allowlist.json                       100755 OK    root=34d336ce68b08e68 coord=34d336ce68b08e68
+tools/test-consistency/extra-id-allowlist.json               100644 OK    root=fab8b03661524db4 coord=fab8b03661524db4
+
+unmanifested source files (not in the frozen 1433-entry path list): 22 ; drift vs coordination tree: 0
+additions manifest sha256: 49e613cffce48b2dcde3522289f032ac23f42b7d9f2c829fbf90fa6f34518c0a (22 entries)

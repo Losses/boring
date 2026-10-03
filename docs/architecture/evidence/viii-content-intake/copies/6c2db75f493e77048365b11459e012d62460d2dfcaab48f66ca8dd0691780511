@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""Compare the divergence block of THIS run with the previous rerun's block."""
+import re, sys, collections
+
+def parse(path):
+    rows = []
+    for line in open(path, encoding="utf-8", errors="replace"):
+        m = re.match(r"\s*\*\s*\[([a-z0-9-]+)\]\s+(Extra|Missing)\s+test ID (?:not in|present in) baseline:\s+(\S+)\s*$", line)
+        if m:
+            rows.append((m.group(1), m.group(2), m.group(3)))
+    return rows
+
+def summary(rows):
+    by_leg = collections.Counter(r[0] for r in rows)
+    by_kind = collections.Counter(r[1] for r in rows)
+    return by_leg, by_kind, set((r[1], r[2]) for r in rows)
+
+new_path, old_path = sys.argv[1], sys.argv[2]
+new, old = parse(new_path), parse(old_path)
+print("=== THIS RUN ===")
+print("divergences: %d" % len(new))
+bl, bk, bs = summary(new)
+print("by leg :", dict(sorted(bl.items())))
+print("by kind:", dict(sorted(bk.items())))
+print()
+print("=== PREVIOUS RERUN (p09-chainA-rerun) ===")
+print("divergences: %d" % len(old))
+bl2, bk2, bs2 = summary(old)
+print("by leg :", dict(sorted(bl2.items())))
+print("by kind:", dict(sorted(bk2.items())))
+print()
+print("=== DELTA (previous -> this) ===")
+print("resolved (in previous, gone now): %d" % len(bs2 - bs))
+print("new      (absent before, now)   : %d" % len(bs - bs2))
+print("persisting                      : %d" % len(bs & bs2))
+for tag in ("Missing", "Extra"):
+    p = sorted(x[1] for x in bs2 if x[0] == tag)
+    n = sorted(x[1] for x in bs if x[0] == tag)
+    print()
+    print("--- %s: previous=%d this=%d ---" % (tag, len(p), len(n)))
+    print("  persisting:", len([x for x in p if x in n]))
+    print("  resolved  :", len([x for x in p if x not in n]))
+    print("  new       :", len([x for x in n if x not in p]))
+    for x in sorted(set(n))[:80]:
+        print("    this:", x)

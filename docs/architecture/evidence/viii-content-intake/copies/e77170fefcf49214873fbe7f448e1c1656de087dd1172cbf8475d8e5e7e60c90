@@ -1,0 +1,19 @@
+-lib reflaxe
+-lib boring
+-cp /home/losses/Development/tq-workspace/dc-warn/out/switch-try-gap-verify/head-shadow
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp samples/haxe
+-cp packages/registry/src
+-cp tests/swift-readonly-boundary
+-cp tests/swift-readonly-boundary/tests
+--macro Intercept.run(['samples', 'packages/registry/src', 'tests/swift-readonly-boundary'])
+--macro boring.SwiftBoundaryPlanChecks.run()
+--macro swiftcompiler.Compiler.use()
+--macro haxe.macro.Context.getType("runtime.TestCore")
+-main boring.ReadOnlyBoundaryOracle
+-D package-shell=none
+-D runtime-emit=.
+-D runtime-import=@boring/runtime
+-D swift-test-runner=native

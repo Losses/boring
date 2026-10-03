@@ -1,0 +1,56 @@
+    Checking boring-codec-gen v0.1.0 (/home/losses/Development/tq-workspace/vte-scratch/reference/rust/gen)
+warning: unused import: `DerefMut`
+  --> reference/rust/gen/runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0308]: mismatched types
+  --> reference/rust/gen/boring/value_type_ops.rs:49:24
+   |
+49 |         return Ok(Self(value.to_ustring()));
+   |                   ---- ^^^^^^^^^^^^^^^^^^ expected `String`, found `UString`
+   |                   |
+   |                   arguments to this function are incorrect
+   |
+note: tuple struct defined here
+  --> reference/rust/gen/boring/value_type_ops.rs:42:12
+   |
+42 | pub struct FontFaceId(pub String);
+   |            ^^^^^^^^^^
+help: try using a conversion method
+   |
+49 |         return Ok(Self(value.to_ustring().to_string()));
+   |                                          ++++++++++++
+
+error[E0308]: mismatched types
+  --> reference/rust/gen/boring/value_type_ops.rs:53:16
+   |
+52 |     fn to_string(&self) -> UString {
+   |                            ------- expected `UString` because of return type
+53 |         return self.0.clone();
+   |                ^^^^^^^^^^^^^^ expected `UString`, found `String`
+
+For more information about this error, try `rustc --explain E0308`.
+warning: unused import: `cfg_test_probe::*`
+   --> reference/rust/gen/boring/mod.rs:236:9
+    |
+236 | pub use cfg_test_probe::*;
+    |         ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DerefMut`
+  --> reference/rust/gen/runtime/u_string.rs:13:23
+   |
+13 | use std::ops::{Deref, DerefMut};
+   |                       ^^^^^^^^
+
+warning: `boring-codec-gen` (lib) generated 1 warning
+error: could not compile `boring-codec-gen` (lib) due to 2 previous errors; 1 warning emitted
+warning: build failed, waiting for other jobs to finish...
+warning: `boring-codec-gen` (lib test) generated 2 warnings
+error: could not compile `boring-codec-gen` (lib test) due to 2 previous errors; 2 warnings emitted
+rc=101

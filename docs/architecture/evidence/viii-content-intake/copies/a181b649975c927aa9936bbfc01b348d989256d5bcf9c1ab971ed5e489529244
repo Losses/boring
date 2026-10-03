@@ -1,0 +1,50 @@
+#![cfg(test)]
+
+use crate::boring::signed_comparison_ops::SignedComparisonOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn index_below_limit() {
+    testlib::run("tests.SignedComparisonTests.indexBelowLimit", "tests.SignedComparisonTests.indexBelowLimit: an ordered comparison with a signed index keeps the absent sentinel below a limit", || {
+        test_core::TestCore::test_core_equals_bool(true, SignedComparisonOps::signed_comparison_ops_index_below_limit(UStr::new(&[97,98,99]), 1), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, SignedComparisonOps::signed_comparison_ops_index_below_limit(UStr::new(&[120,98,99]), 1), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, SignedComparisonOps::signed_comparison_ops_index_below_limit(UStr::new(&[97,98,120,99]), 1), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn index_at_or_above_limit() {
+    testlib::run("tests.SignedComparisonTests.indexAtOrAboveLimit", "tests.SignedComparisonTests.indexAtOrAboveLimit: an ordered comparison with a signed index keeps the absent sentinel below an upper bound", || {
+        test_core::TestCore::test_core_equals_bool(false, SignedComparisonOps::signed_comparison_ops_index_at_or_above_limit(UStr::new(&[97,98,99]), 1), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, SignedComparisonOps::signed_comparison_ops_index_at_or_above_limit(UStr::new(&[97,98,120,99]), 1), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn index_equals_limit() {
+    testlib::run("tests.SignedComparisonTests.indexEqualsLimit", "tests.SignedComparisonTests.indexEqualsLimit: an equality comparison with a signed index compares the sentinel", || {
+        test_core::TestCore::test_core_equals_bool(false, SignedComparisonOps::signed_comparison_ops_index_equals_limit(UStr::new(&[97,98,99]), 1), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, SignedComparisonOps::signed_comparison_ops_index_equals_limit(UStr::new(&[97,98,120,99]), 2), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn last_index_equals_limit() {
+    testlib::run("tests.SignedComparisonTests.lastIndexEqualsLimit", "tests.SignedComparisonTests.lastIndexEqualsLimit: an equality comparison with a signed last index compares the sentinel", || {
+        test_core::TestCore::test_core_equals_bool(false, SignedComparisonOps::signed_comparison_ops_last_index_equals_limit(UStr::new(&[97,98,99]), 1), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, SignedComparisonOps::signed_comparison_ops_last_index_equals_limit(UStr::new(&[97,98,120,99]), 2), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn index_below_zero() {
+    testlib::run("tests.SignedComparisonTests.indexBelowZero", "tests.SignedComparisonTests.indexBelowZero: an ordered comparison with literal zero reinterprets the signed index sentinel", || {
+        test_core::TestCore::test_core_equals_bool(false, SignedComparisonOps::signed_comparison_ops_index_below_zero(UStr::new(&[120,98,99])), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, SignedComparisonOps::signed_comparison_ops_index_below_zero(UStr::new(&[97,98,99])), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, SignedComparisonOps::signed_comparison_ops_element_below_zero(&vec![1, 2, 3], 2), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, SignedComparisonOps::signed_comparison_ops_element_below_zero(&vec![1, 2, 3], 9), UStr::new(&[]));
+    });
+}

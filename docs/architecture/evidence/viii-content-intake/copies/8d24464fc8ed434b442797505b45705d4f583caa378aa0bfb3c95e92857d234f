@@ -1,0 +1,7 @@
+LazOracle.hx:2: bySwitch-A=1:a:1
+LazOracle.hx:2: bySwitch-B=1:b:1
+LazOracle.hx:2: byTry-true=1:b:1
+LazOracle.hx:2: byTry-false=1:a:1
+LazOracle.hx:2: byTernary-true=1:a:1
+LazOracle.hx:2: byTernary-false=1:b:1
+LazOracle.hx:2: byBlockArg=1:a:1

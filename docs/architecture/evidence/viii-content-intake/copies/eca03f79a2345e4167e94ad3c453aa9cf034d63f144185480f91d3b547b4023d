@@ -1,0 +1,84 @@
+#![cfg(test)]
+
+use crate::boring::borrowed_loop_item_boundary_ops::BorrowedLoopItemBoundaryOps;
+use crate::boring::borrowed_loop_item_boundary_ops::BorrowedLoopItemEntry;
+use crate::boring::borrowed_loop_item_boundary_ops::BorrowedLoopMarker;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn first_entry() {
+    testlib::run("tests.BorrowedLoopItemBoundaryTests.firstEntry", "tests.BorrowedLoopItemBoundaryTests.firstEntry: a borrowed loop item fills an owned Option return slot", || {
+        let entries = vec![
+    (BorrowedLoopItemEntry::Entry { label: UString::from("a") }).clone(),
+    (BorrowedLoopItemEntry::Entry { label: UString::from("b") }).clone(),
+];
+        let first = BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_first_entry(&entries);
+        test_core::TestCore::test_core_equals_bool(true, first != None, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97]), match &(first) { None => UString::from(""), Some(__option1) => BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_describe((*__option1).clone()).to_ustring() }.as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn wrapped_entries() {
+    testlib::run("tests.BorrowedLoopItemBoundaryTests.wrappedEntries", "tests.BorrowedLoopItemBoundaryTests.wrappedEntries: a borrowed loop item fills an owned constructor slot", || {
+        let entries = vec![
+    (BorrowedLoopItemEntry::Entry { label: UString::from("a") }).clone(),
+    (BorrowedLoopItemEntry::Entry { label: UString::from("b") }).clone(),
+];
+        let holders = BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_wrapped_entries(&entries);
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((u32::try_from((holders.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97]), BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_describe(((holders[0usize]).clone().entry).clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98]), BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_describe(((holders[1usize]).clone().entry).clone()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn described_labels() {
+    testlib::run("tests.BorrowedLoopItemBoundaryTests.describedLabels", "tests.BorrowedLoopItemBoundaryTests.describedLabels: a borrowed loop item fills an owned call argument", || {
+        let entries = vec![
+    (BorrowedLoopItemEntry::Entry { label: UString::from("a") }).clone(),
+    (BorrowedLoopItemEntry::Entry { label: UString::from("b") }).clone(),
+];
+        let labels = BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_described_labels(&entries);
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((u32::try_from((labels.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97]), (labels[0usize]).clone().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98]), (labels[1usize]).clone().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn records() {
+    testlib::run("tests.BorrowedLoopItemBoundaryTests.records", "tests.BorrowedLoopItemBoundaryTests.records: a borrowed loop item fills an owned object field", || {
+        let entries = vec![
+    (BorrowedLoopItemEntry::Entry { label: UString::from("a") }).clone(),
+    (BorrowedLoopItemEntry::Entry { label: UString::from("b") }).clone(),
+];
+        let records = BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_records(&entries);
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((u32::try_from((records.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97]), BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_describe(((records[0usize]).clone().entry).clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98]), BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_describe(((records[1usize]).clone().entry).clone()).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn has_marker() {
+    testlib::run("tests.BorrowedLoopItemBoundaryTests.hasMarker", "tests.BorrowedLoopItemBoundaryTests.hasMarker: a borrowed enum loop item compares against an owned value", || {
+        let markers = vec![BorrowedLoopMarker::MarkerAlpha, BorrowedLoopMarker::MarkerBeta];
+        test_core::TestCore::test_core_equals_bool(true, BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_has_marker(&markers, BorrowedLoopMarker::MarkerBeta), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_has_marker(&vec![BorrowedLoopMarker::MarkerAlpha], BorrowedLoopMarker::MarkerBeta), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn index_of_nullable() {
+    testlib::run("tests.BorrowedLoopItemBoundaryTests.indexOfNullable", "tests.BorrowedLoopItemBoundaryTests.indexOfNullable: a nullable array indexOf unwraps the receiver", || {
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_index_of_nullable_ints(Some(vec![5, 7, 9]), 7)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(-1i32, i32::from_ne_bytes(((BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_index_of_nullable_ints(Some(vec![5, 7, 9]), 3)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(-1i32, i32::from_ne_bytes(((BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_index_of_nullable_ints(None, 3)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((BorrowedLoopItemBoundaryOps::borrowed_loop_item_boundary_ops_index_of_nullable_strings(Some(vec![UString::from("a").to_ustring(), UString::from("b").to_ustring()]), UStr::new(&[98]))) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

@@ -1,0 +1,35 @@
+2798:     /**
+2799:         Parenthesization under Swift's own precedence table: a child
+2800:         below the parent's tier wraps, and an equal-tier right child
+2801:         wraps unless the same associative operator chains. Bitwise `|`
+2802:         and `^` share the additive tier and `&` the multiplicative tier,
+2803:         so mixed operators on one tier always wrap on the right.
+2804:     **/
+2805:     function assignmentValue(target:TypedExpr, value:TypedExpr):String {
+2806:         if (SwiftArrayBoundary.isBoundary(value.t, target.t))
+2807:             return arrayBoundaryText(value, target.t);
+2808:         var rendered = expr(value);
+2809:         if (isIntType(emittedType(value)) && isFloatTyped(target))
+2810:             rendered = intToFloatText(rendered);
+2811:         // features/18: an assignment whose slot and value sit on opposite
+2812:         // sides of the mutable/immutable container line (a constructor body
+2813:         // storing a mutable Array parameter into a ReadOnlyArray field, say)
+2814:         // crosses the boundary with no explicit cast in the Haxe source, so the container
+2815:         // conversion renders here the same way it does for casts and
+2816:         // declarations. The merged type of a sanctioned coalescing ternary
+2817:         // unifies to the read-only slot type, so the boundary reads the
+2818:         // underlying parameter's declared type through the site.
+2819:         // (ReadOnlyAssignBoundary)
+2820:         return optionalValued(value) && !StringTools.endsWith(rendered, "!") && !isNullLeafType(target.t) ? rendered + "!" : rendered;
+2821:     }
+2822: 
+2823:     function optionalExpr(a:TypedExpr):String {
+2824:         return switch (stripWrap(a).expr) {
+2825:             case TConst(TNull): "nil";
+2826:             case _: {
+2827:                     final text = expr(a);
+2828:                     if (!optionalValued(a) || StringTools.endsWith(text, "!"))
+2829:                         text;
+2830:                     else
+2831:                         switch (stripWrap(a).expr) {
+2832:                             case TLocal(_): text + "!";

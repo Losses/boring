@@ -1,0 +1,63 @@
+package boring
+
+object NumericWidenOps {
+    private fun intExpr(): Int {
+        return 2
+    }
+
+    fun operandFloat(): Float {
+        return 1.5f + (NumericWidenOps.intExpr()).toFloat()
+    }
+
+    fun operandDouble(): Float {
+        return (NumericWidenOps.intExpr()).toFloat() + 1.5f
+    }
+
+    fun returnFloat(): Float {
+        return (NumericWidenOps.intExpr()).toFloat()
+    }
+
+    fun returnDouble(): Float {
+        return (NumericWidenOps.intExpr()).toFloat()
+    }
+
+    fun assignFloat(): Float {
+        var value = 0.5f
+        value = (NumericWidenOps.intExpr()).toFloat()
+        return value
+    }
+
+    fun assignDouble(): Float {
+        var value = 0.5f
+        value = (NumericWidenOps.intExpr()).toFloat()
+        return value
+    }
+
+    fun appliedFloat(): Float {
+        var value = 0.5f
+        value += (NumericWidenOps.intExpr()).toFloat()
+        return value
+    }
+
+    fun appliedDouble(): Float {
+        var value = 0.5f
+        value *= (NumericWidenOps.intExpr()).toFloat()
+        return value
+    }
+
+    fun conditionalMerge(useFloat: Boolean): Float {
+        return (if ((useFloat)) 1.5f else 2.0f)
+    }
+
+    fun nullableConditional(value: Float?): Float {
+        return (if ((value != null)) value else (0).toFloat())
+    }
+
+    fun switchMerge(value: SwitchMergeValue): Float {
+        return when (value) {
+            is SwitchMergeValue.First -> 1.5f
+            is SwitchMergeValue.Second -> 2.0f
+            is SwitchMergeValue.Third -> 0.5f
+        }
+    }
+}

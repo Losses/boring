@@ -1,0 +1,23 @@
+#![cfg(test)]
+
+use crate::boring::nullable_buf_field_ops::NullableBufFieldOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn append_guarded() {
+    testlib::run("tests.NullableBufFieldTests.appendGuarded", "tests.NullableBufFieldTests.appendGuarded: a buffer field mutation opens the nullable owner with as_mut", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[104,105]), NullableBufFieldOps::nullable_buf_field_ops_append_guarded(true, UStr::new(&[104,105])).unwrap().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[]), NullableBufFieldOps::nullable_buf_field_ops_append_guarded(false, UStr::new(&[104,105])).unwrap().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn caught_fault() {
+    testlib::run("tests.NullableBufFieldTests.caughtFault", "tests.NullableBufFieldTests.caughtFault: a stranded lead in a nullable buffer field faults through the catch", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,97,117,108,116]), NullableBufFieldOps::nullable_buf_field_ops_caught_fault(true, 55296, UStr::new(&[120])).unwrap().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[]), NullableBufFieldOps::nullable_buf_field_ops_caught_fault(false, 55296, UStr::new(&[120])).unwrap().as_ustr(), UStr::new(&[]));
+    });
+}

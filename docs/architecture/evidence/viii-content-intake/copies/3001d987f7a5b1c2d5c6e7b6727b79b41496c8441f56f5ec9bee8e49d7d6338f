@@ -1,0 +1,16 @@
+#[derive(Debug, Clone, PartialEq)]
+pub enum Kind {
+    A,
+    B { value: u32 },
+    C,
+}
+
+impl Kind {
+    pub fn to_string(&self) -> String {
+        match self {
+            Kind::A => "A".to_string(),
+            Kind::B { value } => format!("B(value={})", (value).to_string()),
+            Kind::C => "C".to_string(),
+        }
+    }
+}

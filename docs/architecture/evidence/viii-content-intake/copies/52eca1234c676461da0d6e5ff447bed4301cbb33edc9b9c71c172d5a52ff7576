@@ -1,0 +1,95 @@
+# Structural audit of .github/workflows/ci.yml (all jobs, all steps)
+# generated 2026-09-30T14:02:03-04:00
+
+## jobs
+4:  push:
+7:  pull_request:
+14:  linux:
+115:  macos:
+149:  windows:
+278:  collected-suite:
+
+## every continue-on-error KEY (regex: continue-on-error\s*:)
+NONE
+
+## lines containing 'continue' (comments included)
+.github/workflows/ci.yml:307:      # BLOCKING ON PURPOSE - do not add `continue-on-error`. At the revision
+.github/workflows/ci.yml:311:      # record - it does not waive the standard. `continue-on-error`, a narrowed
+
+## package.json scripts.test
+9:    "test": "bun test tests/ packages/registry/tests/",
+
+## the new job, verbatim (ci.yml:278-350)
+  collected-suite:
+    name: collected suite (bun run test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      # The collected suite builds and runs Swift
+      # (tests/swift-readonly-boundary/readonly-boundary.test.ts runs swiftc),
+      # so it needs the same userns relaxation as the linux job.
+      - name: Allow user namespaces for the Swift FHS wrapper
+        run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - name: Restore nix closure
+        uses: actions/cache@v4
+        with:
+          path: nix-closure.nar
+          key: nix-closure-linux-${{ hashFiles('flake.lock') }}
+          restore-keys: nix-closure-linux-
+      - name: Import nix closure
+        if: hashFiles('nix-closure.nar') != ''
+        run: sudo nix-store --import < nix-closure.nar || true
+      # `bun test` matches its positional arguments as path substrings, not as
+      # an allowlist, so the entry point also collects the generated
+      # `reference/ts/gen-tests/**` tree: 249 of the 303 files the baseline run
+      # recorded. Generating first is what keeps the count taken over the
+      # recorded domain; skipping it would silently count 54 files instead, and
+      # the domain report below would show the smaller number.
+      - name: Generate the trees the collected suite reads
+        run: nix develop -c bash -c 'bun install && bun run gen:ts && bun run gen:kotlin && bun run gen:kotlin-f32 && bun run gen:rust && bun run gen:rust-f32 && bun run gen:swift && bun run gen:swift-f32 && bun run gen:dart'
+      # BLOCKING ON PURPOSE - do not add `continue-on-error`. At the revision
+      # that wires this in the step is RED: docs/architecture/BASELINE-FAILURES.md
+      # records the inherited baseline for this exact command (1001 pass / 32
+      # fail / 8 errors), and docs/architecture-work-plan.md:417 requires that
+      # record - it does not waive the standard. `continue-on-error`, a narrowed
+      # path argument, or an ignore pattern for a failing file would be the
+      # waiver that rule forbids. `set -o pipefail` keeps the suite's exit code
+      # as the step's exit code while the log is retained for the report below.
+      - name: Collected suite (contract 3 count)
+        run: |
+          set -o pipefail
+          mkdir -p out
+          nix develop -c bash -c 'bun run test' 2>&1 | tee out/collected-suite.log
+      - name: Report the count and the collection domain
+        if: always()
+        run: |
+          LOG=out/collected-suite.log
+          test -f "$LOG" || { echo "::error::no log at $LOG - the collected suite never ran"; exit 1; }
+          {
+            echo '## Collected suite - contract 3 count'
+            echo
+            echo 'Standard: `docs/specs/style/02-translator-implementation-standard.md:80` counts the'
+            echo 'warning lines naming files under the generated trees and requires the count to be zero.'
+            echo
+            echo '```'
+            grep -E '^ [0-9]+ (pass|fail)$|^ [0-9]+ errors$|^Ran [0-9]+ tests across [0-9]+ files' "$LOG" || echo '(no summary line: the run did not reach a summary)'
+            echo '```'
+            echo
+            echo 'Collected domain (top-level directories - the count means nothing without it):'
+            echo
+            echo '```'
+            grep -oE '^[^ (]+\.test\.ts:' "$LOG" | sed 's/:$//' | sed 's|^\([^/]*/[^/]*\)/.*|\1|' | sort | uniq -c | sort -rn || true
+            echo '```'
+            echo
+            echo 'Baseline: `docs/architecture/BASELINE-FAILURES.md` (recorded per'
+            echo '`docs/architecture-work-plan.md:417`; a baseline finding does not waive the standard).'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          # Domain guard: the generated out/ tree must never be swept into the
+          # count. If it is, the count was taken over a different domain than
+          # the recorded baseline and must not be read as one.
+          if grep -qE '^out/.*\.test\.ts:' "$LOG"; then
+            echo "::error::the collected domain contains files under out/ - the generated tree is being swept into the count"
+            exit 1
+          fi

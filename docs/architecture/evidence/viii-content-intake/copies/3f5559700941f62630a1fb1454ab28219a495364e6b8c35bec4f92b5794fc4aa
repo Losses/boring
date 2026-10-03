@@ -1,0 +1,18 @@
+use crate::runtime::env::Env;
+use crate::runtime::fs::Fs;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct KotlinEntryProbeTests;
+
+impl KotlinEntryProbeTests {
+    pub fn kotlin_entry_probe_tests_run_test_entries() {
+        let directory = Env::get(UStr::new(&[66,79,82,73,78,71,95,75,79,84,76,73,78,95,69,78,84,82,89,95,80,82,79,66,69,95,68,73,82]));
+        if directory.is_none() {
+            return;
+        }
+        Fs::write_text(UString::from(format!("{}", { let mut __s = UString::new(); __s += match &(directory) { Some(v) => v.as_ustr(), None => UStr::new(&[]) }; __s += &(UString::from("/KotlinEntryProbeTests.txt")); __s }).as_str()).as_ustr(), UStr::new(&[101,110,116,101,114,101,100]));
+    }
+}

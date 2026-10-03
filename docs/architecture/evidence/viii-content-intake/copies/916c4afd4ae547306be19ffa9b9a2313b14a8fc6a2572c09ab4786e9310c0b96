@@ -1,0 +1,11 @@
+=== dedup check: bun prints each failure twice ===
+  DIRTY-lowload    raw (fail) lines=96   unique names=48   ratio=2
+  HEAD             raw (fail) lines=96   unique names=48   ratio=2
+  DIRTY-harness    raw (fail) lines=98   unique names=49   ratio=2
+
+  inline-vs-summary identity (first 48 vs last 48 (fail) lines), low-load capture:
+  total: 96 first48==last48: True
+
+=== high-load (49, harness) vs low-load (48) name sets ===
+child execution evidence > Driver.step integration > without the evidence setting the driver keeps its previous behaviour
+  (left column = only in the high-load harness run; right column = only in the low-load run)

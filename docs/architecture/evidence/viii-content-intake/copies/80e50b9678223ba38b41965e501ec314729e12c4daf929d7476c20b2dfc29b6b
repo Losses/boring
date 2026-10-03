@@ -1,0 +1,25 @@
+package xsxm;
+
+class SibProbe {
+	public static function boom(t:String):Int {
+		throw new Sib.WithPayload(Faults.F1Fault.One(t));
+	}
+
+	public static function rescue():Int {
+		var v = 0;
+		try {
+			boom("a");
+		} catch (e:Sib.WithPayload) {
+			final h = try {
+				throw new Sib.WithPayload(e.fault);
+				99;
+			} catch (e2:Sib.WithPayload) {
+				5;
+			}
+			v = h;
+		}
+		return v;
+	}
+
+	public static function main():Void {}
+}

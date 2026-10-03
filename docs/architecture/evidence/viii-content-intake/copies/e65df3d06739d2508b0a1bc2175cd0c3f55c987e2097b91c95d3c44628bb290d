@@ -1,0 +1,2 @@
+initial-state: found tree already corrupted (Test.equals=0, stub diff vs HEAD); restored via git checkout HEAD --
+restored-count: 5

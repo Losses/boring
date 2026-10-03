@@ -1,0 +1,40 @@
+// Extract the two new CI step bodies from .github/workflows/ci.yml so they can
+// be executed locally (see REPORT.md "failure-mode proof"). Step [6] gets one
+// documented substitution: the full entry point `bun run test` is replaced by a
+// single fast file the entry point collects. Step [7] is extracted verbatim.
+import { readFileSync, writeFileSync } from "node:fs";
+
+const repo = process.argv[2];
+const out = process.argv[3];
+const scoped = process.argv[4];
+
+const workflow = readFileSync(`${repo}/.github/workflows/ci.yml`, "utf8");
+const doc = Bun.YAML.parse(workflow) as any;
+const steps = doc.jobs["collected-suite"].steps as Array<{ name?: string; run?: string }>;
+const byName = (n: string): string => {
+  const step = steps.find((s) => s.name === n);
+  if (!step?.run) throw new Error(`step not found: ${n}`);
+  return step.run;
+};
+
+const runStepName = "Collected suite (contract 3 count)";
+const reportStepName = "Report the count and the collection domain";
+const runStep = byName(runStepName);
+const scopedRunStep = runStep.replace("bun run test", scoped);
+if (scopedRunStep === runStep) throw new Error("substitution did not apply to the run step");
+
+writeFileSync(
+  `${out}/step-collected-suite.local.sh`,
+  `#!/usr/bin/env bash\n# VERBATIM from .github/workflows/ci.yml job collected-suite step "${runStepName}",\n# with exactly one substitution: ` +
+    `\`bun run test\` -> \`${scoped}\`\n# (the full entry point takes ~31 min and rewrites a tracked fixture; see REPORT.md).\n${scopedRunStep}\n`,
+);
+writeFileSync(
+  `${out}/step-report-count.sh`,
+  `#!/usr/bin/env bash\n# VERBATIM from .github/workflows/ci.yml job collected-suite step "${reportStepName}".\n${byName(reportStepName)}\n`,
+);
+console.log(`extracted run step  -> ${out}/step-collected-suite.local.sh`);
+console.log(`extracted report step -> ${out}/step-report-count.sh`);
+console.log("--- run step as extracted (local substitution applied) ---");
+console.log(scopedRunStep);
+console.log("--- report step as extracted (verbatim) ---");
+console.log(byName(reportStepName));

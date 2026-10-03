@@ -1,0 +1,8 @@
+#[derive(Clone, Copy)]
+pub struct ResidentModuleImportOps;
+
+impl ResidentModuleImportOps {
+    pub fn resident_module_import_ops_map_lookup() -> Option<u32> {
+        return None;
+    }
+}

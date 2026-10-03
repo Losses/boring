@@ -1,0 +1,173 @@
+saved pre-existing /home/losses/Development/tq-workspace/boring-wt-architecture/out/collected-suite.log -> /home/losses/Development/tq-workspace/dc-warn/out/ci-attribution/evidence/pre-existing-collected-suite.log
+fixture guard before: Test.equals=5  (tracked fixture; the suite is what rewrites it, and no scenario here runs the suite)
+
+================ scenario: crafted-assertion (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 1 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: crafted-timeout (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 0 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 2 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 2 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: crafted-flake (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 0 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 1 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: control-A-artifact-no-bytediff (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 1 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: control-B-artifact-timeout (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 0 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 1 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: control-C-cascade-no-timeout (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 1 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 1 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: control-D-package-shell-249 (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 1 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: control-E-died-before-summary (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+::warning::the suite output carries no parseable ' N fail' summary line - the attribution counts above cannot be reconciled against a total (the gate below is unaffected: it turns on the warning count)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 0 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 1 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: control-F-buffer-diff-other-file (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 1 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: control-G-green-run (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 0 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 0 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 0 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: retained-baseline (install) ================
+step exit=0   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+(none)
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 7 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 25 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 8 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+
+================ scenario: gate-missing-log (absent) ================
+step exit=1   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+::error::no log at out/collected-suite.log - the collected suite never ran
+--- step summary: class table ---
+(no class table)
+
+================ scenario: gate-domain-guard (install+append) ================
+step exit=1   (measured directly from the step process, no pipe)
+--- ::error:: / ::warning:: lines ---
+::error::the collected domain contains files under out/ - the generated tree is being swept into the count
+--- step summary: class table ---
+| class | count | what it means |
+| real assertion failure | 7 | a test ran and its expectation failed - product or spec |
+| environment / timeout | 25 | carries `this test timed out after Nms` - a machine result, from contention |
+| npm-artifact non-determinism | 0 | the byte-identity test's Buffer diff - known unrelated to the change under review |
+| timeout cascade | 8 | `Unhandled error between tests` after a kill in the same file - the timeout's debris |
+| unattributed error | 0 | a cascade in a file with no timeout marker; NOT excused, reported as unattributed |
+shim: /tmp/tmp.gmWvjTT5IP/wc (exec bit: yes)
+
+================ scenario: gate-unparseable-count (wc shimmed) ================
+step exit=1   (expected 1)
+::error::warning count is not a parseable integer (got 'not-a-number') - the gate cannot be evaluated
+
+================ scenario: gate-warn-over-baseline ================
+step exit=1   (expected 1)
+::error::1 warning line(s) in the suite output name files under the generated trees, baseline is 0 - acceptance failure under docs/specs/style/02-translator-implementation-standard.md:80 (a new baseline must be measured and recorded, not assumed)
+--- generated-tree warning block in the summary ---
+Generated-tree warning line count: **1**
+
+```
+warning: reference/ts/gen/tests/Synthetic.test.ts:1: unused
+```
+
+Baseline reconciliation: the inherited baseline
+
+restored /home/losses/Development/tq-workspace/boring-wt-architecture/out/collected-suite.log; fixture guard after: Test.equals=5
+SUITE WAS NEVER RUN: every scenario above replays a retained or crafted log through the report step only.

@@ -1,0 +1,3 @@
+pristine: ValueExceptionFault(Box<...) in boring/value_exception.rs = 0
+postfix: ValueExceptionFault(Box<...) in boring/value_exception.rs = 1
+fixed: ValueExceptionFault(Box<...) in boring/value_exception.rs = 0

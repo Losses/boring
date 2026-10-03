@@ -1,0 +1,8 @@
+docs/investigations/architecture-round-1/j-prepared-value-design.md:135-138 verbatim:
+"An optional nil-merge target can remain optional during preparation even when
+the final result is required: the fallback may supply the required result.
+Do not force that target through a required-destination conversion before the
+merge has established presence."  (ruling quoted :135-137 - exact for those lines)
+docs/investigations/architecture-round-1/swift-checkpoint-todo.md:39-42 verbatim (SW04 item,
+including "The current adapter sends the optional target toward the final required
+destination too early.").  Ruling's quotes CONFIRMED.

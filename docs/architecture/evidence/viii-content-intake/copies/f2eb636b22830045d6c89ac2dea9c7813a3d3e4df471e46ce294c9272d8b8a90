@@ -1,0 +1,15 @@
+use crate::boring::guarded_rect::GuardedRect;
+
+
+#[derive(Clone, PartialEq)]
+pub struct GuardedBox {
+    pub rect: Option<GuardedRect>,
+}
+
+impl GuardedBox {
+    pub fn new() -> Self {
+        Self {
+            rect: None,
+        }
+    }
+}

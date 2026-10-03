@@ -1,0 +1,52 @@
+#![cfg(test)]
+
+use crate::boring::nullable_array_ops::NullableArrayOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn nullable_int_literals() {
+    testlib::run("tests.NullableArrayTests.nullableIntLiterals", "tests.NullableArrayTests.nullableIntLiterals: nullable Int array literals keep every element", || {
+        let arr = NullableArrayOps::nullable_array_ops_literal_mixed();
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((u32::try_from((arr.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_element_matches(&arr, 0, Some(1)), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_element_matches(&arr, 1, None), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_element_matches(&arr, 2, Some(3)), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn single_null() {
+    testlib::run("tests.NullableArrayTests.singleNull", "tests.NullableArrayTests.singleNull: a single null element stays null", || {
+        let arr = NullableArrayOps::nullable_array_ops_literal_single_null();
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((u32::try_from((arr.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_element_matches(&arr, 0, None), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn nullable_var_elements() {
+    testlib::run("tests.NullableArrayTests.nullableVarElements", "tests.NullableArrayTests.nullableVarElements: nullable variables pass through without Some wrapping", || {
+        let with_value = NullableArrayOps::nullable_array_ops_from_nullable_var(Some(9));
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((u32::try_from((with_value.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_element_matches(&with_value, 0, Some(9)), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_element_matches(&with_value, 1, Some(5)), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_element_matches(&with_value, 2, None), UStr::new(&[]));
+        let with_null = NullableArrayOps::nullable_array_ops_from_nullable_var(None);
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_element_matches(&with_null, 0, None), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn nullable_string_literals() {
+    testlib::run("tests.NullableArrayTests.nullableStringLiterals", "tests.NullableArrayTests.nullableStringLiterals: nullable String array literals keep every element", || {
+        let arr = NullableArrayOps::nullable_array_ops_nullable_strings();
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((u32::try_from((arr.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_string_element_matches(&arr, 0, Some(UString::from("a"))), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_string_element_matches(&arr, 1, None.clone()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, NullableArrayOps::nullable_array_ops_string_element_matches(&arr, 2, Some(UString::from("c"))), UStr::new(&[]));
+    });
+}

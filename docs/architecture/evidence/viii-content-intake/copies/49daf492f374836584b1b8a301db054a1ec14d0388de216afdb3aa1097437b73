@@ -1,0 +1,11 @@
+LOG                                            RC   DIVERGENCES   EXTRAS   FC_MISM  NOTE
+manager-all10-WITH-allowlist.log               0    0             6        0        current input (3.0e38), allowlist PRESENT
+manager-all10-WITHOUT-allowlist.log            1    6             0        0        current input (3.0e38), allowlist REMOVED
+manager-all10-WITH-allowlist-legacyinput.log   1    3             6        3        19:52 input (1.0e308), allowlist PRESENT
+manager-PATCHONLY-legacyinput.log              1    9             0        3        PATCH.diff alone, 19:52 input, no allowlist
+manager-PREFIX166-prefix-no-allowlist.log      1    166           0        0        pre-hxml-fix input, no allowlist
+manager-PREFIX166-prefix-with-allowlist.log    1    160           6        0        pre-hxml-fix input, allowlist PRESENT
+
+NOTE: 'DIVERGENCES' read from stderr 'Cross-target consistency check failed with N divergence(s)'.
+EXTRAS = 'Declared extra test ids (not in baseline, allowlisted): N' on stdout.
+FC_MISM = count of finiteClassification verdict-mismatch lines on stderr.

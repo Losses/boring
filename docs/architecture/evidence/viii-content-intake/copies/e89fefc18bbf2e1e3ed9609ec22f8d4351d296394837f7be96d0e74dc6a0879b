@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-regression-fix
+argv nix develop -c haxe tests/haxe/xs-dead/gen/rust.hxml -D rust-output=/tmp/rustreg-gen-postfix-xs-dead

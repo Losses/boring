@@ -1,0 +1,27 @@
+package boring
+
+object NullabilityOps {
+    fun nullableToString(value: NullableReceiver?): String? {
+        return value?.toString()
+    }
+
+    fun nullableToStringWithParam(value: NullableReceiver?, suffix: String): String? {
+        return value?.toString()?.plus(suffix)
+    }
+
+    fun narrowedFloat(values: MutableList<Float?>, index: Int): Float {
+        val value = (((if ((values[index] == null)) (0).toFloat() else values[index]))!!).toFloat()
+        return value
+    }
+
+    fun ctorFieldLabel(label: String?): String? {
+        return NullableLabelHolder(label).render()
+    }
+}
+
+class NullableLabelHolder(private val label: String? = null) {
+
+    fun render(): String? {
+        return this.label?.uppercase()
+    }
+}

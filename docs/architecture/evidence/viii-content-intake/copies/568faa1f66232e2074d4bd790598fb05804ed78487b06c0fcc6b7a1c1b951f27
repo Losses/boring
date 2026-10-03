@@ -1,0 +1,63 @@
+/tmp/swiftshim/execroot/reference/swift/gen/boring/ForInOptionalOps.swift:18:17: warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+16 |         var total: Int32 = 0
+17 |         if values != nil {
+18 |             for _v in values! {
+   |                 `- warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+19 |                 total &+= 1
+20 |             }
+/tmp/swiftshim/execroot/reference/swift/gen/boring/IntFloatSignOps.swift:29:13: warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+27 | 
+28 |     public static func firstElem(_ a: Int32, _ b: Int32) -> Double {
+29 |         let arr_1 = 2.5
+   |             `- warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+30 |         let arr_0 = Double(a &- b)
+31 |         return Double(arr_0)
+/tmp/swiftshim/execroot/reference/swift/gen/boring/NoSuchElementThrower.swift:6:9: warning: code after 'throw' will never be executed
+4 |     public static func missing() throws -> Int32 {
+5 |         throw NoSuchElementFaultException(NoSuchElementFault.missing)
+6 |         return 0
+  |         `- warning: code after 'throw' will never be executed
+7 |     }
+8 | }
+/tmp/swiftshim/execroot/reference/swift/gen/boring/RustCoalesceOps.swift:16:34: warning: left side of nil coalescing operator '??' has non-optional type 'Double', so the right side is never used
+ 14 |     public init(_ fontFamilies: TiqianArray<String> = TiqianArray(), _ fontSize: Double = 16.0, _ locale: String = "zh-Hans", _ fontWeight: Int32 = 400, _ italic: Bool = false) {
+ 15 |         self.fontFamilies = fontFamilies
+ 16 |         self.fontSize = fontSize ?? 16.0
+    |                                  `- warning: left side of nil coalescing operator '??' has non-optional type 'Double', so the right side is never used
+ 17 |         self.locale = locale ?? "zh-Hans"
+ 18 |         self.fontWeight = fontWeight ?? 400
+/tmp/swiftshim/execroot/reference/swift/gen/boring/RustCoalesceOps.swift:17:30: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+ 15 |         self.fontFamilies = fontFamilies
+ 16 |         self.fontSize = fontSize ?? 16.0
+ 17 |         self.locale = locale ?? "zh-Hans"
+    |                              `- warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+ 18 |         self.fontWeight = fontWeight ?? 400
+ 19 |         self.italic = italic ?? false
+/tmp/swiftshim/execroot/reference/swift/gen/boring/RustCoalesceOps.swift:18:38: warning: left side of nil coalescing operator '??' has non-optional type 'Int32', so the right side is never used
+ 16 |         self.fontSize = fontSize ?? 16.0
+ 17 |         self.locale = locale ?? "zh-Hans"
+ 18 |         self.fontWeight = fontWeight ?? 400
+    |                                      `- warning: left side of nil coalescing operator '??' has non-optional type 'Int32', so the right side is never used
+ 19 |         self.italic = italic ?? false
+ 20 |     }
+/tmp/swiftshim/execroot/reference/swift/gen/boring/RustCoalesceOps.swift:19:30: warning: left side of nil coalescing operator '??' has non-optional type 'Bool', so the right side is never used
+ 17 |         self.locale = locale ?? "zh-Hans"
+ 18 |         self.fontWeight = fontWeight ?? 400
+ 19 |         self.italic = italic ?? false
+    |                              `- warning: left side of nil coalescing operator '??' has non-optional type 'Bool', so the right side is never used
+ 20 |     }
+ 21 | 
+/tmp/swiftshim/execroot/reference/swift/gen/boring/SwiftGlobalThrowOps.swift:45:16: warning: no calls to throwing functions occur within 'try' expression
+43 | 
+44 |     public static func currentValue(_ ops: SwiftGlobalThrowOps) throws -> Int32 {
+45 |         return try ops.current.value
+   |                `- warning: no calls to throwing functions occur within 'try' expression
+46 |     }
+47 | }
+/tmp/swiftshim/execroot/reference/swift/gen/boring/VectorCodec.swift:49:43: error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'
+ 47 |         writer.writeAscii(VectorCodec.magicOf(width))
+ 48 |         writer.writeU32(Int32(records.count))
+ 49 |         for record in TiqianArray(records.toMutableArray()) {
+    |                                           `- error: cannot convert value of type 'TiqianArray<GlyphMetrics>' to expected argument type '[TiqianArray<GlyphMetrics>]'
+ 50 |             writer.writeU32(record.codePoint)
+ 51 |             if width == FloatWidth.f64 {

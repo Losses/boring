@@ -1,0 +1,15 @@
+package boring
+
+object ExtensionConsumer {
+    fun enumResult(): String {
+        return ExtensionMode.Hot.modeLabel("!")
+    }
+
+    fun stringResult(): String {
+        return "core".stringLabel("@")
+    }
+
+    fun privateResult(): String {
+        return ExtensionMode.Cold.modeWithPrivate()
+    }
+}

@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""Parse two `bun run test` transcripts and diff their UNIQUE failing-test-name sets."""
+import json, re, sys, os
+from collections import defaultdict
+
+fail_re = re.compile(r"^\(fail\) (.+?)(?: \[([0-9.]+)ms\])?$")
+pass_re = re.compile(r"^\(pass\) (.+?)(?: \[([0-9.]+)ms\])?$")
+to_re = re.compile(r"^  \^ this test timed out after (\d+)ms\.$")
+sum_re = re.compile(r"^(\d+) tests failed:$")
+stat_re = re.compile(r"^\s*(\d+) (pass|fail|error|errors)$")
+ran_re = re.compile(r"^Ran (\d+) tests across (\d+) files\. \[([0-9.]+)s\]$")
+
+def parse(path):
+    lines = open(path, encoding="utf-8", errors="replace").read().split("\n")
+    sum_start = None
+    for i, l in enumerate(lines):
+        if sum_re.match(l):
+            sum_start = i
+            break
+    fails = {}
+    passes = {}
+    cur_file = None
+    for i, l in enumerate(lines):
+        if l.rstrip().endswith(":") and (l.startswith("tests/") or l.startswith("packages/")):
+            cur_file = l.rstrip()[:-1]
+        section = "summary" if (sum_start is not None and i > sum_start) else "live"
+        m = fail_re.match(l)
+        if m:
+            name, el = m.group(1), m.group(2)
+            t = to_re.match(lines[i + 1]) if i + 1 < len(lines) else None
+            r = fails.setdefault(name, {"timeout": False, "elapsed": set(), "budget": set(), "live_file": None})
+            if el:
+                r["elapsed"].add(float(el))
+            if t:
+                r["timeout"] = True
+                r["budget"].add(int(t.group(1)))
+            if section == "live" and cur_file:
+                r["live_file"] = cur_file
+            continue
+        m = pass_re.match(l)
+        if m and section == "live":
+            name, el = m.group(1), m.group(2)
+            if el:
+                passes.setdefault(name, set()).add(float(el))
+    stats = {}
+    for l in lines:
+        m = stat_re.match(l)
+        if m:
+            stats[m.group(2)] = int(m.group(1))
+        m = ran_re.match(l)
+        if m:
+            stats["ran_tests"] = int(m.group(1))
+            stats["ran_files"] = int(m.group(2))
+            stats["wall_s"] = float(m.group(3))
+    return {"fails": fails, "passes": passes, "stats": stats, "summary_line": sum_start}
+
+def norm(d):
+    return {k: {"timeout": v["timeout"], "elapsed": sorted(v["elapsed"]),
+                "budget": sorted(v["budget"]), "live_file": v["live_file"]} for k, v in d["fails"].items()}
+
+before = parse(sys.argv[1])
+after = parse(sys.argv[2])
+B, A = set(before["fails"]), set(after["fails"])
+out = {
+    "before": {"stats": before["stats"], "unique_fail_count": len(B),
+               "timeout_class": sorted(n for n in B if before["fails"][n]["timeout"]),
+               "non_timeout_class": sorted(n for n in B if not before["fails"][n]["timeout"]),
+               "fails": norm(before)},
+    "after": {"stats": after["stats"], "unique_fail_count": len(A),
+              "timeout_class": sorted(n for n in A if after["fails"][n]["timeout"]),
+              "non_timeout_class": sorted(n for n in A if not after["fails"][n]["timeout"]),
+              "fails": norm(after)},
+    "diff": {"only_in_before": sorted(B - A), "only_in_after": sorted(A - B), "common": sorted(A & B)},
+    "after_pass_elapsed": {n: sorted(v) for n, v in after["passes"].items() if n in B},
+}
+json.dump(out, open(sys.argv[3], "w"), indent=1)
+
+print("BEFORE:", before["stats"], "unique fails:", len(B))
+print("AFTER :", after["stats"], "unique fails:", len(A))
+print("only in BEFORE (cleared):", len(out["diff"]["only_in_before"]))
+for n in out["diff"]["only_in_before"]:
+    print("   -", n)
+print("only in AFTER (moved/new):", len(out["diff"]["only_in_after"]))
+for n in out["diff"]["only_in_after"]:
+    print("   +", n)
+print("common:", len(out["diff"]["common"]))
+print()
+print("of the cleared, how many were timeout-class:",
+      len([n for n in out["diff"]["only_in_before"] if before["fails"][n]["timeout"]]))
+print("now-passing elapsed (the 24 fixed tests):")
+for n in before["fails"]:
+    if before["fails"][n]["timeout"]:
+        print(f"   {str(out['after_pass_elapsed'].get(n, 'STILL FAILING')):>22}  {n}")

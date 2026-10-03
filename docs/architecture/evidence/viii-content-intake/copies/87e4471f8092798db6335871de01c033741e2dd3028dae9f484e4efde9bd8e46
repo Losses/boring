@@ -1,0 +1,11 @@
+package tfprobe;
+
+class Main {
+	public static function main():Void {
+		Shapes.localLit();
+		Shapes.localEmpty();
+		Shapes.localAbsent();
+		Shapes.localNullableElems();
+		Shapes.localFromStatic();
+	}
+}

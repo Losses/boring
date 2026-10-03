@@ -1,0 +1,57 @@
+package boring
+
+object EnumQueriesOps {
+    fun directCount(): Int {
+        return 3
+    }
+
+    fun aliasCount(): Int {
+        val widths = FloatWidth.entries
+        return 3 + ((if ((widths[0] == FloatWidth.F64)) 0 else 1))
+    }
+
+    fun names(): String {
+        val widths = FloatWidth.entries
+        val count = 3
+        var result = ""
+        for (index in 0 until count) {
+            if ((index > 0)) {
+                result += ","
+            }
+            result += widths[index].name
+        }
+        return result
+    }
+
+    fun roundTrips(): Boolean {
+        val widths = FloatWidth.entries
+        for (width in widths) {
+            val back = FloatWidth.entries.firstOrNull { it.name == width.name }
+            if ((back != width)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    fun unknown(): String {
+        val value = FloatWidth.entries.firstOrNull { it.name == "unknown" }
+        return "" + ((if ((value == null)) "empty" else "value"))
+    }
+
+    fun secondEnum(): String {
+        val modes = QueryMode.entries
+        val first = QueryMode.entries.firstOrNull { it.name == modes[0].name }
+        return ((if ((first == modes[0])) modes[0].name else "bad")) + "," + modes[1].name
+    }
+
+    fun lookupName(): String {
+        return "Read"
+    }
+}
+
+enum class QueryMode {
+    Read,
+    Write
+}
+fun compareQueryMode(a: QueryMode, b: QueryMode): Int = a.ordinal - b.ordinal

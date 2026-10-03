@@ -1,0 +1,5 @@
+java
+-cp
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-tbGMwa/build/kotlin.jar
+MainKt
+double

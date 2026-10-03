@@ -1,0 +1,4 @@
+/tmp/vc8/gapout/run-467727/failure-probe/broken.swift:1:19: error: cannot convert value of type 'String' to specified type 'Int'
+1 | let broken: Int = "s"
+  |                   `- error: cannot convert value of type 'String' to specified type 'Int'
+2 | 

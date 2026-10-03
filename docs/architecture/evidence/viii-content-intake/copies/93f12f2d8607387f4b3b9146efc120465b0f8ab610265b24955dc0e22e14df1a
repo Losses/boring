@@ -1,0 +1,66 @@
+{
+ "coordinateUnit": "utf16-code-units",
+ "spans": [
+  {
+   "generated": {
+    "start": {
+     "column": 1,
+     "line": 1
+    },
+    "end": {
+     "column": 1,
+     "line": 3
+    },
+    "file": "OriginShapes.ts"
+   },
+   "status": "unmapped",
+   "reason": "generated-header",
+   "source": null
+  },
+  {
+   "generated": {
+    "start": {
+     "line": 9,
+     "column": 0
+    },
+    "end": {
+     "column": 33,
+     "line": 9
+    },
+    "file": "OriginShapes.ts"
+   },
+   "status": "mapped",
+   "reason": null,
+   "source": {
+    "start": 774,
+    "end": 788,
+    "file": "tests/haxe/ts-sourcemap-three-positions/OriginShapes.hx",
+    "occurrenceId": "OriginShapes.OriginShapes.run#000001"
+   }
+  },
+  {
+   "generated": {
+    "start": {
+     "column": 1,
+     "line": 15
+    },
+    "end": {
+     "column": 24,
+     "line": 15
+    },
+    "file": "OriginShapes.ts"
+   },
+   "status": "mapped",
+   "reason": null,
+   "source": {
+    "start": 969,
+    "end": 974,
+    "file": "tests/haxe/ts-sourcemap-three-positions/OriginShapes.hx",
+    "occurrenceId": "OriginShapes.OriginShapes.main#000001"
+   }
+  }
+ ],
+ "output": "OriginShapes.ts",
+ "version": 1,
+ "defaultResolution": "Unmapped"
+}

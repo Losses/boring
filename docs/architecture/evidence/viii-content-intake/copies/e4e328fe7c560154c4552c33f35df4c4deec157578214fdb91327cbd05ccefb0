@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail
+argv bash -c cd\ out/try-tail/gen/ts\ \&\&\ cp\ /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail/tests/haxe/try-tail/native/main.js\ try-tail-run.js\ \&\&\ sha256sum\ try-tail-run.js\ \>harness.sha256\ \&\&\ timeout\ 300\ bun\ build\ try-tail-run.js\ --outfile=run-bundle.js

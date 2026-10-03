@@ -1,0 +1,18 @@
+bash
+-c
+
+	printf "worktree %s\n" "$PWD"
+	printf "haxe %s\n" "$(command -v haxe)"
+	printf "tsc %s\n" "$1"
+	printf "tsc-real %s\n" "$2"
+	printf "tsc-sha256 %s\n" "$(sha256sum "$2" | cut -d" " -f1)"
+	printf "node %s\n" "$(command -v node)"
+	printf "kotlinc %s\n" "$(command -v kotlinc)"
+	printf "java %s\n" "$(command -v java)"
+	printf "dart %s\n" "$(command -v dart)"
+	printf "rustc %s\n" "$(command -v rustc)"
+	printf "swiftc %s\n" "$(command -v swiftc || printf "not found")"
+
+bash
+/home/losses/Development/tq-workspace/boring/node_modules/.bin/tsc
+/home/losses/Development/tq-workspace/boring/node_modules/.bun/typescript@5.9.3/node_modules/typescript/bin/tsc

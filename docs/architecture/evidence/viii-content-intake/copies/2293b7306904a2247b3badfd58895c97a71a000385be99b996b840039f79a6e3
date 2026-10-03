@@ -1,0 +1,15 @@
+#![cfg(test)]
+
+use crate::boring::to_string_ops::ToStringOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn explicit_to_string() {
+    testlib::run("tests.ToStringTests.explicitToString", "tests.ToStringTests.explicitToString: an explicit toString method renders and runs on every target", || {
+        let label = ToStringOps::to_string_ops_make_label(UStr::new(&[98,111,100,121]), 12);
+        test_core::TestCore::test_core_equals_string(UStr::new(&[80,108,97,105,110,76,97,98,101,108,40,116,101,120,116,61,98,111,100,121,44,32,119,105,100,116,104,61,49,50,41]), ToStringOps::to_string_ops_describe((label).clone()).as_ustr(), UStr::new(&[100,101,115,99,114,105,98,101,32,109,117,115,116,32,114,101,116,117,114,110,32,116,104,101,32,101,120,112,108,105,99,105,116,32,112,114,105,110,116,101,100,32,102,111,114,109]));
+    });
+}

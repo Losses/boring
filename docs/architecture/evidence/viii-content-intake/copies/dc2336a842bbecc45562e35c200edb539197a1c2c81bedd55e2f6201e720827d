@@ -1,0 +1,47 @@
+/tmp/bx/out/fix-witness/gen/mx/MXLambda.swift:38:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 36 |     do {
+ 37 |         return ReadOnlyArray(MXSource.first())
+ 38 |     } catch is MXError {
+    |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 39 |         return ReadOnlyArray(MXSource.second())
+ 40 |     } catch {
+
+/tmp/bx/out/fix-witness/gen/mx/MXLambda.swift:79:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 77 |     do {
+ 78 |         return ReadOnlyArray<Int32>()
+ 79 |     } catch is MXError {
+    |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 80 |         return ReadOnlyArray(MXSource.second())
+ 81 |     } catch {
+
+/tmp/bx/out/fix-witness/gen/mx/MXLambda.swift:97:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 95 |     do {
+ 96 |         view = ReadOnlyArray(MXSource.first())
+ 97 |     } catch is MXError {
+    |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+ 98 |         view = ReadOnlyArray(MXSource.second())
+ 99 |     } catch {
+
+/tmp/bx/out/fix-witness/gen/mx/MXLambda.swift:114:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+112 |     do {
+113 |         return ReadOnlyArray(MXSource.first())
+114 |     } catch is MXError {
+    |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+115 |         return ReadOnlyArray(MXSource.second())
+116 |     } catch {
+
+/tmp/bx/out/fix-witness/gen/mx/MXLambda.swift:163:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+161 |     do {
+162 |         return ReadOnlyArray(MXSource.first())
+163 |     } catch is MXError {
+    |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+164 |         return ReadOnlyArray<Int32>()
+165 |     } catch {
+
+/tmp/bx/out/fix-witness/gen/mx/MXLambda.swift:192:7: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+190 |     do {
+191 |         return ReadOnlyArray(MXSource.first())
+192 |     } catch is MXError {
+    |       `- warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+193 |         return ReadOnlyArray(MXSource.second())
+194 |     } catch {

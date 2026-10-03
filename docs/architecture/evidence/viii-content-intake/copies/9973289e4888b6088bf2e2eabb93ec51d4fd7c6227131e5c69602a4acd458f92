@@ -1,0 +1,83 @@
+commit eec707b9b09ccabdc7541b74174c6d8cf1e9ef0e
+Author: LOSSES Don <1384036+Losses@users.noreply.github.com>
+Date:   Wed Sep 30 15:20:10 2026 -0400
+
+    test(ts): pin the by-name runtime import the package shell rejection test asserts against
+    
+    The by-name test of feature spec 24 inherited its runtime import from
+    examples/ts.hxml: when that file carried -D runtime-import=@boring/runtime
+    the test dropped the repository's opt-out and the combination (by-name
+    import + emitted manifest) aborted, as spec 24 Ruling 5 requires. The
+    bundle-driver commit (2bd609b9) moved the repository hxml to the relative
+    specifier ./runtime without updating the test, so the scenario silently
+    became relative import + emitted manifest - which the same ruling
+    requires to be accepted - and the expectation started failing
+    deterministically against a correct compiler (exit 0, valid manifest).
+    
+    The guard at tscompiler/Compiler.hx (emitPackageShell) enforces exactly
+    the spec's scope: it runs only while the shell is enabled and stops a
+    compilation that uses the runtime through a non-relative import. No
+    compiler or spec change is warranted. The test now pins
+    runtime-import=@boring/runtime itself, so it exercises the by-name
+    rejection regardless of the repository hxml state; rewriteHxml rewrites
+    whatever specifier the hxml currently carries instead of matching only
+    the historical value. Assertions are unchanged.
+    
+    Also supersedes the BASELINE-FAILURES.md entry that read this failure as
+    a product/spec gap: it was a stale test expectation.
+
+diff --git a/docs/architecture/BASELINE-FAILURES.md b/docs/architecture/BASELINE-FAILURES.md
+index 129d96c8..7d702922 100644
+--- a/docs/architecture/BASELINE-FAILURES.md
++++ b/docs/architecture/BASELINE-FAILURES.md
+@@ -236,6 +236,16 @@ carries no timeout marker and is stable, so it is a **product/spec gap**: spec 2
+ requires an unconditional abort while the guard at `Compiler.hx:578-583` fires
+ only when `anyRuntimeUsed()` holds, a runtime import is set, and the specifier is
+ not relative. Either the test or the spec must change. Named here, unfixed.
++**Superseded 2026-09-30** — adjudicated from the documents: the "unconditional"
++reading was a misread. Spec 24 (Ruling 5) stops only a compilation that combines
++a by-name runtime import with an *emitted* manifest, and a relative specifier
++with an emitted manifest must be accepted. The guard enforces exactly that scope
++(and it runs only when `package-shell` is enabled), so the compiler was right
++and this is a stale test expectation, not a product defect: `examples/ts.hxml`
++moved from `-D runtime-import=@boring/runtime` to `./runtime` (2bd609b9) without
++updating the by-name test, which inherited the now-relative specifier and
++asserted an abort the spec does not require for it. The test now pins
++`runtime-import=@boring/runtime` itself; suite passes, no compiler or spec change.
+ 
+ **2. npm artifact generation is non-deterministic, and that reaches the CI gate.**
+ The `package/dist/boring/MathNaNTestSupport.{js,d.ts}` entries flip in and out of
+diff --git a/tests/ts/package-shell.test.ts b/tests/ts/package-shell.test.ts
+index c703b473..e2dc5965 100644
+--- a/tests/ts/package-shell.test.ts
++++ b/tests/ts/package-shell.test.ts
+@@ -39,7 +39,10 @@ function rewriteHxml(source: string, opts: GenerationOptions): string {
+     .replace("-D ts-test-output=reference/ts/gen-tests", `-D ts-test-output=${opts.testOutput}`)
+     .replace("-D ts-output=reference/ts/gen", `-D ts-output=${opts.tsOutput}`);
+   if(opts.runtimeImport !== undefined) {
+-    out = out.replace("-D runtime-import=@boring/runtime", `-D runtime-import=${opts.runtimeImport}`);
++    // Rewrite whatever specifier the repository's hxml currently carries,
++    // so the scenario pins its own runtime import instead of inheriting
++    // the repository state of that line.
++    out = out.replace(/^-D runtime-import=[^\s]+$/m, `-D runtime-import=${opts.runtimeImport}`);
+   }
+   if(opts.packageShell === undefined) {
+     out = out.replace("-D package-shell=none\n", "");
+@@ -239,11 +242,15 @@ describe("package shell emission", () => {
+   test("a by-name runtime import with an emitted manifest aborts the compile", async () => {
+     const tree = tempTree("byname");
+     try {
+-      // The repository's own by-name import kept in place of the opt-out:
+-      // the manifest cannot declare the package coordinate it names.
++      // The scenario pins its own by-name runtime import and drops the
++      // repository's opt-out, so it no longer depends on what specifier
++      // examples/ts.hxml currently carries (feature spec 24, Ruling 5:
++      // a by-name import names a package coordinate the emitted
++      // manifest cannot declare, so the combination stops the compile).
+       const hxml = rewriteHxml(fs.readFileSync(path.join(REPO_ROOT, "examples/ts.hxml"), "utf8"), {
+         tsOutput: tree,
+         testOutput: path.join(tree, "../boring-shell-byname-tests"),
++        runtimeImport: "@boring/runtime",
+       });
+       const result = await runHaxe("package-shell-byname.hxml", hxml);
+       expect(result.exitCode).not.toBe(0);

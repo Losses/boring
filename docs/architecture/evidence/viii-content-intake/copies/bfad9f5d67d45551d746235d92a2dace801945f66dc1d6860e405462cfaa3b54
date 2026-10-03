@@ -1,0 +1,16 @@
+#![cfg(test)]
+
+use crate::boring::narrowed_sorted_receiver_ops::NarrowedSortedReceiverOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_narrowed_receiver() {
+    testlib::run("tests.NarrowedSortedReceiverOpsTests.testNarrowedReceiver", "tests.NarrowedSortedReceiverOpsTests.testNarrowedReceiver: a nullable sorted receiver keeps the null-coalescing binding", || {
+        test_core::TestCore::test_core_equals_bool(false, NarrowedSortedReceiverOps::narrowed_sorted_receiver_ops_has_key(None, UStr::new(&[97])), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((NarrowedSortedReceiverOps::narrowed_sorted_receiver_ops_size_or_zero(None)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

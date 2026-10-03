@@ -1,0 +1,4 @@
+probe rc=0
+fast rc=0
+stmt rc=0
+gate rc=1

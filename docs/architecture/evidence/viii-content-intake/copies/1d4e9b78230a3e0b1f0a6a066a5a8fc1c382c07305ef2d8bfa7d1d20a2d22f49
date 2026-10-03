@@ -1,0 +1,588 @@
+# P08 BEHAVIOUR review — Swift ordinary read-only array boundary
+
+Reviewer role: **BEHAVIOUR reviewer**, first of the two separately recorded reviews that the
+P08 acceptance condition requires (`docs/architecture-work-plan.md:216`: *"Delegate
+reproduction and behavior tests, then implementation. Independently review both before
+accepting a candidate."*). This review answers six questions against one candidate and is a
+record, not a repair. **No repository file was modified**; the coordination tree, the record,
+the verifier output and the archive were read only. Every executed artifact is under
+`evidence/`.
+
+Method labels used throughout:
+
+- **[CODE]** — I read the cited code and verified the statement myself.
+- **[EXEC]** — I executed the cited command and quote its measured result.
+- **[DOC]** — a document states this; I did not independently verify it, or verification is
+  impossible from the material available.
+- **[UNVERIFIED]** — could not be established; blocker named in §8.
+
+---
+
+## 0. Anchors (so the review can be re-checked)
+
+| artifact | anchor measured by me |
+|---|---|
+| coordination tree | `boring-wt-architecture`, HEAD `e1c6597514634fd347d392709793cc19bd96c9a2`, **dirty** (15 `M` + 10 `??`; `evidence/repo-status-before.txt`) |
+| `SwiftArrayBoundary.hx` | sha256 `b522865c7b7c388207e3de6b88c7d4337e25aac2690f41d70f6173be065f6575`, 264 lines |
+| `SwiftExpr.hx` | sha256 `0a9bed91ef91ca68b75a2e7e4e2482d2743a16fe5caf4150018686c2131e33f0`, 7001 lines |
+| `SwiftDecl.hx` | sha256 `0210d20703769a4e42f2e8a27dd1a1123072a27785e663fc5dbb9b80ef74f973`, 1207 lines |
+| `SwiftParameterPlan.hx` | sha256 `05f0ae872a63dd8f2fd65c72ea93d690a74665966c4cfd881e64c63c28d73c2c`, 169 lines |
+| `RECORD.md` (input) | **367 lines / `4d348992…` at time of review; superseded 03:06 by 390 lines / `9886fe25c9c5ea392958b3ec2167c7903934d0f1593b25a7ae90633bba45b24e` (CORRECTION 12 added in §6). §0 citations re-checked against `9886fe25…`.** |
+| `switch-try-gap-verify/REPORT.md` (input) | sha256 `21cb2a58e9ccbdb583c48655f4fbcf4359ea45bae4076db1a9f5cf819a8c2803`, 260 lines |
+| full hash list | `evidence/identity.txt` |
+
+**Anchor warning — the record is not frozen and the dispatch's hash is not reproducible.**
+The dispatch quoted `RECORD.md` at sha `e20cf625…`. At my measurement it is **367 lines /
+`4d348992…`**. It also changed *during this session*: my first read returned 362 lines in which
+line 184 still attributed the `isBoundary` call at `SwiftExpr.hx:5641-5642` to `switchReturn`;
+the 367-line revision has that fixed (line 184 now says *"inside `armLines` (NOT in
+`switchReturn`)"*, and CORRECTION 3 at :255-261 records the misattribution and its provenance,
+`boundary-review-glm/REPORT.md:19` → `external-consult-xcheck/REPORT.md`). All my citations to
+the record are pinned to `4d348992…` / 367 lines. A review that quotes the record without a
+hash anchor cannot be re-checked, because the artifact moves. The record moved again after this review was written: at 03:06 it became 390 lines /
+`9886fe25…`. The 03:06 edit changed §6 only (CORRECTION 12, REC:285-302, retracting the
+"SILENTLY ABSENT" open-set claim); every §1-§5 line cited below is byte-identical in the
+390-line revision, and the two §6 citations affected are corrected at §3.3 items 5-6 below.
+
+The candidate is an **uncommitted worktree** (`SwiftArrayBoundary.hx`, `SwiftDecl.hx` are among
+the dirty files), so "the same immutable candidate" for the two P08 reviews can only be
+enforced by the hashes above. Nothing in the repository pins them.
+
+---
+
+## Q1. What source semantic rule is being implemented, and what forms are in scope?
+
+### 1.1 The rule — [CODE]
+
+The Swift backend lowers the two Haxe containers to two **unrelated `final class`es**:
+
+- Haxe mutable `Array<T>` → `final class TiqianArray<Element>` (`SwiftRuntime.hx:384`), a
+  reference container whose `items:[Element]` is shared by every reference to it;
+- Haxe `std.ReadOnlyArray<T>` → `final class ReadOnlyArray<Element>` (`SwiftRuntime.hx:486`),
+  which holds `private let backing: TiqianArray<Element>` and is **not** a subtype, so Swift has
+  no implicit conversion (`SwiftRuntime.hx:486-500`).
+
+Therefore the semantic rule implemented by `SwiftArrayBoundary` is a *two-directional storage
+rule*, not a null/shape rule:
+
+1. **mutable → read-only position: wrap, do not copy.** `ReadOnlyArray(x)` shares `x`'s backing
+   buffer, so Haxe's aliasing semantics survive (a write through the original mutable array is
+   visible through the view). The repo's oracle fixture tests exactly this
+   (`alias=7:2`, `reference=11:true:17:true`, `tests/swift-readonly-boundary/readonly-boundary.test.ts:24,26`).
+   Render form: `"ReadOnlyArray(" + operand + ")"` (`SwiftArrayBoundary.hx:254`).
+2. **read-only → mutable position: copy.** Swift arrays are value types and the mutable
+   container is a class, so the conversion materializes a new `TiqianArray`
+   (`public func toMutableArray() -> TiqianArray<Element> { return TiqianArray(Array(self)) }`,
+   `SwiftRuntime.hx:500`). Render form: `operand + ".toMutableArray()"`
+   (`SwiftArrayBoundary.hx:259`).
+3. Optional forms are mapped, not unwrapped: `(x).map { ReadOnlyArray($0) }` /
+   `(x).map { $0.toMutableArray() }` (`SwiftArrayBoundary.hx:255,260`), and a `nil` may only be
+   preserved when the destination is itself optional (`:187-192`).
+
+The decision is meant to be made once, from *prepared representation facts* plus the
+destination type, and then printed — the module's own contract is
+*"It never prints or reads emitted text"* (`SwiftArrayBoundary.hx:67-73`) and
+*"Source and destination Types preserve Haxe type evidence; they never override preparedStorage
+or preparedOptionality"* (`:160-164`). §Q4 shows the second half of that contract is violated
+by the coordinator, and §Q3 shows where the decision is never made at all.
+
+**Classification of "source face".** What counts as a read-only destination is decided by a
+shared classifier, not by name matching: `StaticFieldHelper.isReadOnlyArrayType` →
+`SourceContainerAnalysis.analyze(t)` face `ReadOnlyArrayFace` (`StaticFieldHelper.hx:203-209`,
+`SourceContainerAnalysis.hx:44-126,237-242`). The classifier resolves typedef/alias chains,
+follows lazies and monomorphs, and reports an explicit outer `Null` wrapper as a *separate*
+fact. `SwiftArrayBoundary.isMutableArray` does **not** use that classifier: it does its own
+`withoutNull` + `TInst("Array")`/`TAbstract("Array")` test (`SwiftArrayBoundary.hx:84-90`).
+Two classifiers for one enum is itself a divergence risk (Q4), though I did not find a concrete
+case where they disagree on the tested forms — see §8.
+
+### 1.2 Forms in scope — [CODE] for presence, [EXEC] where executed
+
+Present in code (each with a live site):
+
+| form | where |
+|---|---|
+| mutable expression → read-only local binding | `SwiftExpr.hx:743-747` |
+| ternary initializer | `:2642-2643` (`controlTernary` in the fixture) |
+| nil-merge / coalesced nullable | `:2627-2628`, `:2664-2677` |
+| plain `return` | `:810-811` |
+| block tail value (expression-position block) | `:1211-1212` |
+| assignment (`assignmentValue`) | `:2805-2807` |
+| cast (`castText`) | `:2533-2535` |
+| call argument (two producers) | `:3303-3304` (`argTexts`), `:4756-4768` (`callArgTexts`) |
+| constructor argument | `:4859-4871` |
+| enum constructor argument | `:4719-4721` |
+| nested collection element (`TArrayDecl`) | `:1928-1929` |
+| registered/coalescing default (call site) | `:4757-4758`, `:4860-4861`, `:368-376`, `:284-345` |
+| static read-only field initializer | `SwiftDecl.hx:581-606` |
+| statement-position switch/try arm **that is an assignment** | via `binop`→`assignmentValue` |
+
+Present but **defective** (the class the programme must close):
+
+| form | where | measured result |
+|---|---|---|
+| switch expression as initializer / argument | `:5486-5490` → `:5523-5530` | broken Swift |
+| switch value in return position, arm body is an expression | `:807-808` → `:5570` → `:5615` | broken Swift |
+| assignment whose value is a switch | `:819-820` → `:5508-5515` | broken Swift |
+| try expression as initializer | `:686-687` → `:5210-5248` | broken Swift |
+| try value in return position | `:798-799` → `:5251-5287` | broken Swift |
+| switch arm written with an explicit `return` | `:5615-5652` (converts at `:5641-5642`) | typechecks but **drops the `return`** |
+| optional mutable source → **required** read-only destination | `SwiftArrayBoundary.hx:203` | generation aborts `:2608-2609` |
+
+The last row is the acceptance fixture's own blocking shape — see §Q3.5 and §Q5.
+
+**Declared exclusions** — [DOC]. `RECORD.md` §1 (:37-40) excludes `@:native`-typed arrays and
+arrays produced by target intrinsics that bypass `SwiftExpr`, and it explicitly *withdraws* the
+blanket "any position not listed in section 4" exclusion (CORRECTION 9, :18-35) because
+`j-prepared-value-design.md:85-86` forbids it (*"An unverified path stays open; it cannot be
+removed from the accepted language to simplify this pilot"*). I did not verify the two retained
+exclusions (§8).
+
+---
+
+## Q2. What fact is required at each boundary, who produces it, its lifetime, and what invalidates it?
+
+### 2.1 The facts — [CODE]
+
+| fact | carrier | authoritative producer(s) actually in code | lifetime | what invalidates it |
+|---|---|---|---|---|
+| source storage | `SwiftArrayStorage` (`SwiftArrayBoundary.hx:9-15`) | **not single.** `sourceStorage()` (`:148-158`) called at `SwiftExpr.hx:305,2673,2689,6173`, `SwiftDecl.hx:590`, `SwiftParameterPlan.hx:60`; **plus** hand-built operands at `SwiftDecl.hx:590-597`, `SwiftExpr.hx:2686-2692` (`prepareArrayOperand`), `:307-344` (`lowerCoalescingExpression`), and `plan.resultStorage` (`:175-176,184,190,195,213`) | one prepared operand / one plan; `localArrayBindingStorages` keeps one copy per local for the whole class compilation | a new crossing; a different declared local type; **nothing** for the stored map entry (see 2.3) |
+| source optionality | `SwiftArrayOptionality` (`:18-21`) | **two independent constructors**: `SwiftDecl.hx:591`, `SwiftExpr.hx:2690`; plus joins `:2630-2631,2644-2645`, coalescing `:307-343`, params `SwiftParameterPlan.hx:66-70` | one operand | any change to flow facts |
+| presence proof | `SwiftArrayPresenceFact` (`:24-31`) | `SwiftDecl.hx:597`, `SwiftExpr.hx:2711-2726`, joins `:2638,2654`, coalescing `:314,324,334,343`, params `SwiftParameterPlan.hx:71-80` | one operand | literal/guard/narrow change |
+| destination requirement | a bare `Type` argument — **no producer at all** | each caller computes it: local type `:743`, return type `:811/:5642`, assignment target `:2806`, callee parameter `:3303/:4756/:4859`, element type `:1929`, enum parameter `:4720`, field type `SwiftDecl.hx:599`, cast target `:2534` | one call | — |
+| element type | `plan.elementType` | `prepare` (`:177,245`) | one plan | plan change |
+| operation | `SwiftArrayOperation` (`:34-42`) | `prepare` (`:179-231`) | one plan | any input fact change |
+
+**The record's §3 heading is false as written.** `RECORD.md:116` says *"Each fact has exactly
+ONE producer."* Its own table immediately below (:141-149) lists **two** producers for
+optionality (`SwiftDecl.hx:591; SwiftExpr.hx:2690`) and six sites for the presence proof. My
+census finds at least **six** `sourceStorage` producers and, decisively, **no single producer
+for the destination requirement** — which is the fact the switch/try gap actually turns on
+(§Q3.4). `[CODE]`
+
+### 2.2 The plan is a pure function of (operand facts, destination, override) — [CODE]
+
+`prepare` (`SwiftArrayBoundary.hx:165-248`) reads `operand.storage/optionality/presenceFact`,
+computes `destReadOnly/destMutable/destOptional` and the element type, selects an operation,
+then applies one veto:
+
+```
+if (isOptionalType(sourceType) && preparedOptionality == RequiredOperand
+    && presenceFact != LiteralProvenPresent && presenceFact != GuardProvenPresent
+    && presenceFact != BranchValuesRequired && presenceFact != DefaultMaterializedPresent)
+    operation = null;                                             // :225-231
+```
+
+Two structural properties matter for behaviour review:
+
+1. **The presence fact has one-directional power.** It is consumed *only* as a whitelist that
+   can *suppress* the veto (`:227-230`); it never forces a refusal of its own. So an
+   over-claiming producer of presence facts silently authorizes a conversion. `SwiftDecl.hx:597`
+   is exactly such an over-claim: it stamps `LiteralProvenPresent` on **any** non-null static
+   initializer, including a non-literal expression. `[CODE]` I did not build a fixture that
+   turns this into a bad emission (§8).
+2. **`prepare` re-reads `sourceType` for the veto** even though the doc-comment says
+   *"Source and destination Types … never override preparedStorage or preparedOptionality"*
+   (`:160-164`). It does not override them, but it does decide the veto from the AST type
+   (`isOptionalType(sourceType)`), i.e. one branch of the decision table is AST-derived. `[CODE]`
+
+### 2.3 Lifetime / invalidation — [CODE]
+
+The only fact that survives its operand is `localArrayBindingStorages`
+(`SwiftExpr.hx:160`, a per-`SwiftExpr`-instance map). It is:
+
+- written once per local in `scanLocals` (`:6157-6175`) from the **declared local type**:
+  `SwiftArrayBoundary.sourceStorage(localType)` (`:6173`), skipping `OtherArrayStorage`;
+- read only in `prepareArrayOperand`, and only for `TLocal` after `stripWrap`:
+  `storage: recorded == null ? SwiftArrayBoundary.sourceStorage(e.t, isEmptyArrayDecl(e), isNullLiteral(e)) : recorded`
+  (`:2682-2689`).
+
+Consequences:
+
+- The map is populated by a **separate pass from the one that emits**, and **nothing ever
+  updates or deletes an entry on assignment**. It stays "valid" only by the coincidence that the
+  recorded value is derived from the declared type, which the representation must keep matching.
+- Every position that is not a `TLocal` (`TField`, `TCall`, block results, joins, …) falls back
+  to `sourceStorage(e.t)`, i.e. to the **AST type** — the very derivation `RECORD.md:116` bans
+  and §6 (:322-324) flags.
+- The prepared facts returned by `lowerArrayBoundary` are **not stored**: at `:2613-2619` the
+  function returns a `SwiftArrayPreparedOperand`, but every caller keeps only `.text`
+  (`:747`, `:2567`) or feeds `.storage/.optionality/.presenceFact` into a join
+  (`:2629-2638`, `:2644-2654`). Call arguments use `.text` and `.optionality`
+  (`:4761,4864`). So a completed conversion's representation fact is available in-process but
+  is **not** a recorded fact any later consumer can consult. `[CODE]`
+
+### 2.4 The "already-converted" axis has no code field — [CODE], agreeing with the record
+
+There is no `converted`/`prepared` flag anywhere in the four files. The axis is enforced
+*behaviourally*:
+
+- `prepare` sets `resultStorage` (`:184,190,195,213,216,219`) and a second `prepare` on the
+  result is idempotent for the read-only direction because `ReadOnlyArrayView` + required
+  destination selects `KeepPreparedArray` (`:206-209`). For the mutable direction the second
+  `prepare` is **not** idempotent-in-the-same-way: `destMutable` requires
+  `preparedStorage == ReadOnlyArrayView` (`:212`), so a re-prepared result with
+  `MutableArrayWrapper` yields a null plan (a refusal, not a second `.toMutableArray()`).
+- The record's `TiqianArray(records.toMutableArray())` double-wrap (:111-112) is therefore not
+  reachable through `prepare` today; I found **no** live double-conversion in the current
+  revision and I did **not** prove one is impossible (§8).
+
+### 2.5 One additional fact-derivation the record does not list — [CODE]
+
+`lowerArrayBoundary` overwrites the returned operand's `sourceType` with the **destination**:
+`sourceType: target` (`SwiftExpr.hx:2615`). Any consumer that reads `operand.sourceType` as
+"source meaning" is therefore misled by construction. No current consumer reads it, but it is a
+latent trap in the API the record treats as its single fact carrier.
+
+---
+
+## Q3. Does the implementation consume the fact at every inventoried producer and consumer path?
+
+### 3.1 My own census (not the record's) — `evidence/census.txt`
+
+Built by mechanical search over `packages tests samples tools examples reference` for
+`SwiftArrayBoundary.prepare|render|isBoundary|sourceStorage|isOptionalArrayType|isOptionalType`,
+`lowerArrayBoundary`, `arrayBoundaryText`, `SwiftArrayBoundaryPlan`, `SwiftArrayPreparedOperand`.
+Counts (production vs test):
+
+**`prepare` — 2 production call sites, 9 test call sites**
+production: `SwiftExpr.hx:2607`, `SwiftDecl.hx:599`.
+tests: `SwiftBoundaryPlanChecks.hx:29,30,42,51,61,71,73,83,84` (9 call sites, all inside one
+compile-time macro). `[CODE]`
+
+**`render` — 2 production call sites, 0 test**
+`SwiftExpr.hx:2614`; `SwiftDecl.hx:604`. `[CODE]`
+
+**`isBoundary` — 6 production call sites, 1 test**
+`SwiftExpr.hx:743,2534,2580,2674,2806,5641`; `ClassifierProbe.hx:332`. `[CODE]`
+
+**`sourceStorage` — 6 production call sites, 3 test**
+`SwiftExpr.hx:305,2673,2689,6173`; `SwiftDecl.hx:590`; `SwiftParameterPlan.hx:60`;
+`ClassifierProbe.hx:324-329`. `[CODE]`
+
+**`lowerArrayBoundary` — 1 definition + 8 internal call sites, all in `SwiftExpr.hx`**
+definition `:2578`; calls `:746,2567,2627,2628,2642,2643,4760,4863`. No other file. `[CODE]`
+
+**`arrayBoundaryText` — 1 definition, 1 delegation, 8 call sites**
+`:2566` def → `:2567` delegates to `lowerArrayBoundary`; calls `:811,1212,1929,2535,2807,3304,4720,5642`. `[CODE]`
+
+**`SwiftArrayBoundaryPlan` / `SwiftArrayPreparedOperand` consumers** — only the module itself
+(`:54-65`, `:45-51`), `SwiftExpr.hx` (`:37,744,2578-2619,2633-2639,2649-2655,592`), and
+`SwiftDecl.hx:20,592`. `[CODE]`
+
+### 3.2 Path-by-path consumption verdict
+
+| path (record's inventory + mine) | consumes the plan? | verdict |
+|---|---|---|
+| static read-only field initializer `SwiftDecl.hx:581-606` | prepare+render directly; operand hand-built | **covered but a second decision authority** (2.1) |
+| local binding `SwiftExpr.hx:743-747` | `lowerArrayBoundary`; result `.text` only | covered |
+| plain return `:810-811` | `arrayBoundaryText` | covered |
+| block tail `:1211-1212` | `arrayBoundaryText` | covered |
+| assignment `:2805-2807` | `arrayBoundaryText` | covered |
+| cast `:2533-2535` | `arrayBoundaryText` | covered |
+| call argument `:3303-3304`, `:4756-4768` | `arrayBoundaryText` / `lowerArrayBoundary` | covered |
+| constructor argument `:4859-4871` | `lowerArrayBoundary` | covered |
+| enum constructor argument `:4719-4721` | `arrayBoundaryText` | covered |
+| array literal element `:1928-1929` | `arrayBoundaryText` | covered |
+| **registered default at a call site** `:4757-4758`, `:4860-4861` | **bypasses prepare**: substitutes `defaultArgText`/`coalescingDefaultText` (`:4904-4913`, `:361-376`, which itself prints `ReadOnlyArray<Element>()` at `:371-373`) | **not consumed — second rendering authority** |
+| ternary / nil-merge `:2623-2656` | re-prepares both arms at the shared destination | covered (join invariant assumed, see 3.4) |
+| statement-position switch/try arm that is an assignment | via `binop`→`assignmentValue` | covered — [EXEC] C4/C5 in the archive reproduce this |
+| **switch expression (initializer / argument)** `:5486-5490,5523-5530` | `switchReturn(depth=1)`; arms converted only if `currentReturnType` is a read-only array (`:5639-5642`) | **not consumed** |
+| **switch value in return position, expression arm** `:807-808,5570` | arm body is `OtherStatement(s, null, …)` so `returnValue == null` at `:5639` → `expr(s)` | **not consumed** — [EXEC] 12-error fixture, S3/S4 |
+| **switch arm with explicit `return`** `:5615-5652` | converts at `:5641-5642` | **consumed but corrupts statement form** — [EXEC] `return` dropped, 2 unused-result warnings (W1) |
+| **whole-value switch assignment** `:819-820,5508-5515` | arm conversion keyed on `currentReturnType`; then the line is rewritten by string surgery to `target = …` | **not consumed for the assignment destination** — [EXEC] S7 |
+| **try expression as initializer** `:686-687,5210-5248` | none; annotates `types.of(v.t)` (`:5221`) and assigns `blockValueLines` output | **not consumed** — [EXEC] S2 |
+| **try value in return position** `:798-799,5251-5287` | none; `return <blockValueLines value>` (`:5269,5282`) | **not consumed** — [EXEC] S6 |
+| try-region block tail `:5160-5168` | `expr(parts.value)` | **not consumed** |
+| switch/try **statement-position** | assignment statements route through `binop`→`assignmentValue` | covered — [DOC]/[EXEC] archive C4/C5 |
+| **optional mutable source → required read-only destination** | `prepare` refuses (`:203`) | **refuses the fixture's own shape** — see 3.5 |
+| `@:native` arrays, `SwiftExpr`-bypassing intrinsics | — | declared out of scope |
+
+### 3.3 What the record omits, and two record-internal contradictions
+
+Omissions from a consumer census:
+
+1. **Test-side consumers are invisible in the record.** `SwiftBoundaryPlanChecks.hx` calls
+   `prepare` 11× (`:29,30,42,51,61,71,73,83,84`) and is the *only* place that exercises the
+   decision table directly; `ClassifierProbe.hx:324-333` calls `sourceStorage`,
+   `isOptionalArrayType`, `isBoundary`. The record's §4 claims to be "every migrated path" but
+   silently scopes to production code. For a behaviour review these are the only executable
+   statements about the table today. `[CODE]`
+2. **`coalescingDefaultText` / `defaultArgText` render read-only arrays without `prepare`**
+   (`SwiftExpr.hx:368-376`, `:4904-4913`). The record's §3 table does not list them as target-text
+   producers. `[CODE]`
+3. **A third AST-typed closure declaration at `SwiftExpr.hx:1966`** (`TEnumParameter`),
+   alongside the two the record names (`:1203`, `:5525`). `[CODE]`
+4. **`switchReturn`'s own body is boundary-free**; the conversion lives in `armLines`
+   (`:5615-5652`, conversion at `:5641-5642` reached from `:5604`). The current record revision
+   states this correctly (line 184, CORRECTION 3 :255-261) — I re-verified both extents and the
+   362-line revision I first read had it wrong, so the dispatch's warning is confirmed as a
+   *fixed* defect in the current revision rather than a live one. `[CODE]`
+5. **Record-internal contradiction A — now resolved by the record.** CORRECTION 4 (`:198`)
+   adds "nested collection element" (`:1929`) to the inventory, while the §6 open set called it
+   "SILENTLY ABSENT from BOTH revisions". The 390-line revision withdraws that open-set claim
+   (CORRECTION 12, `:285-302`): the family's *consumer site* is registered; what remains open
+   is the semantic ruling, not registration. Contradiction confirmed by me; corrected upstream.
+6. **Record-internal contradiction B — now resolved by the record.** The §6 open set said
+   "Registered default … SILENTLY ABSENT", but registered/coalescing defaults are handled in
+   code at `:284-345`, `:368-376`, `:4757-4778`, `:4860-4881`. CORRECTION 12 (`:298-301`,
+   `:341-345`) concedes this and recharacterises the family as *incompletely registered in
+   section 4*, not absent. `[CODE]`
+7. **My correction to the record's CORRECTION 1 (`:240-245`)**: it still lists "call result
+   position" as unowned. The §6 open set repeats this (`:276`); both are answered by the
+   destination-dispatched consumers below. A call result *is* consumed at every destination-typed consumer
+   (`:743`, `:811`, `:2806`, `:3303`, `:4756`, `:4859`, `:1929`, `:4720`), because those
+   consumers dispatch on the destination, not on the source shape. What remains unowned is not
+   the call-result *position* but the call-result **shape** when it reaches a gap path (3.2).
+   `[CODE]`
+
+### 3.4 The join precondition is assumed, not enforced — [CODE], agreeing with the record
+
+`lowerArrayConditionalBoundary` copies one arm's storage:
+`:2632` `storage = targetValue.storage == NullArrayValue ? fallbackValue.storage : targetValue.storage`
+`:2648` `storage = trueValue.storage == NullArrayValue ? falseValue.storage : trueValue.storage`.
+Both arms *are* prepared against the same `target` (`:2627-2628`, `:2642-2643`), so the
+precondition the record calls unwritten (`RECORD.md:163-170`) does hold at these two sites —
+**for the arms reached through this function**. It does not hold for the statement/switch
+re-target paths, which move already-rendered text without moving its facts
+(`:5495-5503`, `:5510-5513`). `[CODE]`
+
+### 3.5 Executed: which shape actually blocks the acceptance fixture
+
+The dispatch calls `SwiftExpr.hx:2609` "a known separate blocker". **It is not separate.**
+`[EXEC]` Using an instrumented shadow copy of `SwiftExpr.hx` placed last on `-cp`
+(`-cp` is last-wins; the shadow lives only in my output directory), the abort reports:
+
+```
+Warning : B2609 class=ReadOnlyBoundaryOps field=coalescedBoundary ret=String
+          local=values#36447 dest=ReadOnlyArray<Int32> srctype=TiqianArray<Int32>?
+          storage=MutableArrayWrapper opt=OptionalOperand presence=NoPresenceProof
+swift target: array boundary has no prepared storage decision
+```
+(`evidence/gen-ro-probe6.log`; the warning text is mine, the abort is the candidate's.)
+
+Emptying that one function body (`tests/swift-readonly-boundary/boring/ReadOnlyBoundaryOps.hx:233-236`,
+the shape `var view:ReadOnlyArray<Int> = values == null ? [] : values;`, line 234) in a copy
+under my own output directory makes the same generation exit **0** with no warning
+(`evidence/gen-bisect-coalesced2.log`). Therefore:
+
+- the blocking cell is `MutableArrayWrapper × read-only destination × optional source × required
+  dest`, i.e. the **empty `case OptionalOperand:` at `SwiftArrayBoundary.hx:203`** → null plan →
+  `fail` at `SwiftExpr.hx:2608-2609`;
+- `RECORD.md:58` classifies this cell as **REFUSED**, and `:108-109` says refusals are "refusals
+  in code, not policy choices". The repository's own acceptance fixture requires the cell to
+  *work* (oracle expectations `coalesced-null=0:empty` / `coalesced-present=1:present`,
+  `readonly-boundary.test.ts:44-45`). A "refusal" the acceptance fixture demands is not a
+  settled decision; it is an open defect on the **decision axis**;
+- the plan-check macro does not encode this sub-cell: `SwiftBoundaryPlanChecks.hx:76-88` asserts
+  that an optional mutable source *is* convertible, but only against
+  `nullableReadonlyType` (nullable destination). Against a **required** destination the code
+  returns null and nothing asserts it either way. `[CODE]`
+
+I did not modify the repository: `evidence/repo-status-before.txt` and
+`...-after.txt` are identical (`diff` rc=0). `[EXEC]`
+
+---
+
+## Q4. Are source meaning, target representation, operation result, and printed syntax kept distinct?
+
+**Inside `SwiftArrayBoundary.hx`: yes, cleanly.** `prepare` takes operand facts + destination
+`Type` and returns an immutable plan; `render` takes the plan + the already-lowered operand text
+and returns syntax. `render` never parses its input, and `prepare` never prints (its only
+string operation is building no string at all; the element-type text is produced by the caller
+at `SwiftExpr.hx:2612`). `[CODE]`
+
+**Outside the module boundary: no — at least five live conflations.** [CODE] for all five:
+
+| # | site | conflated axes | evidence |
+|---|---|---|---|
+| 1 | `nilMergeChainNonOptional` `SwiftExpr.hx:2048-2054`, consumed `:4776`, `:4879` | **source meaning derived from printed text**: `text.lastIndexOf(" ?? ")` decides optionality of a call argument | `[CODE]`; record CORRECTION 7 item 1 agrees |
+| 2 | `blockExpression:1203`, `switchExpression:5525`, `TEnumParameter:1966` | **target representation declared from the source AST type** (`types.of(...)`) while the arm/value is (or is not) converted per `currentReturnType` | `[CODE]`; record names 1 and 2 of these (CORRECTION 7 item 2), not `:1966` |
+| 3 | `switchAssign:5508-5515` / `switchStatement:5492-5506` | **operation result moved by string surgery**: `indexOf("return ")` / `startsWith(marker)` rewrite an already-printed line, so the destination is never used to make the decision | `[CODE]`; record CORRECTION 7 item 3 (partially) |
+| 4 | `platformModuleCall:4349-4355` | **target representation fabricated from the AST return type**: `arrayRuntimeText("TiqianArray(" + text + ")")` | `[CODE]`; record CORRECTION 7 item 4 |
+| 5 | `lowerArrayBoundary:2615` | **source meaning overwritten by the destination**: the returned operand's `sourceType` is `target` | `[CODE]`; not in the record |
+
+Additionally the **decision input** is not segregated: `prepare`'s veto reads `isOptionalType(sourceType)`
+(`SwiftArrayBoundary.hx:225`), an AST-derived type, contradicting the module's stated contract
+that the operand's prepared facts decide (`:160-164`). `[CODE]`
+
+So the honest answer is: **the split is real at the module API and systematically violated at
+the coordinator/consumer layer.** The mechanism's own class comment
+(`SwiftArrayBoundary.hx:67-73`) is true of the class, not of the path.
+
+---
+
+## Q5. Which discriminating observations FAIL if only one axis is closed?
+
+The programme's stated failure mode is closing one axis of a defect class and declaring the
+class closed. This defect class has (at least) **two independent axes**, and each has its own
+observable:
+
+- **Axis A — decision axis.** `prepare` must return a plan for every accepted source cell. Observable:
+  the *generation exit code* of a source that uses the cell (`fail` at `SwiftExpr.hx:2608-2609`,
+  `SwiftDecl.hx:600-601`), or a direct `prepare` assertion in a macro check.
+- **Axis B — consumption axis.** Every producer path must enter `prepare` **with the correct
+  destination**. Observable: `swiftc` diagnostics over the generated Swift for the switch/try
+  value forms (silent wrong output; generation itself exits 0).
+
+### The two discriminating observations
+
+**O-A (decision axis).** `haxe tests/swift-readonly-boundary/swift.hxml` must exit 0.
+*Measured now:* **rc=1**, `swift target: array boundary has no prepared storage decision`
+(`evidence/gen-readonly-acc.log`). Shape responsible: §Q3.5.
+*Would it catch a B-only fix?* **Yes** — routing switch/try through `prepare` leaves the
+`coalescedBoundary` cell refused, so generation still exits 1.
+
+**O-B (consumption axis).** Generate the gap fixture and run
+`swiftc -typecheck gap/Gap.swift Runtime.swift std/UStringException.swift std/UStringFault.swift`;
+assert **rc=0 and zero diagnostics**.
+*Measured now:* generation rc=0, then `swiftc` **rc=1, 12 errors / 2 warnings**
+(`evidence/swiftc-gap.log`; unique-error count 12, unique-warning count 2; `Gap.swift` sha256
+`01cbbb8193f73c095eb05a24c8874e7366399194e8bd607ec9e50073779b227b`, byte-identical to
+`gap-fixture-archive/generated/gap/Gap.swift`, `evidence/tree-diff-vs-archive.txt`).
+*Would it catch an A-only fix?* **Yes** — accepting the refused cells does not route
+`switchBindingLines` / `tryBindingLines` / `tryReturnLines` / `switchAssign` / expression-arm
+switch returns through `prepare`, so the 12 `TiqianArray<Int32>`-where-`ReadOnlyArray<Int32>`-is-required
+errors remain.
+
+**The class only closes when O-A and O-B are green on the same candidate revision.** Either
+alone is exactly the one-axis closure the programme has already committed twice.
+
+### Are these run anywhere today? — [EXEC]/[CODE]
+
+| observation | collected by | status |
+|---|---|---|
+| O-A | `tests/swift-readonly-boundary/readonly-boundary.test.ts:57-60` (generation step). Collected only by the repo's **local** `test` script (`package.json:9`, "test": "bun test tests/ packages/registry/tests/"). **Not collected by CI**: `.github/workflows/ci.yml` invokes only `test:*` scripts (`:35`, `:135`, `:199`), never `bun run test`, and the fixture appears in no SwiftPM target path (`Package.swift:47,54,61,68,75,82,92`). The archive's opposite claim (`gap-fixture-archive/README.md:163-167`: *"the repo's CI … runs `bun test tests/`"*) is contradicted by the CI file. `[CODE]` | exists but **RED**, and the test aborts at the generation step before its `swiftc`/zero-diagnostics assertions (`:79-83`) |
+| O-B | **nothing.** `grep` over `tests tools .github packages` for `Gap.hx`, `switch-try-gap`, `gap-fixture`, `dc-warn`: the only hits are three unrelated comments. The fixture lives outside the repo in the `dc-warn` output tree | **not run anywhere**; no collector, no CI step |
+| a plan-level assertion for the **optional→required** sub-cell | nowhere. `SwiftBoundaryPlanChecks.hx:76-88` tests the same operand only against a **nullable** destination; `:42,:51,:61,:71,:73` test other refusals | **absent** — the one decision-axis probe that exists cannot see the cell that blocks O-A |
+
+The archive already warns that a "discriminating fixture" must not be judged by tree identity
+alone (`gap-fixture-archive/README.md:143-148`, PIT-301: two fixtures cited as discriminating had
+byte-identical generated trees pre/post). Two consequences for the fixed-input candidate:
+
+1. O-B must assert the **`swiftc` exit code and the diagnostic set**, not generation success and
+   not a tree diff. (Note the W1 shape typechecks but drops a `return`: `[EXEC]` warnings at
+   `Gap.swift:113,115`; a "zero errors" policy without a warning policy would miss it.)
+2. A pre/post comparison must include **both** observables: a candidate that changes no tree and
+   no exit code has closed neither axis, regardless of what its commit message claims.
+
+---
+
+## Q6. Which paths remain unknown or intentionally unsupported?
+
+Classified by *why* they are open: **by decision** (an authoritative statement excludes them), or
+**by omission** (no ruling exists; the code simply does not do it, or does something none of the
+documents describe).
+
+### Unknown by omission — verified in code
+
+| # | item | evidence |
+|---|---|---|
+| O1 | `tryBindingLines` value form (`SwiftExpr.hx:5210-5248`): no boundary call; annotates `types.of(v.t)` (`:5221`) and assigns raw `blockValueLines` text (`:5230,5243`) | [CODE] + [EXEC] S2 |
+| O2 | `tryReturnLines` (`:5251-5287`): raw `return <blockValueLines value>` (`:5269,5282`) | [CODE] + [EXEC] S6 |
+| O3 | try-region block tail `blockValueLines` (`:5160-5168`): `expr(parts.value)` | [CODE] |
+| O4 | `switchBindingLines` (`:5486-5490`): the binding's declared destination is never passed; only `currentReturnType` is consulted downstream | [CODE] + [EXEC] S1 |
+| O5 | `switchExpression` (`:5523-5530`): closure result type from `types.of(sw.t)`; arms converted only under `currentReturnType` | [CODE] + [EXEC] S1/S5 |
+| O6 | switch value in return position with an **expression arm** (`:5639` guard `returnValue != null`): normal Haxe arms produce `OtherStatement(s, null, …)` so no conversion happens even though the destination is a known read-only return type | [CODE] + [EXEC] S3/S4 |
+| O7 | `switchAssign` (`:5508-5515`) / `switchStatement` (`:5492-5506`): assignment destination never passed; output re-targeted by string surgery | [CODE] + [EXEC] S7 |
+| O8 | `armLines` payload/forward bindings (`:5620-5632`): `expr(init)`, no boundary | [CODE] (no fixture) |
+| O9 | `SwiftExpr.hx:1966` `TEnumParameter` closure: result type from `types.of(e.t)` | [CODE] |
+| O10 | **already-converted axis**: no recorded fact; the only persistent fact (`localArrayBindingStorages`, `:160/2683/6173`) is derived from the declared type in a separate pass and never invalidated on assignment | [CODE] |
+| O11 | the cell that blocks O-A — `MutableArrayWrapper` + optional source + **required** read-only destination — has no ruling; the record calls it a code refusal, the acceptance fixture requires it | [EXEC] §Q3.5 |
+| O12 | registered/coalescing **defaults at call sites** bypass `prepare` and print the target form directly (`:4757-4758`, `:4860-4861`, `:368-376`) | [CODE] |
+| O13 | switch pattern-binding/payload declarations generally (the record's own open item; I confirm O8 is the concrete site) | [CODE] |
+
+### Unknown by decision — declared, not independently verified by me
+
+| # | item | authority |
+|---|---|---|
+| D1 | `@:native`-typed arrays | `RECORD.md:37-40`; I did not build a fixture, so the boundary behaviour is [UNVERIFIED] |
+| D2 | arrays produced by target intrinsics that bypass `SwiftExpr` | same; [UNVERIFIED] |
+| D3 | `OtherArrayStorage` sources refused at any destination (`SwiftArrayBoundary.hx:210`) | asserted by `SwiftBoundaryPlanChecks.hx:42,51`; the record itself calls it a code refusal, i.e. closer to omission than decision |
+
+### Disposition
+
+- **O1–O3** (try value forms) and **O4–O7** (switch value forms) are the same defect class and
+  are all reachable from ordinary accepted Haxe; `[EXEC]` they produce `swiftc` errors today.
+- **O8, O9, O12** are untraced rather than demonstrably wrong; no fixture exercises them.
+- **O10, O11** are the two items most likely to be missed by a "fix the switch/try gap" change:
+  O11 blocks the acceptance fixture itself, and O10 decides whether a repaired path double-converts
+  or refuses when a converted value crosses again.
+- **D1–D3** are the only claims that may legitimately be closed by a scope ruling; O1–O12 may not,
+  because `j-prepared-value-design.md:85-86` forbids removing an unverified path from the accepted
+  language.
+
+---
+
+## 7. Executed-evidence index
+
+| file | what it is |
+|---|---|
+| `evidence/gen-gap.log` | generation of the gap fixture into `evidence/gen-gap` (rc=0, empty) |
+| `evidence/swiftc-gap.log` | `swiftc -typecheck` rc=1; 12 errors, 2 warnings |
+| `evidence/gap-swift-hash.txt` | `Gap.swift` sha256, mine vs archive (identical) |
+| `evidence/tree-diff-vs-archive.txt` | `diff -r` mine vs archive (empty) |
+| `evidence/gen-readonly-acc.log` | acceptance fixture generation rc=1, `array boundary has no prepared storage decision` |
+| `evidence/gen-ro-probe6.log` | shadowed run naming the blocked cell (class/field/local/dest/storage/opt/presence) |
+| `evidence/gen-bisect-coalesced2.log` | same generation rc=0 after neutralising that one function |
+| `evidence/shadow/` | the instrumented copy used (created only in my output directory) |
+| `evidence/acc-bisect/`, `evidence/acc-bisect-coalesced/` | fixture copies used for the bisect |
+| `evidence/census.txt` | mechanical consumer census |
+| `evidence/identity.txt` | HEAD + sha256 of every source/input cited |
+| `evidence/repo-status-before/after/diff` | proof the repository was not modified |
+
+## 8. What I could NOT determine
+
+1. **`@:native` exclusion and `SwiftExpr`-bypassing intrinsics (D1/D2) — not verified.**
+   *Blocker:* no fixture in the tree exercises them, and building one would require deciding the
+   excluded surface first; the record gives no example. I cannot say whether the boundary
+   classifier would silently mis-classify such a value.
+2. **Whether the double-wrap cell is genuinely unreachable today — not verified (no
+   counterexample found).** I traced every `prepare` caller and every returned-operand consumer
+   and found no second conversion of an already-converted value; that is *"I could not find a
+   counterexample"*, **not** *"the claim is proven"*. The record's `already-converted` axis has no
+   code field (O10), so a proof would require instrumenting the paths that move text without
+   moving facts (`:5492-5515`).
+3. **Whether `SwiftDecl.hx:597`'s `LiteralProvenPresent` on a non-literal initializer can produce
+   a bad emission — not verified.** *Blocker:* I did not construct a static read-only field whose
+   initializer is an optional-typed non-literal; the worktree is shared and I elected not to run
+   additional generation beyond the two fixtures the dispatch named.
+4. **Whether the runtime oracle actually passes on a candidate that closes just the decision
+   axis — not verified.** *Blocker:* O-A aborts at generation (`evidence/gen-readonly-acc.log`),
+   so the oracle/swiftc halves of `readonly-boundary.test.ts` (`:79-83`) are unreachable today.
+   Only after O-A is fixed can the test's own discriminating power be measured at all.
+5. **Full package build / runtime execution of the gap fixture — not verified.** I mirrored the
+   archive (`swiftc -typecheck` over the four emitted files) and deliberately did not run
+   `-D swift-test-runner=native` or a `Package.swift` build; the fixture has no test modules
+   (`generated-repro` never creates `tests-gap`).
+6. **The `RECORD.md` revision the dispatch quoted (`e20cf625…`) — not reproducible.** *Blocker:*
+   the file I measured is 367 lines / `4d348992…`, and it changed mid-session.
+   *Post-review:* it moved again at 03:06 to 390 lines / `9886fe25…` and is now frozen
+   (p08-candidate-freeze/FREEZE.md §6.3). Citations in this report have been re-anchored to
+   that revision. If the two P08
+   reviews are to be "against the same immutable candidate", the record needs a pinned hash too;
+   otherwise the two reviews can quote different texts of the object they are reviewing.
+7. **Whether the two classifiers (`SourceContainerAnalysis` via `StaticFieldHelper.isReadOnlyArrayType`
+   vs `SwiftArrayBoundary.isMutableArray`'s own `withoutNull` logic) ever disagree on an accepted
+   form — not verified.** I read both and they agree on the forms I traced; a typedef/`Null`
+   corner case was not built.
+
+## 9. Claim ledger (what is verified where)
+
+| claim | status |
+|---|---|
+| The candidate is an uncommitted worktree; hashes in §0 | [EXEC] |
+| `TiqianArray`/`ReadOnlyArray` are unrelated final classes; wrap shares storage, `toMutableArray` copies | [CODE] `SwiftRuntime.hx:384,486,500` |
+| `prepare`/`render` split inside the module; text never parsed there | [CODE] |
+| The "one producer per fact" rule is false, including for the destination requirement | [CODE] |
+| `localArrayBindingStorages` is the only persistent fact; derived from the declared type; never invalidated | [CODE] `:160,2683,6173` |
+| Four+ live re-derivations from AST types / printed text | [CODE] `:2048,1203,1966,5525,4349-4355,5508-5515` |
+| Gap fixture: generation rc=0, swiftc rc=1 with 12 errors / 2 warnings | [EXEC] |
+| `swiftc` counts and the W1 swallowed-return warnings | [EXEC] `evidence/swiftc-gap.log` |
+| The acceptance fixture is blocked by `coalescedBoundary` hitting the optional→required refusal cell | [EXEC] shadow + bisect |
+| The plan-check macro never tests that sub-cell | [CODE] `SwiftBoundaryPlanChecks.hx:76-88` |
+| O-B is collected nowhere in the repo | [CODE] grep over `tests tools .github packages` |
+| The archive's claim that CI runs `bun test tests/` (and therefore collects the acceptance fixture) is false | [CODE] `.github/workflows/ci.yml:35,135,199` vs `package.json:9` |
+| Record's `switchReturn`/`armLines` attribution is correct *in the current revision* | [CODE] `RECORD.md:184,255-261` |
+| Record's §6 open set contradicted its own §4 on nested-collection/default families — resolved by CORRECTION 12 in the 390-line revision | [CODE] `RECORD.md:198` vs `:280-302` |
+| `@:native` and intrinsic exclusions, correctness of registered-default rendering, double-wrap reachability | [UNVERIFIED] — §8 |

@@ -1,0 +1,20 @@
+#![cfg(test)]
+
+use crate::boring::vec_insert_ops::VecInsertOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn insert_at() {
+    testlib::run("tests.VecInsertTests.insertAt", "tests.VecInsertTests.insertAt: an Array insert widens the u32 position to the Vec usize index", || {
+        let values = VecInsertOps::vec_insert_ops_insert_at(1, 9);
+        test_core::TestCore::test_core_equals_int(4i32, i32::from_ne_bytes(((u32::try_from((values.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(1i32, { let v: u32 = values[0usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(9i32, { let v: u32 = values[1usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(2i32, { let v: u32 = values[2usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(3i32, { let v: u32 = values[3usize]; i32::from_ne_bytes(v.to_ne_bytes()) }, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(7i32, i32::from_ne_bytes(((VecInsertOps::vec_insert_ops_first_at(0, 7)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

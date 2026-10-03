@@ -1,0 +1,39 @@
+package boring
+
+data class PrintedBadge(val mark: PrintedMark, val width: FloatWidth) {
+}
+
+fun comparePrintedBadge(a: PrintedBadge, b: PrintedBadge): Int {
+    var cmp = 0
+    cmp = when (a.mark) { PrintedMark.Plain -> 0; is PrintedMark.Ring -> 1; is PrintedMark.Tag -> 2; is PrintedMark.Trail -> 3; is PrintedMark.Aliases -> 4 }.compareTo(when (b.mark) { PrintedMark.Plain -> 0; is PrintedMark.Ring -> 1; is PrintedMark.Tag -> 2; is PrintedMark.Trail -> 3; is PrintedMark.Aliases -> 4 })
+    if (cmp != 0) return cmp
+    cmp = when (a.width) { FloatWidth.F64 -> 0; FloatWidth.F32 -> 1; FloatWidth.F16 -> 2 }.compareTo(when (b.width) { FloatWidth.F64 -> 0; FloatWidth.F32 -> 1; FloatWidth.F16 -> 2 })
+    if (cmp != 0) return cmp
+    return 0
+}
+
+object PrintedEnumOps {
+    fun markText(mark: PrintedMark): String {
+        return "mark=" + mark
+    }
+
+    fun markValue(mark: PrintedMark): String {
+        return mark.toString()
+    }
+
+    fun badgeText(badge: PrintedBadge): String {
+        return badge.toString()
+    }
+
+    fun markList(marks: MutableList<PrintedMark>): String {
+        return run { val sb = StringBuilder(); sb.append('['); val n = marks.size; var i = 0; while (i < n) { if (i > 0) { sb.append(", "); }; sb.append(marks[i]); i += 1; }; sb.append(']'); sb.toString() }
+    }
+}
+
+sealed interface PrintedMark {
+    data object Plain : PrintedMark
+    data class Ring(val diameter: Float) : PrintedMark
+    data class Tag(val text: String, val weight: Int) : PrintedMark
+    data class Trail(val steps: MutableList<Int>) : PrintedMark
+    data class Aliases(val names: MutableList<String>) : PrintedMark
+}

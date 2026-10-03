@@ -1,0 +1,126 @@
+package tests
+
+import boring.PlatformOps
+import boring.runtime.Env
+import boring.runtime.test.Test
+import java.nio.file.Files
+import java.nio.file.Paths
+import std.Path
+
+class PlatformModulesTests {
+@boring.test.Test
+    fun fsRoundTrip() {
+        Test.run("tests.PlatformModulesTests.fsRoundTrip", "tests.PlatformModulesTests.fsRoundTrip: std.Fs write append and read round-trip") {
+                PlatformModulesTestSupport.ensureDir()
+                val path = PlatformModulesTestSupport.textPath("roundtrip")
+                Test.equals("firstsecond", PlatformOps.writeAppendRead(path, "first", "second"), null)
+                Test.equals(true, Files.exists(Paths.get(path)), null)
+                Test.equals(true, Files.isDirectory(Paths.get(PlatformModulesTestSupport.DIR)), null)
+        }
+    }
+
+@boring.test.Test
+    fun fsMakeDirs() {
+        Test.run("tests.PlatformModulesTests.fsMakeDirs", "tests.PlatformModulesTests.fsMakeDirs: std.Fs makeDirs creates a nested directory") {
+                PlatformModulesTestSupport.ensureDir()
+                val nested = PlatformModulesTestSupport.DIR + "/a/b/c"
+                Test.equals(true, PlatformOps.makeDirsCheck(nested), null)
+                Test.equals(true, Files.isDirectory(Paths.get(PlatformModulesTestSupport.DIR + "/a/b")), null)
+        }
+    }
+
+@boring.test.Test
+    fun fsReadDir() {
+        Test.run("tests.PlatformModulesTests.fsReadDir", "tests.PlatformModulesTests.fsReadDir: std.Fs readDir omits the dot entries") {
+                PlatformModulesTestSupport.ensureDir()
+                Test.equals(true, PlatformModulesTestSupport.noDotEntries(PlatformModulesTestSupport.DIR), null)
+                Test.equals(true, Files.exists(Paths.get(PlatformModulesTestSupport.DIR)), null)
+        }
+    }
+
+@boring.test.Test
+    fun envRoundTrip() {
+        Test.run("tests.PlatformModulesTests.envRoundTrip", "tests.PlatformModulesTests.envRoundTrip: std.Env set and remove are observable through get") {
+                val key = "BORING_PLATFORM_TEST_KEY"
+                Test.equals("value|<absent>", PlatformOps.envRoundTrip(key, "value"), null)
+        }
+    }
+
+@boring.test.Test
+    fun envAbsent() {
+        Test.run("tests.PlatformModulesTests.envAbsent", "tests.PlatformModulesTests.envAbsent: std.Env get reports an absent entry as null") {
+                Test.equals("<absent>", PlatformOps.envGet("BORING_PLATFORM_TEST_ABSENT"), null)
+        }
+    }
+
+@boring.test.Test
+    fun pathNormalize() {
+        Test.run("tests.PlatformModulesTests.pathNormalize", "tests.PlatformModulesTests.pathNormalize: std.Path normalizes mixed separators and dot segments") {
+                Test.equals("a/b/c", PlatformOps.normalize("a\\b/c"), null)
+                Test.equals("a/c", PlatformOps.normalize("a/./b/../c"), null)
+                Test.equals("../b", PlatformOps.normalize("a/../../b"), null)
+                Test.equals("/b", PlatformOps.normalize("/a/../b"), null)
+                Test.equals("C:/b", PlatformOps.normalize("C:\\a\\..\\b"), null)
+                Test.equals("C:/", PlatformOps.normalize("C:\\a\\..\\"), null)
+                Test.equals("a/b", PlatformOps.join("a", "b"), null)
+                Test.equals("/abs", PlatformOps.join("a", "/abs"), null)
+                Test.equals("C:/win", PlatformOps.join("a", "C:/win"), null)
+        }
+    }
+
+@boring.test.Test
+    fun pathDirname() {
+        Test.run("tests.PlatformModulesTests.pathDirname", "tests.PlatformModulesTests.pathDirname: std.Path dirname follows the kind table") {
+                Test.equals(".", PlatformOps.dirname("."), null)
+                Test.equals(".", PlatformOps.dirname(""), null)
+                Test.equals("/", PlatformOps.dirname("/"), null)
+                Test.equals("C:/", PlatformOps.dirname("C:/a"), null)
+                Test.equals("a/b", PlatformOps.dirname("a/b/c"), null)
+                Test.equals(".", PlatformOps.dirname("a"), null)
+                Test.equals("//s/share", PlatformOps.dirname("//s/share/a"), null)
+                Test.equals("//s/share", PlatformOps.dirname("\\\\s\\share\\a"), null)
+                Test.equals("/", PlatformOps.dirname("/a"), null)
+                Test.equals("//s/share", PlatformOps.dirname("//s/share"), null)
+        }
+    }
+
+@boring.test.Test
+    fun pathNormalizeKinds() {
+        Test.run("tests.PlatformModulesTests.pathNormalizeKinds", "tests.PlatformModulesTests.pathNormalizeKinds: std.Path normalize follows the kind table") {
+                Test.equals("\\\\?\\C:\\x", PlatformOps.normalize("\\\\?\\C:\\x"), null)
+                Test.equals("\\\\?\\C:\\a\\..\\x", PlatformOps.normalize("\\\\?\\C:\\a\\..\\x"), null)
+                Test.equals("//s/share/b", PlatformOps.normalize("//s/share/a/../b"), null)
+                Test.equals("//s/share", PlatformOps.normalize("//s/share/a/../.."), null)
+                Test.equals("C:a/../b", PlatformOps.normalize("C:a\\..\\b"), null)
+                Test.equals("//a/b", PlatformOps.normalize("//a/b"), null)
+        }
+    }
+
+@boring.test.Test
+    fun pathJoinKinds() {
+        Test.run("tests.PlatformModulesTests.pathJoinKinds", "tests.PlatformModulesTests.pathJoinKinds: std.Path join keeps absolute and device seconds") {
+                Test.equals("\\\\?\\C:\\x", PlatformOps.join("a", "\\\\?\\C:\\x"), null)
+                Test.equals("//s/share", PlatformOps.join("a", "//s/share"), null)
+                Test.equals("C:/win", PlatformOps.join("a", "C:/win"), null)
+                Test.equals("/abs", PlatformOps.join("a", "/abs"), null)
+                Test.equals("a/b", PlatformOps.join("a", "b"), null)
+        }
+    }
+
+@boring.test.Test
+    fun pathExpandHome() {
+        Test.run("tests.PlatformModulesTests.pathExpandHome", "tests.PlatformModulesTests.pathExpandHome: std.Path expandHome reads HOME through std.Env") {
+                val original = Env.get("HOME")
+                Env.set("HOME", "/home/probe")
+                Test.equals("/home/probe", Path.expandHome("~"), null)
+                Test.equals("/home/probe/x", Path.expandHome("~/x"), null)
+                Test.equals("/home/probe", Path.expandHome("~\\"), null)
+                Test.equals("/abs", Path.expandHome("/abs"), null)
+                if ((original != null)) {
+                    Env.set("HOME", original)
+                } else {
+                    Env.remove("HOME")
+                }
+        }
+    }
+}

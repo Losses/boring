@@ -1,0 +1,7 @@
+rustc
+--edition=2024
+-o
+/tmp/nix-shell.TkgVyn/promoted-eval-rust-sdvWgS/harness-mut
+/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/tests/haxe/dc-promoted-eval/native/harness.rs
+--extern
+pe=/tmp/nix-shell.TkgVyn/promoted-eval-rust-sdvWgS/libpe-mut.rlib

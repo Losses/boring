@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat-xcheck
+argv bash -c cd\ \'/tmp/charcodeat-xcheck/xatt-20260929T213557Z/rust-target/debug\'\ \&\&\ timeout\ 120\ ./generated

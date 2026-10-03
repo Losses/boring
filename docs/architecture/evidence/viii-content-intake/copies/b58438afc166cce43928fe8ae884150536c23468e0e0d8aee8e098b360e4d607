@@ -1,0 +1,75 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/strict-output.test.ts:
+killed 1 dangling process
+(fail) strict TypeScript emitter output > omitted indexOf positions drop synthesized null for strings and arrays [5000.89ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+34 |       "class Probe {",
+35 |       "  public static function run(text:String, values:Array<Int>):Int return text.indexOf(\"x\") + values.indexOf(2);",
+36 |       "}", "",
+37 |     ].join("\n"));
+38 |     try {
+39 |       expect(result.code).toBe(0);
+                               ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 143
+
+      at <anonymous> (/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/strict-output.test.ts:39:27)
+-------------------------------
+
+killed 1 dangling process
+(fail) strict TypeScript emitter output > single-argument substr drops its synthesized null length [5000.89ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+51 |     const result = await compileFixture([
+52 |       "package fixtures;",
+53 |       "class Probe { public static function run(text:String):String return text.substr(1); }", "",
+54 |     ].join("\n"));
+55 |     try {
+56 |       expect(result.code).toBe(0);
+                               ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 143
+
+      at <anonymous> (/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/strict-output.test.ts:56:27)
+-------------------------------
+
+killed 1 dangling process
+(fail) strict TypeScript emitter output > switch-expression cases render preceding statements before their value [5000.89ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+72 |       "    case Other: 2;",
+73 |       "  };",
+74 |       "}", "",
+75 |     ].join("\n"));
+76 |     try {
+77 |       expect(result.code).toBe(0);
+                               ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 143
+
+      at <anonymous> (/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/strict-output.test.ts:77:27)
+-------------------------------
+
+killed 1 dangling process
+(fail) strict TypeScript emitter output > empty-array and null local initializers retain declared TypeScript types [5000.89ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 4 fail
+ 3 errors
+ 3 expect() calls
+Ran 4 tests across 1 file. [20.05s]

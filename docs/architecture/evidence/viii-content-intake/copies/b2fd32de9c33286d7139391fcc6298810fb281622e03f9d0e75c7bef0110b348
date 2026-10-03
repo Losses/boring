@@ -1,0 +1,10 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/constructed-state.test.ts:
+(pass) constructed static mutation rules retain all three diagnostics [70645.81ms]
+
+ 1 pass
+ 1 filtered out
+ 0 fail
+ 6 expect() calls
+Ran 1 test across 1 file. [70.68s]

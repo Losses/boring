@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class BorrowedIterationSubjectOpsTests {
+@boring.test.Test
+    fun unique() {
+        Test.run("tests.BorrowedIterationSubjectOpsTests.unique", "tests.BorrowedIterationSubjectOpsTests.unique: an element loop borrows an already-referenced subject once") {
+        }
+    }
+}

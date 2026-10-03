@@ -1,0 +1,8 @@
+### swift-rt-probe (fixture command = glob std + probe)
+A-pre-glob           exit=1   BoringException-missing=2 other-type-errors=4 link-failed=0
+B-post-glob          exit=1   BoringException-missing=2 other-type-errors=4 link-failed=0
+C-post-pkg           exit=1   BoringException-missing=0 other-type-errors=0 link-failed=1
+### swift-rt-plain (fixture command = glob std + plain)
+A-pre-glob-plain     exit=1   BoringException-missing=2 other-type-errors=4 link-failed=0
+B-post-glob-plain    exit=1   BoringException-missing=2 other-type-errors=4 link-failed=0
+C-post-pkg-plain     exit=1   BoringException-missing=0 other-type-errors=0 link-failed=1

@@ -1,0 +1,28 @@
+use crate::boring::allow_host::AllowHost;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, PartialEq)]
+pub struct AllowGuest {
+}
+
+impl AllowGuest {
+    pub const fn new() -> Self {
+        Self {
+        }
+    }
+
+    pub fn use_method(&self) -> UString {
+        let h = AllowHost::new();
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += h.secret_method().as_ustr(); __s += (h.tag).to_ustring().as_ustr(); __s }).as_str());
+    }
+
+    pub fn allow_guest_use_static(v: u32) -> u32 {
+        return AllowHost::allow_host_secret_static(v);
+    }
+
+    pub fn allow_guest_use_counter() -> u32 {
+        { let __rhs_value = u32::wrapping_add({ let __guard = crate::boring::allow_host::ALLOW_HOST_COUNTER.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() }, 2); *crate::boring::allow_host::ALLOW_HOST_COUNTER.lock().unwrap_or_else(|e| e.into_inner()) = __rhs_value; };
+        return { let __guard = crate::boring::allow_host::ALLOW_HOST_COUNTER.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() };
+    }
+}

@@ -1,0 +1,57 @@
+KEY QUOTED LINES (read directly from the working tree / copies; nothing modified)
+================================================================================
+[A] tests/ts/array-root.test.ts (unmodified vs HEAD; md5 e594de0bd65809c4d70f2663823f65a9)
+  L18:     expect(read("reference/swift/gen/boring/ArrayRootStateOps.swift")).toContain(
+  L19:       "static let readOnlyInts: [Int32] = Array(TiqianArray([10, 20, 30]))",
+  L20:     );
+  L28:     expect(rust).toContain("LazyLock<Vec<UString>>");
+
+[B] reference/swift/gen/boring/ArrayRootStateOps.swift (unmodified vs HEAD; md5 1de81f1650646f53e35cf58e64833d23)
+  L4:     public static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))
+
+[C] reference/rust/gen/boring/array_root_state_ops.rs
+  L9: pub static ARRAY_ROOT_STATE_OPS_WORDS: LazyLock<Vec<UString>> = ...
+
+[D] COMPOSITE.diff, array-root hunk (the ONLY array-root hunk):
+  @@ -25,7 +25,7 @@
+       const rust = read("reference/rust/gen/boring/array_root_state_ops.rs");
+       expect(rust).toMatch(/pub static ARRAY_ROOT_STATE_OPS_READ_ONLY_INTS: \[(?:u32|i32); 3\] = \[10, 20, 30\];/);
+       expect(rust).toContain("pub static ARRAY_ROOT_STATE_OPS_MUTABLE_INTS: [u32; 2] = [40, 50];");
+  -    expect(rust).toContain("LazyLock<Vec<String>>");
+  +    expect(rust).toContain("LazyLock<Vec<UString>>");
+       expect(rust).toContain("LazyLock<Vec<ArrayRootKind>>");
+       expect(rust).toContain("LazyLock::new");
+
+[E] control-base-array-root.log L16:
+      at <anonymous> (/tmp/p1run/base/tests/ts/array-root.test.ts:18:72)
+
+[F] COMPOSITE.diff, printed-record hunk 2 (change #3 of 3 in this file):
+  @@ -85,7 +85,7 @@
+       file: "boring/printed_record.rs",
+       id: "rust",
+       shadow: "packages/compiler/reflaxe/rust/std-shadow",
+  -    signature: "pub fn to_string(&self) -> String",
+  +    signature: "pub fn to_string(&self) -> UString",
+     },
+   ];
+  -> consumed only at printed-record.test.ts:211 `for(const target of mutationTargets)` inside
+     test("marker and explicit-member mutations affect the four emitted members") (L208-226), the
+     test that reports `timed out after 120000ms`.
+
+[G] value-type.test.ts L75 (failing test at L132 delegates to runMutation):
+      const process = Bun.spawnSync(["haxe", hxml], { cwd: root });
+
+[H] packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx (unfixed tree, md5 00f4fba363b9887ec62899579e9d28b9)
+  L2609:             return fail(inner, "array boundary has no prepared storage decision");
+  L6995:     function fail(e:Null<TypedExpr>, message:String):Dynamic {
+  L6997:         Context.error("swift target: " + message, pos);
+
+[I] Timeout budgets, read from the 13 test files:
+  sealed-variants.test.ts:212  }, 15000);
+  static-state.test.ts:66      }, 15000);
+  std-string.test.ts:85        }, 120000);
+  std-string.test.ts:98        }, 120000);
+  value-type.test.ts:149       }, 120_000);
+  printed-record.test.ts:226   }, 120_000);
+  (array-root.test.ts:64, fn-values.test.ts:90, sealed-variants.test.ts:101 and :147 carry no
+   third argument -> bun default 5000 ms)

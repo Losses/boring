@@ -1,0 +1,10 @@
+{
+  "driverOriginRevision": "e1c65975",
+  "driverBuiltFrom": "tools/bundle/driver.hxml (snapshot publication-staging/fixed-compiler-e1c65975; inputs: driver.hxml 8432f79927b2ad65e9d7b795df3f06ac513cb5082aff4fbafc586b7146bc1d87, Driver.hx 749a778241d9ad2c3d9e1ca921a1975003f5260422cbfdf7edf08c91788d82a7, ChildEvidence.hx bc5f44040497f8075a64692de0b52f4a1f3923ba832778aa8e2f2ccccfc9dd3b)",
+  "driverJsSha256": "bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53",
+  "haxeVersion": "4.3.7",
+  "buildArgv": ["haxe", "tools/bundle/driver.hxml"],
+  "buildCwd": "/home/losses/Development/tq-workspace/dc-warn/worktrees/driver-rebuild",
+  "buildExitCode": 0,
+  "notes": "built inside `nix develop -c` (flake at tree root) with XDG_CACHE_HOME=/tmp/driver-rebuild-nix-cache; .haxelib copied from boring-wt-architecture with .dev repointed to this tree"
+}

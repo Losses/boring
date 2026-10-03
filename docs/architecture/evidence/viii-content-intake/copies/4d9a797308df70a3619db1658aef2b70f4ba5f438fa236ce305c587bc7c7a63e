@@ -1,0 +1,58 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct SwitchMergeOps;
+
+impl SwitchMergeOps {
+    pub fn switch_merge_ops_grouped(value: SwitchMergeValue) -> UString {
+        return match value {
+            SwitchMergeValue::First { value: _p0 } => { let mut __s = UString::new(); __s += &(UString::from("grouped:")); __s += &(UString::from((_p0).to_string().as_str())); __s },
+            SwitchMergeValue::Second { value: _p0 } => { let mut __s = UString::new(); __s += &(UString::from("grouped:")); __s += &(UString::from((_p0).to_string().as_str())); __s },
+            SwitchMergeValue::Third => UString::from("third").to_ustring().to_ustring(),
+        };
+    }
+
+    pub fn switch_merge_ops_grouped_plain(value: SwitchMergeValue) -> UString {
+        return match value {
+            SwitchMergeValue::First { .. } => UString::from("plain").to_ustring(),
+            SwitchMergeValue::Second { .. } => UString::from("plain").to_ustring(),
+            SwitchMergeValue::Third => UString::from("third").to_ustring().to_ustring(),
+        };
+    }
+
+    pub fn switch_merge_ops_single(value: SwitchMergeValue) -> UString {
+        return match value {
+            SwitchMergeValue::First { value: _p0 } => { let mut __s = UString::new(); __s += &(UString::from("first:")); __s += &(UString::from((_p0).to_string().as_str())); __s },
+            SwitchMergeValue::Second { value: _p0 } => { let mut __s = UString::new(); __s += &(UString::from("second:")); __s += &(UString::from((_p0).to_string().as_str())); __s },
+            SwitchMergeValue::Third => UString::from("third").to_ustring().to_ustring(),
+        };
+    }
+
+    pub fn switch_merge_ops_partial(value: SwitchMergeValue) -> UString {
+        let result: UString;
+        let _ = match value {
+    SwitchMergeValue::First { value: _p0 } => result = UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("partial:")); __s += &(UString::from((_p0).to_string().as_str())); __s }).as_str()),
+    SwitchMergeValue::Second { value: _p0 } => result = UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("partial:")); __s += &(UString::from((_p0).to_string().as_str())); __s }).as_str()),
+    SwitchMergeValue::Third => result = UString::from("third").to_ustring(),
+};
+        return result;
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SwitchMergeValue {
+    First { value: u32 },
+    Second { value: u32 },
+    Third,
+}
+
+impl SwitchMergeValue {
+    pub fn to_string(&self) -> String {
+        match self {
+            SwitchMergeValue::First { value } => format!("First(value={})", (value).to_string()),
+            SwitchMergeValue::Second { value } => format!("Second(value={})", (value).to_string()),
+            SwitchMergeValue::Third => "Third".to_string(),
+        }
+    }
+}

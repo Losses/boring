@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class NullableIndexTests {
+@boring.test.Test
+    fun testAt() {
+        Test.run("tests.NullableIndexTests.testAt", "tests.NullableIndexTests.testAt: an optional array index unwraps for the Swift subscript") {
+                Test.equals(true, true, null)
+        }
+    }
+}

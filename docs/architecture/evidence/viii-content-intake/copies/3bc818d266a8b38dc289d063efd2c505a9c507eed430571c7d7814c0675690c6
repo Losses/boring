@@ -1,0 +1,243 @@
+#![cfg(test)]
+
+use crate::boring::default_args_ops::ChainedPaint;
+use crate::boring::default_args_ops::CoalescingPreset;
+use crate::boring::default_args_ops::CtorDefaultBadge;
+use crate::boring::default_args_ops::CtorDefaultHolder;
+use crate::boring::default_args_ops::DefaultArgsOps;
+use crate::boring::default_args_ops::GluePlacements;
+use crate::boring::default_args_ops::KeywordNameOps;
+use crate::boring::default_args_ops::ParamReadKind;
+use crate::boring::default_args_ops::ParamReadSpan;
+use crate::boring::default_args_ops::RegionProfile;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+use crate::tests::test_helper::*;
+
+
+#[test]
+fn test_greet() {
+    testlib::run("tests.DefaultArgsTests.testGreet", "tests.DefaultArgsTests.testGreet: greet with explicit and default prefix", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[71,114,101,101,116,105,110,103,115,32,65,100,97]), DefaultArgsOps::default_args_ops_call_greet0().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[72,101,108,108,111,32,65,100,97]), DefaultArgsOps::default_args_ops_call_greet1().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_configure() {
+    testlib::run("tests.DefaultArgsTests.testConfigure", "tests.DefaultArgsTests.testConfigure: configure with zero, one, two, and three omitted arguments", || {
+        test_core::TestCore::test_core_equals_float(-180.0f64, DefaultArgsOps::default_args_ops_call_configure0(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(180.0f64, DefaultArgsOps::default_args_ops_call_configure1(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(300.0f64, DefaultArgsOps::default_args_ops_call_configure2(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(275.0f64, DefaultArgsOps::default_args_ops_call_configure3(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_format_label() {
+    testlib::run("tests.DefaultArgsTests.testFormatLabel", "tests.DefaultArgsTests.testFormatLabel: formatLabel instance method with nullable and value optional parameters", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[105,116,101,109,58,102,111,114,109,97,116,116,101,100]), DefaultArgsOps::default_args_ops_call_format_label0().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[105,116,101,109,45,102,111,114,109,97,116,116,101,100]), DefaultArgsOps::default_args_ops_call_format_label1().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[110,111,110,101,45,100,101,102,97,117,108,116]), DefaultArgsOps::default_args_ops_call_format_label2().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_describe_tag() {
+    testlib::run("tests.DefaultArgsTests.testDescribeTag", "tests.DefaultArgsTests.testDescribeTag: describeTag with explicit null default", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,108,112,104,97,58,101,120,116,114,97]), DefaultArgsOps::default_args_ops_call_describe_tag0().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,108,112,104,97,58,110,111,110,101]), DefaultArgsOps::default_args_ops_call_describe_tag1().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_open_mode() {
+    testlib::run("tests.DefaultArgsTests.testOpenMode", "tests.DefaultArgsTests.testOpenMode: openMode with zero-argument enum constructor default", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[119,114,105,116,101,58,49]), DefaultArgsOps::default_args_ops_call_open_mode0().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[114,101,97,100,58,49]), DefaultArgsOps::default_args_ops_call_open_mode1().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_adjust() {
+    testlib::run("tests.DefaultArgsTests.testAdjust", "tests.DefaultArgsTests.testAdjust: adjust with negative literal default", || {
+        test_core::TestCore::test_core_equals_float(30.0f64, DefaultArgsOps::default_args_ops_call_adjust0(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(15.0f64, DefaultArgsOps::default_args_ops_call_adjust1(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_coalescing_infinity() {
+    testlib::run("tests.DefaultArgsTests.testCoalescingInfinity", "tests.DefaultArgsTests.testCoalescingInfinity: coalescing infinity default preserves explicit values", || {
+        test_core::TestCore::test_core_equals_float(f64::INFINITY, DefaultArgsOps::default_args_ops_call_infinity0(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(1.25f64, DefaultArgsOps::default_args_ops_call_infinity1(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_coalescing_array_freshness() {
+    testlib::run("tests.DefaultArgsTests.testCoalescingArrayFreshness", "tests.DefaultArgsTests.testCoalescingArrayFreshness: coalescing array defaults are fresh per constructor call", || {
+        let mut first = (DefaultArgsOps::new(Some(vec![])).family_names).clone();
+        let second = (DefaultArgsOps::new(Some(vec![])).family_names).clone();
+        first.push(UString::from("serif").to_ustring());
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((u32::try_from((first.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((u32::try_from((second.len()) & 0xFFFF_FFFF).unwrap_or(0)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_coalescing_map_freshness() {
+    testlib::run("tests.DefaultArgsTests.testCoalescingMapFreshness", "tests.DefaultArgsTests.testCoalescingMapFreshness: coalescing map defaults are fresh per function call", || {
+        let mut first = DefaultArgsOps::default_args_ops_call_map_default();
+        let second = DefaultArgsOps::default_args_ops_call_map_default();
+        first.insert(UString::from("serif"), 1);
+        test_core::TestCore::test_core_equals_bool(true, first.contains_key(&UString::from("serif")), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_bool(false, second.contains_key(&UString::from("serif")), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_local_function() {
+    testlib::run("tests.DefaultArgsTests.testLocalFunction", "tests.DefaultArgsTests.testLocalFunction: local function with default argument called with omission", || {
+        test_core::TestCore::test_core_equals_int(107i32, i32::from_ne_bytes(((DefaultArgsOps::default_args_ops_call_local()) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(207i32, i32::from_ne_bytes(((DefaultArgsOps::default_args_ops_call_local_b()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_interface_method() {
+    testlib::run("tests.DefaultArgsTests.testInterfaceMethod", "tests.DefaultArgsTests.testInterfaceMethod: interface method with default parameter called through interface", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[65,100,109,105,110,58,83,97,109]), DefaultArgsOps::default_args_ops_call_interface0().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[85,115,101,114,58,83,97,109]), DefaultArgsOps::default_args_ops_call_interface1().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_parameter_read() {
+    testlib::run("tests.DefaultArgsTests.testParameterRead", "tests.DefaultArgsTests.testParameterRead: bare earlier-parameter read", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[104,101,108,108,111]), DefaultArgsOps::default_args_ops_greet_with_prefix(UStr::new(&[104,101,108,108,111]), None.clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[104,105]), DefaultArgsOps::default_args_ops_greet_with_prefix(UStr::new(&[104,101,108,108,111]), Some(UString::from("hi"))).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_field_access() {
+    testlib::run("tests.DefaultArgsTests.testFieldAccess", "tests.DefaultArgsTests.testFieldAccess: field access over a parameter", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[115,105,122,101,58,50]), DefaultArgsOps::default_args_ops_size_label(Some(vec![UString::from("a").to_ustring(), UString::from("b").to_ustring()])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[115,105,122,101,58,48]), DefaultArgsOps::default_args_ops_size_label(None).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((DefaultArgsOps::default_args_ops_field_access_sample(&vec![UString::from("a").to_ustring(), UString::from("b").to_ustring()], None)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(7i32, i32::from_ne_bytes(((DefaultArgsOps::default_args_ops_field_access_sample(&vec![UString::from("a").to_ustring(), UString::from("b").to_ustring()], Some(7))) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_conditional() {
+    testlib::run("tests.DefaultArgsTests.testConditional", "tests.DefaultArgsTests.testConditional: conditional over a parameter", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[69,110,103,108,105,115,104]), DefaultArgsOps::default_args_ops_locale_sample(UStr::new(&[101,110]), None.clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,114,101,110,99,104]), DefaultArgsOps::default_args_ops_locale_sample(UStr::new(&[102,114]), Some(UString::from("french"))).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_call_and_binary_defaults() {
+    testlib::run("tests.DefaultArgsTests.testCallAndBinaryDefaults", "tests.DefaultArgsTests.testCallAndBinaryDefaults: instance method call, static call, and binary operator defaults", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[72,69,76,76,79]), DefaultArgsOps::default_args_ops_method_call_sample(UStr::new(&[104,101,108,108,111]), None.clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(7i32, i32::from_ne_bytes(((DefaultArgsOps::default_args_ops_static_call_sample(7, None)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(8i32, i32::from_ne_bytes(((DefaultArgsOps::default_args_ops_binary_sample(7, None)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_static_field_read() {
+    testlib::run("tests.DefaultArgsTests.testStaticFieldRead", "tests.DefaultArgsTests.testStaticFieldRead: static-field read", || {
+        test_core::TestCore::test_core_equals_int(4097i32, i32::from_ne_bytes(((DefaultArgsOps::default_args_ops_static_field_sample(1, None)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(6i32, i32::from_ne_bytes(((DefaultArgsOps::default_args_ops_static_field_sample(5, Some(1))) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_dependence() {
+    testlib::run("tests.DefaultArgsTests.testDependence", "tests.DefaultArgsTests.testDependence: dependence assertion: different earlier arguments resolve differently", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,108,112,104,97]), DefaultArgsOps::default_args_ops_call_dependence_a().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98,101,116,97]), DefaultArgsOps::default_args_ops_call_dependence_b().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_chained_coalescing() {
+    testlib::run("tests.DefaultArgsTests.testChainedCoalescing", "tests.DefaultArgsTests.testChainedCoalescing: chain with both parameters omitted resolves through the earlier default", || {
+        test_core::TestCore::test_core_equals_float(5.0f64, DefaultArgsOps::default_args_ops_call_chained_both_omitted(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(7.0f64, DefaultArgsOps::default_args_ops_call_chained_later_omitted(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(9.5f64, DefaultArgsOps::default_args_ops_call_chained_both_given(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_chained_paint() {
+    testlib::run("tests.DefaultArgsTests.testChainedPaint", "tests.DefaultArgsTests.testChainedPaint: constructor chain defaults the later field to the earlier parameter", || {
+        let both = ChainedPaint::new(Some(0.0), Some(0.0));
+        test_core::TestCore::test_core_equals_float(0.0f64, both.radius, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(0.0f64, both.follow_radius, UStr::new(&[]));
+        let given = ChainedPaint::new(Some(4.5f64), Some(4.5f64));
+        test_core::TestCore::test_core_equals_float(4.5f64, given.radius, UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(4.5f64, given.follow_radius, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_coalescing_preset() {
+    testlib::run("tests.DefaultArgsTests.testCoalescingPreset", "tests.DefaultArgsTests.testCoalescingPreset: zero-argument self-construction on a field-carrying class keeps the labeled printed form", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[67,111,97,108,101,115,99,105,110,103,80,114,101,115,101,116,40,98,97,115,101,61,48,46,49,50,53,44,32,99,101,105,108,105,110,103,61,48,46,53,41]), (UString::from(format!("{}", (*crate::boring::default_args_ops::COALESCING_PRESET_DEFAULT).clone().to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[67,111,97,108,101,115,99,105,110,103,80,114,101,115,101,116,40,98,97,115,101,61,48,46,49,50,53,44,32,99,101,105,108,105,110,103,61,48,46,53,41]), (UString::from(format!("{}", (*crate::boring::default_args_ops::COALESCING_PRESET_DEFAULT).clone().to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[67,111,97,108,101,115,99,105,110,103,80,114,101,115,101,116,40,98,97,115,101,61,48,46,50,53,44,32,99,101,105,108,105,110,103,61,48,46,55,53,41]), (UString::from(format!("{}", CoalescingPreset::new(Some(0.25f64), Some(0.75f64)).to_string()).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn ctor_default_leaf_freshness() {
+    testlib::run("tests.DefaultArgsTests.ctorDefaultLeafFreshness", "tests.DefaultArgsTests.ctorDefaultLeafFreshness: constructor default leaf builds a fresh instance per omitting call", || {
+        let mut first = CtorDefaultHolder::new(Some(CtorDefaultBadge::new(UStr::new(&[102,114,101,115,104]))));
+        let second = CtorDefaultHolder::new(Some(CtorDefaultBadge::new(UStr::new(&[102,114,101,115,104]))));
+        first.badge.tag = UString::from("mutated").to_ustring();
+        test_core::TestCore::test_core_equals_string(UStr::new(&[109,117,116,97,116,101,100]), (first.badge.tag).to_ustring().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,114,101,115,104]), (second.badge.tag).to_ustring().as_ustr(), UStr::new(&[]));
+        let given = CtorDefaultHolder::new(Some(CtorDefaultBadge::new(&(UStr::new(&[103,105,118,101,110])))));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[103,105,118,101,110]), (given.badge.tag).to_ustring().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn kotlin_hard_keyword_identifiers() {
+    testlib::run("tests.DefaultArgsTests.kotlinHardKeywordIdentifiers", "tests.DefaultArgsTests.kotlinHardKeywordIdentifiers: kotlin hard keyword identifiers survive every target", || {
+        test_core::TestCore::test_core_equals_int(5i32, i32::from_ne_bytes(((KeywordNameOps::keyword_name_ops_clamp_val(0, 5, 10)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(10i32, i32::from_ne_bytes(((KeywordNameOps::keyword_name_ops_clamp_val(99, 5, 10)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(7i32, i32::from_ne_bytes(((KeywordNameOps::keyword_name_ops_clamp_val(7, 5, 10)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(8i32, i32::from_ne_bytes(((KeywordNameOps::keyword_name_ops_local_keyword_read()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn ctor_param_read_default() {
+    testlib::run("tests.DefaultArgsTests.ctorParamReadDefault", "tests.DefaultArgsTests.ctorParamReadDefault: constructor coalescing default reading an earlier parameter resolves at the call site", || {
+        let bopomofo = ParamReadSpan::new(ParamReadKind::Bopomofo, if ParamReadKind::Bopomofo == ParamReadKind::Bopomofo { Some(UString::from("zh-TW")) } else { None });
+        assert_equals_opt_string(&Some(UString::from("zh-TW")), &bopomofo.locale, UStr::new(&[]));
+        let pinyin = ParamReadSpan::new(ParamReadKind::Pinyin, if ParamReadKind::Pinyin == ParamReadKind::Bopomofo { Some(UString::from("zh-TW")) } else { None });
+        assert_equals_opt_string(&None::<UString>, &pinyin.locale, UStr::new(&[]));
+        let given = ParamReadSpan::new(ParamReadKind::Pinyin, Some(UString::from("zh-Latn")));
+        assert_equals_opt_string(&Some(UString::from("zh-Latn")), &given.locale, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn ctor_static_call_param_read_default() {
+    testlib::run("tests.DefaultArgsTests.ctorStaticCallParamReadDefault", "tests.DefaultArgsTests.ctorStaticCallParamReadDefault: constructor coalescing default calling a static helper with an earlier parameter", || {
+        let bopo = RegionProfile::new(ParamReadKind::Bopomofo, Some(GluePlacements::glue_placements_for_region(ParamReadKind::Bopomofo)));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[98,111,112,111]), (bopo.glue_placement).to_ustring().as_ustr(), UStr::new(&[]));
+        let pinyin = RegionProfile::new(ParamReadKind::Pinyin, Some(GluePlacements::glue_placements_for_region(ParamReadKind::Pinyin)));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[112,105,110,121,105,110]), (pinyin.glue_placement).to_ustring().as_ustr(), UStr::new(&[]));
+        let given = RegionProfile::new(ParamReadKind::Pinyin, Some(UString::from("custom")));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[99,117,115,116,111,109]), (given.glue_placement).to_ustring().as_ustr(), UStr::new(&[]));
+    });
+}

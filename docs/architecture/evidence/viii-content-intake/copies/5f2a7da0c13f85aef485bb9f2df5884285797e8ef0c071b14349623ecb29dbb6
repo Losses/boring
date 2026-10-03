@@ -1,0 +1,9 @@
+# Type-level probe: FIXED render texts (POS) vs PRE-FIX render texts (NC/NC2),
+# compiled against the real generated Runtime.swift (sha256 7cf0517b…) of the
+# coord execution root, with the raw-store swiftc shim.
+sys=/nix/store/0svbxvdamgqh4jdlnp48yvyn4v6cvfpk-boring-swift-system-1.6.6
+RT=/tmp/swiftarr/execroot/reference/swift/gen/Runtime.swift
+PATH=/tmp/swiftarr/bin:$PATH SWIFT_SHIM_STATE=/tmp/swiftarr/shim-state-tp \
+  swiftc -emit-library -emit-module -I "$sys" "$RT" POS.swift -swift-version 5 -module-name Probe -o libPOS.so
+# -> rc=0
+# same for NC.swift and NC2.swift -> rc=1, error family identical to VectorCodec.swift:49

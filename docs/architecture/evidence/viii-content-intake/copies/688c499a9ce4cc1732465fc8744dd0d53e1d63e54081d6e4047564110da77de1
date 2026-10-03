@@ -1,0 +1,28 @@
+#[derive(Clone, Copy)]
+pub struct IntDivisionOps;
+
+impl IntDivisionOps {
+    pub fn int_division_ops_quotient(numerator: u32, denominator: u32) -> f32 {
+        return format!("{}", (i32::from_ne_bytes(((numerator) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0) / format!("{}", (i32::from_ne_bytes(((denominator) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0) as f32;
+    }
+
+    pub fn int_division_ops_offset(width: u32, index: u32, span: u32) -> f32 {
+        return format!("{}", (i32::from_ne_bytes(((u32::wrapping_mul(width, index)) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0) / format!("{}", (i32::from_ne_bytes(((span) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0) as f32;
+    }
+
+    pub fn int_division_ops_scaled(width: u32, index: u32, span: u32, bias: f32) -> f32 {
+        return (format!("{}", (i32::from_ne_bytes(((u32::wrapping_mul(width, index)) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0) / format!("{}", (i32::from_ne_bytes(((span) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0)) * 2.0f32 + bias;
+    }
+
+    pub fn int_division_ops_truncated(numerator: u32, denominator: u32) -> u32 {
+        return u32::from_ne_bytes(((match f64::from(format!("{}", (i32::from_ne_bytes(((numerator) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0) / format!("{}", (i32::from_ne_bytes(((denominator) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0)) { v if v.is_nan() => 0i32, v if v >= 2147483648.0 => 2147483647i32, v if v < -2147483648.0 => -2147483648i32, v if v < 0.0 => i32::from_ne_bytes(u32::wrapping_sub(0, match ((0.0 - v).to_bits() >> 52) & 2047 { e if e < 1023 => 0u32, e => u32::try_from((((0.0 - v).to_bits() & 4503599627370495) | 4503599627370496) >> (52 - (e - 1023))).unwrap_or(0) }).to_ne_bytes()), v => i32::from_ne_bytes(match ((v).to_bits() >> 52) & 2047 { e if e < 1023 => 0u32, e => u32::try_from((((v).to_bits() & 4503599627370495) | 4503599627370496) >> (52 - (e - 1023))).unwrap_or(0) }.to_ne_bytes()) }) as u32).to_ne_bytes());
+    }
+
+    pub fn int_division_ops_remainder(numerator: u32, denominator: u32) -> u32 {
+        return u32::from_ne_bytes(((i32::from_ne_bytes(((numerator) as i32).to_ne_bytes()) % i32::from_ne_bytes(((denominator) as i32).to_ne_bytes())) as u32).to_ne_bytes());
+    }
+
+    pub fn int_division_ops_floored(numerator: u32, denominator: u32) -> f32 {
+        return i32::from_ne_bytes(((u32::from_ne_bytes(((match f64::from(f32::floor(format!("{}", (i32::from_ne_bytes(((numerator) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0) / format!("{}", (i32::from_ne_bytes(((denominator) as i32).to_ne_bytes()))).parse::<f32>().unwrap_or(0.0) as f32)) { v if v.is_nan() => 0i32, v if v >= 2147483648.0 => 2147483647i32, v if v < -2147483648.0 => -2147483648i32, v if v < 0.0 => i32::from_ne_bytes(u32::wrapping_sub(0, match ((0.0 - v).to_bits() >> 52) & 2047 { e if e < 1023 => 0u32, e => u32::try_from((((0.0 - v).to_bits() & 4503599627370495) | 4503599627370496) >> (52 - (e - 1023))).unwrap_or(0) }).to_ne_bytes()), v => i32::from_ne_bytes(match ((v).to_bits() >> 52) & 2047 { e if e < 1023 => 0u32, e => u32::try_from((((v).to_bits() & 4503599627370495) | 4503599627370496) >> (52 - (e - 1023))).unwrap_or(0) }.to_ne_bytes()) }) as u32).to_ne_bytes())) as i32).to_ne_bytes()) as f32;
+    }
+}

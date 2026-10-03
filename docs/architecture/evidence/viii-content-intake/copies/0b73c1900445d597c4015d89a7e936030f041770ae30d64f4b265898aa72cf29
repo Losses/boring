@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-regression-fix
+argv diff -u /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-regression-fix/tests/haxe/try-tail-min/expected.txt /home/losses/Development/tq-workspace/dc-warn/out/rust-regression-fix/postfix-try-tail-min/run-rust/stdout

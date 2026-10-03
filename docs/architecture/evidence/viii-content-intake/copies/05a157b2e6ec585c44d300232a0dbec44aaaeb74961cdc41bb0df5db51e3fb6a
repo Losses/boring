@@ -1,0 +1,25 @@
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct PrivateClassOps;
+
+impl PrivateClassOps {
+    pub fn private_class_ops_resolve() -> UString {
+        return ((ResolutionOne::new(&(UStr::new(&[102,105,114,115,116]))).value).to_ustring()).clone();
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct ResolutionOne {
+    pub value: UString,
+}
+
+impl ResolutionOne {
+    pub fn new(value: &UStr) -> Self {
+        Self {
+            value: value.to_ustring(),
+        }
+    }
+}

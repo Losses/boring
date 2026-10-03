@@ -1,0 +1,45 @@
+package boring
+
+import boring.runtime.BytesBuffer
+import boring.runtime.FPHelper
+
+class BinaryWriter {
+    val buffer: BytesBuffer
+    init {
+    this.buffer = BytesBuffer()
+    }
+
+    fun writeU16(value: Int) {
+        this.buffer.addByte(((((value) ushr (8))) and (255)))
+        this.buffer.addByte(((value) and (255)))
+    }
+
+    fun writeU32(value: Int) {
+        this.buffer.addByte(((((value) ushr (24))) and (255)))
+        this.buffer.addByte(((((value) ushr (16))) and (255)))
+        this.buffer.addByte(((((value) ushr (8))) and (255)))
+        this.buffer.addByte(((value) and (255)))
+    }
+
+    fun writeF64(value: Float) {
+        val bits = FPHelper.f32ToI64(value)
+        this.writeU32(bits.high)
+        this.writeU32(bits.low)
+    }
+
+    fun writeF32(value: Float) {
+        this.writeU32(Fp32.toBits(value))
+    }
+
+    fun writeF16(value: Float) {
+        this.writeU16(Fp16.f32ToF16Bits(Fp32.toBits(value)))
+    }
+
+    fun writeAscii(value: String) {
+        this.buffer.add(value.toByteArray(Charsets.UTF_8))
+    }
+
+    fun finish(): ByteArray {
+        return this.buffer.getBytes()
+    }
+}

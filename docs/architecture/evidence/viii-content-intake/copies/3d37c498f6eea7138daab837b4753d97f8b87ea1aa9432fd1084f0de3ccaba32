@@ -1,0 +1,8 @@
+DEDUP ok:false
+DEDUP child state:Complete fields:1
+DEDUP pair state:Complete fields:1
+LIMITED field child state:Complete
+LIMITED field pair state:AnalysisUnresolved(comparison graph exceeded the requested analysis work limit)
+LIMITED allNestedComplete:false sawNested:true
+CONTROL concrete dedup:true
+run.sh verdict: FAIL

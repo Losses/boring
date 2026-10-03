@@ -1,0 +1,21 @@
+package tests
+
+import boring.NilContextOps
+import boring.runtime.test.Test
+
+class NilContextTests {
+@boring.test.Test
+    fun testConditional() {
+        Test.run("tests.NilContextTests.testConditional", "tests.NilContextTests.testConditional: conditional nil retains its optional payload") {
+                Test.equals("present", NilContextOps.conditional(true), null)
+                Test.equals(null, NilContextOps.conditional(false), null)
+        }
+    }
+
+@boring.test.Test
+    fun testArgument() {
+        Test.run("tests.NilContextTests.testArgument", "tests.NilContextTests.testArgument: synthesized optional argument nil is typed") {
+                Test.equals("empty", NilContextOps.nullArgument(), null)
+        }
+    }
+}

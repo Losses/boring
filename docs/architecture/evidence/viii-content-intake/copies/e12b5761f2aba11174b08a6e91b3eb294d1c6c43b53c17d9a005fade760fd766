@@ -1,0 +1,30 @@
+#![cfg(test)]
+
+use crate::boring::fp16::Fp16;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn widen() {
+    testlib::run("tests.Fp16Tests.widen", "tests.Fp16Tests.widen: binary16 patterns widen to exact binary32 bits", || {
+        test_core::TestCore::test_core_equals_int(1056964608i32, i32::from_ne_bytes(((Fp16::fp16_f16_to_f32_bits(14336)) as i32).to_ne_bytes()), UStr::new(&[48,120,51,56,48,48,32,119,105,100,101,110,115,32,116,111,32,48,46,53]));
+        test_core::TestCore::test_core_equals_int(-1101004800i32, i32::from_ne_bytes(((Fp16::fp16_f16_to_f32_bits(45824)) as i32).to_ne_bytes()), UStr::new(&[48,120,66,51,48,48,32,119,105,100,101,110,115,32,116,111,32,45,48,46,50,49,56,55,53]));
+        test_core::TestCore::test_core_equals_int(947896320i32, i32::from_ne_bytes(((Fp16::fp16_f16_to_f32_bits(1023)) as i32).to_ne_bytes()), UStr::new(&[48,120,48,51,70,70,32,119,105,100,101,110,115,32,116,111,32,49,48,50,51,42,50,94,45,50,52]));
+        test_core::TestCore::test_core_equals_int(864026624i32, i32::from_ne_bytes(((Fp16::fp16_f16_to_f32_bits(1)) as i32).to_ne_bytes()), UStr::new(&[48,120,48,48,48,49,32,119,105,100,101,110,115,32,116,111,32,50,94,45,50,52]));
+        test_core::TestCore::test_core_equals_int(2139095040i32, i32::from_ne_bytes(((Fp16::fp16_f16_to_f32_bits(31744)) as i32).to_ne_bytes()), UStr::new(&[48,120,55,67,48,48,32,119,105,100,101,110,115,32,116,111,32,105,110,102,105,110,105,116,121]));
+    });
+}
+
+#[test]
+fn narrow() {
+    testlib::run("tests.Fp16Tests.narrow", "tests.Fp16Tests.narrow: binary32 patterns narrow with round-to-nearest-even", || {
+        test_core::TestCore::test_core_equals_int(14336i32, i32::from_ne_bytes(((Fp16::fp16_f32_to_f16_bits(1056964608)) as i32).to_ne_bytes()), UStr::new(&[48,46,53,32,110,97,114,114,111,119,115,32,116,111,32,48,120,51,56,48,48]));
+        test_core::TestCore::test_core_equals_int(31736i32, i32::from_ne_bytes(((Fp16::fp16_f32_to_f16_bits(1199505408)) as i32).to_ne_bytes()), UStr::new(&[54,53,50,56,48,32,110,97,114,114,111,119,115,32,116,111,32,48,120,55,66,70,56]));
+        test_core::TestCore::test_core_equals_int(31743i32, i32::from_ne_bytes(((Fp16::fp16_f32_to_f16_bits(1199562752)) as i32).to_ne_bytes()), UStr::new(&[54,53,53,48,52,32,110,97,114,114,111,119,115,32,116,111,32,116,104,101,32,108,97,114,103,101,115,116,32,102,105,110,105,116,101,32,48,120,55,66,70,70]));
+        test_core::TestCore::test_core_equals_int(31744i32, i32::from_ne_bytes(((Fp16::fp16_f32_to_f16_bits(1199568896)) as i32).to_ne_bytes()), UStr::new(&[116,104,101,32,54,53,53,50,48,32,116,105,101,32,110,97,114,114,111,119,115,32,116,111,32,105,110,102,105,110,105,116,121]));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((Fp16::fp16_f32_to_f16_bits(855638016)) as i32).to_ne_bytes()), UStr::new(&[50,94,45,50,53,32,116,105,101,115,32,116,111,32,122,101,114,111]));
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((Fp16::fp16_f32_to_f16_bits(859832320)) as i32).to_ne_bytes()), UStr::new(&[49,46,53,42,50,94,45,50,53,32,114,111,117,110,100,115,32,117,112,32,116,111,32,116,104,101,32,115,109,97,108,108,101,115,116,32,115,117,98,110,111,114,109,97,108]));
+    });
+}

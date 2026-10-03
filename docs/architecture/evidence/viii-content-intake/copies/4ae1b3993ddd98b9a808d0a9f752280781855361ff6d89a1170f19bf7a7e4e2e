@@ -1,0 +1,29 @@
+package mx;
+
+import std.ReadOnlyArray;
+import mx.MXSupport.QChoice;
+import mx.MXSupport.QError;
+import mx.MXSupport.QSource;
+
+/**
+	Probe for the `switchExpression` / sw.t route named as unsettled: an
+	initializer-position switch inside a multi-statement lambda body. Its
+	destination is passed explicitly as sw.t, so reseeding currentReturnType
+	to f.t must not change the emitted text.
+**/
+class MXSwitchInit {
+	public static function pInitSwitch(c:QChoice):Int {
+		var f = function(c:QChoice):ReadOnlyArray<Int> {
+			var marker:Int = QSource.view(QSource.first());
+			final v:ReadOnlyArray<Int> = switch (c) {
+				case QOne: QSource.first();
+				case QTwo: QSource.second();
+			}
+			if (marker < 0) {
+				throw new QError();
+			}
+			return v;
+		}
+		return QSource.view(f(c));
+	}
+}

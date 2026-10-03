@@ -1,0 +1,82 @@
+package boring
+
+import boring.runtime.UString
+import std.UStringException
+
+object UStringOps {
+    fun asciiCount(): Int {
+        return UString.count("tiqian")
+    }
+
+    fun bmpCount(): Int {
+        return UString.count("提椠排版")
+    }
+
+    fun supplementaryCount(): Int {
+        return UString.count("𠀀一𠀁")
+    }
+
+    fun codeAt(text: String, index: Int): Int? {
+        return UString.at(text, index)
+    }
+
+    fun middleSlice(text: String): String {
+        return UString.slice(text, 1, 3)
+    }
+
+    fun clampedSlice(text: String): String {
+        return UString.slice(text, -2, 99)
+    }
+
+    fun reversedText(text: String): String {
+        val codes = UString.toCodePoints(text)
+        val reversed = mutableListOf<Int>()
+        for (index in 0 until codes.size) {
+            reversed.add(codes[codes.size - 1 - index])
+        }
+        for (code in reversed) {
+            if ((code < 0 || code > 1114111 || code >= 55296 && code <= 57343)) {
+                throw UStringException.InvalidCodePoint(code)
+            }
+        }
+        return UString.fromCodePoints(reversed)
+    }
+
+    fun roundTrip(text: String): String {
+        val codes = UString.toCodePoints(text)
+        for (code in codes) {
+            if ((code < 0 || code > 1114111 || code >= 55296 && code <= 57343)) {
+                throw UStringException.InvalidCodePoint(code)
+            }
+        }
+        return UString.fromCodePoints(codes)
+    }
+
+    fun substringRange(text: String, from: Int, to: Int): String {
+        return run { val _s = text; val _from = from; val _to = to; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+    }
+
+    fun substringFrom(text: String, from: Int): String {
+        return run { val _s = text; val _from = from; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; _s.substring(_start) }
+    }
+
+    fun substringLiteral(): String {
+        return run { val _s = "tiqian"; val _from = 1; val _to = 3; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+    }
+
+    fun substringNegativeStart(): String {
+        return run { val _s = "abcdef"; val _from = -2; val _to = 3; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+    }
+
+    fun substringLongEnd(): String {
+        return run { val _s = "abcdef"; val _from = 2; val _to = 20; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+    }
+
+    fun substringSwappedBounds(): String {
+        return run { val _s = "abcdef"; val _from = 5; val _to = 2; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; val _end = if (_to < 0) 0 else if (_to > _s.length) _s.length else _to; if (_start > _end) _s.substring(_end, _start) else _s.substring(_start, _end) }
+    }
+
+    fun substringOmittedEnd(): String {
+        return run { val _s = "abcdef"; val _from = -3; val _start = if (_from < 0) 0 else if (_from > _s.length) _s.length else _from; _s.substring(_start) }
+    }
+}

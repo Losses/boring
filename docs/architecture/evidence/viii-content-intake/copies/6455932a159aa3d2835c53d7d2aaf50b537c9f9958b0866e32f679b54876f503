@@ -1,0 +1,26 @@
+package tests
+
+import boring.runtime.test.Test
+
+class ExceptionTypeOpsTests {
+@boring.test.Test
+    fun testHasCause() {
+        Test.run("tests.ExceptionTypeOpsTests.testHasCause", "tests.ExceptionTypeOpsTests.testHasCause: a base-typed exception instance is non-null") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testNilArgument() {
+        Test.run("tests.ExceptionTypeOpsTests.testNilArgument", "tests.ExceptionTypeOpsTests.testNilArgument: a nil base exception argument resolves against the parameter") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testMissingCause() {
+        Test.run("tests.ExceptionTypeOpsTests.testMissingCause", "tests.ExceptionTypeOpsTests.testMissingCause: a missing base exception ranks against null") {
+                Test.equals(true, true, null)
+        }
+    }
+}

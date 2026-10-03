@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class NarrowedSortedReceiverOpsTests {
+@boring.test.Test
+    fun testNarrowedReceiver() {
+        Test.run("tests.NarrowedSortedReceiverOpsTests.testNarrowedReceiver", "tests.NarrowedSortedReceiverOpsTests.testNarrowedReceiver: a nullable sorted receiver keeps the null-coalescing binding") {
+                Test.equals(true, true, null)
+        }
+    }
+}

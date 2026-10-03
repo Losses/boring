@@ -1,0 +1,3 @@
+FAIL: allowlist: exempt[3].module tests.EarlyReturnTests: reason is too short to be an exemption sentence (1 word(s): "todo"); need >= 4 words
+roots guard: FAILED
+exit_code=1

@@ -1,0 +1,7 @@
+package boring
+
+object DartEmptyArrayFixOps {
+    fun emptyArrayArgument(): Int {
+        return 0
+    }
+}

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix2
+argv diff -u /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix2/tests/haxe/dc-null-guard-fallthrough/expected.txt /home/losses/Development/tq-workspace/dc-warn/out/dart-fix2/prefix-20260929T202100Z/stages/dart-run-corrected/stdout

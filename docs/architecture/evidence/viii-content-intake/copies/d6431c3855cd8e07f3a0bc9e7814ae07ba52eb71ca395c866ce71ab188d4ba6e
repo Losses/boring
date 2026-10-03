@@ -1,0 +1,16 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/package-shell.test.ts:
+(pass) package shell emission > default emission writes package.json and the tree runs standalone [32935.48ms]
+(pass) package shell emission > identity defines flow into the manifest [31085.51ms]
+(pass) package shell emission > package-shell=none writes source only [29862.52ms]
+(pass) package shell emission > an invalid package-shell value aborts the compile [29536.53ms]
+(pass) package shell emission > a by-name runtime import with an emitted manifest aborts the compile [29357.53ms]
+(pass) package shell emission > the Swift, Kotlin, and Rust manifests of the reference trees are pinned [1.00ms]
+
+ 6 pass
+ 0 fail
+ 30 expect() calls
+Ran 6 tests across 1 file. [152.89s]
+bun test exit: 0
+Test.equals after verify: 0

@@ -1,0 +1,41 @@
+#[derive(Clone, PartialEq)]
+pub struct IterItem {
+    pub index: u32,
+}
+
+impl IterItem {
+    pub fn new(index: u32) -> Self {
+        Self {
+            index,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct IterPrep {
+    pub items: Vec<IterItem>,
+}
+
+impl IterPrep {
+    pub fn new(items: Vec<IterItem>) -> Self {
+        Self {
+            items,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct RustIterOps;
+
+impl RustIterOps {
+    pub fn rust_iter_ops_sum_items(prep: IterPrep) -> u32 {
+        let mut total = 0u32;
+        {
+            let _g1 = prep.items.clone();
+            for item in &_g1 {
+                total = u32::wrapping_add(total, item.index);
+            }
+        }
+        return total;
+    }
+}

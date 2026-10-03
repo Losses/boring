@@ -1,0 +1,7 @@
+--- tests/haxe/charcodeat/expected.txt	2026-09-29 17:34:05.000000000 -0400
++++ /home/losses/Development/tq-workspace/dc-warn/out/charcodeat-xcheck/xatt-20260929T213557Z/stages/run-kotlin/stdout	2026-09-29 17:40:48.000000000 -0400
+@@ -3,4 +3,3 @@
+ subNeg=abc
+ codeNull=null
+ codeNeg=null
+-codeInt=null

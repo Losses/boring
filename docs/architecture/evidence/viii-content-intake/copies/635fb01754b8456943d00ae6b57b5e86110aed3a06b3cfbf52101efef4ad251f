@@ -1,0 +1,11 @@
+package boring;
+
+class NegC3Oracle {
+    public static function main():Void {
+        #if !swift_output
+        trace("switch-assign-nocross=" + NegC3Ops.switchAssignNoCross(true));
+        #else
+        NegC3Ops.switchAssignNoCross(true);
+        #end
+    }
+}

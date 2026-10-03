@@ -1,0 +1,11 @@
+DEDUP ok:false
+DEDUP child state:Complete fields:1
+DEDUP pair state:Complete fields:1
+LIMITED field child state:Complete
+LIMITED field pair state:AnalysisUnresolved(comparison graph exceeded the requested analysis work limit)
+LIMITED allNestedComplete:false sawNested:true
+CONTROL concrete dedup:true
+probe main reached, trigger=true
+CHECK-FAIL: dedup not ok:true
+CHECK-FAIL: maxRecordNodes=2 nested not all Complete
+run.sh verdict: FAIL

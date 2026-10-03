@@ -1,0 +1,139 @@
+# Coordination-tree commit-readiness audit (boring-wt-architecture)
+
+Date: 2026-09-29 · Mode: read-only audit · No git mutation performed.
+Tree: branch `arch/agent-guided-governance`, HEAD `e1c65975` (matches expectation).
+
+## 1. Status snapshot
+
+`git status --porcelain` — nothing staged; `git diff --cached --summary` empty.
+No mode-change pseudo-diffs (`git diff --summary` output is empty).
+
+### A. This integration's changes (in-scope, should be committed)
+
+| Path | numstat | Kind |
+| --- | --- | --- |
+| packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx | +24 −2 | fix (Dart null lifting), integrated at `fee42ecb…` |
+| packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx | +45 −0 | fix (Rust fault variants), `24f79c27…` |
+| packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx | +34 −0 | fix, `985b5ad7…` |
+| packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx | +7 −0 | fix, `2f2119d8…` |
+| packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx | +11 −1 | fix, `cb18968c…` |
+| packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx | +6 −0 | fix (Swift runtime dep), `0210d207…` |
+| tests/haxe/dc-null-guard-fallthrough/ (6 files) | new | fixture |
+| tests/haxe/try-tail/ (14 files) | new | fixture |
+| tests/haxe/try-tail-min/ (4 files) | new | fixture |
+| tests/haxe/swift-rt-probe/ (5 files) | new | fixture |
+| tests/haxe/swift-rt-plain/ (5 files) | new | fixture |
+| docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md | new | doc (untracked) |
+
+No unexpected adds/deletes: the untracked set is exactly the five fixtures +
+runbook + stage-check-control.sh. Nothing outside this list is missing.
+
+### B. Pre-existing third-party in-flight changes (must NOT be swept in)
+
+| Path | State | Note |
+| --- | --- | --- |
+| docs/investigations/architecture-round-1/d-observation.md | modified (+3 −2) | someone else's edit; `git diff --check` flags "new blank line at EOF" at L74 — theirs to fix |
+| tests/support/stage-check.sh | modified (+22 −3) | adds optional `strict` 4th-arg mode — someone else's in-flight work |
+| tests/support/stage-check-control.sh | untracked, mode 600 | companion to stage-check.sh strict mode; **currently 600, not 755** |
+| p09-…-runbook.md | untracked | provenance doc; may be committed separately (see §5) — coordinate with its author (third parallel slot) |
+
+`out/` is ignored (confirmed via `git status --ignored=matching`: `out/` listed
+as `!!`), so run artifacts cannot leak in. No `__pycache__`, `.rej`, `.orig`, or
+temp logs found under tests/ or docs/.
+
+## 2. Commitability checks
+
+- Mode pseudo-diffs: none.
+- Exec bits (`stat -c %a`):
+  - `tests/support/stage-check-control.sh` = **600 → MUST chmod 755 before `git add`** (fuse copies lose the bit; this project has hit this 3×).
+  - All fixture scripts are 755: `dc-null-guard-fallthrough/{dcguard,gen,native,run.sh}`, `try-tail/{gen,native,run-stages.sh,trytail}`, `try-tail-min/{gen,native,trytailmin}`, `swift-rt-probe/{gen,native,probe,run-stages.sh}`, `swift-rt-plain/{gen,native,plain,run-stages.sh}`. Good.
+- Runtime artifacts: none inside fixtures; `out/` ignored.
+- Line endings: no CRLF in any new file (verified by literal `\r` grep over all new files + `git diff --check`).
+- Leading-space pollution: the 28 indented lines in the runbook are legitimate
+  markdown list-continuation indents (3-space under `1.`, 2-space under `-`),
+  checked with `cat -A` — not stray leading whitespace. The known
+  leading-space incident does **not** recur in this tree. The only
+  whitespace defect (`git diff --check`) is in **someone else's**
+  `d-observation.md`, not ours.
+
+## 3. Fixture integrity
+
+File counts: dc-null-guard-fallthrough 6, try-tail 14, try-tail-min 4,
+swift-rt-probe 5, swift-rt-plain 5 (34 files total). Per-file sha256:
+
+- dc-null-guard-fallthrough:
+  `cccc28b5…` dcguard/DcGuard.hx · `ff5c1565…` expected.txt · `42b8674e…` gen/dart.hxml · `e20c4acb…` gen/kotlin.hxml · `b9093c04…` native/main.dart · `c2af31d3…` run.sh
+- try-tail:
+  `8a8f6ba2…` expected.txt · `8c4b46c9…` gen/dart.hxml · `ceda6ccf…` gen/kotlin.hxml · `7152a1ef…` gen/rust.hxml · `e90d70ec…` gen/swift.hxml · `9cb05547…` gen/ts.hxml · `972c7b2a…` native/harness.rs · `9db4b36f…` native/main.dart · `8c04416…` native/main.js · `24207d84…` native/Main.kt · `41a9d947…` native/native-main.swift · `c3a539a5…` oracle.hxml · `4c16c218…` run-stages.sh · `5a237fa6…` trytail/TryTailOracle.hx
+- try-tail-min:
+  `d5e79b0a…` expected.txt · `354c7184…` gen/rust.hxml · `e43aedd3…` native/harness.rs · `1f1d1765…` trytailmin/MinOracle.hx
+- swift-rt-probe:
+  `a6802210…` expected.txt · `6e678b29…` gen/swift.hxml · `02156340…` native/native-main.swift · `fa42ce5e…` probe/Probe.hx · `5762ed8c…` run-stages.sh
+- swift-rt-plain:
+  `8c0ea943…` expected.txt · `e0d64be6…` gen/swift.hxml · `0892e234…` native/native-main.swift · `d335c346…` plain/Plain.hx · `5762ed8c…` run-stages.sh (identical to probe's — intentional shared harness)
+
+Scripts present and executable: `try-tail/run-stages.sh` ✓, `swift-rt-probe/run-stages.sh` ✓, `swift-rt-plain/run-stages.sh` ✓.
+
+### Hardcoded-path grep (`/home/losses`, `dc-warn`, `boring-wt`)
+
+| Hit | Verdict |
+| --- | --- |
+| `dc-null-guard-fallthrough/run.sh:6` comment mentioning `dc-warn/out/dart-fix2/` | acceptable: comment only |
+| `run.sh:14-15`: `WS="$(cd "$ROOT/../../.." && pwd)"`; `EV_PARENT="$WS/dc-warn/out/dart-fix2"` | acceptable: workspace root is derived relative to script location, no absolute path baked in; `dc-warn` is a fixed workspace-relative convention, same as `out/` usage |
+| `try-tail/native/main.dart:3` comment about fuse mount | acceptable: comment only |
+| runbook mentions of `dc-warn/…`, `/home/losses/Development/tq-workspace/…` (L20,51,66,83,192,202) | acceptable: it is a provenance/runbook doc whose whole point is recording concrete paths of this workspace |
+
+No fixture contains a machine-absolute path in executable logic. No blocker.
+
+## 4. Pre-commit action list
+
+### Must do first
+
+1. **`chmod 755 tests/support/stage-check-control.sh`** — it is 600; committing it as-is ships a non-executable control script. (If it belongs to the other worker's strict-mode change, tell them — do not fix silently in this tree.) Verify: `stat -c %a tests/support/stage-check-control.sh`.
+2. **Do NOT use `git add -A` / `git add .`** — that would sweep in the third-party in-flight items `d-observation.md`, `stage-check.sh`, and `stage-check-control.sh`. Stage by explicit path (see §5 commands). Confirm with `git diff --cached --name-only` before each commit.
+3. **Leave `d-observation.md` and `stage-check.sh` unstaged entirely.** Their edits (+3 −2 and +22 −3) are another worker's strict-mode workstream; `git diff --check` even flags a blank-line-at-EOF in `d-observation.md`, i.e. that edit is not even clean.
+
+### Recommended
+
+4. Commit the runbook separately (or confirm with the third slot whether it belongs to their workstream) — it is provenance for the fixed-matrix prep, not part of the three fixes.
+5. After staging, re-run `git diff --cached --check` and `git diff --cached --summary` (catch mode/whitespace surprises at staging time).
+6. Optionally re-run one fixture (e.g. `bash tests/haxe/swift-rt-plain/run-stages.sh`) as a smoke check immediately before committing — cheap insurance that the tree you commit is the tree you validated.
+
+### Can ignore
+
+7. The `dc-warn` mentions inside fixtures and runbook — all comments/docs/derived paths, no action.
+8. `out/` and other ignored dirs — confirmed ignored, cannot leak.
+
+## 5. Suggested commit split (4 commits)
+
+1. **Dart fix** — paths: `packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx`
+   `fix(dart): preserve null semantics in dangling-else / guard fallthrough lifting (fee42ecb)`
+   Why: independent target fix; bisectable on its own.
+2. **Rust fix** — paths: `packages/compiler/reflaxe/rust/rustcompiler/{Compiler.hx,RustDecl.hx,RustEmissionState.hx,RustExpr.hx}`
+   `fix(rust): model fault variants in decl/emission state (24f79c27, 985b5ad7, 2f2119d8, cb18968c)`
+   Why: four files of one logical fix, keep together.
+3. **Swift fix** — paths: `packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx`
+   `fix(swift): emit runtime dependency for decl-emitted types (0210d207)`
+   Why: separate target, separate revert unit.
+4. **Fixtures** — paths: `tests/haxe/{dc-null-guard-fallthrough,try-tail,try-tail-min,swift-rt-probe,swift-rt-plain}`
+   `test(haxe): add dc-null-guard fallthrough, try-tail, and swift runtime-probe fixtures`
+   Why: fixtures regress all three fixes but have no runtime effect; one commit keeps their shared run-stages harness atomic. (Could alternatively split 3 fixture commits matching each fix — acceptable, but the shared harness favors one.)
+5. *(optional, coordinate first)* **Runbook** — `docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md`
+   `docs(arch-round-2): add p09 fixed-matrix preparation runbook`
+
+Excluded from all commits (explicitly): `docs/investigations/architecture-round-1/d-observation.md`, `tests/support/stage-check.sh`, `tests/support/stage-check-control.sh`.
+
+Example per-commit staging (repeat pattern):
+```
+git add packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
+git diff --cached --name-only   # verify scope
+git commit -m "fix(dart): ..."
+```
+
+## Verdict
+
+**Conditionally committable.** Blockers before any commit: (a) chmod 755 on
+`stage-check-control.sh` (or hand that file back to its owner), (b) strict
+path-scoped staging — never `git add -A` — so the third-party in-flight edits
+stay out. Everything else (mode diffs, CRLF, whitespace, junk files, absolute
+paths in fixtures) checks clean.

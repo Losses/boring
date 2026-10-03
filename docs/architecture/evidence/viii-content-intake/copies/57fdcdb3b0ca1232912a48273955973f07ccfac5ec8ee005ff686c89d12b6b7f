@@ -1,0 +1,60 @@
+== B3/SDK conflation checks (independent reviewer, 2026-09-29T21:20:31Z)
+
+== 1) PATCH.diff file scope
+1
+diff --git a/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx b/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+7
+1
+
+== 2) B3/SDK/toolchain keyword mentions inside the patch (expect none besides the 2 file headers)
+1:diff --git a/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx b/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+3:--- a/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+4:+++ b/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+
+== 3) libSystemPackage occurrences in reviewer worktree Swift target (expect none)
+NONE
+
+== 4) separate system-package flag untouched (swift-system package, stdlib/17)
+18:    var needsSystemPackage:Bool = false;
+61:    public function systemPackage():Void {
+62:        needsSystemPackage = true;
+66:        return needsSystemPackage;
+
+== 5) SwiftDecl.hx depth==1 branch BEFORE the patch (pristine, sha ac657b29...): conformance text written without any runtime registration
+            }
+            if (depth == 1) {
+                conformances.push("BoringException");
+            } else if (depth >= 2) {
+                // A deeper exception subclass inherits from its parent
+                // class; BoringException arrives through that chain, and a
+                // repeated conformance is a Swift compile error.
+                conformances.push(cls.superClass.t.get().name);
+            }
+            for (i in cls.interfaces) {
+== 5) the 6 inserted lines, patched file context (sha 0210d207..., lines 183-193)
+            }
+            if (depth == 1) {
+                // The conformance names the runtime base class, so this
+                // file references the runtime package. Record the use: a
+                // tree whose only exception path is caught by its concrete
+                // type names no haxe.Exception and would otherwise omit
+                // Runtime.swift (task t-mun5d99p-op76).
+                imports.runtime("BoringException");
+                conformances.push("BoringException");
+            } else if (depth >= 2) {
+                // A deeper exception subclass inherits from its parent
+
+== 5b) git diff numstat vs HEAD
+6	0	packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
+
+== 6) note on section-2 false positive: 'swiftc' matches only the path segment swiftcompiler in the 3 git header lines; the patch body's single functional line is the runtime registration
+14:+                imports.runtime("BoringException");
+== 7) BoringException symbol-text emission sites, patched tree (full inventory)
+-- SwiftDecl.hx:190-191 depth==1 conformance -> NOW registered (the fix)
+-- SwiftType.hx:93-94 haxe.Exception type ref -> registered
+-- SwiftExpr.hx:3261-3262 type expression -> registered
+-- SwiftExpr.hx:4927-4932 haxe.Exception ctor -> registered
+-- SwiftExpr.hx:4336-4337 host-edge throwing helper (emitted into calling business file, SwiftHostEdges.hx header) -> registered
+-- SwiftRuntime.hx:95 definition lives in resident Runtime.swift (self-contained; imports.runtime early-returns for resident modules)
+
+== 8) depth>=2 check: conformance writes the parent class name, no BoringException symbol text in the depth>=2 file; parent (depth==1) file registers. If the parent is absent from the emission set the parent name is dangling - pre-existing failure mode, out of scope (executor uncertainty #2, reviewer concurs on source).

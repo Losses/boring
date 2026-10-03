@@ -1,0 +1,113 @@
+# Re-anchor application report — p08-behaviour-review/REPORT.md
+
+Applied the 7 edits from `../review-reanchor/REANCHOR.diff` to produce
+`REVIEW.reanchored.md`. No edit's context failed to match; all 7 applied on exact
+unique text match (assert count==1 per edit in the apply script). Original untouched.
+
+## 1. Anchor verification (done first)
+
+- `sha256sum ../boundary-policy-record/RECORD.md` ->
+  `9886fe25c9c5ea392958b3ec2167c7903934d0f1593b25a7ae90633bba45b24e` (matches frozen pin)
+- `wc -l` -> **390 lines** (matches)
+- Review measured at 577 lines, sha256 `27d54a3fd87deab087794c2f78ad119865c2ffb2188be712285da672fb80e61a` before edit (see `evidence/hashes.txt`).
+
+## 2. Applied edits
+
+| Edit | Review location | Applied | Notes |
+|---|---|---|---|
+| E1 | R:30 (S0 pin row) | yes | New row cites 390L / `9886fe25...` (full hash); 367L/`4d348992...` kept as provenance. |
+| E2 | R:34-41 (S0 anchor warning) | yes | Sentence appended at paragraph end ("...artifact moves. The record moved again..."). |
+| E3 | R:318-320 (S3.3 item 5) | yes | Rewritten as resolved per edit list. |
+| E4 | R:321-323 (S3.3 item 6) | yes | Rewritten as resolved per edit list. |
+| E5 | R:550-552 (S8 item 6) | yes | *Post-review:* sentence inserted; original blocker sentence and remainder untouched. |
+| E6 | R:576 (S9 ledger row) | yes | "still contradicts" -> "contradicted ... resolved by CORRECTION 12"; citation widened to `:280-302`. |
+| E7 | R:324 (S3.3 item 7) | yes | One clause added after "as unowned." (`:276` open-set cross-reference). |
+
+## 3. Exactness proof (diff contains exactly the 7 edits, nothing else)
+
+`APPLIED.diff` (unified): **69 lines, 6 hunk headers** covering exactly the 7 edits
+(E3, E4 and E7 fall in the single `@@ -315,14 +318,19 @@` hunk because they are
+adjacent S3.3 items; E1, E2, E5, E6 each get their own hunk).
+Line-by-line inspection of the full diff confirms every removed/added line
+belongs to one of the 7 edits; no other line of the 577-line review changed.
+File grew 577 -> 588 lines (+11, matching the 11 net added lines in the edits).
+
+Distinction noted: hunk count (6) != edit count (7); the 7 edits are the right 7
+and nothing else is in the diff.
+
+## 4. Claim-preservation (E3/E4, plus E6)
+
+**E3 before:**
+> 5. **Record-internal contradiction A:** CORRECTION 4 (`:198`) adds "nested collection element" (`:1929`) to the inventory, while CORRECTION 3's open set (`:280-283`) still calls it "SILENTLY ABSENT from BOTH revisions". `[CODE]`
+
+**E3 after:**
+> 5. **Record-internal contradiction A - now resolved by the record.** ... CORRECTION 12 (`:285-302`): the family's *consumer site* is registered; what remains open is the semantic ruling, not registration. Contradiction confirmed by me; corrected upstream.
+
+**Preservation:** the technical finding (CORRECTION 4 `:198` adds the family; the S6
+open set wrongly called it SILENTLY ABSENT) is fully preserved; only tense/status
+changes, which matches the current RECORD.md - I read `:285-302`: CORRECTION 12
+explicitly says "the paragraph above was FALSE and contradicted section 4" and that
+the consumer site is registered while the semantic ruling stays open. Nothing weakened.
+
+**E4 before:**
+> 6. **Record-internal contradiction B:** the same open set says "Registered default ... SILENTLY ABSENT", but registered/coalescing defaults are handled in code at `:284-345`, `:368-376`, `:4757-4778`, `:4860-4881`. `[CODE]`
+
+**E4 after:**
+> 6. **Record-internal contradiction B - now resolved by the record.** The S6 open set said "Registered default ... SILENTLY ABSENT", but registered/coalescing defaults are handled in code at `:284-345`, `:368-376`, `:4757-4778`, `:4860-4881`. CORRECTION 12 (`:298-301`, `:341-345`) concedes this and recharacterises the family as *incompletely registered in section 4*, not absent. `[CODE]`
+
+**Preservation:** the code-extent evidence (`:284-345` etc.) is retained verbatim and
+the new text agrees with RECORD.md `:297-302` ("incompletely registered in section 4,
+not 'silently absent'") and `:341-345`. `[CODE]` tag kept. Nothing weakened.
+
+**E6** (ledger): same substance, past tense + "resolved by CORRECTION 12"; the
+before-version of that row would now be *false* against the frozen record, so the
+edit is required for accuracy, not a weakening.
+
+E1/E2/E5/E7 are additions/status updates, not claim changes; E7 adds a citation to
+RECORD.md `:276`, which I verified (the S6 open set does repeat "call result position").
+
+## 5. Pin consistency
+
+`9886fe25...` / 390 lines now appears at :30 (pin row), :42-45 (anchor warning),
+:560-562 (S8 post-review). The old `4d348992...` / 367-line pin survives only as
+provenance: :30 ("at time of review; superseded"), :35-36 and :41 (S0 historical
+narrative - explicitly framed as history), :559 (S8 blocker - historical measurement).
+**No place asserts the old pin as current**: every remaining "367 lines" mention is in
+a past-tense/measurement context. `e20cf625...` remains only as the dispatch's quoted
+(not-reproducible) hash, which is correct.
+
+## 6. Citation spot-checks (STILL-VALID, read against 9886fe25)
+
+Checked well over 5; all resolve:
+
+| Cited | Record content found |
+|---|---|
+| `:184` + `:255-261` (armLines attribution; review :314 & ledger :575) | yes: "isBoundary call at :5641-5642 lives in armLines (:5615-5653) ... misattribution ... external-consult-xcheck" |
+| `:198` (CORRECTION 4 nested collection element row) | yes: row present, `SwiftExpr.hx:1929 (TArrayDecl)` |
+| `:240-245` (CORRECTION 1, call result position) | yes: "What remains unowned is the CALL RESULT position itself" |
+| `:111-112` (double-wrap row) | yes: "already converted ... double-wrap defect (TiqianArray(records.toMutableArray()))" |
+| `:116` + `:141-149` (one-producer rule + table) | yes: both present, incl. SwiftExpr.hx:2690 note |
+| `:163-170` (JOIN PRECONDITION) | yes: blockquote present |
+| `:58` + `:108-109` (REFUSED cell, refusals-in-code) | yes: MutableArrayWrapper REFUSED row; "refusals in code, not policy choices" |
+| `:125-139` (CORRECTION 7 items 1-4) | yes: nilMergeChainNonOptional / blockExpression:1203+switchExpression:5525 / switchAssign / platformModuleCall |
+| `:279` (switch pattern-binding open bullet) | yes: "switch pattern-binding / payload declarations - never audited at all" |
+| `:37-40` / `:18-35` (exclusions; CORRECTION 9) | yes: two substantive exclusions; withdrawn exclusion clause |
+| Superseded-adjacent: `:285-302` (CORRECTION 12), `:341-345`, `:276`, `:350-352` | yes: all present as the edit list describes |
+
+**Unresolved citations: none.** The one known limitation (per CITATIONS.tsv row for
+review line 203) predates this task: the exact old-367->390 line mapping is impossible
+because no 367-line copy was retained; the flag text was re-verified at its new
+location `:350-352` (S6 AST-fallback bullet, `:2689`) - present.
+
+## 7. Unresolved / residual references to the superseded revision
+
+- Nothing unresolved. All 7 edits applied; all spot-checked citations resolve; no edit
+  weakened a finding.
+- Residual `4d348992...`/367-line mentions (review :30, :35-36, :41, :559) are all
+  deliberately retained as provenance/history - correct under the edit list.
+- No tracked file was modified; outputs live only in this directory
+  (`REVIEW.reanchored.md`, `APPLIED.diff`, `REPORT.md`, `evidence/`).
+- Minor formatting note: E2's added sentence and E7's added clause were placed at the
+  exact paragraph positions the edit list specifies; E7's insert uses the item's
+  existing 3-space continuation indent (the edit list's 6-space rendering is its own
+  quoting indentation). No other reflow was done.

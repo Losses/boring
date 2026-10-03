@@ -1,0 +1,89 @@
+package xc;
+
+@:dataClass
+class Vec<X> {
+	public final x:X;
+
+	public function new(x:X) this.x = x;
+}
+
+/** Two fields of the SAME nested declaration driven by two DIFFERENT
+    type-parameter binders supplied as the record's actual arguments. */
+@:dataClass
+class Dual<A, B> {
+	public final va:Vec<A>;
+	public final vb:Vec<B>;
+
+	public function new(va:Vec<A>, vb:Vec<B>) {
+		this.va = va;
+		this.vb = vb;
+	}
+}
+
+@:dataClass
+class Deep<X> {
+	public final inner:Mid<X>;
+
+	public function new(inner:Mid<X>) this.inner = inner;
+}
+
+@:dataClass
+class Mid<Y> {
+	public final leaf:Vec<Y>;
+
+	public function new(leaf:Vec<Y>) this.leaf = leaf;
+}
+
+/** Three fields resolving to the SAME nested declaration with the SAME
+    parameter binder at three different nesting depths. */
+@:dataClass
+class Diamond<X> {
+	public final a:Mid<X>;
+	public final b:Mid<X>;
+	public final c:Vec<Mid<X>>;
+
+	public function new(a:Mid<X>, b:Mid<X>, c:Vec<Mid<X>>) {
+		this.a = a;
+		this.b = b;
+		this.c = c;
+	}
+}
+
+/** Same owner, two DIFFERENT parameters in identical nested positions:
+    must stay two distinct nested nodes. */
+@:dataClass
+class Mix<A, B> {
+	public final x:Vec<A>;
+	public final y:Vec<B>;
+
+	public function new(x:Vec<A>, y:Vec<B>) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+/** Same owner, one parameter in two identical nested positions:
+    must collapse to one nested node. */
+@:dataClass
+class Same<A> {
+	public final x:Vec<A>;
+	public final y:Vec<A>;
+
+	public function new(x:Vec<A>, y:Vec<A>) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+/** Self-recursive generic record: a parameter argument that must dedup or
+    the graph never closes (production callers pass no node budget). */
+@:dataClass
+class Rec<T> {
+	public final v:T;
+	public final next:Null<Rec<T>>;
+
+	public function new(v:T, next:Null<Rec<T>>) {
+		this.v = v;
+		this.next = next;
+	}
+}

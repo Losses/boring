@@ -1,0 +1,53 @@
+# Step bodies extracted from committed ci.yml (9f26e1ef == HEAD blob 1176a5a2)
+
+## job collected-suite step list
+42:      - name: Dump Swift crash diagnostics
+69:      - name: Probe loader and environment conditioning
+88:      - name: Dump Swift crash diagnostics
+96:      - name: Upload Swift crash artifacts
+104:      - name: Record runner environment fingerprint
+111:      - name: Export nix closure
+121:      - name: Restore nix closure
+127:      - name: Import nix closure
+
+## extracted: suite step (bash -e body)
+set -o pipefail
+mkdir -p out
+nix develop -c bash -c 'bun run test' 2>&1 | tee out/collected-suite.log
+
+## extracted: report step (bash -e body)
+LOG=out/collected-suite.log
+test -f "$LOG" || { echo "::error::no log at $LOG - the collected suite never ran"; exit 1; }
+{
+  echo '## Collected suite - contract 3 count'
+  echo
+  echo 'Standard: `docs/specs/style/02-translator-implementation-standard.md:80` counts the'
+  echo 'warning lines naming files under the generated trees and requires the count to be zero.'
+  echo
+  echo '```'
+  grep -E '^ [0-9]+ (pass|fail)$|^ [0-9]+ errors$|^Ran [0-9]+ tests across [0-9]+ files' "$LOG" || echo '(no summary line: the run did not reach a summary)'
+  echo '```'
+  echo
+  echo 'Collected domain (top-level directories - the count means nothing without it):'
+  echo
+  echo '```'
+  grep -oE '^[^ (]+\.test\.ts:' "$LOG" | sed 's/:$//' | sed 's|^\([^/]*/[^/]*\)/.*|\1|' | sort | uniq -c | sort -rn || true
+  echo '```'
+  echo
+  echo 'Baseline: `docs/architecture/BASELINE-FAILURES.md` (recorded per'
+  echo '`docs/architecture-work-plan.md:417`; a baseline finding does not waive the standard).'
+} | tee -a "$GITHUB_STEP_SUMMARY"
+# Domain guard: the generated out/ tree must never be swept into the
+# count. If it is, the count was taken over a different domain than
+# the recorded baseline and must not be read as one.
+if grep -qE '^out/.*\.test\.ts:' "$LOG"; then
+  echo "::error::the collected domain contains files under out/ - the generated tree is being swept into the count"
+  exit 1
+fi
+
+
+## GitHub-authentic substitution diff (ONLY the suite command line differs)
+3c3
+< nix develop -c bash -c 'bun run test' 2>&1 | tee out/collected-suite.log
+---
+> nix develop -c bash -c 'bun test tests/bundle-child-evidence/bundle-child-evidence.test.ts' 2>&1 | tee out/collected-suite.log

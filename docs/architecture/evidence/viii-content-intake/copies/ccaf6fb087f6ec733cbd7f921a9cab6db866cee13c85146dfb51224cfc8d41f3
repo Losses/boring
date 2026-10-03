@@ -1,0 +1,46 @@
+#![cfg(test)]
+
+use crate::boring::runtime_export_ops::RuntimeExportOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::tests::test_helper::*;
+
+
+#[test]
+fn test_float_to_bits() {
+    testlib::run("tests.RuntimeExportTests.testFloatToBits", "tests.RuntimeExportTests.testFloatToBits: binary32 float bits widen from a round number", || {
+        test_core::TestCore::test_core_equals_int(1065353216i32, i32::from_ne_bytes(((RuntimeExportOps::runtime_export_ops_float_to_bits(1.0f64)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(1056964608i32, i32::from_ne_bytes(((RuntimeExportOps::runtime_export_ops_float_to_bits(0.5f64)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(1075838976i32, i32::from_ne_bytes(((RuntimeExportOps::runtime_export_ops_float_to_bits(2.5f64)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_bits_to_float() {
+    testlib::run("tests.RuntimeExportTests.testBitsToFloat", "tests.RuntimeExportTests.testBitsToFloat: binary32 bit patterns widen to a float", || {
+        test_core::TestCore::test_core_equals_float(1.0f64, RuntimeExportOps::runtime_export_ops_bits_to_float(1065353216), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(0.5f64, RuntimeExportOps::runtime_export_ops_bits_to_float(1056964608), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(2.5f64, RuntimeExportOps::runtime_export_ops_bits_to_float(1075838976), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_float_round_trip() {
+    testlib::run("tests.RuntimeExportTests.testFloatRoundTrip", "tests.RuntimeExportTests.testFloatRoundTrip: binary32 bits round-trip through the edge helpers", || {
+        test_core::TestCore::test_core_equals_float(1.0f64, RuntimeExportOps::runtime_export_ops_round_trip_float(1.0f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(0.5f64, RuntimeExportOps::runtime_export_ops_round_trip_float(0.5f64), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_float(2.5f64, RuntimeExportOps::runtime_export_ops_round_trip_float(2.5f64), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_u_string_exports() {
+    testlib::run("tests.RuntimeExportTests.testUStringExports", "tests.RuntimeExportTests.testUStringExports: UString code-point helpers are exported from the runtime module", || {
+        test_core::TestCore::test_core_equals_int(6i32, i32::from_ne_bytes(((RuntimeExportOps::runtime_export_ops_ascii_count()) as i32).to_ne_bytes()), UStr::new(&[]));
+        assert_equals_opt(&Some(116), &RuntimeExportOps::runtime_export_ops_code_at(UStr::new(&[116,105,113,105,97,110]), 0), UStr::new(&[]));
+        assert_equals_opt(&None::<u32>, &RuntimeExportOps::runtime_export_ops_code_at(UStr::new(&[116,105,113,105,97,110]), 6), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[116,105,113,105,97,110]), RuntimeExportOps::runtime_export_ops_code_points_round_trip(UStr::new(&[116,105,113,105,97,110])).unwrap().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[25552,26912,25490,29256]), RuntimeExportOps::runtime_export_ops_code_points_round_trip(UStr::new(&[25552,26912,25490,29256])).unwrap().as_ustr(), UStr::new(&[]));
+    });
+}

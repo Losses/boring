@@ -1,0 +1,71 @@
+#![cfg(test)]
+
+use crate::boring::array_access_ops::ArrayAccessOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_write_split() {
+    testlib::run("tests.ArrayAccessTests.testWriteSplit", "tests.ArrayAccessTests.testWriteSplit: split results support written array access", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[120]), ArrayAccessOps::array_access_ops_write_split(UStr::new(&[97,44,98])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_read_split() {
+    testlib::run("tests.ArrayAccessTests.testReadSplit", "tests.ArrayAccessTests.testReadSplit: split results support read array access", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97]), ArrayAccessOps::array_access_ops_read_split(UStr::new(&[97,44,98])).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_composite_part() {
+    testlib::run("tests.ArrayAccessTests.testCompositePart", "tests.ArrayAccessTests.testCompositePart: composite StringBuf part can read its first character", || {
+        test_core::TestCore::test_core_equals_int(65i32, i32::from_ne_bytes(((ArrayAccessOps::array_access_ops_composite_string_buf_part(UStr::new(&[65]))) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_simple_part() {
+    testlib::run("tests.ArrayAccessTests.testSimplePart", "tests.ArrayAccessTests.testSimplePart: simple StringBuf part can read its first character", || {
+        test_core::TestCore::test_core_equals_int(65i32, i32::from_ne_bytes(((ArrayAccessOps::array_access_ops_simple_string_buf_part(UStr::new(&[65]))) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_grow_nullable_slots() {
+    testlib::run("tests.ArrayAccessTests.testGrowNullableSlots", "tests.ArrayAccessTests.testGrowNullableSlots: an index write past the end grows a nullable-element array", || {
+    });
+}
+
+#[test]
+fn test_grow_value_slots() {
+    testlib::run("tests.ArrayAccessTests.testGrowValueSlots", "tests.ArrayAccessTests.testGrowValueSlots: an index write past the end grows a value-element array", || {
+    });
+}
+
+#[test]
+fn test_grow_field_slots() {
+    testlib::run("tests.ArrayAccessTests.testGrowFieldSlots", "tests.ArrayAccessTests.testGrowFieldSlots: an index loop over an empty array field grows it", || {
+    });
+}
+
+#[test]
+fn test_grow_float_slots() {
+    testlib::run("tests.ArrayAccessTests.testGrowFloatSlots", "tests.ArrayAccessTests.testGrowFloatSlots: an index write past the end grows a float-element array", || {
+    });
+}
+
+#[test]
+fn test_grow_float_field_slots() {
+    testlib::run("tests.ArrayAccessTests.testGrowFloatFieldSlots", "tests.ArrayAccessTests.testGrowFloatFieldSlots: an index loop over an empty float array field grows it", || {
+    });
+}
+
+#[test]
+fn test_write_inside_slots() {
+    testlib::run("tests.ArrayAccessTests.testWriteInsideSlots", "tests.ArrayAccessTests.testWriteInsideSlots: writes inside an array keep their slots", || {
+    });
+}

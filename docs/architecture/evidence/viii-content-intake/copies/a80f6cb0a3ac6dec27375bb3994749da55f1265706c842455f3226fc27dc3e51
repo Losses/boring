@@ -1,0 +1,20 @@
+#![cfg(test)]
+
+use crate::boring::std_string_self_rec_ops::SelfRecMark;
+use crate::boring::std_string_self_rec_ops::StdStringSelfRecOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn forms() {
+    testlib::run("tests.StdStringSelfRecTests.forms", "tests.StdStringSelfRecTests.forms: cyclic enum constructor printed forms", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[112,108,97,105,110]), StdStringSelfRecOps::std_string_self_rec_ops_mark_text((SelfRecMark::Plain).clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[119,114,97,112,40,105,110,110,101,114,61,119,114,97,112,40,105,110,110,101,114,61,112,108,97,105,110,41,41]), StdStringSelfRecOps::std_string_self_rec_ops_mark_text(SelfRecMark::Wrap { inner: Box::new(SelfRecMark::Wrap { inner: Box::new(SelfRecMark::Plain) }) }).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[110,101,115,116,40,108,105,115,116,61,91,112,108,97,105,110,44,32,119,114,97,112,40,105,110,110,101,114,61,112,108,97,105,110,41,93,41]), StdStringSelfRecOps::std_string_self_rec_ops_mark_text(SelfRecMark::Nest { list: vec![
+    (SelfRecMark::Plain).clone(),
+    (SelfRecMark::Wrap { inner: Box::new(SelfRecMark::Plain) }).clone(),
+].to_vec() }).as_ustr(), UStr::new(&[]));
+    });
+}

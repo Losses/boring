@@ -1,0 +1,13 @@
+# Typer probe of the dc-enum-switch-gen fixture (task t-mum05sop-cbtu).
+# Runs Intercept.run (common layer, post-typer) then TswitchProbe to dump
+# every fixture TSwitch subject shape exactly as the emitters receive it.
+# No target compiler and no output; run through the boring devShell:
+#   nix develop -c bash -c 'haxe tests/haxe/dc-enum-switch-gen/probe.hxml'
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp tests/haxe/dc-enum-switch-gen
+-cp samples
+# (isolation variant: Intercept.run omitted)
+--macro dcsenum.TswitchProbe.run()
+dcsenum.ProbeEntry

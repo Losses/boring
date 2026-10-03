@@ -1,0 +1,7 @@
+/home/losses/Development/tq-workspace/dc-warn/out/switchexpr-land/evidence/base-gap-out/gen/gap/Gap.swift:117:9: warning: will never be executed
+115 |                 return ReadOnlyArray(Gap.sourceSecond())
+116 |         }
+117 |         return ReadOnlyArray(Gap.sourceFirst())
+    |         `- warning: will never be executed
+118 |     }
+119 | }

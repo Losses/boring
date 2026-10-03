@@ -1,0 +1,21 @@
+#![cfg(test)]
+
+use crate::boring::comparator_gate_ops::ComparatorGateOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn comparable() {
+    testlib::run("tests.ComparatorGateTests.comparable", "tests.ComparatorGateTests.comparable: comparable data classes remain usable", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[111,107]), ((ComparatorGateOps::comparator_gate_ops_comparable().value).clone().name).to_ustring().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn unsupported() {
+    testlib::run("tests.ComparatorGateTests.unsupported", "tests.ComparatorGateTests.unsupported: data classes with unsupported comparator fields remain usable", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[111,107]), ((ComparatorGateOps::comparator_gate_ops_comparable().value).clone().name).to_ustring().as_ustr(), UStr::new(&[]));
+    });
+}

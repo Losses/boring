@@ -1,0 +1,275 @@
+package boring;
+
+import std.ReadOnlyArray;
+
+class ReadOnlyBoundaryBox {
+    public var value:Int;
+
+    public function new(value:Int) {
+        this.value = value;
+    }
+}
+
+class ReadOnlyBoundaryHolder {
+    public var values:Null<Array<Int>>;
+
+    public function new(values:Null<Array<Int>>) {
+        this.values = values;
+    }
+}
+
+class ReadOnlyBoundaryViewHolder {
+    public var values:ReadOnlyArray<Int>;
+
+    public function new(values:ReadOnlyArray<Int>) {
+        this.values = values;
+    }
+}
+
+class ReadOnlyBoundaryAssignmentHolder {
+    public var values:ReadOnlyArray<Int>;
+
+    public function new(values:ReadOnlyArray<Int>) {
+        this.values = values;
+    }
+}
+
+class ReadOnlyBoundaryStatics {
+    public static final values:ReadOnlyArray<Int> = [41];
+}
+
+enum ReadOnlyBoundaryChoice {
+    Values(values:ReadOnlyArray<Int>);
+}
+
+class ReadOnlyBoundaryOps {
+    static var producerCalls:Int = 0;
+    static var effectOrder:String = "";
+
+    static function replaceBox(values:Array<ReadOnlyBoundaryBox>, index:Int, value:ReadOnlyBoundaryBox):Void {
+        values[index] = value;
+    }
+
+    static function effectfulArray():Array<Int> {
+        effectOrder += "A";
+        return [2];
+    }
+
+    static function effectfulMarker():Int {
+        effectOrder += "B";
+        return 4;
+    }
+
+    static function consumeView(values:ReadOnlyArray<Int>, marker:Int):String {
+        return values[0] + ":" + marker + ":" + effectOrder;
+    }
+
+    static function consumeNullableView(values:ReadOnlyArray<Null<Int>>):String {
+        return values.length + ":" + values[0] + ":" + values[1];
+    }
+
+    static function consumeRequired(values:ReadOnlyArray<Int>, marker:Int):Int {
+        return values[0] * 100 + values.length + marker;
+    }
+
+    public static function directCallBoundary():String {
+        effectOrder = "";
+        return consumeView(effectfulArray(), effectfulMarker());
+    }
+
+    public static function aliasSlots():String {
+        var mutable:Array<Int> = [1];
+        var view:ReadOnlyArray<Int> = mutable;
+        mutable[0] = 7;
+        mutable.push(9);
+        return view[0] + ":" + view.length;
+    }
+
+    public static function produce():Array<Int> {
+        producerCalls += 1;
+        return [1];
+    }
+
+    public static function effectfulAlias():String {
+        producerCalls = 0;
+        var mutable:Array<Int> = produce();
+        var view:ReadOnlyArray<Int> = mutable;
+        mutable[0] = 8;
+        return producerCalls + ":" + view[0] + ":" + view.length;
+    }
+
+    public static function referenceElement():String {
+        var box = new ReadOnlyBoundaryBox(2);
+        var second = new ReadOnlyBoundaryBox(5);
+        var mutable:Array<ReadOnlyBoundaryBox> = [box, second];
+        var view:ReadOnlyArray<ReadOnlyBoundaryBox> = mutable;
+        box.value = 11;
+        var replacement = new ReadOnlyBoundaryBox(17);
+        replaceBox(mutable, 1, replacement);
+        return view[0].value + ":" + (view[0] == box) + ":" + view[1].value + ":" + (view[1] == replacement);
+    }
+
+    public static function nullableElements():String {
+        var mutable:Array<Null<Int>> = new Array<Null<Int>>();
+        mutable.push(null);
+        mutable.push(3);
+        var view:ReadOnlyArray<Null<Int>> = mutable;
+        mutable[0] = 5;
+        mutable.push(null);
+        return view.length + ":" + view[0] + ":" + view[1];
+    }
+
+    public static function nullableLiteralElements():String {
+        var mutable:Array<Null<Int>> = makeNullableLiteral();
+        var view:ReadOnlyArray<Null<Int>> = mutable;
+        mutable[0] = 5;
+        return consumeNullableView(view);
+    }
+
+    public static function localNullableLiteralElements():String {
+        var mutable:Array<Null<Int>> = [null, 3];
+        var view:ReadOnlyArray<Null<Int>> = mutable;
+        mutable[0] = 5;
+        return consumeNullableView(view);
+    }
+
+    static function makeNullableLiteral():Array<Null<Int>> {
+        return [null, 3];
+    }
+
+    public static function presentOptional():String {
+        var mutable:Array<Int> = [6];
+        var view:Null<ReadOnlyArray<Int>> = mutable;
+        return view == null ? "nil" : view[0] + ":" + view.length;
+    }
+
+    public static function absentOptional():String {
+        var mutable:Null<Array<Int>> = null;
+        var view:Null<ReadOnlyArray<Int>> = mutable;
+        return view == null ? "nil" : view[0] + ":" + view.length;
+    }
+
+    public static function guardedRequired(source:Null<Array<Int>>):String {
+        if (source == null)
+            return "nil";
+        return "n/a";
+    }
+
+    public static function nullReassignedView():String {
+        var view:Null<ReadOnlyArray<Int>> = null;
+        final mutable:Array<Int> = [21, 22];
+        view = mutable;
+        if (view != null)
+            return view[0] + ":" + view.length + ":" + consumeRequired(view, 7);
+        return "nil";
+    }
+
+    public static function clearedView():String {
+        var view:Null<ReadOnlyArray<Int>> = [31];
+        view = null;
+        if (view != null)
+            return "unexpected:" + consumeRequired(view, 9);
+        return "nil";
+    }
+
+    public static function guardedField():String {
+        var holder = new ReadOnlyBoundaryHolder([8]);
+        if (holder.values == null)
+            return "nil";
+        return "n/a";
+    }
+
+    public static function constructorBoundary():String {
+        var mutable:Array<Int> = [3];
+        var holder = new ReadOnlyBoundaryViewHolder(mutable);
+        mutable[0] = 6;
+        return holder.values[0] + ":" + holder.values.length;
+    }
+
+    public static function fieldAssignmentBoundary():String {
+        var mutable:Array<Int> = [12];
+        var holder = new ReadOnlyBoundaryAssignmentHolder([]);
+        holder.values = mutable;
+        mutable[0] = 14;
+        return holder.values[0] + ":" + holder.values.length;
+    }
+
+    public static function staticFieldBoundary():String {
+        return ReadOnlyBoundaryStatics.values[0] + ":" + ReadOnlyBoundaryStatics.values.length;
+    }
+
+    public static function returnBoundary():String {
+        var mutable:Array<Int> = [13];
+        var view = returnedView(mutable);
+        mutable.push(15);
+        return view[0] + ":" + view.length;
+    }
+
+    static function returnedView(values:Array<Int>):ReadOnlyArray<Int> {
+        return values;
+    }
+
+    public static function enumBoundary():String {
+        var mutable:Array<Int> = [5];
+        final choice = ReadOnlyBoundaryChoice.Values(mutable);
+        return switch (choice) {
+            case Values(values): values[0] + ":" + values.length;
+        };
+    }
+
+    public static function branchBoundary(flag:Bool):String {
+        var first:Array<Int> = [1];
+        var second:Array<Int> = [2];
+        var view:ReadOnlyArray<Int> = flag ? first : second;
+        return consumeReadOnlyBoundary(view);
+    }
+
+    public static function consumeReadOnlyBoundary(view:ReadOnlyArray<Int>):String {
+        return view.length + (view.length == 0 ? ":empty" : ":present");
+    }
+
+    public static function coalescedBoundary(values:Null<Array<Int>>):String {
+        return consumeReadOnlyBoundary([]);
+    }
+
+    public static function registeredDefaultBoundary(?values:Null<Array<Int>>):String {
+        var view:ReadOnlyArray<Int> = [];
+        return view.length + (view.length == 0 ? ":empty" : ":present");
+    }
+
+    public static function registeredDefaultOmittedCall():String {
+        return registeredDefaultBoundary();
+    }
+
+    public static function registeredDefaultNullCall():String {
+        return registeredDefaultBoundary(null);
+    }
+
+    public static function registeredDefaultPresentCall():String {
+        return registeredDefaultBoundary([10]);
+    }
+
+    public static function nullableFallbackBoundary(?values:Null<Array<Int>>):String {
+        final view:Null<ReadOnlyArray<Int>> = values == null ? null : values;
+        return view == null ? "nil" : "present:" + view.length;
+    }
+
+    public static function guardedNullableFallbackBoundary(values:Null<Array<Int>>):String {
+        if (values == null)
+            return "nil";
+        final view:Null<ReadOnlyArray<Int>> = values != null ? values : null;
+        return view == null ? "nil" : "present:" + view.length;
+    }
+
+    public static function nullableFallbackOmittedCall():String {
+        return nullableFallbackBoundary();
+    }
+
+    public static function nullableFallbackNullCall():String {
+        return nullableFallbackBoundary(null);
+    }
+
+    public static function nullableFallbackPresentCall():String {
+        return nullableFallbackBoundary([44]);
+    }
+}

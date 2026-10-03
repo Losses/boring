@@ -1,0 +1,10 @@
+package boring
+
+import boring.runtime.Console
+
+object ConsoleShimOps {
+    fun logLine(message: String): String {
+        Console.log(message)
+        return "logged:" + message
+    }
+}

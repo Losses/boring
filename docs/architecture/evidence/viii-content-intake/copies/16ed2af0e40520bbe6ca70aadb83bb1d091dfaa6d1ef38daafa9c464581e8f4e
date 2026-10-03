@@ -1,0 +1,6 @@
+package boring
+
+sealed class SealedChildParent(override val message: String) : RuntimeException(message) {
+    data class Note(val text: String) :
+        SealedChildParent(text)
+}

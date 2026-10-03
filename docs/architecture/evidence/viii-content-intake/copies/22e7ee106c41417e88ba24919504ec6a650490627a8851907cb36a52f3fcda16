@@ -1,0 +1,13 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_with_seed() {
+    testlib::run("tests.ValueTypeCtorBindingTests.testWithSeed", "tests.ValueTypeCtorBindingTests.testWithSeed: a value wrapper built from a narrowed field carries the field value", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

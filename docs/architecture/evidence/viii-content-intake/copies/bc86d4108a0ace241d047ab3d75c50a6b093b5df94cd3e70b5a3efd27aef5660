@@ -1,0 +1,257 @@
+# P09 固定版本全量验证 — 可执行计划（修订版；基稿 `dc-warn/out/p09-verify-plan/PLAN.md` + 接口审计修订）
+
+日期：2026-09-29（原稿）；2026-09-29 修订（依据 `dc-warn/out/plan-interface-audit/REPORT.md` 与 `dc-warn/out/option-c-identity-fix/REPORT.md` 同步调用约定与现实变化）。作者：计划/设计 Agent（只读调研 + 本文档；未运行任何 gen/test/矩阵/verify，未写 `boring-wt-architecture/**`、`publication-staging/**`、`tiqian/**`，无 git 操作）。
+
+修订说明：本版在原稿之上修正/补注 7 处过时或缺失的调用约定，逐条对照见同目录 `CHANGES.md`。原稿保留于 `dc-warn/out/p09-verify-plan/PLAN.md` 以便对照。
+
+来源缩写：
+- **RUNBOOK** = `boring-wt-architecture/docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md`
+- **APPLY** = `dc-warn/out/optionc-apply/REPORT.md`
+- **VERIFY** = `dc-warn/out/option-c/verify/REPORT.md`
+- **XCHECK** = `dc-warn/out/option-c-xcheck/REVIEW.md`
+- **INTEG** = `dc-warn/out/integration-prep/PLAN.md`
+- **PLAN-OC** = `boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/option-c-plan.md`（v2 冻结文档，含 invoker wiring 与 stage 映射）
+- **RUNNER** = 同目录 `run-exclusive.sh` / `option-c.plan`（修复态，selftest 33/33）
+- **AUDIT** = `dc-warn/out/plan-interface-audit/REPORT.md`（异模型接口审计，本次修订主依据）
+- **IDFIX** = `dc-warn/out/option-c-identity-fix/REPORT.md`（PIT-244 位参接线 + Stage 1 身份动态派生修复）
+- **CAND** = `publication-staging/p09-e1c65975/P09-candidate-input-report.md`
+- **DRIVER** = `dc-warn/out/driver-rebuild/REPORT.md` + `dc-warn/out/p09-driver-xcheck/REVIEW.md`
+
+标注约定：凡非原文直接引用者标 `[推断]` 并给依据；未经决策的点集中列于 §7。
+
+---
+
+## 0. 两个候选基线与本计划的默认选择（需决策，见 §7-D1）
+
+| | 2159c657（旧固定修订） | e1c65975（固定候选，**本计划默认**） |
+|---|---|---|
+| tree | `9b2f77da…`（RUNBOOK 头表） | `8000836c1585ee7221a0b630bf1ba5f415309087`（CAND） |
+| 快照 | `publication-staging/fixed-compiler-2159c657/`（1366 文件） | `publication-staging/fixed-compiler-e1c65975/`（1398 文件） |
+| 清单 | `publication-staging/option-c-source-before.json`（1366） | `publication-staging/p09-e1c65975/inventory-1398.json`（+ sha256） |
+| 等价记录 | `publication-staging/published-tree-equivalence.json` | `publication-staging/p09-e1c65975/published-tree-equivalence.json`（equivalent: true，CAND） |
+| 静态准备 | `architecture-workspaces/tiqian-validation-round2/out/tiqian-fixed-2159c657-prep/` | `tiqian/out/p09-e1c65975-round2-prep/`（12 HXML + 3 project + `manifest/manifest-30.json`，CAND） |
+| B2 driver | flake 旧 driver（`af6aeef8…`，B2 未闭合） | 重建 driver.js `bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53`（52,779 B，双次独立构建字节复现；`driverSourceRevisionVerified: true` 可置位，DRIVER/XCHECK） |
+
+⚠️ 关键不相容点 [推断，依据 PLAN-OC Stage 0/15 与 APPLY ⑤-4]：`option-c.plan` 的 Stage 0 硬性要求 `OPTION_C_ROOT` + `SOURCE_MANIFEST` 成对匹配，Stage 15 按 manifest 三条 roundtrip bin 哈希比对；而现存的 Option C 执行根 `publication-staging/execution-option-c-2159c657` 与 `option-c-source-before.json` 是按 **2159c657/1366** 构建的。若验收基线定为 e1c65975，则**必须先从 `fixed-compiler-e1c65975` 快照物化一个新的 Option C 执行根与 1398 行 SOURCE_MANIFEST**（内容清单哈希锚点 `4a50f224…`，CAND），否则 Stage 0/1/15 必然失败。这个"执行根物化"步骤是本计划新增前置（P0），runbook 与 option-c-plan.md 均未覆盖 e1c65975 情形 [推断]。
+
+⚠️ **运行会写执行根（本轮实测，AUDIT/IDFIX 后新增警告）**：`run-exclusive.sh` 把 attempt 落在 `$ROOT/out/…`，故**任何对协调根/执行根的 Stage 运行都会写该根**（新 attempt 目录、`.latest-run`、harness.log、stage 证据等）。若某项验收要求"对 publication-staging（或协调根）零写入"，**必须**先对执行根做 `cp -a` 副本、对副本跑 Stage，方法与目录布局见 `dc-warn/out/option-c-identity-fix/REPORT.md` 第 4/8 节；跑后对副本做哈希收尾，正本保持零写入。另注意 fuse 限制：dc-warn 挂载无执行位、拒 symlink，副本不可放 dc-warn（§1.1）。
+
+---
+
+## 1. 每次尝试的独占目录与输入身份
+
+### 1.1 独占 attempt 的建立（来源：RUNNER 实读 + APPLY ④⑤ + AUDIT）
+
+- 调用入口（七步矩阵与 14 段 verify 链都经独占运行器包起来）：
+  `EXCLUSIVE_EXTERNAL_DIR 无需手动导出`（VERIFY §6-6）；`run-exclusive.sh <ROOT> <plan>` 自动：
+  - 建 `$ROOT/out/integration-a3-evidence/exclusive-runner/attempt-<UTC时间戳>-$$`（已存在/符号链接一律 exit 65；同秒同 pid 碰撞即 65，属特性，APPLY ⑤-5）；
+  - 写 `.latest-run`、建 `$RUN/child-evidence`、导出 `RUN`/`CHILD_EVIDENCE_DIR`/`BORING_CHILD_EVIDENCE_DIR`/`EXCLUSIVE_EXTERNAL_DIR`（RUNNER L49-85 实读；AUDIT L26-27）；
+    - ⚠️ **`.latest-run` 是共享的"最近一次运行"指针，不是"本次运行"指针（PIT-243，AUDIT L54/C3）**：每次 `run-exclusive.sh` 运行（含 `selftest`）都会**覆写**它。因此**真实 verify 与 `selftest` 不可交错**——交错后 selftest 读到真实 attempt、或真实运行跑完后 `.latest-run` 指向 dummy attempt，事后复核失去指针。**跨 run 引用 attempt 一律以 attempt 目录名 + `harness.log` 内的 `run=` 行为准，不依赖 `.latest-run`**；引用 `.latest-run` 仅限"紧跟其自身那次运行之后"的场景。
+  - 每个 plan 命令行以 `bash -c 'cd "$1" && eval "$2"' _ "$RUN" "<plan行>"` 执行：**cwd=attempt 目录**、命令经 eval 展开（APPLY ④）；
+  - 首个非零 status 阻塞全部下游（记 `skipped blocked-by`），封存 harness.log + stage 证据 manifest + end marker sha256；`check-log-integrity.sh` 验封（RUNNER 实读，APPLY ④；**该脚本要求显式 `<attempt-dir>` 参数**，见 §2 命令块，AUDIT E1/E2）。
+- **ROOT 的选择**：冻结树本体已应用修复（option-c-stage-wrapper.sh `c14043c0…`、selftest.sh `961e1307…`，freeze-apply REPORT），以冻结树自身为 ROOT 跑 `bash selftest.sh` = 33/33、exit 0。因此真实 verify 可直接以 **`ROOT=/home/losses/Development/tq-workspace/boring-wt-architecture`** 运行，attempt 落在冻结树的 `out/…/exclusive-runner/attempt-…`（与既有历史 attempt 同区）。备选：沿用 APPLY 的本机盘副本布局（ROOT 指向副本 ws 根，`selftest.sh:11 ROOT=` 已适配）。**两者取一需决策（§7-D2）**；注意 fuse 限制：dc-warn 挂载无执行位、拒 symlink（VERIFY §6-2），故**不要**把 ROOT 放 dc-warn。
+- 并行腿（如 engine/protocol 分两个 attempt）必须各自独立 ROOT（attempt 名秒级时间戳+pid 会碰撞，APPLY ⑤-5）；也可用 `EXCLUSIVE_ATTEMPT_DIR` 显式指定 attempt 名（语义见 §3 表，AUDIT M3）。[推断：runbook §Stage commands 说 engine/protocol 顺序执行，故默认单 attempt 串行即可；仅决策并行时才需要并行 ROOT。]
+
+### 1.2 每次尝试必须记录的输入身份（来源：RUNBOOK Stage commands 段 + 不变量段 + CAND）
+
+在 attempt 目录内（或 identity 阶段的 `$CHILD_EVIDENCE_DIR` 内）落盘：
+
+1. 1398 行快照清单（e1c65975）或 1366 行清单（2159c657）：`inventory-1398.json` / `option-c-source-before.json` 及其 sha256；identity 阶段由 `option-c-poststate.py` 对全条目重算 sha256+exec-bit（PLAN-OC Stage 1）。
+2. 等价记录：`publication-staging/p09-e1c65975/published-tree-equivalence.json`（equivalent: true）+ 快照内容清单哈希 `4a50f224…`（CAND）；独立锚 `git rev-parse e1c65975^{tree}` = `8000836c…`（RUNBOOK 头表同法）。
+3. driver 身份：`bf2450d35639…e53`（52,779 B）；`driver-identity.json`（DRIVER ⑥）。若走 Option C 链，Stage 2 会从执行根内 `haxe tools/bundle/driver.hxml` 重建 driver——重建产物必须哈希等值 `bf2450d3…`（XCHECK 已证可复现），不等值即停。
+4. 工具链版本：haxe 4.3.7、bun 1.3.13、kotlinc 2.4.10、cargo/rustc 1.97.1、openjdk 25.0.4+7、swift 6.2.4（dist `j1bfa7mw…` + FHS `xq9k8vi7…`）、python3 3.13.14（RUNBOOK "Execution environment"表 + APPLY ⑤-3）；dart SDK 由 consumer `nix develop` 现物化（RUNBOOK 同段 "Not materialized"）。Stage 0 会把 npm/node/tar/python3/haxe/kotlinc 解析路径写入封存证据（PLAN-OC Stage 0）。
+5. 30 条目 manifest：`tiqian/out/p09-e1c65975-round2-prep/manifest/manifest-30.json`（12 HXML + 3 project 原/衍 15+15；CAND）。跑前跑后各重算一次（RUNBOOK 不变量段）。
+6. Tiqian 固定修订 `8504d230228e8206689a2049bbb84b671c1f079a`：consumer checkout detached HEAD + `git status`（tracked 干净）+ 双侧 `git rev-parse HEAD`，跑后复核（RUNBOOK 不变量段）。
+7. 消费者 untracked 计数（runbook 记 3→6）；e1c65975 准备的 project JSON 计数以实际记入 evidence，漂移即作废本 attempt。[推断，依据不变量段纪律]
+
+---
+
+## 2. 逐步命令清单：七步矩阵 × 14 段 verify 链的关系
+
+**关系总述** [推断，依据 RUNBOOK §Stage commands + PLAN-OC "Chain preservation"]：两条独立的验收链，都过独占运行器：
+
+- **链 A（14 段 verify 链，Option C plan）**：`option-c.plan` Stages 2–16 恰为原 14 段链（driver build; driver verify; bun run test; test:haxe; test:kotlin; test:intercept; test:dart; test:rust; registry compile; lint; typecheck; check:docs; gen:vector; check:reflaxe），外加 Stage 0 环境守卫、Stage 1 identity、Stage 15 向量哈希比对——这三个不是 verify 链本体（PLAN-OC stage 映射表）。driver 步骤只有两个：Stage 2（`haxe tools/bundle/driver.hxml`，build）与 Stage 3（`bun out/bundle/driver.js verify`，10 生成 + driver 测试腿 + manager runtime，33 条 child records 落 `$BORING_CHILD_EVIDENCE_DIR`）；其余 12 段是仓库脚本直跑，不经 driver。
+- **链 B（P09 固定矩阵七步，RUNBOOK）**：gen 三组 / test 两组 / compare 两组，全部是 **driver 步骤**（`boring <gen|test|compare> … --project …`），作用于固定快照 + prep haxelib + 派生 HXML，与链 A 的执行根互不混用。
+
+### 链 A 命令（来源：PLAN-OC "Invoker wiring" + option-c.plan 逐行；预期 rc 除注明外为 0）
+
+⚠️ **cwd=`$OPTION_C_ROOT` 约定的真正出处（PIT-244，AUDIT C1/§3）**：wrapper **不 cd**；表头 cwd 完全依赖 plan 每段内层 `bash -c 'cd "$1" && …'` **自带位参** `_ "$OPTION_C_ROOT"` 提供 `$1`。机制：`run-exclusive.sh` 外层以 `bash -c 'cd "$1" && eval "$2"' _ <cwd> <cmd…>` 执行——`_` 占 `$0`、`<cwd>` 占 `$1`、`<cmd…>` 占 `$2`——外层位参**不穿透**进 eval 后的内层 `bash -c`。因此 `<cmd…>` 里的每个内层 `bash -c '…'` **必须自带** `$0` 与位参（现行写法：末尾补 `_ "$OPTION_C_ROOT"`）；缺位参则 `$1` 为空，17/17 段 rc=1（PIT-244 复现）。当前冻结 `option-c.plan`（`42517f84…`，见 §1.1/CHANGES 第 6 条）已完成 17 处位参接线（IDFIX）。
+
+| # | stage | argv（经 wrapper，cwd=`$OPTION_C_ROOT`，由各段内层 `bash -c … _ "$OPTION_C_ROOT"` 位参提供，PIT-244） | 预期 rc | 失败处置 |
+|---|---|---|---|---|
+| 0 | env-guard | `$EXCLUSIVE_RUNNER_DIR/option-c-stage-wrapper.sh env-guard … -- bash -c '…toolchain-resolution.txt…' _ "$OPTION_C_ROOT"` | 0 | **停**（OPTION_C_ROOT/SOURCE_MANIFEST/GIT_CEILING/XDG 任一缺失即非零） |
+| 1 | identity | 同上，`identity`：全 1366/1398 条目 sha256+exec-bit 重算 | 0 | **停**（漂移即作废） |
+| 2 | driver-build | `haxe tools/bundle/driver.hxml` | 0 | **停**；产物哈希须等 `bf2450d3…`（§1.2-3）[推断：哈希比对动作是本计划新增；依据 XCHECK 复现结论] |
+| 3 | driver-verify | `bun out/bundle/driver.js verify` | 0 | **停**；Swift 被沙箱拒 → 诚实失败 child record，**禁止 driver 内重试**（option-c.plan Stage 3 原文） |
+| 4–14 | authored-tests / test-haxe / test-kotlin / test-intercept / test-dart / test-rust / registry-compile / lint / typecheck / check-docs / gen-vector | `bun run <script>` / `haxe packages/registry/compile.hxml`（option-c.plan Stage 4–14 原文） | 0 | **停**（runner 语义：首败阻塞下游） |
+| 15 | vector-hash | 三条 roundtrip bin sha256 对 manifest | 0 | **停**（漂移即失败） |
+| 16 | check-reflaxe | `bun run check:reflaxe` | 0 | **停** |
+
+调用序列（唯一授权方式，PLAN-OC 原文 + AUDIT E1 修正，ROOT 按决策 D2 代入）：
+```
+export OPTION_C_ROOT=<执行根绝对路径>          # 见 §7-D1
+export SOURCE_MANIFEST=<1366/1398 清单绝对路径>
+export EXCLUSIVE_RUNNER_DIR=<runner 目录绝对路径>
+export GIT_CEILING_DIRECTORIES="$OPTION_C_ROOT"
+export XDG_CACHE_HOME="$OPTION_C_ROOT/out/xdg-cache"   # 必须指向可写位置（见下方 Stage 0 前置）
+bash "$EXCLUSIVE_RUNNER_DIR/run-exclusive.sh" <ROOT> "$EXCLUSIVE_RUNNER_DIR/option-c.plan"
+# 紧接本次运行之后验封；<attempt-dir> 显式传参（脚本 usage 要求，无参 exit 1，AUDIT E1）：
+bash "$EXCLUSIVE_RUNNER_DIR/check-log-integrity.sh" "$(cat "$EXCLUSIVE_RUNNER_DIR/.latest-run")"   # 预期 "INTEGRITY OK"，rc=0（APPLY ④）
+```
+- **`.latest-run` 说明（PIT-243，AUDIT E1/C3）**：`.latest-run` 由 `run-exclusive.sh` 在每次运行时**覆写**，指向**最近一次** attempt（含 selftest 产生的 dummy）。上式仅在 `check-log-integrity.sh` **紧跟本次 verify 运行**时成立；任何中间插入的 selftest/另一次运行都会使指针失配。跨 run 的权威定位：attempt 目录名 + `harness.log` 的 `run=` 行。
+- **Stage 0 前置（AUDIT/实测补注）**：Stage 0 需在 **flake shell（`nix develop`）内**运行，且本机 `PATH` 需能解析到 nix store 的 `haxe` / `kotlinc`（否则工具链探测失败，Stage 0 非零即停）；`XDG_CACHE_HOME` 需指向**可写**位置——默认 `~/.cache` 在沙箱内可能被拒，故上式显式指向执行根下 `out/xdg-cache`（并跑前 `touch …/.probe && rm` 验证可写，RUNBOOK B3）。
+
+[推断] 跑后由 invoker 复算 owned-identity（PLAN-OC stage 映射表 "(post-run identity) invoker" 行）。
+
+### 链 B 命令（来源：RUNBOOK §Stage commands 1–4 原文；cwd=tiqian-validation-round2 worktree——若基线为 e1c65975，cwd 与 project/HXML 路径按 §7-D1/§7-D6 同步替换 [推断，依据 CAND "Derived inputs"]）
+
+| 步 | argv | 预期 rc | 失败处置 |
+|---|---|---|---|
+| gen-1 | `boring gen <8 engine ids…> --project boring-fixed-<rev>-engine.json` | 0 | **停**；保留 attempt 全套 stdout/stderr/status |
+| gen-2 | `boring gen <4 protocol ids…> --project boring-fixed-<rev>-protocol.json` | 0 | **停**。不用 `-all.json`（engine baseline 污染，RUNBOOK 步 1 括注） |
+| test-1 | `boring test <8 engine ids…> --project …-engine.json` | 0 | **停**（Swift 腿见 §5） |
+| test-2 | `boring test protocol-ts protocol-rust protocol-kotlin --project …-protocol.json` | 0 | **停**；protocol-c `test:false` 不可测（RUNBOOK 步 3） |
+| cmp-1 | `boring compare --project …-engine.json`（baseline kotlin-f32） | 0 | **停** |
+| cmp-2 | `boring compare --project …-protocol.json`（baseline protocol-ts，可比集=3 个协议测试 bundle） | 0 | **停** |
+
+每步保留：command/stdout/stderr/数值退出码/原始告警（不过滤）/测试 ID 集（`<resultsDir>/<bundle-id>.jsonl`，缺 ID 走源覆盖核查而非删观测）。11 测试义务 = engine 8 + protocol 3；12 生成义务 = engine 8 + protocol 4（RUNBOOK "Preparation-time findings"）。
+
+**执行顺序建议** [推断]：先链 A（自包含、不依赖链 B 的 gen 产物），再链 B。两链各自独立 attempt。
+
+---
+
+## 3. plan 变量必须显式 export（最高风险项）
+
+机制证据：APPLY ⑤-6 —— "plan 行经 `eval` 展开，plan 中的 `$VAR` 取自 runner 导出环境；真实 verify 的 plan 里引用项目级变量必须显式 export 进 runner 环境，否则静默展开为空"。runner 自身只导出 `RUN`/`CHILD_EVIDENCE_DIR`/`BORING_CHILD_EVIDENCE_DIR`/`EXCLUSIVE_EXTERNAL_DIR`（RUNNER 实读）；其余全部要执行者在**调用 run-exclusive.sh 前同 shell export**。
+
+| 变量 | 值 / 来源 | 用途 |
+|---|---|---|
+| `OPTION_C_ROOT` | Option C 执行根绝对路径（现值 `publication-staging/execution-option-c-2159c657`；e1c65975 需新建，§7-D1）（PLAN-OC wiring） | 链 A stage 0/1 |
+| `SOURCE_MANIFEST` | `publication-staging/option-c-source-before.json`（1366）或新建 1398 清单（PLAN-OC wiring；CAND） | 链 A stage 0/1/15 |
+| `EXCLUSIVE_RUNNER_DIR` | runner 目录绝对路径（PLAN-OC wiring） | wrapper/plan 定位 |
+| `EXCLUSIVE_ATTEMPT_DIR`（可选 override） | 自定 attempt 目录路径。⚠️ **拒收语义（AUDIT M3，run-exclusive.sh L59-62）**：对**已存在**的路径或**符号链接**一律 **exit 65**（"stale or symlink path rejected"）——路径必须**不存在且非 symlink**。仅在确需自定义 attempt 名（如并行腿分区）时设置；默认让 runner 自动生成 | 覆盖自动 attempt 目录名 |
+| `GIT_CEILING_DIRECTORIES` | `"$OPTION_C_ROOT"`（PLAN-OC wiring） | 防 git 上溯 |
+| `XDG_CACHE_HOME` | `$OPTION_C_ROOT/out/xdg-cache`；**必须可写**（默认缓存目录在沙箱内可能被拒，AUDIT/实测）；跑前 `touch $XDG_CACHE_HOME/.probe && rm …` 验证可写（RUNBOOK B3） | clang module cache 等 |
+| `TMPDIR` | wrapper 已按 stage 建/导出（PLAN-OC v1→v2 表）；链 B attempt 级 TMPDIR 指向 attempt 内（RUNBOOK Stage commands 段） | — |
+| `HAXELIB_PATH` | prep haxelib 目录；**必须在 flake shellHook 之后、同 shell 内 export**（RUNBOOK "Shell discipline"；e1c65975 对应 `tiqian/out/p09-e1c65975-round2-prep/` 的目录 [推断]） | 防 shellHook 恢复 pinned 304ed70c 映射 |
+| `HAXE_STD_PATH` | flake shell 提供值，记入 attempt `env.json`（RUNBOOK Stage commands 段列举） | 证据记录 |
+| `PATH`（Swift 腿） | 前置注入 `-sdk` + `LD_LIBRARY_PATH` 的 `swiftc` wrapper 目录（RUNBOOK B3：driver 调裸 `swiftc`） | 链 B test Swift 步 |
+| `SWIFT_DIST` / `SWIFT_FHS` | `/nix/store/j1bfa7mw…al2` / `/nix/store/xq9k8vi7…rootfs`（RUNBOOK B3） | Swift fallback |
+| `LD_LIBRARY_PATH` | `$SWIFT_FHS/usr/lib64:$SWIFT_FHS/usr/lib:$SWIFT_DIST/usr/lib/swift/linux`（RUNBOOK B3） | swiftc |
+| `BORING_SWIFT_LIBDISPATCH` / `BORING_SWIFT_DYNAMIC_LINKER` | `$SWIFT_DIST/usr/lib/swift/linux:<gcc lib dir>` / `$SWIFT_FHS/usr/lib64/ld-linux-x86-64.so.2`（RUNBOOK B3，flake.nix L153-168） | Swift 测试二进制运行时；driver 不读、须执行者导出 |
+| `BORING_SWIFT_SYSTEM_PACKAGE` | 含 `SystemPackage.swiftmodule` + `libSystemPackage` 共享库的目录；**共享库尚不存在，硬前置**（RUNBOOK B3，见 §6-P7） | driver Swift test 步（driver.js L1463-1484, L1882-1887） |
+
+反例警示：冒烟中 `$CHILD_EVIDENCE_DIR`/`$SMOKE_PROJECT` 因已 export 才正确展开（APPLY ④）。
+
+---
+
+## 4. 失败与部分产物处置
+
+1. **失败即停语义**：runner 首败阻塞下游、记 `skipped blocked-by`（RUNNER 实读）；链 B 各步独立跑则按 §2 表"停"执行，后续步骤不启动。
+2. **部分产物保留**：attempt 目录永不删除、永不改写；漂移/中断 attempt 保留为历史证据（RUNBOOK 不变量段原文）。失败阶段 stdout/stderr/数值 rc 全在 `$RUN/stages/`；driver child 记录在 `$CHILD_EVIDENCE_DIR`（33 条 field-level 检查口径：captureComplete/normal-exit/exitStatus 0/argv 非空/captureError null，PLAN-OC）。
+3. **诊断动作也走新 attempt**：任何诊断性补跑须开新 attempt，不得写旧 attempt，避免污染封存日志。[推断，依据"任何漂移作废并需新 attempt 目录"的同类纪律]
+4. **防"污染日志当验收证据"**：
+   - 验收结论只可引用：固定修订对、results JSONL 测试 ID 集、不变量复核（RUNBOOK "Review scope"原文）；
+   - 任何 harness.log 须先过 `bash "$EXCLUSIVE_RUNNER_DIR/check-log-integrity.sh" <attempt-dir>` → `INTEGRITY OK` 才可引用（APPLY ④ + **AUDIT E2**：脚本 usage 要求显式 `<attempt-dir>`，无参 exit 1）。`<attempt-dir>` 来源：**紧跟该 run 之后**可取 `$(cat "$EXCLUSIVE_RUNNER_DIR/.latest-run")`；跨 run 引用一律以 attempt 目录名 + `harness.log` 的 `run=` 行为准（`.latest-run` 会被任何后续运行覆写，PIT-243）；
+   - 历史教训直接适用：e315bb79 轮被 duplicate-launch 幸存子进程在 end marker 后追加 Kotlin 输出 → 该轮整体降级 diagnostic-only（RUNNER README "Integration environment note"）——**禁止同一 ROOT 并发两次 run-exclusive.sh**，end-marker 后出现任何字节即整链作废 [推断：后半句由 integrity checker "reject post-end content" 语义推出]；
+   - 原生编译器告警保留在捕获流内、不过滤（RUNBOOK Stage commands 段）；失败阶段退出码与捕获流随结论列出未覆盖项（RUNBOOK Review scope 第 5 条）。
+5. **selftest 与真实运行不可交错（PIT-243，AUDIT L54/M1）**：两者共用同一 EVIDENCE_PARENT；selftest 会覆写 `.latest-run` 并新产 attempt-*/external-* 目录。真实 verify 前后**禁止**跑 `selftest.sh`；跑前应核对 `.latest-run` 非本日 dummy attempt。
+6. **回退**：若冻结树 runner 需回退，`bash dc-warn/out/option-c/freeze-apply/REVERT.sh`（原字节在 `freeze-apply/backup/`）。但 verify 期间不应回退（回退即 32/1）；如需回退，先封存当时 attempt。[推断] 注意：`option-c.plan` 的"原字节"现为修前版 `b83a636d…`（历史，已含 PIT-244 缺陷），回退到位参未接线版本会使链 A 全段 rc=1（IDFIX）。
+
+---
+
+## 5. 验收口径
+
+**通过**（全部满足）：
+- 链 A：17 stage 全 rc=0，`check-log-integrity.sh <attempt-dir>`（显式传参，AUDIT E1/E2）`INTEGRITY OK`，post-run owned-identity 复算 0 漂移；
+- 链 B：gen 12/12、test 11/11（B3 授权后）、compare 两组 rc=0；per-bundle 测试 ID 集与 8504d230 源覆盖一致（protocol 3 HXML 各含 8 公共测试根，并集=8，rust/kotlin 各多 2 追加根——独立复审复核项，RUNBOOK Review scope）；
+- 跑后不变量：30-manifest 哈希重算一致、1366/1398 清单 digest 一致、双侧 `git rev-parse HEAD` 与 tracked-clean、driver wrapper/driver.js 哈希断言通过（RUNBOOK 不变量段）。
+
+**必须记 environment-not-reached（不算失败也不算通过）**：
+- B3 Swift：`libSystemPackage` 共享库未建 + fallback toolchain 配方 —— 两项 Swift 测试义务 blocked，结论须明说（RUNBOOK B3 + Review scope 第 3 条）；Swift 沙箱拒绝 = 诚实失败的 child record，禁止重试（option-c.plan Stage 3）。
+- B4 protocol-C：`afterGen`（`bun engine-haxe/out/protocol-c/gen/c-header.js`）未获执行授权不得跑；gen 开始时须重录输出缺失 provenance（gen-start.json 模式，run.py L26）（RUNBOOK B4 + Review scope 第 1 条）。
+- B1：两个在飞 Rust fix 冻结在修订之外，列入未覆盖范围（RUNBOOK Review scope 第 4 条）。
+- B2 残余：e1c65975 下 driver=`bf2450d3…` 已可证（XCHECK），`driverSourceRevisionVerified: true` 可置位；但"不使用 `roots`/`--output`"的动作面确认仍欠（DRIVER ⑥），记入结论残留。
+
+**verify 后需重跑的既有证据**（INTEG ⑤ 表）：dart-fix2 → dc-null-guard-fallthrough gen+analyzer+run（dart/kotlin）+ Dart 全量 warning/verdict 套件；rust-trytail → try-tail 12 形状 + try-tail-min + 负控 + gen-tree.sha256 逐文件对比（用 rebuilt 补丁 `dc-warn/out/integration-prep/rust-trytail-PATCH-rebuilt.diff`）；swift-rt → Swift census/verify 相关用例；option-c → 协调树现物 selftest 一次（0 failures，已完成 33/33）；p09-runbook → 文本一致性核对。若 P09 基线为 e1c65975 且上述补丁已集成在树内，链 A 对应腿自然覆盖 [推断]。
+
+---
+
+## 6. 风险与前置清单
+
+| # | 项 | 说明 | 来源 |
+|---|---|---|---|
+| P0 | **执行根物化（若 D1=e1c65975）** | 现存 Option C 执行根/manifest 是 2159c657/1366 配对；需新物化 e1c65975 根 + 1398 SOURCE_MANIFEST，否则链 A stage 0/1/15 必败 | §0 [推断] |
+| P1 | **磁盘空间** | /home 仅余 **184G**（90%，df 2026-09-29 实测）；真实矩阵（12 gen + 11 test 的 outputs/results + cargo target + swift build）远大于冒烟 ~700KB。建议预留 ≥30–50G，跑前 `df` 复查 [推断：数值估计为本计划推断] | APPLY ⑤-4 + 实测 |
+| P2 | **本机盘/可执行位** | ROOT 不能放 fuse/dc-warn（无执行位、拒 symlink） | APPLY ⑤-1、VERIFY §6-2 |
+| P3 | **`selftest.sh:11 ROOT=`** | 副本布局需同步改该行；冻结树本体布局天然满足 | APPLY ⑤-2 |
+| P4 | **python3** | wrapper/poststate/child-records 依赖（3.13.14 已验） | APPLY ⑤-3 |
+| P5 | **不并发** | 同秒同 pid 碰撞 65 是特性；并行矩阵各独立 ROOT | APPLY ⑤-5 |
+| P6 | **eval 静默空展开** | §3 全表显式 export | APPLY ⑤-6 |
+| P7 | **libSystemPackage 共享库缺失** | 硬前置：从 pinned swift-system 1.6.6（`0b301619…`，checkout 已在位）用 fallback 工具链建 `.so`，否则 Swift 两义务 blocked | RUNBOOK B3 |
+| P8 | **dart SDK 未物化** | consumer `nix develop` 须现物化 `pkgs.dart` 后才能跑 dart test 腿；任一 pinned store path 缺失即停 | RUNBOOK Execution environment |
+| P9 | **HAXELIB_PATH 被 shellHook 重置** | override 必须在 hook 之后、同 shell；两次 `nix develop` 间可被恢复 | RUNBOOK Shell discipline |
+| P10 | **快照非 git 仓库** | `fixed-compiler-e1c65975` 身份只靠等价记录 + inventory；禁在快照内跑 git | RUNBOOK findings |
+| P11 | **fuse 限制** | dc-warn 挂载脚本一律 `bash <script>` | INTEG ④-7 |
+| P12 | **`.latest-run` 共享指针（PIT-243）** | selftest 与真实运行不可交错；跨 run 以 attempt 目录名 + harness.log `run=` 行为准；`check-log-integrity.sh` 的 `.latest-run` 快捷取参仅限紧跟本 run | AUDIT L54/C3/E1 |
+| P13 | **`check-log-integrity.sh` 需显式 `<attempt-dir>`** | 无参 usage+exit 1；不能省参调用 | AUDIT E1/E2 |
+| P14 | **`EXCLUSIVE_ATTEMPT_DIR` 拒收语义** | 对已存在路径或 symlink exit 65；自定义 attempt 名前确认路径不存在且非 symlink | AUDIT M3 |
+| P15 | **内层 `bash -c` 必须自带位参（PIT-244）** | 外层 `bash -c '…' _ <cwd> <cmd…>` 位参不穿透；plan 内层 `bash -c` 须末尾补 `_ "$OPTION_C_ROOT"`；现冻结 plan `42517f84…` 已接线 | AUDIT C1/§3、IDFIX |
+| P16 | **运行会写执行根** | `run-exclusive.sh` attempt 落 `$ROOT/out/…`；要求"对协调根/publication-staging 零写入"的验收须先 `cp -a` 副本跑（方法 IDFIX §4/§8） | §0 警告 + 本轮实测 |
+| P17 | **Stage 0 工具链探测环境** | 需在 flake shell 内、`PATH` 能解析到 nix store 的 `haxe`/`kotlinc`；`XDG_CACHE_HOME` 指向可写位置（默认缓存目录沙箱内可能被拒） | §2 Stage 0 前置 + 本轮实测 |
+
+**"某工具链不可用怎么办"**（原则"缺即停"，来源 RUNBOOK Execution environment 段末句）：
+- 任一 pinned store path 缺失 → **停**，锁/仓已变，准备身份不再适用（原文）。
+- dart 缺 → 只跳过 dart test 腿并记 environment-not-reached，其余腿照跑 [推断]；或先物化（P8）。
+- Swift fallback 不可用 / P7 未建 → B3 口径（§5），不影响非 Swift 腿。
+- bun/haxe/kotlinc/cargo/java 缺 → 对应腿无法诚实执行，整链停，不得用替代版本顶替（版本即身份）[推断，依据固定输入原则]。
+
+---
+
+## 7. 需要决策的点（本计划不替你决定）
+
+- **D1（最关键）验收基线修订与 Option C 执行根**：默认 e1c65975/1398（含 `bf2450d3` driver、`tiqian/out/p09-e1c65975-round2-prep`）。但现存 Option C 执行根/manifest 是 2159c657/1366 配对——(a) 先物化 e1c65975 执行根 + 1398 SOURCE_MANIFEST 再跑链 A，还是 (b) 链 A 以 2159c657 旧根作为独立证据、P09 验收只跑链 B？
+- **D2 runner ROOT**：冻结树本体（已修复、33/33）还是 APPLY 的本机盘副本？写冻结树会新增 attempt 目录（与"冻结区只读"惯例是否冲突）？若验收含"零写入"要求，走副本（§0 警告、P16）。
+- **D3 链序**：先链 A 还是先链 B？还是先只跑 gen 三组做冒烟、再全量（分两阶段、各自 attempt）？
+- **D4 Swift 腿**：跳过（记 environment-not-reached）还是先完成 P7（建 libSystemPackage）再跑？
+- **D5 并行**：engine/protocol 是否允许并行（需双 ROOT，或用 `EXCLUSIVE_ATTEMPT_DIR` 但受 P14 拒收语义约束），还是维持 runbook 顺序执行？
+- **D6 落盘位置**：链 B attempt/evidence 放 `architecture-workspaces/tiqian-validation-round2/out/`（runbook 默认）还是 `tiqian/out/p09-e1c65975-round2-prep/` 侧？两目录分属不同 worktree，写入权限需协调。
+
+---
+
+## 附：冻结文件身份（现实口径，IDFIX 同步）
+
+| 文件 | sha256（现值） |
+|---|---|
+| `option-c.plan` | **`42517f84a02ea3260f2a0d35cc413a79c70e8651596601312934be42276f4d78`**（含两道门修复：17 处 `_ "$OPTION_C_ROOT"` 位参接线 + Stage 1 身份动态派生与条目数守卫；修前字节为 `b83a636d176bf5e6b40a98ef3a7d4598de92a2bb6f37fbddd171ee6141f6d54f`，仅作历史提及——修前版含 PIT-244 缺陷，不得作为现役身份引用） |
+| `option-c-stage-wrapper.sh` | `c14043c0…`（不变） |
+| `selftest.sh` | `961e1307…`（不变） |
+| 其余 4 个冻结文件 | `7c332d33…` / `bebd0cf9…` / `4ad34edf…` / `d1199267…`（不变） |
+
+---
+
+## 附：修订后由协调者实测消解的 3 处不确定（2026-09-29）
+
+本节由协调者在收到修订版后**实读脚本**补充，用于关闭 `CHANGES.md` 里作者自报的三条不确定项。
+
+1. **`.latest-run` 的落点（作者未实读）** — 已确认等价，两种写法在冻结布局下**同径**：
+   `run-exclusive.sh:46` 定义 `EVIDENCE_PARENT="$ROOT/out/integration-a3-evidence/exclusive-runner"`，
+   第 62 行 `printf '%s\n' "$RUN" >"$EVIDENCE_PARENT/.latest-run"`。
+   当 `EXCLUSIVE_RUNNER_DIR` 就取冻结运行器目录时，
+   `"$ROOT/out/integration-a3-evidence/exclusive-runner"` 与 `"$EXCLUSIVE_RUNNER_DIR"` **完全相等**。
+   故 `"$(cat "$EXCLUSIVE_RUNNER_DIR/.latest-run")"` 与 `"$(cat "$ROOT/out/…/.latest-run")"` 均可；
+   若将来把 runner 目录与 `$ROOT/out/…` 分离，**以 46 行的实际定义为准**。
+   实测该文件确实存在于运行器目录内。
+
+2. **另外 4 个冻结文件哈希（作者按前缀抄录、未复算）** — 协调者已逐一实算，作者抄录**无误**：
+   `run-exclusive.sh` = `7c332d3369e0643a…`、`check-log-integrity.sh` = `bebd0cf9026ec97d…`、
+   `option-c-poststate.py` = `4ad34edf398e175a…`、`option-c-child-records.py` = `d1199267d87cc635…`。
+
+3. **Stage 0 前置与"运行会写执行根"两条（作者为转述）** — 两者均已有本项目内的实测支撑：
+   - "运行会写执行根"：`run-exclusive.sh` 会把 attempt 落到 `$ROOT/out/…`，且一次 `driver-verify` 实测写入 4401 个非清单产物（`out/`/`reference/`/`target/`/`toolchain-resolution.txt`）；零写入验收须先 `cp -a` 副本。
+   - Stage 0 前置：`env-guard` 段要求 `GIT_CEILING_DIRECTORIES`/`XDG_CACHE_HOME` 非空且 `SOURCE_MANIFEST` 存在，并 `command -v npm node tar python3 haxe kotlinc` 全部解析成功；`XDG_CACHE_HOME` 必须可写。
+
+**另附一条口径更正**（由异模型复核指出，协调者采纳）：`p09-coord-state/REPORT.md` 中"断言脚本零改动"的表述不实——
+`assert-loader-identity.sh` 事后**新增了相对路径归一化**（相对路径补 `$PWD/` 并 `cd && pwd`）。
+该改动**不改变断言语义**：绝对路径正确态 RC=0、跨代际误用等 6 组负控仍全部 RC=1。
+另请注意其注释里 "symlink-resolved" 措辞**不准确**（`cd && pwd` 非 `cd -P`），实际不做符号链接解析。

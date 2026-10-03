@@ -1,0 +1,121 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/record-copy.test.ts:
+(pass) record copy generated tree > TS generated tree emits object literals with fields in declaration order [2.00ms]
+(pass) record copy generated tree > Kotlin generated tree emits named constructor calls in declaration order
+(pass) record copy generated tree > Rust generated tree emits struct instantiation in declaration order
+
+tests/ts/sealed-variants.test.ts:
+killed 1 dangling process
+(fail) @:sealed on a class reports the interface-only error [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+136 |       proc.exited,
+137 |       new Response(proc.stdout).text(),
+138 |       new Response(proc.stderr).text(),
+139 |     ]);
+140 |     expect(exitCode).not.toBe(0);
+141 |     expect(stdout + stderr).toContain("@:sealed applies to interfaces only");
+                                  ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "@:sealed applies to interfaces only"
+Received: ""
+
+      at <anonymous> (/home/losses/Development/tq-workspace/string-family-resume-wt/wt/tests/ts/sealed-variants.test.ts:141:29)
+-------------------------------
+
+killed 1 dangling process
+(fail) self-construction with arguments keeps the static initializer error [5000.92ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+184 |       proc.exited,
+185 |       new Response(proc.stdout).text(),
+186 |       new Response(proc.stderr).text(),
+187 |     ]);
+188 |     expect(exitCode).not.toBe(0);
+189 |     expect(stdout + stderr).toContain("static field initializers accept null, literal, and empty array forms only");
+                                  ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "static field initializers accept null, literal, and empty array forms only"
+Received: ""
+
+      at <anonymous> (/home/losses/Development/tq-workspace/string-family-resume-wt/wt/tests/ts/sealed-variants.test.ts:189:29)
+-------------------------------
+
+killed 1 dangling process
+(fail) the sanctioned self-construction static uses each target lane [15000.75ms]
+  ^ this test timed out after 15000ms.
+240 |   expect(dart).toContain("StripeDrawKind(strokeWidth=");
+241 |   expect(dart).toContain("DotDrawKind(dotDiameter=");
+242 | 
+243 |   expect(rust).not.toContain("#[allow(non_upper_case_globals)]");
+244 |   expect(rust).toContain("pub static NONE_DRAW_KIND_INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());");;
+245 |   expect(rust).toContain('return "NoneDrawKind".to_string();');
+                     ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "return \"NoneDrawKind\".to_string();"
+Received: "use crate::runtime::u_string::UString;\nuse std::sync::Mutex;\n\n\npub trait DrawKind: Send + Sync {\n    fn __haxe_type_name(&self) -> &'static str;\n    fn as_any(&self) -> &dyn std::any::Any;\n    fn clone_box(&self) -> Box<dyn DrawKind>;\n}\n\nimpl Clone for Box<dyn DrawKind> {\n    fn clone(&self) -> Self {\n        self.clone_box()\n    }\n}\n\nimpl std::fmt::Debug for dyn DrawKind {\n    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n        write!(f, \"{}\", self.__haxe_type_name())\n    }\n}\n\npub static NONE_DRAW_KIND_INSTANCE: Mutex<NoneDrawKind> = Mutex::new(NoneDrawKind::new());\n\n#[derive(Clone, PartialEq)]\npub struct NoneDrawKind {\n}\n\nimpl NoneDrawKind {\n    pub const fn new() -> Self {\n        Self {\n        }\n    }\n\n    pub fn to_string(&self) -> UString {\n        return UString::from(\"NoneDrawKind\").to_ustring();\n    }\n}\n\nimpl DrawKind for NoneDrawKind {\n    fn __haxe_type_name(&self) -> &'static str {\n        \"boring.SealedVariantOps.NoneDrawKind\"\n    }\n    fn as_any(&self) -> &dyn std::any::Any {\n        self\n    }\n    fn clone_box(&self) -> Box<dyn DrawKind> {\n        Box::new(self.clone())\n    }\n}\n\n#[derive(Debug, Clone, PartialEq)]\npub struct StripeDrawKind {\n    pub stroke_width: f64,\n    pub gap_length: f64,\n}\n\nimpl StripeDrawKind {\n    pub fn new(stroke_width: f64, gap_length: f64) -> Self {\n        Self {\n            stroke_width,\n            gap_length,\n        }\n    }\n\n    pub fn to_string(&self) -> UString {\n        return UString::from(format!(\"{}\", { let mut __s = UString::new(); __s += &(UString::from(\"StripeDrawKind(\")); __s += &(UString::from(\"strokeWidth=\")); __s += &(crate::runtime::fp_helper::FPHelper::format_float(self.stroke_width)); __s += &(UString::from(\", \")); __s += &(UString::from(\"gapLength=\")); __s += &(crate::runtime::fp_helper::FPHelper::format_float(self.gap_length)); __s += &(UString::from(\")\")); __s }).as_str());\n    }\n}\n\nimpl DrawKind for StripeDrawKind {\n    fn __haxe_type_name(&self) -> &'static str {\n        \"boring.SealedVariantOps.StripeDrawKind\"\n    }\n    fn as_any(&self) -> &dyn std::any::Any {\n        self\n    }\n    fn clone_box(&self) -> Box<dyn DrawKind> {\n        Box::new(self.clone())\n    }\n}\n\n#[derive(Debug, Clone, PartialEq)]\npub struct DotDrawKind {\n    pub dot_diameter: f64,\n    pub gap_length: f64,\n}\n\nimpl DotDrawKind {\n    pub fn new(dot_diameter: f64, gap_length: f64) -> Self {\n        Self {\n            dot_diameter,\n            gap_length,\n        }\n    }\n\n    pub fn to_string(&self) -> UString {\n        return UString::from(format!(\"{}\", { let mut __s = UString::new(); __s += &(UString::from(\"DotDrawKind(\")); __s += &(UString::from(\"dotDiameter=\")); __s += &(crate::runtime::fp_helper::FPHelper::format_float(self.dot_diameter)); __s += &(UString::from(\", \")); __s += &(UString::from(\"gapLength=\")); __s += &(crate::runtime::fp_helper::FPHelper::format_float(self.gap_length)); __s += &(UString::from(\")\")); __s }).as_str());\n    }\n}\n\nimpl DrawKind for DotDrawKind {\n    fn __haxe_type_name(&self) -> &'static str {\n        \"boring.SealedVariantOps.DotDrawKind\"\n    }\n    fn as_any(&self) -> &dyn std::any::Any {\n        self\n    }\n    fn clone_box(&self) -> Box<dyn DrawKind> {\n        Box::new(self.clone())\n    }\n}\n\n#[derive(Clone, Copy)]\npub struct SealedVariantOps;\n\nimpl SealedVariantOps {\n    pub fn sealed_variant_ops_label_of(kind: Box<dyn DrawKind>) -> UString {\n        if kind.__haxe_type_name() == \"boring.SealedVariantOps.NoneDrawKind\" {\n            return UString::from(\"none\").to_ustring();\n        }\n        if kind.__haxe_type_name() == \"boring.SealedVariantOps.StripeDrawKind\" {\n            return UString::from(\"stripe\").to_ustring();\n        }\n        if kind.__haxe_type_name() == \"boring.SealedVariantOps.DotDrawKind\" {\n            return UString::from(\"dot\").to_ustring();\n        }\n        return UString::from(\"unknown\").to_ustring();\n    }\n\n    pub fn sealed_variant_ops_none_label() -> UString {\n        return UString::from(format!(\"{}\", { let __guard = NONE_DRAW_KIND_INSTANCE.lock().unwrap_or_else(|e| e.into_inner()); __guard.clone() }.to_string()).as_str());\n    }\n}\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/string-family-resume-wt/wt/tests/ts/sealed-variants.test.ts:245:16)
+(fail) sealed variant sample trees carry the ruled declaration and printed forms [1.00ms]
+
+tests/ts/string-buffer.test.ts:
+(pass) string buffer generated tree > TS lowers StringBuf to primitive strings with inline pairing checks
+(pass) string buffer generated tree > Kotlin lowers StringBuf to StringBuilder with tail reads via lastOrNull
+(pass) string buffer generated tree > Rust lowers StringBuf to Vec<u16> with fault arms bound in the pattern [1.00ms]
+(pass) string buffer generated tree > Swift lowers StringBuf to UTF-16 arrays
+(pass) string buffer generated tree > Dart lowers StringBuf to UTF-16 unit lists
+
+tests/ts/enum-queries.test.ts:
+(pass) enum value queries generated trees > TypeScript emits frozen values, collection and lookup with a literal loop bound
+(pass) enum value queries generated trees > Kotlin uses enum class, entries and element iteration
+(pass) enum value queries generated trees > Swift uses raw value cases, CaseIterable and element iteration
+(pass) enum value queries generated trees > Dart uses enhanced enum labels, lookup and element iteration
+49 |   test("Rust emits ALL, name, from_name and a literal range", () => {
+50 |     const decl = read("../../reference/rust/gen/boring/float_width.rs");
+51 |     const ops = read("../../reference/rust/gen/boring/enum_queries_ops.rs");
+52 |     expect(decl).toContain("pub const ALL: [FloatWidth; 3]");
+53 |     expect(decl).toContain("pub fn name(&self) -> &'static str");
+54 |     expect(decl).toContain("pub fn from_name(name: &str) -> Option<FloatWidth>");
+                      ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "pub fn from_name(name: &str) -> Option<FloatWidth>"
+Received: "use crate::runtime::u_string::UStr;\n\n\n#[derive(Debug, Clone, Copy, PartialEq)]\npub enum FloatWidth {\n    F64,\n    F32,\n    F16,\n}\n\npub fn compare_float_width(a: &FloatWidth, b: &FloatWidth) -> i32 {\n    if a == b { return 0; }\n    fn rank(v: &FloatWidth) -> i32 {\n        match v {\n            FloatWidth::F64 => 0,\n            FloatWidth::F32 => 1,\n            FloatWidth::F16 => 2,\n        }\n    }\n    rank(a) - rank(b)\n}\n\nimpl FloatWidth {\n    pub fn to_string(&self) -> String {\n        match self {\n            FloatWidth::F64 => \"F64\".to_string(),\n            FloatWidth::F32 => \"F32\".to_string(),\n            FloatWidth::F16 => \"F16\".to_string(),\n        }\n    }\n}\n\nimpl FloatWidth {\n    pub const ALL: [FloatWidth; 3] = [FloatWidth::F64, FloatWidth::F32, FloatWidth::F16];\n    pub fn name(&self) -> &'static str {\n        match self {\n            FloatWidth::F64 => \"F64\",\n            FloatWidth::F32 => \"F32\",\n            FloatWidth::F16 => \"F16\",\n        }\n    }\n    pub fn from_name(name: &UStr) -> Option<FloatWidth> {\n        match name.to_utf8_lossy().as_str() {\n            \"F64\" => Some(FloatWidth::F64),\n            \"F32\" => Some(FloatWidth::F32),\n            \"F16\" => Some(FloatWidth::F16),\n            _ => None,\n        }\n    }\n}\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/string-family-resume-wt/wt/tests/ts/enum-queries.test.ts:54:18)
+(fail) enum value queries generated trees > Rust emits ALL, name, from_name and a literal range [1.00ms]
+(pass) enum value queries generated trees > no generated target retains a Type static call [25.00ms]
+
+tests/ts/sorted-key-domains.test.ts:
+(pass) sorted key domains generated tree > TS generated tree exports comparison function for structure keys
+(pass) sorted key domains generated tree > Structure key builder call site injects the comparator reference
+(pass) sorted key domains generated tree > Int key builder call site binds the resident comparator
+(pass) sorted key domains generated tree > String key builder call site binds the resident comparator
+37 | 
+38 |   test("Rust generated tree widens an int capacity bound without an error enum", () => {
+39 |     const clusterTagsPath = path.resolve(__dirname, "../../reference/rust/gen/boring/cluster_tags.rs");
+40 |     expect(fs.existsSync(clusterTagsPath)).toBe(true);
+41 |     const content = fs.readFileSync(clusterTagsPath, "utf8");
+42 |     expect(content).toContain("let capacity = usize::try_from(u32::from_ne_bytes((set.size()).to_ne_bytes())).unwrap_or(0);");
+                         ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "let capacity = usize::try_from(u32::from_ne_bytes((set.size()).to_ne_bytes())).unwrap_or(0);"
+Received: "use crate::runtime::sorted_table::SortedMapTable;\nuse crate::runtime::sorted_table::SortedMapTableBuilder;\nuse crate::runtime::sorted_table::SortedSetTable;\nuse crate::runtime::sorted_table::SortedSetTableBuilder;\nuse crate::runtime::sorted_table::SortedTable;\nuse crate::runtime::u_string::UString;\nuse std::fmt::Write;\nuse std::sync::Arc;\n\n\n#[derive(Clone, Copy)]\npub struct ClusterTags;\n\nimpl ClusterTags {\n    pub fn cluster_tags_create_map() -> SortedMapTable<ClusterTag, u32> {\n        let mut b: SortedMapTableBuilder<ClusterTag, u32> = SortedTable::sorted_table_map_builder::<ClusterTag, u32>(Arc::new(compare_cluster_tag));\n        b.put(&(ClusterTag { name: UString::from(\"beta\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: true }), &(100));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 20, sub: SubTag { priority: 2 }, active: false }), &(200));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 10, sub: SubTag { priority: 3 }, active: true }), &(300));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: true }), &(400));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: false }), &(500));\n        return b.clone().build();\n    }\n\n    pub fn cluster_tags_create_set() -> SortedSetTable<ClusterTag> {\n        let mut b: SortedSetTableBuilder<ClusterTag> = SortedTable::sorted_table_set_builder::<ClusterTag>(Arc::new(compare_cluster_tag));\n        b.put(&(ClusterTag { name: UString::from(\"beta\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: true }));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: false }));\n        b.put(&(ClusterTag { name: UString::from(\"beta\").to_ustring(), score: 10, sub: SubTag { priority: 1 }, active: true }));\n        b.put(&(ClusterTag { name: UString::from(\"alpha\").to_ustring(), score: 20, sub: SubTag { priority: 2 }, active: false }));\n        return b.clone().build();\n    }\n\n    pub fn cluster_tags_tag_score(tag: ClusterTag) -> Option<u32> {\n        let map: SortedMapTable<ClusterTag, u32> = ClusterTags::cluster_tags_create_map();\n        return map.get(&(tag));\n    }\n\n    pub fn cluster_tags_describe_order() -> UString {\n        let map: SortedMapTable<ClusterTag, u32> = ClusterTags::cluster_tags_create_map();\n        let mut parts: Vec<UString> = vec![];\n        let count = u32::from_ne_bytes(((map.size()) as u32).to_ne_bytes());\n        for i in 0..count {\n            let k = map.key_at({ let v: u32 = i; i32::from_ne_bytes(v.to_ne_bytes()) });\n            let mut act = UString::from(\"F\").to_ustring();\n            if k.active {\n                act = UString::from(\"T\").to_ustring();\n            }\n            parts.push(UString::from(format!(\"{}\", { let mut __s = UString::new(); __s += (k.name).to_ustring().as_ustr(); __s += &(UString::from(\":\")); __s += &(UString::from((k.score).to_string().as_str())); __s += &(UString::from(\":\")); __s += &(UString::from(((k.sub).clone().priority).to_string().as_str())); __s += &(UString::from(\":\")); __s += act.as_ustr(); __s += &(UString::from(\"=\")); __s += &(UString::from((map.value_at({ let v: u32 = i; i32::from_ne_bytes(v.to_ne_bytes()) })).to_string().as_str())); __s }).as_str()));\n        }\n        return UString::from(format!(\"{}\", { let joined = parts; let mut out = String::new(); let n = joined.len(); let mut index = 0usize; while index < n { if index > 0 { out.push_str(\"; \"); } let _ = write!(out, \"{}\", joined[index]); index += 1; } UString::from(out.as_str()) }).as_str());\n    }\n\n    pub fn cluster_tags_describe_set_order() -> UString {\n        let set: SortedSetTable<ClusterTag> = ClusterTags::cluster_tags_create_set();\n        let mut parts: Vec<UString> = vec![];\n        let count = u32::from_ne_bytes(((set.size()) as u32).to_ne_bytes());\n        for i in 0..count {\n            let k = set.at({ let v: u32 = i; i32::from_ne_bytes(v.to_ne_bytes()) });\n            let mut act = UString::from(\"F\").to_ustring();\n            if k.active {\n                act = UString::from(\"T\").to_ustring();\n            }\n            parts.push(UString::from(format!(\"{}\", { let mut __s = UString::new(); __s += (k.name).to_ustring().as_ustr(); __s += &(UString::from(\":\")); __s += &(UString::from((k.score).to_string().as_str())); __s += &(UString::from(\":\")); __s += &(UString::from(((k.sub).clone().priority).to_string().as_str())); __s += &(UString::from(\":\")); __s += act.as_ustr(); __s }).as_str()));\n        }\n        return UString::from(format!(\"{}\", { let joined1 = parts; let mut out = String::new(); let n = joined1.len(); let mut index1 = 0usize; while index1 < n { if index1 > 0 { out.push_str(\"; \"); } let _ = write!(out, \"{}\", joined1[index1]); index1 += 1; } UString::from(out.as_str()) }).as_str());\n    }\n\n    pub fn cluster_tags_set_scores() -> Vec<u32> {\n        let set: SortedSetTable<ClusterTag> = ClusterTags::cluster_tags_create_set();\n        let capacity = usize::try_from(u32::from_ne_bytes(((set.size()) as u32).to_ne_bytes())).unwrap_or(0);\n        let mut scores = Vec::with_capacity(capacity);\n        for i in 0..u32::from_ne_bytes(((set.size()) as u32).to_ne_bytes()) {\n            scores.push(set.at(i32::from_ne_bytes(((i) as i32).to_ne_bytes())).score);\n        }\n        return scores;\n    }\n\n    pub fn cluster_tags_describe_scores() -> UString {\n        let scores = ClusterTags::cluster_tags_set_scores();\n        let capacity = scores.len();\n        let mut parts = Vec::with_capacity(capacity);\n        for i in 0..match u32::try_from(scores.len()) { Ok(value) => value, Err(_) => u32::MAX } {\n            parts.push(UString::from((scores[usize::try_from(i).unwrap_or(0)]).to_string().as_str()));\n        }\n        return UString::from(format!(\"{}\", { let joined2 = parts; let mut out = String::new(); let n = joined2.len(); let mut index2 = 0usize; while index2 < n { if index2 > 0 { out.push_str(\",\"); } let _ = write!(out, \"{}\", joined2[index2]); index2 += 1; } UString::from(out.as_str()) }).as_str());\n    }\n}\n\n#[derive(Debug, Clone, Copy, PartialEq)]\npub struct SubTag {\n    pub priority: u32,\n}\n\npub fn compare_sub_tag(a: &SubTag, b: &SubTag) -> i32 {\n    let cmp_priority = match i32::from_ne_bytes((a.priority).to_ne_bytes()).cmp(&i32::from_ne_bytes((b.priority).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };\n    if cmp_priority != 0 { return cmp_priority; }\n    0\n}\n\n#[derive(Debug, Clone, PartialEq)]\npub struct ClusterTag {\n    pub name: UString,\n    pub score: u32,\n    pub sub: SubTag,\n    pub active: bool,\n}\n\npub fn compare_cluster_tag(a: &ClusterTag, b: &ClusterTag) -> i32 {\n    let cmp_name = SortedTable::sorted_table_compare_strings(a.name.as_ustr(), b.name.as_ustr());\n    if cmp_name != 0 { return cmp_name; }\n    let cmp_score = match i32::from_ne_bytes((a.score).to_ne_bytes()).cmp(&i32::from_ne_bytes((b.score).to_ne_bytes())) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0, core::cmp::Ordering::Greater => 1 };\n    if cmp_score != 0 { return cmp_score; }\n    let cmp_sub = compare_sub_tag(&a.sub, &b.sub);\n    if cmp_sub != 0 { return cmp_sub; }\n    let cmp_active = if a.active < b.active { -1 } else if a.active > b.active { 1 } else { 0 };\n    if cmp_active != 0 { return cmp_active; }\n    0\n}\n"
+
+      at <anonymous> (/home/losses/Development/tq-workspace/string-family-resume-wt/wt/tests/ts/sorted-key-domains.test.ts:42:21)
+(fail) sorted key domains generated tree > Rust generated tree widens an int capacity bound without an error enum [1.00ms]
+
+ 17 pass
+ 6 fail
+ 2 errors
+ 1499 expect() calls
+Ran 23 tests across 5 files. [25.16s]

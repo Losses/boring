@@ -1,0 +1,18 @@
+#![cfg(test)]
+
+use crate::boring::constructed_state_ops::ConstructedStateOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_constructed_state() {
+    testlib::run("tests.ConstructedStateTests.testConstructedState", "tests.ConstructedStateTests.testConstructedState: constructed static initializers expose their state", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[119,101,105,103,104,116,101,100,44,112,108,97,105,110,44,105,109,112,111,114,116,101,100,44,103,101,110,101,114,97,116,101,100]), ConstructedStateOps::constructed_state_ops_labels().as_ustr(), UStr::new(&[99,111,110,115,116,114,117,99,116,101,100,32,108,97,98,101,108,115]));
+        test_core::TestCore::test_core_equals_float(1.5f32, ConstructedStateOps::constructed_state_ops_weight(), UStr::new(&[101,110,117,109,32,112,97,121,108,111,97,100,32,99,111,110,115,116,97,110,116]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[50,44,48]), ConstructedStateOps::constructed_state_ops_first_lengths().as_ustr(), UStr::new(&[99,111,110,115,116,114,117,99,116,101,100,32,97,114,114,97,121,32,108,101,110,103,116,104,115]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[99,114,111,115,115,45,99,108,97,115,115]), ConstructedStateOps::constructed_state_ops_cross_class_text().as_ustr(), UStr::new(&[99,114,111,115,115,45,99,108,97,115,115,32,115,116,97,116,105,99,32,100,101,112,101,110,100,101,110,99,121]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[103,101,110,101,114,97,116,101,100]), ConstructedStateOps::constructed_state_ops_generated_label().as_ustr(), UStr::new(&[115,116,97,116,105,99,45,102,117,110,99,116,105,111,110,32,99,111,110,115,116,114,117,99,116,105,111,110]));
+    });
+}

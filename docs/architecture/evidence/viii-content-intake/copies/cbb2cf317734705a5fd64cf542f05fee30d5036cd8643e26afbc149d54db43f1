@@ -1,0 +1,7 @@
+package boring
+
+object NoSuchElementNoteOps {
+    fun describe(note: NoSuchElementNoteException): String {
+        return note.message
+    }
+}

@@ -1,0 +1,31 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct NullableArrayOps;
+
+impl NullableArrayOps {
+    pub fn nullable_array_ops_literal_mixed() -> Vec<Option<u32>> {
+        return vec![Some(1), None, Some(3)];
+    }
+
+    pub fn nullable_array_ops_literal_single_null() -> Vec<Option<u32>> {
+        return vec![None];
+    }
+
+    pub fn nullable_array_ops_from_nullable_var(value: Option<u32>) -> Vec<Option<u32>> {
+        return vec![value, Some(5), None];
+    }
+
+    pub fn nullable_array_ops_nullable_strings() -> Vec<Option<UString>> {
+        return vec![Some(UString::from("a").to_ustring()), None.clone(), Some(UString::from("c").to_ustring())];
+    }
+
+    pub fn nullable_array_ops_element_matches(value: &Vec<Option<u32>>, index: u32, expected: Option<u32>) -> bool {
+        return value[usize::try_from(index).unwrap_or(0)] == expected;
+    }
+
+    pub fn nullable_array_ops_string_element_matches(value: &Vec<Option<UString>>, index: u32, expected: Option<UString>) -> bool {
+        return (value[usize::try_from(index).unwrap_or(0)]).clone() == expected;
+    }
+}

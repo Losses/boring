@@ -1,0 +1,26 @@
+# Full map of boundary references in SwiftExpr.hx (coordination tree working copy, HEAD e1c65975 + applied edits), captured 2026-09-30
+35-38: imports of SwiftArrayBoundary types
+305:  SwiftArrayBoundary.sourceStorage(sourceType) / parameterPlan.bodyStorage
+743:  SwiftArrayBoundary.isBoundary(init.t, v.t)
+811:  arrayBoundaryText(ret, currentReturnType)            [stmtLines, TReturn path]
+1212: arrayBoundaryText(value, currentReturnType)          [blockExpression]
+1929: arrayBoundaryText(x, elemType)                       [expr(e)]
+2534: SwiftArrayBoundary.isBoundary(inner.t, target)
+2535: arrayBoundaryText(inner, target)
+2566: function arrayBoundaryText(...) -> lowerArrayBoundary(...).text
+2578: function lowerArrayBoundary(...)
+2607: SwiftArrayBoundary.prepare(...)  [inside lowerArrayBoundary]
+2614: SwiftArrayBoundary.render(...)  [inside lowerArrayBoundary]
+2672-2674: isOptionalArrayType / sourceStorage / isBoundary gate
+2689: sourceStorage(e.t, isEmptyArrayDecl(e), isNullLiteral(e))  [AST-type FALLBACK when recorded==null]
+2721: isOptionalArrayType(e.t)
+2806: isBoundary(value.t, target.t) -> 2807 arrayBoundaryText
+3304: arrayBoundaryText(a, pt)                             [argTexts]
+4720: arrayBoundaryText(a, pt)                             [enumConstruct]
+4760, 4863: lowerArrayBoundary(args[i], p, null, true)     [call/ctor arguments]
+5641-5642: isBoundary(returnValue.t, currentReturnType) ? arrayBoundaryText(...)  [INSIDE switchReturn]
+6173: sourceStorage(localType)
+
+Direct lowerArrayBoundary callers (grep lowerArrayBoundary):
+746, 2567 (=arrayBoundaryText body), 2627, 2628, 2642, 2643, 4760, 4863
+arrayBoundaryText external call sites: 811, 1212, 1929, 2535, 2807, 3304, 4720, 5642

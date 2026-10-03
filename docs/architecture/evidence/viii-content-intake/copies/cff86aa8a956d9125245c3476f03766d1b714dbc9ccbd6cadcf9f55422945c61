@@ -1,0 +1,18 @@
+bun test v1.4.2 (744846f84)
+============================================================
+Bun v1.4.2 (744846f84) Linux x64
+Linux Kernel v7.1.4 | glibc v2.42
+CPU: sse42 popcnt avx avx2 avx512
+Args: "bun" "test" "tests/ts/"
+Features: jsc tsconfig(2) tsconfig_paths 
+
+Elapsed: 104037ms | User: 20998ms | Sys: 60019ms
+RSS: 10.95 GB | Peak: 10.94 GB | Commit: 15.36 GB | Faults: 37709 | Machine: 0.1 TB
+
+oh no: Bun has run out of memory.
+
+To send a redacted crash report to Bun's team,
+please file a GitHub issue using the link below:
+
+ https://bun.report/1.4.2/lt1744846fgGggggCwo5jvDw/p/xDmojinCmn0+2Bk0t+2B2zk82BmmsivB0+9hvB2y4hvBoo5Kuz5K6i0+uBA9
+

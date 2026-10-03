@@ -1,0 +1,41 @@
+195:                         resultStorage = ReadOnlyArrayView;
+196:                         switch (preparedOptionality) {
+197:                             case RequiredOperand:
+198:                                 operation = WrapMutableArrayView;
+199:                                 resultOptionality = RequiredOperand;
+200:                             case OptionalOperand if (destOptional):
+201:                                 operation = MapOptionalMutableArrayView;
+202:                                 resultOptionality = OptionalOperand;
+203:                             case OptionalOperand:
+204:                         }
+205:                     }
+206:                 case ReadOnlyArrayView:
+207:                     if (preparedOptionality == RequiredOperand || destOptional) {
+208:                         operation = KeepPreparedArray;
+209:                     }
+210:                 case OtherArrayStorage:
+211:             }
+212:         } else if (destMutable && preparedStorage == ReadOnlyArrayView && element != null) {
+213:             resultStorage = MutableArrayWrapper;
+214:             switch (preparedOptionality) {
+215:                 case RequiredOperand:
+216:                     operation = CopyReadOnlyIntoMutableArray;
+217:                     resultOptionality = RequiredOperand;
+218:                 case OptionalOperand if (destOptional):
+219:                     operation = MapOptionalReadOnlyIntoMutableArray;
+220:                     resultOptionality = OptionalOperand;
+221:                 case OptionalOperand:
+222:             }
+223:         }
+224: 
+225:         if (isOptionalType(sourceType)
+226:             && preparedOptionality == RequiredOperand
+227:             && presenceFact != LiteralProvenPresent
+228:             && presenceFact != GuardProvenPresent
+229:             && presenceFact != BranchValuesRequired
+230:             && presenceFact != DefaultMaterializedPresent)
+231:             operation = null;
+232: 
+233:         if (operation == null)
+234:             return null;
+235: 

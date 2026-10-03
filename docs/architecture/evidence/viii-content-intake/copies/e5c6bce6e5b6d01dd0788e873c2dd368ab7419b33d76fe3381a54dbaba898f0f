@@ -1,0 +1,7 @@
+package boring
+
+object ResidentModuleImportOps {
+    fun mapLookup(): Int? {
+        return null
+    }
+}

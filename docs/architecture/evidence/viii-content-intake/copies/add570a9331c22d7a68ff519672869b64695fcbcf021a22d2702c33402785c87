@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Independent cross-check runner (reviewer's own copy; does NOT touch the
+# audited worktree).  Must be invoked from inside `nix develop`.
+#   run-matrix.sh <phase-tag> [fixture ...]
+set -u
+WT=/home/losses/Development/tq-workspace/rust-keyfix-xcheck-wt
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/rust-keyfix-xcheck
+PHASE=$1; shift
+LOG=$OUT/raw
+mkdir -p "$LOG"
+[ "$(cd "$WT" && pwd)" = "$WT" ] || { echo "WRONG WT"; exit 90; }
+{
+  echo "phase=$PHASE fixtures=$*"
+  echo "--- compiler state ---"
+  ( cd "$WT" && sha256sum packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx \
+      packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx \
+      packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx \
+      packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx )
+} > "$LOG/$PHASE.state.txt"
+for FIX in "$@"; do
+  STAMP=$(date +%H%M%S)
+  GENREL=out/keyfix-xcheck/gen-$PHASE-$STAMP/$FIX
+  TGT=$WT/out/keyfix-xcheck/target-$PHASE-$STAMP-$FIX
+  cd "$WT" || exit 90
+  haxe tests/haxe/$FIX/gen/rust.hxml -D rust-output=$GENREL \
+      >"$LOG/$PHASE-$FIX.gen.stdout" 2>"$LOG/$PHASE-$FIX.gen.stderr"
+  GENRC=$?
+  CARGORC=SKIP
+  if [ $GENRC -eq 0 ]; then
+    cd "$WT/$GENREL" || exit 90
+    CARGO_TARGET_DIR=$TGT cargo build --offline \
+        >"$LOG/$PHASE-$FIX.cargo.stdout" 2>"$LOG/$PHASE-$FIX.cargo.stderr"
+    CARGORC=$?
+  fi
+  printf '%s %s gen=%s cargo=%s genrel=%s\n' "$PHASE" "$FIX" "$GENRC" "$CARGORC" "$GENREL" \
+      | tee -a "$LOG/$PHASE.results.txt"
+done
+exit 0

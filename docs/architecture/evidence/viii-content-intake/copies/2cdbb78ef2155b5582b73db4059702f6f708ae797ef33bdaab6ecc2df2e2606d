@@ -1,0 +1,16 @@
+#![cfg(test)]
+
+use crate::boring::inline_default_ops::InlineDefaultOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_inline_defaults() {
+    testlib::run("tests.InlineDefaultTests.testInlineDefaults", "tests.InlineDefaultTests.testInlineDefaults: inlined data-class defaults preserve static paths and parameter bindings", || {
+        let value = InlineDefaultOps::new(7u32, Some(0), Some(7));
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((value.marker) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(7i32, i32::from_ne_bytes(((value.count) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

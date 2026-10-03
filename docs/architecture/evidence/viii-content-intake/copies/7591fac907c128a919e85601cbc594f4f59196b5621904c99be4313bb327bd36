@@ -1,0 +1,31 @@
+package boring
+
+import boring.runtime.SortedMapTable
+import boring.runtime.SortedTable
+
+object CodePointNames {
+    private fun createTable(): SortedMapTable<Int, String> {
+        val b = SortedTable.mapBuilder<Int, String>(SortedTable::compareInts)
+        b.put(65, "LATIN CAPITAL LETTER A")
+        b.put(32, "SPACE")
+        b.put(66, "LATIN CAPITAL LETTER B")
+        b.put(10, "LINE FEED")
+        b.put(48, "DIGIT ZERO")
+        return b.build()
+    }
+
+    fun nameOf(codePoint: Int): String? {
+        val table = CodePointNames.createTable()
+        return table.get(codePoint)
+    }
+
+    fun describeOrder(): String {
+        val table = CodePointNames.createTable()
+        val parts = mutableListOf<String>()
+        val count = table.size()
+        for (i in 0 until count) {
+            parts.add((table.keyAt(i)).toString() + "=" + table.valueAt(i))
+        }
+        return parts.joinToString("; ")
+    }
+}

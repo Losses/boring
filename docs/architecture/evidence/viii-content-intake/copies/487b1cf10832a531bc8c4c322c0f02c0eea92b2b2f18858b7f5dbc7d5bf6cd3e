@@ -1,0 +1,35 @@
+#![cfg(test)]
+
+use crate::boring::loop_write_ops::LoopWriteOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn tail_increment() {
+    testlib::run("tests.LoopWriteTests.tailIncrement", "tests.LoopWriteTests.tailIncrement: tail counter increment remains a counted loop", || {
+        test_core::TestCore::test_core_equals_int(15i32, i32::from_ne_bytes(((LoopWriteOps::loop_write_ops_tail_increment(6)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn branch_increment() {
+    testlib::run("tests.LoopWriteTests.branchIncrement", "tests.LoopWriteTests.branchIncrement: branch counter write remains a while loop", || {
+        test_core::TestCore::test_core_equals_int(12i32, i32::from_ne_bytes(((LoopWriteOps::loop_write_ops_branch_increment(6)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn non_unit_increment() {
+    testlib::run("tests.LoopWriteTests.nonUnitIncrement", "tests.LoopWriteTests.nonUnitIncrement: non-unit counter increment remains a while loop", || {
+        test_core::TestCore::test_core_equals_int(9i32, i32::from_ne_bytes(((LoopWriteOps::loop_write_ops_non_unit_increment(7)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn closure_increment() {
+    testlib::run("tests.LoopWriteTests.closureIncrement", "tests.LoopWriteTests.closureIncrement: closure counter write remains a while loop", || {
+        test_core::TestCore::test_core_equals_int(9i32, i32::from_ne_bytes(((LoopWriteOps::loop_write_ops_closure_increment(6)) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

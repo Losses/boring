@@ -1,0 +1,126 @@
+use crate::boring::printed_collection::PrintedPoint;
+use crate::boring::printed_enum_ops::PrintedMark;
+use crate::runtime::sorted_table::SortedMapTable;
+use crate::runtime::sorted_table::SortedSetTable;
+use crate::runtime::u_string::UString;
+use std::fmt::Write;
+
+
+#[derive(Clone, PartialEq)]
+pub struct PrintedSortedFields {
+    pub marks: SortedSetTable<u32>,
+    pub points: SortedSetTable<PrintedPoint>,
+    pub lookup: SortedMapTable<UString, u32>,
+    pub empty_set: SortedSetTable<u32>,
+    pub empty_map: SortedMapTable<UString, u32>,
+}
+
+impl PrintedSortedFields {
+    pub fn new(marks: SortedSetTable<u32>, points: SortedSetTable<PrintedPoint>, lookup: SortedMapTable<UString, u32>, empty_set: SortedSetTable<u32>, empty_map: SortedMapTable<UString, u32>) -> Self {
+        Self {
+            marks,
+            points,
+            lookup,
+            empty_set,
+            empty_map,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("PrintedSortedFields(")); __s += &(UString::from("marks=")); __s += UString::from(format!("{}", {
+        let mut out = String::new();
+        out.push('[');
+        let n = (self.marks).clone().size();
+        let mut i = 0;
+        while i < n {
+            if i > 0 { out.push_str(", "); }
+            let _ = write!(out, "{}", i32::from_ne_bytes((((self.marks).clone().at(i)) as i32).to_ne_bytes()));
+            i += 1;
+        }
+        out.push(']');
+        out
+    }).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("points=")); __s += UString::from(format!("{}", {
+        let mut out = String::new();
+        out.push('[');
+        let n = (self.points).clone().size();
+        let mut i = 0;
+        while i < n {
+            if i > 0 { out.push_str(", "); }
+            let _ = write!(out, "{}", (self.points).clone().at(i).to_string());
+            i += 1;
+        }
+        out.push(']');
+        out
+    }).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("lookup=")); __s += UString::from(format!("{}", {
+        let mut out = String::new();
+        out.push('{');
+        let n = (self.lookup).clone().size();
+        let mut i = 0;
+        while i < n {
+            if i > 0 { out.push_str(", "); }
+            let _ = write!(out, "{}={}", (self.lookup).clone().key_at(i), i32::from_ne_bytes((((self.lookup).clone().value_at(i)) as i32).to_ne_bytes()));
+            i += 1;
+        }
+        out.push('}');
+        out
+    }).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("emptySet=")); __s += UString::from(format!("{}", {
+        let mut out = String::new();
+        out.push('[');
+        let n = (self.empty_set).clone().size();
+        let mut i = 0;
+        while i < n {
+            if i > 0 { out.push_str(", "); }
+            let _ = write!(out, "{}", i32::from_ne_bytes((((self.empty_set).clone().at(i)) as i32).to_ne_bytes()));
+            i += 1;
+        }
+        out.push(']');
+        out
+    }).as_str()).as_ustr(); __s += &(UString::from(", ")); __s += &(UString::from("emptyMap=")); __s += UString::from(format!("{}", {
+        let mut out = String::new();
+        out.push('{');
+        let n = (self.empty_map).clone().size();
+        let mut i = 0;
+        while i < n {
+            if i > 0 { out.push_str(", "); }
+            let _ = write!(out, "{}={}", (self.empty_map).clone().key_at(i), i32::from_ne_bytes((((self.empty_map).clone().value_at(i)) as i32).to_ne_bytes()));
+            i += 1;
+        }
+        out.push('}');
+        out
+    }).as_str()).as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PrintedNullableMark {
+    pub mark: Option<PrintedMark>,
+}
+
+impl PrintedNullableMark {
+    pub fn new(mark: Option<PrintedMark>) -> Self {
+        Self {
+            mark,
+        }
+    }
+
+    pub fn to_string(&self) -> UString {
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("PrintedNullableMark(")); __s += &(UString::from("mark=")); __s += (match &(self.mark) { None => UString::from("null"), Some(__option) => UString::from(format!("{}", (*__option).clone().to_string()).as_str()) }).as_ustr(); __s += &(UString::from(")")); __s }).as_str());
+    }
+}
+
+fn printed_nullable_mark_order_0(v: &PrintedMark) -> i32 {
+    match v {
+        PrintedMark::Plain => 0,
+        PrintedMark::Ring { .. } => 1,
+        PrintedMark::Tag { .. } => 2,
+        PrintedMark::Trail { .. } => 3,
+        PrintedMark::Aliases { .. } => 4,
+    }
+}
+
+pub fn compare_printed_nullable_mark(a: &PrintedNullableMark, b: &PrintedNullableMark) -> i32 {
+    let cmp_mark = match (&a.mark, &b.mark) { (None, None) => 0, (None, Some(_)) => -1, (Some(_), None) => 1, (Some(av), Some(bv)) => match printed_nullable_mark_order_0(av).cmp(&printed_nullable_mark_order_0(bv)) { core::cmp::Ordering::Less => -1, core::cmp::Ordering::Equal => 0,
+core::cmp::Ordering::Greater => 1 } };
+    if cmp_mark != 0 { return cmp_mark; }
+    0
+}

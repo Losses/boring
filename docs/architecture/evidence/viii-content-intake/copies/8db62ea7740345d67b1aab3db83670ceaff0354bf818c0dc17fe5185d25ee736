@@ -1,0 +1,65 @@
+CROSS-CHECK VERIFICATION LOG (all read-only outside this output dir; nothing re-run)
+=====================================================================================
+V1  COMPOSITE.diff touches exactly 13 files, all tests/ts/*.test.ts
+    $ grep -n '^--- a/' COMPOSITE.diff   -> 13 headers, matches the stated scope.
+V2  Patch application reproduced from scratch (in this output dir):
+    cp -r /tmp/p1run/base/tests/ts  ->  patch -p1 < COMPOSITE.diff  (dry-run OK, apply OK)
+    then cmp against every /tmp/p1run/cfg-a/tests/ts/*.test.ts -> ALL SAME (53 files compared).
+    => "cfg-a = base + COMPOSITE.diff" is independently reproduced.
+V3  cfg-b compiler state reproduced from scratch:
+    cp base SwiftExpr.hx -> patch -p1 < INTEGRATION.diff (apply OK)
+    md5 = c59680ade0132782db140f5205d5f70e, identical to /tmp/p1run/cfg-b/.../SwiftExpr.hx
+    destinationValueText count = 5 (cfg-a/base = 0).
+V4  Repo snapshot fidelity (as of this cross-check):
+    git status --porcelain = 21 entries; every one of those files is byte-identical to its
+    /tmp/p1run/base counterpart (cmp, no differences). SwiftExpr.hx md5 repo = base = cfg-a
+    = 00f4fba363b9887ec62899579e9d28b9; cfg-b = c59680ad...
+    The 13 test files: repo md5 == base md5 for all 13 (cfg-a differs for all 13).
+V5  FINDING 1 source check:
+    grep -Fc 'static let readOnlyInts: [Int32] = Array(TiqianArray([10, 20, 30]))' on the
+    committed Swift file -> 0; python `needle in text` -> False.
+    git diff --stat HEAD -- tests/ts/array-root.test.ts reference/swift/gen/boring/ArrayRootStateOps.swift
+    -> empty (both files as committed at HEAD 0a5c42a702d938ca4da39cbcefae2cc450e021fe).
+    control-base-array-root.log:16 -> at <anonymous> (/tmp/p1run/base/tests/ts/array-root.test.ts:18:72)
+    COMPOSITE.diff array-root hunks: only @@ -25,7 +25,7 @@ (changed line = file L28).
+V6  FINDING 2 budget check (source):
+    timeouts present only as bun third args: sealed-variants:212 ,15000 / static-state:66 ,15000
+    / std-string:85,98 ,120000 / value-type:149 ,120_000 / printed-record:226 ,120_000.
+    array-root:64, fn-values:90, sealed-variants:101,147 have NO third arg -> bun default 5000.
+    Every log line "^ this test timed out after Nms" matches the source budget for that test.
+V7  FINDING 2 measured-cost check (from the run's own logs, passing single-spawn tests):
+    cfg-a 23440.59 / 23511.59 / 28899.50 ms; cfg-b 22852.57 / 21802.59 / 27725.47 ms
+    => 21.80 s .. 28.90 s per haxe run. Matches the report's "21.8-28.9 s".
+V8  FINDING 3 zero-flip check (independent re-derivation):
+    grep -E '^\(pass\)|^\(fail\)' cfg-{a,b}-bun.log | sed 's/ \[[0-9.]+ms\]$//'
+    -> 69 lines each, diff empty; and identical to the author's cfg-{a,b}-outcomes-no-timing.txt
+    (md5 of both author files 19184b128f08a5b427b5b309ea7c1f1d).
+    Whole-log timing-stripped diff shows only (i) which line bun attaches a timing to and
+    (ii) /tmp/p1run/cfg-a vs cfg-b paths. No outcome difference.
+V9  FINDING 2/4 added-line coverage map (evidence/added-line-map.txt):
+    57 added lines: 51 inside a passing test body, 1 inside the failing array-root test
+    (array-root.test.ts:28), 5 module-scope table entries. Of those 5:
+      printed-record.test.ts:46,51 -> memberTrees, consumed by the PASSING test at L174
+      printed-record.test.ts:88    -> mutationTargets, consumed only at L211 by the FAILING
+                                      (timed out) test
+      record-order.test.ts:45,46   -> consumed by record-order tests, all PASS
+    => 56 of 57 added lines are covered by passing tests; printed-record.test.ts:88 is not.
+V10 FINDING 4 masked-coupling check:
+    Failing tests that spawn the Swift lane (grep): printed-record.test.ts:66,
+    sealed-variants.test.ts:31, value-type.test.ts:27, std-string.test.ts:89
+    (haxe examples/${target}.hxml with target "swift") - matches the report's list of four.
+    value-type.test.ts:75 uses Bun.spawnSync (blocks the event loop) and the failing test
+    (L132-149) loops 3 shapes x 5 targets = 15 runs; its elapsed 351144.87 ms ~= 15 x 23 s;
+    no .value-type-mutation-* temp dir remains under either copy (mkdtemp at L133, rmSync in
+    finally at L147) => the body ran to completion and no assertion rejected, in BOTH configs.
+    /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8 vs cfg-b/...-kMhqJP: only the 6 .hxml
+    files differ (they embed the copy's absolute paths); every generated source output is
+    byte-identical, e.g. removed-marker/swift/boring/PrintedRecord.swift md5
+    271b096cd50eba60a214c5f19913dfa2 in both, removed-marker/swift/Package.swift
+    1d88db3b2f0b2a8b1bc6cbee8975aa29 in both.
+V11 Trap/maintenance checks: samples/boring/MathNaNTestSupport.hx = 5 'Test.equals',
+    md5 8eb49dcbf9be0412995222aa40207a4c in repo and in base/cfg-a/cfg-b (matches
+    evidence/trap-checks.txt). No leftover .printed-record-mutation-*/.value-type-mutation-*/
+    .array-root-mutation-* dirs in the repository working tree.
+V12 NOT run: no bun test invocation, no haxe invocation, by this cross-check. Every result
+    statement below is either read from source or read from the retained logs/copies.

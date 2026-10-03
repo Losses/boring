@@ -1,0 +1,31 @@
+=== independent boundary re-measurements (reviewer xcheck; all on cp -a copies) ===
+base attempt: attempt-20260929T180809-2918225 (harness.log 2622 B, 30 lines, marker at line 30)
+checkers: OLD=backup/check-log-integrity.sh.orig (bebd0cf9...), NEW=installed (606cb4f3...)
+
+BOUNDARY 1 -- re-seal without key (no MAC)
+  tamper .stdout 1 byte (step-2320672395.stdout offset 100 b->A): rc=1 :: stage evidence hash changed
+  re-seal with writer algorithm (recompute manifest sha + marker sha over edited prefix): rc=0
+  :: INTEGRITY OK: sealed at line 30, sha caf2b3e9e5e86dcc95b2f5f5a4a3e3d20f373f3ba0935f8d7a725a77e06dbc01
+  (my re-seal sha differs from the report's 80344e6c... because a different byte/file was flipped; mechanism identical, both OLD and NEW accept)
+
+BOUNDARY 2 -- attempt not bound to absolute path
+  cp -a whole attempt to unrelated path (out/bytefix-xcheck/moved): rc=0 :: INTEGRITY OK (sha 597a9e11...b03a)
+
+BOUNDARY 3 -- child-evidence/** and $RUN/option-c/** outside the seal
+  modified child-evidence/run-1790719690459-2918293/0009/record.json (append): rc=0
+  overwrote option-c/identity.rc (2 B -> '0\n') + added option-c/zz-extra.txt: rc=0
+  (both rc=0 :: INTEGRITY OK)
+
+BOUNDARY 4 -- plan claims toolchain-resolution is sealed; it is not
+  option-c-plan.md:74 = "| (environment guard + toolchain record) | Stage 0 | ... npm/node/tar/python3/haxe/kotlinc resolved paths recorded into sealed evidence |"
+  find integration-a3-evidence -name '*toolchain*': 0
+  find publication-staging/execution-option-c-2159c657 -maxdepth 2 -name '*toolchain*': 0
+  find publication-staging/execution-option-c-coord -name '*toolchain*': 1 (separate root; PIT-252 byproduct, not part of this claim)
+  find publication-staging/execution-option-c-e1c65975 -maxdepth 2 -name '*toolchain*': 0
+  grep -c 'toolchain\|resolved' harness.log: 0
+  Stage 0 (env-guard) = step-2119220958: its sealed .stdout is exactly 90 B:
+      post-state: 1431 entries checked, 0 failures
+      post-state: 1431 entries checked, 0 failures
+  its .command literally writes: command -v npm/node/tar/python3/haxe/kotlinc } > toolchain-resolution.txt
+    (i.e. the record lands in the execution root, unsealed)
+  option-c/env-guard.stdout: 0 B

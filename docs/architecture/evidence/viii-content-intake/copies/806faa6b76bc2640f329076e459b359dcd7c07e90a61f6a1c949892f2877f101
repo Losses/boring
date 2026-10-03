@@ -1,0 +1,11 @@
+=== extra-controls ===
+E1 trunc-LF(2621B): old_rc=0 new_rc=0
+  NEW: INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+E2 trunc-LF + 1B append: old_rc=1 new_rc=1
+  NEW: INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03ax, actual 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a)
+202622 /home/losses/Development/tq-workspace/dc-warn/out/bytefix-verify/scratch/ctrl/e3/harness.log
+E3 200KB append: new_rc=1
+  NEW stdout: INTEGRITY FAIL: content after the end marker (200000 byte(s) past the marker line, byte 2622 of 202622)
+  NEW stderr: tail: error writing 'standard output': Broken pipe
+E3 200KB append: old_rc=0
+  OLD stderr: 

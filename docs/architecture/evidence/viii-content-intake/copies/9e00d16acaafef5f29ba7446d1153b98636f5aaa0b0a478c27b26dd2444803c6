@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt
+argv bash -c cp\ tests/haxe/swift-rt-probe/native/native-main.swift\ out/swift-rt/gen/probe/native-main.swift

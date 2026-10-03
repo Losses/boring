@@ -1,0 +1,28 @@
+warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture' is dirty
+bun test v1.3.13 (bf2e2cec)
+
+tests/bundle-child-evidence/bundle-child-evidence.test.ts:
+(pass) child execution evidence > Driver.step integration > a successful step retains both streams and runs its command once [200.00ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps its status, both streams, and the driver failure exit [48.00ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps the same failure exit without capture [49.00ms]
+(pass) child execution evidence > Driver.step integration > without the evidence setting the driver keeps its previous behaviour [174.00ms]
+(pass) child execution evidence > Driver.step integration > a capture write failure after a zero exit child fails the driver [200.00ms]
+(pass) child execution evidence > Driver.step integration > an evidence parent that is a regular file fails the driver before a run [28.00ms]
+(pass) child execution evidence > Driver.step integration > a read only evidence parent fails the driver before any run is created [28.00ms]
+(pass) child execution evidence > retained outcome fields > a missing executable claims no stream file and is not a normal exit [82.00ms]
+(pass) child execution evidence > retained outcome fields > a command the host refuses to accept raises instead of returning an outcome [29.00ms]
+(pass) child execution evidence > retained outcome fields > a working directory that is not a directory keeps the host code of its launch failure [28.00ms]
+(pass) child execution evidence > retained outcome fields > a signaled child is distinct from a launch failure and from success [54.00ms]
+(pass) child execution evidence > retained outcome fields > a nonzero child keeps its exact status and both streams [50.00ms]
+(pass) child execution evidence > retained outcome fields > byte sequences survive including forms that are not valid UTF-8 [51.00ms]
+(pass) child execution evidence > retained outcome fields > a stream beyond the capture limit keeps its output and is marked incomplete [54.00ms]
+(pass) child execution evidence > retained outcome fields > captured and uncaptured children observe the same argv, cwd, and environment [73.00ms]
+(pass) child execution evidence > retained outcome fields > repeated runs keep separate records and never reuse an earlier run [105.00ms]
+(pass) child execution evidence > retained outcome fields > a same name allocation resolves exclusively and keeps its own identity [25.00ms]
+(pass) child execution evidence > retained outcome fields > the production conversion validates each host value it is handed [128.00ms]
+(pass) child execution evidence > retained outcome fields > the project identity names the project path and its content [172.00ms]
+
+ 19 pass
+ 0 fail
+ 220 expect() calls
+Ran 19 tests across 1 file. [1.96s]

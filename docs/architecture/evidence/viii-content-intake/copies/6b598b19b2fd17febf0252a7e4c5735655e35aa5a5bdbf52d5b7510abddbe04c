@@ -1,0 +1,6 @@
+5:    return "abcdef".substring(4, 2);
+9:    return "abcdef".substring(4, 100);
+13:    return "abcdef".substring(-1, 3);
+17:    const c = (Number.isNaN("abcdef".charCodeAt(100)) ? null : "abcdef".charCodeAt(100))!;
+22:    const c = (Number.isNaN("abcdef".charCodeAt(-1)) ? null : "abcdef".charCodeAt(-1))!;
+27:    const c = (Number.isNaN("abcdef".charCodeAt(100)) ? null : "abcdef".charCodeAt(100))!;

@@ -1,0 +1,48 @@
+package tests
+
+import boring.StaticRefOps
+import boring.runtime.test.Test
+
+class StaticRefTests {
+@boring.test.Test
+    fun testPassToParam() {
+        Test.run("tests.StaticRefTests.testPassToParam", "tests.StaticRefTests.testPassToParam: static method passed as value to function-typed parameter") {
+                Test.equals("code:42", StaticRefOps.passToParam(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testStoreLocal() {
+        Test.run("tests.StaticRefTests.testStoreLocal", "tests.StaticRefTests.testStoreLocal: static method stored in function-typed local") {
+                Test.equals("code:42", StaticRefOps.storeLocal(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testReturnFn() {
+        Test.run("tests.StaticRefTests.testReturnFn", "tests.StaticRefTests.testReturnFn: static method returned as function value") {
+                Test.equals("code:42", StaticRefOps.returnFn()(42), null)
+        }
+    }
+
+@boring.test.Test
+    fun testReassignLocal() {
+        Test.run("tests.StaticRefTests.testReassignLocal", "tests.StaticRefTests.testReassignLocal: static method assigned in function-typed local") {
+                Test.equals("code:42", StaticRefOps.reassignLocal(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testStaticsOnlyValue() {
+        Test.run("tests.StaticRefTests.testStaticsOnlyValue", "tests.StaticRefTests.testStaticsOnlyValue: statics-only class static method used as value") {
+                Test.equals(1, StaticRefOps.staticsOnlyValue(), null)
+        }
+    }
+
+@boring.test.Test
+    fun testCallSite() {
+        Test.run("tests.StaticRefTests.testCallSite", "tests.StaticRefTests.testCallSite: static method at call site is unchanged") {
+                Test.equals("code:42", StaticRefOps.callSite(), null)
+        }
+    }
+}

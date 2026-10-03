@@ -1,0 +1,2 @@
+import { test, expect } from "bun:test";
+test("registry/c", () => { console.log("COLLECTED packages/registry/tests/c.test.ts"); expect(1).toBe(1); });

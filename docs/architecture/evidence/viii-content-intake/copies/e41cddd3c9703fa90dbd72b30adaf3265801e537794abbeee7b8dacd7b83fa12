@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix-xcheck
+argv timeout 900 haxe tests/haxe/xcheck-dart-fix/gen/kotlin.hxml -D kotlin-output=/home/losses/Development/tq-workspace/dc-warn/out/dart-fix-xcheck/negctrl-20260929T190000Z/gen-kotlin

@@ -1,0 +1,86 @@
+# 第 165 轮管理技术审阅裁定
+
+日期：2026-09-30  
+审阅对象：`boring-wt-architecture` 的候选线，尤其是 `a14345ce` 与 `c8ae0054` 及 `tests/swift-gap-boundary/`。  
+本审阅只写入本文件；不修改仓库或既有文件。
+
+## 总裁定
+
+1. **乙按“实现交付”验收通过。** `c8ae0054` 是一个合适的原子提交：lambda 的 `currentReturnType` 播种与 `blockExpression` 改用自身结果类型不可拆开，提交说明、代码和 `swiftc -c` 的 MX 探针证据相互一致。`a14345ce` 先移除有回归风险的播种，随后 `c8ae0054` 以修正形态重新引入，历史顺序也符合第 145 轮的集成裁定。
+2. **这不是 P08 整体验收，也不是“零诊断”验收。** 目前仍有一个在 `swiftc -c` 阶段出现的 `will never be executed`，且按第 145 轮裁定和标准 `02-translator-implementation-standard.md:78/:80`，它是未豁免偏差。P08-2 仍不得写 PASS。
+3. **候选可以进入“重新冻结准备/重新冻结”流程，但冻结记录必须如实保留该 FAIL。** 重新冻结不是接受门；它只给出包含 `c8ae0054` 的新候选身份，使后续复核针对同一 revision 进行。不得用 `bun test` 的 `2 pass / 0 fail` 或 `recorded 0 pending...` 把它解释成构建零诊断。
+4. **第 7 席现在派出。** 但职责是计划/闸门独立核验，不是再做一份席位 6 的实现复核，也不是重新调查 Swift 技术细节。
+5. **下一轮只做一件事：先把台账改到当前事实。** 暂不启动 P09，不派新的技术调查，不派“复核的复核”。
+
+## ① 乙是否验收；能否重新冻结
+
+### 乙：通过，范围限定为“原子实现交付”
+
+支持证据：
+
+- `c8ae0054` 的提交说明明确写出“两半不可分离”，并同时完成 lambda 返回契约播种和 block 自身目的地修正。
+- `packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx` 中，`functionLiteral` 保存/恢复 `currentReturnType`，并以 `f.t` 播种；`blockExpression` 不再读取外层 `currentReturnType`。
+- 提交记录的 `swiftc -c` 探针显示 `MXProbe` 与 lambda witness 修复，且 `MXBlockMember` 的既有红状态没有被伪装成新绿。
+- `tests/swift-gap-boundary/` 已进入仓库，补上此前“夹具只在 scratch、没有任何命令收集”的契约缺口。
+
+所以，作为第 145 轮要求的“一个可集成闭环”，乙可以落账为完成；不需要再把它拆成两个提交或要求另一个执行席重复实现。
+
+### 重新冻结：可以进入，但有两个硬限制
+
+可以把 `c8ae0054` 作为新的候选 revision 进入重新冻结，理由是旧冻结候选不再代表当前执行产出，且新提交已经在受控集成线上。重新冻结材料至少必须记录：
+
+- 候选 revision 为 `c8ae0054`（以及其父链包含 `a14345ce`）；
+- W1 的 `[#no-usage]` 已消失；
+- `swiftc -c` 仍有 1 条 `will never be executed`，是 **FAIL / unwaived deviation**，不是 baseline waiver；
+- 最终目标仍为 `swiftc -c` 零诊断；
+- 后续 P08 复核必须针对这个同一冻结 revision，而不是针对 scratch 或旧 `FREEZE`。
+
+另有一个证据口径问题必须在台账中明确：当前夹具代码实际执行的是 `swiftc -typecheck`，并从该命令的 stderr 计数；它本身并没有执行 `swiftc -c` 并记录那一条 build-phase warning。故 `recorded 0 pending build-phase diagnostic(s)` 只能说明本次 typecheck stderr 中没有待记录 warning，不能证明 `-c` 零诊断。提交说明所载的 `-c` 观测仍可作为证据，但不能被夹具当前实现冒充为同一命令的自动断言。
+
+## ② 台账未更新是否阻塞；属于什么性质
+
+**结论：对技术集成不是硬阻塞，对正式闸门推进和重新冻结记录是阻塞；性质是纪律问题，不只是效率问题。**
+
+理由：
+
+- `GATE-LEDGER.md` 当前 P08-2 仍写成“2 条 `[#no-usage]`，且 W1 不在冻结候选”。这已经被 `c8ae0054` 改变：当前事实是 W1 已在集成线，剩余阻塞是 1 条 build-phase diagnostic。
+- 台账的用途正是让第二个人仅凭一页重建状态。连续两轮不更新会使唯一真相源与提交/夹具事实分叉，属于治理纪律失守；不能以“已经在提交说明里写过”替代台账更新。
+- 但这不应成为再开一轮技术修复或阻止 `c8ae0054` 进入候选冻结身份的借口。它阻塞的是“正式宣布状态已同步、门槛可继续移动”，不是已经完成的代码集成。
+
+最低限度应更新：P08-1 的证据/责任（若其判定因新候选变化）、P08-2 的 FAIL 理由与证据、P08 overall 的说明，以及所有仍引用旧冻结候选或“W1 未进入候选”的交叉文字。不要把 P08-2 改成 PASS，也不要把已知 warning 改名为豁免。
+
+## ③ 第 7 席现在派什么
+
+**现在派，且只派“P08/P09/P10/P12 计划—闸门独立核验”。** 其输入是：
+
+- 当前台账及其更新前后的差异；
+- `c8ae0054`、`a14345ce` 的提交事实；
+- `tests/swift-gap-boundary/` 的收集和运行证据；
+- 现有 `ARCHITECTURAL-CONTRACTS.md`、`LAYERED-VERIFICATION.md`、`BASELINE-FAILURES.md`。
+
+交付必须是一页 gate ledger 或等价的逐行核验，逐项给出 `PASS / FAIL / NOT ESTABLISHED`、证据位置和阻塞责任，至少确认：
+
+- P08-2 是 FAIL（未豁免的 `swiftc -c` warning）；
+- `c8ae0054` 是新候选输入/可重新冻结对象，不等于 P08 已通过；
+- P08-4、P09、P10、P12 的未决状态没有被局部测试或准备材料越权关闭；
+- P12 继续保持打开。
+
+第 7 席**不应**：审查席位 6 的措辞质量、重复跑一轮同样的 MX 技术探针、增加新的门槛、启动 P09，或把“2 pass”当作全局接受。已有 `c8ae0054` 正好提供了可核验的执行产出，因此现在派出是合适的。
+
+## ④ 下一轮唯一最小动作
+
+> **指令：由记录/集成席在受控集成线上立即更新 `docs/architecture/GATE-LEDGER.md`，将 P08-2 的旧“2 条 `[#no-usage]`、W1 未入冻结”改为“W1 已由 `c8ae0054` 集成；`swiftc -c` 仍有 1 条 `will never be executed`，未豁免，故 FAIL”，同步候选 revision 与证据路径；完成前不启动 P09、不派新的技术修复。**
+
+这是下一轮唯一动作。完成后才由第 7 席核对更新后的台账，并由协调者决定重新冻结记录的正式落点；不在本轮把台账更新、构建 warning 修复和 P09 混成并行任务。
+
+## 状态摘要
+
+| 项目 | 本轮裁定 |
+|---|---|
+| 乙：lambda + block destination 原子提交 | **验收通过（实现交付）** |
+| `c8ae0054` 是否可作为新候选重新冻结 | **可以进入流程；冻结记录必须保留 FAIL** |
+| P08-2 零诊断 | **FAIL；1 条 `swiftc -c` build-phase warning，未豁免** |
+| 台账连续两轮未更新 | **纪律问题；阻塞正式状态推进，不阻塞代码已完成的集成** |
+| 第 7 席 | **现在派：计划/闸门独立核验** |
+| P09 | **不启动** |
+| 下一轮 | **只更新台账并同步证据** |

@@ -1,0 +1,245 @@
+package tests
+
+import boring.runtime.SortedTable
+import boring.runtime.test.Test
+
+object KotlinNullabilityOps {
+    fun defaulted(value: Int = 17): Int {
+        return value
+    }
+
+    fun receiverLabel(value: KotlinNullableReceiver?): String? {
+        return value?.label()
+    }
+}
+
+object KotlinNestedNullReturnOps {
+    fun anonymousLookup(key: Int): String {
+        val lookup = fun(k: Int): String? {
+    if ((k == 0)) {
+        return null
+    }
+    return "hit"
+}
+        val value = lookup(key)
+        if ((value == null)) {
+            return "none"
+        }
+        return value
+    }
+
+    private fun applyLookup(fn: (Int) -> String?, key: Int): String {
+        val value = fn(key)
+        if ((value == null)) {
+            return "none"
+        }
+        return value
+    }
+
+    fun appliedLookup(key: Int): String {
+        return KotlinNestedNullReturnOps.applyLookup(fun(k: Int): String? {
+    if ((k == 0)) {
+        return null
+    }
+    return "hit"
+}, key)
+    }
+
+    fun namedLookup(key: Int): String {
+        val lookup = fun(k: Int): String? {
+    if ((k == 0)) {
+        return null
+    }
+    return "hit"
+}
+        val value = lookup(key)
+        if ((value == null)) {
+            return "none"
+        }
+        return value
+    }
+}
+
+class KotlinNullableSlot<T>(initial: T) {
+    var stored: Int
+    var value: T
+    init {
+    this.stored = 0
+    this.value = initial
+    }
+
+    fun accept(next: T) {
+        this.stored++
+        this.value = next
+    }
+
+    fun peek(): T {
+        return this.value
+    }
+}
+
+object KotlinNullableProbe {
+    fun present(): KotlinNullableReceiver? {
+        return KotlinNullableReceiver()
+    }
+
+    fun absent(): KotlinNullableReceiver? {
+        return null
+    }
+
+    fun presentText(): String? {
+        return "x"
+    }
+
+    fun absentText(): String? {
+        return null
+    }
+}
+
+class KotlinNullableReceiver {
+    fun label(): String {
+        return "present"
+    }
+}
+
+class KotlinNullGuardHolder(var flag: String?, var count: Int?) {
+}
+
+class KotlinNullGuardBool(val value: Boolean) {
+}
+
+object KotlinNullGuardArgOps {
+    fun present(): KotlinNullGuardHolder? {
+        return KotlinNullGuardHolder("flag", 3)
+    }
+
+    fun absent(): KotlinNullGuardHolder? {
+        return null
+    }
+
+    fun nullFlag(): KotlinNullGuardHolder? {
+        return KotlinNullGuardHolder(null, null)
+    }
+
+    fun acceptsFlag(flag: Boolean): Boolean {
+        return flag
+    }
+
+    fun flagPresent(holder: KotlinNullGuardHolder?): Boolean {
+        return KotlinNullGuardArgOps.acceptsFlag((holder?.flag != null) ?: throw IllegalArgumentException("argument is null"))
+    }
+
+    fun countIsThree(holder: KotlinNullGuardHolder?): Boolean {
+        return KotlinNullGuardArgOps.acceptsFlag((holder?.count == 3) ?: throw IllegalArgumentException("argument is null"))
+    }
+
+    fun flagPresentCtor(holder: KotlinNullGuardHolder?): Boolean {
+        val wrapped = KotlinNullGuardBool((holder?.flag != null) ?: throw IllegalArgumentException("argument is null"))
+        return wrapped.value
+    }
+
+    fun flagPresenceList(holder: KotlinNullGuardHolder?): MutableList<Boolean> {
+        val flags = mutableListOf<Boolean>((holder?.flag != null) ?: throw IllegalArgumentException("argument is null"))
+        return flags
+    }
+}
+
+class KotlinNullabilityTests {
+@boring.test.Test
+    fun testOptionalDefault() {
+        Test.run("tests.KotlinNullabilityTests.testOptionalDefault", "tests.KotlinNullabilityTests.testOptionalDefault: optional parameters emit a native default") {
+                Test.equals(17, KotlinNullabilityOps.defaulted(17), null)
+                Test.equals(23, KotlinNullabilityOps.defaulted(23), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNullableReceiver() {
+        Test.run("tests.KotlinNullabilityTests.testNullableReceiver", "tests.KotlinNullabilityTests.testNullableReceiver: nullable receiver calls preserve present values") {
+                Test.equals("present", KotlinNullabilityOps.receiverLabel(KotlinNullableReceiver()), null)
+                Test.equals(null, KotlinNullabilityOps.receiverLabel(null), null)
+        }
+    }
+
+@boring.test.Test
+    fun testAnonymousNullableLambda() {
+        Test.run("tests.KotlinNullabilityTests.testAnonymousNullableLambda", "tests.KotlinNullabilityTests.testAnonymousNullableLambda: anonymous lambda keeps a Null return") {
+                Test.equals("none", KotlinNestedNullReturnOps.anonymousLookup(0), null)
+                Test.equals("hit", KotlinNestedNullReturnOps.anonymousLookup(1), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNullableLambdaArgument() {
+        Test.run("tests.KotlinNullabilityTests.testNullableLambdaArgument", "tests.KotlinNullabilityTests.testNullableLambdaArgument: lambda argument keeps a Null return") {
+                Test.equals("none", KotlinNestedNullReturnOps.appliedLookup(0), null)
+                Test.equals("hit", KotlinNestedNullReturnOps.appliedLookup(1), null)
+        }
+    }
+
+@boring.test.Test
+    fun testNamedNullableLocalFunction() {
+        Test.run("tests.KotlinNullabilityTests.testNamedNullableLocalFunction", "tests.KotlinNullabilityTests.testNamedNullableLocalFunction: named local function keeps a Null return") {
+                Test.equals("none", KotlinNestedNullReturnOps.namedLookup(0), null)
+                Test.equals("hit", KotlinNestedNullReturnOps.namedLookup(1), null)
+        }
+    }
+
+@boring.test.Test
+    fun testGenericReceiverNullableParam() {
+        Test.run("tests.KotlinNullabilityTests.testGenericReceiverNullableParam", "tests.KotlinNullabilityTests.testGenericReceiverNullableParam: generic receiver type arguments decide parameter nullability") {
+                val slot = KotlinNullableSlot(KotlinNullableProbe.present())
+                slot.accept(KotlinNullableProbe.present())
+                Test.equals(1, slot.stored, "the present value was accepted")
+                val present = slot.peek()
+                Test.equals(false, present == null, "the present value round-trips")
+                Test.equals("present", (if ((present == null)) "missing" else present.label()), null)
+                slot.accept(KotlinNullableProbe.absent())
+                Test.equals(2, slot.stored, "the absent value was accepted")
+                val absent = slot.peek()
+                Test.equals(true, absent == null, "the stored null round-trips")
+        }
+    }
+
+@boring.test.Test
+    fun testNullableComparisonArgument() {
+        Test.run("tests.KotlinNullabilityTests.testNullableComparisonArgument", "tests.KotlinNullabilityTests.testNullableComparisonArgument: a nullable receiver comparison keeps its value at a Bool argument") {
+                Test.equals(true, KotlinNullGuardArgOps.flagPresent(KotlinNullGuardArgOps.present()), "the guarded property reads present")
+                Test.equals(false, KotlinNullGuardArgOps.flagPresent(KotlinNullGuardArgOps.nullFlag()), "a null property keeps the guard false")
+                Test.equals(true, KotlinNullGuardArgOps.countIsThree(KotlinNullGuardArgOps.present()), "the property equals the constant")
+                Test.equals(false, KotlinNullGuardArgOps.countIsThree(KotlinNullGuardArgOps.nullFlag()), "a null property never equals the constant")
+                Test.equals(false, KotlinNullGuardArgOps.flagPresent(KotlinNullGuardArgOps.absent()), "a null receiver keeps the guard false")
+                Test.equals(false, KotlinNullGuardArgOps.countIsThree(KotlinNullGuardArgOps.absent()), "a null receiver never equals the constant")
+        }
+    }
+
+@boring.test.Test
+    fun testNullableComparisonHardening() {
+        Test.run("tests.KotlinNullabilityTests.testNullableComparisonHardening", "tests.KotlinNullabilityTests.testNullableComparisonHardening: a nullable receiver comparison survives ctor and array element boundaries") {
+                Test.equals(true, KotlinNullGuardArgOps.flagPresentCtor(KotlinNullGuardArgOps.present()), null)
+                Test.equals(false, KotlinNullGuardArgOps.flagPresentCtor(KotlinNullGuardArgOps.nullFlag()), null)
+                val presentFlags = KotlinNullGuardArgOps.flagPresenceList(KotlinNullGuardArgOps.present())
+                val absentFlags = KotlinNullGuardArgOps.flagPresenceList(KotlinNullGuardArgOps.nullFlag())
+                Test.equals(1, presentFlags.size, null)
+                Test.equals(1, absentFlags.size, null)
+                Test.equals(true, presentFlags[0], null)
+                Test.equals(false, absentFlags[0], null)
+        }
+    }
+
+@boring.test.Test
+    fun testSortedMapNullableValue() {
+        Test.run("tests.KotlinNullabilityTests.testSortedMapNullableValue", "tests.KotlinNullabilityTests.testSortedMapNullableValue: a nullable value type argument keeps sorted map nulls storable") {
+                val builder = SortedTable.mapBuilder<Int, String?>(SortedTable::compareInts)
+                builder.put(1, KotlinNullableProbe.presentText())
+                builder.put(2, KotlinNullableProbe.absentText())
+                val map = builder.build()
+                Test.equals(2, map.size(), "both entries were stored")
+                Test.equals("x", map.get(1), "the present value round-trips")
+                val absent = map.get(2)
+                Test.equals(true, absent == null, "the null value round-trips")
+                val stored = map.valueAt(1)
+                Test.equals(true, stored == null, "the stored entry keeps its null value")
+        }
+    }
+}

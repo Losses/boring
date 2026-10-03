@@ -1,0 +1,14 @@
+package mx;
+import std.ReadOnlyArray;
+// Attack H: inline helper block as an anonymous-structure FIELD value.
+class AttH {
+	inline static function two(a:Array<Int>):Array<Int> {
+		final s = a.length;
+		return a.slice(s, 0);
+	}
+	public static function run():Int {
+		final h = [1, 2, 3];
+		final o = {a: two(h)};
+		return o.a.length;
+	}
+}

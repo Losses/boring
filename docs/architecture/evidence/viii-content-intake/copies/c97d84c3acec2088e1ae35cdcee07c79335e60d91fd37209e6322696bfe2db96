@@ -1,0 +1,27 @@
+./docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:20:| Matrix driver (rebuilt from the snapshot; see B2) | `out/bundle/driver.js` sha256 `bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53` (52,779 bytes), built with haxe 4.3.7, argv `haxe tools/bundle/driver.hxml` | `dc-warn/out/driver-rebuild/` (`driver-identity.json`, `driver-js.sha256`, `haxe-version.txt`) |
+./docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:51:`dc-warn/worktrees/driver-rebuild` (detached at `e1c65975`) compiled the
+./docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:66:Evidence directory: `dc-warn/out/driver-rebuild/` (REPORT.md,
+./docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md:83:pinned `304ed70c` driver only (`dc-warn/out/driver-rebuild/REPORT.md` §④).
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203318-3292018/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/plan-b.txt
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203319-3292401/stages/step-2792497579.stderr:1:_: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/option-c-stage-wrapper.sh: /usr/bin/env: bad interpreter: Permission denied
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203319-3292401/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/oc-pass.plan
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203319-3292490/stages/step-3300604402.stderr:1:_: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/option-c-stage-wrapper.sh: /usr/bin/env: bad interpreter: Permission denied
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203319-3292490/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/oc-drift.plan
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203319-3292442/stages/step-2562990838.stderr:1:_: /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/option-c-stage-wrapper.sh: /usr/bin/env: bad interpreter: Permission denied
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203319-3292442/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/oc-fail.plan
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203318-3292071/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/plan-c.txt
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203318-3292186/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/plan-f.txt
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203318-3292275/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/plan-d.txt
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T180317-2912092/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/p09-smoke/smoke-chainA-0-3-20260929T220226Z/plan-chainA-stages0-3.plan
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T180809-2918225/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/p09-smoke/smoke-chainA-0-3-20260929T220226Z/plan-chainA-stages0-3.plan.fixed
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203318-3291944/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/plan-a.txt
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203318-3291944/harness.log:12:/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/run-exclusive.sh: line 225: require_fresh_dir: command not found
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T180735-2917611/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/p09-smoke/smoke-chainA-0-3-20260929T220226Z/plan-diag-envguard-fix.plan
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203318-3292222/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/plan-g.txt
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203318-3292330/harness.log:5:plan=/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/plan-a.txt
+./out/integration-a3-evidence/exclusive-runner/attempt-20260929T203318-3292330/harness.log:12:/home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/run-exclusive.sh: line 225: require_fresh_dir: command not found
+./tests/haxe/try-tail/native/main.dart:3:// artifacts cannot execute on the dc-warn fuse mount).
+./tests/haxe/dc-null-guard-fallthrough/run.sh:6:# directory under dc-warn/out/dart-fix2/<attempt-id>/ (never rewritten).
+./tests/haxe/dc-null-guard-fallthrough/run.sh:15:# Evidence lands outside the worktree. Default is the workspace dc-warn layout
+./tests/haxe/dc-null-guard-fallthrough/run.sh:20:EV_PARENT="${DC_DART_FIX2_EVIDENCE:-$WS/dc-warn/out/dart-fix2}"
+./tools/roots-guard/check-roots-guard.sh:9:# dc-warn/out/f32-divergence/REPORT.md).

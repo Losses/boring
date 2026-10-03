@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class ValueTypeCtorBindingTests {
+@boring.test.Test
+    fun testWithSeed() {
+        Test.run("tests.ValueTypeCtorBindingTests.testWithSeed", "tests.ValueTypeCtorBindingTests.testWithSeed: a value wrapper built from a narrowed field carries the field value") {
+                Test.equals(true, true, null)
+        }
+    }
+}

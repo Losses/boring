@@ -1,0 +1,40 @@
+#[derive(Clone, Copy)]
+pub struct MathNaNOps;
+
+impl MathNaNOps {
+    pub fn math_na_n_ops_min_of(a: f64, b: f64) -> f64 {
+        return { let __min_a = a as f64; let __min_b = b as f64; if __min_a.is_nan() || __min_b.is_nan() { f64::NAN } else { if __min_a < __min_b { __min_a } else if __min_b < __min_a { __min_b } else if __min_a == 0.0 && __min_b == 0.0 { if __min_a.is_sign_negative() { __min_a } else { __min_b } } else { __min_a } } };
+    }
+
+    pub fn math_na_n_ops_max_of(a: f64, b: f64) -> f64 {
+        return { let __min_a1 = a as f64; let __min_b1 = b as f64; if __min_a1.is_nan() || __min_b1.is_nan() { f64::NAN } else { if __min_a1 > __min_b1 { __min_a1 } else if __min_b1 > __min_a1 { __min_b1 } else if __min_a1 == 0.0 && __min_b1 == 0.0 { if __min_a1.is_sign_negative() { __min_b1 } else { __min_a1 } } else { __min_a1 } } };
+    }
+
+    pub fn math_na_n_ops_min_ints(a: u32, b: u32) -> f64 {
+        return { let __min_a2 = i32::from_ne_bytes(((a) as i32).to_ne_bytes()) as f64 as f64; let __min_b2 = i32::from_ne_bytes(((b) as i32).to_ne_bytes()) as f64 as f64; if __min_a2.is_nan() || __min_b2.is_nan() { f64::NAN } else { if __min_a2 < __min_b2 { __min_a2 } else if __min_b2 < __min_a2 { __min_b2 } else if __min_a2 == 0.0 && __min_b2 == 0.0 { if __min_a2.is_sign_negative() { __min_a2 } else { __min_b2 } } else { __min_a2 } } };
+    }
+
+    pub fn math_na_n_ops_max_ints(a: u32, b: u32) -> f64 {
+        return { let __min_a3 = i32::from_ne_bytes(((a) as i32).to_ne_bytes()) as f64 as f64; let __min_b3 = i32::from_ne_bytes(((b) as i32).to_ne_bytes()) as f64 as f64; if __min_a3.is_nan() || __min_b3.is_nan() { f64::NAN } else { if __min_a3 > __min_b3 { __min_a3 } else if __min_b3 > __min_a3 { __min_b3 } else if __min_a3 == 0.0 && __min_b3 == 0.0 { if __min_a3.is_sign_negative() { __min_b3 } else { __min_a3 } } else { __min_a3 } } };
+    }
+
+    pub fn math_na_n_ops_constant_nan() -> f64 {
+        return 0.0f64 / 0.0f64;
+    }
+
+    pub fn math_na_n_ops_constant_pos_inf() -> f64 {
+        return 1.0f64 / 0.0f64;
+    }
+
+    pub fn math_na_n_ops_constant_neg_inf() -> f64 {
+        return -1.0f64 / 0.0f64;
+    }
+
+    pub fn math_na_n_ops_constant_overflow() -> f64 {
+        return 1e300f64;
+    }
+
+    pub fn math_na_n_ops_constant_underflow() -> f64 {
+        return 1e-300f64;
+    }
+}

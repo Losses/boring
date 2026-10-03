@@ -1,0 +1,35 @@
+package boring
+
+class DeferredLocalsOps {
+    companion object {
+        fun tierOf(value: Int): Int {
+            var tier: Int
+            if ((value > 2)) {
+                tier = 2
+            } else {
+                tier = value
+            }
+            return tier
+        }
+
+        fun nullableValue(value: Int?): Int {
+            var result: Int
+            if ((value != null)) {
+                result = value
+            } else {
+                result = 0
+            }
+            return result
+        }
+
+        fun loopValue(count: Int): Int {
+            var result = 0
+            var i = 0
+            while ((i < count)) {
+                result = i
+                i = i + 1
+            }
+            return result
+        }
+    }
+}

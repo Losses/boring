@@ -1,0 +1,1 @@
+s|^            val _g = EvalProbe.nextKind()$|            val _g = EvalProbe.nextKind()\n            EvalProbe.nextKind()|

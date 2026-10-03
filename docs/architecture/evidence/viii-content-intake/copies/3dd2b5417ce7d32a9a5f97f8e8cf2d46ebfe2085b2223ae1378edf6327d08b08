@@ -1,0 +1,16 @@
+use crate::boring::file_level_ops::public_value;
+use crate::boring::file_level_ops::public_with_private;
+
+
+#[derive(Clone, Copy)]
+pub struct FileLevelConsumer;
+
+impl FileLevelConsumer {
+    pub fn file_level_consumer_public_result() -> u32 {
+        return public_value(7);
+    }
+
+    pub fn file_level_consumer_private_result_through_public() -> u32 {
+        return public_with_private(3);
+    }
+}

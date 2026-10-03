@@ -1,0 +1,1 @@
+"$EXCLUSIVE_RUNNER_DIR/option-c-stage-wrapper.sh" oc-fail "$OPTION_C_ROOT" "$SOURCE_MANIFEST" "$EXCLUSIVE_RUNNER_DIR/option-c-poststate.py" "$RUN/option-c" -- exit 7

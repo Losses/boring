@@ -1,0 +1,15 @@
+use crate::runtime::exception::Exception;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct ExceptionCatchOps;
+
+impl ExceptionCatchOps {
+    pub fn exception_catch_ops_cause_message(cause: Option<Exception>) -> UString {
+        if cause.is_none() {
+            return UString::from("none").to_ustring();
+        }
+        return cause.as_ref().unwrap().get_message();
+    }
+}

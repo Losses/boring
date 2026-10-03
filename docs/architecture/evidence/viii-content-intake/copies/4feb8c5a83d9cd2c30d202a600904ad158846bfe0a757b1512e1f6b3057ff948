@@ -1,0 +1,13 @@
+Archived artifacts (PIT-256: 判据依赖产物内容时必须归档产物)
+
+- prefix-swift-VectorCodec.swift        frozen coord-state (pre-fix) generated site, line 49 double-wrapped
+- postfix-swift-VectorCodec.swift       this run's regenerated site, line 49 fixed
+- postfix-swift-f32-VectorCodec.swift   f32 target, fixed
+- postfix-swift-Runtime.swift           real runtime used by both the Stage-3 compile and evidence/typeprobe
+- test-results/*.jsonl                  per-target verdict records written by this run's test legs
+                                        (swift.jsonl = 729 pass + 1 not_applicable, 0 fail;
+                                         swift-f32.jsonl = 675 pass + 1 not_applicable, 0 fail)
+  Reproduce the §6 isolation with these files, e.g.:
+    d=$(mktemp -d); cp test-results/kotlin.jsonl test-results/haxe.jsonl test-results/ts.jsonl \
+        test-results/dart.jsonl test-results/rust.jsonl $d/
+    BORING_TEST_RESULTS_DIR=$d node out/test-consistency/manager.js --targets=haxe,ts,kotlin,dart,rust --baseline=kotlin  # rc=0, 0 divergences

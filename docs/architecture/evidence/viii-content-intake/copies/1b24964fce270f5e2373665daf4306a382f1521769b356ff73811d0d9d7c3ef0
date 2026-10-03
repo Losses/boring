@@ -1,0 +1,17 @@
+package tests
+
+import boring.runtime.test.Test
+
+class UsizeComparisonTests {
+@boring.test.Test
+    fun withinBounds() {
+        Test.run("tests.UsizeComparisonTests.withinBounds", "tests.UsizeComparisonTests.withinBounds: a nullable array length bounds an index in the u32 comparison domain") {
+        }
+    }
+
+@boring.test.Test
+    fun lengthExceeds() {
+        Test.run("tests.UsizeComparisonTests.lengthExceeds", "tests.UsizeComparisonTests.lengthExceeds: a nullable array length compares above an Int limit") {
+        }
+    }
+}

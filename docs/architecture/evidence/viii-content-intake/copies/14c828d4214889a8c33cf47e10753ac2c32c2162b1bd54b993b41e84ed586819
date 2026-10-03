@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+"""Classify the authored-test failures of stage 4 (authored-tests) by cause."""
+import collections, re, sys
+src, out = sys.argv[1], sys.argv[2]
+txt = open(src, encoding='utf-8', errors='replace').read()
+blocks = re.split(r'(?m)^(?=\(fail\) )', txt)
+seen, rows = set(), []
+for b in blocks:
+    if not b.startswith('(fail) '):
+        continue
+    first = b.splitlines()[0]
+    m = re.match(r'\(fail\) (.*?)(?: \[([0-9.]+)ms\])?$', first)
+    name, dur = m.group(1), m.group(2)
+    if name in seen:
+        continue
+    seen.add(name)
+    tmo = re.search(r'this test timed out after (\d+)ms', b)
+    kind = 'TIMEOUT' if tmo else 'ASSERT'
+    budget = (tmo.group(1) + 'ms') if tmo else ''
+    err = ''
+    for line in b.splitlines()[1:]:
+        s = line.strip()
+        if s.startswith('Expected:') or s.startswith('Received:') or s.startswith('error:'):
+            err = s[:120]; break
+    rows.append((kind, name, dur or '', budget, err))
+lines = []
+c = collections.Counter(r[0] for r in rows)
+lines.append("unique failing tests: %d   by class: %s" % (len(rows), dict(c)))
+lines.append("")
+lines.append("=== %d TIMEOUT failures (budget, observed, name) ===" % c['TIMEOUT'])
+for r in sorted([x for x in rows if x[0] == 'TIMEOUT'], key=lambda x: x[1]):
+    lines.append("  %-8s %-12s %s" % (r[3], r[2], r[1]))
+lines.append("")
+lines.append("=== %d ASSERT failures (observed, name, first error line) ===" % c['ASSERT'])
+for r in sorted([x for x in rows if x[0] == 'ASSERT'], key=lambda x: x[1]):
+    lines.append("  %-12s %s" % (r[2], r[1]))
+    if r[4]:
+        lines.append("               %s" % r[4])
+txt_out = "\n".join(lines) + "\n"
+open(out, 'w').write(txt_out)
+print(txt_out)

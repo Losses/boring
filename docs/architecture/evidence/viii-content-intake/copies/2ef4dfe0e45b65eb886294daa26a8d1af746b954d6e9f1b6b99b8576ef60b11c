@@ -1,0 +1,33 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/extern-bindings.test.ts:
+killed 1 dangling process
+(fail) TypeScript extern binding modules > emits jsRequire namespace/named and native global bindings once [5000.89ms]
+  ^ this test timed out after 5000ms.
+
+# Unhandled error between tests
+-------------------------------
+45 |       "class Probe {",
+46 |       "  public static function read():Int return Namespace.value() + Named.value() + GlobalThing.value() + Namespace.value();",
+47 |       "}", "",
+48 |     ].join("\n"));
+49 |     try {
+50 |       expect(result.code).toBe(0);
+                               ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 143
+
+      at <anonymous> (/home/losses/Development/tq-workspace/boring-wt-architecture/tests/ts/extern-bindings.test.ts:50:27)
+-------------------------------
+
+killed 1 dangling process
+(fail) TypeScript extern binding modules > rejects a value reference to an empty module [5000.89ms]
+  ^ this test timed out after 5000ms.
+
+ 0 pass
+ 2 fail
+ 1 error
+ 1 expect() calls
+Ran 2 tests across 1 file. [10.04s]

@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat-xcheck
+argv bash -c test\ -f\ \'/home/losses/Development/tq-workspace/dc-warn/out/charcodeat-xcheck/xatt-20260929T213557Z/swift-postfix/gen/Runtime.swift\'\ \&\&\ \!\ test\ -f\ \'/home/losses/Development/tq-workspace/dc-warn/out/charcodeat-xcheck/xatt-20260929T213557Z/swift/gen/Runtime.swift\'

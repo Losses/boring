@@ -1,0 +1,6 @@
+5:        return substringUnits("abcdef", 4, 2)
+9:        return substringUnits("abcdef", 4, 100)
+13:        return substringUnits("abcdef", -1, 3)
+17:        let c: Int32? = unitAtOptional("abcdef", 100)
+22:        let c: Int32? = unitAtOptional("abcdef", -1)
+27:        let c: Int32 = unitAtOptional("abcdef", 100)!

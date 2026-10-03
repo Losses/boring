@@ -1,0 +1,16 @@
+package boring
+
+data class PrintedRecord(val count: Int, val ratio: Double, val inner: PrintedInner, val note: PrintedInner?) {
+}
+
+
+
+data class PrintedInner(val name: String) {
+}
+
+fun comparePrintedInner(a: PrintedInner, b: PrintedInner): Int {
+    var cmp = 0
+    cmp = a.name.compareTo(b.name)
+    if (cmp != 0) return cmp
+    return 0
+}

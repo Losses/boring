@@ -1,0 +1,19 @@
+package tests
+
+import boring.runtime.test.Test
+
+class SwiftGlobalThrowTests {
+@boring.test.Test
+    fun testSeed() {
+        Test.run("tests.SwiftGlobalThrowTests.testSeed", "tests.SwiftGlobalThrowTests.testSeed: a throwing stored static initializer force-tries at the declaration") {
+                Test.equals(true, true, null)
+        }
+    }
+
+@boring.test.Test
+    fun testCurrent() {
+        Test.run("tests.SwiftGlobalThrowTests.testCurrent", "tests.SwiftGlobalThrowTests.testCurrent: a throwing computed accessor force-tries in the property body") {
+                Test.equals(true, true, null)
+        }
+    }
+}

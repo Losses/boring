@@ -1,0 +1,60 @@
+diff -ru -x .haxelib gen-pre/xt-twoexc-emit-rev/twoemitrevscope/two_emit_probe_rev.rs gen-post/xt-twoexc-emit-rev/twoemitrevscope/two_emit_probe_rev.rs
+--- gen-pre/xt-twoexc-emit-rev/twoemitrevscope/two_emit_probe_rev.rs	2026-09-29 20:56:20.000000000 -0400
++++ gen-post/xt-twoexc-emit-rev/twoemitrevscope/two_emit_probe_rev.rs	2026-09-29 21:09:29.000000000 -0400
+@@ -5,6 +5,7 @@
+ #[derive(Debug, Clone, PartialEq)]
+ pub enum E1Fault {
+     One { tag: UString },
++    E1Fault(Box<crate::twoemitrevscope::two_emit_probe_rev::E1>),
+ }
+ 
+ impl std::fmt::Display for E1Fault {
+@@ -13,6 +14,7 @@
+             E1Fault::One { tag } => {
+                 write!(formatter, "{}", tag)
+             }
++            E1Fault::E1Fault(inner) => write!(formatter, "{:?}", inner),
+         }
+     }
+ }
+@@ -20,6 +22,21 @@
+ impl std::error::Error for E1Fault {}
+ 
+ #[derive(Debug, Clone, PartialEq)]
++pub struct E1 {
++    pub fault: E1Fault,
++}
++impl E1 {
++    pub fn new(fault: E1Fault) -> Self {
++        E1 { fault }
++    }
++}
++impl std::fmt::Display for E1 {
++    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        write!(formatter, "{}", self.fault)
++    }
++}
++
++#[derive(Debug, Clone, PartialEq)]
+ pub enum E2Fault {
+     Two { tag: UString },
+ }
+@@ -50,15 +67,15 @@
+ 
+     pub fn two_emit_probe_rev_rethrow_e1() -> u32 {
+         let mut v = 0u32;
+-        let __outcome: Result<(), E2Fault> = (|| {
++        let __outcome: Result<(), E1Fault> = (|| {
+             let _ = TwoEmitProbeRev::two_emit_probe_rev_must_throw_e1(UStr::new(&[114,101,116,104,114,111,119]))?;
+             Ok(())
+         })();
+         match __outcome {
+             Ok(_) => {}
+             Err(e) => {
+-                let h: u32 = match (|| -> Result<u32, E2Fault> {
+-                    return Err(E2Fault::E1Fault(E1::new(e)));
++                let h: u32 = match (|| -> Result<u32, E1Fault> {
++                    return Err(E1Fault::E1Fault(Box::new(E1::new(e))));
+                 })() {
+                     Ok(__value) => __value,
+                     Err(e2) => 5,

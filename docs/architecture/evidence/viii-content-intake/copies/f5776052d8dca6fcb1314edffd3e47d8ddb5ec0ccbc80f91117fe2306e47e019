@@ -1,0 +1,49 @@
+sha256sum: xs-deadcoll/gen/rust.hxml: No such file or directory
+xs-deadcoll/gen/rust.hxml: FAILED open or read
+sha256sum: xs-deadcoll/xcheckscope/DeadCollProbe.hx: No such file or directory
+xs-deadcoll/xcheckscope/DeadCollProbe.hx: FAILED open or read
+sha256sum: xs-dead/gen/rust.hxml: No such file or directory
+xs-dead/gen/rust.hxml: FAILED open or read
+sha256sum: xs-dead/xcheckscope/DeadProbe.hx: No such file or directory
+xs-dead/xcheckscope/DeadProbe.hx: FAILED open or read
+sha256sum: xs-generic/gen/rust.hxml: No such file or directory
+xs-generic/gen/rust.hxml: FAILED open or read
+sha256sum: xs-generic/xcheckscope/GenProbe.hx: No such file or directory
+xs-generic/xcheckscope/GenProbe.hx: FAILED open or read
+sha256sum: xs-growth/gen/rust.hxml: No such file or directory
+xs-growth/gen/rust.hxml: FAILED open or read
+sha256sum: xs-growth/xcheckscope/GrowthProbe.hx: No such file or directory
+xs-growth/xcheckscope/GrowthProbe.hx: FAILED open or read
+sha256sum: xs-samples/gen/rust.hxml: No such file or directory
+xs-samples/gen/rust.hxml: FAILED open or read
+sha256sum: xs-scope/expected.txt: No such file or directory
+xs-scope/expected.txt: FAILED open or read
+sha256sum: xs-scope/gen/rust.hxml: No such file or directory
+xs-scope/gen/rust.hxml: FAILED open or read
+sha256sum: xs-scope/xcheckscope/ScopeProbe.hx: No such file or directory
+xs-scope/xcheckscope/ScopeProbe.hx: FAILED open or read
+sha256sum: xs-testmod/gen/rust.hxml: No such file or directory
+xs-testmod/gen/rust.hxml: FAILED open or read
+sha256sum: xs-testmod/xcheckscope/ProdRethrowTests.hx: No such file or directory
+xs-testmod/xcheckscope/ProdRethrowTests.hx: FAILED open or read
+sha256sum: xs-twoexc-faultnames/gen/rust.hxml: No such file or directory
+xs-twoexc-faultnames/gen/rust.hxml: FAILED open or read
+sha256sum: xs-twoexc-faultnames/xcheckscope/TwoProbe.hx: No such file or directory
+xs-twoexc-faultnames/xcheckscope/TwoProbe.hx: FAILED open or read
+sha256sum: xs-twoexc/gen/rust.hxml: No such file or directory
+xs-twoexc/gen/rust.hxml: FAILED open or read
+sha256sum: xs-twoexc-swapped/gen/rust.hxml: No such file or directory
+xs-twoexc-swapped/gen/rust.hxml: FAILED open or read
+sha256sum: xs-twoexc-swapped/xcheckscope/TwoProbe.hx: No such file or directory
+xs-twoexc-swapped/xcheckscope/TwoProbe.hx: FAILED open or read
+sha256sum: xs-twoexc/xcheckscope/TwoProbe.hx: No such file or directory
+xs-twoexc/xcheckscope/TwoProbe.hx: FAILED open or read
+sha256sum: xs-xmod/gen/rust.hxml: No such file or directory
+xs-xmod/gen/rust.hxml: FAILED open or read
+sha256sum: xs-xmod/otherpkg/ModEx.hx: No such file or directory
+xs-xmod/otherpkg/ModEx.hx: FAILED open or read
+sha256sum: xs-xmod/otherpkg/ModOps.hx: No such file or directory
+xs-xmod/otherpkg/ModOps.hx: FAILED open or read
+sha256sum: xs-xmod/xcheckscope/XModProbe.hx: No such file or directory
+xs-xmod/xcheckscope/XModProbe.hx: FAILED open or read
+sha256sum: WARNING: 24 listed files could not be read

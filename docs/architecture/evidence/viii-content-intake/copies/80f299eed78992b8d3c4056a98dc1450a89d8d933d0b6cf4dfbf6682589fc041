@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Independent rollback drill for the P09 freeze-area write (task t-mun6ebzp-rqb1, criterion 3).
+# Reviewer: independent session, different model from the executing seat.
+# The ONLY frozen files this script writes are the two in scope
+# (option-c-stage-wrapper.sh, selftest.sh); it restores the FIXED state at the end.
+# Writes use `cat src >dst` so the destination inode and mode (exec bits) are preserved:
+# the dc-warn backup copies live on a fuse.rclone mount and carry mode 0644.
+set -u
+W=/home/losses/Development/tq-workspace
+R="$W/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner"
+P="$W/dc-warn/out/option-c/selftest/pristine"
+B="$W/dc-warn/out/option-c/freeze-apply/backup"
+WRAP="$R/option-c-stage-wrapper.sh"
+SELF="$R/selftest.sh"
+BASE_WRAP=d11801e54decbbfb2085ef1ee63a73a4e36a8f38ebd24db653ae4e2caab9268a
+BASE_SELF=201636892acc19c905c9c3c1d9c14b4ad686990579b8569e21b74672ad18e26d
+FIX_WRAP=c14043c0d68623fa0a378c771ead2f4cc831d678e6f244d90b91443a82c59cc5
+FIX_SELF=961e13070dd1b23ee275b4c1f9c45ce3ab220d8d9fc9f02a9ea19108e04755ab
+seven() {
+    for f in run-exclusive.sh check-log-integrity.sh option-c-poststate.py \
+             option-c-child-records.py option-c.plan option-c-stage-wrapper.sh selftest.sh; do
+        printf '%s  %s\n' "$(sha256sum "$R/$f" | cut -d' ' -f1)" "$f"
+    done
+}
+say() { printf '\n===== %s =====\n' "$*"; }
+say "T0 FIXED state (as found)"
+sha256sum "$WRAP" "$SELF"
+stat -c '%A %a %s %n' "$WRAP" "$SELF"
+seven
+say "STEP 1 rollback: restore both original bytes from the dc-warn backup"
+cat "$B/option-c-stage-wrapper.sh" >"$WRAP"
+cat "$B/selftest.sh" >"$SELF"
+say "T1 ROLLED BACK state"
+sha256sum "$WRAP" "$SELF"
+stat -c '%A %a %s %n' "$WRAP" "$SELF"
+echo "-- byte equality with backup --"
+cmp "$B/option-c-stage-wrapper.sh" "$WRAP" && echo "cmp wrapper vs backup: identical"
+cmp "$B/selftest.sh" "$SELF" && echo "cmp selftest vs backup: identical"
+echo "-- byte equality with pristine --"
+cmp "$P/option-c-stage-wrapper.sh" "$WRAP" && echo "cmp wrapper vs pristine: identical"
+cmp "$P/selftest.sh" "$SELF" && echo "cmp selftest vs pristine: identical"
+echo "-- expected baseline match --"
+[ "$(sha256sum "$WRAP" | cut -d' ' -f1)" = "$BASE_WRAP" ] && echo "wrapper == BASE_WRAP OK" || echo "wrapper != BASE_WRAP MISMATCH"
+[ "$(sha256sum "$SELF" | cut -d' ' -f1)" = "$BASE_SELF" ] && echo "selftest == BASE_SELF OK" || echo "selftest != BASE_SELF MISMATCH"
+echo "-- full 7-file table during rollback --"
+seven
+say "STEP 2 re-apply: patch -p1 --fuzz=0 < FINAL.patch"
+cd "$W" || exit 9
+patch -p1 --fuzz=0 -i dc-warn/out/option-c/selftest/FINAL.patch
+echo "patch rc=$?"
+say "T2 RE-APPLIED (fixed) state"
+sha256sum "$WRAP" "$SELF"
+stat -c '%A %a %s %n' "$WRAP" "$SELF"
+echo "-- expected fixed match --"
+[ "$(sha256sum "$WRAP" | cut -d' ' -f1)" = "$FIX_WRAP" ] && echo "wrapper == FIX_WRAP OK" || echo "wrapper != FIX_WRAP MISMATCH"
+[ "$(sha256sum "$SELF" | cut -d' ' -f1)" = "$FIX_SELF" ] && echo "selftest == FIX_SELF OK" || echo "selftest != FIX_SELF MISMATCH"
+echo "-- diff vs pristine must be exactly the two lines --"
+diff -u "$P/option-c-stage-wrapper.sh" "$WRAP"
+diff -u "$P/selftest.sh" "$SELF"
+echo "changed-line count (wrapper): $(diff --unchanged-line-format= --old-line-format='%L' --new-line-format='%L' "$P/option-c-stage-wrapper.sh" "$WRAP" | wc -l)"
+echo "changed-line count (selftest): $(diff --unchanged-line-format= --old-line-format='%L' --new-line-format='%L' "$P/selftest.sh" "$SELF" | wc -l)"
+echo "-- full 7-file table after re-apply --"
+seven
+say "STEP 3 leftover check: stray .orig/.rej files in the frozen tree"
+ls -la "$R"/*.orig "$R"/*.rej 2>/dev/null || echo "none"

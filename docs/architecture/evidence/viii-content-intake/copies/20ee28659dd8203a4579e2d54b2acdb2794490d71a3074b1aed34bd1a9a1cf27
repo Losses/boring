@@ -1,0 +1,17 @@
+package tests
+
+import boring.DeferredLocalsOps
+import boring.runtime.test.Test
+
+class DeferredLocalsTests {
+@boring.test.Test
+    fun testDeferredLocals() {
+        Test.run("tests.DeferredLocalsTests.testDeferredLocals", "tests.DeferredLocalsTests.testDeferredLocals: deferred locals initialize along control-flow paths") {
+                Test.equals(2, DeferredLocalsOps.tierOf(4), "if branch")
+                Test.equals(1, DeferredLocalsOps.tierOf(1), "else branch")
+                Test.equals(8, DeferredLocalsOps.nullableValue(8), "nullable branch")
+                Test.equals(0, DeferredLocalsOps.nullableValue(null), "null branch")
+                Test.equals(2, DeferredLocalsOps.loopValue(3), "loop assignment")
+        }
+    }
+}

@@ -1,0 +1,14 @@
+#![cfg(test)]
+
+use crate::boring::dart_empty_array_fix_ops::DartEmptyArrayFixOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn empty_array_argument() {
+    testlib::run("tests.DartEmptyArrayFixTests.emptyArrayArgument", "tests.DartEmptyArrayFixTests.emptyArrayArgument: empty array arguments retain their element type", || {
+        test_core::TestCore::test_core_equals_int(0i32, i32::from_ne_bytes(((DartEmptyArrayFixOps::dart_empty_array_fix_ops_empty_array_argument()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

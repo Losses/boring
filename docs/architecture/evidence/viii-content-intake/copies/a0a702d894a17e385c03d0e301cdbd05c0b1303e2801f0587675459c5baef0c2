@@ -1,0 +1,4 @@
+cmd: bun test tests/ packages/registry/tests/
+cwd: /home/losses/Development/tq-workspace/dc-warn/cs-42c805d3
+rev: 42c805d3d144d3cbe86e15fcefb414dff9fbb02f
+start: 2026-10-01T10:07:54-04:00

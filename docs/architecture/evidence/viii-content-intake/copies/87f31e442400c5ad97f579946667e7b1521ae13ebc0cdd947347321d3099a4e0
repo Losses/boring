@@ -1,0 +1,28 @@
+#![cfg(test)]
+
+use crate::boring::string_buf_union_ops::StringBufUnionOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_build_char_checked() {
+    testlib::run("tests.StringBufUnionTests.testBuildCharChecked", "tests.StringBufUnionTests.testBuildCharChecked: the buffer addChar fault stays a union variant beside the vector throw", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[65]), StringBufUnionOps::string_buf_union_ops_build_char_checked(1).unwrap().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_build_checked() {
+    testlib::run("tests.StringBufUnionTests.testBuildChecked", "tests.StringBufUnionTests.testBuildChecked: the buffer add fault stays a union variant beside the vector throw", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[105,116,101,109]), StringBufUnionOps::string_buf_union_ops_build_checked(1).unwrap().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_vector_fault() {
+    testlib::run("tests.StringBufUnionTests.testVectorFault", "tests.StringBufUnionTests.testVectorFault: the vector throw still arrives through the union", || {
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((StringBufUnionOps::string_buf_union_ops_vector_fault_code().unwrap()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

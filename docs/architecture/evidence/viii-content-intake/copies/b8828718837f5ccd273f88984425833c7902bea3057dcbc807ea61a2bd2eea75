@@ -1,0 +1,14 @@
+package boring
+
+class PrivateStaticCallHolder(val value: String) {
+
+    companion object {
+        private fun empty(): PrivateStaticCallHolder {
+            return PrivateStaticCallHolder("empty")
+        }
+
+        fun make(v: String? = null): PrivateStaticCallHolder {
+            return (if ((v == null)) PrivateStaticCallHolder.empty() else PrivateStaticCallHolder(v))
+        }
+    }
+}

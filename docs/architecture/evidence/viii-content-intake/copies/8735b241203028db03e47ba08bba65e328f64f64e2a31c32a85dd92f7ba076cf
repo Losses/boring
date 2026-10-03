@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# runw.sh <tree-tag> <probe-name> -- build + run the generated MXLambda witness
+set -u
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+TAG="$1"; NAME="${2:-WIT}"
+GENS="/tmp/vc8/out/$TAG-$NAME/gen"
+RUN="/tmp/vc8/run/$TAG-$NAME"
+if [ ! -d "$GENS" ]; then echo "no gen dir $GENS" >&2; exit 2; fi
+rm -rf "$RUN"; mkdir -p "$RUN"; cp -r "$GENS"/. "$RUN"/
+cp /tmp/vc8/fixtures/main.swift "$RUN/main.swift"
+( cd "$RUN" && swiftc -o mxdemo mx/MXLambda.swift Runtime.swift std/UStringException.swift std/UStringFault.swift main.swift ) > "/tmp/vc8/logs/build-$TAG-$NAME.log" 2>&1
+brc=$?; echo "$brc" > "/tmp/vc8/logs/build-$TAG-$NAME.rc"
+if [ "$brc" -ne 0 ]; then echo "build $TAG/$NAME rc=$brc (FAILED)"; exit 0; fi
+( cd "$RUN" && ./mxdemo ) > "/tmp/vc8/logs/run-$TAG-$NAME.log" 2>&1
+rrc=$?; echo "$rrc" > "/tmp/vc8/logs/run-$TAG-$NAME.rc"
+echo "run $TAG/$NAME build_rc=$brc run_rc=$rrc"

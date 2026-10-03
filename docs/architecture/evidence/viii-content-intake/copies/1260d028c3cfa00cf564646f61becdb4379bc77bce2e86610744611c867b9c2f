@@ -1,0 +1,27 @@
+=== isBoundary call sites (exhaustive) ===
+swiftcompiler/SwiftExpr.hx:743:                final arrayBoundary = SwiftArrayBoundary.isBoundary(init.t, v.t);
+swiftcompiler/SwiftExpr.hx:2534:        if (SwiftArrayBoundary.isBoundary(inner.t, target))
+swiftcompiler/SwiftExpr.hx:2580:        if (!SwiftArrayBoundary.isBoundary(inner.t, target))
+swiftcompiler/SwiftExpr.hx:2674:            || !SwiftArrayBoundary.isBoundary(source.t, target))
+swiftcompiler/SwiftExpr.hx:2806:        if (SwiftArrayBoundary.isBoundary(value.t, target.t))
+swiftcompiler/SwiftExpr.hx:5641:                        && SwiftArrayBoundary.isBoundary(returnValue.t,
+
+=== sourceStorage call sites (exhaustive) ===
+swiftcompiler/SwiftExpr.hx:305:        final sourceStorage = parameterPlan == null ? SwiftArrayBoundary.sourceStorage(sourceType) : parameterPlan.bodyStorage;
+swiftcompiler/SwiftExpr.hx:2673:            || SwiftArrayBoundary.sourceStorage(source.t) != SwiftArrayStorage.MutableArrayWrapper
+swiftcompiler/SwiftExpr.hx:2689:            storage: recorded == null ? SwiftArrayBoundary.sourceStorage(e.t, isEmptyArrayDecl(e), isNullLiteral(e)) : recorded,
+swiftcompiler/SwiftExpr.hx:6173:                final bindingStorage = SwiftArrayBoundary.sourceStorage(localType);
+swiftcompiler/SwiftDecl.hx:590:                final storage = SwiftArrayBoundary.sourceStorage(init.t, isEmpty, isNull);
+swiftcompiler/SwiftParameterPlan.hx:60:        final bodyStorage = SwiftArrayBoundary.sourceStorage(baseType);
+
+=== assignmentValue definition+callers ===
+856:                        return [indent(depth) + "_ = " + discardTry + assignmentValue(l, r)];
+875:                return [indent(depth) + target + tryKw + assignmentValue(l, r)];
+886:                    case TLocal(_) | TField(_, _): assignmentValue(l, r);
+1753:                final valText = assignmentValue(l, r);
+2400:                final rhs = assignmentValue(l, r);
+2805:    function assignmentValue(target:TypedExpr, value:TypedExpr):String {
+
+=== blockExpression callers ===
+1200:    function blockExpression(stmts:Array<TypedExpr>):String {
+2005:                return blockExpression(stmts);

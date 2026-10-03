@@ -1,0 +1,4 @@
+/home/losses/Development/tq-workspace/boring-wt-architecture/out/swift-gap-boundary/test-9f15c47f-6d6f-47eb-8d06-df19888c6df6/failure-probe/broken.swift:1:19: error: cannot convert value of type 'String' to specified type 'Int'
+1 | let broken: Int = "s"
+  |                   `- error: cannot convert value of type 'String' to specified type 'Int'
+2 | 

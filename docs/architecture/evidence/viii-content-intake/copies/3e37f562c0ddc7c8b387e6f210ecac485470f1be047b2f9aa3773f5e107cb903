@@ -1,0 +1,14 @@
+--- /tmp/w1-gen/baseline/gap/gap/Gap.swift	2026-09-30 04:25:29.165555390 -0400
++++ /tmp/w1-gen/after/gap/gap/Gap.swift	2026-09-30 04:27:41.839082127 -0400
+@@ -110,9 +110,9 @@
+     public static func switchExplicitReturn(_ choice: GapChoice) -> ReadOnlyArray<Int32> {
+         switch choice {
+             case .one:
+-                ReadOnlyArray(Gap.sourceFirst())
++                return ReadOnlyArray(Gap.sourceFirst())
+             case .two:
+-                ReadOnlyArray(Gap.sourceSecond())
++                return ReadOnlyArray(Gap.sourceSecond())
+         }
+         return ReadOnlyArray(Gap.sourceFirst())
+     }

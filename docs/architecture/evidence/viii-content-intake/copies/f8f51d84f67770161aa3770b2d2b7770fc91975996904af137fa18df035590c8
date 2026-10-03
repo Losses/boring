@@ -1,0 +1,13 @@
+package tests
+
+import boring.ConsoleShimOps
+import boring.runtime.test.Test
+
+class ConsoleShimTests {
+@boring.test.Test
+    fun logReturns() {
+        Test.run("tests.ConsoleShimTests.logReturns", "tests.ConsoleShimTests.logReturns: std.Console.log returns to its caller") {
+                Test.equals("logged:console-shim-probe", ConsoleShimOps.logLine("console-shim-probe"), null)
+        }
+    }
+}

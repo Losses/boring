@@ -1,0 +1,6 @@
+pristine=2622 marker_off=2531 real_hash=597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a
+CASE      BYTES  NMARK    OLD    NEW  FIRST  NOTE
+m1         2713      2      0      0      1  INTEGRITY OK: sealed at line 31, sha cddcb972cc34a7ac4374a98
+m2         2728      2      0      0      1  INTEGRITY OK: sealed at line 32, sha 6a421e70930f92a1b403c06
+m3         2812      3      0      0      1  INTEGRITY OK: sealed at line 34, sha 9744cbf997a2867867b0645
+m4         2713      2      1      1      1  INTEGRITY FAIL: prefix sha mismatch (recorded 597a9e1151551d

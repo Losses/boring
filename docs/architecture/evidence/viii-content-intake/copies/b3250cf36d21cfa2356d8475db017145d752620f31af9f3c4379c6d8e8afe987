@@ -1,0 +1,23 @@
+#![cfg(test)]
+
+use crate::boring::widget_assembly::WidgetAssembly;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn builder_default() {
+    testlib::run("tests.WidgetCoalescingTests.builderDefault", "tests.WidgetCoalescingTests.builderDefault: coalescing default constructs builder with omitted defaults", || {
+        let made = WidgetAssembly::widget_assembly_build(None);
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((made.scale) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(2i32, i32::from_ne_bytes(((made.bias) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn lens_default() {
+    testlib::run("tests.WidgetCoalescingTests.lensDefault", "tests.WidgetCoalescingTests.lensDefault: coalescing default constructs lens in non-main-class module", || {
+        test_core::TestCore::test_core_equals_int(3i32, i32::from_ne_bytes(((WidgetAssembly::widget_assembly_lens(None).zoom) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

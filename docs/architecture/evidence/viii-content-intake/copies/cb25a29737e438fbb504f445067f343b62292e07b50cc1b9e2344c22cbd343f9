@@ -1,0 +1,54 @@
+package tests
+
+import boring.BytesOps
+import boring.runtime.BytesBuffer
+import boring.runtime.test.Test
+
+class BytesTests {
+@boring.test.Test
+    fun fixedMutation() {
+        Test.run("tests.BytesTests.fixedMutation", "tests.BytesTests.fixedMutation: allocates and mutates fixed-length bytes") {
+                val bytes = BytesOps.build()
+                Test.equals(8, bytes.size, null)
+                Test.equals(1, (( bytes[0].toInt() and 0xFF )), null)
+                Test.equals(2, (( bytes[1].toInt() and 0xFF )), null)
+                Test.equals(11, (( bytes[2].toInt() and 0xFF )), null)
+                Test.equals(12, (( bytes[3].toInt() and 0xFF )), null)
+                Test.equals(13, (( bytes[4].toInt() and 0xFF )), null)
+                Test.equals(165, (( bytes[5].toInt() and 0xFF )), null)
+                Test.equals(165, (( bytes[6].toInt() and 0xFF )), null)
+                Test.equals(0, (( bytes[7].toInt() and 0xFF )), null)
+        }
+    }
+
+@boring.test.Test
+    fun bufferAdd() {
+        Test.run("tests.BytesTests.bufferAdd", "tests.BytesTests.bufferAdd: appends whole byte segments through add") {
+                val first = BytesOps.build()
+                val second = ByteArray(2)
+                second[0] = 66.toByte()
+                second[1] = 67.toByte()
+                val buffer = BytesBuffer()
+                buffer.add(first)
+                buffer.add(second)
+                val joined = buffer.getBytes()
+                Test.equals(10, joined.size, null)
+                Test.equals(1, (( joined[0].toInt() and 0xFF )), null)
+                Test.equals(67, (( joined[9].toInt() and 0xFF )), null)
+                second[0] = 255.toByte()
+                Test.equals(66, (( joined[8].toInt() and 0xFF )), null)
+        }
+    }
+
+@boring.test.Test
+    fun bufferAddEmpty() {
+        Test.run("tests.BytesTests.bufferAddEmpty", "tests.BytesTests.bufferAddEmpty: add with an empty argument appends nothing") {
+                val buffer = BytesBuffer()
+                buffer.addByte(7)
+                buffer.add(ByteArray(0))
+                val out = buffer.getBytes()
+                Test.equals(1, out.size, null)
+                Test.equals(7, (( out[0].toInt() and 0xFF )), null)
+        }
+    }
+}

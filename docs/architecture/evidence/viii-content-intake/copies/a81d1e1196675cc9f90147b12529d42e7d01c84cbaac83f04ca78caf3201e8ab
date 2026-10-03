@@ -1,0 +1,41 @@
+=== my independent pre/post readings (same script bytes sha 5762ed8c, trees fp-xcheck-pre=e1c65975 / fp-xcheck-post=e1c65975+6hx) ===
+-- pre/probe  runtime-swift-present no
+exit	1
+boring-missing	2
+other-type-errors	4
+total-errors	6
+gen		0	zero
+prep		0	zero
+compile-swift		1	data
+run-swift		producer-compile-swift-status-1	not-reached
+compare-swift		producer-compile-swift-status-1	not-reached
+-- pre/plain  runtime-swift-present no
+exit	1
+boring-missing	2
+other-type-errors	2
+total-errors	4
+gen		0	zero
+prep		0	zero
+compile-swift		1	data
+run-swift		producer-compile-swift-status-1	not-reached
+compare-swift		producer-compile-swift-status-1	not-reached
+-- post/probe  runtime-swift-present yes
+exit	0
+boring-missing	0
+other-type-errors	0
+total-errors	0
+gen		0	zero
+prep		0	zero
+compile-swift		0	data
+run-swift		0	zero
+compare-swift		0	0-identical-nonzero-differs
+-- post/plain  runtime-swift-present yes
+exit	0
+boring-missing	0
+other-type-errors	0
+total-errors	0
+gen		0	zero
+prep		0	zero
+compile-swift		0	data
+run-swift		0	zero
+compare-swift		0	0-identical-nonzero-differs

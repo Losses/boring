@@ -1,0 +1,18 @@
+warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt-xcheck' is dirty
+gen-try-tail observed=0
+tree-try-tail observed=6
+compile-try-tail observed=0
+libc-warning-count-try-tail observed=5
+gen-probe observed=0
+tree-probe observed=6
+compile-probe observed=0
+libc-warning-count-probe observed=3
+gen-plain observed=0
+tree-plain observed=6
+compile-plain observed=0
+libc-warning-count-plain observed=5
+run-try-tail-from-tmp observed=no-binary-compile-status-0
+run-probe-from-tmp observed=0
+compare-probe-from-tmp observed=0
+run-plain-from-tmp observed=0
+compare-plain-from-tmp observed=0

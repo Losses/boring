@@ -1,0 +1,14 @@
+{
+  "tool": "tools/gate-proof/verify-commit.ts",
+  "commit": "fafa27d6f0e3d9a204316d0be1ad5de8f8a40b4e",
+  "tree": "6f430c2645f0149609e5fabac8020fba7381074b",
+  "commitish": "fafa27d6",
+  "mode": "archive-verify",
+  "exportDir": "(temporary, removed)",
+  "totalFiles": 1443,
+  "hashedFiles": 1443,
+  "mismatches": 0,
+  "mismatchedPaths": [],
+  "fileListSha256": "91e5273aee45db426fbe62d073e8e39a1fa5cde021c5fa960200541a66ff7053",
+  "verdict": "PASS"
+}

@@ -1,0 +1,53 @@
+# swiftc -c rc matrix, measured 2026-09-30T14:39:02-04:00
+# trees: pre=a14345ce, mid=d14aae11 (reseed only), midc=a14345ce+reseed hunk, fix=c8ae0054
+probe    pre    mid    midc   fix   
+P4       0 1 - 0
+BM       1 1 - 0
+WIT      1 0 - 0
+ATA      0 0 - 0
+ATB      1 1 - 0
+ATC      0 0 - 0
+ATD      0 1 - 0
+ATE      0 0 - 0
+ATG      0 0 - 0
+ATH      1 1 - 1
+ATI      1 1 - 0
+ATJ      1 1 - 1
+ATK      1 0 - 0
+
+# error counts (unique file:line:col diagnostics) and key messages
+/tmp/vc8/logs/cc-fix-ATH.log unique_errors=1
+    closure captures 's' before it is declared
+/tmp/vc8/logs/cc-fix-ATJ.log unique_errors=1
+    cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+/tmp/vc8/logs/cc-mid-ATB.log unique_errors=1
+    cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+/tmp/vc8/logs/cc-mid-ATD.log unique_errors=1
+    cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+/tmp/vc8/logs/cc-mid-ATH.log unique_errors=1
+    closure captures 's' before it is declared
+/tmp/vc8/logs/cc-mid-ATI.log unique_errors=1
+    cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+/tmp/vc8/logs/cc-mid-ATJ.log unique_errors=2
+    cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+    cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+/tmp/vc8/logs/cc-mid-BM.log unique_errors=1
+    cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+/tmp/vc8/logs/cc-mid-P4.log unique_errors=1
+    cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+/tmp/vc8/logs/cc-pre-ATB.log unique_errors=1
+    cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+/tmp/vc8/logs/cc-pre-ATH.log unique_errors=1
+    closure captures 's' before it is declared
+/tmp/vc8/logs/cc-pre-ATI.log unique_errors=1
+    cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+/tmp/vc8/logs/cc-pre-ATJ.log unique_errors=2
+    cannot convert return expression of type 'TiqianArray<Int32>' to return type 'ReadOnlyArray<Int32>'
+    cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+/tmp/vc8/logs/cc-pre-ATK.log unique_errors=1
+    cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
+/tmp/vc8/logs/cc-pre-BM.log unique_errors=1
+    cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
+/tmp/vc8/logs/cc-pre-WIT.log unique_errors=7
+    cannot convert value of type 'ReadOnlyArray<String>' to closure result type 'ReadOnlyArray<Int32>'
+    cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'

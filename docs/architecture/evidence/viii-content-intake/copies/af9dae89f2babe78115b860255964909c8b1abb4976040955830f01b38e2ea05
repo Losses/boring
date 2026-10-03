@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/swift-rt
+argv bash -c rm\ -rf\ out/swift-rt/gen/swift\ \&\&\ haxe\ tests/haxe/try-tail/gen/swift.hxml\ -D\ swift-output=out/swift-rt/gen/swift\ -D\ swift-test-output=out/swift-rt/gen/swift-test

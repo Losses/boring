@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix2-xcheck
+argv diff -u /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix2-xcheck/tests/haxe/xcheck-dfix2/expected.txt /home/losses/Development/tq-workspace/dc-warn/out/dart-fix2-xcheck/pre16/stages/dart-run/stdout

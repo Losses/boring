@@ -1,0 +1,63 @@
+# Whole generated trees, all 21 Swift drivers, true pre-fix (prefix tree) vs post-fix (w1 worktree).
+# Method: /tmp/w1-gen/sweep2.sh <phase> <worktree-root>; each driver: haxe <driver.hxml> with
+# -D swift-output/-D swift-test-output overridden to a fresh per-run dir; cwd = worktree root;
+# exit codes captured directly (never piped). _GeneratedFiles.txt excluded from content diff:
+# it records the absolute run dir (its only before/after difference is the path prefix; verified).
+# prefix tree = /tmp/w1-prefix-wt = w1 worktree with SwiftExpr.hx restored to the
+# swc-try-fix-wt (pre-fix) version; verified byte-identical to that file and the only diff.
+
+## rc summary (prefix / after):
+gap-fixture rc=0 files=6|gap-fixture rc=0 files=6
+comparison-plan-identity-runtime rc=0 files=7|comparison-plan-identity-runtime rc=0 files=7
+comparison-plan-identity rc=0 files=7|comparison-plan-identity rc=0 files=7
+comparison-runtime-observation rc=0 files=9|comparison-runtime-observation rc=0 files=9
+enum-comparison rc=0 files=6|enum-comparison rc=0 files=6
+readonly-alias rc=0 files=8|readonly-alias rc=0 files=8
+signed-key-composition rc=0 files=6|signed-key-composition rc=0 files=6
+source-container-policy rc=0 files=6|source-container-policy rc=0 files=6
+swift-rt-plain rc=0 files=6|swift-rt-plain rc=0 files=6
+swift-rt-probe rc=0 files=6|swift-rt-probe rc=0 files=6
+swift-runtime-closure-array-only rc=0 files=5|swift-runtime-closure-array-only rc=0 files=5
+swift-runtime-closure-main rc=0 files=5|swift-runtime-closure-main rc=0 files=5
+swift-runtime-closure-scalar rc=0 files=5|swift-runtime-closure-scalar rc=0 files=5
+swift-runtime-closure-static-data rc=0 files=5|swift-runtime-closure-static-data rc=0 files=5
+swift-runtime-closure-test rc=0 files=6|swift-runtime-closure-test rc=0 files=6
+try-tail rc=0 files=6|try-tail rc=0 files=6
+view-lifetime rc=0 files=7|view-lifetime rc=0 files=7
+acceptance-readonly-boundary rc=0 files=7|acceptance-readonly-boundary rc=0 files=7
+timeout-probe rc=0 files=6|timeout-probe rc=0 files=6
+examples-swift-f32 rc=0 files=263|examples-swift-f32 rc=0 files=263
+examples-swift rc=0 files=264|examples-swift rc=0 files=264
+SWEEP-DONE prefix|SWEEP-DONE after
+
+## Tree diffs (diff -r -x _GeneratedFiles.txt):
+acceptance-readonly-boundary: IDENTICAL
+comparison-plan-identity: IDENTICAL
+comparison-plan-identity-runtime: IDENTICAL
+comparison-runtime-observation: IDENTICAL
+enum-comparison: IDENTICAL
+examples-swift: IDENTICAL
+examples-swift-f32: IDENTICAL
+gap-fixture: CHANGED:
+diff -r -x _GeneratedFiles.txt /tmp/w1-gen/prefix/gap-fixture/gen/gap/Gap.swift /tmp/w1-gen/after/gap-fixture/gen/gap/Gap.swift
+113c113
+<                 ReadOnlyArray(Gap.sourceFirst())
+---
+>                 return ReadOnlyArray(Gap.sourceFirst())
+115c115
+<                 ReadOnlyArray(Gap.sourceSecond())
+---
+>                 return ReadOnlyArray(Gap.sourceSecond())
+readonly-alias: IDENTICAL
+signed-key-composition: IDENTICAL
+source-container-policy: IDENTICAL
+swift-rt-plain: IDENTICAL
+swift-rt-probe: IDENTICAL
+swift-runtime-closure-array-only: IDENTICAL
+swift-runtime-closure-main: IDENTICAL
+swift-runtime-closure-scalar: IDENTICAL
+swift-runtime-closure-static-data: IDENTICAL
+swift-runtime-closure-test: IDENTICAL
+timeout-probe: IDENTICAL
+try-tail: IDENTICAL
+view-lifetime: IDENTICAL

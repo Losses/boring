@@ -1,0 +1,58 @@
+package lam;
+
+enum Val {
+    Const(v:Int);
+    Sum(a:Int, b:Int);
+    Zero;
+}
+
+class Lam {
+    public static function use(v:Int):Int
+        return v + 1;
+
+    public static function useFn(f:Void->Int):Int
+        return f();
+
+    static function evalV(x:Val):Int
+        return switch (x) {
+            case Const(v): v;
+            case Sum(a, b): a + b;
+            case Zero: 0;
+        }
+
+    // Member contract is String; the lambda's own contract is Int. The closure
+    // header must say Int (the lambda's contract), not String (the member's).
+    public static function pick2(x:Val):String {
+        return "x" + useFn(function() {
+            final a = 1;
+            final b = switch (x) {
+                case Const(v): v + a;
+                case Sum(a, b): a + b;
+                case Zero: 0;
+            };
+            return b;
+        });
+    }
+
+    // Switch expression passed directly as a call argument (argument route):
+    // the closure must render against use()'s parameter Int, not the switch's
+    // own AST type.
+    public static function pick(x:Val):Int {
+        final k = switch (x) {
+            case Const(v): v;
+            case Sum(a, b): a + b;
+            case Zero: 0;
+        };
+        final r = use(switch (x) {
+            case Const(v): v;
+            case Sum(a, b): a + b;
+            case Zero: 0;
+        });
+        return k + r;
+    }
+
+    static function main() {
+        pick(Zero);
+        pick2(Zero);
+    }
+}

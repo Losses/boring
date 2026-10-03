@@ -1,0 +1,3 @@
+FAIL: allowlist: exempt[0].module registry.Main: blank/whitespace-only reason
+roots guard: FAILED
+exit_code=1

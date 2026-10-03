@@ -1,0 +1,11 @@
+package boring
+
+object SwiftLiteralSafetyOps {
+    fun trailingPoint(): Float {
+        return 0.0f
+    }
+
+    fun controlText(): String {
+        return "before" + "" + "after"
+    }
+}

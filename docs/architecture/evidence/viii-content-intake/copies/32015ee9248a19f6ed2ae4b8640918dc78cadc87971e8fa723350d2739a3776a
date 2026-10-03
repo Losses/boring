@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix-xcheck
+argv timeout 300 dart lib/dcfix/zz_run.dart

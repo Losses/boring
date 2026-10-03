@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix
+argv timeout 1800 dart compile exe lib/dcguard/zz_run.dart -o run.exe

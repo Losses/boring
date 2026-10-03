@@ -1,0 +1,9 @@
+package boring
+
+object PrivateClassOps {
+    fun resolve(): String {
+        return Resolution("first").value
+    }
+    private class Resolution(val value: String) {
+    }
+}

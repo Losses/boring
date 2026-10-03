@@ -1,0 +1,41 @@
+#![cfg(test)]
+
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_local_step() {
+    testlib::run("tests.LocalThrowTests.testLocalStep", "tests.LocalThrowTests.testLocalStep: a local throwing function call carries the try marker", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_local_nested() {
+    testlib::run("tests.LocalThrowTests.testLocalNested", "tests.LocalThrowTests.testLocalNested: a local function throwing through another local function call", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_local_condition() {
+    testlib::run("tests.LocalThrowTests.testLocalCondition", "tests.LocalThrowTests.testLocalCondition: a local call in a condition carries the try marker", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_local_array() {
+    testlib::run("tests.LocalThrowTests.testLocalArray", "tests.LocalThrowTests.testLocalArray: a local call inside an array literal carries the try marker", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_caught_local() {
+    testlib::run("tests.LocalThrowTests.testCaughtLocal", "tests.LocalThrowTests.testCaughtLocal: the local fault is caught by the caller", || {
+        test_core::TestCore::test_core_equals_bool(true, true, UStr::new(&[]));
+    });
+}

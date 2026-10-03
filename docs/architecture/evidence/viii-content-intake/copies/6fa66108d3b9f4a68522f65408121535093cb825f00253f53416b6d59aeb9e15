@@ -1,0 +1,112 @@
+package tests
+
+import boring.NullableFieldRecord
+import boring.runtime.test.Test
+
+class NullableFieldRecordTests {
+@boring.test.Test
+    fun nullIntFieldPrintsNull() {
+        Test.run("tests.NullableFieldRecordTests.nullIntFieldPrintsNull", "tests.NullableFieldRecordTests.nullIntFieldPrintsNull: a null Int field prints null") {
+                val value = NullableFieldRecord("alpha", "beta", null, null)
+                Test.equals("NullableFieldRecord(name=alpha, code=null, label=beta, words=null)", value.toString(), null)
+                Test.ok(value.toString().indexOf("code=null") >= 0, "the null Int field prints null")
+        }
+    }
+
+@boring.test.Test
+    fun nullStringFieldPrintsNull() {
+        Test.run("tests.NullableFieldRecordTests.nullStringFieldPrintsNull", "tests.NullableFieldRecordTests.nullStringFieldPrintsNull: a null String field prints null") {
+                val value = NullableFieldRecord("alpha", null, 42, null)
+                Test.equals("NullableFieldRecord(name=alpha, code=42, label=null, words=null)", value.toString(), null)
+                Test.ok(value.toString().indexOf("label=null") >= 0, "the null String field prints null")
+        }
+    }
+
+@boring.test.Test
+    fun presentIntFieldPrintsValue() {
+        Test.run("tests.NullableFieldRecordTests.presentIntFieldPrintsValue", "tests.NullableFieldRecordTests.presentIntFieldPrintsValue: a present Int field prints its value") {
+                val value = NullableFieldRecord("alpha", null, 42, null)
+                Test.equals("NullableFieldRecord(name=alpha, code=42, label=null, words=null)", value.toString(), null)
+                Test.ok(value.toString().indexOf("code=42") >= 0, "the present Int field prints 42")
+        }
+    }
+
+@boring.test.Test
+    fun presentStringFieldPrintsValue() {
+        Test.run("tests.NullableFieldRecordTests.presentStringFieldPrintsValue", "tests.NullableFieldRecordTests.presentStringFieldPrintsValue: a present String field prints its value") {
+                val value = NullableFieldRecord("alpha", "beta", null, null)
+                Test.equals("NullableFieldRecord(name=alpha, code=null, label=beta, words=null)", value.toString(), null)
+                Test.ok(value.toString().indexOf("label=beta") >= 0, "the present String field prints beta")
+        }
+    }
+
+@boring.test.Test
+    fun nullFieldLeftOperand() {
+        Test.run("tests.NullableFieldRecordTests.nullFieldLeftOperand", "tests.NullableFieldRecordTests.nullFieldLeftOperand: a nullable field on the left of a literal prints nulla") {
+                val value = NullableFieldRecord("alpha", null, null, null)
+                Test.equals("nulla", value.label + "a", null)
+                Test.equals("nulll", value.labelPlusLiteral(), null)
+        }
+    }
+
+@boring.test.Test
+    fun nullFieldRightOperand() {
+        Test.run("tests.NullableFieldRecordTests.nullFieldRightOperand", "tests.NullableFieldRecordTests.nullFieldRightOperand: a nullable field on the right of a literal prints anull") {
+                val value = NullableFieldRecord("alpha", null, null, null)
+                Test.equals("anull", "a" + value.label, null)
+                Test.equals("lnull", value.literalPlusLabel(), null)
+        }
+    }
+
+@boring.test.Test
+    fun nullIntFieldLeftOperand() {
+        Test.run("tests.NullableFieldRecordTests.nullIntFieldLeftOperand", "tests.NullableFieldRecordTests.nullIntFieldLeftOperand: a nullable Int field on the left of a literal prints null") {
+                val absent = NullableFieldRecord("alpha", null, null, null)
+                Test.equals("nullc", absent.codePlusLiteral(), null)
+                val present = NullableFieldRecord("alpha", null, 42, null)
+                Test.equals("42c", present.codePlusLiteral(), null)
+        }
+    }
+
+@boring.test.Test
+    fun nullLocalLeftOperand() {
+        Test.run("tests.NullableFieldRecordTests.nullLocalLeftOperand", "tests.NullableFieldRecordTests.nullLocalLeftOperand: a nullable local on the left of a literal prints nulla") {
+                val value = NullableFieldRecord("alpha", null, null, null)
+                val label = value.label
+                Test.equals("nulla", label + "a", null)
+        }
+    }
+
+@boring.test.Test
+    fun nullLocalRightOperand() {
+        Test.run("tests.NullableFieldRecordTests.nullLocalRightOperand", "tests.NullableFieldRecordTests.nullLocalRightOperand: a nullable local on the right of a literal prints anull") {
+                val value = NullableFieldRecord("alpha", null, null, null)
+                val label = value.label
+                Test.equals("anull", "a" + label, null)
+        }
+    }
+
+@boring.test.Test
+    fun presentValueConcatenates() {
+        Test.run("tests.NullableFieldRecordTests.presentValueConcatenates", "tests.NullableFieldRecordTests.presentValueConcatenates: a present nullable value concatenates on either side") {
+                val value = NullableFieldRecord("alpha", "beta", null, null)
+                Test.equals("betaa", value.label + "a", null)
+                Test.equals("abeta", "a" + value.label, null)
+                Test.equals("betal", value.labelPlusLiteral(), null)
+                Test.equals("lbeta", value.literalPlusLabel(), null)
+                val label = value.label
+                Test.equals("betaa", label + "a", null)
+                Test.equals("abeta", "a" + label, null)
+        }
+    }
+
+@boring.test.Test
+    fun bothStatesPrint() {
+        Test.run("tests.NullableFieldRecordTests.bothStatesPrint", "tests.NullableFieldRecordTests.bothStatesPrint: every nullable field prints its null and present forms") {
+                val absent = NullableFieldRecord("alpha", null, null, null)
+                Test.equals("NullableFieldRecord(name=alpha, code=null, label=null, words=null)", absent.toString(), null)
+                val present = NullableFieldRecord("alpha", "beta", 42, mutableListOf<String>("one", "two"))
+                Test.equals("NullableFieldRecord(name=alpha, code=42, label=beta, words=[one, two])", present.toString(), null)
+        }
+    }
+}

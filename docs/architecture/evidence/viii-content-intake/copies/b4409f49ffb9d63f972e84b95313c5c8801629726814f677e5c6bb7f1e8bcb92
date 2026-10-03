@@ -1,0 +1,4 @@
+package haxe.crypto
+
+class CrcModel(var width: Int, var poly: Int, var init: Int, var refin: Boolean, var refout: Boolean, var xorout: Int) {
+}

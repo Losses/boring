@@ -1,0 +1,82 @@
+use crate::runtime::u_string;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, Copy)]
+pub struct StringUnitOps;
+
+impl StringUnitOps {
+    pub fn string_unit_ops_code_in_range(text: &UStr) -> Option<u32> {
+        return u_string::unit_at(&text, 1u32);
+    }
+
+    pub fn string_unit_ops_code_at_end(text: &UStr) -> Option<u32> {
+    let __units = u_string::units(&text);
+    let __count = u_string::unit_count(&text);
+        return u_string::unit_at_from(&__units, u32::wrapping_sub(__count, 1));
+    }
+
+    pub fn string_unit_ops_code_out_of_range(text: &UStr) -> Option<u32> {
+    let __units1 = u_string::units(&text);
+    let __count1 = u_string::unit_count(&text);
+        return u_string::unit_at_from(&__units1, u32::wrapping_add(__count1, 4));
+    }
+
+    pub fn string_unit_ops_is_space_at(text: &UStr, index: u32) -> bool {
+        let c = u_string::unit_at(&text, index).unwrap_or(0);
+        return c == 32;
+    }
+
+    pub fn string_unit_ops_code_at_or_fallback(text: &UStr, index: u32) -> u32 {
+        let c = u_string::unit_at(&text, index);
+        return match &(c) { None => 4294967295u32, Some(__option) => *__option };
+    }
+
+    pub fn string_unit_ops_code_at(text: &UStr, index: u32) -> Option<u32> {
+        return u_string::unit_at(&text, index);
+    }
+
+    pub fn string_unit_ops_unit_cut(text: &UStr, pos: u32, len: u32) -> UString {
+        return u_string::substr(&text, i32::from_ne_bytes(((pos) as i32).to_ne_bytes()), Some(i32::from_ne_bytes(((len) as i32).to_ne_bytes())));
+    }
+
+    pub fn string_unit_ops_unit_cut_from(text: &UStr, pos: u32) -> UString {
+        return u_string::substr(&text, i32::from_ne_bytes(((pos) as i32).to_ne_bytes()), None);
+    }
+
+    pub fn string_unit_ops_split_count(text: &UStr) -> u32 {
+        return u32::try_from((u_string::split(&text, &UString::from(".")).len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn string_unit_ops_split_first(text: &UStr) -> UString {
+        return (u_string::split(&text, &UString::from("."))[0usize]).clone();
+    }
+
+    pub fn string_unit_ops_split_empty_parts(text: &UStr) -> u32 {
+        return u32::try_from((u_string::split(&text, &UString::from("..")).len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn string_unit_ops_split_absent(text: &UStr) -> u32 {
+        return u32::try_from((u_string::split(&text, &UString::from("|")).len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn string_unit_ops_split_unit_count(text: &UStr) -> u32 {
+        let parts = u_string::split(&text, &UString::from(""));
+        return u32::try_from((parts.len()) & 0xFFFF_FFFF).unwrap_or(0);
+    }
+
+    pub fn string_unit_ops_split_unit_at(text: &UStr, index: u32) -> UString {
+        let parts = u_string::split(&text, &UString::from(""));
+        return (parts[usize::try_from(index).unwrap_or(0)]).clone();
+    }
+
+    pub fn string_unit_ops_split_unit_code(text: &UStr, index: u32) -> Option<u32> {
+        let parts = u_string::split(&text, &UString::from(""));
+        return u_string::unit_at(&(parts[usize::try_from(index).unwrap_or(0)]).clone(), 0u32);
+    }
+
+    pub fn string_unit_ops_split_units(text: &UStr) -> Vec<UString> {
+        return u_string::split(&text, &UString::from(""));
+    }
+}

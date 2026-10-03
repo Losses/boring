@@ -1,0 +1,10 @@
+RESTORE: archive  = /home/losses/Development/tq-workspace/dc-warn/out/xs-fixture-archive
+RESTORE: target   = /home/losses/Development/tq-workspace/xs-xcheck-scratch-repo
+RESTORE: mode     = check
+RESTORE: target HEAD = e1c65975 OK
+RESTORE: step 1/3 verifying archive against RESTORE.sha256 ...
+RESTORE: archive OK (24 files)
+RESTORE: step 2/3 checking 24 files into /home/losses/Development/tq-workspace/xs-xcheck-scratch-repo/tests/haxe ...
+RESTORE: CHECK-FAIL xs-dead/gen/rust.hxml present but hash differs
+RESTORE:            want 81dabd41a3329bbc1857fea8d257a5203b22ae14f738e66475868ca3a0e53fa1
+RESTORE:            have 8ed3d55aa2da77f97ef32e5501f8f084a3e1281fe3909ac629be404f6e2ad8b2

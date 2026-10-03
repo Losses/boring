@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
+argv timeout 900 haxe tests/haxe/charcodeat/gen/ts.hxml -D ts-output=/home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T211606Z/ts/gen -D ts-test-output=/home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T211606Z/ts/gen-tests

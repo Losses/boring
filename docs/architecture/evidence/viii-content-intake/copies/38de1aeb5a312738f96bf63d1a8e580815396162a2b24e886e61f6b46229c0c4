@@ -1,0 +1,219 @@
+package haxe.crypto
+
+import boring.runtime.BytesBuffer
+
+class Sha256 {
+    var state: MutableList<Int>
+    var block: ByteArray
+    var blockPos: Int
+    var totalLength: Int
+    init {
+    this.state = mutableListOf<Int>(1779033703, -1150833019, 1013904242, -1521486534, 1359893119, -1694144372, 528734635, 1541459225)
+    this.block = ByteArray(64)
+    this.blockPos = 0
+    this.totalLength = 0
+    }
+
+    fun update(data: ByteArray) {
+        var sourcePos = 0
+        while ((sourcePos < data.size)) {
+            this.block[this.blockPos] = (( data[sourcePos].toInt() and 0xFF )).toByte()
+            this.blockPos += 1
+            sourcePos += 1
+            this.totalLength += 1
+            if ((this.blockPos == 64)) {
+                Sha256.processBlock(this.state, this.block)
+                this.blockPos = 0
+            }
+        }
+    }
+
+    fun digest(): ByteArray {
+        val finalState = mutableListOf<Int>()
+        run {
+            finalState.add(this.state[0])
+            finalState.add(this.state[1])
+            finalState.add(this.state[2])
+            finalState.add(this.state[3])
+            finalState.add(this.state[4])
+            finalState.add(this.state[5])
+            finalState.add(this.state[6])
+            finalState.add(this.state[7])
+        }
+        val finalBlock = ByteArray(64)
+        for (i in 0 until 64) {
+            finalBlock[i] = 0.toByte()
+        }
+        for (i_2 in 0 until this.blockPos) {
+            finalBlock[i_2] = (( this.block[i_2].toInt() and 0xFF )).toByte()
+        }
+        finalBlock[this.blockPos] = 128.toByte()
+        val position = this.blockPos + 1
+        if ((position > 56)) {
+            Sha256.processBlock(finalState, finalBlock)
+            for (i_3 in 0 until 56) {
+                finalBlock[i_3] = 0.toByte()
+            }
+        } else {
+            for (i_4 in position until 56) {
+                finalBlock[i_4] = 0.toByte()
+            }
+        }
+        finalBlock[56] = 0.toByte()
+        finalBlock[57] = 0.toByte()
+        finalBlock[58] = 0.toByte()
+        finalBlock[59] = 0.toByte()
+        finalBlock[60] = ((((this.totalLength) ushr (21))) and (255)).toByte()
+        finalBlock[61] = ((((this.totalLength) ushr (13))) and (255)).toByte()
+        finalBlock[62] = ((((this.totalLength) ushr (5))) and (255)).toByte()
+        finalBlock[63] = ((this.totalLength) shl (3)).toByte()
+        Sha256.processBlock(finalState, finalBlock)
+        val output = BytesBuffer()
+        run {
+            run {
+                output.addByte(((finalState[0]) ushr (24)))
+                output.addByte(((finalState[0]) ushr (16)))
+                output.addByte(((finalState[0]) ushr (8)))
+                output.addByte(finalState[0])
+            }
+            run {
+                output.addByte(((finalState[1]) ushr (24)))
+                output.addByte(((finalState[1]) ushr (16)))
+                output.addByte(((finalState[1]) ushr (8)))
+                output.addByte(finalState[1])
+            }
+            run {
+                output.addByte(((finalState[2]) ushr (24)))
+                output.addByte(((finalState[2]) ushr (16)))
+                output.addByte(((finalState[2]) ushr (8)))
+                output.addByte(finalState[2])
+            }
+            run {
+                output.addByte(((finalState[3]) ushr (24)))
+                output.addByte(((finalState[3]) ushr (16)))
+                output.addByte(((finalState[3]) ushr (8)))
+                output.addByte(finalState[3])
+            }
+            run {
+                output.addByte(((finalState[4]) ushr (24)))
+                output.addByte(((finalState[4]) ushr (16)))
+                output.addByte(((finalState[4]) ushr (8)))
+                output.addByte(finalState[4])
+            }
+            run {
+                output.addByte(((finalState[5]) ushr (24)))
+                output.addByte(((finalState[5]) ushr (16)))
+                output.addByte(((finalState[5]) ushr (8)))
+                output.addByte(finalState[5])
+            }
+            run {
+                output.addByte(((finalState[6]) ushr (24)))
+                output.addByte(((finalState[6]) ushr (16)))
+                output.addByte(((finalState[6]) ushr (8)))
+                output.addByte(finalState[6])
+            }
+            run {
+                output.addByte(((finalState[7]) ushr (24)))
+                output.addByte(((finalState[7]) ushr (16)))
+                output.addByte(((finalState[7]) ushr (8)))
+                output.addByte(finalState[7])
+            }
+        }
+        return output.getBytes()
+    }
+
+    companion object {
+        fun make(data: ByteArray): ByteArray {
+            val hash = Sha256()
+            hash.update(data)
+            return hash.digest()
+        }
+
+        private fun processBlock(hash: MutableList<Int>, input: ByteArray) {
+            var words = mutableListOf<Int>()
+            for (i in 0 until 64) {
+                words.add(0)
+            }
+            for (i_2 in 0 until 16) {
+                val offset = i_2 * 4
+                while (words.size <= i_2) { words.add(0) }
+                words[i_2] = (((((((((( input[offset].toInt() and 0xFF ))) shl (24))) or ((((( input[offset + 1].toInt() and 0xFF ))) shl (16))))) or ((((( input[offset + 2].toInt() and 0xFF ))) shl (8))))) or ((( input[offset + 3].toInt() and 0xFF ))))
+            }
+            for (i_3 in 16 until 64) {
+                while (words.size <= i_3) { words.add(0) }
+                words[i_3] = Sha256.safeAdd(Sha256.safeAdd(Sha256.safeAdd(Sha256.gamma1(words[i_3 - 2]), words[i_3 - 7]), Sha256.gamma0(words[i_3 - 15])), words[i_3 - 16])
+            }
+            var a = hash[0]
+            var b = hash[1]
+            var c = hash[2]
+            var d = hash[3]
+            var e = hash[4]
+            var f = hash[5]
+            var g = hash[6]
+            var h = hash[7]
+            val k = mutableListOf<Int>(1116352408, 1899447441, -1245643825, -373957723, 961987163, 1508970993, -1841331548, -1424204075, -670586216, 310598401, 607225278, 1426881987, 1925078388, -2132889090, -1680079193, -1046744716, -459576895, -272742522, 264347078, 604807628, 770255983, 1249150122, 1555081692, 1996064986, -1740746414, -1473132947, -1341970488, -1084653625, -958395405, -710438585, 113926993, 338241895, 666307205, 773529912, 1294757372, 1396182291, 1695183700, 1986661051, -2117940946, -1838011259, -1564481375, -1474664885, -1035236496, -949202525, -778901479, -694614492, -200395387, 275423344, 430227734, 506948616, 659060556, 883997877, 958139571, 1322822218, 1537002063, 1747873779, 1955562222, 2024104815, -2067236844, -1933114872, -1866530822, -1538233109, -1090935817, -965641998)
+            for (i_4 in 0 until 64) {
+                val t1 = Sha256.safeAdd(Sha256.safeAdd(Sha256.safeAdd(Sha256.safeAdd(h, Sha256.sigma1(e)), Sha256.choose(e, f, g)), k[i_4]), words[i_4])
+                val t2 = Sha256.safeAdd(Sha256.sigma0(a), Sha256.majority(a, b, c))
+                h = g
+                g = f
+                f = e
+                e = Sha256.safeAdd(d, t1)
+                d = c
+                c = b
+                b = a
+                a = Sha256.safeAdd(t1, t2)
+            }
+            while (hash.size <= 0) { hash.add(0) }
+            hash[0] = Sha256.safeAdd(hash[0], a)
+            while (hash.size <= 1) { hash.add(0) }
+            hash[1] = Sha256.safeAdd(hash[1], b)
+            while (hash.size <= 2) { hash.add(0) }
+            hash[2] = Sha256.safeAdd(hash[2], c)
+            while (hash.size <= 3) { hash.add(0) }
+            hash[3] = Sha256.safeAdd(hash[3], d)
+            while (hash.size <= 4) { hash.add(0) }
+            hash[4] = Sha256.safeAdd(hash[4], e)
+            while (hash.size <= 5) { hash.add(0) }
+            hash[5] = Sha256.safeAdd(hash[5], f)
+            while (hash.size <= 6) { hash.add(0) }
+            hash[6] = Sha256.safeAdd(hash[6], g)
+            while (hash.size <= 7) { hash.add(0) }
+            hash[7] = Sha256.safeAdd(hash[7], h)
+        }
+
+        private fun rotate(value: Int, distance: Int): Int {
+            return ((((value) ushr (distance))) or (((value) shl (32 - distance))))
+        }
+
+        private fun choose(x: Int, y: Int, z: Int): Int {
+            return ((((x) and (y))) xor ((((x.inv()) and (z)))))
+        }
+
+        private fun majority(x: Int, y: Int, z: Int): Int {
+            return ((((((x) and (y))) xor ((((x) and (z)))))) xor ((((y) and (z)))))
+        }
+
+        private fun sigma0(x: Int): Int {
+            return ((((Sha256.rotate(x, 2)) xor (Sha256.rotate(x, 13)))) xor (Sha256.rotate(x, 22)))
+        }
+
+        private fun sigma1(x: Int): Int {
+            return ((((Sha256.rotate(x, 6)) xor (Sha256.rotate(x, 11)))) xor (Sha256.rotate(x, 25)))
+        }
+
+        private fun gamma0(x: Int): Int {
+            return ((((Sha256.rotate(x, 7)) xor (Sha256.rotate(x, 18)))) xor (((x) ushr (3))))
+        }
+
+        private fun gamma1(x: Int): Int {
+            return ((((Sha256.rotate(x, 17)) xor (Sha256.rotate(x, 19)))) xor (((x) ushr (10))))
+        }
+
+        private fun safeAdd(x: Int, y: Int): Int {
+            val low = (((x) and (65535))) + (((y) and (65535)))
+            val high = (((x) shr (16))) + (((y) shr (16))) + (((low) shr (16)))
+            return ((((high) shl (16))) or ((((low) and (65535)))))
+        }
+    }
+}

@@ -1,0 +1,5 @@
+tests/haxe/swift-rt-probe/run-stages.sh: disk=755 (coord=755) manifest=100755 exec==coord-bytes=True -> OK
+tests/haxe/swift-rt-plain/run-stages.sh: disk=755 (coord=755) manifest=100755 exec==coord-bytes=True -> OK
+tests/haxe/dc-null-guard-fallthrough/run.sh: disk=755 (coord=755) manifest=100755 exec==coord-bytes=True -> OK
+tests/haxe/try-tail/run-stages.sh: disk=755 (coord=755) manifest=100755 exec==coord-bytes=True -> OK
+CHECK5 VERDICT: PASS

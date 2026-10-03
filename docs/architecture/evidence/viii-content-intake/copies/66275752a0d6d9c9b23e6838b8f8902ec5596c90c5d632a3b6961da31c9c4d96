@@ -1,0 +1,60 @@
+# t-muopgey9-ddn9 (E0533 throwVariant fallback): coordinator verification
+
+Seat commit 09e11506 on fix/rust-throwvariant-e0533 (RustExpr.hx +25).
+
+## Method note - I had to redo this, and why
+My first attempt measured contaminated trees and I discarded those numbers rather than
+report them. Cause: a `git revert` I intended for a /tmp COPY ran inside the real
+worktree (a cd in a compound command), creating commit 96439a90 there and leaving the
+file modified. So both of my early "pre" and "fixed" generations came from trees whose
+state I had not checked. I restored the worktree to the seat's state (reset to 09e11506,
+clean) and redid everything with two `git archive` exports and a STATE CHECK BEFORE USE:
+
+    /tmp/T-fixed  from 09e11506 : guard present = 1
+    /tmp/T-pre    from 9c0a403b : guard present = 0     (9c0a403b is the fix's parent)
+    both 1504 files
+
+Toolchain: haxe 4.3.7 and cargo 1.98.0, both from the nix store (neither is on PATH here).
+
+## Criterion 1 - nameshape is fixed. MEASURED
+Generated nameshape differs between the two trees in exactly one line:
+
+    pre    line 53:  return Err(EFault::EFault(E::new(e)));
+    fixed  line 53:  return Err(panic!("throw variant shape collision"));
+
+The enum declares `EFault { tag: UString }`, so the pre line calls the struct variant
+without its fields. Cargo, counting diagnostics by SHAPE (PIT-336):
+
+    pre    cargo rc=101  errors=2  E0533=2
+           error[E0533]: expected value, found struct variant `EFault::EFault`
+    fixed  cargo rc=0    errors=0  E0533=0
+
+## Criterion 2 - gi/girev and the corpus are unchanged. MEASURED
+Both drivers generated on both trees, rc=0 each, then diffed tree-to-tree:
+
+    gi     diff lines = 0
+    girev  diff lines = 0
+
+Stronger than "unchanged text": cargo on all four trees is clean.
+
+    gi    pre rc=0 errors=0   |  gi    fixed rc=0 errors=0
+    girev pre rc=0 errors=0   |  girev fixed rc=0 errors=0
+
+That is the expected shape: the new guard sits AFTER the growth-variant return and fires
+only on the name-collision case, so the normal growth path (which is what gi/girev
+exercise) returns earlier and never reaches it.
+
+## Criterion 3 - reverse control. MEASURED
+The fix's own parent (9c0a403b) IS the reverse control, and I built it as a clean export
+rather than by patching anything: it generates the malformed call and fails with 2xE0533,
+as recorded above. Removing the fix reproduces the defect.
+
+## One design observation I am recording, not blocking on
+The commit adds `enumDeclaresVariant` to RustExpr.hx, while Compiler.hx already has a
+function of the same name and signature (added by 0defc297). Two copies of one predicate
+in one emitter is the shape TCN-162 warns about; here the copies are consistent, so I am
+not treating it as a defect, but a future change to one will not reach the other.
+
+## Verdict
+All three criteria measured on state-checked trees. Accepting. Landing state: 09e11506 is
+on its branch, NOT yet in base; merging is a coordinator action and is not claimed here.

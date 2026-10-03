@@ -1,0 +1,21 @@
+package boring
+
+import boring.runtime.UString
+
+object UStringResidentOps {
+    fun count(text: String): Int {
+        return UString.count(text)
+    }
+
+    fun at(text: String, index: Int): Int? {
+        return UString.at(text, index)
+    }
+
+    fun slice(text: String, from: Int, to: Int): String {
+        return UString.slice(text, from, to)
+    }
+
+    fun fromCodePoint(code: Int): String {
+        return UString.fromCodePoint(code)
+    }
+}

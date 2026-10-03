@@ -1,0 +1,31 @@
+#!/bin/bash
+# usage: gen.sh <label>
+set -u
+LABEL="$1"
+REPO=/home/losses/Development/tq-workspace/boring-wt-architecture
+OUT=/home/losses/Development/tq-workspace/dc-warn/out/land-switchexpr/evidence
+export PATH="$(grep -m1 '^PATH=' /home/losses/Development/tq-workspace/dc-warn/out/chainA-fixed-rerun/evidence/env.json | cut -d= -f2-)"
+SNAP="$OUT/$LABEL"
+rm -rf "$SNAP"; mkdir -p "$SNAP"
+cd "$REPO" || exit 9
+
+# accept fixture
+rm -rf out/readonly-boundary/current
+haxe tests/swift-readonly-boundary/swift.hxml > "$SNAP/accept-gen.log" 2>&1
+echo "accept rc=$?" >> "$SNAP/rcs.txt"
+mkdir -p "$SNAP/accept-root"
+for f in Runtime.swift std boring gap; do [ -e "$f" ] && cp -r "$f" "$SNAP/accept-root/"; done
+cp -r out/readonly-boundary/current "$SNAP/accept-out"
+
+# gap fixture
+haxe /home/losses/Development/tq-workspace/dc-warn/out/gap-fixture-archive/fixture/swift-archived.hxml -D swift-output=out/land-gap/gen > "$SNAP/gap-gen.log" 2>&1
+echo "gap rc=$?" >> "$SNAP/rcs.txt"
+mkdir -p "$SNAP/gap-root"
+for f in Runtime.swift std boring gap; do [ -e "$f" ] && cp -r "$f" "$SNAP/gap-root/"; done
+
+# view-lifetime
+haxe tests/haxe/view-lifetime/swift.hxml > "$SNAP/viewlife-gen.log" 2>&1
+echo "viewlife rc=$?" >> "$SNAP/rcs.txt"
+mkdir -p "$SNAP/viewlife-root"
+for f in Runtime.swift std boring; do [ -e "$f" ] && cp -r "$f" "$SNAP/viewlife-root/"; done
+cp -r out/view-lifetime/current "$SNAP/viewlife-out"

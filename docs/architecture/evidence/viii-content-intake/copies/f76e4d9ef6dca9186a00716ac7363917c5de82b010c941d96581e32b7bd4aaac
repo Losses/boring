@@ -1,0 +1,222 @@
+attempt-20260929T011446-2307163	1	1	INTEGRITY FAIL: no harness log
+attempt-20260929T011446-2307206	1	1	INTEGRITY FAIL: no harness log
+attempt-20260929T011446-2307253	1	1	INTEGRITY FAIL: no harness log
+attempt-20260929T011446-2307278	1	1	INTEGRITY FAIL: no harness log
+attempt-20260929T011536-2308312	1	1	INTEGRITY FAIL: no harness log
+attempt-20260929T011536-2308363	1	1	INTEGRITY FAIL: no harness log
+attempt-20260929T011536-2308413	1	1	INTEGRITY FAIL: no harness log
+attempt-20260929T011536-2308444	1	1	INTEGRITY FAIL: no harness log
+attempt-20260929T012203-2314597	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012204-2314675	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012204-2314745	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012204-2314790	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012306-2315754	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012307-2315817	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012307-2315891	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012307-2315927	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012356-2316779	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 1382 of 1403)
+attempt-20260929T012357-2316857	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012357-2316908	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012418-2317292	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 786 of 807)
+attempt-20260929T012419-2317353	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T012419-2317400	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T013426-2326859	1	1	INTEGRITY FAIL: no end marker (unsealed log)
+attempt-20260929T014157-2333934	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 823 of 844)
+attempt-20260929T014157-2333995	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014157-2334041	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014157-2334095	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014203-2334319	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 823 of 844)
+attempt-20260929T014203-2334380	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014203-2334426	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014203-2334488	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014336-2335851	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014336-2335913	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014336-2335960	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014336-2335996	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014522-2337528	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 823 of 844)
+attempt-20260929T014522-2337588	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014522-2337632	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014522-2337681	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014746-2340811	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 811 of 832)
+attempt-20260929T014746-2340871	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014746-2340919	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014746-2340969	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014755-2341226	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 811 of 832)
+attempt-20260929T014755-2341285	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014755-2341329	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014755-2341378	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014813-2341743	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 811 of 832)
+attempt-20260929T014813-2341803	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014813-2341847	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-20260929T014813-2341896	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 761 of 782)
+attempt-20260929T015832-2350807	0	0	INTEGRITY OK: sealed at line 34, sha 140f563d0504138c67e3ca43637645845575b9003ab4592e314e862471e7c468, stage manifest exact
+attempt-20260929T015833-2350878	0	0	INTEGRITY OK: sealed at line 21, sha 399516f2dcca40b6484f6f592717365b71f314a5e3df020812dd520fa39b2cb3, stage manifest exact
+attempt-20260929T015833-2350931	0	0	INTEGRITY OK: sealed at line 14, sha b4c6af830a5aff477df4abc0052104ab6d2dfec099177db97e27e6000578eb43, stage manifest exact
+attempt-20260929T015833-2350994	0	0	INTEGRITY OK: sealed at line 14, sha 6a1fec4f34668b2d1025e0e68dc30182d67a9f7927025a44ac1df00adb301dfd, stage manifest exact
+attempt-20260929T015833-2351033	0	0	INTEGRITY OK: sealed at line 24, sha 0c960fe8489e67111b7b3765dc3afc3b2b57787142bb66e8b116c9e00b47c8c5, stage manifest exact
+attempt-20260929T015833-2351083	0	0	INTEGRITY OK: sealed at line 24, sha 17a84b4991d00dcb12aa658d74deddf2aeb52cad23bcc07ca7477cd775c7317a, stage manifest exact
+attempt-20260929T025826-2398922	0	0	INTEGRITY OK: sealed at line 15, sha 473aad2d87aee975e6dd25a13a227853735042d7a4b7d5ae872a8d1989ae4938, stage manifest exact
+attempt-20260929T025858-2399140	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T025858-2399245	0	0	INTEGRITY OK: sealed at line 22, sha 82d5e1e57c89bb2303accd19e068d6210353967c6c7150fdc74b9832038e512e, stage manifest exact
+attempt-20260929T025858-2399327	0	0	INTEGRITY OK: sealed at line 15, sha 7e6cdfc5ab0606e861a5cf673ad0648851710f661bd13f78444b6032f871a4ac, stage manifest exact
+attempt-20260929T025858-2399390	0	0	INTEGRITY OK: sealed at line 15, sha ca42ed629ca4874cefc75f127b9890a80db4e532080d68251c4b599c2d3b9e2e, stage manifest exact
+attempt-20260929T025858-2399426	0	0	INTEGRITY OK: sealed at line 25, sha 4386e5c569b2d97c381aeedc6007d03692bd5e856d5fc4ce306cf3f68ec1be48, stage manifest exact
+attempt-20260929T025858-2399522	0	0	INTEGRITY OK: sealed at line 25, sha 1a8fb6a3519f00b84468f9d87ad22034ad333b6444d85c2ae2fbb8fa9c8c7427, stage manifest exact
+attempt-20260929T025859-2399617	0	0	INTEGRITY OK: sealed at line 15, sha f444396590fd564bb57c918cd1e79379dc71fd089aedef406f612436b55a6486, stage manifest exact
+attempt-20260929T025859-2399666	0	0	INTEGRITY OK: sealed at line 15, sha 06dd569e9fb33738607026ad5cdf7e3c1f2447b3e19b404cc4ff571d0c4ed867, stage manifest exact
+attempt-20260929T025859-2399715	0	0	INTEGRITY OK: sealed at line 15, sha f77a0769ebb65cfa22f177c50ff7b74a03ea989f85d87573cadfa8c078eb73cd, stage manifest exact
+attempt-20260929T025943-2400094	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T025943-2400197	0	0	INTEGRITY OK: sealed at line 22, sha 137ccd0aa4a8574a6e9735550dbe563888d2c3a8baebd182b96614657acded16, stage manifest exact
+attempt-20260929T025944-2400279	0	0	INTEGRITY OK: sealed at line 15, sha d58dcacdffc6e7747ef6ef78ec47f7c836d7e99bf5c8134912b47c5c006928f4, stage manifest exact
+attempt-20260929T025944-2400342	0	0	INTEGRITY OK: sealed at line 15, sha ef7ce03f818702cd2cbdaf87a14c967dc3354b3bc293db419dc04e601b761adc, stage manifest exact
+attempt-20260929T025944-2400378	0	0	INTEGRITY OK: sealed at line 25, sha d186b1ec345099a1f09fb3b981f230ac6d295f72777d91a62681236684fefc65, stage manifest exact
+attempt-20260929T025944-2400474	0	0	INTEGRITY OK: sealed at line 25, sha f57fa0887ce2546ecf520c118b3d78201ca4a3e8bfa5f3b7a9fbc9be1ba34750, stage manifest exact
+attempt-20260929T025944-2400569	0	0	INTEGRITY OK: sealed at line 15, sha 5b8e827e5d1d2a0b327b009e501e7078d0416335f36065c08eeee31c22e89953, stage manifest exact
+attempt-20260929T025944-2400616	0	0	INTEGRITY OK: sealed at line 15, sha f9106a74fc8f9dc72b9723c2fec0c866905dfb525cdd2750b1379c9f309c820c, stage manifest exact
+attempt-20260929T025945-2400665	0	0	INTEGRITY OK: sealed at line 15, sha 65a592f259227a977665cff502e2f6dcae2c61be40debf8d238e471f98f3b32e, stage manifest exact
+attempt-20260929T030029-2400984	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T030029-2401087	0	0	INTEGRITY OK: sealed at line 22, sha 0db707e406b0b2bbfaf147e09bca7882bac64e330a65641576ba1c847e7b6e85, stage manifest exact
+attempt-20260929T030029-2401169	0	0	INTEGRITY OK: sealed at line 15, sha d5242dc8a729fc86af61b8ee1b76dd6e1877bf8c12b94fe14cbfe597b6b24722, stage manifest exact
+attempt-20260929T030029-2401232	0	0	INTEGRITY OK: sealed at line 15, sha f7ef80148d01b26351949ef8d8720a734fb1e0df30df8fed3d16798996183d5a, stage manifest exact
+attempt-20260929T030029-2401268	0	0	INTEGRITY OK: sealed at line 25, sha 104fdc3d0a813d39d299026b15565def7e0a99b96cae5f8de29e1839d3889dc4, stage manifest exact
+attempt-20260929T030030-2401364	0	0	INTEGRITY OK: sealed at line 25, sha 532ac798d7d696a7b94799836dae14a0f7651c0e47c7fe925cab4ea14e7ba488, stage manifest exact
+attempt-20260929T030030-2401461	0	0	INTEGRITY OK: sealed at line 15, sha 2c9b4b2e1d98b69c9e5ca826038e2b67a1d7ecc08005854ad7dc94b398f8d158, stage manifest exact
+attempt-20260929T030030-2401508	0	0	INTEGRITY OK: sealed at line 15, sha b11eaefc0085ed3a5104463aea5b4b6bde81b997b5d0b088b5de3d7e846b88da, stage manifest exact
+attempt-20260929T030030-2401557	0	0	INTEGRITY OK: sealed at line 15, sha eb4d3aa2f108f142812b24ad8709f63f4ddfe8230941e0b9d6b0537e295fefcc, stage manifest exact
+attempt-20260929T030208-2402130	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T030209-2402233	0	0	INTEGRITY OK: sealed at line 22, sha a4c2450d7cb270efd640c44289d18fbe47130657fd4834a050cc7bf210c31fce, stage manifest exact
+attempt-20260929T030209-2402315	0	0	INTEGRITY OK: sealed at line 15, sha 4ae11b28148dd59de83a96ef069ec330fc53fbb12a29745fabe088592b0bb83e, stage manifest exact
+attempt-20260929T030209-2402378	0	0	INTEGRITY OK: sealed at line 15, sha f21a0cacbc7f7cf20e95854877a1aa39b1121f8fc7797d4898fffe328a35dc77, stage manifest exact
+attempt-20260929T030209-2402414	0	0	INTEGRITY OK: sealed at line 25, sha c1ed00caddbe84560821523c7d33b103c86ea93af8a551709a492f8763f8fa3c, stage manifest exact
+attempt-20260929T030209-2402510	0	0	INTEGRITY OK: sealed at line 25, sha 499a4c22b48aa890285311b322948556a484581d0f4dc157e4df6d8f173d3651, stage manifest exact
+attempt-20260929T030210-2402643	0	0	INTEGRITY OK: sealed at line 15, sha d2ff7051d162b291f548798dec0b7ddcdbb037b82acb6d95a888a07e3fa82172, stage manifest exact
+attempt-20260929T030210-2402690	0	0	INTEGRITY OK: sealed at line 15, sha 68b21f1d005abee2afabdc529ea91aabc270766d885e2f789d78c3ad6fc293a3, stage manifest exact
+attempt-20260929T030210-2402734	0	0	INTEGRITY OK: sealed at line 15, sha e04c302aa15950e71afdbbbea80d6692f98fd4b6c93149e909f3b6e25538b5c7, stage manifest exact
+attempt-20260929T030405-2403508	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T030405-2403611	0	0	INTEGRITY OK: sealed at line 22, sha 3d6daadce69d9c6c04167230828871832178166dc7ee32d266b5f888162851f5, stage manifest exact
+attempt-20260929T030405-2403695	0	0	INTEGRITY OK: sealed at line 15, sha ca644879dda37e55de68a4c76f369dd40ad2f90bd12fb11deacc980080890907, stage manifest exact
+attempt-20260929T030405-2403758	0	0	INTEGRITY OK: sealed at line 15, sha a7d79622b6bd8f1eab577640bd02db0e26bd1aa95d5a4204728487c2b3ccd7d6, stage manifest exact
+attempt-20260929T030405-2403794	0	0	INTEGRITY OK: sealed at line 25, sha e6a3dc7b2eadf24251988f778809441eb1325319c98b0edca1ddd5380522ec4d, stage manifest exact
+attempt-20260929T030405-2403890	0	0	INTEGRITY OK: sealed at line 25, sha 486de9cc79fd4606d74f94f56b856d0bd7906d6896146c6685efcf2c64599a1a, stage manifest exact
+attempt-20260929T030406-2403985	0	0	INTEGRITY OK: sealed at line 15, sha 67c47ba7fbcc9880ad41c131815ab312ac5136eaa06f1f0165372ec0dacc2dad, stage manifest exact
+attempt-20260929T030406-2404030	0	0	INTEGRITY OK: sealed at line 15, sha 891786e70b3f183b143d93cf8fe99bbff61d157b743156377862a4708087a5e6, stage manifest exact
+attempt-20260929T030406-2404074	0	0	INTEGRITY OK: sealed at line 15, sha 92253b4056e7fb09c195036e6709883b1c33dc674e39f4661f4186738527ed79, stage manifest exact
+attempt-20260929T030423-2404234	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T030423-2404337	0	0	INTEGRITY OK: sealed at line 22, sha aa8ccc1c392d4256d44d64f5334a06b6ac4aed0695e916ea4d201fd7855cb21c, stage manifest exact
+attempt-20260929T030423-2404419	0	0	INTEGRITY OK: sealed at line 15, sha 8439ac9aaafb6fa21be8ffc5b5359b25aa9fd79edf2f78bd7a4a1873d34a0e97, stage manifest exact
+attempt-20260929T030423-2404482	0	0	INTEGRITY OK: sealed at line 15, sha f86c9703cfbab2954d76775f77c01d1d8a78faccea17dd5f052da88f1a6ee7c0, stage manifest exact
+attempt-20260929T030423-2404518	0	0	INTEGRITY OK: sealed at line 25, sha 476fbb727fc7105f12c5f1d56cc984ec0a1e244172f54a4f4fbe25e9dbf99050, stage manifest exact
+attempt-20260929T030423-2404614	0	0	INTEGRITY OK: sealed at line 25, sha 4fd4cf3adca7f2963f6cea4a2bffb5de130ce66043ede26078a8a967adeeb4e2, stage manifest exact
+attempt-20260929T030424-2404709	0	0	INTEGRITY OK: sealed at line 15, sha 07961ffa04b7eeb9aa6e0553704e4234dc61fdd7d0d9e2f1ceaa7abbd5cf3924, stage manifest exact
+attempt-20260929T030424-2404754	0	0	INTEGRITY OK: sealed at line 15, sha ebc69559852230e857cb486ce55ea048abb2bf9b38747bb25cf1709c50c92957, stage manifest exact
+attempt-20260929T030424-2404798	0	0	INTEGRITY OK: sealed at line 15, sha c707b0bfae4d47e38c8b76021814ee6a77cb49883f076187630c10a901ed9038, stage manifest exact
+attempt-20260929T102347-2523922	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T102347-2524025	0	0	INTEGRITY OK: sealed at line 22, sha 911e7edc5d6d26c398e3c275202f6fe9a9956b7f9b5b747cd0b6694b631f302e, stage manifest exact
+attempt-20260929T102347-2524107	0	0	INTEGRITY OK: sealed at line 15, sha 30a65822411575d760ba81cbd4887c44ea0e8f3a68dd5779106c3f6b865d7441, stage manifest exact
+attempt-20260929T102348-2524170	0	0	INTEGRITY OK: sealed at line 15, sha eada3a205b3e43a082b43bd322ddd8da670c771f6e2288b6e3d143ca8e0c93aa, stage manifest exact
+attempt-20260929T102348-2524206	0	0	INTEGRITY OK: sealed at line 25, sha 4890331b5d2e2426801c7881ced319261fc480a43360128a5b2f21e53ee7dff9, stage manifest exact
+attempt-20260929T102348-2524302	0	0	INTEGRITY OK: sealed at line 25, sha 52923d8789d5ab521cd6d819ee0ec30b6386dd252a795707a81118095ee53fb1, stage manifest exact
+attempt-20260929T102348-2524397	0	0	INTEGRITY OK: sealed at line 15, sha e46c69e18492d1f6996f9743d0e75da15a381ebcc30fc98d41c65dcbc9ea9021, stage manifest exact
+attempt-20260929T102348-2524442	0	0	INTEGRITY OK: sealed at line 15, sha fac5c16ad128625fc16bfbe704cace5f35aa2e3498feff18f8208e21faebb70c, stage manifest exact
+attempt-20260929T102348-2524486	0	0	INTEGRITY OK: sealed at line 15, sha 58974053f8247cb9d4280a96eae2e437210a7b2f407916e76ceb1909935daaf0, stage manifest exact
+attempt-20260929T102428-2524770	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T102428-2524873	0	0	INTEGRITY OK: sealed at line 22, sha 0bb4241734d6d4768c1c14485e6f60269e5a41843b2f9932e0934b9dba73f4c3, stage manifest exact
+attempt-20260929T102428-2524955	0	0	INTEGRITY OK: sealed at line 15, sha 6188b7ff1b707df6784552d795bcb15ea640ddcc3fd68405da2a4b63738e5b7d, stage manifest exact
+attempt-20260929T102428-2525018	0	0	INTEGRITY OK: sealed at line 15, sha fb1aab419205ab2be597bac6bd67d50ec013ca5cde90f6f1c27c158d18fe5b44, stage manifest exact
+attempt-20260929T102428-2525054	0	0	INTEGRITY OK: sealed at line 25, sha 8df94767f3c7a06ceafaa9c52baf312f197b0e10ea8f6d8d9f59b497372693d3, stage manifest exact
+attempt-20260929T102428-2525150	0	0	INTEGRITY OK: sealed at line 25, sha e2a14addd8bf4f5934da8bb4e6b916a8e9066b2d85f44cc22a49e9c096faa099, stage manifest exact
+attempt-20260929T102429-2525259	0	0	INTEGRITY OK: sealed at line 15, sha 0a012daebda34aaa44530def38f4a1d02c693fc952486967ab20365121184ee9, stage manifest exact
+attempt-20260929T102429-2525304	0	0	INTEGRITY OK: sealed at line 15, sha c1247edc0b07363317b4797ac219aa7fa0f57882671ef87887b8fab1a36b44c6, stage manifest exact
+attempt-20260929T102429-2525348	0	0	INTEGRITY OK: sealed at line 15, sha 72716b9363d0ae480a8566e126399470cc60f64f16cd0201b2c241831b74b833, stage manifest exact
+attempt-20260929T102557-2525973	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T102557-2526076	0	0	INTEGRITY OK: sealed at line 22, sha 5ea22922199cbfc537e35c126651d4af1c5624e26f9ac587480031ab98f2c87e, stage manifest exact
+attempt-20260929T102557-2526158	0	0	INTEGRITY OK: sealed at line 15, sha 2a87f2c925986f8befaddbbda1700a0bc8ec0f961fa469bfbd0256747a38f2a2, stage manifest exact
+attempt-20260929T102557-2526221	0	0	INTEGRITY OK: sealed at line 15, sha 61180b1ca3c86967071d5bde93e4f0aed2f5b7d5abe2949891d574c1231de862, stage manifest exact
+attempt-20260929T102557-2526257	0	0	INTEGRITY OK: sealed at line 25, sha 9cf507e27aa9693d1fda8cdca556d44f4d9cdede84a293041c6ed68a67279faa, stage manifest exact
+attempt-20260929T102557-2526353	0	0	INTEGRITY OK: sealed at line 25, sha fce826f278b6898f9b851b7456388a1cbce1e5d38d8e625e68122dfb5d1e4773, stage manifest exact
+attempt-20260929T102557-2526448	0	0	INTEGRITY OK: sealed at line 15, sha 680e03f4eaf60c08810b33072d6f86969894ecf1deb842adeaf5771498c81d88, stage manifest exact
+attempt-20260929T102557-2526493	0	0	INTEGRITY OK: sealed at line 15, sha c1dcd644ae215a1b4854c49ae5a0d7eb5517fd7469dac9c768a6b370c4f8f612, stage manifest exact
+attempt-20260929T102558-2526537	0	0	INTEGRITY OK: sealed at line 15, sha feb84062b613fc3cd1bf19b2e826c025cec5b86cbb8809e669062e17cdaa37fa, stage manifest exact
+attempt-20260929T102929-2527846	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T102930-2527949	0	0	INTEGRITY OK: sealed at line 22, sha 1c6441d950d0c21b3c05ab08d5a4d3021b3460b3ce764e7ea87ce840d19f99b9, stage manifest exact
+attempt-20260929T102930-2528031	0	0	INTEGRITY OK: sealed at line 15, sha 012d1da4d7fdd7025e14e8e7c17fe0513617a04a30787f468826c1d6af36df21, stage manifest exact
+attempt-20260929T102930-2528094	0	0	INTEGRITY OK: sealed at line 15, sha c432a14fdd16a363f2063d3fb789c9b8c81d431fe046a483e33355a8b33c4ae7, stage manifest exact
+attempt-20260929T102930-2528130	0	0	INTEGRITY OK: sealed at line 25, sha 954aab19361741d32c7c05f9aaa5ed91f58e1ea1943df83fd63a22ac6b90af09, stage manifest exact
+attempt-20260929T102930-2528226	0	0	INTEGRITY OK: sealed at line 25, sha f8b2e92dbb0f4fd26a0e54d2ba986b03d23b94652f93a8374eec3af769a83840, stage manifest exact
+attempt-20260929T102930-2528321	0	0	INTEGRITY OK: sealed at line 15, sha b91bb080919add7a4bb1a047fea427aad97422c34c81885fe8424cdf587fb65b, stage manifest exact
+attempt-20260929T102930-2528366	0	0	INTEGRITY OK: sealed at line 15, sha bc239ee374d3c5a1c3f681c6716bfeb83f44ca7a75dd6df0f96a2bfa80df4acf, stage manifest exact
+attempt-20260929T102930-2528410	0	0	INTEGRITY OK: sealed at line 15, sha 615b836dd2bc3a49fe3f5695fe42e282bc69713a8f109d840cbca88b2119e233, stage manifest exact
+attempt-20260929T160111-2740272	0	0	INTEGRITY OK: sealed at line 36, sha eba0ad03e9831c72554c40128e2e3d347e65eabde7b3eb1a3461f95fdf1486b6, stage manifest exact
+attempt-20260929T160111-2740346	0	0	INTEGRITY OK: sealed at line 22, sha 14f0515825c967e9fb14cc37246aaa9dbf924803140adafbf9ed88a33ef74833, stage manifest exact
+attempt-20260929T160111-2740399	0	0	INTEGRITY OK: sealed at line 15, sha c4912ea4f2bcf963bd4df71e16021ecbad1738d0eadb51082bd0dfc79ac141da, stage manifest exact
+attempt-20260929T160112-2740462	0	0	INTEGRITY OK: sealed at line 15, sha 7fe15c9645d796a9b3450129dd2e119ead4535dc6180095253dae1e18c72ff06, stage manifest exact
+attempt-20260929T160112-2740498	0	0	INTEGRITY OK: sealed at line 25, sha 1707cb78a03f6115010673a8c365b4c242972c5514aa7caa6b87bcff55663e43, stage manifest exact
+attempt-20260929T160112-2740551	0	0	INTEGRITY OK: sealed at line 25, sha b44250baafb935da7ed1868ad39afbc5c4cc1bff1a2a90b677477718b2daacd1, stage manifest exact
+attempt-20260929T160112-2740611	0	0	INTEGRITY OK: sealed at line 15, sha dfec8b7f5323516e30b329224c7ff3ee99f8583d0d5161f2feff42fee41f02a1, stage manifest exact
+attempt-20260929T160112-2740649	0	0	INTEGRITY OK: sealed at line 15, sha 60c999d77405f43f31ee335339475758ce04f9269b498281cbcb455cc71e0a19, stage manifest exact
+attempt-20260929T160112-2740691	0	0	INTEGRITY OK: sealed at line 15, sha 46e3a3e1e99ccb05cdc7dfddfcd59529a248cc9848d51a777e9418e6c3c13633, stage manifest exact
+attempt-20260929T171645-2850543	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T171646-2850646	0	0	INTEGRITY OK: sealed at line 22, sha 669020b74a0726df2c6d147048d3a58bf6c3adb1897eb7f81812cb6838ab76a1, stage manifest exact
+attempt-20260929T171646-2850728	0	0	INTEGRITY OK: sealed at line 15, sha 0fc9303d56a84f02b3be269daf37a0704e8e9b801fb87df5e20cad02f5eac35f, stage manifest exact
+attempt-20260929T171646-2850791	0	0	INTEGRITY OK: sealed at line 15, sha 2f20c874f8654badd5c573c46da9cb1745e779879cb0feffa1648e9fc650d04a, stage manifest exact
+attempt-20260929T171646-2850827	0	0	INTEGRITY OK: sealed at line 25, sha 60c00ac05bb40b60e257b82ee8bef56d1d6605e9e09e21375c77def765f29b1b, stage manifest exact
+attempt-20260929T171646-2850923	0	0	INTEGRITY OK: sealed at line 25, sha 078f3430d169aa005e25ddcadcf4038c9e4549772cee3a48e18d9792682f1173, stage manifest exact
+attempt-20260929T171647-2851018	0	0	INTEGRITY OK: sealed at line 15, sha 44f5b7ce21cff48d87e1148fb45dcbf0a7479dbf2251a3f03231f8f1388ad8d6, stage manifest exact
+attempt-20260929T171647-2851064	0	0	INTEGRITY OK: sealed at line 15, sha 77fc199f914b33020482f07cea4e7b18ce9e6738384c81306a70d1cdb3d7282b, stage manifest exact
+attempt-20260929T171647-2851114	0	0	INTEGRITY OK: sealed at line 15, sha 787ddc2dca764fa9ccc56dce2aa49447e1eabe1a5f2d47d86866f38a50adffae, stage manifest exact
+attempt-20260929T171742-2853616	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T171742-2853719	0	0	INTEGRITY OK: sealed at line 22, sha 2c164dd39c909b2f43cbbd562b63f39e2318ce3bbc2056c85297313d6489e586, stage manifest exact
+attempt-20260929T171742-2853801	0	0	INTEGRITY OK: sealed at line 15, sha e440cab29f8215cfb5d0ae7835a3ecb5057f0d1c3d4b2966b0962ce594b5bd41, stage manifest exact
+attempt-20260929T171742-2853864	0	0	INTEGRITY OK: sealed at line 15, sha 6f1a740a74343f94187b2fca8dcb630d76f9dc85bb7adce4ff18ecbe8f40e6a5, stage manifest exact
+attempt-20260929T171742-2853900	0	0	INTEGRITY OK: sealed at line 25, sha c50536de64f294c919e02767877bf79f555f413af707eb972f14eb606e9701fc, stage manifest exact
+attempt-20260929T171742-2853997	0	0	INTEGRITY OK: sealed at line 25, sha c8a3ef474360eac18fd965c19fce927241d5faf13d446d56c5314bc7dd0596bb, stage manifest exact
+attempt-20260929T171743-2854095	0	0	INTEGRITY OK: sealed at line 15, sha e73b7db499ae2f90656c658e8fd9b324ef0ca545c0097aeb6ff754fad68d1a94, stage manifest exact
+attempt-20260929T171743-2854140	0	0	INTEGRITY OK: sealed at line 15, sha 492ac8eccfd5956694d9714aa02a23053f8cde0d76c4663db8b5cfb13daababb, stage manifest exact
+attempt-20260929T171743-2854189	0	0	INTEGRITY OK: sealed at line 15, sha 2f65187fb05ab89d0680340aca3bb6de1b830711525f8ca03153e11c2f5926e1, stage manifest exact
+attempt-20260929T171752-2854466	0	0	INTEGRITY OK: sealed at line 20, sha 5128dbbff8c22bd94794463438805ce31f28691ea2519c4f6a6b70f1963adc80, stage manifest exact
+attempt-20260929T171846-2856325	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T171847-2856434	0	0	INTEGRITY OK: sealed at line 22, sha 32458b951e8c87f70a5ede2e342a9491c80709b473eee7fdf28465dacf6882e0, stage manifest exact
+attempt-20260929T171847-2856534	0	0	INTEGRITY OK: sealed at line 15, sha 17993a2515a1ef5d79e468beafc1e54486f33fc8756caacbb3f24d1c99459cdf, stage manifest exact
+attempt-20260929T171847-2856603	0	0	INTEGRITY OK: sealed at line 15, sha 35ee5cef281b9818cf3330ecf02e3c29d29b6bed9d8174d4bbdf03929d4ded40, stage manifest exact
+attempt-20260929T171847-2856643	0	0	INTEGRITY OK: sealed at line 25, sha 228b222c6f3470b13c92ee85987f6f6963c20c1d3c137df2d78cbc09b5d858a4, stage manifest exact
+attempt-20260929T171847-2856746	0	0	INTEGRITY OK: sealed at line 25, sha 6dcf0b3f69c44d3b3ca3b869aa12e5803f59dbe1dbe815e9982bd51d01534154, stage manifest exact
+attempt-20260929T171847-2856861	0	0	INTEGRITY OK: sealed at line 15, sha 88440834c51ca0cfdf31d32936733caaf913323219813d8c87b59b8d5f5a6275, stage manifest exact
+attempt-20260929T171848-2856911	0	0	INTEGRITY OK: sealed at line 15, sha b761b1364acb35b2fe4a90ce7ed3a5024c73c68972cf28acdbf6740f8630f475, stage manifest exact
+attempt-20260929T171848-2856964	0	0	INTEGRITY OK: sealed at line 15, sha 028d686f511cebefae390e6d70003bc4ab1991190e4e6c439228aeaf393b3119, stage manifest exact
+attempt-20260929T172223-2862362	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T172223-2862465	0	0	INTEGRITY OK: sealed at line 22, sha 33a8358be8c607ba9fc1113a8761aa99a4439b085822efb1bba0a806bfa98127, stage manifest exact
+attempt-20260929T172224-2862547	0	0	INTEGRITY OK: sealed at line 15, sha 3006732a2f0f7faf0d2611e856110e92febefd19f14ff73678c2af5ee5326e37, stage manifest exact
+attempt-20260929T172224-2862610	0	0	INTEGRITY OK: sealed at line 15, sha 442465ab133599ea3ee268a0d8816bd77d514a20bce70b43108d1ac9779d4041, stage manifest exact
+attempt-20260929T172224-2862646	0	0	INTEGRITY OK: sealed at line 25, sha d66580589b51278d039ad77c1fff9e7f30a6899467dd8981e6cc81958938656b, stage manifest exact
+attempt-20260929T172224-2862745	0	0	INTEGRITY OK: sealed at line 25, sha 8274fc861245d147ea14289f79bb9045ff0b2fbb81ddf3da78a60b7bf1b35145, stage manifest exact
+attempt-20260929T172224-2862854	0	0	INTEGRITY OK: sealed at line 15, sha 6a4688891f75c54e81e9edbefe54b5e42874472853c011dc82be53251c1a8c35, stage manifest exact
+attempt-20260929T172225-2862899	0	0	INTEGRITY OK: sealed at line 15, sha 6159e263a95c9c00457b47b904ed27b6a6eba9c2ee1555a70957bedab2034505, stage manifest exact
+attempt-20260929T172225-2862948	0	0	INTEGRITY OK: sealed at line 15, sha f4c4a35f2841cc2b61f05e7453d306251d622ea09fd102f001c2a637acd08930, stage manifest exact
+attempt-20260929T180108-2907091	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T180108-2907194	0	0	INTEGRITY OK: sealed at line 22, sha 0fb7c66fa571d043c4f6fe257a06303cd9452329535b67dc68c1ba7eda849e37, stage manifest exact
+attempt-20260929T180108-2907276	0	0	INTEGRITY OK: sealed at line 15, sha e5ab6847ce069b1ff120a7783505dc633cd4d1f618f4411e859a11229d4f2ac7, stage manifest exact
+attempt-20260929T180108-2907339	0	0	INTEGRITY OK: sealed at line 15, sha 5f9e233755618a193943cdb60fd3a90e8ee7e5cdecd7d564519b5738a2a9750e, stage manifest exact
+attempt-20260929T180108-2907376	0	0	INTEGRITY OK: sealed at line 25, sha 20d76b33143106050001cd0935108b7f96fb65be21fb92a97399661fea823586, stage manifest exact
+attempt-20260929T180108-2907472	0	0	INTEGRITY OK: sealed at line 25, sha 2e4b9252a09c53d2fd78ae8af835da3201f6dd26e4a9ff2ddb015ca7b8aa66dc, stage manifest exact
+attempt-20260929T180109-2907567	0	0	INTEGRITY OK: sealed at line 15, sha f4ac40944da95545e9c027f21c30b4c4e8fde8bc736479e85c39e050628b29cb, stage manifest exact
+attempt-20260929T180109-2907612	0	0	INTEGRITY OK: sealed at line 15, sha 36f74e1c48ce35660e83b88672f10dd957142d5fbc914944408cf9538257c89f, stage manifest exact
+attempt-20260929T180109-2907661	0	0	INTEGRITY OK: sealed at line 15, sha f7d02191e3d07093e856d6485b6b537561eb7ec4b5cbb234fbc6408f1fab8d33, stage manifest exact
+attempt-20260929T180317-2912092	0	0	INTEGRITY OK: sealed at line 21, sha f95ca5f6b3ee1986bb06b7b7a0185d3d60259d9ec9bedfb3682f19b365324717, stage manifest exact
+attempt-20260929T180735-2917611	0	0	INTEGRITY OK: sealed at line 15, sha e7afe4f7217d074ed773ae5db6dee86086db358b3f477988fe7d55cf34251d30, stage manifest exact
+attempt-20260929T180809-2918225	0	0	INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
+attempt-20260929T181225-2923734	1	1	INTEGRITY FAIL: content after the end marker (21 byte(s) past the marker line, byte 3215 of 3236)
+attempt-20260929T181226-2923837	0	0	INTEGRITY OK: sealed at line 22, sha a4e27ed66935796cca761b39aa62bf4bb297e08f7fa937365f07495e53957fee, stage manifest exact
+attempt-20260929T181226-2923919	0	0	INTEGRITY OK: sealed at line 15, sha 94c1172cfe68fae6caca49b6920102a40cdf2d4cb1fbc622bdf183647547d97c, stage manifest exact
+attempt-20260929T181226-2923982	0	0	INTEGRITY OK: sealed at line 15, sha 76c02951f52e1a06b7acfaabc3f6bba394a5a37eebbc551307fc9af852c1de02, stage manifest exact
+attempt-20260929T181226-2924018	0	0	INTEGRITY OK: sealed at line 25, sha 9f0a3090bd18a436e98125efa1b7e821423fd87baf5c4cef38448d40399f62d1, stage manifest exact
+attempt-20260929T181226-2924114	0	0	INTEGRITY OK: sealed at line 25, sha a25c88ffc4847c1b58aeedf9c5ec7cb1252b9f8b6eb37defbfb62240c85fc7aa, stage manifest exact
+attempt-20260929T181226-2924209	0	0	INTEGRITY OK: sealed at line 15, sha 07ec78b0453f4e6ccda5f6e114140908b7700a832259c82631533c5f225bea33, stage manifest exact
+attempt-20260929T181227-2924254	0	0	INTEGRITY OK: sealed at line 15, sha 9d2617733618bbcae481d325db87d4c6150db03c40289e87eeb743b457166078, stage manifest exact
+attempt-20260929T181227-2924303	0	0	INTEGRITY OK: sealed at line 15, sha 5a9ab73a6c6ae8af4e5b09a3648d656561c6f6c2e5d57c28f27411b9a2b3b3f1, stage manifest exact
+attempt-dbg3	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-debug	1	1	INTEGRITY FAIL: stage evidence set differs from manifest
+attempt-debug2	0	0	INTEGRITY OK: sealed at line 15, sha 97f9a50379929790b6be5e76c35b21403b5fd02597ac86bddd5acb8d15ca3c2f, stage manifest exact
+attempt-ocf-manual	0	0	INTEGRITY OK: sealed at line 15, sha 085d75bf2f7e9e3d35c0ec6b0b0febe9588da2215d97e7997d5144b92de4faf7, stage manifest exact
+attempt-stale-real	1	1	INTEGRITY FAIL: no harness log
+attempt-stale-sentinel	1	1	INTEGRITY FAIL: no harness log
+attempt-trace	1	1	INTEGRITY FAIL: no end marker (unsealed log)

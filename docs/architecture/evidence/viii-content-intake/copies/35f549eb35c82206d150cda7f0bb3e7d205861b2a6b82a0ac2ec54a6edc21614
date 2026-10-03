@@ -1,0 +1,15 @@
+boring/C3AssignOps.swift:9:24: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+ 7 |         switch choice {
+ 8 |             case .values(let _p0):
+ 9 |                 view = _p0
+   |                        `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+10 |             case .marker(_):
+11 |                 view = C3AssignOps.fallbackArray()
+
+boring/C3AssignOps.swift:11:36: error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+ 9 |                 view = _p0
+10 |             case .marker(_):
+11 |                 view = C3AssignOps.fallbackArray()
+   |                                    `- error: cannot assign value of type 'TiqianArray<Int32>' to type 'ReadOnlyArray<Int32>'
+12 |         }
+13 |         return C3AssignOps.consumeView(view, 1)

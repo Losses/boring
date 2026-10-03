@@ -1,0 +1,35 @@
+{
+  "batch": "viii-content-intake",
+  "boring_head_sha256_unique": 2205,
+  "candidates_paths_before_exclusion": 15827,
+  "candidates_unique_before_exclusion": 7279,
+  "description": "Content-addressed copies of dc-warn unique evidence/source bytes, deduplicated across intake-batch-0/1/2/2-supplement/source-next and excluded against Boring HEAD full-tree bare SHA256. Every original path alias is retained in path-map.tsv.",
+  "duplicate_excluded_sha": [
+    "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3",
+    "8a42ea73a12435ae8a88d184fdc284a3cac5e0e1f3cd66014cc931fdf6893cfd"
+  ],
+  "excluded_already_in_boring_head": 0,
+  "kept_bytes": 89669993,
+  "kept_paths": 17201,
+  "kept_unique_sha256": 7279,
+  "max_bytes": 104857600,
+  "path_index_fix": {
+    "action": "merged 1374 missing ledger aliases (independent verify seat 6)",
+    "all_path_map": ".tq-logs/viii/intake-union-index/all-path-map.tsv",
+    "source": ".tq-logs/viii/content-intake-independent-verify/missing-aliases-1374.tsv"
+  },
+  "sensitive_excluded": [
+    "bytefix-xcheck2/evidence/xc2-batch.env.txt",
+    "bytefix-xcheck2/evidence/xc2-controls2.env.txt",
+    "bytefix-xcheck2/evidence/xc2-markers.env.txt",
+    "bytefix-xcheck2/evidence/xc2-controls.env.txt"
+  ],
+  "source_index": "intake-union-index/union-all.tsv",
+  "sources": [
+    "intake-batch-0",
+    "intake-batch-1",
+    "intake-batch-2",
+    "intake-batch-2-supplement",
+    "intake-source-next"
+  ]
+}

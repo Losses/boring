@@ -1,0 +1,1 @@
+bash -c cd\ \"\$1\"\ \&\&\ eval\ \"\$2\" _ /home/losses/Development/tq-workspace/dc-warn/out/selftest-nolf/work/oldcheck-runner/attempt-link echo\ two\ \>\ gendir-a/f2.txt 

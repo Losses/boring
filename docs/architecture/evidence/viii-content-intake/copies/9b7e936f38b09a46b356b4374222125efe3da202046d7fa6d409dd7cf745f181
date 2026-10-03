@@ -1,0 +1,36 @@
+#![cfg(test)]
+
+use crate::boring::string_conv_ops::StringConvOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn test_hex() {
+    testlib::run("tests.StringConvTests.testHex", "tests.StringConvTests.testHex: StringTools.hex renders uppercase and optional padding", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[48]), StringConvOps::string_conv_ops_hex_zero().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[65]), StringConvOps::string_conv_ops_hex_ten().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[70,70]), StringConvOps::string_conv_ops_hex_byte().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[57,70,70,70]), StringConvOps::string_conv_ops_hex_cjk().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[65]), StringConvOps::string_conv_ops_hex_digits_zero().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[48,48,48,65]), StringConvOps::string_conv_ops_hex_padded().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[57,70,70,70]), StringConvOps::string_conv_ops_hex_wider_than_digits().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[48,48,48,65]), StringConvOps::string_conv_ops_hex_dynamic(10, 4).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[85,43,57,102,102,102]), StringConvOps::string_conv_ops_hex_lowercase().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn test_case_conversions() {
+    testlib::run("tests.StringConvTests.testCaseConversions", "tests.StringConvTests.testCaseConversions: String case conversions preserve the target-independent rows", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[116,105,113,105,97,110]), StringConvOps::string_conv_ops_lower_ascii().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[84,73,81,73,65,78]), StringConvOps::string_conv_ops_upper_ascii().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[122,104,45,99,110]), StringConvOps::string_conv_ops_lower_language_tag().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[90,72,45,67,78]), StringConvOps::string_conv_ops_upper_language_tag().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[25552,26912,25490,29256]), StringConvOps::string_conv_ops_lower_cjk().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[25552,26912,25490,29256]), StringConvOps::string_conv_ops_upper_cjk().as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[116,105,113,105,97,110]), StringConvOps::string_conv_ops_lower_dynamic(UStr::new(&[84,73,81,73,65,78])).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[84,73,81,73,65,78]), StringConvOps::string_conv_ops_upper_dynamic(UStr::new(&[116,105,113,105,97,110])).as_ustr(), UStr::new(&[]));
+    });
+}

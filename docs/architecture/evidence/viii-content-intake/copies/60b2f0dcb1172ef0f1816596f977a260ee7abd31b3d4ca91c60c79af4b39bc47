@@ -1,0 +1,27 @@
+package tests
+
+import boring.StringBufThrowOps
+import boring.runtime.test.Test
+
+class StringBufThrowTests {
+@boring.test.Test
+    fun testBuildFromChecked() {
+        Test.run("tests.StringBufThrowTests.testBuildFromChecked", "tests.StringBufThrowTests.testBuildFromChecked: add carries a throwing argument through the surrogate guard") {
+                Test.equals("item-7", StringBufThrowOps.buildFromChecked(7), null)
+        }
+    }
+
+@boring.test.Test
+    fun testCaughtChecked() {
+        Test.run("tests.StringBufThrowTests.testCaughtChecked", "tests.StringBufThrowTests.testCaughtChecked: the added call fault leaves the buffer expression") {
+                Test.equals(3011, StringBufThrowOps.caughtChecked(0), null)
+        }
+    }
+
+@boring.test.Test
+    fun testBuildCharFromChecked() {
+        Test.run("tests.StringBufThrowTests.testBuildCharFromChecked", "tests.StringBufThrowTests.testBuildCharFromChecked: addChar carries a throwing unit through the surrogate guard") {
+                Test.equals("A", StringBufThrowOps.buildCharFromChecked(1), null)
+        }
+    }
+}

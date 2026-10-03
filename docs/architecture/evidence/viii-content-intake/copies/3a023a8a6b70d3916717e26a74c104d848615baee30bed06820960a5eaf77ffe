@@ -1,0 +1,79 @@
+package tests
+
+import boring.MathNaNOps
+import boring.MathNaNTestSupport
+import boring.runtime.test.Test
+
+class MathNaNOpsTests {
+@boring.test.Test
+    fun minValues() {
+        Test.run("tests.MathNaNOpsTests.minValues", "tests.MathNaNOpsTests.minValues: Math.min propagates NaN and handles finite and infinity edges") {
+                MathNaNTestSupport.assertNaN(MathNaNOps.minOf(Float.NaN, 2.0f), "min NaN, finite")
+                MathNaNTestSupport.assertNaN(MathNaNOps.minOf(2.0f, Float.NaN), "min finite, NaN")
+                MathNaNTestSupport.assertNaN(MathNaNOps.minOf(Float.NaN, Float.NaN), "min NaN, NaN")
+                Test.equals(-3.0f, MathNaNOps.minOf(-3.0f, 4.0f), null)
+                Test.equals(-3.0f, MathNaNOps.minOf(4.0f, -3.0f), null)
+                Test.equals(2.0f, MathNaNOps.minOf(2.0f, Float.POSITIVE_INFINITY), null)
+                Test.equals(2.0f, MathNaNOps.minOf(Float.POSITIVE_INFINITY, 2.0f), null)
+                Test.equals(Float.NEGATIVE_INFINITY, MathNaNOps.minOf(Float.NEGATIVE_INFINITY, 2.0f), null)
+                Test.equals(Float.NEGATIVE_INFINITY, MathNaNOps.minOf(2.0f, Float.NEGATIVE_INFINITY), null)
+                Test.equals(Float.NEGATIVE_INFINITY, MathNaNOps.minOf(Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY), null)
+                Test.equals(Float.NEGATIVE_INFINITY, MathNaNOps.minOf(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY), null)
+                MathNaNTestSupport.assertNaN(MathNaNOps.minOf(Float.NaN, Float.POSITIVE_INFINITY), "min NaN, infinity")
+                MathNaNTestSupport.assertNaN(MathNaNOps.minOf(Float.POSITIVE_INFINITY, Float.NaN), "min infinity, NaN")
+                MathNaNTestSupport.assertNegativeZero(MathNaNOps.minOf(-0.0f, 0.0f), "min -0, +0")
+                MathNaNTestSupport.assertNegativeZero(MathNaNOps.minOf(0.0f, -0.0f), "min +0, -0")
+                Test.equals(Float.NEGATIVE_INFINITY, MathNaNOps.minOf(-0.0f, Float.NEGATIVE_INFINITY), null)
+                Test.equals(Float.NEGATIVE_INFINITY, MathNaNOps.minOf(Float.NEGATIVE_INFINITY, -0.0f), null)
+                Test.equals(Float.NEGATIVE_INFINITY, MathNaNOps.minOf(0.0f, Float.NEGATIVE_INFINITY), null)
+                Test.equals(Float.NEGATIVE_INFINITY, MathNaNOps.minOf(Float.NEGATIVE_INFINITY, 0.0f), null)
+                MathNaNTestSupport.assertNegativeZero(MathNaNOps.minOf(-0.0f, Float.POSITIVE_INFINITY), "min -0, +infinity")
+                MathNaNTestSupport.assertNegativeZero(MathNaNOps.minOf(Float.POSITIVE_INFINITY, -0.0f), "min +infinity, -0")
+                MathNaNTestSupport.assertPositiveZero(MathNaNOps.minOf(0.0f, Float.POSITIVE_INFINITY), "min +0, +infinity")
+                MathNaNTestSupport.assertPositiveZero(MathNaNOps.minOf(Float.POSITIVE_INFINITY, 0.0f), "min +infinity, +0")
+                Test.equals(4.0f, MathNaNOps.minInts(4, 9), "min widens Int operands")
+        }
+    }
+
+@boring.test.Test
+    fun maxValues() {
+        Test.run("tests.MathNaNOpsTests.maxValues", "tests.MathNaNOpsTests.maxValues: Math.max propagates NaN and handles finite and infinity edges") {
+                MathNaNTestSupport.assertNaN(MathNaNOps.maxOf(Float.NaN, 2.0f), "max NaN, finite")
+                MathNaNTestSupport.assertNaN(MathNaNOps.maxOf(2.0f, Float.NaN), "max finite, NaN")
+                MathNaNTestSupport.assertNaN(MathNaNOps.maxOf(Float.NaN, Float.NaN), "max NaN, NaN")
+                Test.equals(4.0f, MathNaNOps.maxOf(-3.0f, 4.0f), null)
+                Test.equals(4.0f, MathNaNOps.maxOf(4.0f, -3.0f), null)
+                Test.equals(Float.POSITIVE_INFINITY, MathNaNOps.maxOf(2.0f, Float.POSITIVE_INFINITY), null)
+                Test.equals(Float.POSITIVE_INFINITY, MathNaNOps.maxOf(Float.POSITIVE_INFINITY, 2.0f), null)
+                Test.equals(2.0f, MathNaNOps.maxOf(Float.NEGATIVE_INFINITY, 2.0f), null)
+                Test.equals(2.0f, MathNaNOps.maxOf(2.0f, Float.NEGATIVE_INFINITY), null)
+                Test.equals(Float.POSITIVE_INFINITY, MathNaNOps.maxOf(Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY), null)
+                Test.equals(Float.POSITIVE_INFINITY, MathNaNOps.maxOf(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY), null)
+                MathNaNTestSupport.assertNaN(MathNaNOps.maxOf(Float.NaN, Float.NEGATIVE_INFINITY), "max NaN, infinity")
+                MathNaNTestSupport.assertNaN(MathNaNOps.maxOf(Float.NEGATIVE_INFINITY, Float.NaN), "max infinity, NaN")
+                MathNaNTestSupport.assertPositiveZero(MathNaNOps.maxOf(-0.0f, 0.0f), "max -0, +0")
+                MathNaNTestSupport.assertPositiveZero(MathNaNOps.maxOf(0.0f, -0.0f), "max +0, -0")
+                Test.equals(Float.POSITIVE_INFINITY, MathNaNOps.maxOf(-0.0f, Float.POSITIVE_INFINITY), null)
+                Test.equals(Float.POSITIVE_INFINITY, MathNaNOps.maxOf(Float.POSITIVE_INFINITY, -0.0f), null)
+                Test.equals(Float.POSITIVE_INFINITY, MathNaNOps.maxOf(0.0f, Float.POSITIVE_INFINITY), null)
+                Test.equals(Float.POSITIVE_INFINITY, MathNaNOps.maxOf(Float.POSITIVE_INFINITY, 0.0f), null)
+                MathNaNTestSupport.assertNegativeZero(MathNaNOps.maxOf(-0.0f, Float.NEGATIVE_INFINITY), "max -0, -infinity")
+                MathNaNTestSupport.assertNegativeZero(MathNaNOps.maxOf(Float.NEGATIVE_INFINITY, -0.0f), "max -infinity, -0")
+                MathNaNTestSupport.assertPositiveZero(MathNaNOps.maxOf(0.0f, Float.NEGATIVE_INFINITY), "max +0, -infinity")
+                MathNaNTestSupport.assertPositiveZero(MathNaNOps.maxOf(Float.NEGATIVE_INFINITY, 0.0f), "max -infinity, +0")
+                Test.equals(9.0f, MathNaNOps.maxInts(4, 9), "max widens Int operands")
+        }
+    }
+
+@boring.test.Test
+    fun foldedConstantEdges() {
+        Test.run("tests.MathNaNOpsTests.foldedConstantEdges", "tests.MathNaNOpsTests.foldedConstantEdges: literal constant edges keep NaN, both infinities, and the f32 flush values") {
+                MathNaNTestSupport.assertNaN(MathNaNOps.constantNan(), "0.0 / 0.0 is NaN")
+                Test.equals(Float.POSITIVE_INFINITY, MathNaNOps.constantPosInf(), "1.0 / 0.0 is +infinity")
+                Test.equals(Float.NEGATIVE_INFINITY, MathNaNOps.constantNegInf(), "-1.0 / 0.0 is -infinity")
+                Test.equals(true, MathNaNOps.constantOverflow() > 3e38f, "1e300 exceeds the binary32 range")
+                Test.equals(true, MathNaNOps.constantUnderflow() >= 0.0f, "1e-300 never goes negative")
+                Test.equals(true, MathNaNOps.constantUnderflow() < 1e-38f, "1e-300 stays below the binary32 normal range")
+        }
+    }
+}

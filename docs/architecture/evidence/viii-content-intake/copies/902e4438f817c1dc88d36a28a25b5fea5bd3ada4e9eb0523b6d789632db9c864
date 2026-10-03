@@ -1,0 +1,72 @@
+# p09-driver-xcheck attempt-1 evidence (independent review, 2026-09-29)
+## worktree
+git -C boring worktree add --detach /home/losses/Development/tq-workspace e1c65975  (1398 files)
+e1c6597514634fd347d392709793cc19bd96c9a2
+## nix/haxe env
+XDG_CACHE_HOME=/tmp/p09-driver-xcheck-nix-cache; haxe --version:
+4.3.7
+## rebuild
+BUILD_EXIT:0
+stderr (full):
++ nix develop -c haxe tools/bundle/driver.hxml
+warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/p09-driver-xcheck' is dirty
++ echo BUILD_EXIT:0
+## my artifact
+bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53  /home/losses/Development/tq-workspace/dc-warn/worktrees/p09-driver-xcheck/out/bundle/driver.js
+52779 bytes
+## my inputs before/after build
+8432f79927b2ad65e9d7b795df3f06ac513cb5082aff4fbafc586b7146bc1d87  /home/losses/Development/tq-workspace/dc-warn/worktrees/p09-driver-xcheck/tools/bundle/driver.hxml
+749a778241d9ad2c3d9e1ca921a1975003f5260422cbfdf7edf08c91788d82a7  /home/losses/Development/tq-workspace/dc-warn/worktrees/p09-driver-xcheck/tools/bundle/Driver.hx
+bc5f44040497f8075a64692de0b52f4a1f3923ba832778aa8e2f2ccccfc9dd3b  /home/losses/Development/tq-workspace/dc-warn/worktrees/p09-driver-xcheck/tools/bundle/ChildEvidence.hx
+## claimed (executor) artifact
+bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53  out/bundle/driver.js
+bf2450d35639c01d36ecfe93b8ddb6c4b3f542e980da0731fad8861cbcea1e53  /home/losses/Development/tq-workspace/dc-warn/worktrees/driver-rebuild/out/bundle/driver.js
+## executor evidence re-verification (FILES.sha256)
+NOTE: the 4 "FAILED open or read" lines below are a path-context artifact of the
+combined check (worktree-relative paths run from the out/ dir). Re-run correctly:
+from /home/losses/Development/tq-workspace/dc-warn/worktrees/driver-rebuild:
+out/bundle/driver.js: OK
+tools/bundle/driver.hxml: OK
+tools/bundle/Driver.hx: OK
+tools/bundle/ChildEvidence.hx: OK
+from /home/losses/Development/tq-workspace/dc-warn/out/driver-rebuild (out/ evidence files):
+build-stderr.log: OK
+build-stdout.log: OK
+driver-js.sha256: OK
+haxe-version.txt: OK
+inputs-after.sha256: OK
+inputs-before.sha256: OK
+PATCH.diff: OK
+run-help-stderr.log: OK
+run-help-stdout.log: OK
+run-noargs-stderr.log: OK
+run-noargs-stdout.log: OK
+run-noproject-stderr.log: OK
+run-noproject-stdout.log: OK
+## p09-runbook patch checks
+reverse-apply: CLEAN
+434fad6c336413cd4b9b3369babe42d2ec060ad7
+65ed435acff64c4c3bc0cdc489c09e770bb550fb
+patch file headers:
+diff --git a/docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md b/docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md
+index 434fad6c..65ed435a 100644
+## runbook FILES.sha256 (verified from workspace root; the two FAILED lines above
+were the same cwd artifact)
+/home/losses/Development/tq-workspace/dc-warn/worktrees/p09-runbook/docs/investigations/architecture-round-2/p09-fixed-matrix-preparation-runbook.md: OK
+/home/losses/Development/tq-workspace/dc-warn/out/p09-runbook/REPORT.md: OK (d9ccfc38ac849444d9f50c0fa75c3de5438be61fbe86dfbab4ef3b5d33eca4e9)
+/home/losses/Development/tq-workspace/dc-warn/out/p09-runbook/PATCH.diff: OK (a70495cbbf5da95092c2c337d301d14ee0f842beb69400f67bcfc5a788c26836)
+## 304ed70c driver surface (independent extraction /tmp/p09xcheck-304ed70c)
+548:            printErr("Usage: boring <gen|test|pack|compare|verify|roots> [<id>...] [--project <file>] [--with-pack] [--output <file>]");
+560:        if (action == "roots") {
+562:            if (outputPath == "") fail("roots needs --output <file>");
+584:            fail('unknown action "$action"; the actions are gen, test, pack, compare, verify, roots');
+146:        return host == "darwin" ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH";
+## e1c65975 driver surface (snapshot source)
+942:            printErr("Usage: bun out/bundle/driver.js <gen|test|pack|compare|verify> [<bundle id>...] [--project <file>] [--with-pack]");
+978:                fail('unknown action "$action"; the actions are gen, test, pack, compare, verify');
+## rebuilt artifact literal check (executor artifact)
+DYLD count: 0
+--output literal: 0
+## prep dir grep (roots/--output/--with-pack) summary
+0
+0

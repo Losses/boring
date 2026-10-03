@@ -1,0 +1,18 @@
+package tests
+
+import boring.runtime.test.Test
+
+object ProbeShareTests {
+    fun sharedLabel(): String {
+        return "shared"
+    }
+}
+
+class ProbeShareTestsModule {
+@boring.test.Test
+    fun probe() {
+        Test.run("tests.ProbeShareTests.probe", "tests.ProbeShareTests.probe: shared probe module compiles") {
+                Test.equals("shared", ProbeShareTests.sharedLabel(), null)
+        }
+    }
+}

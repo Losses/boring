@@ -1,0 +1,7 @@
+Cross-target consistency check failed with 6 divergence(s):
+  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsComputedShortestTextOnNullableFields
+  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsNonFiniteFloatFields
+  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsNullableFloatCollectionForm
+  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsShortestFloatText
+  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsShortestFloatTextOnCollectionElements
+  * [haxe-f32] Extra test ID not in baseline: tests.f32.PrintedFloatTests.printsWholeNegativeAndNullFloatFields

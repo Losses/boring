@@ -1,0 +1,96 @@
+--- packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx
++++ packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx
+@@ -3293,6 +3293,25 @@
+     }
+ 
+     /**
++        A switch expression used as a call argument lowers its closure against
++        the callee parameter (the owning contract for the argument route)
++        instead of the switch's own AST type; every other argument renders
++        exactly as before. A cast-wrapped switch keeps its `castText`
++        rendering. (DestinationRequirementCarried)
++    **/
++    function switchArgText(a:TypedExpr, pt:Null<Type>):String {
++        final direct = switch (a.expr) {
++            case TParenthesis(inner) | TMeta(_, inner): inner;
++            case _: a;
++        };
++        final isSwitchArg = switch (direct.expr) {
++            case TSwitch(_, _, _): true;
++            case _: false;
++        };
++        return pt != null && isSwitchArg ? switchExpression(a, pt) : expr(a);
++    }
++
++    /**
+         Call arguments unwrap optionals when the parameter demands a plain
+         value: Haxe flows Null<T> into T implicitly (a null reaching the
+         callee traps there), while Swift needs the explicit unwrap.
+@@ -3346,12 +3365,15 @@
+                             // accepts it. (InoutTempContainerType)
+                             final literalHazard = isEmptyArrayDecl(a) || isIntLiteralArrayDecl(a) || isFloatLiteralArrayDecl(a);
+                             final tempAnnotation = literalHazard ? ": " + types.of(a.t) : "";
+-                            inoutTemps.push("var " + tempName + tempAnnotation + " = " + expr(a));
++                            inoutTemps.push("var " + tempName + tempAnnotation + " = " + switchArgText(a, pt));
+                             "&" + tempName;
+                     }
+                 } else {
++                    // The argument route carries the callee parameter as the
++                    // switch destination; other arguments render unchanged.
++                    final argText = switchArgText(a, pt);
+                     (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a)))
+-                    && demandsValue ? expr(a) + "!" : expr(a);
++                    && demandsValue ? argText + "!" : argText;
+                 };
+                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
+                 t;
+@@ -5512,8 +5534,11 @@
+     }
+ 
+     function switchBindingLines(v:TVar, sw:TypedExpr, depth:Int):Array<String> {
++        // The local being bound carries the destination requirement: render
++        // the closure against the declared binding type instead of the
++        // switch's own AST type. (DestinationRequirementCarried)
+         return [
+-            indent(depth) + (mutated.exists(v.id) ? "var " : "let ") + localName(v) + " = " + switchExpression(sw)
++            indent(depth) + (mutated.exists(v.id) ? "var " : "let ") + localName(v) + " = " + switchExpression(sw, v.t)
+         ];
+     }
+ 
+@@ -5548,15 +5573,28 @@
+     /**
+         Expression-position variant switches use an immediately-invoked
+         closure so the native switch remains in Swift's permitted return
+-        position. The initializer-position caller intentionally continues to
+-        use this function unchanged, preserving its existing output.
+-    **/
+-    function switchExpression(sw:TypedExpr):String {
+-        // The closure this emits declares `types.of(sw.t)` as its result; that
+-        // type is the arms' actual destination requirement.
++        position. `destination` is the owning contract the caller carries —
++        the declared binding type on the binding route, the callee parameter
++        on the argument route. Callers in expression positions that carry no
++        contract keep the switch's own AST type as the fallback.
++        (DestinationRequirementCarried)
++    **/
++    function switchExpression(sw:TypedExpr, destination:Null<Type> = null):String {
++        // The closure this emits declares `types.of(dest)` as its result; that
++        // type is the arms' actual destination requirement. A contract the
++        // backend cannot render (an uninstantiated generic parameter, Dynamic)
++        // is not usable and falls back to the switch's own AST type.
+         // (DestinationRequirementCarried)
+-        final lines = switchReturn(sw, 1, false, sw.t);
+-        final out = ["({ () -> " + types.of(sw.t) + " in"];
++        final usable = switch (destination) {
++            case null: false;
++            case t: switch (Context.follow(t)) {
++                case TMono(_) | TDynamic(_): false;
++                case _: true;
++            };
++        };
++        final dest = usable ? destination : sw.t;
++        final lines = switchReturn(sw, 1, false, dest);
++        final out = ["({ () -> " + types.of(dest) + " in"];
+         for (line in lines)
+             out.push(line);
+         out.push("})()");

@@ -1,0 +1,72 @@
+package tests
+
+import boring.runtime.UString
+import boring.runtime.test.Test
+
+class ExpressionBlockTests {
+@boring.test.Test
+    fun inlineFieldArguments() {
+        Test.run("tests.ExpressionBlockTests.inlineFieldArguments", "tests.ExpressionBlockTests.inlineFieldArguments: inline field arguments work in string concatenation") {
+                val holder = ExpressionBlockHolder("a很长", 1, 3)
+                Test.equals("<很长>", "<" + run {
+    val s = holder.text
+    val from = holder.from
+    val to = holder.to
+    UString.slice(s, from, to)
+} + ">", null)
+        }
+    }
+
+@boring.test.Test
+    fun multipleDeclarations() {
+        Test.run("tests.ExpressionBlockTests.multipleDeclarations", "tests.ExpressionBlockTests.multipleDeclarations: expression blocks support multiple declarations") {
+                val holder = ExpressionBlockHolder("abcdef", 1, 2)
+                Test.equals("b", run {
+    val text = holder.text
+    val from = holder.from
+    val to = holder.to
+    val start = from
+    val end = to
+    UString.slice(text, start, end)
+}, null)
+        }
+    }
+
+@boring.test.Test
+    fun binaryOperand() {
+        Test.run("tests.ExpressionBlockTests.binaryOperand", "tests.ExpressionBlockTests.binaryOperand: expression blocks can be binary operands") {
+                val holder = ExpressionBlockHolder("abcdef", 1, 2)
+                Test.equals(true, run {
+    val text = holder.text
+    val from = holder.from
+    val to = holder.to
+    val start = from
+    val end = to
+    UString.slice(text, start, end)
+} + "" == "b", null)
+        }
+    }
+
+@boring.test.Test
+    fun nestedFieldChain() {
+        Test.run("tests.ExpressionBlockTests.nestedFieldChain", "tests.ExpressionBlockTests.nestedFieldChain: nested record field chains trigger the lowering") {
+                val holder = ExpressionBlockHolder("abcdef", 1, 2)
+                val nested = ExpressionBlockOuter(ExpressionBlockInner(holder))
+                Test.equals("b", run {
+    val s = nested.inner.holder.text
+    val from = nested.inner.holder.from
+    val to = nested.inner.holder.to
+    UString.slice(s, from, to)
+}, null)
+        }
+    }
+}
+
+class ExpressionBlockHolder(val text: String, val from: Int, val to: Int) {
+}
+
+class ExpressionBlockInner(val holder: ExpressionBlockHolder) {
+}
+
+class ExpressionBlockOuter(val inner: ExpressionBlockInner) {
+}

@@ -1,0 +1,2 @@
+File /tmp/pi-a/out/integration-a3-evidence/exclusive-runner/attempt-20260929T013426-2326859/log.fifo is a fifo while file /tmp/pi-b/out/integration-a3-evidence/exclusive-runner/attempt-20260929T013426-2326859/log.fifo is a fifo
+diff: /tmp/pi-a/out/integration-a3-evidence/exclusive-runner/attempt-link: No such file or directory

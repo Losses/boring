@@ -1,0 +1,4 @@
+precision guard: roots samples/tests
+scanned 264 file(s), 3067 numeric literal(s), 0 outside the binary32 range
+precision guard: every literal stays inside the binary32 range
+exit=0

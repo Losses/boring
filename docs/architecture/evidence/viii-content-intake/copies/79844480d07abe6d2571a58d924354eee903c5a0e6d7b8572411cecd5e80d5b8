@@ -1,0 +1,77 @@
+diff --git a/tmp/__h b/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed3/examples/rust-f32.hxml
+index cb057739..c54ad512 100644
+--- a/tmp/__h
++++ b/home/losses/Development/tq-workspace/p09-chainA-work/execution-option-c-chainA-fixed3/examples/rust-f32.hxml
+@@ -27,6 +27,7 @@ boring.BinaryReader
+ boring.BinaryWriter
+ boring.Int64Ops
+ boring.ValuePassingOps
++boring.BytesOps
+ haxe.crypto.Sha256
+ haxe.crypto.Sha512
+ haxe.crypto.Xxh64
+@@ -62,6 +63,8 @@ runtime.TestCore
+ tests.TestData
+ tests.Int64Tests
+ tests.ValuePassingTests
++tests.BytesTests
++tests.StringCodecTests
+ tests.VectorCodecTests
+ tests.Fp32Tests
+ tests.Fp16Tests
+@@ -108,11 +111,29 @@ boring.PrintedCustom
+ boring.StringBufOps
+ tests.StringBufTests
+ boring.TryOps
++boring.FontId
++boring.FontIdConsumer
++boring.GlyphCluster
++boring.GlyphClusterHolder
++boring.GlyphClusterReader
++tests.StdStringPlainClassTests
++boring.NumberClassifyOps
++boring.MathMinMaxOps
+ boring.SwitchOps
+ boring.MathIntWideningOps
+ boring.MathNaNOps
+ boring.MathNaNTestSupport
+ tests.TryTests
++tests.NumberClassifyTests
++tests.MathMinMaxTests
++boring.InstanceDefaults
++boring.ImpWidget
++boring.ImpHost
++tests.ImpDefaultTests
++tests.InstanceDefaultsTests
++boring.AllowHost
++boring.AllowGuest
++tests.AllowAccessTests
+ tests.SwitchOpsTests
+ tests.MathIntWideningOpsTests
+ tests.MathNaNOpsTests
+@@ -122,6 +143,17 @@ boring.DefaultArgsOps
+ boring.DefaultArgShiftOps
+ tests.DefaultArgsTests
+ tests.DefaultArgShiftTests
++boring.SortedDataClassKeysOps
++boring.DataClassRangeEqOps
++tests.FontIdTests
++tests.GlyphClusterTests
++tests.NoSuchElementTests
++tests.PosterShapeTests
++tests.ShapeTextTests
++tests.StringToolsTests
++boring.ExceptionChainProbe
++tests.ExceptionChainProbeTests
++tests.EarlyReturnTests
+ boring.ProbeUnit
+ boring.InlineDefaultOps
+ tests.InlineDefaultTests
+@@ -335,6 +367,7 @@ tests.ArrayMethodSwiftTests
+ boring.FunctionalLocalOps
+ tests.FunctionalLocalTests
+ 
++tests.SumOfFloatLocalTests
+ boring.SwitchNullArmOps
+ tests.SwitchNullArmTests
+ 

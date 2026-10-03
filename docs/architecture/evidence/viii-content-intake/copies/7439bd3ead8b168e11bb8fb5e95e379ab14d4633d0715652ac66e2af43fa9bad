@@ -1,0 +1,21 @@
+#![cfg(test)]
+
+use crate::boring::std_string_plain_class_ops::PlainClassRecord;
+use crate::boring::std_string_plain_class_ops::PlainPoint;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn plain_class_and_record() {
+    testlib::run("tests.StdStringPlainClassTests.plainClassAndRecord", "tests.StdStringPlainClassTests.plainClassAndRecord: Std.string accepts ordinary classes with toString", || {
+        let point = PlainPoint::new(2u32, 3u32);
+        let plain_text = UString::from(format!("{}", point.to_string()).as_str());
+        let record = PlainClassRecord::new((point).clone(), vec![(PlainPoint::new(4u32, 5u32)).clone(), (PlainPoint::new(6u32, 7u32)).clone()].to_vec());
+        test_core::TestCore::test_core_equals_string(UStr::new(&[80,111,105,110,116,40,50,44,51,41]), plain_text.as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[80,108,97,105,110,67,108,97,115,115,82,101,99,111,114,100,40,112,111,105,110,116,61,80,111,105,110,116,40,50,44,51,41,44,32,112,111,105,110,116,115,61,91,80,111,105,110,116,40,52,44,53,41,44,32,80,111,105,110,116,40,54,44,55,41,93,41]), (UString::from(format!("{}", record.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[112,108,97,105,110,61,80,111,105,110,116,40,50,44,51,41,59,32,114,101,99,111,114,100,61,80,108,97,105,110,67,108,97,115,115,82,101,99,111,114,100,40,112,111,105,110,116,61,80,111,105,110,116,40,50,44,51,41,44,32,112,111,105,110,116,115,61,91,80,111,105,110,116,40,52,44,53,41,44,32,80,111,105,110,116,40,54,44,55,41,93,41]), (UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("plain=")); __s += plain_text.as_ustr(); __s += &(UString::from("; record=")); __s += UString::from(format!("{}", record.to_string()).as_str()).as_ustr(); __s }).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}

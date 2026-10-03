@@ -1,0 +1,28 @@
+bun test v1.4.2 (744846f84)
+
+tests/bundle-child-evidence/bundle-child-evidence.test.ts:
+(pass) child execution evidence > Driver.step integration > a successful step retains both streams and runs its command once [161.51ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps its status, both streams, and the driver failure exit [42.33ms]
+(pass) child execution evidence > Driver.step integration > a failing step keeps the same failure exit without capture [42.53ms]
+(pass) child execution evidence > Driver.step integration > without the evidence setting the driver keeps its previous behaviour [157.86ms]
+(pass) child execution evidence > Driver.step integration > a capture write failure after a zero exit child fails the driver [160.55ms]
+(pass) child execution evidence > Driver.step integration > an evidence parent that is a regular file fails the driver before a run [23.48ms]
+(pass) child execution evidence > Driver.step integration > a read only evidence parent fails the driver before any run is created [23.52ms]
+(pass) child execution evidence > retained outcome fields > a missing executable claims no stream file and is not a normal exit [49.54ms]
+(pass) child execution evidence > retained outcome fields > a command the host refuses to accept raises instead of returning an outcome [19.26ms]
+(pass) child execution evidence > retained outcome fields > a working directory that is not a directory keeps the host code of its launch failure [20.20ms]
+(pass) child execution evidence > retained outcome fields > a signaled child is distinct from a launch failure and from success [27.93ms]
+(pass) child execution evidence > retained outcome fields > a nonzero child keeps its exact status and both streams [28.26ms]
+(pass) child execution evidence > retained outcome fields > byte sequences survive including forms that are not valid UTF-8 [26.71ms]
+(pass) child execution evidence > retained outcome fields > a stream beyond the capture limit keeps its output and is marked incomplete [27.17ms]
+(pass) child execution evidence > retained outcome fields > a stderr-only child beyond the capture limit retains its stderr [29.53ms]
+(pass) child execution evidence > retained outcome fields > captured and uncaptured children observe the same argv, cwd, and environment [39.82ms]
+(pass) child execution evidence > retained outcome fields > repeated runs keep separate records and never reuse an earlier run [55.74ms]
+(pass) child execution evidence > retained outcome fields > a same name allocation resolves exclusively and keeps its own identity [19.56ms]
+(pass) child execution evidence > retained outcome fields > the production conversion validates each host value it is handed [91.88ms]
+(pass) child execution evidence > retained outcome fields > the project identity names the project path and its content [162.21ms]
+
+ 20 pass
+ 0 fail
+ 238 expect() calls
+Ran 20 tests across 1 file. [1465.00ms]

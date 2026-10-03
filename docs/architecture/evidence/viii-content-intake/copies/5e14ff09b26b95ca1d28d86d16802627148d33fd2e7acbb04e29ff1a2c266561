@@ -1,0 +1,17 @@
+import { EvalProbe } from "./dcpe/EvalProbe.js";
+import { DoubleEvalControl } from "./dcpe/DoubleEvalControl.js";
+const requested = process.argv[2];
+if (requested === "promoted") {
+    EvalProbe.reset();
+    const acc = EvalProbe.promotedOnce();
+    process.stdout.write(`case=promoted acc=${acc} callCount=${EvalProbe.callCount}\n`);
+}
+else if (requested === "double") {
+    DoubleEvalControl.reset();
+    const acc = DoubleEvalControl.doubleOnce();
+    process.stdout.write(`case=double acc=${acc} callCount=${DoubleEvalControl.callCount}\n`);
+}
+else {
+    process.stderr.write(`dc-promoted-eval ts driver: unknown case ${String(requested)}\n`);
+    process.exit(2);
+}

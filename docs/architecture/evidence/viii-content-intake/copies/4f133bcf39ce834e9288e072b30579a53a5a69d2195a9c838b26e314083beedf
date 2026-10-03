@@ -1,0 +1,12 @@
+bun test v1.3.13 (bf2e2cec)
+
+tests/ts/constructed-state.test.ts:
+(pass) constructed static initializer trees > each target uses its ruled declaration and Rust read lane [1.00ms]
+killed 1 dangling process
+(fail) constructed static mutation rules retain all three diagnostics [5000.89ms]
+  ^ this test timed out after 5000ms.
+
+ 1 pass
+ 1 fail
+ 8 expect() calls
+Ran 2 tests across 1 file. [5.04s]

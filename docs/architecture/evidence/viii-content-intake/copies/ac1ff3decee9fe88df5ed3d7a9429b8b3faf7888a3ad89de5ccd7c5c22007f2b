@@ -1,0 +1,6 @@
+20:import swiftcompiler.SwiftArrayBoundary.SwiftArrayPreparedOperand;
+590:                final storage = SwiftArrayBoundary.sourceStorage(init.t, isEmpty, isNull);
+591:                final optionality = isNull ? SwiftArrayBoundary.SwiftArrayOptionality.OptionalOperand : SwiftArrayBoundary.SwiftArrayOptionality.RequiredOperand;
+597:                    presenceFact: isNull ? SwiftArrayBoundary.SwiftArrayPresenceFact.NoPresenceProof : SwiftArrayBoundary.SwiftArrayPresenceFact.LiteralProvenPresent
+599:                final plan = SwiftArrayBoundary.prepare(operand, field.type);
+604:                    rendered = SwiftArrayBoundary.render(plan, operand.text, elementText);

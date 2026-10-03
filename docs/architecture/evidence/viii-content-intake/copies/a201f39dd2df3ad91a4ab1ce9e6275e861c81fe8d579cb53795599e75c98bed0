@@ -1,0 +1,5 @@
+Valid sweep (correct env, cwd=repo root, probe oracle calls aliasSlots() only).
+Full Ops class is generated as soon as oracle references it. 39 single-function removals:
+rc=1 for every removal EXCEPT:
+without coalescedBoundary rc=0
+(all 38 others still rc=1; full Ops sanity run rc=1)

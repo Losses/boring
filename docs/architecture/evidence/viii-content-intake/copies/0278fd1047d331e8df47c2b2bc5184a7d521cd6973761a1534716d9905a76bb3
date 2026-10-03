@@ -1,0 +1,64 @@
+#![cfg(test)]
+
+use crate::boring::record_order_ops::RecordOrderAligned;
+use crate::boring::record_order_ops::RecordOrderOps;
+use crate::boring::record_order_ops::RecordOrderShifted;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+use crate::runtime::u_string::UString;
+
+
+#[test]
+fn shifted_prints_declaration_order() {
+    testlib::run("tests.RecordOrderTests.shiftedPrintsDeclarationOrder", "tests.RecordOrderTests.shiftedPrintsDeclarationOrder: reordered class prints fields in declaration order", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[82,101,99,111,114,100,79,114,100,101,114,83,104,105,102,116,101,100,40,97,61,49,44,32,98,61,53,44,32,99,61,120,41]), RecordOrderOps::record_order_ops_shifted_printed().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn shifted_defaulted_prints_fallback() {
+    testlib::run("tests.RecordOrderTests.shiftedDefaultedPrintsFallback", "tests.RecordOrderTests.shiftedDefaultedPrintsFallback: reordered class prints the defaulted parameter's fallback value", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[82,101,99,111,114,100,79,114,100,101,114,83,104,105,102,116,101,100,40,97,61,49,44,32,98,61,48,44,32,99,61,120,41]), RecordOrderOps::record_order_ops_shifted_defaulted().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn shifted_matches_record_str() {
+    testlib::run("tests.RecordOrderTests.shiftedMatchesRecordStr", "tests.RecordOrderTests.shiftedMatchesRecordStr: reordered class prints the same text through RecordStr", || {
+        let value = RecordOrderShifted::new(1u32, &(UStr::new(&[120])), Some(5));
+        test_core::TestCore::test_core_equals_string((UString::from(format!("{}", value.to_string()).as_str())).as_ustr(), (UString::from(format!("{}", { let mut __s = UString::new(); __s += &(UString::from("RecordOrderShifted(")); __s += &(UString::from("a=")); __s += &(UString::from((value.a).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("b=")); __s += &(UString::from((value.b).to_string().as_str())); __s += &(UString::from(", ")); __s += &(UString::from("c=")); __s += (value.c).to_ustring().as_ustr(); __s += &(UString::from(")")); __s }).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn aligned_prints_as_before() {
+    testlib::run("tests.RecordOrderTests.alignedPrintsAsBefore", "tests.RecordOrderTests.alignedPrintsAsBefore: aligned class keeps its printed form", || {
+        test_core::TestCore::test_core_equals_string(UStr::new(&[82,101,99,111,114,100,79,114,100,101,114,65,108,105,103,110,101,100,40,97,61,49,44,32,98,61,53,44,32,99,61,120,41]), RecordOrderOps::record_order_ops_aligned_printed().as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn equality_accepts_shifted_values() {
+    testlib::run("tests.RecordOrderTests.equalityAcceptsShiftedValues", "tests.RecordOrderTests.equalityAcceptsShiftedValues: equality accepts equal values of the reordered class", || {
+        test_core::TestCore::test_core_equals_bool(true, RecordOrderOps::record_order_ops_shifted_equal(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn copy_round_trips_shifted() {
+    testlib::run("tests.RecordOrderTests.copyRoundTripsShifted", "tests.RecordOrderTests.copyRoundTripsShifted: copy round-trips the reordered class through constructor parameter order", || {
+        let value = RecordOrderShifted::new(1u32, &(UStr::new(&[120])), Some(5));
+        let copy = RecordOrderShifted::new(value.a, (value.c).to_ustring().as_ustr(), Some(7));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[82,101,99,111,114,100,79,114,100,101,114,83,104,105,102,116,101,100,40,97,61,49,44,32,98,61,55,44,32,99,61,120,41]), (UString::from(format!("{}", copy.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}
+
+#[test]
+fn copy_round_trips_aligned() {
+    testlib::run("tests.RecordOrderTests.copyRoundTripsAligned", "tests.RecordOrderTests.copyRoundTripsAligned: copy round-trips the aligned class", || {
+        let value = RecordOrderAligned::new(1u32, 5u32, &(UStr::new(&[120])));
+        let copy = RecordOrderAligned::new(value.a, value.b, (value.c).to_ustring().as_ustr());
+        test_core::TestCore::test_core_equals_string((UString::from(format!("{}", value.to_string()).as_str())).as_ustr(), (UString::from(format!("{}", copy.to_string()).as_str())).as_ustr(), UStr::new(&[]));
+    });
+}

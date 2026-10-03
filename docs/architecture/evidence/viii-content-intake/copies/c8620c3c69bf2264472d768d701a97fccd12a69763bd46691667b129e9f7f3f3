@@ -1,0 +1,2 @@
+cwd /home/losses/Development/tq-workspace/boring-wt-architecture
+argv nix develop -c bash tests/haxe/swift-runtime-closure/run.sh

@@ -1,0 +1,4 @@
+=== acceptance fixture (tests/swift-readonly-boundary) generation probe ===
+exit code: 1
+--- log ---
+swift target: array boundary has no prepared storage decision

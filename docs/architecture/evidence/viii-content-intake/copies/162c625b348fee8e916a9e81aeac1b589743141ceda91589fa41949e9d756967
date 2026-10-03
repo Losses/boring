@@ -1,0 +1,41 @@
+50:             allowDefaults:Bool = true):SwiftParameterDecision {
+51:         final registered = allowDefaults ? DefaultArgExpander.defaultAt(cls, fieldName, index) : null;
+52:         final coalescing = registered == null ? null : DefaultArgExpander.coalescingOf(registered);
+53:         final readsParameter = coalescing != null && DefaultArgExpander.coalescingReadsParamForParam(cls, fieldName, argumentName);
+54:         final throwsDefault = coalescing != null && coalescingDefaultThrows(coalescing);
+55:         final referencesPrivate = coalescing != null && coalescingDefaultReferencesPrivate(coalescing);
+56:         final baseType = coalescing == null ? sourceType : DefaultArgExpander.coalescingParameterType(coalescing, sourceType);
+57:         final optionalNil = coalescing != null && (readsParameter || throwsDefault || referencesPrivate);
+58:         final parameterType = optionalNil ? makeOptional(baseType) : baseType;
+59:         final defaultMode = coalescing == null ? NoParameterDefault : optionalNil ? OptionalNilBodyDefault : NativeValueDefault;
+60:         final bodyStorage = SwiftArrayBoundary.sourceStorage(baseType);
+61:         // The parameter's exposed Swift type can be optional even when the
+62:         // body shadows it with `p ?? fallback`. Body facts describe that
+63:         // selected normalized value, whose type is baseType. If the fallback
+64:         // itself is nullable, baseType remains nullable and proves nothing.
+65:         final bodyIsOptional = SwiftArrayBoundary.isOptionalArrayType(baseType);
+66:         final bodyOptionality = if (bodyIsOptional) {
+67:             OptionalOperand;
+68:         } else {
+69:             RequiredOperand;
+70:         };
+71:         final bodyPresence = if (bodyIsOptional) {
+72:             NoPresenceProof;
+73:         } else if (defaultMode != NoParameterDefault) {
+74:             // The selected body binding is required after default
+75:             // normalization. Default mode by itself proves nothing: nullable
+76:             // defaults preserve a Null-wrapped body type.
+77:             DefaultMaterializedPresent;
+78:         } else {
+79:             SourceTypeRequired;
+80:         };
+81:         return {
+82:             sourceType: sourceType,
+83:             argumentName: argumentName,
+84:             argumentIndex: index,
+85:             parameterType: parameterType,
+86:             defaultValue: registered,
+87:             coalescingValue: coalescing,
+88:             defaultMode: defaultMode,
+89:             readsParameter: readsParameter,
+90:             throwsDefault: throwsDefault,

@@ -1,0 +1,5 @@
+package std
+
+interface RenderShape {
+    fun render(text: String): String
+}

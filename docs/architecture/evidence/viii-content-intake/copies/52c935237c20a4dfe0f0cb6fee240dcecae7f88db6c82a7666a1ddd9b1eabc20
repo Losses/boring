@@ -1,0 +1,14 @@
+#![cfg(test)]
+
+use crate::boring::probe_chain::ProbeChain;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn depth() {
+    testlib::run("tests.ProbeChainTests.depth", "tests.ProbeChainTests.depth: recursive class fields are boxed", || {
+        test_core::TestCore::test_core_equals_int(1i32, i32::from_ne_bytes(((ProbeChain::new(Some(ProbeChain::new(None, 1u32)), 0u32).depth()) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

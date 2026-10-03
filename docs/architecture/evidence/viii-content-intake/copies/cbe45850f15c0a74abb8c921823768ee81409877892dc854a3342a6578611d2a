@@ -1,0 +1,43 @@
+package boring
+
+object ArithmeticOps {
+    fun checkWithinInt(value: Int, low: Int, high: Int): Boolean {
+        return value >= low && value <= high
+    }
+
+    fun checkWithinFloat(value: Double, low: Double, high: Double): Boolean {
+        return value >= low && value <= high
+    }
+
+    fun clampLeastInt(value: Int, floor: Int): Int {
+        return (if ((value < floor)) floor else value)
+    }
+
+    fun clampLeastFloat(value: Double, floor: Double): Double {
+        return (if ((value < floor)) floor else value)
+    }
+
+    fun clampMostInt(value: Int, ceiling: Int): Int {
+        return (if ((value > ceiling)) ceiling else value)
+    }
+
+    fun clampMostFloat(value: Double, ceiling: Double): Double {
+        return (if ((value > ceiling)) ceiling else value)
+    }
+
+    fun clampInInt(value: Int, low: Int, high: Int): Int {
+        val v = (if ((value < low)) low else value)
+        return (if ((v > high)) high else v)
+    }
+
+    fun clampInFloat(value: Double, low: Double, high: Double): Double {
+        val v = (if ((value < low)) low else value)
+        return (if ((v > high)) high else v)
+    }
+
+    fun inRange(start: Int, end: Int, value: Int): Boolean {
+        val range_start = start
+        val range_end = end
+        return value >= range_start && value <= range_end
+    }
+}

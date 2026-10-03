@@ -1,0 +1,113 @@
+# P09 运行链"文档 vs 脚本"接口审计（只读）
+
+审计时刻：2026-09-29T18:10-04:00（ Americas/New_York ）
+审计对象 sha256（修前快照）：
+- `option-c.plan` = `b83a636d176bf5e6b40a98ef3a7d4598de92a2bb6f37fbddd171ee6141f6d54f`
+- `run-exclusive.sh` = `7c332d3369e0…db902f`
+- `selftest.sh` = `961e13070dd1…4807…`（961e13070dd1b23ee275b4c1f9c45ce3ab220d8d9fc9f02a9ea19108e04755ab）
+- `check-log-integrity.sh` = `bebd0cf9026e…580fe5a`
+- `option-c-stage-wrapper.sh` = `c14043c0d686…2c59cc5`
+- `static-validate-option-c.py` = `5114e285a6f8…2d3e`
+- `option-c-child-records.py` = `d1199267d87c…ab573`
+- `option-c-poststate.py` = `4ad34edf398e…91105`
+
+若 `option-c.plan` 的 sha256 已不是 `b83a636d…`，说明另一路修复已落地，本报告 §3 按**修前**版本撰写。
+
+所有路径相对 `boring-wt-architecture/out/integration-a3-evidence/exclusive-runner/`（下称 RUNNER）。
+
+---
+
+## 1. 冻结件真实接口（逐个）
+
+### run-exclusive.sh
+- 形态：`run-exclusive.sh <workspace-root> <plan-file>`（L33-41）。两个参数**均必需**：
+  - `$1` workspace-root：必需，无默认；必须可 cd（否则 exit 64）。证据目录写死为 `<root>/out/integration-a3-evidence/exclusive-runner`。
+  - `$2` plan-file：必需，无默认；必须是已存在文件（否则 exit 64）。
+- 可选环境 override：`EXCLUSIVE_ATTEMPT_DIR`（L59）——存在同名路径或 symlink 即 exit 65（"stale or symlink path rejected"）。
+- 副作用（调用前无需也不应自建）：创建 attempt 目录、写 `.latest-run` 指针（L62，**每次运行覆盖**）、建 `$RUN/child-evidence`、export `RUN`/`CHILD_EVIDENCE_DIR`/`BORING_CHILD_EVIDENCE_DIR`/`EXCLUSIVE_EXTERNAL_DIR`；stdout/stderr 从 L85 起整体重定向进 `harness.log` 并以 sha256 end marker 封存。
+- **plan 行执行形态（L228-229，关键）**：
+  `bash -c 'cd "$1" && eval "$2"' _ "$RUN" "$line"`
+  - `$0` = 占位 `_`；`$1` = attempt 目录绝对路径（每行都 cd 进 attempt）；`$2` = plan 行原文，经 `eval` 展开。
+  - 因此 plan 行内的 `$VAR` 取自 runner 导出的环境；**plan 行自身拿不到额外位置参数**。
+  - **约束**：plan 行里若再写 `bash -c '…'`，这个新 bash 的 `$1/$2/…` 全部为空——除非调用点自带 `_<arg1> <arg2>…` 位参。内层 `bash -c 'cd "$1" && …'` 不传位参 = PIT-244（17/17 段 rc=1）。
+- 首个非零 stage 阻塞全部下游（`skipped blocked-by`）；`require-file:`/`require-dir:` 行做新鲜度+防逃逸校验，失败记入 `plan-errors.txt` 且最终 status=65。
+
+### check-log-integrity.sh
+- 形态：`check-log-integrity.sh <attempt-dir>`（L15-21）。`$1` **必需**，必须是非空且存在的目录，否则 exit 1 打印 usage。
+- 无 `.latest-run` 自动解析、无默认值。对 `<attempt-dir>/harness.log` 验封（end marker sha256 覆盖前缀、marker 后禁字节）+ stage 证据 manifest 与实盘文件逐项相等。
+- exit 0 当且仅当全部通过（打印 INTEGRITY OK）。
+
+### option-c-stage-wrapper.sh
+- 形态：`option-c-stage-wrapper.sh NAME ROOT MANIFEST POSTSTATE OUTDIR -- command...`（L19-31）。
+- 必需：NAME(非空)、ROOT(`$OPTION_C_ROOT`，非空)、MANIFEST(必须是存在文件)、POSTSTATE(必须是存在文件)、OUTDIR(非空)、`--` 后至少一个命令 token；任一缺失 exit 64。
+- 前 5 个位置参 `shift 5` 消耗；`--` 可选（有则跳过）。
+- 语义：以**wrapper 自身 cwd**（= 外层 `cd "$1"` 后的 attempt 目录）运行 `"$@"`；每 stage 建/导出 `TMPDIR=$OUTDIR/tmpdir`；**不 cd 到 OPTION_C_ROOT**；无论命令成败都跑 poststate；退出码 = 原命令 rc（非零优先），否则 poststate rc。
+
+### option-c-poststate.py
+- 形态：`option-c-poststate.py <root> <manifest.json> <report-out>`，`len(sys.argv) != 4` 即 usage 退出（L21-26）。三个参数全必需、无默认。
+
+### option-c-child-records.py
+- 形态：`option-c-child-records.py <BORING_CHILD_EVIDENCE_DIR>`，`len(sys.argv) != 2` 即 usage 退出（L21-24）。参数必需。（run-exclusive 已 export 同名变量，但脚本**不读环境，只读 argv**。）
+
+### selftest.sh
+- 形态：`bash selftest.sh`，无参数（`$0` 定位自身目录；ROOT 硬编码 L11 指向 boring-wt-architecture）。独占 ROOT 写 plan-a..g.txt、跑 run-exclusive.sh、并 export `OPTION_C_ROOT` 后三轮 wrapper 演练（L183-209）。
+- ⚠️ **selftest 与真实运行不可交错**：两者共用同一 EVIDENCE_PARENT，selftest 会覆盖 `.latest-run` 并新产 attempt-*/external-* 目录；跑完 selftest 后 `.latest-run` 指向的是 dummy attempt，不可当真实 attempt 引用。
+
+### static-validate-option-c.py
+- 形态：`python3 static-validate-option-c.py`，**无 argv 接口**；TREE/MANIFEST/PLAN 全部硬编码（L4-6，指 2159c657 树与 1366 行 manifest）。换 e1c65975 基线时此脚本不适用（需另物化），文档若引用它须注明只对 2159c657 有效。
+
+---
+
+## 2. 文档逐条对照（PLAN.md = dc-warn/out/p09-verify-plan/PLAN.md）
+
+### 过时/错误调用（2 处硬伤）
+| # | 位置 | 文档原文 | 实际要求 | 建议改法 |
+|---|---|---|---|---|
+| E1 | PLAN.md L89（§2 链 A 命令块） | `bash "$EXCLUSIVE_RUNNER_DIR/check-log-integrity.sh"  # 预期 "INTEGRITY OK"`（无参） | 脚本 usage 要求显式 `<attempt-dir>`（L15-21），无参直接 usage+exit 1 | 改为 `bash "$EXCLUSIVE_RUNNER_DIR/check-log-integrity.sh" "$(cat "$ROOT/out/integration-a3-evidence/exclusive-runner/.latest-run")"` |
+| E2 | PLAN.md L141（§5 引用规则） | "任何 harness.log 须先过 `check-log-integrity.sh` → INTEGRITY OK 才可引用"（未给参数） | 同上，必须带 attempt-dir | 同一句补上 attempt-dir 来源（`.latest-run` 指针） |
+
+注：option-c/freeze-apply/REPORT.md L59 的用法 `bash check-log-integrity.sh "$L"` 是**正确**示范，可照抄进 PLAN.md。
+
+### 缺失的前置（3 处）
+| # | 位置 | 文档情况 | 实际要求 | 建议改法 |
+|---|---|---|---|---|
+| M1 | PLAN.md L88 附近 | 未提 selftest 交错风险 | selftest 与真实运行共用 EVIDENCE_PARENT、互相覆盖 `.latest-run`；真实链跑前应确认 `.latest-run` 非本日 dummy attempt | §1.1 加一句"真实链运行前/后禁止跑 selftest.sh；引用 attempt 以 harness.log 内 `run=` 行为准，不依赖 `.latest-run`" |
+| M2 | PLAN.md L12 / L45 | 称 "selftest 33/33" | 现存 last-selftest.log 尾行为 `self-test: 32 pass, 1 fail`（drift poststate 控件失败），last-selftest-full.log 为 26/7；33/33 无本地证据 | 要么补证 33/33 来源，要么把该行降级为"32/1（已知 drift 控件失败）" |
+| M3 | PLAN.md §3 表 | 表列 export 变量正确，但未说明 `EXCLUSIVE_ATTEMPT_DIR` 这个可选 override 的**拒收语义**（已存在/是 symlink 即 exit 65） | run-exclusive.sh L59-62 | §3 表加一行：并行腿可用 `EXCLUSIVE_ATTEMPT_DIR` 指定 attempt 名，但路径必须不存在且非 symlink |
+
+### 易误解处（3 处）
+| # | 位置 | 易误解点 | 实际情况 | 建议改法 |
+|---|---|---|---|---|
+| C1 | PLAN.md L71 表头 "cwd=`$OPTION_C_ROOT`" | 让人以为 wrapper 会 cd 到执行根 | wrapper 不 cd；cwd=$OPTION_C_ROOT **完全依赖**每段内层 `bash -c 'cd "$1" && …'` 的 `$1`——而该 `$1` 现为空（PIT-244）。修好后也应注明约定出处："plan 每段以 `bash -c 'cd "$1"' _ "$OPTION_C_ROOT" <cmd>` 自带位参" | 表头补注："cwd 由各段内层 bash -c 的 `$1` 提供，须显式传 `_ "$OPTION_C_ROOT"`" |
+| C2 | PLAN.md L43 | "`bash -c 'cd "$1" && eval "$2"' _ "$RUN" "$line"`：cwd=attempt 目录" 描述正确，但读者易外推"内层 bash -c 也自动获得 $1/$2" | 外层位参不会穿透到 plan 行内再嵌套的 `bash -c`；内层必须自带 `_$0` 与位参 | L43 末尾加一句："plan 行内再写 `bash -c` 时必须自带 `$0` 占位与全部位参，外层位参不穿透" |
+| C3 | PLAN.md L42 | `.latest-run` 只在"runner 自动写"处出现，未说明它会被后续任何一次运行（含 selftest、并行腿）覆盖 | `.latest-run` 是"最近一次运行"指针而非"本次运行"指针 | 注明"跨 run 引用 attempt 一律以命令输出/harness.log 的 run= 行为准" |
+
+---
+
+## 3. option-c.plan argv 静态扫描（sha256 b83a636d…，修前）
+
+全部 `$1` 使用点共 17 处，全部形如每段开头的内层嵌套：
+`… option-c-stage-wrapper.sh <name> "$OPTION_C_ROOT" "$SOURCE_MANIFEST" … -- bash -c 'cd "$1" && …'`
+（L30 env-guard、L38 identity、L41 driver-build、L51 driver-verify、L59/62/65/68/71/77/80/83/86/89/95/100/103 各段）
+
+- **有实参来源的 `$` 引用**：`$OPTION_C_ROOT`、`$SOURCE_MANIFEST`、`$EXCLUSIVE_RUNNER_DIR`、`$RUN`、`$GIT_CEILING_DIRECTORIES`、`$XDG_CACHE_HOME`——前四者要么来自调用前 export（plan 头注释 L6-11 明示），要么由 runner 导出（`$RUN`）；plan 行经外层 `eval "$2"` 展开，取的是 runner 环境，来源成立。
+- **无实参来源的 `$1`**：上述 17 处内层 `bash -c '…'`。外层执行形态是 `bash -c 'cd "$1" && eval "$2"' _ "$RUN" "$line"`（run-exclusive.sh L228-229），位参只到这一层；plan 行内新起的 `bash -c` 未接任何 `_ <arg>…`，故 `$1` 恒空 → `cd: null directory`，Stage 0 rc=1，全链阻塞。wrapper 各段的 `$1..$5`（wrapper 自身位参）来源正常，不受影响。
+- 结论：**plan 中不存在除这 17 处以外的悬空位参**；修法（供另一路参考，非本审计执行）是把每段改为 `bash -c 'cd "$1" && …' _ "$OPTION_C_ROOT"`。
+
+---
+
+## 4. 给协调者的决策清单
+
+**必须改文档（dc-warn 侧，2 条）**
+1. PLAN.md L89：check-log-integrity.sh 补 attempt-dir 实参（照抄 freeze-apply REPORT L59 的正确用法）。
+2. PLAN.md L141：同句补 attempt-dir 来源；建议统一注明 `.latest-run` 会被覆盖（C3）。
+
+**必须改脚本/plan（1 条，已有执行席在修，勿重复动）**
+3. option-c.plan 17 段内层 `bash -c` 缺 `_ "$OPTION_C_ROOT"` 位参（PIT-244）——修 plan 本身，不动冻结的 runner。
+
+**建议加守卫（2 条）**
+4. 内层/单行 plan 段开头加 `[ -n "${1:-}" ] || { echo "missing cwd arg" >&2; exit 64; }`，让缺位参当场报 64 而非 `cd: null directory` 的 rc=1，便于区分"缺参"与"命令真失败"。
+5. run-exclusive.sh 可在 plan 读取前做一次静态 lint（检测行内 `bash -c` 后是否紧跟 `_ <arg>`），或者在 PLAN.md/README 明示该约束（对应 C2）。
+
+**文档自洽性（1 条）**
+6. PLAN.md L12/L45 的 "selftest 33/33" 与现存 last-selftest.log 的 "32 pass, 1 fail" 不符，需补证或降级表述（M2）。

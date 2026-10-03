@@ -1,0 +1,106 @@
+# INDEPENDENT REVIEW — 复核「Dart 空值守卫落空后的局部非空提升」（任务 t-mulzvzaf-azip）
+
+- 复核人：独立复核 Agent（不同模型），只判定、不修编译器
+- 被复核结论：GLM 报告 `dc-warn/out/null-guard/REPORT.md`（固定修订 e1c65975）
+- 复核工作树：`dc-warn/worktrees/null-guard-xcheck`（本复核自建，detached @ e1c6597514634fd347d392709793cc19bd96c9a2）
+- 探针夹具（本复核自写，未复制对方夹具文件）：
+  - `tests/haxe/xcheck-null-guard/`（p2/p3/p4/p5/p7）
+  - `tests/haxe/xcheck-null-guard2/`（p6 闭包变体）
+- 证据目录（每阶段 argv / stdout / stderr / 退出码 + 输入前后 sha256）：
+  - `xcheck-20260929T200611Z`（v1，harness 用 `${}` 模板，暴露一个无关的后端 quirk）
+  - `xcheck-20260929T200743Z`（主探针完整干净链，v2）
+  - `xcheck2-20260929T200642Z`（闭包 v1）、`xcheck2-20260929T200809Z`（闭包 v2 完整链）
+- 工具链：Haxe 4.3.7（/nix/store/…haxe-4.3.7）、Dart SDK 3.13.0；`XDG_CACHE_HOME=$PWD/out/nix-cache nix develop -c bash …`
+
+## 1. 判定（三档）
+
+**缺陷成立（Dart 目标独有，Kotlin 正确）**，且实测范围比报告更宽：
+报告所指的 fall-through `if (x == null)` 无条件提升确实成立并被独立复现；
+本复核另证实该提升**在重新赋值之后仍然存活**（p3）、**泄漏进闭包体**（p6）。
+Kotlin 同输入对两处均发保守 `s?.size!!`（Unknown join），p7 终止守卫后发裸 `t.size` —— 与报告一致。
+
+报告的文字有两处不精确（不影响结论，见 §4）：
+- 「之后也没有任何路径移除该条目」——实际存在 `markMutated`（DartExpr.hx:4839）
+  对 `nonNullLocals` 的移除，但它只在**渲染前**的 `scanLocals` 预扫描期执行，
+  永远移除不了 918 行在渲染期写入的条目。正因如此提升才能越过重新赋值存活（p3 实测）。
+- 913–915 的门控除 `branchTerminates(t)` 外还含 `!mutated.exists(guarded.id)`（914 行），报告只提了前者。
+
+## 2. 字节核对（本复核独立计算）
+
+`packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx`
+- sha256 = `a123fe5981b95e98803d2d9881580caf6b4474bce2833d65e6131d00e99f57d0`（本树与对方树一致，与报告一致）
+- 896 行 `case TIf(c, t, f):` ✓
+- 897–905：`isNotNullGuard` 分支的 scoped set + `wasProven` 恢复（903 行 remove），906 行 fallback ✓（报告写 897–906，范围含 fallback 行，语义正确）
+- 913–915：`flowPromotedNonNull.set` 门控 = `guarded != null && f == null && !isNotNullGuard(c) && !mutated.exists(guarded.id) && branchTerminates(t)` ✓
+- 916–918：**无条件** `nonNullLocals.set(guarded.id, true)`（仅 `guarded != null && f == null && !isNotNullGuard(c)`），无 `branchTerminates` 门控、无 scoped 恢复 ✓ 与报告一致
+- `provenNonNull` 4602–4607 ✓；`requiredValueText` 2189 行 skip 条件含 `provenNonNull(e)` ✓
+- 接收者断言的另一条路径：`instanceFieldReceiver` 2013 行 `nullableSubject && !isNullableType(fieldType) && !provenNonNull(subj)` → 2019 行 `base + "!"`；`receiverText` 2347 行同样引用 `provenNonNull`。两条路径都只看 `nonNullLocals`，不看 `flowPromotedNonNull`（2013 行处）。
+- `nonNullLocals` 全量触点审计（set：443 合并默认参数 / 835 非空归一化初始化 / 868 合并默认局部 / 900 scoped 带恢复 / **918 缺陷** / 1748 && 链 scoped 带恢复 1765；remove：432、480 每函数 clear，903、1765 scoped 恢复，4839 `markMutated` 仅预扫描期）。**918 写入后无任何移除路径**（markMutated 早于它执行）→ 存活至函数尾，且经 `functionLiteral`（1644–1649）时只清 `flowPromotedNonNull`、不清 `nonNullLocals` → 对闭包体可见。
+- 未发现报告漏掉的其它移除/恢复机制。
+
+## 3. 实测（本复核自己的探针，非对方夹具）
+
+主探针 `xcheck-20260929T200743Z`（Dart 生成物 `generated-dart-probe.dart`，sha256 于目录内）：
+
+| 位点 | 生成字节 | dart analyze（--fatal-infos） |
+|---|---|---|
+| p2 行12 fall-through 守卫后 `s.length` | `return s.length;`（无 `!`） | **error** `unchecked_use_of_nullable_value` 12:12 |
+| p3 行24 守卫后重新赋值 `s = flag ? "xy" : null;` 再 `s.length` | `return s.length;`（无 `!`） | **error** 24:12（提升越过重新赋值） |
+| p4 行37 同形 fall-through 但显式 `if (s != null)` 体内 `s.length` | `return s.length;`（裸） | 无 error（Dart 自身流提升，正确） |
+| p5 行51 同形 fall-through，仅 nullable 返回 `return s;` | `return s;` | 无 error |
+| p7 行59 终止守卫后 `t.length` | `return t.length;`（裸） | 无 error（阳性对照） |
+
+阶段与退出码（stages.tsv）：gen-dart 0；dart-analyze 3（raw，2 error）；dart-compile 254（AOT 失败，stderr 明确 `Property 'length' cannot be accessed on 'String?'`，两个位点）；c1-analyze 3（只补 p2 的 `!` → 仅剩 24:12 error，证明 p3 是独立位点而非 p2 的连带）；c2-analyze **0**（"No issues found!"）；c2-compile 0；c2-run 0；c2-compare **0**（输出 `p2=3 p3=2 p4=3 p5=abc p7=3` 与 expected.txt 一致）。修正仅两处：行12、行24 各加一个 `!`（diff 见 `fix/`）。
+
+闭包探针 `xcheck2-20260929T200809Z`：
+- 生成 `final f = () => s.length;`（行12，闭包体裸访问）→ raw analyze error 12:21，AOT 254；
+- 手工补成 `() => s!.length` → analyze 0 / compile 0 / run `p6=4` / compare 0。
+- 说明 918 写入的条目在闭包边界**不被清除**（`functionLiteral` 1645 行只清 `flowPromotedNonNull`），与 1640–1643 行注释「外层 flow 注解不得抑制闭包内 unwrap」的设计意图相悖；`flowPromotedNonNull` 通道守住了这个边界，`nonNullLocals` 通道没有。
+
+Kotlin 对照（同输入，`generated-kotlin-probe.kt`）：p2/p3 均 `return s?.size!!`（保守）；p4 守卫体内 `s.size`；p5 `return s`；p7 `t.size`；p6 闭包内 `s?.size!!`。与报告「Kotlin Unknown join 保守正确」一致。
+
+## 4. 与报告不符/需修正的细节
+
+1. 「之后也没有任何路径移除该条目」：措辞过强。`markMutated`（4839）会移除 `nonNullLocals` 条目，但只在 `scanLocals` 预扫描期（448 行先于 450 行渲染）触发，对 918 渲染期写入**无效**。实践结论（无 scoped 恢复）不变；但正因预扫描先于渲染，**重新赋值也杀不掉 918 的提升**——报告未测此面（本复核 p3 实测成立）。
+2. 913–915 门控漏列 `!mutated.exists(guarded.id)` 一项（914 行）。
+3. 报告范围只到「函数内 fall-through 之后」；实测还有闭包面（p6）与跨重新赋值面（p3）。
+4. 行号：897–906 的 wasProven 恢复实际在 898–905（906 是 fallback 行），其余行号全部精确。
+5. 报告 §4 的 analyze 退出码 3 = 1 error + 1 warning（其夹具的 unused 变量）；本复核 raw（2 error 无 warning）同为 3，c1（1 error）为 3，干净为 0——退出码观察一致，非判据。
+
+## 5. 反例方向排查（任务要求的反向验证）
+
+- **同类形状但不报错**：p4（同 fall-through 形状 + 后续显式 `!= null` 再守卫 → 无 error；wasProven 路径正确）、p5（同 fall-through 形状、仅 nullable 用途 → 无 error）。证明 raw 的报错**不是**夹具形状或 harness 造成的：错误只出现在 918 错误提升覆盖的两个解引用位点。
+- **「`!` 其实被别处补上」**：否证。raw 的两个 error 正是缺 `!` 处；只在这两处手工补 `!`（c2）即 0 issue + AOT 通过 + 运行值正确。若 918 未写入条目，2013 行会给 `s.length` 的接收者补 `!`（`s!.length`），即正确发射。
+- **Haxe 接受性**：haxe gen exit 0，Haxe 4.3.7 接受全部探针源码；失败全部发生在发射出的 Dart 一侧（真实 analyzer + 真实 AOT 编译），与 Haxe 源类型约束无关。
+- **harness**：harness 只调用 `run()` 并 print；analyzer 报错全在生成的 `x_guard.dart`（位点行号可对照），harness 哈希已记录（`harness.sha256`）。
+- 附带发现（与本缺陷无关，另立观察）：Haxe `${}` 字符串插值在该 Dart 子集里被发成**转义字面量** `\${a}`（v1 证据：输出打印字面 `${a}` + unused 警告；改用 `+` 拼接后正常，见 v2）。属模板字面量子集的独立 quirk，不改变本判定。
+
+## 6. 修复边界（若修，门控应放哪、为何不破坏 p7）
+
+最小正确修法：把 917–918 行的条件**与 913–915 行完全对齐**——
+
+```haxe
+if (guarded != null && f == null && !isNotNullGuard(c)
+    && !mutated.exists(guarded.id) && branchTerminates(t))
+    nonNullLocals.set(guarded.id, true);
+```
+
+- **为什么不会破坏 p7（终止型守卫路径）**：p7 的 then 臂 `return -1` 使 `branchTerminates(t)` 为真、`t` 全函数未被赋值（`mutated` 空），门控通过 → `nonNullLocals` 照旧写入 → `provenNonNull` 为真 → 2013 行照发裸 `t.length`（Dart 自身流分析在终止守卫后同样提升 `t`，裸访问合法）。行为与现状逐字节一致；915 行的 `flowPromotedNonNull` 不受影响，双通道在终止情形下仍然并存，p7 阳性对照不变。
+- **为什么修得掉 p2/p3/p6**：非终止守卫（p2/p6）`branchTerminates` 为假 → 不再写入 → `provenNonNull` 为假 → 2013/2189 行照发 `s!`；p3 再加 `!mutated` 门控 → 重新赋值后的位点也照发 `!`。闭包面无需额外改动：条目根本没写入，1645 行闭包边界问题自然消失。
+- **为什么不能简单删除 918**：终止情形的接收者断言只由 `nonNullLocals` 喂给 2013 行（`instanceFieldReceiver` 不查 `flowPromotedNonNull`），删掉 918 会让 p7 发成 `t!.length`，在 Dart 流提升后触发 `unnecessary_non_null_assertion`，反而把 p7 改坏。
+- **残角与后续**：非终止守卫 + 局部初始化即可证明非空（如 `var s:Null<String> = "abc";` 的死守卫）这类病态输入，修复后会发 `s!.length`，可能招 warning 级 `unnecessary_non_null_assertion`；如需清理，属 `FlowPromotedDedup` 家族的独立去重改动（让 2013 行同时参考 `flowPromotedNonNull`，对齐 2355–2359），不与本缺陷的修复边界耦合。
+
+## 7. 复算入口
+
+```
+# 本复核工作树（只放本复核夹具；他人资产未动）
+git -C /home/losses/Development/tq-workspace/boring worktree list | grep null-guard-xcheck
+# 重跑主探针（新 attempt 目录，拒绝覆盖）
+cd /home/losses/Development/tq-workspace/dc-warn/worktrees/null-guard-xcheck
+XDG_CACHE_HOME=$PWD/out/nix-cache nix develop -c bash tests/haxe/xcheck-null-guard/run.sh
+# 重跑闭包探针
+XDG_CACHE_HOME=$PWD/out/nix-cache nix develop -c bash tests/haxe/xcheck-null-guard2/run.sh
+```
+
+- 输入前后 sha256 identical（各 attempt `input-hashes-*.txt` + `stages.tsv`）；`FILES.sha256` 覆盖本复核全部夹具与被核对的编译器字节。
+- 只读资产：`boring-wt-architecture`（.haxelib 只读源）、`dc-warn/worktrees/null-guard`（对方工作树，仅读 REPORT/夹具/日志）、`publication-staging/**`、`tiqian/**` 均未写入。

@@ -1,0 +1,23 @@
+Saved working directory and index state On evidence/contract3-condition4-closure: cond4-closure-baseline-measure
+On branch evidence/contract3-condition4-closure
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   docs/architecture/evidence/condition-4-entry-gate/README.md
+	new file:   docs/architecture/evidence/condition-4-entry-gate/SHA256SUMS.txt
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/R2-independent-eec707b9.txt
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/R3-spotcheck.txt
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/eec707b9.export.tar.recomputed.sha256
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/gate-verify-eec707b9.archive-verify.json
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/gate-verify-eec707b9.archive-verify.stdout.txt
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/gate-verify-eec707b9.mutated.stdout.txt
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/gate-verify-eec707b9.verify-export.json
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/gate-verify-eec707b9.verify-export.stdout.txt
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/gate-verify-json-without-path.stdout.txt
+	new file:   docs/architecture/evidence/condition-4-entry-gate/evidence/trap-count.txt
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   docs/architecture/GATE-LEDGER.md
+
+Dropped refs/stash@{0} (cc6635da6b00b2bdc971b96d3e170e9ba02d9363)

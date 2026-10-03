@@ -1,0 +1,11 @@
+package tests
+
+import boring.runtime.test.Test
+
+class InterfaceFallibleOpsTests {
+@boring.test.Test
+    fun value() {
+        Test.run("tests.InterfaceFallibleOpsTests.value", "tests.InterfaceFallibleOpsTests.value: a call through a throwing interface method propagates its error") {
+        }
+    }
+}

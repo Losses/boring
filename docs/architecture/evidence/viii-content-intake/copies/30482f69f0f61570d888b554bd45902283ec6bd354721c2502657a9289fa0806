@@ -1,0 +1,19 @@
+#![cfg(test)]
+
+use crate::boring::value_passing_ops::ValuePassingOps;
+use crate::runtime::test as testlib;
+use crate::runtime::test_core;
+use crate::runtime::u_string::UStr;
+
+
+#[test]
+fn value_flow() {
+    testlib::run("tests.ValuePassingTests.valueFlow", "tests.ValuePassingTests.valueFlow: field reads and parameter passes keep values usable", || {
+        let mut card = ValuePassingOps::value_passing_ops_build_card();
+        test_core::TestCore::test_core_equals_string(UStr::new(&[99,97,114,100,124,99,97,114,100]), ValuePassingOps::value_passing_ops_read_two_fields((card).clone()).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(4i32, i32::from_ne_bytes(((ValuePassingOps::value_passing_ops_pass_twice((card).clone())) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(9i32, i32::from_ne_bytes(((ValuePassingOps::value_passing_ops_forward_parameter(&card.tags)) as i32).to_ne_bytes()), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_string(UStr::new(&[97,100,100,101,100]), ValuePassingOps::value_passing_ops_push_through(&mut card.tags).as_ustr(), UStr::new(&[]));
+        test_core::TestCore::test_core_equals_int(9i32, i32::from_ne_bytes(((ValuePassingOps::value_passing_ops_length_arithmetic(UStr::new(&[102,111,117,114]))) as i32).to_ne_bytes()), UStr::new(&[]));
+    });
+}

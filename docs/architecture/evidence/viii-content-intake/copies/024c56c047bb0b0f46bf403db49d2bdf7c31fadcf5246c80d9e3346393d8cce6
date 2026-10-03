@@ -1,0 +1,256 @@
+diff --git a/tests/haxe/try-tail-min/expected.txt b/tests/haxe/try-tail-min/expected.txt
+new file mode 100644
+index 0000000..b963d34
+--- /dev/null
++++ b/tests/haxe/try-tail-min/expected.txt
+@@ -0,0 +1,2 @@
++rethrow-handler=3
++plain-throw=1
+diff --git a/tests/haxe/try-tail-min/gen/rust.hxml b/tests/haxe/try-tail-min/gen/rust.hxml
+new file mode 100644
+index 0000000..d8391d4
+--- /dev/null
++++ b/tests/haxe/try-tail-min/gen/rust.hxml
+@@ -0,0 +1,14 @@
++# Rust generation of the try-tail-min minimal fixture.
++# The runner passes -D rust-output=... on the command line.
++-lib reflaxe
++-lib boring
++-cp packages/compiler
++-cp packages/compiler/reflaxe/rust/std-shadow
++-cp packages/compiler/reflaxe/rust
++-cp tests/haxe/try-tail-min
++-cp samples
++--macro Intercept.run(['samples', 'tests/haxe/try-tail-min'])
++--macro rustcompiler.Compiler.use()
++-D runtime-import=crate::runtime
++-D runtime-emit=runtime
++trytailmin.MinOracle
+diff --git a/tests/haxe/try-tail-min/native/harness.rs b/tests/haxe/try-tail-min/native/harness.rs
+new file mode 100644
+index 0000000..ec91e6b
+--- /dev/null
++++ b/tests/haxe/try-tail-min/native/harness.rs
+@@ -0,0 +1,6 @@
++// Rust native harness for the try-tail-min fixture.
++fn main() {
++    use generated::trytailmin::min_oracle::MinOracle;
++    println!("rethrow-handler={}", MinOracle::min_oracle_rethrow_handler());
++    println!("plain-throw={}", MinOracle::min_oracle_plain_throw());
++}
+diff --git a/tests/haxe/try-tail-min/trytailmin/MinOracle.hx b/tests/haxe/try-tail-min/trytailmin/MinOracle.hx
+new file mode 100644
+index 0000000..f50e26f
+--- /dev/null
++++ b/tests/haxe/try-tail-min/trytailmin/MinOracle.hx
+@@ -0,0 +1,61 @@
++package trytailmin;
++
++/**
++	Minimal reproduction fixture for the Rust ThrowFaultVariantGrowth fix
++	(task t-mun5d97u-c4md): a rethrow of a caught exception value
++	(`throw new MinException(e.fault)`) must grow its payload fault enum
++	with the wrapping variant the throw references, and the exception class
++	must emit beside the enum. plainThrow() covers the constructor-shaped
++	throw that lowers to the payload directly and must stay byte-identical.
++**/
++enum MinFault {
++	Only(tag:String);
++}
++
++class MinException extends haxe.Exception {
++	public final fault:MinFault;
++
++	public function new(fault:MinFault) {
++		this.fault = fault;
++		super(describe(fault));
++	}
++
++	public static function describe(_fault:MinFault):String {
++		return switch (_fault) {
++			case Only(tag): tag;
++		};
++	}
++}
++
++class MinOracle {
++	public static function mustThrow(tag:String):Void {
++		throw new MinException(MinFault.Only(tag));
++	}
++
++	// Rethrow-of-value: the shape that names the growth variant.
++	public static function rethrowHandler():Int {
++		var v = 0;
++		try {
++			mustThrow("rethrow");
++		} catch (e:MinException) {
++			final h = try {
++				throw new MinException(e.fault);
++				99;
++			} catch (e2:MinException) {
++				3;
++			}
++			v = h;
++		}
++		return v;
++	}
++
++	// Constructor-shaped throw: lowers to the payload directly, no variant.
++	public static function plainThrow():Int {
++		return try {
++			mustThrow("plain");
++			99;
++		} catch (e:MinException) {
++			1;
++		}
++	}
++}
+diff --git a/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx b/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+index edf01299..32e04958 100644
+--- a/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
++++ b/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
+@@ -1420,6 +1420,13 @@ class Compiler extends PluginCompiler<Compiler> {
+                                                     mergeEnum(key, pair);
+                                                 }
+                                             }
++                                            // A rethrow of a caught exception value
++                                            // still renders the exception class
++                                            // wrapped in a growth variant of the
++                                            // payload enum, absorbed or not: the
++                                            // reference needs the variant emitted
++                                            // either way. (ThrowFaultVariantGrowth)
++                                            registerThrownExceptionVariant(stripDecorations(t));
+                                             descend();
+                                         case TIf(condition, ifTrue, ifFalse):
+                                             switch (condition.expr) {
+@@ -2409,6 +2416,44 @@ class Compiler extends PluginCompiler<Compiler> {
+         }
+     }
+ 
++    /**
++        A rethrow of a caught exception value — `throw new Ex(e.fault)` whose
++        constructor argument is not a payload-enum constructor — renders as
++        `Ex::new(...)` wrapped in a growth variant of the exception's payload
++        enum. Register that wrapping variant (and the exception-class reference
++        the payload names) so the emitted enum carries the constructor the
++        throw references. A constructor-shaped argument lowers to the payload
++        directly and needs no variant; a test-module class stays inside the
++        cfg(test) tree (TestFaultGrowth). (ThrowFaultVariantGrowth)
++    **/
++    function registerThrownExceptionVariant(thrown:TypedExpr):Void {
++        switch (thrown.expr) {
++            case TNew(c, _, args) if (args.length == 1):
++                final cls = c.get();
++                final payloadModule = state.exceptionPayloads.get(cls.module);
++                if (payloadModule == null || state.testModules.exists(cls.module))
++                    return;
++                final enumName = state.payloadEnumNames.get(payloadModule);
++                if (enumName == null || state.isSyntheticErrorType(enumName))
++                    return;
++                // A payload-constructor argument lowers to the payload
++                // directly; only a rethrow of a value needs the variant.
++                final isPayloadCtor = switch (stripDecorations(args[0]).expr) {
++                    case TField(_, FEnum(_, _)): true;
++                    case TCall(fn, _): switch (stripDecorations(fn).expr) {
++                        case TField(_, FEnum(_, _)): true;
++                        case _: false;
++                    }
++                    case _: false;
++                };
++                if (isPayloadCtor)
++                    return;
++                state.exceptionClassRefs.set(cls.module + "::" + cls.name, true);
++                state.registerFaultConversion(enumName, "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + cls.name, cls.name + "Fault");
++            case _:
++        }
++    }
++
+     function contextFor(module:String):RustDecl {
+         current = contexts.exists(module) ? contexts.get(module) : null;
+         if (current == null) {
+diff --git a/packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx b/packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+index 2c1ae8a4..285c3bc7 100644
+--- a/packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
++++ b/packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
+@@ -1013,6 +1013,40 @@ class RustDecl {
+         // Error impl
+         lines.push("impl std::error::Error for " + enumName + " {}");
+ 
++        // A rethrow of a caught exception value names the exception class in
++        // a growth-variant payload, so the class emits beside its payload
++        // enum with the single-payload constructor the throw renders. Its
++        // Display goes through the payload enum's own Display.
++        // (ThrowFaultVariantGrowth)
++        if (state.exceptionClassRefs.exists(cls.module + "::" + cls.name)) {
++            final ctor = cls.constructor != null ? cls.constructor.get() : null;
++            if (ctor != null) switch (ctor.type) {
++                case TFun([ctorArg], _):
++                    switch (Context.follow(ctorArg.t)) {
++                        case TEnum(en, _) if (en.get().module == payload.module && en.get().name == enumName):
++                            final fieldName = RustImports.toSnakeCase(ctorArg.name);
++                            final fieldTypeText = fieldType(ctorArg.t, ctorArg.name);
++                            lines.push("");
++                            lines.push("#[derive(Debug, Clone, PartialEq)]");
++                            lines.push("pub struct " + cls.name + " {");
++                            lines.push("    pub " + fieldName + ": " + fieldTypeText + ",");
++                            lines.push("}");
++                            lines.push("impl " + cls.name + " {");
++                            lines.push("    pub fn new(" + fieldName + ": " + fieldTypeText + ") -> Self {");
++                            lines.push("        " + cls.name + " { " + fieldName + " }");
++                            lines.push("    }");
++                            lines.push("}");
++                            lines.push("impl std::fmt::Display for " + cls.name + " {");
++                            lines.push("    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
++                            lines.push('        write!(formatter, "{}", self.' + fieldName + ")");
++                            lines.push("    }");
++                            lines.push("}");
++                        case _:
++                    }
++                case _:
++            }
++        }
++
+         return lines.join("\n");
+     }
+ 
+diff --git a/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx b/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+index e2efe111..feb90c4f 100644
+--- a/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
++++ b/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
+@@ -36,6 +36,13 @@ class RustEmissionState {
+     /** Message-only exception classes are represented by their own Rust error enum. */
+     public final messageOnlyExceptions:Map<String, String> = [];
+ 
++    /**
++        Exception classes a rethrow names inside a growth-variant payload
++        (ThrowFaultVariantGrowth): the class emits beside its payload enum
++        with the constructor the throw renders. Keyed "module::name".
++    **/
++    public final exceptionClassRefs:Map<String, Bool> = [];
++
+     /** Maps anonymous structure signatures to their defining typedef name and module. */
+     public final structTypedefs:Map<String, {module:String, name:String}> = [];
+ 
+diff --git a/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx b/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+index 72f7a262..e0c58dcc 100644
+--- a/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
++++ b/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
+@@ -2171,7 +2171,17 @@ class RustExpr {
+         if (member == null || errorTypeName == member.name)
+             return raw;
+         final variant = state.syntheticErrorVariant(errorTypeName, member);
+-        return errorTypeName + "::" + (variant != null ? variant : member.name + "Fault") + "(" + raw + ")";
++        if (variant != null)
++            return errorTypeName + "::" + variant + "(" + raw + ")";
++        // A declared fault enum carries the wrapping variant the throw
++        // references only as registered growth (ThrowFaultVariantGrowth);
++        // growth payloads are boxed, so the wrap goes through Box::new.
++        final growth = state.enumGrowthFor(errorTypeName);
++        if (growth != null)
++            for (item in growth)
++                if (item.calleeName == member.name + "Fault")
++                    return errorTypeName + "::" + item.variant + "(Box::new(" + raw + "))";
++        return errorTypeName + "::" + member.name + "Fault(" + raw + ")";
+     }
+ 
+     /**

@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# xc2-controls2.sh -- corrected + extended independent control suite.
+# Fixes two bugs in the reviewer's first pass:
+#   * negB2 mutated $C/att-clean instead of the copy under test;
+#   * negC2 used 25 for the marker text length, but
+#     "harness end marker sha256=" is 26 bytes.
+set -u
+R=/home/losses/Development/tq-workspace
+SRC="$R/boring-wt-architecture/out/integration-a3-evidence/exclusive-runner"
+NEW="$SRC/check-log-integrity.sh"
+OLD="$R/dc-warn/out/integrity-bytefix/backup/check-log-integrity.sh.orig"
+BASE="attempt-20260929T180809-2918225"
+C="$R/dc-warn/scratch-xcheck2/copy2"
+EV="$R/dc-warn/out/bytefix-xcheck2/evidence"
+mkdir -p "$C" "$EV"
+
+rm -rf "$C/att-clean"
+cp -a "$SRC/$BASE" "$C/att-clean"
+chmod -R u+rwX "$C/att-clean"
+L="$C/att-clean/harness.log"
+PRIS=$(wc -c <"$L")
+MK='harness end marker sha256='
+MKLEN=${#MK}
+MOFF=$(grep -abo "^$MK" "$L" | tail -n 1 | cut -d: -f1)
+{
+  echo "== xc2-controls2 environment =="
+  echo "date              : $(date -Is)"
+  echo "pristine bytes    : $PRIS"
+  echo "marker text len   : $MKLEN"
+  echo "marker_off (last) : $MOFF"
+  echo "marker line bytes : $(( PRIS - MOFF ))"
+  echo "copy sha == source: $([ "$(sha256sum "$L"|cut -d' ' -f1)" = "$(sha256sum "$SRC/$BASE/harness.log"|cut -d' ' -f1)" ] && echo yes || echo NO)"
+} | tee "$EV/xc2-controls2.env.txt"
+
+BIG=$(ls -S "$C/att-clean/stages"/*.stdout | head -1)
+STATUS1=$(grep -l '^1$' "$C/att-clean/stages"/*.status | head -1)
+ERR0=$(find "$C/att-clean/stages" -name '*.stderr' -size 0 | head -1)
+
+mk() { rm -rf "$C/$1"; cp -a "$C/att-clean" "$C/$1"; chmod -R u+rwX "$C/$1"; }
+for n in pos negA1 negA6 negA5000 negA200k negB1 negB2 negB3 negB4 \
+         trunc1 trunc_nl trunc_bare trunc_hash trunc_half trunc_all \
+         mid_marker crlf mid_and_tail tail_only_marker relast_bogus negE negE2; do mk "$n"; done
+
+# --- byte appends (no trailing newline unless stated) --------------------
+printf 'X'          >> "$C/negA1/harness.log"
+printf 'TAMPER'     >> "$C/negA6/harness.log"
+head -c 5000     /dev/zero | tr '\0' 'A' >> "$C/negA5000/harness.log"
+head -c 200000   /dev/zero | tr '\0' 'A' >> "$C/negA200k/harness.log"
+printf 'TAMPER\n'   >> "$C/negB1/harness.log"
+
+# --- sealed stage-file tampering ----------------------------------------
+python3 - "$C/negB2/stages/$(basename "$BIG")" <<'PY'
+import sys
+p = sys.argv[1]
+b = bytearray(open(p, 'rb').read())
+b[len(b)//2] ^= 0x01
+open(p, 'wb').write(bytes(b))
+PY
+printf '0\n' > "$C/negB3/stages/$(basename "$STATUS1")"
+rm -f "$C/negB4/stages/$(basename "$ERR0")"
+
+# --- truncation family ---------------------------------------------------
+head -c $((PRIS - 1)) "$L" > "$C/trunc1/harness.log"        # drop final LF only
+head -c $((PRIS))     "$L" > "$C/trunc_nl/harness.log"      # identical
+head -c $((MOFF + MKLEN))     "$L" > "$C/trunc_bare/harness.log"   # bare "…sha256="
+head -c $((MOFF + MKLEN + 64)) "$L" > "$C/trunc_hash/harness.log"  # marker, no LF
+head -c $((MOFF + MKLEN + 32)) "$L" > "$C/trunc_half/harness.log"  # half a hash
+head -c $((MOFF))              "$L" > "$C/trunc_all/harness.log"   # marker removed
+head -c 1000                   "$L" > "$C/trunc_nl/harness.log"    # (overwrite) no marker
+
+# --- structural oddities -------------------------------------------------
+# a copy of the real marker inserted in the MIDDLE, real marker still last
+python3 - "$L" "$C/mid_marker/harness.log" "$MOFF" "$PRIS" <<'PY'
+import sys
+src, dst, moff, pris = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+d = open(src,'rb').read()
+marker_line = d[moff:pris]
+open(dst,'wb').write(d[:1000] + marker_line + d[1000:])
+PY
+# CRLF after the real marker
+python3 - "$L" "$C/crlf/harness.log" <<'PY'
+import sys
+d = open(sys.argv[1],'rb').read()
+open(sys.argv[2],'wb').write(d.replace(b"\n", b"\r\n"))
+PY
+# bogus marker in the middle AND a second bogus marker appended last
+python3 - "$L" "$C/mid_and_tail/harness.log" "$MOFF" "$PRIS" <<'PY'
+import sys
+src,dst,moff,pris = sys.argv[1],sys.argv[2],int(sys.argv[3]),int(sys.argv[4])
+d = open(src,'rb').read()
+forged = b"harness end marker sha256=" + b"0"*64 + b"\nTAIL\n"
+open(dst,'wb').write(d[:1000] + d[moff:pris] + d[1000:] + forged)
+PY
+# only a forged marker appended, no payload, no trailing byte
+python3 - "$L" "$C/tail_only_marker/harness.log" <<'PY'
+import sys, hashlib
+p = sys.argv[1]
+d = open(p,'rb').read()
+open(p,'ab').write(b"harness end marker sha256=" + hashlib.sha256(d).hexdigest().encode() + b"\n")
+PY
+# real marker replaced by a bogus one carrying a wrong hash
+python3 - "$L" "$C/relast_bogus/harness.log" "$MOFF" <<'PY'
+import sys
+src,dst,moff = sys.argv[1],sys.argv[2],int(sys.argv[3])
+d = open(src,'rb').read()
+open(dst,'wb').write(d[:moff] + b"harness end marker sha256=" + b"f"*64 + b"\n")
+PY
+# re-seal: payload + forged marker whose sha is CORRECT for its prefix
+python3 - "$C/negE/harness.log" <<'PY'
+import sys, hashlib
+p = sys.argv[1]
+open(p,'ab').write(b"FORGED-PAYLOAD-LINE\n")
+d = open(p,'rb').read()
+open(p,'ab').write(b"harness end marker sha256=" + hashlib.sha256(d).hexdigest().encode() + b"\n")
+PY
+# re-seal variant: forged marker with correct sha and NO trailing newline
+python3 - "$C/negE2/harness.log" <<'PY'
+import sys, hashlib
+p = sys.argv[1]
+open(p,'ab').write(b"PAYLOAD2\n")
+d = open(p,'rb').read()
+open(p,'ab').write(b"harness end marker sha256=" + hashlib.sha256(d).hexdigest().encode())
+PY
+
+# --- run both, rc read directly, streams captured separately -------------
+printf '%-15s %4s %4s %8s %8s  %s\n' CTL OLD NEW BYTES DELTA NEW_MESSAGE \
+  > "$EV/xc2-controls2.tsv"
+: > "$EV/xc2-controls2.detail.txt"
+for c in pos negA1 negA6 negA5000 negA200k negB1 negB2 negB3 negB4 \
+         trunc1 trunc_nl trunc_bare trunc_hash trunc_half trunc_all \
+         mid_marker crlf mid_and_tail tail_only_marker relast_bogus negE negE2; do
+  oout=$(bash "$OLD" "$C/$c" 2>"$EV/.oerr"); orc=$?; oerr=$(cat "$EV/.oerr")
+  nout=$(bash "$NEW" "$C/$c" 2>"$EV/.nerr"); nrc=$?; nerr=$(cat "$EV/.nerr")
+  nbytes=$(wc -c < "$C/$c/harness.log")
+  printf '%-15s %4s %4s %8s %8s  %s\n' "$c" "$orc" "$nrc" "$nbytes" \
+      "$((nbytes - PRIS))" "$(printf '%s' "$nout" | head -1)" >> "$EV/xc2-controls2.tsv"
+  {
+    printf '===== %-15s harness.log %s bytes (pristine %s, delta %s)\n' "$c" "$nbytes" "$PRIS" "$((nbytes-PRIS))"
+    printf -- '-- OLD rc=%s stdout=[%s] stderr=[%s]\n' "$orc" "$(printf '%s' "$oout"|head -2|tr '\n' '|')" "$(printf '%s' "$oerr"|tr '\n' '|')"
+    printf -- '-- NEW rc=%s stdout=[%s] stderr=[%s]\n' "$nrc" "$(printf '%s' "$nout"|head -2|tr '\n' '|')" "$(printf '%s' "$nerr"|tr '\n' '|')"
+  } >> "$EV/xc2-controls2.detail.txt"
+done
+rm -f "$EV/.oerr" "$EV/.nerr"
+cat "$EV/xc2-controls2.tsv"

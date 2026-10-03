@@ -1,0 +1,23 @@
+package tests
+
+import boring.GlyphCluster
+import boring.GlyphClusterHolder
+import boring.GlyphClusterReader
+import boring.runtime.test.Test
+
+class GlyphClusterTests {
+@boring.test.Test
+    fun firstRange() {
+        Test.run("tests.GlyphClusterTests.firstRange", "tests.GlyphClusterTests.firstRange: a data-class member reads off a ReadOnlyArray field element") {
+                val holder = GlyphClusterHolder(mutableListOf<GlyphCluster>(GlyphCluster(3, 0, 4), GlyphCluster(7, 4, 8)))
+                Test.equals(3, GlyphClusterReader.firstRange(holder), null)
+        }
+    }
+
+@boring.test.Test
+    fun firstReturnedRange() {
+        Test.run("tests.GlyphClusterTests.firstReturnedRange", "tests.GlyphClusterTests.firstReturnedRange: a data-class member reads off a ReadOnlyArray return element") {
+                Test.equals(3, GlyphClusterReader.firstReturnedRange(), null)
+        }
+    }
+}

@@ -1,0 +1,318 @@
+# Independent architectural RE-review (v3): Swift read-only array boundary policy record
+
+Reviewer: independent subagent (round 3). Mode: adversarial falsification.
+Record reviewed: `dc-warn/out/boundary-policy-record/RECORD.md`, **279 lines, 12 CORRECTION
+markers** (8 marker blocks CORRECTION 1-8 plus 4 cross-references; count verified by grep).
+Prior reviews: `boundary-review-glm/REPORT.md` (NOT-ACCEPTABLE), `boundary-review-qwen/REPORT.md`
+(NOT-ACCEPTABLE, named corrections C1-C10).
+
+## 0. Version reviewed and method
+
+- Code root (read-only): `/home/losses/Development/tq-workspace/boring-wt-architecture`
+  (live sources under `packages/compiler/reflaxe/swift/swiftcompiler/`).
+- Code state: HEAD `e1c65975` with uncommitted edits on `SwiftArrayBoundary.hx` and
+  `SwiftDecl.hx`; `SwiftExpr.hx`, `SwiftParameterPlan.hx`, `SwiftRuntime.hx` unmodified vs
+  HEAD (verified via `git status`). This matches the record's own pin and the state both
+  prior reviewers audited, so their line numbers remain comparable.
+- Method: static code-path analysis only. No fixture compiled, no test executed. Where a
+  conclusion depends on emitted Swift compiling, it is labeled *code-path certain*.
+  Raw logs: `evidence/` (full-file dumps of every cited region, funnel censuses, design-doc
+  excerpts).
+- Independence: I re-verified every code fact myself (fresh greps/dumps, logs in
+  `evidence/`) rather than trusting the prior reviewers' line numbers; where the two prior
+  reviews disagreed (e.g. how many `arrayBoundaryText` sites v2 listed) I resolved it
+  against the code.
+
+## 1. C1-C10 item-by-item disposition
+
+C = qwen's named corrections. "Verified" = I checked the cited lines in code.
+
+| C | What was demanded | Disposition | Evidence |
+|---|---|---|---|
+| C1 | Add 811 / 1212 / 1929 / 3304 / 4720 to §4 | **ADDRESSED** | All five present in the CORRECTION 4 table. All five verified in code: 811 `readOnlyReturn ? arrayBoundaryText(ret, currentReturnType) : returnValue(ret)` (plain statement return); 1211-1212 `blockExpression` tail via `arrayBoundaryText(value, currentReturnType)`; 1928-1929 `TArrayDecl` element conversion `arrayBoundaryText(x, elemType)`; 3303-3304 `argTexts` argument conversion; 4719-4720 `enumConstruct` argument conversion. |
+| C2 | Relabel 5641 as switch-arm (armLines, switchReturn only); 2806 as assignment; state plain return is 811 | **ADDRESSED** | §4 rows now read "**switch arm** (reachable only via `switchReturn`)" 5641-5642 and "**assignment rendering**" 2806; 811 named "the MOST COMMON crossing". Verified: 5641 `SwiftArrayBoundary.isBoundary(returnValue.t, currentReturnType)` / 5642 `arrayBoundaryText(...)` sit in `armLines` (5615), whose only caller is `switchReturn` at 5604; 2806/2807 are `assignmentValue` (defined 2805). |
+| C3 | Fix §3: optionality 2689→2690; give the presence-proof row real lines (or restate as per-(fact,operand)) | **ADDRESSED** | Line 92 now cites `SwiftExpr.hx:2690 (NOT 2689 - that line is storage:)` — verified: 2689 is the `storage:` line, 2690 the `optionality:` line, 2691 the `presenceFact:` line of `prepareArrayOperand` (2680-2693). Presence row now carries 2691, 2711-2726 (`arrayOperandPresenceFact` — verified the full function spans exactly 2711-2726), 324/334/343 (coalescing `presenceFact:` producers — verified), 2638/2654 (join producers — verified), `SwiftParameterPlan.hx:71-80` (`bodyPresence` — verified), `SwiftDecl.hx:597` (verified). Note: the heading sentence "Each fact has exactly ONE producer" was *not* restated as "per (fact, operand)" (C3's alternative), but the table's "scope" column ("per operand") plus the full producer list make the claim mechanically checkable, which is what C3 asked for. |
+| C4 | Rewrite the funnel paragraph: expression crossings funnel into `lowerArrayBoundary` (complete caller set); declaration path calls `prepare`/`render` directly; consumer entry points include the `arrayBoundaryText` sites | **ADDRESSED** | CORRECTION 5 + CORRECTION 2 do exactly this. Verified by exhaustive census: `lowerArrayBoundary` direct callers = exactly {746, 2567, 2627, 2628, 2642, 2643, 4760, 4863} (8, all in SwiftExpr.hx; the function is private so none can be external); `arrayBoundaryText` callers = exactly {811, 1212, 1929, 2535, 2807, 3304, 4720, 5642} (8); definition at 2566/2567. `SwiftArrayBoundary.prepare` has exactly 2 callers (SwiftExpr:2607, SwiftDecl:599); `render` exactly 2 (SwiftExpr:2614, SwiftDecl:604); no other file in the Swift compiler references the module (verified). The "full entry set is 16: 8 direct + 8 via wrapper" is correct — the two sets are disjoint. |
+| C5 | Replace the switch structural-gap claim: return-position switch result crosses at 5641 via armLines; unowned switch routes are `switchBindingLines` (5488) and `switchAssign` wrong-destination (5508-5515); fix the :816 citation; add tryBindingLines/tryReturnLines to the try evidence | **PARTIALLY ADDRESSED** | What holds: the 5641/armLines/switchReturn fact is stated (verified: 5570 def, 5604 armLines call, 5641-5642 boundary consult); switchAssign's wrong-destination re-targeting is recorded as a known re-derivation (CORRECTION 7 item 3; verified 5508-5515: `switchReturn(sw, depth, true)` at 5509, then `return X` lines rewritten to `assignTarget(target) = X` at 5511-5513, with the value already converted at 5639-5642 against `currentReturnType`); switchStatement routes to switchReturn (verified 5493). What is missing: (a) `switchBindingLines` (5486-5490; the binding destination type is never consulted — verified `let v = switchExpression(sw)` at 5488) is not named; the record only says "switch pattern-binding / payload declarations — never audited"; (b) the try evidence lists only `tryBindingLines` — `tryReturnLines` (5251+, verified) is omitted, although the design doc's J3 row (j-prepared-value-design.md:197) explicitly names `blockValueLines`, `tryBindingLines`, `tryReturnLines` as the audit set; (c) the old wrong line persists: line 199 still lists ":816" among the old grep's "dispatch sites" — 816 is a closing brace (verified); the real switchAssign dispatch is 819-820, definition 5508. |
+| C6 | State block-tail status precisely: `blockExpression` tail owned at 1212; try-region block tail (`blockValueLines` 5168) unowned | **PARTIALLY ADDRESSED** | The false "block tail: untraced" claim is retracted and 1212 is listed as a covered site (verified). But the try-region block tail is never stated: `blockValueLines` (5160-5169) passes the value through `expr(parts.value)` at 5168 with zero boundary consultation (verified), and `blockValueLines` appears nowhere in the record. §6 lists `tryBindingLines` but not the shared tail path. Half of the demanded two-part statement is missing. |
+| C7 | Add the "Nested collection elements" family to §4 (site 1929) or §6 | **ADDRESSED** | 1929 is in the §4 table (verified) and the family is named in §6 with the design-doc citation (family row at j-prepared-value-design.md:100 — verified). Two notes: (a) the §6 sentence "`:1929` ... is an element-position consumer never mentioned here" is now FALSE — this revision's §4 mentions it. Stale self-reference introduced by the correction. (b) Only the site is inventoried; the family's semantic question (design doc: "the outer constructor independently supplies the container representation") is not ruled on. |
+| C8 | Add table rows: (OtherArrayStorage x read-only) -> no plan, refuse; (OptionalOperand x non-optional destination, any position) -> no plan, refuse; literal rows: restrict "any", name the refuse outcome | **PARTIALLY ADDRESSED** | Four new rows were added (lines 34-37) and each *as far as it goes* matches the code (I verified `prepare` 165-234 in full). But: (1) the OtherArrayStorage cell's decision column says "**no rule — see CORRECTION 6**" instead of the code outcome — the code outcome is a refusal (empty case at 210-211, `operation` stays null, `prepare` returns null, consumers fail at SwiftExpr:2608-2609 / SwiftDecl:600-601 — the exact mechanism the record cites one row below); C8 explicitly demanded "no plan, refuse"; (2) the optional-source/required-destination refusal row covers only ReadOnlyArray x read-only. The two sibling cells are still unclassified and the code refuses both: (MutableArrayWrapper x read-only x optional x required dest) — empty case 203-204 — and (ReadOnlyArray x mutable x optional x required dest) — empty case 221-222. Row 27 ("convert inside the optional branch only") is wrong for the required-dest sub-cell; (3) the literal rows 31/32 still say "any | any": literal null x read-only x required dest is refused in code (188-192 requires `destOptional`), literal empty x mutable x required is refused (no branch at 212 -> null -> fail); (4) the new literal-null x mutable row (36) is correct for the common case but overgeneralized: when the null literal's type is on the read-only face (e.g. a read-only-typed cast null), `isBoundary` (144-145: `isReadOnlyArray(dest) || (isMutableArray(dest) && isReadOnlyArray(src))`) is TRUE at a mutable destination and `prepare` refuses — not "no decision taken at all". (5) The old row 28 ("ReadOnlyArray | read-only | **any** | no | pass through") was not restricted and now sits in the same table as the row declaring it WRONG for a sub-cell — an internal contradiction. |
+| C9 | Remove or scope the absolute "no re-derivation" claim; name `nilMergeChainNonOptional` (2048-2052, consumers 4776/4879), the closure declarations (1203, 5525), the switchAssign destination issue (5508-5515) as open defects | **ADDRESSED** | CORRECTION 7 scopes the ban as "a design rule the mechanism aspires to" and states "This record does NOT assert the ban holds today." All four named sites verified real with exact lines: 2048-2054 `nilMergeChainNonOptional(text:String)` parses `text.lastIndexOf(" ?? ")` (a fact from PRINTED TEXT), consumed at 4776 (inside `callArgTexts`, def 4738) and 4879 (inside `constructorArgTexts`, def 4844) — both inside functions the record lists as covered, exactly as claimed; 1203 `types.of(stmts[last].t)` closure-result declaration in `blockExpression`; 5525 `types.of(sw.t)` closure-result declaration in `switchExpression`; 5508-5515 wrong-destination re-targeting (see C5). Residual: none of the five known re-derivations (the four plus the §6 `:2689` AST-type fallback, also verified real at 2689) has an individual ruling recorded — §7 makes that an acceptance requirement, and §6 (the open set) lists only the 2689, not the four. |
+| C10 | State the load-bearing join invariant explicitly | **ADDRESSED** | CORRECTION 8 states the JOIN PRECONDITION, quotes both join lines, and disclaims proof ("This record does not establish that the precondition holds on all join paths; :2632/:2648 are recorded as *assuming* it"). Both quotes verified verbatim: 2632 `final storage = targetValue.storage == SwiftArrayStorage.NullArrayValue ? fallbackValue.storage : targetValue.storage;` and 2648 `final storage = trueValue.storage == SwiftArrayStorage.NullArrayValue ? falseValue.storage : trueValue.storage;`. See hard check 3 for the honesty judgment. |
+
+Score: 6 ADDRESSED, 3 PARTIALLY (C5, C6, C8), 0 NOT ADDRESSED. The "all ten addressed"
+claim is therefore overstated: C5/C6/C8 are partially addressed.
+
+## 2. The five hard checks
+
+### HC1 — Is the new §7 acceptance condition legitimate, or a lowered bar?
+
+**Direct answer: the replacement is legitimate. It is not lowering the bar to make the
+record passable.**
+
+Reasoning:
+
+1. The original negative half ("find NO consumer deriving the result from an AST type or
+   printed text") was, given known live violations, unpassable *as an acceptance test for
+   this record* — the record could only have "passed" by falsely asserting absence. The
+   replacement converts an unprovable universal negative into a finite negative inventory
+   plus a per-item obligation ("every known re-derivation is either eliminated or
+   individually ruled on, each ruling recorded against the fact it affects"). That is the
+   standard, methodologically sound way to handle such claims — it is the same shape as
+   the duplicate-removal inventory GLM's review demanded from the repo's own
+   acceptance clause.
+2. The replacement is, per known item, *more* demanding, not less: each of the named
+   re-derivations now requires a recorded ruling or an elimination, which is strictly more
+   work than failing (or falsely passing) a universal test.
+3. The record does not claim the condition currently holds. It defines the acceptance
+   state (§7), declares DRAFT status, and §8 states it "has not been independently
+   reviewed yet." As written, the record satisfies neither the old condition nor the new
+   one (0 of 5 known re-derivations ruled on, 0 eliminated) — and it honestly says so by
+   not asserting it. A bar the author concedes is unmet is not a bar lowered to make the
+   record pass.
+
+Two reservations (neither makes the replacement illegitimate):
+
+- **Completeness of the "known" set is not established.** The record lists 4 (CORRECTION 7)
+  + 1 (§6: 2689). I verified all five are real, but the record provides no documented
+  negative search showing why the list is complete (no text-sniffing census; qwen's R5
+  found further adjacent text checks — `endsWith("!")` at 756/1937/2820/2828, type-based
+  `optionalValued` at 3394 — which the record does not mention; those are
+  general-optional, not boundary facts, so this is a scope note, not a violation).
+  "Every known re-derivation" is checkable only for the listed set; the completeness of
+  the set itself remains an unproven claim (I found no counterexample to it; that is not
+  a proof).
+- **GLM's duplicate-removal inventory demand is still unmet** (see §5).
+
+### HC2 — Is the decision table now closed over SwiftArrayStorage and the optionality facts?
+
+**No. It is closer, but not closed, and it is internally contradictory.**
+
+What improved (verified against `prepare`, SwiftArrayBoundary.hx:165-234):
+
+- All five `SwiftArrayStorage` variants (verified at 9-15) now appear in the table in
+  some row — weak closure achieved.
+- The (ReadOnlyArray x read-only x optional-source/required-dest) cell is marked REFUSED
+  with the exact code mechanism (`prepare` null -> fail at SwiftExpr:2608-2609 /
+  SwiftDecl:600-601) — verified real.
+- The literal-null x mutable row and the presence-veto row are added — the veto matches
+  code 225-231 (verified); the literal-null row is correct for its intended (common) case.
+
+Unclassified cells remaining (code outcomes verified in `prepare`):
+
+1. **OtherArrayStorage x read-only x required**: row exists but says "**no rule**" — the
+   code outcome is REFUSE (empty case 210-211 -> null -> fail). The record cites that
+   very fail mechanism one row below yet leaves this cell undecided.
+2. **MutableArrayWrapper x read-only x optional source x required dest**: code refuses
+   (empty case 203-204). Row 27 still says "convert inside the optional branch only" —
+   wrong for the required-dest sub-cell.
+3. **ReadOnlyArray x mutable x optional source x required dest**: code refuses (empty
+   case 221-222). Row 29 covers "required" source only.
+4. **Literal null x read-only x required dest**: code refuses (188-192 requires
+   `destOptional`). Row 32 still says "any | any | retain no-presence proof".
+5. **Literal empty x mutable x required dest**: code refuses (no branch at 212 -> null
+   -> fail). Row 31 still says "any | any".
+6. **Literal null x mutable dest x read-only-typed source**: `isBoundary` is true
+   (144-145), so a boundary exists and `prepare` refuses; row 36 says "no decision taken
+   at all". Correct only for the non-read-only-typed case.
+
+Plus the contradiction: row 28 ("any | pass through") is left in place next to the row
+declaring it WRONG for a sub-cell. And the design doc's five-factor decision record
+(j-boundary-implementation.md:70-74) still has no representation in the table axes
+(destination element type, flow fact + the operand it applies to) — GLM item 4, still
+open.
+
+The record's closing rescoping ("the table enumerates the cells I have traced, not all
+cells the mechanism can reach") is honest and prevents the table from being read as a
+completeness claim — but C8's specific demand (classify these cells with the refuse
+outcome) is unmet, and "no rule" in a cell whose code outcome is a known refusal is
+under-stated, not just open.
+
+### HC3 — Join precondition at 2632/2648: real pattern? Honest or evasive?
+
+**The pattern is real; the treatment is honest, not evasive.**
+
+- Both join lines verified verbatim (see C10). Both are "copy one arm's storage field"
+  patterns of exactly the kind the design doc warns against ("Prepare each arm under its
+  branch environment and reconcile reachable results to one representation",
+  j-prepared-value-design.md:94; the J brief's "Keep operation selection and its returned
+  facts together" at :102-103).
+- The record states the precondition explicitly, identifies it as load-bearing
+  ("If the arms were prepared against different destinations, the copy silently
+  mislabels the result" — code-path certain: the join copies the field and does not
+  re-check it), and disclaims proof.
+- Honesty judgment: stating a load-bearing invariant and refusing to assert it holds,
+  while explicitly marking the sites as *assuming* it, is the correct epistemic posture
+  for a policy record. It is not evasion because the record makes no universal claim and
+  names the exact assumption. One refinement the author missed: the precondition
+  **verifiably holds on both join paths in code** — at 2627/2628 (nil-merge) and
+  2642/2643 (conditional) both arms are passed the *same* `target` into
+  `lowerArrayBoundary`, so both arms are prepared against the shared destination by
+  construction. That one-line structural evidence would have let the record upgrade the
+  disclaimer to a proof for the two existing join sites. Omission, not evasion.
+- I did not find any third join site in SwiftExpr.hx (census: the only `storage = ... ?
+  ....storage : ....storage` merges are 2632 and 2648) — "could not find", not proven
+  absence for future edits.
+
+### HC4 — Citation re-audit
+
+**Prior defects (three):**
+
+| Prior defect | Status |
+|---|---|
+| Optionality cited at :2689 (should be :2690) | **FIXED and verified.** Record line 92 now cites 2690 and flags 2689 as the `storage:` line. Code: 2689 `storage:`, 2690 `optionality:`, 2691 `presenceFact:` (2686-2692). |
+| switchAssign cited at :816 | **PARTIALLY FIXED.** The narrative now cites the definition :5508 (verified: `function switchAssign` at 5508; delegation at 5509). But line 199 still lists ":816" among the old grep's "dispatch sites" — 816 is a closing brace (verified: line 816 is `}`); the real switchAssign dispatch is 819-820 (`case TBinop(OpAssign, target, value) if (isSwitch(value)):` / `return switchAssign(target, value, depth);`). The old wrong line survives in the self-critique sentence. |
+| Presence-proof row had no line numbers | **FIXED and verified.** Row now cites 2691, 2711-2726, 324/334/343, 2638/2654, SPP:71-80, SwiftDecl:597 — every one verified to be a `presenceFact` producer in code. |
+
+**New citation errors introduced by the corrections:**
+
+1. **NEW ERROR (material): record line 205** — "switchExpression (:5523) delegates via
+   `switchReturn(sw, 1)` (:5525)". Verified code: the delegation is at **5524**;
+   **5525** is `final out = ["({ () -> " + types.of(sw.t) + " in"];` — the closure-result
+   declaration. The record's own CORRECTION 7 item 2 cites :5525 for *exactly that*
+   declaration ("declare the closure result type from the AST type"). So the two
+   correction blocks contradict each other: 5525 cannot be both the delegation and the
+   AST-type declaration. Definition :5523 is correct; the delegation line is misquoted.
+2. **Stale self-reference (new): record line 243** — §6 says of :1929 "an
+   element-position consumer never mentioned here". This revision's §4 (CORRECTION 4)
+   mentions it. The sentence is false as of this revision.
+3. **Residual: line 199** repeats the wrong :816 as a "dispatch site" (see above).
+4. **Minor arithmetic: line 165** — "it has 9 call sites of which I listed only 4".
+   `arrayBoundaryText` has 8 call sites (census-verified: 811, 1212, 1929, 2535, 2807,
+   3304, 4720, 5642). Both prior reviewers counted 3 previously-listed sites. The "4/5"
+   split is only self-consistent if the definition (:2566) is counted as a "call site"
+   *and* as "listed". Loose phrasing, not a hard error; the headline "full entry set is
+   16" is correct.
+
+**All other new citations verified accurate** (spot list, each checked in code):
+2048/4776/4879 (nilMergeChainNonOptional + consumers); 1203; 5525 (as declaration);
+5508-5515; 5509; 5492-5493; 5570; 5604; 5615; 5641-5642; 4349-4355 with enclosing
+function `platformModuleCall` (def 4324); 2632/2648; 2690/2691; 2711-2726; 324/334/343;
+811; 1212; 1929; 3304; 4720; 2566/2567; 2578; 2607/2608-2609/2614; 746; 2627-2628;
+2642-2643; 4760/4863 (with `prepared.optionality` consumed at 4761/4864); 590/591/597/
+599/600-601/604 (SwiftDecl); 60/71-80 (SPP); 501 (SwiftRuntime `toMutableArray() ->
+TiqianArray(Array(self))` — a copy, matching "convert (copy)"); 9-15/144/148/165/251
+(SwiftArrayBoundary); 305; 743; 2534/2535; 2580; 2673-2674; 2806/2807; 6173; 5210-5250
+(tryBindingLines spans 5210-5248; 0 boundary references in the range, verified);
+5187; 1852-1853 (TTry fails outright).
+
+Citation tally: of the ~45 citation instances in the revised record, I verified 42
+accurate, 1 material new error (5525/5524), 1 residual old error (816), 1 stale
+self-reference (line 243), 1 loose count (line 165).
+
+### HC5 — Residual overclaims
+
+- **"One funnel"**: properly retracted. Line 167: "So 'one funnel' is an overstatement.
+  The defensible statement is: `prepare` is the single place where a plan is produced,
+  but it is entered from two independent coordinator paths plus a wrapper." This is
+  verified accurate (HC4 census: `prepare` has exactly two callers; the two entry paths +
+  wrapper are exactly as described). No remaining "all crossings funnel into one
+  function" claim.
+- **"No re-derivation" language**: properly scoped. §7 states the negative half "must NOT
+  be stated absolutely"; CORRECTION 7 retracts the §3 sentence in place and lists the
+  violations. Residual: the absolute sentence at §3:63-64 and the §4 header "(every
+  migrated path)" remain in the text, corrected only by the following CORRECTION blocks —
+  a style choice (keep original + mark correction) that is acceptable for a DRAFT but
+  means a reader who skips a CORRECTION block sees a retracted claim.
+- **Residual overclaim found: lines 210 and 254** — "Switch and try DO reach the single
+  producer." This is contradicted by the record's own §6: `tryBindingLines` (5210-5248)
+  has 0 boundary references (verified), so binding-position try does NOT reach the
+  producer. Correct statement: switch results (via 5641) and statement/return-position
+  try results (via 811) reach the producer; `tryBindingLines`/`tryReturnLines` do not.
+- **"Single producer"**: accurate. The only plan production is `prepare` (2 callers,
+  verified); no other code produces a `SwiftArrayBoundaryPlan`.
+- **§4 inventory completeness**: I ran the exhaustive census (evidence/
+  funnel-census-v3.log, expr-api-census-v3.log). Every `SwiftArrayBoundary.*` API site in
+  the compiler (6 `isBoundary`, 6 `sourceStorage`, 2 `prepare`, 2 `render`, plus the two
+  `isOptionalArrayType` pre-gates at 2672/2721) and all 16 funnel entry lines are now
+  cited in §3/§4. **I found no omitted consumer.** (This is the first revision where that
+  holds; v2 omitted 5.) Note: I did not enumerate non-module-API text-sniffing decisions
+  outside the four named (R5-class items) — "could not find", not proven absence.
+- **GLM-era semantic overclaims (not part of C1-C10, still standing)**: §1 still excludes
+  "any position not listed in section 4" from the accepted domain, contradicting the
+  design doc's open-path rule (j-prepared-value-design.md:86: "An unverified path stays
+  open; it cannot be removed from the accepted language"); §1 still lacks the feature-18
+  semantic ruling (shared-storage view, alias visibility, single evaluation); §5 still
+  asserts the reverse-conversion "copy" row without the J brief's required separate
+  analysis (the mechanism is now code-verified at SwiftRuntime:501, which softens but
+  does not replace the analysis demand, j-boundary-implementation.md:64-66); the
+  `:2672-2674` pre-gate (AST-type queries before preparation) is cited as a consumption
+  site but never ruled on (GLM item 4).
+
+## 3. Verdict
+
+**ACCEPTABLE-WITH-NAMED-CORRECTIONS** (as a DRAFT architectural instrument).
+
+Not formally acceptable as a policy record — its own §7 is unmet (0 of 5 known
+re-derivations ruled on or eliminated; the duplicate-removal inventory is absent) and the
+§2 table is still internally contradictory — but every substantive claim I tested
+adversarially holds: the consumer inventory is complete against the code (verified by
+exhaustive census), the funnel description is accurate, all four named re-derivations are
+real and correctly cited, the join pattern is real and quoted verbatim, and the prior
+reviews' core findings (5 missing consumers, second entry point, false structural
+claims, wrong line numbers) are genuinely corrected, not merely asserted as corrected.
+The remaining gaps are small and mechanical. A reviewer can now follow the trace
+end-to-end from the record to the code.
+
+**Named corrections (remaining blockers to acceptance):**
+
+- **N1.** Restrict table row 28 to "required source -> pass through" (or strike "any");
+  the optional sub-cell must point at the REFUSED row. As written, the table contradicts
+  itself.
+- **N2.** Fill the OtherArrayStorage cell with the code outcome: REFUSED — `prepare`
+  returns null (empty case 210-211) -> fail at SwiftExpr.hx:2608-2609 / SwiftDecl 600-601
+  (the same mechanism the adjacent row already cites). "no rule" is not a decision.
+- **N3.** Add the two missing optional-source/required-dest REFUSED cells:
+  (MutableArrayWrapper x read-only, code 203-204) and (ReadOnlyArray x mutable, code
+  221-222); fix row 27 to say the optional-branch conversion applies only when the
+  destination admits optionality.
+- **N4.** Restrict the literal rows: literal null x read-only x required dest -> REFUSED
+  (188-192); literal empty x mutable x required dest -> REFUSED (no branch at 212);
+  scope row 36 to non-read-only-typed null literals (a read-only-typed cast null at a
+  mutable dest has `isBoundary` true -> REFUSED).
+- **N5.** Fix line 205: `switchExpression` delegates at **:5524**; :5525 is the
+  `types.of(sw.t)` declaration (CORRECTION 7 item 2's citation is the correct one).
+- **N6.** Fix line 199 (:816 is a closing brace; the switchAssign dispatch is 819-820,
+  definition 5508); fix line 243's stale "never mentioned here"; fix lines 210/254 to
+  "switch results and statement/return-position try results reach the single producer;
+  `tryBindingLines` does not (see §6)".
+- **N7.** (Completes C5/C6.) Name `switchBindingLines` (5486-5490; binding destination
+  never consulted at 5488) and `tryReturnLines` (5251+) as open switch/try routes, and
+  name the try-region block tail (`blockValueLines` 5160-5169; value via `expr()` at
+  5168) as unowned — the design doc's J3 row names all three (j-prepared-value-design.md:197).
+- **N8.** (For acceptance per §7, not for re-review.) Record an individual ruling (or
+  elimination) for each of the five known re-derivations (2048/4776/4879; 1203; 5525;
+  5508-5515; 4349-4355; plus the 2689 fallback), and a documented negative search
+  (duplicate-removal inventory per the compiler-policy-architecture acceptance clause)
+  establishing that the "known" set is complete.
+
+## 4. Is the record a useful architectural instrument?
+
+**Yes — plainly useful, even though not formally acceptable.** It is the first revision
+whose consumer inventory matches the code (I found zero omissions where v2 had five);
+its negative inventory (the four re-derivations + the 2689 fallback, all with verified
+lines) is itself a concrete, reusable artifact for whoever next attacks the P08
+acceptance criteria; the JOIN PRECONDITION statement is the first place the
+load-bearing join invariant is written down at all (no prior document stated it); and
+the DRAFT/§7/§8 framing — claims scoped, non-proofs disclaimed, acceptance bar explicit
+— is exactly the posture the process asked for after two NOT-ACCEPTABLE verdicts. v2 was
+misleading (false structural claims, incomplete inventory); this version is honest and
+mechanically checkable. The distance to full acceptance is the named corrections above
+plus the §7 rulings — a bounded amount of work, no architectural rework.
+
+## 5. Not verified (explicit)
+
+- No compilation or test execution; all "emitted Swift is wrong/compiles" statements are
+  code-path certain.
+- Haxe-typer reachability of the refused cells (D1/D2-style casts; read-only-typed cast
+  null at a mutable dest) — not verified by building.
+- Whether the Haxe typer produces the R2 divergence combination (closure tail declared
+  mutable `Array<T>` under a read-only `currentReturnType` in `blockExpression`/
+  `switchExpression`) — not verified by execution.
+- Feature-18 runtime view-vs-copy semantics of `ReadOnlyArray(...)` (the J brief says the
+  view retains the exact existing `TiqianArray` object; I did not audit the Swift runtime
+  constructor). `toMutableArray()` at SwiftRuntime:501 IS a verified copy.
+- Absence of further R5-class text-sniffing decisions beyond the named five re-derivations
+  — "no counterexample found" in the audited range, not proven absence.
+- Whether the uncommitted edits on top of `e1c65975` are identical to what the producer
+  saw — I reviewed the working copy as it stands (state verified in §0).

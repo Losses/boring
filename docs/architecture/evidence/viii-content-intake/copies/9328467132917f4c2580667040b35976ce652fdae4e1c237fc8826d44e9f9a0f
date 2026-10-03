@@ -1,0 +1,19 @@
+package boring
+
+object StringToolsOps {
+    fun padLeft(s: String, len: Int): String {
+        return boring.runtime.StringTools.lpad(s, "0", len)
+    }
+
+    fun ltrim(s: String): String {
+        return boring.runtime.StringTools.ltrim(s)
+    }
+
+    fun rtrim(s: String): String {
+        return boring.runtime.StringTools.rtrim(s)
+    }
+
+    fun replaceDelims(s: String): String {
+        return boring.runtime.StringTools.replace(s, ";", ",")
+    }
+}

@@ -1,0 +1,69 @@
+leftover temp dirs from the killed printed-record test (finally-cleanup did not complete)
+cfg-a: .printed-record-mutation-F2IUY8/
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker-dart.hxml
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker-ts.hxml
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker-swift.hxml
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/swift/_GeneratedFiles.txt
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/swift/boring/PrintedRecord.swift
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/swift/std/UStringException.swift
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/swift/std/UStringFault.swift
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/swift/Package.swift
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/ts/package.json
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/ts/_GeneratedFiles.txt
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/ts/boring/PrintedRecord.ts
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/ts/std/UStringFault.ts
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/ts/std/UStringException.ts
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/dart/_GeneratedFiles.txt
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/dart/pubspec.yaml
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/dart/lib/boring/printed_record.dart
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/removed-marker/samples/boring/PrintedRecord.hx
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member-dart.hxml
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member-ts.hxml
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/swift/_GeneratedFiles.txt
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/swift/boring/PrintedRecord.swift
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/swift/std/UStringException.swift
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/swift/std/UStringFault.swift
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/swift/Package.swift
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/ts/package.json
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/ts/_GeneratedFiles.txt
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/ts/boring/PrintedRecord.ts
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/ts/std/UStringFault.ts
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/ts/std/UStringException.ts
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member/samples/boring/PrintedRecord.hx
+  cfg-a /tmp/p1run/cfg-a/.printed-record-mutation-F2IUY8/explicit-member-swift.hxml
+cfg-b: .printed-record-mutation-kMhqJP/
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker-dart.hxml
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker-ts.hxml
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker-swift.hxml
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/swift/_GeneratedFiles.txt
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/swift/boring/PrintedRecord.swift
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/swift/std/UStringException.swift
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/swift/std/UStringFault.swift
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/swift/Package.swift
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/ts/package.json
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/ts/_GeneratedFiles.txt
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/ts/boring/PrintedRecord.ts
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/ts/std/UStringFault.ts
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/ts/std/UStringException.ts
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/dart/_GeneratedFiles.txt
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/dart/pubspec.yaml
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/dart/lib/boring/printed_record.dart
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/removed-marker/samples/boring/PrintedRecord.hx
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member-dart.hxml
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member-ts.hxml
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/swift/_GeneratedFiles.txt
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/swift/boring/PrintedRecord.swift
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/swift/std/UStringException.swift
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/swift/std/UStringFault.swift
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/swift/Package.swift
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/ts/package.json
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/ts/_GeneratedFiles.txt
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/ts/boring/PrintedRecord.ts
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/ts/std/UStringFault.ts
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/ts/std/UStringException.ts
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member/samples/boring/PrintedRecord.hx
+  cfg-b /tmp/p1run/cfg-b/.printed-record-mutation-kMhqJP/explicit-member-swift.hxml
+
+note: cfg-a (UNFIXED compiler) contains completed swift/ outputs for the removed-marker variant
+(PrintedRecord.swift, std/UString*.swift, Package.swift, _GeneratedFiles.txt) => the PrintedRecord
+probe input does NOT reach the SwiftExpr.hx:2609 crash; its generation completed with exit 0.

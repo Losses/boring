@@ -1,0 +1,20 @@
+package boring
+
+class ConstructorStatementOps(count: Int, values: MutableList<Int>) {
+    var filled: MutableList<Int>
+    var mapped: MutableList<Int>
+    init {
+    val _g = mutableListOf<Int>()
+    for (i in 0 until count + 1) {
+        _g.add(0)
+    }
+    this.filled = _g
+    val pipeline_result = Array(values.size) { pipeline_index ->
+        val v = values[pipeline_index]
+        val incremented = v + 1
+        incremented
+    }.toMutableList()
+    val mapped = pipeline_result
+    this.mapped = mapped
+    }
+}

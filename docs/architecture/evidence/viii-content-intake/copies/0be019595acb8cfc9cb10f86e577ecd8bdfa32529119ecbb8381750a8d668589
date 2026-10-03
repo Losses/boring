@@ -1,0 +1,13 @@
+package tests
+
+import boring.SealedChildOps
+import boring.runtime.test.Test
+
+class SealedChildTests {
+@boring.test.Test
+    fun childMessage() {
+        Test.run("tests.SealedChildTests.childMessage", "tests.SealedChildTests.childMessage: a message-only child of a folded parent keeps the delegated message") {
+                Test.equals("sealed child message", SealedChildOps.childMessage("sealed child message"), null)
+        }
+    }
+}

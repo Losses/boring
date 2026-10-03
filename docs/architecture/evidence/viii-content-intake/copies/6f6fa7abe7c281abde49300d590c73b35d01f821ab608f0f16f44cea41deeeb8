@@ -1,0 +1,30 @@
+use crate::runtime::u_string::UString;
+
+
+#[derive(Clone, PartialEq)]
+pub struct OptionalCtorHolder {
+    pub label: UString,
+    pub count: u32,
+}
+
+impl OptionalCtorHolder {
+    pub fn new(label: Option<UString>, count: Option<u32>) -> Self {
+        let label = label.unwrap_or_else(|| UString::from("default"));
+        let count = count.unwrap_or_else(|| 7);
+        Self {
+            label: label,
+            count: count,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct OptionalCtorOps;
+
+impl OptionalCtorOps {
+    pub fn optional_ctor_ops_render() -> UString {
+        let a = OptionalCtorHolder::new(Some(UString::from("default")), Some(7));
+        let b = OptionalCtorHolder::new(Some(UString::from("x")), Some(3));
+        return UString::from(format!("{}", { let mut __s = UString::new(); __s += (a.label).to_ustring().as_ustr(); __s += &(UString::from("/")); __s += &(UString::from((a.count).to_string().as_str())); __s += &(UString::from("|")); __s += (b.label).to_ustring().as_ustr(); __s += &(UString::from("/")); __s += &(UString::from((b.count).to_string().as_str())); __s }).as_str());
+    }
+}

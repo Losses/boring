@@ -1,0 +1,12 @@
+package tests
+
+import boring.runtime.test.Test
+
+class SwitchNullArmTests {
+@boring.test.Test
+    fun testLabel() {
+        Test.run("tests.SwitchNullArmTests.testLabel", "tests.SwitchNullArmTests.testLabel: a null variant arm lowers to a unit statement") {
+                Test.equals(true, true, null)
+        }
+    }
+}

@@ -1,0 +1,159 @@
+# Module-keyed payload read sites (PIT-297): systematic class-first resolution
+
+Task: t-munibdo3-jwqi · Branch: `fix/rust-module-keyed-read-sites` (own worktree
+`/home/losses/Development/tq-workspace/boring-wt-modkey`, cut from
+`arch/agent-guided-governance` @ `05e375b2`) · Worktree commits:
+`b18b99df` (prerequisite) + `993d7d10` (this fix) · Raw logs: `evidence/raw/`.
+
+## 0. Lineage anchor
+
+`arch/agent-guided-governance` @ `05e375b2` contains NEITHER the audited
+PIT-281 class-keyed patch (`state.exceptionPayloadEnums`, hash-anchored in
+dc-warn/out/rust-keyfix-xcheck) NOR any xs-*/xt-* fixture. The PIT-281 patch
+was uncommitted anywhere (`git log --all -S exceptionPayloadEnums` = empty).
+So commit 1 (`b18b99df`) lands that audited patch VERBATIM
+(dc-warn/out/rust-payload-key-fix/PATCH.diff) plus the eight fixtures. Proof
+of fidelity: my pre-state compiler hashes
+(`evidence/raw/pre.state.txt`) are byte-exact the audited reviewer hashes —
+Compiler `46d8fff4…`, RustDecl `985b5ad7…`, RustEmissionState `173751f3…`,
+RustExpr `5d81f073…`. The shared tree `boring-wt-architecture` was NOT used
+for any measurement (mid-task branch-churn incident reported by the
+coordinator does not affect these readings; all work ran in my own worktree).
+
+## 1. Read-site inventory — criterion 1 (every get() on the four module-keyed maps, at the anchored pre state)
+
+Command: `grep -ohE '(exceptionPayloads|payloadEnumNames|payloadEnumOwners|
+payloadEnumModules)\.get\(' {Compiler,RustDecl,RustExpr,RustType,RustImports}.hx`
+over `packages/compiler/reflaxe/rust/rustcompiler/` → **32 get() sites**
+(`evidence/raw/readsite-counts-pre.txt`; post-state per-map counts in `readsite-counts-post.txt`):
+`exceptionPayloads` = **11**, `payloadEnumNames` = **5**, `payloadEnumOwners`
+= **3**, `payloadEnumModules` = **13**; each map has exactly 1 `set()`.
+
+**Count reconciliation (row title says 33):** the coordinator's 33rd read is
+the `payloadEnumNames.get(payloadEnum.module)` at Compiler.hx:2492 — that site
+exists only BEFORE the PIT-281 patch; the audited earlier fix replaced exactly
+that site with the class-keyed `exceptionPayloadEnums.get`. At the anchored
+pre state (earlier fix applied) it is 32, not 33. The row's "33" was counted
+against a pre-PIT-281 state; nothing else is missing (repo-wide grep: no
+occurrence of these maps' gets outside the five rustcompiler files except the
+Kotlin backend — see below). My count independently confirms the earlier
+worker's 32 vs the coordinator's 33, and now explains the difference.
+
+**Out-of-scope note (documented, not "undecided"):** the four maps are also
+read by the Kotlin backend (`payloadEnumOwners.get` ×10, `exceptionPayloads.get`
+×2, same module-key collision exposure). The row's 不改 clause excludes non-Rust
+backends; they are listed, not changed.
+
+### Key semantics
+- `exceptionPayloads`: class MODULE → payload-enum module. **Class identity is
+  the meaning**; two exception classes in one module collide (last-scanned-wins)
+  — this is the xs-crossmod defect.
+- `payloadEnumNames`/`payloadEnumOwners`: payload-enum MODULE → enum name /
+  owner class. Collide only if two payload ENUMS share one module (other axis).
+- `payloadEnumModules`: enum MODULE → emitted module path. Emission location is
+  genuinely a module property; module keying is correct here.
+
+### Per-site table (32 sites; none undecided)
+Changed (4) — class-in-hand sites resolved class-first, module-keyed fallback kept:
+| # | site | why changed |
+|---|---|---|
+| 1 | RustExpr `catchPayloadAccess` | **the counterexample site** — collision loses E1's payload rewrite (E0609) |
+| 2 | Compiler `caughtPayloadEnumModuleOf` | same collision; reviewer nomination |
+| 3 | RustDecl `caughtPayloadEnumModuleOf` | identical copy of #2; reviewer nomination |
+| 4 | RustType exception-type import path (~:146) | same axis, previously unnominated — a same-module sibling import would name the wrong payload |
+
+Safe as-is (28):
+- `exceptionPayloads` with the **constant** key `"std.UStringException"` (4 sites:
+  Compiler:1503, RustDecl:2875, RustExpr:2194, RustExpr:2310): exactly one class
+  occupies that module key; no user class can share the std module name.
+- `exceptionPayloads.get(cls.get().module)` inside `regionErrorNameOf`
+  (Compiler:2241) and `caughtPayloadEnum` (RustExpr:5860): reached only when the
+  class-keyed `exceptionPayloadEnums` lookup misses (early return precedes), and
+  #2/#4+#1 cover the collision shapes; **documented residual**: a class with
+  neither payload ctor nor message-only ctor sharing a module with a payload
+  class would still fall through — no known shape reaches it (same residual the
+  prior evidence pass recorded).
+- `exceptionPayloads.get(base.module)` in the superclass walk (RustExpr:5891):
+  each iteration resolves one concrete base class by identity from the chain;
+  collision requires two exception classes in the stdlib base's module.
+- All 13 `payloadEnumModules` sites: module semantics intended (emission path;
+  import targets); collides only on the two-enums-one-module axis (§7 item 2).
+- `payloadEnumNames` sites at Compiler:2256 and RustExpr:5868: behind the two
+  safe-with-residual sites above; RustExpr:2198 constant std enum; RustExpr:5897
+  behind the superclass walk; RustType:147 continues changed #4's class-first
+  resolution.
+- All 3 `payloadEnumOwners` sites (Compiler:772, RustExpr:5843, RustExpr:9832):
+  enum-in-hand → owner; module-level meaning (axis note above).
+
+## 2. The change (commit 993d7d10; 4 files, +31/−4)
+
+Uniform shape: consult `state.exceptionPayloadEnums.get(module + "::" + name)`
+first, fall back to the old module-keyed lookup. Both maps are written from the
+same pair at the single `set()` site, so when both hit they agree by
+construction. Patch text: `PIT297-PATCH.diff` (identical to the prior scratch
+evidence's PATCH.diff, re-applied and re-verified from scratch here).
+
+## 3. Fixture matrix — criterion 3 (gen rc / cargo rc; fresh CARGO_TARGET_DIR per run; every cargo run `Compiling generated` count = 1)
+
+| fixture | pre (PIT-281 only) | post (+ this fix) | required | verdict |
+|---|---|---|---|---|
+| **xs-crossmod** | 0/**101** {E0609 `no field 'fault' on type 'F1Fault'`} | 0/**0** {} | 101→0 | **met — the only discriminating fixture and the only displaced row** |
+| xt-twoexc-emit-rev | 0/0 | 0/0 | stays 0 (guard, NOT a discriminator for this fix) | met |
+| xs-twoexc-faultnames | 0/0 | 0/0 | stays 0 | met |
+| xt-classemit | 0/0 | 0/0 | stays 0 (guard only) | met |
+| xt-twoexc-emit | 0/0 | 0/0 | stays 0 (guard only) | met |
+| xs-twoexc | 0/101 {2×E0308} | 0/101 {2×E0308} | converges, stays 101 | met (residual E0308 = the separate `endsWith(…,"Fault")` gate; untouched) |
+| xs-twoexc-swapped | 0/101 {2×E0308} | 0/101 {2×E0308} | same | met |
+| xt-oneexc-nofault | 0/101 | 0/101 | negative control stays 101 | met |
+
+**Stronger than rc:** for all six guard fixtures the generated `.rs` trees are
+**byte-identical pre/post** (`evidence/raw/generated-tree-hash-identity.txt`;
+six hash pairs equal), consistent with class-keyed ≡ module-keyed whenever no
+two exception classes share a module. Only xs-crossmod's tree changes; its
+signature (`evidence/generated/cross_probe.rs.{pre,post}`): pre, `rethrow_e1`
+returns `Result<u32, F1Fault>` carrying raw `e.fault` (E0609) while `rethrow_e2`
+is rewritten; post, both are rewritten
+(`Err(F1Fault::E1Fault(Box::new(E1::new(e))))` under `Result<u32, F1Fault>`).
+
+Row-text corrections (following the code/evidence, per task discipline):
+`xt-twoexc-emit-rev` is NOT this fix's discriminator — it is already 0 at pre
+(that was PIT-281's discriminator) and its generated tree is byte-identical
+pre/post; it serves as a guard. Criterion 3's "101→0" applies to xs-crossmod.
+
+## 4. Reverse ablation — criterion 2's second half
+
+Reverted the four files to the pre state (hashes verified = `pre.state.txt`),
+re-ran xs-crossmod: gen=0, **cargo=101**, first error
+`error[E0609]: no field 'fault' on type 'F1Fault'`
+(`evidence/raw/reverse-xs-crossmod.cargo.stderr`). Files then restored to post;
+`evidence/final-restored-hashes.txt` ≡ `evidence/final-hashes.txt`
+(diff clean), `git status` clean.
+
+## 5. xs-crossmod fixture custody (PIT-301)
+
+Committed as `tests/haxe/xs-crossmod/` (sources `xsxm/{CrossProbe,Faults1,Faults2}.hx`
++ driver `gen/rust.hxml` + README with driver command and per-state expected
+readings) in `b18b99df`. Runner/CI status: NOT collected by any runner (no
+manifest or script references it) — green here is a manual measurement.
+Committing it without the compiler fix makes it a red row (expected 101 at
+commit 1 alone — that is the recorded pre reading).
+
+## 6. Verdict line
+
+xs-crossmod: **101 → 0** with this fix; **0 → 101** on reverse. Compiles, and
+the counterexample passes at compile level. The eight-fixture matrix has this
+one displaced row; all other readings unchanged; six guard trees byte-identical.
+
+## 7. What this does NOT prove
+
+1. No behavioural test ran: all green is `cargo build --offline` compile-level;
+   the generated `rethrow_*` functions were never executed.
+2. The payload-ENUM-module axis is untested: two payload enums declared in one
+   module would still collide in `payloadEnumNames`/`payloadEnumOwners`
+   (documented residual; different fixture shape, out of this row's counterexample).
+3. The 12 Kotlin-backend read sites on the same maps are untouched (row's
+   不改 clause); the same last-scanned-wins collision is expected there.
+4. `xt-oneexc-nofault` / residual E0308 rows belong to the separate
+   `endsWith(…,"Fault")` root cause (PIT-297's other half); unchanged by design.
+5. Runner collection of xs-crossmod (whether `bun run test` globs tests/haxe/*)
+   is NOT verified — flagged for the captain before any CI wiring.

@@ -1,0 +1,44 @@
+package boring
+
+object CaptureSwitchOps {
+    fun describe(error: NoSuchElementError): String {
+        return run {
+    val _g = (error as NoSuchElementError.Message).text
+    val text = _g
+    text
+}
+    }
+
+    fun initialized(error: NoSuchElementError): String {
+        val text = run {
+    val _g = (error as NoSuchElementError.Message).text
+    val value = _g
+    value
+}
+        return text
+    }
+
+    fun classify(value: CaptureSwitchValue): Int {
+        return when (value) {
+            is CaptureSwitchValue.Text -> value.value.length
+            is CaptureSwitchValue.Number -> value.value + 1
+        }
+    }
+
+    fun messageLength(error: NoSuchElementError): Int {
+        return run {
+    val _g = (error as NoSuchElementError.Message).text
+    val text = _g
+    text.length + 1
+}
+    }
+}
+
+sealed interface NoSuchElementError {
+    data class Message(val text: String) : NoSuchElementError
+}
+
+sealed interface CaptureSwitchValue {
+    data class Text(val value: String) : CaptureSwitchValue
+    data class Number(val value: Int) : CaptureSwitchValue
+}

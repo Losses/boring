@@ -1,0 +1,10 @@
+attempt dirs          : 222
+old rc=0 / rc=1       : 150 / 72
+new rc=0 / rc=1       : 150 / 72
+rc disagreements      : 0
+  old_pass -> new_fail: 0
+  old_fail -> new_pass: 0
+attempt-2026* only:
+  old rc=0 / rc=1     : 148 / 67
+  new rc=0 / rc=1     : 148 / 67
+same-message agreement: 197 / 222

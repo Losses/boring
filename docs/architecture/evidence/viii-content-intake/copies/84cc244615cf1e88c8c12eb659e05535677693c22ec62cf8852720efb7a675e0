@@ -1,0 +1,6 @@
+INTEGRITY FAIL: stage evidence hash changed
+  1a2
+  > 4b68ab3847feda7d6c62c1fbcbeebfa35eab7351ed5e78f4ddadea5df64b8015  step-2003673043.stdout
+  12d12
+  < e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  step-2003673043.stdout
+NEG-B2 NEW rc=1

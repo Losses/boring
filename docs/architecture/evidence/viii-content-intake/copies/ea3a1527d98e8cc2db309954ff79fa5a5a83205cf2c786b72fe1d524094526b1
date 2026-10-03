@@ -1,0 +1,330 @@
+# Cross-check: "`currentReturnType` inside a lambda" — P08 implementation review, §6 condition 2
+
+Role: **independent verifier**. I did not implement anything and did not re-review the candidate.
+The single question is whether the rejection condition quoted below is well-founded.
+
+> *§6 condition 2 — `currentReturnType` is the **member's** return type, written once at `:544` and
+> not rebound by `functionLiteral` `:2338-2345`. Therefore the sites the candidate repaired with it —
+> `tryReturnLines` `:5296`/`:5310`, the return-position switch `:810`, the `armLines` fallback
+> `:5675` — still borrow the enclosing function's unrelated return type whenever the return contract
+> belongs to a lambda.*
+> (`dc-warn/out/p08-implementation-review/REPORT.md`)
+
+## Verdict
+
+**CONFIRMED.** The mechanism is exactly as the review states, with two line-number corrections, and I
+built an accepted-source counterexample that emits wrong Swift and fails `swiftc` at all four named
+sites. The sites are **not** safe.
+
+- Source: `currentReturnType` is a `SwiftExpr` **instance field** (`:218`); its only write is in
+  `functionBody` (`:544`), cleared at `:563`; `functionLiteral` (`:2338-2344`) rebinds only
+  `currentFuncReturnsOptional`. The lambda's real contract is `f.t`, already used at `:2349` to print
+  the closure result type. All four named sites (`:810`, `:5296`, `:5310`, `:5675`) are exactly as cited.
+- Construction: a new fixture (not the review's `probeE`) is **accepted** by the candidate
+  (`haxe` rc=0) and then produces **7 `swiftc` errors**, of which 6 are directly the lambda borrow
+  (the 7th is condition 1's `return`-stripping bug, exposed by the same shape). The pristine base
+  produces 13 errors on the same fixture.
+- Reachability: **live**, not latent. Ordinary Haxe: an annotated lambda or a named local function
+  returning `ReadOnlyArray<T>`, body containing a try-return or a multi-statement `return switch`,
+  inside a member whose return type differs.
+
+---
+
+## 0. Method and anchors
+
+| item | value |
+|---|---|
+| candidate compiler | `dc-warn/swc-try-fix-wt/wt/packages/compiler/reflaxe/swift/swiftcompiler/SwiftExpr.hx`, sha256 `bf7dde2cec3b89464738019c733eb6f1d8e666bbc976176bf30cc77007be6078`, 7041 lines (matches the review anchor) |
+| base compiler | `boring-wt-architecture/…/SwiftExpr.hx`, sha256 `0a9bed91ef91ca68b75a2e7e4e2482d2743a16fe5caf4150018686c2131e33f0` (matches the review anchor) |
+| toolchain | haxe 4.3.7 (PATH from `chainA-fixed-rerun/evidence/env.json`); swiftc 6.2.4 via `p09-chainA-work/swift-shim-bin` |
+| execution | both trees copied to `/tmp/lcx/{cand,base}`; **all** generation/typecheck ran with cwd under `/tmp`. Nothing was written to the repository, the candidate worktree or the review |
+
+I did **not** reuse the review's `probeE`; I authored a fresh fixture so the construction is
+independent. Exit codes are raw (`cmd > log 2>&1; echo $?`), never through a pipe.
+
+Integrity after all runs: candidate `SwiftExpr.hx` = `bf7dde…`, base = `0a9bed…`,
+`REPORT.md` = `41d61f06e8d7ee79ce749f737895aff53a4d34add86355fb12cbeb523a51dd5b`; the
+`tests/ts/package-artifacts.test.ts` trap file is intact (`grep -c 'Test.equals'` = **5**) in both
+trees; no test was run.
+
+*(Environmental note, not caused by me: `out/semantic-pass-exceptions.json` in both trees was written
+by some other process during this session — mtimes 11:31:25 / 11:32:57. I ran no compiler with either
+tree as cwd. Also, `job_list` shows no background jobs of mine.)*
+
+---
+
+## 1. Source verification (mechanism)
+
+### 1.1 Is `currentReturnType` an instance member?
+
+**Yes.** `class SwiftExpr {` opens at **`:76`**; `var currentReturnType:Null<Type> = null;` is at
+**`:218`**, alongside the other per-compiler fields (`currentFuncReturnsOptional` `:137`,
+`currentClass` `:212`, …). `SwiftExpr` is instantiated once per compilation at
+`SwiftDecl.hx:40` (`this.expr = new SwiftExpr(imports, types)`). It is a parameter nowhere, and no
+caller threads a return type down to the value routes.
+
+The full reference set in the candidate (from `grep -n`):
+
+```
+218  var currentReturnType:Null<Type> = null;        <- declaration (instance field)
+544  currentReturnType = switch (Context.follow(f.field.type)) { ... }   <- ONLY write
+563  currentReturnType = null;                       <- cleared at the end of functionBody
+810  return switchReturn(inner, depth, false, currentReturnType);         <- named site 3
+812-814  ... readOnlyReturn / retText / intToFloat ...                     <- sibling, same field
+1213-1214 blockExpression: arrayBoundaryText(value, currentReturnType)     <- unnamed, same defect
+5296   destinationValueText(bodyValueExpr, currentReturnType, body.value)  <- named site 1
+5310   destinationValueText(handlerValueExpr, currentReturnType, handler.value) <- named site 2
+5675   final boundaryDestination = destination != null ? destination : currentReturnType; <- named site 4
+```
+
+### 1.2 Does `functionLiteral` rebind it?
+
+**No.**
+
+```
+:2338  function functionLiteral(f:TFunc):String {
+:2339      final previousOptional = currentFuncReturnsOptional;
+:2340      currentFuncReturnsOptional = isNullLeafType(f.t);
+:2341      final result = functionLiteralInner(f);
+:2342      currentFuncReturnsOptional = previousOptional;
+:2343      return result;
+:2344  }
+```
+
+Only the *optionality* flag is saved/restored. `functionLiteralInner` (`:2346-2365`) prints the
+closure head from the lambda's own type — `final ret = types.of(f.t);` (`:2349`), head assembled at
+`:2354` — but lowers the body through `blockLines(bodyStmts, 1)` (`:2364`), i.e. through the same
+`stmtLines` / `tryReturnLines` / `switchReturn` machinery that reads `currentReturnType`. So a
+`return` inside a lambda is converted against the **member's** return type.
+
+`functionLiteralNamed` (`:2376-2382`) delegates to `functionLiteral`, so a **named local function**
+inherits the same defect (demonstrated as case K).
+
+### 1.3 What *is* the correct return type inside a lambda, and where is it?
+
+**`f.t`** — the `TFunc`'s declared/inferred return type. The review's pointer is correct. It is
+available at the exact place a rebind belongs:
+
+- `functionLiteral(f:TFunc)` — `f.t` is in scope at `:2339`.
+- `functionLiteralInner(f:TFunc)` — `f.t` is read at `:2349` and turned into the closure result type
+  printed at `:2354`, which is precisely the type the four sites then contradict.
+
+A minimal repair consistent with the review's demand is therefore: save `currentReturnType`, set it
+to `f.t` around `functionLiteralInner` and restore it — mirroring the
+existing `currentFuncReturnsOptional` save/restore at `:2339`/`:2342`.
+
+### 1.4 Line-number corrections
+
+| review citation | actual lines | verdict |
+|---|---|---|
+| `currentReturnType` written once at `:544`, cleared `:563` | `:544`, `:563` | exact ✓ |
+| `functionLiteral` `:2338-2345` (§6 condition 2) | `functionLiteral` = `:2338-2344`; `:2345` is blank | ±1, immaterial |
+| `functionLiteral` `:2338-2358` (§1 table row 1) | **wrong range**: `:2346-2365` is `functionLiteralInner` | **correct to `:2338-2344`** (save/restore is `:2339-2342`) |
+| "`functionLiteralInner` prints the closure head from `f.t` `:2347-2349`" | `f.t` read at `:2349`; **head string built at `:2354`** | **cite `:2354` for the head** |
+| `tryReturnLines` body arm `:5296`, handler arm `:5310` | `:5296`, `:5310` | exact ✓ |
+| return-position switch `:810` | `:810` (`switchReturn(inner, depth, false, currentReturnType)`) | exact ✓ |
+| `armLines` fallback `:5675` | `:5675` (branch `:5676-5682`) | exact ✓ |
+
+All four *site* numbers are correct. Only the two `functionLiteral`/`functionLiteralInner` citations
+need fixing; the `:2338-2358` range wrongly spans into `functionLiteralInner`.
+
+*Adjacent fact, not a correction:* `blockExpression` `:1213-1214` consults `currentReturnType` too.
+The candidate did not touch it (it is absent from `compiler-base-vs-cand.diff`), so it is outside
+condition 2's four-site list — but it is the same mechanism and would need the same cure.
+
+---
+
+## 2. Falsification attempt by construction
+
+### 2.1 Fixture
+
+`evidence/fixture/MXLambda.hx` (package `mx`, module `MXLambda`), plain Haxe with only
+`std.ReadOnlyArray`; no private defines, no casts. Helper `MXSource` returns `Array<Int>` /
+`Array<String>`; `MXError` is an enum-carrying `haxe.Exception` (required by the V04 gate). Cases:
+
+| case | construct | enclosing member returns | lambda/local fn returns | named site exercised |
+|---|---|---|---|---|
+| A `aTryReturn` | lambda, multi-stmt, try-return | `Int` | `ReadOnlyArray<Int>` | `:5296` |
+| B `bSwitchReturn` | lambda, single `return switch` | `Int` | `ReadOnlyArray<Int>` | *(control: routes to `switchExpression` `:5558`)* |
+| C `cWrongElement` | lambda, single `return switch`, empty arm | `ReadOnlyArray<String>` | `ReadOnlyArray<Int>` | *(same control)* |
+| D `dWrongElementTry` | lambda, multi-stmt try-return, empty body value | `ReadOnlyArray<String>` | `ReadOnlyArray<Int>` | `:5296` |
+| E `eTryBinding` | try-BINDING inside lambda | `Int` | `Int` (local `: ReadOnlyArray<Int>`) | *(control: `:5253`/`:5267` uses `v.t`)* |
+| F `fMatching` | lambda try-return, member type == lambda type | `ReadOnlyArray<Int>` | `ReadOnlyArray<Int>` | *(control)* |
+| G `gSwitchReturnMulti` | lambda, **multi-stmt**, `return switch` | `Int` | `ReadOnlyArray<Int>` | `:810` → `:5675` |
+| H `hWrongElementMulti` | as G, empty arm | `ReadOnlyArray<String>` | `ReadOnlyArray<Int>` | `:810` → `:5675` |
+| I `iWrongElementHandler` | lambda try-return, empty **handler** arm | `ReadOnlyArray<String>` | `ReadOnlyArray<Int>` | `:5310` |
+| J `jSwitchStatement` | lambda, statement-position switch | `Int` | `ReadOnlyArray<Int>` | `:5521` → `:5675` (destination==null fallback) |
+| K `kNamedLocal` | **named local function**, try-return | `Int` | `ReadOnlyArray<Int>` | `:5296` via `functionLiteralNamed` |
+
+Generation: `haxe swift.hxml` → **rc=0 on both the candidate and the pristine base**. The compiler
+accepts these programs. (`-D swift-output` under `/tmp`.)
+
+### 2.2 Measured result on the candidate
+
+`evidence/logs/typecheck-cand.log`: `swiftc -typecheck Runtime.swift std/UString*.swift mx/MXLambda.swift`
+→ **rc=1, 7 errors, 2 warnings**. Base, same fixture: **rc=1, 13 errors, 0 warnings**
+(`evidence/logs/typecheck-base.log`). Candidate error lines: 37, 78, 131, 147, 164, 174, 191;
+base additionally fails 51, 63, 96, 98, 113 and 162.
+
+Cleanest single witness for `:5296` (**member `Int`, lambda `ReadOnlyArray<Int32>`**):
+
+```swift
+// candidate, mx/MXLambda.swift (case A)
+let f = { (flag: Bool) -> ReadOnlyArray<Int32> in
+    ...
+    do {
+        return MXSource.first()          // TiqianArray<Int32> — NOT converted
+    } catch is MXError {
+        return MXSource.second()
+    } ...
+}
+```
+```
+mx/MXLambda.swift:37:25: error: cannot convert value of type 'TiqianArray<Int32>'
+                        to closure result type 'ReadOnlyArray<Int32>'
+```
+
+Witness that the *wrong type is actually borrowed* rather than simply not applied — **member
+`ReadOnlyArray<String>`, lambda `ReadOnlyArray<Int32>`**, empty body value (case D, `:5296`):
+
+```swift
+// candidate (case D): the member's element type is printed inside the lambda
+do {
+    return ReadOnlyArray<String>()       // lambda requires ReadOnlyArray<Int32>
+} catch is MXError {
+    return ReadOnlyArray(MXSource.second())
+}
+```
+```
+mx/MXLambda.swift:78:16: error: cannot convert value of type 'ReadOnlyArray<String>'
+                        to closure result type 'ReadOnlyArray<Int32>'
+```
+The base printed `TiqianArray<Int32>([])` here. So the candidate changed "no conversion" into
+"conversion against the enclosing member's element type" — the definition of borrowing the wrong type.
+
+Multi-statement `return switch` (case G/H, `:810` → `:5675`):
+
+```swift
+// candidate (case G): destination = currentReturnType = Int32 -> no conversion
+switch c {
+    case .one: return MXSource.first()      // :131 error
+    case .two: return MXSource.second()
+}
+// candidate (case H): destination = currentReturnType = ReadOnlyArray<String>
+switch c {
+    case .one: return ReadOnlyArray<String>()   // :147 error — wrong element
+    case .two: return ReadOnlyArray(MXSource.first())
+}
+```
+
+Handler arm `:5310` (case I): `return ReadOnlyArray<String>()` at `:164` — same error.
+Named local function (case K): closure with `-> ReadOnlyArray<Int32>` but body
+`return MXSource.first()` at `:191` — same error.
+
+Statement-position switch (case J) falls back with `destination == null` to `currentReturnType`,
+leaving every arm unconverted; it additionally exhibits condition 1's `return`-stripping bug
+(closure result vs `Void` at `:174`), so it is supporting-but-confounded evidence.
+
+**Controls that came out correct on the candidate** (and wrong on base where base lacked the fix):
+`eTryBinding` (binding route `:5253`/`:5267`, handed `v.t` → `view = ReadOnlyArray(...)`),
+`fMatching` (member type == lambda type), and both single-statement `return switch` cases B/C.
+B/C matter for the gate: that shape is lowered by `switchExpression` (`sw.t`), **not** by `:810`/
+`:5675`, so it is already correct and cannot be used to test the switch half of this condition.
+
+### 2.3 Outcome
+
+**Confirmed by construction.** I can and did produce a case whose generated Swift uses the member's
+return type inside a lambda and fails `swiftc` at `:5296` (cases A, D, K), `:5310` (case I) and
+`:810`→`:5675` (cases G, H). The `destination==null` fallback at `:5675` is also reached (case J),
+and its arms are likewise left unconverted, but that case's surfaced error belongs to condition 1's
+`return`-stripping, so I count J as supporting rather than clean evidence. Generated code is captured
+verbatim in `evidence/generated/MXLambda-cand.swift` (base in `…-base.swift`).
+
+*Reachability gate discovered while probing:* a lambda whose body is **exactly** `return try { … }
+catch …` is refused by the compiler (`rc=1`, "try region lowers at statement, initializer, or return
+position") because `functionLiteralInner`'s single-return branch (`:2356-2360`) calls `expr(r)` on
+the try region. The site is therefore reached only with a multi-statement body — which is still
+ordinary accepted Haxe (one preceding statement such as `if (flag) throw …` suffices, as in case A).
+
+---
+
+## 3. Reachability assessment — **live, not latent**
+
+1. **The input is accepted.** `haxe` rc=0 on the frozen candidate for the whole fixture. These are
+   plain lambdas / named local functions with an explicit `ReadOnlyArray<T>` result, try-returns and
+   switches — no private API, no casts, no special defines.
+2. **The emitted code is rejected by the vendor compiler.** `swiftc -typecheck` rc=1 with 7 errors;
+   six are the wrong-contract conversion, one is the separate `return`-stripping defect. A program
+   the Haxe compiler accepted does not compile natively.
+3. **The shape is P08's own subject.** The read-only boundary inside a value-producing route is what
+   the candidate changes; the lambda is just that route one function level in. The review's
+   restatement — SOL2/ASTRA's "a local initializer cannot borrow the enclosing function's unrelated
+   return type" — is exactly what case A/D/G/H/I/K reproduce.
+4. **Attribution.** Base fails the same sites (13 errors), so this is **not a regression introduced
+   by the patch** — the candidate fixes four routes (B, C, E, F) and leaves seven lambda routes
+   failing: A, D, G, H, I, K by the wrong contract, and J by condition 1's
+   `return`-stripping (with its arms unconverted as well). But condition 2 is a claim about *fact-handoff correctness of
+   the repaired sites*, not about regression; and at D/H/I the candidate actively moved the output
+   from an unconverted mutable array to a read-only array of the member's element type, i.e. it now
+   *uses* `currentReturnType` where it previously did not convert at all. That is precisely why the
+   review's demand matters: had those sites been handed `f.t`, the same code would be correct.
+
+**Honest scope limit.** This shows accepted source triggers the defect. I did **not** attempt to
+reproduce it through the repo's own acceptance fixture (`tests/swift-readonly-boundary`) or its
+collector. So the correct statement is "reachable from accepted source today", not "the repo's
+current fixtures already exercise it". Nothing in the compiler's policy surface blocks the shape.
+
+---
+
+## 4. Is the rejection condition well-founded?
+
+**Yes.** The demand "carry the actual return contract (seeded from `f.t` for a literal, saved/restored
+around `functionLiteralInner`) and use it at `:810`, `:5296`, `:5310`, `:5675`" is:
+
+- **Necessary for those sites.** All four read a member-scoped field. Inside a lambda the closure
+  result type is `types.of(f.t)` while the converted arms are lowered against a different type; the
+  emitter can and does write two contradictory contracts into one closure. Cases D and H show it
+  printing the member's element type.
+- **Well-aimed.** `f.t` is in scope exactly where the save/restore would go, mirroring the existing
+  `currentFuncReturnsOptional` handling; this is a small, targeted interface change, not a redesign.
+- **Not discharged by the passing fixtures.** The single-statement `return switch` form (B/C) is
+  already correct because it routes through `switchExpression` (`sw.t`); only a **multi-statement**
+  body reaches `:810`/`:5675`. Any acceptance probe for this condition must therefore use a
+  multi-statement lambda body, or it will pass without exercising those two sites at all. That is a
+  refinement of *how to test* the condition, not a weakness in it.
+
+So the four sites are **not** safe, and condition 2 is a legitimate rejection ground.
+
+---
+
+## 5. What I could not settle
+
+1. Whether the proposed fix (seed `f.t` in `functionLiteral`) interacts badly with the
+   `switchExpression`/`sw.t` route or with `functionLiteralInner`'s single-return fast path
+   (`:2356-2360`). That is implementation work, not this cross-check.
+2. `blockExpression` `:1213-1214` inside a lambda was **not** exercised; it is not one of the four
+   named sites and is untouched by the patch, but shares the mechanism. If the field is rebased on
+   `f.t`, this site should be considered too.
+3. I did not re-verify the review's condition 1 (gap-fixture diagnostics / wrong control exit). Case J
+   incidentally reproduced its `return`-stripping signature inside a lambda, but I did not audit it.
+4. I did not run the repo test suite (and did not need to); the `MathNaNTestSupport.hx` trap file was
+   left intact (`Test.equals` count = 5).
+5. No blocker prevented the central verification; the claim is settled by construction.
+
+---
+
+## 6. Evidence index (all under `evidence/`)
+
+| file | what it is |
+|---|---|
+| `fixture/MXLambda.hx`, `fixture/swift.hxml` | the independently authored counterexample (sha256 `0fff6289…e1fb`) |
+| `generated/MXLambda-cand.swift` | candidate output, sha256 `d5361406…daec` — contains the wrong conversions |
+| `generated/MXLambda-base.swift` | pristine-base output, sha256 `ac34a4b4…1fa97` — attribution |
+| `logs/gen-cand.log`, `logs/gen-base.log` | generation: rc=0 both *(empty logs)* |
+| `logs/typecheck-cand.log` | candidate: rc=1, 7 errors / 2 warnings |
+| `logs/typecheck-base.log` | base: rc=1, 13 errors / 0 warnings |
+| `logs/gen-single-stmt-try-rejected.log` | the single-statement `return try` lambda is refused (reachability gate) |
+| `logs/compiler-base-vs-cand.diff` | `diff -u` base vs candidate `SwiftExpr.hx` (9 hunks; used to attribute each generated line) |
+| `logs/swift-base.hxml` | base-tree hxml (same fixture, different `-D swift-output`) |
+| `logs/summary.txt` | hashes + the two typecheck tallies |
+| `source-verification.txt` | raw line-numbered slices of the candidate source, all `currentReturnType` references, both tree hashes |
