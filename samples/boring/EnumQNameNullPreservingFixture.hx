@@ -18,8 +18,11 @@ class EnumQNameNullPreservingFixture {
     public static function kindOfValue(tag:R42ShapeTag):String
         return Type.enumConstructor(tag);
 
+    static inline function coalesceR42(maybe:Null<R42ShapeTag>):R42ShapeTag
+        return if (maybe == null) R42ShapeTag.Alpha else maybe;
+
     public static function kindOfCoalesce(maybe:Null<R42ShapeTag>):String
-        return Type.enumConstructor(if (maybe == null) R42ShapeTag.Alpha else maybe);
+        return Type.enumConstructor(coalesceR42(maybe));
 }
 #else
 class EnumQNameNullPreservingFixture {}
