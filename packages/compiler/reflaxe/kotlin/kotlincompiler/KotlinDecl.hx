@@ -1173,6 +1173,11 @@ class KotlinDecl {
                 }
             case _:
         }
+#if (kotlin_fold_debug || kotlin_emit_origins)
+        // Trace class-field declarations so generated lines like
+        // "var next: WidenedFieldNonNull" map back to the Haxe field.
+        KotlinExpr.emissionTrace("FIELDDECL", KotlinNameEscape.escape(field.name), field.pos);
+#end
         return [
             '    ${effVis}${kw} ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}$initStr'
         ];
