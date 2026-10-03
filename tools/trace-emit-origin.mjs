@@ -72,7 +72,9 @@ function printTrace(data, line, column) {
   const frame = data.frames && frameId < data.frames.length ? data.frames[frameId] : '<unknown>';
 
   const origin = Array.isArray(entry) && entry.length >= 8 ? entry[7] : "exact";
-  console.log(`line ${line} (col ${column}) [${origin}] -> frame=${frame}`);
+  const inheritedFrom = origin === "inherited" && entry.length >= 9 && entry[8] >= 0 ? entry[8] : -1;
+  const suffix = inheritedFrom >= 0 ? ` (from line ${inheritedFrom + 1})` : "";
+  console.log(`line ${line} (col ${column}) [${origin}] -> frame=${frame}${suffix}`);
 
   if (entry.length >= 5) {
     const sourceFileId = entry[1];
