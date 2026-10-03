@@ -328,7 +328,8 @@ class EmitSink {
                             sourceEnd: sourceEnd,
                             sourceLine: sourceLine,
                             sourceColumn: sourceColumn,
-                            callStack: event.callStack.copy()
+                            callStack: event.callStack.copy(),
+                            origin: "exact"
                         };
                         used.set(fileEvents[j].globalIndex, true);
                         cursor = j + 1;
@@ -352,6 +353,35 @@ class EmitSink {
             }
             lineMappings.push(mapping);
             wi++;
+        }
+
+        // Backfill every no-event line from the nearest preceding exact
+        // mapping so that, for any file with at least one mapped line, every
+        // generated line carries a record. Lines before the first exact
+        // mapping (module header, struct/impl prologue, the first function
+        // signature) have no preceding event to inherit from and stay null;
+        // they are genuinely source-less boilerplate, never guessed at.
+        // Inherited entries are cloned (never aliased) and explicitly marked
+        // "inherited" so they cannot masquerade as exact event matches.
+        var wi2 = 0;
+        var nearest:Null<EmitLineMapping> = null;
+        while (wi2 < lineMappings.length) {
+            final existing = lineMappings[wi2];
+            if (existing != null) {
+                nearest = existing;
+            } else if (nearest != null) {
+                lineMappings[wi2] = {
+                    frameId: nearest.frameId,
+                    sourceFileId: nearest.sourceFileId,
+                    sourceStart: nearest.sourceStart,
+                    sourceEnd: nearest.sourceEnd,
+                    sourceLine: nearest.sourceLine,
+                    sourceColumn: nearest.sourceColumn,
+                    callStack: nearest.callStack.copy(),
+                    origin: "inherited"
+                };
+            }
+            wi2++;
         }
 
         return new EmitOriginMap(filePath, header.revision, header.haxeVersion,
