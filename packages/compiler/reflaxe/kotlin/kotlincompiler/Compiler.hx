@@ -14,6 +14,7 @@ import reflaxe.ReflectCompiler;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import EmitSink;
 
 /**
     reflaxe plugin producing the Kotlin target of the translatable subset.
@@ -39,6 +40,10 @@ class Compiler extends PluginCompiler<Compiler> {
     var current:Null<KotlinDecl> = null;
 
     public static function use() {
+        // The emitter runs during typing (expression lowering), well before
+        // generateFilesManually(); activating here catches every record.
+        if (Context.defined("kotlin_emit_origins"))
+            EmitSink.activate();
         final compiler = new Compiler();
         haxe.macro.Context.onAfterTyping(ValueTypeSupport.validateModules);
         // Registered before the framework's own callback so the linkage
@@ -299,8 +304,11 @@ class Compiler extends PluginCompiler<Compiler> {
                 final testFileRel = kotlinTestOutput + "/" + modulePath(module);
                 final savePath = computeRelativePath(kotlinOutput, testFileRel);
                 PackageArtifacts.saveTreeFile(output, savePath, content);
+                writeOriginSidecar(savePath, content);
             } else {
-                PackageArtifacts.saveTreeFile(output, modulePath(module), content);
+                final savePath = modulePath(module);
+                PackageArtifacts.saveTreeFile(output, savePath, content);
+                writeOriginSidecar(savePath, content);
             }
         }
 
@@ -848,6 +856,18 @@ class Compiler extends PluginCompiler<Compiler> {
 
     function modulePath(module:String):String {
         return module.split(".").join("/") + ".kt";
+    }
+
+    /** Writes the emit-origin sidecar for a saved module when the define is active. */
+    function writeOriginSidecar(savePath:String, content:String):Void {
+        if (!Context.defined("kotlin_emit_origins"))
+            return;
+        final map = EmitSink.finalizeFile(savePath, content);
+        if (map == null)
+            return;
+        final json = map.write();
+        output.saveFile(savePath + ".emit-origin.json", json);
+        PackageArtifacts.record(savePath + ".emit-origin.json", json);
     }
 }
 #end
