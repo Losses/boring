@@ -39,20 +39,20 @@ result that exists in the tree
 from a target consumer that uses it. Refresh the inventory when a candidate
 is integrated.
 
-**Note (2026-10-01 measured): the four `tracked diff` values above are not object ids; `git cat-file`
-cannot retrieve any of them**. They refer to the **uncommitted diff state at that time** in those four worktrees — uncommitted diffs
-have no object id, so any query of the form `git show 5adb5f00` will fail:
+**Note (2026-10-01, verified): the four `tracked diff` values above are not object ids; `git cat-file`
+cannot retrieve any of them.** They refer to the **diff states that were uncommitted at the time** in those four worktrees — an uncommitted diff
+has no object id, so any lookup of the form `git show 5adb5f00` fails:
 
 | Value | `git cat-file -t` | Explanation |
 |---|---|---|
-| `ae73c11e` (marked HEAD) | **commit** | The only retrievable one |
-| The four `tracked diff` values | All four **ABSENT** | Also **not present** in their respective worktrees — they were never meant to be |
+| `ae73c11e` (marked as HEAD) | **commit** | The only one retrievable |
+| The four `tracked diff` values | all four **ABSENT** | Also **not in** their respective worktrees — they should not be there in the first place |
 
-**This is a notation problem, not a broken reference**: the author wrote "HEAD" separately from "tracked diff", showing they **knew**
-the two are different; but writing diff state as bare hex makes it read the same as a commit hash.
-**Rule (addendum)**: when referencing **uncommitted** state, do not write a bare hash — write **worktree name + file name + review date**,
-or write a `git diff --stat` summary from that time. A bare hash promises "retrievable via `cat-file`",
-but uncommitted state cannot fulfill that promise, so **every such reference will fail when a reader tries to resolve it**,
+**This is a notation problem, not a stale reference**: the author wrote "HEAD" and "tracked diff" separately, which shows they **know**
+the two are different; but writing the diff state as a bare hex value makes it read the same as a commit hash.
+**Rule (supplement)**: when citing **uncommitted** state, do not write a bare hash — write **worktree name + file name + recheck date**,
+or the `git diff --stat` summary from that time. A bare hash promises "retrievable via `cat-file`",
+but an uncommitted state cannot honor that promise, so **every such reference will fail when a reader tries to resolve it**,
 and the failure reason ("it was never an object") looks **exactly the same** as the staleness reason ("it was cleaned up").
 
 | Producer or existing query | Concrete result | Current consumer and limit |
@@ -63,7 +63,9 @@ and the failure reason ("it was never an object") looks **exactly the same** as 
 | `SemanticPassRegistry` consumer rows | Registry validation at macro time over the reflaxe tree | The `ComparatorPlan` row is removed after a verified review of real imports and calls across all five targets. The `EnumCycleDetector` row now lists rust and swift only: dart, kotlin and ts mention the module only inside comments and reach it through `PolicyQueries`. The detector ignores comment and string-literal mentions and requires an exact module name, so a longer name with the same prefix is not a consumer. `tests/haxe/semantic-registry-comment-control/run.sh` runs the real registry validation over sandbox trees and rejects comment-only, string-only and same-prefix mentions while accepting a real import and call. `tools/registry-guard/backstop.ts` mirrors the corrected rows. |
 | `SourceOriginTrace.beforeRewrites` and `SourceOriginFragment` | Source occurrence spans alongside generated TypeScript text | TypeScript emitters compose these fragments into an optional sidecar. The package `tsc` path now resolves selected diagnostics to the second matching Haxe occurrence, retains both child streams and status, and conservatively reports invalid metadata as `Unmapped`. This is focused diagnostic coverage. |
 
-The [candidate integration queue](investigations/architecture-round-2/candidate-integration-queue.md)
+The candidate integration queue (workspace task board: round-2 fact
+extraction, task t-muso22y0-5hn2; the queue file moved to the workspace
+archive with the rest of the round-2 investigation)
 names the independent comparison, Kotlin, and diagnostic acceptance work. An API's existence is
 evidence of a producer, while each migration still needs a named consumer,
 removed duplicate decision, and target compilation and behavior result.
