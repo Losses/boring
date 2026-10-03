@@ -37,6 +37,7 @@ import ValueTypeSupport.ValueTypeOperator;
 import SourceComparisonAnalysis;
 import SourceComparisonAnalysis.SourceComparisonRequest;
 import SourceComparisonAnalysis.SourceAdmissionResult;
+import EmitSink;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Kotlin.
@@ -1186,9 +1187,9 @@ class KotlinExpr {
                 return stringBufToStringBindingLines(v, stripWrap(init), depth);
             case TVar(v, init) if (init != null):
                 final kw = bodyWritesLocal(v.id) ? "var" : "val";
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
                 if (bodyWritesLocal(v.id))
-                    emissionTrace("MUTDECL", localName(v), Context.currentPos());
+                    emissionTrace("MUTDECL", localName(v), e.pos);
 #end
                 switch (stripWrap(init).expr) {
                     case TLocal(origV) if (asListReturn.exists(origV.id)):
@@ -1236,7 +1237,7 @@ class KotlinExpr {
                     initText = extractAtDecl ? intToFloatText("(" + initText + ")!!") : intToFloatText(initText);
                     return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
                 }
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
                 if (extractAtDecl)
                     emissionTrace("DECL", initText, e.pos);
 #end
@@ -1326,7 +1327,7 @@ class KotlinExpr {
                         var retText = expr(ret);
                         functionTypeExpected = wasFunctionTypeExpected;
                         if (rendersNullable(ret) && !isNullType(currentReturnType) && !currentReturnAllowsNullable) {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
                             emissionTrace("RETURN", retText, ret.pos);
 #end
                             retText = hardenAppend(retText, "!!");
@@ -1700,7 +1701,7 @@ class KotlinExpr {
                 // still extracts; the safe-call form yields Int? and Kotlin
                 // rejects it as a range endpoint (NonNullRangeBound).
                 if (isNullType(subj.t) && !receiverProven(subj)) {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
                     emissionTrace("LOOP_BOUND", expr(subj), subj.pos);
 #end
                     return expr(subj) + "?." + suffix + "!!";
@@ -2535,7 +2536,7 @@ class KotlinExpr {
         if (isIntOrLongType(emittedType(r)) && isFloatType(l.t))
             value = intToFloatText(value);
         if (!isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!")) {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
             emissionTrace("ASSIGN", value, r.pos);
 #end
             value = hardenAppend(value, "!!");
@@ -2792,7 +2793,12 @@ class KotlinExpr {
         rendered text with the compiler call stack, so each Kotlin warning
         instance maps to the emitting branch. (EmissionTrace) */
     public static function emissionTrace(tag:String, text:String, pos:Dynamic):Void {
+        #if kotlin_fold_debug
         Sys.stderr().writeString("EMITSTACK " + tag + " [" + text + "]\n" + haxe.CallStack.toString(haxe.CallStack.callStack()) + "\n");
+        #end
+        #if kotlin_emit_origins
+        EmitSink.record(tag, pos, text);
+        #end
     }
 
     function addProofs(p:{locals:Array<Int>, fields:Array<String>}):Void {
@@ -2970,7 +2976,7 @@ class KotlinExpr {
             case _: false;
         };
         if (isNullInitialized(subj) && !(stableSubject && (receiverProven(subj)))) {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
             emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
             // Decision only: no registration here. nullableAccess is also
@@ -3026,7 +3032,7 @@ class KotlinExpr {
         // which says nothing about the field's own value and would leave a
         // bare dot exactly where Kotlin refuses the smart cast. (PIT-388)
         if (isNullType(subj.t) && !valueProven(subj)) {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
             emissionTrace("ACCESS_FALLBACK", expr(subj), subj.pos);
 #end
             return "!!.";
@@ -3203,6 +3209,12 @@ class KotlinExpr {
                     return false;
                 return rendersNullable(t) || (f != null && rendersNullable(f));
             case TField(subj, _):
+                // A field read the typer widens to Null<T> only because the
+                // receiver is nullable renders through the receiver's own
+                // extraction, so the declared non-null property value stays
+                // non-null. (DeclaredFieldNonNull)
+                if (extractedNonNullFieldRead(e))
+                    return false;
                 // A nullable receiver is extracted with `!!.` when the Haxe
                 // expression already proves it present.  Looking only at the
                 // receiver would incorrectly widen a non-null field read back
@@ -3837,7 +3849,7 @@ class KotlinExpr {
         if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull && !widenedExtracted
             && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
             emissionTrace("OPERAND proven=" + (valueProven(e)) + " id=" + (switch (stripWrap(e).expr) { case TLocal(v): Std.string(v.id); case _: "f"; }) + " nullInit=" + nullInit, rendered, e.pos);
 #end
             rendered = hardenAppend(rendered, "!!");
@@ -4933,7 +4945,7 @@ class KotlinExpr {
                     // A receiver whose rendered value is nullable unwraps so
                     // the captured `_s` is a plain String; a non-null String
                     // needs no assertion. (CharCodeAtReceiverExtraction)
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
                     if (rendersNullable(subj))
                         emissionTrace("CHARCODE", expr(subj), subj.pos);
 #end
@@ -5379,13 +5391,13 @@ class KotlinExpr {
             if (!isNullInitialized(a))
                 addProofExpr(a);
             if (valueProven(a)) {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
                 emissionTrace("ARG_ASSERT", text, a.pos);
 #end
                 return hardenAppend(text, "!!");
             }
             else {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
                 emissionTrace("ARG_ELVIS", text, a.pos);
 #end
                 return hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
@@ -5436,13 +5448,13 @@ class KotlinExpr {
                     if (!isNullInitialized(a))
                         addProofExpr(a);
                     if (valueProven(a)) {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
                         emissionTrace("CTOR_ASSERT", text, a.pos);
 #end
                         hardenAppend(text, "!!");
                     }
                     else {
-#if kotlin_fold_debug
+#if (kotlin_fold_debug || kotlin_emit_origins)
                         emissionTrace("CTOR_ELVIS", text, a.pos);
 #end
                         hardenAppend(text, " ?: throw IllegalArgumentException(\"argument is null\")");
