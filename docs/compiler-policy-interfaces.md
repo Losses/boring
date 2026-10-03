@@ -63,7 +63,9 @@ is integrated.
 | `SemanticPassRegistry` consumer rows | Registry validation at macro time over the reflaxe tree | The `ComparatorPlan` row is removed after a verified review of real imports and calls across all five targets. The `EnumCycleDetector` row now lists rust and swift only: dart, kotlin and ts mention the module only inside comments and reach it through `PolicyQueries`. The detector ignores comment and string-literal mentions and requires an exact module name, so a longer name with the same prefix is not a consumer. `tests/haxe/semantic-registry-comment-control/run.sh` runs the real registry validation over sandbox trees and rejects comment-only, string-only and same-prefix mentions while accepting a real import and call. `tools/registry-guard/backstop.ts` mirrors the corrected rows. |
 | `SourceOriginTrace.beforeRewrites` and `SourceOriginFragment` | Source occurrence spans alongside generated TypeScript text | TypeScript emitters compose these fragments into an optional sidecar. The package `tsc` path now resolves selected diagnostics to the second matching Haxe occurrence, retains both child streams and status, and conservatively reports invalid metadata as `Unmapped`. This is focused diagnostic coverage. |
 
-The [candidate integration queue](investigations/architecture-round-2/candidate-integration-queue.md)
+The candidate integration queue (workspace task board: round-2 fact
+extraction, task t-muso22y0-5hn2; the queue file moved to the workspace
+archive with the rest of the round-2 investigation)
 names the independent comparison, Kotlin, and diagnostic acceptance work. An API's existence is
 evidence of a producer, while each migration still needs a named consumer,
 removed duplicate decision, and target compilation and behavior result.
