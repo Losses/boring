@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail
-argv bash -c cd\ out/try-tail/gen/kotlin\ \&\&\ cp\ /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail/tests/haxe/try-tail/native/Main.kt\ TryTailRun.kt\ \&\&\ sha256sum\ TryTailRun.kt\ \>harness.sha256\ \&\&\ timeout\ 1800\ kotlinc\ TryTailRun.kt\ \$\(find\ trytail\ runtime\ std\ -name\ \'\*.kt\'\ -not\ -path\ \'\*runtime/test\*\'\)\ -include-runtime\ -d\ run.jar

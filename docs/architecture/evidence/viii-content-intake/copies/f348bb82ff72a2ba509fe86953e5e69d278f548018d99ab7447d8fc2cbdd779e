@@ -1,7 +1,0 @@
-bySwitch-A=1:a:1
-bySwitch-B=1:b:1
-byTry-true=1:b:1
-byTry-false=1:a:1
-byTernary-true=1:a:1
-byTernary-false=1:b:1
-byBlockArg=1:a:1

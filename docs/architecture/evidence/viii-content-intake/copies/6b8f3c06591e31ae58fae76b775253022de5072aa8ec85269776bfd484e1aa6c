@@ -1,7 +1,0 @@
-package tests
-
-object StaticExtensionProbes {
-    const val instanceMarkerError: String = "top-level markers accept static functions with a concrete receiver only"
-    const val extensionTypeParameterError: String = "top-level markers accept static functions with a concrete receiver only"
-    const val extensionNoParametersError: String = "top-level markers accept static functions with a concrete receiver only"
-}

@@ -1,8 +1,0 @@
-package boring
-
-enum class FloatWidth {
-    F64,
-    F32,
-    F16
-}
-fun compareFloatWidth(a: FloatWidth, b: FloatWidth): Int = a.ordinal - b.ordinal

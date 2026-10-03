@@ -1,9 +1,0 @@
-docs/architecture/ARCHITECTURAL-CONTRACTS.md (path): [coinage] contracts: docs/architecture/ARCHITECTURAL-CONTRACTS.md
-docs/architecture/LAYERED-VERIFICATION.md:44: [em-dash] \u2014: 实际 **56/57**——`printed-record.test.ts:88` 只在超时的测试里被消费，
-docs/architecture/LAYERED-VERIFICATION.md:52: [em-dash] \u2014: **实例**：`value-type` 的耦合运行**并非被杀死**——`Bun.spawnSync` 阻塞 bun 定时器，
-docs/architecture/LAYERED-VERIFICATION.md:79: [em-dash] \u2014: - **`swiftc -c` 是否应取代 `-typecheck` 成为所有 Swift 验收的口径** ——
-
-hits: 4.
-This tool is an automated checklist; the word list and sentence patterns are incomplete and grow with each correction.
-Each hit is a candidate for manual judgment; rewrite the ones that violate the rules.
-Automated checking does not replace reading the final text.

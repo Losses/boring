@@ -1,6 +1,0 @@
-Error: Missing test results file for target 'dart': out/test-results/dart.jsonl
-Error: Missing test results file for target 'rust': out/test-results/rust.jsonl
-Error: Missing test results file for target 'swift': out/test-results/swift.jsonl
-Error: Missing test results file for target 'haxe-f32': out/test-results/haxe-f32.jsonl
-Error: Missing test results file for target 'rust-f32': out/test-results/rust-f32.jsonl
-Error: Missing test results file for target 'swift-f32': out/test-results/swift-f32.jsonl

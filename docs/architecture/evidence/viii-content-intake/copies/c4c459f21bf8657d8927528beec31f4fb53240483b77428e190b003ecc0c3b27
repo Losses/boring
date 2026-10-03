@@ -1,5 +1,0 @@
-#![allow(ambiguous_glob_reexports)]
-
-pub mod dead_coll_probe;
-
-pub use dead_coll_probe::*;

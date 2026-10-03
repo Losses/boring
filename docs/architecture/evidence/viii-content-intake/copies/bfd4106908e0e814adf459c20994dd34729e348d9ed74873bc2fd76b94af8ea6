@@ -1,3 +1,0 @@
-Case (L): lambda body is exactly `return try { ... } catch (...) { ... }` (one statement).
-haxe rc=1
-mx/MXLambda.hx:205: lines 205-209 : swift target: try region lowers at statement, initializer, or return position

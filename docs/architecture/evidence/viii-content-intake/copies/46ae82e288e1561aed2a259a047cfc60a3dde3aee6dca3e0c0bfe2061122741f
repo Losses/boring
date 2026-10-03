@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
-argv bash -c cd\ /tmp/charcodeat/att-20260929T212026Z/rust-target/debug\ \&\&\ timeout\ 120\ ./generated

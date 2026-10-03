@@ -1,1 +1,0 @@
-{"name":"probe-script","private":true,"scripts":{"test":"bun test tests/ packages/registry/tests/"}}

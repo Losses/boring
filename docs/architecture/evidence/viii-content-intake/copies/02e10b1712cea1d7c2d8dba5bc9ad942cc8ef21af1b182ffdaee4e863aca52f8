@@ -1,8 +1,0 @@
-== FIXED (HEAD c89e93fe): harness timeout (timeout -s TERM 25, CI-runner style) mid-run ==
-before: count=5 hash=1c2acf93702b177df7179aac156ab94590e844110162d71e4d6fd5b90af3018a
-timeout rc=124 (124=timed out, SIGTERM delivered)
-after:  count=5 hash=1c2acf93702b177df7179aac156ab94590e844110162d71e4d6fd5b90af3018a
-VERDICT: FIXTURE INTACT after timeout/SIGTERM
-bun test v1.3.13 (bf2e2cec)
-
-tests/ts/package-artifacts.test.ts:

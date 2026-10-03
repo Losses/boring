@@ -1,4 +1,0 @@
-gen-rust	0
-compile-rust	101
-run-rust	producer-compile-rust-status-101
-compare-rust	producer-compile-rust-status-101

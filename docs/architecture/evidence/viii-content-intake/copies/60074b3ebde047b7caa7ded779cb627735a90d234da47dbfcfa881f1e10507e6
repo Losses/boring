@@ -1,3 +1,0 @@
-FAIL: allowlist: exempt[3].module tests.EarlyReturnTests: reason contains a padded/gibberish token (three or more consecutive repeats of one character): "aaaa"
-roots guard: FAILED
-exit_code=1

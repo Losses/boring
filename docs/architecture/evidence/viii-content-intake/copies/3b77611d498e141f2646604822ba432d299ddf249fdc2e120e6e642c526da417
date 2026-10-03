@@ -1,7 +1,0 @@
-package registry
-
-sealed class JsonException(override val message: String) : RuntimeException(message) {
-    data object InvalidJson : JsonException("invalid JSON")
-    data class TrailingInput(val position: Int) :
-        JsonException("trailing characters at offset " + position)
-}

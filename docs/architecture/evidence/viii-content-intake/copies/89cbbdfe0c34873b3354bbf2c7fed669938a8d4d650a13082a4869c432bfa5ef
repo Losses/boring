@@ -1,3 +1,0 @@
-FAIL: allowlist is not valid JSON: Expected property name or '}' in JSON at position 1 (line 1 column 2)
-roots guard: FAILED
-exit_code=1

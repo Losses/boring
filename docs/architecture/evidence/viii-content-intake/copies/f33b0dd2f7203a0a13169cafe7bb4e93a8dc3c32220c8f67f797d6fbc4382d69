@@ -1,8 +1,0 @@
-c8ae0054d8b1937cf05c0dd849c268807ae19b8f
-3c5d977eb1657cf8e29f50da8b700bea44701c15
-c8ae0054 fix(swift): lambda return contract, with the block destination it exposes
- .../reflaxe/swift/swiftcompiler/SwiftExpr.hx       |  18 ++-
- tests/swift-gap-boundary/gap-boundary.test.ts      |  93 ++++++++++++
- tests/swift-gap-boundary/gap/Gap.hx                | 161 +++++++++++++++++++++
- tests/swift-gap-boundary/swift.hxml                |  18 +++
- 4 files changed, 287 insertions(+), 3 deletions(-)

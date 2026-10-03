@@ -1,6 +1,0 @@
-label: kotlin-generation
-cwd: /home/losses/Development/tq-workspace/boring/dc-warn/worktrees/kotlin-manifest
-argv:
-  haxe
-  out/dc-kotlin-manifest-version/kotlin-gen.hxml
-input-sha256 (see inputs.sha256):

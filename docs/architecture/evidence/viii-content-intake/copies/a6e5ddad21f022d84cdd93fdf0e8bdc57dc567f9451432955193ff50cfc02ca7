@@ -1,8 +1,0 @@
-lib/dcfix/dc_fix.dart:41:12: Error: Property 'length' cannot be accessed on 'String?' because it is potentially null.
-Try accessing using ?. instead.
-  return t.length;
-           ^^^^^^
-lib/dcfix/dc_fix.dart:40:3: Context: Variable 't' could not be promoted due to an assignment.
-Try null checking the variable after the assignment.  See http://dart.dev/go/non-promo-write
-  t = (flag ? "xy" : null);
-  ^

@@ -1,5 +1,0 @@
-fn main() {
-    use generated::pk::payload_key_probe::PayloadKeyProbe;
-    println!("rethrow_e1={}", PayloadKeyProbe::payload_key_probe_rethrow_e1());
-    println!("rethrow_e2={}", PayloadKeyProbe::payload_key_probe_rethrow_e2());
-}

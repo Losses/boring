@@ -1,6 +1,0 @@
-warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix2-xcheck' is dirty
-Analyzing ....
-
-warning - lib/xinc/x_inc.dart:9:11 - The '!' will have no effect because the receiver can't be null. Try removing the '!' operator. - unnecessary_non_null_assertion
-
-1 issue found.

@@ -1,5 +1,0 @@
-INTEGRITY FAIL: stage evidence set differs from manifest
---- manifest only:
-  deleted: step-3394438868.stderr
---- actual only (unmanifested):
-NEG-B4 NEW rc=1

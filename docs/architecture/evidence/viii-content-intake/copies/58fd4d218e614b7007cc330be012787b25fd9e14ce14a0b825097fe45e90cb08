@@ -1,7 +1,0 @@
-$ cd /home/losses/Development/tq-workspace/boring-wt-architecture && git apply --check <PATCH.diff>
-git_apply_check_rc=0
-
-$ patch -p1 < PATCH.diff   (in /home/losses/Development/tq-workspace/rgx-scratch/patchcheck)
-applied sha256:
-8efdd4da9353501f45f9067a980e1dc177df8d3e32f542f18365bea002354569  /home/losses/Development/tq-workspace/rgx-scratch/patchcheck/tools/roots-guard/check-roots-guard.sh
-c25b3807443b8b0abccf004dd0b81cccd9c3568de737db3c0ed3defc858e7902  /home/losses/Development/tq-workspace/rgx-scratch/patchcheck/tools/roots-guard/roots-allowlist.json

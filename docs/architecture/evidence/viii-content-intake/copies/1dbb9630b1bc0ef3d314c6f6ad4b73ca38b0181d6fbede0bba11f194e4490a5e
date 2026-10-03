@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
-argv bash -c find\ /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212026Z/rust/gen/charcodeat\ -type\ f\ -print0\ \|\ xargs\ -0\ grep\ -n\ -E\ \'substring\|charCodeAt\|char_code_at\|codeUnitAt\|unit_at\|substringUnits\|substrUnits\'\ 2\>/dev/null\ \|\ head\ -120

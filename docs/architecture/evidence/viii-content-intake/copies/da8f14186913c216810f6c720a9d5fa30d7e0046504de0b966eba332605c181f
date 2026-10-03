@@ -1,3 +1,0 @@
-d5e79b0abca22c20909e10e5b14addaaf0dc6ad91a59065e1ef7731d9a25b4cd  tests/haxe/try-tail-min/expected.txt
-354c718491583726730f817fd6eae6b1006f334030eb120eee4539c424516d91  tests/haxe/try-tail-min/gen/rust.hxml
-e43aedd3d7d3654165ec8d20418a150c99f6656bfd8d0cfb1f0a2e732443d166  tests/haxe/try-tail-min/native/harness.rs

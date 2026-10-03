@@ -1,3 +1,0 @@
-compile-swift observed=1
-run-swift observed=producer-compile-swift-status-0
-compare-swift observed=producer-compile-swift-status-0

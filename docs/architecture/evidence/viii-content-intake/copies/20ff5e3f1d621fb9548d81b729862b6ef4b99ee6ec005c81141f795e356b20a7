@@ -1,8 +1,0 @@
-package boring
-
-class AbstractStaticDefault(v: ProbeUnit? = null) {
-    val value: ProbeUnit
-    init {
-    this.value = (if ((v == null)) ProbeUnit.ZERO else v)
-    }
-}

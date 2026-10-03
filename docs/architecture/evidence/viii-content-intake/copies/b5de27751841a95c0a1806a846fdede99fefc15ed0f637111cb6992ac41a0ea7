@@ -1,5 +1,0 @@
-package boring
-
-sealed class NoSuchElementFaultException(override val message: String) : RuntimeException(message) {
-    data object Missing : NoSuchElementFaultException("no such element")
-}

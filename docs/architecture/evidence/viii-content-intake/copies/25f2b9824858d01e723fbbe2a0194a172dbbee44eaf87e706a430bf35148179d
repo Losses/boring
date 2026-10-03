@@ -1,4 +1,0 @@
-package boring;
-class Probe {
-  public static final bad:Array<Int> = [(function() { var local = 1; return local; })()];
-}

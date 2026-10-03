@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix2
-argv timeout 900 haxe tests/haxe/dc-null-guard-fallthrough/gen/kotlin.hxml -D kotlin-output=/home/losses/Development/tq-workspace/dc-warn/out/dart-fix2/prefix-20260929T202100Z/gen-kotlin

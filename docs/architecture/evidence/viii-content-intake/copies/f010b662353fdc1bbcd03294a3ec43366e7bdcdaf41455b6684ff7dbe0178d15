@@ -1,5 +1,0 @@
-package boring;
-class Probe {
-  public static final bad:Int = make();
-  public static function make():Int return 1;
-}

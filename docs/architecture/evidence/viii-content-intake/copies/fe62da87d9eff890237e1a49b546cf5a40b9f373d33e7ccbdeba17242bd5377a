@@ -1,5 +1,0 @@
-OK:   boring/.dev points at this execution root = /tmp/p9-stage3-shim/execroot
-OK:   reflaxe/.dev points at pinned nix store source = /nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source
-OK:   format/.current pinned = 3.8.0
-OK:   formatter/.current pinned = 1.18.0
-ASSERTION RESULT: PASS — loader identity holds for /tmp/p9-stage3-shim/execroot

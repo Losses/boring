@@ -1,8 +1,0 @@
-$ haxe examples/kotlin-f32.hxml
-PREFIX_KOTLIN_F32_GEN_EXIT=0
-10:                Test.equals(true, NumberClassifyOps.finite(0.0f), null)
-11:                Test.equals(true, NumberClassifyOps.finite(-1.5f), null)
-12:                Test.equals(true, NumberClassifyOps.finite(1.0e308f), null)
-13:                Test.equals(false, NumberClassifyOps.finite(Float.NaN), null)
-14:                Test.equals(false, NumberClassifyOps.finite(Float.POSITIVE_INFINITY), null)
-15:                Test.equals(false, NumberClassifyOps.finite(Float.NEGATIVE_INFINITY), null)

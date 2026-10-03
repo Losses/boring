@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
-argv bash -c cd\ /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212458Z/ts/gen\ \&\&\ cp\ /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat/tests/haxe/charcodeat/native/main.js\ charcodeat-run.js\ \&\&\ sha256sum\ charcodeat-run.js\ \>harness.sha256\ \&\&\ timeout\ 300\ bun\ build\ charcodeat-run.js\ --outfile=run-bundle.js

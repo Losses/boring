@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat
-argv bash -c cd\ /home/losses/Development/tq-workspace/dc-warn/out/charcodeat/att-20260929T212458Z/kotlin/gen\ \&\&\ cp\ /home/losses/Development/tq-workspace/dc-warn/worktrees/charcodeat/tests/haxe/charcodeat/native/Main.kt\ CharCodeAtRun.kt\ \&\&\ sha256sum\ CharCodeAtRun.kt\ \>harness.sha256\ \&\&\ timeout\ 1800\ kotlinc\ CharCodeAtRun.kt\ \$\(find\ charcodeat\ runtime\ std\ -name\ \'\*.kt\'\ -not\ -path\ \'\*runtime/test\*\'\)\ -include-runtime\ -d\ run.jar

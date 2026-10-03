@@ -1,7 +1,0 @@
-warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/param-identity' is dirty
-4.3.7
-/home/losses/Development/tq-workspace/dc-warn/
--D boring=0.0.0
-/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxe
-/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin/haxelib
-exit=0

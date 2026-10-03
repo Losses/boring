@@ -1,6 +1,0 @@
-=== first-match anchoring demo (hypothesis: would reject appended 2nd marker) ===
-multi0 firstmatch_rc=1 :: INTEGRITY FAIL: content after the end marker (91 byte(s) past the marker line, byte 2622 of 2713)
-multi1 firstmatch_rc=1 :: INTEGRITY FAIL: content after the end marker (103 byte(s) past the marker line, byte 2622 of 2725)
-multi2 firstmatch_rc=1 :: INTEGRITY FAIL: content after the end marker (102 byte(s) past the marker line, byte 2622 of 2724)
-clean firstmatch_rc=0 :: INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
-clean2 firstmatch_rc=0 :: INTEGRITY OK: sealed at line 36, sha 340f264391c272ae6c5ff38c2db7e611a65468a7e08e21b2f701c6de4eb02e32, stage manifest exact

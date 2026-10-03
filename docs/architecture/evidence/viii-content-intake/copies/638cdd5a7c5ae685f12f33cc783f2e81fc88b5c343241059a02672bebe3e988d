@@ -1,2 +1,0 @@
-cwd /tmp/charcodeat-xcheck/xatt-20260929T213557Z (chmod +x after copy: fuse mount drops exec bit)
-argv timeout 120 ./run-bin

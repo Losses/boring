@@ -1,6 +1,0 @@
-Analyzing ....
-
-  error - lib/dcguard/dc_guard.dart:8:12 - The property 'length' can't be unconditionally accessed because the receiver can be 'null'. Try making the access conditional (using '?.') or adding a null check to the target ('!'). - unchecked_use_of_nullable_value
-warning - lib/dcguard/dc_guard.dart:6:11 - The value of the local variable 'unused' isn't used. Try removing the variable or using it. - unused_local_variable
-
-2 issues found.

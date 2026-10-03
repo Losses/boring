@@ -1,9 +1,0 @@
-=== evidence/ files present in BOTH trees: hash compare ===
-  Files /dev/fd/63 and /dev/fd/62 differ
-
-=== evidence files only in archive (new repro artifacts) ===
-./gen-gap-repro.log
-./repro-notes.txt
-./swiftc-repro.log
-
-=== evidence files only in source (should be none) ===

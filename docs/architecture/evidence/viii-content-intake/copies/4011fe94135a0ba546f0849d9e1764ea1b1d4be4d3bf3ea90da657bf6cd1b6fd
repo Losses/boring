@@ -1,8 +1,0 @@
-package registry
-
-sealed class CoreException(override val message: String) : RuntimeException(message) {
-    data class Config(val text: String) :
-        CoreException(text)
-    data class Tree(val text: String) :
-        CoreException(text)
-}

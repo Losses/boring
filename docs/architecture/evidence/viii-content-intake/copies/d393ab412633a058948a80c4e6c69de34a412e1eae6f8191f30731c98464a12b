@@ -1,8 +1,0 @@
-# PROGRESS
-
-- [x] baseline pristine copy (/home/losses/Development/tq-workspace/litop-pristine)
-- [x] baseline fixture generation (acc: exit 0, 7 files; gap: exit 0, 6 files)
-- [x] edit (literalOperand + doc contract + SwiftDecl rewiring; PATCH.diff)
-- [x] post generation + diff (both trees byte-identical, diff -r exit 0)
-- [x] guard: MathNaNTestSupport.hx intact (5 before/after)
-- [x] report

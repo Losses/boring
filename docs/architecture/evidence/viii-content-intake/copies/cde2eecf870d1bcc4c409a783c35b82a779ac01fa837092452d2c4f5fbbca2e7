@@ -1,8 +1,0 @@
-timeout
-900
-haxe
-/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/tests/haxe/dc-enum-switch-gen/gen/field-kotlin.hxml
--D
-kotlin-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-DiteEQ/gen/field/kotlin
--D
-kotlin-test-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-DiteEQ/gen/field/kotlin/test-host

@@ -1,6 +1,0 @@
-trap check: samples/boring/MathNaNTestSupport.hx (intact = 5 'Test.equals')
-baseline (both copies, pre any run):        5  md5 8eb49dcbf9be0412995222aa40207a4c
-cfg-a after run:                             5  md5 8eb49dcbf9be0412995222aa40207a4c
-cfg-b after run:                             5  md5 8eb49dcbf9be0412995222aa40207a4c
-coordination tree (never touched):           5  md5 8eb49dcbf9be0412995222aa40207a4c
-no restore needed; the trap writer (tests/ts/package-artifacts.test.ts) is not among the 13 files

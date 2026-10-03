@@ -1,9 +1,0 @@
-Files /tmp/br-prefix/reference/rust-f32/gen/boring/grapheme_ops.rs and /tmp/br-pure-head/reference/rust-f32/gen/boring/grapheme_ops.rs differ
-Files /tmp/br-prefix/reference/rust-f32/gen/boring/nullable_buf_field_ops.rs and /tmp/br-pure-head/reference/rust-f32/gen/boring/nullable_buf_field_ops.rs differ
-Files /tmp/br-prefix/reference/rust-f32/gen/boring/payload_text_table.rs and /tmp/br-pure-head/reference/rust-f32/gen/boring/payload_text_table.rs differ
-Files /tmp/br-prefix/reference/rust-f32/gen/boring/platform_ops.rs and /tmp/br-pure-head/reference/rust-f32/gen/boring/platform_ops.rs differ
-Files /tmp/br-prefix/reference/rust-f32/gen/boring/string_buf_ops.rs and /tmp/br-pure-head/reference/rust-f32/gen/boring/string_buf_ops.rs differ
-Files /tmp/br-prefix/reference/rust-f32/gen/boring/string_buf_throw_ops.rs and /tmp/br-pure-head/reference/rust-f32/gen/boring/string_buf_throw_ops.rs differ
-Files /tmp/br-prefix/reference/rust-f32/gen/boring/string_buf_union_ops.rs and /tmp/br-pure-head/reference/rust-f32/gen/boring/string_buf_union_ops.rs differ
-Files /tmp/br-prefix/reference/rust-f32/gen/runtime/env.rs and /tmp/br-pure-head/reference/rust-f32/gen/runtime/env.rs differ
-Files /tmp/br-prefix/reference/rust-f32/gen/runtime/u_string.rs and /tmp/br-pure-head/reference/rust-f32/gen/runtime/u_string.rs differ

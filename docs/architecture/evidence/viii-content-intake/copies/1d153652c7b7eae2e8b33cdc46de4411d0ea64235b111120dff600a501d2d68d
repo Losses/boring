@@ -1,7 +1,0 @@
-TREE                                       COMPILER_SHA256_16 ARTIFACT   rendered_id SIGNATURE                          test call suffix
-execution-option-c-arrfix                  24f79c275c0c493d   rust/gen   pub fn value_type_consumer_rendered_id() -> Result<UString, ValueError> value_type_consumer_rendered_id().unwrap(
-execution-option-c-chainA-fixed2           07896d15a5b718b8   rust/gen   pub fn value_type_consumer_rendered_id() -> UString value_type_consumer_rendered_id().as_ustr(
-execution-option-c-chainA-fixed3           57ee49976511892c   rust/gen   pub fn value_type_consumer_rendered_id() -> UString value_type_consumer_rendered_id().as_ustr(
-execution-option-c-coord                   24f79c275c0c493d   rust/gen   pub fn value_type_consumer_rendered_id() -> Result<UString, ValueError> value_type_consumer_rendered_id().unwrap(
-execution-option-c-head-e1c65975           1cdc0ebd1e6edb9d   rust/gen   pub fn value_type_consumer_rendered_id() -> Result<UString, ValueError> value_type_consumer_rendered_id().unwrap(
-execution-option-c-ours-only-e1c65975      57ee49976511892c   -          (no rust/gen)                                  -

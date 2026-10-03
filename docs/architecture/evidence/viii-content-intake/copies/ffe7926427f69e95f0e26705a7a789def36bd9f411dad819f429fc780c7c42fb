@@ -1,6 +1,0 @@
-warning: Git tree '/home/losses/Development/tq-workspace/boring-wt-architecture' is dirty
---- command -v swiftc: /tmp/swiftarr/bin/swiftc
---- shim identity: d5842a5dabf19b94e48feaba50f690316e389adc6250842f8edcbd36db50e221
---- PATH head: /tmp/swiftarr/bin
-RUNNER_RC=1
-OUTER_RC=0

@@ -1,4 +1,0 @@
-f37d0cd340239c6a14ed40df0fccd701cfd609f94695db31d9a9585d7d1e18d5  tests/haxe/place/ts-gen.hxml
-5027ff9114fc5fb2284174f656d1ad88ec97a92110977d17d9515e859ceff82a  tests/haxe/place/swift-gen.hxml
-9d9d7263a1b93a1c80aba88d2c3b40a1a51196d242920f108cd7e5b4b18e858b  tests/haxe/place/run-ts-swift.sh
-b80c150a09d69bfb881703f2de90e9a9e476c3e794f5596b70741803a103cd5a  tests/haxe/place/native/ts-main.ts

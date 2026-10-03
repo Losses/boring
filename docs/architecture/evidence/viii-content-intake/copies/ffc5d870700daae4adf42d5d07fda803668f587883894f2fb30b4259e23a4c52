@@ -1,3 +1,0 @@
-Error: : unknown option '--macro Intercept.run(['samples', 'tests/haxe/charcodeat', 'tests/haxe/charcodeat/probes'])'.
-Did you mean:
-  --macro <macro>  call the given macro before typing anything else

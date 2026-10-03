@@ -1,6 +1,0 @@
-class XCheckMain {
-	public static function main() {
-		final t:xct.Trigger = null;
-		Sys.println("xcheck main reached, trigger=" + (t == null));
-	}
-}

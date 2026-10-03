@@ -1,4 +1,0 @@
-package boring
-
-class ImpWidget(var label: String = "w") {
-}

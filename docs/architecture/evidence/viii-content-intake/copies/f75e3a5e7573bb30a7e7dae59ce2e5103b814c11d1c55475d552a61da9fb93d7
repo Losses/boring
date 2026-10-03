@@ -1,8 +1,0 @@
-2026-09-28 16:46:23.496178069 -0400  4086  boring-wt-architecture/docs/investigations/architecture-round-1/d-observation.md
-2026-09-29 17:24:30.868150403 -0400  259200  boring-wt-architecture/packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
-2026-09-29 17:24:30.881929412 -0400  133212  boring-wt-architecture/packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
-2026-09-29 17:24:30.882138309 -0400  170014  boring-wt-architecture/packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
-2026-09-29 17:24:30.882249385 -0400  10215  boring-wt-architecture/packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
-2026-09-29 17:24:30.882298366 -0400  885409  boring-wt-architecture/packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
-2026-09-29 17:24:30.889872303 -0400  60420  boring-wt-architecture/packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
-2026-09-29 14:54:51.629935513 -0400  2753  boring-wt-architecture/tests/support/stage-check.sh

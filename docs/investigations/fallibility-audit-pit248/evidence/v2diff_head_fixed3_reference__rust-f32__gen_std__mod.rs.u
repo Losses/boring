@@ -1,9 +1,0 @@
---- head/std/mod.rs+++ fixed3/std/mod.rs@@ -1,7 +1,9 @@ #![allow(ambiguous_glob_reexports)]
- 
- pub mod path;
-+pub mod render_shape;
- pub mod u_string_exception;
- 
- pub use path::*;
-+pub use render_shape::*;
- pub use u_string_exception::*;

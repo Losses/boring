@@ -1,9 +1,0 @@
-set -uo pipefail
-KEYS="xs-scope xs-twoexc xs-growth xs-xmod xs-generic xs-dead xs-deadcoll xs-samples xs-testmod"
-echo "########## PRISTINE"
-bash /tmp/rt-xcheck/bx2-all.sh pristine build $KEYS
-echo "########## POSTFIX"
-bash /tmp/rt-xcheck/bx2-all.sh postfix build $KEYS
-echo "########## NEGCTL (gen)"
-bash /tmp/rt-xcheck/bx2-all.sh negctl gen $KEYS
-echo "########## DONE"

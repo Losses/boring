@@ -1,2 +1,0 @@
-cp -a copy created from publication-staging/execution-option-c-coord (6001 files, FULL-COPY-IDENTICAL by sha256 of all files)
-copy adaptation: .haxelib/boring/.dev rewritten from original coord root path to the copy root path (loader identity requires .dev == root; .haxelib is NOT manifest-managed: 0 entries)

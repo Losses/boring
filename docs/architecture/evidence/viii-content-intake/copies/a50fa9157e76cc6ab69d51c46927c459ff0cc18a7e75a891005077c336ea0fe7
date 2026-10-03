@@ -1,8 +1,0 @@
-timeout
-900
-haxe
-/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/tests/haxe/dc-enum-switch-gen/gen/promoted-dart.hxml
--D
-dart-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-DiteEQ/gen/promoted/dart
--D
-dart-test-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-DiteEQ/gen/promoted/dart/test-host

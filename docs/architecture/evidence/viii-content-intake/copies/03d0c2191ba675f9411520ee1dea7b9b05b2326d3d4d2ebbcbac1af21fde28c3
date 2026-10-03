@@ -1,5 +1,0 @@
-INTEGRITY FAIL: stage evidence set differs from manifest
---- manifest only:
---- actual only (unmanifested):
-  added: step-999999999.stdout
-exit=1

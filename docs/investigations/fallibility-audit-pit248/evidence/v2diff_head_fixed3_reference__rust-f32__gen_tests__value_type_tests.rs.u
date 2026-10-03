@@ -1,7 +1,0 @@
---- head/tests/value_type_tests.rs+++ fixed3/tests/value_type_tests.rs@@ -44,6 +44,6 @@ #[test]
- fn test_rendered_string() {
-     testlib::run("tests.ValueTypeTests.testRenderedString", "tests.ValueTypeTests.testRenderedString: declared wrapper toString returns its representation", || {
--        test_core::TestCore::test_core_equals_string(UStr::new(&[102,97,99,101]), ValueTypeConsumer::value_type_consumer_rendered_id().unwrap().as_ustr(), UStr::new(&[]));
-+        test_core::TestCore::test_core_equals_string(UStr::new(&[102,97,99,101]), ValueTypeConsumer::value_type_consumer_rendered_id().as_ustr(), UStr::new(&[]));
-     });
- }

@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/boring-wt-architecture
-argv timeout 900 haxe tests/haxe/dc-null-guard-fallthrough/gen/kotlin.hxml -D kotlin-output=/home/losses/Development/tq-workspace/dc-warn/out/integration-apply/dart/integration-apply-dart/gen-kotlin

@@ -1,8 +1,0 @@
-lib/dcguard/dc_guard.dart:41:12: Error: Property 'length' cannot be accessed on 'String?' because it is potentially null.
-Try accessing using ?. instead.
-  return s.length;
-           ^^^^^^
-lib/dcguard/dc_guard.dart:40:3: Context: Variable 's' could not be promoted due to an assignment.
-Try null checking the variable after the assignment.  See http://dart.dev/go/non-promo-write
-  s = (flag ? "xy" : null);
-  ^

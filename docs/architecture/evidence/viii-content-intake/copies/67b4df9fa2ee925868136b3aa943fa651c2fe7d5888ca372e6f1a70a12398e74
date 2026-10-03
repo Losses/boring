@@ -1,2 +1,0 @@
-empty-oracle main calling nothing -> rc=0 (Ops unreachable, not generated)
-oracle calling aliasSlots() only, full Ops -> rc=1 (whole class generated)

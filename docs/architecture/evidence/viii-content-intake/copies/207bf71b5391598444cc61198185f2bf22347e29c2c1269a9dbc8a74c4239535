@@ -1,7 +1,0 @@
-kotlin: 8
-kotlin-f32: 8
-rust: 8
-rust-f32: 5
-swift: 10
-swift-f32: 6
-TOTAL=45

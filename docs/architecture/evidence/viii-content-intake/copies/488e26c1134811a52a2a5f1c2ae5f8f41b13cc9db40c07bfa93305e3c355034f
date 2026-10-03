@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/null-guard-xcheck
-argv timeout 1800 haxe tests/haxe/xcheck-null-guard/gen/kotlin.hxml -D kotlin-output=/home/losses/Development/tq-workspace/dc-warn/out/null-guard-xcheck/xcheck-20260929T200743Z/gen-kotlin

@@ -1,5 +1,0 @@
-9:import swiftcompiler.SwiftArrayBoundary.SwiftArrayOptionality;
-10:import swiftcompiler.SwiftArrayBoundary.SwiftArrayPresenceFact;
-11:import swiftcompiler.SwiftArrayBoundary.SwiftArrayStorage;
-60:        final bodyStorage = SwiftArrayBoundary.sourceStorage(baseType);
-65:        final bodyIsOptional = SwiftArrayBoundary.isOptionalArrayType(baseType);

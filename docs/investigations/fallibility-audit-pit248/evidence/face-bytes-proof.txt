@@ -1,3 +1,0 @@
-arg bytes: [102, 97, 99, 101] = face
-any byte in trim whitespace set: False
-trimmed length: 4 vs empty-string length: 0 -> equal? False

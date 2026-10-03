@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail-xcheck
-argv diff -u /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail-xcheck/tests/haxe/try-tail/expected.txt /home/losses/Development/tq-workspace/dc-warn/out/rust-trytail-xcheck/attempt-xcheck-01/postfix-try-tail/run-rust/stdout

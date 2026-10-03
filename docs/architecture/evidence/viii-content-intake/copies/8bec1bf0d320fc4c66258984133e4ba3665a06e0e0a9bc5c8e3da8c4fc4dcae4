@@ -1,4 +1,0 @@
-cmd: cp -a <attempt> blind && printf 'TAMPERED-NO-NEWLINE' >> blind/harness.log
-harness.log bytes: 2622 -> 2641 (delta 19)
-old checker rc=0 :: INTEGRITY OK: sealed at line 30, sha 597a9e1151551d6056cd2423cd39fee86459ba3e49a5eeab04f4ba8f0adbb03a, stage manifest exact
-new checker rc=1 :: INTEGRITY FAIL: content after the end marker (19 byte(s) past the marker line, byte 2622 of 2641)

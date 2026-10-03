@@ -1,4 +1,0 @@
-waiter start 2026-09-29T22:34:07-04:00  load=5.64 6.06 6.17
-iteration 1: blocking on --pid=3573478 --pid=3573479
-iteration 2: quiet
-pre-start other-suite count: 0  load=7.36 6.81 6.61  2026-09-29T23:03:18-04:00

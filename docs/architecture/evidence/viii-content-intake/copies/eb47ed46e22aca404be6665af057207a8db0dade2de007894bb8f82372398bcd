@@ -1,8 +1,0 @@
-timeout
-900
-haxe
-/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/tests/haxe/dc-enum-switch-gen/gen/field-swift.hxml
--D
-swift-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-DiteEQ/gen/field/swift
--D
-swift-test-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-DiteEQ/gen/field/swift/test-host

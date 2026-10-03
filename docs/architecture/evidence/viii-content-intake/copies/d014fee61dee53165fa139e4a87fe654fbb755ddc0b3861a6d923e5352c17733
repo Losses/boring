@@ -1,7 +1,0 @@
-/tmp/vc8/out/pre-ATK/gen/mx/AttK.swift:9:20: error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
- 7 |         throw QError()
- 8 |     }
- 9 |     return QSource.first()
-   |                    `- error: cannot convert value of type 'TiqianArray<Int32>' to closure result type 'ReadOnlyArray<Int32>'
-10 | }
-11 |         _ = try f()

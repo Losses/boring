@@ -1,6 +1,0 @@
-haxe
-/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/tests/haxe/dc-promoted-eval/gen/dart.hxml
--D
-dart-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/dart-gen
--D
-dart-test-output=/home/losses/Development/tq-workspace/dc-warn/worktrees/promoted-eval/../../out/promoted-eval/pe-GDYqQt/dart-gen-tests

@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail
-argv env CARGO_TARGET_DIR=/tmp/rust-trytail-target-negctl nix develop -c bash -c cd\ \'/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail/out/try-tail/gen/rust-evidence\'\ \&\&\ mkdir\ -p\ src\ \&\&\ cp\ \'/home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail/tests/haxe/try-tail/native/harness.rs\'\ src/main.rs\ \&\&\ sha256sum\ src/main.rs\ \>harness.sha256\ \&\&\ timeout\ 1800\ cargo\ build\ --offline

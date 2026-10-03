@@ -1,7 +1,0 @@
-# counts at PRE state (PIT-281 audited patch only; hashes = pre.state.txt)
-# measured mid-session at identical content; the fix only ADDS exceptionPayloadEnums.get
-exceptionPayloads get=11 set=1
-payloadEnumNames get=5 set=1
-payloadEnumOwners get=3 set=1
-payloadEnumModules get=13 set=1
-exceptionPayloadEnums get=3 set=1

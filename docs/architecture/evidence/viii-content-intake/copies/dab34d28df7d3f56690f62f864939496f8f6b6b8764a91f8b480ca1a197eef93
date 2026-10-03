@@ -1,8 +1,0 @@
-// TS harness driver for the place observation runner. Sits next to a
-// generated tree and invokes the same authored case the Haxe JS entry and
-// the Rust harness invoke. No authored fixture file is edited.
-import { PlaceObserveStatic } from "./place/PlaceObserveStatic.js";
-console.log("[ts] start");
-const subject = new PlaceObserveStatic();
-subject.run();
-console.log("[ts] end");

@@ -1,8 +1,0 @@
-=== search 1: freeze records under dc-warn ===
-/home/losses/Development/tq-workspace/dc-warn/out/p08-candidate-freeze
-=== search 2: FREEZE.md anywhere (depth 5) ===
-/home/losses/Development/tq-workspace/.tq-logs/warnstd/FREEZE.md
-=== search 3: references to p08-candidate-freeze under dc-warn/out ===
-/home/losses/Development/tq-workspace/dc-warn/out/freeze-xcheck/REPORT.md
-/home/losses/Development/tq-workspace/dc-warn/out/freeze-xcheck/evidence/xfreeze-search.log
-=== END (empty results = record absent) ===

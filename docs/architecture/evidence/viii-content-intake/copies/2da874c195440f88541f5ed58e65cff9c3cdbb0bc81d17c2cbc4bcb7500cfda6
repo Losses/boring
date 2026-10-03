@@ -1,8 +1,0 @@
-structural probe assertions
-EvalProbe.promotedOnce calls=1 (expect 1)
-EvalProbe.promotedOnce promoted blocks=1 (expect 1)
-EvalProbe.promotedOnce block 1 initCalls=1 (expect 1)
-DoubleEvalControl.doubleOnce calls=2 (expect 2)
-DoubleEvalControl.doubleOnce promoted blocks=2 (expect 2)
-DoubleEvalControl.doubleOnce block 1 initCalls=1 (expect 1)
-DoubleEvalControl.doubleOnce block 2 initCalls=1 (expect 1)

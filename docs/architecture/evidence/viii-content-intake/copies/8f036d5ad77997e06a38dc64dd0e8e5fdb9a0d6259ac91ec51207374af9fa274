@@ -1,6 +1,0 @@
-measured-file /tmp/tmleak-gen-fixed/boring/value_exception.rs
-cmd1 (cwd /tmp/tmleak-gen-fixed) sha256sum boring/value_exception.rs
-cmd2 (cwd /tmp/tmleak-gen-fixed) grep -c "ValueExceptionFault" boring/value_exception.rs
-cmd3 (cwd /tmp/tmleak-gen-fixed) grep -c "ExceptionFault" boring/value_exception.rs
-cmd4 (cwd /tmp/tmleak-gen-fixed) grep -n "Fault" boring/value_exception.rs
-cmd5 (cwd /tmp/tmleak-gen-fixed) grep -rn "ValueExceptionFault" .  -- whole gen tree (excl target)

@@ -1,1 +1,0 @@
-$ bun tools/gate-proof/verify-commit.ts "eec707b9b09ccabdc7541b74174c6d8cf1e9ef0e" --json "/home/losses/Development/tq-workspace/dc-warn/out/cond4-closure/evidence/gate-verify-eec707b9.json"

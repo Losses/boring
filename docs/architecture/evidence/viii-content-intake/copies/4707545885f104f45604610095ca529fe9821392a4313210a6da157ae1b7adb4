@@ -1,9 +1,0 @@
-package boring
-
-import std.RenderShape
-
-class PosterTextRender : RenderShape {
-    override fun render(text: String): String {
-        return "poster:" + text
-    }
-}

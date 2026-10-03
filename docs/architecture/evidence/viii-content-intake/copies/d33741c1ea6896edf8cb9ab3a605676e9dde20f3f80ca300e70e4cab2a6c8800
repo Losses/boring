@@ -1,8 +1,0 @@
-// xcheck reviewer control: does the plain 4.3.7 typer reject an
-// explicit null assigned to a non-nullable Int?
-class PStrictNull {
-	public static function main():Void {
-		var c:Int = null;
-		std.Console.log("strict=" + c);
-	}
-}

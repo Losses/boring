@@ -1,2 +1,0 @@
-rc=1 : swift target: array boundary has no prepared storage decision
-red/ = full copy of tests/swift-readonly-boundary (3 boring/*.hx), Intercept.run(['red']), run from repo root

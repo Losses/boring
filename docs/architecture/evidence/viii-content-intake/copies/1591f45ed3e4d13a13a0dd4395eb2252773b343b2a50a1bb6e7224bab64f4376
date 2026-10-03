@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/try-tail
-argv bash -c cd\ out/try-tail/gen/dart\ \&\&\ timeout\ 300\ dart\ pub\ get

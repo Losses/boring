@@ -1,5 +1,0 @@
-PROBE payloadEnumNames write key=twoemitrevscope.TwoEmitProbeRev value=E1Fault class=twoemitrevscope.TwoEmitProbeRev::E1
-PROBE payloadEnumNames write key=twoemitrevscope.TwoEmitProbeRev value=E2Fault class=twoemitrevscope.TwoEmitProbeRev::E2
-PROBE guard cls=twoemitrevscope.TwoEmitProbeRev::E2 payloadEnum=twoemitrevscope.TwoEmitProbeRev::E2Fault mapModuleKey=twoemitrevscope.TwoEmitProbeRev mapValue=E2Fault
-PROBE guard cls=twoemitrevscope.TwoEmitProbeRev::E1 payloadEnum=twoemitrevscope.TwoEmitProbeRev::E1Fault mapModuleKey=twoemitrevscope.TwoEmitProbeRev mapValue=E2Fault
-PROBE guard cls=twoemitrevscope.TwoEmitProbeRev::E1 payloadEnum=twoemitrevscope.TwoEmitProbeRev::E1Fault mapModuleKey=twoemitrevscope.TwoEmitProbeRev mapValue=E2Fault

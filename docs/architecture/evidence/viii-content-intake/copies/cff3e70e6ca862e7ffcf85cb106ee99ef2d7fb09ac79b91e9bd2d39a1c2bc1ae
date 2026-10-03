@@ -1,8 +1,0 @@
-docs/investigations/architecture-round-1/d-observation.md
-packages/compiler/reflaxe/dart/dartcompiler/DartExpr.hx
-packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx
-packages/compiler/reflaxe/rust/rustcompiler/RustDecl.hx
-packages/compiler/reflaxe/rust/rustcompiler/RustEmissionState.hx
-packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx
-packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx
-tests/support/stage-check.sh

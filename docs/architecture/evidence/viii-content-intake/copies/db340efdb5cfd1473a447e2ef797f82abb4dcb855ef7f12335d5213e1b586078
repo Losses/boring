@@ -1,4 +1,0 @@
-package boring
-
-class SealedChildException(message: String) : SealedChildParent(SealedChildParent.Note(message).message) {
-}

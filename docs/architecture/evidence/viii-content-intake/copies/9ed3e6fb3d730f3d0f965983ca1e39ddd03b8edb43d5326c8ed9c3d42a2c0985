@@ -1,9 +1,0 @@
-bun test v1.3.13 (bf2e2cec)
-
-tests/swift-readonly-boundary/readonly-boundary-repaircheck.test.ts:
-(pass) Swift read-only array boundary shares storage and preserves flow [87853.47ms]
-
- 1 pass
- 0 fail
- 16 expect() calls
-Ran 1 test across 1 file. [88.07s]

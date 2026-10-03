@@ -1,7 +1,0 @@
---- head/runtime/mod.rs+++ fixed2/runtime/mod.rs@@ -7,6 +7,7 @@ pub mod grapheme_walk;
- pub mod graphemes;
- pub mod sorted_table;
-+pub mod string_tools;
- pub mod test;
- pub mod test_core;
- pub mod u_string;

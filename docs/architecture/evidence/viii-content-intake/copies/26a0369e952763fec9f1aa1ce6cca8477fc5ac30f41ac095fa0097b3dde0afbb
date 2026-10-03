@@ -1,7 +1,0 @@
-package boring
-
-object NullableCallOps {
-    fun nullableToStringResult(value: NullableReceiver?): String? {
-        return value?.toString()
-    }
-}

@@ -1,3 +1,0 @@
-out/kotlin-var-field-smartcast/gen/runtime/StringTools.kt:9:28: warning: unnecessary non-null assertion (!!) on a non-null receiver of type 'Int'.
-        return c!! > 8 && c!! < 14 || c == 32
-                           ^^

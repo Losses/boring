@@ -1,7 +1,0 @@
-package boring
-
-class NullableReceiver {
-    override fun toString(): String {
-        return "present"
-    }
-}

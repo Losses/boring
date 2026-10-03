@@ -1,5 +1,0 @@
-=== counter-experiment: OLD glob (find std probe) on my trees ===
-old-post-probe: exit=1 boring=2 errors=4 (== pre, NON-discriminating)
-old-pre-probe : exit=1 boring=2 errors=4
-=== Package.swift included in argv (post tree) ===
-exit=1 boring=0 errors=2 -> error: no such module 'PackageDescription' (exclusion is necessary)

@@ -1,2 +1,0 @@
-warning: Git tree '/home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck' is dirty
-tests/haxe/dc-enum-switch-gen/dcsenum/CallSubjectOracle.hx:15: characters 18-28 : expression block must end in a value statement (features/43)

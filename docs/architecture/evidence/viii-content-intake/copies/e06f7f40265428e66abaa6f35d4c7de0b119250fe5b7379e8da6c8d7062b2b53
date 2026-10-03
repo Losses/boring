@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/rust-trytail-xcheck
-argv nix develop -c haxe tests/haxe/try-tail-min/gen/rust.hxml -D rust-output=/tmp/rt-xcheck/run-prefix-try-tail-min

@@ -1,7 +1,0 @@
-# dc-enum-switch-gen run /home/losses/Development/tq-workspace/dc-warn/worktrees/enum-switch-xcheck/out/enum-switch-xcheck/es-s3o7gn
-# started 2026-09-29T20:13:21Z
-# successful generation snippets: promoted/ts promoted/kotlin promoted/rust promoted/swift promoted/dart
-# input trees CHANGED during the run:
-150a151
-> 66d49caeac0f7ad4d5b96cbf26bcda6ee2d31b953798f468814e3d5f0edd875a  tests/haxe/dc-enum-switch-gen/probe-nointercept-iso.hxml
-harness-defect: input tree mutation detected

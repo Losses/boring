@@ -1,9 +1,0 @@
-commit:        2aadcb6978d81705379892d2b382671b3458e753
-tree:          91151878a6ba0890fda27eddb438d277ac8e9555
-mode:          archive-verify
-total files:   1455
-hashed:        1455
-mismatches:    0
-file-list sha256: 551628d37f8fdd4532a91dc0ab8d430c4ee9b1fe006b104df6ae9ea0dc49f0f0
-verdict:       PASS
-EXIT=0

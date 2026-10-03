@@ -1,2 +1,0 @@
-rc=1 : swift target: array boundary has no prepared storage decision
-MINIMAL: 2 files (Ops with only coalescedBoundary, Oracle main calling it), min.hxml

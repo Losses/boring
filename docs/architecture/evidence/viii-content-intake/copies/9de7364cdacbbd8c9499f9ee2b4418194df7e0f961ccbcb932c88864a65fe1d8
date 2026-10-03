@@ -1,9 +1,0 @@
-package boring
-
-import std.RenderShape
-
-object RenderShapeTextOps {
-    fun print(shape: RenderShape, text: String): String {
-        return shape.render(text)
-    }
-}

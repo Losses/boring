@@ -1,7 +1,0 @@
---- /home/losses/Development/tq-workspace/dc-warn/worktrees/dart-fix/tests/haxe/dc-null-guard-fallthrough/expected.txt	2026-09-29 16:12:43.000000000 -0400
-+++ /home/losses/Development/tq-workspace/dc-warn/out/dart-fix/prefix2/stages/dart-run/stdout	2026-09-29 16:13:37.000000000 -0400
-@@ -1,4 +0,0 @@
--p2=5
--p7=5
--p8=2
--p9=4

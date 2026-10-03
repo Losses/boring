@@ -1,5 +1,0 @@
-runtime/test/TestCore.kt
-std/UStringException.kt
-xg2/XGuard2.kt
-runtime/test/Test.kt
-build.gradle.kts

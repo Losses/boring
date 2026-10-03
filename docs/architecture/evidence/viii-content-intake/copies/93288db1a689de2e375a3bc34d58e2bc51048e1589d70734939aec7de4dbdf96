@@ -1,4 +1,0 @@
-== CONTROL: clean export of HEAD (git archive) ==
-2026-09-30T15:18:43-04:00
-export sha256: 1c2acf93702b177df7179aac156ab94590e844110162d71e4d6fd5b90af3018a
-export Test.equals count: 5

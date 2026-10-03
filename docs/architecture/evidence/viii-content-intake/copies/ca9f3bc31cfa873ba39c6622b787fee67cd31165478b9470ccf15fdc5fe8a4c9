@@ -1,2 +1,0 @@
-rc=1 : swift target: array boundary has no prepared storage decision
-fixture swift.hxml with --macro Intercept.run(['tests/swift-readonly-boundary']) only

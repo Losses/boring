@@ -1,5 +1,0 @@
-#![allow(ambiguous_glob_reexports)]
-
-pub mod char_code_at_oracle;
-
-pub use char_code_at_oracle::*;

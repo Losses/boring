@@ -1,2 +1,0 @@
-cwd /home/losses/Development/tq-workspace/dc-warn/worktrees/fsmissing
-argv kotlinc -Xallow-kotlin-package @/home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/kotlin-lib-files.txt -include-runtime -d /home/losses/Development/tq-workspace/dc-warn/out/fsmissing/attempt-01/kotlin-build/library.jar

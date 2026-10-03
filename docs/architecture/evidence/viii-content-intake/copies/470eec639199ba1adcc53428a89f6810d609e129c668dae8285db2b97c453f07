@@ -1,7 +1,0 @@
-# The focused probe of the child evidence module. The module is compiled
-# from the same class path the driver uses, so the probe exercises the
-# production code and not a copy of it.
--cp tools/bundle
--cp tests/bundle-child-evidence/probe
--main EvidenceProbe
--js out/bundle-child-evidence/evidence-probe.js

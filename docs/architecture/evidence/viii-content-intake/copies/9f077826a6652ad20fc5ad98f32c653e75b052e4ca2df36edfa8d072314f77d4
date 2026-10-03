@@ -1,7 +1,0 @@
-#![allow(ambiguous_glob_reexports)]
-
-#[cfg(test)]
-pub mod prod_rethrow_tests;
-
-#[cfg(test)]
-pub use prod_rethrow_tests::*;

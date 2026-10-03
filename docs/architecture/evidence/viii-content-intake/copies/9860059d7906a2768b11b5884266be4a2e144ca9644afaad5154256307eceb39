@@ -1,4 +1,0 @@
-package boring;
-class Probe {
-  public static var bad:Array<Int> = [1, 2];
-}

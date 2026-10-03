@@ -1,4 +1,0 @@
-=== all bun-collected *.test.ts byte-compare across the three trees ===
-  test files compared: 54 ; HEAD-vs-DIRTY differing: 0 ; HEAD-vs-OURS-ONLY differing: 0
-
-=== gentree comparison EXCLUDING build-output dirs (target/, out/, build/, maven/) ===

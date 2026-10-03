@@ -1,8 +1,0 @@
- tests/swift-readonly-boundary/readonly-boundary.test.ts | 2 +-
- tests/ts/package-artifacts.test.ts                      | 2 +-
- tests/ts/printed-record.test.ts                         | 2 +-
- tests/ts/sealed-variants.test.ts                        | 2 +-
- tests/ts/static-state.test.ts                           | 2 +-
- tests/ts/std-string.test.ts                             | 2 +-
- tests/ts/value-type.test.ts                             | 2 +-
- 7 files changed, 7 insertions(+), 7 deletions(-)

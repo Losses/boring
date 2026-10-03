@@ -1,6 +1,0 @@
-dcpe/DoubleEvalControl.swift
-dcpe/EvalProbe.swift
-dcpe/Kind.swift
-std/UStringException.swift
-std/UStringFault.swift
-Package.swift

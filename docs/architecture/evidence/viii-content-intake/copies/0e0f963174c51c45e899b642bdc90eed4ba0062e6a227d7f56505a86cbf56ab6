@@ -1,3 +1,0 @@
-FAIL: allowlist: exempt[3].module tests.EarlyReturnTests: reason is repeated-token spam (4 of 5 words are "todo")
-roots guard: FAILED
-exit_code=1

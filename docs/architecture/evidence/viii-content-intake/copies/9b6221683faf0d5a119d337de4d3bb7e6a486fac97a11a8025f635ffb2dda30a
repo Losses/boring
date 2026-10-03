@@ -1,7 +1,0 @@
-package boring
-
-object NoSuchElementMessageReader {
-    fun describe(error: NoSuchElementFaultException): String {
-        return error.message
-    }
-}

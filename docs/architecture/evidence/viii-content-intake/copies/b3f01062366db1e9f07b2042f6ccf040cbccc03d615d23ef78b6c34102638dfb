@@ -1,7 +1,0 @@
-NC2.swift:3:37: error: cannot convert value of type 'TiqianArray<String>' to expected argument type '[TiqianArray<String>]'
-1 | // PIT-255 negative control, optional variant (pre-fix).
-2 | func probeMapBroken(_ r: ReadOnlyArray<String>?) -> TiqianArray<String>? {
-3 |     return (r).map { TiqianArray($0.toMutableArray()) }
-  |                                     `- error: cannot convert value of type 'TiqianArray<String>' to expected argument type '[TiqianArray<String>]'
-4 | }
-5 | 

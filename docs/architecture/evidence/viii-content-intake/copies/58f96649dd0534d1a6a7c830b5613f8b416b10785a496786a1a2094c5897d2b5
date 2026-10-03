@@ -1,9 +1,0 @@
-bun test v1.3.13 (bf2e2cec)
-
-tests/ts/rust-packages.test.ts:
-(pass) Rust emits one module layer per Haxe package segment [23047.61ms]
-
- 1 pass
- 0 fail
- 5 expect() calls
-Ran 1 test across 1 file. [23.08s]

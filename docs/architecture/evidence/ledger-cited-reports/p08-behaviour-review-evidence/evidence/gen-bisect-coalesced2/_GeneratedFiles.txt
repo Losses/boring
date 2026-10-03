@@ -1,6 +1,0 @@
-boring/ReadOnlyBoundaryOps.swift
-boring/ReadOnlyBoundaryOracle.swift
-std/UStringException.swift
-std/UStringFault.swift
-Runtime.swift
-Test.swift

@@ -1,7 +1,0 @@
-/tmp/vc8/out/pre-ATI/gen/mx/AttI.swift:13:12: error: cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
-11 |         return flag ? ReadOnlyArray(({ () -> TiqianArray<Int32> in
-12 |     let s: Int32 = Int32(h.count)
-13 |     return ReadOnlyArray(({ () in let _a = h; let _n = _a.count; let _f = Int(s); let _s = _f < 0 ? max(_n + _f, 0) : min(_f, _n); let _t = Int(0); let _e0 = _t < 0 ? max(_n + _t, 0) : min(_t, _n); let _e = _e0 < _s ? _s : _e0; return TiqianArray(Array(_a[_s..<_e])) }()))
-   |            `- error: cannot convert value of type 'ReadOnlyArray<Slice<TiqianArray<Int32>>.Element>' (aka 'ReadOnlyArray<Int32>') to closure result type 'TiqianArray<Int32>'
-14 | })()) : ReadOnlyArray(QSource.second())
-15 |     }
