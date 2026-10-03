@@ -359,6 +359,9 @@ jobs:
       # path argument, or an ignore pattern for a failing file would be the
       # waiver that rule forbids. `set -o pipefail` keeps the suite's exit code
       # as the step's exit code while the log is retained for the report below.
+      # 2026-10-03: the cited in-repo ledgers (BASELINE-FAILURES.md, architecture-work-plan.md)
+      # were retired to the wb system (task t-musjpp6r-k39m); the baseline record survives
+      # in git history and the wb task notes. The gate behaviour is unchanged.
       - name: Collected suite (contract 3 count)
         run: |
           set -o pipefail
