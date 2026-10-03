@@ -716,10 +716,16 @@ class TsDecl {
             // default and the coalescing site stays in the body as `p ?? E`.
             return '${a.name}: ${types.of(a.type)} = null';
         }
+        // A non-null default (?x:Bool = true) has Haxe type Bool, not
+        // Null<Bool>, but reflaxe wraps it in Null; restore the non-null
+        // type so the TS signature carries the correct non-nullable type.
+        // (NonNullDefaultParamType)
+        final registered = DefaultArgExpander.defaultAt(cls, f.field.name, a.index);
+        final paramType = registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type;
         if (isTrailingOptional(cls, f, a.index)) {
-            return '${a.name}?: ${types.of(a.type)}';
+            return '${a.name}?: ${types.of(paramType)}';
         }
-        return '${a.name}: ${types.of(a.type)}';
+        return '${a.name}: ${types.of(paramType)}';
     }
 
     /** Whether every parameter from `fromIndex` to the end is optional. */
