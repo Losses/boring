@@ -46,13 +46,15 @@ class Compiler extends PluginCompiler<Compiler> {
     var current:Null<RustDecl> = null;
 
     function saveTreeFile(path:String, content:String):Void {
-        final wrapped = wrapGeneratedSource(content);
-        PackageArtifacts.saveTreeFile(output, path, wrapped);
-        writeOriginSidecar(path, wrapped);
+        final folded = wrapGeneratedSource(content);
+        PackageArtifacts.saveTreeFile(output, path, folded.wrapped);
+        writeOriginSidecar(path, content, folded.wrapped, folded.foldMap);
     }
 
-    function wrapGeneratedSource(content:String):String {
+    function wrapGeneratedSource(content:String):{wrapped:String, foldMap:Array<Int>} {
         final wrapped:Array<String> = [];
+        final foldMap:Array<Int> = [];
+        var origLineIndex = 0;
         for (line in content.split("\n")) {
             var rest = line;
             while (rest.length > 280) {
@@ -91,11 +93,14 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (cut < 1)
                     break;
                 wrapped.push(rest.substr(0, cut + 1));
+                foldMap.push(origLineIndex);
                 rest = StringTools.ltrim(rest.substr(cut + 1));
             }
             wrapped.push(rest);
+            foldMap.push(origLineIndex);
+            origLineIndex++;
         }
-        return ParenFold.strip(wrapped.join("\n"));
+        return {wrapped: ParenFold.strip(wrapped.join("\n")), foldMap: foldMap};
     }
 
 
@@ -2816,12 +2821,15 @@ class Compiler extends PluginCompiler<Compiler> {
         return parts.join("/") + ".rs";
     }
 
-    /** Writes the emit-origin sidecar for a saved module when the define is active. */
-    function writeOriginSidecar(savePath:String, content:String):Void {
+    /** Writes the emit-origin sidecar for a saved module when the define is active.
+        originalContent is the pre-wrap text, wrappedContent after wrapGeneratedSource,
+        and foldMap maps each wrapped line back to its original line index.
+        Non-fold targets pass originalContent == wrappedContent and identity foldMap. */
+    function writeOriginSidecar(savePath:String, originalContent:String, wrappedContent:String, foldMap:Array<Int>):Void {
         if (!Context.defined("rust_emit_origins"))
             return;
         // The Rust target renders module paths in snake_case (int_division_ops.rs),
-        // but the Haxe source file is CamelCase (IntDivisionOps.hx). finalizeFile
+        // but the Haxe source file is CamelCase (IntDivisionOps.hx). finalizeFileWithFold
         // derives the expected source suffix from the output path, so construct a
         // CamelCase source-matching path from the snake_case savePath.
         final lastSlash = savePath.lastIndexOf("/");
@@ -2831,7 +2839,7 @@ class Compiler extends PluginCompiler<Compiler> {
         final baseName = dotPos >= 0 ? fileName.substr(0, dotPos) : fileName;
         final ext = dotPos >= 0 ? fileName.substr(dotPos) : "";
         final sourceMatchPath = dirPath + RustImports.toUpperCamelCase(baseName) + ext;
-        final map = EmitSink.finalizeFile(sourceMatchPath, content);
+        final map = EmitSink.finalizeFileWithFold(sourceMatchPath, originalContent, wrappedContent, foldMap);
         if (map == null)
             return;
         final json = map.write();
