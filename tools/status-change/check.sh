@@ -97,6 +97,9 @@ note() { echo "$1"; case "$1" in FAIL*) FAILS=$((FAILS+1));; esac; }
 if [ -z "$RULING" ]; then
   note "FAIL Q1: no --ruling given; a status change must name the ruling that authorizes it"
 else
+  # 2026-10-03: both in-repo ruling locations were retired to the wb system (task
+  # t-musjpp6r-k39m); citing a retired ruling path is an error by design - cite the
+  # wb board row that carries the ruling instead.
   case "$RULING" in
     docs/architecture/MANAGEMENT-RULING-*.md|docs/architecture/rulings/*.md) ;;
     *) note "FAIL Q1: '$RULING' is not a ruling path (expected docs/architecture/MANAGEMENT-RULING-*.md or docs/architecture/rulings/*.md)" ;;

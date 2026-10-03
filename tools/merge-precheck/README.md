@@ -33,6 +33,8 @@ final verdict (exit 0 only if all three pass). Recovery plan section 3.4 item
    been reviewed against it and is blocked.
    - Commands:
      `latest=$(git log -1 --format=%H -- 'docs/architecture/MANAGEMENT-RULING-*.md' docs/architecture/rulings/)`
+     (2026-10-03: both in-repo ruling locations retired to the wb system, task t-musjpp6r-k39m;
+     for new bases this check is vacuous - the ruling timeline now lives in the wb.)
      `mb=$(git merge-base <into> <branch>)`
      `git merge-base --is-ancestor "$latest" "$mb"`
    - Pass criterion: exit 0 (the latest ruling commit is an ancestor of — or equal to — the branch base).

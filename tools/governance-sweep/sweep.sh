@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # governance-sweep: §3.4 item 4 periodic stop/cancel sweep.
 #
-# Lists three object classes (see docs/architecture/GOVERNANCE-SWEEP.md):
+# Lists three object classes (procedure retired to the wb system 2026-10-03; see docs/architecture/README.md):
 #   1. stale candidates  — revisions still recorded as frozen in REFREEZE.md that a
 #                          management ruling has sealed/rejected;
 #   2. dead board rows   — status=doing rows whose branch exists neither locally nor on
@@ -47,7 +47,9 @@ git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
   || fail "not a git worktree: $REPO"
 [ -r "$BOARD" ] || fail "board file not readable: $BOARD (set SWEEP_BOARD)"
 REFREEZE="$REPO/docs/architecture/REFREEZE.md"
-[ -r "$REFREEZE" ] || fail "REFREEZE.md not readable: $REFREEZE"
+# 2026-10-03: class 1 inputs (REFREEZE.md, MANAGEMENT-RULING-*.md) were retired to the
+# wb system (task t-musjpp6r-k39m); a missing ledger degrades class 1 to an explicit
+# notice below instead of a hard fail or a silent green.
 
 # mainline must resolve, or merge classification would silently mislabel everything
 git -C "$REPO" rev-parse --verify --quiet "refs/heads/$MAIN" >/dev/null \
@@ -68,6 +70,9 @@ echo "== governance sweep @ $(git -C "$REPO" rev-parse HEAD) =="
 
 # ---- class 1: stale candidates (frozen but sealed/rejected by a ruling) -------------
 echo "-- class 1: stale candidates (frozen in REFREEZE.md, sealed by a ruling)"
+if [ ! -r "$REFREEZE" ]; then
+  echo "   skipped (degraded): in-repo frozen-candidate ledger (REFREEZE.md) retired to the wb system on 2026-10-03 (see docs/architecture/README.md); verify candidate sealing on the wb board, not in-repo"
+else
 # grep failure modes: 1=no match (fine, means no entry), 2=real error -> fail closed
 rc=0; entries=$(grep -o 'Candidate revision: `[0-9a-f]\{8,\}`' "$REFREEZE") || rc=$?
 [ "$rc" -le 1 ] || fail "grep on REFREEZE.md failed (rc=$rc)"
@@ -91,6 +96,7 @@ else
       echo "   ok:    candidate $sha frozen, no sealing ruling found"
     fi
   done <<< "$entries"
+fi
 fi
 
 # ---- class 2: dead board rows (doing, branch gone locally + origin) -----------------

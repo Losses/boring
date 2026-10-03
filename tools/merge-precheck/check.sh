@@ -12,7 +12,9 @@
 #              the base invalidates the work; rulings are read from
 #              docs/architecture/MANAGEMENT-RULING-*.md and docs/architecture/rulings/
 #              but files that self-identify as test fixtures are excluded
-#              (content-based guard, PIT-487)
+#              (content-based guard, PIT-487). 2026-10-03: both in-repo ruling locations
+#              were retired to the wb system (task t-musjpp6r-k39m); the timeline is now
+#              frozen at the last historical ruling commit (git log still resolves it).
 #   3. signoff the board row's merges field carries a non-empty confirm
 #              (produced by wb_merge confirm=)
 #
