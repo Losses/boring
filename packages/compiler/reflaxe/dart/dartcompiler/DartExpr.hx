@@ -26,6 +26,7 @@ import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypePlan;
 import ValueTypeSupport.ValueTypeOperator;
+import EmitSink;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Dart.
@@ -831,6 +832,7 @@ class DartExpr {
                     out.push(l);
                 return out;
             case TVar(v, init) if (init != null):
+                DartExpr.emissionTrace("TVAR", localName(v), e.pos);
                 if (isNonNullNormalization(init) && !isNullLeafType(v.t))
                     nonNullLocals.set(v.id, true);
                 // (DeclarationPromotion) dart promotes a local whose
@@ -968,6 +970,7 @@ class DartExpr {
                         // throw; every arm, including the optional-inferred
                         // local one, is gated on a non-null return type.
                         // (NullableReturnNoAssert)
+                        DartExpr.emissionTrace("RETURN", "return " + rendered, e.pos);
                         return [
                             indent(depth) + "return " + (!currentFunctionReturnsNullable
                                 && (optionalValued(ret)
@@ -995,6 +998,7 @@ class DartExpr {
             case TBinop(OpAssign, target, value) if (isSwitch(value)):
                 return switchAssign(target, value, depth);
             case TBinop(OpAssign, l, r):
+                DartExpr.emissionTrace("ASSIGN", expr(l), e.pos);
                 final map = mapAssignment(l);
                 var rText = expr(r);
                 if (map == null && isIntOrLongType(emittedType(r)) && isFloatType(l.t))
@@ -1671,12 +1675,17 @@ class DartExpr {
     }
 
     function functionLiteral(f:TFunc):String {
-        // A closure body starts from a clean promotion slate: dart does
-        // not carry the enclosing function's `!` promotions into a
-        // closure over a captured local, so the outer flow notes must
-        // not suppress unwraps inside. (ClosurePromotionReset)
+        // A closure body starts from a clean promotion slate for mutated
+        // captured locals only: Dart's flow analysis DOES promote an
+        // unmutated captured local inside a closure (DartClosurePromotionFix,
+        // confirmed by native dart analyze on the warnstd FlowPromotedDedupe
+        // probe). For a local that IS assigned after capture, promotion must
+        // be cleared because the closure may read a later null write.
+        // (ClosurePromotionReset)
         final savedClosurePromoted = flowPromotedNonNull.copy();
         flowPromotedNonNull.clear();
+        for (k in savedClosurePromoted.keys())
+            if (!mutated.exists(k)) flowPromotedNonNull.set(k, savedClosurePromoted.get(k));
         // Same reset for the nonNullLocals plane: a stale entry (e.g. from
         // a terminating guard) leaking into the closure body suppresses
         // the required `!` on captured reads, yet the closure may run at
@@ -1684,6 +1693,8 @@ class DartExpr {
         // (ClosurePromotionReset; probes p9/p11)
         final savedClosureProven = nonNullLocals.copy();
         nonNullLocals.clear();
+        for (k in savedClosureProven.keys())
+            if (!mutated.exists(k)) nonNullLocals.set(k, savedClosureProven.get(k));
         final result = functionLiteralInner(f);
         nonNullLocals.clear();
         for (k in savedClosureProven.keys())
@@ -5461,6 +5472,16 @@ class DartExpr {
                 fail(fn, "std.Process has no lowering for member " + name);
                 "null";
         };
+    }
+
+    /** Emission-path attribution: records the emission branch and rendered text so a host diagnostic maps back to the emitting branch. */
+    public static function emissionTrace(tag:String, text:String, pos:haxe.macro.Expr.Position = null):Void {
+        #if dart_fold_debug
+        Sys.stderr().writeString("EMITSTACK " + tag + " [" + text + "]\n" + haxe.CallStack.toString(haxe.CallStack.callStack()) + "\n");
+        #end
+        #if dart_emit_origins
+        EmitSink.record(tag, pos, text);
+        #end
     }
 }
 #end

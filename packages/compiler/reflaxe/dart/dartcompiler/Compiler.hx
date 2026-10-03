@@ -13,6 +13,7 @@ import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
 import StaticReferenceScan;
 import TestClassFlush;
+import EmitSink;
 
 /**
     reflaxe plugin producing the Dart target of the translatable subset
@@ -78,6 +79,8 @@ class Compiler extends PluginCompiler<Compiler> {
     public static final forceCompileModules:Map<String, Bool> = [];
 
     public static function use() {
+        if (Context.defined("dart_emit_origins"))
+            EmitSink.activate();
         // Dart has one storage width for reals (double) with no binary32
         // alias in the language, so the f32 configuration has no faithful Dart
         // lowering; reject at plugin registration, before any type
@@ -494,6 +497,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final body = parts.get(module).join("\n\n");
             final content = GENERATED_HEADER + "\n" + importBlockOf(ctx, filePath, dartOutput, testOutput) + "\n" + body + "\n";
             PackageArtifacts.saveTreeFile(output, savedPath, content);
+            writeOriginSidecar(savedPath, content);
         }
 
         // Write stub files for modules that are referenced by imports but
@@ -516,6 +520,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final savedPath = "lib/" + DartImports.libraryPathOf(refMod);
             final content = GENERATED_HEADER + "\n";
             PackageArtifacts.saveTreeFile(output, savedPath, content);
+            writeOriginSidecar(savedPath, content);
         }
 
         // Write the self-contained runtime library when any business code
@@ -827,6 +832,39 @@ class Compiler extends PluginCompiler<Compiler> {
             out.push(toParts[i]);
         }
         return out.join("/");
+    }
+
+    /** Writes the emit-origin sidecar for a saved module when the define is active. */
+    function writeOriginSidecar(savePath:String, content:String):Void {
+        if (!Context.defined("dart_emit_origins"))
+            return;
+        // The Dart target renders module paths in snake_case (int_division_ops.dart)
+        // under a package root (lib/ for business, testRel for tests), but the
+        // Haxe source file is CamelCase under samples/ (IntDivisionOps.hx).
+        // finalizeFile derives the expected source suffix from the output path,
+        // so drop the leading package root and reverse snake_case on the file-leaf
+        // base name so source-file events match the actual Haxe source path.
+        var matchRel = savePath;
+        while (StringTools.startsWith(matchRel, "../"))
+            matchRel = matchRel.substr(3);
+        final firstSlash = matchRel.indexOf("/");
+        if (firstSlash >= 0)
+            matchRel = matchRel.substr(firstSlash + 1);
+        final lastSlash = matchRel.lastIndexOf("/");
+        final dirPath = lastSlash >= 0 ? matchRel.substr(0, lastSlash + 1) : "";
+        final fileName = lastSlash >= 0 ? matchRel.substr(lastSlash + 1) : matchRel;
+        final dotPos = fileName.lastIndexOf(".");
+        final baseName = dotPos >= 0 ? fileName.substr(0, dotPos) : fileName;
+        final ext = dotPos >= 0 ? fileName.substr(dotPos) : "";
+        final camelParts = [for (p in baseName.split("_")) if (p.length > 0) p.charAt(0).toUpperCase() + p.substr(1)];
+        final camelBase = camelParts.join("");
+        final sourceMatchPath = dirPath + camelBase + ext;
+        final map = EmitSink.finalizeFile(sourceMatchPath, content);
+        if (map == null)
+            return;
+        final json = map.write();
+        output.saveFile(savePath + ".emit-origin.json", json);
+        PackageArtifacts.record(savePath + ".emit-origin.json", json);
     }
 }
 #end
