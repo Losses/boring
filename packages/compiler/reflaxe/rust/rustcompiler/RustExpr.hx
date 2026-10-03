@@ -23,6 +23,7 @@ import VarFusionPlan;
 import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypePlan;
+import EmitSink;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Rust.
@@ -1740,9 +1741,13 @@ class RustExpr {
                         }
                     }
                 }
-#if rust_fold_debug
+#if (rust_fold_debug || rust_emit_origins)
+                #if rust_emit_origins
+                emissionTrace("TVAR " + v.name, initStr, e.pos);
+                #elseif rust_fold_debug
                 if (initStr.indexOf("preferred_inline_object_boundary") >= 0 || initStr.indexOf("metric_decision_by_range") >= 0 || v.name.indexOf("annotation") >= 0)
-                    emissionTrace("TVAR " + v.name + " init=[" + initStr.substr(0, initStr.length > 60 ? 60 : initStr.length) + "]", e.pos);
+                    emissionTrace("TVAR " + v.name + " init=[" + initStr.substr(0, initStr.length > 60 ? 60 : initStr.length) + "]", initStr, e.pos);
+                #end
 #end
                 // A reassigned local whose constant initializer is never
                 // read before the first reassignment declares bare: the
@@ -2114,8 +2119,14 @@ class RustExpr {
                             ? "(" + retStr + ").unwrap()"
                             : "(" + retStr + ").as_ref().unwrap().clone()";
                     }
+                    #if rust_emit_origins
+                    emissionTrace("RETURN", retStr, e.pos);
+                    #end
                     return [indent(depth) + "return Ok(" + retStr + ");"];
                 }
+                #if rust_emit_origins
+                emissionTrace("RETURN", retStr, e.pos);
+                #end
                 return [indent(depth) + "return " + retStr + ";"];
             case TThrow(x):
                 if (isFallible) {
@@ -7476,9 +7487,13 @@ class RustExpr {
                     numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(assignTarget) ? "i32" : null,
                         assignTarget >= 0 && !i32Locals.exists(assignTarget));
                 };
-#if rust_fold_debug
+#if (rust_fold_debug || rust_emit_origins)
+                #if rust_emit_origins
+                emissionTrace("ASSIGN " + assignTarget(l), assignTarget(l) + "=" + expr(r).substr(0, expr(r).length > 80 ? 80 : expr(r).length), e.pos);
+                #elseif rust_fold_debug
                 if (expr(r).indexOf("cached") >= 0 || expr(r).indexOf("decision") >= 0)
-                    emissionTrace("ASSIGN target=" + assignTarget(l) + " val=[" + expr(r).substr(0, expr(r).length > 50 ? 50 : expr(r).length) + "]", e.pos);
+                    emissionTrace("ASSIGN target=" + assignTarget(l), "val=[" + expr(r).substr(0, expr(r).length > 50 ? 50 : expr(r).length) + "]", e.pos);
+                #end
 #end
                 final assignTargetText = assignTarget(l);
                 // Haxe grows an Array when an index write reaches past the
@@ -12123,8 +12138,13 @@ class RustExpr {
         }
     }
 
-    function emissionTrace(tag:String, pos:Dynamic):Void {
-        Sys.stderr().writeString("EMITSTACK " + tag + "\n" + haxe.CallStack.toString(haxe.CallStack.callStack()) + "\n");
+    function emissionTrace(tag:String, text:String, pos:Dynamic):Void {
+        #if rust_fold_debug
+        Sys.stderr().writeString("EMITSTACK " + tag + " [" + text + "]\n" + haxe.CallStack.toString(haxe.CallStack.callStack()) + "\n");
+        #end
+        #if rust_emit_origins
+        EmitSink.record(tag, pos, text);
+        #end
     }
 
     function scanSortedGetInfo(call:TypedExpr, wantMethod:String):Null<{subj:String, key:String}> {

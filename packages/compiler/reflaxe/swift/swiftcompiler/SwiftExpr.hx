@@ -38,6 +38,7 @@ import swiftcompiler.SwiftArrayBoundary.SwiftArrayPreparedOperand;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayStorage;
 import swiftcompiler.SwiftParameterPlan.SwiftParameterDecision;
 import swiftcompiler.SwiftParameterPlan.SwiftParameterDefaultMode;
+import EmitSink;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Swift.
@@ -2208,10 +2209,11 @@ class SwiftExpr {
         return tail != "nil" && !StringTools.startsWith(tail, "Optional(");
     }
 
-    public static function emissionTrace(tag:String, text:String):Void {
+    public static function emissionTrace(tag:String, text:String, pos:haxe.macro.Expr.Position = null):Void {
         #if boring_fold_debug
         Sys.stderr().writeString("KTRACE " + tag + " [" + text + "]\n");
         #end
+        EmitSink.record(tag, pos, text);
     }
 
     function optionalIf(e:TypedExpr, c:TypedExpr, ifTrue:TypedExpr, ifFalse:TypedExpr):Null<String> {
@@ -2219,7 +2221,7 @@ class SwiftExpr {
         if (site == null)
             return null;
         final targetText = expr(site.target);
-        emissionTrace("OPTIONAL_IF", targetText);
+        emissionTrace("OPTIONAL_IF", targetText, e.pos);
         return targetText + " ?? " + coalescingFallbackText(site.fallback, e.t);
     }
 
@@ -2344,7 +2346,7 @@ class SwiftExpr {
         if (isNullExpr(fallback)) {
             return expr(getCall);
         }
-        emissionTrace("GUARD_LOOKUP", expr(getCall));
+        emissionTrace("GUARD_LOOKUP", expr(getCall), e.pos);
         return expr(getCall) + " ?? " + coalescingFallbackText(fallback, e.t);
     }
 
