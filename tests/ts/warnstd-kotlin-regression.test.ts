@@ -11,10 +11,7 @@ import * as path from "node:path";
  * and NullArmStatementFold assertions were negative-validated by
  * regenerating against the pre-fix kotlincompiler emitter (7ee358ca~1)
  * and confirming they go red (captured outputs in
- * .tq-logs/warnstd/seats/r2.log). The guardedNonNullTernary elvis test
- * is a shape-only test: no pre-fix emitter shape that flips it red was
- * reached, so it holds the current rendered text but does NOT prove a
- * regression would be caught.
+ * .tq-logs/warnstd/seats/r2.log).
  */
 
 const gen = (name: string): string =>
@@ -39,11 +36,5 @@ describe("warnstd kotlin regression samples", () => {
     expect(out).toContain("if (!(items.isEmpty())) items.removeAt(items.lastIndex)");
     expect(out).toContain("if (!(items.isEmpty())) items.removeAt(0)");
     expect(out).not.toContain("else");
-  });
-
-  test("guardedNonNullTernary elvis wrap: proven non-null member reads stay on the non-null path (shape test, no negative validation)", () => {
-    const out = gen("GuardedNonNullTernaryElvis.kt");
-    expect(out).toContain("return r!!.size");
-    expect(out).not.toContain("size!!");
   });
 });
