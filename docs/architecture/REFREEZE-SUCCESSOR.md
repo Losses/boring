@@ -1,12 +1,25 @@
 # P08 SUCCESSOR CANDIDATE — RE-FREEZE RECORD (R3.2)
 
+> **状态勘误 (2026-10-02):** 本记录冻结于 2026-10-01，当时 RULING-137:32-35
+> 禁令仍在生效。2026-10-02 `MANAGEMENT-RULING-RECOVERY-VIII.md`（commit
+> `a0c1517b`）§3 已解除该禁令（condition 4 satisfied + later explicit ruling
+> 两条件均已满足）。本记录中称该禁令「依然有效」的语句系冻结当时的准确记录，
+> 现标为 **[当时记录]**。
+>
+> **边界明确（不将旧封存套新候选）：** 旧候选 `c8ae0054` = 永久 REJECTED
+> （RULING-245 点 1/4，已封存）；新候选 `2ba5766b` = 尚无法判定（双独立复核
+> 0/2，RULING-245 点 2 门槛未过），**非**永久 REJECT。P08 整体仍为
+> `NOT PASSED`，但 `2ba5766b` 路径未封死。
+> RULING-245 双独立复核门槛仍未满足 (0/2)；`P08-SUCCESSOR-DECLARATION.md`
+> 仍为 DRAFT。
+
 > **IDENTITY RECORD ONLY — NOT A DECLARATION, NOT A NOMINATION, NOT ACCEPTANCE.**
 >
 > 本记录冻结的是 P08 **后继候选**的一个可指 revision（身份对象），供 R3.3 的两份
 > 独立复核瞄准同一棵树。本记录**不**提名、**不**宣称 P08 通过、**不**改任何 gate、
 > 台账或看板状态；`docs/architecture/MANAGEMENT-RULING-137.md` 的常设禁令
 > （condition 4 满足**且**有后续明示裁定之前：不得提名、不得宣称通过、不得改状态）
-> **依然有效**。P08 整体维持 `NOT PASSED / REJECTED, finally`（RULING-245）。
+> **依然有效 [当时记录]**。P08 整体维持 `NOT PASSED / REJECTED, finally`（RULING-245）。
 
 **Candidate revision: `2ba5766b`** — `merge: recov/r31-successor-declaration into
 arch/agent-guided-governance`.
@@ -203,7 +216,7 @@ scope-caveat changes.
 3. **No declaration of a pass.** P08 stays `NOT PASSED / REJECTED, finally`.
 4. **No gate, ledger or board state change.** `GATE-LEDGER.md`, the board rows and
    `MANAGEMENT-RULING-137.md` are all untouched by this record.
-5. **RULING-137's standing prohibition remains in force**: until condition 4 is
+5. **RULING-137's standing prohibition remains in force [当时记录]**: until condition 4 is
    satisfied *and* a later explicit ruling says otherwise — do not nominate, do not
    declare a pass, do not change status. This freeze changes none of that; it is the
    "preparation" RULING-137's minimum action permits, in the identity-recording sense
