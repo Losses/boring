@@ -8,103 +8,23 @@
 | `ARCHITECTURAL-CONTRACTS.md` | **架构契约**（接口两端各自承诺什么） |
 | `LAYERED-VERIFICATION.md` | **分层验证方案**（每层用什么可观察量检验，以及该判据何时骗人） |
 
-## 与既有文档的关系
+每份文档都带「未决」一节：未决项是文档的一部分，不另立台账。
 
-- **约束性验收标准**是 `docs/specs/style/02-translator-implementation-standard.md`
-  （计划 `:63` 把 "acceptance rules" 指派给它）。本目录不重复该标准，
-  只在契约 3 引用它并推出其**收集**含义（没有套件在跑 ⇒ 不产生计数 ⇒ 标准被绕过）。
-- **任务顺序与状态**是 `docs/architecture-work-plan.md`（计划 `:65` 自述其职责为
-  "task order, assignments, dependencies, and programme status"）。本目录不取代它。
-- **边界策略记录**是 `dc-warn/out/boundary-policy-record/RECORD.md`；本目录引用其
-  CORRECTION 13 的结论（三条 REFUSED 行为 PLANNER-CELL ONLY），不复制其正文。
+## 数据目录（审计底册，不删）
 
-## 这三份文档的来源
+- `evidence/`：各轮验证/审计的原始证据（REPORT、日志、哈希清单），含 16 个子目录与 `LOOP-LAMBDA-FROM-INDEXOF.md`。
+- `p09-f32-baseline/`：P09 f32 baseline 的版本化输入——`SOURCE_MANIFEST.json`（candidate `77c493b5` 的 15 项输入逐文件 sha256）、`expected.json`（preparation-only，含 PrintedFloatTests 6 条显式豁免与撤销条件）、`inputs/` 快照。
+- `bunfig-collection-fix.diff`：bun test 收集修复补丁记录（bunfig.toml 排除 `out/**`）。
 
-取自本程序既有的调查记录、两席架构咨询（SOL2 / Astra）与 CODEX-AUDIT，
-以及本会话四处已修复缺陷的机制。**不是新调查**；目的是把散落在报告与
-会话中的设计结论汇成可引用的形式。
+## 与 wb 系统的关系
 
-## 每份文档都带"未决"一节
+本目录只保留架构文档与数据。**进度管理内容（任务状态、台账判决、合入事实、审计读数、裁定、过程记录）已全部迁入 wb 系统**（迁移任务 t-musjpp6r-k39m，2026-10-03）：
 
-未决项是文档的一部分，不是缺陷：构建期诊断是否计入验收、J 类迁移的契约、
-命名一致性的归类、单返回快速路径的缺口，均在各自文档中具名。
+- 任务状态与一次性事实 → wb 看板任务行 note / evidence（父任务 t-musjpp6r-k39m 汇总）。
+- 可复用跨任务判断 → wb Wiki（notes.json，ref PIT/TCN/ARC）。
+- 常设章程（目标/完成判据/角色权限/文档职责表）→ wb 里程碑 m-mulwvr32-3jht 描述。
+- 已退役的叙述性文档（GATE-LEDGER、MANAGEMENT-RULING 系、REFREEZE 系、MERGE-REGISTER、STATUS-CHANGE-AUDIT、GOVERNANCE-SWEEP、rulings/ 等 28 个 .md）在 git 历史中可追溯（forward 删除，未改写历史）。
 
-## Worktree isolation (added after a real incident)
+## 约束性验收标准
 
-**Work in your own worktree. Never `git checkout` in the shared coordination
-worktree.**
-
-On 2026-09-30 a dispatched seat, following its brief literally, ran a branch
-checkout inside `/home/losses/Development/tq-workspace/boring-wt-architecture`.
-That single act moved **every** other running seat's baseline: the shared tree went
-from the line under test to an unrelated branch at an older commit, and any seat
-that read tree state, generated artifacts, or ran a suite in that window was
-measuring the wrong thing. Nothing was lost - the commits were reachable from
-`--all` throughout - but three seats had to be told their readings might be
-invalid.
-
-The cause was not the seat. Its brief said "claim this branch" and it did. **The
-brief was wrong**: this repository already keeps its parallel work in dedicated
-worktrees (dozens of them under `dc-warn/worktrees/` and beside it), and the
-instruction failed to say so.
-
-**The rule, therefore:**
-
-- To work on a branch, create your own tree: `git worktree add <path> <branch>`.
-- The shared coordination tree is for **reading only** - `git log`, `git show`,
-  `git ls-tree`, `git status`. It may not be checked out, reset, or committed to.
-- If a task is genuinely a one-tree operation, say so and work in an export
-  (`git archive`) instead, which is what the gate tooling already does.
-- A dispatch brief that names a branch **must** say where the work happens. A brief
-  that omits it is defective, regardless of how the seat behaves.
-
-This is recorded here rather than left in chat because it is a property of how this
-repository is worked, not a one-off mishap.
-
-## Sign-off checklist (this session's lessons, collected)
-
-Before accepting a delivery, run these in order. Each step corresponds to a trap this
-session actually hit; none of them is hypothetical.
-
-0. **Is it on a remote yet?** This is step zero because it invalidates every step below it.
-   A local commit is not a delivery: for 48 hours this effort pushed nothing, and at the end
-   the remote held neither the base branch nor any of the work -
-   `origin/arch/agent-guided-governance` was **116 commits behind**, and `branch -r --contains`
-   came back empty for every session commit sampled. One machine loss would have taken all of
-   it. Check the three:
-
-       git ls-remote --heads origin "<branch>"        # must be non-empty
-       git branch -r --contains HEAD                  # must be non-empty
-       git rev-list --count origin/<branch>..<branch> # record the lag; 0 is delivered
-
-   If any fails, the honest word is "local only", not "delivered". **Pushing is a closing
-   action, not an optional one.**
-
-1. **Which tree does it hold on?** `git rev-parse --verify <branch>` (does it exist) ->
-   `git merge-base --is-ancestor <commit> arch/agent-guided-governance` (is it in base) ->
-   **open the file in the shared tree** (what shape is base actually in). The third step is
-   not optional: a hardened guard was reviewed and signed off yet was never an ancestor of
-   base, so base ran the weak copy and the same input reached OPPOSITE verdicts on the two.
-2. **Does the load-bearing artifact have a commit?** Tools, guards, fixtures, drivers and
-   assertion scripts must pass `git ls-files --error-unmatch` and come out of
-   `git archive HEAD`; evidence may live in reports. Measured here: 37 of 37 worktrees were
-   detached HEAD and all 37 had uncommitted changes.
-3. **Can the criterion fail?** "The correct case passes" is not verification. Produce a
-   deliberately wrong input and watch it FAIL: a gate needs BOTH the loose and the strict
-   rc (equal rc means the gate does not exist); a fixture needs a mutant or reverse
-   control; "changed the emitter" needs a regenerate-and-diff (one 38-line change produced
-   0 differing files across the whole generated tree).
-4. **Are the rc and the count measured correctly?** Read rc directly, never through a pipe;
-   count diagnostics by SHAPE (`^error(\[E[0-9]+\])?:`, or
-   `^[^ ]+\.swift:[0-9]+:[0-9]+: (warning|error):`), never by substring - caret/context
-   lines and rustc's `--explain` hint both double-count.
-5. **Does the manifest verify from one command at the repo root?** If it names
-   git-ignored paths then "rc=0" holds only on the author's working copy. Label reachable
-   and unreachable entries as separate sections, and verify in a clean `git archive` export.
-6. **After merging, check where it landed.** `git rev-parse --abbrev-ref HEAD` plus step 1's
-   is-ancestor: one round merged four times onto a working line while the declared base
-   never moved, so newly created worktrees could not see the fixes.
-7. **How wide is the claim?** If a report says "passed" where it did not measure, downgrade
-   to `partly-confirmed` with the condition; `not-reached` needs its search evidence (which
-   paths were tried), otherwise "the environment lacks it" is indistinguishable from "nobody
-   looked" - one `haxelib` sat in the very store directory as `haxe`.
+约束性验收标准是 `docs/specs/style/02-translator-implementation-standard.md`（:78/:80 定义零警告与计数口径）。本目录不重复该标准。
