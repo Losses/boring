@@ -29,12 +29,16 @@ function main() {
 function printSummary(data) {
   const v = data.v || 1;
   const totalLines = (data.lines || []).length;
-  const mappedLines = data.lines.filter(l => l !== null).length;
+  const mappedLines = data.lines.filter(l => l !== null && !(typeof l === "object" && l.u !== undefined)).length;
+  const exactLines = data.lines.filter(l => Array.isArray(l) && (l.length < 8 ? true : l[7] === "exact")).length;
+  const inheritedLines = data.lines.filter(l => Array.isArray(l) && l.length >= 8 && l[7] === "inherited").length;
+  const nullLines = totalLines - mappedLines;
   const callStackFrames = (data.callStackFrames || []).length;
   console.log(`Sidecar: ${data.revision || '?'}  Haxe ${data.haxeVersion || '?'}`);
   console.log(`Format: v${v}  Source files: ${(data.sourceFiles || []).length}  Frames: ${(data.frames || []).length}`);
   console.log(`Call-stack frame table: ${callStackFrames} entries`);
   console.log(`Lines: ${mappedLines} mapped of ${totalLines} total (${totalLines > 0 ? (mappedLines/totalLines*100).toFixed(1) : 0}%)`);
+  console.log(`  exact: ${exactLines}  inherited: ${inheritedLines}  null: ${nullLines}`);
   if (data.sourceFiles) {
     console.log(`
 Source files:`);
@@ -59,11 +63,16 @@ function printTrace(data, line, column) {
     console.log(`Unmapped: no mapping for line ${line}`);
     process.exit(0);
   }
+  if (typeof entry === "object" && !Array.isArray(entry)) {
+    console.log(`Unmapped: no mapping for line ${line} (${entry.u || "no source"})`);
+    process.exit(0);
+  }
 
   const frameId = entry[0];
   const frame = data.frames && frameId < data.frames.length ? data.frames[frameId] : '<unknown>';
 
-  console.log(`line ${line} (col ${column}) -> frame=${frame}`);
+  const origin = Array.isArray(entry) && entry.length >= 8 ? entry[7] : "exact";
+  console.log(`line ${line} (col ${column}) [${origin}] -> frame=${frame}`);
 
   if (entry.length >= 5) {
     const sourceFileId = entry[1];
