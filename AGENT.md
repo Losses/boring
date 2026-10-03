@@ -278,12 +278,12 @@ with the relevant feature specification and
 Use its stages and semantic dimensions to find the earliest incorrect
 decision, identify the general rule, compare the five targets, and assign the
 repair to the responsibility that owns the required facts. Retain the compact
-analysis record in the change description or a linked investigation document.
+analysis record in the change description or the workspace task board (wb) task note; the repository no longer hosts investigation documents.
 
-For coordinated architecture work, follow the
-[compiler architecture work plan](docs/architecture-work-plan.md). It defines
-task ownership, required briefs, verification evidence, and how execution
-results inform revisions to the internal guidance.
+For coordinated architecture work, follow the standing governance charter
+(kept on the workspace task board, milestone m-mulwvr32-3jht description). It
+defines task ownership, required briefs, verification evidence, and how
+execution results inform revisions to the internal guidance.
 
 ## Debugging and evidence
 
