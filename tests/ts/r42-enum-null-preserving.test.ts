@@ -45,8 +45,13 @@ describe("r42 enum null-preserving QName candidate", () => {
     // TIf, so the QName branch wraps it in parentheses.  The guarded ternary
     // already ships its own inner parens `(c ? a : b)`, and the wrap adds
     // one deliberate outer layer so `.kind` binds to the whole ternary.
+    // The value-enum constructor reference is rendered with an `as`
+    // widening (B1-B4: keep TypeScript's CFA from narrowing a
+    // `const x: E = E.Member` binding to one discriminant), so the inner
+    // arm carries the cast.  The property under test is unchanged: the
+    // low-precedence ternary receiver is parenthesized before `.kind`.
     expect(gen).toContain(
-      "((maybe === null ? R42ShapeTag.Alpha : maybe)).kind",
+      "((maybe === null ? (R42ShapeTag.Alpha as R42ShapeTag) : maybe)).kind",
     );
   });
 
