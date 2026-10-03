@@ -73,8 +73,7 @@ run. Of the tools the flake provides, only what is already on `PATH` is usable:
 | `haxe`, `cargo`, `kotlinc`, `swiftc`, `boring` | **no** |
 
 **All four sandbox limits, in one place** (each re-checked 2026-10-01; the
-underlying measurements are in `docs/architecture/BASELINE-FAILURES.md` and
-`docs/architecture/GATE-LEDGER.md`, not duplicated here):
+underlying measurements are recorded in `docs/architecture/ARCHITECTURAL-CONTRACTS.md`, `docs/architecture/LAYERED-VERIFICATION.md`, and the CI baseline wiring in `.github/workflows/ci.yml`, not duplicated here):
 
 | # | Limit | Blocks |
 |---|---|---|
@@ -90,9 +89,8 @@ It said writes to the Tiqian checkout's `.git` blocked obtaining the pinned
 revision. That conflated two questions: *"can that existing checkout be updated"*
 (no) and *"can the revision be obtained"* (**yes** — clone into the workspace,
 which is writable). The probe verified `8504d230` and
-`engine-haxe/tests/compile.hxml` in the clone before the entry was deleted. See
-`GATE-LEDGER.md` for why the superseded reasoning is kept there rather than
-quietly replaced.
+`engine-haxe/tests/compile.hxml` in the clone before the entry was deleted. The superseded reasoning is retained in the wb record (task t-musjpp6r-k39m
+migration notes) rather than quietly replaced.
 
 **What still works without the flake** — the tests invoke `haxe`/`cargo`/`kotlinc`
 by name and do not locate them themselves, so the toolchains must be on `PATH`
@@ -105,13 +103,14 @@ however you arrange that (the flake normally does it):
 
 - `bun test tests/` **without** `haxe` on `PATH` reports **61 failures (1000
   pass)**; with it on `PATH`, **5 failures (1075 pass)**. Those 56 are
-  toolchain-absent, not defects — `docs/architecture/BASELINE-FAILURES.md`
+  toolchain-absent, not defects — the CI baseline step in `.github/workflows/ci.yml`
   measures the class by running both ways rather than inferring it from a marker;
 - the Swift lane cannot run at all here (`swiftc` needs 13 missing libraries, and
   its wrapper needs user namespaces the sandbox denies), which is why the
   residual 5 also cannot be cleared;
 - 35 fixtures under `tests/haxe/` are uncollected **and** unrunnable here, so
-  they are neither known-passing nor known-failing. See the same document.
+  they are neither known-passing nor known-failing. See the CI baseline step in
+  `.github/workflows/ci.yml` and `docs/architecture/LAYERED-VERIFICATION.md`.
 
 ## Build and test
 

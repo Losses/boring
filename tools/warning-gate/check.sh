@@ -93,7 +93,7 @@ check() {
   #   rust   loose rc=0 strict rc=101 (4 countable warnings, "due to 4 previous
   #                                    errors" - those "errors" ARE the 4 allowed
   #                                    warnings, promoted by -D warnings)
-  #   dart   loose rc=0 strict rc=2   (46 warnings; GATE-LEDGER, base 5c85feb5)
+  #   dart   loose rc=0 strict rc=2   (46 warnings; base 5c85feb5; ledger retired to wb 2026-09-30)
   # The strict flag promotes exactly the warnings the baselines already allow, so
   # a non-zero strict rc is the NORMAL state of a clean tree - and on kotlin and
   # rust it keeps the same value on a tree that does not compile at all (injected
