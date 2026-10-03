@@ -329,7 +329,8 @@ class EmitSink {
                             sourceLine: sourceLine,
                             sourceColumn: sourceColumn,
                             callStack: event.callStack.copy(),
-                            origin: "exact"
+                            origin: "exact",
+                            inheritedFrom: -1
                         };
                         used.set(fileEvents[j].globalIndex, true);
                         cursor = j + 1;
@@ -357,18 +358,17 @@ class EmitSink {
 
         // Backfill every no-event line from the nearest preceding exact
         // mapping so that, for any file with at least one mapped line, every
-        // generated line carries a record. Lines before the first exact
-        // mapping (module header, struct/impl prologue, the first function
-        // signature) have no preceding event to inherit from and stay null;
-        // they are genuinely source-less boilerplate, never guessed at.
-        // Inherited entries are cloned (never aliased) and explicitly marked
-        // "inherited" so they cannot masquerade as exact event matches.
+        // generated line carries a record. Inherited entries are cloned
+        // (never aliased) and explicitly marked "inherited" so they cannot
+        // masquerade as exact event matches.
         var wi2 = 0;
         var nearest:Null<EmitLineMapping> = null;
+        var nearestLine = -1;
         while (wi2 < lineMappings.length) {
             final existing = lineMappings[wi2];
             if (existing != null) {
                 nearest = existing;
+                nearestLine = wi2;
             } else if (nearest != null) {
                 lineMappings[wi2] = {
                     frameId: nearest.frameId,
@@ -378,7 +378,8 @@ class EmitSink {
                     sourceLine: nearest.sourceLine,
                     sourceColumn: nearest.sourceColumn,
                     callStack: nearest.callStack.copy(),
-                    origin: "inherited"
+                    origin: "inherited",
+                    inheritedFrom: nearestLine
                 };
             }
             wi2++;
