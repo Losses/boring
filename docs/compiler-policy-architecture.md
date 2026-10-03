@@ -1,19 +1,17 @@
 # Compiler policy architecture and parallel migration
 
-## Objective and status
+## Objective and ownership
 
-The owner requested a transition from the Swift pilot to systematic architecture
-work across TypeScript, Kotlin, Rust, Swift, and Dart on 2026-09-28. The current
-Swift work is preserved as an unfinished checkpoint with
-[explicit follow-up](investigations/architecture-round-1/swift-checkpoint-todo.md).
-This document defines the target responsibilities and the work boundaries.
-It is a design record; the corresponding infrastructure is not complete.
+This document defines the target responsibilities and the work boundaries for
+systematic architecture work across TypeScript, Kotlin, Rust, Swift, and Dart.
 
 The coordinator owns architecture, semantic decisions, task briefs, reviews,
 and acceptance. Claude Code and Goose own implementation and test changes.
 Each executor receives the exact source revision, relevant repository rules,
 interface specification, file ownership, test obligations, and durable handoff path.
 Record the CLI, actual model, and provider independently.
+Process records (owner requests, status, checkpoint follow-ups) live on the
+workspace task board, not in this document.
 
 ## Layers and dependency rules
 
@@ -87,7 +85,7 @@ independent definitions of source identity or evaluation order.
 
 ## Parallel work packages
 
-The [round 2 record](investigations/architecture-round-2.md) identifies the
+The round 2 record (workspace task board: round-2 fact extraction, task t-muso22y0-5hn2) identifies the
 active executor assignments, fixed input, and historical review evidence.
 
 The initial packages below are design and migration responsibilities. An
