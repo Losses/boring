@@ -14,7 +14,9 @@ package;
 
     Format v2 adds a global callStackFrames table and, on every line
     with a Haxe source, the 1-based source line/column and the list of
-    call-stack frame ids. Format v1 (without those fields) still reads
+    call-stack frame ids. Format v3 adds a per-line origin marker ("exact"
+    vs "inherited") so backfilled no-event lines cannot masquerade as
+    emission-event matches. Format v1 (without those fields) still reads
     back into the same structure with empty call stacks and 0 line/col.
 **/
 class EmitOriginMap {
@@ -44,9 +46,10 @@ class EmitOriginMap {
     }
 
     /**
-        Serializes this mapping to compact JSON. Writes v2 when the line
-        table carries any call stack, line, or column beyond the v1 span,
-        otherwise v1. v2 is the current writer default.
+        Serializes this mapping to compact JSON. Writes v3 when the line
+        table carries any inherited entry, v2 when it carries any call
+        stack beyond the v1 span, otherwise v1. v3 is the current writer
+        default.
     **/
     public function write():String {
         final defsObj:Dynamic = {};
@@ -54,7 +57,8 @@ class EmitOriginMap {
             Reflect.setField(defsObj, key, defines.get(key));
 
         final hasCallStacks = callStackFrames.length > 0 || linesContainDetail();
-        final version:Int = hasCallStacks ? 2 : 1;
+        final hasInherited = linesContainInherited();
+        final version:Int = hasInherited ? 3 : (hasCallStacks ? 2 : 1);
 
         final serializedLines:Array<Dynamic> = [];
         for (entry in lines) {
@@ -62,6 +66,10 @@ class EmitOriginMap {
                 serializedLines.push(null);
             } else if (entry.sourceFileId < 0) {
                 serializedLines.push([entry.frameId]);
+            } else if (version >= 3) {
+                serializedLines.push([entry.frameId, entry.sourceFileId,
+                    entry.sourceStart, entry.sourceEnd, entry.sourceLine,
+                    entry.sourceColumn, entry.callStack, entry.origin]);
             } else if (version >= 2) {
                 serializedLines.push([entry.frameId, entry.sourceFileId,
                     entry.sourceStart, entry.sourceEnd, entry.sourceLine,
@@ -118,6 +126,14 @@ class EmitOriginMap {
         return false;
     }
 
+    function linesContainInherited():Bool {
+        for (entry in lines) {
+            if (entry != null && entry.origin == "inherited")
+                return true;
+        }
+        return false;
+    }
+
     /**
         Deserializes a JSON compact mapping produced by write().
         Returns null when the JSON is structurally invalid or missing
@@ -128,7 +144,7 @@ class EmitOriginMap {
         if (data == null || !Std.isOfType(Reflect.field(data, "v"), Int))
             return null;
         final version:Int = Reflect.field(data, "v");
-        if (version != 1 && version != 2)
+        if (version != 1 && version != 2 && version != 3)
             return null;
         final revision:Null<String> = Reflect.field(data, "revision");
         final haxeVersion:Null<String> = Reflect.field(data, "haxeVersion");
@@ -198,13 +214,34 @@ class EmitOriginMap {
                 out.push(null);
                 continue;
             }
+            if (Reflect.isObject(entry) && !Std.isOfType(entry, Array)) {
+                // v3 null-with-reason: {u: "reason"}
+                // Preserved as null (reason stored externally); read ignores it.
+                out.push(null);
+                continue;
+            }
             if (!Std.isOfType(entry, Array))
                 return null;
             final tuple:Array<Dynamic> = cast entry;
             if (tuple.length < 1)
                 return null;
             final frameId:Int = cast tuple[0];
-            if (tuple.length >= 7) {
+            if (tuple.length >= 8) {
+                // v3: frame, sourceFile, start, end, line, column, callStack[], origin
+                final csRaw:Dynamic = tuple[6];
+                final cs:Array<Int> = Std.isOfType(csRaw, Array) ? cast csRaw : [];
+                final origin:String = cast tuple[7];
+                out.push({
+                    frameId: frameId,
+                    sourceFileId: cast tuple[1],
+                    sourceStart: cast tuple[2],
+                    sourceEnd: cast tuple[3],
+                    sourceLine: cast tuple[4],
+                    sourceColumn: cast tuple[5],
+                    callStack: cs,
+                    origin: origin
+                });
+            } else if (tuple.length >= 7) {
                 // v2: frame, sourceFile, start, end, line, column, callStack[]
                 final csRaw:Dynamic = tuple[6];
                 final cs:Array<Int> = Std.isOfType(csRaw, Array) ? cast csRaw : [];
@@ -215,7 +252,8 @@ class EmitOriginMap {
                     sourceEnd: cast tuple[3],
                     sourceLine: cast tuple[4],
                     sourceColumn: cast tuple[5],
-                    callStack: cs
+                    callStack: cs,
+                    origin: "exact"
                 });
             } else if (tuple.length >= 4) {
                 // v1: frame, sourceFile, start, end
@@ -226,7 +264,8 @@ class EmitOriginMap {
                     sourceEnd: cast tuple[3],
                     sourceLine: 0,
                     sourceColumn: 0,
-                    callStack: []
+                    callStack: [],
+                    origin: "exact"
                 });
             } else {
                 out.push({
@@ -236,7 +275,8 @@ class EmitOriginMap {
                     sourceEnd: 0,
                     sourceLine: 0,
                     sourceColumn: 0,
-                    callStack: []
+                    callStack: [],
+                    origin: "exact"
                 });
             }
         }
@@ -283,7 +323,8 @@ class EmitOriginMap {
                                 sourceEnd: cast mapArr[3],
                                 sourceLine: 0,
                                 sourceColumn: 0,
-                                callStack: []
+                                callStack: [],
+                                origin: "exact"
                             }
                         });
                     } else if (mapArr.length >= 1) {
@@ -296,7 +337,8 @@ class EmitOriginMap {
                                 sourceEnd: 0,
                                 sourceLine: 0,
                                 sourceColumn: 0,
-                                callStack: []
+                                callStack: [],
+                                origin: "exact"
                             }
                         });
                     } else {
@@ -313,7 +355,8 @@ class EmitOriginMap {
                             sourceEnd: 0,
                             sourceLine: 0,
                             sourceColumn: 0,
-                            callStack: []
+                            callStack: [],
+                            origin: "exact"
                         }
                     });
                 }
@@ -397,7 +440,7 @@ class EmitOriginMap {
         final frame = entry.frameId >= 0 && entry.frameId < frames.length
             ? frames[entry.frameId] : "<unknown frame>";
         final sb = new StringBuf();
-        sb.add("line " + line + " (col " + column + ") -> frame=" + frame);
+        sb.add("line " + line + " (col " + column + ") [" + entry.origin + "] -> frame=" + frame);
         if (entry.sourceFileId >= 0 && entry.sourceFileId < sourceFiles.length) {
             sb.add("\n  Haxe source: " + sourceFiles[entry.sourceFileId]
                 + ":" + entry.sourceLine + ":" + entry.sourceColumn
@@ -438,6 +481,8 @@ typedef EmitLineMapping = {
     final sourceLine:Int;
     final sourceColumn:Int;
     final callStack:Array<Int>;
+    /** "exact" for event-matched, "inherited" for backfilled. */
+    final origin:String;
 };
 
 /** Column-range segment within one generated line. */
