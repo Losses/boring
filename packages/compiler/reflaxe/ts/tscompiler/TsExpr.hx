@@ -1456,7 +1456,7 @@ class TsExpr {
             case TObjectDecl(fields):
                 return objectLiteral(fields, false);
             case TArrayDecl(elems):
-                return "[" + [for (x in elems) expr(x)].join(", ") + "]";
+                return "[" + [for (x in elems) arrayElementText(x)].join(", ") + "]";
             case TCall(fn, args):
                 return renderCall(fn, args);
             case TNew(c, params, args):
@@ -1568,7 +1568,25 @@ class TsExpr {
                     case QCollection:
                         final allLocal = imports.valueName(en.module, EnumQueryExpander.upperSnake(en.name) + "_ALL");
                         allLocal;
-                    case QName: expr(args[0]) + ".kind";
+                    case QName:
+                        // A name read on a createEnum result unwraps the
+                        // nullable lookup helper the lowering emits.
+                        final subject = args[0];
+                        final unwrap = PolicyQueries.isNullableType(subject.t) || EnumQueryExpander.markerKind(subject) == QLookup;
+                        final rendered = expr(subject);
+                        // A low-precedence receiver must be parenthesized
+                        // before the non-null assertion and the `.kind` read
+                        // bind; otherwise `!` and `.kind` grab only the
+                        // trailing operand. A binary or ternary receiver is
+                        // wrapped uniformly; the guarded ternary form
+                        // `(c ? a : b)` already carries its own inner parens,
+                        // so the wrap adds one deliberate outer layer.
+                        final needsParens = switch (stripWrap(subject).expr) {
+                            case TBinop(_, _, _): true;
+                            case TIf(_, _, f) if (f != null): true;
+                            case _: false;
+                        };
+                        (needsParens ? "(" + rendered + ")" : rendered) + (unwrap ? "!" : "") + ".kind";
                     case QLookup:
                         final fn = EnumQueryExpander.lowerFirst(en.name) + "OfName";
                         final fnLocal = imports.valueName(en.module, fn);
@@ -1663,6 +1681,20 @@ class TsExpr {
                     return value + ".kind " + sym + ' "${rightEnum.name}"';
                 }
                 return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
+            case OpGt | OpGte | OpLt | OpLte:
+                // A nullable operand in a comparison carries a non-null
+                // assertion so the TypeScript strict checker accepts the
+                // comparison. The `!` is erased at runtime, so the
+                // JS coercion of null to 0 (null >= 48 → false) gives
+                // the same result as Haxe's null ordering (null < any
+                // number → null >= 48 is false). (NullableComparison)
+                var leftText = operand(l, op, false);
+                var rightText = operand(r, op, true);
+                if (PolicyQueries.isNullableType(l.t) && !StringTools.endsWith(leftText, "!"))
+                    leftText = leftText + "!";
+                if (PolicyQueries.isNullableType(r.t) && !StringTools.endsWith(rightText, "!"))
+                    rightText = rightText + "!";
+                return leftText + " " + symbolOf(op) + " " + rightText;
             case _:
                 return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
         }
@@ -1709,6 +1741,21 @@ class TsExpr {
                     return fail(e, "unary operator has no lowering in the subset: " + Std.string(op) + " at " + infos.file + ":" + infos.min);
                 }
         }
+    }
+
+    /**
+        Renders an array-literal element. When the element's Haxe type is
+        nullable and the rendered text does not already carry a non-null
+        assertion, a `!` is appended so the array type reads as non-null
+        in TypeScript. The `!` is erased at runtime. (NullableArrayElem)
+    **/
+    function arrayElementText(e:TypedExpr):String {
+        final rendered = expr(e);
+        if (StringTools.endsWith(rendered, "!"))
+            return rendered;
+        if (PolicyQueries.isNullableType(e.t))
+            return rendered + "!";
+        return rendered;
     }
 
     function int64Expression(e:TypedExpr):Null<String> {
@@ -1882,11 +1929,14 @@ class TsExpr {
                 return rendered;
             case FEnum(en, ef):
                 final enumDef = en.get();
+                final enumLocal = imports.valueName(enumDef.module, enumDef.name);
                 if (isValueEnum(enumDef)) {
-                    final enumLocal = imports.valueName(enumDef.module, enumDef.name);
-                    return enumLocal + "." + ef.name;
+                    // Widen the const member to the full enum union so TS CFA
+                    // cannot narrow a for-unrolled `const x: E = E.Member` to
+                    // the single discriminant member (TS2339/TS2367, B1-B4).
+                    return "(" + enumLocal + "." + ef.name + " as " + enumLocal + ")";
                 }
-                return "{ kind: \"" + ef.name + "\" }";
+                return "({ kind: \"" + ef.name + "\" } as " + enumLocal + ")";
             case FInstance(owner, _, cf):
                 final name = cf.get().name;
                 notePrivateAccess(owner.get(), cf.get());
@@ -2311,7 +2361,9 @@ class TsExpr {
                     && cls.name == "StringTools"
                     && (fName == "startsWith" || fName == "endsWith")
                     && args.length == 2) {
-                    return expr(args[0]) + "." + fName + "(" + expr(args[1]) + ")";
+                    final recv = expr(args[0]);
+                    final needsAssert = argCarriesNull(args[0]);
+                    return (needsAssert && !StringTools.endsWith(recv, "!") ? recv + "!" : recv) + "." + fName + "(" + expr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "StringTools") {
                     // StringTools statics without a native JS/String inline
@@ -2327,7 +2379,9 @@ class TsExpr {
                     // encodes as its surrogate pair. JS String.fromCharCode
                     // truncates to the low 16 bits, so the pair goes through
                     // String.fromCodePoint. (FromCharCodeScalar)
-                    return "String.fromCodePoint(" + expr(args[0]) + ")";
+                    final rendered = expr(args[0]);
+                    final needsAssert = argCarriesNull(args[0]);
+                    return "String.fromCodePoint(" + (needsAssert && !StringTools.endsWith(rendered, "!") ? "(" + rendered + ")!" : rendered) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "Lambda" && fName == "has" && args.length == 2) {
                     return expr(args[0]) + ".includes(" + expr(args[1]) + ")";
@@ -2673,7 +2727,7 @@ class TsExpr {
                     // omitted argument (features/08 ruling 8).
                     switch (stripWrap(args[1]).expr) {
                         case TConst(TNull):
-                            return expr(subj) + "." + name + "(" + expr(args[0]) + ")";
+                            return expr(subj) + "." + name + "(" + callArgTexts(fn, [args[0]]).join(", ") + ")";
                         case _:
                     }
                 }
@@ -4315,10 +4369,16 @@ class TsExpr {
         return switch (stripWrap(init).expr) {
             case TConst(TNull) | TField(_, FEnum(_, _)): ": " + types.of(v.t);
             case TArrayDecl(elements) if (elements.length == 0): ": " + types.of(v.t);
+            case TLocal(_):
+                // When the declared type is nullable, the explicit
+                // annotation keeps TS from inferring a non-null type from
+                // a narrowed init. (NullableLocalAnnotation)
+                if (PolicyQueries.isNullableType(v.t))
+                    return ": " + types.of(v.t);
+                "";
             case _: "";
         };
     }
-
     function isArraySubject(e:TypedExpr):Bool {
         return switch (Context.follow(stripCast(e).t)) {
             case TInst(c, _): c.get().name == "Array";

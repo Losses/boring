@@ -141,6 +141,8 @@ boring.StdStringOps
 tests.StdStringTests
 boring.NullableArrayOps
 tests.NullableArrayTests
+boring.NullableArrayElemArg
+boring.NullableIntCompare
 boring.NullableLocalOps
 tests.NullableLocalTests
 boring.StringConvOps
@@ -518,6 +520,7 @@ tests.ArrayJoinTests
 boring.StringAppendOps
 tests.StringAppendTests
 boring.EnumLookupOps
+boring.EnumQNameNullPreservingFixture
 tests.EnumLookupTests
 boring.TernaryInterfaceOps
 tests.TernaryInterfaceTests
