@@ -11,6 +11,13 @@ package;
     The lines array is indexed by 0-based line number. A null
     entry means no mapping for that line. The columns map holds
     sparse column-level overrides keyed by line index.
+
+    Format v2 adds a global callStackFrames table and, on every line
+    with a Haxe source, the 1-based source line/column and the list of
+    call-stack frame ids. Format v3 adds a per-line origin marker ("exact"
+    vs "inherited") so backfilled no-event lines cannot masquerade as
+    emission-event matches. Format v1 (without those fields) still reads
+    back into the same structure with empty call stacks and 0 line/col.
 **/
 class EmitOriginMap {
     public final filePath:String;
@@ -19,29 +26,39 @@ class EmitOriginMap {
     public final defines:Map<String, String>;
     public final sourceFiles:Array<String>;
     public final frames:Array<String>;
+    public final callStackFrames:Array<StackFrame>;
     public final lines:Array<Null<EmitLineMapping>>;
     public final columns:Map<Int, Array<EmitColumnSegment>>;
 
     public function new(filePath:String, revision:String, haxeVersion:String,
             defines:Map<String, String>, sourceFiles:Array<String>, frames:Array<String>,
-            lines:Array<Null<EmitLineMapping>>, columns:Map<Int, Array<EmitColumnSegment>>) {
+            callStackFrames:Array<StackFrame>, lines:Array<Null<EmitLineMapping>>,
+            columns:Map<Int, Array<EmitColumnSegment>>) {
         this.filePath = filePath;
         this.revision = revision;
         this.haxeVersion = haxeVersion;
         this.defines = defines;
         this.sourceFiles = sourceFiles;
         this.frames = frames;
+        this.callStackFrames = callStackFrames;
         this.lines = lines;
         this.columns = columns;
     }
 
     /**
-        Serializes this mapping to compact JSON matching the v1 format.
+        Serializes this mapping to compact JSON. Writes v3 when the line
+        table carries any inherited entry, v2 when it carries any call
+        stack beyond the v1 span, otherwise v1. v3 is the current writer
+        default.
     **/
     public function write():String {
         final defsObj:Dynamic = {};
         for (key in defines.keys())
             Reflect.setField(defsObj, key, defines.get(key));
+
+        final hasCallStacks = callStackFrames.length > 0 || linesContainDetail();
+        final hasInherited = linesContainInherited();
+        final version:Int = hasInherited ? 3 : (hasCallStacks ? 2 : 1);
 
         final serializedLines:Array<Dynamic> = [];
         for (entry in lines) {
@@ -49,6 +66,15 @@ class EmitOriginMap {
                 serializedLines.push(null);
             } else if (entry.sourceFileId < 0) {
                 serializedLines.push([entry.frameId]);
+            } else if (version >= 3) {
+                serializedLines.push([entry.frameId, entry.sourceFileId,
+                    entry.sourceStart, entry.sourceEnd, entry.sourceLine,
+                    entry.sourceColumn, entry.callStack, entry.origin,
+                    entry.inheritedFrom]);
+            } else if (version >= 2) {
+                serializedLines.push([entry.frameId, entry.sourceFileId,
+                    entry.sourceStart, entry.sourceEnd, entry.sourceLine,
+                    entry.sourceColumn, entry.callStack]);
             } else {
                 serializedLines.push([entry.frameId, entry.sourceFileId, entry.sourceStart, entry.sourceEnd]);
             }
@@ -71,8 +97,13 @@ class EmitOriginMap {
             serializedColumns.push([lineIndex, segList]);
         }
 
+        final serializedFrames:Array<Dynamic> = [];
+        for (frame in callStackFrames) {
+            serializedFrames.push({name: frame.name, file: frame.file, line: frame.line, column: frame.column});
+        }
+
         final payload:Dynamic = {
-            v: 1,
+            v: version,
             revision: revision,
             haxeVersion: haxeVersion,
             defines: defsObj,
@@ -81,19 +112,40 @@ class EmitOriginMap {
             lines: serializedLines,
             cols: serializedColumns
         };
+        if (version >= 2)
+            Reflect.setField(payload, "callStackFrames", serializedFrames);
+
         return haxe.Json.stringify(payload, null, "\t") + "\n";
+    }
+
+    function linesContainDetail():Bool {
+        for (entry in lines) {
+            if (entry != null && entry.sourceFileId >= 0
+                && (entry.sourceLine != 0 || entry.sourceColumn != 0 || entry.callStack.length > 0))
+                return true;
+        }
+        return false;
+    }
+
+    function linesContainInherited():Bool {
+        for (entry in lines) {
+            if (entry != null && entry.origin == "inherited")
+                return true;
+        }
+        return false;
     }
 
     /**
         Deserializes a JSON compact mapping produced by write().
         Returns null when the JSON is structurally invalid or missing
-        required fields.
+        required fields. Reads both v1 and v2.
     **/
     public static function read(json:String):Null<EmitOriginMap> {
         final data:Dynamic = try { haxe.Json.parse(json); } catch (_:Dynamic) { return null; };
         if (data == null || !Std.isOfType(Reflect.field(data, "v"), Int))
             return null;
-        if (Reflect.field(data, "v") != 1)
+        final version:Int = Reflect.field(data, "v");
+        if (version != 1 && version != 2 && version != 3)
             return null;
         final revision:Null<String> = Reflect.field(data, "revision");
         final haxeVersion:Null<String> = Reflect.field(data, "haxeVersion");
@@ -116,11 +168,13 @@ class EmitOriginMap {
 
         final sourceFiles = readStringArray(sourceFilesRaw);
         final frames = readStringArray(framesRaw);
+        final callStackFrames = readCallStackFrames(Reflect.field(data, "callStackFrames"));
         final lines = readLineMappings(linesRaw);
         final columns = readColumnTable(colsRaw);
         if (sourceFiles == null || frames == null || lines == null || columns == null)
             return null;
-        return new EmitOriginMap("", revision, haxeVersion, defines, sourceFiles, frames, lines, columns);
+        return new EmitOriginMap("", revision, haxeVersion, defines, sourceFiles, frames,
+            callStackFrames, lines, columns);
     }
 
     static function readStringArray(raw:Dynamic):Null<Array<String>> {
@@ -130,6 +184,24 @@ class EmitOriginMap {
         final out:Array<String> = [];
         for (entry in arr)
             out.push(Std.string(entry));
+        return out;
+    }
+
+    static function readCallStackFrames(raw:Dynamic):Array<StackFrame> {
+        if (!Std.isOfType(raw, Array))
+            return [];
+        final arr:Array<Dynamic> = cast raw;
+        final out:Array<StackFrame> = [];
+        for (entry in arr) {
+            if (entry == null || !Reflect.isObject(entry))
+                continue;
+            out.push({
+                name: Std.string(Reflect.field(entry, "name")),
+                file: Std.string(Reflect.field(entry, "file")),
+                line: Reflect.field(entry, "line") == null ? 0 : cast Reflect.field(entry, "line"),
+                column: Reflect.field(entry, "column") == null ? 0 : cast Reflect.field(entry, "column")
+            });
+        }
         return out;
     }
 
@@ -143,25 +215,74 @@ class EmitOriginMap {
                 out.push(null);
                 continue;
             }
+            if (Reflect.isObject(entry) && !Std.isOfType(entry, Array)) {
+                // v3 null-with-reason: {u: "reason"}
+                // Preserved as null (reason stored externally); read ignores it.
+                out.push(null);
+                continue;
+            }
             if (!Std.isOfType(entry, Array))
                 return null;
             final tuple:Array<Dynamic> = cast entry;
             if (tuple.length < 1)
                 return null;
             final frameId:Int = cast tuple[0];
-            if (tuple.length >= 4) {
+            if (tuple.length >= 8) {
+                // v3: frame, sourceFile, start, end, line, column, callStack[], origin[, inheritedFrom]
+                final csRaw:Dynamic = tuple[6];
+                final cs:Array<Int> = Std.isOfType(csRaw, Array) ? cast csRaw : [];
+                final origin:String = cast tuple[7];
+                final inheritedFrom:Int = tuple.length >= 9 ? cast tuple[8] : -1;
                 out.push({
                     frameId: frameId,
                     sourceFileId: cast tuple[1],
                     sourceStart: cast tuple[2],
-                    sourceEnd: cast tuple[3]
+                    sourceEnd: cast tuple[3],
+                    sourceLine: cast tuple[4],
+                    sourceColumn: cast tuple[5],
+                    callStack: cs,
+                    origin: origin,
+                    inheritedFrom: inheritedFrom
+                });
+            } else if (tuple.length >= 7) {
+                // v2: frame, sourceFile, start, end, line, column, callStack[]
+                final csRaw:Dynamic = tuple[6];
+                final cs:Array<Int> = Std.isOfType(csRaw, Array) ? cast csRaw : [];
+                out.push({
+                    frameId: frameId,
+                    sourceFileId: cast tuple[1],
+                    sourceStart: cast tuple[2],
+                    sourceEnd: cast tuple[3],
+                    sourceLine: cast tuple[4],
+                    sourceColumn: cast tuple[5],
+                    callStack: cs,
+                    origin: "exact",
+                    inheritedFrom: -1
+                });
+            } else if (tuple.length >= 4) {
+                // v1: frame, sourceFile, start, end
+                out.push({
+                    frameId: frameId,
+                    sourceFileId: cast tuple[1],
+                    sourceStart: cast tuple[2],
+                    sourceEnd: cast tuple[3],
+                    sourceLine: 0,
+                    sourceColumn: 0,
+                    callStack: [],
+                    origin: "exact",
+                    inheritedFrom: -1
                 });
             } else {
                 out.push({
                     frameId: frameId,
                     sourceFileId: -1,
                     sourceStart: 0,
-                    sourceEnd: 0
+                    sourceEnd: 0,
+                    sourceLine: 0,
+                    sourceColumn: 0,
+                    callStack: [],
+                    origin: "exact",
+                    inheritedFrom: -1
                 });
             }
         }
@@ -205,7 +326,12 @@ class EmitOriginMap {
                                 frameId: cast mapArr[0],
                                 sourceFileId: cast mapArr[1],
                                 sourceStart: cast mapArr[2],
-                                sourceEnd: cast mapArr[3]
+                                sourceEnd: cast mapArr[3],
+                                sourceLine: 0,
+                                sourceColumn: 0,
+                                callStack: [],
+                                origin: "exact",
+                                inheritedFrom: -1
                             }
                         });
                     } else if (mapArr.length >= 1) {
@@ -215,7 +341,12 @@ class EmitOriginMap {
                                 frameId: cast mapArr[0],
                                 sourceFileId: -1,
                                 sourceStart: 0,
-                                sourceEnd: 0
+                                sourceEnd: 0,
+                                sourceLine: 0,
+                                sourceColumn: 0,
+                                callStack: [],
+                                origin: "exact",
+                                inheritedFrom: -1
                             }
                         });
                     } else {
@@ -229,7 +360,12 @@ class EmitOriginMap {
                             frameId: frameId,
                             sourceFileId: -1,
                             sourceStart: 0,
-                            sourceEnd: 0
+                            sourceEnd: 0,
+                            sourceLine: 0,
+                            sourceColumn: 0,
+                            callStack: [],
+                            origin: "exact",
+                            inheritedFrom: -1
                         }
                     });
                 }
@@ -298,6 +434,53 @@ class EmitOriginMap {
             return EmitResolution.unmapped("Source span exceeds file length");
         return EmitResolution.mapped(frame, sourceFile, mapping.sourceStart, mapping.sourceEnd);
     }
+
+    /**
+        Renders a one-command trace for a generated (line, column): the
+        emitter frame (branch), the Haxe source file:line:column, and the
+        generation-time call stack from innermost to outermost.
+    **/
+    public function traceLine(line:Int, column:Int):String {
+        if (line < 1 || line > lines.length)
+            return "Unmapped: line " + line + " out of bounds (max " + lines.length + ")";
+        final entry = lines[line - 1];
+        if (entry == null)
+            return "Unmapped: no mapping for line " + line;
+        final frame = entry.frameId >= 0 && entry.frameId < frames.length
+            ? frames[entry.frameId] : "<unknown frame>";
+        final sb = new StringBuf();
+        sb.add("line " + line + " (col " + column + ") [" + entry.origin + "] -> frame=" + frame);
+        if (entry.origin == "inherited" && entry.inheritedFrom >= 0)
+            sb.add("  (inherited from line " + (entry.inheritedFrom + 1) + ")");
+        if (entry.sourceFileId >= 0 && entry.sourceFileId < sourceFiles.length) {
+            sb.add("\n  Haxe source: " + sourceFiles[entry.sourceFileId]
+                + ":" + entry.sourceLine + ":" + entry.sourceColumn
+                + " (bytes " + entry.sourceStart + "-" + entry.sourceEnd + ")");
+        } else {
+            sb.add("\n  Haxe source: <none recorded>");
+        }
+        sb.add("\n  Call stack (" + entry.callStack.length + " frames, innermost first):");
+        if (entry.callStack.length == 0) {
+            sb.add("\n    <no call stack recorded>");
+        } else {
+            var depth = 0;
+            for (fid in entry.callStack) {
+                if (depth >= 16) {
+                    sb.add("\n    ... (" + (entry.callStack.length - depth) + " more)");
+                    break;
+                }
+                if (fid >= 0 && fid < callStackFrames.length) {
+                    final fr = callStackFrames[fid];
+                    final loc = fr.file != "" ? fr.file + ":" + fr.line + ":" + fr.column : "<n/a>";
+                    sb.add("\n    #" + depth + " " + fr.name + "  at " + loc);
+                } else {
+                    sb.add("\n    #" + depth + " <invalid frame id " + fid + ">");
+                }
+                depth++;
+            }
+        }
+        return sb.toString();
+    }
 }
 
 /** Per-line compact mapping entry. */
@@ -306,6 +489,14 @@ typedef EmitLineMapping = {
     final sourceFileId:Int;
     final sourceStart:Int;
     final sourceEnd:Int;
+    final sourceLine:Int;
+    final sourceColumn:Int;
+    final callStack:Array<Int>;
+    /** "exact" for event-matched, "inherited" for backfilled. */
+    final origin:String;
+    /** Generated line index (0-based) of the exact anchor this entry was
+        cloned from, or -1 for exact entries and nulls. */
+    final inheritedFrom:Int;
 };
 
 /** Column-range segment within one generated line. */
@@ -313,6 +504,14 @@ typedef EmitColumnSegment = {
     final startCol:Int;
     final endCol:Int;
     final mapping:Null<EmitLineMapping>;
+};
+
+/** One generation-time call-stack frame, resolved to a name plus source position. */
+typedef StackFrame = {
+    final name:String;
+    final file:String;
+    final line:Int;
+    final column:Int;
 };
 
 /**
