@@ -151,13 +151,19 @@ the change requires those checks. Individual commands:
   `reference/rust/Cargo.toml` and `reference/rust/gen/Cargo.toml`
   through explicit `[[test]]` paths; a suite carries
   no manifest of its own), and `tests/vectors/` (the shared vectors).
-  The `tests/ts/warnstd-*-regression.test.ts` files contain
-  per-target shape tests for minimal mechanisms from `samples/boring/`.
-  Part of these tests only record the current rendered shape and do
-  NOT constitute degradation guards; negative-control coverage is
-  attested per test in the file headers and is item-specific —
-  consult each header for which tests were independently verified to
-  flip red against a pre-fix emitter.
+  The `tests/ts/warnstd-*-regression.test.ts` files hold the
+  per-target validated guards for minimal mechanisms from
+  `samples/boring/`: negative-control coverage is attested per test
+  in the file headers and is item-specific — consult each header for
+  which tests were independently verified to flip red against a
+  pre-fix emitter (or, for the dart GuardTernaryArgNonNull pin,
+  against hand-authored fixture mutations plus archived historical
+  before/after artifacts; no claim is made that any future
+  regression would be caught). The sibling
+  `tests/ts/warnstd-*-shape.test.ts` files hold only current-shape
+  snapshots: they record the rendered text as it stands and do NOT
+  constitute degradation guards — they carry no negative control and
+  prove nothing about catching a regression.
 - `tools/`: the ESLint plugin, the documentation style checker, the
   commit tool, the git hooks, and the vector generator.
 
