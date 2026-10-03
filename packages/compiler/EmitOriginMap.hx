@@ -69,7 +69,8 @@ class EmitOriginMap {
             } else if (version >= 3) {
                 serializedLines.push([entry.frameId, entry.sourceFileId,
                     entry.sourceStart, entry.sourceEnd, entry.sourceLine,
-                    entry.sourceColumn, entry.callStack, entry.origin]);
+                    entry.sourceColumn, entry.callStack, entry.origin,
+                    entry.inheritedFrom]);
             } else if (version >= 2) {
                 serializedLines.push([entry.frameId, entry.sourceFileId,
                     entry.sourceStart, entry.sourceEnd, entry.sourceLine,
@@ -227,10 +228,11 @@ class EmitOriginMap {
                 return null;
             final frameId:Int = cast tuple[0];
             if (tuple.length >= 8) {
-                // v3: frame, sourceFile, start, end, line, column, callStack[], origin
+                // v3: frame, sourceFile, start, end, line, column, callStack[], origin[, inheritedFrom]
                 final csRaw:Dynamic = tuple[6];
                 final cs:Array<Int> = Std.isOfType(csRaw, Array) ? cast csRaw : [];
                 final origin:String = cast tuple[7];
+                final inheritedFrom:Int = tuple.length >= 9 ? cast tuple[8] : -1;
                 out.push({
                     frameId: frameId,
                     sourceFileId: cast tuple[1],
@@ -239,7 +241,8 @@ class EmitOriginMap {
                     sourceLine: cast tuple[4],
                     sourceColumn: cast tuple[5],
                     callStack: cs,
-                    origin: origin
+                    origin: origin,
+                    inheritedFrom: inheritedFrom
                 });
             } else if (tuple.length >= 7) {
                 // v2: frame, sourceFile, start, end, line, column, callStack[]
@@ -253,7 +256,8 @@ class EmitOriginMap {
                     sourceLine: cast tuple[4],
                     sourceColumn: cast tuple[5],
                     callStack: cs,
-                    origin: "exact"
+                    origin: "exact",
+                    inheritedFrom: -1
                 });
             } else if (tuple.length >= 4) {
                 // v1: frame, sourceFile, start, end
@@ -265,7 +269,8 @@ class EmitOriginMap {
                     sourceLine: 0,
                     sourceColumn: 0,
                     callStack: [],
-                    origin: "exact"
+                    origin: "exact",
+                    inheritedFrom: -1
                 });
             } else {
                 out.push({
@@ -276,7 +281,8 @@ class EmitOriginMap {
                     sourceLine: 0,
                     sourceColumn: 0,
                     callStack: [],
-                    origin: "exact"
+                    origin: "exact",
+                    inheritedFrom: -1
                 });
             }
         }
@@ -324,7 +330,8 @@ class EmitOriginMap {
                                 sourceLine: 0,
                                 sourceColumn: 0,
                                 callStack: [],
-                                origin: "exact"
+                                origin: "exact",
+                                inheritedFrom: -1
                             }
                         });
                     } else if (mapArr.length >= 1) {
@@ -338,7 +345,8 @@ class EmitOriginMap {
                                 sourceLine: 0,
                                 sourceColumn: 0,
                                 callStack: [],
-                                origin: "exact"
+                                origin: "exact",
+                                inheritedFrom: -1
                             }
                         });
                     } else {
@@ -356,7 +364,8 @@ class EmitOriginMap {
                             sourceLine: 0,
                             sourceColumn: 0,
                             callStack: [],
-                            origin: "exact"
+                            origin: "exact",
+                            inheritedFrom: -1
                         }
                     });
                 }
@@ -441,6 +450,8 @@ class EmitOriginMap {
             ? frames[entry.frameId] : "<unknown frame>";
         final sb = new StringBuf();
         sb.add("line " + line + " (col " + column + ") [" + entry.origin + "] -> frame=" + frame);
+        if (entry.origin == "inherited" && entry.inheritedFrom >= 0)
+            sb.add("  (inherited from line " + (entry.inheritedFrom + 1) + ")");
         if (entry.sourceFileId >= 0 && entry.sourceFileId < sourceFiles.length) {
             sb.add("\n  Haxe source: " + sourceFiles[entry.sourceFileId]
                 + ":" + entry.sourceLine + ":" + entry.sourceColumn
@@ -483,6 +494,9 @@ typedef EmitLineMapping = {
     final callStack:Array<Int>;
     /** "exact" for event-matched, "inherited" for backfilled. */
     final origin:String;
+    /** Generated line index (0-based) of the exact anchor this entry was
+        cloned from, or -1 for exact entries and nulls. */
+    final inheritedFrom:Int;
 };
 
 /** Column-range segment within one generated line. */

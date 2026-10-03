@@ -6,6 +6,7 @@ import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import EmitSink;
 import ValueTypeSupport;
 import PolicyQueries;
 import TestApplicability;
@@ -286,6 +287,8 @@ class RustDecl {
             // A class with only statics lowers to a unit struct. Every value
             // of it is a zero-sized constant, so the capture and clone rules
             // that treat a class value as an owned read still apply.
+            EmitSink.record("TYPE", cls.pos, "derive(Clone");
+            EmitSink.record("TYPE", cls.pos, "pub struct " + emittedName);
             lines.push("#[derive(Clone, Copy)]");
             lines.push("pub struct " + emittedName + ";\n");
             lines.push("impl " + emittedName + " {");
@@ -331,6 +334,7 @@ class RustDecl {
         final ltParam = genericStr;
 
         final hasCoalescingClone = true;
+        EmitSink.record("TYPE", cls.pos, "derive(");
         if ((state.recordCloneTypes.exists(cls.module + "::" + cls.name) || hasCoalescingClone)
             && !StaticFieldHelper.hasSelfConstructionStatic(cls)
             && !cls.meta.has(":dataClass")
@@ -375,6 +379,7 @@ class RustDecl {
         // PartialEq impls are unconditional, so the derive above stays legal.
         // (GenericCtorParamMarker)
         final markerParams = unusedMarkerParams(cls);
+        EmitSink.record("TYPE", cls.pos, "pub struct " + emittedName);
         lines.push("pub struct " + emittedName + genericStr + " {");
         for (v in varFields) {
             if (v.isStatic)
@@ -1804,6 +1809,7 @@ class RustDecl {
         expr.setReturnUnsigned(rawRetType == "u32");
         expr.setReturnTypeName(rawRetType);
         expr.setReturnType(f.ret);
+        EmitSink.record("FUNC", f.field.pos, snakeName + "(");
         final body = expr.functionBody(cls, f);
         final prints = state.memberPrintsTypeParam;
         state.memberPrintsTypeParam = false;
@@ -2603,6 +2609,7 @@ class RustDecl {
         expr.setReturnUnsigned(rawRetType == "u32");
         expr.setReturnTypeName(rawRetType);
         expr.setReturnType(f.ret);
+        EmitSink.record("FUNC", f.field.pos, snakeName + "(");
         final body = expr.functionBody(cls, f);
         return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
     }
@@ -3041,6 +3048,8 @@ class RustDecl {
             }
         }
         final deriveAttr = allPlain ? "#[derive(Debug, Clone, Copy, PartialEq)]" : "#[derive(Debug, Clone, PartialEq)]";
+        EmitSink.record("TYPE", en.pos, "derive(");
+        EmitSink.record("TYPE", en.pos, "pub enum " + en.name);
         final lines = [deriveAttr, "pub enum " + en.name + " {"];
         for (o in sorted) {
             if (o.args.length == 0) {
