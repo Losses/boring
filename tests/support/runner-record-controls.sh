@@ -11,6 +11,9 @@
 # checks; the default is the committed relative path.
 set -u
 
+# Pin the C locale so a translated diagnostic cannot change an assertion.
+export LC_ALL=C
+
 for tool in mktemp python3 cmp tr grep sed chmod cp mkdir rm dirname; do
 	command -v "$tool" >/dev/null 2>&1 || { printf 'missing required tool: %s\n' "$tool" >&2; exit 2; }
 done
