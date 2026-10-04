@@ -96,13 +96,7 @@ rr_record_cmd typecheck -- ./node_modules/.bin/tsc -p tests/bundle-child-evidenc
 rr_record_cmd lint -- bun run lint || { echo "recording failed: lint" >&2; exit 2; }
 rr_record_cmd docs -- bun tools/doc-style/check.ts || { echo "recording failed: docs" >&2; exit 2; }
 
-# Diagnostics are recorded for context only. They are not part of the gate set
-# and never change the gate verdict.
-rr_record_cmd repo-typecheck -- bun run typecheck || { echo "recording failed: repo-typecheck" >&2; exit 2; }
-rr_record_cmd focused-lint -- ./node_modules/.bin/eslint tests/bundle-child-evidence/ || { echo "recording failed: focused-lint" >&2; exit 2; }
-
 gate="argv-roundtrip focused-tests typecheck lint docs"
-diagnostics="repo-typecheck focused-lint"
 overall=0
 for name in $gate; do
 	status="$(cat "$commands/$name.status" 2> /dev/null)" || { echo "missing gate record: $name" >&2; exit 2; }
@@ -113,18 +107,11 @@ for name in $gate; do
 		tail -n 20 "$commands/$name.stderr"
 	fi
 done
-for name in $diagnostics; do
-	echo "$name (diagnostic, outside the gate): exit $(cat "$commands/$name.status" 2> /dev/null || echo missing)"
-done
 
 {
 	echo "evidence directory: $run_dir"
 	echo "gate:"
 	for name in $gate; do
-		echo "  $name exit $(cat "$commands/$name.status")"
-	done
-	echo "diagnostics (outside the gate):"
-	for name in $diagnostics; do
 		echo "  $name exit $(cat "$commands/$name.status")"
 	done
 } > "$run_dir/summary.txt"
