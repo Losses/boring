@@ -17,12 +17,16 @@ REPLAY="$(cd "$SCRIPT_DIR" && pwd)"
 ROOT="$(cd "$REPLAY/../../../.." && pwd)"
 cd "$ROOT"
 
+# shellcheck source=../../../../tools/runner-record/runner-record.sh
+. "$ROOT/tools/runner-record/runner-record.sh" || exit 2
+
 # The frozen declaration and the authored expectations are copied into the
 # verifier's own directory, so every control reads the unchanged obligations
 # from one place.
 FROZEN="${FLOW_OUT:-out/flow}/verifier-$(date +%s%3N)-$$/frozen"
 OUT="$(dirname "$FROZEN")"
 mkdir -p "$FROZEN/expected"
+rr_adopt "$OUT" commands || exit 2
 echo "verifier directory: $OUT"
 cp "$REPLAY/stages.json" "$FROZEN/stages.json"
 cp "$REPLAY/expected/normalized.txt" "$FROZEN/expected/normalized.txt"
@@ -36,13 +40,26 @@ if [ ! -f "$SHARED" ]; then
 fi
 sha256sum "$SHARED" > "$OUT/shared-stage-check.sha256"
 
-STATUS=0
-bun "$REPLAY/verdict.ts" verify --out "$OUT" --replay "$FROZEN" --stage-check "$SHARED" \
-    | tee "$OUT/controls.txt" || STATUS=$?
+rr_record_cmd verify -- bun "$REPLAY/verdict.ts" verify --out "$OUT" --replay "$FROZEN" --stage-check "$SHARED" || {
+    echo "FAIL verifier-record: the verify command could not be recorded" | tee "$OUT/controls.txt"
+    exit 1
+}
+cat "$RR_CMD/verify.stdout" > "$OUT/controls.txt"
+cat "$RR_CMD/verify.stderr" >> "$OUT/verify.stderr.log"
+STATUS="$(cat "$RR_CMD/verify.status")"
 if grep -q "^FAIL " "$OUT/controls.txt"; then
     STATUS=1
 fi
 
+rr_identity_files verifier-inputs "$FROZEN/stages.json" "$FROZEN/expected/normalized.txt" "$FROZEN/expected/stable-local.txt" "$SHARED"
+set +e
+rr_finish > /dev/null
+recordStatus=$?
+set -e
+if [ "$recordStatus" -ge 2 ]; then
+    echo "FAIL verifier-record: run.json could not be written" >&2
+    exit 1
+fi
 echo "verifier verdict: $(grep -c '^FAIL ' "$OUT/controls.txt" || true) defect(s)"
 echo "verifier directory: $OUT"
 if [ "$STATUS" -ne 0 ]; then
