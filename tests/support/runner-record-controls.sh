@@ -75,6 +75,13 @@ eq "missing input status" 125 "$(tr -d '\n' < "$RR_RUN/identity/missing-input.st
 eq "missing input outcome" record-error "$(tr -d '\n' < "$RR_RUN/identity/missing-input.outcome" 2>/dev/null)" outcome
 if [ ! -e "$RR_RUN/identity/missing-input.sha256" ]; then ok "missing input leaves no hash"; else bad "missing input wrote a hash"; fi
 
+# 3b. A missing tree input is refused with a failure status and no hash.
+rr_identity_tree missing-tree "$TMP/does-not-exist-dir"; trc=$?
+eq "missing tree rc" 2 "$trc" rc
+eq "missing tree status" 125 "$(tr -d '\n' < "$RR_RUN/identity/missing-tree.status" 2>/dev/null)" status
+eq "missing tree outcome" record-error "$(tr -d '\n' < "$RR_RUN/identity/missing-tree.outcome" 2>/dev/null)" outcome
+if [ ! -e "$RR_RUN/identity/missing-tree.sha256" ]; then ok "missing tree leaves no hash"; else bad "missing tree wrote a hash"; fi
+
 # 4. A control byte in the record root stays valid JSON; a non-UTF-8 root is refused.
 tabbase="$TMP/tab$(printf '\t')dir"; mkdir -p "$tabbase"
 if rr_init jsonpath "$tabbase" >/dev/null 2>&1; then
@@ -115,27 +122,37 @@ printf '#!/usr/bin/env bash\nexit 0\n' > "$TREE/bin/haxe"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TREE/bin/bun"
 chmod +x "$TREE/bin/haxe" "$TREE/bin/bun"
 
-# 6a. A record-command failure must stop the consumer with a non-zero exit.
-#     The temporary copy holds one injected stub, so the reviewed file is
-#     unchanged and the real identity path still runs.
+# 6a. A record-command failure must stop the consumer at the record stage.
+#     The injected stub writes a hit marker, so a failure that happens earlier
+#     (for example in the identity phase) cannot be read as a record failure.
+INJECT_HIT="$TMP/inject-hit"
 awk '/rr_identity_files source-hashes/{f=1;next} f&&/\|\|/{exit} f{print}' "$ROOT/tests/bundle-child-evidence/run.sh" \
 	| tr -d '\\' | tr -s ' \t' '\n' | grep -v '^$' > "$TMP/identity-inputs.txt"
 while IFS= read -r rel; do
 	mkdir -p "$TREE/$(dirname "$rel")"
 	: > "$TREE/$rel"
 done < "$TMP/identity-inputs.txt"
-sed '/runner-record\.sh" || exit 2/a rr_record_cmd() { return 2; }' \
+sed '/runner-record\.sh" || exit 2/a rr_record_cmd() { echo "$1" >> "$INJECT_HIT"; return 2; }' \
 	"$ROOT/tests/bundle-child-evidence/run.sh" > "$TREE/tests/bundle-child-evidence/run-injected.sh"
-( cd "$TREE" && PATH="$TREE/bin:$PATH" BORING_REVISION=deadbeef bash tests/bundle-child-evidence/run-injected.sh > "$TMP/consumer-inject.log" 2>&1 ); irc=$?
+( cd "$TREE" && PATH="$TREE/bin:$PATH" BORING_REVISION=deadbeef INJECT_HIT="$INJECT_HIT" bash tests/bundle-child-evidence/run-injected.sh > "$TMP/consumer-inject.log" 2>&1 ); irc=$?
 eq "consumer record failure rc" 2 "$irc" rc
-if grep -q "recording failed" "$TMP/consumer-inject.log"; then ok "consumer names the failed record"; else bad "consumer did not name the failed record"; fi
+if grep -qxF 'recording failed: argv-roundtrip' "$TMP/consumer-inject.log"; then ok "consumer names the failed record"; else bad "consumer did not name recording failed: argv-roundtrip"; fi
+if [ "$(grep -c '^argv-roundtrip$' "$INJECT_HIT" 2>/dev/null)" = "1" ]; then ok "injection hit exactly once at argv-roundtrip"; else bad "injection hit count is not 1"; fi
 
-# 6b. An unwritable record root must stop the consumer with a non-zero exit.
-mkdir -p "$TREE/out/f1-child-evidence"
-chmod a-w "$TREE/out/f1-child-evidence"
-( cd "$TREE" && BORING_REVISION=deadbeef bash tests/bundle-child-evidence/run.sh > "$TMP/consumer-init.log" 2>&1 ); prc=$?
-chmod u+w "$TREE/out/f1-child-evidence"
+# 6b. A structurally uncreatable record root must stop the consumer at init.
+#     "out" is a regular file, so the result does not depend on permissions or
+#     on the user id. The same setup with a creatable root reaches the record
+#     stage, which shows the fault is what changed the outcome.
+INIT_HIT="$TMP/init-hit"
+rm -rf "$TREE/out"; : > "$TREE/out"
+( cd "$TREE" && PATH="$TREE/bin:$PATH" BORING_REVISION=deadbeef INJECT_HIT="$INIT_HIT" bash tests/bundle-child-evidence/run-injected.sh > "$TMP/consumer-init.log" 2>&1 ); prc=$?
 eq "consumer init failure rc" 2 "$prc" rc
+if grep -q "Not a directory" "$TMP/consumer-init.log"; then ok "init failure is at the record root"; else bad "init failure is not at the record root"; fi
+if [ ! -e "$INIT_HIT" ]; then ok "init failure stops before any record"; else bad "record stage ran despite the init failure"; fi
+rm -f "$TREE/out"; mkdir -p "$TREE/out"
+( cd "$TREE" && PATH="$TREE/bin:$PATH" BORING_REVISION=deadbeef INJECT_HIT="$INIT_HIT" bash tests/bundle-child-evidence/run-injected.sh > "$TMP/consumer-init-off.log" 2>&1 ); orc=$?
+eq "init fault removed rc" 2 "$orc" rc
+if [ "$(grep -c '^argv-roundtrip$' "$INIT_HIT" 2>/dev/null)" = "1" ]; then ok "init fault removed reaches the record stage"; else bad "init fault removed did not reach the record stage"; fi
 
 printf '\nrunner-record controls: pass=%d fail=%d\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
