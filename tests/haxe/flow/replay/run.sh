@@ -21,6 +21,11 @@ if [ ! -f "$ROOT/boring.json" ] || [ ! -d "$ROOT/tests/haxe/flow" ]; then
     exit 2
 fi
 cd "$ROOT"
+# The shared recording layer owns the record shape for captured children and
+# input identity; this caller keeps its own allocation and stage flow.
+# shellcheck source=../../../../tools/runner-record/runner-record.sh
+. "$ROOT/tools/runner-record/runner-record.sh" || exit 2
+
 # The output root defaults to the ignored tree of this checkout. The
 # FLOW_OUT override exists so a fresh output root can be demonstrated
 # without moving or deleting retained attempts.
@@ -58,6 +63,7 @@ fi
 echo "attempt directory: $ATTEMPT"
 mkdir -p "$ATTEMPT/plans" "$ATTEMPT/reports" "$ATTEMPT/evidence-parent" "$ATTEMPT/bootstrap" "$ATTEMPT/entries" \
     "$ATTEMPT/membership"
+rr_adopt "$ATTEMPT" bootstrap || exit 2
 : > "$ATTEMPT/stage-results.jsonl"
 : > "$ATTEMPT/membership/state.tsv"
 
@@ -71,13 +77,8 @@ cp "$REPLAY/stages.json" "$ATTEMPT/manifest-declared.json"
 run_captured() {
     local name="$1"
     shift
-    printf '%s\n' "$*" > "$ATTEMPT/bootstrap/$name.cmd"
-    set +e
-    "$@" > "$ATTEMPT/bootstrap/$name.stdout" 2> "$ATTEMPT/bootstrap/$name.stderr"
-    local status=$?
-    set -e
-    printf '%s\n' "$status" > "$ATTEMPT/bootstrap/$name.status"
-    return "$status"
+    rr_record_cmd "$name" -- "$@" || return 2
+    return "$(cat "$RR_CMD/$name.status")"
 }
 
 # --- content identity of the selected input closure -----------------------
@@ -96,11 +97,14 @@ hash_closure() {
 }
 
 # --- the actual boring class path must belong to this checkout -------------
-haxelib path boring > "$ATTEMPT/bootstrap/boring-path.raw" 2> "$ATTEMPT/bootstrap/boring-path.err"
-boringPath="$(grep -E '^/' "$ATTEMPT/bootstrap/boring-path.raw" | head -1)"
+rr_record_cmd boring-path -- haxelib path boring || {
+    echo "refusing to run: the boring class path could not be recorded" >&2
+    exit 2
+}
+boringPath="$(grep -E '^/' "$RR_CMD/boring-path.stdout" | head -1)"
 if [ -z "$boringPath" ] || [[ "$boringPath" != "$ROOT/"* ]]; then
     cp "$REPLAY/stages.json" "$ATTEMPT/manifest-declared.json" 2> /dev/null || true
-    cat "$ATTEMPT/bootstrap/boring-path.raw" >&2
+    cat "$RR_CMD/boring-path.stdout" >&2
     echo "refusing to run: the boring class path does not belong to $ROOT" >&2
     exit 2
 fi
@@ -175,8 +179,8 @@ identity_stage java '["--version"]'
 identity_stage bun '["--version"]'
 
 # --- before and after content identity ------------------------------------
-hash_closure > "$ATTEMPT/hashes-before.txt"
-stageLine "hashes-before" "ok" "hashes-before.txt"
+hash_closure | rr_identity_capture hashes-before
+stageLine "hashes-before" "ok" "identity/hashes-before.sha256"
 
 # --- per-attempt generation entries ---------------------------------------
 # The owned entries keep their content; only the output-defining lines are
@@ -307,11 +311,11 @@ for group in normalized stable-local; do
         "[\"run\",\"--manifest-path\",\"$ATTEMPT/rust-$group-runner/Cargo.toml\",\"--quiet\"]"
 done
 
-hash_closure > "$ATTEMPT/hashes-after.txt"
-if diff -q "$ATTEMPT/hashes-before.txt" "$ATTEMPT/hashes-after.txt" > /dev/null; then
+hash_closure | rr_identity_capture hashes-after
+if diff -q "$RR_RUN/identity/hashes-before.sha256" "$RR_RUN/identity/hashes-after.sha256" > /dev/null; then
     stageLine "hashes-after" "ok" "the selected input closure is unchanged"
 else
-    diff "$ATTEMPT/hashes-before.txt" "$ATTEMPT/hashes-after.txt" > "$ATTEMPT/hashes-after.diff" || true
+    diff "$RR_RUN/identity/hashes-before.sha256" "$RR_RUN/identity/hashes-after.sha256" > "$ATTEMPT/hashes-after.diff" || true
     stageLine "hashes-after" "changed" "see hashes-after.diff"
 fi
 
@@ -352,6 +356,15 @@ fi
 bun "$REPLAY/verdict.ts" finalize --attempt "$ATTEMPT" --manifest "$ATTEMPT/manifest-declared.json" \
     --comparison-state "$([ "$compareStatus" -eq 0 ] && echo ok || echo failed)" \
     --membership-state "$membershipState" > /dev/null
+
+set +e
+rr_finish > /dev/null
+recordStatus=$?
+set -e
+if [ "$recordStatus" -ge 2 ]; then
+    echo "refusing to report success: the attempt record could not be written" >&2
+    exit 1
+fi
 
 echo "attempt complete: $ATTEMPT (comparison exit $compareStatus, membership state $membershipState)"
 if [ "$membershipState" != "ok" ] || [ "$compareStatus" -ne 0 ]; then
