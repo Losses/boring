@@ -313,6 +313,16 @@ class Compiler extends PluginCompiler<Compiler> {
         }
 
         emitShim("std.UStringRT", "UString.kt", KotlinRuntime.USTRING_SOURCE);
+        // The test host below (emitTestHostShim) references FPHelper
+        // unconditionally: KotlinRuntime.testSource imports it and its
+        // assertion formatting calls FPHelper.formatFloat. A build that
+        // uses the test extern but whose business code has no float still
+        // needs the FPHelper shim, so register the transitive dependency
+        // under the same extern usage condition the test host itself
+        // gates on, before emitShim reads the usage flag.
+        if (state.shimsUsed.exists(RuntimeResidents.externsOf("runtime.TestCore")[0])) {
+            state.shimsUsed.set("haxe.io.FPHelper", true);
+        }
         emitShim("haxe.io.FPHelper", "FPHelper.kt", KotlinRuntime.fpHelperSource());
         emitShim("haxe.io.BytesBuffer", "BytesBuffer.kt", KotlinRuntime.BYTES_BUFFER_SOURCE);
         emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
