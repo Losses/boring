@@ -59,10 +59,58 @@ rr_identity_files source-hashes \
 	tests/bundle-child-evidence/tsconfig.json \
 	tests/bundle-child-evidence/run.sh || { echo "recording failed: source-hashes" >&2; exit 2; }
 
+# Compiler provenance: which bytes the `boring` haxelib resolves for this
+# toolchain. The haxelib build used by the dev shell resolves its repository
+# from the nearest `.haxelib` directory walked up from the working directory
+# (the dev shell exports HAXELIB_PATH), so the repository it names is exactly
+# what the gate below binds: a wrong HAXELIB_PATH that still resolves (a
+# sibling checkout's or a store source's `.haxelib`) would let the checks
+# compile with another tree's compiler. The command is recorded through the
+# shared layer with argv, cwd, streams and numeric status, so the record is
+# reproducible rather than inferred from log text.
+rr_identity_stream haxelib-path-boring -- haxelib path boring || { echo "recording failed: haxelib-path-boring" >&2; exit 2; }
+# The path line immediately before "-D boring=" is the library this haxelib
+# build resolved; fall back to the first absolute line when that marker is
+# absent. Every candidate line stays in the recorded output for audit.
+boring_resolved="$(awk '/^-D boring=/{print prev; exit} {prev=$0}' "$identity_dir/haxelib-path-boring.sha256" 2> /dev/null || true)"
+if [ -z "$boring_resolved" ]; then
+	boring_resolved="$(grep -E '^/' "$identity_dir/haxelib-path-boring.sha256" 2> /dev/null | head -n 1 || true)"
+fi
+boring_real=""
+if [ -n "$boring_resolved" ] && [ -e "$boring_resolved" ]; then
+	boring_real="$(readlink -f "$boring_resolved")"
+fi
+root_real="$(readlink -f "$root")"
+haxe_bin_real="$(readlink -f "$haxe_path" 2> /dev/null || true)"
+boring_under_root="no"
+case "$boring_real" in
+	"$root_real" | "$root_real"/*) boring_under_root="yes" ;;
+esac
+{
+	echo "compiler provenance"
+	echo "HAXELIB_PATH: ${HAXELIB_PATH:-unset}"
+	echo "haxelib path boring (raw): $boring_resolved"
+	echo "boring-resolved-path (realpath): ${boring_real:-none}"
+	echo "checkout root (realpath): $root_real"
+	echo "boring resolved under root: $boring_under_root"
+	echo "haxe binary: ${haxe_bin_real:-none}"
+	[ -n "$haxe_bin_real" ] && sha256sum "$haxe_bin_real"
+	echo "haxe version: $(sed -n '1p' "$identity_dir/haxe.version" 2> /dev/null)"
+	[ -f "$root_real/haxelib.json" ] && sha256sum "$root_real/haxelib.json"
+	if [ -n "$boring_real" ] && [ -f "$boring_real/Intercept.hx" ]; then
+		sha256sum "$boring_real/Intercept.hx"
+	fi
+	echo "compiler bytes under ${boring_real:-none}:"
+	if [ -n "$boring_real" ] && [ -d "$boring_real" ]; then
+		find "$boring_real" -type f -print0 | sort -z | xargs -0 -r sha256sum
+	fi
+	echo "end compiler provenance"
+} > "$run_dir/compiler-provenance.txt"
+
 {
 	echo "cwd: $root"
 	echo "evidence directory: $run_dir"
-	for name in haxe bun revision source-hashes; do
+	for name in haxe bun revision source-hashes haxelib-path-boring; do
 		echo "--- $name exit $(cat "$identity_dir/$name.status")"
 		cat "$identity_dir/$name.realpath" 2> /dev/null
 		cat "$identity_dir/$name.version" 2> /dev/null
@@ -71,10 +119,23 @@ rr_identity_files source-hashes \
 		cat "$identity_dir/$name.sha256" 2> /dev/null
 		cat "$identity_dir/$name.stderr" 2> /dev/null
 	done
+	echo "--- compiler-provenance"
+	cat "$run_dir/compiler-provenance.txt"
 } > "$run_dir/identity.txt"
 
+# The provenance gate runs after identity capture so the resolved path, its
+# realpath and the compiler bytes are retained either way; it stops the run
+# before any check executes.
+if [ "$boring_under_root" != "yes" ]; then
+	printf '2\n' > "$run_dir/provenance-gate.status"
+	echo "compiler provenance gate failed: haxelib path boring resolves to '${boring_real:-<unresolved>}' which is not under $root_real" >&2
+	echo "refusing to run: the boring class path does not belong to this checkout; see $run_dir/compiler-provenance.txt" >&2
+	exit 2
+fi
+printf '0\n' > "$run_dir/provenance-gate.status"
+
 identity_status=0
-for name in haxe bun revision source-hashes; do
+for name in haxe bun revision source-hashes haxelib-path-boring; do
 	status="$(cat "$identity_dir/$name.status" 2> /dev/null)" || { echo "missing identity record: $name" >&2; exit 2; }
 	if [ "$status" -ne 0 ]; then
 		identity_status="$status"
