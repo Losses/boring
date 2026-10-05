@@ -692,6 +692,17 @@ boring.IntFloatSignOps
 tests.IntFloatSignTests
 
 tests.DriverPlanTests
+boring.NullInflatedLiteralOps
+tests.NullInflatedLiteralOpsTests
+
+boring.NullBoolStyle
+boring.NullBoolTernaryOps
+boring.NullBoolEmphasisOps
+tests.NullBoolTernaryTests
+
+boring.TestLitEdgeOps
+tests.TestLitEdgeTests
+
 
 tests.SharedHandleTests
 # R1 warn-zero regression samples (one mechanism each)
