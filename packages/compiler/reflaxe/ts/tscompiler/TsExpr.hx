@@ -2803,7 +2803,6 @@ class TsExpr {
     **/
     function fsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
         final rendered = [for (a in args) expr(a)];
-        final upper = name.charAt(0).toUpperCase() + name.substring(1);
         final member = switch (name) {
             case "exists": "existsSync(p)";
             case "readText": 'readFileSync(p, "utf8")';
@@ -2843,9 +2842,39 @@ class TsExpr {
         // is the cross-target ruling recorded for stdlib/17 (Kotlin, Dart and
         // Rust already read a missing path as false). This catch covers only
         // the stat call; the unavailability throw above still escapes.
-        final body = (name == "isDirectory")
+        // isDirectory is a non-fallible pre-checked predicate: every
+        // statSync failure (missing, permission, not-a-directory) answers
+        // false and never raises an FsException; existsSync is already total.
+        final rawBody = (name == "isDirectory")
             ? "try { return fs.statSync(p).isDirectory(); } catch { return false; }"
             : (returns ? "return fs." + member + retCast + ";" : "fs." + member + ";");
+        // stdlib/17: a failing read/write member maps the host failure to
+        // std.FsException carrying the normalized std.FsError kind, the
+        // operation and the path; the native error text is attached for
+        // display only. The pre-checked predicates exists/isDirectory keep
+        // their Bool contract and stay raw.
+        final exceptionName = imports.valueName("std.FsException", "FsException");
+        final kindTest = "const detail = String(e); const code = (e as { code?: string } | null)?.code;";
+        function kindThrow(code:String, kind:String):String {
+            return " if (code === \"" + code + "\") { throw new " + exceptionName
+                + "({ kind: \"" + kind + "\", operation: \"" + name
+                + "\", path: p, nativeDetail: detail }); }";
+        }
+        final body = (name == "exists" || name == "isDirectory") ? rawBody : (
+            "try { " + rawBody + " } catch (e) {"
+            + " " + kindTest
+            + kindThrow("ENOENT", "NotFound")
+            + kindThrow("ENOTDIR", "NotDirectory")
+            + " if (code === \"EACCES\" || code === \"EPERM\") { throw new " + exceptionName
+            + "({ kind: \"PermissionDenied\", operation: \"" + name + "\", path: p, nativeDetail: detail }); }"
+            + kindThrow("EEXIST", "AlreadyExists")
+            + " if (code === \"EINVAL\" || code === \"ENAMETOOLONG\") { throw new " + exceptionName
+            + "({ kind: \"InvalidInput\", operation: \"" + name + "\", path: p, nativeDetail: detail }); }"
+            + kindThrow("EISDIR", "IsDirectory")
+            + " throw new " + exceptionName + "({ kind: \"Other\", operation: \"" + name
+            + "\", path: p, nativeDetail: detail });"
+            + " }"
+        );
         // The module alias is a named structural type whose members return
         // exact values: under noUncheckedIndexedAccess an index-signature
         // record types every member as possibly undefined, and the strict
@@ -2889,9 +2918,9 @@ class TsExpr {
             + " | undefined;"
             + " const fs = probe !== undefined ? probe(\"node:fs\") as HostFsModule"
             + upper
-            + " : null; if (fs === null) { throw new Error("
-            + tsStringLiteral(FS_UNAVAILABLE)
-            + "); } "
+            + " : null; if (fs === null) { throw new "
+            + exceptionName
+            + "({ kind: \"Unavailable\", operation: \"" + name + "\", path: p }); } "
             + body
             + " };");
         return helper + "(" + rendered.join(", ") + ")";

@@ -59,6 +59,12 @@ class Compiler extends PluginCompiler<Compiler> {
         // alone cannot do this because it only protects an
         // already-typed module from DCE.
         Context.getType("std.UStringException");
+        // The std.Fs lowering synthesizes std.FsException throws carrying an
+        // std.FsError variant (stdlib/17) even when the consumer source
+        // scope omits samples/. Force both through typing like the
+        // string-buffer fault module above.
+        Context.getType("std.FsException");
+        Context.getType("std.FsError");
         // TestCore is a resident module: compiling it derives its
         // output package from `runtime-import`, and a build without
         // that define cannot compile it. Skip the forced typing there;
