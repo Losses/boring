@@ -256,6 +256,10 @@ tests.RustUnionFaultTests
 boring.ArrayIterationOps
 boring.CaptureSwitchOps
 boring.PayloadSelfMapOps
+# The std.Fs host-failure identity: boring.PlatformOps calls the fallible
+# std.Fs operations, so the payload enum needs a declaration site even when
+# no corpus class catches it (docs/specs/stdlib/17-platform-modules.md).
+std.FsException
 boring.PlatformOps
 tests.CaptureSwitchOpsTests
 tests.PayloadSelfMapOpsTests
