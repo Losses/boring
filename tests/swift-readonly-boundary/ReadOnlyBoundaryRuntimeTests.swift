@@ -31,5 +31,6 @@ struct ReadOnlyBoundaryRuntimeTests {
         print("nullable-fallback-null=\(ReadOnlyBoundaryOps.nullableFallbackNullCall())")
         print("nullable-fallback-present=\(ReadOnlyBoundaryOps.nullableFallbackPresentCall())")
         print("guarded-nullable-fallback=\(ReadOnlyBoundaryOps.guardedNullableFallbackBoundary(TiqianArray([45])))")
+        print("traverse-readonly=\(ReadOnlyBoundaryOps.traverseReadOnlyView(ReadOnlyArray<Int32>(TiqianArray<Int32>([3, 4, 5]))))")
     }
 }
