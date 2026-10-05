@@ -2174,7 +2174,7 @@ class SwiftExpr {
     **/
     function ternaryBranch(b:TypedExpr, whole:TypedExpr):String {
         var text = expr(b);
-        if (!optionalValued(whole) && optionalValued(b) && !StringTools.endsWith(text, "!")) {
+        if (!optionalValued(whole) && (optionalValued(b) || castLaundersOptional(b)) && !StringTools.endsWith(text, "!")) {
             text = switch (stripWrap(b).expr) {
                 case TLocal(_): text + "!";
                 case TField(_, _): "(" + text + ")!";
@@ -3628,6 +3628,36 @@ class SwiftExpr {
             case TIf(_, t, f) if (f != null): isNullExpr(t) || isNullExpr(f);
             case _: false;
         };
+    }
+
+    /**
+        A coercive Haxe cast between a nullable read and its non-null leaf
+        type is transparent in Swift: `castText` returns the inner text, so
+        the emitted arm keeps the optional even though the Haxe type no
+        longer does. A non-optional ternary must unwrap that arm like any
+        other optional branch. (CastLaunderedOptional)
+    **/
+    function castLaundersOptional(e:TypedExpr):Bool {
+        var didCast = false;
+        var cur = e;
+        var done = false;
+        while (!done) {
+            switch (cur.expr) {
+                case TParenthesis(inner) | TMeta(_, inner):
+                    cur = inner;
+                case TCast(inner, _):
+                    // Only the `Context.unify` passthrough is transparent; an
+                    // array-boundary conversion, a numeric widening or an
+                    // `as!` downcast all produce a non-optional value.
+                    if (SwiftArrayBoundary.isBoundary(inner.t, cur.t) || !Context.unify(inner.t, cur.t))
+                        return false;
+                    didCast = true;
+                    cur = inner;
+                case _:
+                    done = true;
+            }
+        }
+        return didCast && optionalValued(cur);
     }
 
     function stdString(arg:TypedExpr, inConcat:Bool):String {

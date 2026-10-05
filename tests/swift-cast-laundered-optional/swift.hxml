@@ -1,0 +1,17 @@
+# Focused regression fixture for the cast-laundered optional ternary arm
+# (samples/tests/TestLitEdgeTests.hx:11, P09 pin 77bc5d47). A nullable field
+# read wrapped in a transparent cast keeps the optional in the emitted Swift
+# while the Haxe ternary type is non-optional; the arm must force-unwrap.
+# The collected driver is tests/swift-cast-laundered-optional/cast-laundered-optional.test.ts.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/swift-cast-laundered-optional
+--macro Intercept.run(['samples', 'tests/swift-cast-laundered-optional'])
+--macro swiftcompiler.Compiler.use()
+-D swift-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+litcast.LitCastOptionalOps
