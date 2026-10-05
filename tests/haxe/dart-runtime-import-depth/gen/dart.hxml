@@ -1,0 +1,18 @@
+# Dart generation of the minimal runtime-import-depth fixture (task
+# t-muviv6in-y1qx). The runner passes -D dart-output=... and
+# -D dart-test-output=... on the command line. The emitted library is
+# lib/depth/runtime_import_depth_probe.dart; its runtime imports must
+# stay inside lib/.
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/dart-runtime-import-depth
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/dart-runtime-import-depth'])
+--macro dartcompiler.Compiler.use()
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+depth.RuntimeImportDepthProbe
