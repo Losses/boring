@@ -1,0 +1,17 @@
+# fs-missing-isdirectory probe generation, ts target.
+#   nix develop -c haxe tests/haxe/fs-missing-isdirectory/gen/ts.hxml \
+#     -D ts-output=out/<attempt>/ts-gen
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/ts/std-shadow
+-cp packages/compiler/reflaxe/ts
+-cp tests/haxe/fs-missing-isdirectory
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/fs-missing-isdirectory'])
+--macro tscompiler.Compiler.use()
+fsprobe.IsDirectoryProbe
+runtime.UString
+runtime.SortedTable
+-D runtime-import=./runtime
+-D runtime-emit=.
+-D package-shell=none

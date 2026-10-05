@@ -1,0 +1,18 @@
+# fs-missing-isdirectory probe generation, rust target.
+#   nix develop -c haxe tests/haxe/fs-missing-isdirectory/gen/rust.hxml \
+#     -D rust-output=out/<attempt>/rust-gen
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/fs-missing-isdirectory
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/fs-missing-isdirectory'])
+--macro rustcompiler.Compiler.use()
+fsprobe.IsDirectoryProbe
+runtime.UString
+runtime.SortedTable
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+-D package-name=fs-missing-isdirectory
+-D package-license=MIT

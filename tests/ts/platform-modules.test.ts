@@ -35,6 +35,14 @@ describe("std.Fs lowering", () => {
     const source = readGenerated("boring/PlatformOps.ts");
     expect(source).toContain('throw new Error("std.Fs is not available on this host")');
   });
+
+  test("isDirectory reports a missing path as false instead of letting the host error escape", () => {
+    const source = readGenerated("boring/PlatformOps.ts");
+    // The ruling (2026-10-05): a missing path is not a directory, so the
+    // predicate returns false; the guard covers only the stat call, and
+    // the unavailability throw above still escapes a host without node:fs.
+    expect(source).toContain("try { return fs.statSync(p).isDirectory(); } catch { return false; }");
+  });
 });
 
 describe("std.Env lowering", () => {
