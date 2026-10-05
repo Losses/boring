@@ -33,7 +33,11 @@ class KotlinImports {
         modules compile past the scope filter and a build whose generated
         output never referenced them writes no file.
     **/
-    static final GUARANTEED_STD_MODULES:Map<String, Bool> = ["std.UStringException" => true,];
+    static final GUARANTEED_STD_MODULES:Map<String, Bool> = [
+        "std.UStringException" => true,
+        "std.FsException" => true,
+        "std.FsError" => true,
+    ];
 
     /** Whether a module is a compiled std module generated output guarantees. */
     public static function isGuaranteedStdModule(module:String):Bool {

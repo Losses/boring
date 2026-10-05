@@ -23,7 +23,12 @@ class SwiftImports {
     final hostEdges:Map<String, Bool> = [];
 
     /** Modules whose declarations are synthesized as target support. */
-    static final GUARANTEED_STD_MODULES:Map<String, Bool> = ["std.UStringException" => true, "std.UStringFault" => true,];
+    static final GUARANTEED_STD_MODULES:Map<String, Bool> = [
+        "std.UStringException" => true,
+        "std.UStringFault" => true,
+        "std.FsException" => true,
+        "std.FsError" => true,
+    ];
 
     public static function isGuaranteedStdModule(module:String):Bool {
         return GUARANTEED_STD_MODULES.exists(module);

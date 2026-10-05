@@ -31,9 +31,25 @@ describe("std.Fs lowering", () => {
     expect(source).not.toMatch(/from "node:fs"/);
   });
 
-  test("a host without the module probe raises the fixed unavailability message", () => {
+  test("a host without the module probe raises FsException(Unavailable)", () => {
     const source = readGenerated("boring/PlatformOps.ts");
-    expect(source).toContain('throw new Error("std.Fs is not available on this host")');
+    expect(source).toContain(
+      'throw new FsException({ kind: "Unavailable", operation: "readText", path: p })',
+    );
+  });
+
+  test("a host failure maps to the normalized FsError kind", () => {
+    const source = readGenerated("boring/PlatformOps.ts");
+    expect(source).toContain('if (code === "ENOENT") { throw new FsException({ kind: "NotFound"');
+    expect(source).toContain('if (code === "ENOTDIR") { throw new FsException({ kind: "NotDirectory"');
+    expect(source).toContain('if (code === "EACCES" || code === "EPERM")');
+    expect(source).toContain('kind: "PermissionDenied"');
+    expect(source).toContain('if (code === "EISDIR") { throw new FsException({ kind: "IsDirectory"');
+  });
+
+  test("isDirectory answers false for every stat failure and never raises", () => {
+    const source = readGenerated("boring/PlatformOps.ts");
+    expect(source).toContain("try { return fs.statSync(p).isDirectory(); } catch { return false; }");
   });
 
   test("isDirectory reports a missing path as false instead of letting the host error escape", () => {

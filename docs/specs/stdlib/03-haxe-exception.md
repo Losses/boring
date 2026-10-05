@@ -195,6 +195,24 @@ The exact four-language mapping for the vector format is:
 | `UnexpectedEof` | `VectorError::UnexpectedEof` | `"UnexpectedEof"` | `VectorException.UnexpectedEof` | `vector ended mid-record` |
 | `TrailingBytes(remaining)` | `VectorError::TrailingBytes { remaining }` | `"TrailingBytes"` with `remaining` | `VectorException.TrailingBytes(remaining)` | `trailing bytes in vector: ${remaining}` |
 
+### Platform-module failures: `std.Fs`
+
+A platform module that has no declared error domain still raises a
+`haxe.Exception` subclass whose identity is an enum variant: a `std.Fs`
+failure raises `std.FsException` carrying `std.FsError`, whose variant is
+the normalized kind (`NotFound`, `PermissionDenied`, `NotDirectory`,
+`AlreadyExists`, `InvalidInput`, `IsDirectory`, `Unavailable`, `Other`)
+and which carries the operation, the path and the host's native
+diagnostic text (attached for display only, never the identity). A catch
+clause names the concrete `std.FsException` and reads the kind off
+`error.error`; `haxe.Exception` remains the base class and the catch-all.
+`std.Fs` keeps its Haxe signatures (`readText(path):String` and
+friends), so R5 (the identity is the variant), R6 (Rust panic is banned)
+and R8 (no `Result` slot in the Haxe signature) are reconciled by the
+unified fallibility propagation, which carries `std.FsError` on the
+enclosing function; the full ruling is in
+`docs/specs/stdlib/17-platform-modules.md`.
+
 ## Test hooks
 
 Exact error variants and exception throws are asserted in:

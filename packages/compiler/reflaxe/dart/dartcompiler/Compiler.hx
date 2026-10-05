@@ -122,6 +122,13 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (Context.getType(resident) == null)
                     throw 'dart resident module not typed: ' + resident;
         }
+        // The std.Fs lowering synthesizes std.FsException throws carrying an
+        // std.FsError variant (stdlib/17) in the emitter, so neither module
+        // is reachable from a business reference. Force them through typing
+        // like the runtime residents above; a build without the samples on
+        // its classpath resolves null and skips the force.
+        Context.getType("std.FsException");
+        Context.getType("std.FsError");
         ReflectCompiler.AddCompiler(compiler, {
             fileOutputType: BaseCompilerFileOutputType.Manual,
             fileOutputExtension: ".dart",
