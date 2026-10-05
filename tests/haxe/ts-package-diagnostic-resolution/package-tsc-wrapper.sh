@@ -7,6 +7,16 @@ if [[ "${1:-}" != "-p" || -z "${2:-}" ]]; then
 fi
 
 stage="$2"
+# Defense in depth: the wrapper never resolves tsc through PATH; the runner
+# must export an executable explicit path here.
+if [[ -z "${TS_DIAGNOSTIC_REAL_TSC:-}" ]]; then
+	printf '%s\n' 'TS_DIAGNOSTIC_REAL_TSC is not set: refusing PATH fallback' >&2
+	exit 64
+fi
+if [[ ! -x "$TS_DIAGNOSTIC_REAL_TSC" ]]; then
+	printf 'TS_DIAGNOSTIC_REAL_TSC=%s is not executable\n' "$TS_DIAGNOSTIC_REAL_TSC" >&2
+	exit 64
+fi
 printf '%s\n' "$stage" >> "$TS_DIAGNOSTIC_INVOCATIONS"
 mode="${TS_DIAGNOSTIC_MODE:-none}"
 if [[ "$mode" == "empty-check" || "$mode" == "success-output" ]]; then
