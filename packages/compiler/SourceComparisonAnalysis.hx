@@ -432,9 +432,17 @@ private class Builder {
     }
 
     function sameTypeParameter(left:Ref<ClassType>, right:Ref<ClassType>):Bool {
-        // A macro Ref wrapper is not binder identity. Without compiler
-        // provenance for owner and index, do not equate by name or position.
-        return left == right;
+        // A macro `Ref` wrapper is freshly allocated on every access, so
+        // pointer equality misses the same logical parameter written twice
+        // inside one record (each field sees its own fresh parameter `Ref`).
+        // The parameter identity key embeds the owning declaration's full
+        // path, so it is owner-unique and serial key comparison decides
+        // without cross-owner slot confusion (see `parameterIdentity`).
+        if (left == right)
+            return true;
+        final leftKey = SourceComparisonAnalysis.parameterIdentity(TInst(left, []));
+        final rightKey = SourceComparisonAnalysis.parameterIdentity(TInst(right, []));
+        return leftKey != null && leftKey == rightKey;
     }
 
     static function isTypeParameter(cls:ClassType):Bool {
