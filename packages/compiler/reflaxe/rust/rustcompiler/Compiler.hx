@@ -471,9 +471,36 @@ class Compiler extends PluginCompiler<Compiler> {
         final libLines = [];
         final rootPackages:Array<String> = packageChildren.get("") == null ? [] : packageChildren.get("").copy();
         rootPackages.sort(Reflect.compare);
+        // Root-level modules (a module with no Haxe package) are module leaves
+        // emitted beside the crate root. They are declared here directly, not
+        // as package children, so a root module can never be dropped from the
+        // crate entry. (RustRootModuleRegistration)
+        final rootModules:Array<String> = packages.get("") == null ? [] : packages.get("").copy();
+        rootModules.sort(Reflect.compare);
+        // A root-level module and a root package can share one snake-case
+        // module name (a class `Consumer` and a package `consumer.*`). Both
+        // would map to `pub mod consumer;`, which rustc rejects with E0428/E0761.
+        // Reject that collision here with a named diagnostic instead of
+        // emitting a duplicate module declaration. (RustRootModuleRegistration)
+        for (m in rootModules) {
+            // Only names that this emission actually writes collide: a non-tests
+            // root package (the tests package is emitted in its own block below),
+            // the cfg(test) tests block, or the runtime shim directory.
+            if (rootPackages.indexOf(m) >= 0 && m != "tests")
+                Context.error("root module '" + m + "' collides with a root package of the same name; rename one to avoid a duplicate `pub mod " + m + ";`", Context.currentPos());
+            if (m == "tests" && packages.exists("tests"))
+                Context.error("root module 'tests' collides with the generated tests module; rename the root module", Context.currentPos());
+            if (emitDir != null && hasAnyShim() && m == emitDir)
+                Context.error("root module '" + m + "' collides with the runtime shim module; rename the root module", Context.currentPos());
+        }
         for (p in rootPackages)
             if (p != "tests")
                 libLines.push("pub mod " + p + ";");
+        for (m in rootModules) {
+            if (testModuleLeaves.exists("." + m))
+                libLines.push("#[cfg(test)]");
+            libLines.push("pub mod " + m + ";");
+        }
         if (emitDir != null && hasAnyShim()) {
             libLines.push("pub mod " + emitDir + ";");
         }
@@ -485,6 +512,11 @@ class Compiler extends PluginCompiler<Compiler> {
         for (p in rootPackages)
             if (p != "tests")
                 libLines.push("pub use " + p + "::*;");
+        for (m in rootModules) {
+            if (testModuleLeaves.exists("." + m))
+                libLines.push("#[cfg(test)]");
+            libLines.push("pub use " + m + "::*;");
+        }
         saveTreeFile("lib.rs", libLines.join("\n") + "\n");
 
         if (PackageShell.enabled()) {
