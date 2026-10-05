@@ -1012,6 +1012,21 @@ class Compiler extends PluginCompiler<Compiler> {
                     lines.push("        " + u.name + "::" + variant + "(value)");
                     lines.push("    }");
                     lines.push("}");
+                    // The std.Fs host failure reaches this union both through
+                    // the Haxe-facing payload (a caught rethrow) and directly
+                    // from a runtime std.Fs call, whose error is
+                    // runtime::fs::FsError. The direct `?` conversion needs a
+                    // From the payload never provides, so compose the two
+                    // (docs/specs/stdlib/17-platform-modules.md).
+                    if (emitted == "std.FsException" && item.name == "FsError") {
+                        final runtimePackage = RuntimeConfig.requireImportName("std.Fs");
+                        lines.push("");
+                        lines.push("impl From<" + runtimePackage + "::fs::FsError> for " + u.name + " {");
+                        lines.push("    fn from(value: " + runtimePackage + "::fs::FsError) -> Self {");
+                        lines.push("        " + u.name + "::" + variant + "(" + memberPath + "::from(value))");
+                        lines.push("    }");
+                        lines.push("}");
+                    }
                 }
                 lines.join("\n");
             }
@@ -1627,7 +1642,21 @@ class Compiler extends PluginCompiler<Compiler> {
                                                     }
                                                 case TField(_, FStatic(cc, cf)):
                                                     final calleeName = cf.get().name;
-                                                    if (RustEmissionState.runtimeShimIsFallible(calleeName)) {
+                                                    if (RustEmissionState.stdFsFallibleMember(cc.get().module, calleeName)) {
+                                                        // A std.Fs host operation fails with the
+                                                        // canonical std.FsError domain; a call the
+                                                        // enclosing catch already absorbs stays out
+                                                        // (docs/specs/stdlib/17-platform-modules.md).
+                                                        if (absorbed.indexOf("std.FsError") < 0) {
+                                                            fallible.set(key, true);
+                                                            // The payload enum is co-emitted in the
+                                                            // declaring exception's module, so the error
+                                                            // slot must name that module or the generated
+                                                            // path resolves to a file that does not exist.
+                                                            final emitted = state.payloadEnumModules.get(RustEmissionState.identityKey("std.FsError", "FsError"));
+                                                            mergeEnum(key, {module: emitted != null ? emitted : "std.FsError", name: "FsError"});
+                                                        }
+                                                    } else if (RustEmissionState.runtimeShimIsFallible(calleeName)) {
                                                         if (!(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
                                                             fallible.set(key, true);
                                                             if (state.errorModule != null && state.errorName != null) {

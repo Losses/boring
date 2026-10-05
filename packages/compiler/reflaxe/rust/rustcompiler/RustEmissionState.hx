@@ -304,6 +304,21 @@ class RustEmissionState {
         return name == "readU16" || name == "readU32" || name == "readF64" || name == "readAscii" || name == "ensureRemaining";
     }
 
+    /**
+        The std.Fs operations whose Rust backing returns Result<T, FsError>
+        (docs/specs/stdlib/17-platform-modules.md "Failure behavior").
+        exists/isDirectory stay total: the spec rules a missing path as a
+        returned false, so they never carry a failure.
+    **/
+    public static function stdFsFallibleMember(module:String, name:String):Bool {
+        if (module != "std.Fs")
+            return false;
+        return switch (name) {
+            case "readText" | "writeText" | "appendText" | "makeDirs" | "readDir" | "deleteFile" | "rename": true;
+            case _: false;
+        };
+    }
+
     /** Types reachable at test assertion call sites for type-guided helpers. */
     public final testReachableTypes:Map<String, Type> = [];
 
