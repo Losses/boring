@@ -504,12 +504,16 @@ class Compiler extends PluginCompiler<Compiler> {
             }
         }
         if (needsFoundationEssentials) {
-            // Apple SDKs do not expose FoundationEssentials as a
-            // top-level module; Foundation provides the same FileManager
-            // API there, so the header falls back through Darwin.
+            // FoundationEssentials supplies FileManager but not the
+            // NSError bridging (NSError / NSPOSIXErrorDomain) that the
+            // failure classifier reads, so Foundation is imported
+            // alongside it wherever it is importable. Apple SDKs do not
+            // expose FoundationEssentials as a top-level module and use
+            // Foundation alone.
             header.push("#if canImport(FoundationEssentials)");
             header.push("import FoundationEssentials");
-            header.push("#elseif canImport(Darwin)");
+            header.push("#endif");
+            header.push("#if canImport(Foundation)");
             header.push("import Foundation");
             header.push("#endif");
         }
