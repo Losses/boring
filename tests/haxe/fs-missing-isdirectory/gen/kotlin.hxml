@@ -1,0 +1,16 @@
+# fs-missing-isdirectory probe generation, kotlin target.
+#   nix develop -c haxe tests/haxe/fs-missing-isdirectory/gen/kotlin.hxml \
+#     -D kotlin-output=out/<attempt>/kotlin-gen
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/fs-missing-isdirectory
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/fs-missing-isdirectory'])
+--macro kotlincompiler.Compiler.use()
+fsprobe.IsDirectoryProbe
+runtime.UString
+runtime.SortedTable
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
