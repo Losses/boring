@@ -1,0 +1,7 @@
+-cp packages/compiler
+-cp tests/haxe/dc-same-type-parameter/fixture
+-cp tests/haxe/dc-same-type-parameter/probe
+-cp tests/haxe/dc-same-type-parameter
+-main ProbeMain
+--macro Setup.run()
+--interp
