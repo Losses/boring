@@ -567,6 +567,15 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push('name = "${test.name}"');
             lines.push('path = "${test.path}"');
         }
+        // The f32 twin crate of feature spec 23 stays outside the
+        // consumer's cargo workspace, so it declares itself a workspace
+        // root. Without the marker cargo walks up past the manifest that
+        // excludes it and rejects the build as a package that believes it
+        // is in a workspace when it is not.
+        if (FloatPrecision.isF32()) {
+            lines.push("");
+            lines.push("[workspace]");
+        }
         return lines.join("\n") + "\n";
     }
 

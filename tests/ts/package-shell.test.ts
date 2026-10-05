@@ -377,6 +377,8 @@ describe("package shell emission", () => {
       'name = "vector_gen_f32"',
       'path = "../../../tests/rust/vector_gen_f32.rs"',
       "",
+      "[workspace]",
+      "",
     ].join("\n"));
   });
 
