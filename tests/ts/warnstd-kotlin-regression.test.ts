@@ -23,6 +23,10 @@ describe("warnstd kotlin regression samples", () => {
     expect(out).toContain("return r!!.next.count");
     expect(out).not.toContain("?.count");
     expect(out).not.toContain("next.count!!");
+    // The constructor never assigns the non-null field, so the declaration
+    // carries lateinit and stays a stored non-null property.
+    expect(out).toContain("lateinit var next: WidenedFieldNonNull");
+    expect(out).not.toContain("\n    var next: WidenedFieldNonNull");
   });
 
   test("CharCodeNoToString: the fromCharCode template drops the redundant toString on its String branch", () => {

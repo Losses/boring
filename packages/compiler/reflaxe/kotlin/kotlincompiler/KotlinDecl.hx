@@ -1159,6 +1159,7 @@ class KotlinDecl {
         // the storage goes private.
         final effVis = backedByExplicitAccessor ? "private " : vis;
         var initStr = "";
+        var lateStr = "";
         switch (field.kind) {
             case FVar(_, _):
                 // Uninitialized fields carry the platform default: numeric
@@ -1170,6 +1171,15 @@ class KotlinDecl {
                         imports.requireType(c.get().module, "BytesBuffer");
                         initStr = " = BytesBuffer()";
                     case _:
+                        // No platform default covers the type. A nullable
+                        // property takes null; a non-null reference property
+                        // takes lateinit, which keeps the declared type and
+                        // defers the assignment the constructor never makes.
+                        if (isNullType(field.type)) {
+                            initStr = " = null";
+                        } else if (!field.isFinal && acceptsLateinit(field.type)) {
+                            lateStr = "lateinit ";
+                        }
                 }
             case _:
         }
@@ -1179,8 +1189,33 @@ class KotlinDecl {
         KotlinExpr.emissionTrace("FIELDDECL", KotlinNameEscape.escape(field.name), field.pos);
 #end
         return [
-            '    ${effVis}${kw} ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}$initStr'
+            '    ${effVis}${lateStr}${kw} ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}$initStr'
         ];
+    }
+
+    /**
+        Whether a stored property of this type accepts Kotlin's lateinit
+        modifier. lateinit covers non-null reference types only: primitive
+        mappings, the nullable wrapper, and type parameters with a nullable
+        upper bound are excluded.
+    **/
+    static function acceptsLateinit(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                !c.get().kind.match(KTypeParameter(_));
+            case TEnum(_, _) | TFun(_, _):
+                true;
+            case TAbstract(a, _):
+                final abs = a.get();
+                switch (abs.name) {
+                    case "Int" | "Float" | "Bool" | "Void" | "Int64" | "Null": false;
+                    case _: acceptsLateinit(abs.type);
+                }
+            case _:
+                false;
+        };
     }
 
     function isModuleType(cls:ClassType, packDot:String, name:String):Bool {
