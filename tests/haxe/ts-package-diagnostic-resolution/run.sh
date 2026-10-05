@@ -3,7 +3,24 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 FIXTURE_DIR="$ROOT_DIR/tests/haxe/ts-package-diagnostic-resolution"
-TSC_BIN="${TSC:-tsc}"
+# The runner requires an explicit tsc path: an unset TSC or a bare command
+# name would silently resolve through PATH, so both are rejected.
+TSC_BIN="${TSC:-}"
+if [[ -z "$TSC_BIN" ]]; then
+	printf '%s\n' 'TSC is not set: refusing silent PATH fallback; set TSC to an explicit tsc path' >&2
+	exit 2
+fi
+case "$TSC_BIN" in
+*/*) ;;
+*)
+	printf 'TSC=%s is a bare command name; set TSC to an explicit path instead\n' "$TSC_BIN" >&2
+	exit 2
+	;;
+esac
+if [[ ! -x "$TSC_BIN" ]]; then
+	printf 'TSC=%s is not an executable file\n' "$TSC_BIN" >&2
+	exit 2
+fi
 mkdir -p "$ROOT_DIR/out/ts-package-diagnostic-resolution"
 OUTPUT_ROOT="$(mktemp -d "$ROOT_DIR/out/ts-package-diagnostic-resolution/attempt-XXXXXXXX")"
 WRAPPER="$OUTPUT_ROOT/package-tsc-wrapper.sh"
@@ -12,6 +29,24 @@ cd "$ROOT_DIR"
 INPUTS=(packages/compiler/PackageArtifacts.hx tests/haxe/ts-package-diagnostic-resolution/*)
 sha256sum "${INPUTS[@]}" > "$OUTPUT_ROOT/input-hashes-before.txt"
 printf 'nix develop -c bash -c "TSC=%s bash tests/haxe/ts-package-diagnostic-resolution/run.sh"\n' "$TSC_BIN" > "$OUTPUT_ROOT/command.txt"
+{
+	printf 'cwd=%s\n' "$PWD"
+	printf 'argv='
+	printf '"%s" ' "$0" "$@"
+	printf '\n'
+} > "$OUTPUT_ROOT/runner-argv-cwd.txt"
+# Record the exact executable identity every tsc invocation in this run uses:
+# requested path, resolved realpath, sha256 of the real file and the compiler
+# own --version line. Any failure here aborts the run.
+TSC_REAL="$(realpath -- "$TSC_BIN")"
+TSC_SHA256="$(sha256sum -- "$TSC_REAL" | awk '{print $1}')"
+TSC_VERSION="$( "$TSC_REAL" --version 2>&1 | head -n 1 )"
+{
+	printf 'tsc-requested=%s\n' "$TSC_BIN"
+	printf 'tsc-realpath=%s\n' "$TSC_REAL"
+	printf 'tsc-sha256=%s\n' "$TSC_SHA256"
+	printf 'tsc-version=%s\n' "$TSC_VERSION"
+} > "$OUTPUT_ROOT/tsc-identity.txt"
 finish() {
 	local status="$?"
 	trap - EXIT
@@ -25,6 +60,74 @@ finish() {
 	exit "$status"
 }
 trap finish EXIT
+# --- compiler provenance gate ------------------------------------------------
+# The hxml files below compile with the haxelib-resolved `boring` classpath
+# (and its dependencies) loaded by the haxe toolchain, so the compiler bytes
+# of the run are whatever the haxelib repository resolves, not necessarily
+# the bytes of this checkout. Bind the run to the bytes it will actually
+# load: record `haxelib path boring` with its argv, cwd, streams and status,
+# and require its realpath to sit under this checkout. A wrong HAXELIB_PATH
+# that still resolves (a sibling checkout's or a store source's `.haxelib`)
+# fails non-zero here, before any compile, so the input hashes recorded
+# above can never describe a run whose compiler came from elsewhere ("hash A
+# executed B"). This haxelib build resolves its repository from the nearest
+# `.haxelib` directory walked up from the working directory; the recorded
+# HAXELIB_PATH value documents the repository the dev shell names.
+PROV="$OUTPUT_ROOT/haxelib-path-boring"
+printf 'haxelib\0path\0boring\0' > "$PROV.argv"
+printf '%s\n' "$ROOT_DIR" > "$PROV.cwd"
+set +e
+haxelib path boring > "$PROV.stdout" 2> "$PROV.stderr"
+PROV_STATUS=$?
+set -e
+printf '%s\n' "$PROV_STATUS" > "$PROV.status"
+# The path line immediately before "-D boring=" is the library this haxelib
+# build resolved; fall back to the first absolute line when that marker is
+# absent. Every candidate line stays in $PROV.stdout for audit.
+BORING_RESOLVED="$(awk '/^-D boring=/{print prev; exit} {prev=$0}' "$PROV.stdout" || true)"
+if [[ -z "$BORING_RESOLVED" ]]; then
+	BORING_RESOLVED="$(grep -E '^/' "$PROV.stdout" | head -n 1 || true)"
+fi
+BORING_REAL=""
+if [[ -n "$BORING_RESOLVED" && -e "$BORING_RESOLVED" ]]; then
+	BORING_REAL="$(readlink -f "$BORING_RESOLVED")"
+fi
+ROOT_REAL="$(readlink -f "$ROOT_DIR")"
+HAXE_BIN_REAL="$(readlink -f "$(command -v haxe)" 2>/dev/null || true)"
+BORING_UNDER_ROOT=no
+case "$BORING_REAL" in
+	"$ROOT_REAL" | "$ROOT_REAL"/*) BORING_UNDER_ROOT=yes ;;
+esac
+BORING_MANIFEST="$ROOT_REAL/haxelib.json"
+{
+	printf 'compiler provenance\n'
+	printf 'HAXELIB_PATH: %s\n' "${HAXELIB_PATH:-unset}"
+	printf 'haxelib path boring (raw): %s\n' "$BORING_RESOLVED"
+	printf 'boring-resolved-path (realpath): %s\n' "${BORING_REAL:-none}"
+	printf 'checkout root (realpath): %s\n' "$ROOT_REAL"
+	printf 'boring resolved under root: %s\n' "$BORING_UNDER_ROOT"
+	printf 'haxe binary: %s\n' "${HAXE_BIN_REAL:-none}"
+	if [[ -n "$HAXE_BIN_REAL" ]]; then
+		sha256sum "$HAXE_BIN_REAL"
+	fi
+	printf 'haxe version: %s\n' "$(haxe --version 2>&1 || true)"
+	if [[ -f "$BORING_MANIFEST" ]]; then
+		sha256sum "$BORING_MANIFEST"
+	fi
+	if [[ -n "$BORING_REAL" && -f "$BORING_REAL/Intercept.hx" ]]; then
+		sha256sum "$BORING_REAL/Intercept.hx"
+	fi
+	printf 'compiler bytes under %s:\n' "${BORING_REAL:-none}"
+	if [[ -n "$BORING_REAL" && -d "$BORING_REAL" ]]; then
+		find "$BORING_REAL" -type f -print0 | sort -z | xargs -0 -r sha256sum
+	fi
+	printf 'end compiler provenance\n'
+} > "$OUTPUT_ROOT/compiler-provenance.txt"
+if [[ "$BORING_UNDER_ROOT" != "yes" ]]; then
+	printf 'compiler provenance gate failed: haxelib path boring resolves to %s, not under %s; evidence retained in %s\n' \
+		"${BORING_REAL:-<unresolved>}" "$ROOT_REAL" "$OUTPUT_ROOT" >&2
+	exit 2
+fi
 cp "$FIXTURE_DIR/package-tsc-wrapper.sh" "$WRAPPER"
 chmod +x "$WRAPPER"
 : > "$INVOCATIONS"
