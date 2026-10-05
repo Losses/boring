@@ -276,4 +276,21 @@ class ReadOnlyBoundaryOps {
     public static function nullableFallbackPresentCall():String {
         return nullableFallbackBoundary([44]);
     }
+
+    /**
+        PIT-255 regression: a counted traversal of a read-only view lowers
+        through the read-only-to-mutable array boundary
+        (CopyReadOnlyIntoMutableArray). Runtime's toMutableArray() already
+        returns TiqianArray, so the emitter must render the boundary as a
+        single call; the Swift this suite compiles is the detector (a
+        TiqianArray(...) wrapper around it is a type error).
+    **/
+    public static function traverseReadOnlyView(values:ReadOnlyArray<Int>):String {
+        var total = 0;
+        for (index in 0...values.length) {
+            final value = values[index];
+            total += value;
+        }
+        return values.length + ":" + total;
+    }
 }

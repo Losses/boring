@@ -33,6 +33,7 @@ class ReadOnlyBoundaryOracle {
         trace("nullable-fallback-null=" + ReadOnlyBoundaryOps.nullableFallbackNullCall());
         trace("nullable-fallback-present=" + ReadOnlyBoundaryOps.nullableFallbackPresentCall());
         trace("guarded-nullable-fallback=" + ReadOnlyBoundaryOps.guardedNullableFallbackBoundary([45]));
+        trace("traverse-readonly=" + ReadOnlyBoundaryOps.traverseReadOnlyView([3, 4, 5]));
         #else
         ReadOnlyBoundaryOps.aliasSlots();
         ReadOnlyBoundaryOps.effectfulAlias();
@@ -64,6 +65,7 @@ class ReadOnlyBoundaryOracle {
         ReadOnlyBoundaryOps.nullableFallbackNullCall();
         ReadOnlyBoundaryOps.nullableFallbackPresentCall();
         ReadOnlyBoundaryOps.guardedNullableFallbackBoundary([45]);
+        ReadOnlyBoundaryOps.traverseReadOnlyView([3, 4, 5]);
         #end
     }
 }
