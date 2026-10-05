@@ -1,0 +1,5 @@
+-cp packages/compiler
+-cp tests/swift-gap-boundary
+-cp samples
+-main gap.GapOracle
+--interp
