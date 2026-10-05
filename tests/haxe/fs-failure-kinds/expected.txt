@@ -1,0 +1,6 @@
+missing-read=NotFound|readText
+not-a-directory-read=NotDirectory|readText
+write-over-directory=IsDirectory|writeText
+predicates-missing=false|false
+manual-catch=NotFound|readText
+denied-read=PermissionDenied|readText

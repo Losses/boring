@@ -28,6 +28,7 @@ class SwiftHostEdges {
         "Env.remove",
         "Fs.exists",
         "Fs.isDirectory",
+        "Fs.error",
         "Fs.readText",
         "Fs.writeText",
         "Fs.appendText",
@@ -48,6 +49,7 @@ class SwiftHostEdges {
             case "Env.remove": "boringEnvRemove";
             case "Fs.exists": "boringFsExists";
             case "Fs.isDirectory": "boringFsIsDirectory";
+            case "Fs.error": "boringFsError";
             case "Fs.readText": "boringFsReadText";
             case "Fs.writeText": "boringFsWriteText";
             case "Fs.appendText": "boringFsAppendText";
@@ -77,7 +79,7 @@ class SwiftHostEdges {
 
     public static function needsFoundationEssentials(key:String):Bool {
         return switch (key) {
-            case "Fs.exists" | "Fs.isDirectory" | "Fs.readText" | "Fs.writeText" | "Fs.makeDirs" | "Fs.readDir" | "Fs.deleteFile": true;
+            case "Fs.exists" | "Fs.isDirectory" | "Fs.error" | "Fs.rename" | "Fs.readText" | "Fs.writeText" | "Fs.makeDirs" | "Fs.readDir" | "Fs.deleteFile": true;
             case _: false;
         }
     }
@@ -90,6 +92,7 @@ class SwiftHostEdges {
             case "Env.remove": ENV_REMOVE;
             case "Fs.exists": FS_EXISTS;
             case "Fs.isDirectory": FS_IS_DIRECTORY;
+            case "Fs.error": FS_ERROR;
             case "Fs.readText": FS_READ_TEXT;
             case "Fs.writeText": FS_WRITE_TEXT;
             case "Fs.appendText": FS_APPEND_TEXT;
@@ -212,15 +215,63 @@ private func boringFsIsDirectory(_ path: String) -> Bool {
 }
 ';
 
+    static final FS_ERROR = '
+private func boringFsError(_ operation: String, _ path: String, _ error: Error) -> FsException {
+    #if canImport(FoundationEssentials) || canImport(Darwin)
+    let ns = error as NSError
+    let detail = ns.localizedDescription
+    #if canImport(Darwin)
+    if ns.domain == NSCocoaErrorDomain {
+        switch ns.code {
+        case NSFileNoSuchFileError, NSFileReadNoSuchFileError:
+            return FsException(FsError.notFound(operation: operation, path: path, nativeDetail: detail))
+        case NSFileReadNoPermissionError, NSFileWriteNoPermissionError:
+            return FsException(FsError.permissionDenied(operation: operation, path: path, nativeDetail: detail))
+        case NSFileWriteFileExistsError:
+            return FsException(FsError.alreadyExists(operation: operation, path: path, nativeDetail: detail))
+        case NSFileWriteIsDirectoryError:
+            return FsException(FsError.isDirectory(operation: operation, path: path, nativeDetail: detail))
+        default:
+            break
+        }
+    }
+    #endif
+    if ns.domain == NSPOSIXErrorDomain {
+        switch Int32(ns.code) {
+        case ENOENT:
+            return FsException(FsError.notFound(operation: operation, path: path, nativeDetail: detail))
+        case ENOTDIR:
+            return FsException(FsError.notDirectory(operation: operation, path: path, nativeDetail: detail))
+        case EACCES, EPERM:
+            return FsException(FsError.permissionDenied(operation: operation, path: path, nativeDetail: detail))
+        case EEXIST:
+            return FsException(FsError.alreadyExists(operation: operation, path: path, nativeDetail: detail))
+        case EINVAL, ENAMETOOLONG:
+            return FsException(FsError.invalidInput(operation: operation, path: path, nativeDetail: detail))
+        case EISDIR:
+            return FsException(FsError.isDirectory(operation: operation, path: path, nativeDetail: detail))
+        default:
+            break
+        }
+    }
+    return FsException(FsError.other(operation: operation, path: path, nativeDetail: detail))
+    #else
+    return FsException(FsError.other(operation: operation, path: path, nativeDetail: String(describing: error)))
+    #endif
+}
+';
+
     static final FS_READ_TEXT = '
 private func boringFsReadText(_ path: String) throws -> String {
     #if canImport(FoundationEssentials) || canImport(Darwin)
-    guard let data = FileManager.default.contents(atPath: path) else {
-        throw BoringException(message: path + ": read failed")
+    do {
+        let data = try Data(contentsOf: URL(fileURLWithPath: path))
+        return String(decoding: data, as: UTF8.self)
+    } catch {
+        throw boringFsError("readText", path, error)
     }
-    return String(decoding: data, as: UTF8.self)
     #else
-    throw BoringException(message: "std.Fs is not available on this host")
+    throw FsException(FsError.unavailable(operation: "readText", path: path))
     #endif
 }
 ';
@@ -228,12 +279,14 @@ private func boringFsReadText(_ path: String) throws -> String {
     static final FS_WRITE_TEXT = '
 private func boringFsWriteText(_ path: String, _ data: String) throws {
     #if canImport(FoundationEssentials) || canImport(Darwin)
-    let bytes = Data(Array(data.utf8))
-    guard FileManager.default.createFile(atPath: path, contents: bytes) else {
-        throw BoringException(message: path + ": write failed")
+    do {
+        let bytes = Data(Array(data.utf8))
+        try bytes.write(to: URL(fileURLWithPath: path))
+    } catch {
+        throw boringFsError("writeText", path, error)
     }
     #else
-    throw BoringException(message: "std.Fs is not available on this host")
+    throw FsException(FsError.unavailable(operation: "writeText", path: path))
     #endif
 }
 ';
@@ -248,10 +301,10 @@ private func boringFsAppendText(_ path: String, _ data: String) throws {
             try Array(data.utf8).withUnsafeBytes { try handle.writeAll($0) }
         }
     } catch {
-        throw BoringException(message: path + ": " + String(describing: error))
+        throw boringFsError("appendText", path, error)
     }
     #else
-    throw BoringException(message: "std.Fs is not available on this host")
+    throw FsException(FsError.unavailable(operation: "appendText", path: path))
     #endif
 }
 ';
@@ -262,10 +315,10 @@ private func boringFsMakeDirs(_ path: String) throws {
     do {
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
     } catch {
-        throw BoringException(message: path + ": " + String(describing: error))
+        throw boringFsError("makeDirs", path, error)
     }
     #else
-    throw BoringException(message: "std.Fs is not available on this host")
+    throw FsException(FsError.unavailable(operation: "makeDirs", path: path))
     #endif
 }
 ';
@@ -276,10 +329,10 @@ private func boringFsReadDir(_ path: String) throws -> [String] {
     do {
         return try FileManager.default.contentsOfDirectory(atPath: path)
     } catch {
-        throw BoringException(message: path + ": " + String(describing: error))
+        throw boringFsError("readDir", path, error)
     }
     #else
-    throw BoringException(message: "std.Fs is not available on this host")
+    throw FsException(FsError.unavailable(operation: "readDir", path: path))
     #endif
 }
 ';
@@ -290,10 +343,10 @@ private func boringFsDeleteFile(_ path: String) throws {
     do {
         try FileManager.default.removeItem(atPath: path)
     } catch {
-        throw BoringException(message: path + ": " + String(describing: error))
+        throw boringFsError("deleteFile", path, error)
     }
     #else
-    throw BoringException(message: "std.Fs is not available on this host")
+    throw FsException(FsError.unavailable(operation: "deleteFile", path: path))
     #endif
 }
 ';
@@ -302,10 +355,10 @@ private func boringFsDeleteFile(_ path: String) throws {
 private func boringFsRename(_ from: String, _ to: String) throws {
     #if canImport(Glibc)
     let result = from.withCString { source in to.withCString { target in Glibc.rename(source, target) } }
-    if result != 0 { throw BoringException(message: from + " -> " + to + ": rename failed") }
+    if result != 0 { throw boringFsError("rename", from, NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: nil)) }
     #elseif canImport(Darwin)
     let result = from.withCString { source in to.withCString { target in Darwin.rename(source, target) } }
-    if result != 0 { throw BoringException(message: from + " -> " + to + ": rename failed") }
+    if result != 0 { throw boringFsError("rename", from, NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: nil)) }
     #elseif canImport(WinSDK)
     let source = Array(from.utf16) + [UInt16(0)]
     let target = Array(to.utf16) + [UInt16(0)]
@@ -314,9 +367,9 @@ private func boringFsRename(_ from: String, _ to: String) throws {
             MoveFileExW(s.baseAddress, t.baseAddress, DWORD(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
         }
     }
-    if result == 0 { throw BoringException(message: from + " -> " + to + ": rename failed") }
+    if result == 0 { throw FsException(FsError.other(operation: "rename", path: from, nativeDetail: to + ": rename failed")) }
     #else
-    throw BoringException(message: "std.Fs is not available on this host")
+    throw FsException(FsError.unavailable(operation: "rename", path: from))
     #endif
 }
 ';

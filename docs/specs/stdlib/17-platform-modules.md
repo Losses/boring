@@ -248,10 +248,73 @@ The Swift chain moves from bare `swiftc` invocations to SwiftPM:
 
 ## Failure behavior
 
-Failures raise the target's `haxe.Exception` mapping (spec 03) with the
-path and the host error text in the message. An unmapped capability on a
-host (for example `std.Fs` in a browser) raises the same mapping with the
-fixed unavailability message above; it never returns a wrong value.
+A failing `std.Fs` read/write operation raises `std.FsException`
+(`samples/std/FsException.hx`), a `haxe.Exception` subclass carrying
+`std.FsError` (`samples/std/FsError.hx`) as its canonical failure
+identity. `FsError` is one enum whose variant is the normalized kind;
+features spec 06 R5 (the failure identity is the variant) therefore reads
+the kind off the variant, never out of the message. Every variant carries
+`operation` and `path`; every variant but `Unavailable` also carries
+`nativeDetail`, the host's own diagnostic text, attached for display only.
+
+| Host reading | `std.FsError` variant |
+| --- | --- |
+| `ENOENT`, `java.nio.file.NoSuchFileException`, `PathNotFoundException`, `std::io::ErrorKind::NotFound` | `NotFound(operation, path, nativeDetail)` |
+| `ENOTDIR`, `java.nio.file.NotDirectoryException` | `NotDirectory(operation, path, nativeDetail)` |
+| `EACCES`/`EPERM`, `java.nio.file.AccessDeniedException` | `PermissionDenied(operation, path, nativeDetail)` |
+| `EEXIST`, `java.nio.file.FileAlreadyExistsException` | `AlreadyExists(operation, path, nativeDetail)` |
+| `EINVAL`, `ENAMETOOLONG` | `InvalidInput(operation, path, nativeDetail)` |
+| `EISDIR` | `IsDirectory(operation, path, nativeDetail)` |
+| no filesystem capability at all (a browser) | `Unavailable(operation, path)`, message the fixed unavailability text below |
+| any other host failure | `Other(operation, path, nativeDetail)` |
+
+The identity is declared once, in `samples/std`, and every target lowers
+to it, so a catch clause names the concrete `std.FsException` and reads
+the normalized kind off `error.error`. `haxe.Exception` stays the base
+class and the catch-all; it is not the `std.Fs` failure identity
+(features spec 06 V20 makes a bare base unnameable in a catch).
+
+### Resolution of R5/R6/R8 for `std.Fs`
+
+R5 (`haxe.Exception` translates to `Result<T, DomainError>` in Rust and
+the failure identity is the variant), R6 (Rust panic is banned) and R8
+(`readText` returns `String`: no `Result` slot in the Haxe signature) are
+reconciled by keeping R8's shape. The Haxe public face stays
+`readText(path):String` and friends; the failure channel is the ordinary
+exception control flow. The compiler's unified fallibility propagation
+carries the error: `readText`, `writeText`, `appendText`, `makeDirs`,
+`readDir`, `deleteFile` and `rename` are fallible with `std.FsError` as
+their error domain, so the Rust target rewrites the *enclosing* function to
+`Result<T, FsError>` and propagates with `?` (R5) while `std.Fs` itself
+never panics (R6), and the Swift target infects the enclosing function
+with `throws`. A fallible `std.Fs` call in a position that cannot carry
+the error (a Rust or Swift closure with no error channel) is a compile
+diagnostic, never a silently uncaught failure.
+
+### Boundary: which host failures answer `false`
+
+`exists` and `isDirectory` are non-fallible pre-checked predicates and
+answer only what the host can affirm. They return `false` for a missing
+path **and for every other failure to confirm** — permission denied, a
+not-a-directory component in the path, an unreadable or unstatable path —
+and they never raise `std.FsException` and never enter the `FsError`
+domain. That is the predicate contract on every target: Node
+`existsSync` is total and the `statSync` arm catches everything to
+`false`, the JVM `Files.exists`/`Files.isDirectory` return `false`
+instead of throwing, Dart `FileSystemEntity.typeSync`/`isDirectorySync`
+return `false` on any lookup failure, and Rust `Fs::is_directory`
+returns `false` on `Err`. No host error is routed from a predicate into
+`FsException`.
+
+Every `FsError` kind is therefore read only from the fallible operations:
+a missing path on a read/write is `NotFound`, a permission failure is
+`PermissionDenied`, and a directory in the way of a file operation is
+`IsDirectory` (a fallible failure of an operation that required a file),
+never an `isDirectory` answer.
+
+An unmapped capability on a host (for example `std.Fs` in a browser)
+raises the same mapping with the fixed unavailability message
+`std.Fs is not available on this host`; it never returns a wrong value.
 A platform this spec implements (the Windows Swift host among them)
 never falls under the unmapped clause: unmapped means the host has no
 corresponding capability at all; it does not mean that the toolchain

@@ -169,6 +169,8 @@ class TsImports {
     static final GUARANTEED_STD_MODULES:Map<String, Bool> = [
         "std.UStringException" => true,
         "std.UStringFault" => true,
+        "std.FsException" => true,
+        "std.FsError" => true,
     ];
 
     public static function isGuaranteedStdModule(module:String):Bool {
