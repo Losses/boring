@@ -970,7 +970,7 @@ class RustDecl {
             Context.error("exception class carries no message function for its payload enum", cls.pos);
             return null;
         }
-        final messages = new Map<String, String>();
+        final messages = new Map<String, {format:String, args:Array<String>}>();
         collectMessageCases(messageFunc.expr, options, messages);
 
         final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + enumName + " {"];
@@ -1002,18 +1002,25 @@ class RustDecl {
         for (o in options) {
             final message = messages.get(o.name);
             final args = enumFieldParams(o);
+            final format = message != null ? message.format : '"{}"';
+            final formatArgs = message != null ? message.args : [for (arg in args) RustImports.toSnakeCase(arg.name)];
             if (args.length == 0) {
-                final formatted = 'write!(formatter, "{}", ${message})';
-                lines.push('            ${enumName}::${RustImports.toUpperCamelCase(o.name)} => ${formatted},');
+                lines.push('            ${enumName}::${RustImports.toUpperCamelCase(o.name)} => write!(formatter, ${format}),');
             } else {
-                final params = [for (arg in args) RustImports.toSnakeCase(arg.name)].join(", ");
-                lines.push('            ${enumName}::${RustImports.toUpperCamelCase(o.name)} { ${params} } => {');
-                final isLiteral = message != null && StringTools.startsWith(StringTools.trim(message), '"');
-                if (isLiteral) {
-                    lines.push('                write!(formatter, ${message}, ${params})');
-                } else {
-                    lines.push('                write!(formatter, "{}", ${message})');
-                }
+                // Bind only the fields the message reads; `..` covers the
+                // rest so a variant field it omits (Unavailable has no
+                // nativeDetail) is not an unused binding.
+                final fieldNames = [for (arg in args) RustImports.toSnakeCase(arg.name)];
+                final referenced = new Map<String, Bool>();
+                for (a in formatArgs)
+                    referenced.set(a, true);
+                final bound = [for (n in fieldNames) if (referenced.exists(n)) n];
+                final pattern = bound.length == fieldNames.length
+                    ? bound.join(", ")
+                    : (bound.length == 0 ? ".." : bound.join(", ") + ", ..");
+                lines.push('            ${enumName}::${RustImports.toUpperCamelCase(o.name)} { ${pattern} } => {');
+                final call = formatArgs.length == 0 ? 'write!(formatter, ${format})' : 'write!(formatter, ${format}, ${formatArgs.join(", ")})';
+                lines.push('                ' + call);
                 lines.push("            }");
             }
         }
@@ -1026,6 +1033,33 @@ class RustDecl {
 
         // Error impl
         lines.push("impl std::error::Error for " + enumName + " {}");
+
+        // The canonical std.Fs host failure converts into the Haxe-facing
+        // identity in the module that declares std.FsException: the Rust
+        // runtime owns the host classification, this side owns the normalized
+        // kind a catch clause reads, and `?` then carries the failure value
+        // with no panic (docs/specs/stdlib/17-platform-modules.md).
+        if (cls.module == "std.FsException") {
+            state.shimsUsed.set("std.Fs", true);
+            final runtimePackage = RuntimeConfig.requireImportName("std.Fs");
+            final hostError = runtimePackage + "::fs::FsError";
+            final hostKind = runtimePackage + "::fs::FsErrorKind";
+            final kinds = ["NotFound", "PermissionDenied", "NotDirectory", "IsDirectory", "AlreadyExists", "InvalidInput", "Unavailable", "Other"];
+            lines.push("");
+            lines.push("impl From<" + hostError + "> for " + enumName + " {");
+            lines.push("    fn from(error: " + hostError + ") -> Self {");
+            lines.push("        match error.kind {");
+            for (kind in kinds) {
+                final option = optionNamed(options, kind);
+                if (option == null)
+                    continue;
+                final fields = [for (arg in enumFieldParams(option)) RustImports.toSnakeCase(arg.name) + ": error." + RustImports.toSnakeCase(arg.name)];
+                lines.push("            " + hostKind + "::" + kind + " => " + enumName + "::" + RustImports.toUpperCamelCase(option.name) + " { " + fields.join(", ") + " },");
+            }
+            lines.push("        }");
+            lines.push("    }");
+            lines.push("}");
+        }
 
         // A rethrow of a caught exception value names the exception class in
         // a growth-variant payload, so the class emits beside its payload
@@ -1079,7 +1113,7 @@ class RustDecl {
         };
     }
 
-    function collectMessageCases(e:TypedExpr, options:Array<haxe.macro.Type.EnumField>, out:Map<String, String>):Void {
+    function collectMessageCases(e:TypedExpr, options:Array<haxe.macro.Type.EnumField>, out:Map<String, {format:String, args:Array<String>}>):Void {
         switch (e.expr) {
             case TReturn(r) if (r != null):
                 collectMessageCases(r, options, out);
@@ -1088,7 +1122,7 @@ class RustDecl {
                 // down to the bare string literal: the typer reduces a
                 // one-case switch, so there is no TSwitch to scan. The
                 // message belongs to the sole option.
-                out.set(options[0].name, '"' + s + '"');
+                out.set(options[0].name, {format: '"' + s + '"', args: []});
             case TBlock(stmts):
                 for (s in stmts)
                     collectMessageCases(s, options, out);
@@ -1108,7 +1142,7 @@ class RustDecl {
                     final body = unwrapReturn(c.expr);
                     switch (body.expr) {
                         case TConst(TString(s)):
-                            out.set(name, '"' + s + '"');
+                            out.set(name, {format: '"' + s + '"', args: []});
                         case _:
                             out.set(name, renderDisplayFormat(body));
                     }
@@ -1118,54 +1152,95 @@ class RustDecl {
     }
 
     /**
-        A single-case switch in statement position becomes a two
-        statement block after typing: the payload binding and the body. Recover
-        the case so Display keeps its message.
+        A single-case switch in statement position becomes one payload
+        binding per variant field followed by the body after typing, so the
+        binding count follows the variant arity. Recover the case so Display
+        keeps its message for a multi-field variant too.
     **/
-    function collectCollapsedCase(stmts:Array<TypedExpr>, options:Array<haxe.macro.Type.EnumField>, out:Map<String, String>):Void {
-        if (stmts.length != 2) {
+    function collectCollapsedCase(stmts:Array<TypedExpr>, options:Array<haxe.macro.Type.EnumField>, out:Map<String, {format:String, args:Array<String>}>):Void {
+        if (stmts.length < 2) {
             return;
         }
-        switch (stmts[0].expr) {
+        var field:Null<haxe.macro.Type.EnumField> = null;
+        var bodyIndex = 0;
+        while (bodyIndex < stmts.length) {
+            final ef = collapsedPayloadField(stmts[bodyIndex]);
+            if (ef == null) {
+                break;
+            }
+            if (field == null) {
+                field = ef;
+            }
+            bodyIndex++;
+        }
+        if (field == null || bodyIndex >= stmts.length) {
+            return;
+        }
+        for (o in options) {
+            if (o.name != field.name) {
+                continue;
+            }
+            for (i in 0...bodyIndex)
+                bindPatternLocals(stmts[i]);
+            bindPatternLocals(stmts[bodyIndex]);
+            final body = unwrapReturn(stmts[bodyIndex]);
+            switch (body.expr) {
+                case TConst(TString(s)):
+                    out.set(o.name, {format: '"' + s + '"', args: []});
+                case _:
+                    out.set(o.name, renderDisplayFormat(body));
+            }
+        }
+    }
+
+    /** The variant a collapsed payload binding belongs to, or null. **/
+    function collapsedPayloadField(e:TypedExpr):Null<haxe.macro.Type.EnumField> {
+        switch (e.expr) {
             case TVar(_, init) if (init != null):
                 switch (stripDecorations(init).expr) {
                     case TEnumParameter(_, ef, _):
-                        for (o in options) {
-                            if (o.name != ef.name) {
-                                continue;
-                            }
-                            bindPatternLocals(stmts[0]);
-                            bindPatternLocals(stmts[1]);
-                            final body = unwrapReturn(stmts[1]);
-                            switch (body.expr) {
-                                case TConst(TString(s)):
-                                    out.set(o.name, '"' + s + '"');
-                                case _:
-                                    out.set(o.name, renderDisplayFormat(body));
-                            }
-                        }
+                        return ef;
                     case _:
                 }
             case _:
         }
+        return null;
     }
 
-    function renderDisplayFormat(e:TypedExpr):String {
+    /**
+        Flatten a variant message into one Rust format string plus the
+        operands it references, in order. A Haxe interpolated string types
+        as a nested `OpAdd` chain, so a variant may carry any number of
+        fields; only the referenced operands are passed to `write!`, so a
+        variant field the message omits (Unavailable carries no
+        nativeDetail) is never an unused format argument.
+    **/
+    function renderDisplayFormat(e:TypedExpr):{format:String, args:Array<String>} {
+        final parts:Array<String> = [];
+        final args:Array<String> = [];
+        flattenMessageParts(e, parts, args);
+        return {format: '"' + parts.join("") + '"', args: args};
+    }
+
+    function flattenMessageParts(e:TypedExpr, parts:Array<String>, args:Array<String>):Void {
         switch (e.expr) {
             case TBinop(OpAdd, l, r):
-                final lStr = switch (l.expr) {
-                    case TConst(TString(s)): StringTools.replace(StringTools.replace(s, "{", "{{"), "}", "}}");
-                    case _: "";
-                };
-                final rStr = switch (r.expr) {
-                    case TLocal(_): rustDisplayFormat(r);
-                    case TConst(TString(s)): StringTools.replace(StringTools.replace(s, "{", "{{"), "}", "}}");
-                    case _: rustDisplayFormat(r);
-                };
-                return '"' + lStr + rStr + '"';
+                flattenMessageParts(l, parts, args);
+                flattenMessageParts(r, parts, args);
+            case TConst(TString(s)):
+                parts.push(StringTools.replace(StringTools.replace(s, "{", "{{"), "}", "}}"));
             case _:
-                return expr.rawExpression(e);
+                parts.push(rustDisplayFormat(e));
+                args.push(expr.rawExpression(e));
         }
+    }
+
+    /** The payload variant with this name, or null when the domain lacks it. **/
+    function optionNamed(options:Array<haxe.macro.Type.EnumField>, name:String):Null<haxe.macro.Type.EnumField> {
+        for (o in options)
+            if (o.name == name)
+                return o;
+        return null;
     }
 
     function rustDisplayFormat(e:TypedExpr):String {
@@ -2200,7 +2275,11 @@ class RustDecl {
             && state.messageOnlyExceptions.get(unique.module) == unique.name) {
             return unique.module;
         }
-        return cls.module;
+        // A declared payload enum whose owning exception was never scanned
+        // still lives in its own declared module. Returning the caller's
+        // module here emits the error name into a file that never declares
+        // it, so the reference reader imports a symbol that does not exist.
+        return unique.module;
     }
 
     function collectThrownPayloadEnums(e:TypedExpr):Array<{name:String, module:String}> {

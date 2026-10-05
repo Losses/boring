@@ -2655,8 +2655,16 @@ class RustExpr {
     }
 
     function errorPropagationSuffix(c:Ref<ClassType>, cf:Ref<ClassField>, isStatic:Bool):String {
-        if (!isFallible)
+        final hostFsFailure = RustEmissionState.stdFsFallibleMember(c.get().module, cf.get().name);
+        if (!isFallible) {
+            // A host failure the enclosing function cannot return is not
+            // representable; features/06 bans the panic the old runtime
+            // raised, so the compilation stops with a diagnostic instead of
+            // emitting `.unwrap()` (docs/specs/stdlib/17-platform-modules.md).
+            if (hostFsFailure)
+                Context.error("std.Fs." + cf.get().name + " can fail, but no error-carrying Result slot encloses this call; catch std.FsException around it or move it into a fallible function", cf.get().pos);
             return isFallibleCallee(c, cf, isStatic) ? ".unwrap()" : "";
+        }
         if (!isFallibleCallee(c, cf, isStatic))
             return "";
         // Inside a fallible-block closure the conversion target is the region
@@ -2665,6 +2673,8 @@ class RustExpr {
         // in its own field and preferred here.
         final targetName = blockClosureErrorName != null ? blockClosureErrorName : errorTypeName;
         final callee = state.funcErrorTypes.get(RustEmissionState.funcKey(c.get().module, cf.get().name, isStatic));
+        if (hostFsFailure && blockClosureErrorName != null && blockClosureErrorName != "FsError")
+            Context.error("std.Fs." + cf.get().name + " fails with std.FsError and cannot convert into " + blockClosureErrorName + "; name std.FsException in this catch", cf.get().pos);
         if (targetName == null || (callee != null && callee.name == targetName))
             return "?";
         // An unregistered callee still returns a Result whose error type this
@@ -5968,6 +5978,32 @@ class RustExpr {
                             }
                         }
                     case _:
+                }
+            case _:
+        }
+        // An exception value is erased to its payload enum, so a read of the
+        // class's enum-typed payload field is the value itself wherever the
+        // value sits, not only in a catch-variable position. A helper that
+        // takes the exception and reads its payload field would otherwise
+        // emit `value.field` against the enum and fail E0609.
+        switch (Context.follow(subj.t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                if (RustDecl.isExceptionSubclass(cls)) {
+                    final recorded = state.exceptionPayloadEnums.get(cls.module + "::" + cls.name);
+                    final enumModule = recorded != null ? recorded.module : state.exceptionPayloads.get(RustEmissionState.identityKey(cls.module, cls.name));
+                    if (enumModule != null) {
+                        for (f in cls.fields.get()) {
+                            if (f.name != name) {
+                                continue;
+                            }
+                            switch (f.type) {
+                                case TEnum(en, _) if (en.get().module == enumModule):
+                                    return expr(subj);
+                                case _:
+                            }
+                        }
+                    }
                 }
             case _:
         }
@@ -12875,6 +12911,11 @@ class RustExpr {
     function isFallibleCallee(c:Ref<ClassType>, cf:Ref<ClassField>, isStatic:Bool):Bool {
         final name = cf.get().name;
         if (RustEmissionState.runtimeShimIsFallible(name))
+            return true;
+        // A std.Fs host operation returns Result<T, FsError> from the Rust
+        // runtime, so every call site propagates the failure value instead
+        // of panicking (docs/specs/stdlib/17-platform-modules.md).
+        if (RustEmissionState.stdFsFallibleMember(c.get().module, name))
             return true;
         if (name == "require" && c.get().module == "registry.Semver")
             return true;

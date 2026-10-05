@@ -61,6 +61,10 @@ boring.CodePointNames
 std.SortedMap
 std.SortedSet
 std.Functional
+# The std.Fs host-failure identity: boring.PlatformOps calls the fallible
+# std.Fs operations, so the payload enum needs a declaration site even when
+# no corpus class catches it (docs/specs/stdlib/17-platform-modules.md).
+std.FsException
 runtime.UString
 runtime.GraphemeWalk
 runtime.Graphemes
