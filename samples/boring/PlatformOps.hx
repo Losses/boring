@@ -36,6 +36,11 @@ class PlatformOps {
         return Fs.isDirectory(path);
     }
 
+    /** Whether a path names a directory; a missing path is false, not an error. */
+    public static function isDirectory(path:String):Bool {
+        return Fs.isDirectory(path);
+    }
+
     /** The names of a directory (order is host-native and unspecified). */
     public static function listDir(path:String):Array<String> {
         return Fs.readDir(path);
