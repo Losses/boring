@@ -2654,15 +2654,24 @@ class RustExpr {
         }
     }
 
+    /** The source-level operation a host Fs failure diagnostic names. */
+    function hostFsOperationLabel(c:Ref<ClassType>, cf:Ref<ClassField>):String {
+        return c.get().module == "std.Fs" ? "std.Fs." + cf.get().name : c.get().name + "." + cf.get().name;
+    }
+
     function errorPropagationSuffix(c:Ref<ClassType>, cf:Ref<ClassField>, isStatic:Bool):String {
-        final hostFsFailure = RustEmissionState.stdFsFallibleMember(c.get().module, cf.get().name);
+        // The node:fs extern shares std.Fs's Result-returning resident edge,
+        // so it is a host Fs failure too: a slot-less position diagnoses
+        // instead of dropping the Result.
+        final hostFsFailure = RustEmissionState.stdFsFallibleMember(c.get().module, cf.get().name)
+            || RustEmissionState.nodeFsExternFallibleMember(c.get(), cf.get().name);
         if (!isFallible) {
             // A host failure the enclosing function cannot return is not
             // representable; features/06 bans the panic the old runtime
             // raised, so the compilation stops with a diagnostic instead of
             // emitting `.unwrap()` (docs/specs/stdlib/17-platform-modules.md).
             if (hostFsFailure)
-                Context.error("std.Fs." + cf.get().name + " can fail, but no error-carrying Result slot encloses this call; catch std.FsException around it or move it into a fallible function", cf.get().pos);
+                Context.error(hostFsOperationLabel(c, cf) + " can fail, but no error-carrying Result slot encloses this call; catch std.FsException around it or move it into a fallible function", cf.get().pos);
             return isFallibleCallee(c, cf, isStatic) ? ".unwrap()" : "";
         }
         if (!isFallibleCallee(c, cf, isStatic))
@@ -2674,7 +2683,7 @@ class RustExpr {
         final targetName = blockClosureErrorName != null ? blockClosureErrorName : errorTypeName;
         final callee = state.funcErrorTypes.get(RustEmissionState.funcKey(c.get().module, cf.get().name, isStatic));
         if (hostFsFailure && blockClosureErrorName != null && blockClosureErrorName != "FsError")
-            Context.error("std.Fs." + cf.get().name + " fails with std.FsError and cannot convert into " + blockClosureErrorName + "; name std.FsException in this catch", cf.get().pos);
+            Context.error(hostFsOperationLabel(c, cf) + " fails with std.FsError and cannot convert into " + blockClosureErrorName + "; name std.FsException in this catch", cf.get().pos);
         if (targetName == null || (callee != null && callee.name == targetName))
             return "?";
         // An unregistered callee still returns a Result whose error type this
@@ -9891,10 +9900,6 @@ class RustExpr {
         return rendered;
     }
 
-    static function isNodeFileSystemOperation(name:String):Bool {
-        return name == "mkdirSync" || name == "writeFileSync";
-    }
-
     function isFunctionType(t:Null<Type>):Bool {
         return PolicyQueries.isFunctionType(t);
     }
@@ -10605,22 +10610,25 @@ class RustExpr {
                 return expr(args[0]) + ".as_bytes().to_vec()";
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
                 return "{ let mut v = " + expr(args[0]) + ".to_vec(); v.extend_from_slice(&" + expr(args[1]) + "); v }";
-            case TField(_, FStatic(c, cf))
-                if ((c.get().name == "NodeFileSystem" && isNodeFileSystemOperation(cf.get().name))
-                    || (c.get().meta.has(":jsRequire") && isNodeFileSystemOperation(cf.get().name))):
+            case TField(_, FStatic(c, cf)) if (RustEmissionState.nodeFsExternFallibleMember(c.get(), cf.get().name)):
                 // The trace writer's file extern binds node:fs, which has
                 // no rust face; both members lower to the resident file
                 // edge, which carries the same create-parents and
                 // utf-8 write behavior with the host failure mapping. The
                 // resident edge reads &str, so each String argument borrows.
+                // The edge returns Result<_, FsError> like std.Fs, so the
+                // call goes through the same fallibility inference: `?` in
+                // an error-carrying function, and a compile diagnostic in a
+                // position with no Result slot, never a silently dropped
+                // failure (docs/specs/stdlib/17-platform-modules.md).
                 state.shimsUsed.set("std.Fs", true);
                 imports.requireType("std.Fs", "Fs");
                 final fsName = cf.get().name;
                 if (fsName == "mkdirSync" && args.length >= 1) {
-                    return "Fs::make_dirs(" + stdStrViewArg(args[0]) + ")";
+                    return "Fs::make_dirs(" + stdStrViewArg(args[0]) + ")" + errorPropagationSuffix(c, cf, true);
                 }
                 if (fsName == "writeFileSync" && args.length >= 2) {
-                    return "Fs::write_text(" + stdStrViewArg(args[0]) + ", " + stdStrViewArg(args[1]) + ")";
+                    return "Fs::write_text(" + stdStrViewArg(args[0]) + ", " + stdStrViewArg(args[1]) + ")" + errorPropagationSuffix(c, cf, true);
                 }
                 Context.error("file extern has no lowering for member " + fsName, fn.pos);
                 return "null";
@@ -12915,7 +12923,8 @@ class RustExpr {
         // A std.Fs host operation returns Result<T, FsError> from the Rust
         // runtime, so every call site propagates the failure value instead
         // of panicking (docs/specs/stdlib/17-platform-modules.md).
-        if (RustEmissionState.stdFsFallibleMember(c.get().module, name))
+        if (RustEmissionState.stdFsFallibleMember(c.get().module, name)
+            || RustEmissionState.nodeFsExternFallibleMember(c.get(), name))
             return true;
         if (name == "require" && c.get().module == "registry.Semver")
             return true;

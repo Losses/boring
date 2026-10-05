@@ -319,6 +319,20 @@ class RustEmissionState {
         };
     }
 
+    /**
+        The node:fs extern file operations. Their Rust lowering is the same
+        Result-returning resident file edge as std.Fs (Fs::make_dirs /
+        Fs::write_text), so they are fallible with FsError: the enclosing
+        function must carry the failure, and a position with no error-carrying
+        Result slot is a compile diagnostic, never a dropped Result
+        (docs/specs/stdlib/17-platform-modules.md "Failure behavior").
+    **/
+    public static function nodeFsExternFallibleMember(cls:ClassType, name:String):Bool {
+        if (name != "mkdirSync" && name != "writeFileSync")
+            return false;
+        return cls.name == "NodeFileSystem" || cls.meta.has(":jsRequire");
+    }
+
     /** Types reachable at test assertion call sites for type-guided helpers. */
     public final testReachableTypes:Map<String, Type> = [];
 
