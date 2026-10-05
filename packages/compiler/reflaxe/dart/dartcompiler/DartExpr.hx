@@ -5386,7 +5386,7 @@ class DartExpr {
     function fsCall(name:String, args:Array<TypedExpr>, fn:TypedExpr):String {
         imports.useDartIo();
         final p = expr(args[0]);
-        return switch (name) {
+        final raw = switch (name) {
             case "exists":
                 // A comparison lowering is not an atom: a surrounding
                 // unary ! would otherwise bind to the first operand.
@@ -5410,7 +5410,38 @@ class DartExpr {
             case _:
                 fail(fn, "std.Fs has no lowering for member " + name);
                 "null";
+        };
+        // stdlib/17: exists/isDirectory are pre-checked predicates and keep
+        // their Bool contract. Every other member maps the dart:io failure
+        // to std.FsException carrying the normalized std.FsError kind; the
+        // native text is attached as nativeDetail for display only. The
+        // specific subclasses are matched before the errno ladder, and the
+        // ladder reads OSError.errorCode for the kinds without a subclass.
+        if (name == "exists" || name == "isDirectory") {
+            return raw;
         }
+        final exceptionRef = qualifiedRef("std.FsException", "FsException");
+        final op = '"' + name + '"';
+        final detail = "e.toString()";
+        final kindThrow = function(kind:String):String {
+            return "throw " + exceptionRef + "("
+                + qualifiedRef("std.FsError", DartDecl.constructClassName("FsError", kind))
+                + "(" + op + ", " + p + ", " + detail + "))";
+        };
+        final isValue = name == "readText" || name == "readDir";
+        final tryBody = isValue ? "return " + raw + "; " : raw + "; ";
+        return "(() { try { " + tryBody + "} "
+            + "on PathNotFoundException catch (e) { " + kindThrow("NotFound") + "; } "
+            + "on PathAccessException catch (e) { " + kindThrow("PermissionDenied") + "; } "
+            + "on PathExistsException catch (e) { " + kindThrow("AlreadyExists") + "; } "
+            + "on FileSystemException catch (e) { final code = e.osError?.errorCode; "
+            + "if (code == 2) { " + kindThrow("NotFound") + "; } "
+            + "if (code == 20) { " + kindThrow("NotDirectory") + "; } "
+            + "if (code == 13 || code == 1) { " + kindThrow("PermissionDenied") + "; } "
+            + "if (code == 17) { " + kindThrow("AlreadyExists") + "; } "
+            + "if (code == 22) { " + kindThrow("InvalidInput") + "; } "
+            + "if (code == 21) { " + kindThrow("IsDirectory") + "; } "
+            + kindThrow("Other") + "; } })()";
     }
 
     /**

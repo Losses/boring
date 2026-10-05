@@ -29,6 +29,15 @@ class SwiftFallibility {
     **/
     static final RETHROWN = "swift.RethrownError";
 
+    /**
+        The sentinel a catch-all (`haxe.Exception` or `Dynamic`) puts in
+        the absorbed set: it absorbs every named domain, so a region that
+        catches the shared base never leaks a specific class to its caller
+        (features/06; std.Fs raises std.FsException, std.Process raises the
+        shared base).
+    **/
+    static final CATCH_ALL = "*";
+
     static final INFECTION_SOURCE = "std.UStringException";
 
     /** funcKey to the exception-class modules that escape it. */
@@ -164,7 +173,13 @@ class SwiftFallibility {
                 for (c in catches) {
                     scanExpr(c.expr, absorbed, infections);
                 }
-                if (!hasCatchAll(catches)) {
+                if (hasCatchAll(catches)) {
+                    // A catch on the shared base (or Dynamic) absorbs every
+                    // named domain.
+                    if (caught.indexOf(CATCH_ALL) < 0) {
+                        caught.push(CATCH_ALL);
+                    }
+                } else {
                     // The lowering appends a bare catch that rethrows
                     // unmatched errors; the rethrown class is unknown
                     // here, so it escapes as a domain nothing absorbs.
@@ -211,9 +226,11 @@ class SwiftFallibility {
                     return;
                 }
                 if (cls.module == "std.Fs" && THROWING_FS_OPS.indexOf(name) >= 0) {
-                    // The std.Fs host helpers raise BoringException, the
-                    // features/06 haxe.Exception mapping (stdlib/17).
-                    infect(infections, absorbed, "haxe.Exception");
+                    // The std.Fs host helpers raise std.FsException carrying
+                    // the normalized std.FsError kind (stdlib/17). A typed
+                    // catch on the concrete class absorbs it; a catch on the
+                    // shared base absorbs it through CATCH_ALL.
+                    infect(infections, absorbed, "std.FsException");
                     return;
                 }
                 if (cls.module == "std.Process" && name == "run") {
@@ -251,6 +268,9 @@ class SwiftFallibility {
     }
 
     static function infect(infections:Map<String, Bool>, absorbed:Array<String>, domain:String):Void {
+        if (absorbed.indexOf(CATCH_ALL) >= 0) {
+            return;
+        }
         if (absorbed.indexOf(domain) < 0) {
             infections.set(domain, true);
         }

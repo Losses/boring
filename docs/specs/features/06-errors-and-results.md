@@ -398,6 +398,16 @@ Messages are display text derived from the variant at construction time. No cons
 
 Kotlin `runCatching` and catch-all `Result` returns are banned in codec code because they capture programming errors alongside domain failures. Rust panic and `Box<dyn Error>` returns are banned for the reasons in the judgment table.
 
+A platform-module host failure is no exemption from the panic ban.
+`std.Fs` (`docs/specs/stdlib/17-platform-modules.md`) keeps its Haxe
+signatures (`readText(path):String` and friends), but its read/write
+operations are fallible with `std.FsError` as the error domain: the Rust
+target carries the failure on the *enclosing* function's
+`Result<T, FsError>` and propagates with `?`, the Swift target infects the
+enclosing function with `throws`, and a fallible `std.Fs` call in a
+position with no error carrier is a compile diagnostic. A `std.Fs`
+failure never lowers to a panic and never returns a wrong value.
+
 ## Test hooks
 
 Error handling is asserted in:

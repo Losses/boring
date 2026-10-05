@@ -4578,11 +4578,15 @@ class SwiftExpr {
         imports.hostEdge(key);
         if (SwiftHostEdges.needsSystemPackage(key))
             imports.systemPackage();
-        // The raise of the throwing Fs helpers is the shared BoringException
-        // base (the features/06 haxe.Exception mapping), resident in
+        // The raise of the throwing Fs helpers is std.FsException (the
+        // stdlib/17 identity), a BoringException subclass resident in
         // Runtime.swift; marking the runtime used keeps that file emitted.
-        if (SwiftHostEdges.throws(key))
+        // The kind-mapping helper is emitted once per file that uses any
+        // throwing Fs key.
+        if (SwiftHostEdges.throws(key)) {
             imports.runtime("BoringException");
+            imports.hostEdge("Fs.error");
+        }
         final helper = SwiftHostEdges.helperName(key);
         // The helper parameters are plain Strings; an optional argument
         // (a null-checked Null<String>) force-unwraps at the boundary

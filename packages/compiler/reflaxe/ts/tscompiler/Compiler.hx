@@ -256,6 +256,12 @@ class Compiler extends PluginCompiler<Compiler> {
         // declarations are available to the emitter; `keep` cannot help
         // because it only protects an already-typed module from DCE.
         Context.getType("std.UStringException");
+        // The std.Fs lowering synthesizes std.FsException throws carrying an
+        // std.FsError variant (stdlib/17) even when the consumer source
+        // scope omits samples/. Force both through typing like the
+        // string-buffer fault module above.
+        Context.getType("std.FsException");
+        Context.getType("std.FsError");
         // runtime.StringTools backs the StringTools statics that have no
         // inline lowering (lpad, rpad, ltrim, rtrim, replace, ...). The
         // target rewrites those static calls into the runtime module, which
