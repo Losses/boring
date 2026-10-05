@@ -1,0 +1,17 @@
+# fs-failure-model probe generation, rust target.
+#   nix develop -c haxe tests/haxe/fs-failure-model/gen/rust.hxml -D rust-output=<dir>
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/fs-failure-model
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/fs-failure-model'])
+--macro rustcompiler.Compiler.use()
+fsprobe.FsFailureProbe
+runtime.UString
+runtime.SortedTable
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+-D package-name=fs-failure-model
+-D package-license=MIT
