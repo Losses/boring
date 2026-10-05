@@ -67,7 +67,15 @@ INPUTS=(
 )
 
 # --- identity + input hashes (before)
-{ git -C "$ROOT" rev-parse HEAD; git -C "$ROOT" status --porcelain; } >"$RUN/identity.txt" 2>&1
+# The identity capture shells out to git. A collected regression test must not
+# depend on native VCS (the board owns version control), so
+# DC_DART_FIX2_SKIP_VCS=1 records the identity step as skipped instead of
+# running git; the default (unset) keeps the observation runner's behaviour.
+if [ "${DC_DART_FIX2_SKIP_VCS:-}" = "" ]; then
+	{ git -C "$ROOT" rev-parse HEAD; git -C "$ROOT" status --porcelain; } >"$RUN/identity.txt" 2>&1
+else
+	printf 'vcs-identity skipped (DC_DART_FIX2_SKIP_VCS set)\n' >"$RUN/identity.txt"
+fi
 sha256sum "${INPUTS[@]}" >"$RUN/input-hashes-before.txt" 2>"$RUN/input-hashes-before.err"
 
 # --- Haxe generation, Dart
