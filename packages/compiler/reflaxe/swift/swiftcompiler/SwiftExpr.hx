@@ -2135,7 +2135,11 @@ class SwiftExpr {
                 final guarded = guardedLookupIf(e, c, t, f);
                 if (guarded != null)
                     return guarded;
-                final condition = expr(c);
+                // A flow-narrowed optional local is proven non-nil inside this
+                // guarded scope, so its Swift declaration stays optional while the
+                // value is not: the ternary test force-unwraps it like every other
+                // narrowed read. (NarrowedTernaryCondition)
+                final condition = isNarrowed(c) ? narrowedText(c) : expr(c);
                 // A condition the emitter already folded to its constant
                 // renders the live arm alone; the dead arm would earn a
                 // will-never-be-executed diagnostic from Swift.
