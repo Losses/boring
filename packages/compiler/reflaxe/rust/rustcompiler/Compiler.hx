@@ -1642,7 +1642,8 @@ class Compiler extends PluginCompiler<Compiler> {
                                                     }
                                                 case TField(_, FStatic(cc, cf)):
                                                     final calleeName = cf.get().name;
-                                                    if (RustEmissionState.stdFsFallibleMember(cc.get().module, calleeName)) {
+                                                    if (RustEmissionState.stdFsFallibleMember(cc.get().module, calleeName)
+                                                        || RustEmissionState.nodeFsExternFallibleMember(cc.get(), calleeName)) {
                                                         // A std.Fs host operation fails with the
                                                         // canonical std.FsError domain; a call the
                                                         // enclosing catch already absorbs stays out
