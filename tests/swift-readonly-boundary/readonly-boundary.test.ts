@@ -51,6 +51,7 @@ test("Swift read-only array boundary shares storage and preserves flow", async (
     "nullable-fallback-null=nil",
     "nullable-fallback-present=present:1",
     "guarded-nullable-fallback=present:1",
+    "traverse-readonly=3:12",
   ];
   expect(oracle.split("\n").map((line) => line.replace(/^.*?:\d+: /, "")).filter(Boolean)).toEqual(expected);
 
@@ -68,6 +69,12 @@ test("Swift read-only array boundary shares storage and preserves flow", async (
   expect(repeatedFiles).toEqual(firstFiles);
   for (const file of firstFiles)
     expect(await Bun.file(`${repeated}/${file}`).text(), `repeat generation changed ${file}`).toBe(await Bun.file(`${generated}/${file}`).text());
+  // PIT-255: the read-only-to-mutable boundary must render toMutableArray()
+  // exactly once; an extra TiqianArray(...) wrapper is the defect that made
+  // VectorCodec.swift:49:43 fail to compile.
+  const opsSource = await Bun.file(`${generated}/boring/ReadOnlyBoundaryOps.swift`).text();
+  expect(opsSource).toContain("for value in values.toMutableArray() {");
+  expect(opsSource, "read-only-to-mutable boundary re-wrapped TiqianArray").not.toContain("TiqianArray(values.toMutableArray())");
   const sources = [
     `${generated}/Runtime.swift`,
     `${generated}/Test.swift`,
