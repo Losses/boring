@@ -31,7 +31,7 @@ describe("number parsing renderings", () => {
       expect(swiftRuntime).not.toContain("NSRegularExpression"); expect(swiftRuntime).not.toContain("import Foundation");
     });
     const dart = read("reference/dart/gen/lib/boring/number_parsing_ops.dart");
-    expect(read("reference/dart/gen/runtime.dart")).not.toContain("NumberParsing");
+    expect(read("reference/dart/gen/lib/runtime.dart")).not.toContain("NumberParsing");
     expect(dart).toContain("tryParse"); expect(dart).toContain("2147483647");
     const rust = read("reference/rust/gen/boring/number_parsing_ops.rs");
     expect(rust).toContain("u_string::parse_f64(&(value))"); expect(rust).toContain("u_string::parse_i32(&(value))");
