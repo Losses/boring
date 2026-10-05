@@ -1,0 +1,16 @@
+# fs-missing-isdirectory probe generation, dart target.
+#   nix develop -c haxe tests/haxe/fs-missing-isdirectory/gen/dart.hxml \
+#     -D dart-output=out/<attempt>/dart-gen
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/fs-missing-isdirectory
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/fs-missing-isdirectory'])
+--macro dartcompiler.Compiler.use()
+fsprobe.IsDirectoryProbe
+runtime.UString
+runtime.SortedTable
+-D runtime-import=@boring/runtime
+-D runtime-emit=.

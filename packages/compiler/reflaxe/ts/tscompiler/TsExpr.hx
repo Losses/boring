@@ -2838,8 +2838,13 @@ class TsExpr {
             case _: "";
         };
         final returns = (name == "writeText" || name == "appendText" || name == "makeDirs") ? false : true;
+        // A path that does not exist is not a directory: the predicate
+        // returns false instead of letting the host stat error escape, which
+        // is the cross-target ruling recorded for stdlib/17 (Kotlin, Dart and
+        // Rust already read a missing path as false). This catch covers only
+        // the stat call; the unavailability throw above still escapes.
         final body = (name == "isDirectory")
-            ? "return fs.statSync(p).isDirectory();"
+            ? "try { return fs.statSync(p).isDirectory(); } catch { return false; }"
             : (returns ? "return fs." + member + retCast + ";" : "fs." + member + ";");
         // The module alias is a named structural type whose members return
         // exact values: under noUncheckedIndexedAccess an index-signature
