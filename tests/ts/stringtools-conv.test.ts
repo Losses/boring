@@ -38,7 +38,7 @@ describe("StringTools conversions lowering", () => {
       { target: "rust-f32", tree: "reference/rust-f32/gen", resident: path.join("runtime", "string_tools.rs") },
       { target: "swift", tree: "reference/swift/gen", resident: "Runtime.swift" },
       { target: "swift-f32", tree: "reference/swift-f32/gen", resident: "Runtime.swift" },
-      { target: "dart", tree: "reference/dart/gen", resident: "runtime.dart" },
+      { target: "dart", tree: "reference/dart/gen", resident: path.join("lib", "runtime.dart") },
     ];
     for (const { target, tree, resident } of residents) {
       withTargetTree(target, "stringtools-conv: every tree referencing StringTools statics emits its runtime resident", () => {
