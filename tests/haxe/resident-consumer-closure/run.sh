@@ -234,7 +234,9 @@ assert_rc "mut kotlin-b-notest (del Graphemes.kt)" "$rc" nz "must fail; baseline
 
 for variant in a b; do
     rm -rf "$O/dart-$variant-mut"; cp -r "$O/dart-$variant" "$O/dart-$variant-mut"
-    rm "$O/dart-$variant-mut/runtime.dart"
+    # The dart runtime resident lives beside the consumer in lib/ on the current
+    # emitter (it was at the package root on older bases); delete it wherever it is.
+    find "$O/dart-$variant-mut" -name runtime.dart -delete
     $DART_BIN analyze --no-fatal-warnings "$O/dart-$variant-mut" > "$L/mut-dart-$variant.log" 2>&1
     rc=$?
     printf 'dart-%s-mut(del runtime.dart)\t%s\n' "$variant" "$rc" >> "$L/mut-rc.tsv"
