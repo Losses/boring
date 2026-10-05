@@ -302,7 +302,16 @@ declaration contributes no storage.
    field. An assignment to a field the constructor does
    not receive as a parameter is that field's initialization: the
    statement renders in the init block and the field declaration carries
-   no initializer. Rust renders the
+   no initializer. A stored instance field that no constructor assignment
+   initializes and that the platform defaults do not cover declares its
+   Kotlin initialization in place: a nullable type takes `= null`, and a
+   non-null reference `var` takes `lateinit`, which keeps the declared
+   non-null type and defers the assignment. The existing platform
+   defaults keep their meaning: `Int` takes `= 0`, and
+   `haxe.io.BytesBuffer` takes `= BytesBuffer()`. The instance is
+   `samples/boring/WidenedFieldNonNull.hx`, whose `next` field `new`
+   never assigns and which renders `lateinit var next: WidenedFieldNonNull`.
+   Rust renders the
    statements before the `Self { ... }` literal; a constructor whose body
    can throw returns `Result<Self, E>` under the existing fallibility
    rules, and construction sites lower accordingly. TS, Swift, and Dart
