@@ -6455,7 +6455,7 @@ class KotlinExpr {
         imports.require("java.nio.file.Files");
         imports.require("java.nio.file.Paths");
         final p = expr(args[0]);
-        return switch (name) {
+        final raw = switch (name) {
             case "exists":
                 "Files.exists(Paths.get(" + p + "))";
             case "readText":
@@ -6484,7 +6484,37 @@ class KotlinExpr {
             case _:
                 Context.error("std.Fs has no lowering for member " + name, fn.pos);
                 "null";
+        };
+        // stdlib/17: exists/isDirectory are pre-checked predicates and keep
+        // their Bool contract. Every other member maps the host failure to
+        // std.FsException carrying the normalized std.FsError kind; the
+        // native message is attached as nativeDetail for display only.
+        if (name == "exists" || name == "isDirectory") {
+            return raw;
         }
+        imports.requireType("std.FsException", "FsException");
+        final op = '"' + name + '"';
+        final detail = "e.message ?: e.toString()";
+        // The Kotlin lowering of an exception class exposes one companion
+        // factory per carried enum variant (the shape the generic emitter
+        // writes for `throw new FsException(FsError.NotFound(...))`), so the
+        // host mapping throws through that factory.
+        final throwKind = function(kind:String):String {
+            return "throw FsException." + kind + "(" + op + ", " + p + ", " + detail + ")";
+        };
+        return "try { " + raw + " } "
+            + "catch (e: java.nio.file.NoSuchFileException) { " + throwKind("NotFound") + " } "
+            + "catch (e: java.nio.file.NotDirectoryException) { " + throwKind("NotDirectory") + " } "
+            + "catch (e: java.nio.file.AccessDeniedException) { " + throwKind("PermissionDenied") + " } "
+            + "catch (e: java.nio.file.FileAlreadyExistsException) { " + throwKind("AlreadyExists") + " } "
+            + "catch (e: java.nio.file.InvalidPathException) { " + throwKind("InvalidInput") + " } "
+            // The JVM reports ENOTDIR through FileSystemException.reason
+            // ("Not a directory"), not through the typed subclass, so the
+            // reason channel carries both directory-type kinds.
+            + "catch (e: java.nio.file.FileSystemException) { if ((e.reason ?: \"\") == \"Is a directory\") { "
+            + throwKind("IsDirectory") + " } else if ((e.reason ?: \"\") == \"Not a directory\") { "
+            + throwKind("NotDirectory") + " } else { " + throwKind("Other") + " } } "
+            + "catch (e: java.io.IOException) { " + throwKind("Other") + " }";
     }
 
     /**
