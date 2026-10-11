@@ -564,6 +564,15 @@ class Main {
         Compare.run(resolveAgainst(project.root, project.resultsDir), ids, project.baseline);
     }
 
+    /** Return the first non-empty line, or null when there is none. */
+    static function firstErrorLine(output:String):Null<String> {
+        final lines = output.split("\n");
+        for (line in lines) {
+            if (line.length > 0) return line;
+        }
+        return null;
+    }
+
     /**
         Prints an aggregate failure report after continuing past per-bundle
         test failures instead of stopping at the first error.
@@ -573,6 +582,10 @@ class Main {
         printErr("--- aggregate report: " + failures.length + " bundle(s) failed ---");
         for (failure in failures) {
             printErr('  ${failure.bundleId}: exit code ${failure.code} (step "${failure.stepName}")');
+            final firstError = firstErrorLine(failure.output);
+            if (firstError != null) {
+                printErr('    first error: ${firstError}');
+            }
         }
         printErr("");
     }
