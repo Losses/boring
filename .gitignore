@@ -64,3 +64,6 @@ boring-*.stuck.md
 # .git/info/exclude line 7 on 2026-10-01 (recovery R5.6); the exclude copy is
 # removed only after this lands on the mainline.
 /dc-warn
+
+# task-workspace scratch (task copies snapshot this dir via jj; ignore keeps it out of deliveries)
+.task-tmp/
