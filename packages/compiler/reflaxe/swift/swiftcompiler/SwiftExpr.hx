@@ -429,9 +429,9 @@ class SwiftExpr {
             case CEmptyArray:
                 if (StaticFieldHelper.isReadOnlyArrayType(DefaultArgExpander.withoutNull(targetType))) {
                     final element = StaticFieldHelper.arrayElementType(DefaultArgExpander.withoutNull(targetType));
-                    arrayRuntimeText(element == null ?throw new haxe.Exception("read-only empty default is missing its element type"):"ReadOnlyArray<"
+                    arrayRuntimeText(element == null ?throw new haxe.Exception("read-only empty default is missing its element type"):"["
                         + types.of(element)
-                        + ">()");
+                        + "]()");
                 } else {
                     arrayRuntimeText("TiqianArray()");
                 }
