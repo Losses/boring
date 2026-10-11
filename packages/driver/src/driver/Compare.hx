@@ -123,12 +123,13 @@ class Compare {
                 printErr("Error: Every declared extra id requires an id and a reason.");
                 exit(1);
             }
-            final reasonText:String = cast(reason, String);
+            final idText:String = id == null ? "" : id;
+            final reasonText:String = reason == null ? "" : reason;
             if (StringTools.trim(reasonText) == "") {
                 printErr("Error: Every declared extra id requires an id and a reason.");
                 exit(1);
             }
-            allowlist.push({id: cast(id, String), reason: reasonText});
+            allowlist.push({id: idText, reason: reasonText});
         }
         return allowlist;
     }
@@ -138,9 +139,16 @@ class Compare {
             printErr('Error: Missing mechanism coverage file: $path');
             return false;
         }
+        var text:String = "";
+        try {
+            text = readFile(path);
+        } catch (e:std.FsException) {
+            printErr('Error: Cannot read mechanism coverage file: $path');
+            return false;
+        }
         var data:JsonValue = Json.read("{}");
         try {
-            data = Json.read(readFile(path));
+            data = Json.read(text);
         } catch (error:JsonException) {
             printErr('Error: Invalid mechanism coverage file: $path');
             return false;
@@ -159,12 +167,12 @@ class Compare {
                 printErr("Error: Every uncovered mechanism requires a reason.");
                 return false;
             }
-            final reasonText:String = cast(reason, String);
+            final reasonText:String = reason == null ? "" : reason;
             if (StringTools.trim(reasonText) == "") {
                 printErr("Error: Every uncovered mechanism requires a reason.");
                 return false;
             }
-            final mechanismName:String = cast(name, String);
+            final mechanismName:String = name == null ? "" : name;
             allowlist.push(mechanismName);
         }
         final mechanisms = [
@@ -233,7 +241,7 @@ class Compare {
                     errors.push('$mechanism has a probe that is not a string');
                     continue;
                 }
-                final probeName:String = cast(name, String);
+                final probeName:String = name == null ? "" : name;
                 var found = false;
                 for (id in allIds) {
                     if (id.indexOf(probeName) >= 0) {
