@@ -18,6 +18,7 @@
 -D swift-output=reference/swift/gen
 -D swift-test-output=reference/swift/gen-tests
 -D swift-test-runner=native
+-D swift_emit_origins
 -D swift-test-import=Codec
 -D runtime-import=@boring/runtime
 -D runtime-emit=.

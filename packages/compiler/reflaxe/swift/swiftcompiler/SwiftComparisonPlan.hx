@@ -103,7 +103,6 @@ private class SwiftPlanBuilder {
                     case SwiftOperationUnresolved(reason): SwiftOperationUnresolved(reason);
                 }
             case Lexicographic(child):
-                addDependency(owner, "ReadOnlyArray");
                 switch (operation(child, path + "_element", owner)) {
                     case SwiftOperationReady(selected): SwiftOperationReady(SwiftLexicographic(selected));
                     case SwiftOperationFailed(reason, sourceType): SwiftOperationFailed(reason, sourceType);

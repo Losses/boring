@@ -76,11 +76,11 @@ class SwiftType {
                     case "Void": "Void";
                     case "Null": nullOptional(params[0], of);
                     case "haxe.ds.Map" if (params.length == 2): "[" + of(params[0]) + ": " + of(params[1]) + "]";
-                    // The read-only view has reference storage so ordinary
-                    // conversion retains mutable-alias visibility.
+                    // Read-only arrays lower to native Swift arrays so the
+                    // API surface stays interoperable with hand-written [T]
+                    // and [T]? clients.
                     case "std.ReadOnlyArray":
-                        imports.runtime("ReadOnlyArray");
-                        "ReadOnlyArray<" + of(params[0]) + ">";
+                        "[" + of(params[0]) + "]";
                     case "haxe.Int64": "Int64";
                     case _: of(abs.type);
                 }
@@ -187,8 +187,7 @@ class SwiftType {
                     case "Void": "Void";
                     case "Null": nullOptional(params2[0], t -> ofSubstituted(t, params, args));
                     case "std.ReadOnlyArray":
-                        imports.runtime("ReadOnlyArray");
-                        "ReadOnlyArray<" + ofSubstituted(params2[0], params, args) + ">";
+                        "[" + ofSubstituted(params2[0], params, args) + "]";
                     case _: ofSubstituted(abs.type, params, args);
                 }
             case TInst(c, params2):
