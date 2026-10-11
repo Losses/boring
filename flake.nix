@@ -165,7 +165,10 @@
             else pkgs.swift;
         }
         // (if pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64 then
-          { swift-toolchain = (mkLinuxSwift pkgs).passthru.swiftDist; }
+          {
+            swift-toolchain = (mkLinuxSwift pkgs).passthru.swiftDist;
+            linux-swift = mkLinuxSwift pkgs;
+          }
         else
           { })
       );
