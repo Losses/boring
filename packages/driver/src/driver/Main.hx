@@ -1,7 +1,9 @@
 package driver;
 
+#if js
 import driver.ChildEvidence.ChildEnvironment;
 import driver.ChildEvidence.ChildEvidenceError;
+#end
 import driver.Host.HostResult;
 
 /** Host entry for the driver package. Configuration and command arguments are
@@ -105,9 +107,16 @@ class Main {
             fail('project file not found: $projectPath (pass --project <file>)');
         }
         final root = Host.dirname(Host.resolve(Host.cwd(), projectPath));
+        var projectText:String = "";
+        try {
+            projectText = Main.readText(projectPath);
+        } catch (e:std.FsException) {
+            throw new DriverException(InvalidConfig(
+                'project file read error: ${e.message}'));
+        }
         var parsed:Null<Project> = null;
         try {
-            parsed = Config.parse(readText(projectPath), projectPath, root);
+            parsed = Config.parse(projectText, projectPath, root);
         } catch (error:DriverException) {
             fail(Diagnostic.describe(error.fault));
         }
@@ -224,7 +233,7 @@ class Main {
     // Actions
     // ------------------------------------------------------------------
 
-    static function step(project:Project, bundle:Bundle, action:String, stepName:String, cmd:String, args:Array<String>, env:Array<EnvVar>, cwd:Null<String>):Void {
+    static function step(project:Project, bundle:Bundle, action:String, stepName:String, cmd:String, args:Array<String>, env:Array<EnvVar>, cwd:Null<String>):Null<BundleStepFailure> {
         final workDir = cwd == null ? project.root : cwd;
         print('  $ ' + cmd + " " + args.join(" "));
         #if js
@@ -236,19 +245,20 @@ class Main {
                 final execution = ChildEvidence.execute({bundle: bundle.id, action: action, step: stepName}, cmd, args, workDir, declaredOverrides(env));
                 if (!execution.succeeded()) {
                     reportStepFailure(bundle.id, action, stepName, cmd, args, execution.combinedText(), execution.reportedCode());
-                    exit(1);
+                    return new BundleStepFailure(bundle.id, action, stepName, cmd, args, execution.combinedText(), execution.reportedCode());
                 }
             } catch (problem:ChildEvidenceError) {
                 reportEvidenceFailure(problem);
             }
-            return;
+            return null;
         }
         #end
         final result = runCommand(cmd, args, workDir, env);
         if (result.code != 0) {
             reportStepFailure(bundle.id, action, stepName, cmd, args, result.output, result.code);
-            exit(1);
+            return new BundleStepFailure(bundle.id, action, stepName, cmd, args, result.output, result.code);
         }
+        return null;
     }
 
     #if js
@@ -321,16 +331,19 @@ class Main {
             makeDirs(generated);
             makeDirs(genTests);
             print('[${pack ? "pack" : "gen"}] ${bundle.id} -> $generated, $genTests');
-            step(project, bundle, pack ? "pack" : "gen", "generate", "haxe", genArgs(project, bundle, pack), [], null);
+            final genFailure = step(project, bundle, pack ? "pack" : "gen", "generate", "haxe", genArgs(project, bundle, pack), [], null);
+            if (genFailure != null) exit(1);
             final afterGen = bundle.afterGen;
             if (afterGen != null) {
-                step(project, bundle, pack ? "pack" : "gen", "afterGen", afterGen.command,
+                final afterFailure = step(project, bundle, pack ? "pack" : "gen", "afterGen", afterGen.command,
                     afterGen.args, afterGen.env, null);
+                if (afterFailure != null) exit(1);
             }
         }
     }
 
-    static function actionTest(project:Project, bundles:Array<Bundle>):Void {
+    static function actionTest(project:Project, bundles:Array<Bundle>):Array<BundleStepFailure> {
+        final failures:Array<BundleStepFailure> = [];
         makeDirs(resolveAgainst(project.root, project.resultsDir));
         for (bundle in bundles) {
             if (!bundle.hasTests) {
@@ -360,12 +373,17 @@ class Main {
                 final steps = Plan.testSteps(project, bundle, generated, genTests, build, results,
                     genFiles, testFiles, haxeTestMain(project, bundle), swiftModule, systemPackage, host, existingPath);
                 for (planned in steps) {
-                    step(project, bundle, "test", planned.name, planned.command, planned.args, planned.env, planned.cwd);
+                    final stepFailure = step(project, bundle, "test", planned.name, planned.command, planned.args, planned.env, planned.cwd);
+                    if (stepFailure != null) {
+                        failures.push(stepFailure);
+                        break;
+                    }
                 }
             } catch (error:DriverException) {
                 fail(Diagnostic.describe(error.fault));
             }
         }
+        return failures;
     }
 
     /**
@@ -529,7 +547,13 @@ class Main {
         entry.
     **/
     static function haxeTestMain(project:Project, bundle:Bundle):String {
-        final main = defineValue(genArgs(project, bundle, false), "haxe-test-main");
+        var main:Null<String> = null;
+        try {
+            main = defineValue(genArgs(project, bundle, false), "haxe-test-main");
+        } catch (e:std.FsException) {
+            throw new DriverException(InvalidConfig(
+                'bundle "${bundle.id}": cannot read haxe-test-main define: ${e.message}'));
+        }
         return main == null ? "TestMain" : main;
     }
 
@@ -540,9 +564,26 @@ class Main {
         Compare.run(resolveAgainst(project.root, project.resultsDir), ids, project.baseline);
     }
 
+    /**
+        Prints an aggregate failure report after continuing past per-bundle
+        test failures instead of stopping at the first error.
+    **/
+    static function reportAggregate(failures:Array<BundleStepFailure>):Void {
+        printErr("");
+        printErr("--- aggregate report: " + failures.length + " bundle(s) failed ---");
+        for (failure in failures) {
+            printErr('  ${failure.bundleId}: exit code ${failure.code} (step "${failure.stepName}")');
+        }
+        printErr("");
+    }
+
     static function actionVerify(project:Project, withPack:Bool):Void {
         actionGen(project, project.bundles, false);
-        actionTest(project, Plan.testable(project.bundles));
+        final failures = actionTest(project, Plan.testable(project.bundles));
+        if (failures.length > 0) {
+            reportAggregate(failures);
+            exit(1);
+        }
         actionCompare(project);
         if (withPack) {
             actionGen(project, Plan.packable(project.bundles), true);
@@ -634,7 +675,11 @@ class Main {
             actionGen(project, selectBundles(project, ids), false);
         } else if (action == "test") {
             if (ids.length == 0) fail('test names no bundle; this project declares ${known.join(", ")}');
-            actionTest(project, selectBundles(project, ids));
+            final testFailures = actionTest(project, selectBundles(project, ids));
+            if (testFailures.length > 0) {
+                reportAggregate(testFailures);
+                exit(1);
+            }
         } else if (action == "pack") {
             if (ids.length == 0) fail('pack names no bundle; this project declares ${known.join(", ")}');
             actionGen(project, selectBundles(project, ids), true);

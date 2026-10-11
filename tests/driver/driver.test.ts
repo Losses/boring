@@ -221,3 +221,54 @@ test("sourceSet discovery rejects an empty matching directory", () => {
   expect(result.output).toContain('source set "core": no modules ending in "Test"');
   expect(readdirSync(dir).filter((name) => name.startsWith("classes.hxml"))).toEqual([]);
 });
+
+
+test("verify continues after a bundle test failure, aggregates and runs remaining bundles", () => {
+  const { dir, file } = fixture({ bundles: [
+    { id: "reference", target: "ts" },
+    { id: "other", target: "ts" },
+  ] });
+  const bin = join(dir, "bin");
+  mkdirSync(bin);
+  const fakeHaxe = join(bin, "haxe");
+
+  // Test that passes normally (writes a pass verdict)
+  const passTest = 'import { test } from "bun:test";\n' +
+    'import { appendFileSync } from "node:fs";\n' +
+    'test("pass", () => appendFileSync(process.env.BORING_TEST_RESULTS!,' +
+    '  JSON.stringify({ id: "pass", name: "pass", verdict: "pass" }) + "\\n"));\n';
+
+  // Test that always fails (throws)
+  const failTest = 'import { test } from "bun:test";\n' +
+    'test("fail", () => { throw new Error("deliberate failure"); });\n';
+
+  writeFileSync(fakeHaxe, '#!/usr/bin/env bun\n' +
+    'import { mkdirSync, writeFileSync } from "node:fs";\n' +
+    'import { join } from "node:path";\n' +
+    'const args = process.argv.slice(2);\n' +
+    'const output = args.find((arg) => arg.startsWith("ts-test-output="))?.slice("ts-test-output=".length);\n' +
+    'if (output) {\n' +
+    '  mkdirSync(output, { recursive: true });\n' +
+    '  if (output.includes("reference")) {\n' +
+    '    writeFileSync(join(output, "driver.test.ts"), ' + JSON.stringify(failTest) + ');\n' +
+    '  } else {\n' +
+    '    writeFileSync(join(output, "driver.test.ts"), ' + JSON.stringify(passTest) + ');\n' +
+    '  }\n' +
+    '}\n');
+  chmodSync(fakeHaxe, 0o755);
+
+  const result = run(file, ["verify"], { PATH: bin + ":" + process.env.PATH });
+
+  // Exit code is non-zero because reference failed
+  expect(result.code).toBe(1);
+
+  // The aggregate report is printed
+  expect(result.output).toContain("--- aggregate report:");
+  expect(result.output).toContain("bundle(s) failed");
+  expect(result.output).toContain("reference");
+
+  // The other bundle's test did run (its results file exists)
+  // and contains the pass verdict
+  const otherResults = join(dir, "results", "other.jsonl");
+  expect(readFileSync(otherResults, "utf8")).toContain('"verdict":"pass"');
+});
