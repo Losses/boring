@@ -972,6 +972,7 @@ class Compiler extends PluginCompiler<Compiler> {
             for (u in synthetic) {
                 final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + u.name + " {"];
                 final variants = state.syntheticErrorVariants.get(u.name);
+                var seenFsError = false;
                 for (item in u.members) {
                     final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
@@ -1010,24 +1011,28 @@ class Compiler extends PluginCompiler<Compiler> {
                     lines.push("    }");
                     lines.push("}");
                 }
+                var seenFsError = false;
                 for (item in u.members) {
                     final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
                     final memberPath = "crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name;
-                    lines.push("");
-                    lines.push("impl From<" + memberPath + "> for " + u.name + " {");
-                    lines.push("    fn from(value: " + memberPath + ") -> Self {");
-                    lines.push("        " + u.name + "::" + variant + "(value)");
-                    lines.push("    }");
-                    lines.push("}");
+                    if (!(item.name == "FsError")) {
+                        lines.push("");
+                        lines.push("impl From<" + memberPath + "> for " + u.name + " {");
+                        lines.push("    fn from(value: " + memberPath + ") -> Self {");
+                        lines.push("        " + u.name + "::" + variant + "(value)");
+                        lines.push("    }");
+                        lines.push("}");
+                    }
                     // The std.Fs host failure reaches this union both through
                     // the Haxe-facing payload (a caught rethrow) and directly
                     // from a runtime std.Fs call, whose error is
                     // runtime::fs::FsError. The direct `?` conversion needs a
                     // From the payload never provides, so compose the two
                     // (docs/specs/stdlib/17-platform-modules.md).
-                    if (emitted == "std.FsException" && item.name == "FsError") {
+                    if (!seenFsError && (emitted == "std.FsException" || item.module == "std.FsError") && item.name == "FsError") {
+                        seenFsError = true;
                         final runtimePackage = RuntimeConfig.requireImportName("std.Fs");
                         lines.push("");
                         lines.push("impl From<" + runtimePackage + "::fs::FsError> for " + u.name + " {");
