@@ -259,12 +259,12 @@ class SwiftArrayBoundary {
     public static function render(plan:SwiftArrayBoundaryPlan, operand:String, elementText:Null<String>):String {
         return switch (plan.operation) {
             case KeepPreparedArray | PreserveNullArrayValue: operand;
-            case WrapMutableArrayView: "ReadOnlyArray(" + operand + ")";
-            case UnwrapOptionalMutableArrayView: "ReadOnlyArray(" + operand + "!)";
-            case MapOptionalMutableArrayView: "(" + operand + ").map { ReadOnlyArray($0) }";
+            case WrapMutableArrayView: "(" + operand + ").items";
+            case UnwrapOptionalMutableArrayView: "(" + operand + "!).items";
+            case MapOptionalMutableArrayView: "(" + operand + ").map { $0.items }";
             case ContextualReadOnlyEmpty:
-                elementText == null ?throw new haxe.Exception("read-only empty array boundary is missing its element type"):"ReadOnlyArray<" + elementText +
-                ">()";
+                elementText == null ?throw new haxe.Exception("read-only empty array boundary is missing its element type"):"[" + elementText +
+                "]()";
             case CopyReadOnlyIntoMutableArray: operand + ".toMutableArray()";
             case MapOptionalReadOnlyIntoMutableArray: "(" + operand + ").map { $0.toMutableArray() }";
         };
