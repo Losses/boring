@@ -1190,6 +1190,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // its throw-site registration reuses the same private-static emission
         // filter (includeStaticFunc), which reads state.referencedStatics.
         scanStaticReferences(mtypes);
+        scanReferencedImpls(mtypes);
         scanFallibility(mtypes);
         scanInterfaceMethodShapes(mtypes);
     }
@@ -1331,6 +1332,76 @@ class Compiler extends PluginCompiler<Compiler> {
             cls -> RustDecl.isExceptionSubclass(cls));
         for (key in referenced.keys())
             state.referencedStatics.set(key, true);
+    }
+
+    /**
+        Pre-populates state.referencedImpls with the modules of synthetic impl
+        classes whose statics are referenced from emitted bodies, so the
+        scanFallibility synthetic-impl gate (which mirrors the emitter's
+        whole-class drop of unreferenced non-@:valueType synthetic impls) can
+        decide at scan time instead of depending on data that only exists
+        during code generation.
+
+        referencedImpls is otherwise populated only while rendering
+        expressions (after preScan), so without this pre-scan the gate always
+        saw an empty map and dropped every non-@:valueType synthetic impl,
+        including referenced ones such as FontFaceId_Impl_, whose fallible
+        .of / .fromString statics then never registered their error enums.
+    **/
+    function scanReferencedImpls(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+        function collect(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TField(_, FStatic(c, _)):
+                    final ccls = c.get();
+                    if (ccls.module != "" && isSyntheticImpl(ccls.name))
+                        state.referencedImpls.set(ccls.module, true);
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(e, collect);
+        }
+        for (mt in mtypes) {
+            switch (mt) {
+                case TClassDecl(c):
+                    final cls = c.get();
+                    // Emission scope mirrors StaticReferenceScan.scan's
+                    // inEmissionScope, so the bodies we walk are exactly the
+                    // ones the emitter renders (and where it would itself mark
+                    // referencedImpls during expression rendering).
+                    if (cls.isExtern || !(RuntimeResidents.isResident(cls.module) || inSourceScope(cls.pos)))
+                        continue;
+                    for (f in cls.statics.get()) {
+                        final e = f.expr();
+                        if (e == null)
+                            continue;
+                        // Mirror includeStaticFunc: a static var always emits,
+                        // as do public / @:test / exception-subclass statics;
+                        // any other private static emits only when the
+                        // reference scan (state.referencedStatics) reached it.
+                        final emit = switch (f.kind) {
+                            case FMethod(_):
+                                f.isPublic || f.meta.has(":test")
+                                    || RustDecl.isExceptionSubclass(cls)
+                                    || state.referencedStatics.exists(cls.module + "." + f.name);
+                            case _:
+                                true;
+                        };
+                        if (emit)
+                            collect(e);
+                    }
+                    for (f in cls.fields.get()) {
+                        final e = f.expr();
+                        if (e != null)
+                            collect(e);
+                    }
+                    final ctor = cls.constructor != null ? cls.constructor.get() : null;
+                    if (ctor != null) {
+                        final e = ctor.expr();
+                        if (e != null)
+                            collect(e);
+                    }
+                case _:
+            }
+        }
     }
 
     /**
