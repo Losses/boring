@@ -1740,7 +1740,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                                             // slot must name that module or the generated
                                                             // path resolves to a file that does not exist.
                                                             final emitted = state.payloadEnumModules.get(RustEmissionState.identityKey("std.FsError", "FsError"));
-                                                            mergeEnum(key, {module: emitted != null ? emitted : "std.FsError", name: "FsError"});
+                                                            mergeEnum(key, {module: emitted != null ? emitted : "std.FsException", name: "FsError"});
                                                         }
                                                     } else if (RustEmissionState.runtimeShimIsFallible(calleeName)) {
                                                         if (!(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
