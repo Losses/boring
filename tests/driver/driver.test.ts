@@ -262,10 +262,11 @@ test("verify continues after a bundle test failure, aggregates and runs remainin
   // Exit code is non-zero because reference failed
   expect(result.code).toBe(1);
 
-  // The aggregate report is printed
+  // The aggregate report is printed, including the per-bundle first error
   expect(result.output).toContain("--- aggregate report:");
   expect(result.output).toContain("bundle(s) failed");
   expect(result.output).toContain("reference");
+  expect(result.output).toContain("first error:");
 
   // The other bundle's test did run (its results file exists)
   // and contains the pass verdict
