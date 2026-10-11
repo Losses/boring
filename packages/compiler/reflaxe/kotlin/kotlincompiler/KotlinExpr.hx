@@ -1710,6 +1710,8 @@ class KotlinExpr {
                     return expr(subj) + "?." + suffix + "!!";
                 }
                 return expr(subj) + "." + suffix;
+            case TCall(_, _):
+                return expr(bound) + (rendersNullable(inner) ? "!!" : "");
             case _:
                 return expr(bound);
         }
@@ -1962,7 +1964,7 @@ class KotlinExpr {
                         return hardenAppend(expr(coalescing.valueExpr), " ?: " + expr(coalescing.defaultExpr));
                     return expr(coalescing.valueExpr);
                 }
-                final condition = expr(c);
+                final condition = expr(c) + (rendersNullable(c) ? " == true" : "");
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
                 // Arms render in their own dominance scope.
@@ -3874,7 +3876,7 @@ class KotlinExpr {
         final inner = expr(subj);
         switch (op) {
             case OpNot:
-                return "!" + inner;
+                return "!" + inner + (rendersNullable(subj) ? "!!" : "");
             case OpNegBits:
                 return inner + ".inv()";
             case OpNeg:
