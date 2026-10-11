@@ -308,63 +308,6 @@ Every reading records the generator revision it was produced with: the
 checkout path and its commit. A reading taken from another revision is not
 evidence about the current tree.
 
-## Emit Sink origin mapping
-
-The reflaxe emitters can attach per-line origin metadata to every generated file.
-This maps generated lines back to the Haxe source site and the boring emitter
-function that rendered them, enabling direct diagnosis of target-compiler
-diagnostics from the generated code.
-
-### Activation
-
-Pass the per-backend define through the generate step. The define can go into a
-generate entry `-D`, into `boring.json` `build.args`, or into a
-`rootsFile` `--define` line.
-
-| Backend | Define |
-| --- | --- |
-| Kotlin | `-D kotlin_emit_origins` |
-| Rust | `-D rust_emit_origins` |
-| Swift | `-D swift_emit_origins` |
-| Dart | `-D dart_emit_origins` |
-
-The TypeScript backend does not have confirmed support for emit origins.
-
-### Output
-
-Each generated file on an activated backend writes a sidecar next to it:
-`<file>.emit-origin.json`. The sidecar is an EmitOriginMap (v3) that records,
-for every generated line, the emission branch frame, the Haxe source line and
-column, an `exact` or `inherited` marker, and a call-stack table of boring
-emitter functions active during generation.
-
-### Trace CLI
-
-`tools/trace-emit-origin.mjs` reads a sidecar and answers questions about a
-specific line or about the whole file:
-
-```
-node tools/trace-emit-origin.mjs <sidecar.json> <line> [column]
-node tools/trace-emit-origin.mjs <sidecar.json> summary
-```
-
-The line command prints the emitter frame, the Haxe source location, the origin
-flag, and the generation call stack for the requested line. The summary command
-prints mapped-line counts, the source file list, the emission frame table, and
-the call-stack frame table.
-
-### Diagnostics workflow
-
-When a host compiler reports a diagnostic at `file:line:column`:
-
-1. Locate the sidecar at `file.emit-origin.json`.
-2. Run `node tools/trace-emit-origin.mjs file.emit-origin.json <line> <column>`.
-3. The output names the boring emitter frame, the Haxe source site, and the
-   generation call stack.
-
-This replaces the manual code-generation call stack trace required under
-[Debugging and evidence](#debugging-and-evidence).
-
 ## Commits
 
 Commit messages follow Conventional Commits 1.0.0, in English. The only
