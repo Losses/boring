@@ -3485,8 +3485,9 @@ class KotlinExpr {
     function smartCastableSubject(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TLocal(v): !bodyWritesLocal(v.id);
-            case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) | TField(_, FStatic(_, cf)):
-                cf.get().kind.match(FVar(_, _)) && cf.get().isFinal && receiverRootStable(e);
+            case TField(receiver, FInstance(_, _, cf)) | TField(receiver, FAnon(cf)) | TField(receiver, FStatic(_, cf)):
+                cf.get().kind.match(FVar(_, _)) && cf.get().isFinal && receiverRootStable(e)
+                    && nullableAccess(receiver) != "?.";
             case _: false;
         };
     }
