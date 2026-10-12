@@ -1,0 +1,13 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/haxe/swift-optional-native-array
+--macro Intercept.run(['tests/haxe/swift-optional-native-array'])
+--macro swiftcompiler.Compiler.use()
+-main SwiftOptionalNativeArrayOps
+-D swift-output=out/swift-optional-native-array/gen
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+-D package-shell=none

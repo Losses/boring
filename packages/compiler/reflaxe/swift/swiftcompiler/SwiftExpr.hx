@@ -38,6 +38,8 @@ import swiftcompiler.SwiftArrayBoundary.SwiftArrayOptionality;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayPresenceFact;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayPreparedOperand;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayStorage;
+import Destination.Destination;
+import Destination.DestinationRole;
 import swiftcompiler.SwiftParameterPlan.SwiftParameterDecision;
 import swiftcompiler.SwiftParameterPlan.SwiftParameterDefaultMode;
 import EmitSink;
@@ -2788,7 +2790,7 @@ class SwiftExpr {
     function destinationValueText(value:Null<TypedExpr>, destination:Null<Type>, fallbackText:String):String {
         if (value == null || destination == null)
             return fallbackText;
-        if (StaticFieldHelper.isReadOnlyArrayType(destination) && SwiftArrayBoundary.isBoundary(value.t, destination))
+        if (SwiftArrayBoundary.isBoundary(value.t, destination))
             return arrayBoundaryText(value, destination);
         return fallbackText;
     }
@@ -2837,11 +2839,18 @@ class SwiftExpr {
         if (plan.elementType == null)
             return fail(inner, "array boundary is missing its element type");
         final elementText = types.of(plan.elementType);
+        final dest:Destination = {
+            type: target,
+            admitsAbsence: plan.destinationOptional,
+            role: Discard,
+            errorSlot: null
+        };
+        final coerced = SwiftCoerce.coerceArrayBoundary(operand.text, dest, operand.optionality, plan, elementText);
         return {
-            text: arrayRuntimeText(SwiftArrayBoundary.render(plan, operand.text, elementText)),
+            text: arrayRuntimeText(coerced.text),
             sourceType: target,
             storage: plan.resultStorage,
-            optionality: plan.resultOptionality,
+            optionality: coerced.optionality,
             presenceFact: plan.presenceFact
         };
     }
@@ -2998,7 +3007,9 @@ class SwiftExpr {
         hides from the Haxe type check. (ReadOnlyAssignBoundary)
     **/
     function arrayOperandText(e:TypedExpr):String
-        return isNarrowed(e) ? narrowedText(e) : expr(e);
+        // Bare name only: the presence axis owns every force-unwrap, so a
+        // guard-proven 'x!' never leaks past the ablated presence axis.
+        return expr(e);
 
     /** Only the arithmetic compound ops accept a widened operand. */
     function isArithmeticOp(op:Binop):Bool {

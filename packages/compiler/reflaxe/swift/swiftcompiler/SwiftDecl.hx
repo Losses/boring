@@ -6,6 +6,8 @@ import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
 import reflaxe.data.EnumOptionData;
+import Destination.Destination;
+import Destination.DestinationRole;
 import ValueTypeSupport;
 import PolicyQueries;
 import SourceComparisonAnalysis;
@@ -601,7 +603,13 @@ class SwiftDecl {
                     Context.error("read-only array initializer has no prepared storage decision", init.pos);
                 } else {
                     final elementText = plan.elementType == null ? null : types.of(plan.elementType);
-                    rendered = SwiftArrayBoundary.render(plan, operand.text, elementText);
+                    final dest:Destination = {
+                        type: field.type,
+                        admitsAbsence: plan.destinationOptional,
+                        role: Discard,
+                        errorSlot: null
+                    };
+                    rendered = SwiftCoerce.coerceArrayBoundary(operand.text, dest, operand.optionality, plan, elementText).text;
                 }
             }
             // A non-null Haxe field initialized to null becomes an implicitly
