@@ -102,6 +102,11 @@ class KotlinExpr {
         return {type: null, admitsAbsence: false, role: Condition, errorSlot: null};
     }
 
+    /** An ArithmeticOperand destination for P2.1 migration sites. */
+    static function arithmeticOperandDest(admitsAbsence:Bool):Destination {
+        return {type: null, admitsAbsence: admitsAbsence, role: ArithmeticOperand, errorSlot: null};
+    }
+
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
 
@@ -3768,12 +3773,12 @@ class KotlinExpr {
                 // guarded operand's extraction proves it for the rest of
                 // the statement, and branch merges restore the boundary.
                 // (ComparisonOperandProof)
-                final leftText = operand(l, op, false);
+                final leftText = KotlinCoerce.coerce(lower(l), arithmeticOperandDest(false));
                 addProofExpr(l);
                 // Register r only after it renders: marking r here would
                 // suppress its extraction, leaving a nullable operand.
                 // (ComparisonOperandProofOrder)
-                final rightText = operand(r, op, true);
+                final rightText = KotlinCoerce.coerce(lower(r), arithmeticOperandDest(false));
                 addProofExpr(r);
                 final leftFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(leftText) : leftText;
                 final rightFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rightText) : rightText;
@@ -3799,8 +3804,15 @@ class KotlinExpr {
                             return op == OpNotEq ? "true" : "false";
                     }
                 }
-                final leftText = operand(l, op, false);
-                final rightText = operand(r, op, true);
+                final admitsAbsence = op == OpEq || op == OpNotEq;
+                final lowerL = lower(l);
+                final leftText = KotlinCoerce.coerce(lowerL, arithmeticOperandDest(admitsAbsence));
+                if (lowerL.presence == MaybeAbsent && !admitsAbsence)
+                    addProofExpr(l);
+                final lowerR = lower(r);
+                final rightText = KotlinCoerce.coerce(lowerR, arithmeticOperandDest(admitsAbsence));
+                if (lowerR.presence == MaybeAbsent && !admitsAbsence)
+                    addProofExpr(r);
                 // Haxe types an Int divided by an Int as Float, while Kotlin
                 // renders `/` on two Int operands as truncating Int
                 // division. Both operands widen to the module real so the
@@ -3881,7 +3893,7 @@ class KotlinExpr {
 #if (kotlin_fold_debug || kotlin_emit_origins)
             emissionTrace("OPERAND proven=" + (valueProven(e)) + " id=" + (switch (stripWrap(e).expr) { case TLocal(v): Std.string(v.id); case _: "f"; }) + " nullInit=" + nullInit, rendered, e.pos);
 #end
-            rendered = hardenAppend(rendered, "!!");
+            rendered = KotlinCoerce.coerce(lowerText(e, rendered), arithmeticOperandDest(false));
             // Kotlin's flow proves the subject from the assertion itself,
             // so every extraction registers: a null-initialized local read
             // again later must not extract twice.
