@@ -23,6 +23,12 @@ class KotlinCoerce {
     **/
     public static function coerce(value:Lowered, dest:Destination):String {
         var out = value.text;
+        // GP-ABLATE: with -D kotlin_coerce_ablate=<Role>, skip coercion for
+        // the ablated role so a fixture can prove the coercion is load-bearing.
+        // Byte-identical when the define is absent (ablateRole() == null).
+        if (ablateRole() == dest.role) {
+            return out;
+        }
         switch (dest.role) {
             case Condition:
                 // presence axis
@@ -38,6 +44,15 @@ class KotlinCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence):
                         out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                    case _:
+                }
+            case RangeBound:
+                // presence axis: a range bound is an Int position, so a
+                // nullable value still extracts; append "!!" directly (no
+                // atomicity wrapping, so ?.size!! and f()!! stay as-is).
+                switch (value.presence) {
+                    case MaybeAbsent if (!dest.admitsAbsence):
+                        out = out + "!!";
                     case _:
                 }
             case _:
