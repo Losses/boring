@@ -10,6 +10,7 @@ import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
+import LoweredValue.Lowered;
 import LoweredValue.Presence;
 import PolicyQueries;
 import SourceComparisonAnalysis;

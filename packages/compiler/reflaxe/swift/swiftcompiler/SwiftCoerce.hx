@@ -3,7 +3,6 @@ package;
 
 import haxe.macro.Context;
 import LoweredValue.Lowered;
-import LoweredValue.Presence;
 import Destination.Destination;
 import Destination.DestinationRole;
 
@@ -24,7 +23,12 @@ class SwiftCoerce {
     static function parseAblateRole(raw:Null<String>):Null<DestinationRole> {
         return switch (raw) {
             case null: null;
-            case _: null; // payload-free roles only; parse-only until P5.3
+            case "Condition": Condition;
+            case "ArithmeticOperand": ArithmeticOperand;
+            case "RangeBound": RangeBound;
+            case "Assignment": Assignment;
+            case "Discard": Discard;
+            case _: null; // payload-carrying roles map in P5.3+
         }
     }
 }
