@@ -45,6 +45,7 @@ class Compiler extends PluginCompiler<Compiler> {
     final state:RustEmissionState;
 
     var current:Null<RustDecl> = null;
+    var emissionPlan:Null<RustEmissionPlan> = null;
 
     function saveTreeFile(path:String, content:String):Void {
         final folded = wrapGeneratedSource(content);
@@ -179,10 +180,11 @@ class Compiler extends PluginCompiler<Compiler> {
             // A synthetic abstract-implementation class emits only when a
             // generated reference names its statics (`Name_Impl_::field`):
             // a sub-type abstract whose non-inline static another module
-            // calls needs the `_Impl_` to resolve (features/49). Unreferenced
-            // synthetic impls (including fully-inline integrated abstracts)
-            // stay dropped.
-            if (!state.referencedImpls.exists(classType.module)) {
+            // calls needs the `_Impl_` to resolve (features/49). The
+            // referenced-module set comes from the emission plan.
+            // Unreferenced synthetic impls (including fully-inline
+            // integrated abstracts) stay dropped.
+            if (!emissionPlan.isImplModuleReferenced(classType.module)) {
                 return null;
             }
         } else if (!classType.isInterface && isInlineOnly(classType, varFields, funcFields)) {
@@ -262,21 +264,16 @@ class Compiler extends PluginCompiler<Compiler> {
     /**
         Every member passes except an unreferenced private static function:
         public members, tests, and instance members emit regardless, and a
-        private static referenced anywhere in the compiled program
-        (state.referencedStatics) emits as well.
+        private static referenced anywhere in the compiled program emits as
+        well. The emission plan answers this at both scan and emission time.
     **/
     function includeStaticFunc(cls:ClassType, f:ClassFuncData):Bool {
         // @:keep arrives here injected wholesale by haxe.macro.Compiler.keep
         // on every field of the kept class; retaining the class itself already
         // carried the public members, and an unreferenced private static
-        // would emit as dead text, so the reference scan decides alone.
-        if (!f.isStatic || f.field.isPublic || f.field.meta.has(":test")) {
-            return true;
-        }
-        if (RustDecl.isExceptionSubclass(cls)) {
-            return true;
-        }
-        return state.referencedStatics.exists(cls.module + "." + f.field.name);
+        // would emit as dead text. The emission plan answers from the
+        // static-reference scan, pre-computed at preScan.
+        return emissionPlan.shouldEmitStaticField(cls, f.field, f.isStatic);
     }
 
     public function compileEnumImpl(enumType:EnumType, options:Array<EnumOptionData>):Null<String> {
@@ -320,6 +317,12 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     public override function generateFilesManually() {
+        // Contract 6: every render-time write to state.referencedImpls
+        // (RustExpr.hx static call sites) must already be in the emission
+        // plan's referenced-impl set; a miss means the pre-scan root-set
+        // walk missed a reference, so scanFallibility skipped a module's
+        // error registration. Halt before emitting anything.
+        emissionPlan.assertReferencedImplsSuperset(state.referencedImpls);
         final modules = [];
         for (module in parts.keys())
             modules.push(module);
@@ -1198,10 +1201,10 @@ class Compiler extends PluginCompiler<Compiler> {
             }
         }
         // The static-reference set must exist before the fallibility scan:
-        // its throw-site registration reuses the same private-static emission
-        // filter (includeStaticFunc), which reads state.referencedStatics.
+        // the emission plan derives its field-emission map from it, and the
+        // fallibility registration reads the plan.
         scanStaticReferences(mtypes);
-        scanReferencedImpls(mtypes);
+        emissionPlan = computeEmissionPlan(mtypes);
         scanFallibility(mtypes);
         scanInterfaceMethodShapes(mtypes);
     }
@@ -1346,26 +1349,34 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     /**
-        Pre-populates state.referencedImpls with the modules of synthetic impl
-        classes whose statics are referenced from emitted bodies, so the
-        scanFallibility synthetic-impl gate (which mirrors the emitter's
-        whole-class drop of unreferenced non-@:valueType synthetic impls) can
-        decide at scan time instead of depending on data that only exists
-        during code generation.
+        Builds the emission plan every emission decision reads, pre-computed
+        once at preScan so compileClassImpl, scanFallibility, and
+        includeStaticFunc all read one consistent answer instead of each
+        re-deriving the same question from different data.
 
-        referencedImpls is otherwise populated only while rendering
-        expressions (after preScan), so without this pre-scan the gate always
-        saw an empty map and dropped every non-@:valueType synthetic impl,
-        including referenced ones such as FontFaceId_Impl_, whose fallible
-        .of / .fromString statics then never registered their error enums.
+        1. referencedImplModules: synthetic-impl modules whose statics are
+           referenced from emitted bodies, replacing the state.referencedImpls
+           read in compileClassImpl (whole-class drop) and scanFallibility
+           (skip registration). Populated by walking every in-scope class
+           body, the same walk scanReferencedImpls formerly performed, so
+           the plan already knows every module expression rendering
+           (RustExpr.hx static call sites) will mark at render time.
+
+        2. fieldEmit: private static functions reached by the static scan,
+           replacing includeStaticFunc and the same-field gate in
+           scanFallibility. Instance members, public statics, @:test statics,
+           and exception-subclass statics always emit, handled inside
+           RustEmissionPlan.shouldEmitStaticField.
     **/
-    function scanReferencedImpls(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+    function computeEmissionPlan(mtypes:Array<haxe.macro.Type.ModuleType>):RustEmissionPlan {
+        final plan = new RustEmissionPlan();
+        // Phase 1: body-walk for referenced synthetic impls.
         function collect(e:TypedExpr):Void {
             switch (e.expr) {
                 case TField(_, FStatic(c, _)):
                     final ccls = c.get();
                     if (ccls.module != "" && isSyntheticImpl(ccls.name))
-                        state.referencedImpls.set(ccls.module, true);
+                        plan.referencedImplModules.set(ccls.module, true);
                 case _:
             }
             haxe.macro.TypedExprTools.iter(e, collect);
@@ -1374,20 +1385,17 @@ class Compiler extends PluginCompiler<Compiler> {
             switch (mt) {
                 case TClassDecl(c):
                     final cls = c.get();
-                    // Emission scope mirrors StaticReferenceScan.scan's
-                    // inEmissionScope, so the bodies we walk are exactly the
-                    // ones the emitter renders (and where it would itself mark
-                    // referencedImpls during expression rendering).
+                    // Emission scope: walk only the bodies the emitter renders.
                     if (cls.isExtern || !(RuntimeResidents.isResident(cls.module) || inSourceScope(cls.pos)))
                         continue;
                     for (f in cls.statics.get()) {
                         final e = f.expr();
                         if (e == null)
                             continue;
-                        // Mirror includeStaticFunc: a static var always emits,
-                        // as do public / @:test / exception-subclass statics;
-                        // any other private static emits only when the
-                        // reference scan (state.referencedStatics) reached it.
+                        // Field-emission gate: a static var always emits, as do
+                        // public / @:test / exception-subclass statics; any
+                        // other private static emits only when the reference
+                        // scan (state.referencedStatics) reached it.
                         final emit = switch (f.kind) {
                             case FMethod(_):
                                 f.isPublic || f.meta.has(":test")
@@ -1413,6 +1421,10 @@ class Compiler extends PluginCompiler<Compiler> {
                 case _:
             }
         }
+        // Phase 2: field-emission map from the static-reference scan.
+        for (key in state.referencedStatics.keys())
+            plan.fieldEmit.set(key, true);
+        return plan;
     }
 
     /**
@@ -1604,36 +1616,34 @@ class Compiler extends PluginCompiler<Compiler> {
                     if (cls.isExtern || !inSourceScope(cls.pos)) {
                         continue;
                     }
-                    // Emission gating for the registration below mirrors the
-                    // emitter's own whole-class filters (Compiler.classDecl):
-                    // an unreferenced synthetic impl and an inline-only class
-                    // drop whole classes, so nothing inside them renders and
-                    // nothing inside them may register growth output. A marked
+                    // Emission gating for the registration below reads the
+                    // emission plan's referenced-impl set (compileClassImpl
+                    // drops an unreferenced synthetic impl the same way) and
+                    // keeps the emitter's inline-only filter: an unreferenced
+                    // synthetic impl and an inline-only class drop whole
+                    // classes, so nothing inside them renders and nothing
+                    // inside them may register growth output. A marked
                     // value-type abstract's impl is exempt: `valueTypeDecl`
                     // renders its `_new` as the public constructor regardless
-                    // of `referencedImpls`, and construction sites call the
-                    // `_new` static directly. Skipping it would leave a
+                    // of the referenced-impl set, and construction sites call
+                    // the `_new` static directly. Skipping it would leave a
                     // throwing constructor's fault unregistered, so its
                     // construction sites would be misclassified infallible.
                     if (isSyntheticImpl(cls.name) && ValueTypeSupport.markedAbstractOfClass(cls) == null
-                        && !state.referencedImpls.exists(cls.module)) {
+                        && !emissionPlan.isImplModuleReferenced(cls.module)) {
                         continue;
                     }
                     if (!cls.isInterface && scanClassInlineOnly(cls)) {
                         continue;
                     }
                     function scanField(field:haxe.macro.Type.ClassField, isStatic:Bool) {
-                        // Whole-field emission gate: mirrors
-                        // Compiler.includeStaticFunc, which answers the same
-                        // question at emission time. Instance members, public
-                        // members and tests always emit; a private static of
-                        // an exception subclass always emits; any other
-                        // private static emits only when referenced.
-                        final fieldEmitted = !isStatic
-                            || field.isPublic
-                            || field.meta.has(":test")
-                            || RustDecl.isExceptionSubclass(cls)
-                            || state.referencedStatics.exists(cls.module + "." + field.name);
+                        // Whole-field emission gate: the emission plan answers
+                        // the same question includeStaticFunc asks at emission
+                        // time. Instance members, public members and tests
+                        // always emit; a private static of an exception
+                        // subclass always emits; any other private static
+                        // emits only when referenced.
+                        final fieldEmitted = emissionPlan.shouldEmitStaticField(cls, field, isStatic);
                         switch (field.type) {
                             case TFun(_, _):
                                 final body = field.expr();
