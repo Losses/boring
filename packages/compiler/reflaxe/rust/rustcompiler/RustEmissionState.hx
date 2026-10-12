@@ -2,6 +2,7 @@ package rustcompiler;
 
 #if (macro || reflaxe_runtime)
 import haxe.macro.Type;
+import rustcompiler.RustSymbols.SymbolRef;
 
 /**
     Emission state shared across modules for the Rust target.
@@ -164,7 +165,15 @@ class RustEmissionState {
         Result type the Haxe AST cannot show, or calls another fallible
         function.
     **/
-    public final funcErrorEnums:Map<String, {module:String, name:String}> = [];
+    public final funcErrorEnums:Map<String, SymbolRef> = [];
+
+    /**
+        Functions the fallibility scan observed but could not prove fallible.
+        A consumer query for a funcKey absent from both this map and
+        funcErrorEnums is an out-of-scope reference and must fault instead
+        of defaulting to infallible (WBS P6.4).
+    **/
+    public final funcErrorKnown:Map<String, Bool> = [];
 
     public final interfaceMethodShapes:Map<String, {isFallible:Bool, isMutating:Bool, errorModule:Null<String>, errorName:Null<String>}> = [];
 
@@ -176,7 +185,7 @@ class RustEmissionState {
     public final funcEnumConflicts:Map<String, Bool> = [];
 
     /** Complete reachable payload set for each fallible function. */
-    public final funcErrorUnionMembers:Map<String, Array<{module:String, name:String}>> = [];
+    public final funcErrorUnionMembers:Map<String, Array<SymbolRef>> = [];
 
     /** Resolved Result error type for each fallible function. */
     public final funcErrorTypes:Map<String, {module:String, name:String}> = [];
