@@ -1,0 +1,18 @@
+# P6.4 out-of-scope arm: samples/std is on the classpath (std.Fs resolves and
+# types) but is excluded from Intercept scope, so the std.FsError payload enum
+# has no declaration site and generation must fail with the domain diagnostic.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/rust-fs-out-of-scope
+-cp samples
+--macro Intercept.run(['tests/haxe/rust-fs-out-of-scope'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+-D package-name=rust-fs-out-of-scope
+-D package-license=MIT
+fsprobe.RustFsOutOfScopeProbe
+runtime.UString
+runtime.SortedTable
