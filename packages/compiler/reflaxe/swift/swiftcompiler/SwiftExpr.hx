@@ -10,6 +10,7 @@ import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
 import ExpressionPredicates;
+import LoweredValue.Presence;
 import PolicyQueries;
 import SourceComparisonAnalysis;
 import SourceComparisonAnalysis.SourceRecordNode;
@@ -814,7 +815,7 @@ class SwiftExpr {
                             if (narrowedInit)
                                 nonOptionalInferred.set(v.id, true);
                             var rendered = narrowedInit ? narrowedLocalText(init) : expr(init);
-                            if (optionalValued(init) && hasTypeAnnotation && !narrowedInit && !isNullLeafType(v.t) && !optionalNullAnnotation
+                            if (swiftPresence(init) != Present && hasTypeAnnotation && !narrowedInit && !isNullLeafType(v.t) && !optionalNullAnnotation
                                 && !StringTools.endsWith(rendered, "!"))
                                 rendered += "!";
                             rendered;
@@ -1051,7 +1052,7 @@ class SwiftExpr {
     }
 
     function isOptionalBool(e:TypedExpr):Bool {
-        return optionalValued(e) && switch (Context.follow(e.t)) {
+        return swiftPresence(e) != Present && switch (Context.follow(e.t)) {
             case TAbstract(a, _): a.get().name == "Bool";
             case _: false;
         };
@@ -1197,7 +1198,7 @@ class SwiftExpr {
         final inner = stripWrap(e);
         return switch (inner.expr) {
             case TLocal(v): narrowedLocals.exists(v.id) && isNullableLocal(v);
-            case TField(_, _): optionalValued(inner) && matchNarrowedAccess(inner);
+            case TField(_, _): staticallyOptional(inner) && matchNarrowedAccess(inner);
             case _: false;
         };
     }
@@ -1210,7 +1211,7 @@ class SwiftExpr {
             return rendered + "!";
         // An optional read used where Swift needs a plain value (an array
         // index, a unary operand) unwraps as well.
-        if (optionalValued(e))
+        if (swiftPresence(e) != Present)
             return switch (stripWrap(e).expr) {
                 case TLocal(_): rendered + "!";
                 case _: "(" + rendered + ")!";
@@ -1830,7 +1831,7 @@ class SwiftExpr {
     function nullableSortedPutLines(e:TypedExpr, depth:Int):Null<Array<String>> {
         return switch (e.expr) {
             case TCall({expr: TField(subj, FInstance(_, _, cf))}, args)
-                if (cf.get().name == "put" && args.length == 2 && isSortedBuilderSubject(subj) && optionalValued(args[1])):
+                if (cf.get().name == "put" && args.length == 2 && isSortedBuilderSubject(subj) && swiftPresence(args[1]) != Present):
                 nullablePutCounter += 1;
                 final name = "np" + nullablePutCounter;
                 [indent(depth)
@@ -2090,7 +2091,7 @@ class SwiftExpr {
                         // the bang binds to the whole value, and a null
                         // literal has no value to unwrap.
                         // (ArrayLiteralElementDemand)
-                        if (elemType != null && !isNullLeafType(elemType) && optionalValued(x) && !isNullLiteral(x) && !StringTools.endsWith(t,
+                        if (elemType != null && !isNullLeafType(elemType) && swiftPresence(x) == MaybeAbsent && !StringTools.endsWith(t,
                             "!")) t = switch (stripWrap(x).expr) {
                                 case TLocal(_): t + "!";
                                 case _: "(" + t + ")!";
@@ -2174,7 +2175,7 @@ class SwiftExpr {
     **/
     function ternaryBranch(b:TypedExpr, whole:TypedExpr):String {
         var text = expr(b);
-        if (!optionalValued(whole) && (optionalValued(b) || castLaundersOptional(b)) && !StringTools.endsWith(text, "!")) {
+        if (swiftPresence(whole) == Present && (swiftPresence(b) != Present || castLaundersOptional(b)) && !StringTools.endsWith(text, "!")) {
             text = switch (stripWrap(b).expr) {
                 case TLocal(_): text + "!";
                 case TField(_, _): "(" + text + ")!";
@@ -2882,7 +2883,7 @@ class SwiftExpr {
 
     /** Prepare one operand's rendered text and actual representation facts together. */
     function prepareArrayOperand(e:TypedExpr, actualOptional:Null<Bool> = null):SwiftArrayPreparedOperand {
-        final isOptional = actualOptional == null ? arrayOperandOptionality(e) : actualOptional;
+        final isOptional = actualOptional == null ? arrayBoundaryOperandOptional(e) : actualOptional;
         final recorded = switch (stripWrap(e).expr) {
             case TLocal(v): localArrayBindingStorages.get(v.id);
             case _: null;
@@ -2896,11 +2897,17 @@ class SwiftExpr {
         };
     }
 
-    /** Actual optionality of the value the current Swift expression lowering produces. */
-    function arrayOperandOptionality(e:TypedExpr):Bool {
-        if (isNarrowed(e))
-            return false;
-        if (ternaryNonNullBothArms(e))
+    /**
+        Optionality of an array-boundary operand. Replicates the former
+        arrayOperandOptionality order verbatim but delegates the fallback to
+        swiftPresence; only the array-boundary parameter plan stays here (it
+        must not leak into the general value sites - arch-review P5.1). Order
+        matters: a narrowed or both-arms-non-null operand is required before a
+        plan decides, and only after the plan does the nullable-leaf fallback
+        apply.
+    **/
+    function arrayBoundaryOperandOptional(e:TypedExpr):Bool {
+        if (isNarrowed(e) || ternaryNonNullBothArms(e))
             return false;
         switch (stripWrap(e).expr) {
             case TLocal(v) if (parameterPlansByLocal.exists(v.id)):
@@ -2909,7 +2916,10 @@ class SwiftExpr {
         }
         if (isNullLeafType(e.t) && isNonOptionalDeclared(e))
             return false;
-        return optionalValued(e) || isNullLeafType(e.t);
+        // A nullable leaf type is optional storage at a boundary even when
+        // the value use is a plain-bound (coalescing) local - the operand
+        // slot itself stays OptionalOperand.
+        return swiftPresence(e) != Present || isNullLeafType(e.t);
     }
 
     function arrayOperandPresenceFact(e:TypedExpr):SwiftArrayPresenceFact {
@@ -3021,7 +3031,7 @@ class SwiftExpr {
         // unifies to the read-only slot type, so the boundary reads the
         // underlying parameter's declared type through the site.
         // (ReadOnlyAssignBoundary)
-        return optionalValued(value) && !StringTools.endsWith(rendered, "!") && !isNullLeafType(target.t) ? rendered + "!" : rendered;
+        return swiftPresence(value) != Present && !StringTools.endsWith(rendered, "!") && !isNullLeafType(target.t) ? rendered + "!" : rendered;
     }
 
     function optionalExpr(a:TypedExpr):String {
@@ -3029,7 +3039,7 @@ class SwiftExpr {
             case TConst(TNull): "nil";
             case _: {
                     final text = expr(a);
-                    if (!optionalValued(a) || StringTools.endsWith(text, "!"))
+                    if (swiftPresence(a) == Present || StringTools.endsWith(text, "!"))
                         text;
                     else
                         switch (stripWrap(a).expr) {
@@ -3062,10 +3072,10 @@ class SwiftExpr {
             case TLocal(_):
                 switch (Context.follow(ret.t)) {
                     case TAbstract(a, _) if (a.get().name == "Float"): realType() + "(" + expr(ret) + ")";
-                    case _: currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
+                    case _: currentFuncReturnsOptional ? expr(ret) : (swiftPresence(ret) != Present ? expr(ret) + "!" : expr(ret));
                 }
             case _:
-                currentFuncReturnsOptional ? expr(ret) : (optionalValued(ret) ? expr(ret) + "!" : expr(ret));
+                currentFuncReturnsOptional ? expr(ret) : (swiftPresence(ret) != Present ? expr(ret) + "!" : expr(ret));
         };
     }
 
@@ -3093,7 +3103,7 @@ class SwiftExpr {
     function optionalOperand(e:TypedExpr, parent:Binop, isRight:Bool):String {
         final rendered = switch (stripWrap(e).expr) {
             case TConst(TNull): expr(e);
-            case _: optionalValued(e) ? "(" + expr(e) + ")!" : expr(e);
+            case _: swiftPresence(e) != Present ? "(" + expr(e) + ")!" : expr(e);
         };
         return switch (stripWrap(e).expr) {
             case TBinop(op, _, _):
@@ -3557,7 +3567,7 @@ class SwiftExpr {
                     // The argument route carries the callee parameter as the
                     // switch destination; other arguments render unchanged.
                     final argText = switchArgText(a, pt);
-                    (optionalValued(a) || (isNullLeafType(a.t) && !isNonOptionalDeclared(a)))
+                    (swiftPresence(a) != Present || (isNullLeafType(a.t) && !isNonOptionalDeclared(a)))
                     && demandsValue ? argText + "!" : argText;
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
@@ -3588,9 +3598,9 @@ class SwiftExpr {
         // declaration is plain while the Haxe type keeps the Null wrapper,
         // so that wrapper must not unwrap here either.
         // (CoalescingLocalPlainBinding)
-        if ((!optionalValued(subj)
+        if ((swiftPresence(subj) == Present
             && !isNullLeafType(subj.t)
-            && !optionalValued(inner)
+            && swiftPresence(inner) == Present
             && !isNullLeafType(inner.t)
             && !isNarrowed(subj))
             || plainBoundCoalescingLocal(inner)) {
@@ -3616,18 +3626,53 @@ class SwiftExpr {
         };
     }
 
-    /** Whether a value-position expression carries an optional at runtime. */
-    function optionalValued(e:TypedExpr):Bool {
-        if (isNullLeafType(e.t) && !switch (stripWrap(e).expr) {
-                case TLocal(v): coalescingLocals.exists(v.id) || nonOptionalDeclared.exists(v.id);
-                case _: false;
-            })
+    /**
+        Static optionality: whether the expression's Swift storage is
+        optional, ignoring flow narrowing. This is the pre-merge
+        optionalValued body kept as a primitive because isNarrowed itself
+        must ask it without re-entering swiftPresence (a narrowed-member test
+        needs the raw static answer, not the narrowing-corrected one).
+    **/
+    function staticallyOptional(e:TypedExpr):Bool {
+        if (isNullLeafType(e.t) && !plainBoundCoalescingLocal(e))
             return true;
         return switch (stripWrap(e).expr) {
             case TLocal(v): optionalAnnotated.exists(v.id) || (optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id));
             case TIf(_, t, f) if (f != null): isNullExpr(t) || isNullExpr(f);
             case _: false;
         };
+    }
+
+    /**
+        Unified Swift value presence: replaces the former
+        arrayOperandOptionality / optionalValued pair with one 4-way
+        authority (arch-review P5.1).
+
+        Rulings, first match wins, each justified:
+        1. An explicit null literal lowers to nil: NullLiteral.
+        2. A statically-optional storage (nullable read, or an
+           annotated/inferred optional local) may be absent: MaybeAbsent.
+        3. Anything else renders a plain non-null Swift value: Present.
+
+        Flow narrowing is deliberately NOT folded in here: a guard-narrowed
+        value's Swift declaration stays optional, so the general value sites
+        must still unwrap it (staticallyOptional reports the same MaybeAbsent
+        as the former optionalValued). The array boundary, which needs the
+        narrowing truth, keeps its own isNarrowed -> false pre-check in
+        arrayBoundaryOperandOptional. Callers therefore convert
+        `optionalValued(x)` to `swiftPresence(x) != Present`, reserving
+        `== MaybeAbsent` for the one site that already excluded null literals.
+
+        Unreachable is never produced: every expression the Swift lowerer
+        emits is either a definite value or nil, faithful to both former
+        functions.
+    **/
+    function swiftPresence(e:TypedExpr):Presence {
+        if (isNullLiteral(e))
+            return NullLiteral;
+        if (staticallyOptional(e))
+            return MaybeAbsent;
+        return Present;
     }
 
     /**
@@ -3657,7 +3702,7 @@ class SwiftExpr {
                     done = true;
             }
         }
-        return didCast && optionalValued(cur);
+        return didCast && swiftPresence(cur) != Present;
     }
 
     function stdString(arg:TypedExpr, inConcat:Bool):String {
@@ -3675,11 +3720,11 @@ class SwiftExpr {
         };
         final rendered = expr(arg);
         // A local declared with a non-null Haxe type but a nil initializer
-        // binds an optional Swift value; `optionalValued` sees the annotation
+        // binds an optional Swift value; `swiftPresence` sees the annotation
         // even though the Haxe flow type stays plain.
         final unwrap = !narrowsInSwitch
             && !StringTools.endsWith(rendered, "!")
-            && ((!fromSource && nullable) || (optionalValued(arg) && !isNullLeafType(arg.t)));
+            && ((!fromSource && nullable) || (swiftPresence(arg) != Present && !isNullLeafType(arg.t)));
         final value = !unwrap ? rendered : switch (stripWrap(arg).expr) {
             case TLocal(_): rendered + "!";
             case _: "(" + rendered + ")!";
@@ -4130,7 +4175,7 @@ class SwiftExpr {
                     // pair domains exact. A scalar above the BMP decodes
                     // as its surrogate pair so the pair stays intact.
                     // (FromCharCodeUnit)
-                    final cp = optionalValued(args[0]) ? "(" + expr(args[0]) + ")!" : expr(args[0]);
+                    final cp = swiftPresence(args[0]) != Present ? "(" + expr(args[0]) + ")!" : expr(args[0]);
                     return "(("
                         + cp
                         + " > 0xFFFF ? String(decoding: [UInt16(truncatingIfNeeded: 0xD800 + (("
@@ -5004,7 +5049,7 @@ class SwiftExpr {
                 final pt = i < paramTypes.length ? paramTypes[i] : null;
                 pt != null
             && StaticFieldHelper.isReadOnlyArrayType(pt) ? arrayBoundaryText(a,
-                pt) : pt != null && !isNullLeafType(pt) && optionalValued(a) ? expr(a) + "!" : expr(a);
+                pt) : pt != null && !isNullLeafType(pt) && swiftPresence(a) != Present ? expr(a) + "!" : expr(a);
             }
         ];
         final names = payloadNames(ef);
@@ -5164,7 +5209,7 @@ class SwiftExpr {
                 && !ternaryNonNullBothArms(args[i])
                 && !nilMergeChainNonOptional(expr(args[i]))) {
                 "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
-            } else if (p != null && !isNullLeafType(p) && optionalValued(args[i])) {
+            } else if (p != null && !isNullLeafType(p) && swiftPresence(args[i]) != Present) {
                 expr(args[i]) + "!";
             } else {
                 expr(args[i]);
@@ -5315,7 +5360,7 @@ class SwiftExpr {
                 return fail(e, "record literal misses field " + name);
             }
             final fieldType = recordFieldType(def, name);
-            final text = fieldType != null && !isNullLeafType(fieldType) && optionalValued(value) ? expr(value) + "!" : expr(value);
+            final text = fieldType != null && !isNullLeafType(fieldType) && swiftPresence(value) != Present ? expr(value) + "!" : expr(value);
             parts.push(name + ": " + text);
         }
         return def.name + "(" + parts.join(", ") + ")";
@@ -6304,7 +6349,7 @@ class SwiftExpr {
 
     /** Whether a concat leaf is an optional string a guard has cleared. */
     function optionalStringLeaf(leaf:TypedExpr):Bool {
-        if (!optionalValued(leaf)) {
+        if (swiftPresence(leaf) == Present) {
             return false;
         }
         return switch (Context.follow(leaf.t)) {
