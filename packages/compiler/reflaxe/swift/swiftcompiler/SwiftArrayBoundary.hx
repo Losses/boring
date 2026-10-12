@@ -30,16 +30,12 @@ enum SwiftArrayPresenceFact {
     NoPresenceProof;
 }
 
-/** Target operation selected for one boundary. */
-enum SwiftArrayOperation {
-    KeepPreparedArray;
-    PreserveNullArrayValue;
-    WrapMutableArrayView;
-    MapOptionalMutableArrayView;
+/** Target storage operation selected for one boundary. */
+enum SwiftArrayStorageOp {
+    KeepPrepared;
+    ToReadOnlyView;
+    ToMutableArray;
     ContextualReadOnlyEmpty;
-    CopyReadOnlyIntoMutableArray;
-    MapOptionalReadOnlyIntoMutableArray;
-    UnwrapOptionalMutableArrayView;
 }
 
 /** One expression lowering's text and the representation facts it established. */
@@ -62,7 +58,7 @@ typedef SwiftArrayBoundaryPlan = {
     final resultStorage:SwiftArrayStorage;
     final resultOptionality:SwiftArrayOptionality;
     final elementType:Null<Type>;
-    final operation:SwiftArrayOperation;
+    final operation:SwiftArrayStorageOp;
 }
 
 /**
@@ -172,7 +168,7 @@ class SwiftArrayBoundary {
         final destReadOnly = isReadOnlyArray(destinationType);
         final destMutable = isMutableArray(destinationType);
         final destOptional = destinationOptionalOverride == null ? isOptionalType(destinationType) : destinationOptionalOverride;
-        var operation:Null<SwiftArrayOperation> = null;
+        var operation:Null<SwiftArrayStorageOp> = null;
         var resultStorage = preparedStorage;
         var resultOptionality = preparedOptionality;
         final element = destReadOnly ? elementType(destinationType) : elementType(sourceType);
@@ -186,57 +182,22 @@ class SwiftArrayBoundary {
                         resultOptionality = RequiredOperand;
                     }
                 case NullArrayValue:
-                    if (destOptional) {
-                        operation = PreserveNullArrayValue;
-                        resultStorage = NullArrayValue;
-                        resultOptionality = OptionalOperand;
-                    }
+                    operation = KeepPrepared;
+                    resultStorage = NullArrayValue;
+                    resultOptionality = OptionalOperand;
                 case MutableArrayWrapper:
                     if (element != null) {
+                        operation = ToReadOnlyView;
                         resultStorage = ReadOnlyArrayView;
-                        switch (preparedOptionality) {
-                            case RequiredOperand:
-                                operation = WrapMutableArrayView;
-                                resultOptionality = RequiredOperand;
-                            case OptionalOperand if (destOptional):
-                                operation = MapOptionalMutableArrayView;
-                                resultOptionality = OptionalOperand;
-                            case OptionalOperand:
-                                // A nullable container field aliased into a
-                                // required read-only slot has no flow proof of
-                                // presence; the unwrap asserts it at the
-                                // boundary (traps on null) instead of dropping
-                                // the storage decision.
-                                operation = UnwrapOptionalMutableArrayView;
-                                resultOptionality = RequiredOperand;
-                        }
                     }
                 case ReadOnlyArrayView:
-                    if (preparedOptionality == RequiredOperand || destOptional) {
-                        operation = KeepPreparedArray;
-                    }
+                    operation = KeepPrepared;
                 case OtherArrayStorage:
             }
         } else if (destMutable && preparedStorage == ReadOnlyArrayView && element != null) {
+            operation = ToMutableArray;
             resultStorage = MutableArrayWrapper;
-            switch (preparedOptionality) {
-                case RequiredOperand:
-                    operation = CopyReadOnlyIntoMutableArray;
-                    resultOptionality = RequiredOperand;
-                case OptionalOperand if (destOptional):
-                    operation = MapOptionalReadOnlyIntoMutableArray;
-                    resultOptionality = OptionalOperand;
-                case OptionalOperand:
-            }
         }
-
-        if (isOptionalType(sourceType)
-            && preparedOptionality == RequiredOperand
-            && presenceFact != LiteralProvenPresent
-            && presenceFact != GuardProvenPresent
-            && presenceFact != BranchValuesRequired
-            && presenceFact != DefaultMaterializedPresent)
-            operation = null;
 
         if (operation == null)
             return null;
@@ -252,21 +213,6 @@ class SwiftArrayBoundary {
             resultOptionality: resultOptionality,
             elementType: element,
             operation: operation
-        };
-    }
-
-    /** Render a plan. The text is an already-lowered operand, never a query input. */
-    public static function render(plan:SwiftArrayBoundaryPlan, operand:String, elementText:Null<String>):String {
-        return switch (plan.operation) {
-            case KeepPreparedArray | PreserveNullArrayValue: operand;
-            case WrapMutableArrayView: "(" + operand + ").items";
-            case UnwrapOptionalMutableArrayView: "(" + operand + "!).items";
-            case MapOptionalMutableArrayView: "(" + operand + ").map { $0.items }";
-            case ContextualReadOnlyEmpty:
-                elementText == null ?throw new haxe.Exception("read-only empty array boundary is missing its element type"):"[" + elementText +
-                "]()";
-            case CopyReadOnlyIntoMutableArray: operand + ".toMutableArray()";
-            case MapOptionalReadOnlyIntoMutableArray: "(" + operand + ").map { $0.toMutableArray() }";
         };
     }
 }
