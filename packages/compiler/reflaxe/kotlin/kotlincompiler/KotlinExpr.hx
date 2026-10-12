@@ -3503,11 +3503,13 @@ class KotlinExpr {
         each clause names one fixture. GP-ABLATE: `-D
         kotlin_smartcast_drop=<clause>` drops that one clause, so its fixture
         smart-casts anyway and kotlinc surfaces the error the clause prevents.
+        Two clauses (`open`, `getter`) have no reachable negative shape, so
+        dropping them is a no-op (see the table).
 
         | clause         | judgement                                  | fixture -> kotlinc error |
         | -------------- | ------------------------------------------ | ------------------------ |
         | `val`          | immutable property (`FVar` + `isFinal`)    | `var` field -> "mutable property" |
-        | `getter`       | no custom getter (`!isGetterOnlyProperty`) | `final var X(get, never)` -> "custom getter" |
+        | `getter`       | no custom getter (`!isGetterOnlyProperty`) | none (vacuous: `var X(get, never)` is `isFinal=false` so `val` rejects it first, and `final X(get, never)` is a Haxe syntax error) |
         | `open`         | not `open` (structurally always true)      | none (vacuous; `drop=open` no-op) |
         | `sameunit`     | declaring class and use site in one unit   | cross-unit `val` read |
         | `closurewrite` | root local not written by a capturing closure | closure rebinds root -> "capturing closure" |
@@ -3533,8 +3535,11 @@ class KotlinExpr {
 
     /**
         The property-shape clauses (`val`, no custom getter, not `open`) on one
-        field. `drop=val` admits a mutable property, `drop=getter` admits a
-        getter-only property; `open` has no negative shape, so no drop branch.
+        field. `drop=val` admits a mutable property. `getter` is unreachable:
+        a getter-only property is always `var` (`isFinal=false`, caught by the
+        `val` clause first) and Haxe cannot declare a `final` field with
+        accessors (`final X(get, never)` is a syntax error), so no field is both
+        final and getter-only; `drop=getter` therefore changes nothing.
     **/
     function fieldPropertyStable(cf:ClassField):Bool {
         if (!cf.kind.match(FVar(_, _)))
@@ -3549,8 +3554,8 @@ class KotlinExpr {
     /**
         GP-ABLATE: whether `-D kotlin_smartcast_drop=<clause>` asks this build
         to drop one smart-cast clause (see the table above). Parse-only in
-        shipped output; `open` is recognized but drops nothing because the
-        backend never emits `open`.
+        shipped output; `open` and `getter` are recognized but drop nothing
+        (both have no reachable negative shape).
     **/
     function dropped(clause:String):Bool {
         return Context.definedValue("kotlin_smartcast_drop") == clause;
