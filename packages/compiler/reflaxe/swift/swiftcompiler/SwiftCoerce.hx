@@ -26,7 +26,7 @@ class SwiftCoerce {
             case "Condition": Condition;
             case "ArithmeticOperand": ArithmeticOperand;
             case "RangeBound": RangeBound;
-            case "Assignment": Assignment;
+            case "StringConcatArgument": StringConcatArgument;
             case "Discard": Discard;
             case _: null; // payload-carrying roles map in P5.3+
         }
