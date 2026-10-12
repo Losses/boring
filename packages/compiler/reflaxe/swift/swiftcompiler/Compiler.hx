@@ -3,6 +3,7 @@ package swiftcompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import CompilationUnits;
 import PolicyQueries;
 import TestApplicability;
 import TestClassFlush;
@@ -116,6 +117,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
     function preScan(mtypes:Array<ModuleType>):Void {
         SwiftFallibility.collect(mtypes);
+        CompilationUnits.registerFromModuleTypes(mtypes, false);
         SwiftInoutParams.collect(mtypes);
         AccessGrants.collect(mtypes);
         // Index every in-scope record typedef by shape so anonymous
@@ -337,6 +339,7 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in parts.keys())
             modules.push(module);
         modules.sort(Reflect.compare);
+        CompilationUnits.dumpIfRequested(modules);
 
         final swiftOutput = Context.definedValue("swift-output");
         final testOutput = Context.definedValue("swift-test-output");
