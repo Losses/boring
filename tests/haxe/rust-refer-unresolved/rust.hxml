@@ -1,0 +1,16 @@
+# Self-test fixture for rust-refer (P6.3). probeRefer() plants one reference
+# to a nonexistent symbol; generation must fail with "unresolved symbol"
+# unless -D rust_refer_ablate is active. run.sh drives both arms and asserts
+# the two exit codes differ.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp tests/haxe/rust-refer-unresolved
+--macro rustcompiler.RustSymbols.probeRefer()
+--macro rustcompiler.Compiler.use()
+-D rust-output=out/rust-refer-unresolved/current/gen
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+rustreferprobe.RustReferProbe
