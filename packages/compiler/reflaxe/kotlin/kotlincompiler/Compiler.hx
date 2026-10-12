@@ -3,6 +3,7 @@ package kotlincompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import CompilationUnits;
 import PolicyQueries;
 import TestApplicability;
 import TestClassEntries;
@@ -283,6 +284,7 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in parts.keys())
             modules.push(module);
         modules.sort(Reflect.compare);
+        CompilationUnits.dumpIfRequested(modules);
 
         final kotlinOutput = Context.definedValue("kotlin-output");
         final kotlinTestOutput = Context.definedValue("kotlin-test-output");
@@ -798,6 +800,7 @@ class Compiler extends PluginCompiler<Compiler> {
     **/
     function preScan(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
         KotlinAccessGrants.collect(mtypes);
+        CompilationUnits.registerFromModuleTypes(mtypes, true);
         for (mt in mtypes) {
             switch (mt) {
                 case TClassDecl(c):
