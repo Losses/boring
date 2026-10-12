@@ -8,7 +8,8 @@ and **when each criterion deceives you**.
 | Layer | Property under test | Observable | Pass criterion | **When this criterion deceives** |
 |---|---|---|---|---|
 | **L1 Generation** | Compiler did not crash, artifacts complete | Generation process exit code + file list | `rc=0` and expected files exist | **rc=0 does not mean the artifact is correct**: the `fail()` at `:2609` also reaches rc=1, but an input that "does not reach the crash" returns rc=0 while outputting wrong results |
-| **L2 Syntax/Types** | Artifact is valid in the target language | `swiftc -typecheck` / `tsc` / `rustc --emit=metadata` | 0 error | **`-typecheck` does not run SILGen**: a multi-statement closure with `return` stripped only reports a warning; only a real build fails. **This form must use `swiftc -c`** |
+| **L1.5 Generation-Time Invariants** (NEW, from report Section 4.3 item 1) | Generated text respects structural contracts | EmitSink records + emission plan lookup | All invariant checks pass | **Checking the wrong source**: if the invariant checker reads the same incomplete fact that the emitter used, it validates the same wrong decision (see Section 3.5 Kotlin row) |
+| **L2 Syntax/Types** | Artifact is valid in the target language | swiftc -typecheck / tsc / rustc --emit=metadata | 0 error | **-typecheck does not run SILGen**: a multi-statement closure with return stripped only reports a warning; only a real build fails. **This form must use swiftc -c**. **Build dependency graph masking** (NEW, from report Section 4.3 item 2): when an upstream compilation unit fails (e.g. the main source set), downstream units (test source sets, gen-tests) are never compiled; their defect counts are *unobservable*, not zero. Every verification report must list which units actually entered type-checking per bundle; units skipped by dependency failure must be reported as not measured, never as 0 errors |
 | **L3 Build** | Artifact links into an executable | `swiftc -c` / `swiftc -o` | 0 error | Build-phase diagnostics (`will never be executed`) **do not appear under `-typecheck`**. **Already ruled: counted into the acceptance criteria** — see the `t-muo92xms-s28t` ruling (`1a486ebd`; the original file `rulings/BUILD-PHASE-DIAGNOSTIC-RULING.md` was deleted with the repo cleanup; the ruling content is in that row's note in the wb system). **The current fact for this entry is "not yet zeroed"**: that diagnostic count is still **1**, and it is an **unwaived, recorded baseline failure** — see the next section "This layer is not currently green" |
 | **L4 Behavior** | Runtime result is correct | Line-by-line comparison against the oracle | **Byte-for-byte identical** | If the oracle itself is wrong, everything is wrong; and "matches the oracle under the same input" **does not cover** properties the oracle does not express (laziness) |
 | **L5 Discrimination** | The check **can** find the target defect | Run against a deliberately wrong backend | Deliberate error ⇒ **FAIL** | Without this layer, L1–L4 all green may only mean **that property was never observed** |
@@ -38,6 +39,32 @@ and **when each criterion deceives you**.
 strips the conversion), and must prove that the fixture FAILs on it. **Proving only that "the correct backend passes" is not verification.**
 **⇒ Corollary for "gate-type" criteria**: you must give the rc of **both** the loose and the strict run — reporting only "pass"
 cannot distinguish "the check passed" from "there was no check".
+
+### Fixture standards (NEW, from report Section 4.3 items 3-4)
+
+**Same-family matrix standard**: a fix involving nullability/presence conversion must include fixtures
+covering the Cartesian product of Destination role x presence x statement/expression/loop form, at least:
+if-statement, if-expression, while, ! (negation), range bound, assignment, argument, receiver.
+The Round 2 review identified TWhile as a site that shares the same (role=Condition, presence=MaybeAbsent)
+shape as the three fixed TIf/OpNot sites but was not fixed; the following minimal fixture exposes it:
+
+```haxe
+class WhileNullableCond {
+    static function f(flag:Null<Bool>):Int {
+        var n = 0;
+        while (flag) { n++; flag = n < 3; }
+        return n;
+    }
+}
+```
+
+Expected: Kotlin KotlinExpr.hx:1296 emits while (flag) { without == true; kotlinc rejects
+Boolean? as a while condition. (Fixture constructed by this report, not yet run against tiqian.)
+
+**Cross-unit fixture standard**: any fix involving declaration visibility or symbol resolution must include
+a fixture where the declaration resides in the main compilation unit and the use site resides in a test
+unit, compiled separately. This is the common observation condition for the Kotlin cross-module smart
+cast defect and the Rust gen-tests path resolution defect.
 
 ## Every criterion must state "on which tree it holds" (new in this session, L0 prerequisite)
 
@@ -254,6 +281,7 @@ the number it produces looks concrete (37 uncollected fixtures), and concretenes
    otherwise the next person to merge will treat it as an ordinary regression.
 5. **An optimization/suppression/deduplication mechanism's criterion must expand along two dimensions, "form × nesting depth"**,
    not assert its existence at a single site. Instance three and instance four are both failures of this shape.
+6. **L5 extends to predicate clauses, not just whole fixtures**: a rule with a multi-clause predicate (e.g. `smartCastFor(property) -> true` requires `sameModule(decl,use)` AND `visibility != private` AND `!aliasedBetween(decl,use)`) must have a discriminating test that flips each clause independently; flipping the whole predicate only proves the rule is not a no-op. (NEW, from report Section 4.3 item 5)
 
 ## Unresolved
 
