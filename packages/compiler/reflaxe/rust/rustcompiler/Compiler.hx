@@ -167,6 +167,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final decl = contextFor(classType.module);
             final result = decl.valueTypeDecl(classType, valueType, varFields, funcFields);
             parts.get(classType.module).push(result);
+            RustSymbols.emitted({module: classType.module, name: valueType.name});
             return result;
         }
         if (classType.isExtern || (!isResident && !inSourceScope(classType.pos))) {
@@ -252,6 +253,7 @@ class Compiler extends PluginCompiler<Compiler> {
         final result = decl.classDecl(classType, varFields, funcFields);
         if (result != null && result.length > 0) {
             parts.get(classType.module).push(result);
+            RustSymbols.emitted({module: classType.module, name: classType.name});
         }
         return result;
     }
@@ -288,6 +290,7 @@ class Compiler extends PluginCompiler<Compiler> {
         final result = decl.enumDecl(enumType, options);
         if (result != null && result.length > 0) {
             parts.get(enumType.module).push(result);
+            RustSymbols.emitted({module: enumType.module, name: enumType.name});
         }
         return result;
     }
@@ -301,6 +304,7 @@ class Compiler extends PluginCompiler<Compiler> {
         final result = decl.typedefDecl(def);
         if (result != null && result.length > 0) {
             parts.get(def.module).push(result);
+            RustSymbols.emitted({module: def.module, name: def.name});
         }
         return result;
     }
@@ -518,6 +522,8 @@ class Compiler extends PluginCompiler<Compiler> {
             libLines.push("pub use " + m + "::*;");
         }
         saveTreeFile("lib.rs", libLines.join("\n") + "\n");
+
+        RustSymbols.checkAll();
 
         if (PackageShell.enabled()) {
             saveTreeFile("Cargo.toml", packageManifest());
@@ -1049,6 +1055,7 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     function preScan(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+        RustSymbols.state = state;
         // An interface whose implementors all derive Clone gets a clone_box
         // hook so a Box<dyn Trait> field keeps its owner's derive. Collect
         // the implementor set first, then mark the interfaces whose whole
@@ -1141,6 +1148,7 @@ class Compiler extends PluginCompiler<Compiler> {
                                             // the same pair under the class's own identity so
                                             // the catch sites can resolve class-first (PIT-297).
                                             state.exceptionPayloadEnums.set(cls.module + "::" + cls.name, {module: payload.module, name: payload.name});
+                                            RustSymbols.emitted({module: payload.module, name: payload.name});
                                         case _:
                                     }
                                     if (!hasPayload && RustDecl.isMessageOnlyException(cls))
