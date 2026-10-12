@@ -107,6 +107,11 @@ class KotlinExpr {
         return {type: null, admitsAbsence: admitsAbsence, role: ArithmeticOperand, errorSlot: null};
     }
 
+    /** A RangeBound destination for P2.2 migration sites. */
+    static function rangeBoundDest():Destination {
+        return {type: null, admitsAbsence: false, role: RangeBound, errorSlot: null};
+    }
+
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
 
@@ -1714,18 +1719,16 @@ class KotlinExpr {
                 // A range bound is an Int position, so a nullable receiver
                 // still extracts; the safe-call form yields Int? and Kotlin
                 // rejects it as a range endpoint (NonNullRangeBound).
-                if (isNullType(subj.t) && !receiverProven(subj)) {
+                final nullable = !receiverProven(subj) && (isNullType(subj.t) || nullableChainHop(subj));
 #if (kotlin_fold_debug || kotlin_emit_origins)
+                if (nullable && isNullType(subj.t))
                     emissionTrace("LOOP_BOUND", expr(subj), subj.pos);
 #end
-                    return expr(subj) + "?." + suffix + "!!";
-                }
-                if (nullableChainHop(subj) && !receiverProven(subj)) {
-                    return expr(subj) + "?." + suffix + "!!";
-                }
-                return expr(subj) + "." + suffix;
+                return KotlinCoerce.coerce(
+                    lowerTextPresence(expr(subj) + (nullable ? "?." : ".") + suffix, nullable ? MaybeAbsent : Present),
+                    rangeBoundDest());
             case TCall(_, _):
-                return expr(bound) + (rendersNullable(inner) ? "!!" : "");
+                return KotlinCoerce.coerce(lowerText(inner, expr(bound)), rangeBoundDest());
             case _:
                 return expr(bound);
         }
@@ -1839,6 +1842,18 @@ class KotlinExpr {
             text: text,
             storage: null,
             presence: rendersNullable(e) ? MaybeAbsent : Present,
+            errorDomain: null,
+            unit: null,
+            origin: null,
+        };
+    }
+
+    /** Build a Lowered from already-rendered text + an explicit presence. */
+    function lowerTextPresence(text:String, presence:Presence):Lowered {
+        return {
+            text: text,
+            storage: null,
+            presence: presence,
             errorDomain: null,
             unit: null,
             origin: null,
