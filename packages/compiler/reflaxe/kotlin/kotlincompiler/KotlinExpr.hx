@@ -38,6 +38,10 @@ import SourceComparisonAnalysis;
 import SourceComparisonAnalysis.SourceComparisonRequest;
 import SourceComparisonAnalysis.SourceAdmissionResult;
 import EmitSink;
+import LoweredValue.Lowered;
+import LoweredValue.Presence;
+import Destination;
+import Destination.DestinationRole;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Kotlin.
@@ -91,6 +95,11 @@ class KotlinExpr {
 
     public static function registerNullInitializedField(key:String):Void {
         nullInitializedFields.set(key, true);
+    }
+
+    /** A Condition destination for P1 migration sites. */
+    static function conditionDest():Destination {
+        return {type: null, admitsAbsence: false, role: Condition, errorSlot: null};
     }
 
     /** Field reads proven non-null by a dominating null check. */
@@ -1261,7 +1270,7 @@ class KotlinExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TIf(c, t, f):
-                final condition = expr(c) + (rendersNullable(c) ? " == true" : "");
+                final condition = KotlinCoerce.coerce(lower(c), conditionDest());
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
                 final out = [indent(depth) + "if (" + condition + ") {"];
@@ -1293,7 +1302,7 @@ class KotlinExpr {
                 out.push(indent(depth) + "}");
                 return out;
             case TWhile(c, b, true):
-                final out = [indent(depth) + "while (" + expr(c) + ") {"];
+                final out = [indent(depth) + "while (" + KotlinCoerce.coerce(lower(c), conditionDest()) + ") {"];
                 // A loop body may run zero times: its assertions never
                 // dominate reads after the loop. (ExtractionSuppressesRepeat)
                 final bodyExtractions = extractionSnapshot();
@@ -1814,6 +1823,23 @@ class KotlinExpr {
         };
     }
 
+    /** Wrap expr(e) + rendersNullable(e) into a Lowered value object. */
+    function lower(e:TypedExpr):Lowered {
+        return lowerText(e, expr(e));
+    }
+
+    /** Build a Lowered from already-rendered text + rendersNullable. */
+    function lowerText(e:TypedExpr, text:String):Lowered {
+        return {
+            text: text,
+            storage: null,
+            presence: rendersNullable(e) ? MaybeAbsent : Present,
+            errorDomain: null,
+            unit: null,
+            origin: null,
+        };
+    }
+
     function expr(e:TypedExpr):String {
         final int64Expr = int64Expression(e);
         if (int64Expr != null)
@@ -1964,7 +1990,7 @@ class KotlinExpr {
                         return hardenAppend(expr(coalescing.valueExpr), " ?: " + expr(coalescing.defaultExpr));
                     return expr(coalescing.valueExpr);
                 }
-                final condition = expr(c) + (rendersNullable(c) ? " == true" : "");
+                final condition = KotlinCoerce.coerce(lower(c), conditionDest());
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
                 // Arms render in their own dominance scope.
@@ -3877,7 +3903,7 @@ class KotlinExpr {
         final inner = expr(subj);
         switch (op) {
             case OpNot:
-                return "!" + inner + (rendersNullable(subj) ? "!!" : "");
+                return "!" + KotlinCoerce.coerce(lowerText(subj, inner), conditionDest());
             case OpNegBits:
                 return inner + ".inv()";
             case OpNeg:
