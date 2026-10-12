@@ -1,6 +1,7 @@
 package kotlincompiler;
 
 #if (macro || reflaxe_runtime)
+import haxe.macro.Context;
 import LoweredValue.Lowered;
 import LoweredValue.Presence;
 import Destination;
@@ -35,6 +36,27 @@ class KotlinCoerce {
         }
         return out;
     }
+
+    /**
+        Parse `-D kotlin_coerce_ablate=<Role>` (parse-only in P2.0; the
+        switch carries no effect yet). Only payload-free DestinationRole
+        constructors are addressable through a define; payload-bearing
+        roles have no textual form and resolve to null. P2.1+ consumes
+        this for GP-ABLATE.
+    **/
+    public static function ablateRole():Null<DestinationRole> {
+        return parseAblateRole(Context.definedValue("kotlin_coerce_ablate"));
+    }
+
+    static function parseAblateRole(raw:Null<String>):Null<DestinationRole> {
+        return switch (raw) {
+            case "Condition": Condition;
+            case "ArithmeticOperand": ArithmeticOperand;
+            case "RangeBound": RangeBound;
+            case "StringConcatArgument": StringConcatArgument;
+            case "Discard": Discard;
+            case _: null;
+        }
+    }
 }
 #end
-
