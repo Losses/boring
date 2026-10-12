@@ -67,3 +67,6 @@ boring-*.stuck.md
 
 # task-workspace scratch (task copies snapshot this dir via jj; ignore keeps it out of deliveries)
 .task-tmp/
+
+# workspace-board transient scratch locks (pollute gitClean checks if visible)
+.workspace-board-scratch-lock-*/
