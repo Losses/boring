@@ -3447,16 +3447,22 @@ class KotlinExpr {
     }
 
     /**
-        Whether the root local of one access chain is a Kotlin-stable value.
-        A root that is not a local at all (`this`, a call result, a literal)
-        states no local instability here and is left to the access form: the
-        key that reaches this predicate is already a `TLocal`/`this` receiver.
+        Whether the root local of one access chain is a Kotlin-stable value:
+        not rebound by the body (`rebind`, non-prepared `mutated`) and not
+        written by a capturing closure (`closurewrite`, prepared
+        `closureWrites`). A root that is not a local at all (`this`, a call
+        result, a literal) states no local instability here and is left to the
+        access form: the key that reaches this predicate is already a
+        `TLocal`/`this` receiver. `drop=rebind` / `drop=closurewrite` drop the
+        matching half (GP-ABLATE).
     **/
     function receiverRootStable(e:TypedExpr):Bool {
         final root = subjectRootLocal(e);
         if (root == null)
             return true;
-        return prepared == null ? !mutated.exists(root.id) : !prepared.closureWrites.exists(root.id);
+        if (prepared == null)
+            return dropped("rebind") || !mutated.exists(root.id);
+        return dropped("closurewrite") || !prepared.closureWrites.exists(root.id);
     }
 
     /**
@@ -3471,7 +3477,7 @@ class KotlinExpr {
     **/
     function dropProofsForWriteTarget(target:TypedExpr):Void {
         switch (stripWrap(target).expr) {
-            case TLocal(v):
+            case TLocal(v) if (!dropped("rebind")):
                 final prefix = "field:" + v.id + ".";
                 for (key in nonNullFields.keys())
                     if (StringTools.startsWith(key, prefix))
@@ -3493,38 +3499,61 @@ class KotlinExpr {
         two can no longer answer the same question differently. Same family as
         PIT-388 / PIT-416 / TCN-162.
 
-        Kotlin's two halves for a field read, neither implied by the other and
-        neither supplied by the flow proof:
+        Kotlin smart-casts a property only when every clause below holds, and
+        each clause names one fixture. GP-ABLATE: `-D
+        kotlin_smartcast_drop=<clause>` drops that one clause, so its fixture
+        smart-casts anyway and kotlinc surfaces the error the clause prevents.
 
-          * the property must be immutable. A `var` property is never
-            smart-castable however good the guard is: "smart cast to 'T' is
-            impossible, because 'x' is a mutable property that could be
-            mutated concurrently". Only a Haxe `final` backing field lowers to
-            a Kotlin `val`, so the field half is `isFinal` on an `FVar`; a
-            getter-property accessor is excluded because Kotlin refuses a
-            smart cast through a custom getter.
-          * the receiver chain's root local must be one Kotlin treats as
-            stable. A local a capturing closure writes makes every
-            `root.field` projection unstable, and a local this body rebinds
-            stops being stable from the rebinding onward; the latter half is
-            enforced where the write is emitted, by
-            `dropProofsForWriteTarget`.
+        | clause         | judgement                                  | fixture -> kotlinc error |
+        | -------------- | ------------------------------------------ | ------------------------ |
+        | `val`          | immutable property (`FVar` + `isFinal`)    | `var` field -> "mutable property" |
+        | `getter`       | no custom getter (`!isGetterOnlyProperty`) | `final var X(get, never)` -> "custom getter" |
+        | `open`         | not `open` (structurally always true)      | none (vacuous; `drop=open` no-op) |
+        | `sameunit`     | declaring class and use site in one unit   | cross-unit `val` read |
+        | `closurewrite` | root local not written by a capturing closure | closure rebinds root -> "capturing closure" |
+        | `rebind`       | root local not rebound in the body         | root rebound between guard/use |
 
         The local half is the same question for a plain binding: only a
         binding the body leaves alone smart-casts. (VarFieldSmartCast)
     **/
     function smartCastableSubject(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
-            case TLocal(v): !bodyWritesLocal(v.id);
+            case TLocal(v): dropped("rebind") || !bodyWritesLocal(v.id);
             case TField(receiver, FInstance(c, _, cf)) | TField(receiver, FStatic(c, cf)):
-                cf.get().kind.match(FVar(_, _)) && cf.get().isFinal && receiverRootStable(e)
+                fieldPropertyStable(cf.get()) && receiverRootStable(e)
                     && nullableAccess(receiver) != "?."
-                    && CompilationUnits.sameUnit(c.get().module, Context.getLocalModule());
+                    && (dropped("sameunit")
+                        || CompilationUnits.sameUnit(c.get().module, Context.getLocalModule()));
             case TField(receiver, FAnon(cf)):
-                cf.get().kind.match(FVar(_, _)) && cf.get().isFinal && receiverRootStable(e)
+                fieldPropertyStable(cf.get()) && receiverRootStable(e)
                     && nullableAccess(receiver) != "?.";
             case _: false;
         };
+    }
+
+    /**
+        The property-shape clauses (`val`, no custom getter, not `open`) on one
+        field. `drop=val` admits a mutable property, `drop=getter` admits a
+        getter-only property; `open` has no negative shape, so no drop branch.
+    **/
+    function fieldPropertyStable(cf:ClassField):Bool {
+        if (!cf.kind.match(FVar(_, _)))
+            return false;
+        if (!dropped("val") && !cf.isFinal)
+            return false;
+        if (!dropped("getter") && PolicyQueries.isGetterOnlyProperty(cf))
+            return false;
+        return true;
+    }
+
+    /**
+        GP-ABLATE: whether `-D kotlin_smartcast_drop=<clause>` asks this build
+        to drop one smart-cast clause (see the table above). Parse-only in
+        shipped output; `open` is recognized but drops nothing because the
+        backend never emits `open`.
+    **/
+    function dropped(clause:String):Bool {
+        return Context.definedValue("kotlin_smartcast_drop") == clause;
     }
 
     /**
