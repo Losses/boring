@@ -16,8 +16,8 @@ import swiftcompiler.SwiftComparisonPlan.SwiftComparisonPlanResult;
     docs/specs/features/07-numeric-tower.md and the stdlib rulings: Int is Int32 and
     Float is Double (numbers ruling), haxe.io.Bytes is the byte array
     (stdlib/01), haxe.io.BytesBuffer is the runtime growth class
-    (stdlib/02), ReadOnlyArray is the native [T] array
-    (features/18). The
+    (stdlib/02), ReadOnlyArray dual-axis: storage is the native [T] array (features/18),
+    presence per compiler-policy-interfaces.md:175-183. The
     resident string ABI (docs/specs/features/08-strings-and-unicode.md) renders String as Array<UInt16>
     inside resident modules; business modules keep native String and
     convert once at the resident boundary.
