@@ -15,12 +15,14 @@ the investigation in `docs/investigations/architecture-round-1/` (2026-10-03 cle
 
 | Category | Responsibility | Input Facts | Owner | Typical Symptom When Boundaries Are Crossed |
 |---|---|---|---|---|
-| **A** | **Source Fact Extraction** | Types, annotations, literals on the AST | Frontend | Treating unannotated inference as fact |
+| **A** | **Source Fact Extraction** | Types, annotations, literals, **compilation unit topology** on the AST | Frontend | Treating unannotated inference as fact; **cross-module smart cast missing because isTestModule not visible to expression emitter** |
 | **B** | **Representation Choice** | What shape the type takes in the target language | Target backend | Same Haxe type emitted in different shapes at different positions |
 | **C** | **Boundary Conversion** | Whether wrapping/unwrapping is needed between source and target | Boundary layer | Missing wrapping or duplicate wrapping |
 | **D** | **Destination Inference** | What type this position needs | **The composition that surrounds it** | Borrowing an unrelated return type (**see lambda defect**) |
 | **E** | **Effect & Lifetime** | Evaluation count, laziness, aliasing, lifetime | Composition + backend | Duplicate evaluation, alias mutation |
 | **F** | **Diagnostics & Suppression** | Whether generated code is valid and warning-free | Backend | Warnings treated as acceptable |
+| **G1** | **Criterion Source Uniqueness** | Which judgement has how many independent implementations | Cross-cutting (appears inside any of A–F) | Multiple sites independently judge the same fact; divergence invisible in passing state |
+| **G2** | **Input Completeness** | Whether the input set to a derivation is exhaustive | Cross-cutting | Missing input silently changes output; full-corpus identity masks single-point defects |
 
 ## Why Category D Must Have a Clear Owner (Core Lesson of This Session)
 
@@ -33,7 +35,7 @@ the conversion code itself is correct; what is wrong is **the destination it ref
 
 ⇒ **The owner of Category D is "the composition that surrounds the position"**, not the surrounded expression,
 nor the outer function. Sol's formulation: *"Composition owns intermediate requirements"*
-(`docs/compiler-policy-interfaces.md:169`).
+(`docs/compiler-policy-interfaces.md:191`).
 
 ⇒ **Criterion**: if placing the same expression in different compositions yields different (but each correct) outputs,
 then at that position the destination **must** be passed in by the composition and **must not** be inferred from global state.
@@ -91,17 +93,18 @@ Status words like `(in progress)` are especially dangerous: they assert a **pres
 4. **Failure classification must carry attribution**: responsibility of the candidate / pre-existing repository state / missing documentation
    (lesson recorded from P10, published in `docs/architecture/ACCEPTANCE-REFLECTION.md` §2,
    publication commit `ec4c5c2d` — that file was deleted on 2026-10-03 during the process-document clearance, traceable via the commit; the earlier draft path `out/p10-reflection/` has been superseded by that publication).
+5. **Fix scope must declare (Destination role x Existence) combination and enumerate sibling sites** (NEW). A fix at one site risks being silently incomplete: the same lowering path may reach other sites with the same (role, existence) pair. Before closing a defect, list all sibling sites that share the same Destination role and operand nullability/optionality/existence, and either fix or document why each is unaffected. This is analogous to the category-D lesson that the composition owns the destination — the frontend lowering owns all sites with the same composition shape.
+6. **Anti-pattern: Open failure default** (NEW). A lowering function that returns a default when it cannot determine the correct value (null returns false, missing table entry returns "not nullable") produces a "looks valid, silently wrong" output. Every lowering function must either (a) abort with a diagnostic naming what fact is missing, or (b) refuse to emit the compilation unit. A default that silently passes a downstream check is a latent defect.
 
 ## What This Classification Does Not Yet Cover
 
-- **Category G (provisional name): uniqueness of criterion source**. A–F classifies "**who is responsible for one piece of code**",
-  but this item asks "**how many places independently judge the same thing**". Observed: Rust's `state.shimsUsed`
-  has **28 write sites** (3 files) and **12 read sites** (gating emission), with **no contract** specifying who must write;
+- **Category G1 (uniqueness of criterion source)** and **G2 (input completeness)** are now promoted into the main table above. The original gap described Rust
+  having **28 write sites** (3 files) and **12 read sites** (gating emission), with **no contract** specifying who must write;
   it is simultaneously treated as "a business reference to some extern" (intent) and "whether some resident should be emitted" (emission),
   **the two layers are not equivalent** ⇒ modules declared in `runtime/mod.rs` were never emitted (`E0583`).
   This is a **cross-cutting** category: it can appear inside any of A–F, so it is **not suitable** to squeeze into A–F;
-  it has been recorded as **Contract 6** in `ARCHITECTURAL-CONTRACTS.md`; this section only registers the classification gap.- **Category J migration** (legacy Kotlin → Haxe) failures are not classified into A–F;
-  CODEX-AUDIT notes "complete J migration were not established".
+  it has been recorded as **Contract 6** in INTERFACE-REQUIREMENTS.md; this section only registers the classification gap.
+- **Category J migration** (legacy Kotlin to Haxe) failures are not classified into A-F;
 - **Naming consistency** (ReadOnlyArray naming violation) — whether it belongs to F or is a separate category has not been decided.
 - The instance table for each target is **incomplete**: it only lists those recorded in this session,
   not an inventory of all known failures per target.
@@ -119,6 +122,6 @@ but in two sections of `LAYERED-VERIFICATION.md` — to avoid writing the same r
 - **Delivery surface: load-bearing artefacts must answer "which commit contains it"** (same file): tools, guardrails, fixtures, drivers,
   assertion scripts must be checked in; tested `dc-warn/worktrees/` — **37/37** all detached with none carrying commits beyond `e1c65975`,
   and the evidence checklist mixed in **git-ignored** paths, making "one command rc=0" **only hold for the author's working copy**.
-- **"Which tool" and "which diagnostics that tool can see" must be stated separately** (see `ARCHITECTURAL-CONTRACTS.md` Contract 3 supplement).
+- **"Which tool" and "which diagnostics that tool can see" must be stated separately** (see `INTERFACE-REQUIREMENTS.md` Contract 3 supplement).
   This is **adjacent to but at a different angle from** Category F (warnings counted as acceptance) in this document: Category F asks "should it be counted",
   this asks "can this command **see** it" (`swiftc -typecheck` reports 0 even in baseline state ⇒ relying solely on the type-checker turns zero warnings into an empty criterion).

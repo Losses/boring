@@ -7,7 +7,7 @@ The classification (`PROBLEM-CLASSIFICATION.md`) clarifies "which class of failu
 
 **Rule**: a conversion site must be given the **destination** (target type); it must not infer it from compiler-instance state.
 
-**Current facts** (verified; candidate tree `SwiftExpr.hx`, 7041 lines):
+**Current facts** (verified; candidate tree `SwiftExpr.hx`, 7343 lines):
 - `currentReturnType` is an **instance field** of `SwiftExpr` (`:218`); its only write is at `:544`
   (`functionBody`, from the member's `TFun` return), cleared at `:563`.
 - `functionLiteral` (`:2338-2345`) only saves/restores `currentFuncReturnsOptional`,
@@ -23,6 +23,15 @@ where destination is provided by the composition that owns the site:
   - inline block / anonymous helper -> the block's own result type (not the outer lambda's)
   - binding route     -> the type of the bound variable (v.t)
   - argument route    -> the parameter type declared by the callee
+Target-side Destination roles (complement, from report Section 4.2 item 1):
+  - **Condition**         → the boolean condition of if/while/assert
+  - **ArithmeticOperand** → one operand of +, -, comparison, etc.
+  - **RangeBound**        → the endpoint of a for-loop or slice
+  - **Receiver(memberKind)** → the left-hand side of a member access
+  - **StringConcatArgument** → one argument of a string interpolation or concatenation
+  - **Discard**           → the result is computed for side effects; no consumer
+
+Destination is a value object (Destination), not a bare Haxe Type: it carries the target type plus the role that the position demands.
 ```
 **The last item is this session's lesson**: the `blockExpression` block has its own destination;
 treating it as the lambda's return contract **injects a wrong conversion** (the P4 regression of `lambda-fix-xcheck`,
@@ -200,6 +209,60 @@ Similarly, **mutation testing must be done before weakening an assertion**: afte
 `stdout+stderr>0`, a real regression that "silently drops stderr on the upper-limit path"
 had the entire test suite rc=0 all-green (restoring the old assertion captured it at rc=1). The basis for relaxation can only be
 "what does the subject under test guarantee", not "it no longer fails sporadically after the change".
+
+
+## Contract 7: Value object carries facts (NEW, from report Section 4.2 item 2)
+
+**Rule**: every lowering function must return a `Lowered` value object, not just a `String`.
+A `Lowered` carries:
+  - `text: String` -- the emitted target-language source fragment
+  - `storage: Representation` -- the actual target-side storage shape (`TiqianArray`, `[T]`, etc.)
+  - `presence: Presence` -- `Present` (non-optional, bare `.` / `!!` / `.unwrap()`),
+    `MaybeAbsent` (optional, `?.` / `?` / `?=` / `!=` guard), or `Unknown` (requires
+    `Destination.admitsAbsence` to decide)
+  - `errorType: Option<SymbolRef>` -- how to route absence (e.g. `std.FsException`),
+    set when `presence = MaybeAbsent` and the backend supports error forwarding
+
+**No parallel prediction function may re-infer what the lowering already determined**:
+`rendersNullable`, `callRendersNullable`, `nullableChainHop` (Kotlin), `arrayOperandOptionality`,
+`optionalValued` (Swift), and `funcErrorEnums.exists` string-query (Rust) are replaced by
+reading `Lowered.presence` and `Lowered.errorType`.
+
+## Contract 8: Single conversion entry, three-axis orthogonality (NEW, from report Section 4.2 item 3)
+
+**Rule**: each backend exposes exactly one `coerce(Lowered, Destination): String` entry point.
+It operates on three independent axes in order:
+  - **Storage axis**: `TiqianArray` <-> `[T]`, `String` <-> `Array<UInt16>`, etc.
+  - **Presence axis**: `MaybeAbsent -> Present` (unwrap), `Present -> MaybeAbsent` (wrap),
+    `Unknown + admitsAbsence` (emit as optional), `Unknown + !admitsAbsence` (diagnostic)
+  - **Error axis**: `Result<T,E>` -> `throws` / `Result<T,E>` in Rust, `catch` / `!` in Swift
+
+A B-layer representation change (e.g. `ReadOnlyArray` -> `[T]`) only affects the storage axis;
+the presence axis decision is independent. No backend code may skip `coerce` and emit raw text
+with ad-hoc `!` / `!!` / `?.` / `.unwrap()` appends.
+
+## Contract 9: Target-language rule predicate clause table (NEW, from report Section 4.2 item 4)
+
+**Rule**: every backend must maintain a table of `(predicate, required_inputs, L5_fixture)` clauses.
+Each clause names exactly which facts the predicate consumes and what the failing fixture scores.
+Examples (Kotlin):
+  - `smartCastFor(property) -> true` requires: `sameModule(decl, use)` AND
+    `LocalProp.get(property).visibility != private` AND `!aliasedBetween(decl, use)`
+  - Missing input: `sameModule` without `CompilationUnits` -> always returns true,
+    cross-module public property silently smart-cast (the Round 2 Kotlin defect).
+
+**Every clause in the table is a verifiable criterion**: the L5 discriminating backend for that
+clause removes the clause and the corresponding fixture must fail.
+
+## Contract 10: References must point at emission-plan symbols (NEW, from report Section 4.2 item 5)
+
+**Rule**: every generated reference (module import, type symbol, function name) must be a
+`SymbolRef` registered in the emission plan for the current compilation unit. A `refer(symbol, fromUnit)`
+call that cannot resolve the symbol is a compiler error with a diagnostic naming the unresolved
+symbol and the requesting unit -- no fallback to a constructed string path is allowed.
+
+This replaces `Compiler.hx:1743`'s `emitted != null ? emitted : "std.FsException"` fallback and
+any path constructed by string concatenation without symbol registration.
 
 ## Undecided
 
