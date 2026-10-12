@@ -3,6 +3,7 @@ package rustcompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import CompilationUnits;
 import PolicyQueries;
 import TestApplicability;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
@@ -323,6 +324,7 @@ class Compiler extends PluginCompiler<Compiler> {
         for (module in parts.keys())
             modules.push(module);
         modules.sort(Reflect.compare);
+        CompilationUnits.dumpIfRequested(modules);
 
         final packages:Map<String, Array<String>> = [];
         final packageChildren:Map<String, Array<String>> = [];
@@ -1056,6 +1058,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
     function preScan(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
         RustSymbols.state = state;
+        CompilationUnits.registerFromModuleTypes(mtypes, false);
         // An interface whose implementors all derive Clone gets a clone_box
         // hook so a Box<dyn Trait> field keeps its owner's derive. Collect
         // the implementor set first, then mark the interfaces whose whole
