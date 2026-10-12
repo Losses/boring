@@ -1,0 +1,9 @@
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/kotlin-smartcast-drop
+-cp samples
+--macro Intercept.run(['samples','tests/haxe/kotlin-smartcast-drop'])
+--macro kotlincompiler.Compiler.use()
+casee.SmartcastDrop
