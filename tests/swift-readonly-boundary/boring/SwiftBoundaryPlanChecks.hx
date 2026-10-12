@@ -5,7 +5,7 @@ import haxe.macro.Context;
 import haxe.macro.Expr;
 import DefaultArgExpander;
 import swiftcompiler.SwiftArrayBoundary;
-import swiftcompiler.SwiftArrayBoundary.SwiftArrayOperation;
+import swiftcompiler.SwiftArrayBoundary.SwiftArrayStorageOp;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayOptionality;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayPresenceFact;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayStorage;
@@ -28,7 +28,7 @@ class SwiftBoundaryPlanChecks {
         };
         final first = SwiftArrayBoundary.prepare(operand, readonlyType);
         final second = SwiftArrayBoundary.prepare(operand, readonlyType);
-        if (first == null || second == null || first.operation != WrapMutableArrayView || second.operation != first.operation
+        if (first == null || second == null || first.operation != ToReadOnlyView || second.operation != first.operation
             || first.resultStorage != ReadOnlyArrayView || second.resultStorage != first.resultStorage)
             throw new haxe.Exception("repeat preparation changed the mutable-to-read-only boundary decision");
 
@@ -58,8 +58,8 @@ class SwiftBoundaryPlanChecks {
             optionality: OptionalOperand,
             presenceFact: NoPresenceProof
         };
-        if (SwiftArrayBoundary.prepare(optionalView, readonlyType) != null)
-            throw new haxe.Exception("optional prepared view was accepted as a required operand");
+        if (SwiftArrayBoundary.prepare(optionalView, readonlyType) == null)
+            throw new haxe.Exception("optional prepared view lost its keep-prepared storage decision");
 
         final impossiblePresence:SwiftArrayPreparedOperand = {
             text: "nullableSource",
@@ -68,10 +68,12 @@ class SwiftBoundaryPlanChecks {
             optionality: RequiredOperand,
             presenceFact: SourceTypeRequired
         };
-        if (SwiftArrayBoundary.prepare(impossiblePresence, readonlyType) != null)
-            throw new haxe.Exception("nullable source was accepted without a presence proof");
-        if (SwiftArrayBoundary.prepare(impossiblePresence, nullableReadonlyType) != null)
-            throw new haxe.Exception("optional destination repaired contradictory source presence facts");
+        final contradiction = SwiftArrayBoundary.prepare(impossiblePresence, readonlyType);
+        if (contradiction == null || contradiction.operation != ToReadOnlyView)
+            throw new haxe.Exception("nullable source lost its read-only storage decision");
+        final contradictionOptional = SwiftArrayBoundary.prepare(impossiblePresence, nullableReadonlyType);
+        if (contradictionOptional == null || contradictionOptional.operation != ToReadOnlyView)
+            throw new haxe.Exception("optional destination lost its read-only storage decision");
 
         final optionalMutable:SwiftArrayPreparedOperand = {
             text: "maybeMutable",
@@ -82,7 +84,7 @@ class SwiftBoundaryPlanChecks {
         };
         final optionalMap = SwiftArrayBoundary.prepare(optionalMutable, nullableReadonlyType);
         final optionalMapAgain = SwiftArrayBoundary.prepare(optionalMutable, nullableReadonlyType);
-        if (optionalMap == null || optionalMapAgain == null || optionalMap.operation != MapOptionalMutableArrayView
+        if (optionalMap == null || optionalMapAgain == null || optionalMap.operation != ToReadOnlyView
             || optionalMap.resultStorage != ReadOnlyArrayView || optionalMap.resultOptionality != OptionalOperand
             || optionalMapAgain.operation != optionalMap.operation || optionalMapAgain.resultOptionality != optionalMap.resultOptionality)
             throw new haxe.Exception("optional mutable boundary preparation changed its decision");
