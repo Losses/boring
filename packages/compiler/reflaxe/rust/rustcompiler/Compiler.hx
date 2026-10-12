@@ -1339,6 +1339,12 @@ class Compiler extends PluginCompiler<Compiler> {
         a chain of private statics reachable only from dead code dies with
         it. Public members, tests, and @:keep fields are never candidates;
         their emission does not depend on references.
+        StaticReferenceScan.scan stays a producer rather than reading the
+        emission plan: it computes the reference set that
+        RustEmissionPlan.fieldEmit derives from (computeEmissionPlan phase 2)
+        and makes no emission decision itself. The plan is the only
+        emission-judgment consumer, so having the scan read the plan would
+        be circular.
     **/
     function scanStaticReferences(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
         final referenced = StaticReferenceScan.scan(mtypes, cls -> !cls.isExtern
@@ -1358,7 +1364,7 @@ class Compiler extends PluginCompiler<Compiler> {
            referenced from emitted bodies, replacing the state.referencedImpls
            read in compileClassImpl (whole-class drop) and scanFallibility
            (skip registration). Populated by walking every in-scope class
-           body, the same walk scanReferencedImpls formerly performed, so
+           body, so
            the plan already knows every module expression rendering
            (RustExpr.hx static call sites) will mark at render time.
 
