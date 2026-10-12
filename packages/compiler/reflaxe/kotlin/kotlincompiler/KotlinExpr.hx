@@ -3516,7 +3516,11 @@ class KotlinExpr {
     function smartCastableSubject(e:TypedExpr):Bool {
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TLocal(v): !bodyWritesLocal(v.id);
-            case TField(receiver, FInstance(_, _, cf)) | TField(receiver, FAnon(cf)) | TField(receiver, FStatic(_, cf)):
+            case TField(receiver, FInstance(c, _, cf)) | TField(receiver, FStatic(c, cf)):
+                cf.get().kind.match(FVar(_, _)) && cf.get().isFinal && receiverRootStable(e)
+                    && nullableAccess(receiver) != "?."
+                    && CompilationUnits.sameUnit(c.get().module, Context.getLocalModule());
+            case TField(receiver, FAnon(cf)):
                 cf.get().kind.match(FVar(_, _)) && cf.get().isFinal && receiverRootStable(e)
                     && nullableAccess(receiver) != "?.";
             case _: false;
