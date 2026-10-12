@@ -1995,6 +1995,27 @@ class SwiftExpr {
         return StringTools.endsWith(withInteger, ".") ? withInteger + "0" : withInteger;
     }
 
+    /**
+        P5.2: lower(e) wraps expr(e) with the fact-carrying Lowered value.
+        presence comes from swiftPresence (P5.1); other axes null until
+        their migration steps. Callers migrate to coerce(lower(...), dest)
+        starting P5.3.
+    **/
+    function lower(e:TypedExpr):Lowered {
+        return lowerText(e, expr(e));
+    }
+
+    function lowerText(e:TypedExpr, text:String):Lowered {
+        return {
+            text: text,
+            storage: null,
+            presence: swiftPresence(e),
+            errorDomain: null,
+            unit: null,
+            origin: null
+        };
+    }
+
     function expr(e:TypedExpr):String {
         final int64Expr = int64Expression(e);
         if (int64Expr != null)
