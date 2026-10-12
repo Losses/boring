@@ -505,6 +505,7 @@ tests.ArrayJoinTests
 boring.StringAppendOps
 tests.StringAppendTests
 boring.EnumLookupOps
+boring.EnumQNameNullPreservingFixture
 tests.EnumLookupTests
 boring.TernaryInterfaceOps
 tests.TernaryInterfaceTests
