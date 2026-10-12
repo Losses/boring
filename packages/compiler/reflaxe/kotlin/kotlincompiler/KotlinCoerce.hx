@@ -31,6 +31,15 @@ class KotlinCoerce {
                         out = out + " == true";
                     case _:
                 }
+            case ArithmeticOperand:
+                // presence axis: an arithmetic/comparison operand that does
+                // not admit absence extracts the value, so a nullable
+                // subject hardens with "!!".
+                switch (value.presence) {
+                    case MaybeAbsent if (!dest.admitsAbsence):
+                        out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                    case _:
+                }
             case _:
                 // storage / error axes are stubs for future migration steps
         }
@@ -46,6 +55,32 @@ class KotlinCoerce {
     **/
     public static function ablateRole():Null<DestinationRole> {
         return parseAblateRole(Context.definedValue("kotlin_coerce_ablate"));
+    }
+
+    // Mirrors KotlinExpr.isAtomicAppendTarget until P3.3 collapses both (I2).
+    static function isAtomicAppendTarget(text:String):Bool {
+        var depth = 0;
+        var i = 0;
+        final n = text.length;
+        while (i < n) {
+            final c = text.charAt(i);
+            switch (c) {
+                case "(" | "[":
+                    depth++;
+                case ")" | "]":
+                    depth--;
+                    if (depth < 0)
+                        return false;
+                case "{" | "}":
+                    return false;
+                case " " | "." | "?" | "+" | "-" | "*" | "/" | "%" | "<" | ">" | "=" | "!" | "&" | "|" | "," | ":" | ";":
+                    if (depth == 0)
+                        return false;
+                case _:
+            }
+            i++;
+        }
+        return depth == 0;
     }
 
     static function parseAblateRole(raw:Null<String>):Null<DestinationRole> {
