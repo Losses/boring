@@ -564,10 +564,11 @@ class RustExpr {
                 // the same unwrap through normalizeConstructorResult. Inside
                 // an unwrap_or_else closure the closure returns the concrete
                 // value, so `?` cannot propagate there.
-                if (state.funcErrorEnums.exists(RustEmissionState.funcKey(modulePath, "new", false))) {
-                    final ctorFault = state.funcErrorTypes.get(RustEmissionState.funcKey(modulePath, "new", false));
-                    constructed += defaultErrorSuffix(ctorFault != null ? ctorFault.name : null, inClosure);
-                }
+                final ctorFault = skippedNamedType(modulePath, className)
+                    ? null
+                    : ErrorDomainRegistry.errorRef(RustEmissionState.funcKey(modulePath, "new", false));
+                if (ctorFault != null)
+                    constructed += defaultErrorSuffix(ctorFault.name, inClosure);
                 // A concrete implementor default entering an interface slot
                 // boxes through the same sanctioned construction the
                 // ordinary call path uses; the interface default is
@@ -692,10 +693,11 @@ class RustExpr {
         // enters the slot, mirroring the constructor default handling.
         // Inside an unwrap_or_else closure the closure returns the concrete
         // value, so `?` cannot propagate there.
-        if (state.funcErrorEnums.exists(RustEmissionState.funcKey(modulePath, methodName, true))) {
-            final staticFault = state.funcErrorTypes.get(RustEmissionState.funcKey(modulePath, methodName, true));
-            rendered += defaultErrorSuffix(staticFault != null ? staticFault.name : null, inClosure);
-        }
+        final staticFault = skippedNamedType(modulePath, className)
+            ? null
+            : ErrorDomainRegistry.errorRef(RustEmissionState.funcKey(modulePath, methodName, true));
+        if (staticFault != null)
+            rendered += defaultErrorSuffix(staticFault.name, inClosure);
         return rendered;
     }
 
@@ -10348,9 +10350,18 @@ class RustExpr {
     **/
     function instanceToStringFallible(t:Type):Bool {
         final module = instanceToStringModule(t);
-        return module != null
-            && (RustEmissionState.runtimeShimIsFallible("toString")
-                || state.funcErrorEnums.exists(RustEmissionState.funcKey(module, "toString", false)));
+        if (module == null)
+            return false;
+        if (RustEmissionState.runtimeShimIsFallible("toString"))
+            return true;
+        return switch (ErrorDomainRegistry.lookup(RustEmissionState.funcKey(module, "toString", false))) {
+            case Fallible(_): true;
+            // A std/extern superclass toString is never emitted in this scope
+            // and can only be infallible; only an in-scope source toString can
+            // carry a Result error domain, so Unknown folds to false here.
+            case Infallible: false;
+            case Unknown: false;
+        };
     }
 
     /** The module of the class that declares the text read of a class value. */
@@ -12916,6 +12927,36 @@ class RustExpr {
         return result;
     }
 
+    /**
+        Resident/extern callee types are skipped by the fallibility scan, so
+        their funcKey is absent from both funcErrorEnums and funcErrorKnown.
+        Their fallibility is fully decided by the resident-shim / std.Fs /
+        nodeFs / interface-shape checks that run before the registry lookup,
+        so an unlisted resident callee is safely infallible. An in-scope
+        Unknown stays a fault in ErrorDomainRegistry. (WBS P6.4)
+    **/
+    function skippedCalleeType(c:ClassType):Bool {
+        return c.isExtern || !PolicyQueries.inSourceScope(c.pos);
+    }
+
+    /** Resolve a module-qualified type name and test it with
+        skippedCalleeType; an abstract or enum is resident only when the
+        macro type itself is extern or out of source scope. */
+    function skippedNamedType(module:String, name:String):Bool {
+        return try {
+            switch (Context.getType(module + "." + name)) {
+                case TInst(ref, _): skippedCalleeType(ref.get());
+                case TAbstract(ref, _):
+                    final abs = ref.get();
+                    abs.isExtern || !PolicyQueries.inSourceScope(abs.pos);
+                case TEnum(ref, _):
+                    final en = ref.get();
+                    en.isExtern || !PolicyQueries.inSourceScope(en.pos);
+                case _: false;
+            }
+        } catch (_:Dynamic) false;
+    }
+
     function isFallibleCallee(c:Ref<ClassType>, cf:Ref<ClassField>, isStatic:Bool):Bool {
         final name = cf.get().name;
         if (RustEmissionState.runtimeShimIsFallible(name))
@@ -12932,10 +12973,16 @@ class RustExpr {
         // trait signature carries the Result, so the call site propagates.
         if (!isStatic && c.get().isInterface) {
             final shape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(c.get().module, c.get().name, name));
-            if (shape != null && shape.isFallible)
-                return true;
+            if (shape != null)
+                return shape.isFallible;
         }
-        return state.funcErrorEnums.exists(RustEmissionState.funcKey(c.get().module, name, isStatic));
+        // Resident/extern callees are skipped by the fallibility scan, so
+        // their funcKey is absent from both maps. Their fallibility is fully
+        // decided by the resident-shim / std.Fs / nodeFs / interface checks
+        // above, so an unlisted one is infallible. (WBS P6.4)
+        if (skippedCalleeType(c.get()))
+            return false;
+        return ErrorDomainRegistry.isFallible(RustEmissionState.funcKey(c.get().module, name, isStatic));
     }
 
     function isDiscardedUnitResultCall(e:TypedExpr, fn:TypedExpr):Bool {
@@ -12953,7 +13000,10 @@ class RustExpr {
     function isFallibleConstructor(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TNew(c, _, _):
-                state.funcErrorEnums.exists(RustEmissionState.funcKey(c.get().module, "new", false));
+                if (skippedCalleeType(c.get()))
+                    false;
+                else
+                    ErrorDomainRegistry.isFallible(RustEmissionState.funcKey(c.get().module, "new", false));
             case _: false;
         };
     }
@@ -13103,7 +13153,9 @@ class RustExpr {
                 // machinery: `?` propagates inside a fallible function or
                 // a try-region closure, and an infallible context
                 // unwraps (feature spec 27).
-                final ctorFallible = state.funcErrorEnums.exists(RustEmissionState.funcKey(cls.module, "new", false));
+                final ctorFallible = skippedCalleeType(cls)
+                    ? false
+                    : ErrorDomainRegistry.isFallible(RustEmissionState.funcKey(cls.module, "new", false));
                 final q = ctorFallible ? (isFallible ? constructorPropagationSuffix(c) : ".unwrap()") : "";
                 return cls.name + genericStr + "::new(" + ctorCallArgs(cls, args) + ")" + q;
         }

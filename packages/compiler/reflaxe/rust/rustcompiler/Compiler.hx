@@ -1042,7 +1042,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     // runtime::fs::FsError. The direct `?` conversion needs a
                     // From the payload never provides, so compose the two
                     // (docs/specs/stdlib/17-platform-modules.md).
-                    if (!seenFsError && (emitted == "std.FsException" || item.module == "std.FsError") && item.name == "FsError") {
+                    if (!seenFsError && (emitted == state.payloadEnumModules.get(RustEmissionState.identityKey("std.FsError", "FsError")) || item.module == "std.FsError") && item.name == "FsError") {
                         seenFsError = true;
                         final runtimePackage = RuntimeConfig.requireImportName("std.Fs");
                         lines.push("");
@@ -1061,6 +1061,7 @@ class Compiler extends PluginCompiler<Compiler> {
 
     function preScan(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
         RustSymbols.state = state;
+        ErrorDomainRegistry.state = state;
         CompilationUnits.registerFromModuleTypes(mtypes, false);
         // An interface whose implementors all derive Clone gets a clone_box
         // hook so a Box<dyn Trait> field keeps its owner's derive. Collect
@@ -1767,7 +1768,11 @@ class Compiler extends PluginCompiler<Compiler> {
                                                             // slot must name that module or the generated
                                                             // path resolves to a file that does not exist.
                                                             final emitted = state.payloadEnumModules.get(RustEmissionState.identityKey("std.FsError", "FsError"));
-                                                            mergeEnum(key, {module: emitted != null ? emitted : "std.FsException", name: "FsError"});
+                                                                                                                        if (emitted == null) {
+                                                                Context.error("std.FsError domain is not emitted in this compilation scope", field.pos);
+                                                            } else {
+                                                                mergeEnum(key, {module: emitted, name: "FsError"});
+                                                            }
                                                         }
                                                     } else if (RustEmissionState.runtimeShimIsFallible(calleeName)) {
                                                         if (!(state.errorModule != null && absorbed.indexOf(state.errorModule) >= 0)) {
@@ -1958,6 +1963,13 @@ class Compiler extends PluginCompiler<Compiler> {
             final set = members.get(key);
             if (set != null)
                 state.funcErrorUnionMembers.set(key, set);
+        }
+        for (entry in entries) {
+            if (!fallible.exists(entry.key))
+                state.funcErrorKnown.set(entry.key, true);
+            for (edge in entry.edges)
+                if (!fallible.exists(edge.callee))
+                    state.funcErrorKnown.set(edge.callee, true);
         }
         for (key in conflicts.keys()) {
             final sep = key.indexOf("::");
