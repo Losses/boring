@@ -72,6 +72,16 @@ class RustSymbols {
     }
 
     /**
+        Return the crate path of a non-type Rust item (a generated helper
+        function or a static/const item) without registering a symbol
+        reference: these are not Haxe-declared types, so checkAll() must not
+        demand an emitted() definition for them (P6.5).
+    **/
+    public static function path(module: String, name: String): String {
+        return "crate::" + RustImports.moduleToRustPath(module) + "::" + name;
+    }
+
+    /**
         Register a definition that has been emitted into the output.
 
         Called once per emitted symbol at its lowering site (per-symbol identity

@@ -749,7 +749,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     final d = def.get();
                     switch (d.type) {
                         case TAnonymous(anonRef):
-                            final structPath = "crate::" + RustImports.moduleToRustPath(d.module) + "::" + d.name;
+                            final structPath = RustSymbols.refer({module: d.module, name: d.name}, "tests");
                             final safeSnake = RustImports.toSnakeCase(d.name);
                             final fields = anonRef.get().fields.copy();
                             fields.sort((x, y) -> Reflect.compare(Context.getPosInfos(x.pos).min, Context.getPosInfos(y.pos).min));
@@ -787,9 +787,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     }
                 case TEnum(e, _):
                     final en = e.get();
-                    final ownerModule = state.payloadEnumModules.get(RustEmissionState.identityKey(en.module, en.name));
-                    final targetModule = ownerModule != null ? ownerModule : en.module;
-                    final enumPath = "crate::" + RustImports.moduleToRustPath(targetModule) + "::" + en.name;
+                    final enumPath = RustSymbols.refer({module: en.module, name: en.name}, "tests");
                     final safeSnake = RustImports.toSnakeCase(en.name);
                     lines.push("");
                     lines.push('pub fn equals_$safeSnake(a: &$enumPath, b: &$enumPath) -> bool { a == b }');
@@ -845,16 +843,13 @@ class Compiler extends PluginCompiler<Compiler> {
             case TInst(c, params):
                 final cls = c.get();
                 if (cls.name == "String") "UString"; else if (cls.name == "Array") "Vec<" + rustType(params[0]) + ">"; else if (cls.name == "Bytes"
-                    || (cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")) "Vec<u8>"; else "crate::" + RustImports.moduleToRustPath(cls.module) + "::"
-                    + cls.name;
+                    || (cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")) "Vec<u8>"; else RustSymbols.refer({module: cls.module, name: cls.name}, "tests");
             case TType(def, params):
                 final d = def.get();
-                "crate::" + RustImports.moduleToRustPath(d.module) + "::" + d.name;
+                RustSymbols.refer({module: d.module, name: d.name}, "tests");
             case TEnum(e, params):
                 final en = e.get();
-                final ownerModule = state.payloadEnumOwners.get(RustEmissionState.identityKey(en.module, en.name));
-                final targetModule = ownerModule != null ? ownerModule : en.module;
-                "crate::" + RustImports.moduleToRustPath(targetModule) + "::" + en.name;
+                RustSymbols.refer({module: en.module, name: en.name}, "tests");
             case _: "()";
         };
     }
@@ -981,6 +976,7 @@ class Compiler extends PluginCompiler<Compiler> {
             return "";
         final unionLines = [
             for (u in synthetic) {
+                RustSymbols.emitted({module: module, name: u.name});
                 final lines = ["#[derive(Debug, Clone, PartialEq)]", "pub enum " + u.name + " {"];
                 final variants = state.syntheticErrorVariants.get(u.name);
                 var seenFsError = false;
@@ -1008,8 +1004,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 lines.push("    }");
                 lines.push("}");
                 for (target in u.members) {
-                    final targetEmitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(target.module, target.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(target.module, target.name)) : target.module;
-                    final targetPath = "crate::" + RustImports.moduleToRustPath(targetEmitted) + "::" + target.name;
+                    final targetPath = RustSymbols.refer({module: target.module, name: target.name}, module);
                     final targetVariant = variants != null && variants.exists(target.module + "::" + target.name)
                         ? variants.get(target.module + "::" + target.name) : target.name + "Fault";
                     lines.push("");
@@ -1027,7 +1022,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
-                    final memberPath = "crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name;
+                    final memberPath = RustSymbols.refer({module: item.module, name: item.name}, module);
                     if (!(item.name == "FsError")) {
                         lines.push("");
                         lines.push("impl From<" + memberPath + "> for " + u.name + " {");
@@ -1156,6 +1151,12 @@ class Compiler extends PluginCompiler<Compiler> {
                                             // the catch sites can resolve class-first (PIT-297).
                                             state.exceptionPayloadEnums.set(cls.module + "::" + cls.name, {module: payload.module, name: payload.name});
                                             RustSymbols.emitted({module: payload.module, name: payload.name});
+                                            // The payload enum is co-emitted inside the declaring
+                                            // exception class's module; register that location too
+                                            // so references naming the emitted module (synthetic
+                                            // fault-union members store the co-located module)
+                                            // resolve against the same symbol.
+                                            RustSymbols.emitted({module: cls.module, name: payload.name});
                                         case _:
                                     }
                                     if (!hasPayload && RustDecl.isMessageOnlyException(cls))
@@ -2075,7 +2076,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (StringTools.startsWith(RustImports.moduleToRustPath(item.module), "tests::")
                     || state.testModules.exists(item.module))
                     continue;
-                state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), "crate::" + RustImports.moduleToRustPath(item.module) + "::" + item.name, item.name);
+                state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), RustSymbols.refer({module: item.module, name: item.name}, "fault"), item.name);
             }
         }
 
@@ -2101,7 +2102,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
                     || state.testModules.exists(edgeEnum.module))
                     continue;
-                state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
+                state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), RustSymbols.refer({module: edgeEnum.module, name: edgeEnum.name}, "fault"), edgeEnum.name);
             }
         }
 
@@ -2276,7 +2277,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
                     || state.testModules.exists(edgeEnum.module))
                     continue;
-                state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), "crate::" + RustImports.moduleToRustPath(edgeEnum.module) + "::" + edgeEnum.name, edgeEnum.name);
+                state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), RustSymbols.refer({module: edgeEnum.module, name: edgeEnum.name}, "fault"), edgeEnum.name);
             }
         }
 
@@ -2845,7 +2846,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     return;
                 if (growthKey == null)
                     return;
-                state.registerFaultConversion(growthKey, "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + cls.name, variant);
+                state.registerFaultConversion(growthKey, RustSymbols.refer({module: cls.module, name: cls.name}, "fault"), variant);
             case _:
         }
     }
