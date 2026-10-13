@@ -26,7 +26,8 @@ class KotlinCoerce {
         // GP-ABLATE: with -D kotlin_coerce_ablate=<Role>, skip coercion for
         // the ablated role so a fixture can prove the coercion is load-bearing.
         // Byte-identical when the define is absent (ablateRole() == null).
-        if (ablateRole() == dest.role) {
+        final ablated = ablateRole();
+        if (ablated != null && Type.enumConstructor(ablated) == Type.enumConstructor(dest.role)) {
             return out;
         }
         switch (dest.role) {
@@ -53,6 +54,16 @@ class KotlinCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence):
                         out = out + "!!";
+                    case _:
+                }
+            case Argument(_):
+                // presence axis: an argument to a parameter that does not
+                // admit absence extracts the value with "!!"; an Any?
+                // parameter admits absence and passes the nullable through
+                // unchanged (ConcatenationNullableArgument).
+                switch (value.presence) {
+                    case MaybeAbsent if (!dest.admitsAbsence):
+                        out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
                     case _:
                 }
             case _:
@@ -87,7 +98,11 @@ class KotlinCoerce {
                     if (depth < 0)
                         return false;
                 case "{" | "}":
-                    return false;
+                    // A bare block/lambda at depth 0 is never a postfix
+                    // operand; a parenthesized block `(run { ... })` is one
+                    // primary, so braces inside parens keep it atomic.
+                    if (depth == 0)
+                        return false;
                 case " " | "." | "?" | "+" | "-" | "*" | "/" | "%" | "<" | ">" | "=" | "!" | "&" | "|" | "," | ":" | ";":
                     if (depth == 0)
                         return false;
@@ -104,6 +119,7 @@ class KotlinCoerce {
             case "ArithmeticOperand": ArithmeticOperand;
             case "RangeBound": RangeBound;
             case "StringConcatArgument": StringConcatArgument;
+            case "Argument": Argument("");
             case "Discard": Discard;
             case _: null;
         }
