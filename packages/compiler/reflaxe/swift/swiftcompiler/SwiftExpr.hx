@@ -2775,8 +2775,9 @@ class SwiftExpr {
         ReadOnlyArray lowers to a reference view over TiqianArray, so implicit
         casts on the Haxe side render as the Swift view initializer.
     **/
-    function arrayBoundaryText(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null, destinationOptionalOverride:Null<Bool> = null):String
-        return lowerArrayBoundary(inner, target, actualOptional, destinationOptionalOverride).text;
+    function arrayBoundaryText(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null, destinationOptionalOverride:Null<Bool> = null,
+            role:DestinationRole = Discard):String
+        return lowerArrayBoundary(inner, target, actualOptional, destinationOptionalOverride, role).text;
 
     /**
         A value-producing route's arm value, lowered against the route's ACTUAL
@@ -2805,14 +2806,14 @@ class SwiftExpr {
         not guess from its rendered text.
     **/
     function lowerArrayBoundary(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null,
-            destinationOptionalOverride:Null<Bool> = null):SwiftArrayPreparedOperand {
+            destinationOptionalOverride:Null<Bool> = null, role:DestinationRole = Discard):SwiftArrayPreparedOperand {
         if (!SwiftArrayBoundary.isBoundary(inner.t, target))
             return fail(inner, "array boundary renderer called for a non-boundary");
         final defaultSite = coalescingSiteFor(inner);
         if (defaultSite == null) {
             switch (inner.expr) {
                 case TIf(condition, whenTrue, whenFalse):
-                    return lowerArrayConditionalBoundary(inner, condition, whenTrue, whenFalse, target, destinationOptionalOverride);
+                    return lowerArrayConditionalBoundary(inner, condition, whenTrue, whenFalse, target, destinationOptionalOverride, role);
                 case _:
             }
         }
@@ -2842,7 +2843,7 @@ class SwiftExpr {
         final dest:Destination = {
             type: target,
             admitsAbsence: plan.destinationOptional,
-            role: Discard,
+            role: role,
             errorSlot: null
         };
         final coerced = SwiftCoerce.coerceArrayBoundary(operand.text, dest, operand.optionality, plan, elementText);
@@ -2857,11 +2858,11 @@ class SwiftExpr {
 
     /** Lower both lazy arms to one destination representation before rendering the conditional. */
     function lowerArrayConditionalBoundary(inner:TypedExpr, condition:TypedExpr, whenTrue:TypedExpr, whenFalse:TypedExpr, target:Type,
-            destinationOptionalOverride:Null<Bool>):SwiftArrayPreparedOperand {
+            destinationOptionalOverride:Null<Bool>, role:DestinationRole):SwiftArrayPreparedOperand {
         final nilMerge = optionalIfSite(condition, whenTrue, whenFalse);
         if (nilMerge != null) {
-            final targetValue = lowerArrayBoundary(nilMerge.target, target, null, true);
-            final fallbackValue = lowerArrayBoundary(nilMerge.fallback, target, null, destinationOptionalOverride);
+            final targetValue = lowerArrayBoundary(nilMerge.target, target, null, true, role);
+            final fallbackValue = lowerArrayBoundary(nilMerge.fallback, target, null, destinationOptionalOverride, role);
             final text = targetValue.optionality == SwiftArrayOptionality.RequiredOperand ? targetValue.text : targetValue.text + " ?? " + fallbackValue.text;
             final optionality = targetValue.optionality == SwiftArrayOptionality.OptionalOperand
                 && fallbackValue.optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand;
@@ -2875,8 +2876,8 @@ class SwiftExpr {
             };
         }
 
-        final trueValue = lowerArrayBoundary(whenTrue, target, null, destinationOptionalOverride);
-        final falseValue = lowerArrayBoundary(whenFalse, target, null, destinationOptionalOverride);
+        final trueValue = lowerArrayBoundary(whenTrue, target, null, destinationOptionalOverride, role);
+        final falseValue = lowerArrayBoundary(whenFalse, target, null, destinationOptionalOverride, role);
         final optionality = trueValue.optionality == SwiftArrayOptionality.OptionalOperand
             || falseValue.optionality == SwiftArrayOptionality.OptionalOperand ? SwiftArrayOptionality.OptionalOperand : SwiftArrayOptionality.RequiredOperand;
         if (optionality == SwiftArrayOptionality.OptionalOperand && destinationOptionalOverride == false)
@@ -3051,7 +3052,7 @@ class SwiftExpr {
     **/
     function assignmentValue(target:TypedExpr, value:TypedExpr):String {
         if (SwiftArrayBoundary.isBoundary(value.t, target.t))
-            return arrayBoundaryText(value, target.t);
+            return arrayBoundaryText(value, target.t, null, null, Assignment(""));
         var rendered = expr(value);
         if (isIntType(emittedType(value)) && isFloatTyped(target))
             rendered = intToFloatText(rendered);
@@ -3064,7 +3065,9 @@ class SwiftExpr {
         // unifies to the read-only slot type, so the boundary reads the
         // underlying parameter's declared type through the site.
         // (ReadOnlyAssignBoundary)
-        return swiftPresence(value) != Present && !StringTools.endsWith(rendered, "!") && !isNullLeafType(target.t) ? rendered + "!" : rendered;
+        final presence:Presence = swiftPresence(value) != Present ? MaybeAbsent : Present;
+        return SwiftCoerce.coerce({ text: rendered, storage: null, presence: presence, errorDomain: null, unit: null, origin: null },
+            { type: target.t, admitsAbsence: isNullLeafType(target.t), role: Assignment(""), errorSlot: null });
     }
 
     function optionalExpr(a:TypedExpr):String {
@@ -3567,7 +3570,7 @@ class SwiftExpr {
                 final pt = i < paramTypes.length ? paramTypes[i] : null;
                 final demandsValue = pt != null && !isNullLeafType(pt);
                 var t = if (pt != null && StaticFieldHelper.isReadOnlyArrayType(pt) && !SwiftInoutParams.isMutatingCallArg(fn, i)) {
-                    arrayBoundaryText(a, pt);
+                    arrayBoundaryText(a, pt, null, null, Argument(""));
                 } else if (SwiftInoutParams.isMutatingCallArg(fn, i)) {
                     switch (stripWrap(a).expr) {
                         case TLocal(_) | TField(_):
@@ -3598,10 +3601,13 @@ class SwiftExpr {
                     }
                 } else {
                     // The argument route carries the callee parameter as the
-                    // switch destination; other arguments render unchanged.
+                    // switch destination. inout arguments are handled above and
+                    // must keep their & prefix, so they never reach this coercion.
                     final argText = switchArgText(a, pt);
-                    (swiftPresence(a) != Present || (isNullLeafType(a.t) && !isNonOptionalDeclared(a)))
-                    && demandsValue ? argText + "!" : argText;
+                    final presence:Presence = (swiftPresence(a) != Present || (isNullLeafType(a.t) && !isNonOptionalDeclared(a)))
+                        ? MaybeAbsent : swiftPresence(a);
+                    SwiftCoerce.coerce({ text: argText, storage: null, presence: presence, errorDomain: null, unit: null, origin: null },
+                        { type: pt, admitsAbsence: !demandsValue, role: Argument(""), errorSlot: null });
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
                 t;
@@ -5121,7 +5127,7 @@ class SwiftExpr {
                     if (d != null && isNullLiteral(args[i]))
                         defaultArgText(d, p);
                     else {
-                        final prepared = lowerArrayBoundary(args[i], p, null, true);
+                        final prepared = lowerArrayBoundary(args[i], p, null, (d != null && isNullLeafType(args[i].t)) ? true : null, Argument(""));
                         if (d != null && isNullLeafType(args[i].t) && prepared.optionality == SwiftArrayOptionality.OptionalOperand)
                             "("
                             + prepared.text
@@ -5224,7 +5230,7 @@ class SwiftExpr {
                 if (d != null && isNullLiteral(args[i]))
                     defaultArgText(d, p);
                 else {
-                    final prepared = lowerArrayBoundary(args[i], p, null, true);
+                    final prepared = lowerArrayBoundary(args[i], p, null, (d != null && isNullLeafType(args[i].t)) ? true : null, Argument(""));
                     if (d != null && isNullLeafType(args[i].t) && prepared.optionality == SwiftArrayOptionality.OptionalOperand)
                         "("
                         + prepared.text
