@@ -45,10 +45,10 @@ class SwiftCoerce {
                 case Bare | Map | Null | Reject: operand;
             }
             case ToReadOnlyView: switch (form) {
-                case Bare: "(" + operand + ").items";
-                case Map: "(" + operand + ").map { $0.items }";
-                case Unwrap: "(" + operand + "!).items";
-                case ForceUnwrap: "(" + operand + "!).items";
+                case Bare: "ReadOnlyArray(" + operand + ")";
+                case Map: "(" + operand + ").map { ReadOnlyArray($0) }";
+                case Unwrap: "ReadOnlyArray(" + operand + "!)";
+                case ForceUnwrap: "ReadOnlyArray(" + operand + "!)";
                 case Null | Reject: operand;
             }
             case ToMutableArray: switch (form) {
@@ -58,7 +58,7 @@ class SwiftCoerce {
                 case ForceUnwrap: operand + "!.toMutableArray()";
                 case Null | Reject: operand;
             }
-            case ContextualReadOnlyEmpty: "[" + elementText + "]()";
+            case ContextualReadOnlyEmpty: "ReadOnlyArray<" + elementText + ">()";
         };
     }
 
