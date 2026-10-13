@@ -130,6 +130,15 @@ class KotlinExpr {
     static function assignmentDest(target:String, admitsAbsence:Bool):Destination {
         return {type: null, admitsAbsence: admitsAbsence, role: Assignment(target), errorSlot: null};
     }
+
+    /** A StringConcatArgument destination for P2.6 migration sites: a
+        binary + operand whose caller already encoded the "needs !!"
+        extraction into presence (null-initialized storage) and marked a
+        safe-call chain in storage for the ?.plus decision. */
+    static function stringConcatArgumentDest():Destination {
+        return {type: null, admitsAbsence: true, role: StringConcatArgument, errorSlot: null};
+    }
+
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
 
@@ -3823,22 +3832,23 @@ class KotlinExpr {
                 // side; the nullable Kotlin storage of a non-null Haxe
                 // value still extracts, because keepsNull reads the Haxe
                 // type. (ConcatenationNullableReceiver)
-                final leftText = leftStd == null ? operand(l, op, false, true, argumentDest("value", true)) : stdString(leftStd, isStringType(leftStd.t));
+                final leftLowered = leftStd == null ? stringConcatOperand(l) : null;
+                final leftText = leftLowered != null ? KotlinCoerce.coerce(leftLowered, stringConcatArgumentDest()) : stdString(leftStd, isStringType(leftStd.t));
                 // The right operand is the argument of Kotlin's
                 // String.plus(Any?), which renders a null argument as
                 // "null", the text Std.string(null) produces. Extracting
                 // the operand with "!!" would raise instead, so a
                 // nullable right operand keeps its nullable rendering
                 // (ConcatenationNullableArgument).
-                final rightText = rightStd == null ? operand(r, op, true, true, argumentDest("value", true)) : stdString(rightStd, true);
+                final rightText = rightStd == null ? KotlinCoerce.coerce(stringConcatOperand(r), stringConcatArgumentDest()) : stdString(rightStd, true);
                 // A nullable safe-call left operand propagates null through
                 // the concatenation: plus on the nullable receiver yields
                 // null; a plain + would coerce to the "null" string. Only a
-                // chain that actually rendered a safe call takes this route:
-                // a plain nullable value becomes the receiver of
-                // String?.plus, whose null renders as the text "null".
-                if ((isStringType(l.t) || isStringType(r.t)) && isNullType(receiverBase(l).t) && !receiverProven(receiverBase(l))
-                    && leftText.indexOf("?.") >= 0) {
+                // chain that actually rendered a safe call takes this route
+                // (Lowered.storage marks it), so a plain nullable value
+                // becomes the receiver of String?.plus, whose null renders
+                // as the text "null".
+                if (leftLowered != null && leftLowered.storage == "SafeCallChain") {
                     return leftText + "?.plus(" + rightText + ")";
                 }
                 if (!isStringType(l.t)) {
@@ -3942,7 +3952,32 @@ class KotlinExpr {
         }
     }
 
-    function operand(e:TypedExpr, parent:Binop, isRight:Bool, keepSafeCall:Bool = false, argDest:Null<Destination> = null):String {
+    /** P2.6: build the Lowered for one operand of a string concatenation.
+        presence records the "needs !!" fact (a null-initialized non-null
+        Haxe value extracts; a nullable Haxe type and a safe-call chain pass
+        through, because Kotlin's String?.plus renders a null receiver as
+        the text "null"); storage records a safe-call chain so binopCore can
+        choose ?.plus without re-reading the rendered text. */
+    function stringConcatOperand(e:TypedExpr):Lowered {
+        final rendered = expr(e);
+        final hasSafeCallText = rendered.indexOf("?.") >= 0;
+        final safeChain = isNullType(receiverBase(e).t) && !receiverProven(receiverBase(e)) && hasSafeCallText;
+        final keepsNull = isNullType(e.t) && !valueProven(e);
+        final nullInit = isNullInitialized(e) && !valueProven(e);
+        final widenedExtracted = extractedNonNullFieldRead(e);
+        final needsBang = !isNullLiteral(e) && !hasSafeCallText && !keepsNull && !widenedExtracted
+            && (nullInit || rendersNullable(e));
+        return {
+            text: rendered,
+            storage: safeChain ? "SafeCallChain" : null,
+            presence: needsBang ? MaybeAbsent : Present,
+            errorDomain: null,
+            unit: null,
+            origin: null,
+        };
+    }
+
+    function operand(e:TypedExpr, parent:Binop, isRight:Bool):String {
         var rendered = expr(e);
         // Nullable values still need extraction unless the Haxe expression
         // has already been normalized, or control flow proved the local is
@@ -3953,25 +3988,12 @@ class KotlinExpr {
         // loops and branches.
         final proven = valueProven(e);
         final nullInit = isNullInitialized(e);
-        // Preserving a safe-navigation chain keeps the null result for a
-        // caller that propagates it (the string concatenation lowering).
-        // Every other operator reads a concrete operand, so a nullable
-        // chain still extracts; skipping the extraction there left the
-        // nullable receiver on a Kotlin operator call (ConcreteOperatorOperand).
-        final preservesSafeCall = keepSafeCall && rendered.indexOf("?.") >= 0;
-        // A nullable-typed value passed to a parameter declared Any? needs
-        // no extraction: the callee accepts the null the Haxe program
-        // carries, and the assertion would raise instead. This relaxation
-        // covers the nullable Haxe type only; the nullable Kotlin storage
-        // of a non-null Haxe value keeps its extraction.
-        // (ConcatenationNullableArgument)
-        final keepsNull = argDest != null && argDest.admitsAbsence && isNullType(e.t) && !proven;
         // A field read the typer widened to Null<T> whose rendering already
         // extracts the receiver and reads a non-null declared property
         // (`recv!!.member`) is non-null text: the operand needs no
         // extraction of its own. (DeclaredFieldNonNull)
         final widenedExtracted = extractedNonNullFieldRead(e);
-        if (!isNullLiteral(e) && !preservesSafeCall && !keepsNull && !widenedExtracted
+        if (!isNullLiteral(e) && !widenedExtracted
             && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
             && parent != OpEq && parent != OpNotEq) {
 #if (kotlin_fold_debug || kotlin_emit_origins)
