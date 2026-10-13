@@ -42,6 +42,8 @@
     "gen:swift": "haxe examples/swift.hxml",
     "gen:swift-f32": "haxe examples/swift-f32.hxml",
     "gen:dart": "haxe examples/dart.hxml",
+    "gp-diff": "haxe packages/driver/driver.hxml && bun out/driver/driver.js gp-diff",
+    "gp-ablate": "haxe packages/driver/driver.hxml && bun out/driver/driver.js gp-ablate",
     "check:reflaxe": "haxe -lib reflaxe -cp examples -main Smoke -js out/haxe/reflaxe-smoke.js",
     "commit": "bun tools/commit/commit.ts",
     "install:hooks": "bun tools/git-hooks/install.ts",
