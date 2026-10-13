@@ -1,0 +1,20 @@
+# P6.6 in-scope arm: samples/std is in both classpath AND Intercept scope,
+# so std.FsError/std.FsException are emitted, the payload enum has a declaration
+# site even for the test-module call, and generation succeeds with a
+# cargo-checkable crate.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/rust-gen-tests-scope
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/rust-gen-tests-scope'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+-D package-name=rust-gen-tests-scope
+-D package-license=MIT
+tprobe.RustGenTestsProbe
+tprobe.FsErrorTouch
+runtime.UString
+runtime.SortedTable
