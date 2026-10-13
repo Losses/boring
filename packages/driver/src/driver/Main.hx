@@ -612,6 +612,7 @@ class Main {
         var projectPath = "boring.json";
         var withPack = false;
         var outputPath = "";
+        var baseRev = "HEAD";
         final rest:Array<String> = [];
         var i = 0;
         while (i < rawArgs.length) {
@@ -645,11 +646,22 @@ class Main {
                 i++;
                 continue;
             }
+            if (arg == "--base") {
+                if (i + 1 >= rawArgs.length) fail("--base needs a revision");
+                baseRev = rawArgs[i + 1];
+                i += 2;
+                continue;
+            }
+            if (StringTools.startsWith(arg, "--base=")) {
+                baseRev = arg.substr("--base=".length);
+                i++;
+                continue;
+            }
             rest.push(arg);
             i++;
         }
         if (rest.length == 0) {
-            printErr("Usage: boring <gen|test|pack|compare|verify|roots> [<id>...] [--project <file>] [--with-pack] [--output <file>]");
+            printErr("Usage: boring <gen|test|pack|compare|verify|roots|gp-diff|gp-ablate> [<id>...] [--project <file>] [--with-pack] [--output <file>] [--base <rev>]");
             exit(2);
             return;
         }
@@ -700,8 +712,14 @@ class Main {
             actionCompare(project);
         } else if (action == "verify") {
             actionVerify(project, withPack);
+        } else if (action == "gp-diff") {
+            final gpDiffCode = GpDiff.run(project, ids, baseRev);
+            if (gpDiffCode != 0) exit(gpDiffCode);
+        } else if (action == "gp-ablate") {
+            final gpAblateCode = GpAblate.run(project, ids);
+            if (gpAblateCode != 0) exit(gpAblateCode);
         } else {
-            fail('unknown action "$action"; the actions are gen, test, pack, compare, verify, roots');
+            fail('unknown action "$action"; the actions are gen, test, pack, compare, verify, roots, gp-diff, gp-ablate');
         }
         print("bundle driver: ok");
     }
