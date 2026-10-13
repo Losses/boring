@@ -117,6 +117,16 @@ class KotlinCoerce {
                         out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
                     case _:
                 }
+            case Return(_):
+                // presence axis: a returned value that must satisfy a non-null
+                // return-type contract extracts with "!!". Same atomicity-shaped
+                // harden as Argument/Assignment so an embedded expression like
+                // "a + b" wraps before "!!".
+                switch (value.presence) {
+                    case MaybeAbsent if (!dest.admitsAbsence):
+                        out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                    case _:
+                }
             case _:
                 // storage / error axes are stubs for future migration steps
         }
@@ -134,6 +144,9 @@ class KotlinCoerce {
     }
 
     // Mirrors KotlinExpr.isAtomicAppendTarget until P3.3 collapses both (I2).
+    // P2.7: a lone "." is member access and stays atomic (x.field!!); only a
+    // ".." range is non-atomic. Other divergences from the reference (e.g.
+    // braces inside parens stay atomic) are preserved for byte-identity.
     static function isAtomicAppendTarget(text:String):Bool {
         var depth = 0;
         var i = 0;
@@ -149,11 +162,15 @@ class KotlinCoerce {
                         return false;
                 case "{" | "}":
                     // A bare block/lambda at depth 0 is never a postfix
-                    // operand; a parenthesized block `(run { ... })` is one
+                    // operand; a parenthesized block (run { ... }) is one
                     // primary, so braces inside parens keep it atomic.
                     if (depth == 0)
                         return false;
-                case " " | "." | "?" | "+" | "-" | "*" | "/" | "%" | "<" | ">" | "=" | "!" | "&" | "|" | "," | ":" | ";":
+                case ".":
+                    // Member access is atomic; only ".." (range) is not.
+                    if (depth == 0 && i + 1 < n && text.charAt(i + 1) == ".")
+                        return false;
+                case " " | "?" | "+" | "-" | "*" | "/" | "%" | "<" | ">" | "=" | "!" | "&" | "|" | "," | ":" | ";":
                     if (depth == 0)
                         return false;
                 case _:
@@ -189,6 +206,7 @@ class KotlinCoerce {
             case "Receiver": Receiver("");
             case "Discard": Discard;
             case "Assignment": Assignment("");
+            case "Return": Return("");
             case _: null;
         }
     }

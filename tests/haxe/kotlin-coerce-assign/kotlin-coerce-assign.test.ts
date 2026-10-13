@@ -7,7 +7,7 @@ import { expect, test } from "bun:test";
 //   * a non-null array element write   (assignValueText, role "array"),
 //   * a non-null field write           (assignValueText, role "field").
 //
-// The positive tree emits `(this.nullableInt())!!` on every target and
+// The positive tree emits `this.nullableInt()!!` on every target and
 // kotlinc accepts it. The ablation arm regenerates with
 // -D kotlin_coerce_ablate=Assignment, which skips the Assignment coercion
 // and leaves the bare nullable value; kotlinc then rejects it with a type
@@ -62,7 +62,7 @@ test("nullable values assigned to non-null locals, array elements and fields ext
     expect(
       functionBody(normal, name),
       `${name} must harden its nullable value with !!`,
-    ).toContain("(this.nullableInt())!!");
+    ).toContain("this.nullableInt()!!");
 
   // ablation arm
   const genAblate = run([
@@ -77,7 +77,7 @@ test("nullable values assigned to non-null locals, array elements and fields ext
     expect(
       functionBody(ablate, name),
       `${name} must keep its bare nullable value when ablated`,
-    ).not.toContain("(this.nullableInt())!!");
+    ).not.toContain("this.nullableInt()!!");
 
   // compile arms (GP-ABLATE)
   const kotlinc = Bun.which("kotlinc");
