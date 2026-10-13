@@ -112,6 +112,13 @@ class KotlinExpr {
         return {type: null, admitsAbsence: false, role: RangeBound, errorSlot: null};
     }
 
+    /** An Argument destination for P2.4 migration sites. admitsAbsence is
+        read from the callee parameter type (an Any? parameter preserves a
+        nullable argument), never from the argument's own type. */
+    static function argumentDest(param:String, admitsAbsence:Bool):Destination {
+        return {type: null, admitsAbsence: admitsAbsence, role: Argument(param), errorSlot: null};
+    }
+
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
 
@@ -3792,14 +3799,14 @@ class KotlinExpr {
                 // side; the nullable Kotlin storage of a non-null Haxe
                 // value still extracts, because keepsNull reads the Haxe
                 // type. (ConcatenationNullableReceiver)
-                final leftText = leftStd == null ? operand(l, op, false, true, true) : stdString(leftStd, isStringType(leftStd.t));
+                final leftText = leftStd == null ? operand(l, op, false, true, argumentDest("value", true)) : stdString(leftStd, isStringType(leftStd.t));
                 // The right operand is the argument of Kotlin's
                 // String.plus(Any?), which renders a null argument as
                 // "null", the text Std.string(null) produces. Extracting
                 // the operand with "!!" would raise instead, so a
                 // nullable right operand keeps its nullable rendering
                 // (ConcatenationNullableArgument).
-                final rightText = rightStd == null ? operand(r, op, true, true, true) : stdString(rightStd, true);
+                final rightText = rightStd == null ? operand(r, op, true, true, argumentDest("value", true)) : stdString(rightStd, true);
                 // A nullable safe-call left operand propagates null through
                 // the concatenation: plus on the nullable receiver yields
                 // null; a plain + would coerce to the "null" string. Only a
@@ -3911,7 +3918,7 @@ class KotlinExpr {
         }
     }
 
-    function operand(e:TypedExpr, parent:Binop, isRight:Bool, keepSafeCall:Bool = false, nullableArgument:Bool = false):String {
+    function operand(e:TypedExpr, parent:Binop, isRight:Bool, keepSafeCall:Bool = false, argDest:Null<Destination> = null):String {
         var rendered = expr(e);
         // Nullable values still need extraction unless the Haxe expression
         // has already been normalized, or control flow proved the local is
@@ -3934,7 +3941,7 @@ class KotlinExpr {
         // covers the nullable Haxe type only; the nullable Kotlin storage
         // of a non-null Haxe value keeps its extraction.
         // (ConcatenationNullableArgument)
-        final keepsNull = nullableArgument && isNullType(e.t) && !proven;
+        final keepsNull = argDest != null && argDest.admitsAbsence && isNullType(e.t) && !proven;
         // A field read the typer widened to Null<T> whose rendering already
         // extracts the receiver and reads a non-null declared property
         // (`recv!!.member`) is non-null text: the operand needs no
@@ -4392,7 +4399,12 @@ class KotlinExpr {
         if (fromSource && nullable) {
             Context.error("Std.string does not accept Null<T> operands; compare against null first", arg.pos);
         }
-        return stdStringType(arg.t, !fromSource && nullable ? "(" + expr(arg) + ")!!" : expr(arg), inConcat, arg);
+        // A nullable non-source operand extracts with "!!": pre-wrap the
+        // text so the Argument coerce appends "!!" directly (giving (x)!!),
+        // and drive presence off the Haxe nullability, not rendersNullable.
+        final rendered = expr(arg);
+        final wrap = !fromSource && nullable;
+        return stdStringType(arg.t, KotlinCoerce.coerce(lowerTextPresence(wrap ? "(" + rendered + ")" : rendered, wrap ? MaybeAbsent : Present), argumentDest("value", false)), inConcat, arg);
     }
 
     function stdIsOfType(args:Array<TypedExpr>):String {
@@ -4647,7 +4659,9 @@ class KotlinExpr {
                 final assertNeeded = isNullType(args[0].t) && !valueProven(args[0]);
                 if (assertNeeded)
                     addProofExpr(args[0]);
-                final unwrapped = "(" + code + (assertNeeded ? ")!!" : ")");
+                final unwrapped = KotlinCoerce.coerce(
+                    lowerTextPresence("(" + code + ")", assertNeeded ? MaybeAbsent : Present),
+                    argumentDest("value", false));
                 // Haxe's fromCharCode takes a scalar; a supplementary scalar
                 // encodes as its surrogate pair. Kotlin's Char is one UTF-16
                 // unit, so the pair goes through Character.toChars. A BMP
@@ -4725,11 +4739,12 @@ class KotlinExpr {
         its Haxe type is nullable, mirroring renderCallArgs. */
     function nullableFirstArg(a:TypedExpr):String {
         final rendered = expr(a);
-        if (isNullType(a.t) && !valueProven(a)) {
+        final nullable = isNullType(a.t) && !valueProven(a);
+        if (nullable)
             addProofExpr(a);
-            return hardenAppend(rendered, "!!");
-        }
-        return rendered;
+        return KotlinCoerce.coerce(
+            lowerTextPresence(rendered, nullable ? MaybeAbsent : Present),
+            argumentDest("value", false));
     }
 
     function call(fn:TypedExpr, args:Array<TypedExpr>):String {
