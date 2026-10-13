@@ -89,8 +89,7 @@ class RustImports {
         final emitted = state.payloadEnumEmittedIn(module);
         final targetModule = emitted != null ? emitted : module;
         if (targetModule != selfModule) {
-            final rustMod = moduleToRustPath(targetModule);
-            require("crate::" + rustMod + "::" + name);
+            require(RustSymbols.path(targetModule, name));
         }
     }
 
