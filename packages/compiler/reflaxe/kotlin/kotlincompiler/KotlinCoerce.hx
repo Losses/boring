@@ -107,6 +107,16 @@ class KotlinCoerce {
                         out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
                     case _:
                 }
+            case StringConcatArgument:
+                // presence axis: the caller encoded "needs !!" into presence
+                // (a null-initialized non-null Haxe value extracts; a
+                // nullable Haxe type and a safe-call chain pass through, so
+                // Kotlin's String?.plus renders a null as the text "null").
+                switch (value.presence) {
+                    case MaybeAbsent:
+                        out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                    case _:
+                }
             case _:
                 // storage / error axes are stubs for future migration steps
         }
