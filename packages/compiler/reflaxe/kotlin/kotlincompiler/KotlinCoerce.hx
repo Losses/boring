@@ -66,6 +66,35 @@ class KotlinCoerce {
                         out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
                     case _:
                 }
+            case Receiver(memberKind):
+                switch (memberKind) {
+                    case "Method":
+                        // charCodeAt captures its receiver as a non-null local
+                        // (_s), so a nullable receiver value extracts with "!!"
+                        // and a present one passes through unchanged; the
+                        // member-access operator (".", "?.") is not part of this
+                        // value. (CharCodeAtReceiverExtraction)
+                        switch (value.presence) {
+                            case MaybeAbsent if (!dest.admitsAbsence):
+                                out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                            case _:
+                        }
+                    case _:
+                        // Property / Length member access: the access operator
+                        // follows the access result written by the decision
+                        // site (nullableAccess) — "?." stays nullable
+                        // (MaybeAbsent), "." and "!!." are present. The "!!"
+                        // extraction for "!!." is embedded in the text by the
+                        // decision site, not re-derived here, so the three
+                        // access forms stay distinct (L6 instance two).
+                        switch (value.presence) {
+                            case MaybeAbsent:
+                                out = out + "?.";
+                            case Present:
+                                out = out + ".";
+                            case _:
+                        }
+                }
             case _:
                 // storage / error axes are stubs for future migration steps
         }
@@ -120,6 +149,7 @@ class KotlinCoerce {
             case "RangeBound": RangeBound;
             case "StringConcatArgument": StringConcatArgument;
             case "Argument": Argument("");
+            case "Receiver": Receiver("");
             case "Discard": Discard;
             case _: null;
         }
