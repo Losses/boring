@@ -34,13 +34,13 @@ func readBytes(_ path: String) -> [UInt8] {
     return buffer
 }
 
-func expectedRecords() -> [GlyphMetrics] {
-    return [
+func expectedRecords() -> ReadOnlyArray<GlyphMetrics> {
+    return ReadOnlyArray(TiqianArray([
         GlyphMetrics(codePoint: 65, advanceEm: 0.5, bounds: BoundsEm(xMin: 0.03125, yMin: -0.21875, xMax: 0.46875, yMax: 0.03125)),
         GlyphMetrics(codePoint: 19969, advanceEm: 1.0, bounds: BoundsEm(xMin: 0.03125, yMin: -0.875, xMax: 0.96875, yMax: 0.03125)),
         GlyphMetrics(codePoint: 65292, advanceEm: 0.5, bounds: BoundsEm(xMin: 0.03125, yMin: -0.21875, xMax: 0.46875, yMax: 0.03125)),
         GlyphMetrics(codePoint: 65311, advanceEm: 0.75, bounds: BoundsEm(xMin: 0.0625, yMin: -0.15625, xMax: 0.6875, yMax: 0.0625)),
-    ]
+    ]))
 }
 
 let records = expectedRecords()
@@ -54,7 +54,7 @@ for (width, path) in widths {
     let committed = readBytes(path)
     check(committed.count > 0, "\(path) loads")
 
-    var decoded: [GlyphMetrics]? = nil
+    var decoded: ReadOnlyArray<GlyphMetrics>? = nil
     var decodeFailure: String? = nil
     do {
         decoded = try VectorCodec.decode(committed)
