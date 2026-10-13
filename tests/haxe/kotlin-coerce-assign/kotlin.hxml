@@ -1,0 +1,19 @@
+# Generation input for the Kotlin Assignment coercion fixture (P2.3). The
+# caller supplies -D kotlin-output=<dir>; this file is otherwise the complete
+# generation input.
+#
+# Run from the worktree root:
+#   haxe tests/haxe/kotlin-coerce-assign/kotlin.hxml -D kotlin-output=<dir>
+#
+# -cp packages/compiler names this tree's emitter explicitly, so the fixture
+# always measures the tree it lives in rather than whatever the workspace
+# haxelib projection points at (PIT-376).
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/kotlin-coerce-assign
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/kotlin-coerce-assign'])
+--macro kotlincompiler.Compiler.use()
+assigning.AssignCases

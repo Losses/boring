@@ -26,8 +26,10 @@ class KotlinCoerce {
         // GP-ABLATE: with -D kotlin_coerce_ablate=<Role>, skip coercion for
         // the ablated role so a fixture can prove the coercion is load-bearing.
         // Byte-identical when the define is absent (ablateRole() == null).
+        // Match by constructor tag so a payload-bearing role such as
+        // Assignment(target) still ablates no matter which target was recorded.
         final ablated = ablateRole();
-        if (ablated != null && Type.enumConstructor(ablated) == Type.enumConstructor(dest.role)) {
+        if (ablated != null && roleTag(ablated) == roleTag(dest.role)) {
             return out;
         }
         switch (dest.role) {
@@ -95,6 +97,16 @@ class KotlinCoerce {
                             case _:
                         }
                 }
+            case Assignment(_):
+                // presence axis: assigning a nullable value to a non-null
+                // target (local/array element/field) extracts it. Same
+                // atomicity-shaped harden as ArithmeticOperand so that an
+                // embedded expression like `a + b` wraps before "!!".
+                switch (value.presence) {
+                    case MaybeAbsent if (!dest.admitsAbsence):
+                        out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                    case _:
+                }
             case _:
                 // storage / error axes are stubs for future migration steps
         }
@@ -102,11 +114,10 @@ class KotlinCoerce {
     }
 
     /**
-        Parse `-D kotlin_coerce_ablate=<Role>` (parse-only in P2.0; the
-        switch carries no effect yet). Only payload-free DestinationRole
-        constructors are addressable through a define; payload-bearing
-        roles have no textual form and resolve to null. P2.1+ consumes
-        this for GP-ABLATE.
+        Parse `-D kotlin_coerce_ablate=<Role>` into the role whose coercion
+        GP-ABLATE skips. Payload-bearing roles are addressed by constructor
+        name only, so their payload is filled with a placeholder (see
+        roleTag / parseAblateRole).
     **/
     public static function ablateRole():Null<DestinationRole> {
         return parseAblateRole(Context.definedValue("kotlin_coerce_ablate"));
@@ -142,6 +153,22 @@ class KotlinCoerce {
         return depth == 0;
     }
 
+    // Compares roles by constructor name so payload-bearing constructors
+    // (Receiver/Argument/Assignment/Return) still match for ablation.
+    static function roleTag(role:DestinationRole):String {
+        return switch (role) {
+            case Condition: "Condition";
+            case ArithmeticOperand: "ArithmeticOperand";
+            case RangeBound: "RangeBound";
+            case Receiver(_): "Receiver";
+            case Argument(_): "Argument";
+            case Assignment(_): "Assignment";
+            case Return(_): "Return";
+            case StringConcatArgument: "StringConcatArgument";
+            case Discard: "Discard";
+        };
+    }
+
     static function parseAblateRole(raw:Null<String>):Null<DestinationRole> {
         return switch (raw) {
             case "Condition": Condition;
@@ -151,6 +178,7 @@ class KotlinCoerce {
             case "Argument": Argument("");
             case "Receiver": Receiver("");
             case "Discard": Discard;
+            case "Assignment": Assignment("");
             case _: null;
         }
     }

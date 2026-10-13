@@ -126,6 +126,10 @@ class KotlinExpr {
         return {type: null, admitsAbsence: false, role: Receiver(memberKind), errorSlot: null};
     }
 
+    /** An Assignment destination for P2.3 migration sites. */
+    static function assignmentDest(target:String, admitsAbsence:Bool):Destination {
+        return {type: null, admitsAbsence: admitsAbsence, role: Assignment(target), errorSlot: null};
+    }
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
 
@@ -1261,13 +1265,15 @@ class KotlinExpr {
                 final extractsAtDecl = storage.extractsAtDecl;
                 final extractRenderedNullable = storage.extractRenderedNullable;
                 final extractAtDecl = extractsAtDecl || extractRenderedNullable;
+                final initLowered = lowerTextPresence(initText, extractAtDecl ? MaybeAbsent : Present);
+                final initDest = assignmentDest("local", isNullType(v.t));
                 // Haxe unifies Int and Float; widen Int initializers to Float
                 // when the variable's declared type is Float. When the
                 // initializer is also extracted to non-null, the widening
                 // must follow the extraction; a widening call placed first
                 // would apply to the nullable initializer receiver.
                 if (isIntOrLongType(emittedType(init)) && isFloatType(v.t)) {
-                    initText = extractAtDecl ? intToFloatText("(" + initText + ")!!") : intToFloatText(initText);
+                    initText = intToFloatText(KotlinCoerce.coerce(initLowered, initDest));
                     return [indent(depth) + '$kw ${localName(v)}$typeAnn = $initText'];
                 }
 #if (kotlin_fold_debug || kotlin_emit_origins)
@@ -1275,7 +1281,7 @@ class KotlinExpr {
                     emissionTrace("DECL", initText, e.pos);
 #end
                 return [
-                    indent(depth) + '$kw ${localName(v)}$typeAnn = $initText' + (extractAtDecl ? "!!" : "")
+                    indent(depth) + '$kw ${localName(v)}$typeAnn = ' + KotlinCoerce.coerce(initLowered, initDest)
                 ];
             case TVar(v, init) if (init == null):
                 // Deferred local declarations are initialized by later assignments;
@@ -2589,21 +2595,32 @@ class KotlinExpr {
     function assignValueText(l:TypedExpr, r:TypedExpr, arrayOrLocalTarget:Bool):String {
         final wasFunctionTypeExpected = functionTypeExpected;
         functionTypeExpected = PolicyQueries.isFunctionType(l.t);
-        var value = expr(r);
+        final lowered = lower(r);
         functionTypeExpected = wasFunctionTypeExpected;
         if (!arrayOrLocalTarget)
-            return value;
+            return lowered.text;
+        var value = lowered.text;
         // Haxe unifies Int and Float; widen Int assignment values to Float
         // when the target's type is Float.
         if (isIntOrLongType(emittedType(r)) && isFloatType(l.t))
             value = intToFloatText(value);
-        if (!isNullType(l.t) && rendersNullable(r) && !StringTools.endsWith(value, "!!")) {
 #if (kotlin_fold_debug || kotlin_emit_origins)
+        if (!isNullType(l.t) && lowered.presence == MaybeAbsent)
             emissionTrace("ASSIGN", value, r.pos);
 #end
-            value = hardenAppend(value, "!!");
-        }
-        return value;
+        return KotlinCoerce.coerce(
+            lowerTextPresence(value, lowered.presence),
+            assignmentDest(assignmentTargetName(l), isNullType(l.t)));
+    }
+
+    /** The target kind of an assignment, feeding the Assignment role. */
+    function assignmentTargetName(l:TypedExpr):String {
+        return switch (stripWrap(l).expr) {
+            case TLocal(_): "local";
+            case TField(_, _): "field";
+            case TArray(_, _): "array";
+            case _: "other";
+        };
     }
 
     /** The plain `<target> = <value>` text of an assignment, rendered with
