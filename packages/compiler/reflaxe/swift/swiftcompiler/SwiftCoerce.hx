@@ -3,7 +3,9 @@ package swiftcompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import LoweredValue.Lowered;
+import LoweredValue.Presence;
 import Destination.Destination;
+import Destination.DestinationRole;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayOptionality;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayStorageOp;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayPresenceFact;
@@ -17,7 +19,35 @@ import swiftcompiler.SwiftArrayBoundary.SwiftArrayBoundaryPlan;
 class SwiftCoerce {
     /** P5.2 forwarding entry (generic sites migrate in P5.4+). */
     public static function coerce(value:Lowered, dest:Destination):String {
-        return value.text;
+        var out = value.text;
+        // GP-ABLATE: a role ablation skips the whole coercion for this
+        // destination role, so the site renders bare and swiftc reports the
+        // missing unwrap.
+        switch (ablate()) {
+            case Role(r) if (Type.enumConstructor(r) == Type.enumConstructor(dest.role)):
+                return out;
+            case _:
+        }
+        switch (dest.role) {
+            case Argument(_):
+                // Argument sites never sniff the rendered text: a parenthesized
+                // optional must still gain !.
+                switch (value.presence) {
+                    case MaybeAbsent if (!dest.admitsAbsence):
+                        out = out + "!";
+                    case _:
+                }
+            case Assignment(_):
+                // Assignment keeps the historical endsWith sniff so a value that
+                // already force-unwraps is not double-unwrapped.
+                switch (value.presence) {
+                    case MaybeAbsent if (!dest.admitsAbsence && !StringTools.endsWith(out, "!")):
+                        out = out + "!";
+                    case _:
+                }
+            case _:
+        }
+        return out;
     }
 
     /**
@@ -70,8 +100,13 @@ class SwiftCoerce {
     **/
     public static function coerceArrayBoundary(operand:String, dest:Destination, optionality:SwiftArrayOptionality,
             plan:SwiftArrayBoundaryPlan, elementText:Null<String>):{text:String, optionality:SwiftArrayOptionality} {
-        if (ablate() == AxisPresence)
-            return { text: operand, optionality: optionality };
+        switch (ablate()) {
+            case AxisPresence:
+                return { text: operand, optionality: optionality };
+            case Role(r) if (Type.enumConstructor(r) == Type.enumConstructor(dest.role)):
+                return { text: operand, optionality: optionality };
+            case _:
+        }
         final form = arrayPresenceForm(optionality, plan.presenceFact, dest.admitsAbsence);
         return {
             text: renderBoundary(form, plan.operation, operand, elementText),
@@ -90,8 +125,18 @@ class SwiftCoerce {
     public static function ablate():SwiftCoerceAblate {
         final raw = Context.definedValue("swift_coerce_ablate");
         if (raw == "Presence") return AxisPresence;
-        if (raw != null) return Role;
+        final role = parseAblateRole(raw);
+        if (role != null) return Role(role);
         return None;
+    }
+
+    /** GP-ABLATE role name to a DestinationRole; null when unrecognised. */
+    static function parseAblateRole(raw:Null<String>):Null<DestinationRole> {
+        return switch (raw) {
+            case "Argument": Argument("");
+            case "Assignment": Assignment("");
+            case _: null;
+        };
     }
 }
 
@@ -105,10 +150,10 @@ enum SwiftArrayPresenceForm {
     Reject;
 }
 
-/** GP-ABLATE: axis-name Presence is not a DestinationRole. */
+/** GP-ABLATE: Presence ablates the presence axis; Role(role) ablates one destination role. */
 enum SwiftCoerceAblate {
     None;
     AxisPresence;
-    Role;
+    Role(role:DestinationRole);
 }
 #end
