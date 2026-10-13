@@ -139,6 +139,17 @@ class KotlinExpr {
         return {type: null, admitsAbsence: true, role: StringConcatArgument, errorSlot: null};
     }
 
+    /** A Return destination for P2.7 migration sites: the returned value must
+        satisfy the current function/lambda return-type contract, read from the
+        P1 rebound return type. admitsAbsence follows Null<T> and safe-call
+        widened returns, so a non-null return type extracts a nullable value
+        with "!!". The contract payload is empty because coerce/roleTag address
+        the role by constructor name and only admitsAbsence drives the
+        extraction (see roleTag / parseAblateRole). */
+    static function returnDest(admitsAbsence:Bool):Destination {
+        return {type: null, admitsAbsence: admitsAbsence, role: Return(""), errorSlot: null};
+    }
+
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
 
@@ -1374,12 +1385,15 @@ class KotlinExpr {
                         functionTypeExpected = PolicyQueries.isFunctionType(currentReturnType);
                         var retText = expr(ret);
                         functionTypeExpected = wasFunctionTypeExpected;
-                        if (rendersNullable(ret) && !isNullType(currentReturnType) && !currentReturnAllowsNullable) {
+                        final retPresence = rendersNullable(ret) ? MaybeAbsent : Present;
 #if (kotlin_fold_debug || kotlin_emit_origins)
+                        if (retPresence == MaybeAbsent && !isNullType(currentReturnType) && !currentReturnAllowsNullable)
                             emissionTrace("RETURN", retText, ret.pos);
 #end
-                            retText = hardenAppend(retText, "!!");
-                        }
+                        retText = KotlinCoerce.coerce(
+                            lowerTextPresence(retText, retPresence),
+                            returnDest(isNullType(currentReturnType) || currentReturnAllowsNullable)
+                        );
                         // Haxe unifies Int and Float; widen Int return values to
                         // Float when the function's return type is Float.
                         // Use emittedType because the typed AST type is Float
@@ -5573,7 +5587,7 @@ class KotlinExpr {
 #if (kotlin_fold_debug || kotlin_emit_origins)
                 emissionTrace("ARG_ASSERT", text, a.pos);
 #end
-                return hardenAppend(text, "!!");
+                return KotlinCoerce.coerce(lowerTextPresence(text, MaybeAbsent), argumentDest("value", false));
             }
             else {
 #if (kotlin_fold_debug || kotlin_emit_origins)
@@ -5630,7 +5644,7 @@ class KotlinExpr {
 #if (kotlin_fold_debug || kotlin_emit_origins)
                         emissionTrace("CTOR_ASSERT", text, a.pos);
 #end
-                        hardenAppend(text, "!!");
+                        KotlinCoerce.coerce(lowerTextPresence(text, MaybeAbsent), argumentDest("value", false));
                     }
                     else {
 #if (kotlin_fold_debug || kotlin_emit_origins)
