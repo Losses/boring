@@ -119,6 +119,13 @@ class KotlinExpr {
         return {type: null, admitsAbsence: admitsAbsence, role: Argument(param), errorSlot: null};
     }
 
+    /** A Receiver destination for P2.5 migration sites: instanceField
+        member access (Property/Length, access operator . / ?.) and
+        charCodeAt receiver capture (Method, !! extraction). */
+    static function receiverDest(memberKind:String):Destination {
+        return {type: null, admitsAbsence: false, role: Receiver(memberKind), errorSlot: null};
+    }
+
     /** Field reads proven non-null by a dominating null check. */
     final nonNullFields:Map<String, Bool> = [];
 
@@ -4132,8 +4139,12 @@ class KotlinExpr {
                 return folded;
         }
         if (name == "length") {
-            final receiver = expr(subj) + nullableAccess(subj);
-            return receiver + (isString(subj) ? "length" : "size");
+            final access = nullableAccess(subj);
+            final receiverText = access == "!!." ? expr(subj) + "!!" : expr(subj);
+            final presence = access == "?." ? MaybeAbsent : Present;
+            return KotlinCoerce.coerce(
+                lowerTextPresence(receiverText, presence), receiverDest("Length"))
+                + (isString(subj) ? "length" : "size");
         }
         // A nullable subject accessing a non-null field needs `!!. ` (not `?.`)
         // so the result type stays non-null; Haxe's typed AST types the field
@@ -4150,7 +4161,7 @@ class KotlinExpr {
         // The whole decision runs before any rendering: a probe that renders
         // the subject would let its nested emissions write the very proof
         // and extraction registries this decision consults. The pure
-        // rendersNullable walk replaces the old rendered-text probe.
+        // nullableAccess walk replaces the old rendered-text probe.
         // (PureAccessDecision)
         final bareSubject = switch (stripWrap(subj).expr) {
             case TLocal(_): true;
@@ -4170,27 +4181,39 @@ class KotlinExpr {
             };
         if (alreadyExtracted)
             return expr(subj) + "." + KotlinNameEscape.escape(name);
-        final access = if (isProperty && fieldType != null && !isNullType(fieldType)
-            && isNullType(subj.t) && !receiverProven(subj)) {
-            "!!.";
-        } else if (!receiverProven(subj) && !bareSubject
-            // A safe-call hop earlier in the receiver chain leaves the
-            // value nullable regardless of the Haxe type (the hop itself
-            // was an emitter safety choice); the Haxe member read would
-            // NPE there, so this hop hardens with !!. A bare local never
-            // renders a safe call, matching the old rendered-text probe.
+        final access = {
+            var acc = nullableAccess(subj);
+            // Non-null property on nullable unproven receiver forces
+            // extraction so the result type stays non-null (the Haxe type
+            // records the field type as non-null even when the receiver is
+            // Null<T>).
+            // (PureAccessDecision)
+            if (isProperty && fieldType != null && !isNullType(fieldType)
+                && isNullType(subj.t) && !receiverProven(subj)) {
+                acc = "!!.";
+            }
+            // SafeCallHopHardening: a safe-call hop earlier in the receiver
+            // chain leaves the value nullable regardless of the Haxe type
+            // (the hop itself was an emitter safety choice); the Haxe
+            // member read would NPE there, so this hop hardens with !!.
+            // A bare local never renders a safe call. Detected here through
+            // the access result rather than an extra render probe.
             // (SafeCallHopHardening)
-            && rendersNullable(subj)) {
-            "!!.";
-        } else {
-            nullableAccess(subj);
+            if (!receiverProven(subj) && !bareSubject && acc == "?.") {
+                acc = "!!.";
+            }
+            acc;
         };
         // Register only the emission that actually prints the assertion:
         // the write must not happen on the decision path, which queries
         // also traverse. (PureAccessDecision)
         if (access == "!!.")
             addProofExpr(subj);
-        return expr(subj) + access + KotlinNameEscape.escape(name);
+        final receiverText = access == "!!." ? expr(subj) + "!!" : expr(subj);
+        final presence = access == "?." ? MaybeAbsent : Present;
+        return KotlinCoerce.coerce(
+            lowerTextPresence(receiverText, presence), receiverDest("Property"))
+            + KotlinNameEscape.escape(name);
     }
 
     function getterOnlyProperty(owner:ClassType, accessorName:String):Null<ClassField> {
@@ -5054,11 +5077,15 @@ class KotlinExpr {
                     // A receiver whose rendered value is nullable unwraps so
                     // the captured `_s` is a plain String; a non-null String
                     // needs no assertion. (CharCodeAtReceiverExtraction)
+                    final charCodeNullable = rendersNullable(subj);
+                    final rendered = expr(subj);
 #if (kotlin_fold_debug || kotlin_emit_origins)
-                    if (rendersNullable(subj))
-                        emissionTrace("CHARCODE", expr(subj), subj.pos);
+                    if (charCodeNullable)
+                        emissionTrace("CHARCODE", rendered, subj.pos);
 #end
-                    final receiver = rendersNullable(subj) ? hardenAppend(expr(subj), "!!") : expr(subj);
+                    final receiver = KotlinCoerce.coerce(
+                        lowerTextPresence(rendered, charCodeNullable ? MaybeAbsent : Present),
+                        receiverDest("Method"));
                     return "run { val _s = "
                         + receiver
                         + "; val _i = "
@@ -5068,7 +5095,11 @@ class KotlinExpr {
                 if (name == "charCodeAt") {
                     // Fallback: treat charCodeAt on any receiver the same way
                     // when the type-checking didn't recognise a String type.
-                    final receiver = rendersNullable(subj) ? hardenAppend(expr(subj), "!!") : expr(subj);
+                    final charCodeNullable = rendersNullable(subj);
+                    final rendered = expr(subj);
+                    final receiver = KotlinCoerce.coerce(
+                        lowerTextPresence(rendered, charCodeNullable ? MaybeAbsent : Present),
+                        receiverDest("Method"));
                     return "run { val _s = "
                         + receiver
                         + "; val _i = "
