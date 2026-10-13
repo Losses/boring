@@ -702,9 +702,9 @@ extension ReadOnlyArray: Equatable where Element: Equatable {
         return lhs.elementsEqual(rhs)
     }
 }
-/// The toMutableArray bridge formerly lived on the ReadOnlyArray wrapper
-/// class; the generated code now uses native [T] arrays and calls this
-/// extension when it needs a TiqianArray for mutation.
+/// Backwards-compatibility bridge: toMutableArray lives on the
+/// ReadOnlyArray wrapper class; this extension still converts a native
+/// [T] array into a TiqianArray when generated code needs mutation.
 extension Array {
     public func toMutableArray() -> TiqianArray<Element> { return TiqianArray(self) }
 }
