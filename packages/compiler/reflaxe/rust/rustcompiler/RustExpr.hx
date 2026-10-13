@@ -9071,7 +9071,7 @@ class RustExpr {
 
     function staticItemPath(cls:ClassType, name:String):String {
         final itemName = RustImports.toScreamingSnakeCase(cls.name + "_" + name);
-        return cls.module == imports.selfModule ? itemName : "crate::" + RustImports.moduleToRustPath(cls.module) + "::" + itemName;
+        return cls.module == imports.selfModule ? itemName : RustSymbols.path(cls.module, itemName);
     }
 
     function staticGuard(cls:ClassType, name:String):String {

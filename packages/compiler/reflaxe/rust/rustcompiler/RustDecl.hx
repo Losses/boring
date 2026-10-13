@@ -589,8 +589,7 @@ class RustDecl {
                 case RecordOrder(record, _):
                     final nested = record.source.declaration;
                     if (nested.module != imports.selfModule)
-                        imports.require("crate::" + RustImports.moduleToRustPath(nested.module)
-                            + "::compare_" + RustImports.toSnakeCase(nested.name));
+                        imports.require(RustSymbols.path(nested.module, "compare_" + RustImports.toSnakeCase(nested.name)));
                     'compare_${RustImports.toSnakeCase(nested.name)}($left, $right)';
                 case NullBeforePresent(child):
                     'match ($left, $right) { (None, None) => 0, (None, Some(_)) => -1, '
