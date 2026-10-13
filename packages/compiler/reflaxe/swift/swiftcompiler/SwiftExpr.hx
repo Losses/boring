@@ -122,6 +122,10 @@ class SwiftExpr {
     /** Locals proven non-null by an enclosing guard; value uses unwrap. */
     final narrowedLocals:Map<Int, Bool> = [];
 
+    /** Locals shadowed by an 'if let x = x' guard; their proven value reads
+        render as bare non-optional bindings (Swift has no smart-cast). */
+    final ifLetShadowedLocals:Map<Int, Bool> = [];
+
     /** Guard-proven non-null member paths, for narrowing derived locals. */
     var narrowedAccess:Array<TypedExpr> = [];
 
@@ -1008,9 +1012,16 @@ class SwiftExpr {
             restoreNarrowed(foldedSnapshot);
             return out;
         }
-        final out = [indent(depth) + "if " + folded + " {"];
+        // A positive null-guard over a single local shadows the proven value:
+        // 'if let x = x {' makes the Swift binding non-optional inside the
+        // branch, so value uses render bare instead of force-unwrapping.
+        final shadow = ifLetLocalGuard(c);
+        final header = shadow == null ? folded : "let " + shadow.name + " = " + shadow.name;
+        final out = [indent(depth) + "if " + header + " {"];
         final trueSnapshot = saveNarrowed();
         applyNarrowed(c, true);
+        if (shadow != null)
+            ifLetShadowedLocals.set(shadow.id, true);
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
         restoreNarrowed(trueSnapshot);
@@ -1067,15 +1078,18 @@ class SwiftExpr {
         unbounded read, so the emitter records the locals a guard proves
         non-null and force-unwraps their value uses in that scope.
     **/
-    function saveNarrowed():{locals:Map<Int, Bool>, access:Array<TypedExpr>} {
-        return {locals: narrowedLocals.copy(), access: narrowedAccess.copy()};
+    function saveNarrowed():{locals:Map<Int, Bool>, access:Array<TypedExpr>, shadowed:Map<Int, Bool>} {
+        return {locals: narrowedLocals.copy(), access: narrowedAccess.copy(), shadowed: ifLetShadowedLocals.copy()};
     }
 
-    function restoreNarrowed(snapshot:{locals:Map<Int, Bool>, access:Array<TypedExpr>}):Void {
+    function restoreNarrowed(snapshot:{locals:Map<Int, Bool>, access:Array<TypedExpr>, shadowed:Map<Int, Bool>}):Void {
         narrowedLocals.clear();
         for (k in snapshot.locals.keys())
             narrowedLocals.set(k, snapshot.locals.get(k));
         narrowedAccess = snapshot.access;
+        ifLetShadowedLocals.clear();
+        for (k in snapshot.shadowed.keys())
+            ifLetShadowedLocals.set(k, snapshot.shadowed.get(k));
     }
 
     /** The non-null targets a condition proves when it evaluates to `whenTrue`. */
@@ -1206,8 +1220,45 @@ class SwiftExpr {
         };
     }
 
+    /** Whether a value use names a local an 'if let' guard shadowed to a
+        non-optional binding; such reads render bare. */
+    function isIfLetShadowed(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): ifLetShadowedLocals.exists(v.id);
+            case _: false;
+        };
+    }
+
+    /** If 'c' is a positive null-guard over a single local ('x != nil'),
+        returns the local's Swift name and var id for an 'if let x = x'
+        shadow; otherwise null. A member guard ('obj.field != nil') has no
+        same-name shadow and keeps force-unwrapping. */
+    function ifLetLocalGuard(c:TypedExpr):Null<{name:String, id:Int}> {
+        final inner = stripWrap(c);
+        return switch (inner.expr) {
+            case TBinop(OpNotEq, l, r):
+                final target = nullGuardLocal(l, r);
+                switch (target == null ? null : stripWrap(target).expr) {
+                    case TLocal(v): {name: localName(v), id: v.id};
+                    case _: null;
+                }
+            case _: null;
+        };
+    }
+
+    /** The local operand of a two-sided comparison whose other side is null. */
+    function nullGuardLocal(a:TypedExpr, b:TypedExpr):Null<TypedExpr> {
+        if (isNullExpr(b))
+            return stripWrap(a);
+        if (isNullExpr(a))
+            return stripWrap(b);
+        return null;
+    }
+
     function narrowedText(e:TypedExpr):String {
         final rendered = expr(e);
+        if (isIfLetShadowed(e))
+            return rendered;
         if (StringTools.endsWith(rendered, "!"))
             return rendered;
         if (isNarrowed(e))
@@ -1234,7 +1285,7 @@ class SwiftExpr {
     /** A narrowed local read force-unwraps so its binding types as a value. */
     function narrowedLocalText(e:TypedExpr):String {
         final text = expr(e);
-        if (!isNarrowedLocalRead(e) || StringTools.endsWith(text, "!"))
+        if (isIfLetShadowed(e) || !isNarrowedLocalRead(e) || StringTools.endsWith(text, "!"))
             return text;
         return text + "!";
     }
@@ -2955,6 +3006,8 @@ class SwiftExpr {
     }
 
     function arrayOperandPresenceFact(e:TypedExpr):SwiftArrayPresenceFact {
+        if (isIfLetShadowed(e))
+            return SwiftArrayPresenceFact.SourceTypeRequired;
         if (isNarrowed(e))
             return SwiftArrayPresenceFact.GuardProvenPresent;
         if (ternaryNonNullBothArms(e))
@@ -3604,7 +3657,7 @@ class SwiftExpr {
                     // switch destination. inout arguments are handled above and
                     // must keep their & prefix, so they never reach this coercion.
                     final argText = switchArgText(a, pt);
-                    final presence:Presence = (swiftPresence(a) != Present || (isNullLeafType(a.t) && !isNonOptionalDeclared(a)))
+                    final presence:Presence = (swiftPresence(a) != Present || (isNullLeafType(a.t) && !isNonOptionalDeclared(a) && !isIfLetShadowed(a)))
                         ? MaybeAbsent : swiftPresence(a);
                     SwiftCoerce.coerce({ text: argText, storage: null, presence: presence, errorDomain: null, unit: null, origin: null },
                         { type: pt, admitsAbsence: !demandsValue, role: Argument(""), errorSlot: null });
@@ -3642,7 +3695,8 @@ class SwiftExpr {
             && swiftPresence(inner) == Present
             && !isNullLeafType(inner.t)
             && !isNarrowed(subj))
-            || plainBoundCoalescingLocal(inner)) {
+            || plainBoundCoalescingLocal(inner)
+            || isIfLetShadowed(inner)) {
             return expr(subj);
         }
         final base = expr(subj);
@@ -3709,6 +3763,11 @@ class SwiftExpr {
     function swiftPresence(e:TypedExpr):Presence {
         if (isNullLiteral(e))
             return NullLiteral;
+        // An 'if let x = x' shadow is a non-optional Swift binding, so its
+        // value reads are plain and report Present despite the optional Haxe
+        // source type.
+        if (isIfLetShadowed(e))
+            return Present;
         if (staticallyOptional(e))
             return MaybeAbsent;
         return Present;

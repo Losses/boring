@@ -5,7 +5,7 @@ set -euo pipefail
 # boundaries. Reproduces the round-2 defect and pins the dual-axis presence
 # rendering. Two distinct force-unwrap mechanisms are observable in the text:
 #   unproven -> (view!)  (Unwrap dispatch, parenthesized)
-#   proven   -> view!    (GuardProvenPresent -> ForceUnwrap, no parens)
+#   proven   -> view     (if-let shadow renders a non-optional binding, bare)
 # P5.4 fixed Bug B (destinationOptionalOverride made conditional at call and
 # constructor args), so argumentUnproven now force-unwraps as (view!) and the
 # normal arm compiles clean.
@@ -30,20 +30,20 @@ haxe tests/haxe/swift-optional-native-array/compile.hxml
 OPS="$GEN/SwiftOptionalNativeArrayOps.swift"
 [ -f "$OPS" ] || { echo "FAIL: missing $OPS"; exit 1; }
 
-check "argumentProven force-unwraps (no parens)"  "consumeRequired(view!, 20)"
+check "argumentProven renders bare (if-let shadow)"  "consumeRequired(view, 20)"
 check "fieldUnproven unwraps (parens)"            "held = (view!)"
-check "fieldProven force-unwraps (no parens)"     "held = view!"
+check "fieldProven renders bare (if-let shadow)"     "held = view"
 check "returnUnproven unwraps (parens)"           "return (view!)"
-check "returnProven force-unwraps (no parens)"    "return view!"
+check "returnProven renders bare (if-let shadow)"    "return view"
 check "argumentUnproven unwraps (parens)"         "consumeRequired((view!), 10)"
 
 echo "== swiftc (normal) =="
 set +e
-swiftc -c "$OPS" -o "$TMP/ops.o" 2>"$TMP/normal.err"
+( cd "$TMP" && swiftc -c "$ROOT/$OPS" "$ROOT/$GEN/Runtime.swift" "$ROOT/$GEN"/std/*.swift ) 2>"$TMP/normal.err"
 rc=$?
 set -e
 if [ "$rc" -eq 0 ]; then
-  echo "PASS: swiftc compiles clean (all 6 boundaries force-unwrapped; Bug B fixed)"
+  echo "PASS: swiftc compiles clean (3 proven boundaries bare via if-let; 3 unproven force-unwrapped; Bug B fixed)"
 else
   echo "FAIL: swiftc rc=$rc"
   cat "$TMP/normal.err"; fail=1
@@ -58,8 +58,8 @@ swiftc -typecheck "$AOPS" "$ABLATE_GEN/Runtime.swift" "$ABLATE_GEN"/std/*.swift 
 rc=$?
 set -e
 n_unwrap="$(grep -cE '^[^ ]+: error: .*must be unwrapped' "$TMP/ablate.err" || true)"
-if [ "$rc" -ne 0 ] && [ "$n_unwrap" -eq 6 ]; then
-  echo "PASS: ablated presence axis leaves all 6 optional boundaries bare (6 swiftc unwrap errors)"
+if [ "$rc" -ne 0 ] && [ "$n_unwrap" -eq 3 ]; then
+  echo "PASS: ablated presence axis leaves only the 3 unproven optional boundaries bare (3 swiftc unwrap errors)"
 else
   echo "FAIL: ablated swiftc rc=$rc unwrap_errors=$n_unwrap"
   cat "$TMP/ablate.err"; fail=1
@@ -74,8 +74,8 @@ swiftc -typecheck "$AOPS_ARG" "$ARG_GEN/Runtime.swift" "$ARG_GEN"/std/*.swift 2>
 rc=$?
 set -e
 n_unwrap="$(grep -cE '^[^ ]+: error: .*must be unwrapped' "$TMP/ablate-arg.err" || true)"
-if [ "$rc" -ne 0 ] && [ "$n_unwrap" -eq 2 ]; then
-  echo "PASS: ablated Argument role leaves only the 2 argument boundaries bare (2 swiftc unwrap errors)"
+if [ "$rc" -ne 0 ] && [ "$n_unwrap" -eq 1 ]; then
+  echo "PASS: ablated Argument role leaves only the 1 unproven argument boundary bare (1 swiftc unwrap error)"
 else
   echo "FAIL: ablated-Argument swiftc rc=$rc unwrap_errors=$n_unwrap"
   cat "$TMP/ablate-arg.err"; fail=1
