@@ -3285,6 +3285,26 @@ class KotlinExpr {
         proof window, the same window the text renderer opens. (PresenceBottomUp)
     **/
     function presenceOf(e:TypedExpr):Presence {
+        // Type.enumConstructor's QName marker renders "?.name" for a nullable
+        // argument (enumQuery hardcodes the separator from its own decision),
+        // so presence tracks the same AST predicates instead of re-reading
+        // rendered text. QLookup/QCollection always render present values.
+        // (EnumQueryNullableName)
+        switch (EnumQueryExpander.markerKind(e)) {
+            case QName:
+                final qargs = EnumQueryExpander.callArgs(e);
+                if (qargs.length > 0) {
+                    final arg = qargs[0];
+                    if (presenceOf(arg) == MaybeAbsent
+                        || (isNullType(arg.t) && !receiverProven(arg))
+                        || (nullableChainHop(arg) && !receiverProven(arg)))
+                        return MaybeAbsent;
+                }
+                return Present;
+            case QLookup | QCollection:
+                return Present;
+            case null:
+        }
         if (isNullType(e.t) && !valueProven(e)) {
             if (extractedNonNullFieldRead(e))
                 return Present;
@@ -3964,7 +3984,7 @@ class KotlinExpr {
         choose ?.plus without re-reading the rendered text. */
     function stringConcatOperand(e:TypedExpr):Lowered {
         final rendered = expr(e);
-        final hasSafeCallText = rendered.indexOf("?.") >= 0;
+        final hasSafeCallText = expressionRendersSafeCall(e);
         final safeChain = isNullType(receiverBase(e).t) && !receiverProven(receiverBase(e)) && hasSafeCallText;
         final keepsNull = isNullType(e.t) && !valueProven(e);
         final nullInit = isNullInitialized(e) && !valueProven(e);
@@ -3979,6 +3999,295 @@ class KotlinExpr {
             unit: null,
             origin: null,
         };
+    }
+
+    // --- Text-sniff mirror ---------------------------------------------------
+    // stringConcatOperand used to decide safe-call presence by scanning the
+    // already rendered text (rendered.indexOf of the ?. literal). Rendering
+    // twice to recover the same fact would re-run the stateful lowerer, so
+    // these helpers answer the question "does expr(e) emit a safe call ?."
+    // from the expression shape alone. They are pure: they never call expr()
+    // or any mutating renderer. The only ambient reads are the live
+    // extracted-locals/fields registries, which the lowerer has already
+    // settled by the time the post-render walk runs, and mutableArrayAccess
+    // (read, never written).
+    function expressionRendersSafeCall(e:TypedExpr):Bool {
+        final plan = PolicyQueries.enumQueryPlan(e);
+        if (plan != null) {
+            return switch (plan) {
+                case LengthCount(_):
+                    false;
+                case AliasIndex(subj, index):
+                    expressionRendersSafeCall(subj) || expressionRendersSafeCall(index);
+                case EntryIndex(_, index):
+                    expressionRendersSafeCall(index);
+                case EnumKindQuery(kind, _, args):
+                    switch (kind) {
+                        case QCollection:
+                            false;
+                        case QName:
+                            if (args.length == 0) {
+                                false;
+                            } else {
+                                final arg = args[0];
+                                presenceOf(arg) == MaybeAbsent
+                                    || (isNullType(arg.t) && !receiverProven(arg))
+                                    || (nullableChainHop(arg) && !receiverProven(arg))
+                                    || expressionRendersFirstOrNullTail(arg)
+                                    || expressionRendersSafeCall(arg);
+                            }
+                        case QLookup:
+                            args.length > 1 && expressionRendersSafeCall(args[1]);
+                    }
+            };
+        }
+        return switch (e.expr) {
+            case TMeta(_, inner) | TParenthesis(inner) | TCast(inner, _):
+                expressionRendersSafeCall(inner);
+            case TField(subj, fa):
+                fieldAccessRendersSafeCall(subj, fa) || expressionRendersSafeCall(subj);
+            case TArray(arr, idx):
+                final backing = mapBackingReceiver(arr);
+                final receiver = backing == null ? arr : backing;
+                if ((isNullType(receiver.t) && !receiverProven(receiver))
+                    || (nullableChainHop(receiver) && !receiverProven(receiver))) {
+                    true;
+                } else {
+                    expressionRendersSafeCall(receiver) || expressionRendersSafeCall(idx);
+                }
+            case TCall(fn, args):
+                callRendersSafeCall(fn, args);
+            case TBinop(_, l, r):
+                expressionRendersSafeCall(l) || expressionRendersSafeCall(r);
+            case TUnop(_, _, inner):
+                expressionRendersSafeCall(inner);
+            case TIf(c, t, f):
+                expressionRendersSafeCall(c) || expressionRendersSafeCall(t) || (f != null && expressionRendersSafeCall(f));
+            case TObjectDecl(fields):
+                Lambda.exists(fields, f -> expressionRendersSafeCall(f.expr));
+            case TArrayDecl(elems):
+                Lambda.exists(elems, el -> expressionRendersSafeCall(el));
+            case TNew(_, _, args):
+                Lambda.exists(args, a -> expressionRendersSafeCall(a));
+            case _:
+                false;
+        };
+    }
+
+    function expressionRendersFirstOrNullTail(e:TypedExpr):Bool {
+        return switch (PolicyQueries.enumQueryPlan(e)) {
+            case EnumKindQuery(QLookup, _, _): true;
+            case _:
+                switch (e.expr) {
+                    case TMeta(_, inner) | TParenthesis(inner) | TCast(inner, _): expressionRendersFirstOrNullTail(inner);
+                    case _: false;
+                }
+        }
+    }
+
+    function isFoldedExceptionSubj(subj:TypedExpr):Bool {
+        return switch (Context.follow(subj.t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                KotlinDecl.isExceptionSubclass(cls) || (cls.pack.join(".") == "haxe" && cls.name == "Exception");
+            case _:
+                false;
+        }
+    }
+
+    function isMethodOnNullableCast(subj:TypedExpr, cf:Ref<ClassField>):Bool {
+        return switch (subj.expr) {
+            case TCast(inner, _) if (!cf.get().kind.match(FVar(_, _)) && isNullType(inner.t) && !receiverProven(inner)):
+                true;
+            case _:
+                false;
+        }
+    }
+
+    function fieldAccessRendersSafeCall(subj:TypedExpr, fa:FieldAccess):Bool {
+        switch (fa) {
+            case FStatic(_, _) | FEnum(_, _) | FDynamic(_) | FClosure(_, _):
+                return false;
+            case FInstance(owner, _, cf):
+                final name = cf.get().name;
+                if (isMethodOnNullableCast(subj, cf))
+                    return true;
+                final getterProperty = getterOnlyProperty(owner.get(), name);
+                if (getterProperty != null)
+                    return getterPropertyAccessRendersSafeCall(subj, getterProperty);
+                return instanceFieldAccessRendersSafeCall(subj, name, cf);
+            case FAnon(cf):
+                return instanceFieldAccessRendersSafeCall(subj, cf.get().name, cf);
+        }
+        return false;
+    }
+
+    function instanceFieldAccessRendersSafeCall(subj:TypedExpr, name:String, cf:Null<Ref<ClassField>>):Bool {
+        if (catchPayloadAccess(subj, name) != null)
+            return false;
+        if ((name == "message" || name == "get_message" || name == "previous" || name == "get_previous")
+            && isFoldedExceptionSubj(subj))
+            return false;
+        if (name == "length")
+            return nullableAccess(subj) == "?.";
+        final fieldType = cf != null ? cf.get().type : null;
+        final isProperty = cf != null && cf.get().kind.match(FVar(_, _));
+        final bareSubject = switch (stripWrap(subj).expr) {
+            case TLocal(_): true;
+            case _: false;
+        };
+        final root = subjectRootLocal(subj);
+        final alreadyExtracted = root != null
+            && !bodyWritesLocal(root.id)
+            && switch (stripWrap(subj).expr) {
+                case TLocal(v): extractedLocals.exists(v.id);
+                case _: fieldAccessKey(subj) != null && extractedFields.exists(fieldAccessKey(subj));
+            };
+        if (alreadyExtracted)
+            return false;
+        var access = nullableAccess(subj);
+        if (isProperty && fieldType != null && !isNullType(fieldType) && isNullType(subj.t) && !receiverProven(subj))
+            access = "!!.";
+        if (!receiverProven(subj) && !bareSubject && access == "?.")
+            access = "!!.";
+        return access == "?.";
+    }
+
+    function getterPropertyAccessRendersSafeCall(subj:TypedExpr, property:ClassField):Bool {
+        final fieldType = property.type;
+        final access = (fieldType != null && !isNullType(fieldType) && isNullType(subj.t) && !receiverProven(subj))
+            ? "!!."
+            : nullableAccess(subj);
+        return access == "?.";
+    }
+
+    function callRendersSafeCall(fn:TypedExpr, args:Array<TypedExpr>):Bool {
+        final argsSafe = Lambda.exists(args, a -> expressionRendersSafeCall(a));
+        switch (fn.expr) {
+            case TCast(inner, _):
+                return callRendersSafeCall(inner, args);
+            case TField(subj, FInstance(_, _, _)):
+                return expressionRendersSafeCall(subj) || callAccessRendersSafeCall(fn, args) || argsSafe;
+            case TField(subj, FDynamic(_)):
+                return expressionRendersSafeCall(subj) || argsSafe;
+            case TField(_, FStatic(_, _)):
+                return callAccessRendersSafeCall(fn, args) || argsSafe;
+            case TField(_, FEnum(_, _)) | TField(_, FClosure(_, _)):
+                return argsSafe;
+            case TConst(TSuper):
+                return argsSafe;
+            case _:
+                return expressionRendersSafeCall(fn) || argsSafe;
+        }
+    }
+
+    function callAccessRendersSafeCall(fn:TypedExpr, args:Array<TypedExpr>):Bool {
+        switch (fn.expr) {
+            case TCast(inner, _):
+                return callAccessRendersSafeCall(inner, args);
+            case TField(subj, FInstance(owner, _, cf)):
+                final name = cf.get().name;
+                if ((name == "get_message" || name == "get_previous") && args.length == 0) {
+                    if (isFoldedExceptionSubj(subj))
+                        return false;
+                    return instanceCallAccessRendersSafeCall(subj, owner, cf, args);
+                }
+                if (name == "call" && args.length == 2 && isHasOwnPropertyValue(subj))
+                    return false;
+                if ((name == "indexOf" || name == "lastIndexOf") && owner.get().pack.length == 0
+                    && owner.get().name == "Array" && args.length >= 1)
+                    return nullableAccess(subj) == "?.";
+                return instanceCallAccessRendersSafeCall(subj, owner, cf, args);
+            case TField(_, FDynamic(_)):
+                return false;
+            case TField(_, FStatic(c, cf)):
+                final cls = c.get();
+                final name = cf.get().name;
+                if (cls.pack.length == 0 && cls.name == "StringTools"
+                    && (name == "startsWith" || name == "endsWith") && args.length == 2) {
+                    final firstArg = args[0];
+                    return (isNullType(firstArg.t) && !receiverProven(firstArg))
+                        || (nullableChainHop(firstArg) && !receiverProven(firstArg));
+                }
+                return false;
+            case _:
+                return false;
+        }
+    }
+
+    function instanceCallAccessRendersSafeCall(subj:TypedExpr, owner:Ref<ClassType>, cf:Ref<ClassField>, args:Array<TypedExpr>):Bool {
+        final name = cf.get().name;
+        if (isMethodOnNullableCast(subj, cf) && args.length == 0)
+            return true;
+        final getterProperty = getterOnlyProperty(owner.get(), name);
+        if (getterProperty != null && args.length == 0)
+            return getterPropertyAccessRendersSafeCall(subj, getterProperty);
+        if (isString(subj) || isNullStringReceiver(subj)) {
+            if (name == "toLowerCase" || name == "toUpperCase")
+                return nullableAccess(subj) == "?.";
+        }
+        if (name == "toChar" && isNullType(subj.t))
+            return false;
+        if (isMapType(subj.t)) {
+            if ((name == "exists" && args.length == 1)
+                || (name == "get" && args.length == 1)
+                || (name == "set" && args.length == 2))
+                return false;
+        }
+        if (isStringBuf(subj)) {
+            // add/addChar/toString render a fault guard whose tail read emits
+            // a literal safe-call on code; get_length/length lower to a plain
+            // dot. Those results are non-null or Void, so none of them drive
+            // the concat decision; the access hop itself is a plain dot.
+            return false;
+        }
+        if (name == "get" && isBytes(stripCast(subj)))
+            return false;
+        if (name == "set" && args.length == 2 && isBytes(stripCast(subj)))
+            return false;
+        if (name == "blit" && args.length == 4 && isBytes(stripCast(subj)))
+            return false;
+        if (name == "fill" && args.length == 3 && isBytes(stripCast(subj)))
+            return false;
+        if (name == "sub" && args.length == 2 && isBytes(stripCast(subj)))
+            return false;
+        if (name == "getString" && args.length == 2 && isBytes(stripCast(subj)))
+            return false;
+        if (name == "charAt" && isString(stripCast(subj)))
+            return false;
+        if (name == "charCodeAt")
+            return false;
+        if (name == "indexOf" && isString(stripCast(subj)) && args.length >= 1)
+            return false;
+        if (name == "lastIndexOf" && isString(stripCast(subj)) && args.length >= 1)
+            return false;
+        if (name == "substring" && isString(stripCast(subj)))
+            return false;
+        if (name == "substr" && isString(stripCast(subj)))
+            return false;
+        final arrayReceiver = switch (Context.follow(subj.t)) {
+            case TInst(c, _): c.get().name == "Array";
+            case _: false;
+        };
+        if (arrayReceiver) {
+            switch (name) {
+                case "push" | "concat" | "copy" | "pop" | "shift" | "unshift" | "insert" | "splice" | "get_length" | "length":
+                    return false;
+                case _:
+            }
+        }
+        if (name == "push")
+            return false;
+        if (name == "join")
+            return presenceOf(subj) == MaybeAbsent;
+        if ((args.length == 1 || args.length == 2) && name == "slice" && owner.get().pack.length == 0
+            && owner.get().name == "Array")
+            return nullableAccess(subj) == "?.";
+        if (name == "split" && mutableArrayAccess && isString(stripCast(subj)))
+            return false;
+        if (name == "split" && isString(stripCast(subj)) && isEmptyDelimiterSplit(name, args))
+            return nullableAccess(subj) == "?.";
+        return nullableAccess(subj) == "?.";
     }
 
     function operand(e:TypedExpr, parent:Binop, isRight:Bool):String {
@@ -5653,22 +5962,17 @@ class KotlinExpr {
         Whether a call argument renders as nullable at a Kotlin non-null
         parameter boundary. This covers both explicit Null<T> values and
         non-null Haxe expressions widened by Kotlin safe-call rendering.
-        The rendered-safe-call check covers enum reflection lowerings whose
-        Haxe AST does not retain the nullable receiver edge.
+        Enum reflection lowerings whose Haxe AST does not retain the nullable
+        receiver edge are handled by presenceOf's QName-marker branch.
     **/
     function requiresNonNullCallArgument(e:TypedExpr, rendered:String):Bool {
-        // A proven value, a value the enclosing guards already proved, or a
-        // text that already carries its extraction needs no second one:
-        // Kotlin smart-casts those proofs, so the added assertion or elvis
-        // would warn as redundant. Only a val-like local smart-casts: a
-        // mutable property or a closure-shared binding keeps its
-        // extraction. (NonNullArgumentExtraction)
+        // A proven value, or a value the enclosing guards already proved,
+        // needs no second extraction: Kotlin smart-casts those proofs, so
+        // the added assertion or elvis would warn as redundant. Only a
+        // val-like local smart-casts: a mutable property or a
+        // closure-shared binding keeps its extraction. (NonNullArgumentExtraction)
         if (isNullLiteral(e))
             return false;
-        // The rendered Kotlin type is the authority on optionality: an
-        // argument whose type renders without `?` is already non-nullable
-        // at this boundary. (NonNullArgumentExtraction)
-
         // Only a val-like local and a final property smart-cast in Kotlin: a
         // mutable property or a reassigned binding keeps its extraction even
         // when the program's control flow proves the value present. Asking the
@@ -5678,8 +5982,6 @@ class KotlinExpr {
         final smartCastable = smartCastableSubject(e);
         final proven = valueProvenNonNull(e) || valueProven(e);
         if (smartCastable && proven)
-            return false;
-        if (StringTools.endsWith(rendered, "!!") || rendered.indexOf("?: throw") >= 0)
             return false;
         // A field read the typer widened to Null<T> whose rendering already
         // extracts the receiver and reads a non-null declared property
@@ -5702,8 +6004,7 @@ class KotlinExpr {
             || isNullableRenderedField(e)
             || isNullInitialized(e)
             || nullableChainHop(e)
-            || presenceOf(e) == MaybeAbsent
-            || rendered.indexOf("?.") >= 0;
+            || presenceOf(e) == MaybeAbsent;
     }
 
     /**
