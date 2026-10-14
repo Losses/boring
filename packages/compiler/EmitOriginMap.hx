@@ -69,13 +69,13 @@ class EmitOriginMap {
         for (entry in lines) {
             if (entry == null) {
                 serializedLines.push(null);
-            } else if (entry.sourceFileId < 0) {
-                serializedLines.push([entry.frameId]);
             } else if (version >= 3) {
                 serializedLines.push([entry.frameId, entry.sourceFileId,
                     entry.sourceStart, entry.sourceEnd, entry.sourceLine,
                     entry.sourceColumn, entry.callStack, entry.origin,
                     entry.inheritedFrom]);
+            } else if (entry.sourceFileId < 0) {
+                serializedLines.push([entry.frameId]);
             } else if (version >= 2) {
                 serializedLines.push([entry.frameId, entry.sourceFileId,
                     entry.sourceStart, entry.sourceEnd, entry.sourceLine,
