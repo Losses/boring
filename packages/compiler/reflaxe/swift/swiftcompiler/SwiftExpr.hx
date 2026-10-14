@@ -821,17 +821,18 @@ class SwiftExpr {
                             final narrowedInit = isNarrowedLocalRead(init);
                             if (narrowedInit)
                                 nonOptionalInferred.set(v.id, true);
-                            var rendered = narrowedInit ? narrowedLocalText(init) : expr(init);
-                            if (swiftPresence(init) != Present && hasTypeAnnotation && !narrowedInit && !isNullLeafType(v.t) && !optionalNullAnnotation
-                                && !StringTools.endsWith(rendered, "!"))
-                                rendered += "!";
+                            var rendered = narrowedInit ? narrowedLocalText(init) : SwiftCoerce.coerce(
+                                { text: expr(init), storage: null, presence: (swiftPresence(init) != Present ? MaybeAbsent : Present), errorDomain: null, unit: null, origin: null },
+                                { type: init.t, admitsAbsence: (!hasTypeAnnotation || isNullLeafType(v.t) || optionalNullAnnotation), role: Assignment(""), errorSlot: null });
                             rendered;
                         }
                 };
                 if (isIntType(emittedType(init)) && isFloatLeafType(v.t))
                     initText = intToFloatText(initText);
-                if (unwrapNullableInitializer && !arrayBoundary && !StringTools.endsWith(initText, "!"))
-                    initText += "!";
+                if (unwrapNullableInitializer && !arrayBoundary)
+                    initText = SwiftCoerce.coerce(
+                        { text: initText, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null },
+                        { type: v.t, admitsAbsence: false, role: Assignment(""), errorSlot: null });
                 if (swiftShadowedLocals.exists(v.id))
                     return [];
                 if (swiftUnusedLocals.exists(v.id))
@@ -1261,16 +1262,12 @@ class SwiftExpr {
             return rendered;
         if (StringTools.endsWith(rendered, "!"))
             return rendered;
-        if (isNarrowed(e))
-            return rendered + "!";
-        // An optional read used where Swift needs a plain value (an array
-        // index, a unary operand) unwraps as well.
-        if (swiftPresence(e) != Present)
-            return switch (stripWrap(e).expr) {
-                case TLocal(_): rendered + "!";
-                case _: "(" + rendered + ")!";
-            };
-        return rendered;
+        // A guard-proven read unwraps tight (bare !) even for a member access;
+        // a plain optional operand parenthesises any non-local text before !.
+        final role:DestinationRole = isNarrowed(e) ? Assignment("") : ArithmeticOperand;
+        return SwiftCoerce.coerce(
+            { text: rendered, storage: null, presence: (swiftPresence(e) != Present ? MaybeAbsent : Present), errorDomain: null, unit: null, origin: null },
+            { type: e.t, admitsAbsence: false, role: role, errorSlot: null });
     }
 
     /** Whether a value read is a narrowed local whose Swift type is optional. */
@@ -1287,7 +1284,9 @@ class SwiftExpr {
         final text = expr(e);
         if (isIfLetShadowed(e) || !isNarrowedLocalRead(e) || StringTools.endsWith(text, "!"))
             return text;
-        return text + "!";
+        return SwiftCoerce.coerce(
+            { text: text, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null },
+            { type: e.t, admitsAbsence: false, role: Assignment(""), errorSlot: null });
     }
 
     function isVarAssigned(e:TypedExpr, varId:Int):Bool {
@@ -2250,13 +2249,17 @@ class SwiftExpr {
     **/
     function ternaryBranch(b:TypedExpr, whole:TypedExpr):String {
         var text = expr(b);
-        if (swiftPresence(whole) == Present && (swiftPresence(b) != Present || castLaundersOptional(b)) && !StringTools.endsWith(text, "!")) {
-            text = switch (stripWrap(b).expr) {
-                case TLocal(_): text + "!";
-                case TField(_, _): "(" + text + ")!";
-                case _: text;
-            };
-        }
+        // An optional arm (or a laundering cast of one) unwraps only when the
+        // whole ternary is non-optional; a local appends !, a field access
+        // parenthesises, and any other shape stays as-is.
+        final role:DestinationRole = switch (stripWrap(b).expr) {
+            case TLocal(_) | TField(_, _): ArithmeticOperand;
+            case _: Discard;
+        };
+        final presence:Presence = (swiftPresence(b) != Present || castLaundersOptional(b)) ? MaybeAbsent : Present;
+        text = SwiftCoerce.coerce(
+            { text: text, storage: null, presence: presence, errorDomain: null, unit: null, origin: null },
+            { type: b.t, admitsAbsence: (swiftPresence(whole) != Present), role: role, errorSlot: null });
         // Haxe unifies an Int arm with a Float sibling, so the ternary's Haxe
         // type is the module real while that arm still renders as an integer.
         // Widen the arm here so both Swift arms share one type.
@@ -3700,10 +3703,9 @@ class SwiftExpr {
             return expr(subj);
         }
         final base = expr(subj);
-        return switch (inner.expr) {
-            case TLocal(_): base + "!";
-            case _: "(" + base + ")!";
-        };
+        return SwiftCoerce.coerce(
+            { text: base, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null },
+            { type: subj.t, admitsAbsence: false, role: Receiver(""), errorSlot: null });
     }
 
     /**
@@ -3820,13 +3822,11 @@ class SwiftExpr {
         // A local declared with a non-null Haxe type but a nil initializer
         // binds an optional Swift value; `swiftPresence` sees the annotation
         // even though the Haxe flow type stays plain.
-        final unwrap = !narrowsInSwitch
-            && !StringTools.endsWith(rendered, "!")
-            && ((!fromSource && nullable) || (swiftPresence(arg) != Present && !isNullLeafType(arg.t)));
-        final value = !unwrap ? rendered : switch (stripWrap(arg).expr) {
-            case TLocal(_): rendered + "!";
-            case _: "(" + rendered + ")!";
-        };
+        final presence:Presence = ((!fromSource && nullable) || (swiftPresence(arg) != Present && !isNullLeafType(arg.t)))
+            ? MaybeAbsent : Present;
+        final value = SwiftCoerce.coerce(
+            { text: rendered, storage: null, presence: presence, errorDomain: null, unit: null, origin: null },
+            { type: arg.t, admitsAbsence: narrowsInSwitch, role: StringConcatArgument, errorSlot: null });
         return stdStringType(arg.t, value, inConcat, arg);
     }
 
