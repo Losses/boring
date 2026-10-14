@@ -220,13 +220,15 @@ class EmitSink {
     }
 
     /**
-        Records a coercion event (a Kotlin/Swift coerce that emitted a real
-        operator). Only called when a transform actually changes the text, so
-        pass-through values never produce an event. pos is the Haxe source
-        position of the lowered value (null when unavailable).
+        Records a coercion event. A real operator (!!, !, == true, ?., .) is
+        recorded when a transform actually changes the text; operation=null
+        records an ablated/pass-through no-op so the invariant checker can
+        flag a MaybeAbsent value that reached a non-absent destination without
+        an unwrap. pos is the Haxe source position of the lowered value (null
+        when unavailable).
     **/
     public static function recordCoerce(pos:Null<Position>, role:String, presence:String,
-            admitsAbsence:Bool, operation:String):Void {
+            admitsAbsence:Bool, operation:Null<String>):Void {
         if (!enabled)
             return;
         var sourceFile:Null<String> = null;

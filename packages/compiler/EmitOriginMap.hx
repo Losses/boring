@@ -587,8 +587,8 @@ typedef EmitCoerceEvent = {
     final presence:String;
     /** Whether the destination tolerates absence. */
     final admitsAbsence:Bool;
-    /** The operator emitted (!!, !, == true, ?., .). */
-    final operation:String;
+    /** The operator emitted (!!, !, == true, ?., .); null when no operator was emitted (ablated/pass-through). */
+    final operation:Null<String>;
     /** Haxe source file this event came from (null when unknown). */
     final sourceFile:Null<String>;
 };

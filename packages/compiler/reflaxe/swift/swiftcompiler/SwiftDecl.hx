@@ -609,7 +609,7 @@ class SwiftDecl {
                         role: Discard,
                         errorSlot: null
                     };
-                    rendered = SwiftCoerce.coerceArrayBoundary(operand.text, dest, operand.optionality, plan, elementText).text;
+                    rendered = SwiftCoerce.coerceArrayBoundary(operand.text, init.pos, dest, operand.optionality, plan, elementText).text;
                 }
             }
             // A non-null Haxe field initialized to null becomes an implicitly
