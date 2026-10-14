@@ -10,6 +10,7 @@ import swiftcompiler.SwiftArrayBoundary.SwiftArrayOptionality;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayStorageOp;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayPresenceFact;
 import swiftcompiler.SwiftArrayBoundary.SwiftArrayBoundaryPlan;
+import EmitSink;
 
 /**
     Swift-side single conversion entry (I2/I3). P5.3 adds the presence
@@ -20,6 +21,8 @@ class SwiftCoerce {
     /** P5.2 forwarding entry (generic sites migrate in P5.4+). */
     public static function coerce(value:Lowered, dest:Destination):String {
         var out = value.text;
+        final role = Type.enumConstructor(dest.role);
+        final presence = Type.enumConstructor(value.presence);
         // GP-ABLATE: a role ablation skips the whole coercion for this
         // destination role, so the site renders bare and swiftc reports the
         // missing unwrap.
@@ -35,6 +38,7 @@ class SwiftCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence):
                         out = out + "!";
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!");
                     case _:
                 }
             case Assignment(_):
@@ -43,6 +47,7 @@ class SwiftCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence && !StringTools.endsWith(out, "!")):
                         out = out + "!";
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!");
                     case _:
                 }
             case Receiver(_) | ArithmeticOperand | StringConcatArgument:
@@ -52,6 +57,7 @@ class SwiftCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence && !StringTools.endsWith(out, "!")):
                         out = isBareLocal(out) ? (out + "!") : ("(" + out + ")!");
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!");
                     case _:
                 }
             case _:
