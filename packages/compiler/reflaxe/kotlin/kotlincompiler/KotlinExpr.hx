@@ -1876,12 +1876,16 @@ class KotlinExpr {
 
     /** Wrap expr(e) + bottom-up presence into a Lowered value object. */
     function lower(e:TypedExpr):Lowered {
-        return lowerTextPresence(expr(e), presenceFor(e));
+        final v = lowerTextPresence(expr(e), presenceFor(e));
+        v.pos = e.pos;
+        return v;
     }
 
     /** Build a Lowered from already-rendered text + bottom-up presence. */
     function lowerText(e:TypedExpr, text:String):Lowered {
-        return lowerTextPresence(text, presenceFor(e));
+        final v = lowerTextPresence(text, presenceFor(e));
+        v.pos = e.pos;
+        return v;
     }
 
     /** Bottom-up presence for one expression. (Presence) */

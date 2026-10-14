@@ -530,6 +530,12 @@ class Compiler extends PluginCompiler<Compiler> {
 
         RustSymbols.checkAll();
 
+        final referJson = EmitSink.writeReferEvents();
+        if (referJson != null) {
+            output.saveFile("refer.emit-origin.json", referJson);
+            PackageArtifacts.record("refer.emit-origin.json", referJson);
+        }
+
         if (PackageShell.enabled()) {
             saveTreeFile("Cargo.toml", packageManifest());
         }
