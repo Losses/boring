@@ -2760,8 +2760,9 @@ class KotlinExpr {
         into a list of any element type, so one erased addAll carries the
         same default.
     **/
-    function arrayGrowthGuard(list:String, index:String, elementText:String):String {
-        if (StringTools.endsWith(elementText, "?"))
+    function arrayGrowthGuard(list:String, index:String, elementType:Type):String {
+        final elementText = types.of(elementType);
+        if (isNullType(elementType))
             return "while (" + list + ".size <= " + index + ") { " + list + ".add(null) }";
         final zero = valueElementZero(elementText);
         if (zero != null)
@@ -2809,7 +2810,7 @@ class KotlinExpr {
                 indexOperand = indexName;
             }
         }
-        out.push(indent(depth) + arrayGrowthGuard(list, indexOperand, types.of(target.element)));
+        out.push(indent(depth) + arrayGrowthGuard(list, indexOperand, target.element));
         out.push(indent(depth) + list + "[" + index + "] = " + valueText);
         mutableArrayAccess = previous;
         return out;
@@ -4527,7 +4528,7 @@ class KotlinExpr {
                 // a field read off a nullable receiver); choose the suffix
                 // from the rendered nullability so safe-navigation is emitted
                 // when the value is nullable. An extracted value ends in "!!".
-                final suffix = if (StringTools.endsWith(value, "!!")) ".name" else nullableAccessEnumName(origin);
+                final suffix = if (!PolicyQueries.inSourceScope(origin.pos) && PolicyQueries.isNullableType(origin.t)) ".name" else nullableAccessEnumName(origin);
                 value + (inConcat ? "" : suffix);
             case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
             case IsPayloadEnum(_): inConcat ? value : value + ".toString()";
@@ -5690,8 +5691,7 @@ class KotlinExpr {
             + " renderedField=" + isNullableRenderedField(e)
             + " nullInit=" + isNullInitialized(e)
             + " chainHop=" + nullableChainHop(e)
-            + " presenceNullable=" + (presenceOf(e) == MaybeAbsent)
-            + " containsSafeCall=" + (rendered.indexOf("?.") >= 0) + "\n");
+            + " presenceNullable=" + (presenceOf(e) == MaybeAbsent) + "\n");
 #end
         return (isNullType(e.t) && !effectiveProven)
             || (PolicyQueries.isNullableType(e.t) && !effectiveProven)
