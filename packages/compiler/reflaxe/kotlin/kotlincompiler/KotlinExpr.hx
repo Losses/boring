@@ -1385,7 +1385,7 @@ class KotlinExpr {
                         functionTypeExpected = PolicyQueries.isFunctionType(currentReturnType);
                         var retText = expr(ret);
                         functionTypeExpected = wasFunctionTypeExpected;
-                        final retPresence = rendersNullable(ret) ? MaybeAbsent : Present;
+                        final retPresence = presenceFor(ret);
 #if (kotlin_fold_debug || kotlin_emit_origins)
                         if (retPresence == MaybeAbsent && !isNullType(currentReturnType) && !currentReturnAllowsNullable)
                             emissionTrace("RETURN", retText, ret.pos);
@@ -1874,21 +1874,32 @@ class KotlinExpr {
         };
     }
 
-    /** Wrap expr(e) + rendersNullable(e) into a Lowered value object. */
+    /** Wrap expr(e) + bottom-up presence into a Lowered value object. */
     function lower(e:TypedExpr):Lowered {
-        return lowerText(e, expr(e));
+        return lowerTextPresence(expr(e), presenceFor(e));
     }
 
-    /** Build a Lowered from already-rendered text + rendersNullable. */
+    /** Build a Lowered from already-rendered text + bottom-up presence. */
     function lowerText(e:TypedExpr, text:String):Lowered {
-        return {
-            text: text,
-            storage: null,
-            presence: rendersNullable(e) ? MaybeAbsent : Present,
-            errorDomain: null,
-            unit: null,
-            origin: null,
-        };
+        return lowerTextPresence(text, presenceFor(e));
+    }
+
+    /**
+        Bottom-up presence for one expression. Under the temporary
+        kotlin_presence_crosscheck define it also recomputes the legacy
+        top-down rendersNullable prediction and warns on any disagreement,
+        so P3.1 proves the two paths agree across a full generation.
+        (PresenceCrosscheck)
+    **/
+    function presenceFor(e:TypedExpr):Presence {
+        final p = presenceOf(e);
+        #if kotlin_presence_crosscheck
+        final legacyNullable = rendersNullable(e);
+        if ((p == MaybeAbsent) != legacyNullable)
+            Context.warning("PRESENCE_MISMATCH legacy=" + (legacyNullable ? "nullable" : "present")
+                + " new=" + p + " at " + e.pos, e.pos);
+        #end
+        return p;
     }
 
     /** Build a Lowered from already-rendered text + an explicit presence. */
@@ -3353,6 +3364,75 @@ class KotlinExpr {
                 rendersNullable(args[0]);
             case _:
                 rendersNullable(fn);
+        };
+    }
+
+    /**
+        Bottom-up presence: each rendering branch writes its own presence from
+        the access form it chose (TField/TCall read nullableAccess, TArray
+        passes the receiver through, TParenthesis/TCast pass the inner through)
+        and a TIf folds its two arms' presence inside each arm's own condition
+        proof window, the same window the text renderer opens. (PresenceBottomUp)
+    **/
+    function presenceOf(e:TypedExpr):Presence {
+        if (isNullType(e.t) && !valueProven(e)) {
+            if (extractedNonNullFieldRead(e))
+                return Present;
+            return MaybeAbsent;
+        }
+        if (isNullInitialized(e) && !valueProven(e))
+            return MaybeAbsent;
+        if (isNullableRenderedField(e) && !valueProven(e))
+            return MaybeAbsent;
+        if (nullableChainHop(e) && !receiverProven(e))
+            return MaybeAbsent;
+        final inner = stripWrap(e);
+        if (inner != e && isNullType(inner.t) && !valueProven(inner))
+            return MaybeAbsent;
+        switch (inner.expr) {
+            case TIf(c, t, f) if (f != null):
+                final base = proofSnapshot();
+                addProofs(conditionProofs(c).thenPath);
+                final thenPresence = presenceOf(t);
+                restoreProofs(base);
+                addProofs(conditionProofs(c).elsePath);
+                final elsePresence = presenceOf(f);
+                restoreProofs(base);
+                return (thenPresence == MaybeAbsent || elsePresence == MaybeAbsent) ? MaybeAbsent : Present;
+            case TIf(_, t, _):
+                return presenceOf(t);
+            case TField(subj, _):
+                if (extractedNonNullFieldRead(e))
+                    return Present;
+                return nullableAccess(subj) == "?." ? MaybeAbsent : Present;
+            case TArray(receiver, _):
+                return presenceOf(receiver);
+            case TCall(fn, args):
+                return callPresence(fn, args);
+            case TParenthesis(pinner) | TCast(pinner, _):
+                return presenceOf(pinner);
+            case _:
+                return Present;
+        }
+    }
+
+    /**
+        Call result presence: a call is nullable when its receiver is read
+        through a safe call (the receiver's own presence plus the ?. access
+        form), or when the callee itself is nullable. StringTools startsWith /
+        endsWith lower from static Haxe helpers to receiver calls, so their
+        first argument is the receiver. (CallPresenceBottomUp)
+    **/
+    function callPresence(fn:TypedExpr, args:Array<TypedExpr>):Presence {
+        return switch (stripWrap(fn).expr) {
+            case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
+                (presenceOf(receiver) == MaybeAbsent && nullableAccess(receiver) == "?.") ? MaybeAbsent : Present;
+            case TField(_, FStatic(cls, field))
+                if (cls.get().pack.length == 0 && cls.get().name == "StringTools"
+                    && (field.get().name == "startsWith" || field.get().name == "endsWith") && args.length > 0):
+                presenceOf(args[0]);
+            case _:
+                presenceOf(fn);
         };
     }
 
