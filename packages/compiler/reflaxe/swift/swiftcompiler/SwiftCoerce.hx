@@ -2,6 +2,7 @@ package swiftcompiler;
 
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
+import haxe.macro.Expr.Position;
 import LoweredValue.Lowered;
 import LoweredValue.Presence;
 import Destination.Destination;
@@ -28,6 +29,8 @@ class SwiftCoerce {
         // missing unwrap.
         switch (ablate()) {
             case Role(r) if (Type.enumConstructor(r) == Type.enumConstructor(dest.role)):
+                if (presence == "MaybeAbsent" && !dest.admitsAbsence)
+                    EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, null);
                 return out;
             case _:
         }
@@ -122,12 +125,16 @@ class SwiftCoerce {
         optionality. Returns the rendered text and the presence-derived result
         optionality for downstream joins.
     **/
-    public static function coerceArrayBoundary(operand:String, dest:Destination, optionality:SwiftArrayOptionality,
+    public static function coerceArrayBoundary(operand:String, pos:Null<Position>, dest:Destination, optionality:SwiftArrayOptionality,
             plan:SwiftArrayBoundaryPlan, elementText:Null<String>):{text:String, optionality:SwiftArrayOptionality} {
         switch (ablate()) {
             case AxisPresence:
+                if (optionality == OptionalOperand && !dest.admitsAbsence)
+                    EmitSink.recordCoerce(pos, Type.enumConstructor(dest.role), "MaybeAbsent", false, null);
                 return { text: operand, optionality: optionality };
             case Role(r) if (Type.enumConstructor(r) == Type.enumConstructor(dest.role)):
+                if (optionality == OptionalOperand && !dest.admitsAbsence)
+                    EmitSink.recordCoerce(pos, Type.enumConstructor(dest.role), "MaybeAbsent", false, null);
                 return { text: operand, optionality: optionality };
             case _:
         }

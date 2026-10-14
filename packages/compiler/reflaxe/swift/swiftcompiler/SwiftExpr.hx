@@ -2901,7 +2901,7 @@ class SwiftExpr {
             role: role,
             errorSlot: null
         };
-        final coerced = SwiftCoerce.coerceArrayBoundary(operand.text, dest, operand.optionality, plan, elementText);
+        final coerced = SwiftCoerce.coerceArrayBoundary(operand.text, inner.pos, dest, operand.optionality, plan, elementText);
         return {
             text: arrayRuntimeText(coerced.text),
             sourceType: target,
