@@ -1301,7 +1301,7 @@ class KotlinDecl {
         // One prepared artifact serves the return-shape decision and the body.
         final artifact = expr.prepareSource(cls, f, FunctionBody);
         final mayWidenSafeCallReturn = !isInterfaceMethod(cls, f);
-        if (mayWidenSafeCallReturn && expr.returnWidening(artifact, cls, f, mayWidenSafeCallReturn) && !StringTools.endsWith(retType, "?"))
+        if (mayWidenSafeCallReturn && expr.returnWidening(artifact, cls, f, mayWidenSafeCallReturn) && !isNullType(f.ret))
             retType = retType + "?";
         final ret = retType == "Unit" ? "" : ": " + retType;
         // Zero-argument toString and hashCode override kotlin.Any's members;
