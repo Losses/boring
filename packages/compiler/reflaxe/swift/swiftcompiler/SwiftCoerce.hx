@@ -45,9 +45,27 @@ class SwiftCoerce {
                         out = out + "!";
                     case _:
                 }
+            case Receiver(_) | ArithmeticOperand | StringConcatArgument:
+                // A narrowed non-local (field access, call, index, cast) must
+                // parenthesise before ! so the postfix binds to the whole
+                // expression; a bare local appends ! directly.
+                switch (value.presence) {
+                    case MaybeAbsent if (!dest.admitsAbsence && !StringTools.endsWith(out, "!")):
+                        out = isBareLocal(out) ? (out + "!") : ("(" + out + ")!");
+                    case _:
+                }
             case _:
         }
         return out;
+    }
+
+    /**
+        A lowered text that is a bare Swift identifier (optionally backticked)
+        accepts a postfix `!` directly; any other expression needs parens so
+        the postfix applies to the whole value.
+    **/
+    static function isBareLocal(text:String):Bool {
+        return ~/^[A-Za-z_][A-Za-z0-9_]*$/.match(text) || ~/^`[A-Za-z_][A-Za-z0-9_]*`$/.match(text);
     }
 
     /**
@@ -135,6 +153,12 @@ class SwiftCoerce {
         return switch (raw) {
             case "Argument": Argument("");
             case "Assignment": Assignment("");
+            case "Receiver": Receiver("");
+            case "ArithmeticOperand": ArithmeticOperand;
+            case "StringConcatArgument": StringConcatArgument;
+            case "Condition": Condition;
+            case "RangeBound": RangeBound;
+            case "Discard": Discard;
             case _: null;
         };
     }
