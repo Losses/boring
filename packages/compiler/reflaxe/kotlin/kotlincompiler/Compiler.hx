@@ -40,6 +40,9 @@ class Compiler extends PluginCompiler<Compiler> {
 
     var current:Null<KotlinDecl> = null;
 
+    /** Set once the bypass probe line has been appended (test-only). */
+    var bypassProbeEmitted = false;
+
     public static function use() {
         // The emitter runs during typing (expression lowering), well before
         // generateFilesManually(); activating here catches every record.
@@ -306,7 +309,7 @@ class Compiler extends PluginCompiler<Compiler> {
             final decl = contexts.get(module);
             final imports = decl.renderImports();
             final body = assembleModuleBody(module, parts.get(module));
-            final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
+            final content = maybeAppendBypassProbe(imports + (imports.length > 0 ? "\n" : "") + body + "\n");
 
             if (isTestModule(module)) {
                 final testFileRel = kotlinTestOutput + "/" + modulePath(module);
@@ -877,6 +880,24 @@ class Compiler extends PluginCompiler<Compiler> {
 
     function modulePath(module:String):String {
         return module.split(".").join("/") + ".kt";
+    }
+
+    /** Test-only invariant-checker positive control: when
+        kotlin_coerce_bypass_probe is defined, append one top-level !!
+        expression emitted OUTSIDE KotlinCoerce.coerce (so it has no
+        CoerceEvent) to the first saved module; the checker must then
+        flag it and report its emission call stack. */
+    function maybeAppendBypassProbe(content:String):String {
+        #if kotlin_coerce_bypass_probe
+        if (bypassProbeEmitted)
+            return content;
+        bypassProbeEmitted = true;
+        final line = "internal val __coerce_bypass_probe__: Int = (0 as Int?)!!";
+        EmitSink.record("BYPASS_PROBE", null, line);
+        return content + line + "\n";
+        #else
+        return content;
+        #end
     }
 
     /** Writes the emit-origin sidecar for a saved module when the define is active. */
