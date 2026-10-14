@@ -925,7 +925,7 @@ class KotlinExpr {
                 case TConst(TNull): false;
                 case _: true;
             }
-        final initRendersNullable = rendersNullable(init);
+        final initRendersNullable = presenceOf(init) == MaybeAbsent;
         final extractRenderedNullable = !isNullType(v.t) && !isNullType(init.t) && initRendersNullable;
         final nullInitExtract = initRendersNullable && !isNullLiteral(init) && !bodyWritesLocal(v.id);
         return {
@@ -1884,22 +1884,9 @@ class KotlinExpr {
         return lowerTextPresence(text, presenceFor(e));
     }
 
-    /**
-        Bottom-up presence for one expression. Under the temporary
-        kotlin_presence_crosscheck define it also recomputes the legacy
-        top-down rendersNullable prediction and warns on any disagreement,
-        so P3.1 proves the two paths agree across a full generation.
-        (PresenceCrosscheck)
-    **/
+    /** Bottom-up presence for one expression. (Presence) */
     function presenceFor(e:TypedExpr):Presence {
-        final p = presenceOf(e);
-        #if kotlin_presence_crosscheck
-        final legacyNullable = rendersNullable(e);
-        if ((p == MaybeAbsent) != legacyNullable)
-            Context.warning("PRESENCE_MISMATCH legacy=" + (legacyNullable ? "nullable" : "present")
-                + " new=" + p + " at " + e.pos, e.pos);
-        #end
-        return p;
+        return presenceOf(e);
     }
 
     /** Build a Lowered from already-rendered text + an explicit presence. */
@@ -2222,7 +2209,7 @@ class KotlinExpr {
                         // rendered nullability.
                         final arg = args[0];
                         final argText = expr(arg);
-                        final nullable = rendersNullable(arg)
+                        final nullable = presenceOf(arg) == MaybeAbsent
                             || (isNullType(arg.t) && !receiverProven(arg))
                             || (nullableChainHop(arg) && !receiverProven(arg))
                             || (StringTools.endsWith(argText, "}") && argText.indexOf("firstOrNull {") >= 0);
@@ -3093,7 +3080,7 @@ class KotlinExpr {
             emissionTrace("ACCESS_NULLINIT", expr(subj), subj.pos);
 #end
             // Decision only: no registration here. nullableAccess is also
-            // consulted as a pure query (rendersNullable, nullableChainHop),
+            // consulted as a pure query (presenceOf, nullableChainHop),
             // and a write on that path would let a probe render register a
             // proof before the real emission decides. The emission sites
             // that actually print "!!." register instead. (PureAccessDecision)
@@ -3131,7 +3118,7 @@ class KotlinExpr {
         // `value?.toString()?.plus(...)`). Preserve that nullability for the
         // next hop while retaining the intermediate nullable result.
         final safeCallResult = switch (stripWrap(subj).expr) {
-            case TCall(_, _): rendersNullable(subj);
+            case TCall(_, _): presenceOf(subj) == MaybeAbsent;
             case _: false;
         };
         if (safeCallResult)
@@ -3165,10 +3152,10 @@ class KotlinExpr {
             case TIf(c, t, f) if (f != null):
                 final base = proofSnapshot();
                 addProofs(conditionProofs(c).thenPath);
-                final thenNullable = rendersNullable(t);
+                final thenNullable = presenceOf(t) == MaybeAbsent;
                 restoreProofs(base);
                 addProofs(conditionProofs(c).elsePath);
-                final elseNullable = rendersNullable(f);
+                final elseNullable = presenceOf(f) == MaybeAbsent;
                 restoreProofs(base);
                 !thenNullable && !elseNullable;
             case _: false;
@@ -3282,88 +3269,6 @@ class KotlinExpr {
             case TInst(_, _): true;
             case TAbstract(a, _) if (a.get().name != "Null" && a.get().name != "Int" && a.get().name != "Float" && a.get().name != "Bool"): true;
             case _: false;
-        };
-    }
-
-    /**
-        True when rendering `e` yields a Kotlin expression whose inferred type
-        is nullable even though the Haxe AST may type it non-null. This happens
-        when a sub-expression renders nullable (a nullable-typed arm of a
-        ternary, a field access on a nullable receiver, ...) and the enclosing
-        context does not widen it back to non-null.
-    **/
-    function rendersNullable(e:TypedExpr):Bool {
-        if (isNullType(e.t) && !valueProven(e)) {
-            // A field read the typer widened to Null<T> because the
-            // receiver is nullable renders with the receiver extraction,
-            // so its value is the declared non-null property type.
-            // (DeclaredFieldNonNull)
-            if (extractedNonNullFieldRead(e))
-                return false;
-            return true;
-        }
-        // A null-initialized subject reads plain once the flow proves it
-        // present: the proof wins over the storage shape.
-        // (NullInitRespectsProof)
-        if (isNullInitialized(e) && !valueProven(e))
-            return true;
-        if (isNullableRenderedField(e) && !valueProven(e))
-            return true;
-        if (nullableChainHop(e) && !receiverProven(e))
-            return true;
-        final inner = stripWrap(e);
-        // A cast/wrap may hide a nullable-typed inner expression; check the
-        // unwrapped type too.
-        if (inner != e && isNullType(inner.t) && !valueProven(inner))
-            return true;
-        switch (inner.expr) {
-            case TIf(_, t, f):
-                if (guardedNonNullTernary(e))
-                    return false;
-                return rendersNullable(t) || (f != null && rendersNullable(f));
-            case TField(subj, _):
-                // A field read the typer widens to Null<T> only because the
-                // receiver is nullable renders through the receiver's own
-                // extraction, so the declared non-null property value stays
-                // non-null. (DeclaredFieldNonNull)
-                if (extractedNonNullFieldRead(e))
-                    return false;
-                // A nullable receiver is extracted with `!!.` when the Haxe
-                // expression already proves it present.  Looking only at the
-                // receiver would incorrectly widen a non-null field read back
-                // to nullable (for example `value!!.items.size`).
-                return nullableAccess(subj) == "?.";
-            case TArray(receiver, _):
-                return rendersNullable(receiver);
-            case TCall(fn, args):
-                return callRendersNullable(fn, args);
-            case TParenthesis(pinner) | TCast(pinner, _):
-                return rendersNullable(pinner);
-            case _:
-                return false;
-        }
-    }
-
-    /**
-        Whether a call result is nullable because Kotlin renders its receiver
-        with a safe call. StringTools startsWith and endsWith lower from static
-        Haxe helpers to receiver calls, so their first argument is the receiver.
-    **/
-    function callRendersNullable(fn:TypedExpr, args:Array<TypedExpr>):Bool {
-        return switch (stripWrap(fn).expr) {
-            case TField(receiver, FInstance(_, _, _)) | TField(receiver, FAnon(_)):
-                // A nullable receiver makes the call nullable only when the
-                // call is actually read through a safe call. An extracted
-                // receiver (`recv!!.m()`) yields the method's own declared
-                // type, so treating it as nullable appends a second `!!` that
-                // kotlinc reports as an unnecessary assertion. (PIT-388)
-                rendersNullable(receiver) && nullableAccess(receiver) == "?.";
-            case TField(_, FStatic(cls, field))
-                if (cls.get().pack.length == 0 && cls.get().name == "StringTools"
-                    && (field.get().name == "startsWith" || field.get().name == "endsWith") && args.length > 0):
-                rendersNullable(args[0]);
-            case _:
-                rendersNullable(fn);
         };
     }
 
@@ -4060,7 +3965,7 @@ class KotlinExpr {
         final nullInit = isNullInitialized(e) && !valueProven(e);
         final widenedExtracted = extractedNonNullFieldRead(e);
         final needsBang = !isNullLiteral(e) && !hasSafeCallText && !keepsNull && !widenedExtracted
-            && (nullInit || rendersNullable(e));
+            && (nullInit || presenceOf(e) == MaybeAbsent);
         return {
             text: rendered,
             storage: safeChain ? "SafeCallChain" : null,
@@ -4088,7 +3993,7 @@ class KotlinExpr {
         // extraction of its own. (DeclaredFieldNonNull)
         final widenedExtracted = extractedNonNullFieldRead(e);
         if (!isNullLiteral(e) && !widenedExtracted
-            && ((isNullType(e.t) && !proven) || (nullInit && !proven) || rendersNullable(e))
+            && ((isNullType(e.t) && !proven) || (nullInit && !proven) || presenceOf(e) == MaybeAbsent)
             && parent != OpEq && parent != OpNotEq) {
 #if (kotlin_fold_debug || kotlin_emit_origins)
             emissionTrace("OPERAND proven=" + (valueProven(e)) + " id=" + (switch (stripWrap(e).expr) { case TLocal(v): Std.string(v.id); case _: "f"; }) + " nullInit=" + nullInit, rendered, e.pos);
@@ -4557,7 +4462,7 @@ class KotlinExpr {
         }
         // A nullable non-source operand extracts with "!!": pre-wrap the
         // text so the Argument coerce appends "!!" directly (giving (x)!!),
-        // and drive presence off the Haxe nullability, not rendersNullable.
+        // and drive presence off the Haxe nullability.
         final rendered = expr(arg);
         final wrap = !fromSource && nullable;
         return stdStringType(arg.t, KotlinCoerce.coerce(lowerTextPresence(wrap ? "(" + rendered + ")" : rendered, wrap ? MaybeAbsent : Present), argumentDest("value", false)), inConcat, arg);
@@ -5210,7 +5115,7 @@ class KotlinExpr {
                     // A receiver whose rendered value is nullable unwraps so
                     // the captured `_s` is a plain String; a non-null String
                     // needs no assertion. (CharCodeAtReceiverExtraction)
-                    final charCodeNullable = rendersNullable(subj);
+                    final charCodeNullable = presenceOf(subj) == MaybeAbsent;
                     final rendered = expr(subj);
 #if (kotlin_fold_debug || kotlin_emit_origins)
                     if (charCodeNullable)
@@ -5228,7 +5133,7 @@ class KotlinExpr {
                 if (name == "charCodeAt") {
                     // Fallback: treat charCodeAt on any receiver the same way
                     // when the type-checking didn't recognise a String type.
-                    final charCodeNullable = rendersNullable(subj);
+                    final charCodeNullable = presenceOf(subj) == MaybeAbsent;
                     final rendered = expr(subj);
                     final receiver = KotlinCoerce.coerce(
                         lowerTextPresence(rendered, charCodeNullable ? MaybeAbsent : Present),
@@ -5367,7 +5272,7 @@ class KotlinExpr {
                 if (name == "join") {
                     // The receiver may render nullable (e.g. a Map.get result);
                     // emit safe call when it is nullable.
-                    return expr(subj) + (rendersNullable(subj) ? "?." : ".") + "joinToString(" + renderedArgs + ")";
+                    return expr(subj) + (presenceOf(subj) == MaybeAbsent ? "?." : ".") + "joinToString(" + renderedArgs + ")";
                 }
                 if ((args.length == 1 || args.length == 2) && name == "slice" && owner.get().pack.length == 0
                     && owner.get().name == "Array") {
@@ -5785,7 +5690,7 @@ class KotlinExpr {
             + " renderedField=" + isNullableRenderedField(e)
             + " nullInit=" + isNullInitialized(e)
             + " chainHop=" + nullableChainHop(e)
-            + " rendersNullable=" + rendersNullable(e)
+            + " presenceNullable=" + (presenceOf(e) == MaybeAbsent)
             + " containsSafeCall=" + (rendered.indexOf("?.") >= 0) + "\n");
 #end
         return (isNullType(e.t) && !effectiveProven)
@@ -5793,7 +5698,7 @@ class KotlinExpr {
             || isNullableRenderedField(e)
             || isNullInitialized(e)
             || nullableChainHop(e)
-            || rendersNullable(e)
+            || presenceOf(e) == MaybeAbsent
             || rendered.indexOf("?.") >= 0;
     }
 
@@ -6509,7 +6414,7 @@ class KotlinExpr {
                 // (e.g. Float? ?: 0) has a Number/Comparable type; retain
                 // the arm type reported by the typed AST.
                 // (WideningIdempotence)
-                if (isFloatType(e.t) && !rendersNullable(e))
+                if (isFloatType(e.t) && presenceOf(e) == Present)
                     return Context.getType("Float");
                 final tt = emittedType(t);
                 return tt != null ? tt : emittedType(f);
