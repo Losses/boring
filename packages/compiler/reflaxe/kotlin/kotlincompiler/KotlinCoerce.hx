@@ -6,6 +6,7 @@ import LoweredValue.Lowered;
 import LoweredValue.Presence;
 import Destination;
 import Destination.DestinationRole;
+import EmitSink;
 
 /**
     The single conversion entry point for Kotlin lowering (I2/I3).
@@ -23,6 +24,8 @@ class KotlinCoerce {
     **/
     public static function coerce(value:Lowered, dest:Destination):String {
         var out = value.text;
+        final role = Type.enumConstructor(dest.role);
+        final presence = Type.enumConstructor(value.presence);
         // GP-ABLATE: with -D kotlin_coerce_ablate=<Role>, skip coercion for
         // the ablated role so a fixture can prove the coercion is load-bearing.
         // Byte-identical when the define is absent (ablateRole() == null).
@@ -38,6 +41,7 @@ class KotlinCoerce {
                 switch (value.presence) {
                     case MaybeAbsent:
                         out = out + " == true";
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "== true");
                     case _:
                 }
             case ArithmeticOperand:
@@ -47,6 +51,7 @@ class KotlinCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence):
                         out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!!");
                     case _:
                 }
             case RangeBound:
@@ -56,6 +61,7 @@ class KotlinCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence):
                         out = out + "!!";
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!!");
                     case _:
                 }
             case Argument(_):
@@ -66,6 +72,7 @@ class KotlinCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence):
                         out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!!");
                     case _:
                 }
             case Receiver(memberKind):
@@ -79,6 +86,7 @@ class KotlinCoerce {
                         switch (value.presence) {
                             case MaybeAbsent if (!dest.admitsAbsence):
                                 out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                                EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!!");
                             case _:
                         }
                     case _:
@@ -92,8 +100,10 @@ class KotlinCoerce {
                         switch (value.presence) {
                             case MaybeAbsent:
                                 out = out + "?.";
+                                EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "?.");
                             case Present:
                                 out = out + ".";
+                                EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, ".");
                             case _:
                         }
                 }
@@ -105,6 +115,7 @@ class KotlinCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence):
                         out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!!");
                     case _:
                 }
             case StringConcatArgument:
@@ -115,6 +126,7 @@ class KotlinCoerce {
                 switch (value.presence) {
                     case MaybeAbsent:
                         out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!!");
                     case _:
                 }
             case Return(_):
@@ -125,6 +137,7 @@ class KotlinCoerce {
                 switch (value.presence) {
                     case MaybeAbsent if (!dest.admitsAbsence):
                         out = isAtomicAppendTarget(out) ? out + "!!" : "(" + out + ")!!";
+                        EmitSink.recordCoerce(value.pos, role, presence, dest.admitsAbsence, "!!");
                     case _:
                 }
             case _:
