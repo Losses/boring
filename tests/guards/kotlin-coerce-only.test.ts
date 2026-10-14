@@ -15,10 +15,9 @@ import path from "node:path";
  *
  * It also text-scans KotlinExpr.hx (KE) for the P3.3 text-sniff read
  * patterns (indexOf("?."), indexOf("?: throw"), endsWith(x, "!!" | "?")) that
- * the criterion-1 grep targets.  P3.3 removed 3 of the 6 KE sites; the
- * remaining 3 are deferred to P3.3b and pinned in KNOWN_TEXT_SNIFF.  P3.3b
- * clears the allowlist as each site migrates; an empty allowlist then
- * enforces zero text-sniffs in KE.
+ * the criterion-1 grep targets.  P3.3b migrated the remaining 3 KE
+ * sites to AST-level decisions, so KNOWN_TEXT_SNIFF is empty and the
+ * guard enforces zero text-sniffs in KE.
  *
  * Assertions:
  *   1. KotlinCoerce.hx contains exactly one "function coerce(" declaration,
@@ -50,8 +49,8 @@ const EXPR_FILE = "KotlinExpr.hx";
  * "new bypass outside coerce".
  */
 const KNOWN_OUTSIDE: string[] = [
-  "KotlinExpr.hx:4182", // receiverText for ?.length access extraction
-  "KotlinExpr.hx:4251", // receiverText for property access extraction
+  "KotlinExpr.hx:4491", // receiverText for ?.length access extraction
+  "KotlinExpr.hx:4560", // receiverText for property access extraction
 ];
 
 // Postfix non-null assertion: value + "!!".  Requires + BEFORE the literal;
@@ -64,19 +63,13 @@ const POSTFIX_BANG = /\+ *"!!"/;
 const TEXT_SNIFF = /endsWith\([a-zA-Z]+, "(?:!!|\?)"\)|indexOf\("(?:\?\.|\?: throw)"\)/;
 
 /**
- * Remaining KE text-sniff sites deferred to P3.3b.  Each entry pins one KE
- * line whose text-sniff still needs its own migration design (see the P3.3b
- * scope note): stringConcatOperand's hasSafeCallText needs a ?.-emission
- * mirror; requiresNonNullCallArgument's two reads need the post-condition
- * self-check AST-ified and the enum-reflection lowering fixed.  P3.3b
- * removes each entry as it migrates the site; an empty allowlist then
+ * P3.3b migrated all three remaining KE text-sniff sites to AST-level
+ * decisions (the ?.-emission mirror in stringConcatOperand and the
+ * AST-ified post-condition self-check plus enum-reflection lowering in
+ * requiresNonNullCallArgument).  KNOWN_TEXT_SNIFF is empty, so the guard
  * enforces zero text-sniffs in KE.
  */
-const KNOWN_TEXT_SNIFF: string[] = [
-  "KotlinExpr.hx:3963", // stringConcatOperand hasSafeCallText (?. emission mirror)
-  "KotlinExpr.hx:5678", // requiresNonNullCallArgument post-condition self-check (AST-ify)
-  "KotlinExpr.hx:5702", // requiresNonNullCallArgument enum-reflection backstop (fix lowering)
-];
+const KNOWN_TEXT_SNIFF: string[] = [];
 
 type Sources = Record<string, string[]>;
 
@@ -233,7 +226,7 @@ test('P3.3 guard: injecting one fresh postfix +"!!" bypass is caught (rc!=0)', (
   expect(v).toEqual(["new bypass outside coerce: KotlinExpr.hx:" + injectedLine]);
 });
 
-test("P3.3 guard: current tree text-sniffs match the P3.3b deferral allowlist (rc=0)", () => {
+test("P3.3 guard: current tree has zero KE text-sniffs (rc=0)", () => {
   const sources = readSources();
   const sites = textSniffSites(sources);
   const v = textSniffViolations(sites);
