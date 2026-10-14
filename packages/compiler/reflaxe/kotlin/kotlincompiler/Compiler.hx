@@ -761,6 +761,7 @@ class Compiler extends PluginCompiler<Compiler> {
         final content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
         final path = RuntimeConfig.emitPath(dir, fileName);
         PackageArtifacts.saveTreeFile(output, path, content);
+        writeOriginSidecar(path, content);
     }
 
     public static function computeRelativePath(fromDir:String, toFile:String):String {
@@ -852,6 +853,7 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     function contextFor(module:String):KotlinDecl {
+        EmitSink.setCurrentModule(module);
         current = contexts.exists(module) ? contexts.get(module) : null;
         if (current == null) {
             current = new KotlinDecl(module, state);
