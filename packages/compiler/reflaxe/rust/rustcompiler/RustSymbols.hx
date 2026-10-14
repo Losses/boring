@@ -2,6 +2,7 @@ package rustcompiler;
 
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
+import EmitSink;
 
 /**
     Identity a declared symbol by its Haxe module and raw class/enum/typedef
@@ -61,6 +62,8 @@ class RustSymbols {
     **/
     public static function refer(ref: SymbolRef, fromModule: String): String {
         references.push({ref: ref, fromModule: fromModule});
+        final key = RustEmissionState.identityKey(ref.module, ref.name);
+        EmitSink.recordRefer(key, fromModule, () -> definitions.exists(key));
         final targetModule = (state != null
             && state.payloadEnumModules.exists(RustEmissionState.identityKey(ref.module, ref.name)))
             ? state.payloadEnumModules.get(RustEmissionState.identityKey(ref.module, ref.name))

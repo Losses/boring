@@ -31,6 +31,7 @@ typedef Lowered = {
     var errorDomain:Null<String>;
     var unit:Null<String>;
     var origin:Null<String>;
+    @:optional var pos:Null<haxe.macro.Expr.Position>;
 }
 #end
 

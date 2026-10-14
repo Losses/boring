@@ -7,6 +7,8 @@ import EmitOriginMap.EmitLineMapping;
 import EmitOriginMap;
 import EmitOriginMap.EmitResolution;
 import EmitOriginMap.StackFrame;
+import EmitOriginMap.EmitCoerceEvent;
+import EmitOriginMap.EmitReferEvent;
 
 /**
     Emission-origin recording sink.
@@ -42,6 +44,9 @@ class EmitSink {
     static var capturedHaxeVersion:Null<String> = null;
     static var capturedDefines:Null<Map<String, String>> = null;
 
+    static var coerceEvents:Array<EmitCoerceEvent> = [];
+    static var referEvents:Array<{symbol:String, fromUnit:String, resolve:Void->Bool}> = [];
+
     public static function activate():Void {
         if (enabled)
             return;
@@ -53,6 +58,8 @@ class EmitSink {
         frames.resize(0);
         callStackFrameIds = new Map();
         callStackFrames.resize(0);
+        coerceEvents.resize(0);
+        referEvents.resize(0);
         capturedRevision = null;
         capturedHaxeVersion = null;
         capturedDefines = null;
@@ -174,7 +181,8 @@ class EmitSink {
         var i = 0;
         while (i < s.length) {
             final c = s.charAt(i);
-            if (c != "(" && c != ")" && c != " " && c != "	" && c != "")
+            if (c != "(" && c != ")" && c != " " && c != "	" && c != "
+")
                 out.add(c);
             i++;
         }
@@ -212,6 +220,62 @@ class EmitSink {
     }
 
     /**
+        Records a coercion event (a Kotlin/Swift coerce that emitted a real
+        operator). Only called when a transform actually changes the text, so
+        pass-through values never produce an event. pos is the Haxe source
+        position of the lowered value (null when unavailable).
+    **/
+    public static function recordCoerce(pos:Null<Position>, role:String, presence:String,
+            admitsAbsence:Bool, operation:String):Void {
+        if (!enabled)
+            return;
+        var sourceFile:Null<String> = null;
+        var line = 0;
+        var column = 0;
+        if (pos != null) {
+            try {
+                final info = Context.getPosInfos(pos);
+                sourceFile = info.file;
+                final lc = resolveLineColumn(sourceFile, info.min);
+                line = lc.line;
+                column = lc.column;
+            } catch (_:Dynamic) {}
+        }
+        coerceEvents.push({line: line, column: column, role: role, presence: presence,
+            admitsAbsence: admitsAbsence, operation: operation, sourceFile: sourceFile});
+    }
+
+    /**
+        Registers a Rust symbol reference as a deferred event. The resolve
+        thunk runs only at writeReferEvents() time (after RustSymbols.checkAll),
+        so resolved reflects the final definition state rather than the
+        pre-scan state. A passing build guarantees every thunk resolves true.
+    **/
+    public static function recordRefer(symbol:String, fromUnit:String, resolve:Void->Bool):Void {
+        if (!enabled)
+            return;
+        referEvents.push({symbol: symbol, fromUnit: fromUnit, resolve: resolve});
+    }
+
+    /**
+        Writes the global Rust refer sidecar after checkAll() has resolved
+        every reference. Returns the JSON string, or null when disabled or no
+        refer events were recorded. Refer events carry no Haxe source position,
+        so line/column are 0 and the per-file tables stay empty.
+    **/
+    public static function writeReferEvents():Null<String> {
+        if (!enabled || referEvents.length == 0)
+            return null;
+        final header = captureHeader();
+        final resolved:Array<EmitReferEvent> = [];
+        for (re in referEvents)
+            resolved.push({line: 0, symbol: re.symbol, fromUnit: re.fromUnit, resolved: re.resolve()});
+        final map = new EmitOriginMap("refer.emit-origin.json", header.revision,
+            header.haxeVersion, header.defines, [], [], [], [], new Map(), [], resolved);
+        return map.write();
+    }
+
+    /**
         Finalizes the mapping for a generated file whose content is already
         in its final (post-wrap) form. This is the entry point used by
         targets that do not fold long lines (Kotlin, Swift, Dart).
@@ -238,7 +302,7 @@ class EmitSink {
 
     static function finalizeFileImpl(filePath:String, originalContent:String,
             wrappedLines:Array<String>, foldMap:Array<Int>):Null<EmitOriginMap> {
-        if (!enabled || events.length == 0)
+        if (!enabled || (events.length == 0 && coerceEvents.length == 0))
             return null;
         final header = captureHeader();
         final originalLines = originalContent.split("\n");
@@ -273,6 +337,18 @@ class EmitSink {
                 fileEvents.push({event: evt, globalIndex: ei});
             }
             ei++;
+        }
+
+        // Coercion events carry their own Haxe source file. A coercion with
+        // no source position cannot be attributed to any file, so it is
+        // dropped here rather than duplicated into every sidecar. Refer
+        // events never land here: written once via writeReferEvents().
+        final fileCoerceEvents:Array<EmitCoerceEvent> = [];
+        for (ce in coerceEvents) {
+            final sf = ce.sourceFile;
+            if (sf != null && StringTools.endsWith(sf, expectedSourceSuffix)) {
+                fileCoerceEvents.push(ce);
+            }
         }
 
         // used tracks consumption by the event's position in the global
@@ -387,11 +463,13 @@ class EmitSink {
 
         return new EmitOriginMap(filePath, header.revision, header.haxeVersion,
             header.defines, sourcePaths.copy(), frames.copy(), callStackFrames.copy(),
-            lineMappings, new Map());
+            lineMappings, new Map(), fileCoerceEvents, []);
     }
 
     public static function reset():Void {
         events.resize(0);
+        coerceEvents.resize(0);
+        referEvents.resize(0);
         sourcePathIds = new Map();
         sourcePaths.resize(0);
         frameIds = new Map();
