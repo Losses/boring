@@ -1285,7 +1285,7 @@ class KotlinExpr {
                 final extractsAtDecl = storage.extractsAtDecl;
                 final extractRenderedNullable = storage.extractRenderedNullable;
                 final extractAtDecl = extractsAtDecl || extractRenderedNullable;
-                final initLowered = lowerTextPresence(initText, extractAtDecl ? MaybeAbsent : Present);
+                final initLowered = lowerTextPresence(initText, extractAtDecl ? MaybeAbsent : Present, init.pos);
                 final initDest = assignmentDest("local", isNullType(v.t));
                 // Haxe unifies Int and Float; widen Int initializers to Float
                 // when the variable's declared type is Float. When the
@@ -1391,7 +1391,7 @@ class KotlinExpr {
                             emissionTrace("RETURN", retText, ret.pos);
 #end
                         retText = KotlinCoerce.coerce(
-                            lowerTextPresence(retText, retPresence),
+                            lowerTextPresence(retText, retPresence, ret.pos),
                             returnDest(isNullType(currentReturnType) || currentReturnAllowsNullable)
                         );
                         // Haxe unifies Int and Float; widen Int return values to
@@ -1768,7 +1768,7 @@ class KotlinExpr {
                     emissionTrace("LOOP_BOUND", expr(subj), subj.pos);
 #end
                 return KotlinCoerce.coerce(
-                    lowerTextPresence(expr(subj) + (nullable ? "?." : ".") + suffix, nullable ? MaybeAbsent : Present),
+                    lowerTextPresence(expr(subj) + (nullable ? "?." : ".") + suffix, nullable ? MaybeAbsent : Present, subj.pos),
                     rangeBoundDest());
             case TCall(_, _):
                 return KotlinCoerce.coerce(lowerText(inner, expr(bound)), rangeBoundDest());
@@ -1893,8 +1893,10 @@ class KotlinExpr {
         return presenceOf(e);
     }
 
-    /** Build a Lowered from already-rendered text + an explicit presence. */
-    function lowerTextPresence(text:String, presence:Presence):Lowered {
+    /** Build a Lowered from already-rendered text + an explicit presence.
+        pos is the Haxe source position of the lowered value; carrying it here
+        lets every CoerceEvent record a sourceFile for per-file attribution. */
+    function lowerTextPresence(text:String, presence:Presence, ?pos:haxe.macro.Expr.Position):Lowered {
         return {
             text: text,
             storage: null,
@@ -1902,6 +1904,7 @@ class KotlinExpr {
             errorDomain: null,
             unit: null,
             origin: null,
+            pos: pos,
         };
     }
 
@@ -2634,7 +2637,7 @@ class KotlinExpr {
             emissionTrace("ASSIGN", value, r.pos);
 #end
         return KotlinCoerce.coerce(
-            lowerTextPresence(value, lowered.presence),
+            lowerTextPresence(value, lowered.presence, r.pos),
             assignmentDest(assignmentTargetName(l), isNullType(l.t)));
     }
 
@@ -4493,9 +4496,11 @@ class KotlinExpr {
         if (name == "length") {
             final access = nullableAccess(subj);
             final receiverText = access == "!!." ? expr(subj) + "!!" : expr(subj);
+            if (access == "!!.")
+                EmitSink.recordCoerce(subj.pos, "Receiver", "MaybeAbsent", false, "!!");
             final presence = access == "?." ? MaybeAbsent : Present;
             return KotlinCoerce.coerce(
-                lowerTextPresence(receiverText, presence), receiverDest("Length"))
+                lowerTextPresence(receiverText, presence, subj.pos), receiverDest("Length"))
                 + (isString(subj) ? "length" : "size");
         }
         // A nullable subject accessing a non-null field needs `!!. ` (not `?.`)
@@ -4562,9 +4567,11 @@ class KotlinExpr {
         if (access == "!!.")
             addProofExpr(subj);
         final receiverText = access == "!!." ? expr(subj) + "!!" : expr(subj);
+        if (access == "!!.")
+            EmitSink.recordCoerce(subj.pos, "Receiver", "MaybeAbsent", false, "!!");
         final presence = access == "?." ? MaybeAbsent : Present;
         return KotlinCoerce.coerce(
-            lowerTextPresence(receiverText, presence), receiverDest("Property"))
+            lowerTextPresence(receiverText, presence, subj.pos), receiverDest("Property"))
             + KotlinNameEscape.escape(name);
     }
 
@@ -4591,7 +4598,10 @@ class KotlinExpr {
         final fieldType = property.type;
         final access = (fieldType != null && !isNullType(fieldType)
             && isNullType(subj.t) && !receiverProven(subj)) ? "!!." : nullableAccess(subj);
-        return expr(subj) + access + KotlinNameEscape.escape(property.name);
+        final rendered = expr(subj) + access + KotlinNameEscape.escape(property.name);
+        if (access == "!!.")
+            EmitSink.recordCoerce(subj.pos, "Receiver", "MaybeAbsent", false, "!!");
+        return rendered;
     }
 
     function staticRef(cls:ClassType, name:String):String {
@@ -4779,7 +4789,7 @@ class KotlinExpr {
         // and drive presence off the Haxe nullability.
         final rendered = expr(arg);
         final wrap = !fromSource && nullable;
-        return stdStringType(arg.t, KotlinCoerce.coerce(lowerTextPresence(wrap ? "(" + rendered + ")" : rendered, wrap ? MaybeAbsent : Present), argumentDest("value", false)), inConcat, arg);
+        return stdStringType(arg.t, KotlinCoerce.coerce(lowerTextPresence(wrap ? "(" + rendered + ")" : rendered, wrap ? MaybeAbsent : Present, arg.pos), argumentDest("value", false)), inConcat, arg);
     }
 
     function stdIsOfType(args:Array<TypedExpr>):String {
@@ -5035,7 +5045,7 @@ class KotlinExpr {
                 if (assertNeeded)
                     addProofExpr(args[0]);
                 final unwrapped = KotlinCoerce.coerce(
-                    lowerTextPresence("(" + code + ")", assertNeeded ? MaybeAbsent : Present),
+                    lowerTextPresence("(" + code + ")", assertNeeded ? MaybeAbsent : Present, args[0].pos),
                     argumentDest("value", false));
                 // Haxe's fromCharCode takes a scalar; a supplementary scalar
                 // encodes as its surrogate pair. Kotlin's Char is one UTF-16
@@ -5118,7 +5128,7 @@ class KotlinExpr {
         if (nullable)
             addProofExpr(a);
         return KotlinCoerce.coerce(
-            lowerTextPresence(rendered, nullable ? MaybeAbsent : Present),
+            lowerTextPresence(rendered, nullable ? MaybeAbsent : Present, a.pos),
             argumentDest("value", false));
     }
 
@@ -5436,7 +5446,7 @@ class KotlinExpr {
                         emissionTrace("CHARCODE", rendered, subj.pos);
 #end
                     final receiver = KotlinCoerce.coerce(
-                        lowerTextPresence(rendered, charCodeNullable ? MaybeAbsent : Present),
+                        lowerTextPresence(rendered, charCodeNullable ? MaybeAbsent : Present, subj.pos),
                         receiverDest("Method"));
                     return "run { val _s = "
                         + receiver
@@ -5450,7 +5460,7 @@ class KotlinExpr {
                     final charCodeNullable = presenceOf(subj) == MaybeAbsent;
                     final rendered = expr(subj);
                     final receiver = KotlinCoerce.coerce(
-                        lowerTextPresence(rendered, charCodeNullable ? MaybeAbsent : Present),
+                        lowerTextPresence(rendered, charCodeNullable ? MaybeAbsent : Present, subj.pos),
                         receiverDest("Method"));
                     return "run { val _s = "
                         + receiver
@@ -5886,7 +5896,7 @@ class KotlinExpr {
 #if (kotlin_fold_debug || kotlin_emit_origins)
                 emissionTrace("ARG_ASSERT", text, a.pos);
 #end
-                return KotlinCoerce.coerce(lowerTextPresence(text, MaybeAbsent), argumentDest("value", false));
+                return KotlinCoerce.coerce(lowerTextPresence(text, MaybeAbsent, a.pos), argumentDest("value", false));
             }
             else {
 #if (kotlin_fold_debug || kotlin_emit_origins)
@@ -5943,7 +5953,7 @@ class KotlinExpr {
 #if (kotlin_fold_debug || kotlin_emit_origins)
                         emissionTrace("CTOR_ASSERT", text, a.pos);
 #end
-                        KotlinCoerce.coerce(lowerTextPresence(text, MaybeAbsent), argumentDest("value", false));
+                        KotlinCoerce.coerce(lowerTextPresence(text, MaybeAbsent, a.pos), argumentDest("value", false));
                     }
                     else {
 #if (kotlin_fold_debug || kotlin_emit_origins)

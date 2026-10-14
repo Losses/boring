@@ -46,6 +46,7 @@ class EmitSink {
 
     static var coerceEvents:Array<EmitCoerceEvent> = [];
     static var referEvents:Array<{symbol:String, fromUnit:String, resolve:Void->Bool}> = [];
+    static var currentModule:Null<String> = null;
 
     public static function activate():Void {
         if (enabled)
@@ -63,6 +64,15 @@ class EmitSink {
         capturedRevision = null;
         capturedHaxeVersion = null;
         capturedDefines = null;
+    }
+
+    /**
+        Sets the module currently being lowered, used to attribute a
+        coercion whose Haxe position is synthesized (a @:build macro)
+        and therefore carries no usable .hx source file.
+    **/
+    public static function setCurrentModule(module:String):Void {
+        currentModule = module;
     }
 
     public static function internSourceFile(path:String):Int {
@@ -243,8 +253,12 @@ class EmitSink {
                 column = lc.column;
             } catch (_:Dynamic) {}
         }
+        var module:Null<String> = null;
+        if (sourceFile == null || !StringTools.endsWith(sourceFile, ".hx"))
+            module = currentModule;
         coerceEvents.push({line: line, column: column, role: role, presence: presence,
-            admitsAbsence: admitsAbsence, operation: operation, sourceFile: sourceFile});
+            admitsAbsence: admitsAbsence, operation: operation, sourceFile: sourceFile,
+            module: module, genLine: 0, genColumn: 0});
     }
 
     /**
@@ -348,10 +362,13 @@ class EmitSink {
         final fileCoerceEvents:Array<EmitCoerceEvent> = [];
         for (ce in coerceEvents) {
             final sf = ce.sourceFile;
-            if (sf != null && StringTools.endsWith(sf, expectedSourceSuffix)) {
+            final byFile = sf != null && StringTools.endsWith(sf, expectedSourceSuffix);
+            final byModule = ce.module != null && ce.module.split(".").join("/") == relPath;
+            if (byFile || byModule) {
                 fileCoerceEvents.push(ce);
             }
         }
+        assignGeneratedPositions(filePath, originalContent, fileCoerceEvents);
 
         // used tracks consumption by the event's position in the global
         // array so that the cursor logic (j+1) still advances sensibly
@@ -466,6 +483,175 @@ class EmitSink {
         return new EmitOriginMap(filePath, header.revision, header.haxeVersion,
             header.defines, sourcePaths.copy(), frames.copy(), callStackFrames.copy(),
             lineMappings, new Map(), fileCoerceEvents, []);
+    }
+
+    /**
+        Assigns the generated file 1-based line/column to each conversion
+        coercion event (Kotlin "!!"/"== true", Swift "!"). Pass-through events
+        ("?." and ".") keep 0 because the checker never scans them. Matching is
+        positional per file: conversion events are recorded in left-to-right
+        emission order, so the k-th conversion event of an operation maps to
+        the k-th such token scanned here. Tokens with no event (the bypass
+        probe is recorded via record(), not recordCoerce()) stay unmatched,
+        which is what lets direction 2 flag them.
+    **/
+    static function assignGeneratedPositions(filePath:String, originalContent:String,
+            coerceEvents:Array<EmitCoerceEvent>):Void {
+        final isSwift = StringTools.endsWith(filePath, ".swift");
+        if (!StringTools.endsWith(filePath, ".kt") && !isSwift)
+            return;
+        final tokens:Array<{line:Int, column:Int, operation:String}> = [];
+        scanConversionTokens(originalContent, isSwift, tokens);
+
+        // Group-zip per operation: conversion events are recorded in emission
+        // (source) order and tokens are scanned in generated order. A single
+        // coerce can emit the same token several times (template reuse, e.g.
+        // String.fromCharCode rendered three times), so a naive 1:1 zip shifts
+        // every downstream line. Events sharing one Haxe source line form one
+        // group and consume exactly one generated-line token group, so zip the
+        // two group sequences and assign every event in group k the generated
+        // line of token group k. (TemplateReuseGroupZip)
+        final ops = ["!!", "== true", "!"];
+        for (op in ops) {
+            final tokenGroups:Array<{line:Int, column:Int}> = [];
+            var ti = 0;
+            while (ti < tokens.length) {
+                if (tokens[ti].operation != op) { ti++; continue; }
+                final line = tokens[ti].line;
+                tokenGroups.push({line: line, column: tokens[ti].column});
+                while (ti < tokens.length && tokens[ti].operation == op && tokens[ti].line == line)
+                    ti++;
+            }
+            if (tokenGroups.length == 0)
+                continue;
+            var gi = 0;
+            var ci = 0;
+            while (ci < coerceEvents.length && gi < tokenGroups.length) {
+                if (coerceEvents[ci].operation != op) { ci++; continue; }
+                final srcLine = coerceEvents[ci].line;
+                while (ci < coerceEvents.length && coerceEvents[ci].operation == op
+                        && coerceEvents[ci].line == srcLine) {
+                    coerceEvents[ci].genLine = tokenGroups[gi].line;
+                    coerceEvents[ci].genColumn = tokenGroups[gi].column;
+                    ci++;
+                }
+                gi++;
+            }
+        }
+    }
+
+    /** Scans generated source for conversion tokens, skipping comments and
+        string/char literals so they never masquerade as coercion output.
+        Column is 1-based and mirrors the checker's convention: the first "!"
+        of "!!", the first "=" of "== true", and the "!" of Swift force-unwrap. **/
+    static function scanConversionTokens(content:String, isSwift:Bool,
+            tokens:Array<{line:Int, column:Int, operation:String}>):Void {
+        final n = content.length;
+        var i = 0;
+        var line = 1;
+        var col = 1;
+        while (i < n) {
+            final code = content.charCodeAt(i);
+            final nxtCode = i + 1 < n ? content.charCodeAt(i + 1) : -1;
+
+            if (code == 47 && nxtCode == 47) {
+                while (i < n && content.charCodeAt(i) != 10) { i++; col++; }
+                continue;
+            }
+            if (code == 47 && nxtCode == 42) {
+                var depth = 1;
+                i += 2; col += 2;
+                while (i < n && depth > 0) {
+                    final a = content.charCodeAt(i);
+                    final b = i + 1 < n ? content.charCodeAt(i + 1) : -1;
+                    if (a == 47 && b == 42) { depth++; i += 2; col += 2; }
+                    else if (a == 42 && b == 47) { depth--; i += 2; col += 2; }
+                    else if (a == 10) { i++; line++; col = 1; }
+                    else { i++; col++; }
+                }
+                continue;
+            }
+            if (code == 34 && i + 2 < n && content.charCodeAt(i + 1) == 34 && content.charCodeAt(i + 2) == 34) {
+                i += 3; col += 3;
+                while (i < n) {
+                    if (i + 2 < n && content.charCodeAt(i) == 34 && content.charCodeAt(i + 1) == 34 && content.charCodeAt(i + 2) == 34) { i += 3; col += 3; break; }
+                    if (content.charCodeAt(i) == 10) { i++; line++; col = 1; }
+                    else { i++; col++; }
+                }
+                continue;
+            }
+            if (code == 34) {
+                i++; col++;
+                while (i < n) {
+                    final ch = content.charCodeAt(i);
+                    if (ch == 92) { i += 2; col += 2; continue; }
+                    if (ch == 34) { i++; col++; break; }
+                    if (ch == 10) { i++; line++; col = 1; }
+                    else { i++; col++; }
+                }
+                continue;
+            }
+            if (code == 39) {
+                i++; col++;
+                while (i < n) {
+                    final ch = content.charCodeAt(i);
+                    if (ch == 92) { i += 2; col += 2; continue; }
+                    if (ch == 39) { i++; col++; break; }
+                    if (ch == 10) { i++; line++; col = 1; }
+                    else { i++; col++; }
+                }
+                continue;
+            }
+
+            if (!isSwift) {
+                if (code == 33 && nxtCode == 33) {
+                    tokens.push({line: line, column: col, operation: "!!"});
+                    i += 2; col += 2;
+                    continue;
+                }
+                if (code == 61 && nxtCode == 61) {
+                    var k = i + 2;
+                    while (k < n && (content.charCodeAt(k) == 32 || content.charCodeAt(k) == 9)) k++;
+                    if (k + 4 <= n && content.substr(k, 4) == "true") {
+                        final afterCode = k + 4 < n ? content.charCodeAt(k + 4) : -1;
+                        if (afterCode < 0 || !isIdentCharCode(afterCode)) {
+                            tokens.push({line: line, column: col, operation: "== true"});
+                            col += (k + 4) - i;
+                            i = k + 4;
+                            continue;
+                        }
+                    }
+                }
+            } else {
+                if (code == 33 && nxtCode != 61 && isPostfixBang(content, i)) {
+                    tokens.push({line: line, column: col, operation: "!"});
+                    i++; col++;
+                    continue;
+                }
+            }
+
+            if (code == 10) { i++; line++; col = 1; }
+            else { i++; col++; }
+        }
+    }
+
+    /** True when the "!" at i is a postfix force-unwrap (follows an identifier
+        or a closing bracket/paren/brace/dot/quote after skipping whitespace). **/
+    static function isPostfixBang(content:String, i:Int):Bool {
+        var j = i - 1;
+        while (j >= 0) {
+            final ch = content.charCodeAt(j);
+            if (ch != 32 && ch != 9 && ch != 10) break;
+            j--;
+        }
+        if (j < 0) return false;
+        final p = content.charCodeAt(j);
+        return isIdentCharCode(p) || p == 41 || p == 93 || p == 125 || p == 46 || p == 34 || p == 39 || p == 62;
+    }
+
+    static function isIdentCharCode(code:Int):Bool {
+        return (code >= 97 && code <= 122) || (code >= 65 && code <= 90)
+            || (code >= 48 && code <= 57) || code == 95;
     }
 
     public static function reset():Void {

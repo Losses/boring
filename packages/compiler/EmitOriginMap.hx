@@ -111,7 +111,8 @@ class EmitOriginMap {
         for (ce in coerceEvents) {
             serializedCoerce.push({line: ce.line, column: ce.column, role: ce.role,
                 presence: ce.presence, admitsAbsence: ce.admitsAbsence,
-                operation: ce.operation, sourceFile: ce.sourceFile});
+                operation: ce.operation, sourceFile: ce.sourceFile,
+                module: ce.module, genLine: ce.genLine, genColumn: ce.genColumn});
         }
         final serializedRefer:Array<Dynamic> = [];
         for (re in referEvents) {
@@ -214,7 +215,10 @@ class EmitOriginMap {
                 presence: Std.string(Reflect.field(item, "presence")),
                 admitsAbsence: Reflect.field(item, "admitsAbsence") == true,
                 operation: Std.string(Reflect.field(item, "operation")),
-                sourceFile: Std.isOfType(sf, String) ? sf : null
+                sourceFile: Std.isOfType(sf, String) ? sf : null,
+                module: Std.isOfType(Reflect.field(item, "module"), String) ? Reflect.field(item, "module") : null,
+                genLine: Reflect.field(item, "genLine") == null ? 0 : cast Reflect.field(item, "genLine"),
+                genColumn: Reflect.field(item, "genColumn") == null ? 0 : cast Reflect.field(item, "genColumn")
             });
         }
         return out;
@@ -591,6 +595,17 @@ typedef EmitCoerceEvent = {
     final operation:Null<String>;
     /** Haxe source file this event came from (null when unknown). */
     final sourceFile:Null<String>;
+    /** Haxe module the event was lowered from; set only for synthesized
+        positions (a @:build macro) whose pos.file is not a real .hx path.
+        finalizeFileImpl uses it to place the event in the right sidecar. */
+    final module:Null<String>;
+    /** 1-based generated-file line of the emitted conversion token (0 for
+        pass-through ?./. events, which the checker does not scan). */
+    var genLine:Int;
+    /** 1-based generated-file column of the token's first character (0 for
+        pass-through events). Matches the checker's column convention: first
+        "!" of "!!", first "=" of "== true", the "!" of Swift "!". */
+    var genColumn:Int;
 };
 
 /** One Rust symbol reference event, resolved after checkAll(). */
