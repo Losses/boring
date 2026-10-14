@@ -822,7 +822,7 @@ class SwiftExpr {
                             if (narrowedInit)
                                 nonOptionalInferred.set(v.id, true);
                             var rendered = narrowedInit ? narrowedLocalText(init) : SwiftCoerce.coerce(
-                                { text: expr(init), storage: null, presence: (swiftPresence(init) != Present ? MaybeAbsent : Present), errorDomain: null, unit: null, origin: null },
+                                { text: expr(init), storage: null, presence: (swiftPresence(init) != Present ? MaybeAbsent : Present), errorDomain: null, unit: null, origin: null, pos: init.pos },
                                 { type: init.t, admitsAbsence: (!hasTypeAnnotation || isNullLeafType(v.t) || optionalNullAnnotation), role: Assignment(""), errorSlot: null });
                             rendered;
                         }
@@ -831,7 +831,7 @@ class SwiftExpr {
                     initText = intToFloatText(initText);
                 if (unwrapNullableInitializer && !arrayBoundary)
                     initText = SwiftCoerce.coerce(
-                        { text: initText, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null },
+                        { text: initText, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null, pos: init.pos },
                         { type: v.t, admitsAbsence: false, role: Assignment(""), errorSlot: null });
                 if (swiftShadowedLocals.exists(v.id))
                     return [];
@@ -1266,7 +1266,7 @@ class SwiftExpr {
         // a plain optional operand parenthesises any non-local text before !.
         final role:DestinationRole = isNarrowed(e) ? Assignment("") : ArithmeticOperand;
         return SwiftCoerce.coerce(
-            { text: rendered, storage: null, presence: (swiftPresence(e) != Present ? MaybeAbsent : Present), errorDomain: null, unit: null, origin: null },
+            { text: rendered, storage: null, presence: (swiftPresence(e) != Present ? MaybeAbsent : Present), errorDomain: null, unit: null, origin: null, pos: e.pos },
             { type: e.t, admitsAbsence: false, role: role, errorSlot: null });
     }
 
@@ -1285,7 +1285,7 @@ class SwiftExpr {
         if (isIfLetShadowed(e) || !isNarrowedLocalRead(e) || StringTools.endsWith(text, "!"))
             return text;
         return SwiftCoerce.coerce(
-            { text: text, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null },
+            { text: text, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null, pos: e.pos },
             { type: e.t, admitsAbsence: false, role: Assignment(""), errorSlot: null });
     }
 
@@ -2065,7 +2065,8 @@ class SwiftExpr {
             presence: swiftPresence(e),
             errorDomain: null,
             unit: null,
-            origin: null
+            origin: null,
+            pos: e.pos
         };
     }
 
@@ -2258,7 +2259,7 @@ class SwiftExpr {
         };
         final presence:Presence = (swiftPresence(b) != Present || castLaundersOptional(b)) ? MaybeAbsent : Present;
         text = SwiftCoerce.coerce(
-            { text: text, storage: null, presence: presence, errorDomain: null, unit: null, origin: null },
+            { text: text, storage: null, presence: presence, errorDomain: null, unit: null, origin: null, pos: b.pos },
             { type: b.t, admitsAbsence: (swiftPresence(whole) != Present), role: role, errorSlot: null });
         // Haxe unifies an Int arm with a Float sibling, so the ternary's Haxe
         // type is the module real while that arm still renders as an integer.
@@ -3122,7 +3123,7 @@ class SwiftExpr {
         // underlying parameter's declared type through the site.
         // (ReadOnlyAssignBoundary)
         final presence:Presence = swiftPresence(value) != Present ? MaybeAbsent : Present;
-        return SwiftCoerce.coerce({ text: rendered, storage: null, presence: presence, errorDomain: null, unit: null, origin: null },
+        return SwiftCoerce.coerce({ text: rendered, storage: null, presence: presence, errorDomain: null, unit: null, origin: null, pos: value.pos },
             { type: target.t, admitsAbsence: isNullLeafType(target.t), role: Assignment(""), errorSlot: null });
     }
 
@@ -3662,7 +3663,7 @@ class SwiftExpr {
                     final argText = switchArgText(a, pt);
                     final presence:Presence = (swiftPresence(a) != Present || (isNullLeafType(a.t) && !isNonOptionalDeclared(a) && !isIfLetShadowed(a)))
                         ? MaybeAbsent : swiftPresence(a);
-                    SwiftCoerce.coerce({ text: argText, storage: null, presence: presence, errorDomain: null, unit: null, origin: null },
+                    SwiftCoerce.coerce({ text: argText, storage: null, presence: presence, errorDomain: null, unit: null, origin: null, pos: a.pos },
                         { type: pt, admitsAbsence: !demandsValue, role: Argument(""), errorSlot: null });
                 };
                 if (pt != null && isIntType(emittedType(a)) && isFloatLeafType(pt)) t = intToFloatText(t);
@@ -3704,7 +3705,7 @@ class SwiftExpr {
         }
         final base = expr(subj);
         return SwiftCoerce.coerce(
-            { text: base, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null },
+            { text: base, storage: null, presence: MaybeAbsent, errorDomain: null, unit: null, origin: null, pos: subj.pos },
             { type: subj.t, admitsAbsence: false, role: Receiver(""), errorSlot: null });
     }
 
@@ -3825,7 +3826,7 @@ class SwiftExpr {
         final presence:Presence = ((!fromSource && nullable) || (swiftPresence(arg) != Present && !isNullLeafType(arg.t)))
             ? MaybeAbsent : Present;
         final value = SwiftCoerce.coerce(
-            { text: rendered, storage: null, presence: presence, errorDomain: null, unit: null, origin: null },
+            { text: rendered, storage: null, presence: presence, errorDomain: null, unit: null, origin: null, pos: arg.pos },
             { type: arg.t, admitsAbsence: narrowsInSwitch, role: StringConcatArgument, errorSlot: null });
         return stdStringType(arg.t, value, inConcat, arg);
     }

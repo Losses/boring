@@ -29,11 +29,14 @@ class EmitOriginMap {
     public final callStackFrames:Array<StackFrame>;
     public final lines:Array<Null<EmitLineMapping>>;
     public final columns:Map<Int, Array<EmitColumnSegment>>;
+    public final coerceEvents:Array<EmitCoerceEvent>;
+    public final referEvents:Array<EmitReferEvent>;
 
     public function new(filePath:String, revision:String, haxeVersion:String,
             defines:Map<String, String>, sourceFiles:Array<String>, frames:Array<String>,
             callStackFrames:Array<StackFrame>, lines:Array<Null<EmitLineMapping>>,
-            columns:Map<Int, Array<EmitColumnSegment>>) {
+            columns:Map<Int, Array<EmitColumnSegment>>,
+            coerceEvents:Array<EmitCoerceEvent>, referEvents:Array<EmitReferEvent>) {
         this.filePath = filePath;
         this.revision = revision;
         this.haxeVersion = haxeVersion;
@@ -43,6 +46,8 @@ class EmitOriginMap {
         this.callStackFrames = callStackFrames;
         this.lines = lines;
         this.columns = columns;
+        this.coerceEvents = coerceEvents;
+        this.referEvents = referEvents;
     }
 
     /**
@@ -102,6 +107,18 @@ class EmitOriginMap {
             serializedFrames.push({name: frame.name, file: frame.file, line: frame.line, column: frame.column});
         }
 
+        final serializedCoerce:Array<Dynamic> = [];
+        for (ce in coerceEvents) {
+            serializedCoerce.push({line: ce.line, column: ce.column, role: ce.role,
+                presence: ce.presence, admitsAbsence: ce.admitsAbsence,
+                operation: ce.operation, sourceFile: ce.sourceFile});
+        }
+        final serializedRefer:Array<Dynamic> = [];
+        for (re in referEvents) {
+            serializedRefer.push({line: re.line, symbol: re.symbol,
+                fromUnit: re.fromUnit, resolved: re.resolved});
+        }
+
         final payload:Dynamic = {
             v: version,
             revision: revision,
@@ -110,7 +127,9 @@ class EmitOriginMap {
             sourceFiles: sourceFiles,
             frames: frames,
             lines: serializedLines,
-            cols: serializedColumns
+            cols: serializedColumns,
+            coerceEvents: serializedCoerce,
+            referEvents: serializedRefer
         };
         if (version >= 2)
             Reflect.setField(payload, "callStackFrames", serializedFrames);
@@ -173,8 +192,50 @@ class EmitOriginMap {
         final columns = readColumnTable(colsRaw);
         if (sourceFiles == null || frames == null || lines == null || columns == null)
             return null;
+        final coerceEvents = readCoerceEvents(Reflect.field(data, "coerceEvents"));
+        final referEvents = readReferEvents(Reflect.field(data, "referEvents"));
         return new EmitOriginMap("", revision, haxeVersion, defines, sourceFiles, frames,
-            callStackFrames, lines, columns);
+            callStackFrames, lines, columns, coerceEvents, referEvents);
+    }
+
+    static function readCoerceEvents(raw:Dynamic):Array<EmitCoerceEvent> {
+        if (!Std.isOfType(raw, Array))
+            return [];
+        final arr:Array<Dynamic> = cast raw;
+        final out:Array<EmitCoerceEvent> = [];
+        for (item in arr) {
+            if (item == null || !Reflect.isObject(item))
+                continue;
+            final sf:Dynamic = Reflect.field(item, "sourceFile");
+            out.push({
+                line: Reflect.field(item, "line") == null ? 0 : cast Reflect.field(item, "line"),
+                column: Reflect.field(item, "column") == null ? 0 : cast Reflect.field(item, "column"),
+                role: Std.string(Reflect.field(item, "role")),
+                presence: Std.string(Reflect.field(item, "presence")),
+                admitsAbsence: Reflect.field(item, "admitsAbsence") == true,
+                operation: Std.string(Reflect.field(item, "operation")),
+                sourceFile: Std.isOfType(sf, String) ? sf : null
+            });
+        }
+        return out;
+    }
+
+    static function readReferEvents(raw:Dynamic):Array<EmitReferEvent> {
+        if (!Std.isOfType(raw, Array))
+            return [];
+        final arr:Array<Dynamic> = cast raw;
+        final out:Array<EmitReferEvent> = [];
+        for (item in arr) {
+            if (item == null || !Reflect.isObject(item))
+                continue;
+            out.push({
+                line: Reflect.field(item, "line") == null ? 0 : cast Reflect.field(item, "line"),
+                symbol: Std.string(Reflect.field(item, "symbol")),
+                fromUnit: Std.string(Reflect.field(item, "fromUnit")),
+                resolved: Reflect.field(item, "resolved") == true
+            });
+        }
+        return out;
     }
 
     static function readStringArray(raw:Dynamic):Null<Array<String>> {
@@ -512,6 +573,36 @@ typedef StackFrame = {
     final file:String;
     final line:Int;
     final column:Int;
+};
+
+/** One coercion event (Kotlin/Swift coerce) recorded during generation. */
+typedef EmitCoerceEvent = {
+    /** 1-based source line (0 when the position was unavailable). */
+    final line:Int;
+    /** 1-based source column (0 when the position was unavailable). */
+    final column:Int;
+    /** Destination role, e.g. "Argument", "Assignment", "Condition". */
+    final role:String;
+    /** Presence of the lowered value, e.g. "Present", "MaybeAbsent". */
+    final presence:String;
+    /** Whether the destination tolerates absence. */
+    final admitsAbsence:Bool;
+    /** The operator emitted (!!, !, == true, ?., .). */
+    final operation:String;
+    /** Haxe source file this event came from (null when unknown). */
+    final sourceFile:Null<String>;
+};
+
+/** One Rust symbol reference event, resolved after checkAll(). */
+typedef EmitReferEvent = {
+    /** Always 0: refer events carry no Haxe source position. */
+    final line:Int;
+    /** The referenced symbol, "<module>.<name>". */
+    final symbol:String;
+    /** The module doing the referencing. */
+    final fromUnit:String;
+    /** Whether the reference resolved to a definition. */
+    final resolved:Bool;
 };
 
 /**

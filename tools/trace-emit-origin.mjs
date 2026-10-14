@@ -39,6 +39,9 @@ function printSummary(data) {
   console.log(`Call-stack frame table: ${callStackFrames} entries`);
   console.log(`Lines: ${mappedLines} mapped of ${totalLines} total (${totalLines > 0 ? (mappedLines/totalLines*100).toFixed(1) : 0}%)`);
   console.log(`  exact: ${exactLines}  inherited: ${inheritedLines}  null: ${nullLines}`);
+  const coerceEvents = (data.coerceEvents || []).length;
+  const referEvents = (data.referEvents || []).length;
+  console.log(`Coerce events: ${coerceEvents}  Refer events: ${referEvents}`);
   if (data.sourceFiles) {
     console.log(`
 Source files:`);
