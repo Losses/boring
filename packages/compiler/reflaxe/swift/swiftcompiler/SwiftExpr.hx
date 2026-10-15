@@ -3214,7 +3214,7 @@ class SwiftExpr {
     function operand(e:TypedExpr, parent:Binop, isRight:Bool, suppressUnwrap:Bool = false):String {
         final rendered = switch (stripWrap(e).expr) {
             case TConst(TNull): expr(e);
-            case _: !suppressUnwrap && (isLocalOptional(e)
+            case _: !suppressUnwrap && !isIfLetShadowed(e) && (isLocalOptional(e)
                     || isNarrowed(e)
                     || (isStringCharCodeAt(e) && !types.resident)) ? "(" + expr(e) + ")!" : expr(e);
         };
