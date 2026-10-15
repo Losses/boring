@@ -33,6 +33,8 @@
     "check:ledger": "bun tools/ledger-check/check.ts",
     "check:registry": "bun tools/registry-guard/backstop.ts",
     "check:mapping": "bun tools/type-mapping/check.ts",
+    "check:invariants": "bun tools/emit-invariant-check.ts reference/kotlin/gen --lang kotlin",
+    "report:coverage": "bun tools/unit-coverage-report.ts",
     "gen:vector": "bun tools/gen-vector.ts",
     "gen:ts": "haxe examples/ts.hxml",
     "gen:kotlin": "haxe examples/kotlin.hxml",
