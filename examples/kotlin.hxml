@@ -17,6 +17,7 @@
 --macro kotlincompiler.Compiler.use()
 -D kotlin-output=reference/kotlin/gen
 -D kotlin-test-output=reference/kotlin/gen-tests
+-D kotlin_emit_origins
 -D runtime-import=boring.runtime
 -D runtime-emit=runtime
 boring.ArraySliceOps
