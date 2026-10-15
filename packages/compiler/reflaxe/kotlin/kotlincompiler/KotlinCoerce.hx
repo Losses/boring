@@ -183,8 +183,15 @@ class KotlinCoerce {
                     // Member access is atomic; only ".." (range) is not.
                     if (depth == 0 && i + 1 < n && text.charAt(i + 1) == ".")
                         return false;
-                case " " | "?" | "+" | "-" | "*" | "/" | "%" | "<" | ">" | "=" | "!" | "&" | "|" | "," | ":" | ";":
+                case " " | "+" | "-" | "*" | "/" | "%" | "<" | ">" | "=" | "!" | "&" | "|" | "," | ":" | ";":
                     if (depth == 0)
+                        return false;
+                case "?":
+                    // A safe-call hop (x?.m) is a postfix member access and
+                    // stays atomic like ".", so an appended "!!" binds to the
+                    // whole call (x?.m()!!). Elvis (?:) and a lone "?" stay
+                    // non-atomic. Mirrors KotlinExpr.isAtomicAppendTarget.
+                    if (depth == 0 && !(i + 1 < n && text.charAt(i + 1) == "."))
                         return false;
                 case _:
             }
