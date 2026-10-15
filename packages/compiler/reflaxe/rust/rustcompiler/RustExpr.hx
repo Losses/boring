@@ -10632,6 +10632,12 @@ class RustExpr {
                 // an error-carrying function, and a compile diagnostic in a
                 // position with no Result slot, never a silently dropped
                 // failure (docs/specs/stdlib/17-platform-modules.md).
+                // Host-only node:fs externs (std.FsError has no payload registration
+                // in this compilation scope) carry no resident file edge; the
+                // enclosing function is infallible, so emit a no-op.
+                if (state.payloadEnumModules.get(RustEmissionState.identityKey("std.FsError", "FsError")) == null) {
+                    return "()";
+                }
                 state.shimsUsed.set("std.Fs", true);
                 imports.requireType("std.Fs", "Fs");
                 final fsName = cf.get().name;
