@@ -3195,7 +3195,11 @@ class KotlinExpr {
                     };
                     if (hopExtracted)
                         return false;
-                    if ((isNullType(subject.t) || isNullableRenderedField(subject)) && nullableAccess(subject) == "?.") {
+                    final renderedNullableLocal = switch (stripWrap(subject).expr) {
+                        case TLocal(v): declarationRendersNullable(v);
+                        case _: false;
+                    };
+                    if ((isNullType(subject.t) || isNullableRenderedField(subject) || renderedNullableLocal) && nullableAccess(subject) == "?.") {
                         // A dominating condition can prove the chain root even
                         // when the intermediate field remains nullable in the
                         // typed AST.  Do not replace that proof with ?. on a
@@ -3291,7 +3295,8 @@ class KotlinExpr {
         // Type.enumConstructor's QName marker renders "?.name" for a nullable
         // argument (enumQuery hardcodes the separator from its own decision),
         // so presence tracks the same AST predicates instead of re-reading
-        // rendered text. QLookup/QCollection always render present values.
+        // rendered text. QCollection always renders present; QLookup lowers to
+        // entries.firstOrNull { ... }, which is nullable.
         // (EnumQueryNullableName)
         switch (EnumQueryExpander.markerKind(e)) {
             case QName:
@@ -3304,8 +3309,14 @@ class KotlinExpr {
                         return MaybeAbsent;
                 }
                 return Present;
-            case QLookup | QCollection:
+            case QCollection:
                 return Present;
+            case QLookup:
+            // Type.createEnum lowers to entries.firstOrNull { ... }, which is
+            // nullable in Kotlin even though Haxe's createEnum never returns null.
+            // Track the rendered nullability so QName (Type.enumConstructor) and
+            // call arguments harden the value. (EnumQueryLookupNullable)
+                return MaybeAbsent;
             case null:
         }
         if (isNullType(e.t) && !valueProven(e)) {
@@ -4337,7 +4348,7 @@ class KotlinExpr {
         final inner = expr(subj);
         switch (op) {
             case OpNot:
-                return "!" + KotlinCoerce.coerce(lowerText(subj, inner), conditionDest());
+                return "!(" + KotlinCoerce.coerce(lowerText(subj, inner), conditionDest()) + ")";
             case OpNegBits:
                 return inner + ".inv()";
             case OpNeg:
