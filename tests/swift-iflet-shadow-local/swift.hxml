@@ -1,0 +1,17 @@
+# Focused regression fixture for the if-let shadowed-local force-unwrap leak
+# (SwiftExpr.hx returnValue: an optional numeric local guarded by 'if (x != null)'
+# lowers to 'if let x = x', making the Swift binding non-optional inside the
+# branch; value uses must render bare / Float-converted, never 'x!').
+# The collected driver is tests/swift-iflet-shadow-local/iflet-shadow-local.test.ts.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/swift/std-shadow
+-cp packages/compiler/reflaxe/swift
+-cp samples
+-cp tests/swift-iflet-shadow-local
+--macro Intercept.run(['samples', 'tests/swift-iflet-shadow-local'])
+--macro swiftcompiler.Compiler.use()
+-D swift-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+shadow.IfLetShadowLocal
