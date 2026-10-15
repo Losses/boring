@@ -3158,10 +3158,10 @@ class SwiftExpr {
             case TConst(TNull): expr(ret);
             case TCall(_, _) if (isNullLeafType(ret.t)): currentFuncReturnsOptional ? expr(ret) : expr(ret) + "!";
             case TLocal(v) if (currentFuncReturnsOptional): expr(ret);
-            case TLocal(v) if (optionalAnnotated.exists(v.id) || (optionalInferred.exists(v.id) && !nonOptionalInferred.exists(v.id))): {
-                    final text = expr(ret);
-                    StringTools.endsWith(text, "!") ? text : text + "!";
-                };
+            // An optional local unwraps here, ahead of the Float conversion:
+            // an optional numeric local must force-unwrap (x!), never wrap in
+            // Double(x) while its storage is still Double?.
+            case TLocal(v) if (swiftPresence(ret) != Present): expr(ret) + "!";
             case TLocal(_):
                 switch (Context.follow(ret.t)) {
                     case TAbstract(a, _) if (a.get().name == "Float"): realType() + "(" + expr(ret) + ")";
