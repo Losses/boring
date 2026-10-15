@@ -1769,16 +1769,26 @@ class Compiler extends PluginCompiler<Compiler> {
                                                         // enclosing catch already absorbs stays out
                                                         // (docs/specs/stdlib/17-platform-modules.md).
                                                         if (absorbed.indexOf("std.FsError") < 0) {
-                                                            fallible.set(key, true);
                                                             // The payload enum is co-emitted in the
                                                             // declaring exception's module, so the error
                                                             // slot must name that module or the generated
                                                             // path resolves to a file that does not exist.
+                                                            // A node:fs extern whose std.FsError payload has no
+                                                            // registration in this scope has no Rust face; it is
+                                                            // host-only, so it neither makes the enclosing function
+                                                            // fallible nor aborts the scan. The native std.Fs edge
+                                                            // still requires the declared domain and keeps its
+                                                            // diagnostic.
                                                             final emitted = state.payloadEnumModules.get(RustEmissionState.identityKey("std.FsError", "FsError"));
-                                                                                                                        if (emitted == null) {
-                                                                Context.error("std.FsError domain is not emitted in this compilation scope", field.pos);
-                                                            } else {
-                                                                mergeEnum(key, {module: emitted, name: "FsError"});
+                                                            final hostOnlyNodeFs = emitted == null
+                                                                && RustEmissionState.nodeFsExternFallibleMember(cc.get(), calleeName);
+                                                            if (!hostOnlyNodeFs) {
+                                                                fallible.set(key, true);
+                                                                if (emitted == null) {
+                                                                    Context.error("std.FsError domain is not emitted in this compilation scope", field.pos);
+                                                                } else {
+                                                                    mergeEnum(key, {module: emitted, name: "FsError"});
+                                                                }
                                                             }
                                                         }
                                                     } else if (RustEmissionState.runtimeShimIsFallible(calleeName)) {
