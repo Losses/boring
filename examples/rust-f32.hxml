@@ -54,6 +54,8 @@ boring.NullBoolStyle
 boring.NullBoolTernaryOps
 boring.NullBoolEmphasisOps
 tests.NullBoolTernaryTests
+boring.WhileNullableCond
+tests.WhileNullableCondTests
 boring.VectorSort
 boring.ScriptEvidenceTable
 boring.DivTableOps

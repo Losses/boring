@@ -84,10 +84,10 @@ describe("std.Fs failure model", () => {
     expect(decl).toContain("return unique.module;");
 
     const compiler = read("packages/compiler/reflaxe/rust/rustcompiler/Compiler.hx");
-    // The payload enum is co-emitted in the exception module, so the error
+    // F1 (Claude review): the payload enum is co-emitted in the exception module, so the error
     // slot names that module; the declared module is the fallback only.
     expect(compiler).toContain('state.payloadEnumModules.get(RustEmissionState.identityKey("std.FsError", "FsError"))');
-    expect(compiler).toContain('mergeEnum(key, {module: emitted != null ? emitted : "std.FsError", name: "FsError"})');
+    expect(compiler).toContain('mergeEnum(key, {module: emitted, name: "FsError"})');
     // A synthetic union that absorbs the failure also needs the direct
     // runtime conversion: a bare `?` from runtime::fs::FsError needs a From
     // the Haxe-facing payload alone does not provide.

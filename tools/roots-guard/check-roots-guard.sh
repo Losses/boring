@@ -412,6 +412,9 @@ note_cp_for() {
 
 lib_classpath() {
     local lib="$1" cur dev hj cp proj rel
+    # F9 (Claude review): .current/.dev are haxelib install pointers, git-ignored and absent from
+    # clean exports; a clean checkout falls through to the repo-as-library
+    # branch below (PIT-399).
     cur="$repo/.haxelib/$lib/.current"
     dev="$repo/.haxelib/$lib/.dev"
     if [ -f "$dev" ] && [ -d "$(cat "$dev" 2>/dev/null)" ]; then
@@ -636,11 +639,11 @@ done
 # allowlist/root-floor modules only.
 make_cp_index <(printf '%s\n' ${CP_ALL[@]+"${CP_ALL[@]}"}) "$tmpd/idx.all"
 
-# Repo-wide fallback index: every .hx under the repo (skipping installed
-# libraries, dependencies, and build output) as dotted module names.
+# F9 (Claude review): fallback index switches to git ls-files '*.hx'.
+# Repo-wide fallback index: every tracked .hx under the repo (git ls-files, so
+# untracked build output and local junk are excluded) as dotted module names.
 # Built once; membership is a single grep, not a per-module find.
-find "$repo" -path "$repo/.haxelib" -prune -o -path "$repo/node_modules" -prune \
-    -o -type f -name '*.hx' -print 2>/dev/null |
+git -C "$repo" ls-files '*.hx' |
 while IFS= read -r hx; do
     rel="${hx#"$repo"/}"
     rel="${rel%.hx}"
