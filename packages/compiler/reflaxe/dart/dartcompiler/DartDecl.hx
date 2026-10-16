@@ -1080,13 +1080,6 @@ class DartDecl {
         switch (def.type) {
             case TAnonymous(anonRef):
                 final fields = PolicyQueries.sortedAnonFields(anonRef);
-                var hasListField = false;
-                for (field in fields) {
-                    if (isListType(field.type)) {
-                        hasListField = true;
-                        break;
-                    }
-                }
                 final lines:Array<String> = ["class " + claimTopLevel(def.name, def.pos) + " {"];
                 for (field in fields) {
                     lines.push("  " + types.of(field.type) + " " + field.name + ";");
@@ -1120,10 +1113,6 @@ class DartDecl {
                 lines.push("    return hash;");
                 lines.push("  }");
                 lines.push("}");
-                if (hasListField) {
-                    lines.push("");
-                    lines.push(seqEqualsSource());
-                }
                 if (isStructKeyCandidate(fields)) {
                     return lines.join("\n") + "\n\n" + comparatorDecl(def, fields).join("\n");
                 }
@@ -1142,8 +1131,13 @@ class DartDecl {
         };
     }
 
-    /** The private list equality of one library; element equality is the elements' own operator. */
-    static function seqEqualsSource():String {
+    /**
+        The private list equality of one library; element equality is the
+        elements' own operator. Emitted once per compilation unit by the
+        compiler (Dart privates are library-scoped, so per-class emission
+        would collide when one module declares several list-field structures).
+    **/
+    public static function seqEqualsSource():String {
         return [
             "bool _seqEquals(List<dynamic> a, List<dynamic> b) {",
             "  if (a.length != b.length) {",
