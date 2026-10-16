@@ -323,10 +323,11 @@ class EmitSink {
         final header = captureHeader();
         final originalLines = originalContent.split("\n");
 
+        // F4 (Claude review): neutral module name in the doc example (no boring branding).
         // Derive expected Haxe source-file suffix from the output path.
-        // modulePath("boring.WidenedFieldNonNull") produces
-        // "boring/WidenedFieldNonNull.kt"; the Haxe source lives at
-        // "<root>/boring/WidenedFieldNonNull.hx".  Strip any leading
+        // modulePath("app.Widget") produces
+        // "app/Widget.kt"; the Haxe source lives at
+        // "<root>/app/Widget.hx".  Strip any leading
         // "../" segments (test modules) and the .kt extension, then
         // match event source files by suffix.
         var relPath = filePath;
@@ -701,7 +702,8 @@ class EmitSink {
     }
 
     static function resolveRevision():String {
-        final defined = Context.definedValue("boring-revision");
+        // F4 (Claude review): neutral define name; the guard lists are unchanged.
+        final defined = Context.definedValue("build-revision");
         if (defined != null && defined != "")
             return defined;
         try {

@@ -30,7 +30,8 @@ describe("top-level and extension function lowering", () => {
     expect(extensions).toContain("export function stringLabel(value: string, prefix: string): string");
     expect(extensions).toContain("function privateModeLabel(mode: ExtensionMode): string");
     expect(extensions).not.toContain("class ExtensionOps");
-    expect(extensionConsumer).toContain("return modeLabel(ExtensionMode.Hot, \"!\");");
+    // F3 (Claude review): 10-03 TsExpr cast wrap is intentional.
+    expect(extensionConsumer).toContain("return modeLabel((ExtensionMode.Hot as ExtensionMode), \"!\");");
     expect(extensionConsumer).toContain("return stringLabel(\"core\", \"@\");");
     expect(extensionConsumer).not.toMatch(/\bExtensionOps\.(?:modeLabel|stringLabel|modeWithPrivate)\(/u);
   });
