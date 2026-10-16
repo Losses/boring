@@ -84,7 +84,8 @@ describe("default argument expansion generated tree", () => {
     expect(content).toContain('return ops.formatLabel("item", "-");');
     expect(content).toContain('return ops.formatLabel(null, "-");');
     expect(content).toContain('return DefaultArgsOps.describeTag("alpha", null);');
-    expect(content).toContain("return DefaultArgsOps.openMode(1, Mode.Read);");
+    // F8 (Claude review): 10-03 TsExpr cast wrap is intentional.
+    expect(content).toContain("return DefaultArgsOps.openMode(1, (Mode.Read as Mode));");
     expect(content).toContain("return DefaultArgsOps.adjust(20.0, -5.0);");
     expect(content).toContain("return localAdd(x, 100);");
     expect(content).toContain("return localAdd(x, 200);");

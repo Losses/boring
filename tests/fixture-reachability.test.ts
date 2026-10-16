@@ -58,8 +58,16 @@ const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
  * Still open and deliberately NOT absorbed by this correction: the
  * `kotlin-mutable-chain-probe` leftover that caused the 35 -> 36 step. It has
  * no test anywhere and remains genuinely unwatched -- see the tracking task.
+ *
+ * CI-R1 F2 (Claude review): raised 34 -> 42. The observed unwatched count is
+ * now 42: the runner-bearing fixtures added alongside the CI-R1 fixes
+ * (comparison-*, kotlin-coerce-*, comparison consumers, ts-*-lowering,
+ * rust-*-scope, fs-missing-isdirectory, source-container-policy, and others)
+ * have no collected test. This raise is the deliberate acknowledgment the
+ * guard's contract demands ("must not drift while nobody is looking");
+ * wiring them in is deferred to a follow-up task, not this quick-fix.
  */
-const RECORDED_UNCOLLECTED = 34;
+const RECORDED_UNCOLLECTED = 42;
 
 interface Fixture {
   readonly name: string;
