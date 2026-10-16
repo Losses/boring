@@ -31,9 +31,9 @@ describe("degradation granularity runtime witnesses", () => {
     // executes repeatedly, then read the field back through the index path.
     const out = VectorSort.byCodePoint(records);
     for (let i = 1; i < out.length; i++) {
-      expect(out[i - 1].codePoint <= out[i].codePoint).toBe(true);
+      expect(out[i - 1]!.codePoint <= out[i]!.codePoint).toBe(true);
     }
-    expect(out[0].codePoint).toBe(10);
+    expect(out[0]!.codePoint).toBe(10);
   });
 
   test("data table classify keeps index reads on the full table (no per-access copy)", () => {
