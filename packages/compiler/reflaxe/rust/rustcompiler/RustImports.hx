@@ -39,6 +39,8 @@ class RustImports {
 
     final state:RustEmissionState;
     final imports:Map<String, Bool> = [];
+    /** Symbols each glob import contributes, recorded at its require site. */
+    final globSymbols:Map<String, Array<String>> = [];
 
     public function new(selfModule:String, state:RustEmissionState) {
         this.selfModule = selfModule;
@@ -47,6 +49,21 @@ class RustImports {
 
     public function require(importPath:String):Void {
         imports.set(importPath, true);
+    }
+
+    /**
+        Registers a glob import plus the symbol the emitter renders for it,
+        so renderFiltered can intersect the module exports with the body
+        instead of keeping the glob unconditionally (Contract 6).
+    **/
+    public function requireGlob(importPath:String, symbol:String):Void {
+        require(importPath);
+        final syms = globSymbols.get(importPath);
+        if (syms == null) {
+            globSymbols.set(importPath, [symbol]);
+        } else if (syms.indexOf(symbol) < 0) {
+            syms.push(symbol);
+        }
     }
 
     public function requireType(module:String, name:String):Void {
@@ -130,15 +147,30 @@ class RustImports {
                 continue;
             }
             // An aliased import grounds on its alias: the body names the
-            // alias, never the aliased path tail. A glob import names no
-            // single symbol and rustc never reports globs as unused, so it
-            // stays unfiltered. Dropping either desugars `testlib::run`
-            // and the assertion helpers into unresolved paths.
-            // (AliasedGlobImportGrounding)
+            // alias, never the aliased path tail. (AliasedGlobImportGrounding)
+            // A glob import uses this module's exported symbols: it stays
+            // only when the body names one of the symbols recorded at the
+            // require site. Contract 6 keeps the require site as the single
+            // source instead of rescanning the module. (GlobSymbolIntersection)
             final glob = StringTools.endsWith(imp, "::*");
+            if (glob) {
+                var used = false;
+                final syms = globSymbols.get(imp);
+                if (syms != null) {
+                    for (s in syms) {
+                        if (bodyNamesSymbol(body, s)) {
+                            used = true;
+                            break;
+                        }
+                    }
+                }
+                if (used)
+                    lines.push("use " + imp + ";");
+                continue;
+            }
             final aliasIndex = imp.lastIndexOf(" as ");
-            final symbol = glob ? "" : aliasIndex >= 0 ? imp.substr(aliasIndex + 4) : imp.substr(imp.lastIndexOf("::") + 2);
-            if (!glob && !bodyNamesSymbol(body, symbol))
+            final symbol = aliasIndex >= 0 ? imp.substr(aliasIndex + 4) : imp.substr(imp.lastIndexOf("::") + 2);
+            if (!bodyNamesSymbol(body, symbol))
                 continue;
             lines.push("use " + imp + ";");
         }
