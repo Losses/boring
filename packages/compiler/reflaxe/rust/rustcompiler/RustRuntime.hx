@@ -968,7 +968,7 @@ fn byte_to_unit(s: &str, byte: usize) -> u32 {
 //   to_utf8()       -> Option<String> (None on unpaired surrogates)
 
 use std::fmt;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 
 #[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct UString(Vec<u16>);
@@ -1017,7 +1017,7 @@ impl UStr {
     /// The UTF-16 code units as an iterator (String.encodeUtf16). Mirrors
     /// the UString inherent method so `&UStr` receivers resolve too. Items
     /// are owned `u16`, matching the std String encode_utf16 item type.
-    pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+    pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<\'_, u16>> {
         self.0.iter().copied()
     }
 
@@ -1245,7 +1245,7 @@ impl UString {
     /// The UTF-16 code units of this string. UString stores units natively,
     /// so this is the slice itself — no re-encoding. (String.encodeUtf16)
     /// Items are owned `u16`, matching the std String encode_utf16 item type.
-    pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<u16>> {
+    pub fn encode_utf16(&self) -> std::iter::Copied<std::slice::Iter<\'_, u16>> {
         self.0.iter().copied()
     }
 }
@@ -1728,17 +1728,6 @@ pub fn find_from(s: &UStr, needle: &UStr, start: i32) -> i32 {
         }
     }
     -1
-}
-
-fn byte_to_unit(s: &str, byte: usize) -> u32 {
-    let mut units = 0u32;
-    for (b, c) in s.char_indices() {
-        if b >= byte {
-            break;
-        }
-        units += u32::try_from(c.len_utf16()).unwrap_or(0);
-    }
-    units
 }
 ';
 
