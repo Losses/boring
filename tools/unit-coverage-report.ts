@@ -71,8 +71,9 @@ function toolMissing(cmd: string): boolean {
 function defineValue(haxeArgs: string[] | undefined, name: string): string | null {
   if (!haxeArgs) return null;
   for (let i = 0; i + 1 < haxeArgs.length; i++) {
-    if (haxeArgs[i] === '-D' && haxeArgs[i + 1].startsWith(name + '=')) {
-      return haxeArgs[i + 1].slice(name.length + 1);
+    const next = haxeArgs[i + 1]!;
+    if (haxeArgs[i] === '-D' && next.startsWith(name + '=')) {
+      return next.slice(name.length + 1);
     }
   }
   return null;
@@ -147,7 +148,7 @@ function main(): number {
   let onlyBundle: string | null = null;
   let listOnly = false;
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--bundle') onlyBundle = argv[++i];
+    if (argv[i] === '--bundle') onlyBundle = argv[++i] ?? null;
     else if (argv[i] === '--list') listOnly = true;
   }
 
