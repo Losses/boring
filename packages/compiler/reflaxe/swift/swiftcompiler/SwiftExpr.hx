@@ -2282,17 +2282,6 @@ class SwiftExpr {
         };
     }
 
-    /** A text that already ends a nil-merge chain in a non-nil arm is
-        non-optional by construction: stacking a registered default would
-        warn as never used. (NilMergeChainNonOptional) */
-    static function nilMergeChainNonOptional(text:String):Bool {
-        final idx = text.lastIndexOf(" ?? ");
-        if (idx < 0)
-            return false;
-        final tail = StringTools.trim(text.substr(idx + 4));
-        return tail != "nil" && !StringTools.startsWith(tail, "Optional(");
-    }
-
     public static function emissionTrace(tag:String, text:String, pos:haxe.macro.Expr.Position = null):Void {
         #if boring_fold_debug
         Sys.stderr().writeString("KTRACE " + tag + " [" + text + "]\n");
@@ -3771,6 +3760,32 @@ class SwiftExpr {
         // source type.
         if (isIfLetShadowed(e))
             return Present;
+        // A null-check ternary lowered to `target ?? fallback` inherits the
+        // fallback's presence: `a ?? nonOptional` renders a plain non-null value
+        // even though the Haxe ternary type stays Null<T>.
+        switch (stripWrap(e).expr) {
+            case TIf(c, t, f) if (f != null):
+                final site = optionalIfSite(c, t, f);
+                if (site != null)
+                    return swiftPresence(site.fallback);
+                // `map.has(k) ? map.get(k) : fallback` lowers to
+                // `get(k) ?? fallback`, so it inherits the fallback's presence.
+                final guard = mapHasKey(c);
+                if (guard != null) {
+                    final trueGet = matchingMapGet(t, guard);
+                    final falseGet = matchingMapGet(f, guard);
+                    if ((trueGet == null) != (falseGet == null)) {
+                        final fallback = trueGet != null ? f : t;
+                        return swiftPresence(fallback);
+                    }
+                }
+                // Both arms are non-null values: the lowered ternary is a plain
+                // non-optional even though the Haxe type stays Null<T> under a
+                // nullable parameter unification.
+                if (ternaryNonNullBothArms(e))
+                    return Present;
+            case _:
+        }
         if (staticallyOptional(e))
             return MaybeAbsent;
         return Present;
@@ -5201,9 +5216,7 @@ class SwiftExpr {
                     defaultArgText(d, p);
                 } else if (d != null
                     && p != null
-                    && isNullLeafType(args[i].t)
-                    && !ternaryNonNullBothArms(args[i])
-                    && !nilMergeChainNonOptional(expr(args[i]))) {
+                    && swiftPresence(args[i]) != Present) {
                     "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
                 } else {
                     base[i];
@@ -5304,9 +5317,7 @@ class SwiftExpr {
                 defaultArgText(d, p);
             } else if (d != null
                 && p != null
-                && isNullLeafType(args[i].t)
-                && !ternaryNonNullBothArms(args[i])
-                && !nilMergeChainNonOptional(expr(args[i]))) {
+                && swiftPresence(args[i]) != Present) {
                 "(" + expr(args[i]) + " ?? " + defaultArgText(d, p) + ")";
             } else if (p != null && !isNullLeafType(p) && swiftPresence(args[i]) != Present) {
                 expr(args[i]) + "!";
