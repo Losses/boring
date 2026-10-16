@@ -681,8 +681,17 @@ class EmitSink {
         if (capturedDefines == null) {
             capturedDefines = new Map();
             final raw = Context.getDefines();
-            for (key in raw.keys())
-                capturedDefines.set(key, raw.get(key));
+            for (key in raw.keys()) {
+                final value = raw.get(key);
+                // Output-dir and tool-path defines (swift_output, package-tsc, …)
+                // carry absolute build-environment paths. Recording them into
+                // the per-file header makes two generations of identical inputs
+                // byte-different, so drop absolute-path values: they encode
+                // build location, not generator identity.
+                if (value != null && haxe.io.Path.isAbsolute(value))
+                    continue;
+                capturedDefines.set(key, value);
+            }
         }
         return {
             revision: capturedRevision,
