@@ -3127,6 +3127,8 @@ class KotlinExpr {
         // next hop while retaining the intermediate nullable result.
         final safeCallResult = switch (stripWrap(subj).expr) {
             case TCall(_, _): presenceOf(subj) == MaybeAbsent;
+            // An array index renders like a call result: presenceOf(TArray) recurses to its receiver.
+            case TArray(_, _): presenceOf(subj) == MaybeAbsent;
             case _: false;
         };
         if (safeCallResult)
