@@ -502,7 +502,8 @@ class Compiler extends PluginCompiler<Compiler> {
             final filePath = isTest ? testOutput + "/" + DartImports.libraryPathOf(module) : dartOutput + "/lib/" + DartImports.libraryPathOf(module);
             final ctx = contexts.get(module);
             final body = parts.get(module).join("\n\n");
-            final content = GENERATED_HEADER + "\n" + importBlockOf(ctx, filePath, dartOutput, testOutput) + "\n" + body + "\n";
+            final seqEq = ctx.needsSeqEquals() ? "\n\n" + DartDecl.seqEqualsSource() : "";
+            final content = GENERATED_HEADER + "\n" + importBlockOf(ctx, filePath, dartOutput, testOutput) + "\n" + body + seqEq + "\n";
             PackageArtifacts.saveTreeFile(output, savedPath, content);
             writeOriginSidecar(savedPath, content);
         }
@@ -545,8 +546,9 @@ class Compiler extends PluginCompiler<Compiler> {
                     residentParts.push(moduleParts.join("\n\n"));
                 }
             }
+            final runtimeSeqEq = anyNeedsSeqEquals(RuntimeResidents.MODULES) ? "\n\n" + DartDecl.seqEqualsSource() : "";
             final runtimeSource = GENERATED_HEADER + "\nimport 'dart:typed_data';\n" + StringTools.trim(DartRuntime.SOURCE) + "\n"
-                + residentParts.join("\n\n") + "\n";
+                + residentParts.join("\n\n") + runtimeSeqEq + "\n";
             PackageArtifacts.saveTreeFile(output, runtimeEmitPath("runtime.dart"), runtimeSource);
             // The test host holds the failure type, the runner state, and
             // the stdout edge; TestCore compiles through the normal
@@ -568,8 +570,9 @@ class Compiler extends PluginCompiler<Compiler> {
                 final hostImports = "import 'dart:io';\nimport 'dart:typed_data';\nimport '"
                     + importSpecifier(testOutput + "/test_host.dart", dartOutput + "/" + runtimeEmitPath("runtime.dart"))
                     + "' as runtime;";
+                final hostSeqEq = anyNeedsSeqEquals(RuntimeResidents.TEST_MODULES) ? "\n\n" + DartDecl.seqEqualsSource() : "";
                 final hostSource = GENERATED_HEADER + "\n" + hostImports + "\n" + StringTools.trim(DartRuntime.TEST_SOURCE) + "\n"
-                    + testResidentParts.join("\n\n") + "\n";
+                    + testResidentParts.join("\n\n") + hostSeqEq + "\n";
                 PackageArtifacts.saveTreeFile(output, testRel + "/test_host.dart", hostSource);
             }
         }
@@ -751,6 +754,17 @@ class Compiler extends PluginCompiler<Compiler> {
         for (resident in RuntimeResidents.MODULES) {
             final moduleParts = parts.get(resident);
             if (moduleParts != null && moduleParts.length > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether any of the given resident modules lowered a list-field record needing _seqEquals. */
+    function anyNeedsSeqEquals(modules:Array<String>):Bool {
+        for (m in modules) {
+            final decl = contexts.get(m);
+            if (decl != null && decl.needsSeqEquals()) {
                 return true;
             }
         }
