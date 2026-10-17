@@ -919,7 +919,6 @@ class PipelineExpander {
                         if (isArrayType(receiver.t) && (name == "map" || name == "filter")) {
                             // DEBUG-REMOVE
                             try {
-                                var dbg = sys.io.File.append("/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvb77wub-b3ia/dropdebug.txt", false);
                                 dbg.writeString("PARSE_CALL name=" + name + " lambda=" + dbgDump(args[0]) + "\n");
                                 dbg.close();
                             } catch (e2:Dynamic) {}
@@ -1062,7 +1061,6 @@ class PipelineExpander {
             case TBlock(bodyStmts):
                 // DEBUG-REMOVE
                 try {
-                    var dbg = sys.io.File.append("/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvb77wub-b3ia/dropdebug.txt", false);
                     dbg.writeString("INLINED bodyStmts=" + bodyStmts.length + "\n");
                     for (s in bodyStmts)
                         dbg.writeString("  " + dbgDump(s) + "\n");
@@ -1295,7 +1293,6 @@ class PipelineExpander {
 
         // DEBUG-REMOVE
         try {
-            var dbg = sys.io.File.append("/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvb77wub-b3ia/lambdadump.txt", false);
             var ids:Array<Int> = [];
             function collect(e:TypedExpr):Void {
                 if (e == null)
