@@ -49,8 +49,8 @@ const EXPR_FILE = "KotlinExpr.hx";
  * "new bypass outside coerce".
  */
 const KNOWN_OUTSIDE: string[] = [
-  "KotlinExpr.hx:4514", // receiverText for ?.length access extraction
-  "KotlinExpr.hx:4585", // receiverText for property access extraction
+  "KotlinExpr.hx:4531", // receiverText for ?.length access extraction
+  "KotlinExpr.hx:4602", // receiverText for property access extraction
 ];
 
 // Postfix non-null assertion: value + "!!".  Requires + BEFORE the literal;
