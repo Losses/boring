@@ -27,22 +27,17 @@ type EqualityRead = () => boolean;
 
 /** The generated members of the subject module. */
 interface GeneratedMembers {
-    keyValue1: RecordSource;
-    keyValue1Again: RecordSource;
-    keyValue2: RecordSource;
-    keyBlank: RecordSource;
-    mapDistinctPayload: TableRead;
-    mapSamePayload: TableRead;
+    keyFirst: RecordSource;
+    keyFirstAgain: RecordSource;
+    keySecond: RecordSource;
     mapDistinctTags: TableRead;
-    eqDistinctPayload: EqualityRead;
-    eqSamePayload: EqualityRead;
     eqDistinctTags: EqualityRead;
 }
 
 /** The generated members the harness calls. */
 interface GeneratedSubject {
     EnumComparisonSubject: GeneratedMembers;
-    compareTagKey: RecordComparator;
+    compareRankKey: RecordComparator;
 }
 
 async function loadSubject(tree: string): Promise<GeneratedSubject> {
@@ -60,12 +55,8 @@ const subject = await loadSubject(tree);
 const ops = subject.EnumComparisonSubject;
 
 console.log("[host] tree " + tree);
-console.log("mapDistinctPayload=" + ops.mapDistinctPayload());
-console.log("mapSamePayload=" + ops.mapSamePayload());
 console.log("mapDistinctTags=" + ops.mapDistinctTags());
-console.log("eqDistinctPayload=" + ops.eqDistinctPayload());
-console.log("eqSamePayload=" + ops.eqSamePayload());
 console.log("eqDistinctTags=" + ops.eqDistinctTags());
-console.log("compareKeyValue1KeyValue1Again=" + subject.compareTagKey(ops.keyValue1(), ops.keyValue1Again()));
-console.log("compareKeyValue1KeyValue2=" + subject.compareTagKey(ops.keyValue1(), ops.keyValue2()));
-console.log("compareKeyValue1KeyBlank=" + subject.compareTagKey(ops.keyValue1(), ops.keyBlank()));
+console.log("compareKeyFirstKeyFirstAgain=" + subject.compareRankKey(ops.keyFirst(), ops.keyFirstAgain()));
+console.log("compareKeyFirstKeySecond=" + subject.compareRankKey(ops.keyFirst(), ops.keySecond()));
+

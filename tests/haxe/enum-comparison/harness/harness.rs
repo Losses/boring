@@ -5,7 +5,7 @@
 //! expectation about the generated behavior; the expected values live in
 //! the runner.
 
-use enumgen::enumcomparison::enum_comparison_subject::compare_tag_key;
+use enumgen::enumcomparison::enum_comparison_subject::compare_rank_key;
 use enumgen::enumcomparison::enum_comparison_subject::EnumComparisonSubject;
 use enumgen::runtime::u_string::UString;
 
@@ -16,35 +16,18 @@ fn text(value: UString) -> String {
 fn main() {
     println!("[native] start");
     println!(
-        "mapDistinctPayload={}",
-        text(EnumComparisonSubject::enum_comparison_subject_map_distinct_payload())
-    );
-    println!(
-        "mapSamePayload={}",
-        text(EnumComparisonSubject::enum_comparison_subject_map_same_payload())
-    );
-    println!(
         "mapDistinctTags={}",
         text(EnumComparisonSubject::enum_comparison_subject_map_distinct_tags())
-    );
-    println!(
-        "eqDistinctPayload={}",
-        EnumComparisonSubject::enum_comparison_subject_eq_distinct_payload()
-    );
-    println!(
-        "eqSamePayload={}",
-        EnumComparisonSubject::enum_comparison_subject_eq_same_payload()
     );
     println!(
         "eqDistinctTags={}",
         EnumComparisonSubject::enum_comparison_subject_eq_distinct_tags()
     );
-    let value1 = EnumComparisonSubject::enum_comparison_subject_key_value1();
-    let value1_again = EnumComparisonSubject::enum_comparison_subject_key_value1_again();
-    let value2 = EnumComparisonSubject::enum_comparison_subject_key_value2();
-    let blank = EnumComparisonSubject::enum_comparison_subject_key_blank();
-    println!("compareKeyValue1KeyValue1Again={}", compare_tag_key(&value1, &value1_again));
-    println!("compareKeyValue1KeyValue2={}", compare_tag_key(&value1, &value2));
-    println!("compareKeyValue1KeyBlank={}", compare_tag_key(&value1, &blank));
+    let first = EnumComparisonSubject::enum_comparison_subject_key_first();
+    let first_again = EnumComparisonSubject::enum_comparison_subject_key_first_again();
+    let second = EnumComparisonSubject::enum_comparison_subject_key_second();
+    println!("compareKeyFirstKeyFirstAgain={}", compare_rank_key(&first, &first_again));
+    println!("compareKeyFirstKeySecond={}", compare_rank_key(&first, &second));
     println!("[native] end");
 }
+

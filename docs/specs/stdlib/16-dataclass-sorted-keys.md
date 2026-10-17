@@ -38,7 +38,7 @@ A field is comparable when its type is one of:
 
 1. `Int`, compared as integer values.
 2. `String`, compared in UTF-16 code unit order, matching spec 07.
-3. An enum type, compared by constructor declaration order, matching features/28. This order applies equally to parameterized constructors after target-specific lowering.
+3. A parameterless enum type, compared by constructor declaration order, matching features/28. An enum with parameterized (payload) constructors has no constructor-declaration order that agrees with the structural equality features/27 generates, so such a field is non-comparable and the record is not a key.
 4. A nested `@:dataClass` record, compared by this rule recursively.
 5. `std.ReadOnlyArray<T>` where `T` is a comparable kind above, compared
    element-wise in index order by the `T` rule; when one array is a prefix of
@@ -47,7 +47,7 @@ A field is comparable when its type is one of:
    every non-null value and two null values compare equal; two non-null values
    compare by the `T` rule.
 
-A field of any other type (`Float`, `Bool`, `Array<T>`, plain class references)
+A field of any other type (`Float`, `Bool`, `Array<T>`, plain class references, and payload enums)
 makes the record unusable as a key. The compiler rejects it with an error that
 names the record, the field, and the field type.
 
