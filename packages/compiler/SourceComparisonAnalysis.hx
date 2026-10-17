@@ -342,7 +342,9 @@ private class Builder {
                 if (isRootClass(cls, "String")) StringShape else if (cls.meta.has(":dataClass")) {
                     schemaMode ? RecordUseShape(recordSchema(c), arguments.copy()) : RecordShape(record(c, arguments));
                 } else UnsupportedShape(t);
-            case TEnum(e, arguments): EnumShape(e.get(), arguments.copy());
+            case TEnum(e, arguments):
+                final declaration = e.get();
+                hasPayloadConstructor(declaration) ? UnsupportedShape(t) : EnumShape(declaration, arguments.copy());
             case _: UnsupportedShape(t);
         };
     }
@@ -353,6 +355,20 @@ private class Builder {
 
     public static function isRootClass(cls:ClassType, name:String):Bool {
         return cls.name == name && cls.pack.length == 0 && cls.module == name;
+    }
+
+    /** True when any constructor of the enum carries a parameter (a payload),
+        matching the payload detection of the spec 07 key gate. A payload enum
+        has no constructor-declaration order that can agree with the structural
+        equality features/27 generates, so its field is any-other-type and the
+        record cannot be a sorted key. */
+    static function hasPayloadConstructor(declaration:EnumType):Bool {
+        for (constructor in declaration.constructs)
+            switch (Context.follow(constructor.type)) {
+                case TFun(args, _) if (args.length > 0): return true;
+                case _:
+            }
+        return false;
     }
 
     function sameArguments(left:Array<Type>, right:Array<Type>):Bool {
