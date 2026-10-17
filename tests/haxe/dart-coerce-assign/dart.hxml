@@ -1,0 +1,23 @@
+# Generation input for the Dart Argument coercion fixture (P4). The
+# caller supplies -D dart-output=<dir> and -D dart-test-output=<dir>; this
+# file is otherwise the complete generation input.
+#
+# Run from the worktree root:
+#   haxe tests/haxe/dart-coerce-assign/dart.hxml \
+#     -D dart-output=<dir> -D dart-test-output=<dir>
+#
+# -cp packages/compiler names this tree's emitter explicitly, so the fixture
+# always measures the tree it lives in rather than whatever the workspace
+# haxelib projection points at (PIT-376). runtime-emit=. writes runtime.dart
+# inside the output tree so `dart analyze` resolves it relatively.
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/dart-coerce-assign
+-cp samples
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+--macro Intercept.run(['samples', 'tests/haxe/dart-coerce-assign'])
+--macro dartcompiler.Compiler.use()
+assigning.AssignCases
