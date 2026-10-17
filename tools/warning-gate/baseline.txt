@@ -1,5 +1,8 @@
-dart	42	noise
-kotlin	0	-
-rust	1	std-shadow glob
-swift	0	-
-typescript	0	-
+# Frozen warning baseline (recalibrated 2026-10-17 on v2 post warning-cleanup waves).
+# Scope note: full-scope measurement (gen + gen-tests trees, strict flags) -
+# differs from the gen-only censuses used during the cleanup tickets.
+dart	41	current noise floor (42 pre-GATE; analyze non-fatal)
+kotlin	80	full-scope incl. gen-tests under gate flags
+rust	1	std-shadow glob (alpha residual, registry bypass)
+swift	222	full-scope incl. gen-tests under gate flags
+typescript	0	clean
