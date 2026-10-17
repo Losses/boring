@@ -41,6 +41,8 @@ OUT=$WORK/out
 ROOT=$WORK
 mkdir -p "$OUT"
 FAIL=0
+FAIL_COUNT=0
+FAIL_RC=0
 UNMEASURED=0
 ALLOW_UNMEASURED=0
 eval "$LOGIC"
@@ -77,6 +79,8 @@ case_run() { # case_run <col> <base> <label> <expected PASS|FAIL> [required-rege
   local col=$1 base=$2 label=$3 expect=$4 want ok=1 got
   shift 4
   FAIL=0
+  FAIL_COUNT=0
+  FAIL_RC=0
   UNMEASURED=0
   # check() sets FAIL in ITS shell, so it must not run inside a command
   # substitution subshell - capture the transcript through a file and read FAIL
@@ -95,6 +99,20 @@ case_run() { # case_run <col> <base> <label> <expected PASS|FAIL> [required-rege
   else
     echo "NOT OK $label: got $got, expected $expect (wanted: $*)"
     sed 's/^/         | /' "$WORK/case.log"
+    FAILED=$((FAILED + 1))
+  fi
+}
+
+# assert_flag <label> <got> <expected> - pin one tier flag independently of the
+# aggregate FAIL, so a count regression (tier 1) and a compile rc failure
+# (tier 2) can be told apart in the self-test.
+assert_flag() {
+  local label=$1 got=$2 expect=$3
+  if [ "$got" = "$expect" ]; then
+    echo "ok     $label"
+    PASSED=$((PASSED + 1))
+  else
+    echo "NOT OK $label: got $got, expected $expect"
     FAILED=$((FAILED + 1))
   fi
 }
@@ -156,6 +174,18 @@ case_run dart 46 "missing strict rc file -> FAIL (not measured)" FAIL \
 seed dart 0 0 46 loose
 case_run dart 46 "missing loose rc file -> FAIL (not measured)" FAIL \
   'loose rc is not numeric'
+
+# --- tier split: count regression flags tier 1, not tier 2 -----------------
+seed dart 0 0 47
+case_run dart 46 "count regression: aggregate FAIL" FAIL 'has 47 warning\(s\), baseline is 46'
+assert_flag "count regression sets FAIL_COUNT=1 (tier 1)" "$FAIL_COUNT" 1
+assert_flag "count regression leaves FAIL_RC=0 (tier 2 clean)" "$FAIL_RC" 0
+
+# --- tier split: compile rc failure flags tier 2, not tier 1 ----------------
+seed kotlin 1 1 0
+case_run kotlin 59 "compile rc failure: aggregate FAIL" FAIL 'kotlin loose compile FAILED \(rc=1'
+assert_flag "compile rc failure sets FAIL_RC=1 (tier 2)" "$FAIL_RC" 1
+assert_flag "compile rc failure leaves FAIL_COUNT=0 (tier 1 clean)" "$FAIL_COUNT" 0
 
 echo "check-selftest: passed=$PASSED failed=$FAILED"
 [ "$FAILED" -eq 0 ] || exit 1

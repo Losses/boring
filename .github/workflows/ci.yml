@@ -49,6 +49,8 @@ jobs:
         run: nix develop -c bash -c 'bun run check:invariants'
       - name: Compile and test
         run: nix develop -c bash -c 'bun run test:stage1:haxe && bun run test:stage1:ts && bun run test:stage1:kotlin && bun run test:stage1:rust && bun run test:haxe && bun run test:kotlin && bun run test:rust && bun run test:swift && bun run test:swift-f32 && bun run test:dart && bun run test:kotlin-f32 && bun run test:rust-f32 && bun run test:stage1:dart && bun run test:consistency && bun run check:docs && bun run check:ledger && bun run check:registry && bun run check:mapping' || { echo '--- PrintedCollection comparator lines ---'; sed -n '70,86p' reference/kotlin/gen/boring/PrintedCollection.kt; echo '--- DartCharNullOps compareShape ---'; grep -n 'compareShape' -A 5 reference/kotlin/gen/boring/DartCharNullOps.kt; (exit 1); }
+      - name: Four-tier gate
+        run: nix develop -c bash -c 'bun run gate'
       # BoringSwiftTests segfaulted on CI while the same tree and toolchain
       # pass locally, and the redirected stdout is fully buffered so the
       # log shows nothing. The only library that differs between the two
