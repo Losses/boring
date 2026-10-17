@@ -323,7 +323,7 @@ class EmitSink {
         final header = captureHeader();
         final originalLines = originalContent.split("\n");
 
-        // F4 (Claude review): neutral module name in the doc example (no boring branding).
+        // F4 (Claude review): neutral module name in the doc example (no product branding).
         // Derive expected Haxe source-file suffix from the output path.
         // modulePath("app.Widget") produces
         // "app/Widget.kt"; the Haxe source lives at
