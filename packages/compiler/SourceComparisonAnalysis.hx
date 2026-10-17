@@ -20,9 +20,11 @@ class SourceComparisonAnalysis {
     }
 
     /** Analyze a reusable generic declaration schema using its own
-        type parameters as symbolic arguments. */
-    public static function analyzeRecordSchema(declaration:Ref<ClassType>):SourceRecordNode {
-        return new Builder(null, true).recordSchema(declaration);
+        type parameters as symbolic arguments. Pass narrowPayloadEnums=false
+        to keep payload-enum fields as ordinal shapes (Rust and Dart resident
+        comparators retain their ordinal helpers). */
+    public static function analyzeRecordSchema(declaration:Ref<ClassType>, narrowPayloadEnums:Bool = true):SourceRecordNode {
+        return new Builder(null, true, narrowPayloadEnums).recordSchema(declaration);
     }
 
     /** Resolve through the owning module so private record declarations retain
@@ -262,9 +264,11 @@ private class Builder {
     final records:Array<SourceRecordNode> = [];
     final maxRecordNodes:Null<Int>;
     final schemaMode:Bool;
-    public function new(maxRecordNodes:Null<Int>, schemaMode:Bool) {
+    final narrowPayloadEnums:Bool;
+    public function new(maxRecordNodes:Null<Int>, schemaMode:Bool, narrowPayloadEnums:Bool = true) {
         this.maxRecordNodes = maxRecordNodes;
         this.schemaMode = schemaMode;
+        this.narrowPayloadEnums = narrowPayloadEnums;
     }
 
     public function record(declarationRef:Ref<ClassType>, arguments:Array<Type>):SourceRecordNode {
@@ -344,7 +348,7 @@ private class Builder {
                 } else UnsupportedShape(t);
             case TEnum(e, arguments):
                 final declaration = e.get();
-                hasPayloadConstructor(declaration) ? UnsupportedShape(t) : EnumShape(declaration, arguments.copy());
+                narrowPayloadEnums && hasPayloadConstructor(declaration) ? UnsupportedShape(t) : EnumShape(declaration, arguments.copy());
             case _: UnsupportedShape(t);
         };
     }
