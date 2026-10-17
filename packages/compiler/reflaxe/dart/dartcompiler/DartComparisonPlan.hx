@@ -27,7 +27,7 @@ class DartComparisonPlan {
 
     public static function schema(cls:ClassType):Null<SourceRecordComparisonPlan> {
         return switch (SourceComparisonAnalysis.comparisonPlan(
-                SourceComparisonAnalysis.analyzeRecordSchema(SourceComparisonAnalysis.declarationReference(cls)), SortedKey)) {
+                SourceComparisonAnalysis.analyzeRecordSchema(SourceComparisonAnalysis.declarationReference(cls), false), SortedKey)) {
             case ComparisonPlanReady(plan): plan;
             case ComparisonPlanFailed(_, _, _): null;
             case ComparisonPlanUnresolved(path, reason):

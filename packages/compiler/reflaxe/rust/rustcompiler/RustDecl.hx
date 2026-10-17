@@ -558,7 +558,7 @@ class RustDecl {
                 return null;
         }
         return switch (SourceComparisonAnalysis.comparisonPlan(
-            SourceComparisonAnalysis.analyzeRecordSchema(declaration), SortedKey)) {
+            SourceComparisonAnalysis.analyzeRecordSchema(declaration, false), SortedKey)) {
             case ComparisonPlanReady(plan): rustComparatorAvailable(plan, []) ? plan : null;
             case ComparisonPlanFailed(_, _, _): null;
             case ComparisonPlanUnresolved(path, reason):
