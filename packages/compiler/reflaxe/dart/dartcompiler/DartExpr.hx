@@ -27,6 +27,11 @@ import ValueTypeSupport;
 import ValueTypePlan;
 import ValueTypeSupport.ValueTypeOperator;
 import EmitSink;
+import LoweredValue.Lowered;
+import LoweredValue.Presence;
+import Destination.Destination;
+import Destination.DestinationRole;
+import dartcompiler.DartCoerce;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Dart.
@@ -2235,21 +2240,49 @@ class DartExpr {
     }
 
     function requiredValueText(e:TypedExpr):String {
-        // An emitting render asserted this local non-null already and the
-        // assert is on every path to here (the arm scopes roll back the
-        // conditional ones), so dart holds the promotion and a second "!"
-        // would report no effect. (FlowPromotedRequiredDedup)
-        if (flowPromotedLocal(e))
-            return expr(e);
-        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e) || isNullLiteral(e))
-            return expr(e);
         final text = expr(e);
-        return switch (stripWrap(e).expr) {
-            case TLocal(v):
-                flowPromotedNonNull.set(v.id, true);
-                text + "!";
-            case _: "(" + text + ")!";
+        return coerceRequiredValue(text, e);
+    }
+
+    /**
+        Shared presence+coerce path for a required value: dartPresence folds
+        the existing Dart null state (isNullLiteral, nullableValue,
+        provenNonNull, coalescingYieldsNonNull, flowPromotedLocal) into one
+        Presence; a MaybeAbsent value gains its "!" through dartCoerce, the
+        single coerce entry, so -D dart_coerce_ablate=Argument drops the
+        unwrap for the guard (GP-ABLATE). The local whose text gains "!" is
+        registered in flowPromotedNonNull (FlowPromotedRequiredDedup): the
+        assert holds on every path to here, so a later "!" on the same local
+        would report no effect.
+    **/
+    function coerceRequiredValue(text:String, e:TypedExpr):String {
+        final presence = dartPresence(e);
+        if (presence != MaybeAbsent)
+            return text;
+        final lowered:Lowered = {
+            text: text,
+            storage: null,
+            presence: presence,
+            errorDomain: null,
+            unit: null,
+            origin: null,
+            pos: e.pos
         };
+        final dest:Destination = {
+            type: e.t,
+            admitsAbsence: false,
+            role: Argument(""),
+            errorSlot: null
+        };
+        final out = dartCoerce(lowered, dest);
+        if (out != text) {
+            switch (stripWrap(e).expr) {
+                case TLocal(v):
+                    flowPromotedNonNull.set(v.id, true);
+                case _:
+            }
+        }
+        return out;
     }
 
     /**
@@ -2262,19 +2295,7 @@ class DartExpr {
         access would silently drop the receiver assertion.
     **/
     function requiredValueTextOf(preRendered:String, e:TypedExpr):String {
-        // An emitting render asserted this local already (the arm scopes
-        // roll back the conditional ones), so a second "!" would report
-        // no effect. (FlowPromotedRequiredDedup)
-        if (flowPromotedLocal(e))
-            return preRendered;
-        if (!nullableValue(e) || provenNonNull(e) || coalescingYieldsNonNull(e))
-            return preRendered;
-        return switch (stripWrap(e).expr) {
-            case TLocal(v):
-                flowPromotedNonNull.set(v.id, true);
-                preRendered + "!";
-            case _: "(" + preRendered + ")!";
-        };
+        return coerceRequiredValue(preRendered, e);
     }
 
     /**
@@ -4681,6 +4702,69 @@ class DartExpr {
     }
 
 
+
+    /**
+        Bottom-up presence derivation for one value use (phase-1 foundation,
+        mirrors Kotlin presenceOf). Folds the existing Dart null state -
+        isNullLiteral, nullableValue, provenNonNull, coalescingYieldsNonNull,
+        flowPromotedLocal - into one Presence enum. A MaybeAbsent result is
+        exactly the value that currently gains a postfix "!": the skip
+        conditions match requiredValueText one-for-one. requiredValueText /
+        requiredValueTextOf (the central "!" emission) consume this from
+        phase 2; the remaining inline "!" sites and the dead null-aware sites
+        follow in later phases.
+
+        -d dart_presence_crosscheck=<path> records each decision to <path> so
+        the derived presence can be compared against dart analyze's own flow
+        judgment (the analyzer is the second direction of the comparison).
+    **/
+    function dartPresence(e:TypedExpr):Presence {
+        if (isNullLiteral(e)) {
+            tracePresenceDecision(e, NullLiteral, false, false, false, false, true);
+            return NullLiteral;
+        }
+        final nullable = nullableValue(e);
+        final proven = provenNonNull(e);
+        final coalescing = coalescingYieldsNonNull(e);
+        final flow = flowPromotedLocal(e);
+        final needsUnwrap = nullable && !proven && !coalescing && !flow;
+        final presence = needsUnwrap ? MaybeAbsent : Present;
+        tracePresenceDecision(e, presence, nullable, proven, coalescing, flow, false);
+        return presence;
+    }
+
+    /**
+        Crosscheck trace: writes one presence decision per value use to the
+        path named by -d dart_presence_crosscheck. Each line records the
+        decision plus every contributing predicate so the derived presence can
+        be compared against dart analyze's own flow judgment.
+    **/
+    function tracePresenceDecision(e:TypedExpr, presence:Presence, nullable:Bool, proven:Bool,
+            coalescing:Bool, flow:Bool, nullLit:Bool):Void {
+        final tracePath = Context.definedValue("dart_presence_crosscheck");
+        if (tracePath == null)
+            return;
+        final unwrapped = stripWrap(e);
+        final line = Std.string(currentField) + "\t" + Std.string(unwrapped.pos) + "\t"
+            + Std.string(presence) + "\t"
+            + "nullable=" + nullable + "\t"
+            + "proven=" + proven + "\t"
+            + "coalescing=" + coalescing + "\t"
+            + "flow=" + flow + "\t"
+            + "nullLit=" + nullLit + "\n";
+        final output = sys.io.File.append(tracePath, false);
+        output.writeString(line);
+        output.close();
+    }
+
+    /**
+        Phase-1 coerce adapter: routes a lowered value through DartCoerce.coerce
+        so the entry type-checks before any site consumes it (phase 2). Uncalled
+        here, so output stays byte-identical.
+    **/
+    function dartCoerce(value:Lowered, dest:Destination):String {
+        return DartCoerce.coerce(value, dest);
+    }
     function isNonNullNormalization(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
             case TIf(c, _, f) if (f != null): nullGuardLocal(c) != null;
