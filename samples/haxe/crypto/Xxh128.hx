@@ -66,9 +66,6 @@ class Xxh128 {
         return Int64.make(hi, lo);
     }
 
-    static function rotl(x:Int64, n:Int):Int64
-        return (x << n) | (x >>> (64 - n));
-
     static function swap32(x:Int):Int
         return (x >>> 24) | ((x >>> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
 
@@ -91,14 +88,6 @@ class Xxh128 {
         var h = x ^ (x >>> 37);
         h *= mx1();
         return h ^ (h >>> 32);
-    }
-
-    static function rrmxmx(x:Int64, len:Int64):Int64 {
-        var h = x ^ rotl(x, 49) ^ rotl(x, 24);
-        h *= mx2();
-        h ^= (h >>> 35) + len;
-        h *= mx2();
-        return h ^ (h >>> 28);
     }
 
     static function carryOut(a:Int64, b:Int64, sum:Int64):Int64

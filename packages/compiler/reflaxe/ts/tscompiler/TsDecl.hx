@@ -111,7 +111,10 @@ class TsDecl {
         }
 
         final extractedFuncs = [for (f in funcFields) if (StaticFunctionMarkers.isMarked(f.field)) f];
-        final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field)) f];
+        // Inline helpers are compile-time only: Haxe expands every call in
+        // place, so no emitted reference names them and the declaration is
+        // dead (TS6133). Drop them here like value types already do.
+        final ordinaryFuncs = [for (f in funcFields) if (!StaticFunctionMarkers.isMarked(f.field) && !ValueTypeSupport.isInlineHelper(f.field)) f];
         final extractedParts:Array<String> = [];
         for (f in extractedFuncs) {
             extractedParts.push(extractedFuncDecl(cls, f).join("\n"));

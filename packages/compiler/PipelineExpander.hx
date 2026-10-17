@@ -917,6 +917,12 @@ class PipelineExpander {
                     case TField(receiver, FInstance(c, _, cf)):
                         final name = cf.get().name;
                         if (isArrayType(receiver.t) && (name == "map" || name == "filter")) {
+                            // DEBUG-REMOVE
+                            try {
+                                var dbg = sys.io.File.append("/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvb77wub-b3ia/dropdebug.txt", false);
+                                dbg.writeString("PARSE_CALL name=" + name + " lambda=" + dbgDump(args[0]) + "\n");
+                                dbg.close();
+                            } catch (e2:Dynamic) {}
                             if (args.length != 1) {
                                 Context.fatalError("collection pipeline methods accept inline function literals only", e.pos);
                             }
@@ -1054,6 +1060,14 @@ class PipelineExpander {
 
         switch (whileBody.expr) {
             case TBlock(bodyStmts):
+                // DEBUG-REMOVE
+                try {
+                    var dbg = sys.io.File.append("/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvb77wub-b3ia/dropdebug.txt", false);
+                    dbg.writeString("INLINED bodyStmts=" + bodyStmts.length + "\n");
+                    for (s in bodyStmts)
+                        dbg.writeString("  " + dbgDump(s) + "\n");
+                    dbg.close();
+                } catch (e2:Dynamic) {}
                 var elementVar:Null<TVar> = null;
                 for (s in bodyStmts) {
                     if (s == null)
@@ -1199,6 +1213,19 @@ class PipelineExpander {
         return null;
     }
 
+    static function dbgDump(e:TypedExpr):String {
+        var locals:Array<String> = [];
+        function walk(x:TypedExpr):Void {
+            switch (x.expr) {
+                case TLocal(w): locals.push(w.name + "#" + w.id);
+                case _:
+            }
+            haxe.macro.TypedExprTools.iter(x, walk);
+        }
+        walk(e);
+        return Std.string(e.expr) + " LOCALS[" + locals.join(",") + "]";
+    }
+
     static function isPipelineSource(e:TypedExpr):Bool {
         final info = Context.getPosInfos(e.pos);
         try {
@@ -1265,6 +1292,25 @@ class PipelineExpander {
         final lambda = validateLambda(p.lambdaExpr);
         final elemType = getArrayElemType(p.receiver.t);
         final pos = p.pos;
+
+        // DEBUG-REMOVE
+        try {
+            var dbg = sys.io.File.append("/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvb77wub-b3ia/lambdadump.txt", false);
+            var ids:Array<Int> = [];
+            function collect(e:TypedExpr):Void {
+                if (e == null)
+                    return;
+                switch (e.expr) {
+                    case TLocal(v):
+                        ids.push(v.id);
+                    default:
+                        haxe.macro.TypedExprTools.iter(e, collect);
+                }
+            }
+            collect(lambda.expr);
+            dbg.writeString("KIND=" + p.kind + " lambda.v=" + lambda.v.name + "#" + lambda.v.id + " exprLocals=" + ids.join(",") + "\n");
+            dbg.close();
+        } catch (e2:Dynamic) {}
 
         switch (p.kind) {
             case "map":
