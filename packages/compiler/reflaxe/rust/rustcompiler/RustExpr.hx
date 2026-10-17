@@ -10318,8 +10318,16 @@ class RustExpr {
                     // type-check these. (SignedIntString)
                     inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
                 } else {
-                    state.shimsUsed.set("std.IntText", true);
-                    inConcat ? value : ustringFromStdText("crate::runtime::int_text::IntText::int_text(" + value + ")");
+                    // The iterable read (iterableItemText) re-wraps a raw u32
+                    // through i32::from_ne_bytes, so the inConcat read stays
+                    // bare; the Std.string / concat read reinterprets through
+                    // int_text. (RustIntStringSign)
+                    if (inConcat)
+                        value
+                    else {
+                        state.shimsUsed.set("std.IntText", true);
+                        ustringFromStdText("crate::runtime::int_text::IntText::int_text(" + value + ")");
+                    }
                 }
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
@@ -10396,6 +10404,20 @@ class RustExpr {
         return "{ fn " + name + "(v: &" + en.name + ") -> String { " + body + " } " + name + "(&" + value + ") }";
     }
 
+    /** The write! argument for one payload enum field. A business-module
+        Int payload is a u32 two's-complement read, so it reinterprets
+        through int_text; every other field (and a resident i32 Int)
+        delegates to the shared std-String rendering. (RustIntStringSign) */
+    function enumPayloadFieldText(t:Type, value:String, origin:TypedExpr):String {
+        return switch (PolicyQueries.stdStringCategory(t)) {
+            case IsInt if (!RuntimeResidents.isResident(imports.selfModule)):
+                state.shimsUsed.set("std.IntText", true);
+                "crate::runtime::int_text::IntText::int_text(*" + value + ")";
+            case _:
+                stdStringType(t, value, true, origin);
+        }
+    }
+
     function payloadEnumString(en:EnumType, value:String, inConcat:Bool, origin:TypedExpr):String {
         final fields = [for (ef in en.constructs) ef];
         fields.sort((a, b) -> Reflect.compare(a.index, b.index));
@@ -10420,7 +10442,7 @@ class RustExpr {
                         + " } => { let _ = write!(out, \""
                         + formatText
                         + "\", "
-                        + [for (a in args) stdStringType(a.t, a.name, true, origin)].join(", ") + "); }");
+                        + [for (a in args) enumPayloadFieldText(a.t, a.name, origin)].join(", ") + "); }");
             }
         }
         return "{ let mut out = String::new(); match " + value + " { " + arms.join(", ") + " }; out }";
@@ -11735,7 +11757,8 @@ class RustExpr {
                             final nullInner = getNullInnerType(expectedArg.t != null
                                 && isNullType(expectedArg.t) ? expectedArg.t : actualArg.t);
                             final innerKind = scalarTypeKind(nullInner);
-                            imports.require("crate::tests::test_helper::*");
+                            imports.requireGlob("crate::tests::test_helper::*", "assert_equals_opt");
+                            imports.requireGlob("crate::tests::test_helper::*", "assert_equals_opt_string");
                             switch (innerKind) {
                                 case "String":
                                     final expStr = renderOptArg(expectedArg, "String");
@@ -11771,7 +11794,7 @@ class RustExpr {
                         // Aggregate equality
                         recordAggregateType(expectedArg.t);
                         final fnName = aggregateAssertFuncName(expectedArg.t);
-                        imports.require("crate::tests::test_helper::*");
+                        imports.requireGlob("crate::tests::test_helper::*", fnName);
                         return fnName + "(&" + expr(expectedArg) + ", &" + expr(actualArg) + ", " + msg + ")";
                     }
                 }
