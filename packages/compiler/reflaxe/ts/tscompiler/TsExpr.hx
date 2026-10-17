@@ -1074,6 +1074,17 @@ class TsExpr {
         TypedExprTools.iter(e, function(x) markVarReads(x, reads));
     }
 
+    /** Returns every local var id the body reads, classified the same way dead
+        local elimination does (a pure write to a plain local is not a read; a
+        field or array write still reads the object it writes through). Method
+        declaration emission uses this to find parameters the body never
+        references so it can prefix their names without changing their types. */
+    public function readVarIds(e:TypedExpr):Map<Int, Bool> {
+        final reads = new Map<Int, Bool>();
+        markVarReads(e, reads);
+        return reads;
+    }
+
     /** True when the assignment target is a local already marked write-only. */
     function isWriteOnlyLocal(e:TypedExpr):Bool {
         return switch (stripWrap(e).expr) {
@@ -4363,7 +4374,7 @@ class TsExpr {
         TypedExprTools.iter(e, scanLocals);
     }
 
-    function localName(v:TVar):String {
+    public function localName(v:TVar):String {
         if (localAliases.exists(v.id)) {
             return localAliases.get(v.id);
         }
