@@ -392,9 +392,12 @@ class KotlinDecl {
         final source = SourceComparisonAnalysis.analyzeRecordSchema(declaration);
         final plan = switch (SourceComparisonAnalysis.comparisonPlan(source, SortedKey)) {
             case ComparisonPlanReady(ready): ready;
-            case ComparisonPlanFailed(path, reason, _):
-                Context.error("Kotlin sorted comparator failed at " + path + ": " + reason, cls.pos);
-                null;
+            case ComparisonPlanFailed(_, _, _):
+                // A stored payload-enum field (or another unsupported sorted
+                // shape) makes the record unsortable. Its ordinary data-class
+                // lowering stays valid without a comparator; a sorted key use
+                // is diagnosed at the key selection boundary.
+                return "";
             case ComparisonPlanUnresolved(path, reason):
                 Context.error("Kotlin sorted comparator incomplete at " + path + ": " + reason, cls.pos);
                 null;
