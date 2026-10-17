@@ -111,7 +111,21 @@ class RustDecl {
         return text;
     }
 
-    public function enumOperand(t:Type, value:String, depth:Int = 0):String {
+    public function enumOperand(t:Type, value:String, depth:Int = 0, deref:Bool = false):String {
+        // (RustNullOperand) A Null payload is emitted as Option<T> (types.of),
+        // but Context.follow collapses Null<T> to T here, so the bare inner form
+        // printed an Option and failed E0277. Haxe EnumText routes a nullable
+        // enum argument through Std.string: None reads "null" and Some(v) falls
+        // through to the inner operand form (feature spec 31 "null on every
+        // target"). Match by reference so an array element / anon field place is
+        // borrowed rather than moved; both arms render String for one format!
+        // operand type.
+        switch (t) {
+            case TAbstract(a, [inner]) if (a.get().name == "Null"):
+                final scrutinee = deref ? value : "&" + value;
+                return 'match ' + scrutinee + ' { Some(__o) => format!("{}", ' + enumOperand(inner, "__o", depth, true) + '), None => "null".to_string() }';
+            case _:
+        }
         return switch (Context.follow(t)) {
             case TInst(c, [element]) if (c.get().name == "Array"):
                 imports.require("std::fmt::Write");
@@ -127,7 +141,21 @@ class RustDecl {
                         enumOperand(f.type, value + "." + RustImports.toSnakeCase(f.name), depth)
                 ];
                 'format!("${formatString}",\n            ${values.join(",\n            ")}\n        )';
-            case TAbstract(a, _) if (a.get().name == "Int" || a.get().name == "Float" || a.get().name == "Bool"):
+            case TAbstract(a, _) if (a.get().name == "Int"):
+                // A business-module Haxe Int is u32, so a negative payload
+                // stored as two's-complement bits prints unsigned under a
+                // bare to_string read. Reinterpret through int_text; a
+                // resident module already renders i32 and keeps the direct
+                // read. The direct field binding is &u32 (deref) while an
+                // array element / anon field access is already a u32 value.
+                // (RustIntStringSign)
+                if (RuntimeResidents.isResident(imports.selfModule))
+                    "(" + value + ").to_string()";
+                else {
+                    state.shimsUsed.set("std.IntText", true);
+                    "crate::runtime::int_text::IntText::int_text(" + (deref ? "*" : "") + value + ")";
+                }
+            case TAbstract(a, _) if (a.get().name == "Float" || a.get().name == "Bool"):
                 "(" + value + ").to_string()";
             case TInst(c, _) if (c.get().name == "String"):
                 "(" + value + ").clone()";
@@ -3178,7 +3206,7 @@ class RustDecl {
                     lines.push('            ${en.name}::${RustImports.toUpperCamelCase(o.name)} => "${o.name}".to_string(),');
                 else {
                     final params = [for (arg in o.args) RustImports.toSnakeCase(arg.name)];
-                    final values = [for (i in 0...o.args.length) enumOperand(o.args[i].type, params[i])];
+                    final values = [for (i in 0...o.args.length) enumOperand(o.args[i].type, params[i], 0, true)];
                     lines.push('            ${en.name}::${RustImports.toUpperCamelCase(o.name)} { ${params.join(", ")} } => format!("${o.name}(${[for(a in params) a + "={}"].join(", ")})", ${values.join(", ")}),');
                 }
             }

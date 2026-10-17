@@ -205,8 +205,10 @@ boring.PrintedCollection
 tests.PrintedCollectionTests
 boring.PrintedEnumOps
 boring.StdStringSelfRecOps
+boring.StdStringPlainIntOps
 tests.PrintedEnumTests
 tests.StdStringSelfRecTests
+tests.StdStringPlainIntTests
 boring.PrintedSortedFields
 tests.PrintedSortedFieldsTests
 boring.SealedVariantOps
