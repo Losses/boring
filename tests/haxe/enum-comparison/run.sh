@@ -13,15 +13,13 @@
 # traces to one fixed input set. The list is a selection and stops short of
 # the complete compiler source closure.
 #
-# The runner records three value classes. A mechanical expectation comes
-# from a rule the cited specifications state directly, and every mechanical
-# expectation here comes from the specification 16 declaration-order rule and
-# its agreement-with-record-equality requirement. A finding is one observed
-# disagreement, carrying the rule it bears on when one is cited and carrying
-# no rule citation where no rule states the case. A not-reached row names its
-# producer. The runner asserts no payload ordering, no comparator equality
-# rule, no general payload-enum equality, and no source rejection beyond the
-# one diagnostic the key gate already reports.
+# The runner records mechanical expectations that come from the specification
+# 16 declaration-order rule as narrowed: a parameterless enum field compares by
+# constructor declaration order, and that order agrees with the generated
+# record equality. Two source-rejection probes exercise the excluded forms, a
+# direct payload-enum key and a payload-enum record field, and each must stop
+# with its own gate diagnostic. A not-reached row names its producer. The
+# runner asserts no payload ordering and no general payload-enum equality.
 set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -203,15 +201,18 @@ IDENTITY_INPUTS=(
 	tests/haxe/enum-comparison/swift-gen.hxml
 	tests/haxe/enum-comparison/dart-gen.hxml
 	tests/haxe/enum-comparison/reject-rust-gen.hxml
+	tests/haxe/enum-comparison/reject-field-rust-gen.hxml
 	tests/haxe/enum-comparison/harness/observe.ts
 	tests/haxe/enum-comparison/harness/harness.rs
 	tests/haxe/enum-comparison/enumcomparison/EnumComparisonSubject.hx
 	tests/haxe/enum-comparison/enumcomparison/rejected/RejectPayloadEnumKey.hx
+	tests/haxe/enum-comparison/enumcomparison/rejected/RejectPayloadEnumField.hx
 	samples/std/SortedMap.hx
 	samples/std/RecordEq.hx
 	samples/std/RecordShape.hx
 	packages/compiler/PolicyQueries.hx
 	packages/compiler/ComparatorPlan.hx
+	packages/compiler/SourceComparisonAnalysis.hx
 	packages/compiler/runtime/SortedTable.hx
 	packages/compiler/reflaxe/ts/tscompiler/TsDecl.hx
 	packages/compiler/reflaxe/ts/tscompiler/TsExpr.hx
@@ -295,6 +296,7 @@ expect_stage accept-kotlin-gen
 expect_stage accept-swift-gen
 expect_stage accept-dart-gen
 expect_stage reject-payload-enum-key
+expect_stage reject-payload-enum-field
 expect_stage rustc-lib
 expect_stage rustc-harness
 expect_stage rust-harness-run
@@ -330,6 +332,14 @@ if [ "$st" = "0" ]; then
 else
 	expect_diagnostic reject-payload-enum-key 'enums with payloads are not keys'
 fi
+# The payload-enum record field must stop with the record-field diagnostic.
+attempt reject-payload-enum-field source-rejection haxe tests/haxe/enum-comparison/reject-field-rust-gen.hxml -D "rust-output=$RUN/reject-field-gen"
+st=$?
+if [ "$st" = "0" ]; then
+	defect "reject-payload-enum-field compiled; the form must be rejected"
+else
+	expect_diagnostic reject-payload-enum-field 'dataClass key TagKey field tag unsupported type TEnum(enumcomparison.rejected.Tag,[])'
+fi
 
 attempt rustc-lib data rustc --crate-type lib --edition=2024 --crate-name enumgen \
 	-o "$RUN/libenumgen.rlib" "$RUST_DIR/lib.rs"
@@ -349,62 +359,24 @@ fi
 
 attempt ts-harness-run zero bun tests/haxe/enum-comparison/harness/observe.ts "$GEN_DIR"
 
-# finding_row <target> <kind> <observed> <rule>
-# Writes one finding row. A finding records one observed disagreement. The
-# rule field carries the rule the observation bears on when a rule states the
-# case, and states that no rule is cited when none does. The runner decides
-# nothing about which side governs.
-finding_row() {
-	local target=$1 kind=$2 observed=$3 rule=$4
-	printf 'finding%s%s%s%s%s%s%s%s\n' "$TAB" "$target" "$TAB" "$kind" "$TAB" "$observed" "$TAB" "$rule" >>"$FINDINGS"
-}
-
 # Value rows. The ordering expectations below come from the specification 16
-# declaration-order rule (docs/specs/stdlib/16-dataclass-sorted-keys.md:41),
-# which extends to parameterized constructors: two values of one constructor
-# are equivalent under that order, and the constructor declared first compares
-# before the one declared after it. The disputed rows are recorded with
-# note_value and classified below.
+# declaration-order rule as narrowed: for a parameterless enum field, two
+# values of one constructor compare equal, and the constructor declared first
+# compares before the one declared after it. The rejected payload-enum forms
+# are exercised by the reject stages and never reach a value row.
 classify_run() {
-	local stage=$1 target=$2
-	require_value "$stage" compareKeyValue1KeyValue1Again 0
-	require_value "$stage" compareKeyValue1KeyBlank -1
+	local stage=$1
+	require_value "$stage" compareKeyFirstKeyFirstAgain 0
+	require_value "$stage" compareKeyFirstKeySecond -1
 	require_value "$stage" mapDistinctTags 'size=2;at0=first;at1=second'
 	require_value "$stage" eqDistinctTags false
-	note_value "$stage" eqSamePayload
-	note_value "$stage" compareKeyValue1KeyValue2
-	note_value "$stage" eqDistinctPayload
-	note_value "$stage" mapDistinctPayload
-	note_value "$stage" mapSamePayload
-
-	local compare distinct_payload same_payload table
-	compare="$(value_of "$stage" compareKeyValue1KeyValue2)"
-	distinct_payload="$(value_of "$stage" eqDistinctPayload)"
-	same_payload="$(value_of "$stage" eqSamePayload)"
-	table="$(value_of "$stage" mapDistinctPayload)"
-
-	if [ "$compare" = "0" ] && [ "$distinct_payload" = "false" ]; then
-		finding_row "$target" compare-zero-with-unequal-records \
-			"compareKeyValue1KeyValue2=$compare eqDistinctPayload=$distinct_payload" \
-			'docs/specs/stdlib/16-dataclass-sorted-keys.md: two records compare equal exactly when their generated equals returns true'
-	fi
-	if [ "$same_payload" = "false" ]; then
-		finding_row "$target" same-payload-reads-unequal \
-			"eqSamePayload=$same_payload" \
-			'no rule cited: general payload-enum equality is unresolved; the parameterless amendment of docs/specs/features/01-enums-and-pattern-matching.md does not reach this payload enum'
-	fi
-	if [ "${table%%;*}" = "size=1" ]; then
-		finding_row "$target" two-payload-keys-one-slot \
-			"mapDistinctPayload=$table" \
-			'observed comparator equivalence: the two keys occupied one table slot; whether the payload distinction must survive as a key distinction is unresolved'
-	fi
 }
 
 if [ -x "$RUN/rust-harness" ] && [ "$(cat "$COMMANDS/rust-harness-run.status" 2>/dev/null)" = "0" ]; then
-	classify_run rust-harness-run rust
+	classify_run rust-harness-run
 fi
 if [ "$(cat "$COMMANDS/ts-harness-run.status" 2>/dev/null)" = "0" ]; then
-	classify_run ts-harness-run ts
+	classify_run ts-harness-run
 fi
 
 # The fixed input set must not move between the first and the last stage.
@@ -524,3 +496,5 @@ if [ "$FINAL_VERDICT" != "recorded" ] && [ "$FINAL_VERDICT" != "recorded-with-no
 	exit 1
 fi
 exit 0
+
+

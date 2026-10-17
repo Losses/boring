@@ -8,10 +8,10 @@ import std.SortedMap;
     `SortedMap<PayloadTag, Int>` names a payload enum as the key type, the
     form specification 07 parameterless-enum ruling excludes and the
     `classifyKey` `TEnum` arm rejects. The compilation must stop with the
-    common diagnostic naming payload keys. The probe states the boundary the
-    accepted record-field case crosses: the same enum inside a `@:dataClass`
-    record field is admitted by `isDataClassFieldKey`, which returns true for
-    every `TEnum` field.
+    common diagnostic naming payload keys. The record-field boundary is
+    exercised by the sibling `RejectPayloadEnumField` probe, which names a
+    payload enum through a `@:dataClass` record field and is rejected by
+    specification 16 rule 3 as narrowed.
 **/
 enum PayloadTag {
     Item(v:Int);
