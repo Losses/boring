@@ -82,16 +82,21 @@ describe("sorted dataClass key generated trees", () => {
     expect(comparator("ts/gen/boring/SortedDataClassKeysOps.ts", "export function compareTextRange")).toContain("a.start");
     expect(comparator("kotlin/gen/boring/SortedDataClassKeysOps.kt", "fun compareTextRange")).toContain("a.start");
     expect(comparator("rust/gen/boring/sorted_data_class_keys_ops.rs", "pub fn compare_text_range")).toContain("cmp_start");
-    expect(read("ts/gen/boring/PrintedEnumOps.ts")).toContain("PrintedBadgemarkOrder");
+    // SPEC16 kind 3 narrowed (2026-10-17): PrintedMark carries payload
+    // constructors, so PrintedBadge is not comparable and the resident
+    // comparator no longer emits.
+    expect(read("ts/gen/boring/PrintedEnumOps.ts")).not.toContain("PrintedBadgemarkOrder");
     // Off the TS target the enum order is not a named helper: Kotlin and
     // Dart render the constructor-index `when`/`switch` inline at both
     // comparison sites, and Rust emits a numbered order fn
     // (`printed_badge_order_0`). Each form still orders by the declared
     // constructor index, which is the property these pins hold: a resident
     // comparator that reads the declared enum order.
-    expect(read("kotlin/gen/boring/PrintedEnumOps.kt")).toContain("fun comparePrintedBadge(a: PrintedBadge, b: PrintedBadge): Int");
-    expect(read("kotlin/gen/boring/PrintedEnumOps.kt")).toContain("when (a.mark) { PrintedMark.Plain -> 0");
-    expect(read("dart/gen/lib/boring/printed_enum_ops.dart")).toContain("int comparePrintedBadge(PrintedBadge a, PrintedBadge b) {");
+    expect(read("kotlin/gen/boring/PrintedEnumOps.kt")).not.toContain("fun comparePrintedBadge(a: PrintedBadge, b: PrintedBadge): Int");
+    expect(read("kotlin/gen/boring/PrintedEnumOps.kt")).not.toContain("when (a.mark) { PrintedMark.Plain -> 0");
+    // Dart has not yet adopted the SPEC16 kind 3 narrowing (the comparator
+    // still emits there); tracked separately.
+        expect(read("dart/gen/lib/boring/printed_enum_ops.dart")).toContain("int comparePrintedBadge(PrintedBadge a, PrintedBadge b) {");
     expect(read("dart/gen/lib/boring/printed_enum_ops.dart")).toContain("PrintedMarkPlain() => 0");
     expect(read("rust/gen/boring/printed_enum_ops.rs")).toContain("fn printed_badge_order_0(v: &PrintedMark) -> i32");
     expect(read("rust/gen/boring/printed_enum_ops.rs")).toContain("match printed_badge_order_0(&a.mark).cmp(&printed_badge_order_0(&b.mark))");
