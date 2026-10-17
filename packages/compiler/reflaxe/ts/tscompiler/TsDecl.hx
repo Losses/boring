@@ -717,7 +717,7 @@ class TsDecl {
             // must reach the body the same way. A JavaScript default initializer
             // runs only for an omitted argument, so the parameter keeps a null
             // default and the coalescing site stays in the body as `p ?? E`.
-            return '${a.name}: ${types.of(a.type)} = null';
+            return '${paramName(a)}: ${types.of(a.type)} = null';
         }
         // A non-null default (?x:Bool = true) has Haxe type Bool, not
         // Null<Bool>, but reflaxe wraps it in Null; restore the non-null
@@ -726,9 +726,9 @@ class TsDecl {
         final registered = DefaultArgExpander.defaultAt(cls, f.field.name, a.index);
         final paramType = registered != null ? DefaultArgExpander.defaultParameterType(registered, a.type) : a.type;
         if (isTrailingOptional(cls, f, a.index)) {
-            return '${a.name}?: ${types.of(paramType)}';
+            return '${paramName(a)}?: ${types.of(paramType)}';
         }
-        return '${a.name}: ${types.of(paramType)}';
+        return '${paramName(a)}: ${types.of(paramType)}';
     }
 
     /** Whether every parameter from `fromIndex` to the end is optional. */
@@ -757,12 +757,37 @@ class TsDecl {
                 continue;
             if (!PolicyQueries.isNullableType(a.type))
                 continue;
-            out.push(indent + '${a.name} = ${a.name} ?? null;');
+            out.push(indent + '${paramName(a)} = ${paramName(a)} ?? null;');
         }
         return out;
     }
 
+    /** The emitted parameter name, honoring any underscore-prefix bind applied
+        by prefixUnusedParams. Falls back to the source name when the argument
+        carries no variable (some optional default arguments do not). */
+    function paramName(a:ClassFuncArg):String {
+        return a.tvar != null ? expr.localName(a.tvar) : a.name;
+    }
+
+    /** Prefixes an underscore onto every parameter the method body never
+        reads, so a strict noUnusedParameters reading of an interface or
+        base-class override that drops its argument still type-checks. Only the
+        emitted name changes; the declared type and signature shape are
+        untouched, and interface type-alias signatures (which have no body) are
+        never routed through here. */
+    function prefixUnusedParams(f:ClassFuncData):Void {
+        if (f.expr == null)
+            return;
+        final reads = expr.readVarIds(f.expr);
+        for (a in f.args) {
+            if (a.tvar != null && !reads.exists(a.tvar.id)) {
+                expr.bindLocalName(a.tvar, "_" + a.name);
+            }
+        }
+    }
+
     function funcDecl(cls:ClassType, f:ClassFuncData):SourceOriginFragment {
+        prefixUnusedParams(f);
         final args = [
             for (a in f.args) paramText(cls, f, a)
         ].join(", ");
@@ -770,7 +795,7 @@ class TsDecl {
         // "new"; the name is the constructor marker.
         if (f.field.name == "new") {
             for (a in f.args) {
-                expr.reserveName(a.name);
+                expr.reserveName(paramName(a));
             }
             final loweredBody = expr.constructorBody(cls, cls.name, f, isException(cls));
             // A trailing optional nullable parameter arrives as undefined
@@ -783,7 +808,7 @@ class TsDecl {
             return SourceOriginFragment.plain(['  constructor($args) {'].concat(body).concat(["  }"]).join("\n"));
         }
         for (a in f.args) {
-            expr.reserveName(a.name);
+            expr.reserveName(paramName(a));
         }
         final ret = types.of(f.ret);
         final bodyPrefix = optionalNullNormalizations(cls, f, "    ");
@@ -821,8 +846,9 @@ class TsDecl {
     }
 
     function extractedFuncDecl(cls:ClassType, f:ClassFuncData):Array<String> {
+        prefixUnusedParams(f);
         for (a in f.args) {
-            expr.reserveName(a.name);
+            expr.reserveName(paramName(a));
         }
         final args = [
             for (a in f.args) paramText(cls, f, a)

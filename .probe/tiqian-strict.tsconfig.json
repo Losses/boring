@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "lib": [
+      "es2023",
+      "dom",
+      "dom.iterable"
+    ],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "baseUrl": "/home/losses/Development/tiqian/engine-haxe/out",
+    "paths": {
+      "@tiqian/runtime": [
+        "ts-gen/runtime.ts"
+      ],
+      "@tiqian/runtime/test": [
+        "ts-gen/runtime/test.ts"
+      ]
+    },
+    "typeRoots": [
+      "/home/losses/Development/tq-workspace/boring/node_modules/@types",
+      "/home/losses/Development/tiqian/node_modules/@types"
+    ],
+    "types": [
+      "node",
+      "bun"
+    ]
+  },
+  "include": [
+    "/home/losses/Development/tiqian/engine-haxe/out/ts-gen/**/*.ts",
+    "/home/losses/Development/tiqian/engine-haxe/out/ts-gen-tests/**/*.ts"
+  ]
+}
