@@ -86,7 +86,7 @@ hash_closure() {
     {
         find tests/haxe/flow -type f -print0 | sort -z | xargs -0 sha256sum
         find tests/bundle-child-evidence -type f -print0 | sort -z | xargs -0 sha256sum
-        find tools/bundle -type f -name '*.hx' -print0 | sort -z | xargs -0 sha256sum
+        find tests/bundle-child-evidence/probe packages/driver/src/driver -type f -name '*.hx' -print0 | sort -z | xargs -0 sha256sum
         find packages/compiler -type f -name '*.hx' -print0 | sort -z | xargs -0 sha256sum
         find samples -type f -name '*.hx' -print0 | sort -z | xargs -0 sha256sum
         if [ -f "$SHARED_STAGE_CHECK" ]; then
