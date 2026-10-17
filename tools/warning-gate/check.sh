@@ -33,12 +33,33 @@ ALLOW_UNMEASURED=${WARNING_GATE_ALLOW_UNMEASURED:-0}
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 FAIL=0
+FAIL_COUNT=0
+FAIL_RC=0
+HISTOGRAM_ONLY=${HISTOGRAM_ONLY:-0}
+MEASURED_dart=
+MEASURED_kotlin=
+MEASURED_rust=
+MEASURED_swift=
+MEASURED_typescript=
 for required in "$ROOT/reference/dart/gen" "$ROOT/reference/kotlin/gen" "$ROOT/reference/rust/gen"; do
   if [ ! -d "$required" ]; then
     echo "warning-gate: missing generated tree: $required (run generation first)"
     FAIL=1
+    FAIL_COUNT=1
+    FAIL_RC=1
   fi
 done
+# --- frozen warning baselines -----------------------------------------------
+# tools/warning-gate/baseline.txt is the single source of truth for each
+# target's warning allowance and its residual label. A residual (rust
+# std-shadow glob, dart noise) is REGISTERED here - visible and named in the
+# histogram - never hidden from the count. Reading the allowance from this file
+# makes a baseline change an explicit, reviewable edit instead of a quiet
+# threshold bump inside check.sh.
+baseline_file() { echo "$ROOT/tools/warning-gate/baseline.txt"; }
+baseline() { awk -v t="$1" -F'\t' '$1==t { print $2; exit }' "$(baseline_file)" 2>/dev/null; }
+residual() { awk -v t="$1" -F'\t' '$1==t { print $3; exit }' "$(baseline_file)" 2>/dev/null; }
+
 run() {
   local log=$1
   shift
@@ -63,12 +84,20 @@ require_measured() {
     else
       echo "warning-gate: $name compiler not found (rc=127); column NOT measured"
       FAIL=1
+      FAIL_RC=1
     fi
   fi
 }
 check() {
   local name=$1 base=$2 n r
   require_measured "$name"
+  case "$base" in
+    ''|*[!0-9]*)
+      echo "warning-gate: $name baseline is missing or not numeric (got '$base'); the count cannot be judged"
+      FAIL=1
+      FAIL_COUNT=1
+      ;;
+  esac
   case "$name" in
     dart) n=$(grep -cE '^warning' "$OUT/dart.loose" || true) ;;
     kotlin) n=$(grep -cE '\.kt:[0-9]+:[0-9]+: warning:' "$OUT/kotlin.loose" || true) ;;
@@ -80,7 +109,11 @@ check() {
   l=$(rc "$OUT/$name.loose")
   r=$(rc "$OUT/$name.strict")
   printf '%s: loose=%s strict=%s warnings=%s baseline=%s\n' "$name" "$l" "$r" "$n" "$base"
-  case "$n" in ''|*[!0-9]*) echo "warning-gate: $name count is not numeric"; FAIL=1;; esac
+  case "$n" in ''|*[!0-9]*) echo "warning-gate: $name count is not numeric"; FAIL=1; FAIL_COUNT=1;; esac
+  # Remember the measured count for the histogram (tier 1 evidence). The
+  # dynamic name via eval is bash-3.2-portable (no assoc arrays); it is only
+  # ASSIGNED here, never read, so set -u cannot trip on it in the self-test.
+  eval "MEASURED_$name=\$n"
   # --- rc wiring -----------------------------------------------------------
   # Both rcs were measured and printed above and then ignored, so the only
   # verdict was `n <= baseline`. A compiler that failed while emitting no
@@ -111,11 +144,13 @@ check() {
     ''|*[!0-9]*)
       echo "warning-gate: $name loose rc is not numeric (got '$l'); column NOT measured"
       FAIL=1
+      FAIL_RC=1
       ;;
     *)
       if [ "$l" -ne 0 ] && [ "$l" -ne 127 ]; then
         echo "warning-gate: $name loose compile FAILED (rc=$l, not a warning-count regression); log: $OUT/$name.loose"
         FAIL=1
+        FAIL_RC=1
       fi
       ;;
   esac
@@ -126,46 +161,89 @@ check() {
     ''|*[!0-9]*)
       echo "warning-gate: $name strict rc is not numeric (got '$r'); column NOT measured"
       FAIL=1
+      FAIL_RC=1
       ;;
     *)
       if [ "$r" -ne 0 ] && [ "$r" -ne 127 ] && [ "$n" = 0 ]; then
         echo "warning-gate: $name strict compile FAILED (rc=$r with warnings=0, so no counted warning explains it); log: $OUT/$name.strict"
         FAIL=1
+        FAIL_RC=1
       fi
       ;;
   esac
-  # A non-zero count above the allowance is a regression; require_measured above
-  # has already rejected the 127 case.
-  if [ "$n" -gt "$base" ] 2>/dev/null; then
-    echo "warning-gate: $name has $n warning(s), baseline is $base"
-    FAIL=1
-  fi
+  # A non-zero count above the allowance is a regression (tier 1: gen
+  # warnings). require_measured above has already rejected the 127 case, and
+  # the base validation above has rejected a missing/non-numeric allowance.
+  case "$base" in
+    ''|*[!0-9]*) : ;; # already flagged above; the comparison would be garbage
+    *)
+      if [ "$n" -gt "$base" ] 2>/dev/null; then
+        echo "warning-gate: $name has $n warning(s), baseline is $base"
+        FAIL=1
+        FAIL_COUNT=1
+      fi
+      ;;
+  esac
 }
 
 # Keep the loose invocation too: it gives a stable, countable diagnostic set;
 # the strict invocation is the fail-capable compiler command for this target.
 run "$OUT/dart.loose" "$DART_BIN" analyze --no-fatal-warnings "$ROOT/reference/dart/gen"
 run "$OUT/dart.strict" "$DART_BIN" analyze --fatal-warnings "$ROOT/reference/dart/gen"
-check dart 46
+check dart "$(baseline dart)"
 
 run "$OUT/kotlin.loose" "$KOTLINC_BIN" $(find "$ROOT/reference/kotlin/gen" -name '*.kt' -print) -d "$OUT/kotlin.jar"
 run "$OUT/kotlin.strict" "$KOTLINC_BIN" -Werror $(find "$ROOT/reference/kotlin/gen" -name '*.kt' -print) -d "$OUT/kotlin-strict.jar"
-check kotlin 59
+check kotlin "$(baseline kotlin)"
 
 run "$OUT/rust.loose" "$CARGO_BIN" check --manifest-path "$ROOT/reference/rust/gen/Cargo.toml"
 run "$OUT/rust.strict" env RUSTFLAGS="${RUSTFLAGS:-} -D warnings" "$CARGO_BIN" check --manifest-path "$ROOT/reference/rust/gen/Cargo.toml"
-check rust 4
+check rust "$(baseline rust)"
 
 # SwiftPM and tsc do not have warning-count baselines in the audit artifact;
 # their strict invocations are nevertheless part of this gate. Their emitted
 # warnings are counted and must remain at the recorded zero baseline.
 run "$OUT/swift.loose" "$SWIFT_BIN" build --product BoringSwiftTests
 run "$OUT/swift.strict" "$SWIFT_BIN" build --product BoringSwiftTests -Xswiftc -warnings-as-errors
-check swift 0
+check swift "$(baseline swift)"
 
 run "$OUT/typescript.loose" "$TSC_BIN" -p "$ROOT"
 run "$OUT/typescript.strict" "$TSC_BIN" -p "$ROOT" --noEmit
-check typescript 0
+check typescript "$(baseline typescript)"
+
+# --- the warning histogram (tier 1 evidence) --------------------------------
+# One row per target: measured count, frozen baseline, adjudication status, and
+# the registered residual label. Residuals (rust std-shadow glob, dart noise)
+# are REGISTERED here - visible and named - never hidden from the count, and the
+# gate below enforces exactly these numbers, so this table and the gate cannot
+# diverge.
+printf '%-11s %-9s %-9s %-12s %s\n' target measured baseline status residual
+for target in dart kotlin rust swift typescript; do
+  eval "measured=\$MEASURED_$target"
+  base=$(baseline "$target")
+  res=$(residual "$target")
+  [ -n "$res" ] || res=-
+  [ -n "$measured" ] || measured=-
+  [ -n "$base" ] || base=-
+  status=ok
+  case "$measured" in ''|*[!0-9]*) status=UNMEASURED ;; esac
+  if [ "$status" = ok ] && [ "$measured" -gt "$base" ] 2>/dev/null; then
+    status=REGRESSION
+  fi
+  printf '%-11s %-9s %-9s %-12s %s\n' "$target" "$measured" "$base" "$status" "$res"
+done
+
+# --- four-tier verdicts: tiers 1 and 2 live here (3 and 4 are gate.sh) -------
+if [ "$FAIL_COUNT" -eq 0 ]; then
+  echo "warning-gate: tier1 gen-warnings = PASS"
+else
+  echo "warning-gate: tier1 gen-warnings = FAIL"
+fi
+if [ "$FAIL_RC" -eq 0 ]; then
+  echo "warning-gate: tier2 compile-warnings = PASS"
+else
+  echo "warning-gate: tier2 compile-warnings = FAIL"
+fi
 
 if [ "$FAIL" -eq 0 ]; then
   if [ "$UNMEASURED" -gt 0 ]; then
@@ -182,5 +260,11 @@ else
   else
     echo 'WARNING GATE FAIL'
   fi
+fi
+# histogram.sh sets HISTOGRAM_ONLY=1 to read the per-target counts and judge
+# ONLY tier 1 (count vs baseline), so the histogram tool can stand alone without
+# a red build on an unrelated compile rc. A plain check.sh run judges tiers 1+2.
+if [ "$HISTOGRAM_ONLY" = 1 ]; then
+  exit "$FAIL_COUNT"
 fi
 exit "$FAIL"
