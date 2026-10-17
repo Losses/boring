@@ -4493,6 +4493,23 @@ class KotlinExpr {
         }
     }
 
+    /**
+        The subject rendered as a Kotlin value. A Haxe assignment in subject
+        position carries the assigned value (a member read or extraction may
+        postfix onto it), but Kotlin treats target = value as a statement.
+        Hoist the assignment into a run block that performs the write and
+        reads the target back, so the receiver keeps a value to postfix onto.
+        (AssignmentReceiverValue)
+    */
+    function receiverValue(subj:TypedExpr):String {
+        return switch (stripWrap(subj).expr) {
+            case TBinop(OpAssign, target, _) | TBinop(OpAssignOp(_), target, _):
+                "run { " + expr(stripWrap(subj)) + "; " + assignTarget(target) + " }";
+            case _:
+                expr(subj);
+        }
+    }
+
     function instanceField(subj:TypedExpr, name:String, cf:Null<Ref<ClassField>> = null):String {
         {
             final bound = catchPayloadAccess(subj, name);
@@ -4511,7 +4528,7 @@ class KotlinExpr {
         }
         if (name == "length") {
             final access = nullableAccess(subj);
-            final receiverText = access == "!!." ? expr(subj) + "!!" : expr(subj);
+            final receiverText = access == "!!." ? receiverValue(subj) + "!!" : receiverValue(subj);
             if (access == "!!.")
                 EmitSink.recordCoerce(subj.pos, "Receiver", "MaybeAbsent", false, "!!");
             final presence = access == "?." ? MaybeAbsent : Present;
@@ -4582,7 +4599,7 @@ class KotlinExpr {
         // also traverse. (PureAccessDecision)
         if (access == "!!.")
             addProofExpr(subj);
-        final receiverText = access == "!!." ? expr(subj) + "!!" : expr(subj);
+        final receiverText = access == "!!." ? receiverValue(subj) + "!!" : receiverValue(subj);
         if (access == "!!.")
             EmitSink.recordCoerce(subj.pos, "Receiver", "MaybeAbsent", false, "!!");
         final presence = access == "?." ? MaybeAbsent : Present;
@@ -6581,7 +6598,7 @@ class KotlinExpr {
     }
 
     function isString(e:TypedExpr):Bool {
-        return switch (e.t) {
+        return switch (Context.follow(e.t)) {
             case TInst(c, _): final cls = c.get(); cls.pack.join(".") == "" && cls.name == "String";
             case _: false;
         }
