@@ -73,7 +73,7 @@
     "hashed": [
       "tests/haxe/flow/**",
       "tests/bundle-child-evidence/**",
-      "tools/bundle/**/*.hx",
+      "tests/bundle-child-evidence/probe/**/*.hx", "packages/driver/src/driver/**/*.hx",
       "packages/compiler/**/*.hx",
       "samples/**/*.hx",
       "tests/support/stage-check.sh when this revision carries it",
