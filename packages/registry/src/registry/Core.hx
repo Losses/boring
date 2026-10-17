@@ -28,13 +28,6 @@ class Core {
     static function A(x:Array<JsonValue>):JsonValue
         return JArray(x);
 
-    static function find(fs:Array<JsonField>, n:String):JsonValue {
-        for (i in 0...fs.length)
-            if (fs[i].name == n)
-                return fs[i].value;
-        return JNull;
-    }
-
     static function get(o:JsonValue, n:String):JsonValue
         return Json.getField(o, n);
 
@@ -321,7 +314,7 @@ class Core {
         return out;
     }
 
-    static function writeNpm(root:String, a:Array<Release>):Void {
+    static function writeNpm(a:Array<Release>):Void {
         var ns = names(a, "npm");
         for (ni in 0...ns.length) {
             var n = ns[ni], g = group(a, "npm", n), vs:Array<JsonField> = [];
@@ -336,7 +329,7 @@ class Core {
                 });
                 vs.push({name: r.version, value: O(f)});
             }
-            emit(root, "npm/" + n.split("/").join("%2f"), Json.write(O([
+            emit("npm/" + n.split("/").join("%2f"), Json.write(O([
                 {name: "name", value: S(n)},
                 {name: "dist-tags", value: O([{name: "latest", value: S(latest(g))}])},
                 {name: "versions", value: O(vs)},
@@ -345,7 +338,7 @@ class Core {
         }
     }
 
-    static function writePub(root:String, a:Array<Release>):Void {
+    static function writePub(a:Array<Release>):Void {
         var ns = names(a, "pub");
         for (ni in 0...ns.length) {
             var n = ns[ni], g = group(a, "pub", n), vs:Array<JsonValue> = [];
@@ -364,7 +357,7 @@ class Core {
                 rev.push(vs[vi2]);
                 vi2 = vi2 - 1;
             }
-            emit(root, "pub/api/packages/" + n, Json.write(O([
+            emit("pub/api/packages/" + n, Json.write(O([
                 {name: "name", value: S(n)},
                 {name: "latest", value: S(latest(g))},
                 {name: "versions", value: A(rev)}
@@ -372,15 +365,8 @@ class Core {
         }
     }
 
-    static function cargoPath(n:String):String {
-        return n.length == 1 ? "1/" : n.length == 2 ? "2/" : n.length == 3 ? "3/" + n.substring(0, 1) + "/" : n.substring(0, 2)
-            + "/"
-            + n.substring(2, 4)
-            + "/";
-    }
-
-    static function writeCargo(root:String, base:String, a:Array<Release>):Void {
-        emit(root, "cargo/index/config.json", Json.write(O([{name: "dl", value: S(base + "/cargo/dl/{crate}-{version}.crate")}])));
+    static function writeCargo(base:String, a:Array<Release>):Void {
+        emit("cargo/index/config.json", Json.write(O([{name: "dl", value: S(base + "/cargo/dl/{crate}-{version}.crate")}])));
         var ns = names(a, "cargo");
         for (ni in 0...ns.length) {
             var n = ns[ni];
@@ -397,7 +383,7 @@ class Core {
                     {name: "v", value: JNumber(2.0)}
                 ])));
             }
-            emit(root,
+            emit(
                 "cargo/index/"
                 + (n.length == 1 ? "1/" : n.length == 2 ? "2/" : n.length == 3 ? "3/" + n.substring(0, 1) + "/" : n.substring(0, 2)
                     + "/"
@@ -409,16 +395,16 @@ class Core {
         }
     }
 
-    static function writeSwift(root:String, scope:String, a:Array<Release>):Void {
+    static function writeSwift(scope:String, a:Array<Release>):Void {
         var ns = names(a, "swift");
         for (ni in 0...ns.length) {
             var n = ns[ni], g = group(a, "swift", n), rs:Array<JsonField> = [];
             for (i in 0...g.length)
                 rs.push({name: g[i].version, value: O([])});
-            emit(root, "swift/" + scope + "/" + n + ".json", Json.write(O([{name: "releases", value: O(rs)}])));
+            emit("swift/" + scope + "/" + n + ".json", Json.write(O([{name: "releases", value: O(rs)}])));
             for (i in 0...g.length) {
                 var r = g[i], rps = r.packageSwift, ps:String = rps == null ? "" : rps;
-                emit(root, "swift/" + scope + "/" + n + "/" + r.version + ".json", Json.write(O([
+                emit("swift/" + scope + "/" + n + "/" + r.version + ".json", Json.write(O([
                     {name: "id", value: S(scope + "." + n)},
                     {name: "version", value: S(r.version)},
                     {
@@ -433,12 +419,12 @@ class Core {
                     },
                     {name: "metadata", value: O([])}
                 ])));
-                emit(root, "swift/" + scope + "/" + n + "/" + r.version + "/Package.swift", ps);
+                emit("swift/" + scope + "/" + n + "/" + r.version + "/Package.swift", ps);
             }
         }
     }
 
-    static function writeMaven(root:String, a:Array<Release>):Void {
+    static function writeMaven(a:Array<Release>):Void {
         var ns = names(a, "maven");
         for (ni in 0...ns.length) {
             var n = ns[ni], g = group(a, "maven", n), first = g[0], fg = first.groupId, groupId:String = fg == null ? "" : fg, versions:Array<String> = [];
@@ -456,8 +442,8 @@ class Core {
                 xml += "      <version>" + v + "</version>\n";
             }
             xml += "    </versions>\n  </versioning>\n</metadata>\n";
-            emit(root, "maven/" + path + "/maven-metadata.xml", xml);
-            emit(root, "maven/" + path + "/maven-metadata.xml.sha1", Sha1.hex(xml) + "\n");
+            emit("maven/" + path + "/maven-metadata.xml", xml);
+            emit("maven/" + path + "/maven-metadata.xml.sha1", Sha1.hex(xml) + "\n");
         }
     }
 
@@ -542,7 +528,7 @@ class Core {
 
     public static var files:Array<OutputFile> = [];
 
-    static function emit(root:String, rel:String, data:String):Void {
+    static function emit(rel:String, data:String):Void {
         var file:OutputFile = {path: rel, content: data, outputFile: 1};
         files.push(file);
     }
@@ -601,15 +587,15 @@ class Core {
         if (names(all, "swift").length > 0 && config.archiveBase == "")
             fail("Swift requires --archive-base");
         validate(all, config.swiftScope);
-        writeNpm(config.output, all);
-        writePub(config.output, all);
-        writeCargo(config.output, config.baseUrl, all);
+        writeNpm(all);
+        writePub(all);
+        writeCargo(config.baseUrl, all);
         if (names(all, "swift").length > 0)
-            writeSwift(config.output, config.swiftScope, all);
-        writeMaven(config.output, all);
-        emit(config.output, "swift/identifiers", Json.write(A([])));
-        emit(config.output, "_headers", headers());
-        emit(config.output, "_redirects", redirects(config.swiftScope, config.archiveBase, all));
+            writeSwift(config.swiftScope, all);
+        writeMaven(all);
+        emit("swift/identifiers", Json.write(A([])));
+        emit("_headers", headers());
+        emit("_redirects", redirects(config.swiftScope, config.archiveBase, all));
         return files;
     }
 }

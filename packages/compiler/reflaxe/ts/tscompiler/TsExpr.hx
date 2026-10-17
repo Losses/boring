@@ -76,6 +76,17 @@ class TsExpr {
     /** Locals reassigned after their declaration; emitted with let. */
     final mutated:Map<Int, Bool> = [];
 
+    /** Reads injected into dropDeadLocals so a fill-loop item declaration
+        (a NonStoreBatch) is not dropped before the later Store/Push value
+        that reads it; the store lives in a separate step and is otherwise
+        invisible to the batch's own blockLines call. */
+    final deadLocalGuard:Map<Int, Bool> = [];
+
+    /** Locals whose declaration was dropped as dead but whose later plain
+        assignments survive as statements; those writes are stripped by
+        dropDeadLocals so a write-only binding vanishes entirely. */
+    final writeOnlyLocals:Map<Int, Bool> = [];
+
     /** Target-language aliases for Haxe's synthetic wrapper receivers. */
     final localAliases:Map<Int, String> = [];
 
@@ -758,11 +769,11 @@ class TsExpr {
         return out.join("\n");
     }
 
-    function blockLines(stmts:Array<TypedExpr>, depth:Int, originTrace:Null<SourceOriginTrace> = null):Array<String> {
+    function blockLines(stmts:Array<TypedExpr>, depth:Int, originTrace:Null<SourceOriginTrace> = null, value:Null<TypedExpr> = null):Array<String> {
         stmts = fuseUninitializedVars(stmts);
         stmts = regroupLoops(stmts);
         stmts = fuseOverwrittenLiteralInits(stmts);
-        stmts = dropDeadLiteralDecls(stmts);
+        stmts = dropDeadLocals(stmts, value);
         if (stmts.length > 1) {
             var i = 0;
             while (i + 1 < stmts.length) {
@@ -969,36 +980,106 @@ class TsExpr {
     }
 
     /**
-        Drops declarations of locals whose initializer is a pure literal,
-        which are never reassigned and never read in the block: the
-        lowering materialized them for a value it ended up not using
-        (constant-folded positions, folded switches), and the lint subset
-        flags the leftover binding as unused.
+        True when discarding the expression's value has no observable effect,
+        so a dead binding or a write to a dead local can be dropped outright
+        instead of kept as a bare statement. Constants, type expressions, local
+        reads, and pure array reads qualify; calls, constructors, field reads,
+        and operators are deliberately excluded because they may invoke user
+        code or accessors.
     **/
-    function dropDeadLiteralDecls(stmts:Array<TypedExpr>):Array<TypedExpr> {
+    function isEffectFreeExpr(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TConst(_) | TTypeExpr(_) | TLocal(_): true;
+            case TArray(subj, index): isEffectFreeExpr(subj) && isEffectFreeExpr(index);
+            case _: false;
+        };
+    }
+
+    /**
+        Eliminates declarations of locals that are never reassigned and never
+        read in the block. The lowering materializes such locals for values it
+        ends up not using — constant-folded positions, folded switches, class
+        aliases inlined to their class name by field(), and side-effecting
+        calls whose returned binding is discarded — and the lint subset flags
+        the leftover binding as unused. A side-effect-free initializer is
+        dropped outright; a side-effecting one (a call or construction) is kept
+        as a bare expression statement so its effect survives while the dead
+        binding disappears.
+    **/
+    function dropDeadLocals(stmts:Array<TypedExpr>, value:Null<TypedExpr> = null):Array<TypedExpr> {
         final reads = new Map<Int, Bool>();
         for (s in stmts)
             markVarReads(s, reads);
+        if (value != null)
+            markVarReads(value, reads);
+        for (g in deadLocalGuard.keys())
+            reads.set(g, true);
         final out:Array<TypedExpr> = [];
         var changed = false;
         for (s in stmts) {
             switch (s.expr) {
-                case TVar(v, init) if (init != null && isLiteralExpr(init) && !mutated.exists(v.id) && !reads.exists(v.id)):
+                case TVar(v, init) if (!reads.exists(v.id)):
+                    // Never read in this block's subtree: dead. This covers the
+                    // plain unused local and the write-only local (declared,
+                    // reassigned, never read); the latter is recorded so its
+                    // plain assignments are stripped below.
                     changed = true;
-                    continue;
+                    if (mutated.exists(v.id))
+                        writeOnlyLocals.set(v.id, true);
+                    if (init == null || isEffectFreeExpr(init))
+                        continue;
+                    // Keep a side-effecting initializer as a bare statement so
+                    // its effect survives without the dead binding.
+                    out.push(init);
+                case TBinop(OpAssign, target, rhs) if (isWriteOnlyLocal(target)):
+                    // A plain write to a dead local: the binding is gone, so the
+                    // write is dropped. A side-effecting right-hand side
+                    // survives as a bare statement.
+                    changed = true;
+                    if (isEffectFreeExpr(rhs))
+                        continue;
+                    out.push(rhs);
                 case _:
+                    out.push(s);
             }
-            out.push(s);
         }
         return changed ? out : stmts;
     }
 
     function markVarReads(e:TypedExpr, reads:Map<Int, Bool>):Void {
         switch (e.expr) {
-            case TLocal(w): reads.set(w.id, true);
+            case TLocal(w):
+                reads.set(w.id, true);
+                return;
+            // A static field access inlines its class name (field() ignores
+            // the subject), so a class-ref alias local in subject position is
+            // never emitted as the local and must not count as a read.
+            case TField(_, FStatic(_, _)):
+                return;
+            // A direct `local = x` only writes its target, but a field or
+            // array write (`a.field = x`, `a[i] = x`) still reads the object
+            // it writes through — so walk a non-local target to count that
+            // object local as read. Compound assignment (`+=`, ...) reads its
+            // target and is handled by the generic walk. Mirrors the Rust
+            // scanUnusedLocals classification.
+            case TBinop(OpAssign, target, rhs):
+                markVarReads(rhs, reads);
+                switch (stripWrap(target).expr) {
+                    case TLocal(_):
+                    case _: markVarReads(target, reads);
+                }
+                return;
             case _:
         }
         TypedExprTools.iter(e, function(x) markVarReads(x, reads));
+    }
+
+    /** True when the assignment target is a local already marked write-only. */
+    function isWriteOnlyLocal(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v): writeOnlyLocals.exists(v.id);
+            case _: false;
+        };
     }
 
     function safeTryInitialization(v:TVar, next:TypedExpr):Bool {
@@ -1230,7 +1311,28 @@ class TsExpr {
                     }
                 case _:
             }
-            TypedExprTools.iter(x, walk);
+            if (found)
+                return;
+            // A `.length` read inside a nested statement list belongs to that
+            // nested block's own LengthHoist pass, which re-hoists it and
+            // scopes its own const. Descending into it here would move this
+            // block's `firstUse` earlier than any same-level reader, emit a
+            // block const, and let the nested pass shadow it, leaving an
+            // orphaned const (TS6133). Only same-level expressions (if/while
+            // conditions, for iteration sources, call arguments, RHS values)
+            // count as readers.
+            switch (x.expr) {
+                case TIf(cond, _, _):
+                    walk(cond);
+                case TWhile(cond, _, _):
+                    walk(cond);
+                case TFor(_, it, _):
+                    walk(it);
+                case TBlock(_) | TFunction(_) | TSwitch(_, _, _) | TTry(_, _):
+                    return; // nested statement lists; do not descend
+                case _:
+                    TypedExprTools.iter(x, walk);
+            }
         }
         walk(e);
         return found;
@@ -1321,6 +1423,21 @@ class TsExpr {
             return null;
         }
 
+        // A store/push value reads the loop's item declaration, which is
+        // emitted as a NonStoreBatch step before it. Record those reads so
+        // dropDeadLocals keeps the item declaration instead of dropping it
+        // as a dead local (the store lives in a separate step, so the
+        // batch's own blockLines call cannot see the read).
+        final savedGuard:Array<Int> = [for (k in deadLocalGuard.keys()) k];
+        for (k in [for (k in deadLocalGuard.keys()) k])
+            deadLocalGuard.remove(k);
+        for (step in plan.steps)
+            switch (step) {
+                case StoreValue(value): markVarReads(value, deadLocalGuard);
+                case PushValue(arg): markVarReads(arg, deadLocalGuard);
+                case NonStoreBatch(_):
+            }
+
         final elem = types.of(alloc.elem);
         final arrName = localName(alloc.arr);
         final subject = boundLengthSubject(loop.bound);
@@ -1368,6 +1485,10 @@ class TsExpr {
         if (decodeBoundary) {
             frozenFill.set(alloc.arr.id, true);
         }
+        for (k in [for (k in deadLocalGuard.keys()) k])
+            deadLocalGuard.remove(k);
+        for (k in savedGuard)
+            deadLocalGuard.set(k, true);
         return out;
     }
 
@@ -3572,7 +3693,7 @@ class TsExpr {
     **/
     function blockValueLines(e:TypedExpr, depth:Int):{lines:Array<String>, value:Null<String>} {
         final parts = PolicyQueries.blockValueParts(e);
-        return {lines: blockLines(parts.body, depth), value: parts.value == null ? null : expr(parts.value)};
+        return {lines: blockLines(parts.body, depth, null, parts.value), value: parts.value == null ? null : expr(parts.value)};
     }
 
     function catchHeaderLines(c:{v:TVar, expr:TypedExpr}, clsName:String, depth:Int):Array<String> {
