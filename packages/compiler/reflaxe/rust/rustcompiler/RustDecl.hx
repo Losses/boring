@@ -1029,7 +1029,7 @@ class RustDecl {
         for (o in options) {
             final message = messages.get(o.name);
             final args = enumFieldParams(o);
-            final format = message != null ? message.format : '"{}"';
+            final format = message != null ? message.format : exceptionFallbackFormat(args);
             final formatArgs = message != null ? message.args : [for (arg in args) RustImports.toSnakeCase(arg.name)];
             if (args.length == 0) {
                 lines.push('            ${enumName}::${RustImports.toUpperCamelCase(o.name)} => write!(formatter, ${format}),');
@@ -1271,19 +1271,35 @@ class RustDecl {
     }
 
     function rustDisplayFormat(e:TypedExpr):String {
+        return rustDisplayFormatForType(e.t);
+    }
+
+    function rustDisplayFormatForType(t:Type):String {
         // Null<T> remains an Option in Rust even when Context.follow exposes
         // the marked value type. Option implements Debug; use its debug form
         // at the nullable boundary in generated record formatting.
-        switch (e.t) {
+        switch (t) {
             case TAbstract(a, [_]) if (a.get().name == "Null"):
                 return "{:?}";
             case _:
         }
-        return switch (Context.follow(e.t)) {
+        return switch (Context.follow(t)) {
             case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())):
                 ValueTypeSupport.memberField(a.get(), "toString") != null ? "{}" : "{:?}";
             case _: "{}";
         };
+    }
+
+    // The Display format string for an exception payload variant the message
+    // function does not cover. A Null payload field is an Option in Rust with
+    // no Display impl, so the bare placeholder the fallback used to emit made
+    // the generated write! fail to compile (E0277); route it through Debug
+    // exactly like the message path, one placeholder per field so a
+    // multi-field variant's format arity matches its arguments.
+    function exceptionFallbackFormat(args:Array<{name:String, type:Type}>):String {
+        if (args.length == 0)
+            return '""';
+        return '"' + [for (arg in args) rustDisplayFormatForType(arg.type)].join(" ") + '"';
     }
 
     function bindPatternLocals(e:TypedExpr):Void {
