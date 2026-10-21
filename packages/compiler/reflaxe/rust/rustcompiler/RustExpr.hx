@@ -14587,6 +14587,8 @@ class RustExpr {
                 return;
             switch (stripWrap(x).expr) {
                 case TCall({expr: TLocal(v)}, _) if (fallible.exists(v.id)): found = true;
+                case TCall({expr: TField(_, FInstance(c, _, cf))}, _) if (isFallibleCallee(c, cf, false)): found = true;
+                case TCall({expr: TField(_, FStatic(c, cf))}, _) if (isFallibleCallee(c, cf, true)): found = true;
                 case _: TypedExprTools.iter(x, walk);
             }
         }
