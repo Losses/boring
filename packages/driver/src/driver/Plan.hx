@@ -114,8 +114,8 @@ class Plan {
             addStep(steps, "build tests jar", "kotlinc", ["-cp", libraryJar].concat(testFiles).concat(bundle.build.args).concat(["-d", testsJar]), project.root, bundle.build.env);
             addStep(steps, "run", "java", ["-cp", libraryJar + ":" + testsJar].concat(bundle.run.args).concat(["TestMainKt"]), project.root, runEnv);
         } else if (bundle.target == "rust") {
-            addStep(steps, "build", "cargo", ["test", "--no-run"].concat(bundle.build.args), generatedDir, bundle.build.env);
-            addStep(steps, "run", "cargo", ["test"].concat(bundle.run.args), generatedDir, runEnv);
+            addStep(steps, "build", "cargo", ["test", "--release", "--no-run"].concat(bundle.build.args), generatedDir, bundle.build.env);
+            addStep(steps, "run", "cargo", ["test", "--release"].concat(bundle.run.args), generatedDir, runEnv);
         } else if (bundle.target == "swift") {
             if (swiftModule == null) throw new DriverException(InvalidConfig('bundle "${bundle.id}": missing swift-test-import'));
             final module = swiftModule + "";

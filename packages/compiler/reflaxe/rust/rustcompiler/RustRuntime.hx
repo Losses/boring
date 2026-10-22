@@ -1354,8 +1354,8 @@ pub fn unit_count(s: &UStr) -> u32 {
 // The UTF-16 code-unit vector of a string, built once. Per-character
 // loops that read length and per-index units lower against this vector
 // instead of rescanning the source on every access.
-pub fn units(s: &UStr) -> Vec<u16> {
-    s.as_slice().to_vec()
+pub fn units(s: &UStr) -> &[u16] {
+    s.as_slice()
 }
 
 // The single UTF-16 unit at `index` read from a precomputed unit vector,
