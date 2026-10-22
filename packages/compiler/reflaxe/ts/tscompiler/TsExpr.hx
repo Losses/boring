@@ -1901,7 +1901,14 @@ class TsExpr {
         return switch (PolicyQueries.int64OpOf(fn, args)) {
             case Make(high, low):
                 "BigInt.asIntN(64, (BigInt(" + expr(high) + ") << 32n) | BigInt.asUintN(32, BigInt(" + expr(low) + ")))";
-            case OfInt(value): "BigInt.asIntN(64, BigInt(" + expr(value) + "))";
+            case OfInt(value):
+                // ofInt feeds a 32-bit Int; BigInt of it is already inside
+                // signed-64 range, so the asIntN(64, ...) wrap is redundant.
+                // Fold a constant integer argument to a BigInt literal.
+                switch (stripCast(value).expr) {
+                    case TConst(TInt(v)): v + "n";
+                    case _: "BigInt(" + expr(value) + ")";
+                };
             case GetHigh(value):
                 if (isFpHelperInt64Halves(value)) expr(value) + ".high" else "Number(BigInt.asIntN(32, " + expr(value) + " >> 32n))";
             case GetLow(value):
