@@ -5472,7 +5472,12 @@ class SwiftExpr {
             case TCall(fn, args):
                 switch (stripWrap(fn).expr) {
                     case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "charAt" && isStringSubject(subj) && args.length == 1):
-                        return "[UInt16(truncatingIfNeeded: unitAt(" + receiverText(subj) + ", " + expr(args[0]) + "))]";
+                        // Bounds-check to match charAt's empty-string result past
+                        // either end: unitAt alone would yield code unit 0 (NUL),
+                        // appending a stray U+0000 where the native String slice
+                        // appends nothing. (StringAccumulatorBuilder)
+                        final charSubj = receiverText(subj);
+                        return "({ () -> [UInt16] in let _i: Int32 = " + narrowedText(args[0]) + "; return (_i >= 0 && _i < Int32(" + charSubj + ".utf16.count)) ? [UInt16(truncatingIfNeeded: unitAt(" + charSubj + ", _i))] : [] }())";
                     case _:
                 }
             case _:
