@@ -2,6 +2,7 @@ package swiftcompiler;
 
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
+import StringTools;
 import haxe.macro.Type;
 import reflaxe.data.ClassFuncData;
 import reflaxe.data.ClassVarData;
@@ -336,10 +337,21 @@ class SwiftDecl {
 
         if (hasToString) {
             final f = findFunc(funcFields, "toString");
+            final stringRepr = switch (Context.follow(info.representation)) {
+                case TInst(c, _): c.get().name == "String";
+                case _: false;
+            };
             lines.push("");
             lines.push("    public var description: String {");
-            for (line in expr.valueTypeFunctionBody(cls, f, fieldName))
-                lines.push("    " + line);
+            final body = expr.valueTypeFunctionBody(cls, f, fieldName);
+            for (line in body) {
+                final trimmed = StringTools.trim(line);
+                if (types.resident && stringRepr && StringTools.startsWith(trimmed, "return ")) {
+                    lines.push("    return String(decoding: " + trimmed.substr("return ".length) + ", as: UTF16.self)");
+                } else {
+                    lines.push("    " + line);
+                }
+            }
             lines.push("    }");
         }
 
