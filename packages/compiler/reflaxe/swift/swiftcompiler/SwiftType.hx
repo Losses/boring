@@ -25,12 +25,15 @@ import swiftcompiler.SwiftComparisonPlan.SwiftComparisonPlanResult;
 class SwiftType {
     final imports:SwiftImports;
 
-    /** Resident modules render String as the unit array of the runtime ABI. */
+    /** Every module renders String as [UInt16] (the runtime unit-array ABI),
+        so UTF-16 indexing is O(1) and string building amortizes to array append;
+        native String carries O(n) UTF-16 access and O(n) copy-per-concat that
+        degrades per-character loops to O(n^2). (StringUnitArrayBacking) */
     public final resident:Bool;
 
     public function new(imports:SwiftImports) {
         this.imports = imports;
-        this.resident = RuntimeResidents.isResident(imports.selfModule);
+        this.resident = true;
     }
 
     /**
@@ -93,7 +96,7 @@ class SwiftType {
                     case "haxe.Exception":
                         imports.runtime("BoringException");
                         "BoringException";
-                    case "String": resident ? "[UInt16]" : "String";
+                    case "String": "[UInt16]";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";
                     case "Array":
                         imports.runtime("TiqianArray");
@@ -194,7 +197,7 @@ class SwiftType {
             case TInst(c, params2):
                 final cls = c.get();
                 switch (pathOf(cls.pack, cls.name)) {
-                    case "String": resident ? "[UInt16]" : "String";
+                    case "String": "[UInt16]";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";
                     case "Array":
                         imports.runtime("TiqianArray");
