@@ -115,7 +115,7 @@ class SwiftTestHelper {
                 }
             case TInst(c, params):
                 switch (c.get().name) {
-                    case "String": scalarWrapper(name, t, "TestCore.formatString(Array(v.utf16))");
+                    case "String": scalarWrapper(name, t, types.resident ? "TestCore.formatString(v)" : "TestCore.formatString(Array(v.utf16))");
                     case "Bytes": scalarWrapper(name, t, "TestCore.formatBytes(v)");
                     case "Array": arrayWrapper(name, t, params[0]);
                     case _: fail(entry.type);
