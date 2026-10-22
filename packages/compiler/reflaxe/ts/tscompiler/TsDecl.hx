@@ -822,7 +822,7 @@ class TsDecl {
         // signature returns the buffer and the body appends
         // `return out;`; call sites reassign the argument.
         final mutatedBufParam = mutatedStringBufParam(cls, f);
-        final retText = mutatedBufParam != null ? "string" : ret;
+        final retText = mutatedBufParam != null ? "string[]" : ret;
         final completeBody = mutatedBufParam != null
             ? SourceOriginFragment.join([bodyFragment, SourceOriginFragment.plain("    return " + mutatedBufParam + ";")], bodyFragment.text.length > 0 ? "\n" : "")
             : bodyFragment;
