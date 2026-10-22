@@ -440,7 +440,7 @@ class SwiftExpr {
         return switch (value) {
             case CInt(v): isFloatLeafType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case CFloat(s): s;
-            case CString(s): quoteString(s);
+            case CString(s): types.resident ? "Array(" + quoteStringRaw(s) + ".utf16)" : quoteString(s);
             case CBool(b): b ? "true" : "false";
             case CNull: types.optionalNone(targetType);
             case CEmptyArray:
@@ -483,11 +483,11 @@ class SwiftExpr {
                     + coalescingDefaultText(args[1],
                         targetType) + ")])"; else "substringUnits(" + s + ", " + start + ", " + coalescingDefaultText(args[1], targetType) + ")";
             case CMethodCall(receiver, methodName, args):
-                coalescingDefaultText(receiver, targetType)
-                + "."
-                + swiftMethodName(methodName)
-                + "("
-                + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
+                final recv = coalescingDefaultText(receiver, targetType);
+                if (types.resident && (methodName == "toUpperCase" || methodName == "toLowerCase"))
+                    "Array(String(decoding: " + recv + ", as: UTF16.self)." + swiftMethodName(methodName) + "().utf16)";
+                else
+                    recv + "." + swiftMethodName(methodName) + "(" + [for (a in args) coalescingDefaultText(a, targetType)].join(", ") + ")";
             case CStaticCall(modulePath, className, methodName, args):
                 coalescingStaticCallText(modulePath, className, methodName, args, targetType);
             case CConditional(c, t, f):
@@ -577,7 +577,7 @@ class SwiftExpr {
     }
 
     static function swiftMethodName(name:String):String {
-        return name == "toUpperCase" ? "uppercased" : name;
+        return name == "toUpperCase" ? "uppercased" : (name == "toLowerCase" ? "lowercased" : name);
     }
 
     static function opStr(op:Binop, wrapping:Bool = false):String {
@@ -2576,8 +2576,10 @@ class SwiftExpr {
                         // failable raw-value initializer the lookup emits.
                         final subject = args[0];
                         final unwrap = isNullLeafType(subject.t) || EnumQueryExpander.markerKind(subject) == QLookup;
-                        expr(subject) + (unwrap ? "!" : "") + ".rawValue";
-                    case QLookup: en.name + "(rawValue: " + expr(args[1]) + ")";
+                        types.resident
+                            ? "Array(" + expr(subject) + (unwrap ? "!" : "") + ".rawValue.utf16)"
+                            : expr(subject) + (unwrap ? "!" : "") + ".rawValue";
+                    case QLookup: types.resident ? en.name + "(rawValue: String(decoding: " + expr(args[1]) + ", as: UTF16.self))" : en.name + "(rawValue: " + expr(args[1]) + ")";
                 }
         }
     }
@@ -2773,6 +2775,16 @@ class SwiftExpr {
                 final lFinal = isIntType(emittedType(l)) && isFloatTyped(r) ? intToFloatText(lOperand) : lOperand;
                 final rFinal = isIntType(emittedType(r)) && isFloatTyped(l) ? intToFloatText(rOperand) : rOperand;
                 return lFinal + " " + symbolOf(op, l, r) + " " + rFinal;
+            case OpGt | OpGte | OpLt | OpLte if (types.resident && (isStringLeafType(l.t) || isStringLeafType(r.t))):
+                imports.runtime("compareUnitOrder");
+                final cmp = switch (op) {
+                    case OpGt: "> 0";
+                    case OpGte: ">= 0";
+                    case OpLt: "< 0";
+                    case OpLte: "<= 0";
+                    case _: "< 0";
+                };
+                return "compareUnitOrder(" + operand(l, op, false) + ", " + operand(r, op, true) + ") " + cmp;
             case _:
                 // Haxe mixes Int into Float arithmetic and comparison
                 // with promotion; Swift has no implicit conversion, so
@@ -3904,35 +3916,42 @@ class SwiftExpr {
             case IsString: value;
             case IsArray(element):
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + "[" + index + "]", true, origin, depth + 1);
-                '{ () -> String in var out = "["; let n = ${value}.count; var ${index} = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
+                final item = stdStringType(element, value + "[" + index + "]", !types.resident, origin, depth + 1);
+                types.resident
+                    ? '{ () -> [UInt16] in var out = Array("[".utf16); let n = ${value}.count; var ${index} = 0; while ${index} < n { if ${index} > 0 { out += Array(", ".utf16); }; out += ${item}; ${index} += 1; }; out += Array("]".utf16); return out }()'
+                    : '{ () -> String in var out = "["; let n = ${value}.count; var ${index} = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
             case IsSortedSet(element):
                 final index = depth == 0 ? "i" : "i" + depth;
-                final item = stdStringType(element, value + ".at(" + index + ")", true, origin, depth + 1);
-                '{ () -> String in var out = "["; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
+                final item = stdStringType(element, value + ".at(" + index + ")", !types.resident, origin, depth + 1);
+                types.resident
+                    ? '{ () -> [UInt16] in var out = Array("[".utf16); let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += Array(", ".utf16); }; out += ${item}; ${index} += 1; }; out += Array("]".utf16); return out }()'
+                    : '{ () -> String in var out = "["; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${item}; ${index} += 1; }; out += "]"; return out }()';
             case IsSortedMap(key, val):
                 final index = depth == 0 ? "i" : "i" + depth;
-                final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
-                final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
-                '{ () -> String in var out = "{"; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
+                final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", !types.resident, origin, depth + 1);
+                final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", !types.resident, origin, depth + 1);
+                types.resident
+                    ? '{ () -> [UInt16] in var out = Array("{".utf16); let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += Array(", ".utf16); }; out += ${itemKey}; out += Array("=".utf16); out += ${itemVal}; ${index} += 1; }; out += Array("}".utf16); return out }()'
+                    : '{ () -> String in var out = "{"; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
             case IsRecordLike | IsInstanceToString: recordToStringText(t, value);
             case IsMarkedAbstract(abs):
-                ValueTypeSupport.memberField(abs, "toString") != null ? value + ".description" : "String(describing: "
+                final rendered = ValueTypeSupport.memberField(abs, "toString") != null ? value + ".description" : "String(describing: "
                     + value
                     + "."
                     + ValueTypeSupport.representationFieldName(abs)
                     + ")";
+                types.resident ? "Array(" + rendered + ".utf16)" : rendered;
             case IsFloat:
                 imports.runtime("formatFloatRuntime");
-                depth > 0 ? "\"\\(" + value + ")\"" : "String(decoding: formatFloatRuntime(" + value + "), as: UTF16.self)";
-            case IsInt | IsBool: depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "String(" + value + ")");
+                types.resident ? "formatFloatRuntime(" + value + ")" : (depth > 0 ? "\"\\(" + value + ")\"" : "formatFloatRuntime(" + value + ")");
+            case IsInt | IsBool: types.resident ? "Array(String(" + value + ").utf16)" : (depth > 0 ? "\"\\(" + value + ")\"" : (inConcat ? value : "Array(String(" + value + ").utf16)"));
             case IsTypeParameter:
                 types.resident ? "Array(String(describing: " + value + ").utf16)" : (inConcat ? value : "String(describing: " + value + ")");
             case IsReadOnlyArray(underlying):
                 stdStringType(underlying, value, inConcat, origin, depth);
-            case IsParameterlessEnum(en): value + ".rawValue";
-            case IsCyclicEnum(en): cyclicEnumString(en, value, inConcat, origin);
-            case IsPayloadEnum(en): enumLabeledText(en, value, origin);
+            case IsParameterlessEnum(en): types.resident ? "Array(" + value + ".rawValue.utf16)" : value + ".rawValue";
+            case IsCyclicEnum(en): types.resident ? "Array(" + cyclicEnumString(en, value, inConcat, origin) + ".utf16)" : cyclicEnumString(en, value, inConcat, origin);
+            case IsPayloadEnum(en): types.resident ? "Array(" + enumLabeledText(en, value, origin) + ".utf16)" : enumLabeledText(en, value, origin);
             case IsNull | IsUnsupported:
                 Context.error("Std.string accepts scalars, enum values, records, and arrays of them only", origin.pos);
                 null;
@@ -4017,7 +4036,8 @@ class SwiftExpr {
             final bindings = [for (arg in args) "let " + arg.name].join(", ");
             final parts = [];
             for (i in 0...args.length) {
-                parts.push(args[i].name + "=\\(" + stdStringType(args[i].t, args[i].name, true, origin) + ")");
+                final rendered = stdStringType(args[i].t, args[i].name, true, origin);
+                parts.push(args[i].name + "=\\(" + (types.resident ? "String(decoding: " + rendered + ", as: UTF16.self)" : rendered) + ")");
             }
             arms.push("case ." + label + "(" + bindings + "): return \"" + ef.name + "(" + parts.join(", ") + ")\";");
         }
@@ -4037,16 +4057,17 @@ class SwiftExpr {
         // through the bit-pattern initializer to keep its bit pattern.
         final hex = "String(UInt32(bitPattern: " + valueText + "), radix: 16, uppercase: true)";
         if (digits == null) {
-            return hex;
+            return types.resident ? "Array(" + hex + ".utf16)" : hex;
         }
         final digitsText = "Int(" + optionalExpr(digits) + ")";
-        return "{ let s = "
+        final body = "{ let s = "
             + hex
             + "; return s.count < "
             + digitsText
             + " ? String(repeating: \"0\", count: "
             + digitsText
             + " - s.count) + s : s }()";
+        return types.resident ? "Array(" + body + ".utf16)" : body;
     }
 
     function isNegativeIntLiteral(e:TypedExpr):Bool {
@@ -4074,7 +4095,7 @@ class SwiftExpr {
                     return abs.name + "(" + argText + ")";
                 }
                 if (field.name == "toString" && args.length > 0)
-                    return receiverText(args[0]) + ".description";
+                    return types.resident ? "Array(" + receiverText(args[0]) + ".description.utf16)" : receiverText(args[0]) + ".description";
                 final op = ValueTypeSupport.operatorOf(abs, field);
                 if (op != null) {
                     return switch (op) {
@@ -4092,7 +4113,7 @@ class SwiftExpr {
                     return null;
                 final field = cf.get();
                 if (field.name == "toString")
-                    return receiverText(subj) + ".description";
+                    return types.resident ? "Array(" + receiverText(subj) + ".description.utf16)" : receiverText(subj) + ".description";
                 return receiverText(subj) + "." + field.name + "(" + [for (a in args) expr(a)].join(", ") + ")";
             case _:
         }
@@ -4173,6 +4194,8 @@ class SwiftExpr {
                 }
                 if (cls.pack.length == 0 && cls.name == "StringTools" && fName == "trim") {
                     final source = receiverText(args[0]);
+                    if (types.resident)
+                        return "({ () -> [UInt16] in let s = String(decoding: " + source + ", as: UTF16.self); var start = s.startIndex; var end = s.endIndex; while start < end && s[start].isWhitespace { start = s.index(after: start) }; while start < end && s[s.index(before: end)].isWhitespace { end = s.index(before: end) }; return Array(String(s[start..<end]).utf16) }())";
                     return "({ () -> String in var start = " + source + ".startIndex; var end = " + source + ".endIndex; while start < end && " + source
                         + "[start].isWhitespace { start = " + source + ".index(after: start) }; while start < end && " + source + "[" + source
                         + ".index(before: end)].isWhitespace { end = " + source + ".index(before: end) }; return String(" + source + "[start..<end]) }())";
@@ -4181,7 +4204,10 @@ class SwiftExpr {
                     && cls.name == "StringTools"
                     && (fName == "startsWith" || fName == "endsWith")
                     && args.length == 2) {
-                    return receiverText(args[0]) + ".has" + (fName == "startsWith" ? "Prefix" : "Suffix") + "(" + optionalExpr(args[1]) + ")";
+                    final suffix = fName == "startsWith" ? "Prefix" : "Suffix";
+                    return types.resident
+                        ? "String(decoding: " + receiverText(args[0]) + ", as: UTF16.self).has" + suffix + "(String(decoding: " + expr(args[1]) + ", as: UTF16.self))"
+                        : receiverText(args[0]) + ".has" + suffix + "(" + optionalExpr(args[1]) + ")";
                 }
                 if (cls.pack.length == 0 && cls.name == "StringTools") {
                     // StringTools statics without a native Swift/String
@@ -4213,10 +4239,10 @@ class SwiftExpr {
                     }
                 }
                 if (module == "std.Console") {
-                    if (fName == "log") return "print(" + expr(args[0]) + ")";
+                    if (fName == "log") return types.resident ? "print(String(decoding: " + expr(args[0]) + ", as: UTF16.self))" : "print(" + expr(args[0]) + ")";
                     if (fName == "error") {
                         imports.foundation();
-                        return "FileHandle.standardError.write(Data((" + expr(args[0]) + " + \"\\n\").utf8))";
+                        return types.resident ? "FileHandle.standardError.write(Data((String(decoding: " + expr(args[0]) + ", as: UTF16.self) + \"\\n\").utf8))" : "FileHandle.standardError.write(Data((" + expr(args[0]) + " + \"\\n\").utf8))";
                     }
                     return fail(fn, "std.Console." + fName + " has no Swift lowering");
                 }
@@ -4227,7 +4253,7 @@ class SwiftExpr {
                     // std.Process.args() reads the arguments after the
                     // program name (stdlib/17). The Haxe result is an
                     // Array, which lowers to TiqianArray.
-                    return arrayRuntimeText("TiqianArray(Array(CommandLine.arguments.dropFirst()))");
+                    return arrayRuntimeText(types.resident ? "TiqianArray(Array(CommandLine.arguments.dropFirst().map { Array($0.utf16) }))" : "TiqianArray(Array(CommandLine.arguments.dropFirst()))");
                 }
                 if (module == "std.Process" && fName == "exit") {
                     imports.hostEdge("Process.exit");
@@ -4235,7 +4261,7 @@ class SwiftExpr {
                 }
                 if (module == "std.Process" && fName == "cwd") {
                     imports.foundation();
-                    return "FileManager.default.currentDirectoryPath";
+                    return types.resident ? "Array(FileManager.default.currentDirectoryPath.utf16)" : "FileManager.default.currentDirectoryPath";
                 }
                 if (module == "std.Process" && fName == "platform") {
                     imports.hostEdge("Process.platform");
@@ -4314,24 +4340,22 @@ class SwiftExpr {
                     // as its surrogate pair so the pair stays intact.
                     // (FromCharCodeUnit)
                     final cp = swiftPresence(args[0]) != Present ? "(" + expr(args[0]) + ")!" : expr(args[0]);
-                    return "(("
-                        + cp
-                        + " > 0xFFFF ? String(decoding: [UInt16(truncatingIfNeeded: 0xD800 + (("
-                        + cp
-                        + " - 0x10000) >> 10)), UInt16(truncatingIfNeeded: 0xDC00 + (("
-                        + cp
-                        + " - 0x10000) & 0x3FF))], as: UTF16.self) : String(decoding: [UInt16(truncatingIfNeeded: "
-                        + cp
-                        + ")], as: UTF16.self)))";
+                    final high = "UInt16(truncatingIfNeeded: 0xD800 + ((" + cp + " - 0x10000) >> 10))";
+                    final low = "UInt16(truncatingIfNeeded: 0xDC00 + ((" + cp + " - 0x10000) & 0x3FF))";
+                    final single = "UInt16(truncatingIfNeeded: " + cp + ")";
+                    return types.resident
+                        ? "((" + cp + " > 0xFFFF ? [" + high + ", " + low + "] : [" + single + "]))"
+                        : "((" + cp + " > 0xFFFF ? String(decoding: [" + high + ", " + low + "], as: UTF16.self) : String(decoding: [" + single + "], as: UTF16.self)))";
                 }
                 if (module == "Std") {
                     final s = expr(args[0]);
                     if (fName == "parseFloat") {
                         final real = FloatPrecision.isF32() ? "Float" : "Double";
+                        final decoded = types.resident ? "String(decoding: " + s + ", as: UTF16.self)" : s;
                         return '({ () -> '
                             + real
                             + ' in let t = String('
-                            + s
+                            + decoded
                             +
                             '.drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed().drop(while: { $0 == " " || $0 == "\\t" || $0 == "\\n" || $0 == "\\u{0B}" || $0 == "\\u{0C}" || $0 == "\\r" }).reversed()); var i = t.unicodeScalars.makeIterator(); var state = 0; var digits = false; var ok = true; while let c = i.next() { let v = c.value; if v >= 48 && v <= 57 { digits = true } else if (v == 43 || v == 45) && state == 0 { state = 1 } else if v == 46 && state <= 1 { state = 2 } else if (v == 101 || v == 69) && digits && state <= 2 { state = 3 } else if (v == 43 || v == 45) && state == 3 { state = 4 } else { ok = false } }; return ok && digits ? '
                             + real
@@ -4389,7 +4413,7 @@ class SwiftExpr {
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
                 return "[UInt8](repeating: 0, count: Int(" + expr(args[0]) + "))";
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
-                return "Array(" + expr(args[0]) + ".utf8)";
+                return "Array(String(decoding: " + expr(args[0]) + ", as: UTF16.self).utf8)";
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
                 return expr(args[0]) + " + " + expr(args[1]);
             case TCast(inner, _):
@@ -4403,9 +4427,9 @@ class SwiftExpr {
                     return receiverText(subj) + "." + SwiftNameEscape.escape(getterProperty);
                 if (isStringSubject(subj)) {
                     if (name == "toLowerCase")
-                        return expr(subj) + ".lowercased()";
+                        return types.resident ? "Array(String(decoding: " + expr(subj) + ", as: UTF16.self).lowercased().utf16)" : expr(subj) + ".lowercased()";
                     if (name == "toUpperCase")
-                        return expr(subj) + ".uppercased()";
+                        return types.resident ? "Array(String(decoding: " + expr(subj) + ", as: UTF16.self).uppercased().utf16)" : expr(subj) + ".uppercased()";
                 }
                 if (isMapType(subj.t)) {
                     if (name == "exists" && args.length == 1)
@@ -4453,8 +4477,8 @@ class SwiftExpr {
                     return "Array(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1]) + ")])";
                 }
                 if (name == "getString" && args.length == 2 && isBytes(stripCast(subj))) {
-                    return "String(decoding: " + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1])
-                        + ")], as: UTF8.self)";
+                    return "Array(String(decoding: " + receiverText(subj) + "[Int(" + expr(args[0]) + ")..<Int(" + expr(args[0]) + " + " + expr(args[1])
+                        + ")], as: UTF8.self).utf16)";
                 }
                 if (name == "indexOf"
                     && isUnitArrayTyped(subj)
@@ -4494,12 +4518,11 @@ class SwiftExpr {
                         case TConst(TInt(n)): n >= 0 ? "" : "; if i < 0 { i = 0 }";
                         case _: "; if i < 0 { i = 0 }";
                     };
-                    return "Int32({ () -> Int in let h = Array("
-                        + tryKw
-                        + s
-                        + ".utf16); let n = Array("
-                        + expr(args[0])
-                        + ".utf16); var i = "
+                    return "Int32({ () -> Int in let h = "
+                        + (types.resident ? tryKw + s : "Array(" + tryKw + s + ".utf16)")
+                        + "; let n = "
+                        + (types.resident ? expr(args[0]) : "Array(" + expr(args[0]) + ".utf16)")
+                        + "; var i = "
                         + startText
                         + startClamp
                         + "; while i + n.count <= h.count { if Array(h[i..<(i + n.count)]) == n { return i }; i += 1 }; return -1 }())";
@@ -4533,11 +4556,12 @@ class SwiftExpr {
                                 + receiverText(subj)
                                 + ".utf16).map { String(decoding: [$0], as: UTF16.self) }")
                             + ")");
+                    imports.foundation();
                     return arrayRuntimeText("TiqianArray("
-                        + (types.resident ? receiverText(subj)
-                            + ".split(separator: "
+                        + (types.resident ? "String(decoding: " + receiverText(subj)
+                            + ", as: UTF16.self).components(separatedBy: String(decoding: "
                             + expr(args[0])
-                            + ".first!, omittingEmptySubsequences: false).map { Array($0) }" : receiverText(subj)
+                            + ", as: UTF16.self)).map { Array($0.utf16) }" : receiverText(subj)
                             + ".split(separator: "
                             + expr(args[0])
                             + ", omittingEmptySubsequences: false).map { String($0) }")
@@ -4581,20 +4605,16 @@ class SwiftExpr {
                     return s + ".splice(Int(" + expr(args[0]) + "), Int(" + expr(args[1]) + "))";
                 }
                 if (name == "join") {
-                    // The split/join pair in the resident StringTools
-                    // operates on unit arrays: split yields [[UInt16]] and
-                    // join must re-fold that into [UInt16], which
-                    // `.joined(separator:)` alone does not type as.
+                    // Swift joined(separator:) is String-only; a non-string
+                    // element array maps each value through its Haxe string
+                    // form ([UInt16]) first, before the fold.
+                    final elemType = arrayElementType(subj.t);
+                    if (elemType != null && !isStringLeafType(elemType))
+                        return "Array(" + receiverText(subj) + ".map { " + stdStringType(elemType, "$0", false, subj) + " }.joined(separator: " + rendered + "))";
                     final joined = receiverText(subj) + ".joined(separator: " + rendered + ")";
                     if (types.resident) {
                         return "Array(" + joined + ")";
                     }
-                    // Swift's joined(separator:) is String-only; a non-string
-                    // element array maps each value through its Haxe string
-                    // form first.
-                    final elemType = arrayElementType(subj.t);
-                    if (elemType != null && !isStringLeafType(elemType))
-                        return receiverText(subj) + ".map { " + stdStringType(elemType, "$0", false, subj) + " }.joined(separator: " + rendered + ")";
                     return joined;
                 }
                 if (name == "slice" && (args.length == 1 || args.length == 2)) {
@@ -4643,14 +4663,16 @@ class SwiftExpr {
                     };
                     final s = receiverText(subj);
                     if (types.resident) {
-                        // The resident subject is already the unit array.
-                        return endOmitted ? "Array(" + s + "[max(0, Int(" + expr(args[0]) + "))...])" : "Array("
-                            + s
-                            + "[Int("
-                            + expr(args[0])
-                            + ")..<Int("
-                            + expr(args[1])
-                            + ")])";
+                        // The resident subject is already the unit array; the
+                        // clamping mirrors substringUnits: a negative bound
+                        // reads 0, a bound past the end clamps to the count,
+                        // and a start past the end swaps (String.substring).
+                        final from = "Int(" + expr(args[0]) + ")";
+                        if (endOmitted) {
+                            return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; var _s = " + from + "; if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }())";
+                        }
+                        final to = "Int(" + expr(args[1]) + ")";
+                        return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; var _f = " + from + "; var _t = " + to + "; if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }())";
                     }
                     if (endOmitted) {
                         // dropFirst counts Characters. The suffix cut uses UTF-16
@@ -4690,16 +4712,18 @@ class SwiftExpr {
                     return "({ () -> String in let _i: Int32 = " + narrowedText(args[0]) + "; return substringUnits(" + s + ", _i, _i &+ 1) }())";
                 }
                 if (name == "charCodeAt" && isStringSubject(subj)) {
-                    final code = types.resident ? "Int32(" + receiverText(subj) + "[Int(" + expr(args[0]) + ")])" : "unitAtOptional("
-                        + receiverText(subj)
-                        + ", "
-                        + expr(args[0])
-                        + ")";
+                    // charCodeAt yields Null<Int>: the [UInt16] read must
+                    // bounds-check and wrap as Int32? so the surrounding
+                    // optional handling (force-unwrap or pass-through) types,
+                    // matching the native unitAtOptional Optional shape.
+                    final code = types.resident
+                        ? "({ () -> Int32? in let _i: Int32 = " + narrowedText(args[0]) + "; let _u = " + receiverText(subj) + "; return (_i >= 0 && _i < Int32(_u.count)) ? Int32(_u[Int(_i)]) : nil }())"
+                        : "unitAtOptional(" + receiverText(subj) + ", " + expr(args[0]) + ")";
                     final optional = switch (Context.follow(fn.t)) {
                         case TFun(_, ret): isNullLeafType(ret);
                         case _: false;
                     };
-                    return types.resident ? code : (optional ? code : code + "!");
+                    return optional ? code : code + "!";
                 }
                 return receiverText(subj) + "." + SwiftNameEscape.escape(name) + "(" + rendered + ")";
             case TField(_, FEnum(en, ef)):
@@ -4718,9 +4742,9 @@ class SwiftExpr {
                     return "super.init(message: \"\")";
                 }
                 if (args.length == 1) {
-                    return "super.init(message: " + rendered + ")";
+                    return types.resident ? "super.init(message: String(decoding: " + rendered + ", as: UTF16.self))" : "super.init(message: " + rendered + ")";
                 }
-                return "super.init(message: " + expr(args[0]) + ", cause: " + expr(args[1]) + ")";
+                return types.resident ? "super.init(message: String(decoding: " + expr(args[0]) + ", as: UTF16.self), cause: " + expr(args[1]) + ")" : "super.init(message: " + expr(args[0]) + ", cause: " + expr(args[1]) + ")";
             case _:
                 return expr(fn) + "(" + rendered + ")";
         }
@@ -4972,8 +4996,8 @@ class SwiftExpr {
             case _:
         }
         return switch (Context.follow(m.t)) {
-            case TAbstract(a, _) if (a.get().name == "Null"): "Array((" + expr(m) + " ?? \"\").utf16)";
-            case _: unitArrayText(m);
+            case TAbstract(a, _) if (a.get().name == "Null"): types.resident ? "(" + expr(m) + " ?? [])" : "Array((" + expr(m) + " ?? \"\").utf16)";
+            case _: types.resident ? expr(m) : unitArrayText(m);
         };
     }
 
@@ -4985,6 +5009,8 @@ class SwiftExpr {
     **/
     function unitArrayText(a:TypedExpr):String {
         final text = expr(a);
+        if (types.resident)
+            return text;
         return switch (stripWrap(a).expr) {
             case TBinop(_, _, _) | TIf(_, _, _): "Array((" + text + ").utf16)";
             case _: "Array(" + text + ".utf16)";
@@ -5895,11 +5921,11 @@ class SwiftExpr {
             // stays paired: only the unpaired case faults. The added value
             // may itself throw, so the guard condition and the append carry
             // the try marker.
-            lines.push(indent(depth) + "if " + tryKw + tail + " >= 55296 && " + tail + " <= 56319 && !(Array(" + part + ".utf16).count > 0 && Array(" + part
-                + ".utf16)[0] >= 56320 && Array(" + part + ".utf16)[0] <= 57343) {");
+            lines.push(indent(depth) + "if " + tryKw + tail + " >= 55296 && " + tail + " <= 56319 && !(" + part + ".count > 0 && " + part
+                + "[0] >= 56320 && " + part + "[0] <= 57343) {");
             lines.push(stringBufFaultThrow(depth + 1, tail));
             lines.push(indent(depth) + "}");
-            lines.push(indent(depth) + buf + " += " + tryKw + "Array(" + part + ".utf16)");
+            lines.push(indent(depth) + buf + " += " + tryKw + part);
         } else {
             final u = optionalExpr(args[0]);
             lines.push(indent(depth) + "if " + tryKw + u + " >= 56320 && " + u + " <= 57343 {");
@@ -5928,14 +5954,14 @@ class SwiftExpr {
         final subj = stringBufToStringSubject(call);
         final lines = stringBufToStringCheckLines(subj, depth);
         final kw = mutated.exists(v.id) ? "var" : "let";
-        lines.push(indent(depth) + kw + " " + localName(v) + " = String(decoding: " + expr(subj) + ", as: UTF16.self)");
+        lines.push(indent(depth) + kw + " " + localName(v) + " = " + expr(subj));
         return lines;
     }
 
     function stringBufToStringReturnLines(call:TypedExpr, depth:Int):Array<String> {
         final subj = stringBufToStringSubject(call);
         final lines = stringBufToStringCheckLines(subj, depth);
-        lines.push(indent(depth) + "return String(decoding: " + expr(subj) + ", as: UTF16.self)");
+        lines.push(indent(depth) + "return " + expr(subj));
         return lines;
     }
 
@@ -5952,10 +5978,11 @@ class SwiftExpr {
         }
         switch (Context.follow(subj.t)) {
             case TInst(c, _):
-                if (!SwiftDecl.isException(c.get())) {
+                final cls = c.get();
+                if (!SwiftDecl.isException(cls) && !(cls.pack.join(".") == "haxe" && cls.name == "Exception")) {
                     return null;
                 }
-                return receiverText(stripCast(subj)) + ".message";
+                return types.resident ? "Array(" + receiverText(stripCast(subj)) + ".message.utf16)" : receiverText(stripCast(subj)) + ".message";
             case _:
                 return null;
         }
@@ -6369,7 +6396,7 @@ class SwiftExpr {
         leaves.push(r);
         if (types.resident) {
             imports.runtimeTest("TestCore");
-            return "{ let p0 = "
+            return "{ () -> [UInt16] in let p0 = "
                 + (containsThrowingCall(leaves[0]) ? "try " : "")
                 + residentConcatLeaf(leaves[0])
                 + "; "
@@ -6518,13 +6545,25 @@ class SwiftExpr {
     }
 
     function residentConcatLeaf(leaf:TypedExpr):String {
-        if (isStringLeafType(leaf.t) || isUnitArrayTyped(leaf)) {
+        if (isStringLeafType(leaf.t)) {
+            return optionalStringLeaf(leaf) ? expr(leaf) + "!" : expr(leaf);
+        }
+        if (isUnitArrayTyped(leaf)) {
             return expr(leaf);
         }
         if (isIntTyped(leaf)) {
-            return "TestCore.formatInt(" + expr(leaf) + ")";
+            return "TestCore.formatInt(" + expr(leaf) + (swiftPresence(leaf) != Present ? "!" : "") + ")";
         }
-        return "Array(String(" + expr(leaf) + ").utf16)";
+        switch (Context.follow(leaf.t)) {
+            case TAbstract(a, _):
+                final abs = a.get();
+                if (abs.name != "Int" && abs.name != "Float" && abs.name != "Bool" && abs.module != "std.ReadOnlyArray") {
+                    final inner = expr(leaf) + (swiftPresence(leaf) != Present ? "!" : "") + "." + ValueTypeSupport.representationFieldName(abs);
+                    return isIntType(abs.type) ? "TestCore.formatInt(" + inner + ")" : "Array(String(" + inner + ").utf16)";
+                }
+            case _:
+        }
+        return "Array(String(" + expr(leaf) + (swiftPresence(leaf) != Present ? "!" : "") + ").utf16)";
     }
 
     /** Whether a concat leaf is an optional string a guard has cleared. */
