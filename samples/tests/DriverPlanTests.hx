@@ -164,8 +164,8 @@ class DriverPlanTests {
             "kotlin:build library jar|kotlinc|library.kt,-include-runtime,-d,/project/build/library.jar|/project|"
                 + ";build tests jar|kotlinc|-cp,/project/build/library.jar,test.kt,-d,/project/build/tests.jar|/project|"
                 + ";run|java|-cp,/project/build/library.jar:/project/build/tests.jar,TestMainKt|/project|BORING_TEST_RESULTS=/project/results/kotlin.jsonl",
-            "rust:build|cargo|test,--no-run|/project/gen|"
-                + ";run|cargo|test|/project/gen|BORING_TEST_RESULTS=/project/results/rust.jsonl",
+            "rust:build|cargo|test,--release,--no-run|/project/gen|"
+                + ";run|cargo|test,--release|/project/gen|BORING_TEST_RESULTS=/project/results/rust.jsonl",
             "swift:build library|swiftc|-emit-library,-emit-module,-O,-wmo,library.kt,-module-name,Codec,-o,/project/build/libCodec.dylib|/project|"
                 + ";build test executable|swiftc|-O,-wmo,test.kt,-I,/project/build,-L,/project/build,-lCodec,-o,/project/build/test-runner|/project|"
                 + ";run|/project/build/test-runner||/project|BORING_TEST_RESULTS=/project/results/swift.jsonl,DYLD_LIBRARY_PATH=/project/build",
