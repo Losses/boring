@@ -2651,7 +2651,7 @@ class RustExpr {
         return switch (PolicyQueries.stdStringCategory(element)) {
             // The `as i32` pins untyped literal / range-loop receivers so
             // `.to_ne_bytes()` has no ambiguous `{integer}` receiver (E0689).
-            case IsInt: "((" + raw + ") as i32)";
+            case IsInt: "i32::from_ne_bytes(((" + raw + ") as i32).to_ne_bytes())";
             case _: raw;
         }
     }
@@ -7845,13 +7845,13 @@ class RustExpr {
                         && !leftI32 && !rightI32 && !leftUsize && !rightUsize) {
                         if (!leftLiteral && !~/^\d+$/.match(leftText))
                             leftText = ambiguousIntReceiver(l)
-                                ? "{ let v: u32 = " + leftText + "; v as i32 }"
+                                ? "{ let v: u32 = " + leftText + "; i32::from_ne_bytes(v.to_ne_bytes()) }"
                                 : RustConversions.reinterpret(leftText, "i32");
                         else if (StringTools.endsWith(leftText, "u32"))
                             leftText = RustConversions.reinterpret(leftText, "i32");
                         if (!rightLiteral && !~/^\d+$/.match(rightText))
                             rightText = ambiguousIntReceiver(r)
-                                ? "{ let v: u32 = " + rightText + "; v as i32 }"
+                                ? "{ let v: u32 = " + rightText + "; i32::from_ne_bytes(v.to_ne_bytes()) }"
                                 : RustConversions.reinterpret(rightText, "i32");
                         else if (StringTools.endsWith(rightText, "u32"))
                             rightText = RustConversions.reinterpret(rightText, "i32");
@@ -8563,7 +8563,7 @@ class RustExpr {
         // conditional, and an array element read, so all of them take the
         // annotated binding. (AmbiguousIntReceiver)
         if (ambiguousIntReceiver(e)) {
-            return "{ let v: u32 = " + expr(e) + "; v as i32 }";
+            return "{ let v: u32 = " + expr(e) + "; i32::from_ne_bytes(v.to_ne_bytes()) }";
         }
         final literal = switch (stripWrap(e).expr) {
             case TConst(TInt(v)): true;
@@ -11310,7 +11310,7 @@ class RustExpr {
                     var recv = nullableMethodReceiver(subj, false);
                     return "{ let __hay = &(" + recv + "); let __n = __hay.len(); "
                         + "let mut __i = 0usize; let mut __found: i32 = -1; "
-                        + "while __i < __n { if __hay[__i] == " + needle + " { __found = u32::try_from(__i).unwrap_or(0) as i32; break; } __i += 1; } __found }";
+                        + "while __i < __n { if __hay[__i] == " + needle + " { __found = i32::from_ne_bytes(u32::try_from(__i).unwrap_or(0).to_ne_bytes()); break; } __i += 1; } __found }";
                 }
                 if (name == "addByte") {
                     return receiverText(subj, cf) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
@@ -16998,7 +16998,7 @@ class RustExpr {
         // if conditional and leaves every other Int expression to the
         // reinterpret below. (IntToFloatConditionalReceiver)
         if (StringTools.startsWith(text, "if ") || text.indexOf(" if ") >= 0)
-            return intToFloatText("{ let v: u32 = " + text + "; v as i32 }");
+            return intToFloatText("{ let v: u32 = " + text + "; i32::from_ne_bytes(v.to_ne_bytes()) }");
         // An array-iteration loop variable (for x in arr) binds an array
         // literal of bare integer literals, whose element type Rust leaves
         // as {integer}; a later .to_ne_bytes() on the element is ambiguous
@@ -17013,7 +17013,7 @@ class RustExpr {
                 case TLocal(v): rangeLoopVars.exists(v.id) || ambiguousIntReceiverLocals.exists(v.id);
                 case _: false;
             })
-            return intToFloatText("{ let v: u32 = " + text + "; v as i32 }");
+            return intToFloatText("{ let v: u32 = " + text + "; i32::from_ne_bytes(v.to_ne_bytes()) }");
         // Any other Int expression (a u32 variable, a wrapping result) is
         // in the u32 domain and reinterprets to i32.
         return intToFloatText(RustConversions.reinterpret(text, "i32"));
