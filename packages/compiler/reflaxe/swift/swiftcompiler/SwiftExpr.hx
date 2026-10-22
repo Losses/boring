@@ -217,6 +217,15 @@ class SwiftExpr {
     **/
     final builderBacked:Map<Int, {builder:TypedExpr, key:TypedExpr}> = [];
 
+    /**
+        String locals built only through `+=` accumulation and never used as a
+        method/field receiver. They lower to a [UInt16] builder: per-character
+        appends become O(1) amortized array pushes (versus O(n) native-String
+        copies that make reverse/zeros quadratic), and a value use decodes the
+        buffer once. (StringAccumulatorBuilder)
+    **/
+    final stringAccumulators:Map<Int, Bool> = [];
+
     /** Function context used to distinguish a sanctioned coalescing site. */
     var currentClass:Null<ClassType> = null;
 
@@ -626,6 +635,7 @@ class SwiftExpr {
         markNonOptionalParams(cls, f);
         scanLocals(f.expr);
         scanUnusedLocals(f.expr);
+        scanStringAccumulators(f.expr);
         resolveLocalFunctionThrows();
         final result = blockLines(statementsOf(f.expr), depth);
         currentReturnType = null;
@@ -764,6 +774,8 @@ class SwiftExpr {
                 // alias for the type. Swift has no class values, so it lowers
                 // to a local typealias that keeps `S.staticMember` resolving.
                 return [indent(depth) + "typealias " + localName(v) + " = " + expr(init)];
+            case TVar(v, init) if (stringAccumulators.exists(v.id)):
+                return stringAccumulatorDeclLines(v, init, depth);
             case TVar(v, init) if (init != null):
                 final builderSource = sortedBuilderGetSource(init);
                 if (builderSource != null)
@@ -967,6 +979,10 @@ class SwiftExpr {
                 // Haxe appends any value to a String with its string form;
                 // Swift's `+=` needs the converted right side.
                 if (inner == OpAdd && isStringTyped(l)) {
+                    final acc = accumulatorLocal(l);
+                    if (acc != null) {
+                        return [indent(depth) + localName(acc) + " += " + tryKw + accumulatorAppendText(r)];
+                    }
                     return [indent(depth) + assignTarget(l) + " += " + tryKw + stdString(r, false)];
                 }
                 // Only a bare optional read unwraps; a compound right side
@@ -2120,6 +2136,9 @@ class SwiftExpr {
                 if (subst.exists(v.id)) {
                     return subst.get(v.id);
                 }
+                if (stringAccumulators.exists(v.id)) {
+                    return "String(decoding: " + localName(v) + ", as: UTF16.self)";
+                }
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
@@ -2657,7 +2676,12 @@ class SwiftExpr {
                 return map == null ? assignTarget(l) + " = " + rhs : expr(map.receiver) + "[" + mapKeyText(map.key) + "] = " + rhs;
             case OpAssignOp(OpAdd) if (isStringTyped(l)):
                 // Haxe appends any value to a String with its string form;
-                // Swift's `+=` needs the converted right side.
+                // Swift's `+=` needs the converted right side. A builder-backed
+                // accumulator appends the unit-array form instead.
+                final acc = accumulatorLocal(l);
+                if (acc != null) {
+                    return localName(acc) + " += " + accumulatorAppendText(r);
+                }
                 return assignTarget(l) + " += " + stdString(r, false);
             case OpAssignOp(inner):
                 final rhs = expr(r);
@@ -5436,6 +5460,47 @@ class SwiftExpr {
         };
     }
 
+    /**
+        The [UInt16] form of one append into a builder accumulator: a
+        charAt read becomes a direct O(1) unit fetch instead of the O(n)
+        native-String slice that substringUnits performs; a String value
+        becomes its unit array; anything else renders through its Haxe
+        string form first. (StringAccumulatorBuilder)
+    **/
+    function accumulatorAppendText(r:TypedExpr):String {
+        switch (stripWrap(r).expr) {
+            case TCall(fn, args):
+                switch (stripWrap(fn).expr) {
+                    case TField(subj, FInstance(_, _, cf)) if (cf.get().name == "charAt" && isStringSubject(subj) && args.length == 1):
+                        return "[UInt16(truncatingIfNeeded: unitAt(" + receiverText(subj) + ", " + expr(args[0]) + "))]";
+                    case _:
+                }
+            case _:
+        }
+        switch (stripWrap(r).expr) {
+            case TLocal(v) if (stringAccumulators.exists(v.id)):
+                return localName(v);
+            case _:
+        }
+        if (isStringTyped(r)) {
+            return unitArrayText(r);
+        }
+        return "Array(" + stdString(r, false) + ".utf16)";
+    }
+
+    function accumulatorLocal(e:TypedExpr):Null<TVar> {
+        return switch (stripWrap(e).expr) {
+            case TLocal(v) if (stringAccumulators.exists(v.id)): v;
+            case _: null;
+        };
+    }
+
+    function stringAccumulatorDeclLines(v:TVar, init:Null<TypedExpr>, depth:Int):Array<String> {
+        final tryKw = (init != null && containsThrowingCall(init)) ? "try " : "";
+        final initText = init == null ? "[]" : unitArrayText(init);
+        return [indent(depth) + "var " + localName(v) + ": [UInt16] = " + tryKw + initText];
+    }
+
     function assignTarget(e:TypedExpr):String {
         return AssignTargetPlan.assignTarget(e, (arr, idx) -> expr(arr) + "[Int(" + expr(idx) + ")]", e -> switch (e.expr) {
             case TField(_, FStatic(c, cf)): staticRef(c.get(), cf.get().name);
@@ -6649,6 +6714,50 @@ class SwiftExpr {
                     .writeString("SHAREDUMP " + debugOwner + " id=" + id + " forcount=" + boundIds.get(id) + " total="
                         + (readCounts.exists(id) ? readCounts.get(id) : 0) + " inside=" + (readsInBound.exists(id) ? readsInBound.get(id) : 0) + "\n");
         #end
+    }
+
+    function scanStringAccumulators(e:TypedExpr):Void {
+        stringAccumulators.clear();
+        // Resident modules already render String as [UInt16]; their `+=`
+        // is the efficient array append this lowering would otherwise
+        // double-wrap. Only the native-String business modules need it.
+        if (types.resident) return;
+        final declared:Map<Int, Bool> = [];
+        final appended:Map<Int, Bool> = [];
+        final disqualified:Map<Int, Bool> = [];
+        function walk(x:TypedExpr):Void {
+            switch (x.expr) {
+                case TFunction(_):
+                    return;
+                case TVar(v, _):
+                    if (isStringLeafType(v.t)) declared.set(v.id, true);
+                    TypedExprTools.iter(x, walk);
+                case TBinop(OpAssignOp(OpAdd), l, _):
+                    switch (stripWrap(l).expr) {
+                        case TLocal(v): appended.set(v.id, true);
+                        case _:
+                    }
+                    TypedExprTools.iter(x, walk);
+                case TBinop(OpAssign, l, _) | TBinop(OpAssignOp(_), l, _):
+                    switch (stripWrap(l).expr) {
+                        case TLocal(v): disqualified.set(v.id, true);
+                        case _:
+                    }
+                    TypedExprTools.iter(x, walk);
+                case TField(subj, _):
+                    switch (stripWrap(subj).expr) {
+                        case TLocal(v): disqualified.set(v.id, true);
+                        case _:
+                    }
+                    TypedExprTools.iter(x, walk);
+                case _:
+                    TypedExprTools.iter(x, walk);
+            }
+        }
+        walk(e);
+        for (id in declared.keys()) {
+            if (appended.exists(id) && !disqualified.exists(id)) stringAccumulators.set(id, true);
+        }
     }
 
     function scanLocals(e:TypedExpr):Void {
