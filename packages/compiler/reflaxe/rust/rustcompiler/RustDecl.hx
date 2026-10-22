@@ -728,7 +728,7 @@ class RustDecl {
     // source signed value (Haxe Int is signed 32-bit) without changing the
     // stored width or reusing the existing conversion helper.
     static function signedI32(expr:String):String {
-        return "i32::from_ne_bytes((" + expr + ").to_ne_bytes())";
+        return "((" + expr + ") as i32)";
     }
 
     public function valueTypeDecl(cls:ClassType, info:ValueTypeInfo, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {

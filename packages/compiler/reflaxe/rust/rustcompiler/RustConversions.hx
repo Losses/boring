@@ -96,7 +96,7 @@ class RustConversions {
         // Pin the receiver to the exact integer width of `rustTarget`.
         // Without it a bare literal or a range-loop binding renders as
         // `{integer}` and rustc rejects `.to_ne_bytes()` with E0689.
-        return rustTarget + "::from_ne_bytes(((" + inner + ") as " + rustTarget + ").to_ne_bytes())";
+        return "((" + inner + ") as " + rustTarget + ")";
     }
 
     /**
@@ -190,7 +190,7 @@ class RustConversions {
         value is always within the u32 range, and this form is endian-independent.
     **/
     public static function narrowI32(x:String):String {
-        return "i32::from_ne_bytes(u32::try_from((" + x + ") & 4294967295).unwrap_or(0).to_ne_bytes())";
+        return "(u32::try_from((" + x + ") & 4294967295).unwrap_or(0)) as i32";
     }
 
     static function failTarget(to:String):String {
