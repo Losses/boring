@@ -127,9 +127,9 @@ class Plan {
             // Swift is compiled ahead of time with no runtime JIT, so the default
             // optimization level is -O; a bundle that wants a debug build passes
             // -Onone in build.args (swiftc keeps the last optimization flag).
-            addStep(steps, "build library", "swiftc", ["-emit-library", "-emit-module", "-O"].concat(importArgs).concat(genFiles)
+            addStep(steps, "build library", "swiftc", ["-emit-library", "-emit-module", "-O", "-wmo"].concat(importArgs).concat(genFiles)
                 .concat(bundle.build.args).concat(["-module-name", module, "-o", build + "/" + swiftLibraryName(module, host)]), project.root, bundle.build.env);
-            addStep(steps, "build test executable", "swiftc", ["-O"].concat(importArgs).concat(testFiles).concat(bundle.build.args)
+            addStep(steps, "build test executable", "swiftc", ["-O", "-wmo"].concat(importArgs).concat(testFiles).concat(bundle.build.args)
                 .concat(["-I", build, "-L", build, "-l" + module]).concat(linkArgs).concat(["-o", build + "/test-runner"]), project.root, bundle.build.env);
             final runPaths = systemPackage == null ? build : build + ":" + packagePath;
             final libraryVariable:EnvVar = {key: swiftLibraryPathVariable(host), value: existingLibraryPath == "" ? runPaths : runPaths + ":" + existingLibraryPath};
