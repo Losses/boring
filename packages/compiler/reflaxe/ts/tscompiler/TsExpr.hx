@@ -3953,7 +3953,9 @@ class TsExpr {
                 + ".charCodeAt(0) >= 56320 && " + part + ".charCodeAt(0) <= 57343)) {");
             lines.push(stringBufFaultThrow(depth + 1, tail));
             lines.push(indent(depth) + "}");
-            lines.push(indent(depth) + buf + ".push(" + part + ");");
+            lines.push(indent(depth) + "if (" + part + ".length > 0) {");
+            lines.push(indent(depth + 1) + buf + ".push(" + part + ");");
+            lines.push(indent(depth) + "}");
         } else {
             final u = expr(args[0]);
             final unitConst = constIntOf(args[0]);
