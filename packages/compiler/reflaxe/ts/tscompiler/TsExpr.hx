@@ -2088,7 +2088,7 @@ class TsExpr {
                 return instanceFieldRead(subj, name);
             case FDynamic(name):
                 if ((name == "length" || name == "get_length") && isStringBuf(subj)) {
-                    return expr(subj) + ".length";
+                    return expr(subj) + '.join("").length';
                 }
                 return fail(subj, "dynamic field access has no lowering: " + name);
             case FClosure(_):
@@ -2672,7 +2672,7 @@ class TsExpr {
             case TCast(inner, _):
                 return call(inner, args);
             case TField(subj, FDynamic(name)) if ((name == "length" || name == "get_length") && isStringBuf(subj)):
-                return expr(subj) + ".length";
+                return expr(subj) + '.join("").length';
             case TField(subj, FInstance(owner, _, cf)):
                 final name = cf.get().name;
                 final getterProperty = getterOnlyPropertyName(owner.get(), name);
@@ -2733,7 +2733,7 @@ class TsExpr {
                         return fail(subj, "string buffer toString has no expression lowering: bind it to a local or return it (stdlib/08)");
                     }
                     if (name == "get_length" || name == "length") {
-                        return expr(subj) + ".length";
+                        return expr(subj) + '.join("").length';
                     }
                 }
                 final folded = constantAsciiFold(subj, name, args);
@@ -3588,7 +3588,7 @@ class TsExpr {
         final path = cls.pack.length == 0 ? cls.name : cls.pack.join(".") + "." + cls.name;
         switch (path) {
             case "std.StringBuf" | "StringBuf":
-                return '""';
+                return "[]";
             case "haxe.ds._Map.Map_Impl_":
                 return "new Map()";
             case "haxe.io.BytesBuffer":
@@ -3921,7 +3921,7 @@ class TsExpr {
         return {
             name: name,
             lines: [
-                indent(depth) + "const " + name + " = " + buf + ".charCodeAt(" + buf + ".length - 1);"
+                indent(depth) + "const " + name + " = " + buf + ".length > 0 ? " + buf + "[" + buf + ".length - 1].charCodeAt(" + buf + "[" + buf + ".length - 1].length - 1) : NaN;"
             ]
         };
     }
@@ -3953,7 +3953,7 @@ class TsExpr {
                 + ".charCodeAt(0) >= 56320 && " + part + ".charCodeAt(0) <= 57343)) {");
             lines.push(stringBufFaultThrow(depth + 1, tail));
             lines.push(indent(depth) + "}");
-            lines.push(indent(depth) + buf + " += " + part + ";");
+            lines.push(indent(depth) + buf + ".push(" + part + ");");
         } else {
             final u = expr(args[0]);
             final unitConst = constIntOf(args[0]);
@@ -3965,7 +3965,7 @@ class TsExpr {
                 lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
                 lines.push(stringBufFaultThrow(depth + 1, tail));
                 lines.push(indent(depth) + "}");
-                lines.push(indent(depth) + buf + " += String.fromCharCode(" + u + ");");
+                lines.push(indent(depth) + buf + ".push(String.fromCharCode(" + u + "));");
             } else {
                 lines.push(indent(depth) + "if (" + u + " >= 56320 && " + u + " <= 57343) {");
                 lines.push(indent(depth + 1) + "if (!(" + tail + " >= 55296 && " + tail + " <= 56319)) {");
@@ -3974,7 +3974,7 @@ class TsExpr {
                 lines.push(indent(depth) + "} else if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
                 lines.push(stringBufFaultThrow(depth + 1, tail));
                 lines.push(indent(depth) + "}");
-                lines.push(indent(depth) + buf + " += String.fromCharCode(" + u + ");");
+                lines.push(indent(depth) + buf + ".push(String.fromCharCode(" + u + "));");
             }
         }
         return lines;
@@ -3994,14 +3994,14 @@ class TsExpr {
         final subj = stringBufToStringSubject(call);
         final lines = stringBufToStringCheckLines(subj, depth);
         final kw = mutated.exists(v.id) ? "let" : "const";
-        lines.push(indent(depth) + kw + " " + localName(v) + " = " + expr(subj) + ";");
+        lines.push(indent(depth) + kw + " " + localName(v) + " = " + expr(subj) + '.join("")');
         return lines;
     }
 
     function stringBufToStringReturnLines(call:TypedExpr, depth:Int):Array<String> {
         final subj = stringBufToStringSubject(call);
         final lines = stringBufToStringCheckLines(subj, depth);
-        lines.push(indent(depth) + "return " + expr(subj) + ";");
+        lines.push(indent(depth) + "return " + expr(subj) + '.join("")');
         return lines;
     }
 

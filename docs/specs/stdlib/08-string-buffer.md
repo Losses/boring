@@ -71,15 +71,18 @@ implementation stands in for the standard library.
   fallibility in `std.UStringFault` like a `std.UString` construction
   check. The checks read the trailing unit with `buf.last()`, so the
   buffer content itself carries the pairing state.
-- TypeScript: the buffer renders as a `string` variable accumulated with
-  `+=`. `addChar` emits the pairing check reading
-  `buf.charCodeAt(buf.length - 1)` and `String.fromCharCode(codeUnit)`.
-  `add` and `toString` emit the matching checks. The fault constructs
-  the compiled `std.UStringException`, imported like any compiled std
-  module. `length` emits the `.length` property. JavaScript engines
-  amortize string append through rope chains, and the haxe JavaScript target
-  lowers its own `StringBuf` to the same `+=` form, so the oracle and the
-  generated code share the mechanism.
+- TypeScript: the buffer renders as a chunk-array builder: `new StringBuf()`
+  emits an empty string array, `add` emits the pairing check and pushes the
+  part, `addChar` emits the pairing check and pushes
+  `String.fromCharCode(codeUnit)`, `length` emits `join("").length`, and
+  `toString` emits the dangling-lead check and `join("")`. The pairing check
+  reads the last code unit of the last chunk instead of a read on the
+  accumulated string. The fault constructs the compiled
+  `std.UStringException`, imported like any compiled std module. The earlier
+  form accumulated one `string` with `+=` and read the tail with
+  `buf.charCodeAt(buf.length - 1)`; that read flattens the cons-string on
+  every append, so the append is quadratic and the rope-amortization premise
+  of that form is false.
 - Kotlin: the buffer renders as `StringBuilder`. `add` emits the
   boundary check and `append`. `addChar` emits the pairing check reading
   the trailing unit and `append(codeUnit.toChar())`. The fault
