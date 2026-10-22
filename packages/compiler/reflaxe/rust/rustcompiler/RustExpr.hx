@@ -896,7 +896,7 @@ class RustExpr {
         // Prepend hoisted string-param materializations before the body.
         final hoistLines:Array<String> = [];
         for (pid => info in hoistedStrParams) {
-            hoistLines.push("let " + info.unitsTemp + " = u_string::units(&" + info.receiverText + ");");
+            hoistLines.push("let " + info.unitsTemp + " = " + info.receiverText + ".as_slice();");
         }
         for (pid => info in hoistedStrParams) {
             hoistLines.push("let " + info.countTemp + " = u_string::unit_count(&" + info.receiverText + ");");
@@ -1908,7 +1908,7 @@ class RustExpr {
                     // the enclosing vector is the same data. (PerCharLoopUnits)
                     for (r in perChar.receivers)
                         if (r.unitsFresh)
-                            out.push(indent(depth) + "let " + r.unitsTemp + " = u_string::units(&" + r.receiverText + ");");
+                            out.push(indent(depth) + "let " + r.unitsTemp + " = " + r.receiverText + ".as_slice();");
                     if (perChar.countFresh)
                         out.push(indent(depth) + "let " + perChar.countTemp + " = u_string::unit_count(&" + perChar.receivers[0].receiverText + ");");
                 }
@@ -3969,7 +3969,7 @@ class RustExpr {
         if (rangePerChar != null) {
             for (r in rangePerChar.receivers)
                 if (r.unitsFresh)
-                    out.push(indent(depth) + "let " + r.unitsTemp + " = u_string::units(&" + r.receiverText + ");");
+                    out.push(indent(depth) + "let " + r.unitsTemp + " = " + r.receiverText + ".as_slice();");
             if (rangePerChar.countFresh)
                 out.push(indent(depth) + "let " + rangePerChar.countTemp + " = u_string::unit_count(&" + rangePerChar.receivers[0].receiverText + ");");
         }

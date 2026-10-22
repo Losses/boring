@@ -1351,13 +1351,6 @@ pub fn unit_count(s: &UStr) -> u32 {
     u32::try_from(s.as_slice().len()).unwrap_or(0)
 }
 
-// The UTF-16 code-unit vector of a string, built once. Per-character
-// loops that read length and per-index units lower against this vector
-// instead of rescanning the source on every access.
-pub fn units(s: &UStr) -> &[u16] {
-    s.as_slice()
-}
-
 // The single UTF-16 unit at `index` read from a precomputed unit vector,
 // the O(1) form of String.charCodeAt.
 pub fn unit_at_from(units: &[u16], index: u32) -> Option<u32> {
