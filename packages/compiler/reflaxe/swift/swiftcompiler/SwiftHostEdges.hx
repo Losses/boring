@@ -122,31 +122,31 @@ private func boringProcessExit(_ code: Int32) -> Never {
 ';
 
     static final PROCESS_PLATFORM = '
-private func boringProcessPlatform() -> String {
+private func boringProcessPlatform() -> [UInt16] {
     #if os(macOS)
-    return "darwin"
+    return Array("darwin".utf16)
     #elseif os(Windows)
-    return "windows"
+    return Array("windows".utf16)
     #else
-    return "linux"
+    return Array("linux".utf16)
     #endif
 }
 ';
 
     static final ENV_GET = '
-private func boringEnvGet(_ key: String) -> String? {
+private func boringEnvGet(_ key: [UInt16]) -> [UInt16]? {
     #if canImport(Glibc) || canImport(Darwin)
-    return key.withCString { k in
+    return String(decoding: key, as: UTF16.self).withCString { k in
         guard let value = getenv(k) else { return nil }
-        return String(cString: value)
+        return Array(String(cString: value).utf16)
     }
     #elseif canImport(CRT)
-    return key.withCString { k in
+    return String(decoding: key, as: UTF16.self).withCString { k in
         var buffer: UnsafeMutablePointer<CChar>? = nil
         var count: Int = 0
         if _dupenv_s(&buffer, &count, k) == 0, let buffer {
             defer { free(buffer) }
-            return String(cString: buffer)
+            return Array(String(cString: buffer).utf16)
         }
         return nil
     }
@@ -157,17 +157,17 @@ private func boringEnvGet(_ key: String) -> String? {
 ';
 
     static final ENV_SET = '
-private func boringEnvSet(_ key: String, _ value: String) {
+private func boringEnvSet(_ key: [UInt16], _ value: [UInt16]) {
     #if canImport(Glibc) || canImport(Darwin)
-    _ = key.withCString { k in
-        value.withCString { v in setenv(k, v, 1) }
+    _ = String(decoding: key, as: UTF16.self).withCString { k in
+        String(decoding: value, as: UTF16.self).withCString { v in setenv(k, v, 1) }
     }
     #elseif canImport(CRT)
     // Set goes through the CRT pair on purpose (spec stdlib/17): get
     // reads the CRT, so the write must land there too. _putenv_s
     // returns errno_t; a failing set has no observable effect here.
-    _ = key.withCString { k in
-        value.withCString { v in _putenv_s(k, v) }
+    _ = String(decoding: key, as: UTF16.self).withCString { k in
+        String(decoding: value, as: UTF16.self).withCString { v in _putenv_s(k, v) }
     }
     #else
     #endif
@@ -175,14 +175,14 @@ private func boringEnvSet(_ key: String, _ value: String) {
 ';
 
     static final ENV_REMOVE = '
-private func boringEnvRemove(_ key: String) {
+private func boringEnvRemove(_ key: [UInt16]) {
     #if canImport(Glibc) || canImport(Darwin)
-    _ = key.withCString { k in unsetenv(k) }
+    _ = String(decoding: key, as: UTF16.self).withCString { k in unsetenv(k) }
     #elseif canImport(CRT)
     // The documented remove form of _putenv is the "name=" entry
     // (Microsoft Learn, _putenv/_wputenv): a name with an empty value
     // removes the variable rather than setting it.
-    let pair = key + "="
+    let pair = String(decoding: key, as: UTF16.self) + "="
     _ = pair.withCString { k in _putenv(k) }
     #else
     #endif
@@ -190,9 +190,9 @@ private func boringEnvRemove(_ key: String) {
 ';
 
     static final FS_EXISTS = '
-private func boringFsExists(_ path: String) -> Bool {
+private func boringFsExists(_ path: [UInt16]) -> Bool {
     #if canImport(FoundationEssentials) || canImport(Darwin)
-    return FileManager.default.fileExists(atPath: path)
+    return FileManager.default.fileExists(atPath: String(decoding: path, as: UTF16.self))
     #else
     return false
     #endif
@@ -200,14 +200,14 @@ private func boringFsExists(_ path: String) -> Bool {
 ';
 
     static final FS_IS_DIRECTORY = '
-private func boringFsIsDirectory(_ path: String) -> Bool {
+private func boringFsIsDirectory(_ path: [UInt16]) -> Bool {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     #if canImport(FoundationEssentials)
     var isDirectory = false
-    return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory
+    return FileManager.default.fileExists(atPath: String(decoding: path, as: UTF16.self), isDirectory: &isDirectory) && isDirectory
     #else
     var isDirectory = ObjCBool(false)
-    return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
+    return FileManager.default.fileExists(atPath: String(decoding: path, as: UTF16.self), isDirectory: &isDirectory) && isDirectory.boolValue
     #endif
     #else
     return false
@@ -216,10 +216,10 @@ private func boringFsIsDirectory(_ path: String) -> Bool {
 ';
 
     static final FS_ERROR = '
-private func boringFsError(_ operation: String, _ path: String, _ error: Error) -> FsException {
+private func boringFsError(_ operation: [UInt16], _ path: [UInt16], _ error: Error) -> FsException {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     let ns = error as NSError
-    let detail = ns.localizedDescription
+    let detail = Array(ns.localizedDescription.utf16)
     #if canImport(Darwin)
     if ns.domain == NSCocoaErrorDomain {
         switch ns.code {
@@ -256,147 +256,147 @@ private func boringFsError(_ operation: String, _ path: String, _ error: Error) 
     }
     return FsException(FsError.other(operation: operation, path: path, nativeDetail: detail))
     #else
-    return FsException(FsError.other(operation: operation, path: path, nativeDetail: String(describing: error)))
+    return FsException(FsError.other(operation: operation, path: path, nativeDetail: Array(String(describing: error).utf16)))
     #endif
 }
 ';
 
     static final FS_READ_TEXT = '
-private func boringFsReadText(_ path: String) throws -> String {
+private func boringFsReadText(_ path: [UInt16]) throws -> [UInt16] {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
-        let data = try Data(contentsOf: URL(fileURLWithPath: path))
-        return String(decoding: data, as: UTF8.self)
+        let data = try Data(contentsOf: URL(fileURLWithPath: String(decoding: path, as: UTF16.self)))
+        return Array(String(decoding: data, as: UTF8.self).utf16)
     } catch {
-        throw boringFsError("readText", path, error)
+        throw boringFsError(Array("readText".utf16), path, error)
     }
     #else
-    throw FsException(FsError.unavailable(operation: "readText", path: path))
+    throw FsException(FsError.unavailable(operation: Array("readText".utf16), path: path))
     #endif
 }
 ';
 
     static final FS_WRITE_TEXT = '
-private func boringFsWriteText(_ path: String, _ data: String) throws {
+private func boringFsWriteText(_ path: [UInt16], _ data: [UInt16]) throws {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
-        let bytes = Data(Array(data.utf8))
-        try bytes.write(to: URL(fileURLWithPath: path))
+        let bytes = Data(String(decoding: data, as: UTF16.self).utf8)
+        try bytes.write(to: URL(fileURLWithPath: String(decoding: path, as: UTF16.self)))
     } catch {
-        throw boringFsError("writeText", path, error)
+        throw boringFsError(Array("writeText".utf16), path, error)
     }
     #else
-    throw FsException(FsError.unavailable(operation: "writeText", path: path))
+    throw FsException(FsError.unavailable(operation: Array("writeText".utf16), path: path))
     #endif
 }
 ';
 
     static final FS_APPEND_TEXT = '
-private func boringFsAppendText(_ path: String, _ data: String) throws {
+private func boringFsAppendText(_ path: [UInt16], _ data: [UInt16]) throws {
     #if canImport(SystemPackage)
     do {
-        let handle = try FileDescriptor.open(FilePath(path), .writeOnly,
+        let handle = try FileDescriptor.open(FilePath(String(decoding: path, as: UTF16.self)), .writeOnly,
             options: [.append, .create], permissions: FilePermissions(rawValue: 0o644))
         let _ = try handle.closeAfter {
-            try Array(data.utf8).withUnsafeBytes { try handle.writeAll($0) }
+            try Array(String(decoding: data, as: UTF16.self).utf8).withUnsafeBytes { try handle.writeAll($0) }
         }
     } catch {
-        throw boringFsError("appendText", path, error)
+        throw boringFsError(Array("appendText".utf16), path, error)
     }
     #else
-    throw FsException(FsError.unavailable(operation: "appendText", path: path))
+    throw FsException(FsError.unavailable(operation: Array("appendText".utf16), path: path))
     #endif
 }
 ';
 
     static final FS_MAKE_DIRS = '
-private func boringFsMakeDirs(_ path: String) throws {
+private func boringFsMakeDirs(_ path: [UInt16]) throws {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
-        try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: String(decoding: path, as: UTF16.self), withIntermediateDirectories: true)
     } catch {
-        throw boringFsError("makeDirs", path, error)
+        throw boringFsError(Array("makeDirs".utf16), path, error)
     }
     #else
-    throw FsException(FsError.unavailable(operation: "makeDirs", path: path))
+    throw FsException(FsError.unavailable(operation: Array("makeDirs".utf16), path: path))
     #endif
 }
 ';
 
     static final FS_READ_DIR = '
-private func boringFsReadDir(_ path: String) throws -> [String] {
+private func boringFsReadDir(_ path: [UInt16]) throws -> [[UInt16]] {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
-        return try FileManager.default.contentsOfDirectory(atPath: path)
+        return try FileManager.default.contentsOfDirectory(atPath: String(decoding: path, as: UTF16.self)).map { Array($0.utf16) }
     } catch {
-        throw boringFsError("readDir", path, error)
+        throw boringFsError(Array("readDir".utf16), path, error)
     }
     #else
-    throw FsException(FsError.unavailable(operation: "readDir", path: path))
+    throw FsException(FsError.unavailable(operation: Array("readDir".utf16), path: path))
     #endif
 }
 ';
 
     static final FS_DELETE_FILE = '
-private func boringFsDeleteFile(_ path: String) throws {
+private func boringFsDeleteFile(_ path: [UInt16]) throws {
     #if canImport(FoundationEssentials) || canImport(Darwin)
     do {
-        try FileManager.default.removeItem(atPath: path)
+        try FileManager.default.removeItem(atPath: String(decoding: path, as: UTF16.self))
     } catch {
-        throw boringFsError("deleteFile", path, error)
+        throw boringFsError(Array("deleteFile".utf16), path, error)
     }
     #else
-    throw FsException(FsError.unavailable(operation: "deleteFile", path: path))
+    throw FsException(FsError.unavailable(operation: Array("deleteFile".utf16), path: path))
     #endif
 }
 ';
 
     static final FS_RENAME = '
-private func boringFsRename(_ from: String, _ to: String) throws {
+private func boringFsRename(_ from: [UInt16], _ to: [UInt16]) throws {
     #if canImport(Glibc)
-    let result = from.withCString { source in to.withCString { target in Glibc.rename(source, target) } }
-    if result != 0 { throw boringFsError("rename", from, NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: nil)) }
+    let result = String(decoding: from, as: UTF16.self).withCString { source in String(decoding: to, as: UTF16.self).withCString { target in Glibc.rename(source, target) } }
+    if result != 0 { throw boringFsError(Array("rename".utf16), from, NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: nil)) }
     #elseif canImport(Darwin)
-    let result = from.withCString { source in to.withCString { target in Darwin.rename(source, target) } }
-    if result != 0 { throw boringFsError("rename", from, NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: nil)) }
+    let result = String(decoding: from, as: UTF16.self).withCString { source in String(decoding: to, as: UTF16.self).withCString { target in Darwin.rename(source, target) } }
+    if result != 0 { throw boringFsError(Array("rename".utf16), from, NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: nil)) }
     #elseif canImport(WinSDK)
-    let source = Array(from.utf16) + [UInt16(0)]
-    let target = Array(to.utf16) + [UInt16(0)]
+    let source = from + [UInt16(0)]
+    let target = to + [UInt16(0)]
     let result = source.withUnsafeBufferPointer { s in
         target.withUnsafeBufferPointer { t in
             MoveFileExW(s.baseAddress, t.baseAddress, DWORD(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
         }
     }
-    if result == 0 { throw FsException(FsError.other(operation: "rename", path: from, nativeDetail: to + ": rename failed")) }
+    if result == 0 { throw FsException(FsError.other(operation: Array("rename".utf16), path: from, nativeDetail: to + Array(": rename failed".utf16))) }
     #else
-    throw FsException(FsError.unavailable(operation: "rename", path: from))
+    throw FsException(FsError.unavailable(operation: Array("rename".utf16), path: from))
     #endif
 }
 ';
 
     static final PROCESS_RUN = '
-private func boringProcessRun(_ command: String, _ args: TiqianArray<String>, _ cwd: String, _ env: TiqianArray<ProcessEnv>) throws -> ProcessResult {
+private func boringProcessRun(_ command: [UInt16], _ args: TiqianArray<[UInt16]>, _ cwd: [UInt16], _ env: TiqianArray<ProcessEnv>) throws -> ProcessResult {
     #if canImport(Foundation)
     let fm = FileManager.default
     let task = Foundation.Process()
     var variables = ProcessInfo.processInfo.environment
-    for entry in env { variables[entry.name] = entry.value }
+    for entry in env { variables[String(decoding: entry.name, as: UTF16.self)] = String(decoding: entry.value, as: UTF16.self) }
     task.environment = variables
-    task.currentDirectoryURL = URL(fileURLWithPath: cwd, isDirectory: true)
-    var executable = command
-    if !command.contains("/") && !command.contains("\\\\") {
+    task.currentDirectoryURL = URL(fileURLWithPath: String(decoding: cwd, as: UTF16.self), isDirectory: true)
+    var executable = String(decoding: command, as: UTF16.self)
+    if !executable.contains("/") && !executable.contains("\\\\") {
         let separator: Character = variables["PATH"]?.contains(";") == true ? ";" : ":"
         for directory in (variables["PATH"] ?? "").split(separator: separator) {
-            let candidate = URL(fileURLWithPath: String(directory), isDirectory: true).appendingPathComponent(command).path
+            let candidate = URL(fileURLWithPath: String(directory), isDirectory: true).appendingPathComponent(String(decoding: command, as: UTF16.self)).path
             if fm.isExecutableFile(atPath: candidate) { executable = candidate; break }
         }
     }
     task.executableURL = URL(fileURLWithPath: executable)
-    task.arguments = args.items
+    task.arguments = args.items.map { String(decoding: $0, as: UTF16.self) }
     let stdoutURL = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let stderrURL = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     guard fm.createFile(atPath: stdoutURL.path, contents: nil), fm.createFile(atPath: stderrURL.path, contents: nil) else {
-        throw BoringException(message: command + ": output file creation failed")
+        throw BoringException(message: String(decoding: command, as: UTF16.self) + ": output file creation failed")
     }
     defer { try? fm.removeItem(at: stdoutURL); try? fm.removeItem(at: stderrURL) }
     do {
@@ -408,10 +408,10 @@ private func boringProcessRun(_ command: String, _ args: TiqianArray<String>, _ 
         try task.run()
         task.waitUntilExit()
         return ProcessResult(code: task.terminationStatus,
-            stdout: String(decoding: try Data(contentsOf: stdoutURL), as: UTF8.self),
-            stderr: String(decoding: try Data(contentsOf: stderrURL), as: UTF8.self))
+            stdout: Array(String(decoding: try Data(contentsOf: stdoutURL), as: UTF8.self).utf16),
+            stderr: Array(String(decoding: try Data(contentsOf: stderrURL), as: UTF8.self).utf16))
     } catch {
-        throw BoringException(message: command + ": " + String(describing: error))
+        throw BoringException(message: String(decoding: command, as: UTF16.self) + ": " + String(describing: error))
     }
     #else
     throw BoringException(message: "std.Process is not available on this host")
