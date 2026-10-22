@@ -1878,7 +1878,7 @@ class RustExpr {
                     // different index (a reverse walk) sit in the body, not
                     // this condition, so they are left alone. (PerCharCompoundCond)
                     for (r in perChar.receivers)
-                        condStr = StringTools.replace(condStr, "u_string::unit_at(&" + r.receiverText + ", ", "u_string::unit_at_from(&" + r.unitsTemp + ", ");
+                        condStr = StringTools.replace(condStr, "u_string::unit_at(&" + r.receiverText + ", ", "u_string::unit_at_from(" + r.unitsTemp + ", ");
                 }
                 // A literal true condition lowers to Rust's dedicated loop.
                 final header = condStr == "true" ? "loop" : "while " + condStr;
@@ -10793,12 +10793,12 @@ class RustExpr {
                     // (O(1) vs O(n) per character). (PerCharLoopUnits)
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
-                        return "u_string::char_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
+                        return "u_string::char_at_from(" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // String parameter hoisted to function scope: read from the
                     // precomputed unit vector (O(1) vs O(n)). (StrParamHoist)
                     final hoisted = hoistedStrParamMatch(subj);
                     if (hoisted != null)
-                        return "u_string::char_at_from(&" + hoisted.unitsTemp + ", " + castShiftU32(args[0]) + ")";
+                        return "u_string::char_at_from(" + hoisted.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // The exclusive end is the index plus one in the same
                     // integer domain as the start. A bare `(index) + 1`
                     // rendered source is an untyped {integer} literal when
@@ -10867,13 +10867,13 @@ class RustExpr {
                     // rescan of the UTF-8 source (O(1) vs O(n)). (PerCharLoopUnits)
                     final perChar = perCharLoopMatch(subj, args[0]);
                     if (perChar != null)
-                        return "u_string::unit_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
+                        return "u_string::unit_at_from(" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // A String parameter hoisted to function scope reads from the
                     // precomputed unit vector (O(1) vs O(n) per access).
                     // (StrParamHoist)
                     final hoisted = hoistedStrParamMatch(subj);
                     if (hoisted != null)
-                        return "u_string::unit_at_from(&" + hoisted.unitsTemp + ", " + castShiftU32(args[0]) + ")";
+                        return "u_string::unit_at_from(" + hoisted.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                     // The call site's own expression decides: a Null<Int>
                     // context keeps the Option and an Int context unwraps it.
                     var callRet:Null<Type> = null;
@@ -10939,7 +10939,7 @@ class RustExpr {
                             case _: -1;
                         };
                         if (perChar != null && perCharOnePast(args[1], startId))
-                            return "u_string::char_at_from(&" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
+                            return "u_string::char_at_from(" + perChar.unitsTemp + ", " + castShiftU32(args[0]) + ")";
                         return "u_string::substring(&" + expr(subj) + ", " + castSignedI32(args[0]) + ", " + castSignedI32(args[1]) + ")";
                     }
                     return "u_string::substring_from(&" + expr(subj) + ", " + castSignedI32(args[0]) + ")";
