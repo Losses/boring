@@ -231,21 +231,50 @@ class SortedMapTableBuilder<K, V> {
             order.push(i);
             i += 1;
         }
-        i = 1;
+        final tmp = new Array<Int>();
+        i = 0;
         while (i < total) {
-            final current = order[i];
-            var j = i;
-            var moved = true;
-            while (j > 0 && moved) {
-                if (compare(keys[order[j - 1]], keys[current]) > 0) {
-                    order[j] = order[j - 1];
-                    j -= 1;
-                } else {
-                    moved = false;
-                }
-            }
-            order[j] = current;
+            tmp.push(0);
             i += 1;
+        }
+        var width = 1;
+        while (width < total) {
+            final step = width * 2;
+            var start = 0;
+            while (start < total) {
+                final mid = start + width < total ? start + width : total;
+                final end = start + step < total ? start + step : total;
+                var left = start;
+                var right = mid;
+                var k = start;
+                while (left < mid && right < end) {
+                    if (compare(keys[order[left]], keys[order[right]]) > 0) {
+                        tmp[k] = order[right];
+                        right += 1;
+                    } else {
+                        tmp[k] = order[left];
+                        left += 1;
+                    }
+                    k += 1;
+                }
+                while (left < mid) {
+                    tmp[k] = order[left];
+                    left += 1;
+                    k += 1;
+                }
+                while (right < end) {
+                    tmp[k] = order[right];
+                    right += 1;
+                    k += 1;
+                }
+                var m = start;
+                while (m < end) {
+                    order[m] = tmp[m];
+                    m += 1;
+                }
+                start += step;
+            }
+            width = step;
         }
         final outKeys = new Array<K>();
         final outValues = new Array<V>();
@@ -363,21 +392,50 @@ class SortedSetTableBuilder<K> {
             order.push(i);
             i += 1;
         }
-        i = 1;
+        final tmp = new Array<Int>();
+        i = 0;
         while (i < total) {
-            final current = order[i];
-            var j = i;
-            var moved = true;
-            while (j > 0 && moved) {
-                if (compare(keys[order[j - 1]], keys[current]) > 0) {
-                    order[j] = order[j - 1];
-                    j -= 1;
-                } else {
-                    moved = false;
-                }
-            }
-            order[j] = current;
+            tmp.push(0);
             i += 1;
+        }
+        var width = 1;
+        while (width < total) {
+            final step = width * 2;
+            var start = 0;
+            while (start < total) {
+                final mid = start + width < total ? start + width : total;
+                final end = start + step < total ? start + step : total;
+                var left = start;
+                var right = mid;
+                var k = start;
+                while (left < mid && right < end) {
+                    if (compare(keys[order[left]], keys[order[right]]) > 0) {
+                        tmp[k] = order[right];
+                        right += 1;
+                    } else {
+                        tmp[k] = order[left];
+                        left += 1;
+                    }
+                    k += 1;
+                }
+                while (left < mid) {
+                    tmp[k] = order[left];
+                    left += 1;
+                    k += 1;
+                }
+                while (right < end) {
+                    tmp[k] = order[right];
+                    right += 1;
+                    k += 1;
+                }
+                var m = start;
+                while (m < end) {
+                    order[m] = tmp[m];
+                    m += 1;
+                }
+                start += step;
+            }
+            width = step;
         }
         final outKeys = new Array<K>();
         i = 0;
