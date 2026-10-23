@@ -89,8 +89,8 @@ class CompilationUnits {
             hatches).
 
         Afterwards the test-support closure reclassifies main modules whose
-        referencers are all tests, iterated to a fixpoint (a chain of
-        test-support modules reclassifies in one call).
+        referencers are all already-test modules (a single pass, not a
+        fixpoint).
     **/
     public static function registerFromModuleTypes(mtypes:Array<ModuleType>, includeClassEntries:Bool):Void {
         pinnedMain.clear();
@@ -134,7 +134,7 @@ class CompilationUnits {
     }
 
     /**
-        Iterate the reference closure to a fixpoint: a main module (not
+        Single pass over the pass-1 classification: a main module (not
         @:mainOnly) whose referencer set is non-empty and wholly inside tests
         becomes tests. Self-references and references from modules outside the
         typed set are ignored, so unreferenced main modules (entry points,
@@ -159,41 +159,39 @@ class CompilationUnits {
                 case TAbstract(a): collectAbstractRefs(a.get(), note);
             }
         }
-        var changed = true;
-        while (changed) {
-            changed = false;
-            final reclassified:Array<String> = [];
-            for (module in units.keys()) {
-                if (units.get(module) != Main) {
-                    continue;
-                }
-                if (pinnedMain.exists(module)) {
-                    continue;
-                }
-                final refs = referencers.get(module);
-                if (refs == null) {
-                    continue;
-                }
-                var allTests = true;
-                for (src in refs.keys()) {
-                    if (unitOf(src) != Tests) {
-                        allTests = false;
-                        break;
-                    }
-                }
-                if (allTests) {
-                    reclassified.push(module);
+        // Single pass over the pass-1 classification: a main module whose every
+        // referencer is already a test module is reclassified. This is NOT a
+        // fixpoint: iterating to a fixpoint would collapse a whole library whose
+        // only roots are test modules (every core module becomes reachable only
+        // from tests and the shipping tree empties out).
+        final reclassified:Array<String> = [];
+        for (module in units.keys()) {
+            if (units.get(module) != Main) {
+                continue;
+            }
+            if (pinnedMain.exists(module)) {
+                continue;
+            }
+            final refs = referencers.get(module);
+            if (refs == null) {
+                continue;
+            }
+            var allTests = true;
+            for (src in refs.keys()) {
+                if (unitOf(src) != Tests) {
+                    allTests = false;
+                    break;
                 }
             }
-            if (reclassified.length > 0) {
-                changed = true;
-                for (module in reclassified) {
-                    units.set(module, Tests);
-                    Context.warning("compilation unit: module " + module
-                        + " reclassified to tests (every referencer is a test module)",
-                        Context.currentPos());
-                }
+            if (allTests) {
+                reclassified.push(module);
             }
+        }
+        for (module in reclassified) {
+            units.set(module, Tests);
+            Context.warning("compilation unit: module " + module
+                + " reclassified to tests (every referencer is a test module)",
+                Context.currentPos());
         }
     }
 
