@@ -1,0 +1,12 @@
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/unit-closure
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/unit-closure'])
+--macro kotlincompiler.Compiler.use()
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+probe.MainEntry
+probe.GoldenDataTest
