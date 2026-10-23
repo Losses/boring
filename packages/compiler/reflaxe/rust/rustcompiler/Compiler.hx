@@ -353,7 +353,7 @@ class Compiler extends PluginCompiler<Compiler> {
             if (synthetic.length > 0)
                 body = synthetic + (body.length > 0 ? "\n\n" + body : "");
             final imports = decl.renderImportsFiltered(body);
-            final isTest = state.testModules.exists(module);
+            final isTest = CompilationUnits.isTestModule(module);
             final content = (isTest ? "#![cfg(test)]\n\n" : "") + imports + (imports.length > 0 ? "\n" : "") + body + "\n";
             saveTreeFile(modulePath(module), content);
 
@@ -2090,7 +2090,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 // a business union with a crate::tests payload makes every
                 // non-test build fail to resolve the variant. (TestFaultGrowth)
                 if (StringTools.startsWith(RustImports.moduleToRustPath(item.module), "tests::")
-                    || state.testModules.exists(item.module))
+                    || CompilationUnits.isTestModule(item.module))
                     continue;
                 state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), RustSymbols.refer({module: item.module, name: item.name}, "fault"), item.name);
             }
@@ -2116,7 +2116,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 // growing a business union with a crate::tests payload makes
                 // every non-test build fail to resolve the variant. (TestFaultGrowth)
                 if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
-                    || state.testModules.exists(edgeEnum.module))
+                    || CompilationUnits.isTestModule(edgeEnum.module))
                     continue;
                 state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), RustSymbols.refer({module: edgeEnum.module, name: edgeEnum.name}, "fault"), edgeEnum.name);
             }
@@ -2291,7 +2291,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 if (edgeEnum.module == pair.module && edgeEnum.name == pair.name)
                     continue;
                 if (StringTools.startsWith(RustImports.moduleToRustPath(edgeEnum.module), "tests::")
-                    || state.testModules.exists(edgeEnum.module))
+                    || CompilationUnits.isTestModule(edgeEnum.module))
                     continue;
                 state.registerFaultConversion(RustEmissionState.identityKey(pair.module, pair.name), RustSymbols.refer({module: edgeEnum.module, name: edgeEnum.name}, "fault"), edgeEnum.name);
             }
