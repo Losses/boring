@@ -2,6 +2,7 @@ package tscompiler;
 
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
+import CompilationUnits;
 
 /**
     Collects the module references one generated file needs, splitting
@@ -319,7 +320,7 @@ class TsImports {
         return lines.length == 0 ? "" : lines.join("\n") + "\n";
     }
 
-    public function renderTestImports(testOutputDir:String, mainOutputDir:String, testRunner:String, testModules:Map<String, Bool>):String {
+    public function renderTestImports(testOutputDir:String, mainOutputDir:String, testRunner:String):String {
         final testSuffix = testRunner == "deno" ? "_test.ts" : ".test.ts";
         final lines = [];
         if (testRunner == "bun") {
@@ -377,7 +378,7 @@ class TsImports {
                 names.push(name);
             names.sort(Reflect.compare);
 
-            final toFile = if (testModules.exists(module)) {
+            final toFile = if (CompilationUnits.isTestModule(module)) {
                 testOutputDir + "/" + module.split(".").join("/") + testSuffix;
             } else {
                 mainOutputDir + "/" + module.split(".").join("/") + ".ts";

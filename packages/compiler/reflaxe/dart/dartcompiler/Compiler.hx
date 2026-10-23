@@ -3,6 +3,7 @@ package dartcompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import CompilationUnits;
 import PolicyQueries;
 import TestApplicability;
 import reflaxe.BaseCompiler.BaseCompilerFileOutputType;
@@ -145,6 +146,7 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     function preScan(mtypes:Array<ModuleType>):Void {
+        CompilationUnits.registerFromModuleTypes(mtypes, false);
         // Index every in-scope record typedef by shape so anonymous
         // object literals resolve their nominal class (the typer keeps
         // a literal's own type anonymous even after unification).
@@ -494,7 +496,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 // force-compiled.
                 continue;
             }
-            final isTest = testModules.exists(module);
+            final isTest = CompilationUnits.isTestModule(module);
             // The saved path is dart-output-root relative; the import
             // math runs on the define-based locations so the walk over
             // to the test tree counts its parent steps correctly.
@@ -667,7 +669,7 @@ class Compiler extends PluginCompiler<Compiler> {
             // tree, so the import walks to that tree. The emission loop
             // routes by the same testModules map. A helper class sharing a
             // module with a test class follows the module routing.
-            final entryPath = testModules.exists(entry.module)
+            final entryPath = CompilationUnits.isTestModule(entry.module)
                 ? testOutput + "/" + DartImports.libraryPathOf(entry.module)
                 : dartOutput + "/lib/" + DartImports.libraryPathOf(entry.module);
             lines.push("import '"
@@ -677,7 +679,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 + ";");
         }
         for (module in ctx.imports.extensionModuleList()) {
-            final extPath = testModules.exists(module)
+            final extPath = CompilationUnits.isTestModule(module)
                 ? testOutput + "/" + DartImports.libraryPathOf(module)
                 : dartOutput + "/lib/" + DartImports.libraryPathOf(module);
             lines.push("import '" + importSpecifier(filePath, extPath) + "';");
