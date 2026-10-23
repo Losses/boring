@@ -625,15 +625,7 @@ class Compiler extends PluginCompiler<Compiler> {
         into the test root and stay out of the shipping tree.
     **/
     function isTestModule(module:String):Bool {
-        if (state.testClasses.exists(module)) {
-            return true;
-        }
-        for (key in state.testEntryClasses.keys()) {
-            if (state.testEntryClasses.get(key).cls.module == module) {
-                return true;
-            }
-        }
-        return false;
+        return CompilationUnits.isTestModule(module);
     }
 
     function generateTestMain(kotlinTestOutput:String, kotlinOutput:String):Void {

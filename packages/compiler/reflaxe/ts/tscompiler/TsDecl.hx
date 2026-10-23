@@ -45,8 +45,8 @@ class TsDecl {
         return imports.renderFsHelpers();
     }
 
-    public function renderTestImports(testOutputDir:String, mainOutputDir:String, testRunner:String, testModules:Map<String, Bool>):String {
-        return imports.renderTestImports(testOutputDir, mainOutputDir, testRunner, testModules);
+    public function renderTestImports(testOutputDir:String, mainOutputDir:String, testRunner:String):String {
+        return imports.renderTestImports(testOutputDir, mainOutputDir, testRunner);
     }
 
     /** Whether this module references any runtime-package symbol. */
