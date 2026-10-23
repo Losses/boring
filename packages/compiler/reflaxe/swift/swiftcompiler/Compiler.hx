@@ -352,7 +352,7 @@ class Compiler extends PluginCompiler<Compiler> {
             }
             final body = parts.get(module).join("\n\n");
             final content = fileContent(module, body);
-            if (testModules.exists(module)) {
+            if (CompilationUnits.isTestModule(module)) {
                 final testFileRel = relativeFromTo(swiftOutput, testOutput) + "/" + modulePath(module);
                 PackageArtifacts.saveTreeFile(output, testFileRel, content);
                 writeOriginSidecar(testFileRel, content);
@@ -439,7 +439,7 @@ class Compiler extends PluginCompiler<Compiler> {
     function packageManifest():String {
         final entries:Map<String, Bool> = [];
         for (module in parts.keys()) {
-            if (RuntimeResidents.isResident(module) || testModules.exists(module)) {
+            if (RuntimeResidents.isResident(module) || CompilationUnits.isTestModule(module)) {
                 continue;
             }
             entries.set(module.split(".")[0], true);
@@ -489,7 +489,7 @@ class Compiler extends PluginCompiler<Compiler> {
         // test file imports that module under the name a compile-time
         // define states.
         final testImport = Context.definedValue("swift-test-import");
-        if (testModules.exists(module) && testImport != null) {
+        if (CompilationUnits.isTestModule(module) && testImport != null) {
             header.push("import " + testImport);
         }
         if (decl.usesFoundation()) {

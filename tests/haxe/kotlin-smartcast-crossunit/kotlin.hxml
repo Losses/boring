@@ -7,3 +7,4 @@
 --macro Intercept.run(['samples', 'tests/haxe/kotlin-smartcast-crossunit'])
 --macro kotlincompiler.Compiler.use()
 xcasee.CrossunitAnno
+casee.ProdEntry
