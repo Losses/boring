@@ -1,6 +1,7 @@
 package kotlincompiler;
 
 #if (macro || reflaxe_runtime)
+import AssetModules;
 import haxe.macro.Context;
 import haxe.macro.Expr.Binop;
 import haxe.macro.Expr.Unop;
@@ -6632,6 +6633,8 @@ class KotlinExpr {
     }
 
     function quoteString(s:String):String {
+        if (AssetModules.shouldExternalize(imports.selfModule, s))
+            return "Thread.currentThread().contextClassLoader.getResourceAsStream(\"" + AssetModules.externalize(imports.selfModule, s) + "\")!!.readBytes().toString(Charsets.UTF_8)";
         final b = new StringBuf();
         b.addChar('"'.code);
         for (i in 0...s.length) {
