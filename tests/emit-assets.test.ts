@@ -43,6 +43,7 @@ test("emit-assets: @:asset module externalizes its payload on all four targets",
   expect(exists(ts + "/gen/probe/AssetData__asset_0.txt")).toBe(true);
   const tsMod = read(ts + "/gen/probe/AssetData.ts");
   expect(tsMod).toContain("fsAsset");
+  expect(tsMod).toContain("AssetData__asset_0.txt");
   expect(tsMod).not.toContain(FRAGMENT);
 
   // --- Kotlin: getResourceAsStream + emitted .txt --------------------------
@@ -55,6 +56,7 @@ test("emit-assets: @:asset module externalizes its payload on all four targets",
   expect(exists(kt + "/gen/probe/AssetData__asset_0.txt")).toBe(true);
   const ktMod = read(kt + "/gen/probe/AssetData.kt");
   expect(ktMod).toContain("getResourceAsStream");
+  expect(ktMod).toContain("AssetData__asset_0.txt");
   expect(ktMod).not.toContain(FRAGMENT);
 
   // --- Swift: Bundle.main read + emitted .txt ------------------------------
@@ -69,6 +71,7 @@ test("emit-assets: @:asset module externalizes its payload on all four targets",
   expect(exists(sw + "/gen/probe/AssetData__asset_0.txt")).toBe(true);
   const swMod = read(sw + "/gen/probe/AssetData.swift");
   expect(swMod).toContain("Bundle.main");
+  expect(swMod).toContain("AssetData__asset_0");
   expect(swMod).not.toContain(FRAGMENT);
 
   // --- Dart: File.readAsStringSync + emitted .txt --------------------------
@@ -82,6 +85,7 @@ test("emit-assets: @:asset module externalizes its payload on all four targets",
   expect(exists(dart + "/gen/lib/probe/AssetData__asset_0.txt")).toBe(true);
   const dartMod = read(dart + "/gen/lib/probe/asset_data.dart");
   expect(dartMod).toContain("readAsStringSync");
+  expect(dartMod).toContain("AssetData__asset_0.txt");
   expect(dartMod).not.toContain(FRAGMENT);
 
   // --- The emitted asset file itself is raw (contains the payload) ---------
