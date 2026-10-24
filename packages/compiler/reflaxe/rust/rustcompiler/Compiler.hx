@@ -3,6 +3,7 @@ package rustcompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
 import haxe.macro.Type;
+import AssetModules;
 import CompilationUnits;
 import PolicyQueries;
 import TestApplicability;
@@ -156,6 +157,7 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     public function compileClassImpl(classType:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):Null<String> {
+        AssetModules.registerClass(classType);
         // Resident runtime modules live under src/, outside the
         // intercepted source roots, and still compile: each target lists
         // them in its hxml so typing reaches them (RuntimeResidents).
@@ -367,6 +369,13 @@ class Compiler extends PluginCompiler<Compiler> {
                 testModuleLeaves.set(pack + "." + modName, true);
             }
             registerPackagePath(pack, packageChildren);
+        }
+
+        // Flush externalized asset files beside their generated module files.
+        // Written raw (no line-wrap) so the bytes match the source literals.
+        for (asset in AssetModules.pendingAssets()) {
+            final dir = haxe.io.Path.directory(modulePath(asset.module));
+            PackageArtifacts.saveTreeFile(output, dir + "/" + asset.file, asset.content);
         }
 
         // Generate one Rust module layer per Haxe package segment.
