@@ -1,6 +1,7 @@
 package dartcompiler;
 
 #if (macro || reflaxe_runtime)
+import AssetModules;
 import haxe.macro.Context;
 import haxe.macro.Expr.Binop;
 import haxe.macro.Expr.Unop;
@@ -5396,6 +5397,10 @@ class DartExpr {
     }
 
     function quoteString(s:String):String {
+        if (AssetModules.shouldExternalize(imports.selfModule, s)) {
+            imports.useDartIo();
+            return "File(\"" + AssetModules.externalize(imports.selfModule, s) + "\").readAsStringSync()";
+        }
         final b = new StringBuf();
         b.addChar('"'.code);
         for (i in 0...s.length) {

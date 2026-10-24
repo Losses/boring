@@ -1,6 +1,7 @@
 package tscompiler;
 
 #if (macro || reflaxe_runtime)
+import AssetModules;
 import haxe.macro.Context;
 import haxe.macro.Expr.Binop;
 import haxe.macro.Expr.Unop;
@@ -4581,6 +4582,19 @@ class TsExpr {
     }
 
     function quoteString(s:String):String {
+        if (AssetModules.shouldExternalize(imports.selfModule, s)) {
+            final file = AssetModules.externalize(imports.selfModule, s);
+            final helper = imports.fsHelper("asset",
+                "type HostModuleLoaderAsset = (id: string) => unknown;"
+                + " const fsAsset = (p: string): string => {"
+                + " const host = globalThis as Record<string, unknown>;"
+                + " const probe = (host['process'] as Record<string, unknown> | undefined)?.getBuiltinModule as HostModuleLoaderAsset | undefined;"
+                + " const fs = probe !== undefined ? probe('node:fs') as { readFileSync: (p: string, o: string) => string } : null;"
+                + " if (fs === null) { throw new Error('asset read requires node:fs'); }"
+                + " return fs.readFileSync(p, 'utf8');"
+                + " };");
+            return helper + "(\"" + file + "\")";
+        }
         final b = new StringBuf();
         b.addChar('"'.code);
         for (i in 0...s.length) {

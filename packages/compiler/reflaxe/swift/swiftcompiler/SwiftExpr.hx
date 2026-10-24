@@ -1,6 +1,7 @@
 package swiftcompiler;
 
 #if (macro || reflaxe_runtime)
+import AssetModules;
 import haxe.macro.Context;
 import haxe.macro.Expr.Binop;
 import haxe.macro.Expr.Unop;
@@ -440,7 +441,7 @@ class SwiftExpr {
         return switch (value) {
             case CInt(v): isFloatLeafType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
             case CFloat(s): s;
-            case CString(s): types.resident ? "Array(" + quoteStringRaw(s) + ".utf16)" : quoteString(s);
+            case CString(s): stringLiteralExpr(s);
             case CBool(b): b ? "true" : "false";
             case CNull: types.optionalNone(targetType);
             case CEmptyArray:
@@ -2125,7 +2126,7 @@ class SwiftExpr {
                         // native literal. The resident branch already materializes the unit array
                         // (O(n) once), so it uses the raw literal; the native branch wraps large
                         // non-ASCII literals so the parse loop is not O(n^2) on a non-native String.
-                        return types.resident ? "Array(" + quoteStringRaw(s) + ".utf16)" : quoteString(s);
+                        return stringLiteralExpr(s);
                     case TBool(b): return b ? "true" : "false";
                     case TNull: return "nil";
                     case TThis: return "self";
@@ -7570,7 +7571,28 @@ class SwiftExpr {
 
     /** Emits a Swift String literal, wrapping large non-ASCII literals in a
         native-converting expression (see NATIVE_STRING_LITERAL_THRESHOLD). */
+    function assetReadExpr(s:String):Null<String> {
+        if (!AssetModules.shouldExternalize(imports.selfModule, s))
+            return null;
+        imports.foundation();
+        final file = AssetModules.externalize(imports.selfModule, s);
+        final stem = file.substring(0, file.length - 4);
+        return "try! String(contentsOf: Bundle.main.url(forResource: \"" + stem + "\", withExtension: \"txt\")!, encoding: .utf8)";
+    }
+
+    /** Full String-literal expression, externalized when the module is an
+        asset module and s is large; resident modules wrap in Array(...utf16). */
+    function stringLiteralExpr(s:String):String {
+        final ext = assetReadExpr(s);
+        if (ext != null)
+            return types.resident ? "Array(" + ext + ".utf16)" : ext;
+        return types.resident ? "Array(" + quoteStringRaw(s) + ".utf16)" : quoteString(s);
+    }
+
     function quoteString(s:String):String {
+        final ext = assetReadExpr(s);
+        if (ext != null)
+            return ext;
         final quoted = quoteStringRaw(s);
         if (s.length >= NATIVE_STRING_LITERAL_THRESHOLD && containsNonAscii(s))
             return "String(decoding: Array(" + quoted + ".utf16), as: UTF16.self)";

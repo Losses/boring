@@ -14,7 +14,7 @@ import CompilationUnits;
     module to itself are skipped.
 **/
 class TsImports {
-    final selfModule:String;
+    public final selfModule:String;
 
     public final selfResident:Bool;
 

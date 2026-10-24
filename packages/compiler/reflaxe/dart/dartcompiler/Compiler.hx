@@ -1,6 +1,7 @@
 package dartcompiler;
 
 #if (macro || reflaxe_runtime)
+import AssetModules;
 import haxe.macro.Context;
 import haxe.macro.Type;
 import CompilationUnits;
@@ -260,6 +261,7 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     public function compileClassImpl(classType:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):Null<String> {
+        AssetModules.registerClass(classType);
         // Resident runtime modules sit under src/runtime, outside the
         // sample source roots, but compile through this same pipeline.
         final isResident = RuntimeResidents.isResident(classType.module);
@@ -465,6 +467,11 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     public override function generateFilesManually() {
+        // Flush externalized asset files beside their generated module files.
+        for (asset in AssetModules.pendingAssets()) {
+            final dir = haxe.io.Path.directory("lib/" + DartImports.libraryPathOf(asset.module));
+            PackageArtifacts.saveTreeFile(output, dir + "/" + asset.file, asset.content);
+        }
         final modules = [];
         for (module in parts.keys())
             modules.push(module);
