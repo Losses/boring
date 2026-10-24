@@ -9,6 +9,7 @@ import haxe.macro.Type.FieldAccess;
 import haxe.macro.Type.TypedExpr;
 import haxe.macro.TypedExprTools;
 import reflaxe.data.ClassFuncData;
+import AssetModules;
 import ExpressionPredicates;
 import PolicyQueries;
 import PolicyQueries.EnumQueryStep;
@@ -14858,6 +14859,11 @@ class RustExpr {
     }
 
     function quoteString(s:String):String {
+        // Asset modules externalize large literals to a data file read back
+        // via include_str!, instead of inlining per-line string literals.
+        if (AssetModules.shouldExternalize(imports.selfModule, s)) {
+            return "include_str!(\"" + AssetModules.externalize(imports.selfModule, s) + "\")";
+        }
         // Keep each source newline escape at the end of its own literal.
         // Rust accepts adjacent string literals, so this bounds generated JSON
         // evidence lines without changing the resulting string bytes.
