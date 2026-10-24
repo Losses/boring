@@ -1,0 +1,11 @@
+-lib reflaxe
+-cp packages/compiler
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp tests/haxe/emit-assets
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/emit-assets'])
+--macro kotlincompiler.Compiler.use()
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+probe.AssetData

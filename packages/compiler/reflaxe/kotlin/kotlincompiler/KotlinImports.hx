@@ -70,6 +70,8 @@ class KotlinImports {
 
     public final selfResident:Bool;
 
+    public final selfModule:String;
+
     final state:KotlinEmissionState;
     final imports:Map<String, Bool> = [];
 
@@ -78,6 +80,7 @@ class KotlinImports {
         // Resident modules compile into the configured runtime package;
         // their source-side "runtime" package never reaches the output.
         this.selfResident = RuntimeResidents.isResident(selfModule);
+        this.selfModule = selfModule;
         // Test residents emit beside the test host entry, which lives in
         // the runtime package's test subpackage (emitShim subPackage).
         // The first extern names the package; every extern of a resident

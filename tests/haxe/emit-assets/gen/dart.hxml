@@ -1,0 +1,12 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp tests/haxe/emit-assets
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/emit-assets'])
+--macro dartcompiler.Compiler.use()
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+probe.AssetData
