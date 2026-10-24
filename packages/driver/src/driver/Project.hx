@@ -10,5 +10,5 @@ typedef Project = {
     sourceSets:Array<SourceSet>,
     rootsFile:String,
     haxeArgs:Array<String>,
-    bundles:Array<Bundle>
+    bundles:Array<BundleSpec>
 };

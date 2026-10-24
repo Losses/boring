@@ -284,7 +284,7 @@ class Config {
         if (!has(fields, "bundles")) fail('boring.json: missing required field "bundles" (a non-empty array)');
         final entries = array(field(fields, "bundles"), 'boring.json: field "bundles"');
         if (entries.length == 0) fail('boring.json: field "bundles" must hold at least one bundle');
-        final bundles:Array<Bundle> = [];
+        final bundles:Array<BundleSpec> = [];
         final seen:Array<String> = [];
         for (entry in entries) {
             final values = fieldsOf(entry, "boring.json: bundle");
@@ -339,7 +339,7 @@ class Config {
                 for (set in sourceSets) if (set.name == sourceSet) foundSet = true;
                 if (!foundSet) fail('boring.json: bundle "$id": unknown source set "$sourceSet"');
             }
-            final bundle:Bundle = {
+            final bundle:BundleSpec = {
                 id: id, target: target, precision: precision == null ? "" : precision + "", hasTests: hasTests,
                 hasComparison: hasComparison,
                 haxeArgs: strings(values, "haxeArgs", 'boring.json: bundle "$id"'),

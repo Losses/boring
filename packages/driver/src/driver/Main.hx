@@ -136,23 +136,23 @@ class Main {
         directory), so every consumer of these paths agrees on where
         the trees live.
     **/
-    static function genDir(project:Project, bundle:Bundle):String {
+    static function genDir(project:Project, bundle:BundleSpec):String {
         return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "gen"));
     }
 
-    static function genTestsDir(project:Project, bundle:Bundle):String {
+    static function genTestsDir(project:Project, bundle:BundleSpec):String {
         return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "gen-tests"));
     }
 
-    static function buildDir(project:Project, bundle:Bundle):String {
+    static function buildDir(project:Project, bundle:BundleSpec):String {
         return resolveAgainst(project.root, joinPath(joinPath(project.outRoot, bundle.id), "build"));
     }
 
-    static function resultsPath(project:Project, bundle:Bundle):String {
+    static function resultsPath(project:Project, bundle:BundleSpec):String {
         return resolveAgainst(project.root, joinPath(project.resultsDir, bundle.id + ".jsonl"));
     }
 
-    static function genArgs(project:Project, bundle:Bundle, pack:Bool):Array<String> {
+    static function genArgs(project:Project, bundle:BundleSpec, pack:Bool):Array<String> {
         final packageTsc = pack && bundle.target == "ts" ? resolvePackTool("BORING_PACKAGE_TSC", "tsc", bundle) : null;
         final packageKotlinc = pack && bundle.target == "kotlin" ? resolvePackTool("BORING_PACKAGE_KOTLINC", "kotlinc", bundle) : null;
         return Plan.genArgs(project, bundle, pack, genDir(project, bundle), genTestsDir(project, bundle), packageTsc, packageKotlinc,
@@ -209,7 +209,7 @@ class Main {
         The host compiler one compiled target packs through, from the
         environment or from `PATH` (spec 59).
     **/
-    static function resolvePackTool(envVar:String, name:String, bundle:Bundle):String {
+    static function resolvePackTool(envVar:String, name:String, bundle:BundleSpec):String {
         final configured = Host.env(envVar);
         final fromEnv:String = configured == null ? "" : configured;
         if (fromEnv.length > 0) {
@@ -233,7 +233,7 @@ class Main {
     // Actions
     // ------------------------------------------------------------------
 
-    static function step(project:Project, bundle:Bundle, action:String, stepName:String, cmd:String, args:Array<String>, env:Array<EnvVar>, cwd:Null<String>):Null<BundleStepFailure> {
+    static function step(project:Project, bundle:BundleSpec, action:String, stepName:String, cmd:String, args:Array<String>, env:Array<EnvVar>, cwd:Null<String>):Null<BundleStepFailure> {
         final workDir = cwd == null ? project.root : cwd;
         print('  $ ' + cmd + " " + args.join(" "));
         #if js
@@ -299,8 +299,8 @@ class Main {
         }
     }
 
-    static function selectBundles(project:Project, ids:Array<String>):Array<Bundle> {
-        final out:Array<Bundle> = [];
+    static function selectBundles(project:Project, ids:Array<String>):Array<BundleSpec> {
+        final out:Array<BundleSpec> = [];
         for (id in ids) {
             var found = false;
             for (bundle in project.bundles) {
@@ -319,7 +319,7 @@ class Main {
         return out;
     }
 
-    static function actionGen(project:Project, bundles:Array<Bundle>, pack:Bool):Void {
+    static function actionGen(project:Project, bundles:Array<BundleSpec>, pack:Bool):Void {
         for (bundle in bundles) {
             if (pack && bundle.packageName == "") {
                 fail('bundle "${bundle.id}": the pack action requires a package (name and version) on every named bundle');
@@ -342,7 +342,7 @@ class Main {
         }
     }
 
-    static function actionTest(project:Project, bundles:Array<Bundle>):Array<BundleStepFailure> {
+    static function actionTest(project:Project, bundles:Array<BundleSpec>):Array<BundleStepFailure> {
         final failures:Array<BundleStepFailure> = [];
         makeDirs(resolveAgainst(project.root, project.resultsDir));
         for (bundle in bundles) {
@@ -395,7 +395,7 @@ class Main {
         run stops with the variable named and without a bare compiler
         error. (SwiftModuleDependencies)
     **/
-    static function swiftSystemPackageDir(bundle:Bundle, genFiles:Array<String>, testFiles:Array<String>):Null<String> {
+    static function swiftSystemPackageDir(bundle:BundleSpec, genFiles:Array<String>, testFiles:Array<String>):Null<String> {
         var imports = false;
         for (file in genFiles.concat(testFiles)) {
             if (readText(file).indexOf("import SystemPackage") >= 0) {
@@ -443,7 +443,7 @@ class Main {
         including file's own directory as fallback; a later define
         wins, matching haxe's own last-value rule.
     **/
-    static function rootsFileDefine(project:Project, bundle:Bundle, name:String):Null<String> {
+    static function rootsFileDefine(project:Project, bundle:BundleSpec, name:String):Null<String> {
         final rootsFile = bundle.rootsFile != "" ? bundle.rootsFile : project.rootsFile;
         if (rootsFile == "") {
             return null;
@@ -525,7 +525,7 @@ class Main {
         arguments, or of the roots file include chain that the same
         command compiles through.
     **/
-    static function swiftTestImport(project:Project, bundle:Bundle):String {
+    static function swiftTestImport(project:Project, bundle:BundleSpec):String {
         final module = defineValue(genArgs(project, bundle, false), "swift-test-import");
         if (module == null) {
             final fromRoots = rootsFileDefine(project, bundle, "swift-test-import");
@@ -546,7 +546,7 @@ class Main {
         derived gen-tests directory, so the f32 bundle states the
         entry.
     **/
-    static function haxeTestMain(project:Project, bundle:Bundle):String {
+    static function haxeTestMain(project:Project, bundle:BundleSpec):String {
         var main:Null<String> = null;
         try {
             main = defineValue(genArgs(project, bundle, false), "haxe-test-main");

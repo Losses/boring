@@ -22,7 +22,7 @@ class GpDiff {
         Host.outputLine("         cache=" + cacheRoot);
         Host.outputLine("         targets=[" + bundles.map(b -> b.id).join(", ") + "]");
 
-        final missing:Array<Bundle> = [];
+        final missing:Array<BundleSpec> = [];
         for (b in bundles) if (!cacheComplete(shaDir, b.id)) missing.push(b);
 
         if (missing.length > 0) {
@@ -51,10 +51,10 @@ class GpDiff {
         Host.exit(1);
     }
 
-    static function selectBundles(p:Project, ids:Array<String>):Array<Bundle> {
-        final out:Array<Bundle> = [];
+    static function selectBundles(p:Project, ids:Array<String>):Array<BundleSpec> {
+        final out:Array<BundleSpec> = [];
         for (id in ids) {
-            var found:Bundle = null;
+            var found:BundleSpec = null;
             for (b in p.bundles) if (b.id == id) { found = b; break; }
             if (found == null)
                 fail("unknown bundle \"" + id + "\"; known: " + p.bundles.map(b -> b.id).join(", "));
@@ -103,7 +103,7 @@ for T in "$$@"; do
 done
 ';
 
-    static function populateBaselines(sha:String, shaDir:String, bundles:Array<Bundle>):Void {
+    static function populateBaselines(sha:String, shaDir:String, bundles:Array<BundleSpec>):Void {
         final args:Array<String> = ["-c", baselineScript, "gp-diff-baseline",
             project.root, sha, shaDir];
         for (b in bundles) args.push(b.id);
@@ -141,7 +141,7 @@ wait
 exit 0
 ';
 
-    static function regenerateCurrent(bundles:Array<Bundle>):Void {
+    static function regenerateCurrent(bundles:Array<BundleSpec>):Void {
         Host.outputLine("  current: regenerating...");
         final args:Array<String> = ["-c", currentScript, "gp-diff-current", project.root];
         for (b in bundles) args.push(b.id);
@@ -186,7 +186,7 @@ wait
 exit 0
 ';
 
-    static function diffAll(shaDir:String, bundles:Array<Bundle>):Array<DiffResult> {
+    static function diffAll(shaDir:String, bundles:Array<BundleSpec>):Array<DiffResult> {
         Host.outputLine("  diff: comparing...");
         final args:Array<String> = ["-c", diffScript, "gp-diff-diff", shaDir, project.root];
         for (b in bundles) args.push(b.id);
@@ -206,7 +206,7 @@ exit 0
 
     // ---- 4. status ----------------------------------------------------------
 
-    static function writeStatus(cacheRoot:String, sha:String, shaDir:String, bundles:Array<Bundle>, diffs:Array<DiffResult>, generatedIds:Array<String>):Void {
+    static function writeStatus(cacheRoot:String, sha:String, shaDir:String, bundles:Array<BundleSpec>, diffs:Array<DiffResult>, generatedIds:Array<String>):Void {
         final statusPath = Host.join(cacheRoot, "status.tsv");
         var buf = new StringBuf();
         buf.add("stage\tstatus\ttarget\texit\tdetail\n");
