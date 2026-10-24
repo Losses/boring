@@ -467,10 +467,14 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     public override function generateFilesManually() {
-        // Flush externalized asset files beside their generated module files.
+        // Flush externalized asset files into the package-relative assets
+        // layout, so the generated read resolves them relative to the package
+        // root, and record them in the assets manifest.
         for (asset in AssetModules.pendingAssets()) {
-            final dir = haxe.io.Path.directory("lib/" + DartImports.libraryPathOf(asset.module));
-            PackageArtifacts.saveTreeFile(output, dir + "/" + asset.file, asset.content);
+            PackageArtifacts.saveTreeFile(output, "assets/" + asset.file, asset.content);
+        }
+        if (AssetModules.pendingAssets().length > 0) {
+            PackageArtifacts.saveTreeFile(output, "assets-manifest.json", assetsManifest());
         }
         final modules = [];
         for (module in parts.keys())
@@ -644,6 +648,18 @@ class Compiler extends PluginCompiler<Compiler> {
         lines.push("environment:");
         lines.push("  sdk: ^3.0.0");
         return lines.join("\n") + "\n";
+    }
+
+    /**
+        The package-relative asset manifest (Emit-Assets-Runtime). The
+        generated Dart reads resolve assets relative to the package root,
+        so the manifest records each emitted asset path for consumers that
+        need the complete list. pubspec.yaml stays untouched.
+    **/
+    function assetsManifest():String {
+        final names = [for (asset in AssetModules.pendingAssets()) "assets/" + asset.file];
+        names.sort(Reflect.compare);
+        return "{\n  \"assets\": [\n" + [for (name in names) "    \"" + name + "\""].join(",\n") + "\n  ]\n}\n";
     }
 
     /**

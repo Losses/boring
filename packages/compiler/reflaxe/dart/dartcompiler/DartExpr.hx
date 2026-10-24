@@ -5399,7 +5399,7 @@ class DartExpr {
     function quoteString(s:String):String {
         if (AssetModules.shouldExternalize(imports.selfModule, s)) {
             imports.useDartIo();
-            return "File(\"" + AssetModules.externalize(imports.selfModule, s) + "\").readAsStringSync()";
+            return "File(\"assets/" + AssetModules.externalize(imports.selfModule, s) + "\").readAsStringSync()";
         }
         final b = new StringBuf();
         b.addChar('"'.code);

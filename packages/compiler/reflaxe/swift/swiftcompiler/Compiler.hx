@@ -337,10 +337,10 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     public override function generateFilesManually() {
-        // Flush externalized asset files beside their generated module files.
+        // Flush externalized asset files into the SPM resources layout
+        // (Bundle.main resource root), so the Bundle read resolves the bare name.
         for (asset in AssetModules.pendingAssets()) {
-            final dir = haxe.io.Path.directory(modulePath(asset.module));
-            PackageArtifacts.saveTreeFile(output, dir + "/" + asset.file, asset.content);
+            PackageArtifacts.saveTreeFile(output, "Resources/" + asset.file, asset.content);
         }
         final modules = [];
         for (module in parts.keys())
@@ -474,6 +474,7 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push('                "$name",');
         }
         lines.push("            ]");
+        lines.push('            resources: [.process("Resources")]');
         lines.push("        )");
         lines.push("    ]");
         lines.push(")");

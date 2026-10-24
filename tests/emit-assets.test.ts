@@ -53,11 +53,12 @@ test("emit-assets: @:asset module externalizes its payload on all four targets",
     "-D", "kotlin-test-output=" + kt + "/gen-tests",
   ]);
   expect(ktRun.code, "kotlin generation failed: " + ktRun.stderr).toBe(0);
-  expect(exists(kt + "/gen/probe/AssetData__asset_0.txt")).toBe(true);
+  expect(exists(kt + "/gen/resources/AssetData__asset_0.txt")).toBe(true);
   const ktMod = read(kt + "/gen/probe/AssetData.kt");
   expect(ktMod).toContain("getResourceAsStream");
   expect(ktMod).toContain("AssetData__asset_0.txt");
   expect(ktMod).not.toContain(FRAGMENT);
+  expect(read(kt + "/gen/build.gradle.kts")).toContain('resources.srcDir("resources")');
 
   // --- Swift: Bundle.main read + emitted .txt ------------------------------
   const sw = path.join(scratch, "sw");
@@ -68,11 +69,12 @@ test("emit-assets: @:asset module externalizes its payload on all four targets",
     "-D", "swift-test-import=Codec",
   ]);
   expect(swRun.code, "swift generation failed: " + swRun.stderr).toBe(0);
-  expect(exists(sw + "/gen/probe/AssetData__asset_0.txt")).toBe(true);
+  expect(exists(sw + "/gen/Resources/AssetData__asset_0.txt")).toBe(true);
   const swMod = read(sw + "/gen/probe/AssetData.swift");
   expect(swMod).toContain("Bundle.main");
   expect(swMod).toContain("AssetData__asset_0");
   expect(swMod).not.toContain(FRAGMENT);
+  expect(read(sw + "/gen/Package.swift")).toContain('.process("Resources")');
 
   // --- Dart: File.readAsStringSync + emitted .txt --------------------------
   const dart = path.join(scratch, "dart");
@@ -82,12 +84,17 @@ test("emit-assets: @:asset module externalizes its payload on all four targets",
     "-D", "dart-test-runner=native",
   ]);
   expect(dartRun.code, "dart generation failed: " + dartRun.stderr).toBe(0);
-  expect(exists(dart + "/gen/lib/probe/AssetData__asset_0.txt")).toBe(true);
+  expect(exists(dart + "/gen/assets/AssetData__asset_0.txt")).toBe(true);
   const dartMod = read(dart + "/gen/lib/probe/asset_data.dart");
   expect(dartMod).toContain("readAsStringSync");
-  expect(dartMod).toContain("AssetData__asset_0.txt");
+  expect(dartMod).toContain("assets/AssetData__asset_0.txt");
   expect(dartMod).not.toContain(FRAGMENT);
+  expect(exists(dart + "/gen/assets-manifest.json")).toBe(true);
+  expect(read(dart + "/gen/assets-manifest.json")).toContain('assets/AssetData__asset_0.txt');
 
   // --- The emitted asset file itself is raw (contains the payload) ---------
   expect(read(ts + "/gen/probe/AssetData__asset_0.txt")).toContain(FRAGMENT);
+  expect(read(kt + "/gen/resources/AssetData__asset_0.txt")).toContain(FRAGMENT);
+  expect(read(sw + "/gen/Resources/AssetData__asset_0.txt")).toContain(FRAGMENT);
+  expect(read(dart + "/gen/assets/AssetData__asset_0.txt")).toContain(FRAGMENT);
 }, 600_000);
