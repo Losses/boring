@@ -98,10 +98,17 @@ resident module: the class `SortedTable` holds the domain comparators
 each target lowers references to them onto these classes.
 
 Storage is generic parallel arrays on every target: `Array<K>` and
-`Array<V>`, sorted at `build()` through an index-permutation insertion
-sort that applies the last-put-wins rule per equal-key run. The sort
-permutes entry indices, so values of parameter type are only read,
-never moved. Kotlin boxes integer keys this way; the retired
+`Array<V>`, sorted at `build()` through an index-permutation stable
+merge sort in O(n log n). The sort permutes entry indices, so values of
+parameter type are only read, never moved. Equal keys keep their put
+order, and each equal-key run emits its final entry, which is the last
+put. The stable merge sort is the ruling because the tiqian engine
+rebuilds tables per paragraph, so `build()` runs repeatedly and the
+earlier insertion-sort ruling had quadratic cost. The builder's
+`get(key)` is a linear reverse scan in O(n); it serves get-or-create
+reads and debug inspection of the pending state. Repeat keyed lookups
+run against the built table's binary search in O(log n). Kotlin boxes
+integer keys this way; the retired
 hand-written shim held an `IntArray`. The cost is one object per
 integer key inside a table, accepted for one source. The comparator is
 a function value bound when the builder is created: the resident
