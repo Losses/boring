@@ -84,7 +84,7 @@ class Plan {
         steps.push(step);
     }
 
-    public static function testSteps(project:Project, bundle:Bundle, generatedDir:String, genTests:String, build:String,
+    public static function testSteps(project:Project, bundle:BundleSpec, generatedDir:String, genTests:String, build:String,
         results:String, genFiles:Array<String>, testFiles:Array<String>, haxeMain:String,
         swiftModule:Null<String>, systemPackage:Null<String>, host:String, existingLibraryPath:String):Array<ExecutionStep> {
         if (!bundle.hasTests) throw new DriverException(InvalidConfig('bundle "${bundle.id}": this target configuration has test=false and cannot run the test action'));
@@ -172,7 +172,7 @@ class Plan {
         directories win over anything the roots file states, and the
         roots file wins over the driver's defaults.
     **/
-    public static function genArgs(project:Project, bundle:Bundle, pack:Bool, genDir:String, genTestsDir:String, packageTsc:Null<String>, packageKotlinc:Null<String>, discoveredTypes:Array<String>):Array<String> {
+    public static function genArgs(project:Project, bundle:BundleSpec, pack:Bool, genDir:String, genTestsDir:String, packageTsc:Null<String>, packageKotlinc:Null<String>, discoveredTypes:Array<String>):Array<String> {
         final args:Array<String> = [];
         for (root in project.sourceRoots) {
             args.push("-cp");
@@ -230,15 +230,15 @@ class Plan {
         return args;
     }
 
-    public static function testable(bundles:Array<Bundle>):Array<Bundle> {
+    public static function testable(bundles:Array<BundleSpec>):Array<BundleSpec> {
         return [for (bundle in bundles) if (bundle.hasTests) bundle];
     }
 
-    public static function comparable(bundles:Array<Bundle>):Array<Bundle> {
+    public static function comparable(bundles:Array<BundleSpec>):Array<BundleSpec> {
         return [for (bundle in bundles) if (bundle.hasComparison) bundle];
     }
 
-    public static function packable(bundles:Array<Bundle>):Array<Bundle> {
+    public static function packable(bundles:Array<BundleSpec>):Array<BundleSpec> {
         return [for (bundle in bundles) if (bundle.packageName != "") bundle];
     }
 }

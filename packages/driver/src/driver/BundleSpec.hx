@@ -1,6 +1,6 @@
 package driver;
 
-typedef Bundle = {
+typedef BundleSpec = {
     id:String,
     target:String,
     precision:String,
