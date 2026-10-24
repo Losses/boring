@@ -285,10 +285,10 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     public override function generateFilesManually() {
-        // Flush externalized asset files beside their generated module files.
+        // Flush externalized asset files into the Gradle resources layout
+        // (classpath root), so getResourceAsStream resolves the bare name.
         for (asset in AssetModules.pendingAssets()) {
-            final dir = haxe.io.Path.directory(modulePath(asset.module));
-            PackageArtifacts.saveTreeFile(output, dir + "/" + asset.file, asset.content);
+            PackageArtifacts.saveTreeFile(output, "resources/" + asset.file, asset.content);
         }
         final modules = [];
         for (module in parts.keys())
@@ -474,6 +474,7 @@ class Compiler extends PluginCompiler<Compiler> {
             + "sourceSets {\n"
             + "    main {\n"
             + "        kotlin.srcDir(\".\")\n"
+            + "        resources.srcDir(\"resources\")\n"
             + "    }\n"
             + "}\n";
     }
