@@ -9,5 +9,4 @@
 --macro swiftcompiler.Compiler.use()
 -D runtime-import=@boring/runtime
 -D runtime-emit=.
--D package-shell=none
 probe.AssetData
