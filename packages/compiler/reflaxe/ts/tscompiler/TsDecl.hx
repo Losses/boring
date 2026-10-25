@@ -430,6 +430,8 @@ class TsDecl {
                 emitComparison(lines, helpers, child, '${left}[${index}]!', '${right}[${index}]!', name + "Element", depth + 1);
                 lines.push('${indent}}');
                 lines.push('${indent}if (${left}.length !== ${right}.length) return ${left}.length - ${right}.length;');
+            case DictionaryOrder:
+                lines.push('${indent}{ let _neq = ${left}.size !== ${right}.size; if (!_neq) { for (const [mk, mv] of ${left}) { if (!${right}.has(mk) || ${right}.get(mk) !== mv) { _neq = true; break; } } } if (_neq) return 1; }');
             case MapOrder(key, value):
                 final index = "i" + depth;
                 final bound = "n" + depth;
