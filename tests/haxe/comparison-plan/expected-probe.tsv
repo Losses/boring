@@ -10,5 +10,6 @@ computed-field-excluded	first,second
 same-short-name-identities	true>Same>Same
 float-key-and-capability	ready:true|sorted=analysis-failed:value:Float is outside the sorted-key domain:no-type|admitted=false
 bool-key-and-capability	ready:true|sorted=analysis-failed:value:Bool is outside the sorted-key domain:no-type|admitted=false
+sorted-container-field	SortedMap(Record(SortedKeyRange),SortedSet(Int))|equality=ready:true|sorted=ready:true|admitted=true
 alias-int-shape	Int
 alias-sequence-shape	Sequence

@@ -438,6 +438,21 @@ class RustDecl {
             lines.push("        " + (eqConditions.length > 0 ? eqConditions.join(" && ") : "true"));
             lines.push("    }");
             lines.push("}");
+            // Content equality hashes the key and value arrays and skips the
+            // comparator closure, mirroring the PartialEq above (spec 07 value
+            // semantics: equal entries hash equal).
+            final hashBoundList = [for (g in genericList) g == "'a" ? g : g + ": Hash"];
+            final hashGenericStr = hashBoundList.length > 0 ? "<" + hashBoundList.join(", ") + ">" : "";
+            final hashConditions = [
+                for (v in varFields)
+                    if (!v.isStatic && RustType.isHashType(v.field.type)) "self." + RustImports.toSnakeCase(v.field.name) + ".hash(state)"
+            ];
+            lines.push("impl" + hashGenericStr + " Hash for " + emittedName + genericStr + " {");
+            lines.push("    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {");
+            for (condition in hashConditions)
+                lines.push("        " + condition + ";");
+            lines.push("    }");
+            lines.push("}");
         }
 
         lines.push("impl" + implGenerics + " " + emittedName + genericStr + " {");
@@ -578,6 +593,8 @@ class RustDecl {
                 case FloatOrder | BooleanOrder: false;
                 case RecordOrder(nested, _): rustComparatorAvailable(nested, visited);
                 case NullBeforePresent(child) | Lexicographic(child): available(child);
+                case MapOrder(key, value): available(key) && available(value);
+                case SetOrder(element): available(element);
                 case _: true;
             };
         }
@@ -629,6 +646,18 @@ class RustDecl {
                         + ').iter()) { cmp = ' + operationText(child, "av", "bv")
                         + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
                         + cmpToI32('(' + left + ').len().cmp(&(' + right + ').len())') + '; } cmp }';
+                case MapOrder(key, value):
+                    '{ let mut cmp = 0; for i in 0..(' + left + ').size() { cmp = '
+                        + operationText(key, '(' + left + ').key_at(i)', '(' + right + ').key_at(i)')
+                        + '; if cmp != 0 { break; } cmp = '
+                        + operationText(value, '(' + left + ').value_at(i)', '(' + right + ').value_at(i)')
+                        + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
+                        + cmpToI32('(' + left + ').size().cmp(&(' + right + ').size())') + '; } cmp }';
+                case SetOrder(element):
+                    '{ let mut cmp = 0; for i in 0..(' + left + ').size() { cmp = '
+                        + operationText(element, '(' + left + ').at(i)', '(' + right + ').at(i)')
+                        + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
+                        + cmpToI32('(' + left + ').size().cmp(&(' + right + ').size())') + '; } cmp }';
             };
         }
         // A field whose nested record is generic instantiates the nested
@@ -671,6 +700,11 @@ class RustDecl {
                         }
                     case NullBeforePresent(child) | Lexicographic(child):
                         collectOperations(child);
+                    case MapOrder(key, value):
+                        collectOperations(key);
+                        collectOperations(value);
+                    case SetOrder(element):
+                        collectOperations(element);
                     case _:
                 }
             }

@@ -5160,6 +5160,13 @@ class SwiftExpr {
                 case ReadOnlyArrayFace(element):
                     final child = comparisonWitness(element, pos);
                     "{ lhs, rhs in var i = 0; while i < lhs.count && i < rhs.count { let c = " + child + "(lhs[i], rhs[i]); if c != 0 { return c }; i += 1 }; if lhs.count < rhs.count { return -1 }; if lhs.count > rhs.count { return 1 }; return 0 }";
+                case SortedMapFace(key, value):
+                    final keyWitness = comparisonWitness(key, pos);
+                    final valueWitness = comparisonWitness(value, pos);
+                    "{ lhs, rhs in if lhs.size() < rhs.size() { return -1 }; if lhs.size() > rhs.size() { return 1 }; var i: Int32 = 0; while i < lhs.size() { let c = " + keyWitness + "(lhs.keyAt(i), rhs.keyAt(i)); if c != 0 { return c }; let d = " + valueWitness + "(lhs.valueAt(i), rhs.valueAt(i)); if d != 0 { return d }; i += 1 }; return 0 }";
+                case SortedSetFace(element):
+                    final child = comparisonWitness(element, pos);
+                    "{ lhs, rhs in if lhs.size() < rhs.size() { return -1 }; if lhs.size() > rhs.size() { return 1 }; var i: Int32 = 0; while i < lhs.size() { let c = " + child + "(lhs.at(i), rhs.at(i)); if c != 0 { return c }; i += 1 }; return 0 }";
                 case MutableArray(_): Context.error("mutable arrays cannot supply sorted-key comparison evidence", pos); "";
                 case UnresolvedSource(_): Context.error("Swift comparator evidence requires a resolved generic argument", pos); "";
                 case OtherSourceType: switch (facts.resolvedType) {
