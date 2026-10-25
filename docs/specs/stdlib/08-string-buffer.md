@@ -83,6 +83,15 @@ implementation stands in for the standard library.
   `buf.charCodeAt(buf.length - 1)`; that read flattens the cons-string on
   every append, so the append is quadratic and the rope-amortization premise
   of that form is false.
+- TypeScript literal fast path: a pure-ASCII string literal argument is
+  compile-time proven to contain no surrogate pair, so `add` of one folds the
+  trail-start pairing branch and the nonempty-length guard, leaving only the
+  leading-lead check and an unconditional push. A run of consecutive `add`
+  calls whose arguments are pure-ASCII literals on the same buffer fuses into
+  one tail read, one leading-lead check, and one push of the concatenated
+  literal. The interior boundaries join ASCII to ASCII, which never forms or
+  breaks a surrogate pair, so the fused emission preserves the fault behavior
+  exactly.
 - Kotlin: the buffer renders as `StringBuilder`. `add` emits the
   boundary check and `append`. `addChar` emits the pairing check reading
   the trailing unit and `append(codeUnit.toChar())`. The fault
