@@ -6641,8 +6641,10 @@ class KotlinExpr {
     }
 
     function quoteString(s:String):String {
-        if (AssetModules.shouldExternalize(imports.selfModule, s))
-            return "Thread.currentThread().contextClassLoader.getResourceAsStream(\"" + AssetModules.externalize(imports.selfModule, s) + "\")!!.readBytes().toString(Charsets.UTF_8)";
+        if (AssetModules.shouldExternalize(imports.selfModule, s)) {
+            final parts = AssetModules.externalize(imports.selfModule, s);
+            return [for (p in parts) "Thread.currentThread().contextClassLoader.getResourceAsStream(\"" + p + "\")!!.readBytes().toString(Charsets.UTF_8)"].join(" + ");
+        }
         final b = new StringBuf();
         b.addChar('"'.code);
         for (i in 0...s.length) {
