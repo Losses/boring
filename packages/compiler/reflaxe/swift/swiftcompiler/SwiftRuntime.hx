@@ -90,9 +90,10 @@ public final class BytesBuffer {
 }
 
 /// Base class of the exception classes features/06 lowers; the caught
-/// side reads the display message through it. The base stays non-final
-/// because the generated exception classes subclass it.
-public class BoringException: Error {
+/// side reads the display message through it. The base is open because
+/// the generated exception classes subclass it from another module
+/// (Swift requires the open modifier for cross-module inheritance).
+open class BoringException: Error {
     public let message: String
     public let cause: BoringException?
 
