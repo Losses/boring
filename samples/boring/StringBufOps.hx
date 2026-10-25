@@ -119,4 +119,29 @@ class StringBufOps {
         };
         return value;
     }
+
+    /** A run of consecutive pure-ASCII literal adds (stdlib/08 batching). */
+    public static function buildLiteralRun():String {
+        final buf = new StringBuf();
+        buf.add("alpha");
+        buf.add("-");
+        buf.add("beta");
+        buf.add(":");
+        buf.add("gamma");
+        return buf.toString();
+    }
+
+    /** Consecutive ASCII adds after a held lead still fault with the held unit. */
+    public static function caughtLiteralRunAfterLead(lead:Int):Int {
+        final value = try {
+            final buf = new StringBuf();
+            buf.addChar(lead);
+            buf.add("x");
+            buf.add("y");
+            0;
+        } catch (error:UStringException) {
+            classifyFault(error.fault);
+        };
+        return value;
+    }
 }

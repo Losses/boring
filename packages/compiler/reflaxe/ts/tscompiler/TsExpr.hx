@@ -882,6 +882,14 @@ class TsExpr {
                 i += 1;
                 continue;
             }
+            final batch = stringBufAddBatch(stmts, i, depth);
+            if (batch != null) {
+                for (l in batch.lines)
+                    out.push(l);
+                clearHoistsAt(hoists, i);
+                i += batch.count;
+                continue;
+            }
             for (l in stmtLines(stmts[i], depth, originTrace, out.length))
                 out.push(l);
             clearHoistsAt(hoists, i);
@@ -3935,6 +3943,23 @@ class TsExpr {
         };
     }
 
+    /** The literal text of a pure-ASCII string constant, or null when the
+        expression is not one. Every UTF-16 code unit below 0x80 means the
+        literal has no surrogate pair, so an add of it can fold the
+        trail-start pairing branch and the nonempty-length guard (stdlib/08). */
+    function asciiStringLiteral(e:TypedExpr):Null<String> {
+        final s = switch (stripCast(e).expr) {
+            case TConst(TString(v)): v;
+            case _: return null;
+        };
+        for (i in 0...s.length) {
+            if (s.charCodeAt(i) >= 0x80) {
+                return null;
+            }
+        }
+        return s;
+    }
+
     function stringBufFaultThrow(depth:Int, unit:String):String {
         return indent(depth) + 'throw new UStringException({ kind: "UnpairedSurrogate", unit: ' + unit + " });";
     }
@@ -3945,18 +3970,37 @@ class TsExpr {
             return [fail(fn, "not a string buffer mutation")];
         }
         final buf = expr(parts.subj);
+        if (parts.name == "add") {
+            final ascii = asciiStringLiteral(args[0]);
+            if (ascii != null && ascii.length == 0) {
+                // An empty ASCII literal appends nothing and never faults
+                // (stdlib/08: the fault premise requires a nonempty argument).
+                return [];
+            }
+        }
         final tailRead = stringBufTailLines(parts.subj, depth);
         final lines = tailRead.lines;
         final tail = tailRead.name;
         if (parts.name == "add") {
             final part = expr(args[0]);
-            lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319 && " + part + ".length > 0" + " && !(" + part
-                + ".charCodeAt(0) >= 56320 && " + part + ".charCodeAt(0) <= 57343)) {");
-            lines.push(stringBufFaultThrow(depth + 1, tail));
-            lines.push(indent(depth) + "}");
-            lines.push(indent(depth) + "if (" + part + ".length > 0) {");
-            lines.push(indent(depth + 1) + buf + ".push(" + part + ");");
-            lines.push(indent(depth) + "}");
+            final ascii = asciiStringLiteral(args[0]);
+            if (ascii != null) {
+                // A pure-ASCII literal cannot start with a trail surrogate and
+                // is compile-time nonempty (the empty case returned above), so
+                // only the leading tail check and an unconditional push remain.
+                lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
+                lines.push(stringBufFaultThrow(depth + 1, tail));
+                lines.push(indent(depth) + "}");
+                lines.push(indent(depth) + buf + ".push(" + part + ");");
+            } else {
+                lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319 && " + part + ".length > 0" + " && !(" + part
+                    + ".charCodeAt(0) >= 56320 && " + part + ".charCodeAt(0) <= 57343)) {");
+                lines.push(stringBufFaultThrow(depth + 1, tail));
+                lines.push(indent(depth) + "}");
+                lines.push(indent(depth) + "if (" + part + ".length > 0) {");
+                lines.push(indent(depth + 1) + buf + ".push(" + part + ");");
+                lines.push(indent(depth) + "}");
+            }
         } else {
             final u = expr(args[0]);
             final unitConst = constIntOf(args[0]);
@@ -3981,6 +4025,77 @@ class TsExpr {
             }
         }
         return lines;
+    }
+
+    /**
+        stdlib/08: a run of consecutive StringBuf.add statements whose
+        arguments are pure-ASCII string literals on the same local buffer
+        fuses into one tail read, one leading-lead check, and one push of the
+        concatenated literal. The interior boundaries join ASCII to ASCII,
+        which never forms or breaks a surrogate pair, so the fused emission
+        preserves the fault behavior exactly. Returns the fused lines and the
+        number of statements consumed, or null when the run has fewer than
+        two fusible statements (a single add stays on the generic mutation
+        path, where asciiStringLiteral already folds its dead branches).
+    **/
+    function stringBufAddBatch(stmts:Array<TypedExpr>, at:Int, depth:Int):Null<{lines:Array<String>, count:Int}> {
+        final first = switch (stmts[at].expr) {
+            case TCall(fn, args):
+                final p = stringBufMutationParts(fn);
+                if (p == null || p.name != "add") return null;
+                final ascii = asciiStringLiteral(args[0]);
+                if (ascii == null) return null;
+                {subj: p.subj, text: ascii};
+            case _: return null;
+        };
+        // The buffer must be a plain local so consecutive reads name the same
+        // binding and no side effect separates them.
+        final subjectId = switch (stripCast(first.subj).expr) {
+            case TLocal(v): v.id;
+            case _: return null;
+        };
+        var merged = first.text;
+        var count = 1;
+        while (at + count < stmts.length) {
+            final candidate = stmts[at + count];
+            var nextText:Null<String> = null;
+            var nextId = -1;
+            switch (candidate.expr) {
+                case TCall(fn, args):
+                    final p = stringBufMutationParts(fn);
+                    if (p != null && p.name == "add") {
+                        final ascii = asciiStringLiteral(args[0]);
+                        if (ascii != null) {
+                            switch (stripCast(p.subj).expr) {
+                                case TLocal(v):
+                                    nextId = v.id;
+                                    nextText = ascii;
+                                case _:
+                            }
+                        }
+                    }
+                case _:
+            }
+            if (nextText == null || nextId != subjectId) {
+                break;
+            }
+            if (merged.length + nextText.length > 1024) {
+                break;
+            }
+            merged += nextText;
+            count += 1;
+        }
+        if (count < 2) {
+            return null;
+        }
+        final tailRead = stringBufTailLines(first.subj, depth);
+        final lines = tailRead.lines;
+        final tail = tailRead.name;
+        lines.push(indent(depth) + "if (" + tail + " >= 55296 && " + tail + " <= 56319) {");
+        lines.push(stringBufFaultThrow(depth + 1, tail));
+        lines.push(indent(depth) + "}");
+        lines.push(indent(depth) + expr(first.subj) + ".push(" + quoteString(merged) + ");");
+        return {lines: lines, count: count};
     }
 
     function stringBufToStringCheckLines(subj:TypedExpr, depth:Int):Array<String> {
