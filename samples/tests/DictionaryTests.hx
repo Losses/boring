@@ -26,5 +26,6 @@ class DictionaryTests {
         Test.equals(true, DictionaryOps.overwrite() == 2);
         Test.equals(true, DictionaryOps.removeKey());
         Test.equals(true, DictionaryOps.clearAndReinsert() == 3);
+        Test.equals(true, DictionaryOps.structuralKey() == 42);
     }
 }

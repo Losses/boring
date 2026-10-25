@@ -7601,7 +7601,7 @@ class SwiftExpr {
         final parts = AssetModules.externalize(imports.selfModule, s);
         final reads = [for (p in parts) {
             final stem = p.substring(0, p.length - 4);
-            "try! String(contentsOf: Bundle.main.url(forResource: \"" + stem + "\", withExtension: \"txt\")!, encoding: .utf8)";
+            "(try! String(contentsOf: Bundle.main.url(forResource: \"" + stem + "\", withExtension: \"txt\")!, encoding: .utf8))";
         }];
         return reads.join(" + ");
     }
