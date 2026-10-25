@@ -89,23 +89,22 @@ class SwiftDecl {
     // ------------------------------------------------------------------
 
     /**
-        Visibility for a below-public member. @:allow members use Swift
-        internal unconditionally. Members of a class named by a class level
-        @:access grant (or by a cross-module synthesized default) widen to
-        internal, unless their signature names a module-private type (a
-        same-name type in another file would turn ambiguous), so those stay
-        file-scoped with fileprivate, which still admits same-file peers.
+        Visibility for a below-public member. @:allow members and members of
+        a class named by a class-level @:access grant (or by a cross-module
+        synthesized default) widen to public: the guest class can be
+        reclassified into the test module, where Swift internal is invisible
+        across the module boundary. A member whose signature names a
+        module-private type stays file-scoped with fileprivate instead (a
+        same-name type in another file would turn ambiguous, and public with
+        a private type in its signature is a Swift compile error).
         Everything else stays private.
     **/
     static function grantedVis(isPublic:Bool, meta:MetaAccess, cls:ClassType, memberType:Type):String {
         if (isPublic) {
             return "public ";
         }
-        if (meta.has(":allow")) {
-            return "";
-        }
-        if (AccessGrants.has(cls.module + "." + cls.name)) {
-            return AccessGrants.mentionsPrivateType(memberType) ? "fileprivate " : "";
+        if (meta.has(":allow") || AccessGrants.has(cls.module + "." + cls.name)) {
+            return AccessGrants.mentionsPrivateType(memberType) ? "fileprivate " : "public ";
         }
         return "private ";
     }
@@ -205,7 +204,7 @@ class SwiftDecl {
             // A Haxe module-private type stays file-scoped in Swift; the
             // same type name declared in another module would otherwise
             // make every bare reference ambiguous.
-            final access = cls.isPrivate ? "private " : "public ";
+            final access = cls.isPrivate ? "private " : (depth >= 1 ? "open " : "public ");
             lines.push((depth >= 1 ? access + "class " : access + "final class ")
                 + cls.name
                 + classParams
@@ -619,7 +618,7 @@ class SwiftDecl {
             final array = StaticFieldHelper.isArrayType(field.type);
             final smallArray = field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init);
             final kw = smallArray ? "let" : (array || !field.isFinal ? "var" : "let");
-            // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+            // @:allow members use Swift public visibility so allowed cross-module calls compile.
             final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
             final initText = constValFloatInit(init, field.type);
             // Swift forbids a throw from a global/static stored initializer;
@@ -689,7 +688,7 @@ class SwiftDecl {
         // Private fields render with Swift's private marker (feature
         // spec 27); public fields render public for the SwiftPM split
         // between the generated-code module and its consumers.
-        // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+        // @:allow members use Swift public visibility so allowed cross-module calls compile.
         final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
         final deferred = deferredConstructorFields.exists(field.name);
         return ["    "
@@ -768,7 +767,7 @@ class SwiftDecl {
         consuming Swift code.
     **/
     function propertyDecl(cls:ClassType, field:ClassField):Array<String> {
-        // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+        // @:allow members use Swift public visibility so allowed cross-module calls compile.
         final vis = grantedVis(field.isPublic, field.meta, cls, field.type);
         final getter = "get_" + field.name;
         // A Swift computed property cannot rethrow; the backing getter is a
@@ -860,7 +859,7 @@ class SwiftDecl {
         final normLines = coalescingBodyNormalizationLines(cls, f);
         // Private functions render with Swift's private marker (feature
         // spec 27); public functions render public for the SwiftPM split.
-        // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+        // @:allow members use Swift public visibility so allowed cross-module calls compile.
         // Swift requires a member satisfying a protocol requirement to be
         // at least as accessible as the protocol, and protocols render
         // public, so interface methods render public regardless of their
@@ -892,7 +891,7 @@ class SwiftDecl {
         final throws = SwiftFallibility.isThrowing(module, cls.name, f.field.name, true) ? " throws" : "";
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodGenericSignature(cls, f, methodParams);
-        // @:allow members use Swift internal visibility so allowed cross-class calls compile.
+        // @:allow members use Swift public visibility so allowed cross-module calls compile.
         final vis = grantedVis(f.field.isPublic, f.field.meta, cls, f.field.type);
         final receiverType = isExtension ? types.of(f.args[0].type) : "";
         final methodIndent = isExtension ? "    " : "";
@@ -1101,8 +1100,7 @@ class SwiftDecl {
         // requires Self: Equatable, a circular requirement Swift rejects.
         // A class payload still synthesizes because the comparison plan
         // gives that class its own manual ==. (EnumEquatableCircularity)
-        final recursiveArray = [for (o in sorted) for (arg in o.args) selfArrayPayload(arg.type, en)].indexOf(true) >= 0;
-        final equatable = !recursiveArray;
+        final equatable = !enumHasRecursiveArray(en);
         final lines:Array<String> = [ // Equatable backs the construct comparisons the samples run
             // (`width == F64`); payload types of the subset (Int32,
             // String, nested enums) synthesize the conformance. A payload
@@ -1200,6 +1198,26 @@ class SwiftDecl {
         };
     }
 
+    /** Whether any construct carries an Array<Self> payload: the synthesized
+        Equatable then requires TiqianArray<Self>: Equatable, which requires
+        Self: Equatable, a circular conformance Swift rejects. Shared by
+        enumDecl (drop the conformance) and fieldTypeSupportsEquatable (a
+        record typedef field of this enum also drops it). */
+    function enumHasRecursiveArray(en:EnumType):Bool {
+        for (ef in en.constructs) {
+            switch (ef.type) {
+                case TFun(args, _):
+                    for (arg in args) {
+                        if (selfArrayPayload(arg.t, en)) {
+                            return true;
+                        }
+                    }
+                case _:
+            }
+        }
+        return false;
+    }
+
     function fieldTypeSupportsEquatable(t:Null<Type>):Bool {
         if (t == null) {
             return false;
@@ -1220,7 +1238,7 @@ class SwiftDecl {
                     case "Array": params.length == 1 && fieldTypeSupportsEquatable(params[0]);
                     case _: false;
                 }
-            case TEnum(_, _): true;
+            case TEnum(e, _): !enumHasRecursiveArray(e.get());
             case TAnonymous(anon): recordFieldsSupportEquatable([for (f in anon.get().fields) f]);
             case _: false;
         };
