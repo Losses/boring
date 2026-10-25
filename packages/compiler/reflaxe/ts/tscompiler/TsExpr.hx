@@ -4700,7 +4700,7 @@ class TsExpr {
 
     function quoteString(s:String):String {
         if (AssetModules.shouldExternalize(imports.selfModule, s)) {
-            final file = AssetModules.externalize(imports.selfModule, s);
+            final parts = AssetModules.externalize(imports.selfModule, s);
             final helper = imports.fsHelper("asset",
                 "type HostModuleLoaderAsset = (id: string) => unknown;"
                 + " const fsAsset = (p: string): string => {"
@@ -4710,7 +4710,7 @@ class TsExpr {
                 + " if (fs === null) { throw new Error('asset read requires node:fs'); }"
                 + " return fs.readFileSync(p, 'utf8');"
                 + " };");
-            return helper + "(\"" + file + "\")";
+            return [for (p in parts) helper + "(\"" + p + "\")"].join(" + ");
         }
         final b = new StringBuf();
         b.addChar('"'.code);

@@ -7591,9 +7591,12 @@ class SwiftExpr {
         if (!AssetModules.shouldExternalize(imports.selfModule, s))
             return null;
         imports.foundation();
-        final file = AssetModules.externalize(imports.selfModule, s);
-        final stem = file.substring(0, file.length - 4);
-        return "try! String(contentsOf: Bundle.main.url(forResource: \"" + stem + "\", withExtension: \"txt\")!, encoding: .utf8)";
+        final parts = AssetModules.externalize(imports.selfModule, s);
+        final reads = [for (p in parts) {
+            final stem = p.substring(0, p.length - 4);
+            "try! String(contentsOf: Bundle.main.url(forResource: \"" + stem + "\", withExtension: \"txt\")!, encoding: .utf8)";
+        }];
+        return reads.join(" + ");
     }
 
     /** Full String-literal expression, externalized when the module is an
