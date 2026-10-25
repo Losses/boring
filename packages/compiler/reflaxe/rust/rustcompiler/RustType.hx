@@ -199,6 +199,9 @@ class RustType {
                     // the runtime.SortedTable resident on every key
                     // domain; the comparator bound at the builder site
                     // carries the domain (docs/specs/stdlib/07).
+                    case "std.Dictionary":
+                        imports.require("std::collections::HashMap");
+                        "HashMap<" + of(params[0]) + ", " + of(params[1]) + ">";
                     case "std.SortedMap":
                         imports.requireType("std.SortedMap", "SortedMapTable");
                         "SortedMapTable<" + of(params[0]) + ", " + of(sortedMapValueType(params[1])) + ">";

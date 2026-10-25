@@ -4434,13 +4434,13 @@ class SwiftExpr {
                 }
                 if (isMapType(subj.t)) {
                     if (name == "exists" && args.length == 1)
-                        return expr(subj) + "[" + mapKeyText(args[0]) + "] != nil";
+                        return "(" + expr(subj) + "[" + mapKeyText(args[0]) + "] != nil)";
                     if (name == "get" && args.length == 1)
                         return expr(subj) + "[" + mapKeyText(args[0]) + "]";
                     if (name == "set" && args.length == 2)
                         return expr(subj) + "[" + mapKeyText(args[0]) + "] = " + expr(args[1]);
                     if (name == "remove" && args.length == 1)
-                        return expr(subj) + ".removeValue(forKey: " + mapKeyText(args[0]) + ") != nil";
+                        return "(" + expr(subj) + ".removeValue(forKey: " + mapKeyText(args[0]) + ") != nil)";
                     if (name == "clear" && args.length == 0)
                         return expr(subj) + ".removeAll()";
                 }
@@ -4712,7 +4712,7 @@ class SwiftExpr {
                     final s = receiverText(subj);
                     if (types.resident) {
                         // The resident subject is the unit array.
-                        return "charAtUnitArr(" + s + ", " + narrowedText(args[0]) + ")";
+                        return "({ () -> [UInt16] in let _i: Int32 = " + narrowedText(args[0]) + "; return substrUnitsArray(" + s + ", _i, 1) }())";
                     }
                     return "({ () -> String in let _i: Int32 = " + narrowedText(args[0]) + "; return substringUnits(" + s + ", _i, _i &+ 1) }())";
                 }
@@ -4722,7 +4722,7 @@ class SwiftExpr {
                     // optional handling (force-unwrap or pass-through) types,
                     // matching the native unitAtOptional Optional shape.
                     final code = types.resident
-                        ? "unitAtOptionalArr(" + receiverText(subj) + ", " + narrowedText(args[0]) + ")"
+                        ? "({ () -> Int32? in let _i: Int32 = " + narrowedText(args[0]) + "; let _u = " + receiverText(subj) + "; return (_i >= 0 && _i < Int32(_u.count)) ? Int32(_u[Int(_i)]) : nil }())"
                         : "unitAtOptional(" + receiverText(subj) + ", " + expr(args[0]) + ")";
                     final optional = switch (Context.follow(fn.t)) {
                         case TFun(_, ret): isNullLeafType(ret);
@@ -5432,6 +5432,8 @@ class SwiftExpr {
                 return "[UInt16]()";
             case "haxe.ds._Map.Map_Impl_":
                 return "[:]";
+            case "std.Dictionary":
+                return "[" + types.of(params[0]) + ": " + types.of(params[1]) + "]()";
             case "haxe.io.BytesBuffer":
                 imports.runtime("BytesBuffer");
                 return "BytesBuffer()";
@@ -6910,7 +6912,9 @@ class SwiftExpr {
                             || n == "unshift"
                             || n == "splice"
                             || n == "set"
-                            || n == "insert";
+                            || n == "insert"
+                            || n == "remove"
+                            || n == "clear";
                         if (mutates) {
                             switch (stripWrap(subj).expr) {
                                 case TLocal(v):
@@ -6948,7 +6952,9 @@ class SwiftExpr {
         if (t == null)
             return false;
         return switch (Context.follow(t)) {
-            case TInst(c, _): c.get().kind == KNormal;
+            case TInst(c, _):
+                final cls = c.get();
+                cls.kind == KNormal && cls.module != "std.Dictionary";
             case _: false;
         };
     }

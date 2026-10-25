@@ -60,6 +60,7 @@ class DartType {
                         imports.useTypedData();
                         "Uint8List";
                     case "haxe.io.BytesBuffer": "List<int>";
+                    case "std.Dictionary": "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
                     case "std.SortedMap": runtimeTypeRef("SortedMapTable", params);
                     case "std.SortedMapBuilder": runtimeTypeRef("SortedMapTableBuilder", params);
                     case "std.SortedSet": runtimeTypeRef("SortedSetTable", params);

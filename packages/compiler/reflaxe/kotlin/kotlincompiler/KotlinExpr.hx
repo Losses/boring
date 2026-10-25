@@ -5414,7 +5414,7 @@ class KotlinExpr {
                     if (name == "set" && args.length == 2)
                         return expr(subj) + ".put(" + expr(args[0]) + ", " + expr(args[1]) + ")";
                     if (name == "remove" && args.length == 1)
-                        return expr(subj) + ".remove(" + expr(args[0]) + ") != null";
+                        return "(" + expr(subj) + ".remove(" + expr(args[0]) + ") != null)";
                     if (name == "clear" && args.length == 0)
                         return expr(subj) + ".clear()";
                 }
@@ -6308,6 +6308,8 @@ class KotlinExpr {
                 return "StringBuilder()";
             case "haxe.ds._Map.Map_Impl_":
                 return "mutableMapOf()";
+            case "std.Dictionary":
+                return "HashMap<" + types.of(params[0]) + ", " + types.of(params[1]) + ">()";
             case "haxe.io.BytesBuffer":
                 imports.requireType(path, "BytesBuffer");
                 return "BytesBuffer(" + renderedArgsText + ")";

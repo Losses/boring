@@ -59,6 +59,7 @@ class KotlinType {
                     case "haxe.io.BytesBuffer":
                         imports.requireType(cls.module, "BytesBuffer");
                         "BytesBuffer";
+                    case "std.Dictionary": "HashMap<" + of(params[0]) + ", " + of(params[1]) + ">";
                     case "std.SortedMap":
                         imports.requireType(cls.module, "SortedMapTable");
                         // A nullable value type argument stays nullable: the
