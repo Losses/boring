@@ -353,7 +353,7 @@ class SwiftDecl {
             final body = expr.valueTypeFunctionBody(cls, f, fieldName);
             for (line in body) {
                 final trimmed = StringTools.trim(line);
-                if (types.resident && stringRepr && StringTools.startsWith(trimmed, "return ")) {
+                if (types.resident && StringTools.startsWith(trimmed, "return ")) {
                     lines.push("    return String(decoding: " + trimmed.substr("return ".length) + ", as: UTF16.self)");
                 } else {
                     lines.push("    " + line);
@@ -1096,15 +1096,24 @@ class SwiftDecl {
             lines.push("}");
             return lines.join("\n");
         }
+        // A payload enum keeps the synthesized Equatable except when one
+        // payload is Array<Self>: the TiqianArray<Self> conformance then
+        // requires Self: Equatable, a circular requirement Swift rejects.
+        // A class payload still synthesizes because the comparison plan
+        // gives that class its own manual ==. (EnumEquatableCircularity)
+        final recursiveArray = [for (o in sorted) for (arg in o.args) selfArrayPayload(arg.type, en)].indexOf(true) >= 0;
+        final equatable = !recursiveArray;
         final lines:Array<String> = [ // Equatable backs the construct comparisons the samples run
             // (`width == F64`); payload types of the subset (Int32,
-            // String, nested enums) synthesize the conformance.
+            // String, nested enums) synthesize the conformance. A payload
+            // that lowers to a non-Equatable Swift type (TiqianArray, a
+            // class) drops the conformance so the declaration compiles.
             // Recursive payload enums require indirect storage in Swift.
             "public "
             + (EnumCycleDetector.isCyclic(en) ? "indirect " : "")
             + "enum "
             + en.name
-            + ": Equatable {"];
+            + (equatable ? ": Equatable {" : " {")];
         for (o in sorted) {
             final caseName = lowerFirst(o.name);
             if (o.args.length == 0) {
@@ -1175,6 +1184,20 @@ class SwiftDecl {
             }
         }
         return true;
+    }
+
+    /** Whether a payload type is Array<T> whose element is the enum itself: the
+        synthesized Equatable then requires TiqianArray<Self>: Equatable, which
+        requires Self: Equatable, a circular conformance Swift rejects. */
+    function selfArrayPayload(t:Null<Type>, en:EnumType):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(c, params) if (c.get().name == "Array" && params.length == 1):
+                switch (Context.follow(params[0])) {
+                    case TEnum(e, _): e.get().name == en.name;
+                    case _: false;
+                }
+            case _: false;
+        };
     }
 
     function fieldTypeSupportsEquatable(t:Null<Type>):Bool {
