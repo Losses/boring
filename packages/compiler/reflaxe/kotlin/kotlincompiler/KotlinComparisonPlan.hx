@@ -90,6 +90,7 @@ class KotlinComparisonPlan {
                 final difference = "difference" + depth;
                 final compared = render(child, a + "[" + index + "]", b + "[" + index + "]", owner, depth + 1);
                 'run { val $a = $left; val $b = $right; var $index = 0; var $difference = 0; while ($index < $a.size && $index < $b.size) { $difference = $compared; if ($difference != 0) break; $index += 1 }; if ($difference != 0) $difference else $a.size.compareTo($b.size) }';
+<<<<<<< HEAD
             case MapOrder(key, value):
                 final a = "mapLeft" + depth;
                 final b = "mapRight" + depth;
@@ -105,6 +106,9 @@ class KotlinComparisonPlan {
                 final difference = "setDifference" + depth;
                 final compared = render(element, a + ".at(" + index + ")", b + ".at(" + index + ")", owner, depth + 1);
                 'run { val $a = $left; val $b = $right; var $index = 0; var $difference = 0; while ($index < $a.size() && $index < $b.size()) { $difference = $compared; if ($difference != 0) break; $index += 1 }; if ($difference != 0) $difference else $a.size().compareTo($b.size()) }';
+=======
+            case MapOrder: 'if ($left != $right) 1 else 0';
+>>>>>>> db54f5181 (feat(std): cover Map fields in @:dataClass structural comparison)
             case FloatOrder | BooleanOrder:
                 Context.error("Kotlin sorted comparator received an equality-only source operation", Context.currentPos());
                 "0";
