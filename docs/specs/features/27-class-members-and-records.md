@@ -275,7 +275,19 @@ declaration contributes no storage.
    a class field`. The printed form of the Kotlin synthesis
    (`Name(field=value, ...)`) and `RecordStr.str` produce the same text.
    On TS, Swift, Dart, and Rust the marker changes nothing; record
-   behavior on those targets comes from the macros of ruling 1.
+   behavior on those targets comes from the macros of ruling 1. A record
+   whose fields are all comparable additionally lowers to `Equatable,
+   Hashable` on Swift and derives `PartialEq, Hash` on Rust so the record
+   can key a hash map; spec 16 rules the sorted-key comparator, and this
+   sentence adds the hash support. Swift hashes the declared fields in
+   declaration order through the same typed helpers the comparator uses,
+   so two equal records hash equal. Rust derives `Hash` over the narrower
+   hash domain only: `Int`, `Bool`, `String`, their `Array` and `Null`
+   layers, a type parameter, and a nested `@:dataClass`. `Float`, enums,
+   marked value types, plain classes, interfaces, exceptions, and the
+   resident sorted tables fall outside that domain, so a record holding
+   one of them derives `PartialEq` without `Hash`.
+
 3. **Constructor-parameter field visibility follows the field
    declaration on every target.** Kotlin renders a parameter held by a
    `public final` field `val`, by a `public` mutable field `var`, by a
