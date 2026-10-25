@@ -2982,6 +2982,10 @@ class DartExpr {
                         return expr(subj) + "[" + expr(args[0]) + "]";
                     if (name == "set" && args.length == 2)
                         return expr(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]);
+                    if (name == "remove" && args.length == 1)
+                        return expr(subj) + ".remove(" + expr(args[0]) + ") != null";
+                    if (name == "clear" && args.length == 0)
+                        return expr(subj) + ".clear()";
                 }
                 if (isStringBuf(subj)) {
                     // stdlib/08: the checks throw, and a throw is a

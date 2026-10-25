@@ -4251,7 +4251,9 @@ class KotlinExpr {
         if (isMapType(subj.t)) {
             if ((name == "exists" && args.length == 1)
                 || (name == "get" && args.length == 1)
-                || (name == "set" && args.length == 2))
+                || (name == "set" && args.length == 2)
+                || (name == "remove" && args.length == 1)
+                || (name == "clear" && args.length == 0))
                 return false;
         }
         if (isStringBuf(subj)) {
@@ -5411,6 +5413,10 @@ class KotlinExpr {
                         return expr(subj) + "[" + expr(args[0]) + "]";
                     if (name == "set" && args.length == 2)
                         return expr(subj) + ".put(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                    if (name == "remove" && args.length == 1)
+                        return expr(subj) + ".remove(" + expr(args[0]) + ") != null";
+                    if (name == "clear" && args.length == 0)
+                        return expr(subj) + ".clear()";
                 }
                 if (name == "toChar" && isNullType(subj.t))
                     return "(" + expr(subj) + ")!!.toChar()";
