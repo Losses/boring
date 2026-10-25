@@ -46,4 +46,26 @@ class DictionaryOps {
         d.set("c", 3);
         return d.get("c");
     }
+
+    /** A final Dictionary field mutates in place (Swift var, not let). */
+    public static function fieldMutate():Int {
+        final holder = new DictHolder();
+        holder.entries.set("k", 7);
+        return holder.entries.get("k");
+    }
+
+    /** Array.remove(x) lowers to a splice-based removal in TS. */
+    public static function arrayRemove():Bool {
+        final a = [1, 2, 3];
+        final removed = a.remove(2);
+        return removed && a.length == 2;
+    }
+}
+
+/** A final Dictionary field keeps mutating methods in Swift (var, not let). */
+class DictHolder {
+    public final entries:Dictionary<String, Int>;
+    public function new() {
+        entries = new Dictionary();
+    }
 }
