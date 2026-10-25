@@ -214,7 +214,6 @@ private class ComparisonBuilder {
                     case OperationFailed(reason, failedType): OperationFailed(reason, failedType);
                     case OperationUnresolved(reason): OperationUnresolved(reason);
                 }
-<<<<<<< HEAD
             case SortedMapShape(key, value):
                 switch (operation(key, path + ".key")) {
                     case OperationReady(keyOperation):
@@ -232,9 +231,6 @@ private class ComparisonBuilder {
                     case OperationFailed(reason, failedType): OperationFailed(reason, failedType);
                     case OperationUnresolved(reason): OperationUnresolved(reason);
                 }
-=======
-            case MapShape: OperationReady(MapOrder);
->>>>>>> db54f5181 (feat(std): cover Map fields in @:dataClass structural comparison)
             case UnsupportedShape(sourceType): OperationFailed("unsupported resolved source shape", sourceType);
             case UnresolvedShape(reason): OperationUnresolved("unresolved source shape: " + Std.string(reason));
         };
@@ -279,12 +275,8 @@ enum SourceComparisonOperation {
     RecordOrder(record:SourceRecordComparisonPlan, arguments:Array<Type>);
     NullBeforePresent(child:SourceComparisonOperation);
     Lexicographic(child:SourceComparisonOperation);
-<<<<<<< HEAD
     MapOrder(key:SourceComparisonOperation, value:SourceComparisonOperation);
     SetOrder(element:SourceComparisonOperation);
-=======
-    MapOrder;
->>>>>>> db54f5181 (feat(std): cover Map fields in @:dataClass structural comparison)
 }
 
 private class Builder {
@@ -374,7 +366,7 @@ private class Builder {
                 final cls = c.get();
                 if (isRootClass(cls, "String")) StringShape else if (cls.meta.has(":dataClass")) {
                     schemaMode ? RecordUseShape(recordSchema(c), arguments.copy()) : RecordShape(record(c, arguments));
-                } else if (cls.module == "std.Dictionary") MapShape else UnsupportedShape(t);
+                } else UnsupportedShape(t);
             case TEnum(e, arguments):
                 final declaration = e.get();
                 narrowPayloadEnums && hasPayloadConstructor(declaration) ? UnsupportedShape(t) : EnumShape(declaration, arguments.copy());
@@ -566,7 +558,6 @@ enum SourceComparisonShape {
     SortedSetShape(element:SourceComparisonShape);
     UnsupportedShape(sourceType:Type);
     UnresolvedShape(reason:UnresolvedReason);
-    MapShape;
 }
 
 /** One stored-field term of a declaration summary. Every term carries the

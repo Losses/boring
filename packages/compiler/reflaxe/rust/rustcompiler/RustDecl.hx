@@ -593,12 +593,8 @@ class RustDecl {
                 case FloatOrder | BooleanOrder: false;
                 case RecordOrder(nested, _): rustComparatorAvailable(nested, visited);
                 case NullBeforePresent(child) | Lexicographic(child): available(child);
-<<<<<<< HEAD
                 case MapOrder(key, value): available(key) && available(value);
                 case SetOrder(element): available(element);
-=======
-                case MapOrder: false;
->>>>>>> db54f5181 (feat(std): cover Map fields in @:dataClass structural comparison)
                 case _: true;
             };
         }
@@ -650,7 +646,6 @@ class RustDecl {
                         + ').iter()) { cmp = ' + operationText(child, "av", "bv")
                         + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
                         + cmpToI32('(' + left + ').len().cmp(&(' + right + ').len())') + '; } cmp }';
-<<<<<<< HEAD
                 case MapOrder(key, value):
                     '{ let mut cmp = 0; for i in 0..(' + left + ').size() { cmp = '
                         + operationText(key, '(' + left + ').key_at(i)', '(' + right + ').key_at(i)')
@@ -663,11 +658,6 @@ class RustDecl {
                         + operationText(element, '(' + left + ').at(i)', '(' + right + ').at(i)')
                         + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
                         + cmpToI32('(' + left + ').size().cmp(&(' + right + ').size())') + '; } cmp }';
-=======
-                case MapOrder:
-                    Context.error("Rust sorted comparator received an unsupported map operation", cls.pos);
-                    "0";
->>>>>>> db54f5181 (feat(std): cover Map fields in @:dataClass structural comparison)
             };
         }
         // A field whose nested record is generic instantiates the nested
