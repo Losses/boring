@@ -283,6 +283,24 @@ public func unitCodePoint(_ s: [UInt16], _ index: Int32) -> Int32 {
     return Int32(high)
 }
 
+/// The single UTF-16 code unit at a cursor of the resident unit array,
+/// nil past either end: the bounds-checked read String.charCodeAt lowers
+/// to (stdlib/15), a direct fetch instead of an immediately-invoked
+/// closure so digit-arithmetic loops hold no per-read closure allocation.
+public func unitAtOptionalArr(_ s: [UInt16], _ index: Int32) -> Int32? {
+    if index < 0 || index >= Int32(s.count) { return nil }
+    return Int32(s[Int(index)])
+}
+
+/// The one-unit resident slice String.charAt lowers to: empty past either
+/// end, otherwise the single unit, matching the empty-string result of
+/// charAt.
+/// (stdlib/15).
+public func charAtUnitArr(_ s: [UInt16], _ index: Int32) -> [UInt16] {
+    if index < 0 || index >= Int32(s.count) { return [] }
+    return [s[Int(index)]]
+}
+
 ';
 
     /**

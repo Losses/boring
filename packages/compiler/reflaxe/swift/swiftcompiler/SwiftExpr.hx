@@ -4708,7 +4708,7 @@ class SwiftExpr {
                     final s = receiverText(subj);
                     if (types.resident) {
                         // The resident subject is the unit array.
-                        return "({ () -> [UInt16] in let _i: Int32 = " + narrowedText(args[0]) + "; return substrUnitsArray(" + s + ", _i, 1) }())";
+                        return "charAtUnitArr(" + s + ", " + narrowedText(args[0]) + ")";
                     }
                     return "({ () -> String in let _i: Int32 = " + narrowedText(args[0]) + "; return substringUnits(" + s + ", _i, _i &+ 1) }())";
                 }
@@ -4718,7 +4718,7 @@ class SwiftExpr {
                     // optional handling (force-unwrap or pass-through) types,
                     // matching the native unitAtOptional Optional shape.
                     final code = types.resident
-                        ? "({ () -> Int32? in let _i: Int32 = " + narrowedText(args[0]) + "; let _u = " + receiverText(subj) + "; return (_i >= 0 && _i < Int32(_u.count)) ? Int32(_u[Int(_i)]) : nil }())"
+                        ? "unitAtOptionalArr(" + receiverText(subj) + ", " + narrowedText(args[0]) + ")"
                         : "unitAtOptional(" + receiverText(subj) + ", " + expr(args[0]) + ")";
                     final optional = switch (Context.follow(fn.t)) {
                         case TFun(_, ret): isNullLeafType(ret);
