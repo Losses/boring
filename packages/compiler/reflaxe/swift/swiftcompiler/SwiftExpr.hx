@@ -3242,7 +3242,7 @@ class SwiftExpr {
             case TConst(TNull): expr(e);
             case _: !suppressUnwrap && !isIfLetShadowed(e) && (isLocalOptional(e)
                     || isNarrowed(e)
-                    || (isStringCharCodeAt(e) && !types.resident)) ? "(" + expr(e) + ")!" : expr(e);
+                    || isStringCharCodeAt(e)) ? "(" + expr(e) + ")!" : expr(e);
         };
         switch (stripWrap(e).expr) {
             case TBinop(op, _, _):
@@ -4232,11 +4232,14 @@ class SwiftExpr {
                 if (module == "org.tiqian.test.trace.TestTracePlatform" && cls.name == "NodeFileSystem") {
                     if (fName == "mkdirSync" && args.length >= 1) {
                         imports.foundation();
-                        return "try! FileManager.default.createDirectory(atPath: " + expr(args[0]) + ", withIntermediateDirectories: true)";
+                        final dir = types.resident ? "String(decoding: " + expr(args[0]) + ", as: UTF16.self)" : expr(args[0]);
+                        return "try! FileManager.default.createDirectory(atPath: " + dir + ", withIntermediateDirectories: true)";
                     }
                     if (fName == "writeFileSync" && args.length >= 2) {
                         imports.foundation();
-                        return "try! (" + expr(args[1]) + ").write(toFile: " + expr(args[0]) + ", atomically: true, encoding: .utf8)";
+                        final text = types.resident ? "String(decoding: " + expr(args[1]) + ", as: UTF16.self)" : expr(args[1]);
+                        final path = types.resident ? "String(decoding: " + expr(args[0]) + ", as: UTF16.self)" : expr(args[0]);
+                        return "try! (" + text + ").write(toFile: " + path + ", atomically: true, encoding: .utf8)";
                     }
                 }
                 if (module == "std.Console") {
@@ -6552,25 +6555,28 @@ class SwiftExpr {
     }
 
     function residentConcatLeaf(leaf:TypedExpr):String {
+        final optional = swiftPresence(leaf) != Present;
+        final nilText = "Array(\"null\".utf16)";
         if (isStringLeafType(leaf.t)) {
-            return optionalStringLeaf(leaf) ? expr(leaf) + "!" : expr(leaf);
+            return optional ? "(" + expr(leaf) + " ?? " + nilText + ")" : expr(leaf);
         }
         if (isUnitArrayTyped(leaf)) {
             return expr(leaf);
         }
         if (isIntTyped(leaf)) {
-            return "TestCore.formatInt(" + expr(leaf) + (swiftPresence(leaf) != Present ? "!" : "") + ")";
+            return optional ? "(" + expr(leaf) + " == nil ? " + nilText + " : TestCore.formatInt(" + expr(leaf) + "!))" : "TestCore.formatInt(" + expr(leaf) + ")";
         }
         switch (Context.follow(leaf.t)) {
             case TAbstract(a, _):
                 final abs = a.get();
                 if (abs.name != "Int" && abs.name != "Float" && abs.name != "Bool" && abs.module != "std.ReadOnlyArray") {
-                    final inner = expr(leaf) + (swiftPresence(leaf) != Present ? "!" : "") + "." + ValueTypeSupport.representationFieldName(abs);
-                    return isIntType(abs.type) ? "TestCore.formatInt(" + inner + ")" : "Array(String(" + inner + ").utf16)";
+                    final inner = expr(leaf) + (optional ? "!" : "") + "." + ValueTypeSupport.representationFieldName(abs);
+                    final rendered = isIntType(abs.type) ? "TestCore.formatInt(" + inner + ")" : "Array(String(" + inner + ").utf16)";
+                    return optional ? "(" + expr(leaf) + " == nil ? " + nilText + " : " + rendered + ")" : rendered;
                 }
             case _:
         }
-        return "Array(String(" + expr(leaf) + (swiftPresence(leaf) != Present ? "!" : "") + ").utf16)";
+        return optional ? "(" + expr(leaf) + " == nil ? " + nilText + " : Array(String(" + expr(leaf) + "!).utf16))" : "Array(String(" + expr(leaf) + ").utf16)";
     }
 
     /** Whether a concat leaf is an optional string a guard has cleared. */
