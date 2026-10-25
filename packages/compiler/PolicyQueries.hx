@@ -196,6 +196,8 @@ class PolicyQueries {
         return switch (shape) {
             case IntShape | StringShape | EnumShape(_, _): true;
             case NullableShape(inner) | SequenceShape(inner): isSortedKeyShape(inner);
+            case SortedMapShape(key, value): isSortedKeyShape(key) && isSortedKeyShape(value);
+            case SortedSetShape(element): isSortedKeyShape(element);
             case RecordShape(record):
                 switch (SourceComparisonAnalysis.comparisonPlan(record, SortedKey)) {
                     case ComparisonPlanReady(_): true;

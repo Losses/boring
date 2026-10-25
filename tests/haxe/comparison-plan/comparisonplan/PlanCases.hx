@@ -99,3 +99,25 @@ class BoolKey {
 		this.value = value;
 	}
 }
+
+@:dataClass
+class SortedKeyRange {
+	public final start:Int;
+	public final end:Int;
+
+	public function new(start:Int, end:Int) {
+		this.start = start;
+		this.end = end;
+	}
+}
+
+@:dataClass
+class SortedContainerKey {
+	public final text:String;
+	public final tiers:std.SortedMap<SortedKeyRange, std.SortedSet<Int>>;
+
+	public function new(text:String, tiers:std.SortedMap<SortedKeyRange, std.SortedSet<Int>>) {
+		this.text = text;
+		this.tiers = tiers;
+	}
+}
