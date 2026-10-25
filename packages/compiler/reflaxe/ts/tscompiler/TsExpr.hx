@@ -2694,8 +2694,9 @@ class TsExpr {
                         return expr(subj) + ".toUpperCase()";
                 }
                 if (isMapType(subj.t)) {
+                    imports.runtime("dictKey");
                     if (name == "exists" && args.length == 1)
-                        return expr(subj) + ".has(" + expr(args[0]) + ")";
+                        return expr(subj) + ".has(dictKey(" + expr(args[0]) + "))";
                     if (name == "get" && args.length == 1)
                         // haxe.ds.Map.get carries the Null<V> type, so
                         // an absent key reads as null. The native Map reads it
@@ -2705,14 +2706,14 @@ class TsExpr {
                         // matches, and a value that never passes a comparison
                         // still carries null into string conversion, variant
                         // switching, and table storage.
-                        return "(" + expr(subj) + ".get(" + expr(args[0]) + ") ?? null)";
+                        return "(" + expr(subj) + ".get(dictKey(" + expr(args[0]) + ")) ?? null)";
                     if (name == "set" && args.length == 2)
-                        return expr(subj) + ".set(" + expr(args[0]) + ", " + expr(args[1]) + ")";
+                        return expr(subj) + ".set(dictKey(" + expr(args[0]) + "), " + expr(args[1]) + ")";
                     // The native Map deletes a key through delete. The Haxe
                     // member name remove carries the same type (returns
                     // whether the key was present).
                     if (name == "remove" && args.length == 1)
-                        return expr(subj) + ".delete(" + expr(args[0]) + ")";
+                        return expr(subj) + ".delete(dictKey(" + expr(args[0]) + "))";
                     // The native Map clears through clear, matching the Haxe
                     // member.
                     if (name == "clear" && args.length == 0)
