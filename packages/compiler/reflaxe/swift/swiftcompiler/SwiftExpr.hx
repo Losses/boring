@@ -7611,7 +7611,7 @@ class SwiftExpr {
     function stringLiteralExpr(s:String):String {
         final ext = assetReadExpr(s);
         if (ext != null)
-            return types.resident ? "Array(" + ext + ".utf16)" : ext;
+            return types.resident ? "Array((" + ext + ").utf16)" : ext;
         return types.resident ? "Array(" + quoteStringRaw(s) + ".utf16)" : quoteString(s);
     }
 
