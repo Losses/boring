@@ -366,6 +366,8 @@ class TsDecl {
                     final modules = modulesByName.get(declaration.name);
                     if (modules != null && modules.indexOf(declaration.module) < 0) modules.push(declaration.module);
                 case NullBeforePresent(child) | Lexicographic(child): collect(child);
+                case MapOrder(key, value): collect(key); collect(value);
+                case SetOrder(element): collect(element);
                 case _:
             }
         }
@@ -428,6 +430,21 @@ class TsDecl {
                 emitComparison(lines, helpers, child, '${left}[${index}]!', '${right}[${index}]!', name + "Element", depth + 1);
                 lines.push('${indent}}');
                 lines.push('${indent}if (${left}.length !== ${right}.length) return ${left}.length - ${right}.length;');
+            case MapOrder(key, value):
+                final index = "i" + depth;
+                final bound = "n" + depth;
+                lines.push('${indent}for (let ${index} = 0, ${bound} = ${left}.size() < ${right}.size() ? ${left}.size() : ${right}.size(); ${index} < ${bound}; ${index}++) {');
+                emitComparison(lines, helpers, key, '${left}.keyAt(${index})', '${right}.keyAt(${index})', name + "Key", depth + 1);
+                emitComparison(lines, helpers, value, '${left}.valueAt(${index})', '${right}.valueAt(${index})', name + "Value", depth + 1);
+                lines.push('${indent}}');
+                lines.push('${indent}if (${left}.size() !== ${right}.size()) return ${left}.size() - ${right}.size();');
+            case SetOrder(element):
+                final index = "i" + depth;
+                final bound = "n" + depth;
+                lines.push('${indent}for (let ${index} = 0, ${bound} = ${left}.size() < ${right}.size() ? ${left}.size() : ${right}.size(); ${index} < ${bound}; ${index}++) {');
+                emitComparison(lines, helpers, element, '${left}.at(${index})', '${right}.at(${index})', name + "Element", depth + 1);
+                lines.push('${indent}}');
+                lines.push('${indent}if (${left}.size() !== ${right}.size()) return ${left}.size() - ${right}.size();');
             case FloatOrder | BooleanOrder | ParameterOrder(_):
                 Context.error("TypeScript sorted comparator received a non-key operation", Context.currentPos());
         }

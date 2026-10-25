@@ -46,6 +46,8 @@ class DartComparisonPlan {
             function nested(op:SourceComparisonOperation):Void switch (op) {
                 case RecordOrder(child, _): visit(child);
                 case NullBeforePresent(child) | Lexicographic(child): nested(child);
+                case MapOrder(key, value): nested(key); nested(value);
+                case SetOrder(element): nested(element);
                 case _:
             }
             for (field in record.fields) nested(field.operation);
@@ -87,6 +89,8 @@ class DartComparisonPlan {
                             for (index in found) if (add(demanded, index)) changed = true;
                         }
                     case NullBeforePresent(child) | Lexicographic(child): collect(child);
+                    case MapOrder(key, value): collect(key); collect(value);
+                    case SetOrder(element): collect(element);
                     case _:
                 }
                 for (field in record.fields) collect(field.operation);
@@ -135,6 +139,13 @@ class DartComparisonPlan {
                     if (callbacks.length == 0) name
                     else "(left, right) => " + name + "(left, right, " + callbacks.join(", ") + ")";
                 }
+            case TInst(reference, args) if (reference.get().name == "SortedMap" && reference.get().pack.join(".") == "std" && args.length == 2):
+                final key = comparatorForType(args[0], imports, owner);
+                final value = comparatorForType(args[1], imports, owner);
+                "(left, right) { if (left.size() != right.size()) return left.size().compareTo(right.size()); for (var index = 0; index < left.size(); index++) { final order = " + key + "(left.keyAt(index), right.keyAt(index)); if (order != 0) return order; final orderValue = " + value + "(left.valueAt(index), right.valueAt(index)); if (orderValue != 0) return orderValue; } return 0; }";
+            case TInst(reference, args) if (reference.get().name == "SortedSet" && reference.get().pack.join(".") == "std" && args.length == 1):
+                final child = comparatorForType(args[0], imports, owner);
+                "(left, right) { if (left.size() != right.size()) return left.size().compareTo(right.size()); for (var index = 0; index < left.size(); index++) { final order = " + child + "(left.at(index), right.at(index)); if (order != 0) return order; } return 0; }";
             case TLazy(resolve):
                 comparatorForType(resolve(), imports, owner);
             case TType(_, _):

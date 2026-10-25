@@ -65,6 +65,8 @@ private class SwiftPlanBuilder {
                         }
                     }
                 case SwiftNullBeforePresent(child) | SwiftLexicographic(child): collect(child);
+                case SwiftMapOrder(key, value): collect(key); collect(value);
+                case SwiftSetOrder(element): collect(element);
                 case _:
             }
         }
@@ -105,6 +107,23 @@ private class SwiftPlanBuilder {
             case Lexicographic(child):
                 switch (operation(child, path + "_element", owner)) {
                     case SwiftOperationReady(selected): SwiftOperationReady(SwiftLexicographic(selected));
+                    case SwiftOperationFailed(reason, sourceType): SwiftOperationFailed(reason, sourceType);
+                    case SwiftOperationUnresolved(reason): SwiftOperationUnresolved(reason);
+                }
+            case MapOrder(key, value):
+                switch (operation(key, path + "_key", owner)) {
+                    case SwiftOperationReady(selectedKey):
+                        switch (operation(value, path + "_value", owner)) {
+                            case SwiftOperationReady(selectedValue): SwiftOperationReady(SwiftMapOrder(selectedKey, selectedValue));
+                            case SwiftOperationFailed(reason, sourceType): SwiftOperationFailed(reason, sourceType);
+                            case SwiftOperationUnresolved(reason): SwiftOperationUnresolved(reason);
+                        }
+                    case SwiftOperationFailed(reason, sourceType): SwiftOperationFailed(reason, sourceType);
+                    case SwiftOperationUnresolved(reason): SwiftOperationUnresolved(reason);
+                }
+            case SetOrder(element):
+                switch (operation(element, path + "_element", owner)) {
+                    case SwiftOperationReady(selected): SwiftOperationReady(SwiftSetOrder(selected));
                     case SwiftOperationFailed(reason, sourceType): SwiftOperationFailed(reason, sourceType);
                     case SwiftOperationUnresolved(reason): SwiftOperationUnresolved(reason);
                 }
@@ -176,5 +195,7 @@ enum SwiftComparisonOperation {
     SwiftRecordOrder(record:SwiftRecordPlan, arguments:Array<Type>);
     SwiftNullBeforePresent(child:SwiftComparisonOperation);
     SwiftLexicographic(child:SwiftComparisonOperation);
+    SwiftMapOrder(key:SwiftComparisonOperation, value:SwiftComparisonOperation);
+    SwiftSetOrder(element:SwiftComparisonOperation);
 }
 #end

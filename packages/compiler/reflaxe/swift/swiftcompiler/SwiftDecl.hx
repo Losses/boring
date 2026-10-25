@@ -439,6 +439,23 @@ class SwiftDecl {
                 emitHashOperation(owner, child, value + "[" + index + "]", indent + "    ", lines, localIndex);
                 lines.push(indent + "    " + index + " += 1");
                 lines.push(indent + "}");
+            case SwiftMapOrder(keyOperation, valueOperation):
+                lines.push(indent + "hasher.combine(" + value + ".size())");
+                final index = allocateComparisonLocal(localIndex);
+                lines.push(indent + "var " + index + ": Int32 = 0");
+                lines.push(indent + "while " + index + " < " + value + ".size() {");
+                emitHashOperation(owner, keyOperation, value + ".keyAt(" + index + ")", indent + "    ", lines, localIndex);
+                emitHashOperation(owner, valueOperation, value + ".valueAt(" + index + ")", indent + "    ", lines, localIndex);
+                lines.push(indent + "    " + index + " += 1");
+                lines.push(indent + "}");
+            case SwiftSetOrder(element):
+                lines.push(indent + "hasher.combine(" + value + ".size())");
+                final index = allocateComparisonLocal(localIndex);
+                lines.push(indent + "var " + index + ": Int32 = 0");
+                lines.push(indent + "while " + index + " < " + value + ".size() {");
+                emitHashOperation(owner, element, value + ".at(" + index + ")", indent + "    ", lines, localIndex);
+                lines.push(indent + "    " + index + " += 1");
+                lines.push(indent + "}");
         }
     }
 
@@ -493,6 +510,25 @@ class SwiftDecl {
                 lines.push(indent + "}");
                 lines.push(indent + "if " + left + ".count < " + right + ".count { return -1 }");
                 lines.push(indent + "if " + left + ".count > " + right + ".count { return 1 }");
+            case SwiftMapOrder(key, value):
+                lines.push(indent + "if " + left + ".size() < " + right + ".size() { return -1 }");
+                lines.push(indent + "if " + left + ".size() > " + right + ".size() { return 1 }");
+                final index = allocateComparisonLocal(localIndex);
+                lines.push(indent + "var " + index + ": Int32 = 0");
+                lines.push(indent + "while " + index + " < " + left + ".size() {");
+                emitComparisonOperation(owner, key, left + ".keyAt(" + index + ")", right + ".keyAt(" + index + ")", indent + "    ", lines, localIndex);
+                emitComparisonOperation(owner, value, left + ".valueAt(" + index + ")", right + ".valueAt(" + index + ")", indent + "    ", lines, localIndex);
+                lines.push(indent + "    " + index + " += 1");
+                lines.push(indent + "}");
+            case SwiftSetOrder(element):
+                lines.push(indent + "if " + left + ".size() < " + right + ".size() { return -1 }");
+                lines.push(indent + "if " + left + ".size() > " + right + ".size() { return 1 }");
+                final index = allocateComparisonLocal(localIndex);
+                lines.push(indent + "var " + index + ": Int32 = 0");
+                lines.push(indent + "while " + index + " < " + left + ".size() {");
+                emitComparisonOperation(owner, element, left + ".at(" + index + ")", right + ".at(" + index + ")", indent + "    ", lines, localIndex);
+                lines.push(indent + "    " + index + " += 1");
+                lines.push(indent + "}");
         }
     }
 

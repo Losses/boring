@@ -361,6 +361,23 @@ class DartDecl {
                     final lengthOrder = local();
                     lines.push(indent + "final " + lengthOrder + " = " + left + ".length.compareTo(" + right + ".length);");
                     lines.push(indent + "if (" + lengthOrder + " != 0) return " + lengthOrder + ";");
+                case MapOrder(key, value):
+                    final index = local();
+                    lines.push(indent + "for (var " + index + " = 0; " + index + " < " + left + ".size() && " + index + " < " + right + ".size(); " + index + "++) {");
+                    emit(key, left + ".keyAt(" + index + ")", right + ".keyAt(" + index + ")", indent + "  ");
+                    emit(value, left + ".valueAt(" + index + ")", right + ".valueAt(" + index + ")", indent + "  ");
+                    lines.push(indent + "}");
+                    final sizeOrder = local();
+                    lines.push(indent + "final " + sizeOrder + " = " + left + ".size().compareTo(" + right + ".size());");
+                    lines.push(indent + "if (" + sizeOrder + " != 0) return " + sizeOrder + ";");
+                case SetOrder(element):
+                    final index = local();
+                    lines.push(indent + "for (var " + index + " = 0; " + index + " < " + left + ".size() && " + index + " < " + right + ".size(); " + index + "++) {");
+                    emit(element, left + ".at(" + index + ")", right + ".at(" + index + ")", indent + "  ");
+                    lines.push(indent + "}");
+                    final sizeOrder = local();
+                    lines.push(indent + "final " + sizeOrder + " = " + left + ".size().compareTo(" + right + ".size());");
+                    lines.push(indent + "if (" + sizeOrder + " != 0) return " + sizeOrder + ";");
             }
         }
         for (field in plan.fields) {

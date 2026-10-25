@@ -90,6 +90,21 @@ class KotlinComparisonPlan {
                 final difference = "difference" + depth;
                 final compared = render(child, a + "[" + index + "]", b + "[" + index + "]", owner, depth + 1);
                 'run { val $a = $left; val $b = $right; var $index = 0; var $difference = 0; while ($index < $a.size && $index < $b.size) { $difference = $compared; if ($difference != 0) break; $index += 1 }; if ($difference != 0) $difference else $a.size.compareTo($b.size) }';
+            case MapOrder(key, value):
+                final a = "mapLeft" + depth;
+                final b = "mapRight" + depth;
+                final index = "mapIndex" + depth;
+                final difference = "mapDifference" + depth;
+                final keyCompared = render(key, a + ".keyAt(" + index + ")", b + ".keyAt(" + index + ")", owner, depth + 1);
+                final valueCompared = render(value, a + ".valueAt(" + index + ")", b + ".valueAt(" + index + ")", owner, depth + 1);
+                'run { val $a = $left; val $b = $right; var $index = 0; var $difference = 0; while ($index < $a.size() && $index < $b.size()) { $difference = $keyCompared; if ($difference != 0) break; $difference = $valueCompared; if ($difference != 0) break; $index += 1 }; if ($difference != 0) $difference else $a.size().compareTo($b.size()) }';
+            case SetOrder(element):
+                final a = "setLeft" + depth;
+                final b = "setRight" + depth;
+                final index = "setIndex" + depth;
+                final difference = "setDifference" + depth;
+                final compared = render(element, a + ".at(" + index + ")", b + ".at(" + index + ")", owner, depth + 1);
+                'run { val $a = $left; val $b = $right; var $index = 0; var $difference = 0; while ($index < $a.size() && $index < $b.size()) { $difference = $compared; if ($difference != 0) break; $index += 1 }; if ($difference != 0) $difference else $a.size().compareTo($b.size()) }';
             case FloatOrder | BooleanOrder:
                 Context.error("Kotlin sorted comparator received an equality-only source operation", Context.currentPos());
                 "0";

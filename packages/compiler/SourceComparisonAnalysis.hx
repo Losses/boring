@@ -214,6 +214,23 @@ private class ComparisonBuilder {
                     case OperationFailed(reason, failedType): OperationFailed(reason, failedType);
                     case OperationUnresolved(reason): OperationUnresolved(reason);
                 }
+            case SortedMapShape(key, value):
+                switch (operation(key, path + ".key")) {
+                    case OperationReady(keyOperation):
+                        switch (operation(value, path + ".value")) {
+                            case OperationReady(valueOperation): OperationReady(MapOrder(keyOperation, valueOperation));
+                            case OperationFailed(reason, failedType): OperationFailed(reason, failedType);
+                            case OperationUnresolved(reason): OperationUnresolved(reason);
+                        }
+                    case OperationFailed(reason, failedType): OperationFailed(reason, failedType);
+                    case OperationUnresolved(reason): OperationUnresolved(reason);
+                }
+            case SortedSetShape(element):
+                switch (operation(element, path + "[]")) {
+                    case OperationReady(child): OperationReady(SetOrder(child));
+                    case OperationFailed(reason, failedType): OperationFailed(reason, failedType);
+                    case OperationUnresolved(reason): OperationUnresolved(reason);
+                }
             case UnsupportedShape(sourceType): OperationFailed("unsupported resolved source shape", sourceType);
             case UnresolvedShape(reason): OperationUnresolved("unresolved source shape: " + Std.string(reason));
         };
@@ -258,6 +275,8 @@ enum SourceComparisonOperation {
     RecordOrder(record:SourceRecordComparisonPlan, arguments:Array<Type>);
     NullBeforePresent(child:SourceComparisonOperation);
     Lexicographic(child:SourceComparisonOperation);
+    MapOrder(key:SourceComparisonOperation, value:SourceComparisonOperation);
+    SetOrder(element:SourceComparisonOperation);
 }
 
 private class Builder {
@@ -323,6 +342,8 @@ private class Builder {
             case NoExplicitWrapper:
                 switch (facts.face) {
                     case ReadOnlyArrayFace(element): SequenceShape(shape(element, binderOwner, binderArguments));
+                    case SortedMapFace(key, value): SortedMapShape(shape(key, binderOwner, binderArguments), shape(value, binderOwner, binderArguments));
+                    case SortedSetFace(element): SortedSetShape(shape(element, binderOwner, binderArguments));
                     case MutableArray(_): UnsupportedShape(written);
                     case UnresolvedSource(reason): UnresolvedShape(reason);
                     case OtherSourceType:
@@ -533,6 +554,8 @@ enum SourceComparisonShape {
     RecordUseShape(record:SourceRecordNode, arguments:Array<Type>);
     NullableShape(inner:SourceComparisonShape);
     SequenceShape(element:SourceComparisonShape);
+    SortedMapShape(key:SourceComparisonShape, value:SourceComparisonShape);
+    SortedSetShape(element:SourceComparisonShape);
     UnsupportedShape(sourceType:Type);
     UnresolvedShape(reason:UnresolvedReason);
 }
@@ -557,6 +580,8 @@ enum SourceFieldTerm {
     TermAlias(declaration:SourceDeclarationIdentity, arguments:Array<SourceFieldTerm>, type:Type);
     TermNull(inner:SourceFieldTerm, type:Type);
     TermReadOnlyArray(inner:SourceFieldTerm, type:Type);
+    TermSortedMap(key:SourceFieldTerm, value:SourceFieldTerm, type:Type);
+    TermSortedSet(element:SourceFieldTerm, type:Type);
     TermUnsupported(type:Type);
     TermUnresolved(reason:UnresolvedReason, type:Type);
 }
@@ -744,6 +769,10 @@ private class AdmissionBuilder {
             case TermApplication(declaration, arguments, _): visitApplication(declaration, arguments, visited);
             case TermAlias(declaration, arguments, _): visitApplication(declaration, arguments, visited);
             case TermNull(inner, _) | TermReadOnlyArray(inner, _): collectApplications(inner, visited);
+            case TermSortedMap(key, value, _):
+                collectApplications(key, visited);
+                collectApplications(value, visited);
+            case TermSortedSet(element, _): collectApplications(element, visited);
             case _:
         }
     }
@@ -799,6 +828,8 @@ private class AdmissionBuilder {
             case TermInt(_) | TermString(_) | TermFloat(_) | TermBool(_) | TermEnum(_, _, _): [];
             case TermUnsupported(_) | TermUnresolved(_, _): [];
             case TermNull(inner, _) | TermReadOnlyArray(inner, _): needSlots(inner);
+            case TermSortedMap(key, value, _): needSlots(key).concat(needSlots(value));
+            case TermSortedSet(element, _): needSlots(element);
             case TermApplication(declaration, arguments, _): transferredSlots(declaration, arguments);
             case TermAlias(declaration, arguments, _): transferredSlots(declaration, arguments);
         }
@@ -833,6 +864,10 @@ private class AdmissionBuilder {
         if (leafRejected(term)) return {state: StateRejected, reason: null};
         return switch (term) {
             case TermNull(inner, _) | TermReadOnlyArray(inner, _): evaluateTerm(inner);
+            case TermSortedMap(key, value, _):
+                final keyResult = evaluateTerm(key);
+                keyResult.state != StateClean ? keyResult : evaluateTerm(value);
+            case TermSortedSet(element, _): evaluateTerm(element);
             case TermApplication(declaration, arguments, _): appliedState(declaration, arguments);
             case TermAlias(declaration, arguments, _): appliedState(declaration, arguments);
             case _: {state: StateClean, reason: null};
@@ -868,6 +903,10 @@ private class AdmissionBuilder {
             case TermUnsupported(_): FieldRejected(termType(term));
             case TermUnresolved(reason, _): FieldUnresolved(reason);
             case TermNull(inner, _) | TermReadOnlyArray(inner, _): argumentFailure(inner);
+            case TermSortedMap(key, value, _):
+                final keyFailure = argumentFailure(key);
+                keyFailure != null ? keyFailure : argumentFailure(value);
+            case TermSortedSet(element, _): argumentFailure(element);
             case TermApplication(declaration, arguments, _): appliedArgumentFailure(declaration, arguments, term);
             case TermAlias(declaration, arguments, _): appliedArgumentFailure(declaration, arguments, term);
         }
@@ -891,6 +930,8 @@ private class AdmissionBuilder {
             case TermUnsupported(_): true;
             case TermFloat(_) | TermBool(_): request == SortedKey;
             case TermNull(inner, _) | TermReadOnlyArray(inner, _): leafRejected(inner);
+            case TermSortedMap(key, value, _): leafRejected(key) || leafRejected(value);
+            case TermSortedSet(element, _): leafRejected(element);
             case _: false;
         }
     }
@@ -899,6 +940,10 @@ private class AdmissionBuilder {
         return switch (term) {
             case TermUnresolved(reason, _): reason;
             case TermNull(inner, _) | TermReadOnlyArray(inner, _): leafUnresolved(inner);
+            case TermSortedMap(key, value, _):
+                final keyUnresolved = leafUnresolved(key);
+                keyUnresolved != null ? keyUnresolved : leafUnresolved(value);
+            case TermSortedSet(element, _): leafUnresolved(element);
             case _: null;
         }
     }
@@ -937,6 +982,10 @@ private class AdmissionBuilder {
         if (leafRejected(term)) return {site: obligationSite(summary, entry.field, entry.type, chain, false), reason: null};
         return switch (term) {
             case TermNull(inner, _) | TermReadOnlyArray(inner, _): locateInTerm(inner, summary, entry, chain, visited);
+            case TermSortedMap(key, value, _):
+                final keyFound = locateInTerm(key, summary, entry, chain, visited);
+                keyFound != null ? keyFound : locateInTerm(value, summary, entry, chain, visited);
+            case TermSortedSet(element, _): locateInTerm(element, summary, entry, chain, visited);
             case TermApplication(declaration, arguments, _): locateApplication(declaration, arguments, summary, entry, chain, visited);
             case TermAlias(declaration, arguments, _): locateApplication(declaration, arguments, summary, entry, chain, visited);
             case _: null;
@@ -984,6 +1033,12 @@ private class AdmissionBuilder {
                 else if (request == SortedKey) DemandUnsupplied(slot);
                 else DemandRejected(ParameterWithoutEqualityEvidence(slot), obligationSite(owner, field, termType(term), chain, false));
             case TermNull(inner, _) | TermReadOnlyArray(inner, _): checkDemand(inner, owner, field, chain, atRoot);
+            case TermSortedMap(key, value, _):
+                switch (checkDemand(key, owner, field, chain, atRoot)) {
+                    case DemandOk: checkDemand(value, owner, field, chain, atRoot);
+                    case other: other;
+                }
+            case TermSortedSet(element, _): checkDemand(element, owner, field, chain, atRoot);
             case TermApplication(declaration, arguments, _): checkDemandedApplication(declaration, arguments, owner, field, chain);
             case TermAlias(declaration, arguments, _): checkDemandedApplication(declaration, arguments, owner, field, chain);
             case _: DemandOk;
@@ -1052,6 +1107,8 @@ private class AdmissionBuilder {
                     case WrapperUnresolved(reason): TermUnresolved(reason, written);
                     case NoExplicitWrapper: switch (facts.face) {
                         case ReadOnlyArrayFace(element): TermReadOnlyArray(classify(element, owner, binders), written);
+                        case SortedMapFace(key, value): TermSortedMap(classify(key, owner, binders), classify(value, owner, binders), written);
+                        case SortedSetFace(element): TermSortedSet(classify(element, owner, binders), written);
                         case MutableArray(_): TermUnsupported(written);
                         case UnresolvedSource(reason): TermUnresolved(reason, written);
                         case OtherSourceType:
@@ -1088,6 +1145,8 @@ private class AdmissionBuilder {
             case TermInt(type) | TermString(type) | TermFloat(type) | TermBool(type): type;
             case TermEnum(_, _, type) | TermBinder(_, _, type) | TermApplication(_, _, type) | TermAlias(_, _, type): type;
             case TermNull(_, type) | TermReadOnlyArray(_, type): type;
+            case TermSortedMap(_, _, type): type;
+            case TermSortedSet(_, type): type;
             case TermUnsupported(type) | TermUnresolved(_, type): type;
         }
     }

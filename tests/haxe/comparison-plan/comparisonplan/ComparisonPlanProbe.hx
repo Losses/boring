@@ -116,6 +116,17 @@ class ComparisonPlanProbe {
 		});
 		observe("float-key-and-capability", () -> capability("FloatKey"));
 		observe("bool-key-and-capability", () -> capability("BoolKey"));
+		observe("sorted-container-field", () -> {
+			final node = getRecord("comparisonplan.PlanCases.SortedContainerKey", []);
+			final field = node.fields[1];
+			final shape = switch (field.shape) {
+				case SortedMapShape(key, value): "SortedMap(" + describeShape(key) + "," + describeShape(value) + ")";
+				case _: "not-sorted-map";
+			};
+			shape + "|equality=" + planResult(node, OptionalEqualityCapability)
+				+ "|sorted=" + planResult(node, SortedKey)
+				+ "|admitted=" + PolicyQueries.canEmitDataClassComparator(node.declaration);
+		});
 		observe("alias-int-shape", () -> shape("comparisonplan.CountAlias"));
 		observe("alias-sequence-shape", () -> {
 			final alias = switch (Context.getType("comparisonplan.SequenceAlias")) {
@@ -147,6 +158,15 @@ class ComparisonPlanProbe {
 		return switch (shape) {
 			case RecordUseShape(record, arguments):
 				"RecordUse(" + record.declaration.name + ",args=" + arguments.length + ")";
+			case _: Std.string(shape);
+		};
+	}
+
+	static function describeShape(shape:SourceComparisonShape):String {
+		return switch (shape) {
+			case IntShape: "Int";
+			case SortedSetShape(element): "SortedSet(" + describeShape(element) + ")";
+			case RecordShape(record): "Record(" + record.declaration.name + ")";
 			case _: Std.string(shape);
 		};
 	}
