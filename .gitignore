@@ -70,3 +70,5 @@ boring-*.stuck.md
 
 # workspace-board transient scratch locks (pollute gitClean checks if visible)
 .workspace-board-scratch-lock-*/
+
+.workspace-board-scratch-lock-*/
