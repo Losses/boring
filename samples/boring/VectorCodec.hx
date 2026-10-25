@@ -11,7 +11,15 @@ import haxe.io.Bytes;
  * Rust, and Kotlin suites read and write the same bytes. Encode reads
  * through the read-only array type and decode returns it, per
  * docs/specs/features/18-immutability.md.
+ *
+ * Pinned to the main (shipping) unit with @:mainOnly: the test-support
+ * closure would otherwise reclassify this module to tests, because its only
+ * Haxe referencer is tests.VectorCodecTests. The hand-written Kotlin
+ * (tests/kotlin/Main.kt) and Rust (tests/rust/vector_gen.rs) harnesses
+ * consume the shipping codec from the main tree to verify the committed
+ * wire bytes across targets, so the codec must stay in gen.
  */
+@:mainOnly
 class VectorCodec {
     public static inline var MAGIC_F64:String = "BRG1";
     public static inline var MAGIC_F32:String = "BRG2";
