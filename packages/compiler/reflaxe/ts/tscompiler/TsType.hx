@@ -47,6 +47,7 @@ class TsType {
                     case "std.StringBuf" | "StringBuf": "string[]";
                     case "Array": arrayElement(params[0]) + "[]";
                     case "haxe.Exception": "Error";
+                    case "std.Dictionary": "Map<" + of(params[0]) + ", " + of(params[1]) + ">";
                     case "haxe.io.Bytes": "Uint8Array";
                     case "haxe.io.BytesBuffer":
                         imports.runtime("BytesBuffer");

@@ -61,6 +61,7 @@ boring.WordCharacterTable
 boring.PayloadTextTable
 boring.CodePointNames
 std.SortedMap
+std.Dictionary
 std.SortedSet
 std.Functional
 # The std.Fs host-failure identity: boring.PlatformOps calls the fallible
@@ -397,6 +398,8 @@ tests.NullGuardFieldTests
 
 boring.MapHasGetOps
 tests.MapHasGetTests
+boring.DictionaryOps
+tests.DictionaryTests
 
 boring.FPHelperSwiftOps
 tests.FPHelperSwiftTests

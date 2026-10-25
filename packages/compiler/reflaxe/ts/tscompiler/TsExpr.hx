@@ -3600,6 +3600,8 @@ class TsExpr {
                 return "[]";
             case "haxe.ds._Map.Map_Impl_":
                 return "new Map()";
+            case "std.Dictionary":
+                return "new Map<" + types.of(params[0]) + ", " + types.of(params[1]) + ">()";
             case "haxe.io.BytesBuffer":
                 imports.runtime("BytesBuffer");
                 return "new BytesBuffer(" + rendered + ")";

@@ -2983,7 +2983,7 @@ class DartExpr {
                     if (name == "set" && args.length == 2)
                         return expr(subj) + "[" + expr(args[0]) + "] = " + expr(args[1]);
                     if (name == "remove" && args.length == 1)
-                        return expr(subj) + ".remove(" + expr(args[0]) + ") != null";
+                        return "(" + expr(subj) + ".remove(" + expr(args[0]) + ") != null)";
                     if (name == "clear" && args.length == 0)
                         return expr(subj) + ".clear()";
                 }
@@ -3901,6 +3901,8 @@ class DartExpr {
                 return "<int>[]";
             case "haxe.ds._Map.Map_Impl_":
                 return "Map()";
+            case "std.Dictionary":
+                return "Map<" + types.of(params[0]) + ", " + types.of(params[1]) + ">()";
             case "haxe.io.BytesBuffer":
                 // The growable byte sink is the plain int list.
                 return "<int>[]";

@@ -13165,6 +13165,9 @@ class RustExpr {
             case "haxe.ds._Map.Map_Impl_":
                 imports.require("std::collections::HashMap");
                 return "HashMap::new()";
+            case "std.Dictionary":
+                imports.require("std::collections::HashMap");
+                return "HashMap::<" + types.of(params[0]) + ", " + types.of(params[1]) + ">::new()";
             case "haxe.io.BytesBuffer":
                 imports.requireType(path, "BytesBuffer");
                 return "BytesBuffer::new()";

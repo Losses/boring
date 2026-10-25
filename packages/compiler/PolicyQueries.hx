@@ -336,6 +336,7 @@ class PolicyQueries {
 
     public static function isMapType(t:Type):Bool {
         return switch (Context.follow(t)) {
+            case TInst(def, params) if (def.get().module == "std.Dictionary" && params.length == 2): true;
             case TInst(def, params) if (def.get().pack.join(".") == "haxe" && def.get().name == "IMap" && params.length == 2): true;
             case TInst(def, _): isMapImplementation(def.get());
             case TType(def, params): def.get().pack.length == 0 && def.get().name == "Map" && params.length == 2;
