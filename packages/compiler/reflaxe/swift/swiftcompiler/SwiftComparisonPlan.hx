@@ -110,6 +110,7 @@ private class SwiftPlanBuilder {
                     case SwiftOperationFailed(reason, sourceType): SwiftOperationFailed(reason, sourceType);
                     case SwiftOperationUnresolved(reason): SwiftOperationUnresolved(reason);
                 }
+<<<<<<< HEAD
             case MapOrder(key, value):
                 switch (operation(key, path + "_key", owner)) {
                     case SwiftOperationReady(selectedKey):
@@ -127,6 +128,9 @@ private class SwiftPlanBuilder {
                     case SwiftOperationFailed(reason, sourceType): SwiftOperationFailed(reason, sourceType);
                     case SwiftOperationUnresolved(reason): SwiftOperationUnresolved(reason);
                 }
+=======
+            case MapOrder: SwiftOperationReady(SwiftMapOrder);
+>>>>>>> db54f5181 (feat(std): cover Map fields in @:dataClass structural comparison)
         };
     }
 
@@ -195,7 +199,11 @@ enum SwiftComparisonOperation {
     SwiftRecordOrder(record:SwiftRecordPlan, arguments:Array<Type>);
     SwiftNullBeforePresent(child:SwiftComparisonOperation);
     SwiftLexicographic(child:SwiftComparisonOperation);
+<<<<<<< HEAD
     SwiftMapOrder(key:SwiftComparisonOperation, value:SwiftComparisonOperation);
     SwiftSetOrder(element:SwiftComparisonOperation);
+=======
+    SwiftMapOrder;
+>>>>>>> db54f5181 (feat(std): cover Map fields in @:dataClass structural comparison)
 }
 #end
