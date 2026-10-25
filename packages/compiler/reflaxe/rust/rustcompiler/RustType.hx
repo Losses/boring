@@ -546,6 +546,13 @@ class RustType {
                 if (cls.kind.match(KTypeParameter(_))) true
                 else if (n == "String") true
                 else if (n == "Array") params.length == 1 && isHashTypeDepth(params[0], visiting)
+                else if (isContentEqSortedTable(cls)) {
+                    var all = true;
+                    for (p in params)
+                        if (!isHashTypeDepth(p, visiting))
+                            all = false;
+                    all;
+                }
                 else if (cls.meta.has(":dataClass") && !RustDecl.isExceptionSubclass(cls)) recordFieldsAllHash(cls, visiting)
                 else false;
             case TFun(_):

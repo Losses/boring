@@ -74,6 +74,10 @@ class SourceContainerAnalysis {
                     final cls = classRef.get();
                     if (isArrayDeclaration(cls) && params.length == 1) {
                         return resolved(outerNull, MutableArray(params[0]), current);
+                    } else if (isSortedMapDeclaration(cls) && params.length == 2) {
+                        return resolved(outerNull, SortedMapFace(params[0], params[1]), current);
+                    } else if (isSortedSetDeclaration(cls) && params.length == 1) {
+                        return resolved(outerNull, SortedSetFace(params[0]), current);
                     } else {
                         return resolved(outerNull, OtherSourceType, current);
                     }
@@ -180,6 +184,16 @@ class SourceContainerAnalysis {
         return abs.name == "ReadOnlyArray" && abs.module == "std.ReadOnlyArray" && abs.pack.length == 1 && abs.pack[0] == "std";
     }
 
+    /** Whether the declaration is the immutable std.SortedMap extern. */
+    static function isSortedMapDeclaration(cls:ClassType):Bool {
+        return cls.name == "SortedMap" && cls.pack.length == 1 && cls.pack[0] == "std" && cls.module == "std.SortedMap";
+    }
+
+    /** Whether the declaration is the immutable std.SortedSet extern. */
+    static function isSortedSetDeclaration(cls:ClassType):Bool {
+        return cls.name == "SortedSet" && cls.pack.length == 1 && cls.pack[0] == "std" && cls.module == "std.SortedSet";
+    }
+
     /** One lazy resolution through the supported macro API. */
     static function resolveLazy(handle:Void->Type):SourceResolution {
         try {
@@ -240,6 +254,12 @@ enum SourceContainerFace {
 
     /** The reserved `std.ReadOnlyArray<T>` source face. */
     ReadOnlyArrayFace(element:Type);
+
+    /** The immutable std.SortedMap<K, V> source face (spec 07). */
+    SortedMapFace(key:Type, value:Type);
+
+    /** The immutable std.SortedSet<K> source face (spec 07). */
+    SortedSetFace(element:Type);
 
     /** A resolved type that names neither built-in container, including a
         foreign declaration sharing one of their names. */
