@@ -14869,7 +14869,10 @@ class RustExpr {
         // Asset modules externalize large literals to a data file read back
         // via include_str!, instead of inlining per-line string literals.
         if (AssetModules.shouldExternalize(imports.selfModule, s)) {
-            return "include_str!(\"" + AssetModules.externalize(imports.selfModule, s) + "\")";
+            final parts = AssetModules.externalize(imports.selfModule, s);
+            if (parts.length == 1)
+                return "include_str!(\"" + parts[0] + "\")";
+            return "&[" + [for (p in parts) "include_str!(\"" + p + "\")"].join(", ") + "].concat()";
         }
         // Keep each source newline escape at the end of its own literal.
         // Rust accepts adjacent string literals, so this bounds generated JSON
