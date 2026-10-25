@@ -60,6 +60,13 @@ class DictionaryOps {
         final removed = a.remove(2);
         return removed && a.length == 2;
     }
+
+    /** A @:dataClass key compares structurally, not by reference. */
+    public static function structuralKey():Int {
+        final d:Dictionary<DictKey, Int> = new Dictionary();
+        d.set(new DictKey(1, "x"), 42);
+        return d.get(new DictKey(1, "x"));
+    }
 }
 
 /** A final Dictionary field keeps mutating methods in Swift (var, not let). */
@@ -67,5 +74,16 @@ class DictHolder {
     public final entries:Dictionary<String, Int>;
     public function new() {
         entries = new Dictionary();
+    }
+}
+
+/** @:dataClass key used through a Dictionary (structural, not reference). */
+@:dataClass
+class DictKey {
+    public final a:Int;
+    public final b:String;
+    public function new(a:Int, b:String) {
+        this.a = a;
+        this.b = b;
     }
 }

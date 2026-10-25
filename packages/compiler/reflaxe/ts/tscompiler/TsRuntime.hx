@@ -91,6 +91,13 @@ export class BytesBuffer {
   }
 }
 
+export function dictKey(k: any): any {
+  if (k !== null && typeof k === "object") {
+    return JSON.stringify(k);
+  }
+  return k;
+}
+
 ';
 
     /**
