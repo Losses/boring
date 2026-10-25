@@ -27,6 +27,7 @@ class AssetModules {
 
     /** Literals of at least this many UTF-16 code units are externalized. */
     public static final EXTERNALIZE_THRESHOLD:Int = 256;
+    public static final CHUNK_BYTES:Int = 512 * 1024;
 
     // Modules marked as asset during this compile (metadata or name registry).
     static var active:Map<String, Bool> = new Map();
@@ -34,7 +35,7 @@ class AssetModules {
     // Per-module ordinal, per-module content -> filename dedup, and the
     // pending writes flushed by the target's output pass.
     static var counters:Map<String, Int> = new Map();
-    static var namesByContent:Map<String, Map<String, String>> = new Map();
+    static var namesByContent:Map<String, Map<String, Array<String>>> = new Map();
     static var pending:Array<{module:String, file:String, content:String}> = [];
 
     /** True when the class is an asset module: metadata first, name registry fallback. */
@@ -62,26 +63,88 @@ class AssetModules {
     }
 
     /**
-        Registers a literal and returns the include_str!-ready filename that
-        sits in the same directory as the generated module file. The same
-        content within one module reuses one file, so a literal rendered more
-        than once still names one asset.
+        Registers a literal and returns the include_str!-ready part filenames
+        that sit in the same directory as the generated module file. A literal
+        of at least CHUNK_BYTES UTF-8 bytes is split into multiple parts, each
+        comfortably under the 1.0 MiB snapshot ceiling; smaller literals keep a
+        single file. The same content within one module reuses the same part
+        list, so a literal rendered more than once still names one asset set.
     **/
-    public static function externalize(module:String, content:String):String {
+    public static function externalize(module:String, content:String):Array<String> {
         var byContent = namesByContent.get(module);
         if (byContent == null) {
             byContent = new Map();
             namesByContent.set(module, byContent);
         }
-        var name = byContent.get(content);
-        if (name == null) {
+        var parts = byContent.get(content);
+        if (parts == null) {
             final n = counters.exists(module) ? counters.get(module) : 0;
             counters.set(module, n + 1);
-            name = moduleLeaf(module) + "__asset_" + n + ".txt";
-            byContent.set(content, name);
-            pending.push({module: module, file: name, content: content});
+            final base = moduleLeaf(module) + "__asset_" + n;
+            final chunks = splitChunks(content);
+            parts = [];
+            if (chunks.length == 1) {
+                final file = base + ".txt";
+                parts.push(file);
+                pending.push({module: module, file: file, content: chunks[0]});
+            } else {
+                for (k in 0...chunks.length) {
+                    final file = base + ".part_" + k + ".txt";
+                    parts.push(file);
+                    pending.push({module: module, file: file, content: chunks[k]});
+                }
+            }
+            byContent.set(content, parts);
         }
-        return name;
+        return parts;
+    }
+
+    /**
+        Splits content into parts whose UTF-8 byte size each stays at or
+        under CHUNK_BYTES. Surrogate pairs are never split, so concatenating
+        the parts reproduces the original bytes exactly.
+    **/
+    static function splitChunks(content:String):Array<String> {
+        if (byteLength(content) <= CHUNK_BYTES)
+            return [content];
+        final parts:Array<String> = [];
+        final len = content.length;
+        var start = 0;
+        while (start < len) {
+            var end = start;
+            var bytes = 0;
+            while (end < len) {
+                final c = content.charCodeAt(end);
+                var add = 0;
+                var units = 1;
+                if (c >= 0xD800 && c <= 0xDBFF && end + 1 < len) {
+                    final c2 = content.charCodeAt(end + 1);
+                    if (c2 >= 0xDC00 && c2 <= 0xDFFF) {
+                        add = 4;
+                        units = 2;
+                    } else {
+                        add = 3;
+                    }
+                } else if (c < 0x80) {
+                    add = 1;
+                } else if (c < 0x800) {
+                    add = 2;
+                } else {
+                    add = 3;
+                }
+                if (end > start && bytes + add > CHUNK_BYTES)
+                    break;
+                bytes += add;
+                end += units;
+            }
+            parts.push(content.substr(start, end - start));
+            start = end;
+        }
+        return parts;
+    }
+
+    static function byteLength(s:String):Int {
+        return haxe.io.Bytes.ofString(s).length;
     }
 
     /** All pending asset writes, in registration order. */

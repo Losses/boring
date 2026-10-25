@@ -5405,7 +5405,8 @@ class DartExpr {
     function quoteString(s:String):String {
         if (AssetModules.shouldExternalize(imports.selfModule, s)) {
             imports.useDartIo();
-            return "File(\"assets/" + AssetModules.externalize(imports.selfModule, s) + "\").readAsStringSync()";
+            final parts = AssetModules.externalize(imports.selfModule, s);
+            return [for (p in parts) "File(\"assets/" + p + "\").readAsStringSync()"].join(" + ");
         }
         final b = new StringBuf();
         b.addChar('"'.code);
