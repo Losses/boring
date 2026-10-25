@@ -4439,6 +4439,10 @@ class SwiftExpr {
                         return expr(subj) + "[" + mapKeyText(args[0]) + "]";
                     if (name == "set" && args.length == 2)
                         return expr(subj) + "[" + mapKeyText(args[0]) + "] = " + expr(args[1]);
+                    if (name == "remove" && args.length == 1)
+                        return expr(subj) + ".removeValue(forKey: " + mapKeyText(args[0]) + ") != nil";
+                    if (name == "clear" && args.length == 0)
+                        return expr(subj) + ".removeAll()";
                 }
                 if (isStringBuf(subj)) {
                     // stdlib/08: the checks throw, and a throw is a

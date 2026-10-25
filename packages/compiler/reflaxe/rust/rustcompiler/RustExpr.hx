@@ -10701,6 +10701,10 @@ class RustExpr {
                         return expr(subj) + ".get(&" + rustMapKey(args[0]) + ").cloned()";
                     if (name == "set" && args.length == 2)
                         return expr(subj) + ".insert(" + rustMapKey(args[0]) + ", " + rustMapValue(args[1]) + ")";
+                    if (name == "remove" && args.length == 1)
+                        return expr(subj) + ".remove(&" + rustMapKey(args[0]) + ").is_some()";
+                    if (name == "clear" && args.length == 0)
+                        return expr(subj) + ".clear()";
                 }
                 if (isStringBuf(subj)) {
                     // stdlib/08: add and addChar lower only as statements,
