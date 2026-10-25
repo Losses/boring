@@ -55,4 +55,14 @@ class StringBufTests {
     public static function testAddAfterLead():Void {
         Test.equals(57423, StringBufOps.caughtAddAfterLeadUnit(0xD87F));
     }
+
+    @:test("consecutive ASCII literal adds concatenate through one fused push")
+    public static function testLiteralRun():Void {
+        Test.equals("alpha-beta:gamma", StringBufOps.buildLiteralRun());
+    }
+
+    @:test("consecutive ASCII adds after a held lead fault with the held unit")
+    public static function testLiteralRunAfterLead():Void {
+        Test.equals(57423, StringBufOps.caughtLiteralRunAfterLead(0xD87F));
+    }
 }
