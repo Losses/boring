@@ -392,10 +392,11 @@ class RustDecl {
             && (isAllClone(varFields, cls) || isSortedTableResident)) {
             final isDebug = cls.meta.has(":dataClass") && isAllDebug(varFields, cls);
             final isPartialEq = RustType.isPartialEqTypeFields(varFields);
+            final isHash = RustType.isHashTypeFields(varFields);
             if (isDebug) {
-                lines.push(isPartialEq ? "#[derive(Debug, Clone, PartialEq)]" : "#[derive(Debug, Clone)]");
+                lines.push(isPartialEq ? (isHash ? "#[derive(Debug, Clone, PartialEq, Hash)]" : "#[derive(Debug, Clone, PartialEq)]") : "#[derive(Debug, Clone)]");
             } else {
-                lines.push(isPartialEq ? "#[derive(Clone, PartialEq)]" : "#[derive(Clone)]");
+                lines.push(isPartialEq ? (isHash ? "#[derive(Clone, PartialEq, Hash)]" : "#[derive(Clone, PartialEq)]") : "#[derive(Clone)]");
             }
         }
         if (cls.module.indexOf("registry.") == 0) {

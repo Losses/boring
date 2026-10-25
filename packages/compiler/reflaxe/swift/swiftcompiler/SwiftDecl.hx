@@ -183,6 +183,7 @@ class SwiftDecl {
             final conformances:Array<String> = [];
             if (shouldEmitComparator) {
                 conformances.push("Equatable");
+                conformances.push("Hashable");
             }
             if (depth == 1) {
                 // The conformance names the runtime base class, so this
@@ -254,6 +255,12 @@ class SwiftDecl {
             lines.push("");
             lines.push("    public static func == (lhs: " + equalityType + ", rhs: " + equalityType + ") -> Bool {");
             lines.push("        return " + selectedComparator.name + "(lhs, rhs) == 0");
+            lines.push("    }");
+            lines.push("");
+            lines.push("    public func hash(into hasher: inout Hasher) {");
+            final hashLocalIndex = [0];
+            for (field in selectedComparator.fields)
+                emitHashOperation(selectedComparator, field.operation, "self." + SwiftNameEscape.escape(field.field.name), "        ", lines, hashLocalIndex);
             lines.push("    }");
         }
         lines.push("}");
@@ -407,6 +414,33 @@ class SwiftDecl {
         lines.push("    return 0");
         lines.push("}");
         return lines.join("\n");
+    }
+
+    function emitHashOperation(owner:SwiftRecordPlan, operation:SwiftComparisonOperation, value:String, indent:String, lines:Array<String>, localIndex:Array<Int>):Void {
+        switch (operation) {
+            case SwiftIntegerOrder, SwiftFloatOrder, SwiftBooleanOrder, SwiftUtf16StringOrder:
+                lines.push(indent + "hasher.combine(" + value + ")");
+            case SwiftParameterOrder(_):
+                lines.push(indent + "hasher.combine(" + value + ")");
+            case SwiftEnumOrdinalOrder(helper, _, _):
+                lines.push(indent + "hasher.combine(" + helper + "(" + value + "))");
+            case SwiftRecordOrder(_, _):
+                lines.push(indent + "hasher.combine(" + value + ")");
+            case SwiftNullBeforePresent(child):
+                lines.push(indent + "hasher.combine(" + value + " == nil)");
+                final unwrapped = allocateComparisonLocal(localIndex);
+                lines.push(indent + "if let " + unwrapped + " = " + value + " {");
+                emitHashOperation(owner, child, unwrapped, indent + "    ", lines, localIndex);
+                lines.push(indent + "}");
+            case SwiftLexicographic(child):
+                lines.push(indent + "hasher.combine(" + value + ".count)");
+                final index = allocateComparisonLocal(localIndex);
+                lines.push(indent + "var " + index + " = 0");
+                lines.push(indent + "while " + index + " < " + value + ".count {");
+                emitHashOperation(owner, child, value + "[" + index + "]", indent + "    ", lines, localIndex);
+                lines.push(indent + "    " + index + " += 1");
+                lines.push(indent + "}");
+        }
     }
 
     function emitComparisonOperation(owner:SwiftRecordPlan, operation:SwiftComparisonOperation, left:String, right:String, indent:String, lines:Array<String>, localIndex:Array<Int>):Void {
