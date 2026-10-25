@@ -514,6 +514,90 @@ class RustType {
         return true;
     }
 
+    /**
+        Whether a lowered type implements std::hash::Hash (StructHashDerive):
+        the native scalars Int, Bool, and String, their Null and Array layers, a
+        type parameter (the derive adds the Hash bound), and a @:dataClass whose
+        instance fields all satisfy the query. Float, enums, marked value types,
+        plain classes, interfaces, exceptions, and the resident sorted tables
+        never satisfy the query in the generated subset, so a record embedding
+        one of them derives PartialEq without Hash.
+    **/
+    public static function isHashType(t:Type):Bool {
+        return isHashTypeDepth(t, []);
+    }
+
+    static function isHashTypeDepth(t:Type, visiting:Array<String>):Bool {
+        return switch (t) {
+            case TAbstract(a, params):
+                final abs = a.get();
+                if ((abs.name == "Int" || abs.name == "Bool") && params.length == 0) true
+                else if ((abs.name == "Null" || (abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray")) && params.length == 1)
+                    isHashTypeDepth(params[0], visiting)
+                else false;
+            case TEnum(_):
+                false;
+            case TInst(c, params):
+                final cls = c.get();
+                final n = cls.name;
+                if (cls.kind.match(KTypeParameter(_))) true
+                else if (n == "String") true
+                else if (n == "Array") params.length == 1 && isHashTypeDepth(params[0], visiting)
+                else if (cls.meta.has(":dataClass") && !RustDecl.isExceptionSubclass(cls)) recordFieldsAllHash(cls, visiting)
+                else false;
+            case TFun(_):
+                false;
+            case TType(d, params):
+                isHashTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), visiting);
+            case TAnonymous(anon):
+                var all = true;
+                for (f in anon.get().fields)
+                    if (!isHashTypeDepth(f.type, visiting))
+                        all = false;
+                all;
+            case TLazy(f):
+                isHashTypeDepth(f(), visiting);
+            case _:
+                switch (Context.follow(t)) {
+                    case TAbstract(a, params):
+                        final abs = a.get();
+                        (abs.name == "Int" || abs.name == "Bool") && params.length == 0;
+                    case _: false;
+                }
+        };
+    }
+
+    static function recordFieldsAllHash(cls:ClassType, visiting:Array<String>):Bool {
+        final key = cls.module + "::" + cls.name;
+        if (visiting.indexOf(key) >= 0)
+            return true;
+        if (visiting.length > 8)
+            return false;
+        visiting.push(key);
+        final all = (function() {
+            for (f in cls.fields.get()) {
+                switch (f.kind) {
+                    case FMethod(_):
+                        continue;
+                    case _:
+                }
+                if (!isHashTypeDepth(f.type, visiting))
+                    return false;
+            }
+            return true;
+        })();
+        visiting.pop();
+        return all;
+    }
+
+    /** Whether every non-static variable field satisfies the Hash query (StructHashDerive). **/
+    public static function isHashTypeFields(fields:Array<ClassVarData>):Bool {
+        for (f in fields)
+            if (!f.isStatic && !isHashType(f.field.type))
+                return false;
+        return true;
+    }
+
     static function validateFieldType(t:Type, pos:haxe.macro.Expr.Position, visited:Array<String>):Void {
         StructuralKeyValidator.validateFieldType(t, pos, visited);
     }
