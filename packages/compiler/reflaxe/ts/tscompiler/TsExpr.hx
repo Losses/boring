@@ -2861,12 +2861,6 @@ class TsExpr {
                     // equivalent; splice inserts in place.
                     return expr(subj) + ".splice(" + expr(args[0]) + ", 0, " + expr(args[1]) + ")";
                 }
-                if (name == "remove" && isArraySubject(subj) && args.length == 1) {
-                    // Haxe Array.remove(x) removes the first occurrence and
-                    // reports whether it was present. TS has no Array.remove;
-                    // splice by the first indexOf match, receiver read once.
-                    return "(() => { const a = " + expr(subj) + "; const i = a.indexOf(" + expr(args[0]) + "); if (i >= 0) { a.splice(i, 1); return true; } return false; })()";
-                }
                 if ((name == "indexOf" || name == "lastIndexOf") && (isStringSubject(subj) || isArraySubject(subj)) && args.length == 2) {
                     // The same synthesized null arrives for an omitted
                     // ?pos, on String and on Array; both prototype
