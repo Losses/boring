@@ -183,7 +183,6 @@ class PolicyQueries {
                 canEmitDataClassFieldComparator(params[0]);
             case TInst(c, _) if (c.get().meta.has(":dataClass")):
                 canEmitDataClassComparator(c.get());
-            case t if (isMapType(t)): true;
             case _:
                 isDataClassFieldKey(t);
         };

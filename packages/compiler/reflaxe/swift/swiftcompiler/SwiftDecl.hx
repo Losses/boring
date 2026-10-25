@@ -417,7 +417,7 @@ class SwiftDecl {
 
     function emitHashOperation(owner:SwiftRecordPlan, operation:SwiftComparisonOperation, value:String, indent:String, lines:Array<String>, localIndex:Array<Int>):Void {
         switch (operation) {
-            case SwiftIntegerOrder, SwiftFloatOrder, SwiftBooleanOrder, SwiftUtf16StringOrder, SwiftMapOrder:
+            case SwiftIntegerOrder, SwiftFloatOrder, SwiftBooleanOrder, SwiftUtf16StringOrder:
                 lines.push(indent + "hasher.combine(" + value + ")");
             case SwiftParameterOrder(_):
                 lines.push(indent + "hasher.combine(" + value + ")");
@@ -469,8 +469,6 @@ class SwiftDecl {
                 lines.push(indent + "if " + left + " > " + right + " { return 1 }");
             case SwiftBooleanOrder:
                 lines.push(indent + "if " + left + " != " + right + " { return " + left + " ? 1 : -1 }");
-            case SwiftMapOrder:
-                lines.push(indent + "if " + left + " != " + right + " { return 1 }");
             case SwiftParameterOrder(index):
                 final comparison = allocateComparisonLocal(localIndex);
                 lines.push(indent + "let " + comparison + " = compareArgument" + index + "(" + left + ", " + right + ")");
