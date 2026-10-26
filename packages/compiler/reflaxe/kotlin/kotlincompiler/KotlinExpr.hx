@@ -3607,7 +3607,7 @@ class KotlinExpr {
         | `val`          | immutable property (`FVar` + `isFinal`)    | `var` field -> "mutable property" |
         | `getter`       | no custom getter (`!isGetterOnlyProperty`) | none (vacuous: `var X(get, never)` is `isFinal=false` so `val` rejects it first, and `final X(get, never)` is a Haxe syntax error) |
         | `open`         | not `open` (structurally always true)      | none (vacuous; `drop=open` no-op) |
-        | `sameunit`     | declaring class and use site in one unit   | cross-unit `val` read |
+        | `sameunit`     | declaring class and use site in one module   | cross-module `val` read |
         | `closurewrite` | root local not written by a capturing closure | closure rebinds root -> "capturing closure" |
         | `rebind`       | root local not rebound in the body         | root rebound between guard/use |
 
@@ -3623,7 +3623,7 @@ class KotlinExpr {
                 fieldPropertyStable(cf.get()) && receiverRootStable(e)
                     && nullableAccess(receiver) != "?."
                     && (dropped("sameunit")
-                        || CompilationUnits.sameUnit(c.get().module, useSiteModule));
+                        || c.get().module == useSiteModule);
             }
             case TField(receiver, FAnon(cf)):
                 fieldPropertyStable(cf.get()) && receiverRootStable(e)
