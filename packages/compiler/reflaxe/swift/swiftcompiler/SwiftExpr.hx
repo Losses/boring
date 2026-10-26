@@ -4599,6 +4599,15 @@ class SwiftExpr {
                     final s = receiverText(subj);
                     return s + ".insert(" + expr(args[1]) + ", at: Int(" + expr(args[0]) + "))";
                 }
+                if (name == "remove" && isUnitArrayTyped(subj) && args.length == 1) {
+                    // Haxe Array.remove(x) removes the first occurrence by
+                    // value and reports presence; TiqianArray has no
+                    // remove-by-value, so lower to indexOf + remove(at:)
+                    // with the receiver read once (mirrors the TS
+                    // splice-by-indexOf IIFE).
+                    final s = receiverText(subj);
+                    return "{ () -> Bool in let _a = " + s + "; let _i = _a.indexOf(" + expr(args[0]) + "); if _i >= 0 { _a.remove(at: Int(_i)); return true }; return false }()";
+                }
                 if (name == "concat" && isUnitArrayTyped(subj) && args.length == 1) {
                     return receiverText(subj) + ".concat(" + expr(args[0]) + ")";
                 }

@@ -1,0 +1,1276 @@
+warning: /home/losses/.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /home/losses/.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+warning: /home/.cache/org.swift.swiftpm is not accessible or not writable, disabling user-level cache features.
+warning: 'wb-t-mvojcatt-q1pe': failed loading cached manifest for 'wb-t-mvojcatt-q1pe': Error Domain=NSCocoaErrorDomain Code=642 "The volume is read only."UserInfo={NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=30 "Read-only file system", NSURL=file:///home/.cache, NSFilePath=/home/.cache}
+warning: 'wb-t-mvojcatt-q1pe': failed storing manifest for 'wb-t-mvojcatt-q1pe' in cache: Error Domain=NSCocoaErrorDomain Code=642 "The volume is read only."UserInfo={NSFilePath=/home/.cache, NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=30 "Read-only file system", NSURL=file:///home/.cache}
+warning: 'wb-t-mvojcatt-q1pe': failed closing manifest db cache: Error Domain=NSCocoaErrorDomain Code=642 "The volume is read only."UserInfo={NSFilePath=/home/.cache, NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=30 "Read-only file system", NSURL=file:///home/.cache}
+warning: 'swift-system': failed loading cached manifest for 'swift-system': Error Domain=NSCocoaErrorDomain Code=642 "The volume is read only."UserInfo={NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=30 "Read-only file system", NSFilePath=/home/.cache, NSURL=file:///home/.cache}
+warning: 'swift-system': failed storing manifest for 'swift-system' in cache: Error Domain=NSCocoaErrorDomain Code=642 "The volume is read only."UserInfo={NSFilePath=/home/.cache, NSURL=file:///home/.cache, NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=30 "Read-only file system"}
+warning: 'swift-system': failed closing manifest db cache: Error Domain=NSCocoaErrorDomain Code=642 "The volume is read only."UserInfo={NSFilePath=/home/.cache, NSURL=file:///home/.cache, NSUnderlyingError=Error Domain=NSPOSIXErrorDomain Code=30 "Read-only file system"}
+warning: 'wb-t-mvojcatt-q1pe': found 463 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/RenderShapeTextOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/BlockScopeUnrollTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DeferredLocalsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableFieldRecordTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/WidgetAssembly.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DefaultBuilderOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ToStringOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DartEmptyArrayFixTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableInterfaceBranchOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ArrayAccessTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrintedRecord.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullableCallOps2.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DowncastTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DivTableOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntToFloatCtorOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ComparatorGateTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/M2OptionVecTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FlushHookProbeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullableArrayElemOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/RuntimeExportOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/CryptoTestSupport.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/UnderscoreParamOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/TableBuilderInferOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SignedComparisonTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/RecordOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/BytesOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FloatCompoundAssignOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InterfaceFallibleOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringSearchFromTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/WhileNullableCondTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SwiftGlobalThrowTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SwitchNullArmTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StaticFnOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DartArrayMethodTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Ts2448Tests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableFloatCompareTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DartCoalesceStaticTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/CompareCore.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PayloadSelfMapOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/EnumSortedKeysTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/InterfaceGetterProperty.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SharedHandleTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/TestApplicabilityProbeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ThrowingClosureOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ArrayMethodSwiftTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ImpDefaultTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/HandWrittenLoopPositionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SealedChildTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DataTableTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RangeParameterTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FloatLiteralOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DefaultArgsOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ScriptEvidenceTable.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/RangeParameterOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ValuePassingOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/HandWrittenLoopPositionSupport.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableToStringTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DefaultParamUnwrapOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RustUnionFaultTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringToolsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StringIndexOfShadowOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/TernaryOptionalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullStaticMapTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/EnumLookupTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/AccessPeer.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/OverrideMemberTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PrintedSortedFieldsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RuntimeExportTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NumberParsingOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NilContextTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullInitLocalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DowncastOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/OptionalMemberTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/MathMinShadowTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SignedIntConstructorTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/LocalShadowTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RecordTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RegistryJsonTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MultiPatternSwitchOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/CaptureSwitchOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringBufTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PrintedCollectionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DartNullPushTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/LocalThrowOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SubstringDefaultTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StdStringPlainClassOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrivateDefaultOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftDefaultOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/WordCharacterTable.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullGuardFieldOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrivateCollisionBeta.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MutatingCounterOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrivateCollisionAlpha.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FloatModCompareOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/MathMinMaxTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FloatTernaryArmTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/MapValueOptionalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableLocalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/EnumSortedKeysOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullInitLocalOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/TestLitEdgeOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/JvmFieldPrivateTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SortedTableTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/InkTextShaper.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatSignOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrivateHolder.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/Diagnostic.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InlineDefaultTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NilContextOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NoSuchElementTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PrivateCollisionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ResidentBuilderInferOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NumericWidenTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/TernaryInterfaceOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/RustCoalesceOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Xxh128Tests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InterfaceIdentityTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/InterfaceThrowOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ProbeShareTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/OptionalCtorTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ArithmeticOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/TableBuilderInferTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ArithmeticTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PlatformOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StringToolsOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PipelineTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/OptionalValueUseTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntDivisionOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PosterShapeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/Plan.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NarrowLocalSwitchOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/IntFloatAddTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullGuardNestedFieldOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MathMinMaxOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/FnValuesOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SignedIntAssignOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NumericConversionWidening.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullableBufFieldOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ConstructedStateOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullableArrayOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InterfaceUnionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwitchCaseScopeOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NumericCoalesceLocalOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/AccessGrantTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ArrayAccessOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrintedSortedFields.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrintedCustom.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ValueTypeCtorBindingOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/CompareGateTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ExpressionBlockTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullArgsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/Int64Ops.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/BranchedOptionalFieldOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ToStringTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PlatformModulesTestSupport.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NumberClassifyOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SwitchOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/VectorCodecTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/FontIdConsumer.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/LocalShadowOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullableCallOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftLiteralSafetyOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwitchNullArmOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwitchOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StaticStateTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RegistrySemverTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/BorrowedStringReturnTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SealedVariantTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InstanceDefaultsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableIndexTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringCodeOptionalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/TryTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ArrayJoinOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MapHasGetOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ThrowingClosureTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StdStringPlainIntOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableArrayArgumentTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/FPHelperSwiftOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ProbeChainTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ForInOptionalOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/CompareGateOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RecordInterfaceOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/FloatTernaryArmOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/FileLevelConsumer.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NarrowLocalSwitchTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Fp32Tests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/OptionalValueUseOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrivateClassOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PrivateStaticCallTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DartLocalNameFixTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringAppendTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FusedPushThrowTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringBufUnionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/MultiPatternSwitchTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/Config.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/UStringResidentTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Fp16Tests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ExceptionTypeOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ValueTypeClashTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/TestLitEdgeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/RecordOrderOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ForInOptionalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StringBufOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/UnderscoreParamTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FunctionalLocalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/LoopWriteOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NumericWidenOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/EarlyReturnTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/MathIntWideningOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ArrayIndexSearchTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DataClassRangeEqTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/OptionalParamNullTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ClusterTags.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ValueRecordProbes.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MathIntWideningOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StringConvOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InterfaceThrowTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ThrowingIndexOfOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/HaxeExceptionOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/EnumLookupOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NarrowedOptionReturnTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/GlyphClusterTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FPHelperRustTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableArrayElemTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DataClassRangeEqOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/AbstractStaticDefaultTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StaticRefTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftGlobalThrowOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ArraySliceTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ScriptNames.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StaticFnTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DartLocalNameFixOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NumericDomainTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ValuePassingTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/BorrowedReceiverBoundaryTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RecordOrderTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PostIncConditionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FontIdTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PrintedRecordTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/CtorOmitTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/InterfaceIdentityOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NodeFsBorrowOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/KnullInitNarrowingTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/WidgetCoalescingTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/FunctionalLocalOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/CfgTestProbe.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ValueRecordTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ExceptionTypeOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FloatFieldLiteralOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SwiftDefaultTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ResidentModuleImportOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MathMinShadowOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ResidentModuleImportTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullBoolTernaryOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/CloneDeriveGapTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullableIndexOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringIndexOfShadowTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DartCharNullOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StaticCollisionOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/CtorOptArgTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/TypeParameterCompareTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ParseIntPushTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/OptionalParamNull.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/Ts2448Ops.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/AllowAccessTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/TypeAliasLocalOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StdStringSelfRecOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InheritCtorTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PublicGetterPropertyTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ConstructorStatementOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullBoolEmphasisOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/haxe/crypto/Sha512.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RegistryParseArgsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PayloadSelfMapOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableCallTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullBoolTernaryTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/OptionalMemberOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PrivateDefaultTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SortedKeyDomainTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/FloatLiteralOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ConstructorStatementTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FPHelperSwiftTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/IntDivisionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/InterfaceFieldRecordOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RustCoalesceTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/IntFloatCtorTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/CtorOmitOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ValueTypeCtorBindingTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ExceptionChainProbeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullGuardFieldTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/OptionalProjectionOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SubstringDefaultOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DartCharNullTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullableLocalOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SealedChildOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NumberClassifyTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/UStringOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DriverPlanTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DefaultArgShiftTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NumberParsingTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatAddOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/CrcTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PlatformModulesTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/haxe/crypto/Sha256.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NarrowedSortedReceiverOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/TryOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RegistrySha1Tests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/TypeAliasLocalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/CloneDeriveGapOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StaticRefOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/VecInsertTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MathNaNOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ConstructedStateTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InterfaceArrayLiteralTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StdStringSelfRecTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Xxh64Tests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ImpHost.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ArrayRootTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/KnullInitNarrowing.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/LocalThrowTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FallibleLocalFunctionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/MapHasGetTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ConsoleShimTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NoSuchElementMessageReader.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NegIntSlotOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DictionaryTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DictionaryOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SealedVariantOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringConvTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/haxe/crypto/Xxh128.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ThrowingIndexOfTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NumericDomainOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NoSuchElementThrower.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DefaultArgsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableBufFieldTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullStaticMapOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/CtorOptArgOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/TernaryInterfaceTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ExtensionConsumer.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Sha256Tests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ClosureStringViewOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DataClassCtorGuardOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ValueTypeClashOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatCtorOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/UsizeComparisonTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrivateStaticCallOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/GraphemeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SignedLoopBoundOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PosterTextRender.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InterfaceConditionalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SignedIntArgumentTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/OverrideMemberOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PayloadTextTable.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StringBufThrowOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringCodecTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/CaptureSwitchOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PublicGetterProperty.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/TypeParameterCompareOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/FloatModOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SwitchCaseScopeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/OptionalProjectionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DeferredLocalsOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/WhileNullableCond.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NegativeSentinelOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/InterfaceArrayLiteralOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/InlineDefaultOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/BoxedInterfaceDefaultOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullGuardNarrowOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StaticExtensionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/JvmFieldPrivateOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StringAppendOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DartNullPushOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/KotlinNullabilityTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ArrayJoinTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DataClassCtorGuardTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PipelineOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullableToStringOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/UStringTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/MutatingCounterTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FnValuesTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/RecordInterfaceOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableArrayTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PrintedEnumTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/FusedPushThrowOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/OptionalInterfaceArgumentOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ArrayMethodSwiftOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MutableBufFieldOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MathNaNTestSupport.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Sha512TestSupport.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/LoopWriteTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SwiftLiteralSafetyOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Int64Tests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ExceptionCatchOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/BorrowedIterationSubjectOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StringUnitOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/BytesTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ShapeTextTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/InstanceDefaults.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PostIncConditionOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StdStringTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullArgsOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/TernaryOptionalOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullabilityTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/VecSpliceTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/MapValueOptionalOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/EnumQueriesOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/IntToFloatCtorTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/BorrowedArrayBoundaryTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullInflatedLiteralOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/RegistryPipelineTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/CodePointNames.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DefaultArgShiftOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/GraphemeOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StdStringPlainClassTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringBufThrowTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SwitchMergeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/PrivateClassPeerOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ValueTypeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/UStringResidentOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StringCodeOptionalOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DivTableTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Sha512Tests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SortedDataClassKeysOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/OptionalCtorOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/AbstractStaticDefault.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ArrayRootStateOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/haxe/crypto/Crc.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/AllowGuest.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NumericConversionWideningTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/SumOfFloatLocalTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/Sha256TestSupport.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/ExceptionCatchTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/IntFloatSignTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DartEmptyArrayFixOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/GlyphClusterReader.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/HaxeExceptionTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/InheritCtorOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/MutableBufFieldTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/PrivateClassTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InterfaceFieldLiteralOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullableStringViewOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StdStringOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DefaultBuilderTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/NullabilityOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/haxe/crypto/Xxh64.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/MathNaNOpsTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ComparatorGateOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InterfaceGetterPropertyTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DartCoalesceSiblingTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/TestData.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ProcessOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/StringBufUnionOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ValueTypeConsumer.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/BorrowedLoopItemBoundaryTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/DefaultParamUnwrapTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/EnumQueriesTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ProbeChain.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/FloatModTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/InterfaceFieldRecordTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/UnionChainTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StdStringPlainIntTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/NullGuardNarrowTests.swift.emit-origin.json
+warning: 'wb-t-mvojcatt-q1pe': found 88 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/NullBoolStyle.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/SemverException.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/tests/StaticExtensionProbes.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/Core.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/FloatWidth.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/Fp32.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/PrintedEnumOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/AccessTarget.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ValueTypeOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ClassInstanceLocalLet.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/NullGuardNarrowHolder.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/StringIndexOfDeadClamp.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ProbeUnit.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/UnusedSwiftBinding.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/VectorException.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ImpWidget.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/NoSuchElementNote.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/WidgetKind.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/SourceSet.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/CoreFault.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/std/Process.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/std/UStringFault.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ShapeTextOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/ExecutionStep.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ArrayIterationOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/GlyphMetrics.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/NoSuchElementFaultException.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/tests/KotlinEntryProbeTests.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/PrivateStaticCallHolder.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/Main.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/VectorError.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/DriverFault.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/RustIterOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/OptionalValueUseHolder.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/BytesValueArrayVar.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/OptionalValueUseMetrics.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/Sha1.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ArraySliceOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/TargetRecords.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/std/UStringException.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/AllowHost.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/FileLevelOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/tests/EnumQueriesProbes.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/SemverFault.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/NoSuchElementFault.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/Discovery.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/Project.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/CoreException.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/std/RenderShape.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/BundleSpec.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/ResultInput.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/Fp16.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/JsonException.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/NullableFieldRecord.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/std/FsException.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/PlainLabel.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/StaticStateOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/VectorSort.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/WidgetCart.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/Json.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/SwitchMergeOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ValueError.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/JsonFault.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/std/Path.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/DriverException.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ExtensionOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/std/FsError.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/EnvVar.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/FunctionalOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/Comparison.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/BinaryReader.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/FloatArrayAnnoOps.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/NullGuardFieldMetrics.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/CommandStep.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/FontId.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/GlyphCluster.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/NullableReceiver.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/BinaryWriter.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ValueRecord.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/StepOverride.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/driver/TestRecord.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/haxe/crypto/CrcModel.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/VectorCodec.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/Release.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/GlyphClusterHolder.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/PrintedCollection.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/boring/ValueException.swift.emit-origin.json
+    /home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen/registry/Semver.swift.emit-origin.json
+[0/1] Planning build
+Building for debugging...
+[0/7] Write sources
+[1/7] Write swift-version--661D590EEDA03EF4.txt
+[3/9] Compiling BoringSwiftTests DictionaryTests.swift
+[4/9] Compiling BoringSwiftTests DictionaryOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/DictionaryOps.swift:49:91: warning: result of call to 'remove(at:)' is unused [#no-usage]
+ 47 |     public static func arrayRemove() -> Bool {
+ 48 |         let a: TiqianArray<Int32> = TiqianArray<Int32>([1, 2, 3])
+ 49 |         let removed = { () -> Bool in let _a = a; let _i = _a.indexOf(2); if _i >= 0 { _a.remove(at: Int(_i)); return true }; return false }()
+    |                                                                                           `- warning: result of call to 'remove(at:)' is unused [#no-usage]
+ 50 |         return removed && Int32(a.count) == 2
+ 51 |     }
+[5/9] Compiling BoringSwiftTests DivTableOps.swift
+[6/115] Emitting module BoringSwiftTests
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/HaxeExceptionOps.swift:15:12: warning: non-final class 'HaxeExceptionFault' cannot conform to 'Sendable'; use '@unchecked Sendable'; this is an error in the Swift 6 language mode
+13 | }
+14 | 
+15 | open class HaxeExceptionFault: BoringException {
+   |            `- warning: non-final class 'HaxeExceptionFault' cannot conform to 'Sendable'; use '@unchecked Sendable'; this is an error in the Swift 6 language mode
+16 |     public init(_ message: [UInt16]) {
+17 |         super.init(message: String(decoding: message, as: UTF16.self))
+[7/122] Compiling BoringSwiftTests NarrowLocalSwitchOps.swift
+[8/122] Compiling BoringSwiftTests NullArgsOps.swift
+[9/122] Compiling BoringSwiftTests NullBoolEmphasisOps.swift
+[10/122] Compiling BoringSwiftTests NullGuardNarrowOps.swift
+[11/122] Compiling BoringSwiftTests NullInitLocalOps.swift
+[12/122] Compiling BoringSwiftTests NullStaticMapOps.swift
+[13/122] Compiling BoringSwiftTests NullableArrayOps.swift
+[14/123] Compiling BoringSwiftTests DivTableTests.swift
+[15/123] Compiling BoringSwiftTests SwitchNullArmOps.swift
+[16/123] Compiling BoringSwiftTests SwitchOps.swift
+[17/123] Compiling BoringSwiftTests TernaryInterfaceOps.swift
+[18/123] Compiling BoringSwiftTests TestLitEdgeOps.swift
+[19/123] Compiling BoringSwiftTests ThrowingIndexOfOps.swift
+[20/123] Compiling BoringSwiftTests TypeParameterCompareOps.swift
+[21/123] Compiling BoringSwiftTests ValuePassingOps.swift
+[22/123] Compiling BoringSwiftTests RecordOps.swift
+[23/123] Compiling BoringSwiftTests RecordOrderOps.swift
+[24/123] Compiling BoringSwiftTests SealedVariantOps.swift
+[25/123] Compiling BoringSwiftTests SortedDataClassKeysOps.swift
+[26/123] Compiling BoringSwiftTests StdStringOps.swift
+[27/123] Compiling BoringSwiftTests StdStringPlainIntOps.swift
+[28/123] Compiling BoringSwiftTests StdStringSelfRecOps.swift
+[29/123] Compiling BoringSwiftTests OptionalMemberOps.swift
+[30/123] Compiling BoringSwiftTests OptionalParamNull.swift
+[31/123] Compiling BoringSwiftTests OptionalProjectionOps.swift
+[32/123] Compiling BoringSwiftTests OptionalValueUseOps.swift
+[33/123] Compiling BoringSwiftTests OverrideMemberOps.swift
+[34/123] Compiling BoringSwiftTests PayloadSelfMapOps.swift
+[35/123] Compiling BoringSwiftTests PipelineOps.swift
+[36/123] Compiling BoringSwiftTests PlatformOps.swift
+[37/123] Compiling BoringSwiftTests PrintedCustom.swift
+[38/123] Compiling BoringSwiftTests PrintedRecord.swift
+[39/123] Compiling BoringSwiftTests PrintedSortedFields.swift
+[40/123] Compiling BoringSwiftTests ProbeChain.swift
+[41/123] Compiling BoringSwiftTests ProcessOps.swift
+[42/123] Compiling BoringSwiftTests RecordInterfaceOps.swift
+[43/123] Compiling BoringSwiftTests FloatModOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ForInOptionalOps.swift:20:17: warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+18 |         var total: Int32 = 0
+19 |         if let values = values {
+20 |             for _v in values {
+   |                 `- warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+21 |                 total &+= 1
+22 |             }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatSignOps.swift:31:13: warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+29 | 
+30 |     public static func firstElem(_ a: Int32, _ b: Int32) -> Double {
+31 |         let arr_1 = 2.5
+   |             `- warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+32 |         let arr_0 = Double(a &- b)
+33 |         return Double(arr_0)
+[44/123] Compiling BoringSwiftTests FontIdConsumer.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ForInOptionalOps.swift:20:17: warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+18 |         var total: Int32 = 0
+19 |         if let values = values {
+20 |             for _v in values {
+   |                 `- warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+21 |                 total &+= 1
+22 |             }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatSignOps.swift:31:13: warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+29 | 
+30 |     public static func firstElem(_ a: Int32, _ b: Int32) -> Double {
+31 |         let arr_1 = 2.5
+   |             `- warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+32 |         let arr_0 = Double(a &- b)
+33 |         return Double(arr_0)
+[45/123] Compiling BoringSwiftTests ForInOptionalOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ForInOptionalOps.swift:20:17: warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+18 |         var total: Int32 = 0
+19 |         if let values = values {
+20 |             for _v in values {
+   |                 `- warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+21 |                 total &+= 1
+22 |             }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatSignOps.swift:31:13: warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+29 | 
+30 |     public static func firstElem(_ a: Int32, _ b: Int32) -> Double {
+31 |         let arr_1 = 2.5
+   |             `- warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+32 |         let arr_0 = Double(a &- b)
+33 |         return Double(arr_0)
+[46/123] Compiling BoringSwiftTests FusedPushThrowOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ForInOptionalOps.swift:20:17: warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+18 |         var total: Int32 = 0
+19 |         if let values = values {
+20 |             for _v in values {
+   |                 `- warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+21 |                 total &+= 1
+22 |             }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatSignOps.swift:31:13: warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+29 | 
+30 |     public static func firstElem(_ a: Int32, _ b: Int32) -> Double {
+31 |         let arr_1 = 2.5
+   |             `- warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+32 |         let arr_0 = Double(a &- b)
+33 |         return Double(arr_0)
+[47/123] Compiling BoringSwiftTests InheritCtorOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ForInOptionalOps.swift:20:17: warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+18 |         var total: Int32 = 0
+19 |         if let values = values {
+20 |             for _v in values {
+   |                 `- warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+21 |                 total &+= 1
+22 |             }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatSignOps.swift:31:13: warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+29 | 
+30 |     public static func firstElem(_ a: Int32, _ b: Int32) -> Double {
+31 |         let arr_1 = 2.5
+   |             `- warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+32 |         let arr_0 = Double(a &- b)
+33 |         return Double(arr_0)
+[48/123] Compiling BoringSwiftTests InlineDefaultOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ForInOptionalOps.swift:20:17: warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+18 |         var total: Int32 = 0
+19 |         if let values = values {
+20 |             for _v in values {
+   |                 `- warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+21 |                 total &+= 1
+22 |             }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatSignOps.swift:31:13: warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+29 | 
+30 |     public static func firstElem(_ a: Int32, _ b: Int32) -> Double {
+31 |         let arr_1 = 2.5
+   |             `- warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+32 |         let arr_0 = Double(a &- b)
+33 |         return Double(arr_0)
+[49/123] Compiling BoringSwiftTests IntFloatSignOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/ForInOptionalOps.swift:20:17: warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+18 |         var total: Int32 = 0
+19 |         if let values = values {
+20 |             for _v in values {
+   |                 `- warning: immutable value '_v' was never used; consider replacing with '_' or removing it [#no-usage]
+21 |                 total &+= 1
+22 |             }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/IntFloatSignOps.swift:31:13: warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+29 | 
+30 |     public static func firstElem(_ a: Int32, _ b: Int32) -> Double {
+31 |         let arr_1 = 2.5
+   |             `- warning: initialization of immutable value 'arr_1' was never used; consider replacing with assignment to '_' or removing it [#no-usage]
+32 |         let arr_0 = Double(a &- b)
+33 |         return Double(arr_0)
+[50/123] Compiling BoringSwiftTests DartNullPushTests.swift
+[51/123] Compiling BoringSwiftTests DefaultArgsTests.swift
+[52/123] Compiling BoringSwiftTests DriverPlanTests.swift
+[53/123] Compiling BoringSwiftTests ExpressionBlockTests.swift
+[54/123] Compiling BoringSwiftTests FPHelperSwiftTests.swift
+[55/123] Compiling BoringSwiftTests IntFloatCtorTests.swift
+[56/123] Compiling BoringSwiftTests KotlinNullabilityTests.swift
+[57/123] Compiling BoringSwiftTests ArrayRootStateOps.swift
+[58/123] Compiling BoringSwiftTests CaptureSwitchOps.swift
+[59/123] Compiling BoringSwiftTests ClusterTags.swift
+[60/123] Compiling BoringSwiftTests ComparatorGateOps.swift
+[61/123] Compiling BoringSwiftTests CompareGateOps.swift
+[62/123] Compiling BoringSwiftTests ConstructedStateOps.swift
+[63/123] Compiling BoringSwiftTests CtorOptArgOps.swift
+[64/123] Compiling BoringSwiftTests DataClassCtorGuardOps.swift
+[65/123] Compiling BoringSwiftTests LocalThrowOps.swift
+[66/123] Compiling BoringSwiftTests LoopWriteOps.swift
+[67/123] Compiling BoringSwiftTests MapHasGetOps.swift
+[68/123] Compiling BoringSwiftTests MathMinMaxOps.swift
+[69/123] Compiling BoringSwiftTests MathMinShadowOps.swift
+[70/123] Compiling BoringSwiftTests MathNaNOps.swift
+[71/123] Compiling BoringSwiftTests MultiPatternSwitchOps.swift
+[72/123] Compiling BoringSwiftTests PlatformModulesTests.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:19:199: warning: will never be executed
+17 |         try TestCore.equalsInt(3, StringUnitOps.splitEmptyParts(Array("a....b".utf16)), [])
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                              |        `- warning: will never be executed
+   |                                                                                                                                                                                              `- note: condition always evaluates to false
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:179: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                          |        `- warning: will never be executed
+   |                                                                                                                                                                          `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:201: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                                |        `- warning: will never be executed
+   |                                                                                                                                                                                                `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:175: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                      |        `- warning: will never be executed
+   |                                                                                                                                                                      `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:197: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                            |        `- warning: will never be executed
+   |                                                                                                                                                                                            `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:22:160: warning: will never be executed
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+   |                                                                                                                                                       |        `- warning: will never be executed
+   |                                                                                                                                                       `- note: condition always evaluates to false
+23 |     }
+24 | 
+[73/123] Compiling BoringSwiftTests PrintedRecordTests.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:19:199: warning: will never be executed
+17 |         try TestCore.equalsInt(3, StringUnitOps.splitEmptyParts(Array("a....b".utf16)), [])
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                              |        `- warning: will never be executed
+   |                                                                                                                                                                                              `- note: condition always evaluates to false
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:179: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                          |        `- warning: will never be executed
+   |                                                                                                                                                                          `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:201: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                                |        `- warning: will never be executed
+   |                                                                                                                                                                                                `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:175: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                      |        `- warning: will never be executed
+   |                                                                                                                                                                      `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:197: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                            |        `- warning: will never be executed
+   |                                                                                                                                                                                            `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:22:160: warning: will never be executed
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+   |                                                                                                                                                       |        `- warning: will never be executed
+   |                                                                                                                                                       `- note: condition always evaluates to false
+23 |     }
+24 | 
+[74/123] Compiling BoringSwiftTests RecordInterfaceOpsTests.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:19:199: warning: will never be executed
+17 |         try TestCore.equalsInt(3, StringUnitOps.splitEmptyParts(Array("a....b".utf16)), [])
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                              |        `- warning: will never be executed
+   |                                                                                                                                                                                              `- note: condition always evaluates to false
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:179: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                          |        `- warning: will never be executed
+   |                                                                                                                                                                          `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:201: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                                |        `- warning: will never be executed
+   |                                                                                                                                                                                                `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:175: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                      |        `- warning: will never be executed
+   |                                                                                                                                                                      `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:197: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                            |        `- warning: will never be executed
+   |                                                                                                                                                                                            `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:22:160: warning: will never be executed
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+   |                                                                                                                                                       |        `- warning: will never be executed
+   |                                                                                                                                                       `- note: condition always evaluates to false
+23 |     }
+24 | 
+[75/123] Compiling BoringSwiftTests StringUnitTests.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:19:199: warning: will never be executed
+17 |         try TestCore.equalsInt(3, StringUnitOps.splitEmptyParts(Array("a....b".utf16)), [])
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                              |        `- warning: will never be executed
+   |                                                                                                                                                                                              `- note: condition always evaluates to false
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:179: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                          |        `- warning: will never be executed
+   |                                                                                                                                                                          `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:201: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                                |        `- warning: will never be executed
+   |                                                                                                                                                                                                `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:175: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                      |        `- warning: will never be executed
+   |                                                                                                                                                                      `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:197: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                            |        `- warning: will never be executed
+   |                                                                                                                                                                                            `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:22:160: warning: will never be executed
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+   |                                                                                                                                                       |        `- warning: will never be executed
+   |                                                                                                                                                       `- note: condition always evaluates to false
+23 |     }
+24 | 
+[76/123] Compiling BoringSwiftTests TestLitEdgeTests.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:19:199: warning: will never be executed
+17 |         try TestCore.equalsInt(3, StringUnitOps.splitEmptyParts(Array("a....b".utf16)), [])
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                              |        `- warning: will never be executed
+   |                                                                                                                                                                                              `- note: condition always evaluates to false
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:179: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                          |        `- warning: will never be executed
+   |                                                                                                                                                                          `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:201: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                                |        `- warning: will never be executed
+   |                                                                                                                                                                                                `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:175: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                      |        `- warning: will never be executed
+   |                                                                                                                                                                      `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:197: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                            |        `- warning: will never be executed
+   |                                                                                                                                                                                            `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:22:160: warning: will never be executed
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+   |                                                                                                                                                       |        `- warning: will never be executed
+   |                                                                                                                                                       `- note: condition always evaluates to false
+23 |     }
+24 | 
+[77/123] Compiling BoringSwiftTests ValueRecordTests.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:19:199: warning: will never be executed
+17 |         try TestCore.equalsInt(3, StringUnitOps.splitEmptyParts(Array("a....b".utf16)), [])
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                              |        `- warning: will never be executed
+   |                                                                                                                                                                                              `- note: condition always evaluates to false
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:179: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                          |        `- warning: will never be executed
+   |                                                                                                                                                                          `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:201: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                                |        `- warning: will never be executed
+   |                                                                                                                                                                                                `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:175: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                      |        `- warning: will never be executed
+   |                                                                                                                                                                      `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:197: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                            |        `- warning: will never be executed
+   |                                                                                                                                                                                            `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:22:160: warning: will never be executed
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+   |                                                                                                                                                       |        `- warning: will never be executed
+   |                                                                                                                                                       `- note: condition always evaluates to false
+23 |     }
+24 | 
+[78/123] Compiling BoringSwiftTests VectorCodecTests.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:19:199: warning: will never be executed
+17 |         try TestCore.equalsInt(3, StringUnitOps.splitEmptyParts(Array("a....b".utf16)), [])
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                              |        `- warning: will never be executed
+   |                                                                                                                                                                                              `- note: condition always evaluates to false
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:179: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                          |        `- warning: will never be executed
+   |                                                                                                                                                                          `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:20:201: warning: will never be executed
+18 |         try TestCore.equalsInt(1, StringUnitOps.splitAbsent(Array("abc".utf16)), [])
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                                |        `- warning: will never be executed
+   |                                                                                                                                                                                                `- note: condition always evaluates to false
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:175: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                      |        `- warning: will never be executed
+   |                                                                                                                                                                      `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:21:197: warning: will never be executed
+19 |         try TestCore.equalsString(Array("abc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(-2); var _t = Int(3); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+   |                                                                                                                                                                                            |        `- warning: will never be executed
+   |                                                                                                                                                                                            `- note: condition always evaluates to false
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+23 |     }
+
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/tests/StringUnitTests.swift:22:160: warning: will never be executed
+20 |         try TestCore.equalsString(Array("bcdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(1); var _t = Int(99); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+21 |         try TestCore.equalsString(Array("bc".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _f = Int(3); var _t = Int(1); if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }()), [])
+22 |         try TestCore.equalsString(Array("cdef".utf16), ({ () -> [UInt16] in let _a = Array("abcdef".utf16); let _n = _a.count; var _s = Int(2); if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }()), [])
+   |                                                                                                                                                       |        `- warning: will never be executed
+   |                                                                                                                                                       `- note: condition always evaluates to false
+23 |     }
+24 | 
+[79/123] Compiling BoringSwiftTests DataClassRangeEqOps.swift
+[80/123] Compiling BoringSwiftTests DefaultArgsOps.swift
+[81/123] Compiling BoringSwiftTests EnumLookupOps.swift
+[82/123] Compiling BoringSwiftTests EnumQueriesOps.swift
+[83/123] Compiling BoringSwiftTests EnumSortedKeysOps.swift
+[84/123] Compiling BoringSwiftTests ExceptionCatchOps.swift
+[85/123] Compiling BoringSwiftTests ExceptionTypeOps.swift
+[86/123] Compiling BoringSwiftTests StringBufThrowOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftGlobalThrowOps.swift:58:16: warning: no calls to throwing functions occur within 'try' expression
+56 | 
+57 |     public static func currentValue(_ ops: SwiftGlobalThrowOps) throws -> Int32 {
+58 |         return try ops.current.value
+   |                `- warning: no calls to throwing functions occur within 'try' expression
+59 |     }
+60 | }
+[87/123] Compiling BoringSwiftTests StringBufUnionOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftGlobalThrowOps.swift:58:16: warning: no calls to throwing functions occur within 'try' expression
+56 | 
+57 |     public static func currentValue(_ ops: SwiftGlobalThrowOps) throws -> Int32 {
+58 |         return try ops.current.value
+   |                `- warning: no calls to throwing functions occur within 'try' expression
+59 |     }
+60 | }
+[88/123] Compiling BoringSwiftTests StringIndexOfShadowOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftGlobalThrowOps.swift:58:16: warning: no calls to throwing functions occur within 'try' expression
+56 | 
+57 |     public static func currentValue(_ ops: SwiftGlobalThrowOps) throws -> Int32 {
+58 |         return try ops.current.value
+   |                `- warning: no calls to throwing functions occur within 'try' expression
+59 |     }
+60 | }
+[89/123] Compiling BoringSwiftTests StringUnitOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftGlobalThrowOps.swift:58:16: warning: no calls to throwing functions occur within 'try' expression
+56 | 
+57 |     public static func currentValue(_ ops: SwiftGlobalThrowOps) throws -> Int32 {
+58 |         return try ops.current.value
+   |                `- warning: no calls to throwing functions occur within 'try' expression
+59 |     }
+60 | }
+[90/123] Compiling BoringSwiftTests SwiftDefaultOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftGlobalThrowOps.swift:58:16: warning: no calls to throwing functions occur within 'try' expression
+56 | 
+57 |     public static func currentValue(_ ops: SwiftGlobalThrowOps) throws -> Int32 {
+58 |         return try ops.current.value
+   |                `- warning: no calls to throwing functions occur within 'try' expression
+59 |     }
+60 | }
+[91/123] Compiling BoringSwiftTests SwiftGlobalThrowOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftGlobalThrowOps.swift:58:16: warning: no calls to throwing functions occur within 'try' expression
+56 | 
+57 |     public static func currentValue(_ ops: SwiftGlobalThrowOps) throws -> Int32 {
+58 |         return try ops.current.value
+   |                `- warning: no calls to throwing functions occur within 'try' expression
+59 |     }
+60 | }
+[92/123] Compiling BoringSwiftTests SwitchCaseScopeOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/boring/SwiftGlobalThrowOps.swift:58:16: warning: no calls to throwing functions occur within 'try' expression
+56 | 
+57 |     public static func currentValue(_ ops: SwiftGlobalThrowOps) throws -> Int32 {
+58 |         return try ops.current.value
+   |                `- warning: no calls to throwing functions occur within 'try' expression
+59 |     }
+60 | }
+[93/123] Compiling BoringSwiftTests ValueTypeClashOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/CompareCore.swift:170:28: warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+168 |                 }
+169 |                 if baseRecord == nil {
+170 |                     if let record2 = record2 {
+    |                            `- warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+171 |                         let extra: ExtraEntry? = CompareCore.findExtra(extras, id2)
+172 |                         if let extra = extra {
+[94/123] Compiling BoringSwiftTests ValueTypeConsumer.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/CompareCore.swift:170:28: warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+168 |                 }
+169 |                 if baseRecord == nil {
+170 |                     if let record2 = record2 {
+    |                            `- warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+171 |                         let extra: ExtraEntry? = CompareCore.findExtra(extras, id2)
+172 |                         if let extra = extra {
+[95/123] Compiling BoringSwiftTests ValueTypeCtorBindingOps.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/CompareCore.swift:170:28: warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+168 |                 }
+169 |                 if baseRecord == nil {
+170 |                     if let record2 = record2 {
+    |                            `- warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+171 |                         let extra: ExtraEntry? = CompareCore.findExtra(extras, id2)
+172 |                         if let extra = extra {
+[96/123] Compiling BoringSwiftTests CompareCore.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/CompareCore.swift:170:28: warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+168 |                 }
+169 |                 if baseRecord == nil {
+170 |                     if let record2 = record2 {
+    |                            `- warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+171 |                         let extra: ExtraEntry? = CompareCore.findExtra(extras, id2)
+172 |                         if let extra = extra {
+[97/123] Compiling BoringSwiftTests Config.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/CompareCore.swift:170:28: warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+168 |                 }
+169 |                 if baseRecord == nil {
+170 |                     if let record2 = record2 {
+    |                            `- warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+171 |                         let extra: ExtraEntry? = CompareCore.findExtra(extras, id2)
+172 |                         if let extra = extra {
+[98/123] Compiling BoringSwiftTests Plan.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/CompareCore.swift:170:28: warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+168 |                 }
+169 |                 if baseRecord == nil {
+170 |                     if let record2 = record2 {
+    |                            `- warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+171 |                         let extra: ExtraEntry? = CompareCore.findExtra(extras, id2)
+172 |                         if let extra = extra {
+[99/123] Compiling BoringSwiftTests Crc.swift
+/home/losses/Development/tq-workspace/boring/.scratch/tasks/wb-t-mvojcatt-q1pe/reference/swift/gen-tests/driver/CompareCore.swift:170:28: warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+168 |                 }
+169 |                 if baseRecord == nil {
+170 |                     if let record2 = record2 {
+    |                            `- warning: value 'record2' was defined but never used; consider replacing with boolean test [#no-usage]
+171 |                         let extra: ExtraEntry? = CompareCore.findExtra(extras, id2)
+172 |                         if let extra = extra {
+[100/123] Compiling BoringSwiftTests MapHasGetTests.swift
+[101/123] Compiling BoringSwiftTests NullGuardFieldTests.swift
+[102/123] Compiling BoringSwiftTests NullStaticMapTests.swift
+[103/123] Compiling BoringSwiftTests OptionalProjectionTests.swift
+[104/123] Compiling BoringSwiftTests OptionalValueUseTests.swift
+[105/123] Compiling BoringSwiftTests PipelineTests.swift
+[106/123] Compiling BoringSwiftTests PlatformModulesTestSupport.swift
+[107/123] Compiling BoringSwiftTests NullableBufFieldOps.swift
+[108/123] Compiling BoringSwiftTests NullableCallOps2.swift
+[109/123] Compiling BoringSwiftTests NullableLocalOps.swift
+[110/123] Compiling BoringSwiftTests NullableToStringOps.swift
+[111/123] Compiling BoringSwiftTests NumberParsingOps.swift
+[112/123] Compiling BoringSwiftTests NumericConversionWidening.swift
+[113/123] Compiling BoringSwiftTests NumericDomainOps.swift
+[114/123] Compiling BoringSwiftTests Sha256.swift
+[115/123] Compiling BoringSwiftTests Sha512.swift
+[116/123] Compiling BoringSwiftTests Xxh128.swift
+[117/123] Compiling BoringSwiftTests AbstractStaticDefaultTests.swift
+[118/123] Compiling BoringSwiftTests BlockScopeUnrollTests.swift
+[119/123] Compiling BoringSwiftTests CryptoTestSupport.swift
+[120/123] Compiling BoringSwiftTests DartCharNullTests.swift
+[121/124] Wrapping AST for BoringSwiftTests for debugging
+[122/124] Write Objects.LinkFileList
+[123/124] Linking BoringSwiftTests
+Build of product 'BoringSwiftTests' complete! (25.58s)
