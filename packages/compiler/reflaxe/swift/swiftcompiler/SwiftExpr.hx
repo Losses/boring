@@ -4211,6 +4211,15 @@ class SwiftExpr {
                         ? "String(decoding: " + receiverText(args[0]) + ", as: UTF16.self).has" + suffix + "(String(decoding: " + expr(args[1]) + ", as: UTF16.self))"
                         : receiverText(args[0]) + ".has" + suffix + "(" + optionalExpr(args[1]) + ")";
                 }
+                if (cls.pack.length == 0 && cls.name == "StringTools" && fName == "replace" && args.length == 3) {
+                    imports.runtime("replaceUnitsArr");
+                    final converted = [for (a in args) isStringSubject(a) && !types.resident ? unitArrayText(a) : expr(a)];
+                    final callText = "replaceUnitsArr(" + converted.join(", ") + ")";
+                    return switch (Context.follow(fn.t)) {
+                        case TFun(_, ret): wrapResidentStringResult(callText, ret);
+                        case _: callText;
+                    };
+                }
                 if (cls.pack.length == 0 && cls.name == "StringTools") {
                     // StringTools statics without a native Swift/String
                     // inline lowering (lpad, rpad, ltrim, rtrim, replace,
@@ -4567,10 +4576,7 @@ class SwiftExpr {
                             + ")");
                     imports.foundation();
                     return arrayRuntimeText("TiqianArray("
-                        + (types.resident ? "String(decoding: " + receiverText(subj)
-                            + ", as: UTF16.self).components(separatedBy: String(decoding: "
-                            + expr(args[0])
-                            + ", as: UTF16.self)).map { Array($0.utf16) }" : receiverText(subj)
+                        + (types.resident ? "splitUnitsArr(" + receiverText(subj) + ", " + expr(args[0]) + ")" : receiverText(subj)
                             + ".split(separator: "
                             + expr(args[0])
                             + ", omittingEmptySubsequences: false).map { String($0) }")
