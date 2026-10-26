@@ -256,10 +256,11 @@ class SwiftDecl {
             lines.push("        return " + selectedComparator.name + "(lhs, rhs) == 0");
             lines.push("    }");
             final cacheHash = hashCacheEligible(selectedComparator);
+            lines.push("");
             if (cacheHash) {
                 lines.push("    private var cachedHashValue: Int? = nil");
+                lines.push("");
             }
-            lines.push("");
             lines.push("    public func hash(into hasher: inout Hasher) {");
             final hashLocalIndex = [0];
             if (cacheHash) {
