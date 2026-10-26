@@ -4711,14 +4711,14 @@ class TsExpr {
             final parts = AssetModules.externalize(imports.selfModule, s);
             final helper = imports.fsHelper("asset",
                 "type HostModuleLoaderAsset = (id: string) => unknown;"
-                + " const fsAsset = (p: string): string => {"
+                + " const fsAsset = (p: URL): string => {"
                 + " const host = globalThis as Record<string, unknown>;"
                 + " const probe = (host['process'] as Record<string, unknown> | undefined)?.getBuiltinModule as HostModuleLoaderAsset | undefined;"
-                + " const fs = probe !== undefined ? probe('node:fs') as { readFileSync: (p: string, o: string) => string } : null;"
+                + " const fs = probe !== undefined ? probe('node:fs') as { readFileSync: (p: URL, o: string) => string } : null;"
                 + " if (fs === null) { throw new Error('asset read requires node:fs'); }"
                 + " return fs.readFileSync(p, 'utf8');"
                 + " };");
-            return [for (p in parts) helper + "(\"" + p + "\")"].join(" + ");
+            return [for (p in parts) helper + "(new URL(\"" + p + "\", import.meta.url))"].join(" + ");
         }
         final b = new StringBuf();
         b.addChar('"'.code);
