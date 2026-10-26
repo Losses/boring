@@ -302,6 +302,55 @@ public func charAtUnitArr(_ s: [UInt16], _ index: Int32) -> [UInt16] {
     return [s[Int(index)]]
 }
 
+public func splitUnitsArr(_ s: [UInt16], _ sep: [UInt16]) -> [[UInt16]] {
+    if sep.isEmpty { return s.map { [$0] } }
+    var out: [[UInt16]] = []
+    var start = 0
+    var i = 0
+    let n = sep.count
+    while i + n <= s.count {
+        var j = 0
+        while j < n && s[i + j] == sep[j] { j += 1 }
+        if j == n {
+            out.append(Array(s[start..<i]))
+            i += n
+            start = i
+        } else {
+            i += 1
+        }
+    }
+    out.append(Array(s[start..<s.count]))
+    return out
+}
+
+public func replaceUnitsArr(_ s: [UInt16], _ sub: [UInt16], _ by: [UInt16]) -> [UInt16] {
+    if sub.isEmpty {
+        var out: [UInt16] = []
+        for (i, u) in s.enumerated() {
+            if i > 0 { out.append(contentsOf: by) }
+            out.append(u)
+        }
+        return out
+    }
+    var out: [UInt16] = []
+    var start = 0
+    var i = 0
+    let n = sub.count
+    while i + n <= s.count {
+        var j = 0
+        while j < n && s[i + j] == sub[j] { j += 1 }
+        if j == n {
+            out.append(contentsOf: Array(s[start..<i]))
+            out.append(contentsOf: by)
+            i += n
+            start = i
+        } else {
+            i += 1
+        }
+    }
+    out.append(contentsOf: Array(s[start..<s.count]))
+    return out
+}
 ';
 
     /**
