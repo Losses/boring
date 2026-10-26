@@ -2327,6 +2327,7 @@ class TsExpr {
                 final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
                 final item = itemKey + " + \"=\" + " + itemVal;
                 '(() => { let out = "{"; const n = ${value}.size(); for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "}"; return out; })()';
+            case IsDictionary(_, _): '"{}"';
             case IsRecordLike: value + ".toString()";
             case IsInstanceToString: value + ".toString()";
             case IsMarkedAbstract(abs):

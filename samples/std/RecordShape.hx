@@ -369,7 +369,7 @@ class RecordShape {
 
     static function isCollectionType(type:Type):Bool {
         return switch (Context.follow(type)) {
-            case TInst(c, _): c.get().name == "Array" || c.get().module == "std.SortedSet" || c.get().module == "std.SortedMap";
+            case TInst(c, _): c.get().name == "Array" || c.get().module == "std.SortedSet" || c.get().module == "std.SortedMap" || c.get().module == "std.Dictionary";
             case TAbstract(a, _): a.get().module == "std.ReadOnlyArray";
             case _: false;
         };
