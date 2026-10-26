@@ -61,6 +61,22 @@ class DictionaryOps {
         return removed && a.length == 2;
     }
 
+    /** Std.string on a bare Dictionary emits the deterministic "{}" placeholder. */
+    public static function directString():String {
+        final d:Dictionary<String, Int> = new Dictionary();
+        d.set("a", 1);
+        return Std.string(d);
+    }
+
+    /** A @:dataClass with a Dictionary field prints a stable structured form. */
+    public static function dictToString():String {
+        final d:Dictionary<String, Int> = new Dictionary();
+        d.set("a", 1);
+        d.set("b", 2);
+        final r = new DictRecord(d);
+        return r.toString();
+    }
+
     /** A @:dataClass key compares structurally, not by reference. */
     public static function structuralKey():Int {
         final d:Dictionary<DictKey, Int> = new Dictionary();
@@ -74,6 +90,15 @@ class DictHolder {
     public final entries:Dictionary<String, Int>;
     public function new() {
         entries = new Dictionary();
+    }
+}
+
+/** @:dataClass holding a Dictionary field (toString structured emission). */
+@:dataClass
+class DictRecord {
+    public final table:Dictionary<String, Int>;
+    public function new(table:Dictionary<String, Int>) {
+        this.table = table;
     }
 }
 

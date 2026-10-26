@@ -56,6 +56,7 @@ enum StdStringCategory {
     IsArray(element:Type);
     IsSortedSet(element:Type);
     IsSortedMap(key:Type, value:Type);
+    IsDictionary(key:Type, value:Type);
     IsRecordLike;
     IsInstanceToString;
     IsMarkedAbstract(abs:AbstractType);
@@ -413,6 +414,7 @@ class PolicyQueries {
             case TInst(c, [element]) if (c.get().name == "Array"): IsArray(element);
             case TInst(c, [element]) if (c.get().module == "std.SortedSet"): IsSortedSet(element);
             case TInst(c, [key, value]) if (c.get().module == "std.SortedMap"): IsSortedMap(key, value);
+            case TInst(c, [key, value]) if (c.get().module == "std.Dictionary"): IsDictionary(key, value);
             case TInst(c, _) if (StaticFieldHelper.hasSelfConstructionStatic(c.get()) || c.get().meta.has(":dataClass")): IsRecordLike;
             case TInst(c, _) if (hasInstanceToString(c.get())): IsInstanceToString;
             case TAbstract(a, _) if (ValueTypeSupport.isMarkedAbstract(a.get())): IsMarkedAbstract(a.get());

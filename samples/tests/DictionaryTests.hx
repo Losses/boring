@@ -29,4 +29,10 @@ class DictionaryTests {
         Test.equals(true, DictionaryOps.structuralKey() == 42);
         Test.equals(true, DictionaryOps.arrayRemove());
     }
+
+    @:test("dictionary Std.string structured emission")
+    public static function testToString():Void {
+        Test.equals(true, DictionaryOps.directString() == "{}");
+        Test.equals(true, DictionaryOps.dictToString() == "DictRecord(table={})");
+    }
 }
