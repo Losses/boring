@@ -93,9 +93,62 @@ export class BytesBuffer {
 
 export function dictKey(k: any): any {
   if (k !== null && typeof k === "object") {
-    return JSON.stringify(k);
+    return canonicalDictKey(k);
   }
   return k;
+}
+
+function canonicalDictKey(k: any): string {
+  if (k === null || k === undefined) return "n";
+  const kind: string = typeof k;
+  if (kind === "string") return "s" + JSON.stringify(k);
+  if (kind === "number") return "i" + formatFloatRuntime(k);
+  if (kind === "boolean") return "b" + (k ? "1" : "0");
+  if (kind !== "object") return "n";
+  if (k instanceof Map) {
+    const entries: string[] = [];
+    k.forEach((value: any, key: any): void => {
+      entries.push(canonicalDictKey(key) + "=" + canonicalDictKey(value));
+    });
+    entries.sort();
+    return "m{" + entries.join(",") + "}";
+  }
+  if (Array.isArray(k)) {
+    const items: string[] = [];
+    for (let index = 0; index < k.length; index++) {
+      items.push(canonicalDictKey(k[index]));
+    }
+    return "a[" + items.join(",") + "]";
+  }
+  if (k instanceof Uint8Array) {
+    const items: string[] = [];
+    for (let index = 0; index < k.length; index++) {
+      items.push(String(k[index]));
+    }
+    return "u[" + items.join(",") + "]";
+  }
+  if (typeof SortedMapTable !== "undefined" && k instanceof SortedMapTable) {
+    const entries: string[] = [];
+    for (let index = 0; index < k.size(); index++) {
+      entries.push(canonicalDictKey(k.keyAt(index)) + "=" + canonicalDictKey(k.valueAt(index)));
+    }
+    return "sm{" + entries.join(",") + "}";
+  }
+  if (typeof SortedSetTable !== "undefined" && k instanceof SortedSetTable) {
+    const items: string[] = [];
+    for (let index = 0; index < k.size(); index++) {
+      items.push(canonicalDictKey(k.at(index)));
+    }
+    return "ss[" + items.join(",") + "]";
+  }
+  const fieldNames: string[] = Object.keys(k).sort();
+  const fields: string[] = [];
+  for (const name of fieldNames) {
+    const value: any = k[name];
+    if (typeof value === "function") continue;
+    fields.push(JSON.stringify(name) + ":" + canonicalDictKey(value));
+  }
+  return "o{" + fields.join(",") + "}";
 }
 
 ';
