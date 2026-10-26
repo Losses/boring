@@ -968,7 +968,44 @@ class KotlinDecl {
         if (!(cls.meta.has(":dataClass") && f.field.name == "toString" && f.field.meta.has(":recordMember"))) {
             return false;
         }
+        if (hasDictionaryCtorParam(cls)) {
+            return false;
+        }
         return constructorOrderMatchesFieldOrder(cls);
+    }
+
+    /**
+        Whether a constructor-parameter field is a std.Dictionary. The native
+        Kotlin data-class print renders such a field through HashMap.toString
+        (hash-ordered content), which never matches the deterministic "{}" the
+        shared member synthesis emits; keep the synthesized member in that case
+        so Kotlin prints the same placeholder the other four targets print.
+    **/
+    static function hasDictionaryCtorParam(cls:ClassType):Bool {
+        final ctor = cls.constructor;
+        if (ctor == null) {
+            return false;
+        }
+        final args = switch (ctor.get().type) {
+            case TFun(args, _): args;
+            case _: return false;
+        };
+        final fields = new Map<String, ClassField>();
+        for (field in cls.fields.get()) {
+            fields.set(field.name, field);
+        }
+        for (arg in args) {
+            final field = fields.get(arg.name);
+            if (field == null) {
+                continue;
+            }
+            switch (Context.follow(field.type)) {
+                case TInst(c, params) if (c.get().module == "std.Dictionary" && params.length == 2):
+                    return true;
+                case _:
+            }
+        }
+        return false;
     }
 
     /**

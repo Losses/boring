@@ -10278,6 +10278,7 @@ class RustExpr {
             case IsTypeParameter:
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
+            case IsDictionary(_, _): '"{}".to_string()';
             case IsRecordLike: value + ".to_string()";
             case IsInstanceToString:
                 // Display text has no propagation path, so a text read that

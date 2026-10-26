@@ -2505,6 +2505,7 @@ class DartExpr {
                 final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
                 '(() { final sb = StringBuffer("{"); final n = ${value}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.write(", "); } sb.write(${itemKey}); sb.write("="); sb.write(${itemVal}); ${index} += 1; } sb.write("}"); return sb.toString(); })()';
+            case IsDictionary(_, _): '"{}"';
             case IsRecordLike: value + ".toString()";
             case IsInstanceToString: value + ".toString()";
             case IsMarkedAbstract(abs):
