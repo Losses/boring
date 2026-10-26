@@ -255,11 +255,25 @@ class SwiftDecl {
             lines.push("    public static func == (lhs: " + equalityType + ", rhs: " + equalityType + ") -> Bool {");
             lines.push("        return " + selectedComparator.name + "(lhs, rhs) == 0");
             lines.push("    }");
+            final cacheHash = hashCacheEligible(selectedComparator);
+            if (cacheHash) {
+                lines.push("    private var cachedHashValue: Int? = nil");
+            }
             lines.push("");
             lines.push("    public func hash(into hasher: inout Hasher) {");
             final hashLocalIndex = [0];
-            for (field in selectedComparator.fields)
-                emitHashOperation(selectedComparator, field.operation, "self." + SwiftNameEscape.escape(field.field.name), "        ", lines, hashLocalIndex);
+            if (cacheHash) {
+                lines.push("        if let cached = self.cachedHashValue { hasher.combine(cached); return }");
+                lines.push("        var local = Hasher()");
+                for (field in selectedComparator.fields)
+                    emitHashOperation(selectedComparator, field.operation, "self." + SwiftNameEscape.escape(field.field.name), "        ", lines, hashLocalIndex, "local");
+                lines.push("        let cached = local.finalize()");
+                lines.push("        self.cachedHashValue = cached");
+                lines.push("        hasher.combine(cached)");
+            } else {
+                for (field in selectedComparator.fields)
+                    emitHashOperation(selectedComparator, field.operation, "self." + SwiftNameEscape.escape(field.field.name), "        ", lines, hashLocalIndex);
+            }
             lines.push("    }");
         }
         lines.push("}");
@@ -415,47 +429,78 @@ class SwiftDecl {
         return lines.join("\n");
     }
 
-    function emitHashOperation(owner:SwiftRecordPlan, operation:SwiftComparisonOperation, value:String, indent:String, lines:Array<String>, localIndex:Array<Int>):Void {
+    function hashCacheEligible(plan:SwiftRecordPlan):Bool {
+        // Caching the hash is sound only for immutable scalar keys: a
+        // mutable field or an Array/Map/record reference can change after
+        // the cached hash, leaving the key at a stale Dictionary bucket.
+        // Scalar value fields held in `let` storage cannot change, so the
+        // cached hash stays consistent with == (Perf-Swift-Gap gap 4).
+        if (plan.fields.length == 0)
+            return false;
+        for (field in plan.fields) {
+            if (!field.field.isFinal)
+                return false;
+            if (!hashScalarOperation(field.operation))
+                return false;
+        }
+        return true;
+    }
+
+    function hashScalarOperation(operation:SwiftComparisonOperation):Bool {
+        return switch (operation) {
+            case SwiftIntegerOrder, SwiftFloatOrder, SwiftBooleanOrder, SwiftUtf16StringOrder, SwiftEnumOrdinalOrder(_, _, _): true;
+            case SwiftNullBeforePresent(child): hashScalarOperation(child);
+            case _: false;
+        };
+    }
+
+    function emitHashOperation(owner:SwiftRecordPlan, operation:SwiftComparisonOperation, value:String, indent:String, lines:Array<String>, localIndex:Array<Int>, hasher:String = "hasher"):Void {
         switch (operation) {
-            case SwiftIntegerOrder, SwiftFloatOrder, SwiftBooleanOrder, SwiftUtf16StringOrder:
-                lines.push(indent + "hasher.combine(" + value + ")");
+            case SwiftIntegerOrder, SwiftFloatOrder, SwiftBooleanOrder:
+                lines.push(indent + hasher + ".combine(" + value + ")");
+            case SwiftUtf16StringOrder:
+                // Bulk-hash the UTF-16 storage in one pass instead of
+                // Array's element-wise Hashable walk: Dictionary keys built
+                // from String fields otherwise re-hash every unit on every
+                // get/set (perf gap ④ of Perf-Swift-Gap).
+                lines.push(indent + value + ".withUnsafeBytes { " + hasher + ".combine(bytes: $0) }");
             case SwiftParameterOrder(_):
-                lines.push(indent + "hasher.combine(" + value + ")");
+                lines.push(indent + hasher + ".combine(" + value + ")");
             case SwiftEnumOrdinalOrder(helper, _, _):
-                lines.push(indent + "hasher.combine(" + helper + "(" + value + "))");
+                lines.push(indent + hasher + ".combine(" + helper + "(" + value + "))");
             case SwiftRecordOrder(_, _):
-                lines.push(indent + "hasher.combine(" + value + ")");
+                lines.push(indent + hasher + ".combine(" + value + ")");
             case SwiftNullBeforePresent(child):
-                lines.push(indent + "hasher.combine(" + value + " == nil)");
+                lines.push(indent + hasher + ".combine(" + value + " == nil)");
                 final unwrapped = allocateComparisonLocal(localIndex);
                 lines.push(indent + "if let " + unwrapped + " = " + value + " {");
-                emitHashOperation(owner, child, unwrapped, indent + "    ", lines, localIndex);
+                emitHashOperation(owner, child, unwrapped, indent + "    ", lines, localIndex, hasher);
                 lines.push(indent + "}");
             case SwiftLexicographic(child):
-                lines.push(indent + "hasher.combine(" + value + ".count)");
+                lines.push(indent + hasher + ".combine(" + value + ".count)");
                 final index = allocateComparisonLocal(localIndex);
                 lines.push(indent + "var " + index + " = 0");
                 lines.push(indent + "while " + index + " < " + value + ".count {");
-                emitHashOperation(owner, child, value + "[" + index + "]", indent + "    ", lines, localIndex);
+                emitHashOperation(owner, child, value + "[" + index + "]", indent + "    ", lines, localIndex, hasher);
                 lines.push(indent + "    " + index + " += 1");
                 lines.push(indent + "}");
             case SwiftDictionaryOrder:
-                lines.push(indent + "hasher.combine(" + value + ")");
+                lines.push(indent + hasher + ".combine(" + value + ")");
             case SwiftMapOrder(keyOperation, valueOperation):
-                lines.push(indent + "hasher.combine(" + value + ".size())");
+                lines.push(indent + hasher + ".combine(" + value + ".size())");
                 final index = allocateComparisonLocal(localIndex);
                 lines.push(indent + "var " + index + ": Int32 = 0");
                 lines.push(indent + "while " + index + " < " + value + ".size() {");
-                emitHashOperation(owner, keyOperation, value + ".keyAt(" + index + ")", indent + "    ", lines, localIndex);
-                emitHashOperation(owner, valueOperation, value + ".valueAt(" + index + ")", indent + "    ", lines, localIndex);
+                emitHashOperation(owner, keyOperation, value + ".keyAt(" + index + ")", indent + "    ", lines, localIndex, hasher);
+                emitHashOperation(owner, valueOperation, value + ".valueAt(" + index + ")", indent + "    ", lines, localIndex, hasher);
                 lines.push(indent + "    " + index + " += 1");
                 lines.push(indent + "}");
             case SwiftSetOrder(element):
-                lines.push(indent + "hasher.combine(" + value + ".size())");
+                lines.push(indent + hasher + ".combine(" + value + ".size())");
                 final index = allocateComparisonLocal(localIndex);
                 lines.push(indent + "var " + index + ": Int32 = 0");
                 lines.push(indent + "while " + index + " < " + value + ".size() {");
-                emitHashOperation(owner, element, value + ".at(" + index + ")", indent + "    ", lines, localIndex);
+                emitHashOperation(owner, element, value + ".at(" + index + ")", indent + "    ", lines, localIndex, hasher);
                 lines.push(indent + "    " + index + " += 1");
                 lines.push(indent + "}");
         }
