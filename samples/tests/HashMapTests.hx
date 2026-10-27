@@ -5,7 +5,7 @@ import std.HashMap;
 import boring.HashMapOps;
 
 class HashMapTests {
-    @:test("dictionary set/get/exists/remove/clear lifecycle")
+    @:test("hash map set/get/exists/remove/clear lifecycle")
     public static function testLifecycle():Void {
         final d:HashMap<String, Int> = new HashMap();
         Test.equals(true, d.exists("a") == false);
@@ -30,7 +30,7 @@ class HashMapTests {
         Test.equals(true, HashMapOps.arrayRemove());
     }
 
-    @:test("dictionary Std.string structured emission")
+    @:test("hash map Std.string structured emission")
     public static function testToString():Void {
         Test.equals(true, HashMapOps.directString() == "{}");
         Test.equals(true, HashMapOps.dictToString() == "DictRecord(table={})");
