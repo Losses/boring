@@ -105,7 +105,7 @@ class SwiftType {
                     case "haxe.io.BytesBuffer":
                         imports.runtime("BytesBuffer");
                         "BytesBuffer";
-                    case "std.Dictionary": "[" + of(params[0]) + ": " + of(params[1]) + "]";
+                    case "std.HashMap": "[" + of(params[0]) + ": " + of(params[1]) + "]";
                     case "std.SortedMap":
                         imports.runtime("SortedMapTable");
                         // Haxe folds Null<Null<V>> into Null<V>, and the runtime

@@ -90,7 +90,7 @@ class KotlinComparisonPlan {
                 final difference = "difference" + depth;
                 final compared = render(child, a + "[" + index + "]", b + "[" + index + "]", owner, depth + 1);
                 'run { val $a = $left; val $b = $right; var $index = 0; var $difference = 0; while ($index < $a.size && $index < $b.size) { $difference = $compared; if ($difference != 0) break; $index += 1 }; if ($difference != 0) $difference else $a.size.compareTo($b.size) }';
-            case DictionaryOrder: 'if ($left != $right) 1 else 0';
+            case HashMapOrder: 'if ($left != $right) 1 else 0';
             case MapOrder(key, value):
                 final a = "mapLeft" + depth;
                 final b = "mapRight" + depth;
