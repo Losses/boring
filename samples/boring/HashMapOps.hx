@@ -7,7 +7,7 @@ import std.HashMap;
  * mutable hash-table API (docs/specs/stdlib/19).
  */
 class HashMapOps {
-    /** Build a dictionary and read a present key. */
+    /** Build a hash map and read a present key. */
     public static function buildGet():Int {
         final d:HashMap<String, Int> = new HashMap();
         d.set("k", 42);
