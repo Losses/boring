@@ -648,7 +648,7 @@ class RustDecl {
                         + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
                         + cmpToI32('(' + left + ').len().cmp(&(' + right + ').len())') + '; } cmp }';
                 case HashMapOrder:
-                    Context.error("Rust sorted comparator received an unsupported dictionary operation", cls.pos);
+                    Context.error("Rust sorted comparator received an unsupported hash map operation", cls.pos);
                     "0";
                 case MapOrder(key, value):
                     '{ let mut cmp = 0; for i in 0..(' + left + ').size() { cmp = '
