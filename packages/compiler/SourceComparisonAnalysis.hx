@@ -231,7 +231,7 @@ private class ComparisonBuilder {
                     case OperationFailed(reason, failedType): OperationFailed(reason, failedType);
                     case OperationUnresolved(reason): OperationUnresolved(reason);
                 }
-            case DictionaryShape: OperationReady(DictionaryOrder);
+            case HashMapShape: OperationReady(HashMapOrder);
             case UnsupportedShape(sourceType): OperationFailed("unsupported resolved source shape", sourceType);
             case UnresolvedShape(reason): OperationUnresolved("unresolved source shape: " + Std.string(reason));
         };
@@ -278,7 +278,7 @@ enum SourceComparisonOperation {
     Lexicographic(child:SourceComparisonOperation);
     MapOrder(key:SourceComparisonOperation, value:SourceComparisonOperation);
     SetOrder(element:SourceComparisonOperation);
-    DictionaryOrder;
+    HashMapOrder;
 }
 
 private class Builder {
@@ -368,7 +368,7 @@ private class Builder {
                 final cls = c.get();
                 if (isRootClass(cls, "String")) StringShape else if (cls.meta.has(":dataClass")) {
                     schemaMode ? RecordUseShape(recordSchema(c), arguments.copy()) : RecordShape(record(c, arguments));
-                } else if (cls.module == "std.Dictionary") DictionaryShape else UnsupportedShape(t);
+                } else if (cls.module == "std.HashMap") HashMapShape else UnsupportedShape(t);
             case TEnum(e, arguments):
                 final declaration = e.get();
                 narrowPayloadEnums && hasPayloadConstructor(declaration) ? UnsupportedShape(t) : EnumShape(declaration, arguments.copy());
@@ -558,7 +558,7 @@ enum SourceComparisonShape {
     SequenceShape(element:SourceComparisonShape);
     SortedMapShape(key:SourceComparisonShape, value:SourceComparisonShape);
     SortedSetShape(element:SourceComparisonShape);
-    DictionaryShape;
+    HashMapShape;
     UnsupportedShape(sourceType:Type);
     UnresolvedShape(reason:UnresolvedReason);
 }

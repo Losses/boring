@@ -3934,7 +3934,7 @@ class SwiftExpr {
                 types.resident
                     ? '{ () -> [UInt16] in var out = Array("{".utf16); let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += Array(", ".utf16); }; out += ${itemKey}; out += Array("=".utf16); out += ${itemVal}; ${index} += 1; }; out += Array("}".utf16); return out }()'
                     : '{ () -> String in var out = "{"; let n = ${value}.size(); var ${index}: Int32 = 0; while ${index} < n { if ${index} > 0 { out += ", "; }; out += ${itemKey}; out += "="; out += ${itemVal}; ${index} += 1; }; out += "}"; return out }()';
-            case IsDictionary(_, _): types.resident ? 'Array("{}".utf16)' : '"{}"';
+            case IsHashMap(_, _): types.resident ? 'Array("{}".utf16)' : '"{}"';
             case IsRecordLike | IsInstanceToString: recordToStringText(t, value);
             case IsMarkedAbstract(abs):
                 final rendered = ValueTypeSupport.memberField(abs, "toString") != null ? value + ".description" : "String(describing: "
@@ -5458,7 +5458,7 @@ class SwiftExpr {
                 return "[UInt16]()";
             case "haxe.ds._Map.Map_Impl_":
                 return "[:]";
-            case "std.Dictionary":
+            case "std.HashMap":
                 return "[" + types.of(params[0]) + ": " + types.of(params[1]) + "]()";
             case "haxe.io.BytesBuffer":
                 imports.runtime("BytesBuffer");
@@ -6983,7 +6983,7 @@ class SwiftExpr {
         return switch (Context.follow(t)) {
             case TInst(c, _):
                 final cls = c.get();
-                cls.kind == KNormal && cls.module != "std.Dictionary";
+                cls.kind == KNormal && cls.module != "std.HashMap";
             case _: false;
         };
     }
