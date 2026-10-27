@@ -3233,6 +3233,12 @@ class SwiftExpr {
                     parens = isShift(op) && isShift(parent) || isRight && !(op == parent && associative(op));
                 }
                 parens ? "(" + rendered + ")" : rendered;
+            case TIf(_, _, _):
+                // A null-guard ternary lowers to ??; that operator binds
+                // looser than every arithmetic tier in Swift, so an elvis
+                // operand takes parentheses. A plain ternary already emits
+                // its own (SwiftExpr.ternary path).
+                rendered.indexOf(" ?? ") != -1 ? "(" + rendered + ")" : rendered;
             case _: rendered;
         };
     }
@@ -3253,6 +3259,10 @@ class SwiftExpr {
                     parens = isShift(op) && isShift(parent) || isRight && !(op == parent && associative(op));
                 }
                 return parens ? "(" + rendered + ")" : rendered;
+            case TIf(_, _, _):
+                // See optionalOperand: only the elvis form (??) needs the
+                // extra parentheses; a plain ternary already emits its own.
+                return rendered.indexOf(" ?? ") != -1 ? "(" + rendered + ")" : rendered;
             case _:
                 return rendered;
         }
