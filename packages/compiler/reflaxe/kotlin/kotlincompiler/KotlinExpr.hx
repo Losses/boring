@@ -4859,7 +4859,7 @@ class KotlinExpr {
                 final itemKey = stdStringType(key, value + ".keyAt(" + index + ")", true, origin, depth + 1);
                 final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
                 'run { val sb = StringBuilder(); sb.append(\'{\'); val n = ${value}.size(); var ${index} = 0; while (${index} < n) { if (${index} > 0) { sb.append(", "); }; sb.append(${itemKey}); sb.append("="); sb.append(${itemVal}); ${index} += 1; }; sb.append(\'}\'); sb.toString() }';
-            case IsDictionary(_, _): '"{}"';
+            case IsHashMap(_, _): '"{}"';
             case IsRecordLike: value + ".toString()";
             case IsInstanceToString: value + ".toString()";
             case IsMarkedAbstract(abs):
@@ -6309,7 +6309,7 @@ class KotlinExpr {
                 return "StringBuilder()";
             case "haxe.ds._Map.Map_Impl_":
                 return "mutableMapOf()";
-            case "std.Dictionary":
+            case "std.HashMap":
                 return "HashMap<" + types.of(params[0]) + ", " + types.of(params[1]) + ">()";
             case "haxe.io.BytesBuffer":
                 imports.requireType(path, "BytesBuffer");

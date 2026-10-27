@@ -1,13 +1,13 @@
 package tests;
 
 import std.Test;
-import std.Dictionary;
-import boring.DictionaryOps;
+import std.HashMap;
+import boring.HashMapOps;
 
-class DictionaryTests {
+class HashMapTests {
     @:test("dictionary set/get/exists/remove/clear lifecycle")
     public static function testLifecycle():Void {
-        final d:Dictionary<String, Int> = new Dictionary();
+        final d:HashMap<String, Int> = new HashMap();
         Test.equals(true, d.exists("a") == false);
         d.set("a", 1);
         Test.equals(true, d.exists("a"));
@@ -22,17 +22,17 @@ class DictionaryTests {
         Test.equals(true, d.exists("b") == false);
         d.set("c", 4);
         Test.equals(true, d.get("c") == 4);
-        Test.equals(true, DictionaryOps.buildGet() == 42);
-        Test.equals(true, DictionaryOps.overwrite() == 2);
-        Test.equals(true, DictionaryOps.removeKey());
-        Test.equals(true, DictionaryOps.clearAndReinsert() == 3);
-        Test.equals(true, DictionaryOps.structuralKey() == 42);
-        Test.equals(true, DictionaryOps.arrayRemove());
+        Test.equals(true, HashMapOps.buildGet() == 42);
+        Test.equals(true, HashMapOps.overwrite() == 2);
+        Test.equals(true, HashMapOps.removeKey());
+        Test.equals(true, HashMapOps.clearAndReinsert() == 3);
+        Test.equals(true, HashMapOps.structuralKey() == 42);
+        Test.equals(true, HashMapOps.arrayRemove());
     }
 
     @:test("dictionary Std.string structured emission")
     public static function testToString():Void {
-        Test.equals(true, DictionaryOps.directString() == "{}");
-        Test.equals(true, DictionaryOps.dictToString() == "DictRecord(table={})");
+        Test.equals(true, HashMapOps.directString() == "{}");
+        Test.equals(true, HashMapOps.dictToString() == "DictRecord(table={})");
     }
 }

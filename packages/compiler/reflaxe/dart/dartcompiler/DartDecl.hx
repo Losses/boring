@@ -361,7 +361,7 @@ class DartDecl {
                     final lengthOrder = local();
                     lines.push(indent + "final " + lengthOrder + " = " + left + ".length.compareTo(" + right + ".length);");
                     lines.push(indent + "if (" + lengthOrder + " != 0) return " + lengthOrder + ";");
-                case DictionaryOrder:
+                case HashMapOrder:
                     lines.push(indent + "if (" + left + ".toString() != " + right + ".toString()) return 1;");
                 case MapOrder(key, value):
                     final index = local();

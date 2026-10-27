@@ -51,7 +51,7 @@ boring.WordCharacterTable
 boring.PayloadTextTable
 boring.CodePointNames
 std.SortedMap
-std.Dictionary
+std.HashMap
 std.SortedSet
 std.Functional
 runtime.UString
@@ -389,8 +389,8 @@ tests.NullGuardFieldTests
 
 boring.MapHasGetOps
 tests.MapHasGetTests
-boring.DictionaryOps
-tests.DictionaryTests
+boring.HashMapOps
+tests.HashMapTests
 
 boring.FPHelperSwiftOps
 tests.FPHelperSwiftTests

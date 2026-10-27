@@ -2327,7 +2327,7 @@ class TsExpr {
                 final itemVal = stdStringType(val, value + ".valueAt(" + index + ")", true, origin, depth + 1);
                 final item = itemKey + " + \"=\" + " + itemVal;
                 '(() => { let out = "{"; const n = ${value}.size(); for (let ${index} = 0; ${index} < n; ${index} += 1) { if (${index} > 0) { out += ", "; } out += ${item}; } out += "}"; return out; })()';
-            case IsDictionary(_, _): '"{}"';
+            case IsHashMap(_, _): '"{}"';
             case IsRecordLike: value + ".toString()";
             case IsInstanceToString: value + ".toString()";
             case IsMarkedAbstract(abs):
@@ -3608,7 +3608,7 @@ class TsExpr {
                 return "[]";
             case "haxe.ds._Map.Map_Impl_":
                 return "new Map()";
-            case "std.Dictionary":
+            case "std.HashMap":
                 return "new Map<" + types.of(params[0]) + ", " + types.of(params[1]) + ">()";
             case "haxe.io.BytesBuffer":
                 imports.runtime("BytesBuffer");

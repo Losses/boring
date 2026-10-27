@@ -595,7 +595,7 @@ class RustDecl {
                 case NullBeforePresent(child) | Lexicographic(child): available(child);
                 case MapOrder(key, value): available(key) && available(value);
                 case SetOrder(element): available(element);
-                case DictionaryOrder: false;
+                case HashMapOrder: false;
                 case _: true;
             };
         }
@@ -647,7 +647,7 @@ class RustDecl {
                         + ').iter()) { cmp = ' + operationText(child, "av", "bv")
                         + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
                         + cmpToI32('(' + left + ').len().cmp(&(' + right + ').len())') + '; } cmp }';
-                case DictionaryOrder:
+                case HashMapOrder:
                     Context.error("Rust sorted comparator received an unsupported dictionary operation", cls.pos);
                     "0";
                 case MapOrder(key, value):

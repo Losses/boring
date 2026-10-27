@@ -485,7 +485,7 @@ class SwiftDecl {
                 emitHashOperation(owner, child, value + "[" + index + "]", indent + "    ", lines, localIndex, hasher);
                 lines.push(indent + "    " + index + " += 1");
                 lines.push(indent + "}");
-            case SwiftDictionaryOrder:
+            case SwiftHashMapOrder:
                 lines.push(indent + hasher + ".combine(" + value + ")");
             case SwiftMapOrder(keyOperation, valueOperation):
                 lines.push(indent + hasher + ".combine(" + value + ".size())");
@@ -558,7 +558,7 @@ class SwiftDecl {
                 lines.push(indent + "}");
                 lines.push(indent + "if " + left + ".count < " + right + ".count { return -1 }");
                 lines.push(indent + "if " + left + ".count > " + right + ".count { return 1 }");
-            case SwiftDictionaryOrder:
+            case SwiftHashMapOrder:
                 lines.push(indent + "if " + left + " != " + right + " { return 1 }");
             case SwiftMapOrder(key, value):
                 lines.push(indent + "if " + left + ".size() < " + right + ".size() { return -1 }");
@@ -763,9 +763,9 @@ class SwiftDecl {
         // contents remain mutable. Array fields therefore use var.
         // Swift let array forbids that, so array fields stay var.
         final isArrayField = switch (field.type) {
-            case TInst(c, _): c.get().name == "Array" || c.get().name == "StringBuf" || c.get().module == "std.Dictionary";
+            case TInst(c, _): c.get().name == "Array" || c.get().name == "StringBuf" || c.get().module == "std.HashMap";
             case TLazy(f): switch (f()) {
-                    case TInst(c, _): c.get().name == "Array" || c.get().name == "StringBuf" || c.get().module == "std.Dictionary";
+                    case TInst(c, _): c.get().name == "Array" || c.get().name == "StringBuf" || c.get().module == "std.HashMap";
                     case _: false;
                 };
             case _: false;

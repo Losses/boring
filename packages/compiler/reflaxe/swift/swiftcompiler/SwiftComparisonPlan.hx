@@ -110,7 +110,7 @@ private class SwiftPlanBuilder {
                     case SwiftOperationFailed(reason, sourceType): SwiftOperationFailed(reason, sourceType);
                     case SwiftOperationUnresolved(reason): SwiftOperationUnresolved(reason);
                 }
-            case DictionaryOrder: SwiftOperationReady(SwiftDictionaryOrder);
+            case HashMapOrder: SwiftOperationReady(SwiftHashMapOrder);
             case MapOrder(key, value):
                 switch (operation(key, path + "_key", owner)) {
                     case SwiftOperationReady(selectedKey):
@@ -198,6 +198,6 @@ enum SwiftComparisonOperation {
     SwiftLexicographic(child:SwiftComparisonOperation);
     SwiftMapOrder(key:SwiftComparisonOperation, value:SwiftComparisonOperation);
     SwiftSetOrder(element:SwiftComparisonOperation);
-    SwiftDictionaryOrder;
+    SwiftHashMapOrder;
 }
 #end
