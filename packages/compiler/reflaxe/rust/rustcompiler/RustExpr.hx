@@ -10278,7 +10278,7 @@ class RustExpr {
             case IsTypeParameter:
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
-            case IsDictionary(_, _): '"{}".to_string()';
+            case IsHashMap(_, _): '"{}".to_string()';
             case IsRecordLike: value + ".to_string()";
             case IsInstanceToString:
                 // Display text has no propagation path, so a text read that
@@ -13166,7 +13166,7 @@ class RustExpr {
             case "haxe.ds._Map.Map_Impl_":
                 imports.require("std::collections::HashMap");
                 return "HashMap::new()";
-            case "std.Dictionary":
+            case "std.HashMap":
                 imports.require("std::collections::HashMap");
                 return "HashMap::<" + types.of(params[0]) + ", " + types.of(params[1]) + ">::new()";
             case "haxe.io.BytesBuffer":

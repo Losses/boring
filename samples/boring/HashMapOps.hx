@@ -1,28 +1,28 @@
 package boring;
 
-import std.Dictionary;
+import std.HashMap;
 
 /**
- * Business operations over std.Dictionary, exercising the complete
+ * Business operations over std.HashMap, exercising the complete
  * mutable hash-table API (docs/specs/stdlib/19).
  */
-class DictionaryOps {
+class HashMapOps {
     /** Build a dictionary and read a present key. */
     public static function buildGet():Int {
-        final d:Dictionary<String, Int> = new Dictionary();
+        final d:HashMap<String, Int> = new HashMap();
         d.set("k", 42);
         return d.get("k");
     }
 
     /** get-or-fallback through an explicit null test. */
-    public static function getOr(d:Dictionary<String, Int>, key:String, fallback:Int):Int {
+    public static function getOr(d:HashMap<String, Int>, key:String, fallback:Int):Int {
         final v = d.get(key);
         return v == null ? fallback : v;
     }
 
     /** A later set with an equal key replaces the earlier value. */
     public static function overwrite():Int {
-        final d:Dictionary<String, Int> = new Dictionary();
+        final d:HashMap<String, Int> = new HashMap();
         d.set("k", 1);
         d.set("k", 2);
         return d.get("k");
@@ -30,7 +30,7 @@ class DictionaryOps {
 
     /** remove reports whether the key was present; absent removes are false. */
     public static function removeKey():Bool {
-        final d:Dictionary<String, Int> = new Dictionary();
+        final d:HashMap<String, Int> = new HashMap();
         d.set("k", 1);
         final removed = d.remove("k");
         final removedAgain = d.remove("k");
@@ -39,7 +39,7 @@ class DictionaryOps {
 
     /** clear empties the table; a re-insert after clear reads back. */
     public static function clearAndReinsert():Int {
-        final d:Dictionary<String, Int> = new Dictionary();
+        final d:HashMap<String, Int> = new HashMap();
         d.set("a", 1);
         d.set("b", 2);
         d.clear();
@@ -47,7 +47,7 @@ class DictionaryOps {
         return d.get("c");
     }
 
-    /** A final Dictionary field mutates in place (Swift var, not let). */
+    /** A final HashMap field mutates in place (Swift var, not let). */
     public static function fieldMutate():Int {
         final holder = new DictHolder();
         holder.entries.set("k", 7);
@@ -61,16 +61,16 @@ class DictionaryOps {
         return removed && a.length == 2;
     }
 
-    /** Std.string on a bare Dictionary emits the deterministic "{}" placeholder. */
+    /** Std.string on a bare HashMap emits the deterministic "{}" placeholder. */
     public static function directString():String {
-        final d:Dictionary<String, Int> = new Dictionary();
+        final d:HashMap<String, Int> = new HashMap();
         d.set("a", 1);
         return Std.string(d);
     }
 
-    /** A @:dataClass with a Dictionary field prints a stable structured form. */
+    /** A @:dataClass with a HashMap field prints a stable structured form. */
     public static function dictToString():String {
-        final d:Dictionary<String, Int> = new Dictionary();
+        final d:HashMap<String, Int> = new HashMap();
         d.set("a", 1);
         d.set("b", 2);
         final r = new DictRecord(d);
@@ -79,30 +79,30 @@ class DictionaryOps {
 
     /** A @:dataClass key compares structurally, not by reference. */
     public static function structuralKey():Int {
-        final d:Dictionary<DictKey, Int> = new Dictionary();
+        final d:HashMap<DictKey, Int> = new HashMap();
         d.set(new DictKey(1, "x"), 42);
         return d.get(new DictKey(1, "x"));
     }
 }
 
-/** A final Dictionary field keeps mutating methods in Swift (var, not let). */
+/** A final HashMap field keeps mutating methods in Swift (var, not let). */
 class DictHolder {
-    public final entries:Dictionary<String, Int>;
+    public final entries:HashMap<String, Int>;
     public function new() {
-        entries = new Dictionary();
+        entries = new HashMap();
     }
 }
 
-/** @:dataClass holding a Dictionary field (toString structured emission). */
+/** @:dataClass holding a HashMap field (toString structured emission). */
 @:dataClass
 class DictRecord {
-    public final table:Dictionary<String, Int>;
-    public function new(table:Dictionary<String, Int>) {
+    public final table:HashMap<String, Int>;
+    public function new(table:HashMap<String, Int>) {
         this.table = table;
     }
 }
 
-/** @:dataClass key used through a Dictionary (structural, not reference). */
+/** @:dataClass key used through a HashMap (structural, not reference). */
 @:dataClass
 class DictKey {
     public final a:Int;
