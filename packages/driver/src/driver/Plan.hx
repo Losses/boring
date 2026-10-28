@@ -112,7 +112,7 @@ class Plan {
             final testsJar = build + "/tests.jar";
             addStep(steps, "build library jar", "kotlinc", genFiles.concat(bundle.build.args).concat(["-include-runtime", "-d", libraryJar]), project.root, bundle.build.env);
             addStep(steps, "build tests jar", "kotlinc", ["-cp", libraryJar].concat(testFiles).concat(bundle.build.args).concat(["-d", testsJar]), project.root, bundle.build.env);
-            addStep(steps, "run", "java", ["-cp", libraryJar + ":" + testsJar].concat(bundle.run.args).concat(["TestMainKt"]), project.root, runEnv);
+            addStep(steps, "run", "java", ["-cp", libraryJar + ":" + testsJar + ":" + generatedDir + "/resources"].concat(bundle.run.args).concat(["TestMainKt"]), project.root, runEnv);
         } else if (bundle.target == "rust") {
             addStep(steps, "build", "cargo", ["test", "--release", "--no-run"].concat(bundle.build.args), generatedDir, bundle.build.env);
             addStep(steps, "run", "cargo", ["test", "--release"].concat(bundle.run.args), generatedDir, runEnv);
