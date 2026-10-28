@@ -5584,7 +5584,7 @@ class KotlinExpr {
                 };
                 if (arrayReceiver) {
                     switch (name) {
-                        case "push": return expr(subj) + ".add(" + renderedArgs + ")";
+                        case "push": return expr(subj) + nullableAccess(subj) + "add(" + renderedArgs + ")";
                         // No join case here. Context.follow unwraps Null on a
                         // reference array type, so a nullable array receiver
                         // reaches this branch. The general join handler below
@@ -5632,7 +5632,7 @@ class KotlinExpr {
                     }
                 }
                 if (name == "push") {
-                    return expr(subj) + ".add(" + renderedArgs + ")";
+                    return expr(subj) + nullableAccess(subj) + "add(" + renderedArgs + ")";
                 }
                 if (name == "join") {
                     // The receiver may render nullable (e.g. a Map.get result);
