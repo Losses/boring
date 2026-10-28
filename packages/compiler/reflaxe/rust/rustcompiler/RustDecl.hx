@@ -388,6 +388,7 @@ class RustDecl {
         // When every field also implements PartialEq, add that derive so
         // containing structs can derive PartialEq over the data class.
         final isSortedTableResident = RustType.isContentEqSortedTable(cls);
+        final isHashManual = cls.meta.has(":dataClass") && RustType.hasDirectFloatField(varFields) && RustType.isHashTypeFieldsWithFloat(varFields);
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0 || isSortedTableResident)
             && (isAllClone(varFields, cls) || isSortedTableResident)) {
             final isDebug = cls.meta.has(":dataClass") && isAllDebug(varFields, cls);
@@ -420,6 +421,28 @@ class RustDecl {
             lines.push("    __phantom_" + p.toLowerCase() + ": core::marker::PhantomData<" + p + ">,");
         lines.push("}\n");
 
+        if (isHashManual) {
+            // A direct Float field needs a manual impl for both Eq and Hash
+            // because f32/f64 have no Eq or Hash. (DataClassFloatHash)
+            // The Eq marker is sound because the derived PartialEq on the
+            // record's float fields is never exposed to NaN.
+            final eqBoundList = [for (n in classParams) n + ": Eq"];
+            final eqGenericStr = eqBoundList.length > 0 ? "<" + eqBoundList.join(", ") + ">" : "";
+            lines.push("impl" + eqGenericStr + " Eq for " + emittedName + genericStr + " {}");
+            final hashBoundList = [for (n in classParams) n + ": core::hash::Hash"];
+            final hashGenericStr = hashBoundList.length > 0 ? "<" + hashBoundList.join(", ") + ">" : "";
+            lines.push("impl" + hashGenericStr + " core::hash::Hash for " + emittedName + genericStr + " {");
+            lines.push("    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {");
+            for (v in varFields) {
+                if (v.isStatic)
+                    continue;
+                final fname = RustImports.toSnakeCase(v.field.name);
+                lines.push("        " + (RustType.isDirectFloatType(v.field.type) ? "core::hash::Hash::hash(&self." + fname + ".to_bits(), state)" : "self." + fname + ".hash(state)") + ";");
+            }
+            lines.push("    }");
+            lines.push("}");
+        }
+
         if (isSortedTableResident) {
             // The comparator closure keeps the declaration on the Clone-only
             // derive, so content equality is written here (SortedTableContentEq).
@@ -438,6 +461,11 @@ class RustDecl {
             lines.push("        " + (eqConditions.length > 0 ? eqConditions.join(" && ") : "true"));
             lines.push("    }");
             lines.push("}");
+            // The key-and-value comparison is an equivalence relation when the
+            // element types are Eq, so Eq derives from the same bounds. (SortedTableEq)
+            final eqEqBoundList = [for (g in genericList) g == "'a" ? g : g + ": Eq"];
+            final eqEqGenericStr = eqEqBoundList.length > 0 ? "<" + eqEqBoundList.join(", ") + ">" : "";
+            lines.push("impl" + eqEqGenericStr + " Eq for " + emittedName + genericStr + " {}");
             // Content equality hashes the key and value arrays and skips the
             // comparator closure, mirroring the PartialEq above (spec 07 value
             // semantics: equal entries hash equal).
@@ -652,7 +680,7 @@ class RustDecl {
                     "0";
                 case MapOrder(key, value):
                     '{ let mut cmp = 0; for i in 0..(' + left + ').size() { cmp = '
-                        + operationText(key, '&&(' + left + ').key_at(i)', '&&(' + right + ').key_at(i)')
+                        + operationText(key, '&(' + left + ').key_at(i)', '&(' + right + ').key_at(i)')
                         + '; if cmp != 0 { break; } cmp = '
                         + operationText(value, '&(' + left + ').value_at(i)', '&(' + right + ').value_at(i)')
                         + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
@@ -980,7 +1008,7 @@ class RustDecl {
 
     function messageOnlyExceptionDecl(cls:ClassType):String {
         final name = RustImports.emittedTypeName(cls.name);
-        return ["#[derive(Debug, Clone, PartialEq)]", "pub struct " + name + " {", "    pub message: String,", "}",
+        return ["#[derive(Debug, Clone, PartialEq, Eq, Hash)]", "pub struct " + name + " {", "    pub message: String,", "}",
             "impl " + name + " {", "    pub fn new(message: &str) -> Self {", "        Self { message: message.to_string() }", "    }", "}",
             "impl std::fmt::Display for " + name + " {", "    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {", "        write!(formatter, \"{}\", self.message)", "    }", "}",
             "impl std::error::Error for " + name + " {}"].join("\n");
@@ -3208,7 +3236,8 @@ class RustDecl {
                 break;
             }
         }
-        final deriveAttr = allPlain ? "#[derive(Debug, Clone, Copy, PartialEq)]" : "#[derive(Debug, Clone, PartialEq)]";
+        final allEnumHash = allPlain || (function() { for (o in sorted) for (arg in o.args) if (!RustType.isHashType(arg.type)) return false; return true; })();
+        final deriveAttr = allPlain ? "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]" : "#[derive(Debug, Clone, PartialEq" + (allEnumHash ? ", Eq, Hash" : "") + ")]";
         EmitSink.record("TYPE", en.pos, "derive(");
         EmitSink.record("TYPE", en.pos, "pub enum " + en.name);
         final lines = [deriveAttr, "pub enum " + en.name + " {"];
@@ -3234,6 +3263,33 @@ class RustDecl {
                 lines.push("    " + item.variant + "(Box<" + item.calleePath + ">),");
         }
         lines.push("}");
+        // An enum with a direct Float field needs a manual Hash impl because
+        // f32/f64 have no Hash. (DataClassFloatHash)
+        final hasEnumFloat = (function() { for (o in sorted) for (arg in o.args) if (RustType.isDirectFloatType(arg.type)) return true; return false; })();
+        if (hasEnumFloat) {
+            lines.push("impl core::hash::Hash for " + en.name + " {");
+            lines.push("    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {");
+            lines.push("        match self {");
+            for (o in sorted) {
+                final variant = RustImports.toUpperCamelCase(o.name);
+                if (o.args.length == 0) {
+                    lines.push("            " + en.name + "::" + variant + " => {},");
+                } else {
+                    final params = [for (arg in o.args) RustImports.toSnakeCase(arg.name)];
+                    lines.push("            " + en.name + "::" + variant + " { " + params.join(", ") + " } => {");
+                    for (arg in o.args) {
+                        final fname = RustImports.toSnakeCase(arg.name);
+                        lines.push("                " + (RustType.isDirectFloatType(arg.type) ? "core::hash::Hash::hash(&" + fname + ".to_bits(), state)" : fname + ".hash(state)") + ";");
+                    }
+                    lines.push("            }");
+                }
+            }
+            if (growth != null)
+                lines.push("            _ => {},");
+            lines.push("        }");
+            lines.push("    }");
+            lines.push("}");
+        }
         if (allPlain) {
             lines.push("");
             lines.push("pub fn compare_" + RustImports.toSnakeCase(en.name) + "(a: &" + en.name + ", b: &" + en.name + ") -> i32 {");
