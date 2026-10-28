@@ -2315,7 +2315,7 @@ class SwiftExpr {
             return null;
         final targetText = expr(site.target);
         emissionTrace("OPTIONAL_IF", targetText, e.pos);
-        return targetText + " ?? " + coalescingFallbackText(site.fallback, e.t);
+        return "(" + targetText + " ?? " + coalescingFallbackText(site.fallback, e.t) + ")";
     }
 
     /** Shared structural decision for nil-merge lowering and array boundaries. */
