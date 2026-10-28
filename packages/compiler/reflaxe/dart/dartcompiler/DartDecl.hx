@@ -299,6 +299,70 @@ class DartDecl {
             }
         }
 
+        if (cls.meta.has(":dataClass")) {
+            // A data class is a structural value used as a Map key, so it
+            // needs value equality on top of the comparison plan (DataClassEq).
+            lines.push("");
+            lines.push("  @override");
+            lines.push("  bool operator ==(Object other) {");
+            lines.push("    if (identical(this, other)) return true;");
+            final comparisons:Array<String> = [];
+            for (v in varFields) {
+                if (v.isStatic)
+                    continue;
+                final fname = dartMemberName(v.field);
+                if (isListType(v.field.type)) {
+                    seqEqualsNeeded = true;
+                    comparisons.push("_seqEquals(this." + fname + ", other." + fname + ")");
+                } else {
+                    comparisons.push("other." + fname + " == this." + fname);
+                }
+            }
+            lines.push("    return other is " + cls.name + (comparisons.length > 0 ? " && " + comparisons.join(" && ") : "") + ";");
+            lines.push("  }");
+            lines.push("");
+            lines.push("  @override");
+            lines.push("  int get hashCode {");
+            lines.push("    var hash = 17;");
+            for (v in varFields) {
+                if (v.isStatic)
+                    continue;
+                final fname = dartMemberName(v.field);
+                lines.push("    hash = 37 * hash + " + (isListType(v.field.type) ? "Object.hashAll(this." + fname + ")" : "this." + fname + ".hashCode") + ";");
+            }
+            lines.push("    return hash;");
+            lines.push("  }");
+        }
+        if (cls.module == "runtime.SortedTable" && (cls.name == "SortedMapTable" || cls.name == "SortedSetTable")) {
+            // A content-equality sorted table compares its key/value arrays and
+            // skips the comparator strategy value (SortedTableContentEq).
+            lines.push("");
+            lines.push("  @override");
+            lines.push("  bool operator ==(Object other) {");
+            lines.push("    if (identical(this, other)) return true;");
+            final stComparisons:Array<String> = [];
+            for (v in varFields) {
+                if (v.isStatic || v.field.name == "compare")
+                    continue;
+                final fname = dartMemberName(v.field);
+                seqEqualsNeeded = true;
+                stComparisons.push("_seqEquals(this." + fname + ", other." + fname + ")");
+            }
+            lines.push("    return other is " + cls.name + (stComparisons.length > 0 ? " && " + stComparisons.join(" && ") : "") + ";");
+            lines.push("  }");
+            lines.push("");
+            lines.push("  @override");
+            lines.push("  int get hashCode {");
+            lines.push("    var hash = 17;");
+            for (v in varFields) {
+                if (v.isStatic || v.field.name == "compare")
+                    continue;
+                final fname = dartMemberName(v.field);
+                lines.push("    hash = 37 * hash + Object.hashAll(this." + fname + ");");
+            }
+            lines.push("    return hash;");
+            lines.push("  }");
+        }
         lines.push("}");
         final classPart = lines.join("\n");
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
