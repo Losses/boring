@@ -5456,7 +5456,7 @@ class RustExpr {
                 if (mapReceiver != null) {
                     return expr(mapReceiver) + ".get(&" + rustMapKey(idx) + ").cloned()";
                 }
-                final staticGuard = staticGuardOf(arr);
+                final staticGuard = staticGuardOfNullable(arr, false);
                 if (staticGuard != null) {
                     final base = staticGuard + "[" + staticIndex(idx) + "]";
                     return !isTypeCopy(e.t) && !renderingInPlaceMutatorReceiver ? "(" + base + ").clone()" : base;
@@ -10702,7 +10702,7 @@ class RustExpr {
                 final staticGuard = staticGuardOfNullable(subj, false);
                 if (staticGuard != null) {
                     if (name == "push" && args.length == 1) {
-                        return staticGuard + ".push(" + staticContainerArg(args[0]) + ")";
+                        return staticGuardOfNullable(subj, true) + ".push(" + staticContainerArg(args[0]) + ")";
                     }
                     if (name == "length" || name == "get_length") {
                         return rustU32Length(staticGuard + ".len()");
