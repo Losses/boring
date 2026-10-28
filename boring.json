@@ -1,12 +1,13 @@
-// boring's own Haxe build and test project (feature spec 59). The driver derives every
-// output directory (<outRoot>/<id>/gen and <outRoot>/<id>/gen-tests) and
-// every results path (<resultsDir>/<id>.jsonl) from this file; none of
-// them is named here.
+// boring's own Haxe build and test project (feature spec 59).
 {
   "outRoot": "reference",
   "resultsDir": "out/test-results",
   "baseline": "kotlin",
-  "sourceRoots": ["samples", "packages/registry/src", "packages/driver/src"],
+  "sourceRoots": [
+    "samples",
+    "packages/registry/src",
+    "packages/driver/src"
+  ],
   "bundles": [
     {
       "id": "haxe",
@@ -14,12 +15,18 @@
       "rootsFile": "tests/haxe/generate-main.hxml",
       "build": {
         "args": [
-          "-lib", "reflaxe",
-          "-cp", "packages/compiler",
-          "--macro", "Intercept.run(['samples', 'packages/registry/src'])",
-          "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
-          "-D", "analyzer-optimize",
-          "-D", "boring_oracle"
+          "-lib",
+          "reflaxe",
+          "-cp",
+          "packages/compiler",
+          "--macro",
+          "Intercept.run(['samples', 'packages/registry/src'])",
+          "--macro",
+          "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+          "-D",
+          "analyzer-optimize",
+          "-D",
+          "boring_oracle"
         ]
       }
     },
@@ -27,16 +34,26 @@
       "id": "ts",
       "target": "ts",
       "rootsFile": "examples/ts.hxml",
-      "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
+      "package": {
+        "name": "boring-codec",
+        "version": "0.1.0",
+        "license": "MIT"
+      }
     },
     {
       "id": "kotlin",
       "target": "kotlin",
       "rootsFile": "examples/kotlin.hxml",
       "build": {
-        "args": ["-Xallow-kotlin-package"]
+        "args": [
+          "-Xallow-kotlin-package"
+        ]
       },
-      "package": { "name": "boring-codec", "version": "0.1.0", "license": "MIT" }
+      "package": {
+        "name": "boring-codec",
+        "version": "0.1.0",
+        "license": "MIT"
+      }
     },
     {
       "id": "dart",
@@ -52,9 +69,15 @@
       "id": "swift",
       "target": "swift",
       "rootsFile": "examples/swift.hxml",
-      "haxeArgs": ["-D", "swift-test-import=Codec"],
+      "haxeArgs": [
+        "-D",
+        "swift-test-import=Codec"
+      ],
       "build": {
-        "args": ["-swift-version", "5"]
+        "args": [
+          "-swift-version",
+          "5"
+        ]
       }
     },
     {
@@ -63,16 +86,26 @@
       "precision": "f32",
       "compare": false,
       "rootsFile": "tests/haxe/generate-main-f32.hxml",
-      "haxeArgs": ["-D", "haxe-test-main=TestMainF32"],
+      "haxeArgs": [
+        "-D",
+        "haxe-test-main=TestMainF32"
+      ],
       "build": {
         "args": [
-          "-lib", "reflaxe",
-          "-cp", "packages/compiler",
-          "--macro", "Intercept.run(['samples', 'packages/registry/src'])",
-          "--macro", "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
-          "-D", "analyzer-optimize",
-          "-D", "boring_oracle",
-          "-D", "float-precision=f32"
+          "-lib",
+          "reflaxe",
+          "-cp",
+          "packages/compiler",
+          "--macro",
+          "Intercept.run(['samples', 'packages/registry/src'])",
+          "--macro",
+          "haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')",
+          "-D",
+          "analyzer-optimize",
+          "-D",
+          "boring_oracle",
+          "-D",
+          "float-precision=f32"
         ]
       }
     },
@@ -83,7 +116,9 @@
       "compare": false,
       "rootsFile": "examples/kotlin-f32.hxml",
       "build": {
-        "args": ["-Xallow-kotlin-package"]
+        "args": [
+          "-Xallow-kotlin-package"
+        ]
       }
     },
     {
@@ -99,10 +134,22 @@
       "precision": "f32",
       "compare": false,
       "rootsFile": "examples/swift-f32.hxml",
-      "haxeArgs": ["-D", "swift-test-import=CodecF32"],
+      "haxeArgs": [
+        "-D",
+        "swift-test-import=CodecF32"
+      ],
       "build": {
-        "args": ["-swift-version", "5"]
+        "args": [
+          "-swift-version",
+          "5"
+        ]
       }
+    },
+    {
+      "id": "registry-tool",
+      "target": "rust",
+      "rootsFile": "packages/registry/roots-rust.hxml",
+      "test": false
     }
   ]
 }

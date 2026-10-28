@@ -1,0 +1,12 @@
+# Registry tool Rust target (feature spec 26)
+# The driver adds -D rust-output and the output directory
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp packages/registry/src
+--macro Intercept.run(['samples', 'packages/registry/src'])
+registry.Main
+std.FsException
+runtime.SortedTable

@@ -1,0 +1,49 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+use crate::runtime::u_string::{UStr, UString};
+
+thread_local! {
+    static SET_VALUES: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
+    static REMOVED_KEYS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+}
+
+pub struct Env;
+
+impl Env {
+    pub fn get(key: &UStr) -> Option<UString> {
+        let host_key = key.to_utf8_lossy();
+        if REMOVED_KEYS.with(|removed| removed.borrow().contains(host_key.as_str())) {
+            return None;
+        }
+        if let Some(value) = SET_VALUES.with(|set| set.borrow().get(host_key.as_str()).cloned()) {
+            return Some(UString::from(value.as_str()));
+        }
+        match std::env::var(host_key) {
+            Ok(value) => Some(UString::from(value.as_str())),
+            Err(_) => None,
+        }
+    }
+
+    pub fn set(key: &UStr, value: &UStr) {
+        let host_key = key.to_utf8_lossy();
+        REMOVED_KEYS.with(|removed| {
+            removed.borrow_mut().remove(host_key.as_str());
+        });
+        let host_value = value.to_utf8_lossy();
+        SET_VALUES.with(|set| {
+            set.borrow_mut().insert(host_key, host_value);
+        });
+    }
+
+    pub fn remove(key: &UStr) {
+        let host_key = key.to_utf8_lossy();
+        SET_VALUES.with(|set| {
+            set.borrow_mut().remove(host_key.as_str());
+        });
+        REMOVED_KEYS.with(|removed| {
+            removed.borrow_mut().insert(host_key);
+        });
+    }
+}
