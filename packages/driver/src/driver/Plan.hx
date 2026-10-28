@@ -95,7 +95,7 @@ class Plan {
         if (bundle.target == "ts") {
             addStep(steps, "run", "bun", ["test", genTests].concat(bundle.run.args), project.root, runEnv);
         } else if (bundle.target == "dart") {
-            addStep(steps, "run", "dart", [genTests + "/main.dart"].concat(bundle.run.args), project.root, runEnv);
+            addStep(steps, "run", "dart", [genTests + "/main.dart"].concat(bundle.run.args), generatedDir, runEnv);
         } else if (bundle.target == "haxe") {
             final args = ["-cp", genTests];
             for (root in project.sourceRoots) {
