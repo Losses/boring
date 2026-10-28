@@ -12,21 +12,52 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - uses: cachix/install-nix-action@v27
+
+      - uses: krdlab/setup-haxe@v1
         with:
-          nix_path: nixpkgs=channel:nixos-unstable
-      - name: Compile registry tool
-        run: nix develop -c haxe packages/registry/compile.hxml
-      - name: Package
+          haxe-version: 4.3.7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Setup haxelib
         run: |
-          mkdir -p /tmp/registry-tool
-          cp -r packages/registry/gen/* /tmp/registry-tool/
-          cp packages/registry/run.ts /tmp/registry-tool/
-          tar -czf registry-tool.tar.gz -C /tmp registry-tool
+          haxelib dev boring .
+
+      - name: Compile registry tool to Rust
+        run: |
+          haxe -cp packages/compiler/reflaxe/rust/std-shadow
+          haxe -cp packages/compiler/reflaxe/rust
+          haxe packages/registry/compile-rust.hxml
+
+      - name: Build static binary
+        run: |
+          cd packages/registry/gen-rust
+          echo "" >> Cargo.toml
+          echo "[workspace]" >> Cargo.toml
+          cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Create binary entry point
+        run: |
+          cd packages/registry/gen-rust
+          cat > src_main.rs << 'EOF'
+          fn main() {
+              match registry_tool::registry::main::Main::main_main() {
+                  Ok(()) => {}
+                  Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+              }
+          }
+          EOF
+          echo "" >> Cargo.toml
+          echo "[[bin]]" >> Cargo.toml
+          echo 'name = "registry-tool"' >> Cargo.toml
+          echo 'path = "src_main.rs"' >> Cargo.toml
+          cargo build --release --target x86_64-unknown-linux-musl
+
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: registry-tool.tar.gz
+          files: packages/registry/gen-rust/target/x86_64-unknown-linux-musl/release/registry-tool
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
