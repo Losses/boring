@@ -163,13 +163,14 @@ class DriverPlanTests {
             "ts:run|bun|test,/project/gen-tests|/project|BORING_TEST_RESULTS=/project/results/ts.jsonl",
             "kotlin:build library jar|kotlinc|library.kt,-include-runtime,-d,/project/build/library.jar|/project|"
                 + ";build tests jar|kotlinc|-cp,/project/build/library.jar,test.kt,-d,/project/build/tests.jar|/project|"
-                + ";run|java|-cp,/project/build/library.jar:/project/build/tests.jar,TestMainKt|/project|BORING_TEST_RESULTS=/project/results/kotlin.jsonl",
+                + ";run|java|-cp,/project/build/library.jar:/project/build/tests.jar:/project/gen/resources,TestMainKt|/project|BORING_TEST_RESULTS=/project/results/kotlin.jsonl",
             "rust:build|cargo|test,--release,--no-run|/project/gen|"
                 + ";run|cargo|test,--release|/project/gen|BORING_TEST_RESULTS=/project/results/rust.jsonl",
             "swift:build library|swiftc|-emit-library,-emit-module,-O,-wmo,library.kt,-module-name,Codec,-o,/project/build/libCodec.dylib|/project|"
                 + ";build test executable|swiftc|-O,-wmo,test.kt,-I,/project/build,-L,/project/build,-lCodec,-o,/project/build/test-runner|/project|"
+                + ";stage resources|sh|-c,if [ -d /project/gen/Resources ]; then mkdir -p /project/build/Contents/Resources && cp -r /project/gen/Resources/. /project/build/Contents/Resources/; fi|/project|"
                 + ";run|/project/build/test-runner||/project|BORING_TEST_RESULTS=/project/results/swift.jsonl,DYLD_LIBRARY_PATH=/project/build",
-            "dart:run|dart|/project/gen-tests/main.dart|/project|BORING_TEST_RESULTS=/project/results/dart.jsonl"
+            "dart:run|dart|/project/gen-tests/main.dart|/project/gen|BORING_TEST_RESULTS=/project/results/dart.jsonl"
         ];
         final actual:Array<String> = [];
         for (bundle in project.bundles) {
