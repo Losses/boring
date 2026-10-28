@@ -2155,7 +2155,17 @@ class KotlinExpr {
             case TLocal(v) if (locals.exists(v.id)): locals.get(v.id);
             case _: value;
         };
-        final text = expr(resolved);
+        var text = expr(resolved);
+        // A nullable field read narrowed by a guard still renders a nullable
+        // value in Kotlin (cross-module public properties cannot smart-cast),
+        // so the value-type wrapper needs a non-null argument. Extract before
+        // any Int->Float widening. (ValueTypeCtorArgExtraction)
+        final declaredNullableField = switch (stripWrap(resolved).expr) {
+            case TField(_, FInstance(_, _, cf)) | TField(_, FStatic(_, cf)): isNullType(cf.get().type);
+            case _: false;
+        };
+        if (requiresNonNullCallArgument(resolved, text) || declaredNullableField)
+            text = hardenAppend(text, "!!");
         if (ValueTypeSupport.isFloatRepresentation(abs)
             && (isIntOrLongType(resolved.t) || isIntOrLongType(emittedType(resolved))))
             return intToFloatText(text);
