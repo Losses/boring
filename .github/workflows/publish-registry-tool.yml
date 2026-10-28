@@ -10,24 +10,16 @@ permissions:
 jobs:
   publish-tool:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: krdlab/setup-haxe@v1
-        with:
-          haxe-version: 4.3.7
-
+      - uses: DeterminateSystems/nix-installer-action@v17
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-unknown-linux-musl
 
-      - name: Build driver
-        run: bun install && haxe packages/driver/driver.hxml
-
       - name: Generate registry tool via driver
-        run: bun out/driver/driver.js gen registry-tool --project boring.json
+        run: nix develop -c bash -c "bun install && boring gen registry-tool --project boring.json"
 
       - name: Build static binary
         run: |
