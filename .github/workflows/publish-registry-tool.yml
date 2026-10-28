@@ -28,6 +28,18 @@ jobs:
           cd "$GEN_DIR"
           echo "" >> Cargo.toml
           echo "[workspace]" >> Cargo.toml
+          cat > src_main.rs << 'ENTRY'
+          fn main() {
+              match registry_tool::registry::main::Main::main_main() {
+                  Ok(()) => {}
+                  Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+              }
+          }
+          ENTRY
+          echo "" >> Cargo.toml
+          echo "[[bin]]" >> Cargo.toml
+          echo 'name = "registry-tool"' >> Cargo.toml
+          echo 'path = "src_main.rs"' >> Cargo.toml
           cargo build --release --target x86_64-unknown-linux-musl
 
       - name: Upload to release
