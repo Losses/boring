@@ -11396,6 +11396,25 @@ class RustExpr {
                         + "let mut __i = 0usize; let mut __found: i32 = -1; "
                         + "while __i < __n { if __hay[__i] == " + needle + " { __found = i32::from_ne_bytes(u32::try_from(__i).unwrap_or(0).to_ne_bytes()); break; } __i += 1; } __found }";
                 }
+                if (name == "remove" && isVecType(subj) && args.length == 1) {
+                    // Haxe Array.remove(value) removes the first occurrence by
+                    // value and reports presence; Rust's Vec::remove takes an
+                    // index and returns the removed element, so the lowering
+                    // scans for the value by index first (reusing the indexOf
+                    // needle-domain handling, and staying closure-free for loop
+                    // bodies), then removes at that index and returns the found
+                    // flag. (ArrayRemoveByValue)
+                    var needle = expr(args[0]);
+                    if (isIntType(arrayElementType(subj.t)) && narrowedSubject(args[0]) != null
+                        && isIntType(getNullInnerType(args[0].t)))
+                        needle = RustConversions.reinterpret(needle, "u32");
+                    else if (isIntType(arrayElementType(subj.t)) && isNullType(args[0].t)
+                        && !isTNull(args[0]) && narrowedSubject(args[0]) == null)
+                        needle = RustConversions.reinterpret(needle + ".unwrap_or(-1)", "u32");
+                    return "{ let __hay = &mut (" + expr(subj) + "); let __n = __hay.len(); "
+                        + "let mut __i = 0usize; let mut __removed = false; "
+                        + "while __i < __n { if __hay[__i] == " + needle + " { __hay.remove(__i); __removed = true; break; } __i += 1; } __removed }";
+                }
                 if (name == "addByte") {
                     return receiverText(subj, cf) + ".add_byte(" + RustConversions.truncate(expr(args[0]), "u8") + ")";
                 }
@@ -14460,7 +14479,7 @@ class RustExpr {
                     case TField(subj, FInstance(iface, _, cf)):
                         final n = cf.get().name;
                         if (n == "readU16" || n == "readU32" || n == "readF64" || n == "readAscii" || n == "writeU16" || n == "writeU32" || n == "writeF64"
-                            || n == "writeAscii" || n == "addByte" || n == "push" || n == "insert" || n == "unshift" || n == "splice" || n == "finish" || n == "put" || n == "set" || n == "update"
+                            || n == "writeAscii" || n == "addByte" || n == "push" || n == "insert" || n == "unshift" || n == "remove" || n == "splice" || n == "finish" || n == "put" || n == "set" || n == "update"
                             || n == "add" || n == "addChar") {
                             // The receiver-mutation name list covers the
                             // mutating sequence operations the emitter renders
