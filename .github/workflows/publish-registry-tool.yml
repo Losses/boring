@@ -14,12 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
+      - run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0 || true
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-unknown-linux-musl
 
-      - name: Generate registry tool via driver
-        run: nix develop -c bash -c "bun install && boring gen registry-tool --project boring.json"
+      - name: Build driver and generate registry tool
+        run: nix develop -c bash -c "bun install && haxe packages/driver/driver.hxml && bun out/driver/driver.js gen registry-tool --project boring.json"
 
       - name: Build static binary
         run: |
