@@ -9134,6 +9134,13 @@ class RustExpr {
     /** The guard of a static field read, unwrapping the Option for a
         Null-wrapped (lazy) static so array accesses reach the inner Vec.
         mutate selects as_mut (push) vs as_ref (read). (NullableStaticOptionUnwrap) */
+    function isSelfLengthRead(e:TypedExpr, subj:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TField(s, FInstance(_, _, cf)) if (cf.get().name == "length" || cf.get().name == "get_length"):
+                expr(s) == expr(subj);
+            case _: false;
+        };
+    }
     function staticGuardOfNullable(e:TypedExpr, mutate:Bool):Null<String> {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
@@ -11270,10 +11277,12 @@ class RustExpr {
                     final idxVar = freshRegionName("splice_index");
                     final countVar = freshRegionName("splice_count");
                     final removedVar = freshRegionName("splice_removed");
-                    return "{ let _a = &mut (" + expr(subj) + "); let _n = i32::try_from(_a.len()).unwrap_or(0); let _pos = "
-                        + castSignedI32(args[0]) + "; let " + idxVar + " = " + clampedArrayBound("_n", "_pos") + "; let _len = " + castSignedI32(args[1])
+                    final subjText = expr(subj);
+                    final lenArg = isSelfLengthRead(args[1], subj) ? RustConversions.reinterpret(subjText + ".len()", "i32") : castSignedI32(args[1]);
+                    return "{ let _n = i32::try_from(" + subjText + ".len()).unwrap_or(0); let _pos = "
+                        + castSignedI32(args[0]) + "; let " + idxVar + " = " + clampedArrayBound("_n", "_pos") + "; let _len = " + lenArg
                         + "; let " + countVar + " = if _len < 0 { 0 } else { let _rest = _n - " + idxVar + "; if _len < _rest { _len } else { _rest } }; let "
-                        + removedVar + ": Vec<_> = _a.drain(usize::try_from(" + idxVar + ").unwrap_or(0)..usize::try_from(" + idxVar + " + " + countVar
+                        + removedVar + ": Vec<_> = " + subjText + ".drain(usize::try_from(" + idxVar + ").unwrap_or(0)..usize::try_from(" + idxVar + " + " + countVar
                         + ").unwrap_or(0)).collect(); " + removedVar + " }";
                 }
                 // Haxe Array.slice(pos, end) copies the half-open interval and
