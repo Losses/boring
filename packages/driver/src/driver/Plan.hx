@@ -131,7 +131,7 @@ class Plan {
                 .concat(bundle.build.args).concat(["-module-name", module, "-o", build + "/" + swiftLibraryName(module, host)]), project.root, bundle.build.env);
             addStep(steps, "build test executable", "swiftc", ["-O", "-wmo"].concat(importArgs).concat(testFiles).concat(bundle.build.args)
                 .concat(["-I", build, "-L", build, "-l" + module]).concat(linkArgs).concat(["-o", build + "/test-runner"]), project.root, bundle.build.env);
-            addStep(steps, "stage resources", "sh", ["-c", "if [ -d ' + generatedDir + '/Resources ]; then mkdir -p ' + build + '/Contents/Resources && cp -r ' + generatedDir + '/Resources/. ' + build + '/Contents/Resources/]; fi"], project.root, bundle.build.env);
+            addStep(steps, "stage resources", "sh", ["-c", "if [ -d " + generatedDir + "/Resources ]; then mkdir -p " + build + "/Contents/Resources && cp -r " + generatedDir + "/Resources/. " + build + "/Contents/Resources/; fi"], project.root, bundle.build.env);
             final runPaths = systemPackage == null ? build : build + ":" + packagePath;
             final libraryVariable:EnvVar = {key: swiftLibraryPathVariable(host), value: existingLibraryPath == "" ? runPaths : runPaths + ":" + existingLibraryPath};
             runEnv.push(libraryVariable);
