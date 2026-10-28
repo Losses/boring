@@ -1768,6 +1768,15 @@ class TsExpr {
         };
     }
 
+    /** True when the operand type compares by content (record-like dataClass
+        or self-constructed struct), matching std.HashMap's dictKey keys. */
+    function isRecordLikeOperand(e:TypedExpr):Bool {
+        return switch (PolicyQueries.stdStringCategory(e.t)) {
+            case IsRecordLike: true;
+            case _: false;
+        };
+    }
+
     function binop(e:TypedExpr, op:Binop, l:TypedExpr, r:TypedExpr):String {
         switch (op) {
             case OpAssign:
@@ -1820,6 +1829,10 @@ class TsExpr {
                             : "(" + value + " === null || " + deref + ".kind !== \"" + rightEnum.name + "\")";
                     }
                     return value + ".kind " + sym + ' "${rightEnum.name}"';
+                }
+                if (isRecordLikeOperand(l) && isRecordLikeOperand(r)) {
+                    imports.runtime("dictKey");
+                    return "dictKey(" + operand(l, op, false) + ") " + sym + " dictKey(" + operand(r, op, true) + ")";
                 }
                 return operand(l, op, false) + " " + symbolOf(op) + " " + operand(r, op, true);
             case OpGt | OpGte | OpLt | OpLte:
