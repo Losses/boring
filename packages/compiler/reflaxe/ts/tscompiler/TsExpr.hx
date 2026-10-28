@@ -1830,7 +1830,12 @@ class TsExpr {
                     }
                     return value + ".kind " + sym + ' "${rightEnum.name}"';
                 }
-                if (isRecordLikeOperand(l) && isRecordLikeOperand(r)) {
+                // Null comparisons never need structural equality; the
+                // dictKey serialization of a null check is a performance trap
+                // when the non-null side is a large record. (NullFastPath)
+                if (isNullExpr(l) || isNullExpr(r)) {
+                    // fall through to the default ===/!== below
+                } else if (isRecordLikeOperand(l) && isRecordLikeOperand(r)) {
                     imports.runtime("dictKey");
                     return "dictKey(" + operand(l, op, false) + ") " + sym + " dictKey(" + operand(r, op, true) + ")";
                 }
