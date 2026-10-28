@@ -69,12 +69,6 @@ class RustExpr {
     // expression so the mutation reaches the storage inside the Vec, while
     // plain value reads keep the clone. (IndexedReceiverMutation)
     var renderingInPlaceMutatorReceiver:Bool = false;
-    // While rendering a guard-static array index whose index expression also
-    // reads the same static (fivePowers[fivePowers.length - 1]), maps the
-    // static's Rust item path to the bound guard local, so the nested length
-    // read reuses the held guard instead of locking the Mutex a second time.
-    // (StaticGuardIndexScope)
-    var activeStaticGuardIndexScope: Null<{path: String, varName: String, access: String}> = null;
     var inTryClosure:Bool = false;
 
     final subst:Map<Int, String> = [];
@@ -5462,25 +5456,8 @@ class RustExpr {
                 if (mapReceiver != null) {
                     return expr(mapReceiver) + ".get(&" + rustMapKey(idx) + ").cloned()";
                 }
-                final staticGuard = staticGuardOfNullable(arr, false);
+                final staticGuard = staticGuardOf(arr);
                 if (staticGuard != null) {
-                    // Bind the Mutex guard to a named local inside a block so
-                    // an index expression that also reads the same static
-                    // (fivePowers[fivePowers.length - 1]) reuses the held
-                    // guard instead of locking the Mutex a second time.
-                    // (StaticGuardIndexScope)
-                    final guardPath = staticGuardPathOf(arr);
-                    final mutexGuard = staticGuardMutexOf(arr);
-                    if (guardPath != null && mutexGuard != null) {
-                        final guardVar = freshRegionName("static_guard");
-                        final prevScope = activeStaticGuardIndexScope;
-                        activeStaticGuardIndexScope = {path: guardPath, varName: guardVar, access: mutexGuard.access};
-                        final idxText = staticIndex(idx);
-                        activeStaticGuardIndexScope = prevScope;
-                        final base = guardVar + mutexGuard.access + "[" + idxText + "]";
-                        return "{ let " + guardVar + " = " + mutexGuard.guard + "; "
-                            + (!isTypeCopy(e.t) && !renderingInPlaceMutatorReceiver ? "(" + base + ").clone()" : base) + " }";
-                    }
                     final base = staticGuard + "[" + staticIndex(idx) + "]";
                     return !isTypeCopy(e.t) && !renderingInPlaceMutatorReceiver ? "(" + base + ").clone()" : base;
                 }
@@ -8797,14 +8774,7 @@ class RustExpr {
                         case _:
                     }
                 }
-                final scope = activeStaticGuardIndexScope;
-                if (scope != null && staticGuardPathOf(subj) == scope.path) {
-                    if (name == "length") {
-                        return rustU32Length(scope.varName + scope.access + ".len()");
-                    }
-                    return scope.varName + scope.access + "." + RustImports.toSnakeCase(name);
-                }
-                final staticGuard = staticGuardOfNullable(subj, false);
+                final staticGuard = staticGuardOf(subj);
                 if (staticGuard != null) {
                     if (name == "length") {
                         return rustU32Length(staticGuard + ".len()");
@@ -9161,52 +9131,6 @@ class RustExpr {
         owned value must use this and must not append ".clone()" to
         staticGuardOf: for the RefCell family the clone has to sit inside the
         with-closure. (RefCellStaticGuardScope) */
-    /** The guard of a static field read, unwrapping the Option for a
-        Null-wrapped (lazy) static so array accesses reach the inner Vec.
-        mutate selects as_mut (push) vs as_ref (read). (NullableStaticOptionUnwrap) */
-    function isSelfLengthRead(e:TypedExpr, subj:TypedExpr):Bool {
-        return switch (stripWrap(e).expr) {
-            case TField(s, FInstance(_, _, cf)) if (cf.get().name == "length" || cf.get().name == "get_length"):
-                expr(s) == expr(subj);
-            case _: false;
-        };
-    }
-    function staticGuardOfNullable(e:TypedExpr, mutate:Bool):Null<String> {
-        return switch (stripWrap(e).expr) {
-            case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
-                final guard = staticGuard(c.get(), cf.get().name);
-                if (StaticFieldHelper.isNullableType(cf.get().type))
-                    return guard + (mutate ? ".as_mut().unwrap()" : ".as_ref().unwrap()");
-                guard;
-            case _: null;
-        };
-    }
-    /** The Rust item path of a guard static read, or null when the expression
-        is not one. (StaticGuardIndexScope) */
-    function staticGuardPathOf(e:TypedExpr):Null<String> {
-        return switch (stripWrap(e).expr) {
-            case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
-                staticItemPath(c.get(), cf.get().name);
-            case _: null;
-        };
-    }
-    /** The Mutex guard of a guard static, bound to a local in the index-scope
-        block, plus the access prefix the element/length read applies. The
-        RefCell family borrow cannot live past the with-closure, so it returns
-        null and the caller falls back to the inlined read. (StaticGuardIndexScope) */
-    function staticGuardMutexOf(e:TypedExpr):Null<{guard: String, access: String}> {
-        return switch (stripWrap(e).expr) {
-            case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
-                final field = staticFieldOf(c.get(), cf.get().name);
-                if (field != null && RustDecl.isNonSendStaticType(types.of(field.type)))
-                    null;
-                else {
-                    guard: staticGuard(c.get(), cf.get().name),
-                    access: StaticFieldHelper.isNullableType(cf.get().type) ? ".as_ref().unwrap()" : ""
-                };
-            case _: null;
-        };
-    }
     function staticGuardCloneOf(e:TypedExpr):Null<String> {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
@@ -10755,10 +10679,10 @@ class RustExpr {
                 return RustConversions.truncate(expr(subj) + ".len()", "u32");
             case TField(subj, FInstance(c, _, cf)):
                 final name = cf.get().name;
-                final staticGuard = staticGuardOfNullable(subj, false);
+                final staticGuard = staticGuardOf(subj);
                 if (staticGuard != null) {
                     if (name == "push" && args.length == 1) {
-                        return staticGuardOfNullable(subj, true) + ".push(" + staticContainerArg(args[0]) + ")";
+                        return staticGuard + ".push(" + staticContainerArg(args[0]) + ")";
                     }
                     if (name == "length" || name == "get_length") {
                         return rustU32Length(staticGuard + ".len()");
@@ -11333,12 +11257,10 @@ class RustExpr {
                     final idxVar = freshRegionName("splice_index");
                     final countVar = freshRegionName("splice_count");
                     final removedVar = freshRegionName("splice_removed");
-                    final subjText = expr(subj);
-                    final lenArg = isSelfLengthRead(args[1], subj) ? RustConversions.reinterpret(subjText + ".len()", "i32") : castSignedI32(args[1]);
-                    return "{ let _n = i32::try_from(" + subjText + ".len()).unwrap_or(0); let _pos = "
-                        + castSignedI32(args[0]) + "; let " + idxVar + " = " + clampedArrayBound("_n", "_pos") + "; let _len = " + lenArg
+                    return "{ let _a = &mut (" + expr(subj) + "); let _n = i32::try_from(_a.len()).unwrap_or(0); let _pos = "
+                        + castSignedI32(args[0]) + "; let " + idxVar + " = " + clampedArrayBound("_n", "_pos") + "; let _len = " + castSignedI32(args[1])
                         + "; let " + countVar + " = if _len < 0 { 0 } else { let _rest = _n - " + idxVar + "; if _len < _rest { _len } else { _rest } }; let "
-                        + removedVar + ": Vec<_> = " + subjText + ".drain(usize::try_from(" + idxVar + ").unwrap_or(0)..usize::try_from(" + idxVar + " + " + countVar
+                        + removedVar + ": Vec<_> = _a.drain(usize::try_from(" + idxVar + ").unwrap_or(0)..usize::try_from(" + idxVar + " + " + countVar
                         + ").unwrap_or(0)).collect(); " + removedVar + " }";
                 }
                 // Haxe Array.slice(pos, end) copies the half-open interval and
@@ -16323,6 +16245,34 @@ class RustExpr {
                             case _: ustringViewShapedText(expr(arg));
                         };
                     }
+                } else if (pt != null
+                    && RustDecl.isBorrowedClassParamType(pt, state.sealedCloneInterfaces)
+                    && (mutablePositions == null || mutablePositions.indexOf(paramIndex) < 0)) {
+                    // A read-only concrete class parameter borrows instead of
+                    // cloning: the class does not derive Clone, so the value
+                    // clone would not compile. A mutated parameter binding or
+                    // a mutating self receiver is a &mut place, so reborrow
+                    // through a deref; an owned value takes a fresh borrow;
+                    // an already-borrowed binding passes unchanged.
+                    // (ReadOnlyClassParamBorrow)
+                    // The value-rendering path appended .clone() for a
+                    // by-value TThis read before this branch ran; the borrow
+                    // replaces the clone, so strip it before reborrowing.
+                    if (StringTools.endsWith(argStr, ".clone()"))
+                        argStr = argStr.substr(0, argStr.length - 8);
+                    final alreadyBorrowed = switch (stripWrap(arg).expr) {
+                        case TLocal(v): isBorrowedLocal(v);
+                        case _: false;
+                    };
+                    final mutPlace = StringTools.startsWith(argStr, "&mut ")
+                        || switch (stripWrap(arg).expr) {
+                            case TLocal(v): paramVarIds.exists(v.id) && mutated.exists(v.id);
+                            case TConst(TThis): currentFunctionMutatesSelf;
+                            case _: false;
+                        };
+                    argStr = mutPlace
+                        ? "&*" + (StringTools.startsWith(argStr, "&mut ") ? argStr.substr(5) : argStr)
+                        : (alreadyBorrowed || StringTools.startsWith(argStr, "&") ? argStr : "&" + argStr);
                 } else if (isRecordValueType(arg.t) && switch (stripWrap(arg).expr) {
                     case TLocal(_): true;
                     case _: false;

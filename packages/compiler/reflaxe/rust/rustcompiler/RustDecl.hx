@@ -2132,7 +2132,12 @@ class RustDecl {
                             // mutating `get` on one interface marking the
                             // read-only SortedMapTable.get as mutating).
                             // (InterfaceKeyedTraitMutation)
-                            if (mutatingTraitMethods.exists(RustEmissionState.interfaceMethodKey(c.get().module, c.get().name, cf.get().name)))
+                            // A shared interface slot (Arc<Mutex<dyn Trait>>) is mutated
+                            // through the lock (interior mutability), so a mutating trait
+                            // method on such a slot does NOT make the owning parameter
+                            // mutable. (SharedIfaceInteriorMutation)
+                            if (!isSharedInterface(c.get().module, c.get().name)
+                                && mutatingTraitMethods.exists(RustEmissionState.interfaceMethodKey(c.get().module, c.get().name, cf.get().name)))
                                 found = true;
                             // The declaration side decides `&mut self` from
                             // bodyMutatesSelf on the callee body; the
