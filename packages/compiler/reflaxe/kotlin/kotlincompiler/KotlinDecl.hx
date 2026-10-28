@@ -373,6 +373,44 @@ class KotlinDecl {
             lines.push("    }");
         }
 
+        if (isDataClass) {
+            var hasSortedField = false;
+            for (a in constructorFunc.args) {
+                if (isSortedTable(a.type)) {
+                    hasSortedField = true;
+                    break;
+                }
+            }
+            if (hasSortedField) {
+                final sortedNames:Map<String, Bool> = [];
+                for (a in constructorFunc.args) if (isSortedTable(a.type)) sortedNames.set(a.name, true);
+                final eqTerms:Array<String> = [];
+                final hashTerms:Array<String> = [];
+                for (a in constructorFunc.args) {
+                    final name = KotlinNameEscape.escape(a.name);
+                    if (sortedNames.exists(a.name)) {
+                        eqTerms.push('this.' + name + '.toString() == other.' + name + '.toString()');
+                        hashTerms.push('this.' + name + '.toString().hashCode()');
+                    } else {
+                        eqTerms.push('this.' + name + ' == other.' + name);
+                        hashTerms.push('this.' + name + '.hashCode()');
+                    }
+                }
+                lines.push("");
+                lines.push("    override fun equals(other: Any?): Boolean {");
+                lines.push("        if (this === other) return true");
+                lines.push("        if (other !is " + cls.name + ") return false");
+                lines.push("        return " + eqTerms.join(" && "));
+                lines.push("    }");
+                lines.push("");
+                lines.push("    override fun hashCode(): Int {");
+                lines.push("        var h = 1");
+                for (term in hashTerms) lines.push("        h = 31 * h + " + term);
+                lines.push("        return h");
+                lines.push("    }");
+            }
+        }
+
         lines.push("}");
         final result = withExtracted(extractedParts, lines.join("\n"));
         return cls.meta.has(":dataClass") ? result + "\n\n" + dataClassComparator(cls) : result;
@@ -1564,6 +1602,16 @@ class KotlinDecl {
 
     function isStructKeyCandidate(fields:Array<ClassField>):Bool {
         return PolicyQueries.isStructKeyCandidate(fields);
+    }
+
+    function isSortedTable(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                final p = PolicyQueries.pathOf(cls.pack, cls.name);
+                p == "std.SortedMap" || p == "std.SortedSet";
+            case _: false;
+        };
     }
 
     function isFieldKeyCandidate(t:Type):Bool {
