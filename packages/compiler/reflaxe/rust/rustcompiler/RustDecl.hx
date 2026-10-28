@@ -652,14 +652,14 @@ class RustDecl {
                     "0";
                 case MapOrder(key, value):
                     '{ let mut cmp = 0; for i in 0..(' + left + ').size() { cmp = '
-                        + operationText(key, '(' + left + ').key_at(i)', '(' + right + ').key_at(i)')
+                        + operationText(key, '&&(' + left + ').key_at(i)', '&&(' + right + ').key_at(i)')
                         + '; if cmp != 0 { break; } cmp = '
-                        + operationText(value, '(' + left + ').value_at(i)', '(' + right + ').value_at(i)')
+                        + operationText(value, '&(' + left + ').value_at(i)', '&(' + right + ').value_at(i)')
                         + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
                         + cmpToI32('(' + left + ').size().cmp(&(' + right + ').size())') + '; } cmp }';
                 case SetOrder(element):
                     '{ let mut cmp = 0; for i in 0..(' + left + ').size() { cmp = '
-                        + operationText(element, '(' + left + ').at(i)', '(' + right + ').at(i)')
+                        + operationText(element, '&(' + left + ').at(i)', '&(' + right + ').at(i)')
                         + '; if cmp != 0 { break; } } if cmp == 0 { cmp = '
                         + cmpToI32('(' + left + ').size().cmp(&(' + right + ').size())') + '; } cmp }';
             };
