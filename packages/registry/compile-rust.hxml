@@ -1,0 +1,16 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp samples
+-cp packages/registry/src
+--macro Intercept.run(['samples', 'packages/registry/src'])
+--macro rustcompiler.Compiler.use()
+-D rust-output=packages/registry/gen-rust
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+-D package-name=registry-tool
+-D package-license=MIT
+registry.Main
+std.FsException
+runtime.SortedTable

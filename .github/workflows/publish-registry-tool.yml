@@ -13,51 +13,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: krdlab/setup-haxe@v1
-        with:
-          haxe-version: 4.3.7
+      - uses: oven-sh/setup-bun@v2
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-unknown-linux-musl
 
-      - name: Setup haxelib
-        run: |
-          haxelib dev boring .
+      - name: Build driver
+        run: bun install && haxe packages/driver/driver.hxml
 
-      - name: Compile registry tool to Rust
-        run: |
-          haxe -cp packages/compiler/reflaxe/rust/std-shadow
-          haxe -cp packages/compiler/reflaxe/rust
-          haxe packages/registry/compile-rust.hxml
+      - name: Generate registry tool via driver
+        run: bun out/driver/driver.js gen registry-tool --project boring.json
 
       - name: Build static binary
         run: |
-          cd packages/registry/gen-rust
+          GEN_DIR=reference/registry-tool/gen
+          cd "$GEN_DIR"
           echo "" >> Cargo.toml
           echo "[workspace]" >> Cargo.toml
-          cargo build --release --target x86_64-unknown-linux-musl
-
-      - name: Create binary entry point
-        run: |
-          cd packages/registry/gen-rust
-          cat > src_main.rs << 'EOF'
-          fn main() {
-              match registry_tool::registry::main::Main::main_main() {
-                  Ok(()) => {}
-                  Err(e) => { eprintln!("{}", e); std::process::exit(1); }
-              }
-          }
-          EOF
-          echo "" >> Cargo.toml
-          echo "[[bin]]" >> Cargo.toml
-          echo 'name = "registry-tool"' >> Cargo.toml
-          echo 'path = "src_main.rs"' >> Cargo.toml
           cargo build --release --target x86_64-unknown-linux-musl
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          files: packages/registry/gen-rust/target/x86_64-unknown-linux-musl/release/registry-tool
+          files: reference/registry-tool/gen/target/x86_64-unknown-linux-musl/release/registry-tool
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
