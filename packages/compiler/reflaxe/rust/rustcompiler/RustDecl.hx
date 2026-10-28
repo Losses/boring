@@ -3390,7 +3390,10 @@ lines.push("        }");
                     for (field in fields)
                         '    pub ${RustImports.toSnakeCase(field.name)}: ${types.of(field.type)},'
                 ];
-                final deriveAttr = RustType.fieldsAllPartialEq(fields) && isAllCopy(fields) ? "#[derive(Debug, Clone, Copy, PartialEq)]"
+                final fieldsHash = (function() { for (field in fields) if (!RustType.isHashType(field.type)) return false; return true; })();
+                final deriveAttr = RustType.fieldsAllPartialEq(fields) && isAllCopy(fields) && fieldsHash ? "#[derive(Debug, Clone, Copy, PartialEq, Hash)]"
+                    : RustType.fieldsAllPartialEq(fields) && fieldsHash ? "#[derive(Debug, Clone, PartialEq, Hash)]"
+                    : RustType.fieldsAllPartialEq(fields) && isAllCopy(fields) ? "#[derive(Debug, Clone, Copy, PartialEq)]"
                     : RustType.fieldsAllPartialEq(fields) ? "#[derive(Debug, Clone, PartialEq)]"
                     : isAllCopy(fields) ? "#[derive(Debug, Clone, Copy)]" : "#[derive(Debug, Clone)]";
                 final structStr = [deriveAttr, 'pub struct ${def.name} {', fieldLines.join("\n"), "}"].join("\n");
