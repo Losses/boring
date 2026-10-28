@@ -13,14 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - name: Setup Haxe
-        run: |
-          wget -q https://github.com/HaxeFoundation/haxe/releases/download/4.3.7/haxe-4.3.7-linux64.tar.gz
-          tar -xzf haxe-4.3.7-linux64.tar.gz
-          echo "$(find . -maxdepth 1 -type d -name 'haxe_*')/haxe" >> "$GITHUB_PATH" || true
-          find . -maxdepth 1 -type d -name "haxe_*" >> "$GITHUB_PATH"
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
       - name: Compile registry tool
-        run: haxe packages/registry/compile.hxml
+        run: nix develop -c haxe packages/registry/compile.hxml
       - name: Package
         run: |
           mkdir -p /tmp/registry-tool
