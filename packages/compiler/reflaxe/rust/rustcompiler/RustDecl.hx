@@ -441,13 +441,13 @@ class RustDecl {
             // Content equality hashes the key and value arrays and skips the
             // comparator closure, mirroring the PartialEq above (spec 07 value
             // semantics: equal entries hash equal).
-            final hashBoundList = [for (g in genericList) g == "'a" ? g : g + ": Hash"];
+            final hashBoundList = [for (g in genericList) g == "'a" ? g : g + ": core::hash::Hash"];
             final hashGenericStr = hashBoundList.length > 0 ? "<" + hashBoundList.join(", ") + ">" : "";
             final hashConditions = [
                 for (v in varFields)
                     if (!v.isStatic && RustType.isHashType(v.field.type)) "self." + RustImports.toSnakeCase(v.field.name) + ".hash(state)"
             ];
-            lines.push("impl" + hashGenericStr + " Hash for " + emittedName + genericStr + " {");
+            lines.push("impl" + hashGenericStr + " core::hash::Hash for " + emittedName + genericStr + " {");
             lines.push("    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {");
             for (condition in hashConditions)
                 lines.push("        " + condition + ";");
