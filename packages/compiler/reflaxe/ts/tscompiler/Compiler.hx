@@ -483,18 +483,28 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     public override function generateFilesManually() {
-        // Flush externalized asset files beside their generated module files.
+        // Flush externalized asset files beside their generated module files,
+        // following the module's own tree: a test-unit module (golden-data
+        // classes reclassified by the test-support closure) writes its assets
+        // into the test tree, where fsAsset resolves them relative to the
+        // module's import.meta.url.
+        final tsOutput = Context.definedValue("ts-output");
+        final testOutput = Context.definedValue("ts-test-output");
         for (asset in AssetModules.pendingAssets()) {
             final dir = haxe.io.Path.directory(modulePath(asset.module));
-            PackageArtifacts.saveTreeFile(output, dir + "/" + asset.file, asset.content);
+            if (CompilationUnits.isTestModule(asset.module)) {
+                final testFileRel = testOutput + "/" + dir + "/" + asset.file;
+                final savePath = TsImports.computeRelativePath(tsOutput, testFileRel);
+                PackageArtifacts.saveTreeFile(output, savePath, asset.content);
+            } else {
+                PackageArtifacts.saveTreeFile(output, dir + "/" + asset.file, asset.content);
+            }
         }
         final modules = [];
         for (module in parts.keys())
             modules.push(module);
         modules.sort(Reflect.compare);
 
-        final tsOutput = Context.definedValue("ts-output");
-        final testOutput = Context.definedValue("ts-test-output");
         final testRunner = Context.definedValue("ts-test-runner");
 
         for (module in modules) {
