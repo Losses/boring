@@ -393,12 +393,15 @@ class RustDecl {
             && (isAllClone(varFields, cls) || isSortedTableResident)) {
             final isDebug = cls.meta.has(":dataClass") && isAllDebug(varFields, cls);
             final isPartialEq = RustType.isPartialEqTypeFields(varFields);
+            final isEq = RustType.isEqTypeFields(varFields);
             final isHash = RustType.isHashTypeFields(varFields);
-            if (isDebug) {
-                lines.push(isPartialEq ? (isHash ? "#[derive(Debug, Clone, PartialEq, Hash)]" : "#[derive(Debug, Clone, PartialEq)]") : "#[derive(Debug, Clone)]");
-            } else {
-                lines.push(isPartialEq ? (isHash ? "#[derive(Clone, PartialEq, Hash)]" : "#[derive(Clone, PartialEq)]") : "#[derive(Clone)]");
-            }
+            final deriveTraits = [];
+            if (isDebug) deriveTraits.push("Debug");
+            deriveTraits.push("Clone");
+            if (isPartialEq) deriveTraits.push("PartialEq");
+            if (isEq) deriveTraits.push("Eq");
+            if (isHash) deriveTraits.push("Hash");
+            lines.push("#[derive(" + deriveTraits.join(", ") + ")]");
         }
         if (cls.module.indexOf("registry.") == 0) {
             lines.push("#[derive(Debug, Clone, PartialEq)]");
@@ -3236,8 +3239,9 @@ class RustDecl {
                 break;
             }
         }
+        final allEnumEq = allPlain || (function() { for (o in sorted) for (arg in o.args) if (!RustType.isEqType(arg.type)) return false; return true; })();
         final allEnumHash = allPlain || (function() { for (o in sorted) for (arg in o.args) if (!RustType.isHashType(arg.type)) return false; return true; })();
-        final deriveAttr = allPlain ? "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]" : "#[derive(Debug, Clone, PartialEq" + (allEnumHash ? ", Eq, Hash" : "") + ")]";
+        final deriveAttr = allPlain ? "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]" : "#[derive(Debug, Clone, PartialEq" + (allEnumEq ? ", Eq" : "") + (allEnumHash ? ", Hash" : "") + ")]";
         EmitSink.record("TYPE", en.pos, "derive(");
         EmitSink.record("TYPE", en.pos, "pub enum " + en.name);
         final lines = [deriveAttr, "pub enum " + en.name + " {"];

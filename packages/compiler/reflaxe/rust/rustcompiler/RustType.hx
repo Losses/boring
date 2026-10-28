@@ -609,6 +609,122 @@ class RustType {
         return true;
     }
 
+    /**
+        Whether a lowered type implements core::cmp::Eq (StructEqDerive):
+        the native scalars Int and Bool, their Null and Array layers, a type
+        parameter (the derive adds the Eq bound), and a @:dataClass whose
+        instance fields all satisfy the query. Float, and any enum whose
+        payload carries a Float, never satisfy the query because f32/f64 have
+        no Eq; a float-bearing enum lowers with a manual Hash impl but no Eq.
+        Plain classes, interfaces, exceptions, and the resident sorted tables
+        never satisfy the query in the generated subset.
+    **/
+    public static function isEqType(t:Type):Bool {
+        return isEqTypeDepth(t, []);
+    }
+
+    static function isEqTypeDepth(t:Type, visiting:Array<String>):Bool {
+        return switch (t) {
+            case TAbstract(a, params):
+                final abs = a.get();
+                if ((abs.name == "Int" || abs.name == "Bool") && params.length == 0) true
+                else if (ValueTypeSupport.isMarkedAbstract(abs) && !ValueTypeSupport.isFloatRepresentation(abs)) true
+                else if ((abs.name == "Null" || (abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray")) && params.length == 1)
+                    isEqTypeDepth(params[0], visiting)
+                else false;
+            case TEnum(e, _):
+                enumAllEq(e.get(), visiting);
+            case TInst(c, params):
+                final cls = c.get();
+                final n = cls.name;
+                if (cls.kind.match(KTypeParameter(_))) true
+                else if (n == "String") true
+                else if (n == "Array") params.length == 1 && isEqTypeDepth(params[0], visiting)
+                else if (isContentEqSortedTable(cls)) {
+                    var all = true;
+                    for (p in params)
+                        if (!isEqTypeDepth(p, visiting))
+                            all = false;
+                    all;
+                }
+                else if (cls.meta.has(":dataClass") && !RustDecl.isExceptionSubclass(cls)) recordFieldsAllEq(cls, visiting)
+                else false;
+            case TFun(_):
+                false;
+            case TType(d, params):
+                isEqTypeDepth(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), visiting);
+            case TAnonymous(anon):
+                var all = true;
+                for (f in anon.get().fields)
+                    if (!isEqTypeDepth(f.type, visiting))
+                        all = false;
+                all;
+            case TLazy(f):
+                isEqTypeDepth(f(), visiting);
+            case _:
+                switch (Context.follow(t)) {
+                    case TAbstract(a, params):
+                        final abs = a.get();
+                        (abs.name == "Int" || abs.name == "Bool") && params.length == 0;
+                    case _: false;
+                }
+        };
+    }
+
+    static function enumAllEq(en:EnumType, visiting:Array<String>):Bool {
+        final key = en.module + "::" + en.name;
+        if (visiting.indexOf(key) >= 0)
+            return true;
+        if (visiting.length > 8)
+            return false;
+        visiting.push(key);
+        final all = (function() {
+            for (ef in en.constructs) {
+                switch (ef.type) {
+                    case TFun(args, _):
+                        for (a in args)
+                            if (!isEqTypeDepth(a.t, visiting))
+                                return false;
+                    case _:
+                }
+            }
+            return true;
+        })();
+        visiting.pop();
+        return all;
+    }
+
+    static function recordFieldsAllEq(cls:ClassType, visiting:Array<String>):Bool {
+        final key = cls.module + "::" + cls.name;
+        if (visiting.indexOf(key) >= 0)
+            return true;
+        if (visiting.length > 8)
+            return false;
+        visiting.push(key);
+        final all = (function() {
+            for (f in cls.fields.get()) {
+                switch (f.kind) {
+                    case FMethod(_):
+                        continue;
+                    case _:
+                }
+                if (!isEqTypeDepth(f.type, visiting))
+                    return false;
+            }
+            return true;
+        })();
+        visiting.pop();
+        return all;
+    }
+
+    /** Whether every non-static variable field satisfies the Eq query (StructEqDerive). **/
+    public static function isEqTypeFields(fields:Array<ClassVarData>):Bool {
+        for (f in fields)
+            if (!f.isStatic && !isEqType(f.field.type))
+                return false;
+        return true;
+    }
+
     /** Whether a class field type is a direct Float (f32/f64, no Hash impl). (DataClassFloatHash) */
     public static function isDirectFloatType(t:Null<Type>):Bool {
         if (t == null)
