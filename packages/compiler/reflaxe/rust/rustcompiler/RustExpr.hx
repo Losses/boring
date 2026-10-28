@@ -8774,7 +8774,7 @@ class RustExpr {
                         case _:
                     }
                 }
-                final staticGuard = staticGuardOf(subj);
+                final staticGuard = staticGuardOfNullable(subj, false);
                 if (staticGuard != null) {
                     if (name == "length") {
                         return rustU32Length(staticGuard + ".len()");
@@ -9131,6 +9131,19 @@ class RustExpr {
         owned value must use this and must not append ".clone()" to
         staticGuardOf: for the RefCell family the clone has to sit inside the
         with-closure. (RefCellStaticGuardScope) */
+    /** The guard of a static field read, unwrapping the Option for a
+        Null-wrapped (lazy) static so array accesses reach the inner Vec.
+        mutate selects as_mut (push) vs as_ref (read). (NullableStaticOptionUnwrap) */
+    function staticGuardOfNullable(e:TypedExpr, mutate:Bool):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
+                final guard = staticGuard(c.get(), cf.get().name);
+                if (StaticFieldHelper.isNullableType(cf.get().type))
+                    return guard + (mutate ? ".as_mut().unwrap()" : ".as_ref().unwrap()");
+                guard;
+            case _: null;
+        };
+    }
     function staticGuardCloneOf(e:TypedExpr):Null<String> {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
@@ -10679,7 +10692,7 @@ class RustExpr {
                 return RustConversions.truncate(expr(subj) + ".len()", "u32");
             case TField(subj, FInstance(c, _, cf)):
                 final name = cf.get().name;
-                final staticGuard = staticGuardOf(subj);
+                final staticGuard = staticGuardOfNullable(subj, false);
                 if (staticGuard != null) {
                     if (name == "push" && args.length == 1) {
                         return staticGuard + ".push(" + staticContainerArg(args[0]) + ")";
