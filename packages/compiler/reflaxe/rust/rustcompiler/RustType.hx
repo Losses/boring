@@ -535,11 +535,12 @@ class RustType {
             case TAbstract(a, params):
                 final abs = a.get();
                 if ((abs.name == "Int" || abs.name == "Bool") && params.length == 0) true
+                else if (ValueTypeSupport.isMarkedAbstract(abs) && !ValueTypeSupport.isFloatRepresentation(abs)) true
                 else if ((abs.name == "Null" || (abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray")) && params.length == 1)
                     isHashTypeDepth(params[0], visiting)
                 else false;
             case TEnum(_):
-                false;
+                true;
             case TInst(c, params):
                 final cls = c.get();
                 final n = cls.name;
@@ -553,7 +554,7 @@ class RustType {
                             all = false;
                     all;
                 }
-                else if (cls.meta.has(":dataClass") && !RustDecl.isExceptionSubclass(cls)) recordFieldsAllHash(cls, visiting)
+                else if (cls.meta.has(":dataClass") && !RustDecl.isExceptionSubclass(cls)) recordFieldsAllHashWithFloat(cls, visiting)
                 else false;
             case TFun(_):
                 false;
@@ -607,6 +608,113 @@ class RustType {
                 return false;
         return true;
     }
+
+    /** Whether a class field type is a direct Float (f32/f64, no Hash impl). (DataClassFloatHash) */
+    public static function isDirectFloatType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (t) {
+            case TAbstract(a, params): a.get().name == "Float" && params.length == 0;
+            case TLazy(f): isDirectFloatType(f());
+            case _: false;
+        };
+    }
+
+    /** Whether any non-static field is a direct Float. (DataClassFloatHash) */
+    public static function hasDirectFloatField(fields:Array<ClassVarData>):Bool {
+        for (f in fields)
+            if (!f.isStatic && isDirectFloatType(f.field.type))
+                return true;
+        return false;
+    }
+
+    /** The Hash query with direct float fields admitted via to_bits (DataClassFloatHash). */
+    public static function isHashTypeWithFloat(t:Type):Bool {
+        return isHashTypeDepthWithFloat(t, [], true);
+    }
+
+    static function isHashTypeDepthWithFloat(t:Type, visiting:Array<String>, allowFloatDirect:Bool):Bool {
+        return switch (t) {
+            case TAbstract(a, params):
+                final abs = a.get();
+                if ((abs.name == "Int" || abs.name == "Bool") && params.length == 0) true
+                else if (abs.name == "Float" && params.length == 0) allowFloatDirect
+                else if (ValueTypeSupport.isMarkedAbstract(abs) && !ValueTypeSupport.isFloatRepresentation(abs)) true
+                else if ((abs.name == "Null" || (abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray")) && params.length == 1)
+                    isHashTypeDepthWithFloat(params[0], visiting, false)
+                else false;
+            case TEnum(_):
+                true;
+            case TInst(c, params):
+                final cls = c.get();
+                final n = cls.name;
+                if (cls.kind.match(KTypeParameter(_))) true
+                else if (n == "String") true
+                else if (n == "Array") params.length == 1 && isHashTypeDepthWithFloat(params[0], visiting, false)
+                else if (isContentEqSortedTable(cls)) {
+                    var all = true;
+                    for (p in params)
+                        if (!isHashTypeDepthWithFloat(p, visiting, false))
+                            all = false;
+                    all;
+                }
+                else if (cls.meta.has(":dataClass") && !RustDecl.isExceptionSubclass(cls)) recordFieldsAllHashWithFloat(cls, visiting)
+                else false;
+            case TFun(_):
+                false;
+            case TType(d, params):
+                isHashTypeDepthWithFloat(haxe.macro.TypeTools.applyTypeParameters(d.get().type, d.get().params, params), visiting, allowFloatDirect);
+            case TAnonymous(anon):
+                var all = true;
+                for (f in anon.get().fields)
+                    if (!isHashTypeDepthWithFloat(f.type, visiting, allowFloatDirect))
+                        all = false;
+                all;
+            case TLazy(f):
+                isHashTypeDepthWithFloat(f(), visiting, allowFloatDirect);
+            case _:
+                switch (Context.follow(t)) {
+                    case TAbstract(a, params):
+                        final abs = a.get();
+                        ((abs.name == "Int" || abs.name == "Bool") && params.length == 0) || (abs.name == "Float" && params.length == 0 && allowFloatDirect);
+                    case _: false;
+                }
+        };
+    }
+
+    static function recordFieldsAllHashWithFloat(cls:ClassType, visiting:Array<String>):Bool {
+        final key = cls.module + "::" + cls.name;
+        if (visiting.indexOf(key) >= 0)
+            return true;
+        if (visiting.length > 8)
+            return false;
+        visiting.push(key);
+        final all = (function() {
+            for (f in cls.fields.get()) {
+                switch (f.kind) {
+                    case FMethod(_):
+                        continue;
+                    case _:
+                }
+                if (!isHashTypeDepthWithFloat(f.type, visiting, true))
+                    return false;
+            }
+            return true;
+        })();
+        visiting.pop();
+        return all;
+    }
+
+    /** Whether every non-static field is hashable with direct float fields
+        admitted via to_bits (DataClassFloatHash). */
+    public static function isHashTypeFieldsWithFloat(fields:Array<ClassVarData>):Bool {
+        for (f in fields)
+            if (!f.isStatic && !isHashTypeWithFloat(f.field.type))
+                return false;
+        return true;
+    }
+
+
 
     static function validateFieldType(t:Type, pos:haxe.macro.Expr.Position, visited:Array<String>):Void {
         StructuralKeyValidator.validateFieldType(t, pos, visited);
