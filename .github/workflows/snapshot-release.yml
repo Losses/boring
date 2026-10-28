@@ -1,0 +1,69 @@
+name: Snapshot Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SNAPSHOT_VERSION: v0.0.0-snapshot.${{ github.run_number }}
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      - run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Build driver and generate registry tool
+        run: nix develop -c bash -c "bun install && haxe packages/driver/driver.hxml && bun out/driver/driver.js gen registry-tool --project boring.json"
+
+      - name: Build static binary
+        run: |
+          GEN_DIR=reference/registry-tool/gen
+          cd "$GEN_DIR"
+          echo "" >> Cargo.toml
+          echo "[workspace]" >> Cargo.toml
+          cat > src_main.rs << 'ENTRY'
+          fn main() {
+              match registry_tool::registry::main::Main::main_main() {
+                  Ok(()) => {}
+                  Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+              }
+          }
+          ENTRY
+          echo "" >> Cargo.toml
+          echo "[[bin]]" >> Cargo.toml
+          echo 'name = "registry-tool"' >> Cargo.toml
+          echo 'path = "src_main.rs"' >> Cargo.toml
+          cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Create snapshot release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.SNAPSHOT_VERSION }}
+          name: ${{ env.SNAPSHOT_VERSION }}
+          body: |
+            Snapshot build from ${{ github.sha }}
+            Timestamp: ${{ github.event.head_commit.timestamp }}
+          prerelease: true
+          files: reference/registry-tool/gen/target/x86_64-unknown-linux-musl/release/registry-tool
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean old snapshots
+        run: |
+          # Keep only the 5 most recent snapshot releases
+          gh release list --repo ${{ github.repository }} --limit 100 | grep "snapshot" | tail -n +6 | while read line; do
+            TAG=$(echo "$line" | awk '{print $1}')
+            gh release delete "$TAG" --repo ${{ github.repository }} --yes || true
+            git push origin --delete "$TAG" || true
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
