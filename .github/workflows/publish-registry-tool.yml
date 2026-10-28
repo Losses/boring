@@ -1,0 +1,35 @@
+name: Publish Registry Tool
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  publish-tool:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Setup Haxe
+        run: |
+          wget -q https://github.com/HaxeFoundation/haxe/releases/download/4.3.7/haxe-4.3.7-linux64.tar.gz
+          tar -xzf haxe-4.3.7-linux64.tar.gz
+          echo "$(find . -maxdepth 1 -type d -name 'haxe_*')/haxe" >> "$GITHUB_PATH" || true
+          find . -maxdepth 1 -type d -name "haxe_*" >> "$GITHUB_PATH"
+      - name: Compile registry tool
+        run: haxe packages/registry/compile.hxml
+      - name: Package
+        run: |
+          mkdir -p /tmp/registry-tool
+          cp -r packages/registry/gen/* /tmp/registry-tool/
+          cp packages/registry/run.ts /tmp/registry-tool/
+          tar -czf registry-tool.tar.gz -C /tmp registry-tool
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: registry-tool.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
