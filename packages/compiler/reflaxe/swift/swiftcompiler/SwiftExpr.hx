@@ -243,7 +243,7 @@ class SwiftExpr {
 
     /** Records the ordinary runtime dependency for an emitted Haxe array. */
     function arrayRuntimeText(text:String):String {
-        imports.runtime(SwiftRuntime.ARRAY_CLASS);
+        imports.runtime("TiqianArray");
         return text;
     }
 
@@ -451,7 +451,7 @@ class SwiftExpr {
                         + types.of(element)
                         + ">()");
                 } else {
-                    arrayRuntimeText(SwiftRuntime.ARRAY_CLASS + "()");
+                    arrayRuntimeText("TiqianArray()");
                 }
             case CEmptyMap: "[:]";
             case CPositiveInfinity: FloatPrecision.isF32() ? "Float.infinity" : "Double.infinity";
@@ -2035,7 +2035,7 @@ class SwiftExpr {
             + (mutated.exists(alloc.arr.id) ? "var " : "let ")
             + arrName
             + " = "
-            + arrayRuntimeText(SwiftRuntime.ARRAY_CLASS + "<" + types.of(alloc.elem) + ">()"));
+            + arrayRuntimeText("TiqianArray<" + types.of(alloc.elem) + ">()"));
         out.push(indent(depth) + arrName + ".reserveCapacity(Int(max(" + expr(loop.bound) + ", 0)))");
         out.push(indent(depth) + "for " + (plan.readsIndex ? localName(loop.index) : "_") + " in stride(from: " + strideValue(loop.start) + ", to: "
             + strideValue(loop.bound) + ", by: 1) {");
@@ -2200,7 +2200,7 @@ class SwiftExpr {
                 // the protocol members; the interface element type is carried
                 // explicitly so the existential stays in the array.
                 final body = isInterfaceType(elemType) ? "(" + inner + " as [" + types.of(elemType) + "])" : inner;
-                return arrayRuntimeText(elemType == null ? SwiftRuntime.ARRAY_CLASS + "(" + body + ")" : SwiftRuntime.ARRAY_CLASS + "<" + types.of(elemType) + ">(" + body + ")");
+                return arrayRuntimeText(elemType == null ? "TiqianArray(" + body + ")" : "TiqianArray<" + types.of(elemType) + ">(" + body + ")");
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -2833,7 +2833,7 @@ class SwiftExpr {
             return intToFloatText(rendered);
         // features/18: a Haxe Array<->ReadOnlyArray implicit cast crosses the
         // mutable/immutable container boundary, and the two lower to different
-        // Swift types (BoringArray vs the ReadOnlyArray view); the unify check
+        // Swift types (TiqianArray vs the ReadOnlyArray view); the unify check
         // below would accept the cast silently, so the container conversion
         // renders first.
         if (Context.unify(inner.t, target)) {
@@ -2852,8 +2852,8 @@ class SwiftExpr {
     /**
         The container conversion of an Array<->ReadOnlyArray boundary cast,
         or null when the cast does not cross the mutable/immutable line
-        (features/18). Mutable Array lowers to BoringArray while
-        ReadOnlyArray lowers to a reference view over BoringArray, so implicit
+        (features/18). Mutable Array lowers to TiqianArray while
+        ReadOnlyArray lowers to a reference view over TiqianArray, so implicit
         casts on the Haxe side render as the Swift view initializer.
     **/
     function arrayBoundaryText(inner:TypedExpr, target:Type, actualOptional:Null<Bool> = null, destinationOptionalOverride:Null<Bool> = null,
@@ -3054,7 +3054,7 @@ class SwiftExpr {
         return SwiftArrayPresenceFact.NoPresenceProof;
     }
 
-    /** Whether the type is the mutable Haxe Array, which lowers to BoringArray. */
+    /** Whether the type is the mutable Haxe Array, which lowers to TiqianArray. */
     function isMutableArrayType(t:Null<Type>):Bool {
         return switch (Context.follow(t)) {
             case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
@@ -4263,8 +4263,8 @@ class SwiftExpr {
                 if (module == "std.Process" && fName == "args") {
                     // std.Process.args() reads the arguments after the
                     // program name (stdlib/17). The Haxe result is an
-                    // Array, which lowers to BoringArray.
-                    return arrayRuntimeText(types.resident ? SwiftRuntime.ARRAY_CLASS + "(Array(CommandLine.arguments.dropFirst().map { Array($0.utf16) }))" : SwiftRuntime.ARRAY_CLASS + "(Array(CommandLine.arguments.dropFirst()))");
+                    // Array, which lowers to TiqianArray.
+                    return arrayRuntimeText(types.resident ? "TiqianArray(Array(CommandLine.arguments.dropFirst().map { Array($0.utf16) }))" : "TiqianArray(Array(CommandLine.arguments.dropFirst()))");
                 }
                 if (module == "std.Process" && fName == "exit") {
                     imports.hostEdge("Process.exit");
@@ -4500,7 +4500,7 @@ class SwiftExpr {
                     && !isStringSubject(subj)
                     && args.length >= 1
                     && (args.length == 1 || isNullLiteral(args[1]))) {
-                    // Haxe Array.indexOf lowers onto the BoringArray member,
+                    // Haxe Array.indexOf lowers onto the TiqianArray member,
                     // which reports the -1 miss the subset uses.
                     return receiverText(subj) + ".indexOf(" + optionalExpr(args[0]) + ")";
                 }
@@ -4561,18 +4561,18 @@ class SwiftExpr {
                     // the TypeScript native split("") shape.
                     // (StringSplitEmptyDelimiter)
                     // Both forms yield a Haxe Array of String parts,
-                    // which lowers to BoringArray; the bare Swift Array
+                    // which lowers to TiqianArray; the bare Swift Array
                     // the map produces would not convert into a let or
                     // return slot of that container type.
                     // (StringSplitContainer)
                     if (isEmptyDelimiterSplit(name, args))
-                        return arrayRuntimeText(SwiftRuntime.ARRAY_CLASS + "("
+                        return arrayRuntimeText("TiqianArray("
                             + (types.resident ? receiverText(subj) + ".map { [$0] }" : "Array("
                                 + receiverText(subj)
                                 + ".utf16).map { String(decoding: [$0], as: UTF16.self) }")
                             + ")");
                     imports.foundation();
-                    return arrayRuntimeText(SwiftRuntime.ARRAY_CLASS + "("
+                    return arrayRuntimeText("TiqianArray("
                         + (types.resident ? "splitUnitsArr(" + receiverText(subj) + ", " + expr(args[0]) + ")" : receiverText(subj)
                             + ".split(separator: "
                             + expr(args[0])
@@ -4598,14 +4598,14 @@ class SwiftExpr {
                 }
                 if (name == "insert" && isUnitArrayTyped(subj) && args.length == 2) {
                     // Haxe Array.insert(pos, x) bounds the position before
-                    // the array sees it (ArrayInsertClamping); BoringArray
+                    // the array sees it (ArrayInsertClamping); TiqianArray
                     // clamps the same way.
                     final s = receiverText(subj);
                     return s + ".insert(" + expr(args[1]) + ", at: Int(" + expr(args[0]) + "))";
                 }
                 if (name == "remove" && isUnitArrayTyped(subj) && args.length == 1) {
                     // Haxe Array.remove(x) removes the first occurrence by
-                    // value and reports presence; BoringArray has no
+                    // value and reports presence; TiqianArray has no
                     // remove-by-value, so lower to indexOf + remove(at:)
                     // with the receiver read once (mirrors the TS
                     // splice-by-indexOf IIFE).
@@ -4621,7 +4621,7 @@ class SwiftExpr {
                 if (name == "splice" && isUnitArrayTyped(subj) && args.length >= 2) {
                     // Haxe splice mutates and returns the removed sub-array,
                     // bounding the call before removing (ArraySpliceClamping);
-                    // BoringArray clamps the same way.
+                    // TiqianArray clamps the same way.
                     final s = receiverText(subj);
                     return s + ".splice(Int(" + expr(args[0]) + "), Int(" + expr(args[1]) + "))";
                 }
@@ -4648,7 +4648,7 @@ class SwiftExpr {
                     // the length. The Swift range subscript traps on a bound
                     // outside the array, so both bounds are clamped and the
                     // omitted end becomes the count. The result is a
-                    // Haxe Array, which lowers to BoringArray: the closure
+                    // Haxe Array, which lowers to TiqianArray: the closure
                     // returns that container, so the let or return slot's
                     // declared type accepts it and never the bare Swift Array
                     // the range subscript yields. (ArraySliceClamping)
@@ -4659,7 +4659,7 @@ class SwiftExpr {
                     final s = receiverText(subj);
                     final from = "Int(" + expr(args[0]) + ")";
                     final wrapped = isUnitArrayTyped(subj);
-                    final open = wrapped ? SwiftRuntime.ARRAY_CLASS + "(Array(" : "Array(";
+                    final open = wrapped ? "TiqianArray(Array(" : "Array(";
                     final close = wrapped ? "))" : ")";
                     var body = "({ () in let _a = "
                         + s
@@ -4857,7 +4857,7 @@ class SwiftExpr {
         final text = helper + "(" + callArgs + ")";
         // The Fs.readDir helper returns a bare Swift array while the
         // Haxe call's result is a Haxe Array, which lowers to
-        // BoringArray; the boundary wraps the helper call in that
+        // TiqianArray; the boundary wraps the helper call in that
         // container so a let slot's declared type accepts it.
         // (FsReadDirContainer)
         final ret = switch (Context.follow(fn.t)) {
@@ -4865,7 +4865,7 @@ class SwiftExpr {
             case _: null;
         };
         if (ret != null && arrayElementType(ret) != null) {
-            return arrayRuntimeText(SwiftRuntime.ARRAY_CLASS + "(" + text + ")");
+            return arrayRuntimeText("TiqianArray(" + text + ")");
         }
         return text;
     }
@@ -5461,7 +5461,7 @@ class SwiftExpr {
                 imports.runtime("BytesBuffer");
                 return "BytesBuffer()";
             case "Array":
-                return arrayRuntimeText(SwiftRuntime.ARRAY_CLASS + "<" + types.of(params[0]) + ">()");
+                return arrayRuntimeText("TiqianArray<" + types.of(params[0]) + ">()");
             case _:
                 imports.value(cls.module, cls.name);
                 return cls.name + "(" + rendered + ")";
@@ -7296,7 +7296,7 @@ class SwiftExpr {
     function localDeclarationNeedsTypeAnnotation(t:Type, init:TypedExpr, hasCoalescing:Bool = false):Bool {
         return isEmptyArrayDecl(init) // features/18: a read-only declaration bound to the mutable
             // container annotates the native Array type; Swift inference
-            // would otherwise pin BoringArray and reject later read-only
+            // would otherwise pin TiqianArray and reject later read-only
             // consumption.
             || (StaticFieldHelper.isReadOnlyArrayType(t) && switch (Context.follow(init.t)) {
                 case TInst(c, _): c.get().pack.length == 0 && c.get().name == "Array";
