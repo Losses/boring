@@ -46,8 +46,8 @@ function runControls(): void {
 	requireControl(baseline.ok && baseline.exitStatus === 0 && baseline.reasons.length === 0, "complete passing baseline");
 	evidence.push({name: "passing-baseline", stageAccepted: baseline.ok, procedureExitStatus: baseline.exitStatus, failures: baseline.reasons, downstreamAttempted: false});
 
-	const expectedDiagnostic = decideStage("baseline-diagnostic", 0, observation({exitStatus: 1, stderrText: "cannot find TiqianArray"}),
-		{kind: "diagnostic", stderrIncludes: "TiqianArray"});
+	const expectedDiagnostic = decideStage("baseline-diagnostic", 0, observation({exitStatus: 1, stderrText: "cannot find BoringArray"}),
+		{kind: "diagnostic", stderrIncludes: "BoringArray"});
 	const diagnosticProcedure = finishProcedure(["baseline-diagnostic"], [expectedDiagnostic]);
 	requireControl(expectedDiagnostic.ok && diagnosticProcedure.exitStatus === 0, "authored compiler diagnostic is an accepted observation");
 	evidence.push({name: "expected-diagnostic", stageAccepted: expectedDiagnostic.ok, procedureExitStatus: diagnosticProcedure.exitStatus,

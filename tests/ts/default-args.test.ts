@@ -228,14 +228,14 @@ describe("default argument expansion generated tree", () => {
     expect(fs.existsSync(swiftFile)).toBe(true);
     const content = fs.readFileSync(swiftFile, "utf8");
 
-    expect(content).toContain("public init(_ familyNames: TiqianArray<String> = TiqianArray())");
+    expect(content).toContain("public init(_ familyNames: BoringArray<String> = BoringArray())");
     expect(content).toContain("static func infinityDefault(_ value: Double = Double.infinity) -> Double");
     expect(content).toContain("static func mapDefault(_ value: [String: Int32] = [:]) -> [String: Int32]");
     expect(content).toContain("return DefaultArgsOps.infinityDefault()");
     expect(content).toContain("return DefaultArgsOps.mapDefault()");
     expect(content).toContain("static func greetWithPrefix(_ name: String, _ prefix: String? = nil) -> String");
     expect(content).toContain("let prefix = prefix ?? name;");
-    expect(content).toContain("public static func fieldAccessSample(_ items: TiqianArray<String>, _ count: Int32? = nil) -> Int32");
+    expect(content).toContain("public static func fieldAccessSample(_ items: BoringArray<String>, _ count: Int32? = nil) -> Int32");
     expect(content).toContain("let count = count ?? Int32(items.count);");
     expect(content).toContain("static func localeSample(_ lang: String, _ fallback: String? = nil) -> String");
     expect(content).toContain("let fallback = fallback ?? (lang == \"en\" ? \"English\" : \"Other\");");
