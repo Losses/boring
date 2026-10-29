@@ -69,6 +69,10 @@ class RustExpr {
     // expression so the mutation reaches the storage inside the Vec, while
     // plain value reads keep the clone. (IndexedReceiverMutation)
     var renderingInPlaceMutatorReceiver:Bool = false;
+    // True while rendering the receiver of a field write (assignment
+    // target): plain-class receivers borrow mutably and never clone, so the
+    // write reaches the storage behind the Rc handle. (ClassParamHandle)
+    var renderingAssignTargetReceiver:Bool = false;
     // While rendering a guard-static array index whose index expression also
     // reads the same static (a static array indexed by its own length), maps the
     // static's Rust item path to the bound guard local, so the nested length
@@ -4819,7 +4823,16 @@ class RustExpr {
                     case null: narrowedReceiverSubject(receiver);
                     case text: text;
                 };
-                base == null ? null : base + "." + RustImports.toSnakeCase(cf.get().name);
+                if (base == null)
+                    null;
+                else {
+                    // A plain-class handle narrowed to its binding still
+                    // opens its Rc borrow before the field read.
+                    // (ClassParamHandle)
+                    final inner = isNullType(receiver.t) ? getNullInnerType(receiver.t) : receiver.t;
+                    final rcAccessor = RustDecl.isPlainClassHandle(inner) ? ".borrow()" : "";
+                    base + rcAccessor + "." + RustImports.toSnakeCase(cf.get().name);
+                }
             case _:
                 null;
         };
@@ -8964,7 +8977,11 @@ class RustExpr {
                 final sharedFieldRecv = receiverNeedsSharedLock(subj);
                 if (sharedFieldRecv)
                     imports.require("std::sync::Mutex");
-                final access = (sharedFieldRecv ? subjStr + ".lock().unwrap()" : subjStr) + "." + snake;
+                // A plain-class handle opens its Rc borrow before the field
+                // read so the read reaches the shared object. (ClassParamHandle)
+                final rcBorrow = receiverNeedsRcBorrow(subj);
+                final rcAccessor = renderingAssignTargetReceiver ? ".borrow_mut()" : ".borrow()";
+                final access = (sharedFieldRecv ? subjStr + ".lock().unwrap()" : rcBorrow ? subjStr + rcAccessor : subjStr) + "." + snake;
                 if (name != "length" && isRecursiveField(subj, name)) {
                     // A cursor-local receiver re-binds the recursive field
                     // value: the as_ref borrow maps to an owned clone so the
@@ -8989,9 +9006,9 @@ class RustExpr {
                     // clones so the read produces an owned Option; the non-cloned form does not
                     // perform a move out of a reference. A method receiver keeps its
                     // borrow so mutations reach the original storage.
-                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && switch (subj.expr) {
+                    if (!isTypeCopy(getNullInnerType(cf.get().type)) && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !renderingAssignTargetReceiver && switch (subj.expr) {
                         case TConst(TThis): true;
-                        case _: isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()");
+                        case _: isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()") || rcBorrow;
                     }) {
                         return "(" + access + ").clone()";
                     }
@@ -9000,7 +9017,7 @@ class RustExpr {
                 if (name != "length" && (isStringType(cf.get().type) || isRecordValueType(cf.get().type))) {
                     return isStringType(cf.get().type) ? "(" + access + ").to_ustring()" : "(" + access + ").clone()";
                 }
-                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !isTypeCopy(cf.get().type)
+                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !renderingAssignTargetReceiver && !isTypeCopy(cf.get().type)
                     && !RustDecl.isBorrowedByteField(imports.selfModule, name)
                     && switch (subj.expr) {
                         case TConst(TThis): true;
@@ -9013,8 +9030,8 @@ class RustExpr {
                 // field. Non-Copy fields must clone at the read site so the
                 // value slots that consume them receive an owned copy.
                 // Covers the borrowed-field-read family (E0507).
-                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !isTypeCopy(cf.get().type)
-                    && (isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()"))) {
+                if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !renderingAssignTargetReceiver && !isTypeCopy(cf.get().type)
+                    && (isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()") || rcBorrow)) {
                     return "(" + access + ").clone()";
                 }
                 return access;
@@ -9043,10 +9060,15 @@ class RustExpr {
     }
 
     function receiverText(subj:TypedExpr, cf:Null<Ref<ClassField>>):String {
+        final mut = cf != null && RustDecl.methodWritesReceiver(cf.get());
         final previous = renderingMethodReceiver;
-        renderingMethodReceiver = cf != null && RustDecl.methodWritesReceiver(cf.get());
-        final text = expr(subj);
+        renderingMethodReceiver = mut;
+        var text = expr(subj);
         renderingMethodReceiver = previous;
+        // A plain-class handle receiver opens its Rc borrow; a mutating
+        // method borrows mutably. (ClassParamHandle)
+        if (receiverNeedsRcBorrow(subj))
+            text = text + (mut ? ".borrow_mut()" : ".borrow()");
         return text;
     }
 
@@ -11569,7 +11591,15 @@ class RustExpr {
                 final sharedLocked = receiverNeedsSharedLock(subj);
                 if (sharedLocked)
                     imports.require("std::sync::Mutex");
-                final lockedSubjStr = sharedLocked ? subjStr + ".lock().unwrap()" : subjStr;
+                // A plain-class handle opens its Rc borrow before the call so
+                // the method reaches the shared object; a mutating method
+                // borrows mutably. (ClassParamHandle)
+                final rcLocked = receiverNeedsRcBorrow(subj);
+                final lockedSubjStr = sharedLocked
+                    ? subjStr + ".lock().unwrap()"
+                    : rcLocked
+                        ? subjStr + (mutCall ? ".borrow_mut()" : ".borrow()")
+                        : subjStr;
                 // A by-value method on a shared (Mutex-guarded) receiver
                 // cannot move out of the guard: clone the referent through
                 // the guard and consume the clone. (SharedClosureArrays)
@@ -14227,11 +14257,17 @@ class RustExpr {
                 // element must reach the element in place, through the mutable
                 // index path, so the field write acts on the Vec element rather
                 // than a value-read clone that is dropped.
+                final prevAssign = renderingAssignTargetReceiver;
+                renderingAssignTargetReceiver = true;
                 final subjText = switch (stripWrap(subj).expr) {
                     case TArray(arr, idx): optionContainerIndexAccess(arr, idx, true);
                     case _: expr(subj);
                 };
-                subjText + "." + RustImports.toSnakeCase(cf.get().name);
+                renderingAssignTargetReceiver = prevAssign;
+                // A plain-class handle writes through its Rc borrow so the
+                // mutation reaches the shared object. (ClassParamHandle)
+                final rcBorrowMut = receiverNeedsRcBorrow(subj);
+                (rcBorrowMut ? subjText + ".borrow_mut()" : subjText) + "." + RustImports.toSnakeCase(cf.get().name);
         },
             v -> {
             // A shared closure scalar writes through the dereferenced guard;
@@ -15529,6 +15565,18 @@ class RustExpr {
         names the bare struct. (ClassHandleShare) */
     function receiverNeedsSharedLock(e:TypedExpr):Bool {
         if (isSharedIfaceType(e.t) || isSharedImplementorType(e.t))
+            return switch (stripWrap(e).expr) {
+                case TConst(TThis): false;
+                case _: true;
+            };
+        return false;
+    }
+
+    /** Whether reading through this expression must open the Rc borrow
+        first: the value is a plain-class handle, but self inside its own
+        impl already names the bare struct. (ClassParamHandle) */
+    function receiverNeedsRcBorrow(e:TypedExpr):Bool {
+        if (RustDecl.isPlainClassHandle(e.t))
             return switch (stripWrap(e).expr) {
                 case TConst(TThis): false;
                 case _: true;
