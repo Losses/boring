@@ -49,7 +49,6 @@ class TextShaper {
     public static final PLATFORM_MULTI_FACE_STRING_DRAW_ISSUE:String = "PlatformMultiFaceStringDraw";
 }
 
-@:sharedHandle
 interface ITextShaper {
     function shape(input:ShapingInput):ShapingResult;
 }

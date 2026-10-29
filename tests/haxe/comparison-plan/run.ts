@@ -227,7 +227,7 @@ if (genOk) {
 		baselineFiles.sort();
 		const nativeHarness = "tests/haxe/swift-runtime-closure/native-static-data-array-only.swift";
 		await capture("swiftc-static-table-baseline", "swiftc", [...baselineFiles, nativeHarness, "-o", join(run, "static-table-baseline-check")], nativeHarness,
-			undefined, [], {kind: "diagnostic", stderrIncludes: "BoringArray"});
+			undefined, [], {kind: "diagnostic", stderrIncludes: "TiqianArray"});
 	}
 	if (tableGenOk) {
 		const files: string[] = [];

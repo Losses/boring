@@ -18,7 +18,7 @@ RUN="$(mktemp -d "$PARENT/run-XXXXXXXX")" || exit 2
 mkdir -p "$RUN/plans" "$RUN/probe" || exit 2
 baseline_overlay="$RUN/baseline-overlay"
 mkdir -p "$baseline_overlay/swiftcompiler" || exit 2
-sed '/^[[:space:]]*imports\.runtime(SwiftRuntime\.ARRAY_CLASS);$/d' \
+sed '/^[[:space:]]*imports\.runtime("TiqianArray");$/d' \
 	packages/compiler/reflaxe/swift/swiftcompiler/SwiftDecl.hx \
 	>"$baseline_overlay/swiftcompiler/SwiftDecl.hx" || exit 2
 baseline_hxml="$RUN/probe/static-data-baseline.hxml"

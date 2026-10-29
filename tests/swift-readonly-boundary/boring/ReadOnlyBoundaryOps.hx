@@ -281,9 +281,9 @@ class ReadOnlyBoundaryOps {
         PIT-255 regression: a counted traversal of a read-only view lowers
         through the read-only-to-mutable array boundary
         (CopyReadOnlyIntoMutableArray). Runtime's toMutableArray() already
-        returns BoringArray, so the emitter must render the boundary as a
+        returns TiqianArray, so the emitter must render the boundary as a
         single call; the Swift this suite compiles is the detector (a
-        BoringArray(...) wrapper around it is a type error).
+        TiqianArray(...) wrapper around it is a type error).
     **/
     public static function traverseReadOnlyView(values:ReadOnlyArray<Int>):String {
         var total = 0;
