@@ -80,6 +80,6 @@ does not establish iteration over a nonempty read-only array.
   unification with `Array<Int>`. The two rows check distinct resolution states.
 - Swift and Dart native compiles of the small generated trees fail because
   the emitted runtime faces are incomplete for this fixture's generation
-  set (`TiqianArray` has no declaration; `std.Console` has no Dart body).
+  set (`BoringArray` has no declaration; `std.Console` has no Dart body).
   Both failures are recorded with their exact commands and streams; they are
   identical on the baseline and candidate sides and are not repaired here.

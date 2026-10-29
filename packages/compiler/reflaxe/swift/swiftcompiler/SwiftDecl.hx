@@ -678,10 +678,10 @@ class SwiftDecl {
         if (v.isStatic && DataTableHelper.isDataTableField(field)) {
             final elems = DataTableHelper.getDataTableElements(field.expr());
             if (elems != null) {
-                imports.runtime("TiqianArray");
+                imports.runtime(SwiftRuntime.ARRAY_CLASS);
                 return ["    public static let "
                     + SwiftNameEscape.escape(field.name)
-                    + ": TiqianArray<Int32> = TiqianArray(["
+                    + ": " + SwiftRuntime.ARRAY_CLASS + "<Int32> = " + SwiftRuntime.ARRAY_CLASS + "(["
                     + renderDataTableElements(elems)
                     + "])"];
             }
@@ -1182,7 +1182,7 @@ class SwiftDecl {
             return lines.join("\n");
         }
         // A payload enum keeps the synthesized Equatable except when one
-        // payload is Array<Self>: the TiqianArray<Self> conformance then
+        // payload is Array<Self>: the BoringArray<Self> conformance then
         // requires Self: Equatable, a circular requirement Swift rejects.
         // A class payload still synthesizes because the comparison plan
         // gives that class its own manual ==. (EnumEquatableCircularity)
@@ -1190,7 +1190,7 @@ class SwiftDecl {
         final lines:Array<String> = [ // Equatable backs the construct comparisons the samples run
             // (`width == F64`); payload types of the subset (Int32,
             // String, nested enums) synthesize the conformance. A payload
-            // that lowers to a non-Equatable Swift type (TiqianArray, a
+            // that lowers to a non-Equatable Swift type (BoringArray, a
             // class) drops the conformance so the declaration compiles.
             // Recursive payload enums require indirect storage in Swift.
             "public "
@@ -1271,7 +1271,7 @@ class SwiftDecl {
     }
 
     /** Whether a payload type is Array<T> whose element is the enum itself: the
-        synthesized Equatable then requires TiqianArray<Self>: Equatable, which
+        synthesized Equatable then requires BoringArray<Self>: Equatable, which
         requires Self: Equatable, a circular conformance Swift rejects. */
     function selfArrayPayload(t:Null<Type>, en:EnumType):Bool {
         return switch (Context.follow(t)) {
@@ -1285,7 +1285,7 @@ class SwiftDecl {
     }
 
     /** Whether any construct carries an Array<Self> payload: the synthesized
-        Equatable then requires TiqianArray<Self>: Equatable, which requires
+        Equatable then requires BoringArray<Self>: Equatable, which requires
         Self: Equatable, a circular conformance Swift rejects. Shared by
         enumDecl (drop the conformance) and fieldTypeSupportsEquatable (a
         record typedef field of this enum also drops it). */
