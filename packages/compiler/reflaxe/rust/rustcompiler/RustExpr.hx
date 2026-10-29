@@ -70,7 +70,7 @@ class RustExpr {
     // plain value reads keep the clone. (IndexedReceiverMutation)
     var renderingInPlaceMutatorReceiver:Bool = false;
     // While rendering a guard-static array index whose index expression also
-    // reads the same static (fivePowers[fivePowers.length - 1]), maps the
+    // reads the same static (a static array indexed by its own length), maps the
     // static's Rust item path to the bound guard local, so the nested length
     // read reuses the held guard instead of locking the Mutex a second time.
     // (StaticGuardIndexScope)
@@ -5472,7 +5472,7 @@ class RustExpr {
                 if (staticGuard != null) {
                     // Bind the Mutex guard to a named local inside a block so
                     // an index expression that also reads the same static
-                    // (fivePowers[fivePowers.length - 1]) reuses the held
+                    // (a static array indexed by its own length) reuses the held
                     // guard instead of locking the Mutex a second time.
                     // (StaticGuardIndexScope)
                     final guardPath = staticGuardPathOf(arr);
@@ -6858,16 +6858,7 @@ class RustExpr {
     function isSortedTable(subj:TypedExpr):Bool {
         final t = methodSubjectType(subj);
         return switch (Context.follow(t)) {
-            case TInst(c, _):
-                final cls = c.get();
-                final n = cls.name;
-                if (cls.module == "runtime.SortedTable")
-                    n == "SortedTable" || n == "SortedMapTable" || n == "SortedSetTable";
-                else if (cls.module == "std.SortedSet")
-                    n == "SortedSet";
-                else if (cls.module == "std.SortedMap")
-                    n == "SortedMap";
-                else false;
+            case TInst(c, _): final n = c.get().name; n == "SortedMap" || n == "SortedSet" || n == "SortedTable" || n == "SortedMapTable" || n == "SortedSetTable";
             case _: false;
         };
     }
@@ -10004,8 +9995,8 @@ class RustExpr {
 
     function staticMethodName(cls:ClassType, name:String):String {
         final runtimeClassName = cls.name == "UStringRT" ? "UString" : cls.name;
-        final qualifiedRuntimeClass = cls.module == "runtime.TestCore" || cls.module == "runtime.SortedTable" || cls.module == "runtime.Graphemes"
-            || cls.module == "runtime.StringTools" || cls.module == "runtime.UString";
+        final qualifiedRuntimeClass = runtimeClassName == "TestCore" || runtimeClassName == "SortedTable" || runtimeClassName == "Graphemes"
+            || runtimeClassName == "StringTools" || runtimeClassName == "UString";
         return qualifiedRuntimeClass ? RustImports.toSnakeCase(runtimeClassName + "_" + name) : RustImports.toSnakeCase(name);
     }
 
@@ -10919,13 +10910,13 @@ class RustExpr {
                     };
                     // A start position (the second argument) searches from
                     // that UTF-16 code-unit offset and returns a UTF-16
-                    // code-unit index, matching the tiqian ABI. The runtime
+                    // code-unit index, matching the host ABI. The runtime
                     // helper converts the start to a byte offset and the
                     // match back to units; a negative start is treated as 0
                     // and a start past the last unit yields -1. An omitted
                     // ?startIndex reaches this arm as a null argument, which
                     // searches from unit 0 through the same helper: Rust's
-                    // str::find returns a UTF-8 byte offset, while the tiqian
+                    // str::find returns a UTF-8 byte offset, while the host
                     // ABI counts UTF-16 code units, so the plain find() form
                     // reported a wrong index for any non-ASCII prefix.
                     // (IndexOfUnitOffset)
