@@ -1559,18 +1559,31 @@ class RustDecl {
         return switch (Context.follow(t)) {
             case TInst(c, _):
                 final cls = c.get();
-                !cls.isInterface
-                    && !cls.meta.has(":dataClass")
-                    && !isExceptionSubclass(cls)
-                    && cls.name != "Array" && cls.name != "String" && cls.name != "StringBuf"
-                    && !(cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")
-                    && cls.module.indexOf("registry.") != 0
-                    && !Lambda.exists(cls.interfaces, i -> {
-                        final ic = i.t.get();
-                        ic.isInterface && isSharedInterface(ic.module, ic.name);
-                    });
+                isPlainClassHandleClass(cls);
             case _: false;
         }
+    }
+
+    /** The ClassType counterpart of isPlainClassHandle: a concrete class
+        that lowers to an Rc<RefCell<T>> handle. (ClassParamHandle) */
+    public static function isPlainClassHandleClass(cls:ClassType):Bool {
+        // Only business modules (not haxe std, not std shadow) use the
+        // Rc<RefCell> handle. Extern and shadow classes keep their specific
+        // Rust type mappings.
+        final module = cls.module;
+        return !cls.isInterface
+            && !cls.meta.has(":dataClass")
+            && !isExceptionSubclass(cls)
+            && module.indexOf("haxe.") != 0
+            && module.indexOf("std.") != 0
+            && module.indexOf("registry.") != 0
+            && module.indexOf("runtime.") != 0
+            && cls.name != "Array" && cls.name != "String" && cls.name != "StringBuf"
+            && !(cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")
+            && !Lambda.exists(cls.interfaces, i -> {
+                final ic = i.t.get();
+                ic.isInterface && isSharedInterface(ic.module, ic.name);
+            });
     }
 
     /**
@@ -2575,7 +2588,13 @@ class RustDecl {
             }
             expr.setFallible(ctorFallible, errOwner != null ? errOwner.name : null, errOwner != null
                 && errOwner.hasOverflow ? state.overflowVariant : null, errOwner != null ? errOwner.module : null);
-            final ret = ctorFallible ? " -> Result<Self, " + errOwner.name + ">" : " -> Self";
+            final isHandleCtor = RustDecl.isPlainClassHandleClass(cls);
+            if (isHandleCtor) {
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+            }
+            final selfTy = isHandleCtor ? "Rc<RefCell<Self>>" : "Self";
+            final ret = ctorFallible ? " -> Result<" + selfTy + ", " + errOwner.name + ">" : " -> " + selfTy;
             var hasInstanceFields = false;
             for (field in cls.fields.get()) {
                 switch (field.kind) {
@@ -2594,7 +2613,7 @@ class RustDecl {
                     case _:
                 }
             }
-            final constCtor = !ctorFallible && !hasInstanceFields;
+            final constCtor = !ctorFallible && !hasInstanceFields && !isHandleCtor;
             final head = '    pub ${constCtor ? "const " : ""}fn new($args)$ret {';
             final parts = expr.constructorBody(cls, f);
             final lines = [head];
@@ -2611,7 +2630,9 @@ class RustDecl {
                 for (l in parts.statementLines) {
                     lines.push("    " + l);
                 }
-                lines.push("        " + (ctorFallible ? "Ok(Self {" : "Self {"));
+                lines.push("        " + (ctorFallible
+                    ? "Ok(" + (isHandleCtor ? "Rc::new(RefCell::new(Self {" : "Self {")
+                    : (isHandleCtor ? "Rc::new(RefCell::new(Self {" : "Self {")));
             }
             for (a in f.args) {
                 if (!hasInstanceField(cls, a.name))
@@ -2768,9 +2789,11 @@ class RustDecl {
                         case _:
                     }
                 }
-                lines.push("        return " + selfName + ";");
+                lines.push("        return " + (isHandleCtor ? "Rc::new(RefCell::new(" + selfName + "))" : selfName) + ";");
             } else {
-                lines.push("        " + (ctorFallible ? "})" : "}"));
+                lines.push("        " + (ctorFallible
+                    ? (isHandleCtor ? "})))" : "})")
+                    : (isHandleCtor ? "}))" : "}")));
             }
             lines.push("    }");
             return lines;
@@ -2898,8 +2921,12 @@ class RustDecl {
             final argNames = [for (a in f.args) RustImports.toSnakeCase(a.name)].join(", ");
             final borrow = isMutating ? "self.borrow_mut()" : "self.borrow()";
             lines.push("    fn " + snakeName + methodGenericStr + "(" + allArgs + ")" + ret + " {");
+<<<<<<< HEAD
             final delegatedCall = borrow + "." + snakeName + "(" + argNames + ")";
             lines.push("        " + (isFallible && errOwner != null ? delegatedCall + ".map_err(" + errOwner.name + "::from)" : delegatedCall));
+=======
+            lines.push("        " + borrow + "." + snakeName + "(" + argNames + ")");
+>>>>>>> 53cd9e7f2 (feat(rust): make interface traits Rc-compatible via wrapper delegation)
             lines.push("    }");
         }
         lines.push("}");
