@@ -175,7 +175,7 @@ class RustDecl {
             // holds an interface is only Send when the trait object is.
             // The generated implementors hold owned data and Arcs only, so
             // the bounds hold for every implementor.
-            lines.push("pub trait " + emittedName + ": Send + Sync {");
+            lines.push("pub trait " + emittedName + " {");
             lines.push("    fn __haxe_type_name(&self) -> &'static str;");
             lines.push("    fn as_any(&self) -> &dyn std::any::Any;");
             if (isCloneIface)
@@ -575,6 +575,12 @@ class RustDecl {
                 }
             }
             lines.push("}");
+            if (RustDecl.isPlainClassHandleClass(cls)) {
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+                for (l in rcHandleTraitImpl(cls, ifaceCls, ordinaryFuncs))
+                    lines.push(l);
+            }
         }
 
         final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
@@ -1539,6 +1545,35 @@ class RustDecl {
     }
 
     /**
+        Whether the type lowers to a shared plain-class handle: a concrete
+        non-interface class that is not a @:dataClass value type, not an
+        exception subclass, not a registry marker, and not a concrete
+        implementor of a registered shared interface. Plain classes carry
+        Haxe reference semantics, so the lowering stores one object and
+        every binding names the same object through an Rc<RefCell<T>>
+        handle instead of an owned value (ClassParamHandle).
+    **/
+    public static function isPlainClassHandle(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                !cls.isInterface
+                    && !cls.meta.has(":dataClass")
+                    && !isExceptionSubclass(cls)
+                    && cls.name != "Array" && cls.name != "String" && cls.name != "StringBuf"
+                    && !(cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")
+                    && cls.module.indexOf("registry.") != 0
+                    && !Lambda.exists(cls.interfaces, i -> {
+                        final ic = i.t.get();
+                        ic.isInterface && isSharedInterface(ic.module, ic.name);
+                    });
+            case _: false;
+        }
+    }
+
+    /**
         Whether the named field lowers as a borrowed byte reference. The
         field's Rust type is then a shared reference, which is Copy, so a
         defensive clone at the read site is redundant.
@@ -1741,6 +1776,15 @@ class RustDecl {
                 '${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};'
             ];
         }
+        if (RustDecl.isPlainClassHandle(field.type)) {
+            imports.require("std::sync::LazyLock");
+            state.shimsUsed.set("runtime.SingleThread", true);
+            imports.require(RuntimeConfig.requireImportName("module runtime.SingleThread") + "::single_thread::SingleThread");
+            return [
+                vis + "static " + name + ": LazyLock<SingleThread<" + typeStr + ">> = LazyLock::new(|| SingleThread(" + expr.rawExpression(init) + "));"
+            ];
+        }
+
         if (usesLazyLockStatic(cls, field, state)) {
             imports.require("std::sync::LazyLock");
             return [
@@ -2794,6 +2838,72 @@ class RustDecl {
         EmitSink.record("FUNC", f.field.pos, snakeName + "(");
         final body = expr.functionBody(cls, f);
         return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
+    }
+
+    /**
+        The Rc<RefCell<T>> wrapper delegation for a plain-class trait
+        implementation: each interface method forwards to the bare struct
+        impl through a borrow, so the handle satisfies the trait object.
+        (ClassParamHandle)
+    **/
+    function rcHandleTraitImpl(cls:ClassType, ifaceCls:ClassType, ordinaryFuncs:Array<ClassFuncData>):Array<String> {
+        final lines:Array<String> = [];
+        lines.push("\nimpl " + ifaceCls.name + " for Rc<RefCell<" + cls.name + ">> {");
+        lines.push("    fn __haxe_type_name(&self) -> &'static str {");
+        lines.push("        \"" + cls.module + "." + cls.name + "\"");
+        lines.push("    }");
+        lines.push("    fn as_any(&self) -> &dyn std::any::Any {");
+        lines.push("        self");
+        lines.push("    }");
+        final ifaceCloneable = state.sealedCloneInterfaces.exists(ifaceCls.module + "::" + ifaceCls.name);
+        if (ifaceCloneable) {
+            lines.push("    fn clone_box(&self) -> Box<dyn " + ifaceCls.name + "> {");
+            lines.push("        Box::new(self.clone())");
+            lines.push("    }");
+        }
+        for (f in ordinaryFuncs) {
+            if (f.field.name == "new")
+                continue;
+            var inIface = false;
+            for (ifField in ifaceCls.fields.get())
+                if (ifField.name == f.field.name) {
+                    inIface = true;
+                    break;
+                }
+            if (!inIface)
+                for (ifField in ifaceCls.statics.get())
+                    if (ifField.name == f.field.name) {
+                        inIface = true;
+                        break;
+                    }
+            if (!inIface)
+                continue;
+            final snakeName = RustImports.toSnakeCase(f.field.name);
+            final interfaceShape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(ifaceCls.module, ifaceCls.name, f.field.name));
+            final isMutating = interfaceShape != null ? interfaceShape.isMutating : isMethodMutating(f);
+            final selfParam = isMutating ? "&mut self" : "&self";
+            final otherArgs = [for (a in f.args) RustImports.toSnakeCase(a.name) + ": " + paramType(a.type, f.field.name, a.name)].join(", ");
+            final allArgs = otherArgs.length > 0 ? selfParam + ", " + otherArgs : selfParam;
+            final isFallible = interfaceShape != null ? interfaceShape.isFallible : funcIsFallible(f);
+            final errOwner = isFallible && interfaceShape != null && interfaceShape.errorName != null
+                ? {name: interfaceShape.errorName, module: interfaceShape.errorModule, hasOverflow: false}
+                : (isFallible ? resolveErrorOwner(f, cls) : null);
+            if (isFallible && errOwner != null)
+                imports.requireType(errOwner.module, errOwner.name);
+            final rawRetType = methodReturnType(f.ret, f.field.name);
+            final retType = isFallible && errOwner != null ? "Result<" + rawRetType + ", " + errOwner.name + ">" : rawRetType;
+            final ret = retType == "()" ? "" : " -> " + retType;
+            final methodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
+            final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
+            final argNames = [for (a in f.args) RustImports.toSnakeCase(a.name)].join(", ");
+            final borrow = isMutating ? "self.borrow_mut()" : "self.borrow()";
+            lines.push("    fn " + snakeName + methodGenericStr + "(" + allArgs + ")" + ret + " {");
+            final delegatedCall = borrow + "." + snakeName + "(" + argNames + ")";
+            lines.push("        " + (isFallible && errOwner != null ? delegatedCall + ".map_err(" + errOwner.name + "::from)" : delegatedCall));
+            lines.push("    }");
+        }
+        lines.push("}");
+        return lines;
     }
 
     /**
