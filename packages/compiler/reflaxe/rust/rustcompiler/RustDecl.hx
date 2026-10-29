@@ -33,17 +33,27 @@ class RustDecl {
     public static var mutatingTraitMethods:Map<String, Bool> = new Map();
 
     /**
-        Whether the interface lowers its slot to a shared handle
+        Interfaces whose interface-slot handles must be shared
         (ClassHandleShare). Haxe object references are shared: when a
         caller hands a stateful implementor (a cache, a shaper) to an
         engine through an interface slot, the engine's writes must be
         visible to the caller's later reads. Cloning into the slot breaks
-        that. Interfaces annotated @:sharedHandle at their declaration
-        lower their interface slots to Arc<Mutex<dyn Trait>>, so the slot
-        and the source binding share one object. (ClassHandleShare)
+        that. Interfaces registered here lower their interface slots to
+        Arc<Mutex<dyn Trait>>, so the slot and the source binding share
+        one object. (ClassHandleShare)
     **/
-    public static function isSharedInterface(cls:ClassType):Bool {
-        return cls.isInterface && cls.meta.has(":sharedHandle");
+    public static var sharedInterfaces:Map<String, Bool> = [
+        "org.tiqian.shaping.TextShaper::ITextShaper" => true,
+        "org.tiqian.layout.WidthIndependentAnnotationCache::WidthIndependentAnnotationCache" => true,
+        // The samples regression module locks the shared-handle lowering:
+        // a stateful implementor crossing an interface slot stays one
+        // object. (ClassHandleShare)
+        "tests.SharedHandleTests::ISharedHandleCounter" => true
+    ];
+
+    /** Whether the interface (module, name) lowers to a shared handle slot. */
+    public static function isSharedInterface(module:String, name:String):Bool {
+        return sharedInterfaces.exists(module + "::" + name);
     }
 
     // Method names visited by the current bodyMutatesSelf recursion; breaks
@@ -219,7 +229,7 @@ class RustDecl {
             // Arc<Mutex<dyn X>> is Debug through it, so structs that derive
             // Debug over the shared handle stay printable.
             // (ClassHandleShare)
-            final isSharedIface = isSharedInterface(cls);
+            final isSharedIface = isSharedInterface(cls.module, cls.name);
             if (isCloneIface || isSharedIface) {
                 lines.push("");
                 lines.push("impl std::fmt::Debug for dyn " + emittedName + " {");
@@ -2855,7 +2865,7 @@ class RustDecl {
                 final cc = c.get();
                 !cc.isInterface && Lambda.exists(cc.interfaces, i -> {
                     final ic = i.t.get();
-                    ic.isInterface && isSharedInterface(ic);
+                    ic.isInterface && isSharedInterface(ic.module, ic.name);
                 });
             case _: false;
         };

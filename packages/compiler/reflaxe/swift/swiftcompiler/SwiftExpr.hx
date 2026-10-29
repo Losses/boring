@@ -4249,19 +4249,6 @@ class SwiftExpr {
                     }
                     return nativeName + "(" + rendered + ")";
                 }
-                if (module == "org.tiqian.test.trace.TestTracePlatform" && cls.name == "NodeFileSystem") {
-                    if (fName == "mkdirSync" && args.length >= 1) {
-                        imports.foundation();
-                        final dir = types.resident ? "String(decoding: " + expr(args[0]) + ", as: UTF16.self)" : expr(args[0]);
-                        return "try! FileManager.default.createDirectory(atPath: " + dir + ", withIntermediateDirectories: true)";
-                    }
-                    if (fName == "writeFileSync" && args.length >= 2) {
-                        imports.foundation();
-                        final text = types.resident ? "String(decoding: " + expr(args[1]) + ", as: UTF16.self)" : expr(args[1]);
-                        final path = types.resident ? "String(decoding: " + expr(args[0]) + ", as: UTF16.self)" : expr(args[0]);
-                        return "try! (" + text + ").write(toFile: " + path + ", atomically: true, encoding: .utf8)";
-                    }
-                }
                 if (module == "std.Console") {
                     if (fName == "log") return types.resident ? "print(String(decoding: " + expr(args[0]) + ", as: UTF16.self))" : "print(" + expr(args[0]) + ")";
                     if (fName == "error") {
