@@ -65,7 +65,7 @@ class RustType {
             case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1): "Option<" + recursiveClassField(params[0], root) + ">";
             case _:
                 switch (Context.follow(t)) {
-                    case TInst(c, _) if (c.get().module == root.module && c.get().name == root.name): RustDecl.isPlainClassHandleClass(root) ? of(t) : "Box<" + root.name + ">";
+                    case TInst(c, _) if (c.get().module == root.module && c.get().name == root.name): "Box<" + root.name + ">";
                     case _: of(t);
                 }
         };
@@ -162,7 +162,7 @@ class RustType {
                     // (ClassHandleShare)
                     && Lambda.exists(cls.interfaces, i -> {
                         final ic = i.t.get();
-                        ic.isInterface && RustDecl.isSharedInterface(ic);
+                        ic.isInterface && RustDecl.isSharedInterface(ic.module, ic.name);
                     })) {
                     imports.require("std::sync::Arc");
                     imports.require("std::sync::Mutex");
@@ -173,7 +173,7 @@ class RustType {
                     // Arc<Mutex<dyn Trait>>: the slot and the source binding
                     // share one object, matching Haxe reference semantics.
                     // (ClassHandleShare)
-                    if (RustDecl.isSharedInterface(cls)) {
+                    if (RustDecl.isSharedInterface(cls.module, cls.name)) {
                         imports.require("std::sync::Arc");
                         imports.require("std::sync::Mutex");
                         "Arc<Mutex<dyn " + cls.name + ">>";
@@ -406,7 +406,7 @@ class RustType {
                     // (ClassHandleShare)
                     && Lambda.exists(cls.interfaces, i -> {
                         final ic = i.t.get();
-                        ic.isInterface && RustDecl.isSharedInterface(ic);
+                        ic.isInterface && RustDecl.isSharedInterface(ic.module, ic.name);
                     })) false else if (isContentEqSortedTable(cls)) {
                     var all = true;
                     for (p in params)

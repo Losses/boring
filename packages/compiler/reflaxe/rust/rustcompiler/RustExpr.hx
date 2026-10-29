@@ -74,7 +74,7 @@ class RustExpr {
     // write reaches the storage behind the Rc handle. (ClassParamHandle)
     var renderingAssignTargetReceiver:Bool = false;
     // While rendering a guard-static array index whose index expression also
-    // reads the same static (a static array indexed by its own length), maps the
+    // reads the same static (fivePowers[fivePowers.length - 1]), maps the
     // static's Rust item path to the bound guard local, so the nested length
     // read reuses the held guard instead of locking the Mutex a second time.
     // (StaticGuardIndexScope)
@@ -735,12 +735,6 @@ class RustExpr {
                     // otherwise name it as an associated item
                     // (`Fill::FILL_INSTANCE`) that the emitted module-scope
                     // static does not provide.
-                    final plainClassStaticField = staticFieldOf(cls, fieldName);
-                    if (plainClassStaticField != null && RustDecl.isPlainClassHandle(plainClassStaticField.type)) {
-                        final value = "(*" + staticItemPath(cls, fieldName) + ").0.clone()";
-                        return isInterfaceSlotType(targetType) && !isInterfaceType(plainClassStaticField.type)
-                            ? "Box::new(" + value + ")" : value;
-                    }
                     if (isGuardStaticField(cls, fieldName)) {
                         final value = staticGuardClone(cls, fieldName);
                         // A concrete singleton entering an interface slot boxes
@@ -1980,8 +1974,6 @@ class RustExpr {
                 // A parameter-typed read clones at the boundary: the
                 // element stays owned by its array.
                 switch (stripWrap(ret).expr) {
-                    case TConst(TThis) if (RustDecl.isPlainClassHandle(ret.t)):
-                        retStr = "Rc::new(RefCell::new(" + retStr + ".clone()))";
                     case TConst(TThis) if (!isTypeCopy(ret.t)):
                         retStr = "(" + retStr + ").clone()";
                     case TField(_, _) if (!isTypeCopy(ret.t)):
@@ -5497,7 +5489,7 @@ class RustExpr {
                 if (staticGuard != null) {
                     // Bind the Mutex guard to a named local inside a block so
                     // an index expression that also reads the same static
-                    // (a static array indexed by its own length) reuses the held
+                    // (fivePowers[fivePowers.length - 1]) reuses the held
                     // guard instead of locking the Mutex a second time.
                     // (StaticGuardIndexScope)
                     final guardPath = staticGuardPathOf(arr);
@@ -6545,7 +6537,7 @@ class RustExpr {
             return text;
         return switch (stripWrap(branch).expr) {
             case TConst(TThis):
-                RustDecl.isPlainClassHandle(branch.t) ? "Rc::new(RefCell::new(" + text + ".clone()))" : (StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()");
+                StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()";
             case _: text;
         };
     }
@@ -6883,16 +6875,7 @@ class RustExpr {
     function isSortedTable(subj:TypedExpr):Bool {
         final t = methodSubjectType(subj);
         return switch (Context.follow(t)) {
-            case TInst(c, _):
-                final cls = c.get();
-                final n = cls.name;
-                if (cls.module == "runtime.SortedTable")
-                    n == "SortedTable" || n == "SortedMapTable" || n == "SortedSetTable";
-                else if (cls.module == "std.SortedSet")
-                    n == "SortedSet";
-                else if (cls.module == "std.SortedMap")
-                    n == "SortedMap";
-                else false;
+            case TInst(c, _): final n = c.get().name; n == "SortedMap" || n == "SortedSet" || n == "SortedTable" || n == "SortedMapTable" || n == "SortedSetTable";
             case _: false;
         };
     }
@@ -8795,9 +8778,6 @@ class RustExpr {
                     final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
                     return isConst ? item : item + "()";
                 }
-                if (RustDecl.isPlainClassHandle(cf.get().type)) {
-                    return "(*" + staticItemPath(cls, name) + ").0.clone()";
-                }
                 if (RustDecl.usesLazyLockStatic(cls, cf.get(), state)) {
                     // LazyLock owns its value. Static reads cross Haxe value
                     // boundaries, so clone the referent before passing it
@@ -9149,7 +9129,6 @@ class RustExpr {
             && !isDirectArrayStaticField(field)
             && !isLazyArrayStaticField(field)
             && !RustDecl.usesLazyLockStatic(cls, field, state)
-            && !RustDecl.isPlainClassHandle(field.type)
             && (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
     }
 
@@ -10042,8 +10021,8 @@ class RustExpr {
 
     function staticMethodName(cls:ClassType, name:String):String {
         final runtimeClassName = cls.name == "UStringRT" ? "UString" : cls.name;
-        final qualifiedRuntimeClass = cls.module == "runtime.TestCore" || cls.module == "runtime.SortedTable" || cls.module == "runtime.Graphemes"
-            || cls.module == "runtime.StringTools" || cls.module == "runtime.UString";
+        final qualifiedRuntimeClass = runtimeClassName == "TestCore" || runtimeClassName == "SortedTable" || runtimeClassName == "Graphemes"
+            || runtimeClassName == "StringTools" || runtimeClassName == "UString";
         return qualifiedRuntimeClass ? RustImports.toSnakeCase(runtimeClassName + "_" + name) : RustImports.toSnakeCase(name);
     }
 
@@ -10408,9 +10387,7 @@ class RustExpr {
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
             case IsHashMap(_, _): '"{}".to_string()';
-            case IsRecordLike:
-                final borrow = RustDecl.isPlainClassHandle(t) ? ".borrow()" : "";
-                value + borrow + ".to_string()";
+            case IsRecordLike: value + ".to_string()";
             case IsInstanceToString:
                 // Display text has no propagation path, so a text read that
                 // emits a Result unwraps at the read site. A plain-class
@@ -10962,13 +10939,13 @@ class RustExpr {
                     };
                     // A start position (the second argument) searches from
                     // that UTF-16 code-unit offset and returns a UTF-16
-                    // code-unit index, matching the host ABI. The runtime
+                    // code-unit index, matching the tiqian ABI. The runtime
                     // helper converts the start to a byte offset and the
                     // match back to units; a negative start is treated as 0
                     // and a start past the last unit yields -1. An omitted
                     // ?startIndex reaches this arm as a null argument, which
                     // searches from unit 0 through the same helper: Rust's
-                    // str::find returns a UTF-8 byte offset, while the host
+                    // str::find returns a UTF-8 byte offset, while the tiqian
                     // ABI counts UTF-16 code units, so the plain find() form
                     // reported a wrong index for any non-ASCII prefix.
                     // (IndexOfUnitOffset)
@@ -12216,7 +12193,7 @@ class RustExpr {
                                 switch (Context.follow(ft)) {
                                     case TInst(ic, _):
                                         final ifc = ic.get();
-                                        if (ifc.isInterface && !RustDecl.isSharedInterface(ifc))
+                                        if (ifc.isInterface && !RustDecl.isSharedInterface(ifc.module, ifc.name))
                                             return true;
                                     case _:
                                 }
@@ -13575,11 +13552,6 @@ class RustExpr {
             return "Box::new(" + text + ")";
         if (expected == null)
             return text;
-        if (RustDecl.isPlainClassHandle(expected) && switch (stripWrap(arg).expr) {
-            case TConst(TThis): true;
-            case _: false;
-        })
-            return "Rc::new(RefCell::new(" + text + ".clone()))";
         if (isStringType(expected) && isStringType(arg.t)) {
             if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone())"))
                 return text;
@@ -15530,7 +15502,7 @@ class RustExpr {
             return false;
         final inner = isNullType(t) ? getNullInnerType(t) : t;
         return switch (Context.follow(inner)) {
-            case TInst(c, _): c.get().isInterface && RustDecl.isSharedInterface(c.get());
+            case TInst(c, _): c.get().isInterface && RustDecl.isSharedInterface(c.get().module, c.get().name);
             case _: false;
         };
     }
@@ -15554,7 +15526,7 @@ class RustExpr {
         return switch (Context.follow(t)) {
             case TInst(c, _):
                 final cls = c.get();
-                !cls.isInterface && Lambda.exists(cls.interfaces, i -> { final ic = i.t.get(); ic.isInterface && RustDecl.isSharedInterface(ic); });
+                !cls.isInterface && Lambda.exists(cls.interfaces, i -> { final ic = i.t.get(); ic.isInterface && RustDecl.isSharedInterface(ic.module, ic.name); });
             case _: false;
         };
     }
@@ -15816,11 +15788,6 @@ class RustExpr {
             return intToFloatSignedText(rendered, actual);
         // Methods returning an owned class value cannot leak the borrowed
         // `self` receiver into the return slot.
-        if (RustDecl.isPlainClassHandle(expected) && switch (stripWrap(actual).expr) {
-            case TConst(TThis): true;
-            case _: false;
-        })
-            return "Rc::new(RefCell::new(" + rendered + ".clone()))";
         if (!isTypeCopy(expected) && switch (stripWrap(actual).expr) {
             case TConst(TThis): true;
             case _: false;

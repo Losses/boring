@@ -33,17 +33,27 @@ class RustDecl {
     public static var mutatingTraitMethods:Map<String, Bool> = new Map();
 
     /**
-        Whether the interface lowers its slot to a shared handle
+        Interfaces whose interface-slot handles must be shared
         (ClassHandleShare). Haxe object references are shared: when a
         caller hands a stateful implementor (a cache, a shaper) to an
         engine through an interface slot, the engine's writes must be
         visible to the caller's later reads. Cloning into the slot breaks
-        that. Interfaces annotated @:sharedHandle at their declaration
-        lower their interface slots to Arc<Mutex<dyn Trait>>, so the slot
-        and the source binding share one object. (ClassHandleShare)
+        that. Interfaces registered here lower their interface slots to
+        Arc<Mutex<dyn Trait>>, so the slot and the source binding share
+        one object. (ClassHandleShare)
     **/
-    public static function isSharedInterface(cls:ClassType):Bool {
-        return cls.isInterface && cls.meta.has(":sharedHandle");
+    public static var sharedInterfaces:Map<String, Bool> = [
+        "org.tiqian.shaping.TextShaper::ITextShaper" => true,
+        "org.tiqian.layout.WidthIndependentAnnotationCache::WidthIndependentAnnotationCache" => true,
+        // The samples regression module locks the shared-handle lowering:
+        // a stateful implementor crossing an interface slot stays one
+        // object. (ClassHandleShare)
+        "tests.SharedHandleTests::ISharedHandleCounter" => true
+    ];
+
+    /** Whether the interface (module, name) lowers to a shared handle slot. */
+    public static function isSharedInterface(module:String, name:String):Bool {
+        return sharedInterfaces.exists(module + "::" + name);
     }
 
     // Method names visited by the current bodyMutatesSelf recursion; breaks
@@ -175,7 +185,7 @@ class RustDecl {
             // holds an interface is only Send when the trait object is.
             // The generated implementors hold owned data and Arcs only, so
             // the bounds hold for every implementor.
-            lines.push("pub trait " + emittedName + " {");
+            lines.push("pub trait " + emittedName + ": Send + Sync {");
             lines.push("    fn __haxe_type_name(&self) -> &'static str;");
             lines.push("    fn as_any(&self) -> &dyn std::any::Any;");
             if (isCloneIface)
@@ -219,7 +229,7 @@ class RustDecl {
             // Arc<Mutex<dyn X>> is Debug through it, so structs that derive
             // Debug over the shared handle stay printable.
             // (ClassHandleShare)
-            final isSharedIface = isSharedInterface(cls);
+            final isSharedIface = isSharedInterface(cls.module, cls.name);
             if (isCloneIface || isSharedIface) {
                 lines.push("");
                 lines.push("impl std::fmt::Debug for dyn " + emittedName + " {");
@@ -575,12 +585,6 @@ class RustDecl {
                 }
             }
             lines.push("}");
-            if (RustDecl.isPlainClassHandleClass(cls)) {
-                imports.require("std::rc::Rc");
-                imports.require("std::cell::RefCell");
-                for (l in rcHandleTraitImpl(cls, ifaceCls, ordinaryFuncs))
-                    lines.push(l);
-            }
         }
 
         final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
@@ -1789,15 +1793,6 @@ class RustDecl {
                 '${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};'
             ];
         }
-        if (RustDecl.isPlainClassHandle(field.type)) {
-            imports.require("std::sync::LazyLock");
-            state.shimsUsed.set("runtime.SingleThread", true);
-            imports.require(RuntimeConfig.requireImportName("module runtime.SingleThread") + "::single_thread::SingleThread");
-            return [
-                vis + "static " + name + ": LazyLock<SingleThread<" + typeStr + ">> = LazyLock::new(|| SingleThread(" + expr.rawExpression(init) + "));"
-            ];
-        }
-
         if (usesLazyLockStatic(cls, field, state)) {
             imports.require("std::sync::LazyLock");
             return [
@@ -2864,72 +2859,6 @@ class RustDecl {
     }
 
     /**
-        The Rc<RefCell<T>> wrapper delegation for a plain-class trait
-        implementation: each interface method forwards to the bare struct
-        impl through a borrow, so the handle satisfies the trait object.
-        (ClassParamHandle)
-    **/
-    function rcHandleTraitImpl(cls:ClassType, ifaceCls:ClassType, ordinaryFuncs:Array<ClassFuncData>):Array<String> {
-        final lines:Array<String> = [];
-        lines.push("\nimpl " + ifaceCls.name + " for Rc<RefCell<" + cls.name + ">> {");
-        lines.push("    fn __haxe_type_name(&self) -> &'static str {");
-        lines.push("        \"" + cls.module + "." + cls.name + "\"");
-        lines.push("    }");
-        lines.push("    fn as_any(&self) -> &dyn std::any::Any {");
-        lines.push("        self");
-        lines.push("    }");
-        final ifaceCloneable = state.sealedCloneInterfaces.exists(ifaceCls.module + "::" + ifaceCls.name);
-        if (ifaceCloneable) {
-            lines.push("    fn clone_box(&self) -> Box<dyn " + ifaceCls.name + "> {");
-            lines.push("        Box::new(self.clone())");
-            lines.push("    }");
-        }
-        for (f in ordinaryFuncs) {
-            if (f.field.name == "new")
-                continue;
-            var inIface = false;
-            for (ifField in ifaceCls.fields.get())
-                if (ifField.name == f.field.name) {
-                    inIface = true;
-                    break;
-                }
-            if (!inIface)
-                for (ifField in ifaceCls.statics.get())
-                    if (ifField.name == f.field.name) {
-                        inIface = true;
-                        break;
-                    }
-            if (!inIface)
-                continue;
-            final snakeName = RustImports.toSnakeCase(f.field.name);
-            final interfaceShape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(ifaceCls.module, ifaceCls.name, f.field.name));
-            final isMutating = interfaceShape != null ? interfaceShape.isMutating : isMethodMutating(f);
-            final selfParam = isMutating ? "&mut self" : "&self";
-            final otherArgs = [for (a in f.args) RustImports.toSnakeCase(a.name) + ": " + paramType(a.type, f.field.name, a.name)].join(", ");
-            final allArgs = otherArgs.length > 0 ? selfParam + ", " + otherArgs : selfParam;
-            final isFallible = interfaceShape != null ? interfaceShape.isFallible : funcIsFallible(f);
-            final errOwner = isFallible && interfaceShape != null && interfaceShape.errorName != null
-                ? {name: interfaceShape.errorName, module: interfaceShape.errorModule, hasOverflow: false}
-                : (isFallible ? resolveErrorOwner(f, cls) : null);
-            if (isFallible && errOwner != null)
-                imports.requireType(errOwner.module, errOwner.name);
-            final rawRetType = methodReturnType(f.ret, f.field.name);
-            final retType = isFallible && errOwner != null ? "Result<" + rawRetType + ", " + errOwner.name + ">" : rawRetType;
-            final ret = retType == "()" ? "" : " -> " + retType;
-            final methodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
-            final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
-            final argNames = [for (a in f.args) RustImports.toSnakeCase(a.name)].join(", ");
-            final borrow = isMutating ? "self.borrow_mut()" : "self.borrow()";
-            lines.push("    fn " + snakeName + methodGenericStr + "(" + allArgs + ")" + ret + " {");
-            final delegatedCall = borrow + "." + snakeName + "(" + argNames + ")";
-            lines.push("        " + (isFallible && errOwner != null ? delegatedCall + ".map_err(" + errOwner.name + "::from)" : delegatedCall));
-            lines.push("    }");
-        }
-        lines.push("}");
-        return lines;
-    }
-
-    /**
         Type parameters a method signature introduces beyond its class's
         own: collected from the argument and return types in appearance
         order. The generic builder statics of the sorted-table resident
@@ -2988,7 +2917,7 @@ class RustDecl {
                 final cc = c.get();
                 !cc.isInterface && Lambda.exists(cc.interfaces, i -> {
                     final ic = i.t.get();
-                    ic.isInterface && isSharedInterface(ic);
+                    ic.isInterface && isSharedInterface(ic.module, ic.name);
                 });
             case _: false;
         };

@@ -95,7 +95,7 @@ class RustEmissionState {
         Maps payload enum identity to the enum's declared name. The name
         cannot be derived from the module path: an enum declared in the same
         file as its exception class (for example NoSuchElementError inside
-        NoSuchElementException.hx) has a module whose last segment is
+        TiqianNoSuchElementException.hx) has a module whose last segment is
         the class name; the enum name is a separate identifier.
     **/
     public final payloadEnumNames:Map<String, String> = [];
@@ -339,7 +339,7 @@ class RustEmissionState {
     public static function nodeFsExternFallibleMember(cls:ClassType, name:String):Bool {
         if (name != "mkdirSync" && name != "writeFileSync")
             return false;
-        return cls.meta.has(":jsRequire");
+        return cls.name == "NodeFileSystem" || cls.meta.has(":jsRequire");
     }
 
     /** Types reachable at test assertion call sites for type-guided helpers. */
