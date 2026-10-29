@@ -5,11 +5,10 @@ import std.Test;
 /**
     A stateful interface: the implementor carries a private mutable field,
     so every binding that names the implementor must observe the same
-    updates (ClassHandleShare). The @:sharedHandle metadata lowers its
-    interface slots to Arc<Mutex<dyn ..>> handles instead of owning Box
-    clones.
+    updates (ClassHandleShare). The Rust lowering registers this interface
+    in RustDecl.sharedInterfaces, which lowers its interface slots to
+    Arc<Mutex<dyn ..>> handles instead of owning Box clones.
 **/
-@:sharedHandle
 interface ISharedHandleCounter {
     function bump():Void;
     function count():Int;

@@ -12156,7 +12156,7 @@ class RustExpr {
                                 switch (Context.follow(ft)) {
                                     case TInst(ic, _):
                                         final ifc = ic.get();
-                                        if (ifc.isInterface && !RustDecl.isSharedInterface(ifc))
+                                        if (ifc.isInterface && !RustDecl.isSharedInterface(ifc.module, ifc.name))
                                             return true;
                                     case _:
                                 }
@@ -15459,7 +15459,7 @@ class RustExpr {
             return false;
         final inner = isNullType(t) ? getNullInnerType(t) : t;
         return switch (Context.follow(inner)) {
-            case TInst(c, _): c.get().isInterface && RustDecl.isSharedInterface(c.get());
+            case TInst(c, _): c.get().isInterface && RustDecl.isSharedInterface(c.get().module, c.get().name);
             case _: false;
         };
     }
@@ -15483,7 +15483,7 @@ class RustExpr {
         return switch (Context.follow(t)) {
             case TInst(c, _):
                 final cls = c.get();
-                !cls.isInterface && Lambda.exists(cls.interfaces, i -> { final ic = i.t.get(); ic.isInterface && RustDecl.isSharedInterface(ic); });
+                !cls.isInterface && Lambda.exists(cls.interfaces, i -> { final ic = i.t.get(); ic.isInterface && RustDecl.isSharedInterface(ic.module, ic.name); });
             case _: false;
         };
     }

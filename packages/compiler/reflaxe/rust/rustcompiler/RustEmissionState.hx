@@ -339,7 +339,7 @@ class RustEmissionState {
     public static function nodeFsExternFallibleMember(cls:ClassType, name:String):Bool {
         if (name != "mkdirSync" && name != "writeFileSync")
             return false;
-        return cls.name == "NodeFileSystem" || cls.meta.has(":jsRequire");
+        return cls.meta.has(":jsRequire");
     }
 
     /** Types reachable at test assertion call sites for type-guided helpers. */
