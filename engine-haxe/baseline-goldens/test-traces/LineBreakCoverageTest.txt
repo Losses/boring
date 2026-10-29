@@ -1,0 +1,121 @@
+class: LineBreakCoverageTest
+test: testBundledHyphenationResource
+is-true actual=true
+is-true actual=true
+test: testHyphenationComponents
+eq expected=[] actual=[]
+eq expected=[] actual=[]
+eq expected=[4] actual=[4]
+eq expected=[] actual=[]
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=0 actual=0
+is-true actual=true
+is-true actual=true
+eq expected=[2, 4] actual=[2, 4]
+test: testLineBreakModelsAndEnums
+eq expected=5 actual=5
+eq expected=Allowed actual=Allowed
+eq expected=10 actual=10
+eq expected='TestReason' actual='TestReason'
+eq expected=Problematic actual=Problematic
+eq expected=BreakOpportunity(index=5, kind=Allowed, penalty=10, reason=TestReason) actual=BreakOpportunity(index=5, kind=Allowed, penalty=10, reason=TestReason)
+is-true actual=true
+is-true actual=true
+not-null actual=Allowed
+not-null actual=Forbidden
+not-null actual=Required
+not-null actual=Problematic
+eq expected=TextRange(start=2, end=6) actual=TextRange(start=2, end=6)
+eq expected='ForbiddenReason' actual='ForbiddenReason'
+eq expected=ForbiddenBreak(range=TextRange(start=2, end=6), reason=ForbiddenReason) actual=ForbiddenBreak(range=TextRange(start=2, end=6), reason=ForbiddenReason)
+is-true actual=true
+is-true actual=true
+test: testMandatoryBreakAndZeroWidthSpaceCodePoints
+is-true actual=true msg='Code point 10 should be mandatory break'
+is-true actual=true msg='Code point 11 should be mandatory break'
+is-true actual=true msg='Code point 12 should be mandatory break'
+is-true actual=true msg='Code point 13 should be mandatory break'
+is-true actual=true msg='Code point 133 should be mandatory break'
+is-true actual=true msg='Code point 8232 should be mandatory break'
+is-true actual=true msg='Code point 8233 should be mandatory break'
+is-false actual=false msg='Code point 32 should not be mandatory break'
+is-false actual=false msg='Code point 65 should not be mandatory break'
+is-false actual=false msg='Code point 0 should not be mandatory break'
+is-false actual=false msg='Code point 8203 should not be mandatory break'
+is-false actual=false msg='Code point 8234 should not be mandatory break'
+is-true actual=true
+is-false actual=false
+is-false actual=false
+is-false actual=false
+is-false actual=false
+test: testSimpleCharacterLineBreakAnalyzer
+eq expected=[] actual=[]
+eq expected=1 actual=1
+eq expected=1 actual=1
+eq expected=Required actual=Required
+eq expected='SimpleCharacterLineBreakAnalyzer' actual='SimpleCharacterLineBreakAnalyzer'
+eq expected=3 actual=3
+eq expected=Allowed actual=Allowed
+eq expected=Allowed actual=Allowed
+eq expected=Required actual=Required
+eq expected=3 actual=3
+eq expected=Allowed actual=Allowed
+eq expected=Required actual=Required
+eq expected='MandatoryBreak' actual='MandatoryBreak'
+eq expected=Required actual=Required
+eq expected=4 actual=4
+eq expected=Allowed actual=Allowed
+eq expected=Allowed actual=Allowed
+eq expected='SimpleCharacterLineBreakAnalyzer' actual='SimpleCharacterLineBreakAnalyzer'
+eq expected=Required actual=Required
+eq expected='MandatoryBreak' actual='MandatoryBreak'
+eq expected=Required actual=Required
+eq expected=3 actual=3
+eq expected=Allowed actual=Allowed
+eq expected=Required actual=Required
+eq expected='MandatoryBreak' actual='MandatoryBreak'
+eq expected=Required actual=Required
+eq expected=2 actual=2
+eq expected=Allowed actual=Allowed
+eq expected=Required actual=Required
+eq expected='MandatoryBreak' actual='MandatoryBreak'
+test: testUnicodePunctuationLineBreak
+eq expected='17' actual='17'
+is-true actual=true
+is-true actual=true
+not-null actual=BreakAfter
+not-null actual=BreakBoth
+not-null actual=ClosePunctuation
+not-null actual=CloseParenthesis
+not-null actual=Exclamation
+not-null actual=HyphenHH
+not-null actual=Hyphen
+not-null actual=Inseparable
+not-null actual=InfixNumericSeparator
+not-null actual=Nonstarter
+not-null actual=OpenPunctuation
+not-null actual=Quotation
+not-null actual=SymbolsAllowingBreakAfter
+not-null actual=Other
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: -1'
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: 1114112'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 57343'
+eq expected=BreakAfter actual=BreakAfter
+eq expected=BreakBoth actual=BreakBoth
+eq expected=ClosePunctuation actual=ClosePunctuation
+eq expected=CloseParenthesis actual=CloseParenthesis
+eq expected=Exclamation actual=Exclamation
+eq expected=HyphenHH actual=HyphenHH
+eq expected=Hyphen actual=Hyphen
+eq expected=Inseparable actual=Inseparable
+eq expected=InfixNumericSeparator actual=InfixNumericSeparator
+eq expected=Nonstarter actual=Nonstarter
+eq expected=OpenPunctuation actual=OpenPunctuation
+eq expected=Quotation actual=Quotation
+eq expected=SymbolsAllowingBreakAfter actual=SymbolsAllowingBreakAfter
+eq expected=Other actual=Other

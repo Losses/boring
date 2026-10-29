@@ -1,0 +1,8 @@
+class: PreparedParagraphInlineEdgesTest
+test: contentWithoutInlineBoxesOmitsInlineEdgesArray
+is-false actual=false msg='no boxes, no edges: {"schema":1,"layoutRevision":"tiqian-layout-v2","width":320,"height":24,"lines":[{"rangeStart":0,"rangeEnd":4,"top":0,"bottom":24,"baseline":18.079999923706055,"indent":0,"visualWidth":64,"hyphenAdvance":0,"endReason":"P~740#b71cbb5f'
+test: endOnlyInlineBoxEmitsEdgeWithoutInlineStartField
+is-true actual=true msg='inlineEdges array missing: {"schema":1,"layoutRevision":"tiqian-layout-v2","width":320,"height":24,"lines":[{"rangeStart":0,"rangeEnd":4,"top":0,"bottom":24,"baseline":18.079999923706055,"indent":0,"visualWidth":70,"hyphenAdvance":0,"endRea~803#8b219bdf'
+is-true actual=true msg='edge offset (box end) missing: "inlineEdges":[{"offset":2,"inlineEnd":4}]}'
+is-true actual=true msg='inlineEnd field missing: "inlineEdges":[{"offset":2,"inlineEnd":4}]}'
+is-false actual=false msg='inlineStart must be absent for an end-only box: "inlineEdges":[{"offset":2,"inlineEnd":4}]}'

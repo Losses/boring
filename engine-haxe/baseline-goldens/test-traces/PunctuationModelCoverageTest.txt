@@ -1,0 +1,137 @@
+class: PunctuationModelCoverageTest
+test: adjacentPunctuationInnerGlueCollapsesByHalfEm
+eq expected=1 actual=1
+eq expected=16 actual=16
+eq expected=8 actual=8
+eq expected=8 actual=8
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected='。' actual='。'
+eq expected='「' actual='「'
+eq expected='collapse-adjacent-punctuation-inner-glue' actual='collapse-adjacent-punctuation-inner-glue'
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+test: adjacentPunctuationSkipsNonAdjacentZeroGlueAndZeroEm
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: adjacentPunctuationTargetsTheWiderSide
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+test: adjustmentOpportunityCarriesRangeAndGlue
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+eq expected=4 actual=4
+test: cjkClosingBeforeAsciiPointMarkCollapsesTrailingGlue
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected='」' actual='」'
+eq expected=',' actual=','
+eq expected='collapse-cjk-closing-before-ascii-point-mark' actual='collapse-cjk-closing-before-ascii-point-mark'
+test: cjkClosingCompressionRejectsNonMatchingNeighbours
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: compressionResultSumsAdjustmentReductions
+eq expected=12 actual=12
+eq expected=0 actual=0
+test: forcedHalfWidthConnectorsConsumeGlueUpFront
+eq expected=8 actual=8
+eq expected=8 actual=8
+is-true actual=true
+eq expected=0 actual=0
+eq expected=0 actual=0
+is-true actual=true
+eq expected=4 actual=4
+eq expected=4 actual=4
+is-true actual=true
+eq expected=8 actual=8
+is-false actual=false
+test: glueRejectsInvertedBounds
+raises exception=IllegalArgumentException thrown='Glue min must not exceed natural.'
+raises exception=IllegalArgumentException thrown='Glue natural must not exceed max.'
+test: glueSideForMainlandSimplifiedMapsClassesToSides
+eq expected=LeadingOnly actual=LeadingOnly
+eq expected=TrailingOnly actual=TrailingOnly
+eq expected=TrailingOnly actual=TrailingOnly
+eq expected=BothSides actual=BothSides
+eq expected=BothSides actual=BothSides
+test: haltAdvanceWithoutPlacementFallsBackToFittedInkOrProfile
+eq expected='FontHaltAdvanceWithInkBoundsFittedPlacement' actual='FontHaltAdvanceWithInkBoundsFittedPlacement'
+eq expected='FontHaltAdvanceWithProfileFallback' actual='FontHaltAdvanceWithProfileFallback'
+eq expected=0 actual=0
+eq expected=8 actual=8
+test: haltFittedCompressionUsesFontMeasurements
+eq expected='FontHaltFittedBodyCompression' actual='FontHaltFittedBodyCompression'
+eq expected=2 actual=2
+eq expected=6 actual=6
+eq expected=8 actual=8
+eq expected=Center actual=Center
+eq expected=8 actual=8
+null actual=-
+is-false actual=false
+not-null actual=8
+test: haltFromProportionalGlyphIsRejected
+null actual=-
+eq expected=8 actual=8
+eq expected='UnderwidthPunctuationFullWidthBoxPlacement' actual='UnderwidthPunctuationFullWidthBoxPlacement'
+test: haltTrimIsLimitedByInkBoundsAndRecordsWhy
+eq expected=2 actual=2
+eq expected=2 actual=2
+is-true actual=true
+eq expected='halt-trim-limited-by-default-ink-bounds' actual='halt-trim-limited-by-default-ink-bounds'
+test: indexedBuildRejectsOutOfRangeIndex
+null actual=-
+not-null actual=PunctuationAtom(range=TextRange(start=0, end=1), char=，, punctuationClass=PauseOrStop, advance=16, inkBounds=null, bodyWidth=8, haltAdvance=null, haltValidation=null, leadingGlue=Glue(kind=PunctuationLeading, min=0, natural=0, max=0, priori~686#7d44da5a
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected='，' actual='，'
+test: inkBoundsFittedFramePicksTheNarrowestContainingAnchor
+eq expected=Trailing actual=Trailing
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected='InkBoundsFittedBodyCompression' actual='InkBoundsFittedBodyCompression'
+is-false actual=false
+eq expected=Leading actual=Leading
+eq expected=0 actual=0
+eq expected=8 actual=8
+is-true actual=true
+eq expected=14 actual=14
+test: inkInputRecordsWhyBoundsAreMissing
+eq expected='shaper-no-ink-bounds' actual='shaper-no-ink-bounds'
+null actual=-
+eq expected='glyph-cluster-mapping-ambiguous' actual='glyph-cluster-mapping-ambiguous'
+eq expected=16 actual=16
+test: nonPunctuationCharactersProduceNoAtom
+null actual=-
+null actual=-
+test: policyFallbackSplitsGlueByClassSide
+eq expected=0 actual=0
+eq expected=8 actual=8
+eq expected=Leading actual=Leading
+eq expected=8 actual=8
+eq expected='ProfileGlueFallbackWithoutFontGeometry' actual='ProfileGlueFallbackWithoutFontGeometry'
+null actual=-
+null actual=-
+is-false actual=false
+null actual=-
+null actual=-
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=Trailing actual=Trailing
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected=Center actual=Center
+test: underwidthGlyphsExpandIntoFullWidthCellByClassSide
+eq expected=8 actual=8
+eq expected='UnderwidthPunctuationFullWidthBoxPlacement' actual='UnderwidthPunctuationFullWidthBoxPlacement'
+eq expected=8 actual=8
+eq expected=16 actual=16
+eq expected=4 actual=4
+eq expected=8 actual=8
+eq expected=0 actual=0
+null actual=-
+eq expected=8 actual=8
+eq expected=0 actual=0
+null actual=-
+eq expected=0 actual=0

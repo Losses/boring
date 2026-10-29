@@ -1,0 +1,11 @@
+class: InlineShapingStylePolicyTest
+test: longerValueListsStopAtThePropertyListBoundary
+null actual=-
+test: reportsFirstPropertyWhenItDiverges
+eq expected='font-feature-settings' actual='font-feature-settings'
+test: reportsMiddlePropertyWhenItIsFirstDivergence
+eq expected='font-kerning' actual='font-kerning'
+test: returnsNullForEmptyLists
+null actual=-
+test: returnsNullWhenAllValuesMatch
+null actual=-

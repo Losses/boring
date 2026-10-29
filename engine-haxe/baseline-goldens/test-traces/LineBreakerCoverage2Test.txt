@@ -1,0 +1,35 @@
+class: LineBreakerCoverage2Test
+test: testFindGreedyEndDefaultArgs
+eq expected=2 actual=2
+test: testLineBreakerStrategyNameDefault
+eq expected='custom' actual='custom'
+test: testLineCandidateEndsWithProgressiveBreak
+is-true actual=true
+is-false actual=false
+is-false actual=false
+is-false actual=false
+test: testLineGapCount
+eq expected=0 actual=0
+eq expected=1 actual=1
+eq expected=0 actual=0
+test: testLookaheadCandidateFilteringWithNonRenderingControlClusters
+is-true actual=true
+eq expected=[0, 1] actual=[0, 1]
+test: testLookaheadHardBreakAtEndAndMiddle
+eq expected=2 actual=2
+eq expected=[0, 1] actual=[0, 1]
+eq expected=MandatoryBreak actual=MandatoryBreak
+eq expected=[] actual=[]
+eq expected=ParagraphEnd actual=ParagraphEnd
+eq expected=3 actual=3
+eq expected=[0] actual=[0]
+eq expected=MandatoryBreak actual=MandatoryBreak
+eq expected=2 actual=2
+test: testLookaheadLineBreakerPreconditions
+raises exception=IllegalArgumentException thrown='naturalClusters and adjustedClusters must align cluster-for-cluster.'
+raises exception=IllegalArgumentException thrown='window must be non-negative.'
+raises exception=IllegalArgumentException thrown='futureLineHorizon must be non-negative.'
+test: testLookaheadOrphanAndSyntheticHyphenRuns
+eq expected=4 actual=4
+test: testRebuildLineEmptyRangeThrows
+raises exception=IllegalArgumentException thrown='Use emptyLineCandidate for an empty line.'

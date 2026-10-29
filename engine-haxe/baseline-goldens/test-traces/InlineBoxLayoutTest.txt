@@ -1,0 +1,13 @@
+class: InlineBoxLayoutTest
+test: everyNarrowInlineBoxGetsOuterAutospaceWithoutRoleSpecificCode
+eq expected=['InlineBoxOuterAutoSpace:leading-W-N', 'InlineBoxOuterAutoSpace:trailing-N-W'] actual=['InlineBoxOuterAutoSpace:leading-W-N', 'InlineBoxOuterAutoSpace:trailing-N-W']
+is-true actual=true
+eq expected='Narrow' actual='Narrow'
+is-true actual=true
+eq expected='Source' actual='Source'
+test: inlineEdgesReserveAdvanceAndMoveTheGlyphOrigin
+eq-tol expected=16 actual=16 tol=0.001000
+eq-tol expected=3 actual=3 tol=0.001000
+eq-tol expected=19 actual=19 tol=0.001000
+eq expected=1 actual=1
+eq expected='InlineBoxBoundaryAdvance' actual='InlineBoxBoundaryAdvance'

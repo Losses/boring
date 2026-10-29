@@ -1,0 +1,16 @@
+class: NumberSymbolCohesionTest
+test: bareNumberIsItsOwnGroup
+eq expected=['2024'] actual=['2024']
+eq expected=[] actual=[]
+test: bindsDigitsWithSuffixUnitPrefixSignAndCurrency
+eq expected=['50%'] actual=['50%']
+eq expected=['37℃'] actual=['37℃']
+eq expected=['90°'] actual=['90°']
+eq expected=['+5'] actual=['+5']
+eq expected=['±2'] actual=['±2']
+eq expected=['¥100'] actual=['¥100']
+eq expected=['100₫'] actual=['100₫']
+test: keepsInteriorDecimalAndThousandsSeparators
+eq expected=['3.14'] actual=['3.14']
+eq expected=['1,000'] actual=['1,000']
+eq expected=['100'] actual=['100']

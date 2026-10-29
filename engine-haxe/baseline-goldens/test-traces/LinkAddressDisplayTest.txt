@@ -1,0 +1,14 @@
+class: LinkAddressDisplayTest
+test: identicalDisplayAndTargetIsAnAddress
+is-true actual=true
+is-true actual=true
+test: proseDisplayTextIsNotAnAddress
+is-false actual=false
+is-false actual=false
+is-false actual=false
+is-false actual=false
+is-false actual=false
+test: schemeLessDisplayOfTheTargetIsAnAddress
+is-true actual=true
+is-true actual=true
+is-true actual=true

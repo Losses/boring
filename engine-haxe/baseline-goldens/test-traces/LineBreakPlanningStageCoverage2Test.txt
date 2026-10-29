@@ -1,0 +1,19 @@
+class: LineBreakPlanningStageCoverage2Test
+test: testAdjustableInlineBoundaryRightClustersNoStretchBoundaries
+is-true actual=true
+test: testAsciiPointMarkKinsokuLineStart
+is-true actual=true
+test: testClusterCrossesFontDecisionThrows
+raises exception=IllegalArgumentException thrown='Shaped cluster TextRange(start=0, end=5) crosses font decision TextRange(start=0, end=3)'
+is-true actual=true msg='Shaped cluster TextRange(start=0, end=5) crosses font decision TextRange(start=0, end=3)'
+test: testEmergencyTrackingBoundaryWhitespaceAndEmpty
+is-true actual=true
+test: testEmergencyTrackingEligibilityDecisionsBranches
+is-true actual=true
+test: testFontDecisionWithNoMatchingClustersUsesTextSubstring
+eq expected=1 actual=1
+eq expected='ef' actual='ef'
+test: testInlineObjectKinsokuLineStart
+is-true actual=true
+test: testProgressiveBreakOffsetsUnmappedClusterIndex
+is-true actual=true

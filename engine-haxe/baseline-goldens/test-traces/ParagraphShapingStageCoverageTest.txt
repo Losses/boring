@@ -1,0 +1,67 @@
+class: ParagraphShapingStageCoverageTest
+test: clusterPredicatesAndCurlyQuoteFeatures
+is-true actual=true
+is-false actual=false
+is-false actual=false
+is-true actual=true
+is-false actual=false
+is-true actual=true
+is-false actual=false
+is-false actual=false
+is-false actual=false
+is-false actual=false
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=“双引号”与‘单引号’, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, it~22174#696c25ba
+test: dashSubstitutionRollbackAndCoverageBranches
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=——, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=fals~5742#1bcbfbbb
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=——, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=fals~5113#84541a78
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=……, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=fals~5974#7c81c2bc
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=——, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=fals~5303#a0b6270e
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=——, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=fals~5303#a0b6270e
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=——, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=fals~5303#a0b6270e
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=——, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=fals~5303#a0b6270e
+test: directShapeParagraphEdgeCases
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=1), text=a, displayText=a, fontKey=k, advance=16, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(ra~620230#ee712943
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=315), text=abcdef abcdeg antidisestablishmentarianism singlecluster Machine2Machine /a/b/c 12(3):. 12a(3):45 12(3a):45 12(3):-45 12(3):~100758#63f29a1d
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=1), text= , displayText= , fontKey=k, advance=8, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(ran~1816#f5bac057
+test: hyphenAdvanceFallbackWhenShaperReturnsEmptyClusters
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=supercalifragilisticexpialidocious, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-H~25593#deb2a82
+test: latinSegmentationAndCutsBranches
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=Text with ,Hello Machine2Machine XMLHttp HTTPServer TeX/LaTeX /start end/ /a a/ a/b https://example.com/path www.test.org sub.domain.co .com a. a..b a.b --.com test.-com test.c t~375210#31a08588
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=antidisestablishmentarianism abc def xyz, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, local~54770#47b18c58
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=semi-conductor co-19 a-b 3-4 COVID-19 cross-module-link, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fon~40059#5071e440
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=aaaaaaaaaaaaaaaa 0123456789abcdef a1b2c3d400000f6g7h8 aaaaaa111111 aaaaaaaaaaaa1 a1, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=Te~65437#68af9896
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=aBc ABc abC myIdentifier XML fooBAR aBC XMLHTTP, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16~25773#53640f14
+test: latinSeparatorCutsAndSolidusBranches
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=http://example.com/path a/b /start end/ a//b foo_bar, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSi~20322#d756665
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=http://example.com/path a/b /start end/ a//b foo_bar, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSi~70908#4407ad7d
+test: latinSeparatorCutsExhaustiveBranches
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=12(3):45-67 12(3):45–67 12(3):45—67 12(3):45 12(3):. 12():45 12(3): :(3):45 12(3):- 12(3):45- 12(3):4a-65 12(3):45-6a 12(3):abc http://example.com/a/b/c https://test.org:8080/foo~136230#da830f6c
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=12(3):45-67 12(3):45–67 12(3):45—67 12(3):45 12(3):. 12():45 12(3): :(3):45 12(3):- 12(3):45- 12(3):4a-65 12(3):45-6a 12(3):abc http://example.com/a/b/c https://test.org:8080/foo~469137#1065d7fe
+test: latinSeparatorTokensCoverUrlLeadingSlashAndDashLocators
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=1), text=/, displayText=/, fontKey=k, advance=16, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(ra~14231#caf2d2ff
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=1), text=/, displayText=/, fontKey=k, advance=16, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(ra~30169#fa700000f21
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=2), text=12, displayText=12, fontKey=k, advance=32, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(~9940#92bda42b
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=1), text=1, displayText=1, fontKey=k, advance=16, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(ra~23792#ef4a11e7
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=2), text=12, displayText=12, fontKey=k, advance=32, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(~9940#e85b59de
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=1), text=1, displayText=1, fontKey=k, advance=16, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(ra~23792#2a16abce
+test: latinWordCutsLoHiAndEmptyBranches
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=abcdef ghijkl mnopqr empty, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fon~35481#25149bf4
+test: mapToClusterRangeWithZeroAndPositiveAdvance
+eq expected=2 actual=2
+eq expected=10 actual=10
+eq expected=10 actual=10
+eq expected=TextRange(start=0, end=4) actual=TextRange(start=0, end=4)
+eq expected=2 actual=2
+eq expected=8 actual=8
+eq expected=12 actual=12
+test: multiClusterShaperForWordCutsAndOpaqueHardCuts
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=antidisestablishmentarianism some_opaque_token_with_separators/and/more, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(font~68146#13bde6b
+test: progressiveTechnicalSpanBreaksAndTiers
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+test: progressiveTechnicalTierPriorityAndFalseBranches
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=1), text=a, displayText=a, fontKey=k, advance=16, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(ra~24736#861dea71
+test: progressiveTierLoopRevisitsOffsetsWithLowerPriorityTiers
+not-null actual=ParagraphShapingStageResult(shapingResults=[ShapingResult(clusters=[Cluster(range=TextRange(start=0, end=1), text=a, displayText=a, fontKey=k, advance=16, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)], glyphRuns=[GlyphRun(ra~24504#a39c14a6

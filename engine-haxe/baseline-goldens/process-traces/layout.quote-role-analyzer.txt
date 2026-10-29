@@ -1,0 +1,25 @@
+scenario: layout.quote-role-analyzer
+pair case='nested-cjk' open='6' close='9' type='Single'
+pair case='nested-cjk' open='3' close='11' type='Double'
+role case='nested-cjk' index='3' role='CjkPunctuation' source='PairedPunctuationOuterScriptContext' reason='quote-pair-inherits-enclosing-level-script'
+role case='nested-cjk' index='6' role='CjkPunctuation' source='PairedPunctuationOuterScriptContext' reason='quote-pair-inherits-enclosing-level-script'
+role case='nested-cjk' index='9' role='CjkPunctuation' source='PairedPunctuationOuterScriptContext' reason='quote-pair-inherits-enclosing-level-script'
+role case='nested-cjk' index='11' role='CjkPunctuation' source='PairedPunctuationOuterScriptContext' reason='quote-pair-inherits-enclosing-level-script'
+pair case='nested-latin-inner' open='3' close='9' type='Double'
+role case='nested-latin-inner' index='3' role='CjkPunctuation' source='PairedPunctuationOuterScriptContext' reason='quote-pair-inherits-enclosing-level-script'
+role case='nested-latin-inner' index='9' role='CjkPunctuation' source='PairedPunctuationOuterScriptContext' reason='quote-pair-inherits-enclosing-level-script'
+pair case='unmatched-right-single-latin' none=true
+role case='unmatched-right-single-latin' index='3' role='LatinText' source='NonCjkInWordApostrophe' reason='non-cjk-in-word-apostrophe'
+pair case='unmatched-right-double' none=true
+role case='unmatched-right-double' index='3' role='LatinText' source='UnmatchedQuoteSurroundingScriptContext' reason='unmatched-quote-surrounding-script'
+pair case='unmatched-left-double' none=true
+role case='unmatched-left-double' index='0' role='LatinText' source='UnmatchedQuoteSurroundingScriptContext' reason='unmatched-quote-surrounding-script'
+pair case='unmatched-left-single' none=true
+role case='unmatched-left-single' index='0' role='LatinText' source='UnmatchedQuoteSurroundingScriptContext' reason='unmatched-quote-surrounding-script'
+pair case='conflicting-scripts' none=true
+role case='conflicting-scripts' index='1' role='CjkPunctuation' source='ParagraphLanguageQuoteContext' reason='conflicting-unmatched-quote-context; paragraph-language=zh-Hans'
+pair case='surrogate-content' none=true
+role case='surrogate-content' index='2' role='CjkPunctuation' source='UnmatchedQuoteSurroundingScriptContext' reason='unmatched-quote-surrounding-script'
+pair case='supplementary-pairs' open='2' close='5' type='Double'
+role case='supplementary-pairs' index='2' role='CjkPunctuation' source='ParagraphLanguageQuoteContext' reason='no-strong-script-context; paragraph-language=zh-Hans'
+role case='supplementary-pairs' index='5' role='CjkPunctuation' source='ParagraphLanguageQuoteContext' reason='no-strong-script-context; paragraph-language=zh-Hans'

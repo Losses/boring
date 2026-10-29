@@ -1,0 +1,256 @@
+class: InlineObjectLayoutTest
+test: adjustBreakForUnbreakablesRetreatsPastTheWholeContiguousRun
+eq expected=1 actual=1
+eq expected=1 actual=1
+eq expected=1 actual=1
+eq expected=5 actual=5
+eq expected=3 actual=3
+eq expected=4 actual=4
+test: formulaBoundaryCompressionPushesAttachedCommaIntoPreviousLine
+is-true actual=true
+not-null actual=LineRepairDecisionInfo(kind=PushIn, reasonCode=ForbiddenAtLineStart, offenderRange=TextRange(start=2, end=3), penalty=2, targetClusterIndex=1, carriedClusterIndex=null, shrink=10, availableCapacity=12, pushInAllocations=[LineRepairAllocatio~415#51609b1e
+eq expected='PushIn' actual='PushIn'
+is-true actual=true msg='formula boundary space must contribute to compression: [LineRepairAllocationInfo(clusterRange=TextRange(start=2, end=3), shrink=8, availableCapacity=8), LineRepairAllocationInfo(clusterRange=TextRange(start=0, end=2), shrink=2, availableCap~249#efc59cd9'
+test: formulaBreakKeepsBaselineOperatorOnPreviousLine
+is-true actual=true msg='breaker=greedy lines=[a+, b]'
+is-true actual=true msg='the adjustment-only boundary before the operator must stay closed: breaker=greedy lines=[a+, b]'
+is-true actual=true msg='breaker=greedy lines=[a+, b]'
+eq-tol expected=8 actual=8 tol=0.001000 msg='the operator glyph stays while its post-operator line-end glue disappears'
+eq-tol expected=20 actual=20 tol=0.001000 msg='the discarded glue must not remain in the previous line's width'
+eq-tol expected=0 actual=0 tol=0.001000 msg='the following operand must start without inherited formula glue'
+is-true actual=true msg='breaker=greedy trims=[LineEdgeTrimDecisionInfo(lineRange=TextRange(start=0, end=2), clusterRange=TextRange(start=1, end=2), side=trailing, trimAmount=4, consumedBefore=0, naturalGlue=4, reason=InlineObjectLineEndDiscardableGlue)]'
+is-true actual=true
+eq expected=4 actual=4
+eq expected=1 actual=1
+eq-tol expected=12 actual=12 tol=0.001000
+is-true actual=true
+is-true actual=true msg='breaker=lookahead lines=[a+, b]'
+is-true actual=true msg='the adjustment-only boundary before the operator must stay closed: breaker=lookahead lines=[a+, b]'
+is-true actual=true msg='breaker=lookahead lines=[a+, b]'
+eq-tol expected=8 actual=8 tol=0.001000 msg='the operator glyph stays while its post-operator line-end glue disappears'
+eq-tol expected=20 actual=20 tol=0.001000 msg='the discarded glue must not remain in the previous line's width'
+eq-tol expected=0 actual=0 tol=0.001000 msg='the following operand must start without inherited formula glue'
+is-true actual=true msg='breaker=lookahead trims=[LineEdgeTrimDecisionInfo(lineRange=TextRange(start=0, end=2), clusterRange=TextRange(start=1, end=2), side=trailing, trimAmount=4, consumedBefore=0, naturalGlue=4, reason=InlineObjectLineEndDiscardableGlue)]'
+is-true actual=true
+eq expected=4 actual=4
+eq expected=1 actual=1
+eq-tol expected=12 actual=12 tol=0.001000
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp lines=[a+, b]'
+is-true actual=true msg='the adjustment-only boundary before the operator must stay closed: breaker=paragraph-dp lines=[a+, b]'
+is-true actual=true msg='breaker=paragraph-dp lines=[a+, b]'
+eq-tol expected=8 actual=8 tol=0.001000 msg='the operator glyph stays while its post-operator line-end glue disappears'
+eq-tol expected=20 actual=20 tol=0.001000 msg='the discarded glue must not remain in the previous line's width'
+eq-tol expected=0 actual=0 tol=0.001000 msg='the following operand must start without inherited formula glue'
+is-true actual=true msg='breaker=paragraph-dp trims=[LineEdgeTrimDecisionInfo(lineRange=TextRange(start=0, end=2), clusterRange=TextRange(start=1, end=2), side=trailing, trimAmount=4, consumedBefore=0, naturalGlue=4, reason=InlineObjectLineEndDiscardableGlue)]'
+is-true actual=true
+eq expected=4 actual=4
+eq expected=1 actual=1
+eq-tol expected=12 actual=12 tol=0.001000
+is-true actual=true
+test: inlineObjectExpandsBaselineGapOnlyForActualCollision
+eq-tol expected=31.600000 actual=31.599998 tol=0.001000
+eq-tol expected=1.600000 actual=1.599998 tol=0.001000 msg='the measured collision deficit must retain the configured safety clearance'
+not-null actual=InlineObjectLineHeightDecisionInfo(baseLineHeight=24, baseFaceAscent=14.08, baseFaceDescent=1.92, availableInterlineSpace=8, minimumClearance=1.6, lineAscents=[14, 20], lineDescents=[10, 2], lineExtras=[0, 7.6000004], boundaryShiftsAfter=[4~323#7c249508
+eq-tol expected=0 actual=0 tol=0.001000
+eq-tol expected=7.600000 actual=7.600000 tol=0.001000
+eq expected=[1] actual=[1]
+eq expected='InlineObjectInterlineCollision' actual='InlineObjectInterlineCollision'
+eq-tol expected=30 actual=30 tol=0.001000
+not-null actual=InlineObjectLineHeightDecisionInfo(baseLineHeight=24, baseFaceAscent=14.08, baseFaceDescent=1.92, availableInterlineSpace=8, minimumClearance=0, lineAscents=[14, 20], lineDescents=[10, 2], lineExtras=[0, 6], boundaryShiftsAfter=[4], trailin~313#c88ea804
+eq expected=0 actual=0
+test: inlineObjectIsOneIndivisibleBreakCluster
+eq expected=[1] actual=[1]
+test: inlineObjectKeepsAlternateSourceTextWhileSkippingItsGlyphShaping
+eq expected='图片' actual='图片'
+eq expected='' actual=''
+is-true actual=true
+eq expected='图片' actual='图片'
+eq expected='' actual=''
+test: inlineObjectSkipsFontShapingAndExpandsItsOwnLineMetrics
+eq-tol expected=20 actual=20 tol=0.001000
+is-true actual=true
+eq expected=0 actual=0
+eq expected='MeasurableOpaqueInlineObject:no-font-shaping' actual='MeasurableOpaqueInlineObject:no-font-shaping'
+is-true actual=true
+is-true actual=true
+eq expected=0 actual=0
+eq expected='MeasurableOpaqueInlineObject' actual='MeasurableOpaqueInlineObject'
+test: inlineObjectUsesExistingInterlineSpaceWithoutMovingBaselines
+eq expected=2 actual=2
+eq-tol expected=24.000002 actual=24.000002 tol=0.001000
+eq-tol expected=24 actual=24.000002 tol=0.001000
+eq-tol expected=48 actual=48 tol=0.001000
+eq-tol expected=22.080002 actual=22.080002 tol=0.001000 msg='the existing inter-line gap should be reassigned to the object's own line box'
+not-null actual=InlineObjectLineHeightDecisionInfo(baseLineHeight=24, baseFaceAscent=14.08, baseFaceDescent=1.92, availableInterlineSpace=8, minimumClearance=1.6, lineAscents=[0, 20], lineDescents=[0, 2], lineExtras=[0, 0], boundaryShiftsAfter=[-1.9199982]~330#41af8143
+eq-tol expected=1.600000 actual=1.600000 tol=0.001000
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+eq expected='ExistingInterlineSpaceFitsInlineObjects' actual='ExistingInterlineSpaceFitsInlineObjects'
+test: lineBoundaryClosesOneUlpGapWithoutChangingBaselineDistance
+eq expected=84.139999 actual=84.139999
+test: perAtomFormulaChainNeverBreaksMidRun
+is-true actual=true msg='line ended inside the unbreakable formula chain: [TextRange(start=0, end=1), TextRange(start=1, end=5)]'
+is-true actual=true msg='line ended inside the unbreakable formula chain: [TextRange(start=0, end=1), TextRange(start=1, end=5)]'
+test: punctuationAttachedToInlineObjectNeverStartsWrappedLine
+is-true actual=true msg='breaker=greedy width=24 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=greedy width=32 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=greedy width=36 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=greedy width=48 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=greedy width=64 comma=， lines=[x+， , 后]'
+is-true actual=true
+is-true actual=true msg='breaker=greedy width=24 comma=, lines=[x+,,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=greedy width=32 comma=, lines=[x+,,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=greedy width=36 comma=, lines=[x+,,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=greedy width=48 comma=, lines=[x+, , 后]'
+is-true actual=true
+is-true actual=true msg='breaker=greedy width=64 comma=, lines=[x+, 后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=24 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=32 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=36 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=48 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=64 comma=， lines=[x+， , 后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=24 comma=, lines=[x+,,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=32 comma=, lines=[x+,,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=36 comma=, lines=[x+,,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=48 comma=, lines=[x+, , 后]'
+is-true actual=true
+is-true actual=true msg='breaker=lookahead width=64 comma=, lines=[x+, 后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=24 comma=， lines=[x+，,  , 后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=32 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=36 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=48 comma=， lines=[x+，,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=64 comma=， lines=[x+， 后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=24 comma=, lines=[x+,,  , 后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=32 comma=, lines=[x+,,  , 后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=36 comma=, lines=[x+,,  后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=48 comma=, lines=[x+, , 后]'
+is-true actual=true
+is-true actual=true msg='breaker=paragraph-dp width=64 comma=, lines=[x+, 后]'
+is-true actual=true
+test: relationStretchMovesBothFormulaSidesByTheSameFinalGeometry
+is-true actual=true
+eq expected=3 actual=3
+eq expected=0 actual=0
+eq-tol expected=8.500000 actual=8.500000 tol=0.001000
+is-true actual=true
+eq expected=2 actual=2
+eq-tol expected=3.555555 actual=3.555555 tol=0.001000
+test: separatorSpaceBeforePunctuationCollapsesAndStaysWithInlineObject
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=greedy width=32 lines=[前, x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=greedy width=40 lines=[前, x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=greedy width=48 lines=[前, x ，后, 文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=greedy width=56 lines=[前x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=greedy width=64 lines=[前x ，后, 文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=lookahead width=32 lines=[前, x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=lookahead width=40 lines=[前, x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=lookahead width=48 lines=[前, x ，后, 文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=lookahead width=56 lines=[前x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=lookahead width=64 lines=[前x ，后, 文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=paragraph-dp width=32 lines=[前, x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=paragraph-dp width=40 lines=[前, x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=paragraph-dp width=48 lines=[前x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=paragraph-dp width=56 lines=[前x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='breaker=paragraph-dp width=64 lines=[前x ，, 后文]'
+is-true actual=true
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+is-true actual=true
+is-true actual=true msg='the formula edge before attached punctuation must stay closed'

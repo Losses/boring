@@ -1,0 +1,95 @@
+class: JustifierTest
+test: attachedReferenceUsesTheVirtualProseBoundaryForStretching
+eq expected=3 actual=3
+eq expected='AttachedInlineVirtualInterChar' actual='AttachedInlineVirtualInterChar'
+eq-tol expected=16 actual=16 tol=0.001000
+is-true actual=true
+test: explicitInlineObjectBoundariesShareUniformStretchOnFormulaOnlyLine
+eq-tol expected=0 actual=0 tol=0.001000
+eq expected=[0, 1] actual=[0, 1]
+is-true actual=true
+eq-tol expected=8 actual=8 tol=0.001000
+eq-tol expected=8 actual=8 tol=0.001000
+test: finalUniformSpacingIncludesWordAndSinoWesternGapsOnceEach
+eq expected=[2] actual=[2]
+eq-tol expected=4 actual=4 tol=0.001000
+eq expected=[0, 3] actual=[0, 3]
+eq-tol expected=4 actual=4 tol=0.001000
+eq-tol expected=4 actual=4 tol=0.001000
+eq expected=[0, 3, 4, 2] actual=[0, 3, 4, 2]
+eq-tol expected=6 actual=6 tol=0.001000
+eq-tol expected=6 actual=6 tol=0.001000
+eq-tol expected=6 actual=6 tol=0.001000
+eq-tol expected=6 actual=6 tol=0.001000
+eq expected=0 actual=0
+test: fixedSinoWesternGapDoesNotJoinFinalUniformSpacing
+eq expected=1 actual=1
+eq expected=CjkInterChar actual=CjkInterChar
+eq expected=2 actual=2
+eq-tol expected=16 actual=16 tol=0.001000
+eq expected=0 actual=0
+test: formulaBoundariesStretchPunctuationThenRelationsThenBinaryOperators
+eq expected=[InlineObjectPunctuationTrailing, InlineObjectRelation, InlineObjectRelation, InlineObjectBinaryOperator, InlineObjectBinaryOperator] actual=[InlineObjectPunctuationTrailing, InlineObjectRelation, InlineObjectRelation, InlineObjectBinaryOperator, InlineObjectBinaryOperator]
+eq expected=[7, 6, 6, 2.500000, 2.500000] actual=[7, 6, 6, 2.500000, 2.500000]
+eq-tol expected=8 actual=8 tol=0.001000
+eq-tol expected=8 actual=8 tol=0.001000
+eq-tol expected=8 actual=8 tol=0.001000
+eq-tol expected=6 actual=6 tol=0.001000 msg='both relation sides must stretch by exactly the same amount'
+eq expected=0 actual=0
+eq expected=29 actual=29
+eq expected=[1, 2, 3, 4, 5] actual=[1, 2, 3, 4, 5]
+eq-tol expected=1 actual=1 tol=0.001000
+eq-tol expected=1 actual=1 tol=0.001000
+eq-tol expected=1 actual=1 tol=0.001000
+eq-tol expected=1 actual=1 tol=0.001000
+eq-tol expected=1 actual=1 tol=0.001000
+eq-tol expected=9 actual=9 tol=0.001000
+eq-tol expected=9 actual=9 tol=0.001000
+eq-tol expected=9 actual=9 tol=0.001000
+eq-tol expected=9 actual=9 tol=0.001000
+eq-tol expected=9 actual=9 tol=0.001000
+eq expected=0 actual=0
+test: inseparableNumberSymbolBoundaryNeverStretches
+is-true actual=true
+is-true actual=true msg='50|% must stay closed: [JustificationAllocation(targetClusterIndex=0, kind=CjkLatinSpace, priority=1, delta=4, reason=CjkLatinSpace), JustificationAllocation(targetClusterIndex=2, kind=CjkLatinSpace, priority=1, delta=4, reason=CjkLatinSpac~591#285d929'
+eq expected=0 actual=0
+test: mixedCjkLineStillStretchesPunctuationWesternBoundary
+is-true actual=true msg='mixed CJK lines retain punctuation-western tier-3 tracking'
+eq expected=0 actual=0
+eq expected=- actual=-
+test: sinoWesternStretchRespectsThirdEmCapWhenStyleSetsIt
+eq-tol expected=1.333333 actual=1.333333 tol=0.001000
+test: typedSinoWesternSpaceIsCappedAtHalfEm
+eq expected=[1, 2] actual=[2, 1]
+eq-tol expected=4 actual=4 tol=0.001000
+eq-tol expected=4 actual=4 tol=0.001000
+eq expected=3 actual=3
+eq expected=[1, 2, 3] actual=[2, 3, 1]
+eq-tol expected=8 actual=8 tol=0.001000
+eq-tol expected=8 actual=8 tol=0.001000
+eq-tol expected=8 actual=8 tol=0.001000
+eq expected=0 actual=0
+test: typedSinoWesternSpaceStretchesInTierTwo
+eq expected=0 actual=0
+eq expected=1 actual=1
+eq expected=CjkLatinSpace actual=CjkLatinSpace
+eq-tol expected=3.200000 actual=3.200001 tol=0.001000
+test: typedSpaceBeforeSlashLedLatinRunIsNotSinoWesternGap
+is-true actual=true
+test: virtualSinoWesternStretchRequiresAlphaNumericBoundaryChar
+eq expected=[1] actual=[1]
+test: westernBracketsTouchingCjkShareTierThreeStretch
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected='WesternBracketCjkInterChar' actual='WesternBracketCjkInterChar'
+eq-tol expected=4 actual=4 tol=0.001000
+eq expected='WesternBracketCjkInterChar' actual='WesternBracketCjkInterChar'
+eq-tol expected=4 actual=4 tol=0.001000
+eq expected='WesternBracketCjkInterChar' actual='WesternBracketCjkInterChar'
+eq-tol expected=4 actual=4 tol=0.001000
+eq expected='WesternBracketCjkInterChar' actual='WesternBracketCjkInterChar'
+eq-tol expected=4 actual=4 tol=0.001000
+eq expected=0 actual=0
+test: westernDominantLineDoesNotStretchAroundCjkPunctuation
+is-true actual=true
+eq-tol expected=32 actual=32 tol=0.001000
+eq expected='WesternDominantLineNaturalSpacing' actual='WesternDominantLineNaturalSpacing'

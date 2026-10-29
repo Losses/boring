@@ -1,0 +1,23 @@
+class: LineBreakPlanningStageCoverageTest
+test: dashAndSolidusBoundariesInsideTechnicalSpansNeverStretch
+is-true actual=true msg='a—b—c: [LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=16.8, top=0, bottom=24, naturalWidth=16, adjustedWidth=16, visualWidth=16, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs~1974#b8449b9a'
+is-true actual=true msg='a—b—c: [JustificationDecisionInfo(lineRange=TextRange(start=0, end=1), deficitBefore=8, deficitAfter=8, allocations=[]), JustificationDecisionInfo(lineRange=TextRange(start=1, end=2), deficitBefore=8, deficitAfter=8, allocations=[]), Justif~459#94446d'
+is-true actual=true msg='a/b/c: [LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=16.8, top=0, bottom=24, naturalWidth=16, adjustedWidth=16, visualWidth=16, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs~1974#f3bb6c6'
+is-true actual=true msg='a/b/c: [JustificationDecisionInfo(lineRange=TextRange(start=0, end=1), deficitBefore=8, deficitAfter=8, allocations=[]), JustificationDecisionInfo(lineRange=TextRange(start=1, end=2), deficitBefore=8, deficitAfter=8, allocations=[]), Justif~459#5f656bd9'
+is-true actual=true msg='a…b: [LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=16.8, top=0, bottom=24, naturalWidth=16, adjustedWidth=16, visualWidth=16, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs=[~1166#68c1b030'
+is-true actual=true msg='a…b: [JustificationDecisionInfo(lineRange=TextRange(start=0, end=1), deficitBefore=8, deficitAfter=8, allocations=[]), JustificationDecisionInfo(lineRange=TextRange(start=1, end=2), deficitBefore=8, deficitAfter=8, allocations=[])]'
+test: emergencyBoundaryEligibilitySkipsInlineObjectBoundaries
+eq expected=1 actual=1 msg='[LineBox(range=TextRange(start=0, end=3), clusterRange=0..2, baseline=16.8, top=0, bottom=24.8, naturalWidth=48, adjustedWidth=48, visualWidth=48, hangingPunctuationAdvance=0, indent=0, endReason=ParagraphEnd, hyphenAdvance=0, hyphenGlyphs=~359#eded736b'
+is-true actual=true
+test: emergencyBoundaryEligibilitySkipsZeroWidthAndMandatoryControls
+eq expected=1 actual=1 msg='[LineBox(range=TextRange(start=0, end=5), clusterRange=0..2, baseline=16.8, top=0, bottom=24, naturalWidth=64, adjustedWidth=64, visualWidth=64, hangingPunctuationAdvance=0, indent=0, endReason=ParagraphEnd, hyphenAdvance=0, hyphenGlyphs=[]~357#c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e0f'
+eq expected=2 actual=2 msg='[LineBox(range=TextRange(start=0, end=3), clusterRange=0..1, baseline=16.8, top=0, bottom=24, naturalWidth=32, adjustedWidth=32, visualWidth=32, hangingPunctuationAdvance=0, indent=0, endReason=MandatoryBreak, hyphenAdvance=0, hyphenGlyphs=~719#b644a258'
+test: explicitZeroLineHeightKeepsTheControlParagraphAtZeroHeight
+eq expected=2 actual=2 msg='[LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=0, top=0, bottom=1.92, naturalWidth=0, adjustedWidth=0, visualWidth=0, hangingPunctuationAdvance=0, indent=0, endReason=MandatoryBreak, hyphenAdvance=0, hyphenGlyphs=[], ~706#6c00c2d0'
+eq expected=0 actual=0 msg='0'
+test: overlappingTechnicalSpansKeepTheFirstBoundaryReason
+eq expected=1 actual=1 msg='[LineBox(range=TextRange(start=0, end=6), clusterRange=0..2, baseline=16.8, top=0, bottom=24, naturalWidth=96, adjustedWidth=96, visualWidth=96, hangingPunctuationAdvance=0, indent=0, endReason=ParagraphEnd, hyphenAdvance=0, hyphenGlyphs=[]~357#e3946596'
+test: pushOutFirstTakesFewerFillPushInsThanPushInFirst
+is-true actual=true msg='[LineDecisionInfo(range=TextRange(start=0, end=18), kind=lookahead, repair=null, repairPenalty=0, repairDecision=null, repairCandidates=[], notes=[index:0, end:AutoWrap, natural:288, adjusted:288, visual:288]), LineDecisionInfo(range=TextRa~5903#65140d9d'
+is-true actual=true msg='PushOutFirst 5 vs PushInFirst 5'
+is-true actual=true msg='PushOutFirst 10 vs PushInFirst 10'

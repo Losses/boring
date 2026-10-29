@@ -1,0 +1,303 @@
+class: LayoutQueriesResidualCoverageTest
+test: adjacentSameStyleSegmentsShareClearance
+eq expected=2 actual=2
+eq expected=8 actual=8
+eq expected=12 actual=12
+eq expected=2 actual=2
+eq expected=10 actual=10
+eq expected=10 actual=10
+test: backgroundSegmentOutsideEverySpanUsesTheParagraphStyle
+eq expected=6.200000 actual=6.200000
+eq expected=6.200000 actual=6.200000
+test: backgroundSegmentsPassThroughUnmatchableSegments
+eq expected=[RichTextLineSegment(span=RichTextSpan(range=TextRange(start=10, end=12), role=Background, paint=RichTextPaint(argb=null, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continua~255#25edced5 actual=[RichTextLineSegment(span=RichTextSpan(range=TextRange(start=10, end=12), role=Background, paint=RichTextPaint(argb=null, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continua~255#25edced5
+eq expected=[RichTextLineSegment(span=RichTextSpan(range=TextRange(start=0, end=1), role=Background, paint=RichTextPaint(argb=null, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuati~255#9a47861d actual=[RichTextLineSegment(span=RichTextSpan(range=TextRange(start=0, end=1), role=Background, paint=RichTextPaint(argb=null, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuati~255#9a47861d
+is-true actual=true
+test: backgroundSegmentsTrimGlueApplyPaddingAndUseGlyphAdvances
+eq expected=3 actual=3
+eq expected=20 actual=20
+eq expected=6.200000 actual=6.200000
+eq expected=16.200001 actual=16.200001
+eq expected=3 actual=3
+eq expected=20 actual=20
+eq expected=10 actual=10
+eq expected=20 actual=20
+test: backgroundTrailingEdgeKeepsTheFirstGlyphWhenItIsLargest
+eq expected=16 actual=16
+test: backgroundTrailingEdgePicksTheLargestGlyphAdvance
+eq expected=16 actual=16
+test: backgroundTrailingEdgeUsesGlyphAdvancesWhenAvailable
+eq expected=15 actual=15
+eq expected=20 actual=20
+test: boundingBoxFallsBackToTheCursorRectAtClusterGaps
+eq expected=Rect(left=10, top=0, right=11, bottom=20) actual=Rect(left=10, top=0, right=11, bottom=20)
+eq expected=Rect(left=20, top=0, right=21, bottom=20) actual=Rect(left=20, top=0, right=21, bottom=20)
+eq expected=[] actual=[]
+test: boundingBoxesSliceZeroWidthAndEmptyClusters
+eq expected=2 actual=2
+eq expected=10 actual=10
+eq expected=10 actual=10
+eq expected=1 actual=1
+eq expected=10 actual=10
+test: clearanceNeedsSameRoleAndUsesTheSmallerSide
+eq expected=10 actual=10
+eq expected=10 actual=10
+eq expected=9 actual=9
+eq expected=11 actual=11
+test: clearanceTakesTheSmallerSideWhicheverSegmentOwnsIt
+eq expected=9 actual=9
+eq expected=11 actual=11
+eq expected=3 actual=3
+eq expected=8 actual=8
+eq expected=12 actual=12
+test: coerceSelectionOffsetHonoursInlineObjectBoundaries
+eq expected=1 actual=1
+eq expected=3 actual=3
+eq expected=3 actual=3
+eq expected=1 actual=1
+eq expected=3 actual=3
+test: compatibilityIdeographsFormIndividualWordUnits
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+test: copyProjectionAppendsFullySelectedAnnotationsOnly
+eq expected='' actual=''
+eq expected='ab（zhù）c' actual='ab（zhù）c'
+eq expected='ab（zhù）cd（ㄋㄧˇ）' actual='ab（zhù）cd（ㄋㄧˇ）'
+eq expected='d' actual='d'
+test: cornerRadiiPredicatesCoverEveryComparison
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: cursorRectCoversEmptyLinesEmptyClustersAndMultiUnitClusters
+eq expected=Rect(left=6, top=0, right=7, bottom=20) actual=Rect(left=6, top=0, right=7, bottom=20)
+eq expected=10 actual=10
+eq expected=12 actual=12
+test: cursorRectFindsLaterClustersAndRejectsGappedRanges
+eq expected=20 actual=20
+raises exception=NoSuchElementException thrown='Collection contains no element matching the predicate.'
+test: decorationLineYKeepsTheEarlierSpanWhenALaterOneMisses
+eq expected=18.600000 actual=18.600000
+test: decorationLineYPicksTheLastMatchingSpan
+eq expected=18.600000 actual=18.600000
+test: decorationLineYRequiresValidStrokeAndDecorationRoles
+raises exception=IllegalArgumentException thrown='strokeWidth must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='strokeWidth must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='richTextDecorationLineY only supports underline and line-through segments'
+is-true actual=true msg='richTextDecorationLineY only supports underline and line-through segments'
+is-true actual=true msg='16.8'
+eq-tol expected=11.200000 actual=11.200001 tol=0.001000
+test: decorationLineYWithoutSpansUsesTheParagraphStyle
+eq expected=16.799999 actual=16.799999
+test: decorationStyleResolvesInsideSpansAndAtTheirEdges
+eq expected=16.799999 actual=16.799999
+eq expected=18.600000 actual=18.600000
+test: emptyLineResultsShortCircuitEveryQuery
+eq expected=-1 actual=-1
+eq expected=Rect(left=0, top=0, right=0, bottom=0) actual=Rect(left=0, top=0, right=0, bottom=0)
+eq expected=Rect(left=0, top=0, right=0, bottom=0) actual=Rect(left=0, top=0, right=0, bottom=0)
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=[] actual=[]
+null actual=-
+eq expected=[] actual=[]
+eq expected=[] actual=[]
+eq expected=[] actual=[]
+test: emptyMidClusterHoldsTheCaretAndSlicesKeepDegenerateRects
+eq expected=10 actual=10
+eq expected=2 actual=2
+eq expected=0 actual=0
+eq expected=10 actual=10
+eq expected=10 actual=10
+eq expected=20 actual=20
+eq expected=3 actual=3
+eq expected=10 actual=10
+eq expected=10 actual=10
+test: glueTrimSkipsInteriorSegmentEdges
+eq expected=10 actual=10
+eq expected=10 actual=10
+test: glyphInkBoundsRejectsEachNonFiniteEdgeIndependently
+null actual=-
+null actual=-
+null actual=-
+null actual=-
+test: glyphInkBoundsSkipsUnmatchedGlyphsAndReturnsNullWithoutInk
+eq expected=Rect(left=0, top=17, right=8, bottom=27) actual=Rect(left=0, top=17, right=8, bottom=27)
+null actual=-
+test: glyphInkBoundsSkipsUnusableGlyphsAndReportsNull
+null actual=-
+null actual=-
+eq expected=3 actual=3
+eq expected=20 actual=20
+eq expected=16 actual=16
+eq expected=20 actual=20
+test: lineForOffsetInsideARangeTakesTheZeroDistanceArm
+eq expected=0 actual=0
+test: markedFacesUseMetricDecisionsWhenTheyCoverTheCluster
+eq expected=8 actual=8
+eq expected=18 actual=18
+test: metricDecisionsMustFullyContainTheCluster
+eq expected=6.200000 actual=6.200000
+eq expected=16.200001 actual=16.200001
+eq expected=6.200000 actual=6.200000
+test: nearestLineFallsBackToTheOnlyLineAtItsEndOffset
+eq expected=0 actual=0
+test: nearestLineSearchCoversAllThreeDistanceArms
+eq expected=10 actual=10
+eq expected=10 actual=10
+test: nearestLineSearchCoversBothLambdaCopiesOfEachArm
+eq expected=0 actual=0
+eq expected=20 actual=20
+eq expected=20 actual=20
+test: nearestLineSearchUpdatesToAStrictlyCloserLaterLine
+eq expected=10 actual=10
+test: noArgPositionedClustersWalksEveryLine
+eq expected=4 actual=4
+eq expected=0 actual=0
+eq expected=1 actual=1
+eq expected=20 actual=20
+test: offsetForPositionCoversVerticalDistancesAndNaNPoints
+eq expected=0 actual=0
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=0 actual=0
+eq expected=2 actual=2
+eq expected=0 actual=0
+eq expected=0 actual=0
+test: planeFourCodepointAboveTheHanBandsIsItsOwnUnit
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+test: positionedClustersAndSegmentsReturnEmptyWithoutLines
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: positionedClustersByLineRejectsForeignLines
+eq expected=1 actual=1
+raises exception=IllegalArgumentException thrown='line must belong to this LayoutResult.'
+is-true actual=true msg='line must belong to this LayoutResult.'
+test: resolvedCornerRadiiRejectsInvalidInsetsAndResolvesContinuations
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=2 actual=2
+test: richTextSegmentsSkipZeroLengthClustersBetweenSlices
+eq expected=1 actual=1
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+eq expected=0 actual=0
+eq expected=20 actual=20
+test: richTextSegmentsSplitOnLineBreaksAndClusterGaps
+eq expected=3 actual=3
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+eq expected=TextRange(start=3, end=4) actual=TextRange(start=3, end=4)
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=1 actual=1
+is-true actual=true
+test: rubiesOnOtherLinesDoNotAffectThisLineGeometry
+eq expected=0 actual=0
+eq expected=10 actual=10
+eq expected=10 actual=10
+eq expected=20 actual=20
+test: rubyGeometryRedistributesSelectionBoxesAndDropsSourceStops
+eq expected=2 actual=2
+null actual=-
+null actual=-
+eq expected=0 actual=0
+eq expected=17.500000 actual=17.500000
+eq expected=17.500000 actual=17.500000
+eq expected=30 actual=30
+test: rubySpreadShiftsSelectionBoxesAndZeroWidthRubiesAreIgnored
+eq expected=0 actual=0
+eq expected=15.750000 actual=15.750000
+eq expected=15.750000 actual=15.750000
+eq expected=30 actual=30
+eq expected=0 actual=0
+eq expected=16 actual=16
+eq expected=16 actual=16
+eq expected=30 actual=30
+test: sameSpanSlicesAcrossASourceBoundaryMergeIntoOneSegment
+eq expected=1 actual=1
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+eq expected=0 actual=0
+eq expected=20 actual=20
+test: selectionSnapPrefersTheCloserInlineObjectBoundary
+eq expected=1 actual=1
+eq expected=3 actual=3
+test: selectionWordBoundaryExpandsWordsAndHonoursInlineObjects
+eq expected=TextRange(start=0, end=5) actual=TextRange(start=0, end=5)
+eq expected=TextRange(start=0, end=5) actual=TextRange(start=0, end=5)
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+eq expected=TextRange(start=1, end=3) actual=TextRange(start=1, end=3)
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+eq expected=TextRange(start=0, end=3) actual=TextRange(start=0, end=3)
+eq expected=TextRange(start=0, end=0) actual=TextRange(start=0, end=0)
+test: selectionWordBoundaryForPositionCoversDistancesAndFallbacks
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+test: selectionWordBoundaryForPositionPrefersTheCloserLaterLine
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+test: selectionWordBoundaryForPositionRejectsDegenerateContent
+null actual=-
+null actual=-
+null actual=-
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+test: selectionWordBoundarySkipsInlineObjectsItDoesNotContain
+eq expected=TextRange(start=0, end=7) actual=TextRange(start=0, end=7)
+eq expected=TextRange(start=1, end=3) actual=TextRange(start=1, end=3)
+test: selectionWordKindCoversEveryHanBlock
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1) msg='text=㐀'
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1) msg='text=一'
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1) msg='text=豈'
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2) msg='text=𠀀'
+test: supplementaryIdeographBeyondTheHanRangesIsItsOwnUnit
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+test: trailingGlueIsSkippedWhenNoClusterEndsBeforeTheSegmentEnd
+eq expected=10 actual=10
+test: trimmedDecorationSegmentsKeepOnlyDecorationRoles
+eq expected=[RichTextLineSegment(span=RichTextSpan(range=TextRange(start=0, end=2), role=Underline, paint=RichTextPaint(argb=null, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuatio~255#23d4a4f3 actual=[RichTextLineSegment(span=RichTextSpan(range=TextRange(start=0, end=2), role=Underline, paint=RichTextPaint(argb=null, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuatio~255#23d4a4f3
+is-true actual=true
+test: uniformTextStyleFallsBackWhenEveryMetricFieldDiffers
+eq expected=6.200000 actual=6.200000 msg='variant=TextStyle(fontFamilies=[other], fontSize=10, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=0, inlineAttachment=None)'
+eq expected=16.200001 actual=16.200001 msg='variant=TextStyle(fontFamilies=[other], fontSize=10, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=0, inlineAttachment=None)'
+eq expected=5.320000 actual=5.320000 msg='variant=TextStyle(fontFamilies=[], fontSize=11, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=0, inlineAttachment=None)'
+eq expected=16.320000 actual=16.320000 msg='variant=TextStyle(fontFamilies=[], fontSize=11, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=0, inlineAttachment=None)'
+eq expected=6.200000 actual=6.200000 msg='variant=TextStyle(fontFamilies=[], fontSize=10, locale=ja-JP, fontWeight=400, italic=false, baselineShift=0, inlineAttachment=None)'
+eq expected=16.200001 actual=16.200001 msg='variant=TextStyle(fontFamilies=[], fontSize=10, locale=ja-JP, fontWeight=400, italic=false, baselineShift=0, inlineAttachment=None)'
+eq expected=6.200000 actual=6.200000 msg='variant=TextStyle(fontFamilies=[], fontSize=10, locale=zh-Hans, fontWeight=700, italic=false, baselineShift=0, inlineAttachment=None)'
+eq expected=16.200001 actual=16.200001 msg='variant=TextStyle(fontFamilies=[], fontSize=10, locale=zh-Hans, fontWeight=700, italic=false, baselineShift=0, inlineAttachment=None)'
+eq expected=6.200000 actual=6.200000 msg='variant=TextStyle(fontFamilies=[], fontSize=10, locale=zh-Hans, fontWeight=400, italic=true, baselineShift=0, inlineAttachment=None)'
+eq expected=16.200001 actual=16.200001 msg='variant=TextStyle(fontFamilies=[], fontSize=10, locale=zh-Hans, fontWeight=400, italic=true, baselineShift=0, inlineAttachment=None)'
+eq expected=6.200000 actual=6.200000 msg='variant=TextStyle(fontFamilies=[], fontSize=10, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=2, inlineAttachment=None)'
+eq expected=16.200001 actual=16.200001 msg='variant=TextStyle(fontFamilies=[], fontSize=10, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=2, inlineAttachment=None)'
+test: uniformTextStylePolicyKeepsTheEarlierSpanWhenALaterOneMisses
+eq expected=0 actual=0
+test: uniformTextStylePolicyPicksTheLastMatchingSpan
+eq expected=0 actual=0
+test: uniformTextStylePolicyResolvesSpanStyleOrParagraphStyle
+eq expected=6.200000 actual=6.200000
+eq expected=0 actual=0
+test: uniformTextStylePrefersIdeographicMetricsThenAnyMatchingFace
+eq expected=6 actual=6
+eq expected=16 actual=16
+eq expected=7 actual=7
+eq expected=17 actual=17
+test: wordBoundaryForPositionHandlesANonFiniteY
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+test: zeroWidthClustersReturnTheirStartInHitTests
+eq expected=0 actual=0
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)

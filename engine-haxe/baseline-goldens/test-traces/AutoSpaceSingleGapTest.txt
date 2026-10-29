@@ -1,0 +1,52 @@
+class: AutoSpaceSingleGapTest
+test: attachedReferenceAtParagraphEndHasNoAutospaceGap
+is-true actual=true msg='[]'
+test: attachedReferenceBeforeLatinTextGetsTheVirtualCjkLatinGap
+eq expected='trailing' actual='trailing'
+eq expected='InlineAttachment.Previous' actual='InlineAttachment.Previous'
+eq expected='AttachedInlineVirtualAutoSpace:east-asian-spacing-W-N' actual='AttachedInlineVirtualAutoSpace:east-asian-spacing-W-N'
+test: attachedReferenceBetweenCjkTextDoesNotInventAnAutospaceGap
+is-true actual=true msg='[]'
+test: autospaceDistinguishesLetterFromDigitAtBoundary
+is-true actual=true msg='only the letter fires: [AutoSpaceDecisionInfo(clusterRange=TextRange(start=1, end=2), side=leading, boundaryRole=EastAsianSpacing.Wide, mode=Insert, charactersAffected=0, reductionPerChar=0, totalReduction=-2, reason=TextAutoSpaceInsert:eas~500#6078d74d'
+is-true actual=true msg='digit boundary must not fire when cjkDigit disabled'
+test: autospaceDoesNotFireBeforeSlashLedLatinTechnicalRun
+is-true actual=true msg='slash-led Latin technical run must not receive leading autospace: []'
+test: autospaceDoesNotFireBetweenLatinAndCjkPunctuation
+eq expected=0 actual=0
+test: autospaceStillFiresBetweenLatinAndCjkTextEvenWithPunctuationNearby
+eq expected=2 actual=2
+is-true actual=true
+is-true actual=true
+test: conditionalPunctuationFollowsChineseLanguageResolution
+eq expected=2 actual=2
+is-true actual=true
+test: oneTypedSpaceBecomesOneAutospaceGap
+eq expected=2 actual=2
+is-true actual=true
+eq expected=48 actual=48
+test: threeTypedSpacesStillOneGap
+eq expected=2 actual=2
+eq expected=50 actual=50
+test: twoTypedSpacesAtBoundaryStillCollapseToOneGap
+eq expected=2 actual=2
+eq expected=2 actual=2
+test: unicodeEastAsianSpacingCoversNarrowScriptsWithoutScriptWhitelists
+eq expected=20 actual=20 msg='sample=α'
+eq expected=2 actual=2 msg='sample=α'
+is-true actual=true msg='sample=α'
+is-true actual=true msg='sample=α'
+eq expected=20 actual=20 msg='sample=я'
+eq expected=2 actual=2 msg='sample=я'
+is-true actual=true msg='sample=я'
+is-true actual=true msg='sample=я'
+eq expected=20 actual=20 msg='sample=ա'
+eq expected=2 actual=2 msg='sample=ա'
+is-true actual=true msg='sample=ա'
+is-true actual=true msg='sample=ա'
+test: zeroSpacesGetInsertedGaps
+eq expected=52 actual=52
+eq expected=2 actual=2
+is-true actual=true
+is-true actual=true
+is-true actual=true

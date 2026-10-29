@@ -1,0 +1,22 @@
+scenario: engine.stub-pipeline
+layout case='single-line' w='32.00' h='24.00' clusters='2' lines='1'
+line case='single-line' i='0' start='0' end='2' end-reason='ParagraphEnd' indent='0.00' natural='32.00' visual='32.00' hanging='0.00' hyphen='0.00'
+line-decision case='single-line' i='0' kind='greedy' repair=-
+layout case='mixed-wrap' w='120.00' h='72.00' clusters='9' lines='3'
+line case='mixed-wrap' i='0' start='0' end='7' end-reason='AutoWrap' indent='0.00' natural='112.00' visual='112.00' hanging='0.00' hyphen='16.00'
+line case='mixed-wrap' i='1' start='7' end='14' end-reason='AutoWrap' indent='0.00' natural='112.00' visual='112.00' hanging='0.00' hyphen='0.00'
+line case='mixed-wrap' i='2' start='14' end='16' end-reason='ParagraphEnd' indent='0.00' natural='32.00' visual='24.00' hanging='0.00' hyphen='0.00'
+line-decision case='mixed-wrap' i='0' kind='greedy' repair=-
+line-decision case='mixed-wrap' i='1' kind='greedy' repair=-
+line-decision case='mixed-wrap' i='2' kind='greedy' repair=-
+layout case='bracket-ends' w='96.00' h='96.00' clusters='8' lines='4'
+line case='bracket-ends' i='0' start='0' end='4' end-reason='AutoWrap' indent='0.00' natural='64.00' visual='96.00' hanging='0.00' hyphen='0.00'
+line case='bracket-ends' i='1' start='4' end='5' end-reason='AutoWrap' indent='0.00' natural='16.00' visual='8.00' hanging='0.00' hyphen='0.00'
+line case='bracket-ends' i='2' start='5' end='11' end-reason='AutoWrap' indent='0.00' natural='96.00' visual='96.00' hanging='0.00' hyphen='0.00'
+line case='bracket-ends' i='3' start='11' end='13' end-reason='ParagraphEnd' indent='0.00' natural='32.00' visual='16.00' hanging='0.00' hyphen='0.00'
+line-decision case='bracket-ends' i='0' kind='greedy' repair='CarryNext'
+line-decision case='bracket-ends' i='1' kind='greedy' repair=-
+line-decision case='bracket-ends' i='2' kind='greedy' repair=-
+line-decision case='bracket-ends' i='3' kind='greedy' repair='LeaveRagged'
+justification case='bracket-ends' i='0' start='0' end='4' deficit-before='32.00' deficit-after='0.00' allocations='1'
+justification case='bracket-ends' i='1' start='4' end='5' deficit-before='88.00' deficit-after='88.00' allocations='0'

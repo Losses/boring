@@ -1,0 +1,8 @@
+class: FontInstanceMetricsRequestTest
+test: faceSelectionUsesTheDisplayTextThatWasActuallyShaped
+is-true actual=true
+test: perSpanWeightAndItalicReachTheMetricsResolver
+is-true actual=true
+is-true actual=true
+test: rubyMetricsUseTheSameItalicInstanceAsRubyShaping
+is-true actual=true

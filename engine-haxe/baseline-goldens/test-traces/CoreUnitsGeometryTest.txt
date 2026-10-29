@@ -1,0 +1,32 @@
+class: CoreUnitsGeometryTest
+test: floatIcExtensionCreatesIc
+eq expected=Ic(count=2) actual=Ic(count=2)
+test: icPlusReturnsSum
+eq expected=Ic(count=5) actual=Ic(count=5)
+test: icToPxMultipliesByEmSize
+eq expected=24 actual=24
+test: icUnaryMinusReturnsNegated
+eq expected=Ic(count=-3) actual=Ic(count=-3)
+test: intIcExtensionCreatesIc
+eq expected=Ic(count=5) actual=Ic(count=5)
+test: layoutConstraintsRejectsNonPositiveMaxHeight
+raises exception=IllegalArgumentException thrown='maxHeight must be positive.'
+test: layoutConstraintsRejectsNonPositiveMaxLines
+raises exception=IllegalArgumentException thrown='maxLines must be positive.'
+test: layoutConstraintsRejectsNonPositiveMaxWidth
+raises exception=IllegalArgumentException thrown='maxWidth must be positive.'
+test: layoutDebugInfoAcceptsMaxLinesDecision
+eq expected=5 actual=5
+eq expected=3 actual=3
+test: maxLinesDecisionInfoRecordsTruncationDetails
+eq expected=5 actual=5
+eq expected=3 actual=3
+eq expected='MaxLinesLineTruncation' actual='MaxLinesLineTruncation'
+test: rectHeightReturnsDifference
+eq expected=20 actual=20
+test: rectWidthReturnsDifference
+eq expected=10 actual=10
+test: textRangeRejectsNegativeStart
+raises exception=IllegalArgumentException thrown='TextRange start must be non-negative.'
+test: textRangeRejectsStartGreaterThanEnd
+raises exception=IllegalArgumentException thrown='TextRange start must not be greater than end.'

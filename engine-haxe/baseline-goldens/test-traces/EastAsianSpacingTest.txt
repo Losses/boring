@@ -1,0 +1,24 @@
+class: EastAsianSpacingTest
+test: chineseLanguageContextUsesPinnedMacrolanguageRegistry
+is-true actual=true
+is-true actual=true
+is-false actual=false
+test: enclosingMarkMakesTheWholeGraphemeClusterOther
+eq expected=Other actual=Other
+test: resolvesConditionalValuesFromChineseLanguageContext
+eq expected=Narrow actual=Narrow
+eq expected=Narrow actual=Narrow
+eq expected=Other actual=Other
+test: resolvesTheActualSourceUnitAtEachShapingClusterEdge
+eq expected=EastAsianSpacingEdges(leading=Other, trailing=Narrow, containsWide=false) actual=EastAsianSpacingEdges(leading=Other, trailing=Narrow, containsWide=false)
+eq expected=EastAsianSpacingEdges(leading=Other, trailing=Other, containsWide=false) actual=EastAsianSpacingEdges(leading=Other, trailing=Other, containsWide=false)
+test: usesPinnedUnicodeDraftDataAcrossScripts
+eq expected=Wide actual=Wide
+eq expected=Wide actual=Wide
+eq expected=Narrow actual=Narrow
+eq expected=Narrow actual=Narrow
+eq expected=Narrow actual=Narrow
+eq expected=Narrow actual=Narrow
+eq expected=Conditional actual=Conditional
+eq expected=Other actual=Other
+eq expected=Other actual=Other

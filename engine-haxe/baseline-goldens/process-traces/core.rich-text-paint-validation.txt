@@ -1,0 +1,13 @@
+scenario: core.rich-text-paint-validation
+pattern kind='dashed' stroke=1.0 dash=6.0 gap=3.0 rejected=false
+pattern kind='dashed' stroke=0.0 dash=6.0 gap=3.0 rejected=true
+pattern kind='dashed' stroke=1.0 dash=NaN gap=3.0 rejected=true
+pattern kind='dotted' dot=2.0 gap=4.0 rejected=false
+pattern kind='dotted' dot=-1.0 gap=4.0 rejected=true
+draw-style kind='border' stroke=2.0 rejected=false
+draw-style kind='border' stroke=0.0 rejected=true
+draw-style kind='border' stroke=Infinity rejected=true
+background pad=-1.0 rejected=true
+background pad=2.0 rejected=false
+clearance value=-0.5 rejected=true
+clearance value=1.5 rejected=false

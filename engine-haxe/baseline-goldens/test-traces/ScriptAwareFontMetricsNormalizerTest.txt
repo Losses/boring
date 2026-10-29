@@ -1,0 +1,18 @@
+class: ScriptAwareFontMetricsNormalizerTest
+test: cjkTextFallsBackToHheaWhenFontHasNoTypoMetrics
+eq expected=18.400000 actual=18.400000
+eq expected=4 actual=4
+eq expected=Raw actual=Raw
+test: cjkTextUsesFontDeclaredTypoBoxInsteadOfSynthesizedSquare
+eq expected=14.080000 actual=14.080000
+eq expected=1.920000 actual=1.920000
+eq expected=14.080000 actual=14.080000
+eq expected=1.920000 actual=1.920000
+eq expected=IdeographicLow actual=IdeographicLow
+eq expected=IdeographicEmBox actual=IdeographicEmBox
+eq expected=RawTables actual=RawTables
+test: latinTextKeepsRomanRawMetrics
+eq expected=12.800000 actual=12.800000
+eq expected=3.200000 actual=3.200000
+eq expected=Roman actual=Roman
+eq expected=RawFontBox actual=RawFontBox

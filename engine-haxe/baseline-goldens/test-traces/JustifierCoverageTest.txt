@@ -1,0 +1,164 @@
+class: JustifierCoverageTest
+test: attachedInlineVirtualAutoSpaceJoinsTierTwo
+eq expected=CjkLatinSpace actual=CjkLatinSpace
+eq expected='AttachedInlineVirtualAutoSpace' actual='AttachedInlineVirtualAutoSpace'
+eq expected=2 actual=2
+eq expected=4 actual=4
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true msg='expected skip for protected [0]'
+is-true actual=true msg='expected skip for protected [3]'
+test: attachedInlineVirtualInterCharHonoursNoStretchProtection
+eq expected='AttachedInlineVirtualInterChar' actual='AttachedInlineVirtualInterChar'
+eq expected=0 actual=0
+is-true actual=true msg='expected skip for [0]/[]'
+is-true actual=true
+is-true actual=true msg='expected skip for [2]/[]'
+is-true actual=true
+is-true actual=true msg='expected skip for []/[0]'
+is-true actual=true
+eq expected=InlineObjectBoundary actual=InlineObjectBoundary
+test: attachedInlineVirtualSinoWesternNeedsStretchEnabled
+is-true actual=true
+is-true actual=true
+test: cjkLineWithNoOpportunitiesReportsUnfilledWithoutFallback
+is-true actual=true
+eq expected=4 actual=4
+null actual=-
+test: compressDistributesTierByTier
+eq expected=0 actual=0
+eq expected=[PushInAllocation(clusterIndex=0, shrink=4, availableCapacity=4, channel=TrailingGlue), PushInAllocation(clusterIndex=1, shrink=8, availableCapacity=16, channel=LeadingGlue)] actual=[PushInAllocation(clusterIndex=0, shrink=4, availableCapacity=4, channel=TrailingGlue), PushInAllocation(clusterIndex=1, shrink=8, availableCapacity=16, channel=LeadingGlue)]
+test: compressEarlyExitsAndFiltersDegenerateInputs
+eq expected=CompressionPlan(allocations=[], surplusBefore=0, unfilledSurplus=0) actual=CompressionPlan(allocations=[], surplusBefore=0, unfilledSurplus=0)
+is-true actual=true
+eq expected=8 actual=8
+eq expected=[PushInAllocation(clusterIndex=0, shrink=8, availableCapacity=16, channel=TrailingGlue)] actual=[PushInAllocation(clusterIndex=0, shrink=8, availableCapacity=16, channel=TrailingGlue)]
+eq expected=0 actual=0
+test: emergencyTrackingFillsTheResidualForAuthorizedBoundaries
+eq expected=EmergencyGraphemeTracking actual=EmergencyGraphemeTracking
+eq expected='EmergencyGraphemeTracking:token' actual='EmergencyGraphemeTracking:token'
+eq expected=4 actual=4
+eq expected=0 actual=0
+eq expected='TerminalTechnicalEmergencyTracking:code' actual='TerminalTechnicalEmergencyTracking:code'
+eq expected=EmergencyGraphemeTracking actual=EmergencyGraphemeTracking
+test: emptyClusterRangeDefersEveryTierLoop
+is-true actual=true
+eq expected=16 actual=16
+eq expected='WesternDominantLineNaturalSpacing' actual='WesternDominantLineNaturalSpacing'
+test: misalignedRoleAndSpacingListsAreRejected
+raises exception=IllegalArgumentException thrown='clusterRoles must align with adjustedClusters.'
+raises exception=IllegalArgumentException thrown='East_Asian_Spacing values must align with adjustedClusters.'
+test: mixedCapacitySinoWesternOppsSkipZeroCapacityInOverflow
+eq expected=[1] actual=[1]
+eq expected=2 actual=2
+eq expected=0 actual=0
+test: paragraphEdgeSpaceLinesCoverTheBoundaryGuards
+eq expected=0 actual=0
+eq expected=1 actual=1
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=0 actual=0
+test: preferredInlineObjectKindsChainUntilFilled
+eq expected=2 actual=2
+eq expected=0 actual=0
+is-true actual=true
+test: preferredInlineObjectStretchRunsBySemanticKind
+eq expected=InlineObjectPunctuationTrailing actual=InlineObjectPunctuationTrailing
+eq expected='InlineObjectPunctuationTrailing' actual='InlineObjectPunctuationTrailing'
+eq expected=4 actual=4
+eq expected=2 actual=2
+eq expected=InlineObjectRelation actual=InlineObjectRelation
+eq expected='InlineObjectRelation' actual='InlineObjectRelation'
+eq expected=4 actual=4
+eq expected=2 actual=2
+eq expected=InlineObjectBinaryOperator actual=InlineObjectBinaryOperator
+eq expected='InlineObjectBinaryOperator' actual='InlineObjectBinaryOperator'
+eq expected=4 actual=4
+eq expected=2 actual=2
+is-true actual=true
+eq expected=4 actual=4
+eq expected=4 actual=4
+is-true actual=true
+test: sinoWesternStretchDisabledSkipsTierTwoAndItsVirtualTracking
+is-true actual=true
+eq expected=4 actual=4
+test: skipKeepsTheDeficitAndRecordsTheReason
+eq expected=32 actual=32
+eq expected=32 actual=32
+is-true actual=true
+eq expected='RaggedRight' actual='RaggedRight'
+test: spaceGapProtectionCoversAllFourDisjuncts
+is-true actual=true msg='expected no word-space allocation for [0]/[]'
+eq expected=0 actual=0
+is-true actual=true msg='expected no word-space allocation for [1]/[]'
+eq expected=0 actual=0
+is-true actual=true msg='expected no word-space allocation for []/[0]'
+eq expected=0 actual=0
+is-true actual=true msg='expected no word-space allocation for []/[2]'
+eq expected=0 actual=0
+test: technicalWhitespaceRequiresTheWhitespaceTierAndASourceSpace
+eq expected=WordSpace actual=WordSpace
+eq expected=WordSpace actual=WordSpace
+test: technicalWhitespaceStretchFillsAndStopsTheTierChain
+eq expected=1 actual=1
+eq expected=ProgressiveTechnical actual=ProgressiveTechnical
+eq expected='ProgressiveTechnicalWhitespaceStretch' actual='ProgressiveTechnicalWhitespaceStretch'
+eq expected=4 actual=4
+eq expected=0 actual=0
+test: typedSinoWesternSpaceNeedsBothEdgesToPair
+is-true actual=true
+eq expected=0 actual=0
+test: typedSinoWesternSpaceStretchesFromItsBase
+eq expected=CjkLatinSpace actual=CjkLatinSpace
+eq expected=1 actual=1
+eq expected=4 actual=4
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=2 actual=2
+eq expected=0 actual=0
+is-true actual=true
+test: uniformObjectBoundaryOpensTheGateAndFills
+null actual=-
+is-true actual=true
+eq expected=0 actual=0
+test: uniformTextBoundariesExcludeProtectedClasses
+eq expected=CjkInterChar actual=CjkInterChar
+eq expected='WesternBracketCjkInterChar' actual='WesternBracketCjkInterChar'
+eq expected=4 actual=4
+eq expected='AttachedInlineVirtualInterChar' actual='AttachedInlineVirtualInterChar'
+eq expected=InlineObjectBoundary actual=InlineObjectBoundary
+eq expected=4 actual=4
+eq expected=InlineObjectBoundary actual=InlineObjectBoundary
+test: virtualSinoWesternGapSkipsProtectedAndTypedEdges
+eq expected=CjkLatinSpace actual=CjkLatinSpace
+eq expected=1 actual=1
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: westernDominantLineStaysRagged
+eq expected='WesternDominantLineNaturalSpacing' actual='WesternDominantLineNaturalSpacing'
+is-true actual=true
+eq expected='WesternDominantLineNaturalSpacing' actual='WesternDominantLineNaturalSpacing'
+test: wordSpaceAtTheCapOrCollapsedIsSkipped
+is-true actual=true
+eq expected='WesternDominantLineNaturalSpacing' actual='WesternDominantLineNaturalSpacing'
+is-true actual=true
+test: wordSpaceStretchesWithinItsCap
+eq expected=WordSpace actual=WordSpace
+eq expected=1 actual=1
+eq expected=2 actual=2
+eq expected='WordSpace' actual='WordSpace'
+test: zeroCapacitySinoWesternTierDefersEverythingDownward
+eq expected=0 actual=0
+eq expected=CjkInterChar actual=CjkInterChar
+eq expected=4 actual=4
+test: zeroDeficitReturnsAnEmptyPlanWithoutReason
+eq expected=0 actual=0
+eq expected=0 actual=0
+is-true actual=true
+null actual=-
+test: zeroTechnicalStretchCapacityProducesNoOpportunity
+eq expected=WordSpace actual=WordSpace

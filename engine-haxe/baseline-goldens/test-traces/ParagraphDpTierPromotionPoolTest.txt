@@ -1,0 +1,9 @@
+class: ParagraphDpTierPromotionPoolTest
+test: committedCompressedEndWithoutOpportunityKeepsPlainPushInReason
+eq expected=[0, 1, 2] actual=[0, 1, 2] msg='[LineCandidate(clusterRange=0..2, sourceRange=TextRange(start=0, end=3), naturalWidth=48, adjustedWidth=44, endReason=AutoWrap, repair=PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/4, offenderClusterIndex=2, allocations=[PushI~834#c4195262'
+is-true actual=true msg='[PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/4, offenderClusterIndex=2, allocations=[PushInAllocation(clusterIndex=2, shrink=4, availableCapacity=4, channel=TrailingGlue)], totalShrink=4, totalAvailableCapacity=4), null]'
+test: committedCompressedLineWithForeignSpanOpportunitiesKeepsPlainPushInReason
+eq expected=[0, 1, 2] actual=[0, 1, 2] msg='[LineCandidate(clusterRange=0..2, sourceRange=TextRange(start=0, end=3), naturalWidth=48, adjustedWidth=44, endReason=AutoWrap, repair=PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/4, offenderClusterIndex=2, allocations=[PushI~834#c4195262'
+is-true actual=true msg='[PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/4, offenderClusterIndex=2, allocations=[PushInAllocation(clusterIndex=2, shrink=4, availableCapacity=4, channel=TrailingGlue)], totalShrink=4, totalAvailableCapacity=4), null]'
+test: foreignSpanCandidateSurvivesThePromotionPoolPurge
+is-true actual=true msg='[PushIn(penalty=2, reason=ProgressiveTechnicalTierPromotion:b:pushed-in=5/5, offenderClusterIndex=2, allocations=[PushInAllocation(clusterIndex=2, shrink=5, availableCapacity=5, channel=RawAdvance)], totalShrink=5, totalAvailableCapacity=5)~247#2ce389e2'

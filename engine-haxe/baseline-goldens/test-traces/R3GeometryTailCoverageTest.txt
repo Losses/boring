@@ -1,0 +1,22 @@
+class: R3GeometryTailCoverageTest
+test: attachedReferenceAtSourceEndLaysOutWithoutVirtualBoundary
+is-true actual=true
+is-true actual=true
+test: centeredInkPunctuationKeepsPairedGlue
+eq expected=1 actual=1
+is-true actual=true
+test: emptyTextProducesNoVisibleLines
+is-true actual=true
+test: maxLinesCapsVisibleLinesToOne
+is-true actual=true msg='fixture must wrap without the cap'
+eq expected=1 actual=1
+test: pureLatinParagraphStillProducesLines
+is-true actual=true
+is-true actual=true
+test: rubyBaseRangeCrossingClusterBoundariesIsSkipped
+eq expected=2 actual=2
+test: spaceRunsResolveBothWideNarrowOrders
+eq expected=1 actual=1
+is-true actual=true
+eq expected=1 actual=1
+is-true actual=true

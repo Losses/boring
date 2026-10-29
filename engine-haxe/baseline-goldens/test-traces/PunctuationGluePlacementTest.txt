@@ -1,0 +1,24 @@
+class: PunctuationGluePlacementTest
+test: builtInTaiwanAndHongKongProfilesUseTraditionalPlacement
+eq expected=Traditional actual=Traditional
+eq expected=Traditional actual=Traditional
+eq expected=MainlandSimplified actual=MainlandSimplified
+test: forRegionMapsClreqRegionsToCorrectPlacement
+eq expected=MainlandSimplified actual=MainlandSimplified
+eq expected=Traditional actual=Traditional
+eq expected=Traditional actual=Traditional
+eq expected=MainlandSimplified actual=MainlandSimplified
+test: mainlandAnchorsClosingAndPauseStopToTrailing
+eq expected=TrailingOnly actual=TrailingOnly
+eq expected=TrailingOnly actual=TrailingOnly
+test: mainlandAnchorsOpeningToLeading
+eq expected=LeadingOnly actual=LeadingOnly
+test: mainlandSplitsSymmetricPunctuationOnBothSides
+eq expected=BothSides actual=BothSides
+eq expected=BothSides actual=BothSides
+eq expected=BothSides actual=BothSides
+test: traditionalCentresClosingAndPauseStop
+eq expected=BothSides actual=BothSides
+eq expected=BothSides actual=BothSides
+test: traditionalCentresOpening
+eq expected=BothSides actual=BothSides

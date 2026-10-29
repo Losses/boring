@@ -1,0 +1,93 @@
+class: JustifierEngineTest
+test: bracketWesternInteriorStretchesInTierThreeNotTierTwo
+eq expected=2 actual=2
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: cjkInterCharActsAsLastResortWhenPunctGlueExhausted
+eq expected=2 actual=2
+eq expected=4 actual=4
+eq expected=0 actual=0
+is-true actual=true
+eq expected=5 actual=5
+eq expected=0.800000 actual=0.800000
+eq expected=0.800000 actual=0.800000
+eq expected=0.800000 actual=0.800000
+eq expected=0.800000 actual=0.800000
+eq expected=0.800000 actual=0.800000
+eq expected=100 actual=100
+test: connectorBoundariesAvoidStretchUnderJustification
+is-true actual=true
+eq expected=0 actual=0
+eq expected=[2] actual=[2]
+eq expected=16 actual=16
+test: dashBoundariesDoNotReceiveUniformTracking
+is-true actual=true
+is-true actual=true msg='boundary before dash must stay closed: [JustificationAllocationInfo(clusterRange=TextRange(start=0, end=1), kind=CjkInterChar, priority=3, delta=0.5714286, reason=CjkInterChar), JustificationAllocationInfo(clusterRange=TextRange(start=1, en~1005#4b826be0'
+is-true actual=true msg='boundary after dash must stay closed: [JustificationAllocationInfo(clusterRange=TextRange(start=0, end=1), kind=CjkInterChar, priority=3, delta=0.5714286, reason=CjkInterChar), JustificationAllocationInfo(clusterRange=TextRange(start=1, end~1004#b14919ef'
+test: inseparableNumberAndUnitBoundaryAvoidsStretchUnderJustification
+is-true actual=true
+is-true actual=true msg='50|℃ must stay closed: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=3.3333335, reason=CjkLatinSpace), JustificationAllocationInfo(clusterRange=TextRange(start=0, end=1), kind=Cjk~577#93bfbb2b'
+eq expected=0 actual=0
+test: justifiesNonLastLineUsingCjkInterCharGapsAsLastResort
+eq expected=2 actual=2
+eq expected=80 actual=80
+eq expected=80 actual=80
+eq expected=16 actual=16
+eq expected=16 actual=16
+eq expected=0 actual=0
+test: justifyDistributesDeficitAcrossPriorityChain
+is-true actual=true
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=4 actual=4
+is-true actual=true
+is-true actual=true
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=80 actual=80
+eq expected=8 actual=8
+eq expected=2 actual=2
+eq expected=10 actual=10
+test: lastLineAlignmentPositionsTheLastLineViaIndent
+eq expected=100 actual=100
+eq expected=0 actual=0
+eq expected=26 actual=26
+eq expected=0 actual=0
+eq expected=52 actual=52
+test: lastLineIsNeverJustified
+eq expected=48 actual=48
+eq expected=48 actual=48
+eq expected=0 actual=0
+test: latinGlyphPositionsSurviveAutospaceAndJustification
+is-true actual=true msg='autospace/justification should widen the cluster as trailing layout space: Cluster(range=TextRange(start=1, end=3), text=AV, displayText=AV, fontKey=latin-primary, advance=17, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0)'
+is-true actual=true msg='the test must exercise a justify delta on the Latin cluster'
+eq expected=[0, 5] actual=[0, 5]
+eq expected=[5, 5] actual=[5, 5]
+test: lineEdgeSinoWesternSpaceStaysCollapsed
+eq expected=0 actual=0 msg='line-edge sino-western space must stay collapsed'
+eq expected=0 actual=0 msg='line-edge sino-western space must stay collapsed'
+test: mandatoryBreakLinesTakeLastLineAlignment
+eq expected=3 actual=3
+eq expected=26 actual=26
+eq expected=0 actual=0
+eq expected=42 actual=42
+test: punctuationToWesternBoundaryStretchesInTierThree
+is-true actual=true msg='标点↔西文 boundary must stretch in tier ③'
+test: typedSinoWesternSpacesStretchInTierTwo
+is-true actual=true
+eq expected=2 actual=2
+is-true actual=true msg='every 中西 stretch lands on a typed space cluster, not a boundary'
+is-true actual=true msg='同时、同等量'
+test: uniformTrackingIncludesBracketInnerSides
+eq expected=2 actual=2
+eq expected=0 actual=0
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+is-true actual=true
+eq-tol expected=0.800000 actual=0.800000 tol=0.010000
+eq-tol expected=0.800000 actual=0.800000 tol=0.010000
+eq-tol expected=0.800000 actual=0.800000 tol=0.010000
+eq-tol expected=0.800000 actual=0.800000 tol=0.010000
+eq-tol expected=0.800000 actual=0.800000 tol=0.010000
+test: usesPunctuationGlueFirstWhenDeficitMatchesCompression
+eq expected=1 actual=1
+eq expected=0 actual=0

@@ -1,0 +1,42 @@
+class: CoreLayoutQueriesGapsTest
+test: getBoundingBoxesEmptyRangeReturnsEmptyList
+eq expected=[] actual=[]
+test: getBoundingBoxesIntDelegatesToTextRange
+eq expected=[Rect(left=24, top=0, right=34, bottom=20), Rect(left=0, top=20, right=10, bottom=40)] actual=[Rect(left=24, top=0, right=34, bottom=20), Rect(left=0, top=20, right=10, bottom=40)]
+test: getCursorRectReturnsCaretInCluster
+eq expected=Rect(left=24, top=0, right=25, bottom=20) actual=Rect(left=24, top=0, right=25, bottom=20)
+test: getLineForOffsetReturnsNearestLine
+eq expected=1 actual=1
+test: getLineForOffsetUsesNearestLineWhenGapBetweenLines
+eq expected=0 actual=0
+test: getOffsetForPositionUsesMinByWhenOutsideClusters
+eq expected=1 actual=1
+test: getSelectionOffsetForPositionReturnsNearestWhenAfterLastCluster
+eq expected=4 actual=4
+test: getSelectionOffsetForPositionReturnsNearestWhenBeforeFirstCluster
+eq expected=0 actual=0
+test: getSelectionOffsetForPositionReturnsStartOfLineWhenClustersEmpty
+eq expected=0 actual=0
+test: getSelectionWordBoundaryForEmojiZwjSequence
+eq expected=TextRange(start=0, end=5) actual=TextRange(start=0, end=5)
+test: getSelectionWordBoundaryForPunctuationReturnsSingle
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+test: getSelectionWordBoundaryReturnsEmptyForEmptyText
+eq expected=TextRange(start=0, end=0) actual=TextRange(start=0, end=0)
+test: markedFaceVerticalBoundsUsesFallbackWhenNoMetricMatches
+eq expected=1 actual=1
+test: offsetForXUsesSourceStopsWhenAvailable
+eq expected=0 actual=0
+eq expected=1 actual=1
+test: positionedClusterHeightReturnsDifference
+eq expected=20 actual=20
+test: positionedClustersProducesSourceStopsForLatinRun
+eq expected=3 actual=3
+is-true actual=true
+test: richTextBackgroundTrailingPaddingWhenSpanEndsAtSegmentEnd
+eq expected=1 actual=1
+is-true actual=true
+test: richTextBackgroundUniformParagraphStyleUsesParagraphStyle
+eq expected=1 actual=1
+test: richTextBackgroundUsesHorizontalPadding
+eq expected=1 actual=1

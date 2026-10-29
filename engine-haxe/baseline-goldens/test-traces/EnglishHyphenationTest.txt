@@ -1,0 +1,12 @@
+class: EnglishHyphenationTest
+test: honoursTheExceptionList
+eq expected=[] actual=[]
+eq expected=[] actual=[]
+test: hyphenatesCommonWordsAtSyllablePoints
+eq expected='hy-phen-ation' actual='hy-phen-ation'
+eq expected='com-puter' actual='com-puter'
+is-true actual=true msg='in-ter-na-tional'
+test: respectsMarginsAndShortWords
+eq expected=[] actual=[]
+eq expected=[] actual=[]
+is-true actual=true msg='offsets=[2, 5, 8, 13, 17]'

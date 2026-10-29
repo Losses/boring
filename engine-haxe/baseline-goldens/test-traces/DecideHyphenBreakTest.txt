@@ -1,0 +1,5 @@
+class: DecideHyphenBreakTest
+test: chargesAllDeficitToCjkWhenNoSinoWesternCapacityIsKnown
+eq expected=4 actual=4
+test: discountsSinoWesternCapacityBeforeChargingCjkLooseness
+eq expected=3 actual=3

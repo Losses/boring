@@ -1,0 +1,276 @@
+class: UnicodePunctuationBoundaryResolverCoverageTest
+test: resolveAttachedInlineInterCharBoundariesAllConditionsFalse
+eq expected=0 actual=0
+test: resolveAttachedInlineInterCharBoundariesNarrowNarrowPair
+eq expected=0 actual=0
+test: resolveAttachedInlineInterCharBoundariesPunctuationWesternLeadingNarrowOnly
+eq expected={1=0} actual={1=0}
+is-true actual=true
+test: resolveAttachedInlineInterCharBoundariesPunctuationWesternLeadingNotNarrow
+eq expected=0 actual=0
+test: resolveAttachedInlineInterCharBoundariesPunctuationWesternNarrowTrailing
+is-true actual=true
+test: resolveAttachedInlineInterCharBoundariesPunctuationWesternTrailingNarrowNotCjkPunct
+is-true actual=true
+test: resolveAttachedInlineInterCharBoundariesPunctuationWesternTrailingNarrowOnly
+eq expected={1=0} actual={1=0}
+is-true actual=true
+test: resolveAttachedInlineInterCharBoundariesPunctuationWesternTrailingNotNarrow
+is-true actual=true
+test: resolveAttachedInlineInterCharBoundariesRequiresMatchingAttachmentSize
+raises exception=IllegalArgumentException thrown='Inline attachments must align with clusters.'
+test: resolveAttachedInlineInterCharBoundariesRequiresMatchingClusterRoleEdgeSizes
+raises exception=IllegalArgumentException thrown='Clusters, roles and East_Asian_Spacing edges must align.'
+test: resolveAttachedInlineInterCharBoundariesRequiresMatchingEdgesSize
+raises exception=IllegalArgumentException thrown='Clusters, roles and East_Asian_Spacing edges must align.'
+test: resolveAttachedInlineInterCharBoundariesSinoWesternOnly
+eq expected={1=0} actual={1=0}
+eq expected=[1] actual=[1]
+test: resolveAttachedInlineInterCharBoundariesVirtualFromCjkPunctuationLeft
+eq expected={1=0} actual={1=0}
+test: resolveAttachedInlineInterCharBoundariesWesternBracketOnly
+eq expected={1=0} actual={1=0}
+is-true actual=true
+test: resolveAttachedInlineInterCharBoundariesWithBothCjkPunctuation
+is-true actual=true
+test: resolveAttachedInlineInterCharBoundariesWithCjkBodyWesternBracket
+eq expected=0 actual=0
+test: resolveAttachedInlineInterCharBoundariesWithCjkBothCjk
+eq expected=0 actual=0
+test: resolveAttachedInlineInterCharBoundariesWithSinoWesternPair
+is-true actual=true
+test: resolveAttachedInlineInterCharBoundariesWithWesternBracket
+eq expected=0 actual=0
+test: resolveAttachedInlineVirtualBoundariesAtStart
+eq expected=0 actual=0
+test: resolveAttachedInlineVirtualBoundariesWithMultiplePrevious
+eq expected=1 actual=1
+eq expected=0 actual=0
+eq expected=[1, 2] actual=[1, 2]
+eq expected=3 actual=3
+test: resolveAttachedInlineVirtualBoundariesWithNoPrevious
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesApostropheAndLatinWordBranches
+is-true actual=true
+is-true actual=true
+eq expected=0 actual=0
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesApostropheAtTextStartNoLeftContext
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesApostropheLeftNeighbourSupplementaryPair
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesApostropheRightNeighbourSupplementaryPair
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesApostropheRightNeighbourUnpairedHighSurrogate
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesAstralTailKeepsPairAsLastSignificant
+eq expected=1 actual=1
+test: resolveUnicodePunctuationBoundariesAuthoredBreakInsidePreviousClusterDropsUnbreakable
+eq expected=1 actual=1
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesCodePointAtOrNullSupplementary
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesCodePointAtOrNullSurrogatePair
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesCodePointBeforeLowSurrogate
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesCodePointBeforeLowSurrogateSingle
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesCodePointBeforeSurrogatePair
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesDecimalMarkAfterEmptyClusterForbidden
+eq expected=1 actual=1
+test: resolveUnicodePunctuationBoundariesDecimalMarkAfterLetterClusterForbidden
+eq expected=1 actual=1
+test: resolveUnicodePunctuationBoundariesDecimalMarkAloneAfterSpaceForbidden
+eq expected=1 actual=1
+test: resolveUnicodePunctuationBoundariesDecimalMarkAtClusterZeroForbidden
+eq expected=1 actual=1
+test: resolveUnicodePunctuationBoundariesDecimalMarkFollowedByLetterForbidden
+eq expected=1 actual=1
+test: resolveUnicodePunctuationBoundariesDecimalMarkFollowingVariations
+eq expected=0 actual=0
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesFirstCodePointLengthBmp
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesFirstCodePointLengthSurrogate
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesFollowsAuthoredBoundaryNonWhitespace
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesFollowsAuthoredBoundaryZWSPInMiddle
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesHasAuthoredBreakEmptyString
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesHasAuthoredBreakNullCodePoint
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesHasAuthoredBreakWithCodePoint
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesInfixNumericSeparatorWithSpaceAndNoSpace
+eq expected=0 actual=0
+is-true actual=true
+is-true actual=true
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesIsDecimalMarkAfterSpaceEmptyPrev
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesIsDecimalMarkAfterSpaceFollowingInside
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesIsDecimalMarkAfterSpaceFollowingOutside
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesIsDecimalMarkAfterSpaceIndexZero
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesIsDecimalMarkAfterSpaceNonWhitespacePrev
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesLastSignificantCodePointSurrogateEnding
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesNextContentClusterReturnsContent
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesPreviousContentClusterEmptyOnly
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesPreviousContentClusterMultipleEmpty
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesPreviousContentClusterReturnsContent
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesPreviousContentClusterReturnsNull
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesQuoteDirection2019BmpLeft
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesQuoteDirection2019LeftWordOnly
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesQuoteDirection2019NeitherWord
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesQuoteDirection2019RightWordOnly
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesQuoteDirection2019SurrogateLeft
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesSurrogateScanningVariations
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=0 actual=0
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithAllCjkText
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithCjkClosingAtLineStart
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithCjkClosingForbidLineStart
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithCloseParenthesisClass
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithClosePunctuation
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithClosePunctuationClass
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithCodePointAtOrNullSupplementary
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithCodePointAtOrNullSurrogate
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithCodePointBeforeSupplementary
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithCodePointBeforeSurrogatePair
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithDecimalMarkAfterNonSpace
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithDecimalMarkAfterSpace
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithDecimalMarkFollowingInsideDigit
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithDecimalMarkFollowingOutsideDigit
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithEmptyClusters
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithEmptyRange
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithExclamationClass
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithExclamationMark
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithFirstCodePointLength
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithFirstSignificantCodePoint
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithFollowsAuthoredBoundary
+eq expected=- actual=-
+test: resolveUnicodePunctuationBoundariesWithFollowsAuthoredBoundaryMandatory
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithFollowsAuthoredBoundaryWhitespace
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithFollowsAuthoredBoundaryWhitespaceThenNonWhitespace
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithFollowsAuthoredBoundaryZWSP
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithHasAuthoredBreak
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithHasAuthoredBreakBoth
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithHasAuthoredBreakMandatoryOnly
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithInfixNumericSeparator
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithInfixNumericSeparatorNotDecimalMark
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithInfixNumericSeparatorRule
+not-null actual=ContextualKinsokuDecisionInfo(range=TextRange(start=1, end=2), sourceText=,, clusterIndex=1, forbiddenPosition=LineStart, reason=Uax14WesternPunctuationBoundary:LB15d, impossibleMeasureFallback=null)
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithInitialQuoteForbidLineEnd
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithIsWhitespaceCodePoint
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithIsWhitespaceCodePointNonBmp
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithLastSignificantCodePoint
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithLatinWordCodePoint
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundariesWithMultipleClusters
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithNextContentCluster
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithNextContentClusterEmpty
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithNextContentClusterHasAuthoredBreak
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithOpenPunctuation
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithOpenPunctuationForbidLineEnd
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithPairedQuotes
+is-true actual=true
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithPreviousContentClusterEmpty
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithPreviousContentClusterHasAuthoredBreak
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithPreviousContentClusterHasContent
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithPunctuationAndSpace
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithQuoteDirectionFinal
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithQuoteDirectionInitial
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithQuoteDirectionUnresolved
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithRuleForLineStartElse
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithRuleForLineStartInfix
+not-null actual=ContextualKinsokuDecisionInfo(range=TextRange(start=1, end=2), sourceText=,, clusterIndex=1, forbiddenPosition=LineStart, reason=Uax14WesternPunctuationBoundary:LB15d, impossibleMeasureFallback=null)
+eq expected='Uax14WesternPunctuationBoundary:LB15d' actual='Uax14WesternPunctuationBoundary:LB15d'
+test: resolveUnicodePunctuationBoundariesWithUnmatchedClosingPunctuation
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithUnresolvedQuote
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithWesternClosingForbidLineStart
+is-true actual=true
+test: resolveUnicodePunctuationBoundariesWithWordApostrophe2019
+eq expected=0 actual=0
+test: resolveUnicodePunctuationBoundaryFullWidthCommaAfterSpaceStaysForbidden
+eq expected=1 actual=1

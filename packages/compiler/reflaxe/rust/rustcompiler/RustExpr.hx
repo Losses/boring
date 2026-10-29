@@ -231,6 +231,12 @@ class RustExpr {
     // reads inside the closure body borrow the copy as a &str view.
     // (ClosureCaptureOwnedCopy)
     var captureOwnedStringCopies:Map<Int, Bool> = [];
+    // Synthetic local ids bound by the field-capture preludes of the current
+    // function value. The move closure takes them by value, so
+    // closureOwnedCaptures must not add a clone line for them. The ids come
+    // from a persistent sequence so two closures never collide. (ClosureFieldCapture)
+    final fieldCaptureLocalIds:Map<Int, Bool> = [];
+    var fieldCaptureIdSeq:Int = 0;
     final unsignedLocals:Map<Int, Bool> = [];
     // Locals whose declaration received a sunk initializer through
     // DeadInitializerMatchFusion: the value crossed an assignment boundary,
@@ -12124,8 +12130,123 @@ class RustExpr {
         return closureText;
     }
 
+    /** A whole user class captured by a closure reads only through its
+        fields. Cloning the whole struct requires Clone on every field
+        (Box<dyn Trait> fields fail) and is not 'static for a &mut receiver, so
+        the closure captures each used field handle instead. (ClosureFieldCapture) */
+    /** A concrete class whose field layout cannot derive Clone because a
+        field lowers to Box<dyn Trait>. Capturing the whole struct would call
+        clone on that Box, so the closure captures each used field handle
+        instead. (ClosureFieldCapture) */
+    function wholeStructType(t:Type):Bool {
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cc = c.get();
+                if (cc.isInterface)
+                    false;
+                else {
+                    for (field in cc.fields.get()) {
+                        switch (field.kind) {
+                            case FVar(_, _):
+                                var ft = field.type;
+                                switch (Context.follow(ft)) {
+                                    case TAbstract(a, ps) if (a.get().name == "Null" && ps.length == 1): ft = ps[0];
+                                    case _:
+                                }
+                                switch (Context.follow(ft)) {
+                                    case TInst(ic, _):
+                                        final ifc = ic.get();
+                                        if (ifc.isInterface && !RustDecl.isSharedInterface(ifc.module, ifc.name))
+                                            return true;
+                                    case _:
+                                }
+                            case _:
+                        }
+                    }
+                    false;
+                }
+            case _: false;
+        };
+    }
+
+    /** The whole-struct subject of a field read inside a closure, or null when
+        the subject is not a whole-struct binding. `this` always qualifies; a
+        local qualifies when it is a whole user class declared outside the
+        closure body. (ClosureFieldCapture) */
+    function wholeStructSubject(subj:TypedExpr, bound:Map<Int, Bool>):Null<{id:Int, text:String}> {
+        return switch (stripWrap(subj).expr) {
+            case TConst(TThis): {id: -1, text: thisBindingName};
+            case TLocal(v):
+                if (bound.exists(v.id) || !wholeStructType(v.t))
+                    null;
+                else
+                    {id: v.id, text: RustImports.toSnakeCase(localName(v))};
+            case _: null;
+        };
+    }
+
+    /** Rewrites a 'static function value body so each whole-struct field read
+        becomes a field-capture local and returns the capture prelude lines.
+        The prelude binds Arc::clone(&subject.field) for a shared handle and
+        subject.field.clone() for a Clone value. (ClosureFieldCapture) */
+    function bindClosureFieldCaptures(f:TFunc):Array<String> {
+        final preludes:Array<String> = [];
+        final bound:Map<Int, Bool> = [];
+        for (a in f.args)
+            bound.set(a.v.id, true);
+        function walk(e:TypedExpr):Void {
+            switch (e.expr) {
+                case TVar(v, init):
+                    if (init != null)
+                        walk(init);
+                    bound.set(v.id, true);
+                    return;
+                case TField(subj, FInstance(_, _, cf)) if (cf.get().kind.match(FieldKind.FVar(_))):
+                    final ws = wholeStructSubject(subj, bound);
+                    if (ws == null) {
+                        haxe.macro.TypedExprTools.iter(e, walk);
+                        return;
+                    }
+                    final fieldSnake = RustImports.toSnakeCase(cf.get().name);
+                    final capName = freshRegionName("_cap_" + fieldSnake);
+                    final fieldTypeText = types.of(cf.get().type);
+                    final prelude = StringTools.startsWith(fieldTypeText, "Arc<")
+                        ? "let " + capName + " = Arc::clone(&" + ws.text + "." + fieldSnake + ");"
+                        : "let " + capName + " = (" + ws.text + "." + fieldSnake + ").clone();";
+                    preludes.push(prelude);
+                    fieldCaptureIdSeq += 1;
+                    final capId = -3000000 - fieldCaptureIdSeq;
+                    final capVar:TVar = {
+                        id: capId,
+                        name: capName,
+                        t: cf.get().type,
+                        capture: false,
+                        extra: null,
+                        meta: null,
+                        isStatic: false,
+                    };
+                    fieldCaptureLocalIds.set(capId, true);
+                    e.expr = TLocal(capVar);
+                    return;
+                case TFunction(nf):
+                    for (a in nf.args)
+                        bound.set(a.v.id, true);
+                    haxe.macro.TypedExprTools.iter(e, walk);
+                    return;
+                case _:
+                    haxe.macro.TypedExprTools.iter(e, walk);
+            }
+        }
+        walk(f.expr);
+        return preludes;
+    }
+
     function functionValueLiteral(f:TFunc, functionType:Null<Type>):String {
         imports.require("std::sync::Arc");
+        // Rewrite whole-struct field reads into field-capture locals before
+        // the capture scan, so the scan sees the synthesized locals and never
+        // the whole struct. (ClosureFieldCapture)
+        final fieldPreludes = bindClosureFieldCaptures(f);
         final captures = closureOwnedCaptures(f);
         final previousClones = currentCaptureClones;
         final previousMut = currentCaptureMut;
@@ -12133,13 +12254,13 @@ class RustExpr {
         currentCaptureClones = [for (v in captures) if (!sharedClosureArrays.exists(v.id) && !sharedClosureScalars.exists(v.id)) v.id => true];
         currentCaptureMut = captureMutatedCopies(f, captures);
         captureOwnedStringCopies = [for (v in captures) if (captureCopySuffix(v) == ".to_ustring()") v.id => true];
-        final copies = [for (v in captures) sharedClosureArrays.exists(v.id)
+        final copies = fieldPreludes.concat([for (v in captures) sharedClosureArrays.exists(v.id)
             ? "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
             // The prologue copy feeds the move capture by value and is only
             // read afterwards: the closure body mutates its own inner copy,
             // so this binding never needs mut. (CapturePreludeImmutable)
             : "let " + RustImports.toSnakeCase(localName(v)) + " = ("
-                + RustImports.toSnakeCase(localName(v)) + ")" + captureCopySuffix(v) + ";"];
+                + RustImports.toSnakeCase(localName(v)) + ")" + captureCopySuffix(v) + ";"]);
         final text = "{ " + copies.join(" ") + " Arc::new(" + functionLiteral(f, functionType) + ") }";
         currentCaptureClones = previousClones;
         currentCaptureMut = previousMut;
@@ -12233,6 +12354,7 @@ class RustExpr {
                     // the move closure takes the outer binding.
                     // (SharedClosureArrays, SharedClosureScalars)
                     if (!bound.exists(v.id)
+                        && !fieldCaptureLocalIds.exists(v.id)
                         && (!isTypeCopy(v.t) || sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id))
                         && !Lambda.exists(captures, c -> c.id == v.id))
                         captures.push(v);

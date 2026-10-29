@@ -1,0 +1,35 @@
+class: PunctuationSpacingRuleTest
+test: cjkClosingBeforeAsciiPointMarkConsumesOnlyClosingGlue
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=8 actual=8
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected='collapse-cjk-closing-before-ascii-point-mark' actual='collapse-cjk-closing-before-ascii-point-mark'
+test: cjkClosingDoesNotCompressAcrossWhitespaceBeforeAsciiPointMark
+eq expected=[] actual=[]
+test: closingPlusClosingCollapsesInnerToZero
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=8 actual=8
+test: closingPlusOpeningKeepsHalfEmGap
+eq expected=16 actual=16
+eq expected=8 actual=8
+eq expected=8 actual=8
+test: closingPlusPauseOrStopStillCompresses
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=8 actual=8
+test: consecutivePauseOrStopMarksCompressLikeAnyAdjacentPair
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=8 actual=8
+test: nonAdjacentPunctuationAtomsAreNotCompressed
+eq expected=0 actual=0
+test: openingPlusOpeningCollapsesInnerToZero
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=8 actual=8
+test: pauseStopPlusOpeningCollapsesByHalfEm
+eq expected=16 actual=16
+eq expected=8 actual=8
+eq expected=8 actual=8

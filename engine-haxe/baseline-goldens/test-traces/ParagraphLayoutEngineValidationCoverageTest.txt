@@ -1,0 +1,74 @@
+class: ParagraphLayoutEngineValidationCoverageTest
+test: autoSpaceSuppressedRangesMustBeNonEmptyInBounds
+raises exception=IllegalArgumentException thrown='Auto-space suppressed range TextRange(start=1, end=1) must be a non-empty source range'
+is-true actual=true msg='Auto-space suppressed range TextRange(start=1, end=1) must be a non-empty source range'
+raises exception=IllegalArgumentException thrown='Auto-space suppressed range TextRange(start=0, end=8) must be a non-empty source range'
+is-true actual=true msg='Auto-space suppressed range TextRange(start=0, end=8) must be a non-empty source range'
+test: emphasisDotGapEmMustBeFiniteAndNonNegative
+raises exception=IllegalArgumentException thrown='ParagraphStyle.emphasisDotGapEm must be finite and non-negative'
+is-true actual=true msg='ParagraphStyle.emphasisDotGapEm must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='ParagraphStyle.emphasisDotGapEm must be finite and non-negative'
+is-true actual=true msg='ParagraphStyle.emphasisDotGapEm must be finite and non-negative'
+test: inlineBoxSpanMustBeANonEmptyInBoundsRange
+raises exception=IllegalArgumentException thrown='InlineBoxSpan TextRange(start=0, end=0) must be a non-empty source range'
+is-true actual=true msg='InlineBoxSpan TextRange(start=0, end=0) must be a non-empty source range'
+raises exception=IllegalArgumentException thrown='InlineBoxSpan TextRange(start=1, end=9) must be a non-empty source range'
+is-true actual=true msg='InlineBoxSpan TextRange(start=1, end=9) must be a non-empty source range'
+test: inlineBoxSpanMustHaveFiniteInlineEdges
+raises exception=IllegalArgumentException thrown='InlineBoxSpan TextRange(start=0, end=1) must have finite inline edges'
+is-true actual=true msg='InlineBoxSpan TextRange(start=0, end=1) must have finite inline edges'
+raises exception=IllegalArgumentException thrown='InlineBoxSpan TextRange(start=0, end=1) must have finite inline edges'
+is-true actual=true msg='InlineBoxSpan TextRange(start=0, end=1) must have finite inline edges'
+test: inlineObjectLeadingBoundaryMustBeFixed
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) cannot shrink its leading boundary'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) cannot shrink its leading boundary'
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) cannot discard advance at its leading boundary'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) cannot discard advance at its leading boundary'
+test: inlineObjectMinimumClearanceEmMustBeFiniteAndNonNegative
+raises exception=IllegalArgumentException thrown='ParagraphStyle.inlineObjectMinimumClearanceEm must be finite and non-negative'
+is-true actual=true msg='ParagraphStyle.inlineObjectMinimumClearanceEm must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='ParagraphStyle.inlineObjectMinimumClearanceEm must be finite and non-negative'
+is-true actual=true msg='ParagraphStyle.inlineObjectMinimumClearanceEm must be finite and non-negative'
+test: inlineObjectMustCoverANonEmptyInBoundsRange
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=1, end=1) must cover a non-empty source range'
+is-true actual=true msg='InlineObjectSpan TextRange(start=1, end=1) must cover a non-empty source range'
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=9) must cover a non-empty source range'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=9) must cover a non-empty source range'
+test: inlineObjectMustHaveFinitePositiveGeometry
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) must have finite positive geometry'
+test: inlineObjectRangesMustBeUnique
+raises exception=IllegalArgumentException thrown='InlineObjectSpan ranges must be unique'
+is-true actual=true msg='InlineObjectSpan ranges must be unique'
+test: inlineObjectRangesMustNotOverlap
+raises exception=IllegalArgumentException thrown='InlineObjectSpan ranges must not overlap: TextRange(start=0, end=2) and TextRange(start=1, end=2)'
+is-true actual=true msg='InlineObjectSpan ranges must not overlap: TextRange(start=0, end=2) and TextRange(start=1, end=2)'
+test: inlineObjectTrailingBoundaryMustNotExceedAdvance
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) trailing shrink capacity must not exceed its advance'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) trailing shrink capacity must not exceed its advance'
+raises exception=IllegalArgumentException thrown='InlineObjectSpan TextRange(start=0, end=1) trailing line-end discard must not exceed its advance'
+is-true actual=true msg='InlineObjectSpan TextRange(start=0, end=1) trailing line-end discard must not exceed its advance'
+test: lineBreakSpansMustBeNonEmptyInBoundsRanges
+raises exception=IllegalArgumentException thrown='LineBreakSpan TextRange(start=0, end=0) must be a non-empty source range'
+is-true actual=true msg='LineBreakSpan TextRange(start=0, end=0) must be a non-empty source range'
+raises exception=IllegalArgumentException thrown='LineBreakSpan TextRange(start=2, end=3) must be a non-empty source range'
+is-true actual=true msg='LineBreakSpan TextRange(start=2, end=3) must be a non-empty source range'
+test: sourceTextMustNotContainUnpairedSurrogates
+raises exception=IllegalArgumentException thrown='SourceText has an unpaired high surrogate at char 1'
+is-true actual=true msg='SourceText has an unpaired high surrogate at char 1'
+raises exception=IllegalArgumentException thrown='SourceText has an unpaired low surrogate at char 1'
+is-true actual=true msg='SourceText has an unpaired low surrogate at char 1'
+raises exception=IllegalArgumentException thrown='SourceText has an unpaired high surrogate at char 0'
+is-true actual=true msg='SourceText has an unpaired high surrogate at char 0'
+raises exception=IllegalArgumentException thrown='SourceText has an unpaired high surrogate at char 0'
+is-true actual=true msg='SourceText has an unpaired high surrogate at char 0'

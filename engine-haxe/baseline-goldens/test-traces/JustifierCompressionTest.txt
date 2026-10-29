@@ -1,0 +1,19 @@
+class: JustifierCompressionTest
+test: consumesTiersInAscendingOrder
+eq-tol expected=0 actual=0 tol=0.000100
+eq-tol expected=2 actual=2 tol=0.000100
+eq-tol expected=1 actual=1 tol=0.000100
+null actual=- msg='tier 3 must stay untouched while tier 2 has room'
+test: nanSurplusEmitsNoAllocations
+is-true actual=true
+is-true actual=true
+test: reportsUnfilledWhenCapacityExhausted
+eq-tol expected=3 actual=3 tol=0.000100
+eq expected=2 actual=2
+test: sharesEqualFractionWithinATier
+eq-tol expected=1 actual=1 tol=0.000100
+eq-tol expected=3 actual=3 tol=0.000100
+eq-tol expected=0 actual=0 tol=0.000100
+test: zeroSurplusIsNoOp
+is-true actual=true
+eq-tol expected=0 actual=0 tol=0.000100

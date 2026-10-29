@@ -1,0 +1,107 @@
+class: EastAsianSpacingCoverageTest
+test: testEastAsianSpacingDataAndValues
+not-null actual=Wide
+not-null actual=Narrow
+not-null actual=Other
+not-null actual=Conditional
+eq expected=Wide actual=Wide
+eq expected=Narrow actual=Narrow
+eq expected=Conditional actual=Conditional
+eq expected=Other actual=Other
+eq expected=Other actual=Other
+test: testEastAsianSpacingEdgesModel
+eq expected=Wide actual=Wide
+eq expected=Narrow actual=Narrow
+is-true actual=true
+eq expected=EastAsianSpacingEdges(leading=Wide, trailing=Narrow, containsWide=true) actual=EastAsianSpacingEdges(leading=Wide, trailing=Narrow, containsWide=true)
+is-true actual=true
+is-true actual=true
+test: testUnicodeEastAsianSpacing
+eq expected='draft-2024-12-16' actual='draft-2024-12-16'
+is-true actual=true
+is-true actual=true
+eq expected='2026-06-14' actual='2026-06-14'
+is-true actual=true
+is-true actual=true msg='Locale zh should be Chinese'
+is-true actual=true msg='Locale zh-Hans should be Chinese'
+is-true actual=true msg='Locale zh-Hant should be Chinese'
+is-true actual=true msg='Locale zh-CN should be Chinese'
+is-true actual=true msg='Locale zh_TW should be Chinese'
+is-true actual=true msg='Locale cdo should be Chinese'
+is-true actual=true msg='Locale cjy should be Chinese'
+is-true actual=true msg='Locale cmn should be Chinese'
+is-true actual=true msg='Locale cnp should be Chinese'
+is-true actual=true msg='Locale cpx should be Chinese'
+is-true actual=true msg='Locale csp should be Chinese'
+is-true actual=true msg='Locale czh should be Chinese'
+is-true actual=true msg='Locale czo should be Chinese'
+is-true actual=true msg='Locale gan should be Chinese'
+is-true actual=true msg='Locale hak should be Chinese'
+is-true actual=true msg='Locale hnm should be Chinese'
+is-true actual=true msg='Locale hsn should be Chinese'
+is-true actual=true msg='Locale luh should be Chinese'
+is-true actual=true msg='Locale lzh should be Chinese'
+is-true actual=true msg='Locale mnp should be Chinese'
+is-true actual=true msg='Locale nan should be Chinese'
+is-true actual=true msg='Locale sjc should be Chinese'
+is-true actual=true msg='Locale wuu should be Chinese'
+is-true actual=true msg='Locale yue should be Chinese'
+is-true actual=true msg='Locale yue-HK should be Chinese'
+is-true actual=true msg='Locale cmn-Hans-CN should be Chinese'
+is-false actual=false msg='Locale en should not be Chinese'
+is-false actual=false msg='Locale en-US should not be Chinese'
+is-false actual=false msg='Locale ja should not be Chinese'
+is-false actual=false msg='Locale ko should not be Chinese'
+is-false actual=false msg='Locale fr should not be Chinese'
+is-false actual=false msg='Locale de should not be Chinese'
+is-false actual=false msg='Locale es should not be Chinese'
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: -1'
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: 1114112'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 57343'
+eq expected=Other actual=Other
+eq expected=Other actual=Other
+eq expected=Narrow actual=Narrow
+eq expected=Other actual=Other
+eq expected=Wide actual=Wide
+eq expected=Narrow actual=Narrow
+eq expected=Other actual=Other
+eq expected=Other actual=Other
+eq expected=Other actual=Other
+is-false actual=false
+eq expected=Wide actual=Wide
+eq expected=Wide actual=Wide
+is-true actual=true
+eq expected=Narrow actual=Narrow
+eq expected=Narrow actual=Narrow
+is-false actual=false
+eq expected=Other actual=Other
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+test: testUnicodeScriptEvidence
+not-null actual=Neutral
+not-null actual=EastAsian
+not-null actual=Other
+eq expected='17' actual='17'
+is-true actual=true
+is-true actual=true
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: -1'
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: 1114112'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 57343'
+eq expected=EastAsian actual=EastAsian
+eq expected=Other actual=Other
+eq expected=Neutral actual=Neutral
+test: testUnicodeWordCharacter
+eq expected='17' actual='17'
+is-true actual=true
+is-true actual=true
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: -1'
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: 1114112'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 57343'
+is-true actual=true
+is-true actual=true
+is-false actual=false
+is-false actual=false

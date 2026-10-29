@@ -1,0 +1,9 @@
+class: OpeningBracketLineStartTest
+test: testOpeningBracketAtLineStartCompression
+eq expected=3 actual=3
+eq expected='（' actual='（'
+eq-tol expected=8 actual=8 tol=0.010000
+eq expected='（' actual='（'
+eq-tol expected=8 actual=8 tol=0.010000
+eq expected=2 actual=2
+is-true actual=true

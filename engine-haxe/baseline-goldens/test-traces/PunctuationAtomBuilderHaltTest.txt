@@ -1,0 +1,69 @@
+class: PunctuationAtomBuilderHaltTest
+test: defaultInkCapsAHaltTrimThatWouldCutIntoThePaintedGlyph
+eq expected=2 actual=2
+eq expected=0 actual=0
+eq expected=14 actual=14
+eq expected='halt-trim-limited-by-default-ink-bounds' actual='halt-trim-limited-by-default-ink-bounds'
+is-true actual=true
+test: equalHaltAdvanceFallsThroughToInkBounds
+null actual=-
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected='InkBoundsFittedBodyCompression' actual='InkBoundsFittedBodyCompression'
+test: fixedHalfConsumesMeasuredSidebearingsInsteadOfApplyingAProfileShift
+eq expected=16 actual=16
+eq expected=9.500000 actual=9.500000
+eq expected=6.500000 actual=6.500000
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected='InkBoundsFittedBodyCompressionFixedHalfWidth' actual='InkBoundsFittedBodyCompressionFixedHalfWidth'
+test: founderHeitiCentredParenthesesStayMirrorImages
+eq-tol expected=4 actual=4 tol=0.001000
+eq-tol expected=4 actual=4 tol=0.001000
+is-true actual=true
+eq expected=0 actual=0
+eq expected=0 actual=0
+test: haltAdvanceWithoutPlacementUsesNamedProfileFallback
+eq expected=7.500000 actual=7.500000
+eq expected=7.500000 actual=7.500000
+eq expected=0 actual=0
+eq expected=8.500000 actual=8.500000
+eq expected='FontHaltAdvanceWithProfileFallback' actual='FontHaltAdvanceWithProfileFallback'
+test: haltPlacementDirectlyDefinesBothCompressionSides
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected=8 actual=8
+eq expected=Center actual=Center
+eq expected='FontHaltFittedBodyCompression' actual='FontHaltFittedBodyCompression'
+null actual=-
+test: haltPlacementOverridesRegionalProfileDirection
+eq expected=0 actual=0
+eq expected=8 actual=8
+null actual=-
+test: microsoftYaheiBottomLeftStopKeepsItsLeadingSafetyMargin
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=8 actual=8
+eq expected=Leading actual=Leading
+eq expected=0 actual=0
+test: microsoftYaheiCentredCommaCompressesFromBothSides
+eq-tol expected=8 actual=8 tol=0.001000
+eq-tol expected=4 actual=4 tol=0.010000
+eq-tol expected=4 actual=4 tol=0.010000
+eq expected=Center actual=Center
+eq expected=0 actual=0
+test: overhangReducesCompressionCapacityWithoutMovingInk
+eq expected=17 actual=17
+eq expected=10.500000 actual=10.500000
+eq expected=6.500000 actual=6.500000
+eq expected=0 actual=0
+eq expected=0 actual=0
+is-true actual=true
+test: underwidthOpeningQuoteCompletesTheLeadingSideOfItsFullWidthCell
+eq expected=16 actual=16
+eq expected=10 actual=10
+eq-tol expected=8 actual=8 tol=0.001000
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=10 actual=10
+eq expected='UnderwidthPunctuationFullWidthBoxPlacement' actual='UnderwidthPunctuationFullWidthBoxPlacement'

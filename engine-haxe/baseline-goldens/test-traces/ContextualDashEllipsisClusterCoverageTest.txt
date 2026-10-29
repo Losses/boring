@@ -1,0 +1,3 @@
+class: ContextualDashEllipsisClusterCoverageTest
+test: latinDashRunAtParagraphEndStaysOneCluster
+test: styleSpanInsideLatinDashRunSplitsTheCluster

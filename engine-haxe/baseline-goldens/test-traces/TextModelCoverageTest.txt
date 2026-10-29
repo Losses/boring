@@ -1,0 +1,222 @@
+class: TextModelCoverageTest
+test: testInlineObjectPreferredStretchAndAdjustment
+not-null actual=PunctuationTrailing
+not-null actual=Relation
+not-null actual=BinaryOperator
+eq expected=Relation actual=Relation
+eq expected=10 actual=10
+eq expected=15 actual=15
+eq expected=5 actual=5
+eq expected=InlineObjectPreferredStretch(kind=Relation, naturalWidth=10, targetWidth=15) actual=InlineObjectPreferredStretch(kind=Relation, naturalWidth=10, targetWidth=15)
+is-true actual=true
+raises exception=IllegalArgumentException thrown='Inline-object preferred stretch natural width must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='Inline-object preferred stretch natural width must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='Inline-object preferred stretch natural width must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='Inline-object preferred stretch target must be finite and exceed its natural width'
+raises exception=IllegalArgumentException thrown='Inline-object preferred stretch target must be finite and exceed its natural width'
+raises exception=IllegalArgumentException thrown='Inline-object preferred stretch target must be finite and exceed its natural width'
+raises exception=IllegalArgumentException thrown='Inline-object preferred stretch target must be finite and exceed its natural width'
+is-false actual=false
+null actual=-
+eq expected=0 actual=0
+eq expected=0 actual=0
+is-false actual=false
+is-true actual=true
+eq expected=InlineObjectPreferredStretch(kind=Relation, naturalWidth=10, targetWidth=15) actual=InlineObjectPreferredStretch(kind=Relation, naturalWidth=10, targetWidth=15)
+eq expected=2 actual=2
+eq expected=1 actual=1
+is-true actual=true
+eq expected=InlineObjectBoundaryAdjustment(participatesInUniformStretch=true, preferredStretch=InlineObjectPreferredStretch(kind=Relation, naturalWidth=10, targetWidth=15), shrinkCapacity=2, lineEndDiscardableAdvance=1, preventsLineBreak=true) actual=InlineObjectBoundaryAdjustment(participatesInUniformStretch=true, preferredStretch=InlineObjectPreferredStretch(kind=Relation, naturalWidth=10, targetWidth=15), shrinkCapacity=2, lineEndDiscardableAdvance=1, preventsLineBreak=true)
+is-true actual=true
+raises exception=IllegalArgumentException thrown='Inline-object boundary shrink capacity must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='Inline-object boundary shrink capacity must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='Inline-object line-end discardable advance must be finite and non-negative'
+raises exception=IllegalArgumentException thrown='Inline-object line-end discardable advance must be finite and non-negative'
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=16 actual=16
+eq expected=12 actual=12
+eq expected=12 actual=12
+is-true actual=true
+test: testRichTextSpansAndPatterns
+eq expected=-16777216 actual=-16777216
+eq expected=1.500000 actual=1.500000
+eq expected=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, metricPolicy=MarkedFaces, drawStyle=Fill), adjacentSameStyleClearance=1.~242#303be4bc actual=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, metricPolicy=MarkedFaces, drawStyle=Fill), adjacentSameStyleClearance=1.~242#303be4bc
+is-true actual=true
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+eq expected=2 actual=2
+eq expected=3 actual=3
+eq expected=4 actual=4
+eq expected=1 actual=1
+eq expected=UniformTextStyle actual=UniformTextStyle
+eq expected=RichTextBackgroundPaint(horizontalPadding=2, verticalPadding=3, cornerRadius=4, continuationCornerRadius=1, metricPolicy=UniformTextStyle, drawStyle=Border(strokeWidth=1.5)) actual=RichTextBackgroundPaint(horizontalPadding=2, verticalPadding=3, cornerRadius=4, continuationCornerRadius=1, metricPolicy=UniformTextStyle, drawStyle=Border(strokeWidth=1.5))
+is-true actual=true
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+eq expected=Fill actual=Fill
+eq expected=2 actual=2
+eq expected=Border(strokeWidth=2) actual=Border(strokeWidth=2)
+is-true actual=true
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+not-null actual=MarkedFaces
+not-null actual=UniformTextStyle
+not-null actual=UniformParagraphStyle
+eq expected=Solid actual=Solid
+eq expected=1 actual=1
+eq expected=4 actual=4
+eq expected=2 actual=2
+eq expected=Dashed(strokeWidth=1, dashLength=4, gapLength=2) actual=Dashed(strokeWidth=1, dashLength=4, gapLength=2)
+is-true actual=true
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+eq expected=2 actual=2
+eq expected=3 actual=3
+eq expected=Dotted(dotDiameter=2, gapLength=3) actual=Dotted(dotDiameter=2, gapLength=3)
+is-true actual=true
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+raises exception=IllegalArgumentException thrown='Failed requirement.'
+eq expected='https://tiqian.org' actual='https://tiqian.org'
+eq expected=Link(target=https://tiqian.org) actual=Link(target=https://tiqian.org)
+is-true actual=true
+eq expected=Background actual=Background
+eq expected=RichTextSpan(range=TextRange(start=0, end=2), role=Background, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, met~312#e5bdf9d8 actual=RichTextSpan(range=TextRange(start=0, end=2), role=Background, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, met~312#e5bdf9d8
+is-true actual=true
+eq expected=Underline actual=Underline
+eq expected=RichTextSpan(range=TextRange(start=0, end=2), role=Underline, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, metr~311#f464655a actual=RichTextSpan(range=TextRange(start=0, end=2), role=Underline, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, metr~311#f464655a
+is-true actual=true
+eq expected=LineThrough actual=LineThrough
+eq expected=RichTextSpan(range=TextRange(start=0, end=2), role=LineThrough, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, me~313#5cd96e3 actual=RichTextSpan(range=TextRange(start=0, end=2), role=LineThrough, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, me~313#5cd96e3
+is-true actual=true
+eq expected=Link(target=https://tiqian.org) actual=Link(target=https://tiqian.org)
+eq expected=RichTextSpan(range=TextRange(start=0, end=2), role=Link(target=https://tiqian.org), paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuati~333#b3fe3d16 actual=RichTextSpan(range=TextRange(start=0, end=2), role=Link(target=https://tiqian.org), paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuati~333#b3fe3d16
+is-true actual=true
+eq expected=TechnicalInline actual=TechnicalInline
+eq expected=RichTextSpan(range=TextRange(start=0, end=2), role=TechnicalInline, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0~317#c98963dc actual=RichTextSpan(range=TextRange(start=0, end=2), role=TechnicalInline, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0~317#c98963dc
+is-true actual=true
+eq expected=InlineCode actual=InlineCode
+eq expected=RichTextSpan(range=TextRange(start=0, end=2), role=InlineCode, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, met~312#30bd6f40 actual=RichTextSpan(range=TextRange(start=0, end=2), role=InlineCode, paint=RichTextPaint(argb=-16777216, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, met~312#30bd6f40
+is-true actual=true
+test: testRubyAndParagraphModels
+not-null actual=Pinyin
+not-null actual=Bopomofo
+not-null actual=PerLine
+not-null actual=UniformParagraph
+eq expected=Pinyin actual=Pinyin
+null actual=-
+eq expected=Bopomofo actual=Bopomofo
+eq expected='zh-TW' actual='zh-TW'
+eq expected=RubySpan(baseRange=TextRange(start=0, end=1), text=ㄏㄢˋ, fontFamilies=[], kind=Bopomofo, locale=zh-TW) actual=RubySpan(baseRange=TextRange(start=0, end=1), text=ㄏㄢˋ, fontFamilies=[], kind=Bopomofo, locale=zh-TW)
+is-true actual=true
+eq expected=0.100000 actual=0.100000
+eq expected=0.100000 actual=0.100000
+not-null actual=Start
+not-null actual=Center
+not-null actual=End
+not-null actual=HorizontalTb
+not-null actual=VerticalRl
+eq expected=1 actual=1
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=MeasureAdaptiveFirstLineIndent(shortBelowEm=14, shortEm=1, longEm=2) actual=MeasureAdaptiveFirstLineIndent(shortBelowEm=14, shortEm=1, longEm=2)
+is-true actual=true
+is-true actual=true
+eq expected=Center actual=Center
+eq expected=LineLengthGrid(enabled=true, bodyAlignment=Center) actual=LineLengthGrid(enabled=true, bodyAlignment=Center)
+is-true actual=true
+eq expected=End actual=End
+eq expected=VerticalRl actual=VerticalRl
+eq expected=32 actual=32
+eq expected=UniformParagraph actual=UniformParagraph
+eq expected=ParagraphStyle(lastLineAlignment=End, writingMode=VerticalRl, lineHeight=32, firstLineIndent=null, blockIndent=Ic(count=0), firstLineIndentPolicy=MeasureAdaptiveFirstLineIndent(shortBelowEm=14, shortEm=1, longEm=2), lineLengthGrid=LineLengt~378#9d06bd77 actual=ParagraphStyle(lastLineAlignment=End, writingMode=VerticalRl, lineHeight=32, firstLineIndent=null, blockIndent=Ic(count=0), firstLineIndentPolicy=MeasureAdaptiveFirstLineIndent(shortBelowEm=14, shortEm=1, longEm=2), lineLengthGrid=LineLengt~378#9d06bd77
+is-true actual=true
+eq expected='custom-profile' actual='custom-profile'
+eq expected='clreq-horizontal' actual='clreq-horizontal'
+eq expected=LayoutProfileId(value=custom-profile) actual=LayoutProfileId(value=custom-profile)
+is-true actual=true
+eq expected=LayoutProfileId(value=custom-profile) actual=LayoutProfileId(value=custom-profile)
+eq expected=LayoutInput(content=TiqianTextContent(text=Test, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=~1566#8ed28a5d actual=LayoutInput(content=TiqianTextContent(text=Test, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=~1566#8ed28a5d
+is-true actual=true
+test: testSpansAndInlineBox
+eq expected=TextRange(start=0, end=4) actual=TextRange(start=0, end=4)
+eq expected=ProgressiveTechnical actual=ProgressiveTechnical
+eq expected=LineBreakSpan(range=TextRange(start=0, end=4), policy=ProgressiveTechnical) actual=LineBreakSpan(range=TextRange(start=0, end=4), policy=ProgressiveTechnical)
+is-true actual=true
+not-null actual=ProgressiveTechnical
+not-null actual=None
+not-null actual=Previous
+not-null actual=Narrow
+not-null actual=Source
+eq expected=TextRange(start=1, end=3) actual=TextRange(start=1, end=3)
+eq expected=2 actual=2
+eq expected=3 actual=3
+eq expected=Source actual=Source
+eq expected=InlineBoxSpan(range=TextRange(start=1, end=3), inlineStart=2, inlineEnd=3, outerSpacing=Source) actual=InlineBoxSpan(range=TextRange(start=1, end=3), inlineStart=2, inlineEnd=3, outerSpacing=Source)
+is-true actual=true
+eq expected='￼' actual='￼'
+test: testTextStyleAndDecorations
+eq expected=['Noto Serif CJK SC'] actual=['Noto Serif CJK SC']
+eq expected=18 actual=18
+eq expected='zh-CN' actual='zh-CN'
+eq expected=700 actual=700
+is-true actual=true
+eq expected=-2 actual=-2
+eq expected=Previous actual=Previous
+eq expected=TextStyle(fontFamilies=[Noto Serif CJK SC], fontSize=18, locale=zh-CN, fontWeight=700, italic=true, baselineShift=-2, inlineAttachment=Previous) actual=TextStyle(fontFamilies=[Noto Serif CJK SC], fontSize=18, locale=zh-CN, fontWeight=700, italic=true, baselineShift=-2, inlineAttachment=Previous)
+is-true actual=true
+not-null actual=Emphasis
+not-null actual=Mourning
+not-null actual=ProperNoun
+not-null actual=BookTitle
+eq expected=TextRange(start=2, end=4) actual=TextRange(start=2, end=4)
+eq expected=Emphasis actual=Emphasis
+eq expected=DecorationSpan(range=TextRange(start=2, end=4), kind=Emphasis) actual=DecorationSpan(range=TextRange(start=2, end=4), kind=Emphasis)
+is-true actual=true
+eq expected=1 actual=1
+eq expected=5 actual=5
+eq expected=-15654349 actual=-15654349
+eq expected=ColorSpan(start=1, end=5, argb=-15654349) actual=ColorSpan(start=1, end=5, argb=-15654349)
+is-true actual=true
+is-true actual=true
+test: testTiqianTextContentAndLinkAddressDisplay
+eq expected='Hello Tiqian' actual='Hello Tiqian'
+eq expected=1 actual=1
+eq expected=3 actual=3
+eq expected=1 actual=1
+eq expected=1 actual=1
+eq expected=TiqianTextContent(text=Hello Tiqian, spans=[TextSpan(range=TextRange(start=0, end=5), style=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=0, inlineAttachment=None))], sourceBoundaries=[0~399#95010437 actual=TiqianTextContent(text=Hello Tiqian, spans=[TextSpan(range=TextRange(start=0, end=5), style=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=false, baselineShift=0, inlineAttachment=None))], sourceBoundaries=[0~399#95010437
+is-true actual=true
+is-true actual=true
+is-false actual=false
+is-false actual=false
+is-false actual=false
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-false actual=false
+is-false actual=false

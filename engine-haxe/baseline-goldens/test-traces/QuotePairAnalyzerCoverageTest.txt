@@ -1,0 +1,56 @@
+class: QuotePairAnalyzerCoverageTest
+test: analyzeWithAllQuoteTypes
+eq expected=2 actual=2
+test: analyzeWithDoubleQuoteOpen
+eq expected=0 actual=0
+test: codePointAtOrNullHighSurrogateAtStringEnd
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+test: codePointAtOrNullHighSurrogateNotInRangeReturnsHigh
+is-true actual=true
+test: codePointAtOrNullLoneHighSurrogateAfterQuote
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+test: codePointAtOrNullNonSurrogateReturnsSelf
+is-true actual=true
+test: codePointAtOrNullSurrogatePairReturnsSupplementary
+is-true actual=true
+test: codePointAtOrNullWithHighSurrogateAtEnd
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+test: codePointAtOrNullWithHighSurrogateFollowedByNonLowSurrogate
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'
+test: codePointAtOrNullWithIndexOutOfRange
+is-true actual=true
+test: codePointAtOrNullWithSupplementaryAfterQuote
+is-true actual=true
+test: codePointBeforeLowInRangeIndexGe2HighNotInRange
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+test: codePointBeforeNonSurrogateBmpChar
+is-true actual=true
+test: codePointBeforeReturnsNullAtStart
+is-true actual=true
+test: codePointBeforeReturnsSupplementaryForSurrogatePair
+is-true actual=true
+test: codePointBeforeSurrogatePairReturnsSupplementary
+eq expected=0 actual=0
+test: codePointBeforeWithHighSurrogateBeforeQuote
+is-true actual=true
+test: codePointBeforeWithLowSurrogateAfterNonHighSurrogate
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+test: codePointBeforeWithLowSurrogateAtStart
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+test: deprecatedClassifyPairsWithFontRoleClassifierDelegates
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: deprecatedClassifyQuoteRolesWithFontRoleClassifierDelegates
+is-true actual=true
+test: doubleQuoteCloseWithEmptyStackIgnores
+eq expected=0 actual=0
+test: inWordApostropheAfterSupplementaryDoesNotClose
+is-true actual=true
+test: quotePairAwareFontRoleClassifierDelegatesWhenNoOverride
+eq expected=LatinText actual=LatinText
+test: quotePairAwareFontRoleClassifierUsesOverride
+eq expected=LatinText actual=LatinText
+test: singleQuoteCloseWithEmptyStackIgnores
+eq expected=0 actual=0
+test: singleQuotePairMatch
+eq expected=1 actual=1
+eq expected=Single actual=Single

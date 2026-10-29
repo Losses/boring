@@ -1,0 +1,68 @@
+class: LookaheadLineBreakerTest
+test: compatibilityHangingIndexSkipsATrailingMandatoryBreakControl
+eq expected=1 actual=1
+test: emptyInputProducesNoLines
+eq expected=0 actual=0
+test: hangingClustersMustBeAContiguousTrailingSuffix
+raises exception=IllegalArgumentException thrown='Hanging clusters must be a trailing line suffix: line=0..2 hanging=[1]'
+test: hangingTailIsExcludedFromFillDensityGeometry
+eq expected=[0] actual=[0]
+eq expected=0 actual=0
+eq expected=0 actual=0 msg='hung point-mark boundaries are not justification gaps'
+test: lookaheadAvoidsConsecutiveSyntheticHyphenBreaks
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+eq expected=[3, 4, 5] actual=[3, 4, 5]
+eq expected=[6, 7] actual=[6, 7]
+eq expected=[0, 1] actual=[0, 1]
+eq expected=[2, 3, 4] actual=[2, 3, 4]
+eq expected=[5, 6, 7] actual=[5, 6, 7]
+test: lookaheadFallsBackToGreedyWhenAlternativesAreWorse
+eq expected=3 actual=3
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=[4, 5, 6, 7] actual=[4, 5, 6, 7]
+eq expected=[8] actual=[8]
+test: lookaheadKeepsGreedyBreakWhenPushInGlueCoversRepair
+eq expected=1 actual=1
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=60 actual=60
+eq expected=true actual=true
+eq expected=2 actual=2
+test: lookaheadMatchesGreedyWhenShiftingEarlierGivesNoBenefit
+eq expected=2 actual=2
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=[4, 5] actual=[4, 5]
+eq expected=0 actual=0
+test: lookaheadScoresFuturePushInBeforeChoosingEarlierBreak
+eq expected=2 actual=2
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+eq expected=[3, 4, 5, 6] actual=[3, 4, 5, 6]
+eq expected=60 actual=60
+eq expected=true actual=true
+eq expected=2 actual=2
+test: lookaheadScoresKinsokuRepairsWithUnbreakableRanges
+eq expected=3 actual=3
+eq expected=[0, 1] actual=[0, 1]
+eq expected=[2, 3, 4, 5] actual=[2, 3, 4, 5]
+eq expected=[6, 7, 8] actual=[6, 7, 8]
+eq expected=- actual=-
+eq expected=- actual=-
+eq expected=- actual=-
+eq expected=0 actual=0
+test: lookaheadShiftsBreakEarlierToAvoidKinsokuRepair
+eq expected=3 actual=3
+eq expected=true actual=true
+eq expected=10 actual=10
+eq expected=3 actual=3
+eq expected=- actual=-
+eq expected=- actual=-
+eq expected=- actual=-
+eq expected=0 actual=0
+eq expected=32 actual=32
+eq expected=48 actual=48
+eq expected=32 actual=32
+eq expected=[0, 1] actual=[0, 1]
+eq expected=[2, 3, 4] actual=[2, 3, 4]
+eq expected=[5, 6] actual=[5, 6]
+test: windowZeroReducesLookaheadToGreedy
+eq expected=3 actual=3
+eq expected=true actual=true

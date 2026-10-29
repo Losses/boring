@@ -1,0 +1,123 @@
+class: LayoutQueriesTest
+test: adjacentBackgroundAndUnderlineDoNotAvoidAcrossStyles
+eq-tol expected=14 actual=14 tol=0.001000
+eq-tol expected=14 actual=14 tol=0.001000
+test: adjacentBackgroundsWithTheSameStyleShareOneClearance
+eq expected=2 actual=2
+eq-tol expected=2 actual=2 tol=0.001000
+eq-tol expected=13 actual=13 tol=0.001000
+eq-tol expected=15 actual=15 tol=0.001000
+test: adjacentLineDecorationsWithTheSameStyleShareOneClearance
+eq expected=2 actual=2
+eq-tol expected=2 actual=2 tol=0.001000
+eq-tol expected=13 actual=13 tol=0.001000
+eq-tol expected=15 actual=15 tol=0.001000
+test: backgroundContinuationCornersKeepOnlyTrueSourceEndsFullyRounded
+eq expected=RichTextCornerRadii(topLeft=3, topRight=1, bottomRight=1, bottomLeft=3) actual=RichTextCornerRadii(topLeft=3, topRight=1, bottomRight=1, bottomLeft=3)
+eq expected=RichTextCornerRadii(topLeft=1, topRight=1, bottomRight=1, bottomLeft=1) actual=RichTextCornerRadii(topLeft=1, topRight=1, bottomRight=1, bottomLeft=1)
+eq expected=RichTextCornerRadii(topLeft=1, topRight=3, bottomRight=3, bottomLeft=1) actual=RichTextCornerRadii(topLeft=1, topRight=3, bottomRight=3, bottomLeft=1)
+eq expected=RichTextCornerRadii(topLeft=3, topRight=3, bottomRight=3, bottomLeft=3) actual=RichTextCornerRadii(topLeft=3, topRight=3, bottomRight=3, bottomLeft=3)
+test: backgroundContinuationRadiusDefaultsToTheAuthoredCornerRadius
+eq expected=5 actual=5
+test: clipboardProjectionRestoresSourceAndAddsFullySelectedAnnotations
+eq expected='提椠（tíqiàn）与您（ㄋㄧㄣˊ）' actual='提椠（tíqiàn）与您（ㄋㄧㄣˊ）'
+eq expected='提' actual='提'
+eq expected='提椠（tíqiàn）' actual='提椠（tíqiàn）'
+eq expected='您（ㄋㄧㄣˊ）' actual='您（ㄋㄧㄣˊ）'
+test: customLineStylesReuseTheRendererUnderlineHeight
+eq-tol expected=16.799999 actual=16.799999 tol=0.001000
+test: externalSelectionOffsetsRespectDirectionalBoundaryBias
+eq expected=2 actual=2
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected=9 actual=9
+test: glyphInkBoundsKeepItalicOverhangSeparateFromOccupiedGeometry
+eq expected=Rect(left=0, top=0, right=10, bottom=20) actual=Rect(left=0, top=0, right=10, bottom=20)
+eq expected=Rect(left=-3, top=5, right=12, bottom=16) actual=Rect(left=-3, top=5, right=12, bottom=16)
+test: hitTestingChoosesOffsetFromTiqianClusterAdvances
+eq expected=0 actual=0
+eq expected=1 actual=1
+eq expected=2 actual=2
+eq expected=3 actual=3
+eq expected=4 actual=4
+test: inlineObjectSourceRangeIsOneSelectionUnit
+eq expected=1 actual=1
+eq expected=19 actual=19
+eq expected=1 actual=1
+eq expected=19 actual=19
+eq expected=TextRange(start=1, end=19) actual=TextRange(start=1, end=19)
+test: lineAndBoxQueriesUseTiqianLineGeometry
+eq expected=0 actual=0
+eq expected=1 actual=1
+eq expected=Rect(left=14, top=0, right=34, bottom=20) actual=Rect(left=14, top=0, right=34, bottom=20)
+eq expected=Rect(left=10, top=20, right=11, bottom=40) actual=Rect(left=10, top=20, right=11, bottom=40)
+test: lineThroughBisectsTheIdeographicMetricBox
+eq-tol expected=17 actual=17 tol=0.001000
+test: positionedClustersFollowLineIndentAndAdvance
+eq expected=Rect(left=4, top=0, right=14, bottom=20) actual=Rect(left=4, top=0, right=14, bottom=20)
+eq expected=Rect(left=14, top=0, right=34, bottom=20) actual=Rect(left=14, top=0, right=34, bottom=20)
+eq expected=Rect(left=0, top=20, right=10, bottom=40) actual=Rect(left=0, top=20, right=10, bottom=40)
+test: positionedClustersSeparateOccupiedBoxFromAutoSpaceDrawOrigin
+eq expected=Rect(left=10, top=0, right=32.5, bottom=20) actual=Rect(left=10, top=0, right=32.5, bottom=20)
+eq expected=12.500000 actual=12.500000
+eq expected=Rect(left=10, top=0, right=32.5, bottom=20) actual=Rect(left=10, top=0, right=32.5, bottom=20)
+eq expected=1 actual=1
+test: positionedClustersSeparateOccupiedBoxFromConsumedLeadingGlueDrawOrigin
+eq expected=Rect(left=0, top=0, right=6, bottom=20) actual=Rect(left=0, top=0, right=6, bottom=20)
+eq expected=-4 actual=-4
+eq expected=Rect(left=0, top=0, right=1, bottom=20) actual=Rect(left=0, top=0, right=1, bottom=20)
+eq expected=0 actual=0
+test: rangeBoxesSplitMultiUnitClustersBySourceRange
+eq expected=[Rect(left=24, top=0, right=34, bottom=20), Rect(left=0, top=20, right=10, bottom=40)] actual=[Rect(left=24, top=0, right=34, bottom=20), Rect(left=0, top=20, right=10, bottom=40)]
+test: richTextBackgroundKeepsInternalGapsButTrimsItsOuterLayoutSpace
+eq expected=Rect(left=0, top=11.2, right=29, bottom=21.2) actual=Rect(left=0, top=11.2, right=29, bottom=21.2)
+eq expected=Rect(left=19, top=11.2, right=29, bottom=21.2) actual=Rect(left=19, top=11.2, right=29, bottom=21.2)
+test: richTextDecorationDoesNotTrimAlreadyConsumedOpeningGlueTwice
+eq expected=0 actual=0
+test: richTextDecorationKeepsPunctuationGlueInsideItsRange
+eq expected=Rect(left=10, top=0, right=35, bottom=20) actual=Rect(left=10, top=0, right=35, bottom=20)
+test: richTextDecorationTrimsOnlyOuterPunctuationGlue
+eq expected=Rect(left=0, top=0, right=40, bottom=20) actual=Rect(left=0, top=0, right=40, bottom=20)
+eq expected=Rect(left=5, top=0, right=35, bottom=20) actual=Rect(left=5, top=0, right=35, bottom=20)
+eq expected=TextRange(start=0, end=4) actual=TextRange(start=0, end=4)
+test: richTextSegmentsReusePositionedClusterGeometryAndSplitLines
+eq expected=2 actual=2
+eq expected=TextRange(start=1, end=3) actual=TextRange(start=1, end=3)
+eq expected=Rect(left=14, top=0, right=34, bottom=20) actual=Rect(left=14, top=0, right=34, bottom=20)
+eq expected=TextRange(start=3, end=4) actual=TextRange(start=3, end=4)
+eq expected=Rect(left=0, top=20, right=10, bottom=40) actual=Rect(left=0, top=20, right=10, bottom=40)
+eq expected=RichTextSpan(range=TextRange(start=1, end=4), role=Background, paint=RichTextPaint(argb=872349696, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, met~310#6aaf46d actual=RichTextSpan(range=TextRange(start=1, end=4), role=Background, paint=RichTextPaint(argb=872349696, linePattern=Solid, background=RichTextBackgroundPaint(horizontalPadding=0, verticalPadding=0, cornerRadius=0, continuationCornerRadius=0, met~310#6aaf46d
+test: rubySelectionGeometryRedistributesAvoidanceSpreadWithoutOverlap
+eq expected=Rect(left=-6, top=0, right=26, bottom=20) actual=Rect(left=-6, top=0, right=26, bottom=20)
+eq expected=Rect(left=29, top=0, right=61, bottom=20) actual=Rect(left=29, top=0, right=61, bottom=20)
+eq expected=Rect(left=64, top=0, right=96, bottom=20) actual=Rect(left=64, top=0, right=96, bottom=20)
+is-true actual=true msg='ruby selection rects must not overlap: [PositionedCluster(lineIndex=0, clusterIndex=0, range=TextRange(start=0, end=1), left=-6, top=0, right=26, bottom=20, baseline=15, drawX=0, sourceStops=null), PositionedCluster(lineIndex=0, clusterInde~515#8f578951'
+eq expected=Rect(left=-6, top=0, right=26, bottom=20) actual=Rect(left=-6, top=0, right=26, bottom=20)
+eq expected=Rect(left=29, top=0, right=61, bottom=20) actual=Rect(left=29, top=0, right=61, bottom=20)
+test: selectionHitTestingKeepsSupportedSourceSequencesAtomic
+eq expected=0 actual=0
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected=9 actual=9
+test: selectionWordBoundaryExpandsLatinButKeepsHanAtomic
+eq expected=TextRange(start=2, end=10) actual=TextRange(start=2, end=10)
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+eq expected=TextRange(start=11, end=12) actual=TextRange(start=11, end=12)
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=2, end=10) actual=TextRange(start=2, end=10)
+test: supportedSourceSequenceRemainsAtomicAcrossEngineClusterBoundaries
+eq expected=0 actual=0
+eq expected=2 actual=2
+eq expected=0 actual=0
+eq expected=2 actual=2
+test: uniformTextStyleBackgroundIgnoresFallbackFaceHeightAndAddsPadding
+eq expected=2 actual=2
+eq expected=11 actual=11
+eq expected=23 actual=23
+eq expected=11 actual=11
+eq expected=23 actual=23
+eq expected=2 actual=2

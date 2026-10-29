@@ -1,0 +1,3 @@
+class: ShapingEvidenceRecorderTest
+test: recordShapingEvidence
+is-true actual=true msg='recording skipped in this run'

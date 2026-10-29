@@ -1,0 +1,4 @@
+scenario: font.metrics-normalizer
+normalize case='cjk-typo-box' raw-typo-ascent='14.08' raw-typo-descent='1.92' ascent='14.08' descent='1.92' baseline='IdeographicLow' metric-box='IdeographicEmBox' source='RawTables'
+normalize case='cjk-hhea-fallback' ascent='18.40' descent='4.00' policy='Raw'
+normalize case='latin-raw' ascent='12.80' descent='3.20' baseline='Roman' metric-box='RawFontBox'

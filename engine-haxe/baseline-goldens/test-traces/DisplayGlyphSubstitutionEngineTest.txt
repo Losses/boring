@@ -1,0 +1,78 @@
+class: DisplayGlyphSubstitutionEngineTest
+test: ambiguousGlyphClusterMappingFallsBackToPolicyWithRecordedReason
+eq expected=2 actual=2
+eq expected='ProfileGlueFallbackWithoutFontGeometry' actual='ProfileGlueFallbackWithoutFontGeometry' msg='source for '⋯''
+eq expected='glyph-cluster-mapping-ambiguous' actual='glyph-cluster-mapping-ambiguous' msg='fallback for '⋯''
+eq expected='ProfileGlueFallbackWithoutFontGeometry' actual='ProfileGlueFallbackWithoutFontGeometry' msg='source for '⋯''
+eq expected='glyph-cluster-mapping-ambiguous' actual='glyph-cluster-mapping-ambiguous' msg='fallback for '⋯''
+test: coalesceSetIsDrivenByProfile
+eq expected=2 actual=2
+eq expected='—' actual='—'
+eq expected='—' actual='—'
+test: dashCoverageTargetUsesTheDashSpanFontSize
+eq expected='——' actual='——'
+test: dashInkCentersWithinTheTwoEmBodyWhenTheFontRuleUnderfills
+eq expected='⸺' actual='⸺'
+eq-tol expected=1.750000 actual=1.750000 tol=0.010000
+test: dashSubstitutionIsKeptWhenInkFillsTheTwoEmAdvance
+eq expected='⸺' actual='⸺'
+test: dashSubstitutionRollsBackWhenFallbackReportsAFullOneEmGlyph
+eq expected='——' actual='——'
+is-true actual=true
+test: dashSubstitutionRollsBackWhenInkDoesNotFillTheTwoEmAdvance
+eq expected='——' actual='——'
+is-true actual=true
+test: ellipsisSubstitutionRollsBackWhenCoverageCannotBeVerified
+eq expected='……' actual='……'
+is-true actual=true
+test: honorsProfilePunctuationGlyphPolicy
+eq expected='……' actual='……'
+eq expected='——' actual='——'
+test: multiCharacterPunctuationUsesCharacterLocalInkBounds
+eq expected=2 actual=2
+eq expected=[8, 8] actual=[8, 8]
+eq expected=[16, 16] actual=[16, 16]
+test: preservesOpenTypeFeaturesAsFinalGlyphRunBoundaries
+eq expected=[TextRange(start=0, end=1), TextRange(start=1, end=2), TextRange(start=2, end=3)] actual=[TextRange(start=0, end=1), TextRange(start=1, end=2), TextRange(start=2, end=3)]
+eq expected=[[], ['pwid', 'palt'], []] actual=[[], ['pwid', 'palt'], []]
+test: preservesSourceTextWhenUsingClreqRecommendedDisplayGlyphs
+eq expected='……' actual='……'
+eq expected='⋯⋯' actual='⋯⋯'
+eq expected='——' actual='——'
+eq expected='⸺' actual='⸺'
+eq expected='・' actual='・'
+eq expected='·' actual='·'
+eq expected='／' actual='／'
+eq expected='／' actual='／'
+eq expected='cjk-primary' actual='cjk-primary'
+eq expected='cjk-primary' actual='cjk-primary'
+eq expected='cjk-primary' actual='cjk-primary'
+eq expected='cjk-primary' actual='cjk-primary'
+test: rolledBackDashStillKeepsItsBoundariesClosedUnderJustification
+eq expected='——' actual='——'
+is-true actual=true msg='boundary after a rolled-back dash must stay closed: ${decision.allocations}'
+test: shapingWithoutBoundsProducesNamedProfileFallback
+eq expected='ProfileGlueFallbackWithoutFontGeometry' actual='ProfileGlueFallbackWithoutFontGeometry'
+eq expected='shaper-no-ink-bounds' actual='shaper-no-ink-bounds'
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=8 actual=8
+test: stubShaperReportsProfileFallbackWhenInkBoundsAreUnavailable
+is-true actual=true
+eq expected='ProfileGlueFallbackWithoutFontGeometry' actual='ProfileGlueFallbackWithoutFontGeometry' msg='Stub shaper provides advance but no bounds for '，''
+eq expected='shaper-no-ink-bounds' actual='shaper-no-ink-bounds' msg='fallback for '，''
+eq expected=0 actual=0 msg='leading glue for '，''
+eq expected=8 actual=8 msg='trailing glue for '，''
+eq expected='ProfileGlueFallbackWithoutFontGeometry' actual='ProfileGlueFallbackWithoutFontGeometry' msg='Stub shaper provides advance but no bounds for '。''
+eq expected='shaper-no-ink-bounds' actual='shaper-no-ink-bounds' msg='fallback for '。''
+eq expected=0 actual=0 msg='leading glue for '。''
+eq expected=8 actual=8 msg='trailing glue for '。''
+test: substitutionIsKeptWhenFontCoversTheGlyph
+eq expected='⸺' actual='⸺'
+test: substitutionRollsBackToSourceTextWhenFontLacksTheGlyph
+eq expected='——' actual='——'
+eq expected='——' actual='——'
+is-true actual=true
+test: usesTwoEmAdvanceForRecommendedDashCodepoint
+eq expected=32 actual=32
+eq expected=32 actual=32

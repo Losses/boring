@@ -1,0 +1,109 @@
+class: QuoteClassificationEngineTest
+test: adjacentQuotedListItemsKeepCjkQuoteGeometryAcrossMixedContent
+eq expected=[5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29, 32] actual=[5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29, 32] msg='便延伸出了“乃子”“大波”“大灯”“大雷”“大扎”“对A”“波霸”这些词'
+eq expected=[5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29, 32] actual=[5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29, 32] msg='便延伸出了“乃子”“大波”“大灯”“大雷”“大扎”“对A”“波霸”这些词'
+eq expected=[29, 32] actual=[29, 32] msg='便延伸出了“乃子”“大波”“大灯”“大雷”“大扎”“对A”“波霸”这些词'
+is-true actual=true msg='便延伸出了“乃子”“大波”“大灯”“大雷”“大扎”“对A”“波霸”这些词'
+eq expected='便延伸出了“乃子”“大波”“大灯”“大雷”“大扎”“对A”“波霸”这些词' actual='便延伸出了“乃子”“大波”“大灯”“大雷”“大扎”“对A”“波霸”这些词'
+eq expected=[11, 14, 15, 22, 23, 34] actual=[11, 14, 15, 22, 23, 34] msg='这些太直白了是吧，\n “欧派”“double”“double may”呢'
+eq expected=[11, 14, 15, 22, 23, 34] actual=[11, 14, 15, 22, 23, 34] msg='这些太直白了是吧，\n “欧派”“double”“double may”呢'
+eq expected=[23, 34] actual=[23, 34] msg='这些太直白了是吧，\n “欧派”“double”“double may”呢'
+is-true actual=true msg='这些太直白了是吧，\n “欧派”“double”“double may”呢'
+eq expected='这些太直白了是吧，\n “欧派”“double”“double may”呢' actual='这些太直白了是吧，\n “欧派”“double”“double may”呢'
+test: asciiClosingBracketWithCjkInteriorIsForbiddenAtLineStart
+is-true actual=true msg='0..13 TextRange(start=0, end=14) AutoWrap "如今已占据超七成份额(国产品"\n14..26 TextRange(start=14, end=27) ParagraphEnd "牌)，互联网大厂排队抢购？"'
+eq expected='latin-primary' actual='latin-primary'
+test: asciiOpeningBracketWithCjkInteriorIsForbiddenAtLineEnd
+is-true actual=true msg='0..9 TextRange(start=0, end=10) AutoWrap "如今已占据超七成份额"\n10..19 TextRange(start=10, end=20) AutoWrap "(国产品牌)，互联网"\n20..26 TextRange(start=20, end=27) ParagraphEnd "大厂排队抢购？"'
+eq expected='latin-primary' actual='latin-primary'
+test: classifiesAsciiBracketsAsLatinInsidePureCjkContent
+eq expected='latin-primary' actual='latin-primary'
+eq expected='latin-primary' actual='latin-primary'
+test: classifiesAsciiBracketsAsLatinRegardlessOfSurroundingContext
+eq expected='latin-primary' actual='latin-primary'
+eq expected='LatinText' actual='LatinText'
+test: keepsAstralLetterBoundedWordInternalQuotesLatin
+eq expected=2 actual=2
+is-true actual=true
+test: keepsContractionApostropheLatinInsideCjkSingleQuotes
+eq expected='CjkPunctuation' actual='CjkPunctuation'
+eq expected='LatinText' actual='LatinText'
+eq expected='that’s' actual='that’s'
+eq expected='latin-primary' actual='latin-primary'
+eq expected='CjkPunctuation' actual='CjkPunctuation'
+eq expected='latin-primary' actual='latin-primary'
+is-true actual=true
+test: keepsLatinTechnicalPunctuationInLatinRun
+eq expected='well-known/path' actual='well-known/path'
+is-true actual=true
+is-true actual=true
+test: keepsNumberedCjkQuotePairOnCjkFace
+eq expected='CjkPunctuation' actual='CjkPunctuation'
+eq expected='cjk-primary' actual='cjk-primary'
+eq expected='PairedPunctuationContentScriptContext' actual='PairedPunctuationContentScriptContext'
+eq expected='quoted-content-script' actual='quoted-content-script'
+eq expected='CjkPunctuation' actual='CjkPunctuation'
+test: keepsSlashLedLatinTechnicalRunOutOfCjkPunctuationGeometry
+eq expected='LatinText' actual='LatinText'
+is-true actual=true
+eq expected='latin-primary' actual='latin-primary'
+is-true actual=true
+test: keepsSpaceInsidePairOutOfWordInternalFastPathLatin
+eq expected=2 actual=2
+is-true actual=true
+test: keepsTextStartLatinQuotePairInLatinRun
+eq expected=3 actual=3
+eq expected='“Hello”' actual='“Hello”'
+eq expected='latin-primary' actual='latin-primary'
+is-true actual=true
+test: leavesLatinContextCurlyQuotesOutsideCjkPunctuationGeometry
+is-true actual=true
+is-true actual=true
+test: mi10sAdjacentLatinTranscriptionsKeepTheFinalQuotePairInCjkContext
+eq expected=[19, 24] actual=[19, 24]
+is-true actual=true
+is-true actual=true
+is-true actual=true msg='所以这个和 “骑ji”,  “说shui”“斜, xiá”不一样，港台, 是从众的，大陆读音大, 多数源自韵书。'
+test: mixedChineseQuestionAtParagraphStartKeepsCjkQuoteGeometry
+eq expected=[0, 8] actual=[0, 8]
+is-true actual=true
+is-true actual=true
+eq expected=[0, 8] actual=[0, 8]
+eq expected='“Json是谁？”' actual='“Json是谁？”'
+test: mixedQuoteContextsReachTheFontAndPunctuationPipeline
+is-true actual=true
+is-true actual=true
+eq expected=[1, 3, 29, 47] actual=[1, 3, 29, 47]
+eq expected={1='CjkPunctuation', 3='CjkPunctuation', 10='LatinText', 16='LatinText', 18='LatinText', 21='LatinText', 23='LatinText', 29='CjkPunctuation', 39='LatinText', 45='LatinText', 47='CjkPunctuation'} actual={1='CjkPunctuation', 3='CjkPunctuation', 10='LatinText', 16='LatinText', 18='LatinText', 21='LatinText', 23='LatinText', 29='CjkPunctuation', 39='LatinText', 45='LatinText', 47='CjkPunctuation'}
+eq expected='中“文”中；that’s；（如 ‘O’, ‘Q’）；他说：“She said ‘hello’.”' actual='中“文”中；that’s；（如 ‘O’, ‘Q’）；他说：“She said ‘hello’.”'
+test: quoteRolesSurviveStyleAndSourceBoundaries
+eq expected='CjkPunctuation' actual='CjkPunctuation'
+eq expected='LatinText' actual='LatinText'
+eq expected='CjkPunctuation' actual='CjkPunctuation'
+eq expected='latin-primary' actual='latin-primary'
+eq expected='中‘that’s’中' actual='中‘that’s’中'
+test: recordsRoleOverridesForResolvedQuotePairs
+eq expected='LatinText' actual='LatinText'
+eq expected='CjkPunctuation' actual='CjkPunctuation'
+eq expected='PairedPunctuationOuterScriptContext' actual='PairedPunctuationOuterScriptContext'
+eq expected='LatinText' actual='LatinText'
+test: requestsFullWidthCjkQuotesAndSynthesizesTheCellWhenTheFontStaysProportional
+eq expected=['fwid=1'] actual=['fwid=1']
+eq expected=['fwid=1'] actual=['fwid=1']
+eq expected=16 actual=16
+eq expected=16 actual=16
+eq expected=10 actual=10
+eq expected=0 actual=0
+eq expected=10 actual=10
+eq expected='UnderwidthPunctuationFullWidthBoxPlacement' actual='UnderwidthPunctuationFullWidthBoxPlacement'
+eq expected=- actual=-
+eq expected='InkBoundsFittedBodyCompression' actual='InkBoundsFittedBodyCompression'
+eq expected='InkBoundsFittedBodyCompression' actual='InkBoundsFittedBodyCompression'
+eq expected=26 actual=26
+eq expected=48 actual=48
+eq expected=['fwid=1'] actual=['fwid=1']
+eq expected=8 actual=8
+eq expected=2 actual=2
+eq expected=8 actual=8
+test: skipsNeutralDashBeforeLatinQuotePairInLayout
+eq expected='latin-primary' actual='latin-primary'

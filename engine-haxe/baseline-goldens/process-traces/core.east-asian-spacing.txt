@@ -1,0 +1,58 @@
+scenario: core.east-asian-spacing
+word-contains cp='0x41' contains=true
+word-contains cp='0x4E2D' contains=true
+word-contains cp='0x20' contains=false
+word-contains cp='0x21' contains=false
+word-contains cp='-1' rejected=true
+word-contains cp='0x110000' rejected=true
+word-contains cp='0xD800' rejected=true
+word-contains cp='0xDFFF' rejected=true
+script-classify cp='0x4E00' evidence='EastAsian'
+script-classify cp='0x41' evidence='Other'
+script-classify cp='0x20' evidence='Neutral'
+script-classify cp='-1' rejected=true
+script-classify cp='0x110000' rejected=true
+script-classify cp='0xD800' rejected=true
+script-classify cp='0xDFFF' rejected=true
+spacing-lookup cp='0x02C7' value='Wide'
+spacing-lookup cp='0x0030' value='Narrow'
+spacing-lookup cp='0x0021' value='Conditional'
+spacing-lookup cp='0x0000' value='Other'
+spacing-lookup cp='0x10FFFF' value='Other'
+property-reject cp='-1' rejected=true
+property-reject cp='0x110000' rejected=true
+property-reject cp='0xD800' rejected=true
+property-reject cp='0xDFFF' rejected=true
+chinese-context locale='zh' chinese=true
+chinese-context locale='zh-Hans' chinese=true
+chinese-context locale='zh-Hant' chinese=true
+chinese-context locale='zh-CN' chinese=true
+chinese-context locale='zh_TW' chinese=true
+chinese-context locale='cmn' chinese=true
+chinese-context locale='gan' chinese=true
+chinese-context locale='nan' chinese=true
+chinese-context locale='yue' chinese=true
+chinese-context locale='yue-HK' chinese=true
+chinese-context locale='lzh' chinese=true
+chinese-context locale='cmn-Hans-CN' chinese=true
+chinese-context locale='en' chinese=false
+chinese-context locale='en-US' chinese=false
+chinese-context locale='ja' chinese=false
+chinese-context locale='ko' chinese=false
+chinese-context locale='fr' chinese=false
+chinese-context locale='de' chinese=false
+chinese-context locale='es' chinese=false
+cluster-resolve case='empty' locale='zh' value='Other'
+cluster-resolve case='enclosing-mark' locale='zh' value='Other'
+cluster-resolve case='conditional-chinese' locale='zh-CN' value='Narrow'
+cluster-resolve case='conditional-western' locale='en-US' value='Other'
+cluster-resolve case='wide' locale='zh' value='Wide'
+cluster-resolve case='narrow' locale='zh' value='Narrow'
+cluster-resolve case='nul' locale='zh' value='Other'
+cluster-resolve case='supplementary' locale='zh' value='Other'
+cluster-reject case='lone-high' rejected=true
+cluster-reject case='high-then-letter' rejected=true
+cluster-reject case='high-then-private' rejected=true
+edges-resolve case='empty' leading='Other' trailing='Other' contains-wide=false
+edges-resolve case='mixed' leading='Wide' trailing='Wide' contains-wide=true
+edges-resolve case='western' leading='Narrow' trailing='Narrow' contains-wide=false

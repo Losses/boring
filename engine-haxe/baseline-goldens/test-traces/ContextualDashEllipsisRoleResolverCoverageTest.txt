@@ -1,0 +1,8 @@
+class: ContextualDashEllipsisRoleResolverCoverageTest
+test: forwardPassWalkerArmsRunBeforeTheClassifierRejectsLoneSurrogates
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55357'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55357'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55357'
+test: parentheticalPairWithOnlyLeftOuterScriptTakesTheLeftRole
+test: parentheticalPairWithOnlyRightOuterScriptTakesTheRightRole
+test: parentheticalPairWithoutOuterScriptFallsBackToParagraphLanguage

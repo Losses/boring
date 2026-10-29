@@ -1,0 +1,21 @@
+class: ZeroWidthBreakControlLayoutTest
+test: leadingZeroWidthSpaceCannotCreateAnEmptyAutoWrappedLine
+eq expected=1 actual=1 msg='greedy'
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2) msg='greedy'
+eq expected=1 actual=1 msg='lookahead'
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2) msg='lookahead'
+test: zeroWidthSpaceIsUnshapedAndProvidesASoftBreakAfterIt
+eq expected='' actual='' msg='greedy'
+eq-tol expected=0 actual=0 tol=0.001000 msg='greedy'
+is-true actual=true msg='greedy'
+eq expected=TextRange(start=0, end=4) actual=TextRange(start=0, end=4) msg='greedy'
+eq expected=TextRange(start=4, end=7) actual=TextRange(start=4, end=7) msg='greedy'
+eq expected='ZeroWidthSpaceSoftBreakNoShape' actual='ZeroWidthSpaceSoftBreakNoShape' msg='greedy'
+eq expected=TextRange(start=3, end=4) actual=TextRange(start=3, end=4) msg='greedy'
+eq expected='' actual='' msg='lookahead'
+eq-tol expected=0 actual=0 tol=0.001000 msg='lookahead'
+is-true actual=true msg='lookahead'
+eq expected=TextRange(start=0, end=4) actual=TextRange(start=0, end=4) msg='lookahead'
+eq expected=TextRange(start=4, end=7) actual=TextRange(start=4, end=7) msg='lookahead'
+eq expected='ZeroWidthSpaceSoftBreakNoShape' actual='ZeroWidthSpaceSoftBreakNoShape' msg='lookahead'
+eq expected=TextRange(start=3, end=4) actual=TextRange(start=3, end=4) msg='lookahead'

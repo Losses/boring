@@ -1,0 +1,113 @@
+class: WidthIndependentAnnotationCacheCoverageTest
+test: adjacentInlineObjectBoundariesMergingAndConflicts
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+raises exception=IllegalArgumentException thrown='Conflicting inline-object stretch classes at cluster boundary 1'
+is-true actual=true
+test: centeredPunctBeforeAttachedReferenceKeepsLeadingGlueOnly
+eq expected='AttachedInlineVirtualPunctuationBoundary:adjacent-punctuation' actual='AttachedInlineVirtualPunctuationBoundary:adjacent-punctuation'
+eq expected='·' actual='·'
+eq expected='，' actual='，'
+is-true actual=true
+is-true actual=true
+eq expected=6 actual=6
+test: conflictingOpenTypeFeaturesThrows
+raises exception=IllegalArgumentException thrown='Conflicting OpenType features for shaped cluster TextRange(start=0, end=1)'
+is-true actual=true
+test: containingItemsAndFirstContainedItemBranches
+eq expected=4 actual=4
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+null actual=-
+eq expected=TextRange(start=5, end=8) actual=TextRange(start=5, end=8)
+null actual=-
+eq expected=4 actual=4
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+null actual=-
+null actual=-
+null actual=-
+test: dynamicShapingEmphasisItalicAtAndZeroPairedCapacityBranches
+not-null actual=ParagraphLayoutPrep@identity
+test: dynamicShapingTriggersAndEmphasisItalic
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+test: lineLengthGridBodyAlignmentBranches
+not-null actual=ParagraphLayoutPrep@identity
+eq expected=0 actual=0
+not-null actual=ParagraphLayoutPrep@identity
+eq-tol expected=2 actual=2 tol=0.001000
+not-null actual=ParagraphLayoutPrep@identity
+eq-tol expected=4 actual=4 tol=0.001000
+test: lruCacheUpdateExistingKeyAndClear
+eq expected=1 actual=1
+eq expected='v1' actual='v1'
+eq expected=1 actual=1
+eq expected='v2' actual='v2'
+eq expected=2 actual=2
+eq expected=2 actual=2
+null actual=-
+eq expected='v3' actual='v3'
+eq expected='v4' actual='v4'
+eq expected=0 actual=0
+null actual=-
+null actual=-
+test: pairedPunctuationWithZeroCapacity
+not-null actual=ParagraphLayoutPrep@identity
+test: prepareWidthIndependentAnnotationBranches
+not-null actual=WidthIndependentParagraphAnnotation@identity
+eq expected=18 actual=18
+eq expected=14 actual=14
+eq expected=16 actual=16
+eq expected=800 actual=800
+eq expected=600 actual=600
+eq expected=700 actual=700
+eq expected=18 actual=18
+eq expected=18 actual=18
+eq expected=14 actual=14
+eq expected=14 actual=14
+eq expected=16 actual=16
+eq expected=16 actual=16
+not-null actual=ParagraphLayoutPrep@identity
+is-true actual=true
+test: rubySpreadAccumulationAndEdges
+not-null actual=ParagraphLayoutPrep@identity
+test: rubySpreadSecondVisitAndZeroFirstCluster
+not-null actual=ParagraphLayoutPrep@identity
+test: shrinkOpportunitiesCoverAllPunctuationClassesAndSpaces
+not-null actual=ParagraphLayoutPrep@identity
+is-true actual=true
+not-null actual=ParagraphLayoutPrep@identity
+is-true actual=true
+not-null actual=ParagraphLayoutPrep@identity
+is-true actual=true
+not-null actual=ParagraphLayoutPrep@identity
+is-true actual=true
+test: styleAtAndEmphasisItalicAtAndDynamicShapingBranches
+eq expected=24 actual=24
+eq expected=24 actual=24
+eq expected=16 actual=16
+eq expected=16 actual=16
+eq expected=16 actual=16
+eq expected=16 actual=16
+eq expected=16 actual=16
+eq expected=16 actual=16
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+not-null actual=ParagraphLayoutPrep@identity
+test: verbatimRangesAndAutoSpaceDecisions
+not-null actual=ParagraphLayoutPrep@identity

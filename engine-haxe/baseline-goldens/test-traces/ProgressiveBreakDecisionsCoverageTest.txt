@@ -1,0 +1,42 @@
+class: ProgressiveBreakDecisionsCoverageTest
+test: aFittingWholeWordBreaksThere
+eq expected=1 actual=1
+test: aLeftwardEmergencyBoundaryKeepsTheBestCleanTier
+eq expected=4 actual=4
+test: candidateOutsideTheClusterListIsAllowed
+is-true actual=true
+test: candidatesBeforeTheRawGreedyMustMatchTheSelectedBoundary
+is-true actual=true
+is-false actual=false
+test: candidatesOfADifferentSpanAreAllowed
+is-true actual=true
+test: candidatesOutsideTheActiveSpanAreAllowed
+is-true actual=true
+is-true actual=true
+is-false actual=false
+test: defaultsAdmitTheCleanTierWithoutGeometryInputs
+eq expected=1 actual=1
+is-true actual=true
+test: gaplessOrTooLooseLinesHyphenateInstead
+eq expected=3 actual=3
+eq expected=3 actual=3
+eq expected=2 actual=2
+test: hyphenBreakReturnsOverflowAtPlainWordBoundaries
+eq expected=1 actual=1
+test: lineStartAtTheOverflowBoundaryScansAnEmptyRange
+eq expected=2 actual=2
+test: overLongWordsMustHyphenateFromTheLineStart
+eq expected=2 actual=2
+test: sameTierPastTheRawGreedyIsAllowedAndWorseTiersAreNot
+is-true actual=true
+is-false actual=false
+test: singleTechnicalUnitFallsBackToTheCjkGapDensity
+eq expected=2 actual=2
+test: sinoWesternGapsAbsorbingTheDeficitKeepTheWholeWord
+eq expected=2 actual=2
+test: spanEdgeAndWhitespaceClustersDoNotCountAsTechnicalUnits
+eq expected=3 actual=3
+test: twoSameTierBoundariesPickTheRightmost
+eq expected=4 actual=4
+test: visiblyLooseCleanTiersFallThroughToEmergency
+eq expected=4 actual=4

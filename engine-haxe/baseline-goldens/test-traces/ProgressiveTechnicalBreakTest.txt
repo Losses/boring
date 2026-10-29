@@ -1,0 +1,6 @@
+class: ProgressiveTechnicalBreakTest
+test: lookaheadMayNotReplaceSelectedEmergencyBoundaryWithEarlierSameTierCut
+is-false actual=false
+is-true actual=true
+test: sourceWhitespaceCapacityKeepsStructuralTierAheadOfSyllable
+eq expected=4 actual=4

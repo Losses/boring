@@ -1,0 +1,18 @@
+scenario: shaping.replayable-contracts
+face-id input='noto-cjk-1' value='noto-cjk-1'
+face-id input='blank' rejected=true
+face-id input='empty' rejected=true
+descriptor-defaults face='face-a' weight='400' italic=false collection-index='0' axes-count='0'
+descriptor-varied face='face-a' weight='700' italic=true collection-index='2' wght=700.0
+request case='valid' role='LatinText' font-size=15.0 weight='400' italic=false
+request case='zero-size' rejected=true
+request case='negative-size' rejected=true
+request case='nan-size' rejected=true
+request case='infinite-size' rejected=true
+replay-flag case='no-faces' replayable=false
+replay-flag case='missing-face-issue' replayable=false
+replay-flag case='other-issue' replayable=true
+replay-flag case='clean' replayable=true
+catalog case='capability' replayable=true
+catalog case='hit' face='face-latin'
+catalog case='miss' face=-

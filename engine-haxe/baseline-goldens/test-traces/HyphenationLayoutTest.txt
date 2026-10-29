@@ -1,0 +1,20 @@
+class: HyphenationLayoutTest
+test: fittingWordHyphenatesOnlyWhenAHyphenatorIsInjected
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true msg='no line hyphenated'
+test: hyphenIsReservedWithinTheMeasureNotHungPastIt
+is-true actual=true msg='hyphen hung past the measure: 160'
+test: hyphenationIsOnByDefault
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: hyphenationIsSkippedWhenStretchingCjkStaysTight
+is-true actual=true msg='should not hyphenate when tight'
+test: reservedHyphenSqueezesPunctuationGlueToPullItIn
+is-true actual=true msg='comma glue not compressed for the hyphen: 8'
+test: syllableSplitMatchesTheHyphenatorExactly
+eq expected='in-ter-na-tion-al-iza-tion' actual='in-ter-na-tion-al-iza-tion'
