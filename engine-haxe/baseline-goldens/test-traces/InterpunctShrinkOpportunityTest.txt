@@ -1,0 +1,23 @@
+class: InterpunctShrinkOpportunityTest
+test: interpunctInkEvidenceFreesPairedGlueForTierThreeShrink
+eq expected=2 actual=2
+is-true actual=true msg='leading glue: 4'
+is-true actual=true msg='trailing glue: 4'
+eq expected='Center' actual='Center'
+eq expected='FontHaltFittedBodyCompression' actual='FontHaltFittedBodyCompression'
+is-true actual=true msg='leading glue: 4'
+is-true actual=true msg='trailing glue: 4'
+eq expected='Center' actual='Center'
+eq expected='FontHaltFittedBodyCompression' actual='FontHaltFittedBodyCompression'
+eq expected=0 actual=0
+is-true actual=true msg='trailing glue: 6'
+is-true actual=true
+test: preservedInterpunctCodepointKeepsInterpunctClassForTierThreeShrink
+eq expected=['・', '・'] actual=['・', '・']
+is-true actual=true msg='leading glue: 4'
+is-true actual=true msg='trailing glue: 4'
+eq expected='Center' actual='Center'
+is-true actual=true msg='leading glue: 4'
+is-true actual=true msg='trailing glue: 4'
+eq expected='Center' actual='Center'
+is-true actual=true

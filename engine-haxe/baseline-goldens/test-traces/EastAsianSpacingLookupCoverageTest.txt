@@ -1,0 +1,10 @@
+class: EastAsianSpacingLookupCoverageTest
+test: lookupCoversEveryGeneratedValueAndBothMissDirections
+eq expected=Conditional actual=Conditional
+eq expected=Narrow actual=Narrow
+eq expected=Narrow actual=Narrow
+eq expected=Wide actual=Wide
+eq expected=Wide actual=Wide
+eq expected=Other actual=Other
+eq expected=Other actual=Other
+eq expected=Other actual=Other

@@ -1,0 +1,9 @@
+scenario: linebreak.english-hyphenation
+hyphenate word='hyphenation' count='2' offsets='2|6'
+hyphenate word='computer' count='1' offsets='3'
+hyphenate word='international' count='3' offsets='2|5|7'
+hyphenate word='supercalifragilistic' count='5' offsets='2|5|8|13|17'
+hyphenate word='the' count='0' offsets=''
+hyphenate word='a' count='0' offsets=''
+hyphenate word='project' count='0' offsets=''
+hyphenate word='present' count='0' offsets=''

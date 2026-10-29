@@ -1,0 +1,177 @@
+class: ClreqProfileCoverageTest
+test: testBopomofoModelsAndParser
+not-null actual=Yinping
+not-null actual=Yangping
+not-null actual=Shang
+not-null actual=Qu
+not-null actual=Neutral
+not-null actual=Ru
+eq expected=['ㄅ', 'ㄚ'] actual=['ㄅ', 'ㄚ']
+eq expected=Yangping actual=Yangping
+eq expected=BopomofoReading(symbols=[ㄅ, ㄚ], tone=Yangping) actual=BopomofoReading(symbols=[ㄅ, ㄚ], tone=Yangping)
+is-true actual=true
+is-true actual=true
+eq expected=[] actual=[]
+eq expected=Yinping actual=Yinping
+eq expected=['ㄇ', 'ㄚ'] actual=['ㄇ', 'ㄚ']
+eq expected=Neutral actual=Neutral
+eq expected=['ㄇ', 'ㄚ'] actual=['ㄇ', 'ㄚ']
+eq expected=Yangping actual=Yangping
+eq expected=['ㄇ', 'ㄚ'] actual=['ㄇ', 'ㄚ']
+eq expected=Shang actual=Shang
+eq expected=['ㄇ', 'ㄚ'] actual=['ㄇ', 'ㄚ']
+eq expected=Qu actual=Qu
+eq expected=['ㄇ', 'ㄚ'] actual=['ㄇ', 'ㄚ']
+eq expected=Yinping actual=Yinping
+eq expected=['ㄇ', 'ㄚ'] actual=['ㄇ', 'ㄚ']
+eq expected=Yinping actual=Yinping
+test: testClreqProfileAndResolver
+not-null actual=Loose
+not-null actual=Normal
+not-null actual=Strict
+not-null actual=Mainland
+not-null actual=Taiwan
+not-null actual=HongKong
+not-null actual=Custom
+not-null actual=PreserveInput
+not-null actual=PreferClreqRecommendedCodepoints
+not-null actual=ForceClreqRecommendedCodepoints
+not-null actual=Opening
+not-null actual=Closing
+not-null actual=PauseOrStop
+not-null actual=MiddleDot
+not-null actual=Interpunct
+not-null actual=Connector
+not-null actual=Solidus
+not-null actual=Ellipsis
+not-null actual=Dash
+not-null actual=Other
+is-true actual=true
+eq expected='clreq-mainland-horizontal' actual='clreq-mainland-horizontal'
+eq expected='clreq-taiwan-horizontal' actual='clreq-taiwan-horizontal'
+eq expected='clreq-hongkong-horizontal' actual='clreq-hongkong-horizontal'
+eq expected=MainlandSimplified actual=MainlandSimplified
+eq expected=Traditional actual=Traditional
+eq expected=Traditional actual=Traditional
+eq expected=MainlandSimplified actual=MainlandSimplified
+eq expected=ClreqProfile(id=clreq-mainland-horizontal, strictness=Normal, region=Mainland, punctuationGlyphPolicy=PreferClreqRecommendedCodepoints, coalesceRepeatablePunctuation=[8212, 8230, 8943], autoSpace=AutoSpacePolicy(cjkLatin=Insert, cjkDigit=In~647#952bebad actual=ClreqProfile(id=clreq-mainland-horizontal, strictness=Normal, region=Mainland, punctuationGlyphPolicy=PreferClreqRecommendedCodepoints, coalesceRepeatablePunctuation=[8212, 8230, 8943], autoSpace=AutoSpacePolicy(cjkLatin=Insert, cjkDigit=In~647#952bebad
+eq expected=ClreqProfile(id=clreq-mainland-horizontal, strictness=Normal, region=Mainland, punctuationGlyphPolicy=PreferClreqRecommendedCodepoints, coalesceRepeatablePunctuation=[8212, 8230, 8943], autoSpace=AutoSpacePolicy(cjkLatin=Insert, cjkDigit=In~647#952bebad actual=ClreqProfile(id=clreq-mainland-horizontal, strictness=Normal, region=Mainland, punctuationGlyphPolicy=PreferClreqRecommendedCodepoints, coalesceRepeatablePunctuation=[8212, 8230, 8943], autoSpace=AutoSpacePolicy(cjkLatin=Insert, cjkDigit=In~647#952bebad
+eq expected=ClreqProfile(id=clreq-mainland-horizontal, strictness=Normal, region=Mainland, punctuationGlyphPolicy=PreferClreqRecommendedCodepoints, coalesceRepeatablePunctuation=[8212, 8230, 8943], autoSpace=AutoSpacePolicy(cjkLatin=Insert, cjkDigit=In~647#952bebad actual=ClreqProfile(id=clreq-mainland-horizontal, strictness=Normal, region=Mainland, punctuationGlyphPolicy=PreferClreqRecommendedCodepoints, coalesceRepeatablePunctuation=[8212, 8230, 8943], autoSpace=AutoSpacePolicy(cjkLatin=Insert, cjkDigit=In~647#952bebad
+test: testClreqPunctuationPoliciesAndClassification
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-false actual=false
+is-false actual=false
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Opening actual=Opening
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=Closing actual=Closing
+eq expected=PauseOrStop actual=PauseOrStop
+eq expected=PauseOrStop actual=PauseOrStop
+eq expected=PauseOrStop actual=PauseOrStop
+eq expected=PauseOrStop actual=PauseOrStop
+eq expected=PauseOrStop actual=PauseOrStop
+eq expected=PauseOrStop actual=PauseOrStop
+eq expected=PauseOrStop actual=PauseOrStop
+eq expected=MiddleDot actual=MiddleDot
+eq expected=Interpunct actual=Interpunct
+eq expected=Interpunct actual=Interpunct
+eq expected=Interpunct actual=Interpunct
+eq expected=Connector actual=Connector
+eq expected=Connector actual=Connector
+eq expected=Connector actual=Connector
+eq expected=Connector actual=Connector
+eq expected=Solidus actual=Solidus
+eq expected=Solidus actual=Solidus
+eq expected=Ellipsis actual=Ellipsis
+eq expected=Ellipsis actual=Ellipsis
+eq expected=Dash actual=Dash
+eq expected=Dash actual=Dash
+eq expected=Other actual=Other
+test: testForbiddenAtLineStartAndEnd
+is-false actual=false
+is-false actual=false
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-false actual=false
+is-true actual=true
+is-false actual=false
+is-true actual=true
+is-false actual=false
+is-false actual=false
+is-true actual=true
+is-false actual=false
+is-true actual=true
+is-false actual=false
+is-false actual=false
+test: testForcedHalfWidthAndPolicyFor
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-false actual=false
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-false actual=false
+is-false actual=false
+is-false actual=false
+is-false actual=false
+is-false actual=false
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=0.500000 actual=0.500000
+eq expected=0.500000 actual=0.500000
+eq expected=0.500000 actual=0.500000
+eq expected=1 actual=1
+eq expected=0.500000 actual=0.500000
+eq expected=1 actual=1
+eq expected=0.500000 actual=0.500000
+eq expected=1 actual=1
+eq expected=1 actual=1
+eq expected=1 actual=1
+test: testPunctuationAdvanceAndSubstitutor
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=3 actual=3
+eq expected=1 actual=1
+eq expected=1 actual=1
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected='……' actual='……'
+is-true actual=true
+eq expected='——' actual='——'
+eq expected='abc' actual='abc'
+is-true actual=true

@@ -1,0 +1,17 @@
+class: UsesLatinFaceTest
+test: nameOverloadAgreesWithEnum
+eq expected=false actual=false msg='name overload must match the enum for CjkText'
+eq expected=false actual=false msg='name overload must match the enum for CjkPunctuation'
+eq expected=true actual=true msg='name overload must match the enum for LatinText'
+eq expected=false actual=false msg='name overload must match the enum for Symbol'
+eq expected=false actual=false msg='name overload must match the enum for Emoji'
+eq expected=false actual=false msg='name overload must match the enum for Unknown'
+is-false actual=false
+is-false actual=false
+test: onlyLatinTextUsesLatinFace
+is-true actual=true
+is-false actual=false msg='CjkText must fall back to the CJK face'
+is-false actual=false msg='CjkPunctuation must fall back to the CJK face'
+is-false actual=false msg='Symbol must fall back to the CJK face'
+is-false actual=false msg='Emoji must fall back to the CJK face'
+is-false actual=false msg='Unknown must fall back to the CJK face'

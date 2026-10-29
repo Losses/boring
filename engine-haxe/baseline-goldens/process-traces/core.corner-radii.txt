@@ -1,0 +1,7 @@
+scenario: core.corner-radii
+radii case='closed' tl=10.0 tr=10.0 br=10.0 bl=10.0 square=false uniform=true
+radii case='lead-cont' tl=3.0 tr=10.0 br=10.0 bl=3.0 square=false uniform=false
+radii case='trail-cont' tl=10.0 tr=3.0 br=3.0 bl=10.0 square=false uniform=false
+radii case='mid-cont' tl=3.0 tr=3.0 br=3.0 bl=3.0 square=false uniform=true
+radii case='clamp' tl=4.0 tr=4.0 br=4.0 bl=4.0 square=false uniform=true
+radii-inset tl=6.0 tr=6.0 br=6.0 bl=6.0 square=false uniform=true

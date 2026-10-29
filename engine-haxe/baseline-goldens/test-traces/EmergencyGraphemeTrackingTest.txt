@@ -1,0 +1,45 @@
+class: EmergencyGraphemeTrackingTest
+test: hashPieceInsideTechnicalUrlSkipsSyllableClassification
+is-true actual=true msg='[10, 12, 23]'
+is-true actual=true
+test: longAllCapsWesternWordDoesNotBecomeTrackingEligible
+is-true actual=true
+is-false actual=false
+test: ordinaryWesternProseIsNeverInferredAsTrackingEligible
+is-true actual=true
+is-false actual=false
+is-true actual=true msg='ordinary Western lines may remain ragged after bounded word-space adjustment'
+test: plainOpaqueHardBreakKeepsCombiningGraphemeIntact
+is-true actual=true msg='[Cluster(range=TextRange(start=0, end=1), text=a, displayText=a, fontKey=latin-primary, advance=16, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0), Cluster(range=TextRange(start=1, end=2), text=b, displayText=b, fontKey=latin-~2593#3315ac79'
+is-true actual=true msg='TextRange(start=0, end=1), TextRange(start=1, end=2), TextRange(start=2, end=3), TextRange(start=3, end=4), TextRange(start=4, end=5), TextRange(start=5, end=6), TextRange(start=6, end=8), TextRange(start=8, end=9), TextRange(start=9, end=1~445#5b8935c9'
+test: rejectedLetterDigitStructuralOffsetsRemainAvailableAsEmergencyCuts
+is-true actual=true msg='[1, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14]'
+is-true actual=true msg='[1, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14]'
+is-true actual=true
+test: repeatedPlainTokenGetsNarrowNonLexicalAuthorization
+is-true actual=true
+eq-tol expected=101 actual=101 tol=0.001000
+eq-tol expected=101 actual=101 tol=0.001000
+eq-tol expected=101 actual=101 tol=0.001000
+eq-tol expected=101 actual=101 tol=0.001000
+eq-tol expected=101 actual=101 tol=0.001000
+test: standaloneTechnicalHashUsesTrackingToFillEveryAutoWrappedLine
+is-true actual=true
+eq-tol expected=101 actual=101 tol=0.001000
+eq-tol expected=101 actual=101 tol=0.001000
+eq-tol expected=101 actual=101 tol=0.001000
+eq-tol expected=101 actual=101 tol=0.001000
+eq-tol expected=101 actual=101 tol=0.001000
+is-true actual=true
+test: technicalIdentifierRelabelsLooseLetterDigitBoundaryAsEmergency
+eq expected=TextRange(start=0, end=8) actual=TextRange(start=0, end=8)
+is-true actual=true
+eq expected=0 actual=0
+test: technicalTrackingDoesNotOpenEdgesTouchingInlineObjectsOrZeroWidthControls
+is-true actual=true
+is-true actual=true msg='[JustificationAllocationInfo(clusterRange=TextRange(start=0, end=1), kind=EmergencyGraphemeTracking, priority=3, delta=0.8000001, reason=TerminalTechnicalEmergencyTracking:ProgressiveTechnicalSpan), JustificationAllocationInfo(clusterRange=~2981#87a2ebea'
+is-true actual=true
+is-true actual=true msg='[JustificationAllocationInfo(clusterRange=TextRange(start=0, end=1), kind=EmergencyGraphemeTracking, priority=3, delta=0.75, reason=TerminalTechnicalEmergencyTracking:ProgressiveTechnicalSpan), JustificationAllocationInfo(clusterRange=TextR~3101#a3ed882c'
+test: unannotatedUrlDoesNotAuthorizeTrackingAcrossOrdinaryPathComponents
+eq expected=[TextRange(start=28, end=46)] actual=[TextRange(start=28, end=46)]
+is-true actual=true

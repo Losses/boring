@@ -1,0 +1,186 @@
+class: QuotePairAnalyzerTest
+test: adjacentQuotedListItemsDoNotUsePreviousItemContentAsOuterContext
+eq expected='CCCCCCCCCCCCCC' actual='CCCCCCCCCCCCCC' msg='CJK list item after mixed-script item'
+eq expected='CCCCCC' actual='CCCCCC' msg='Latin list item after Latin item in CJK prose'
+eq expected=2 actual=2 msg='便延伸出了“乃子”“大波”“大灯”“大雷”“大扎”“对A”“波霸”这些词'
+is-true actual=true msg='便延伸出了“乃子”“大波”“大灯”“大雷”“大扎”“对A”“波霸”这些词: [QuoteRoleDecision(index=29, role=CjkPunctuation, source=PairedPunctuationOuterScriptContext, reason=quote-pair-inherits-enclosing-level-script), QuoteRoleDecision(index=32, role=CjkPunctuation, source=~328#34b56415'
+eq expected=2 actual=2 msg='这些太直白了是吧，\n “欧派”“double”“double may”呢'
+is-true actual=true msg='这些太直白了是吧，\n “欧派”“double”“double may”呢: [QuoteRoleDecision(index=23, role=CjkPunctuation, source=PairedPunctuationOuterScriptContext, reason=quote-pair-inherits-enclosing-level-script), QuoteRoleDecision(index=34, role=CjkPunctuation, source~329#cb2bb45b'
+test: classifiesBothQuotesAsCjkForCjkQuotedLatinContent
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: classifiesLatinNestedQuotesByOuterContext
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: classifiesNestedPairsByOutermostContext
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: classifiesPairAsCjkAtTextBoundary
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: classifiesPairAsCjkWhenOuterContextIsCjk
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: classifiesPairAsLatinWhenOuterContextIsLatin
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: classifiesTextStartLatinPairFromQuotedContent
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: commonDigitsDoNotChooseTheQuoteRole
+is-true actual=true msg='[QuoteRoleDecision(index=0, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reason=no-strong-script-context; paragraph-language=zh-Hans), QuoteRoleDecision(index=5, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reaso~296#76e78ebe'
+is-true actual=true msg='[QuoteRoleDecision(index=0, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reason=no-strong-script-context; paragraph-language=zh-Hans), QuoteRoleDecision(index=5, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reaso~296#76e78ebe'
+is-true actual=true msg='[QuoteRoleDecision(index=0, role=LatinText, source=ParagraphLanguageQuoteContext, reason=no-strong-script-context; paragraph-language=en), QuoteRoleDecision(index=5, role=LatinText, source=ParagraphLanguageQuoteContext, reason=no-strong-scr~276#73380806'
+is-true actual=true msg='[QuoteRoleDecision(index=0, role=LatinText, source=ParagraphLanguageQuoteContext, reason=no-strong-script-context; paragraph-language=en), QuoteRoleDecision(index=5, role=LatinText, source=ParagraphLanguageQuoteContext, reason=no-strong-scr~276#73380806'
+test: contractionApostropheDoesNotCloseOuterSingleQuote
+eq expected=[QuotePair(openIndex=0, closeIndex=7, quoteType=Single)] actual=[QuotePair(openIndex=0, closeIndex=7, quoteType=Single)]
+test: contractionInsideCjkSingleQuotesKeepsApostropheLatin
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: endOfTextQuotePairClassifiedByOuterContext
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: explicitEnglishParagraphLanguageWinsForMixedQuotation
+is-true actual=true msg='[QuoteRoleDecision(index=0, role=LatinText, source=ParagraphLanguageQuoteContext, reason=mixed-quoted-content; paragraph-language=en), QuoteRoleDecision(index=8, role=LatinText, source=ParagraphLanguageQuoteContext, reason=mixed-quoted-cont~268#b1322f9d'
+is-true actual=true msg='[QuoteRoleDecision(index=0, role=LatinText, source=ParagraphLanguageQuoteContext, reason=mixed-quoted-content; paragraph-language=en), QuoteRoleDecision(index=8, role=LatinText, source=ParagraphLanguageQuoteContext, reason=mixed-quoted-cont~268#b1322f9d'
+test: inWordApostropheMatrixDoesNotConsumeOuterQuotePairs
+is-true actual=true msg='that’s'
+is-true actual=true msg='that’s: [QuoteRoleDecision(index=4, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+is-true actual=true msg='that’s: [QuoteRoleDecision(index=4, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+eq expected=[QuotePair(openIndex=0, closeIndex=7, quoteType=Single)] actual=[QuotePair(openIndex=0, closeIndex=7, quoteType=Single)] msg='‘that’s’'
+eq expected='LLL' actual='LLL' msg='‘that’s’'
+is-true actual=true msg='l’été'
+is-true actual=true msg='l’été: [QuoteRoleDecision(index=1, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+is-true actual=true msg='l’été: [QuoteRoleDecision(index=1, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+eq expected=[QuotePair(openIndex=0, closeIndex=6, quoteType=Single)] actual=[QuotePair(openIndex=0, closeIndex=6, quoteType=Single)] msg='‘l’été’'
+eq expected='LLL' actual='LLL' msg='‘l’été’'
+is-true actual=true msg='rock’n’roll'
+is-true actual=true msg='rock’n’roll: [QuoteRoleDecision(index=4, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe), QuoteRoleDecision(index=6, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+is-true actual=true msg='rock’n’roll: [QuoteRoleDecision(index=4, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe), QuoteRoleDecision(index=6, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+eq expected=[QuotePair(openIndex=0, closeIndex=12, quoteType=Single)] actual=[QuotePair(openIndex=0, closeIndex=12, quoteType=Single)] msg='‘rock’n’roll’'
+eq expected='LLLL' actual='LLLL' msg='‘rock’n’roll’'
+is-true actual=true msg='version2’s'
+is-true actual=true msg='version2’s: [QuoteRoleDecision(index=8, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+is-true actual=true msg='version2’s: [QuoteRoleDecision(index=8, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+eq expected=[QuotePair(openIndex=0, closeIndex=11, quoteType=Single)] actual=[QuotePair(openIndex=0, closeIndex=11, quoteType=Single)] msg='‘version2’s’'
+eq expected='LLL' actual='LLL' msg='‘version2’s’'
+is-true actual=true msg='α’β'
+is-true actual=true msg='α’β: [QuoteRoleDecision(index=1, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+is-true actual=true msg='α’β: [QuoteRoleDecision(index=1, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+eq expected=[QuotePair(openIndex=0, closeIndex=4, quoteType=Single)] actual=[QuotePair(openIndex=0, closeIndex=4, quoteType=Single)] msg='‘α’β’'
+eq expected='LLL' actual='LLL' msg='‘α’β’'
+is-true actual=true msg='а’б'
+is-true actual=true msg='а’б: [QuoteRoleDecision(index=1, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+is-true actual=true msg='а’б: [QuoteRoleDecision(index=1, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+eq expected=[QuotePair(openIndex=0, closeIndex=4, quoteType=Single)] actual=[QuotePair(openIndex=0, closeIndex=4, quoteType=Single)] msg='‘а’б’'
+eq expected='LLL' actual='LLL' msg='‘а’б’'
+is-true actual=true msg='é’s'
+is-true actual=true msg='é’s: [QuoteRoleDecision(index=2, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+is-true actual=true msg='é’s: [QuoteRoleDecision(index=2, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+eq expected=[QuotePair(openIndex=0, closeIndex=5, quoteType=Single)] actual=[QuotePair(openIndex=0, closeIndex=5, quoteType=Single)] msg='‘é’s’'
+eq expected='LLL' actual='LLL' msg='‘é’s’'
+test: matchesDoubleQuotePair
+eq expected=1 actual=1
+eq expected=QuotePair(openIndex=2, closeIndex=5, quoteType=Double) actual=QuotePair(openIndex=2, closeIndex=5, quoteType=Double)
+test: matchesNestedQuotePairs
+eq expected=2 actual=2
+is-true actual=true
+is-true actual=true
+test: matchesSingleQuotePair
+eq expected=1 actual=1
+eq expected=QuotePair(openIndex=2, closeIndex=5, quoteType=Single) actual=QuotePair(openIndex=2, closeIndex=5, quoteType=Single)
+test: mismatchedNestingLeavesQuotesUnmatched
+eq expected=0 actual=0
+test: mixedChineseQuestionAtParagraphStartUsesParagraphLanguage
+eq expected=[0, 8] actual=[0, 8]
+is-true actual=true msg='[QuoteRoleDecision(index=0, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reason=mixed-quoted-content; paragraph-language=zh-Hans), QuoteRoleDecision(index=8, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reason=mi~288#c3c7c42d'
+is-true actual=true msg='[QuoteRoleDecision(index=0, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reason=mixed-quoted-content; paragraph-language=zh-Hans), QuoteRoleDecision(index=8, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reason=mi~288#c3c7c42d'
+test: nonLatinWesternScriptsParticipateAsStrongScriptEvidence
+eq expected='LL' actual='LL' msg='standalone Cyrillic quotation'
+eq expected='CC' actual='CC' msg='mixed Greek and Chinese quotation'
+eq expected='CC' actual='CC' msg='CJK prose quoting Cyrillic'
+test: numberedCjkQuotePrefixUsesQuotedContent
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected='PairedPunctuationContentScriptContext' actual='PairedPunctuationContentScriptContext'
+test: numberedLatinQuotePrefixStillUsesLatinContent
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: representativeQuoteContextMatrixRemainsStable
+eq expected='LL' actual='LL' msg='Latin content at text start'
+eq expected='CC' actual='CC' msg='CJK content at text start'
+eq expected='CC' actual='CC' msg='mixed Chinese question at text start'
+eq expected='LL' actual='LL' msg='Cyrillic content at text start'
+eq expected='CC' actual='CC' msg='CJK prose quoting Latin'
+eq expected='LL' actual='LL' msg='Latin prose quoting CJK'
+eq expected='LLLL' actual='LLLL' msg='spaced Western initials in CJK'
+eq expected='CC' actual='CC' msg='spaced CJK quotation'
+eq expected='LL' actual='LL' msg='empty pair before Latin'
+eq expected='CC' actual='CC' msg='empty pair before CJK'
+eq expected='CC' actual='CC' msg='context-free empty pair'
+eq expected='CC' actual='CC' msg='numbered CJK quotation'
+eq expected='LL' actual='LL' msg='numbered Latin quotation'
+eq expected='CLLC' actual='CLLC' msg='mixed CJK outer Latin inner'
+eq expected='LCCL' actual='LCCL' msg='mixed Latin outer CJK inner'
+eq expected='CLC' actual='CLC' msg='CJK outer with contraction'
+eq expected='LLL' actual='LLL' msg='spaced Latin outer with contraction'
+eq expected='CC' actual='CC' msg='pair across mandatory break'
+eq expected='LL' actual='LL' msg='tab-delimited Western quote'
+test: roleDecisionSourcesStayExplainableAcrossFallbackPaths
+is-true actual=true msg='“Hello”'
+is-true actual=true msg='“Hello”: [QuoteRoleDecision(index=0, role=LatinText, source=PairedPunctuationContentScriptContext, reason=quoted-content-script), QuoteRoleDecision(index=6, role=LatinText, source=PairedPunctuationContentScriptContext, reason=quoted-content~249#38dae440'
+is-true actual=true msg='“Json是谁？”'
+is-true actual=true msg='“Json是谁？”: [QuoteRoleDecision(index=0, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reason=mixed-quoted-content; paragraph-language=zh-Hans), QuoteRoleDecision(index=8, role=CjkPunctuation, source=ParagraphLanguageQuoteContext~299#96bd47cb'
+is-true actual=true msg='English—“Hello”'
+is-true actual=true msg='English—“Hello”: [QuoteRoleDecision(index=8, role=LatinText, source=PairedPunctuationOuterScriptContext, reason=quote-pair-inherits-enclosing-level-script), QuoteRoleDecision(index=14, role=LatinText, source=PairedPunctuationOuterScriptCont~296#247e7651'
+is-true actual=true msg='（如 ‘O’）'
+is-true actual=true msg='（如 ‘O’）: [QuoteRoleDecision(index=3, role=LatinText, source=DelimitedWesternQuotationRun, reason=whitespace-delimited-wholly-western-quotation), QuoteRoleDecision(index=5, role=LatinText, source=DelimitedWesternQuotationRun, reason=whitespa~279#87dcd140'
+is-true actual=true msg='1.“中文”'
+is-true actual=true msg='1.“中文”: [QuoteRoleDecision(index=2, role=CjkPunctuation, source=PairedPunctuationContentScriptContext, reason=quoted-content-script), QuoteRoleDecision(index=5, role=CjkPunctuation, source=PairedPunctuationContentScriptContext, reason=quote~258#2d2a4a80'
+is-true actual=true msg='“”English'
+is-true actual=true msg='“”English: [QuoteRoleDecision(index=0, role=LatinText, source=PairedPunctuationOuterScriptContext, reason=quote-pair-inherits-enclosing-level-script), QuoteRoleDecision(index=1, role=LatinText, source=PairedPunctuationOuterScriptContext, re~289#1cf3249f'
+is-true actual=true msg='“”'
+is-true actual=true msg='“”: [QuoteRoleDecision(index=0, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reason=no-strong-script-context; paragraph-language=zh-Hans), QuoteRoleDecision(index=1, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, r~300#8fec1a77'
+is-true actual=true msg='that’s'
+is-true actual=true msg='that’s: [QuoteRoleDecision(index=4, role=LatinText, source=NonCjkInWordApostrophe, reason=non-cjk-in-word-apostrophe)]'
+is-true actual=true msg='中文 ’90s'
+is-true actual=true msg='中文 ’90s: [QuoteRoleDecision(index=3, role=LatinText, source=DelimitedUnmatchedWesternQuote, reason=whitespace-delimited-unmatched-western-quote)]'
+is-true actual=true msg='James’'
+is-true actual=true msg='James’: [QuoteRoleDecision(index=5, role=LatinText, source=UnmatchedQuoteSurroundingScriptContext, reason=unmatched-quote-surrounding-script)]'
+is-true actual=true msg='’90s'
+is-true actual=true msg='’90s: [QuoteRoleDecision(index=0, role=LatinText, source=UnmatchedQuoteSurroundingScriptContext, reason=unmatched-quote-surrounding-script)]'
+is-true actual=true msg='”'
+is-true actual=true msg='”: [QuoteRoleDecision(index=0, role=CjkPunctuation, source=ParagraphLanguageQuoteContext, reason=no-unmatched-quote-context; paragraph-language=zh-Hans)]'
+test: skipsAsciiPunctuationWhenResolvingContext
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: skipsNeutralDashWhenResolvingContext
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: spacedCjkQuotedContentRemainsCjk
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: unmatchedCurlyQuotesUseDirectionalContext
+eq expected='L' actual='L' msg='leading elision at text start'
+eq expected='L' actual='L' msg='leading elision after CJK and Western space'
+eq expected='L' actual='L' msg='trailing possessive'
+eq expected='L' actual='L' msg='truncated Latin opening quote'
+eq expected='L' actual='L' msg='truncated Latin closing quote'
+eq expected='C' actual='C' msg='unspaced CJK opening quote'
+eq expected='C' actual='C' msg='unmatched CJK closing quote'
+eq expected='C' actual='C' msg='context-free quote'
+test: unmatchedQuotesProduceNoPairs
+eq expected=0 actual=0
+test: unspacedCjkQuotationOfLatinTextRemainsCjk
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: whitespaceDelimitedLatinQuotePairOverridesCjkOuterContext
+eq expected=[3, 5, 8, 10] actual=[3, 5, 8, 10]
+is-true actual=true msg='[QuoteRoleDecision(index=3, role=LatinText, source=DelimitedWesternQuotationRun, reason=whitespace-delimited-wholly-western-quotation), QuoteRoleDecision(index=5, role=LatinText, source=DelimitedWesternQuotationRun, reason=whitespace-delimi~541#66101404'
+is-true actual=true msg='[QuoteRoleDecision(index=3, role=LatinText, source=DelimitedWesternQuotationRun, reason=whitespace-delimited-wholly-western-quotation), QuoteRoleDecision(index=5, role=LatinText, source=DelimitedWesternQuotationRun, reason=whitespace-delimi~541#66101404'

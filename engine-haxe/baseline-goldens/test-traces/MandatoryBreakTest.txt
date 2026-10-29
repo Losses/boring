@@ -1,0 +1,29 @@
+class: MandatoryBreakTest
+test: collapsesCrlfToASingleBreakAfterLf
+eq expected=Allowed actual=Allowed
+eq expected=Required actual=Required
+test: marksRequiredAfterLineFeed
+eq expected=Required actual=Required
+eq expected=Allowed actual=Allowed
+test: preservesEachBlankLineBreak
+eq expected=Required actual=Required
+eq expected=Required actual=Required
+test: recognizesMandatoryBreakCodePoints
+is-true actual=true msg='U+000A'
+is-true actual=true msg='U+000B'
+is-true actual=true msg='U+000C'
+is-true actual=true msg='U+000D'
+is-true actual=true msg='U+0085'
+is-true actual=true msg='U+2028'
+is-true actual=true msg='U+2029'
+is-false actual=false msg='U+0061'
+is-false actual=false msg='U+400D'
+is-false actual=false msg='U+0020'
+is-false actual=false msg='U+0009'
+is-false actual=false msg='U+3000'
+test: recognizesZeroWidthSpaceWithoutConflatingNoBreakControls
+is-true actual=true msg='U+200B'
+is-false actual=false msg='U+200C'
+is-false actual=false msg='U+200D'
+is-false actual=false msg='U+2060'
+is-false actual=false msg='U+FEFF'

@@ -1,0 +1,5 @@
+class: TextRangeTest
+test: exposesLength
+eq expected=3 actual=3
+test: rejectsNegativeStart
+raises exception=IllegalArgumentException thrown='TextRange start must be non-negative.'

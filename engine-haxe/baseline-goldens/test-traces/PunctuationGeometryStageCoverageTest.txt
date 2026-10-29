@@ -1,0 +1,146 @@
+class: PunctuationGeometryStageCoverageTest
+test: attachedAsciiPointMarkKinsokuProtectsRuns
+raises exception=IllegalArgumentException thrown='Contextual kinsoku requires cluster-for-cluster line-break geometry'
+is-true actual=true
+eq expected=[[0, 1, 2]] actual=[[0, 1, 2]]
+eq expected=[1, 2] actual=[1, 2]
+eq expected=2 actual=2
+is-true actual=true
+eq expected=[[0, 1, 2]] actual=[[0, 1, 2]]
+eq expected=[1, 2] actual=[1, 2]
+eq expected=[[0, 1, 2]] actual=[[0, 1, 2]]
+eq expected=[[0, 1]] actual=[[0, 1]]
+eq expected=1 actual=1
+eq expected=[[1, 2]] actual=[[1, 2]]
+test: attachedAsciiPointMarkKinsokuRejectsDetachedRuns
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: attachedAsciiPointMarksNeedAContiguousNonSpaceBase
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: attachedMarksAcceptAsciiPointMarksAfterObjects
+eq expected=1 actual=1
+is-true actual=true
+test: attachedMarksCollapseSeparatorSpaceBeforeTheMark
+eq expected=0 actual=0
+eq expected=[1] actual=[1]
+eq expected=2 actual=2
+is-true actual=true
+test: attachedMarksRejectMissingObjectsAndGappedRanges
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: attachedRunsOwnOneVirtualGapAtTheirTrailingEdge
+eq expected='trailing' actual='trailing'
+eq expected='InlineAttachment.Previous' actual='InlineAttachment.Previous'
+eq expected='AttachedInlineVirtualAutoSpace:east-asian-spacing-W-N' actual='AttachedInlineVirtualAutoSpace:east-asian-spacing-W-N'
+eq expected=18 actual=18
+eq expected=8 actual=8
+test: emptyDisplayTextProducesNoAtoms
+is-true actual=true
+test: glyphlessClustersUseThePurePolicyPath
+eq expected='ProfileGlueFallbackWithoutFontGeometry' actual='ProfileGlueFallbackWithoutFontGeometry'
+eq expected=- actual=-
+eq expected=8 actual=8
+test: inlineBoxSpansAddStructuralEdgesAndSkipDegenerateRanges
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+eq expected=3 actual=3
+eq expected={0=2, 1=4.500000} actual={0=2, 1=4.500000}
+eq expected=10 actual=10
+eq expected=2 actual=2
+eq expected=12.500000 actual=12.500000
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=0 actual=0
+test: inlineObjectKinsokuProtectsOrHangsAttachedMarks
+raises exception=IllegalArgumentException thrown='Inline-object kinsoku requires cluster-for-cluster line-break geometry'
+is-true actual=true
+eq expected=[[0, 1]] actual=[[0, 1]]
+eq expected=[1] actual=[1]
+eq expected='InlineObjectAttachedKinsoku' actual='InlineObjectAttachedKinsoku'
+eq expected=1 actual=1
+is-true actual=true
+eq expected=[1] actual=[1]
+eq expected=[[0, 1]] actual=[[0, 1]]
+is-true actual=true
+is-true actual=true
+eq expected=1 actual=1
+is-true actual=true
+eq expected=[[0, 1]] actual=[[0, 1]]
+eq expected=[1, 2] actual=[1, 2]
+eq expected='InlineObjectAttachedKinsokuAcrossCollapsedSeparatorSpace' actual='InlineObjectAttachedKinsokuAcrossCollapsedSeparatorSpace'
+test: multipleGlyphsForOneCharacterUnionIntoASingleInkBox
+eq expected=14 actual=14
+eq expected=16 actual=16
+eq expected=16 actual=16
+eq expected=- actual=-
+test: narrowInlineBoxesOwnTheirOuterAutoSpace
+eq expected='InlineBox.Narrow' actual='InlineBox.Narrow'
+eq expected='InlineBoxOuterAutoSpace:leading-W-N' actual='InlineBoxOuterAutoSpace:leading-W-N'
+eq expected='InlineBox.Narrow' actual='InlineBox.Narrow'
+eq expected='InlineBoxOuterAutoSpace:trailing-N-W' actual='InlineBoxOuterAutoSpace:trailing-N-W'
+test: perCharacterInkSubtractsPrecedingGlyphPens
+eq expected=2 actual=2
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+eq expected=12 actual=12
+eq expected=12 actual=12
+is-true actual=true
+test: spaceReplacementSkipsDisabledModeNullBoundariesAndExactWidths
+is-true actual=true
+eq expected=16 actual=16
+is-true actual=true
+is-true actual=true
+raises exception=IllegalArgumentException thrown='East_Asian_Spacing values must align with natural clusters.'
+raises exception=IllegalArgumentException thrown='Inline attachments must align with natural clusters.'
+is-true actual=true
+test: spacingBoundariesCountEachWideNarrowGapOnce
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: typedSpaceBetweenWideAndNarrowIsReplacedByTheGap
+eq expected='gap' actual='gap'
+eq expected='Replace' actual='Replace'
+eq expected='EastAsianSpacing.Wide' actual='EastAsianSpacing.Wide'
+eq expected='TextAutoSpaceReplace:east-asian-spacing-W-space-N' actual='TextAutoSpaceReplace:east-asian-spacing-W-space-N'
+eq expected=1 actual=1
+eq expected=14 actual=14
+eq expected=14 actual=14
+eq expected=2 actual=2
+test: unionWithoutBoundsFallsBackToTheFirstGlyph
+eq expected='shaper-no-ink-bounds' actual='shaper-no-ink-bounds'
+eq expected=16 actual=16
+eq expected=8 actual=8
+eq expected=8 actual=8
+test: unmatchedGlyphCountsRecordTheAmbiguousFallback
+eq expected=2 actual=2
+is-true actual=true
+is-true actual=true
+eq expected=16 actual=16
+test: virtualGapsRespectNarrowToWideEdgesAndTheirNeighbours
+eq expected=1 actual=1
+eq expected='AttachedInlineVirtualAutoSpace:east-asian-spacing-W-N' actual='AttachedInlineVirtualAutoSpace:east-asian-spacing-W-N'
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: wideToNarrowBoundariesInsertLeadingAndTrailingGaps
+eq expected='leading' actual='leading'
+eq expected='EastAsianSpacing.Wide' actual='EastAsianSpacing.Wide'
+eq expected='TextAutoSpaceInsert:east-asian-spacing-W-N' actual='TextAutoSpaceInsert:east-asian-spacing-W-N'
+eq expected=-2 actual=-2
+eq expected=10 actual=10
+eq expected='trailing' actual='trailing'
+eq expected=10 actual=10

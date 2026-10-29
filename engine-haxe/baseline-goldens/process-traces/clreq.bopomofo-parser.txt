@@ -1,0 +1,11 @@
+scenario: clreq.bopomofo-parser
+parse case='plain-yinping' input='ㄓㄨㄥ' symbols='ㄓ|ㄨ|ㄥ' tone='Yinping'
+parse case='yangping' input='ㄔㄤˊ' symbols='ㄔ|ㄤ' tone='Yangping'
+parse case='shang' input='ㄋㄧˇ' symbols='ㄋ|ㄧ' tone='Shang'
+parse case='qu' input='ㄑㄩˋ' symbols='ㄑ|ㄩ' tone='Qu'
+parse case='explicit-yinping-macron' input='ㄇㄚˉ' symbols='ㄇ|ㄚ' tone='Yinping'
+parse case='prefixed-neutral' input='˙ㄉㄜ' symbols='ㄉ|ㄜ' tone='Neutral'
+parse case='single-symbol-yangping' input='ㄦˊ' symbols='ㄦ' tone='Yangping'
+parse case='empty' input='' symbols='' tone='Yinping'
+parse case='in-range-default-u02C8' input='ㄅㄚˈ' symbols='ㄅ|ㄚ|ˈ' tone='Yinping'
+parse case='range-miss-u02CC' input='ㄅㄚˌ' symbols='ㄅ|ㄚ|ˌ' tone='Yinping'

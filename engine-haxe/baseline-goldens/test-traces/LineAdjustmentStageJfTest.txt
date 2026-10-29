@@ -1,0 +1,11 @@
+class: LineAdjustmentStageJfTest
+test: dashInkCenteringWithShapedBounds
+eq expected=1 actual=1
+test: dashInkCenteringWithWideBoundsReturnsSameGlyph
+eq expected=0 actual=0
+test: hyphenSqueezeConsumesPairedLeadingAndTrailingGlueUnderTaiwanProfile
+is-true actual=true msg='Comma advance should have shrunk: 14'
+test: inlineObjectSeparatorSpaceTrimEdge
+is-true actual=true
+test: inlineObjectWithZeroDiscardableAdvance
+eq expected=[0, 1] actual=[0, 1]

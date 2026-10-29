@@ -1,0 +1,139 @@
+class: LineBreakRepairEngineTest
+test: allCapsAbbreviationIsNeverBroken
+is-true actual=true
+test: camelCaseTokenBreaksAtTheHumpWithoutAHyphen
+eq expected=2 actual=2
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: greedyBreakerProducesMultipleLinesWhenWidthOverflows
+eq expected=2 actual=2
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=4 actual=4
+eq expected=64 actual=64
+eq expected=0 actual=0
+eq expected=24 actual=24
+eq expected=4 actual=4
+eq expected=8 actual=8
+eq expected=64 actual=64
+eq expected=24 actual=24
+eq expected=48 actual=48
+eq expected=2 actual=2
+is-true actual=true
+eq expected=48 actual=48
+test: hyphenatedCompoundBreaksAtExistingHyphenWithoutAddingOne
+eq expected=2 actual=2
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true msg='line 0 should end at the existing hyphen: of-'
+test: latinSolidusBreaksAfterSlashWithoutAddingHyphen
+is-true actual=true
+is-true actual=true
+eq expected='TeX/' actual='TeX/'
+eq expected='LaTeX' actual='LaTeX'
+is-true actual=true
+test: longAllCapsOpaqueTokenHardBreaksWithoutSyntheticHyphen
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: longLetterBlobStaysOpaqueEvenWhenTailLooksHyphenatable
+is-true actual=true msg='first line should carry part of the opaque letter blob: 为什么历史是 sss'
+is-true actual=true
+is-true actual=true
+test: longOpaqueTokenCanBreakEvenWhenItFitsAloneButNotAfterCjkPrefix
+is-true actual=true msg='first line should carry part of the long opaque token instead of stretching only '为什么历史是 ': 为什么历史是 ssssssssssssssssssssssssssssssssssssssssher'
+is-true actual=true
+is-true actual=true
+test: nonLexicalLetterRunAfterCjkPullsPrefixOntoLooseLineWithoutSyntheticHyphen
+is-true actual=true msg='first line should carry part of the non-lexical letter run: 为什么历史是 sss'
+is-true actual=true
+test: opaqueLatinTokenAfterCjkPullsPrefixOntoLooseLine
+is-true actual=true msg='first line should carry part of the opaque token instead of stretching only '为什么历史是 ': 为什么历史是 abc'
+is-true actual=true
+test: overlongLatinWordHardBreaksWithAHangingHyphen
+is-true actual=true
+is-true actual=true
+is-true actual=true
+eq expected=2 actual=2
+is-true actual=true
+test: overlongOpaqueLatinTokenHardBreaksWithoutSyntheticHyphen
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: progressiveTechnicalBreakFallsThroughStructuralTierBeforeOverstretchingOutsideText
+eq expected=7 actual=7 msg='greedy'
+eq expected=0 actual=0 msg='greedy'
+is-true actual=true msg='greedy: [index:0, end:AutoWrap, natural:98, adjusted:98, visual:100, technical-break:Syllable]'
+is-true actual=true msg='greedy: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=2, reason=CjkLatinSpace)]'
+eq expected=7 actual=7 msg='lookahead'
+eq expected=0 actual=0 msg='lookahead'
+is-true actual=true msg='lookahead: [index:0, end:AutoWrap, natural:98, adjusted:98, visual:100, technical-break:Syllable]'
+is-true actual=true msg='lookahead: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=2, reason=CjkLatinSpace)]'
+eq expected=7 actual=7 msg='paragraph-dp'
+eq expected=0 actual=0 msg='paragraph-dp'
+is-true actual=true msg='paragraph-dp: [index:0, end:AutoWrap, natural:98, adjusted:98, visual:100, technical-break:Syllable]'
+is-true actual=true msg='paragraph-dp: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=2, reason=CjkLatinSpace)]'
+test: progressiveTechnicalBreakKeepsCjkBodyUnstretchedInEveryStrategy
+eq expected=6 actual=6 msg='greedy'
+eq expected=0 actual=0 msg='greedy'
+is-true actual=true msg='greedy: [index:0, end:AutoWrap, natural:98, adjusted:98, visual:104, technical-break:Emergency]'
+is-true actual=true msg='greedy'
+is-true actual=true msg='greedy: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=3.3333335, reason=CjkLatinSpace), JustificationAllocationInfo(clusterRange=TextRange(start=2, end=3), kind=EmergencyGraphemeT~799#fea5f324'
+is-true actual=true msg='greedy: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=3.3333335, reason=CjkLatinSpace), JustificationAllocationInfo(clusterRange=TextRange(start=2, end=3), kind=EmergencyGraphemeT~799#fea5f324'
+eq-tol expected=0 actual=0 tol=0.001000 msg='greedy'
+eq expected=6 actual=6 msg='lookahead'
+eq expected=0 actual=0 msg='lookahead'
+is-true actual=true msg='lookahead: [index:0, end:AutoWrap, natural:98, adjusted:98, visual:104, technical-break:Emergency]'
+is-true actual=true msg='lookahead'
+is-true actual=true msg='lookahead: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=3.3333335, reason=CjkLatinSpace), JustificationAllocationInfo(clusterRange=TextRange(start=2, end=3), kind=EmergencyGraphe~802#31a9d356'
+is-true actual=true msg='lookahead: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=3.3333335, reason=CjkLatinSpace), JustificationAllocationInfo(clusterRange=TextRange(start=2, end=3), kind=EmergencyGraphe~802#31a9d356'
+eq-tol expected=0 actual=0 tol=0.001000 msg='lookahead'
+eq expected=6 actual=6 msg='paragraph-dp'
+eq expected=0 actual=0 msg='paragraph-dp'
+is-true actual=true msg='paragraph-dp: [index:0, end:AutoWrap, natural:98, adjusted:98, visual:104, technical-break:Emergency]'
+is-true actual=true msg='paragraph-dp'
+is-true actual=true msg='paragraph-dp: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=3.3333335, reason=CjkLatinSpace), JustificationAllocationInfo(clusterRange=TextRange(start=2, end=3), kind=EmergencyGra~805#8bcc43db'
+is-true actual=true msg='paragraph-dp: [JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=CjkLatinSpace, priority=1, delta=3.3333335, reason=CjkLatinSpace), JustificationAllocationInfo(clusterRange=TextRange(start=2, end=3), kind=EmergencyGra~805#8bcc43db'
+eq-tol expected=0 actual=0 tol=0.001000 msg='paragraph-dp'
+test: progressiveTechnicalCleanBreakMayNotStretchEarlierOpaqueToken
+is-true actual=true msg='[LineDecisionInfo(range=TextRange(start=0, end=18), kind=lookahead, repair=null, repairPenalty=0, repairDecision=null, repairCandidates=[], notes=[index:0, end:AutoWrap, natural:288, adjusted:288, visual:300]), LineDecisionInfo(range=TextRa~660#d24bc7dc'
+is-true actual=true msg='lines=[deadbeef1234deadbe, ef1234 ab.cdEfghijk, lmnop] decisions=[LineDecisionInfo(range=TextRange(start=0, end=18), kind=lookahead, repair=null, repairPenalty=0, repairDecision=null, repairCandidates=[], notes=[index:0, end:AutoWrap, natur~6499#9031ebdf'
+is-true actual=true msg='JustificationDecisionInfo(lineRange=TextRange(start=18, end=37), deficitBefore=4, deficitAfter=0, allocations=[JustificationAllocationInfo(clusterRange=TextRange(start=25, end=26), kind=EmergencyGraphemeTracking, priority=3, delta=0.3636363~2520#8ca02e34'
+is-true actual=true msg='a later clean break borrowed tracking from the earlier hash: [JustificationAllocationInfo(clusterRange=TextRange(start=25, end=26), kind=EmergencyGraphemeTracking, priority=3, delta=0.36363637, reason=TerminalTechnicalEmergencyTracking:Curr~2470#b98e3030'
+test: progressiveTechnicalEmergencyIsExposedByCurrentLineStretchNotFullMeasure
+is-true actual=true msg='[Swift 这边是我最有体感的。JSONDecoder 慢是个老问题，, SR-6252[36] 那个 issue 里挖出的根因是底层走 NSJSONS, erialization 再桥接回 Objective-C，swift_dy, namicCast 吃掉大量时间。]'
+eq expected='erialization 再桥接回 Objective-C，swift_dy' actual='erialization 再桥接回 Objective-C，swift_dy'
+is-true actual=true
+is-true actual=true msg='current line still stretched CJK body: 0'
+is-true actual=true
+is-true actual=true
+test: progressiveTechnicalHardBreakOverridesNumberRunCohesion
+eq expected='aaaaa12345' actual='aaaaa12345' msg='greedy'
+is-true actual=true msg='greedy: [LineDecisionInfo(range=TextRange(start=0, end=10), kind=greedy, repair=null, repairPenalty=0, repairDecision=null, repairCandidates=[], notes=[index:0, end:AutoWrap, natural:160, adjusted:160, visual:160, technical-break:Emergency]~454#aa34d0bc'
+eq expected='aaaaa12345' actual='aaaaa12345' msg='lookahead'
+is-true actual=true msg='lookahead: [LineDecisionInfo(range=TextRange(start=0, end=10), kind=lookahead, repair=null, repairPenalty=0, repairDecision=null, repairCandidates=[], notes=[index:0, end:AutoWrap, natural:160, adjusted:160, visual:160, technical-break:Emer~463#12077a5a'
+eq expected='aaaaa12345' actual='aaaaa12345' msg='paragraph-dp'
+is-true actual=true msg='paragraph-dp: [LineDecisionInfo(range=TextRange(start=0, end=10), kind=paragraph-dp, repair=null, repairPenalty=0, repairDecision=null, repairCandidates=[], notes=[index:0, end:AutoWrap, natural:160, adjusted:160, visual:160, technical-brea~472#c7dd3c4b'
+test: progressiveTechnicalStructuralBreakFallsThroughToEmergencyBeforeTracking
+eq expected='中文ab.cd' actual='中文ab.cd'
+is-true actual=true msg='lines=[中文ab.cd, Efghij] decisions=[LineDecisionInfo(range=TextRange(start=0, end=7), kind=lookahead, repair=null, repairPenalty=0, repairDecision=null, repairCandidates=[], notes=[index:0, end:AutoWrap, natural:114, adjusted:114, visual:124~1618#7a3ac7c1'
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: unbrokenProgressiveSpanUsesSourceSpaceThenKeepsBodyOpportunitiesAvailable
+is-true actual=true
+is-true actual=true
+eq expected=[TextRange(start=0, end=8), TextRange(start=8, end=11)] actual=[TextRange(start=0, end=8), TextRange(start=8, end=11)]
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true msg='[JustificationAllocationInfo(clusterRange=TextRange(start=4, end=5), kind=ProgressiveTechnical, priority=0, delta=4, reason=ProgressiveTechnicalWhitespaceStretch), JustificationAllocationInfo(clusterRange=TextRange(start=1, end=2), kind=Cjk~431#87cac552'
+is-true actual=true msg='bounded technical whitespace must not freeze the remaining body opportunities: [JustificationAllocationInfo(clusterRange=TextRange(start=4, end=5), kind=ProgressiveTechnical, priority=0, delta=4, reason=ProgressiveTechnicalWhitespaceStretch~510#23781cf2'
+test: urlLikeLatinTokenBreaksAtSeparatorsWithoutSyntheticHyphen
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true msg='URL separators are LatinText and must not trigger CJK line-start kinsoku'

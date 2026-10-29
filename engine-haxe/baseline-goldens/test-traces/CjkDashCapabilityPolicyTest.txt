@@ -1,0 +1,16 @@
+class: CjkDashCapabilityPolicyTest
+test: conformingStatusWithBlankDetailNamesTheMissingSession
+eq expected='ConformingCjkDashRequiresExactFontSession' actual='ConformingCjkDashRequiresExactFontSession'
+eq expected='status=conforming' actual='status=conforming'
+test: conformingStatusWithDetailAppendsHostEvidence
+eq expected='ConformingCjkDashRequiresExactFontSession' actual='ConformingCjkDashRequiresExactFontSession'
+eq expected='status=conforming; FixtureDashFace' actual='status=conforming; FixtureDashFace'
+test: nonConformingStatusWithBlankDetailKeepsOnlyStatusPrefix
+eq expected='NoConformingCjkDashGlyph' actual='NoConformingCjkDashGlyph'
+eq expected='status=unavailable' actual='status=unavailable'
+test: nonConformingStatusWithDetailNamesMissingGlyphAndAppendsEvidence
+eq expected='NoConformingCjkDashGlyph' actual='NoConformingCjkDashGlyph'
+eq expected='status=unavailable; BrowserHarfBuzzDisabled' actual='status=unavailable; BrowserHarfBuzzDisabled'
+test: nullStatusNamesMissingConformingGlyphAndUnpreparedDetail
+eq expected='NoConformingCjkDashGlyph' actual='NoConformingCjkDashGlyph'
+eq expected='CjkDashFontShapingNotPrepared' actual='CjkDashFontShapingNotPrepared'

@@ -1,0 +1,7 @@
+class: BilingualEmphasisTest
+test: emphasisDotsHanButNotWestern
+is-true actual=true msg='Han 中 gets a 着重号 dot'
+is-true actual=true msg='Han 中 gets a 着重号 dot'
+is-true actual=true msg='Western A must not get a dot'
+eq expected='no-dot-on-non-han' actual='no-dot-on-non-han'
+eq expected=0 actual=0

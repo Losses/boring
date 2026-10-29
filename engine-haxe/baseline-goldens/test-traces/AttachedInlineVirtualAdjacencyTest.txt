@@ -1,0 +1,28 @@
+class: AttachedInlineVirtualAdjacencyTest
+test: attachedReferenceNeverStartsAWrappedLine
+is-true actual=true msg='greedy: test must wrap: [LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=18.08, top=0, bottom=24, naturalWidth=16, adjustedWidth=16, visualWidth=16, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvan~1084#b1210259'
+is-true actual=true msg='greedy: attached reference started a line: [TextRange(start=0, end=1), TextRange(start=1, end=3), TextRange(start=3, end=4)]'
+is-true actual=true msg='greedy: reference detached from prose: [TextRange(start=0, end=1), TextRange(start=1, end=3), TextRange(start=3, end=4)]'
+is-true actual=true msg='lookahead: test must wrap: [LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=18.08, top=0, bottom=24, naturalWidth=16, adjustedWidth=16, visualWidth=16, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAd~1087#3470eadb'
+is-true actual=true msg='lookahead: attached reference started a line: [TextRange(start=0, end=1), TextRange(start=1, end=3), TextRange(start=3, end=4)]'
+is-true actual=true msg='lookahead: reference detached from prose: [TextRange(start=0, end=1), TextRange(start=1, end=3), TextRange(start=3, end=4)]'
+is-true actual=true msg='paragraph-dp: test must wrap: [LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=18.08, top=0, bottom=24, naturalWidth=16, adjustedWidth=16, visualWidth=16, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphe~1090#a8ef8a30'
+is-true actual=true msg='paragraph-dp: attached reference started a line: [TextRange(start=0, end=1), TextRange(start=1, end=3), TextRange(start=3, end=4)]'
+is-true actual=true msg='paragraph-dp: reference detached from prose: [TextRange(start=0, end=1), TextRange(start=1, end=3), TextRange(start=3, end=4)]'
+test: attachedRunAtParagraphEndHasNoVirtualRightNeighbor
+null actual=-
+test: attachedRunExposesTheProseClustersOnItsTwoSides
+eq expected=1 actual=1
+eq expected=[2, 3, 4] actual=[2, 3, 4]
+eq expected=5 actual=5
+test: closingQuoteBeforeFootnoteAndBodyKeepsItsNaturalTrailingGlue
+eq expected='AttachedInlineVirtualPunctuationBoundary:natural' actual='AttachedInlineVirtualPunctuationBoundary:natural'
+eq expected=8 actual=8
+is-true actual=true
+test: closingQuoteBeforeParagraphEndFootnoteHasNoTrailingGlue
+eq expected='AttachedInlineVirtualPunctuationBoundary:line-end' actual='AttachedInlineVirtualPunctuationBoundary:line-end'
+eq expected=0 actual=0
+test: punctuationAfterFootnoteIsJudgedAgainstThePrecedingPunctuation
+eq expected='AttachedInlineVirtualPunctuationBoundary:adjacent-punctuation' actual='AttachedInlineVirtualPunctuationBoundary:adjacent-punctuation'
+is-true actual=true
+eq expected=0 actual=0

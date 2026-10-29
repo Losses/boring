@@ -1,0 +1,11 @@
+class: BaselineAlignmentTest
+test: cjkMixedSizesAlignByIdeographicBoxBottom
+eq expected=0 actual=0
+eq-tol expected=0.480000 actual=0.480000 tol=0.010000
+eq-tol expected=-0.480000 actual=-0.480000 tol=0.010000
+test: cjkPunctuationProvidesIdeographicReferenceWithoutHanBody
+eq expected=0 actual=0 msg='CJK punctuation carries an IdeographicEmBox and must not be aligned to Latin raw descent'
+test: explicitBaselineShiftAppliesToRomanClusters
+eq-tol expected=-6 actual=-6 tol=0.001000
+test: latinInsideCjkUsesSharedRomanBaseline
+eq expected=0 actual=0 msg='Latin mixed into CJK should use the shared Roman baseline'

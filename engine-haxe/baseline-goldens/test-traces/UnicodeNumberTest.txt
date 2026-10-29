@@ -1,0 +1,11 @@
+class: UnicodeNumberTest
+test: numbersAreMembersAcrossScriptsAndNonScalarsAreRejected
+is-true actual=true msg='U+30'
+is-true actual=true msg='U+662'
+is-true actual=true msg='U+bd'
+is-false actual=false msg='U+61'
+is-false actual=false msg='U+400d'
+is-false actual=false msg='U+2019'
+raises exception=TiqianIllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+raises exception=TiqianIllegalArgumentException thrown='Not a Unicode scalar value: -1'
+raises exception=TiqianIllegalArgumentException thrown='Not a Unicode scalar value: 1114112'

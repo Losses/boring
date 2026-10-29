@@ -1,0 +1,45 @@
+class: TextShaperCoverageTest
+test: coversAllShapingSourceEnumEntries
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
+eq expected=6 actual=6
+eq expected=Stub actual=Stub
+eq expected=JvmAwt actual=JvmAwt
+eq expected=AndroidPaint actual=AndroidPaint
+eq expected=Skia actual=Skia
+eq expected=HarfBuzz actual=HarfBuzz
+eq expected=CoreText actual=CoreText
+test: explainableStubNominalAdvanceBranches
+eq expected=32 actual=32
+eq expected=32 actual=32
+eq expected=8 actual=8
+eq expected=24 actual=24
+eq expected=0 actual=0
+eq expected=1 actual=1
+eq expected=32 actual=32
+eq expected=32 actual=32
+test: shapingInputWithFeaturesAndConstants
+eq expected=['fwid=1', 'vert=1'] actual=['fwid=1', 'vert=1']
+eq expected='Test' actual='Test'
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected='ExplainableStubTextShaper:nominal-em-advance' actual='ExplainableStubTextShaper:nominal-em-advance'
+eq expected='Stub' actual='Stub'
+not-null actual='UnverifiedDisplaySubstitutionCoverage'
+not-null actual='PlatformMultiFaceStringDraw'
+test: surrogatePairHandlingInCodePointCount
+eq expected=1 actual=1
+eq expected=16 actual=16
+eq expected=2 actual=2
+eq expected=32 actual=32
+eq expected=1 actual=1
+eq expected=16 actual=16
+eq expected=2 actual=2
+eq expected=32 actual=32
+test: unimplementedTextShaperThrowsOnShape
+raises exception=IllegalStateException thrown='Text shaping is platform-specific and has not been wired for this target yet.'
+is-true actual=true

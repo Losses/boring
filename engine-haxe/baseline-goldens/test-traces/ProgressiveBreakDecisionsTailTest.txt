@@ -1,0 +1,5 @@
+class: ProgressiveBreakDecisionsTailTest
+test: infiniteLineLimitWithClustersAdmitsTheCleanestTier
+eq expected=2 actual=2
+test: infiniteStretchCeilingWithFiniteLineLimitAdmitsTheCleanestTier
+eq expected=2 actual=2

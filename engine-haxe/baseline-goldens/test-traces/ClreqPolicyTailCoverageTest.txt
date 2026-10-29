@@ -1,0 +1,51 @@
+class: ClreqPolicyTailCoverageTest
+test: bopomofoParserCoversEveryToneArm
+eq expected=Yinping actual=Yinping
+eq expected=['ㄅ', 'ㄚ'] actual=['ㄅ', 'ㄚ']
+eq expected=Yangping actual=Yangping
+eq expected=Shang actual=Shang
+eq expected=Qu actual=Qu
+eq expected=['ㄅ', 'ㄚ'] actual=['ㄅ', 'ㄚ']
+eq expected=Yinping actual=Yinping
+eq expected=Neutral actual=Neutral
+eq expected=['ㄅ', 'ㄚ'] actual=['ㄅ', 'ㄚ']
+eq expected=Yinping actual=Yinping
+eq expected=Yinping actual=Yinping
+eq expected=['ㄅ', 'ㄚ', 'ˈ'] actual=['ㄅ', 'ㄚ', 'ˈ']
+eq expected=Yinping actual=Yinping
+test: forbiddenAtLineEndCoversOpeningSolidusAndOther
+is-true actual=true
+is-false actual=false
+is-true actual=true
+is-true actual=true
+is-false actual=false
+is-false actual=false
+test: forbiddenAtLineStartCoversEveryPunctuationClass
+is-true actual=true msg='comma at Basic'
+is-true actual=true msg='closing quote at Basic'
+is-true actual=true msg='middle dot at Basic'
+is-true actual=true msg='interpunct at Basic'
+is-true actual=true msg='connector at Basic'
+is-true actual=true msg='solidus at Basic'
+is-true actual=true msg='comma at GbStyle'
+is-true actual=true msg='closing quote at GbStyle'
+is-true actual=true msg='middle dot at GbStyle'
+is-true actual=true msg='interpunct at GbStyle'
+is-true actual=true msg='connector at GbStyle'
+is-true actual=true msg='solidus at GbStyle'
+is-true actual=true msg='comma at Strict'
+is-true actual=true msg='closing quote at Strict'
+is-true actual=true msg='middle dot at Strict'
+is-true actual=true msg='interpunct at Strict'
+is-true actual=true msg='connector at Strict'
+is-true actual=true msg='solidus at Strict'
+is-false actual=false
+is-false actual=false
+is-true actual=true
+is-false actual=false
+is-true actual=true
+is-false actual=false
+is-false actual=false
+test: kinsokuRuleAllowsClustersWithoutDisplayText
+is-false actual=false
+is-false actual=false

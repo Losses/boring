@@ -1,0 +1,41 @@
+class: LineAdjustmentPushInTest
+test: fillPushInCompressesSourceSpaceToPromoteEmergencyBreakToSyllable
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=80 actual=80
+eq expected=[4] actual=[4]
+eq expected=5 actual=5
+eq expected=1 actual=1
+eq expected=5 actual=5
+is-true actual=true
+test: fillPushInCrossesIntermediateCleanerBoundaryToRefillAtSelectedTier
+eq expected=1 actual=1
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+eq expected=100 actual=100
+is-true actual=true
+test: fillPushInDoesNotPromoteEmergencyBreakWhenCleanerBoundaryStillLeavesDeficit
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+eq expected=[3, 4] actual=[3, 4]
+eq expected=- actual=-
+test: fillPushInExtendsPastForbiddenLineEndHead
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=90 actual=90
+eq expected=[4] actual=[4]
+eq expected=3 actual=3
+eq expected=0 actual=0
+test: fillPushInPullsMinimalGroupToAvoidForbiddenNextHead
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=90 actual=90
+eq expected=[4] actual=[4]
+eq expected=3 actual=3
+eq expected=0 actual=0
+test: noShrinkFillPushInCanContinueUntilTheLineIsNoLongerLoose
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=100 actual=100
+eq expected=[4, 5] actual=[4, 5]
+eq expected=0 actual=0
+test: pushInFirstCompressesSomeBoundariesPushOutOnlyNone
+eq expected=0 actual=0 msg='PushOutOnly must never fill-push-in'
+is-true actual=true msg='PushInFirst should compress at least one boundary'
+is-true actual=true msg='PushInFirst (10) should not need more lines than PushOutOnly (10)'
+test: pushInFirstDoesNotCompressEveryLine
+is-true actual=true msg='not every line should be a fill-push-in (5/10)'

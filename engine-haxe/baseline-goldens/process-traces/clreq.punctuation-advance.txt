@@ -1,0 +1,9 @@
+scenario: clreq.punctuation-advance
+advance-em case='two-em-dash-display' source='——' display='⸺' em=2.0
+advance-em case='two-em-dash-source' source='⸺' display='⋯' em=2.0
+advance-em case='ellipsis' source='…' display='⋯' em=1.0
+advance-em case='han' source='中' display='中' em=1.0
+advance-em case='pause' source='，' display='，' em=1.0
+advance-em case='supplementary-single' source='𝐀' display='𝐀' em=1.0
+advance-em case='mixed-bmp-supplementary' source='中𝐀文' display='中𝐀文' em=3.0
+advance-em case='empty' source='' display='' em=0.0

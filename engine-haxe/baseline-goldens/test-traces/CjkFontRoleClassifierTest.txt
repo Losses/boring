@@ -1,0 +1,74 @@
+class: CjkFontRoleClassifierTest
+test: classifiesAsciiBracketsAsLatin
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: classifiesAsciiHyphenSlashTildeAsLatinRegardlessOfContext
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: classifiesAsciiSymbolsAndPunctuationAsLatin
+eq expected=LatinText actual=LatinText msg='char=%'
+eq expected=LatinText actual=LatinText msg='char=.'
+eq expected=LatinText actual=LatinText msg='char=,'
+eq expected=LatinText actual=LatinText msg='char=:'
+eq expected=LatinText actual=LatinText msg='char=;'
+eq expected=LatinText actual=LatinText msg='char=!'
+eq expected=LatinText actual=LatinText msg='char=?'
+eq expected=LatinText actual=LatinText msg='char=#'
+eq expected=LatinText actual=LatinText msg='char=@'
+eq expected=LatinText actual=LatinText msg='char=&'
+eq expected=LatinText actual=LatinText msg='char=*'
+eq expected=LatinText actual=LatinText msg='char=+'
+eq expected=LatinText actual=LatinText msg='char=='
+eq expected=LatinText actual=LatinText msg='char=<'
+eq expected=LatinText actual=LatinText msg='char=>'
+eq expected=LatinText actual=LatinText msg='char=|'
+eq expected=LatinText actual=LatinText msg='char=^'
+eq expected=LatinText actual=LatinText msg='char=_'
+eq expected=LatinText actual=LatinText msg='char=$'
+eq expected=LatinText actual=LatinText msg='char=''
+eq expected=LatinText actual=LatinText msg='char="'
+eq expected=LatinText actual=LatinText
+test: classifiesCjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: classifiesCjkText
+eq expected=CjkText actual=CjkText
+test: classifiesCurlyQuotesAsCjkAtTextBoundary
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: classifiesCurlyQuotesAsCjkInMixedContext
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: classifiesCurlyQuotesAsCjkWhenSurroundedByCjk
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: classifiesCurlyQuotesAsLatinWhenSurroundedByLatin
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+eq expected=LatinText actual=LatinText
+test: classifiesLatinText
+eq expected=LatinText actual=LatinText
+test: classifiesUnicodeEmojiPresentationWithoutReclassifyingPlainKeycapBases
+eq expected=Emoji actual=Emoji msg='⌚'
+eq expected=Emoji actual=Emoji msg='🀄'
+eq expected=Emoji actual=Emoji msg='🫪'
+eq expected=LatinText actual=LatinText
+eq expected=Symbol actual=Symbol

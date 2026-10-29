@@ -1,0 +1,40 @@
+class: ContextualQuoteRoleResolverNestedAndSurrogateTest
+test: highSurrogateAtTheContentEndHasNoRoomAndThrows
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55357'
+test: leftwardScanFromALowSurrogateWalksEveryBacktrackArm
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+test: mixedEnclosingLevelFallsBackToParagraphLanguage
+eq expected='ParagraphLanguageQuoteContext' actual='ParagraphLanguageQuoteContext'
+is-true actual=true msg='mixed-enclosing-level-script; paragraph-language=zh-Hans'
+test: nestedPairInsideNeutralEnclosingInheritsTheOuterQuotation
+eq expected='PairedPunctuationEnclosingQuoteContext' actual='PairedPunctuationEnclosingQuoteContext'
+eq expected='quote-pair-inherits-enclosing-quotation' actual='quote-pair-inherits-enclosing-quotation'
+eq expected=CjkPunctuation actual=CjkPunctuation
+is-true actual=true
+test: nonChineseLocaleResolvesNeutralContextToLatinText
+eq expected=LatinText actual=LatinText
+is-true actual=true
+test: plainFollowerOfAHighSurrogateCountsAsOneUnit
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55357'
+test: privateUseCharBeforeAQuoteFailsTheLowSurrogateRangeAbove
+eq expected='UnmatchedQuoteSurroundingScriptContext' actual='UnmatchedQuoteSurroundingScriptContext'
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: privateUseFollowerOfAHighSurrogateCountsAsOneUnit
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55357'
+test: siblingPairsInsideOneQuotationEachInheritTheOuterRole
+eq expected='PairedPunctuationEnclosingQuoteContext' actual='PairedPunctuationEnclosingQuoteContext'
+eq expected='PairedPunctuationEnclosingQuoteContext' actual='PairedPunctuationEnclosingQuoteContext'
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: spaceBeforeAMixedContentPairReportsMixedContent
+eq expected='ParagraphLanguageQuoteContext' actual='ParagraphLanguageQuoteContext'
+is-true actual=true msg='mixed-quoted-content; paragraph-language=zh-Hans'
+test: spaceBeforeAPairWithNonWesternContentSkipsTheDelimitedRule
+eq expected='PairedPunctuationContentScriptContext' actual='PairedPunctuationContentScriptContext'
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: spaceBeforeUnmatchedQuoteWithCjkRightSkipsTheDelimitedRule
+eq expected='UnmatchedQuoteSurroundingScriptContext' actual='UnmatchedQuoteSurroundingScriptContext'
+eq expected=CjkPunctuation actual=CjkPunctuation
+test: tabBeforeAWhollyWesternPairDelimitsLikeASpace
+eq expected='DelimitedWesternQuotationRun' actual='DelimitedWesternQuotationRun'

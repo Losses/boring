@@ -1,0 +1,89 @@
+class: LineAdjustmentStageCoverageTest
+test: attachedFootnoteTrailingGlueTrimsWhenTheLineEndsAtTheRun
+eq expected=[0, 1, 2, 3, 4, 5, 6, 7, 8] actual=[0, 1, 2, 3, 4, 5, 6, 7, 8] msg='[LineBox(range=TextRange(start=0, end=11), clusterRange=0..8, baseline=18.08, top=0, bottom=24, naturalWidth=176, adjustedWidth=152, visualWidth=164, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs=[~720#506e2d86'
+eq expected=TextRange(start=8, end=11) actual=TextRange(start=8, end=11)
+eq expected=8 actual=8
+eq expected='trailing' actual='trailing'
+test: attachedObjectMarkHangsInsteadOfLeavingTheSeparatorAtAnEdge
+eq expected=[1, 2, 3] actual=[1, 2, 3] msg='[LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=18.08, top=0, bottom=24, naturalWidth=16, adjustedWidth=16, visualWidth=16, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs=[], d~1103#191bb33d'
+is-true actual=true msg='[LineEdgeTrimDecisionInfo(lineRange=TextRange(start=1, end=4), clusterRange=TextRange(start=3, end=4), side=trailing, trimAmount=8, consumedBefore=0, naturalGlue=8, reason=LineEndHalfWidthPunctuation)]'
+test: baselineShiftSpanRaisesTheFinalClusterShift
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected=0 actual=0
+test: blankMiddleLineSkipsEveryEdgePass
+eq expected=3 actual=3 msg='[LineBox(range=TextRange(start=0, end=3), clusterRange=0..2, baseline=18.08, top=0, bottom=24, naturalWidth=32, adjustedWidth=32, visualWidth=32, hangingPunctuationAdvance=0, indent=0, endReason=MandatoryBreak, hyphenAdvance=0, hyphenGlyphs~1078#b9f1ca44'
+eq expected=[3] actual=[3] msg='[LineBox(range=TextRange(start=0, end=3), clusterRange=0..2, baseline=18.08, top=0, bottom=24, naturalWidth=32, adjustedWidth=32, visualWidth=32, hangingPunctuationAdvance=0, indent=0, endReason=MandatoryBreak, hyphenAdvance=0, hyphenGlyphs~1078#b9f1ca44'
+eq expected=0 actual=0
+is-true actual=true msg='[]'
+test: dashRunWithoutInkBoundsKeepsSyntheticGlyphs
+eq expected=1 actual=1 msg='[LineBox(range=TextRange(start=0, end=4), clusterRange=0..2, baseline=18.08, top=0, bottom=24, naturalWidth=64, adjustedWidth=64, visualWidth=64, hangingPunctuationAdvance=0, indent=0, endReason=ParagraphEnd, hyphenAdvance=0, hyphenGlyphs=[~358#1d200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a'
+eq expected=1 actual=1
+eq expected=3 actual=3
+is-true actual=true msg='[Glyph(id=0, clusterRange=TextRange(start=0, end=1), advance=16, x=0, y=0, renderFontKey=null, bounds=null, haltAdvance=null, haltPlacementX=null), Glyph(id=0, clusterRange=TextRange(start=1, end=3), advance=32, x=0, y=0, renderFontKey=null~441#d7ca7aeb'
+eq expected=64 actual=64
+test: emergencySelectedBreakOpensThePreferredTrackingSpan
+is-true actual=true msg='[LineBox(range=TextRange(start=0, end=6), clusterRange=0..5, baseline=16.8, top=0, bottom=24, naturalWidth=96, adjustedWidth=96, visualWidth=101, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs=[], d~2149#60080017'
+is-true actual=true msg='[JustificationDecisionInfo(lineRange=TextRange(start=0, end=6), deficitBefore=5, deficitAfter=0, allocations=[JustificationAllocationInfo(clusterRange=TextRange(start=0, end=1), kind=EmergencyGraphemeTracking, priority=3, delta=1, reason=Te~5345#a31868ed'
+test: emptyTextYieldsZeroHeightWithoutLines
+is-true actual=true msg='[]'
+eq expected=0 actual=0
+eq expected=0 actual=0
+test: formulaLineEndDiscardsTheTrailingBoundaryAdvance
+eq expected=[0, 1] actual=[0, 1] msg='[LineBox(range=TextRange(start=0, end=2), clusterRange=0..1, baseline=18.08, top=0, bottom=30.08, naturalWidth=40, adjustedWidth=34, visualWidth=34, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs=[]~1079#e9be708c'
+eq expected=6 actual=6
+eq expected=0 actual=0
+eq expected='trailing' actual='trailing'
+test: formulaObjectWithoutBoundaryDiscardsNothingAtLineEnd
+eq expected=[0, 1] actual=[0, 1] msg='[LineBox(range=TextRange(start=0, end=2), clusterRange=0..1, baseline=18.08, top=0, bottom=30.08, naturalWidth=40, adjustedWidth=40, visualWidth=40, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs=[]~1079#80ef8793'
+is-true actual=true msg='[]'
+test: hyphenSqueezeConsumesOpeningAndClosingBracketGlueChannels
+eq expected=8 actual=8 msg='（@8,中@16,·@16,文@16,，@8,in@32,ter@48,na@32,tion@64,al@32,iza@48,tion@64'
+eq expected=8 actual=8 msg='（@8,中@16,·@16,文@16,，@8,in@32,ter@48,na@32,tion@64,al@32,iza@48,tion@64'
+test: hyphenSqueezeConsumesTheInterpunctPairedChannel
+eq expected=14 actual=14 msg='中@16,文@16,，@14,文@16,in@34,ter@48,na@32,tion@64,al@32,iza@48,tion@64'
+test: hyphenSqueezeConsumesTheWordSpaceRawAdvanceChannel
+eq expected=4 actual=4 msg='中@16,文@16,aa@34, @4,in@32,ter@48,na@32,tion@64,al@32,iza@48,tion@64'
+eq expected=16 actual=16
+eq-tol expected=118 actual=118 tol=0
+test: hyphenSqueezeFallsBackToZeroUsedGlueWhenTheLineAlreadyFits
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3] msg='[LineBox(range=TextRange(start=0, end=5), clusterRange=0..3, baseline=18.08, top=0, bottom=24, naturalWidth=80, adjustedWidth=72, visualWidth=72, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=16, hyphenGlyphs=[Gly~2407#2f80000b'
+eq expected=16 actual=16
+eq expected=8 actual=8 msg='16,16,8,32,48,32,64,32,48,64'
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3] msg='[LineBox(range=TextRange(start=0, end=5), clusterRange=0..3, baseline=18.08, top=0, bottom=24, naturalWidth=82, adjustedWidth=74, visualWidth=74, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=16, hyphenGlyphs=[Gly~2407#5f92d6d3'
+eq expected=16 actual=16
+is-true actual=true msg='8,16,16,34,48,32,64,32,48,64'
+test: loneLatinClusterMergesBothAutoSpaceEdgeTrimsIntoOneKey
+eq expected=[1] actual=[1] msg='[LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=18.08, top=0, bottom=24, naturalWidth=16, adjustedWidth=16, visualWidth=16, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs=[], d~1112#241ccedd'
+eq expected=['trailing', 'leading'] actual=['trailing', 'leading']
+is-true actual=true msg='[LineEdgeTrimDecisionInfo(lineRange=TextRange(start=1, end=2), clusterRange=TextRange(start=1, end=2), side=trailing, trimAmount=2, consumedBefore=0, naturalGlue=2, reason=TextAutoSpaceLineEdgeTrim), LineEdgeTrimDecisionInfo(lineRange=TextR~397#1915fbd5'
+eq expected=16 actual=16
+test: loneMandatoryBreakEmitsTwoZeroWidthLines
+eq expected=2 actual=2 msg='[LineBox(range=TextRange(start=0, end=1), clusterRange=0..0, baseline=18, top=0, bottom=24, naturalWidth=0, adjustedWidth=0, visualWidth=0, hangingPunctuationAdvance=0, indent=0, endReason=MandatoryBreak, hyphenAdvance=0, hyphenGlyphs=[], d~705#26aa748d'
+is-true actual=true
+is-true actual=true msg='48'
+test: mandatoryBreakMiddleLineSkipsItsJustificationPlan
+eq expected=2 actual=2 msg='[LineBox(range=TextRange(start=0, end=5), clusterRange=0..4, baseline=18.08, top=0, bottom=24, naturalWidth=64, adjustedWidth=64, visualWidth=64, hangingPunctuationAdvance=0, indent=0, endReason=MandatoryBreak, hyphenAdvance=0, hyphenGlyphs~721#da493ab6'
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+eq expected=[5, 6, 7, 8] actual=[5, 6, 7, 8]
+is-true actual=true msg='[0..4:64/64, 5..8:64/64]'
+is-true actual=true
+test: technicalLineBodyStretchRejectsTheCleanTierAndReplays
+is-true actual=true msg='[LineBox(range=TextRange(start=0, end=7), clusterRange=0..6, baseline=18.08, top=0, bottom=24, naturalWidth=90, adjustedWidth=82, visualWidth=96, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs=[], d~1426#5bfb06ed'
+is-true actual=true msg='[CurrentLineTechnicalTierRejection:Whitespace+WholeToken]'
+is-true actual=true msg='[CurrentLineTechnicalEmergencyBreak, CurrentLineTechnicalEmergencyBreak]'
+test: tinyTechnicalTrackingStaysBelowTheRejectionThreshold
+eq expected=[0, 1, 2, 3, 4, 5] actual=[0, 1, 2, 3, 4, 5] msg='[LineBox(range=TextRange(start=0, end=6), clusterRange=0..5, baseline=18.08, top=0, bottom=24, naturalWidth=96, adjustedWidth=96, visualWidth=96.004, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=0, hyphenGlyphs=[~720#2d398a0b'
+is-true actual=true msg='[JustificationDecisionInfo(lineRange=TextRange(start=0, end=6), deficitBefore=0.0039978027, deficitAfter=0, allocations=[JustificationAllocationInfo(clusterRange=TextRange(start=0, end=1), kind=CjkInterChar, priority=3, delta=0.00079956057,~832#a1d7033b'
+is-true actual=true msg='[0.00079956057, 0.00079956057, 0.00079956057, 0.00079956057, 0.00079956057]'
+is-true actual=true msg='[ProgressiveTechnicalSpan]'
+is-true actual=true msg='[CurrentLineTechnicalTierRejection:WholeToken]'
+test: trailingMandatoryBreakEmitsTerminalEmptyLineWithoutHyphen
+is-true actual=true msg='[LineBox(range=TextRange(start=0, end=7), clusterRange=0..4, baseline=18.08, top=0, bottom=24, naturalWidth=106, adjustedWidth=102, visualWidth=102, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=16, hyphenGlyphs=[~2335#1d6cf361'
+eq expected=0 actual=0
+eq expected=0 actual=0 msg='[LineBox(range=TextRange(start=0, end=7), clusterRange=0..4, baseline=18.08, top=0, bottom=24, naturalWidth=106, adjustedWidth=102, visualWidth=102, hangingPunctuationAdvance=0, indent=0, endReason=AutoWrap, hyphenAdvance=16, hyphenGlyphs=[~2335#1d6cf361'
+is-true actual=true
+test: zeroAdvanceEdgeSpaceIsNeverCollapsed
+is-true actual=true msg='中,中,中,中, ,aaa, ,bbb'
+eq expected=0 actual=0
+is-true actual=true msg='[]'

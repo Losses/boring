@@ -1,0 +1,38 @@
+class: ParagraphDpLineBreakerCoverageTest
+test: compressedEndsMayReachTheSegmentEnd
+eq expected=[0, 1, 2] actual=[0, 1, 2] msg='[LineCandidate(clusterRange=0..2, sourceRange=TextRange(start=0, end=3), naturalWidth=48, adjustedWidth=44, endReason=ParagraphEnd, repair=PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/12, offenderClusterIndex=2, allocations=[~648#894b6ccb'
+is-true actual=true msg='[PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/12, offenderClusterIndex=2, allocations=[PushInAllocation(clusterIndex=1, shrink=4, availableCapacity=12, channel=RawAdvance)], totalShrink=4, totalAvailableCapacity=12)]'
+eq expected=ParagraphEnd actual=ParagraphEnd
+test: compressedFinalMandatoryLineUsesTheCompressedCommitBranch
+eq expected=[0, 1, 2] actual=[0, 1, 2] msg='[LineCandidate(clusterRange=0..2, sourceRange=TextRange(start=0, end=3), naturalWidth=48, adjustedWidth=44, endReason=MandatoryBreak, repair=PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/4, offenderClusterIndex=2, allocations=~840#70638abf'
+eq expected=MandatoryBreak actual=MandatoryBreak
+is-true actual=true msg='[PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/4, offenderClusterIndex=2, allocations=[PushInAllocation(clusterIndex=2, shrink=4, availableCapacity=4, channel=TrailingGlue)], totalShrink=4, totalAvailableCapacity=4), null]'
+test: emptyClustersReturnAnEmptySolution
+is-true actual=true msg='[]'
+test: interfaceDefaultStrategyNameIsCustom
+eq expected='custom' actual='custom'
+test: lineEndOnlyCapacityFeedsTheCompressedEdgeAtTheLineEnd
+eq expected=[0, 1, 2] actual=[0, 1, 2] msg='[LineCandidate(clusterRange=0..2, sourceRange=TextRange(start=0, end=3), naturalWidth=48, adjustedWidth=44, endReason=AutoWrap, repair=PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/4, offenderClusterIndex=2, allocations=[PushI~834#c4195262'
+is-true actual=true msg='[PushIn(penalty=2, reason=LineAdjustmentPushIn:中:pushed-in=4/4, offenderClusterIndex=2, allocations=[PushInAllocation(clusterIndex=2, shrink=4, availableCapacity=4, channel=TrailingGlue)], totalShrink=4, totalAvailableCapacity=4), null]'
+test: mandatorySegmentFiltersTheControlBoundaryFromCandidates
+eq expected=[0, 1, 2] actual=[0, 1, 2] msg='[LineCandidate(clusterRange=0..2, sourceRange=TextRange(start=0, end=3), naturalWidth=48, adjustedWidth=48, endReason=MandatoryBreak, repair=null, repairCandidates=[], hangingClusterIndices=[]), LineCandidate(clusterRange=3..4, sourceRange=~574#bf0a7000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+eq expected=MandatoryBreak actual=MandatoryBreak
+eq expected=5 actual=5 msg='[LineCandidate(clusterRange=0..2, sourceRange=TextRange(start=0, end=3), naturalWidth=48, adjustedWidth=48, endReason=MandatoryBreak, repair=null, repairCandidates=[], hangingClusterIndices=[]), LineCandidate(clusterRange=3..4, sourceRange=~574#bf0a7000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+test: mismatchedNaturalAndAdjustedSizesAreRejected
+raises exception=IllegalArgumentException thrown='naturalClusters and adjustedClusters must align cluster-for-cluster.'
+is-true actual=true msg='naturalClusters and adjustedClusters must align cluster-for-cluster.'
+test: narrowWindowsDropEndsAtOrBelowTheLineStart
+eq expected=4 actual=4 msg='[LineCandidate(clusterRange=0..0, sourceRange=TextRange(start=0, end=1), naturalWidth=16, adjustedWidth=16, endReason=AutoWrap, repair=null, repairCandidates=[], hangingClusterIndices=[]), LineCandidate(clusterRange=1..1, sourceRange=TextRa~756#6a0621b5'
+is-true actual=true msg='[0..0, 1..1, 2..2, 3..3]'
+test: negativeCandidateWindowIsRejected
+raises exception=IllegalArgumentException thrown='candidateWindow must be non-negative.'
+is-true actual=true msg='candidateWindow must be non-negative.'
+test: promotionCheckReturnsFalseWhenTheCandidateEndHasNoOpportunity
+eq expected=[0, 1] actual=[0, 1] msg='[LineCandidate(clusterRange=0..1, sourceRange=TextRange(start=0, end=2), naturalWidth=60, adjustedWidth=60, endReason=AutoWrap, repair=null, repairCandidates=[], hangingClusterIndices=[]), LineCandidate(clusterRange=2..4, sourceRange=TextRa~832#acb25ed6'
+is-true actual=true msg='[null, PushIn(penalty=2, reason=LineAdjustmentPushIn:d:pushed-in=5/5, offenderClusterIndex=4, allocations=[PushInAllocation(clusterIndex=2, shrink=5, availableCapacity=5, channel=RawAdvance)], totalShrink=5, totalAvailableCapacity=5)]'
+test: shrinkPrefixSkipsNonPositiveAndOutOfRangeOpportunities
+eq expected=1 actual=1 msg='[LineCandidate(clusterRange=0..3, sourceRange=TextRange(start=0, end=4), naturalWidth=64, adjustedWidth=64, endReason=ParagraphEnd, repair=null, repairCandidates=[], hangingClusterIndices=[])]'
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+test: tierPromotionRoutesTheRepairReasonThroughThePromotionCode
+eq expected=[0, 1, 2] actual=[0, 1, 2] msg='[LineCandidate(clusterRange=0..2, sourceRange=TextRange(start=0, end=3), naturalWidth=85, adjustedWidth=80, endReason=AutoWrap, repair=PushIn(penalty=2, reason=ProgressiveTechnicalTierPromotion:b:pushed-in=5/5, offenderClusterIndex=2, alloc~858#41be28e4'
+is-true actual=true msg='[PushIn(penalty=2, reason=ProgressiveTechnicalTierPromotion:b:pushed-in=5/5, offenderClusterIndex=2, allocations=[PushInAllocation(clusterIndex=2, shrink=5, availableCapacity=5, channel=RawAdvance)], totalShrink=5, totalAvailableCapacity=5)~247#2ce389e2'

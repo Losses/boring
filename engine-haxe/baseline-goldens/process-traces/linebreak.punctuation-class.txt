@@ -1,0 +1,11 @@
+scenario: linebreak.punctuation-class
+class-of cp='0x7C' class='BreakAfter'
+class-of cp='0x2014' class='BreakBoth'
+class-of cp='0x058A' class='HyphenHH'
+class-of cp='0x203C' class='Nonstarter'
+class-of cp='0x0021' class='Exclamation'
+class-of cp='0x0000' class='Other'
+class-of cp='0x10FFFF' class='Other'
+class-of cp='-1' rejected=true
+class-of cp='0x110000' rejected=true
+class-of cp='0xD800' rejected=true

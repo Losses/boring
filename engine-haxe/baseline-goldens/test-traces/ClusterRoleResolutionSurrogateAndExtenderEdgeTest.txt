@@ -1,0 +1,47 @@
+class: ClusterRoleResolutionSurrogateAndExtenderEdgeTest
+test: astralVariationSelectorAfterAnAttachedPointMarkEndsTheRun
+eq expected=3 actual=3 msg='[ResolvedClusterRange(range=TextRange(start=0, end=1), role=CjkText, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null), ResolvedClusterRange(range=TextRange(start=1, end=4), role=LatinText, mandatoryBreak=false, zeroWidthSo~410#679463cd'
+eq expected=TextRange(start=1, end=4) actual=TextRange(start=1, end=4)
+eq expected=LatinText actual=LatinText
+test: astralVariationSelectorBetweenBaseAndModifierKeepsTheSequence
+eq expected=1 actual=1 msg='[ResolvedClusterRange(range=TextRange(start=0, end=5), role=Emoji, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null)]'
+eq expected=TextRange(start=0, end=5) actual=TextRange(start=0, end=5)
+eq expected=Emoji actual=Emoji
+test: astralVariationSelectorExtendsTheRunBeforeIt
+eq expected=2 actual=2 msg='[ResolvedClusterRange(range=TextRange(start=0, end=3), role=CjkText, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null), ResolvedClusterRange(range=TextRange(start=3, end=4), role=CjkText, mandatoryBreak=false, zeroWidthSoft~272#2a105d37'
+eq expected=TextRange(start=0, end=3) actual=TextRange(start=0, end=3)
+eq expected=CjkText actual=CjkText
+eq expected=TextRange(start=3, end=4) actual=TextRange(start=3, end=4)
+test: codePointAboveTheSupplementarySelectorRangeStandsAlone
+eq expected=3 actual=3 msg='[ResolvedClusterRange(range=TextRange(start=0, end=1), role=CjkText, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null), ResolvedClusterRange(range=TextRange(start=1, end=3), role=Unknown, mandatoryBreak=false, zeroWidthSoft~408#b9ee8ab9'
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=1, end=3) actual=TextRange(start=1, end=3)
+eq expected=TextRange(start=3, end=4) actual=TextRange(start=3, end=4)
+test: highSurrogateBeforePlainBmpKeepsTheLoneHalf
+eq expected=2 actual=2 msg='[ResolvedClusterRange(range=TextRange(start=0, end=1), role=Unknown, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null), ResolvedClusterRange(range=TextRange(start=1, end=2), role=CjkText, mandatoryBreak=false, zeroWidthSoft~272#c7546518'
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+test: highSurrogateBeforePrivateUseKeepsTheLoneHalf
+eq expected=3 actual=3 msg='[ResolvedClusterRange(range=TextRange(start=0, end=1), role=Unknown, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null), ResolvedClusterRange(range=TextRange(start=1, end=2), role=Unknown, mandatoryBreak=false, zeroWidthSoft~408#655aab7f'
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+test: inlineObjectOverTheCrWalksTheLfWithACrBehindIt
+eq expected=2 actual=2 msg='[ResolvedClusterRange(range=TextRange(start=0, end=1), role=Unknown, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null), ResolvedClusterRange(range=TextRange(start=1, end=2), role=Unknown, mandatoryBreak=false, zeroWidthSoft~272#36a39ab5'
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=TextRange(start=1, end=2) actual=TextRange(start=1, end=2)
+is-false actual=false msg='[ResolvedClusterRange(range=TextRange(start=0, end=1), role=Unknown, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null), ResolvedClusterRange(range=TextRange(start=1, end=2), role=Unknown, mandatoryBreak=false, zeroWidthSoft~272#36a39ab5'
+is-true actual=true msg='[ResolvedClusterRange(range=TextRange(start=0, end=1), role=Unknown, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null), ResolvedClusterRange(range=TextRange(start=1, end=2), role=Unknown, mandatoryBreak=false, zeroWidthSoft~272#36a39ab5'
+test: modifierBaseWithABmpSelectorWalksTheSelectorTrueArm
+eq expected=1 actual=1 msg='[ResolvedClusterRange(range=TextRange(start=0, end=4), role=Emoji, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null)]'
+eq expected=TextRange(start=0, end=4) actual=TextRange(start=0, end=4)
+eq expected=Emoji actual=Emoji
+test: modifierBaseWithOnlyASelectorEndsTheWalkAtTheClusterEnd
+eq expected=1 actual=1 msg='[ResolvedClusterRange(range=TextRange(start=0, end=3), role=Emoji, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null)]'
+eq expected=TextRange(start=0, end=3) actual=TextRange(start=0, end=3)
+test: spanBoundaryAfterASpaceLetThePointMarkSeeItsWhitespaceNeighbour
+eq expected=2 actual=2 msg='[ResolvedClusterRange(range=TextRange(start=0, end=2), role=LatinText, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null), ResolvedClusterRange(range=TextRange(start=2, end=3), role=LatinText, mandatoryBreak=false, zeroWidth~276#317cf548'
+eq expected=TextRange(start=0, end=2) actual=TextRange(start=0, end=2)
+eq expected=TextRange(start=2, end=3) actual=TextRange(start=2, end=3)
+test: zwjMemberInsideAModifierBaseClusterBreaksTheWalkBelowTheRange
+eq expected=1 actual=1 msg='[ResolvedClusterRange(range=TextRange(start=0, end=4), role=Emoji, mandatoryBreak=false, zeroWidthSoftBreak=false, roleOverride=null)]'
+eq expected=TextRange(start=0, end=4) actual=TextRange(start=0, end=4)

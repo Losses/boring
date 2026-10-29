@@ -1,0 +1,6 @@
+class: FontRoleTailCoverageTest
+test: bmpMathAndCurrencySymbolsResolveToSymbolRole
+eq expected=Symbol actual=Symbol
+eq expected=Symbol actual=Symbol
+test: supplementarySymbolIsUnknownBecauseItHasNoBmpCategory
+eq expected=Unknown actual=Unknown

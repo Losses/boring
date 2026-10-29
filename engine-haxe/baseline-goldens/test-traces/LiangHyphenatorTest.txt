@@ -1,0 +1,19 @@
+class: LiangHyphenatorTest
+test: exceptionsOverridePatternsAndAreCaseInsensitive
+eq expected=[2] actual=[2]
+eq expected=[2] actual=[2]
+test: marginsAndShortWordsAreRespected
+eq expected=[] actual=[]
+test: maxLevelWinsAndEvenForbidsTheBreak
+eq expected=[1] actual=[1]
+eq expected=[] actual=[]
+test: noHyphenatorYieldsNoOpportunities
+eq expected=[] actual=[]
+test: oddLevelGapBecomesABreakOutsideTheMargins
+eq expected=[2] actual=[2]
+eq expected=[] actual=[]
+test: parsesPatternsAndExceptionBlocksStrippingComments
+eq expected=[0, 0, 0, 0, 4] actual=[0, 0, 0, 0, 4]
+eq expected=[0, 5, 0, 0, 0] actual=[0, 5, 0, 0, 0]
+eq expected=[2] actual=[2]
+eq expected=[] actual=[]

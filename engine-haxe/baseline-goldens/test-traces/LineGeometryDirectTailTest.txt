@@ -1,0 +1,30 @@
+class: LineGeometryDirectTailTest
+test: emptyLineSolutionYieldsZeroArraysAndZeroMaxExtra
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=0 actual=0
+not-null actual=RubyLineHeightDecisionInfo(mode=PerLine, baseLineHeight=16, baseFaceHeight=16, rubyExtent=0, availableInterlineSpace=0, maxExtra=0, lineExtras=[], expandedLineIndices=[], reason=ExistingInterlineSpaceFitsRuby)
+eq expected=0 actual=0
+test: emptyMetricListTakesEmptyParagraphBaselineFallback
+eq expected=24 actual=24
+eq expected=18 actual=18
+eq expected=30 actual=30
+eq expected=22.500000 actual=22.500000
+test: metricListWithoutIdeographicEmBoxFallsBackToAllClusters
+is-true actual=true
+is-true actual=true
+test: objectFlushWithBaseTopSkipsIntrusionConjunctionEarly
+eq expected=2 actual=2
+is-true actual=true
+test: objectTopIntrusionBelowRubyDemandKeepsBoundaryClearanceZero
+eq expected=2 actual=2
+is-true actual=true
+test: objectTopIntrusionDominatingRubyDemandAddsBoundaryClearance
+eq expected=2 actual=2
+is-true actual=true
+test: rubiesOnBothLinesExerciseBothSidesOfTheOverlapTest
+eq expected=2 actual=2
+is-true actual=true
+test: rubyBaseRangeCrossingClusterBoundariesDropsOutOfPerLineExtents
+eq expected=1 actual=1
+is-true actual=true

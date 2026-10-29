@@ -1,0 +1,19 @@
+class: UnicodeScriptEvidenceTest
+test: commonAndInheritedScalarsDoNotVote
+eq expected=Neutral actual=Neutral msg='U+20'
+eq expected=Neutral actual=Neutral msg='U+30'
+eq expected=Neutral actual=Neutral msg='U+201c'
+eq expected=Neutral actual=Neutral msg='U+ff1f'
+eq expected=Neutral actual=Neutral msg='U+301'
+eq expected=Neutral actual=Neutral msg='U+1f600'
+test: eastAsianScriptsAreDistinctFromOtherStrongScripts
+eq expected=EastAsian actual=EastAsian msg='U+400d'
+eq expected=EastAsian actual=EastAsian msg='U+3105'
+eq expected=EastAsian actual=EastAsian msg='U+3042'
+eq expected=EastAsian actual=EastAsian msg='U+30a2'
+eq expected=EastAsian actual=EastAsian msg='U+ac00'
+eq expected=EastAsian actual=EastAsian msg='U+20000'
+eq expected=Other actual=Other msg='U+41'
+eq expected=Other actual=Other msg='U+3c0'
+eq expected=Other actual=Other msg='U+416'
+eq expected=Other actual=Other msg='U+627'

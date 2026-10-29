@@ -1,0 +1,125 @@
+class: LineRepairCoverageTest
+test: carryPreviousMovesThePreviousTailDownWhenItFits
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+eq expected=[3, 4, 5, 6] actual=[3, 4, 5, 6]
+eq expected=3 actual=3
+is-true actual=true
+eq expected=3 actual=3
+test: contextualHangExtendsOnlyInsideItsProtectedGroup
+eq expected=[3, 4] actual=[3, 4]
+is-true actual=true
+eq expected=[3, 4, 5] actual=[3, 4, 5]
+eq expected=3 actual=3
+is-true actual=true
+test: defaultArgumentsRunTheFullRaggedChain
+eq expected=false actual=false
+eq expected=10 actual=10
+eq expected=30 actual=30
+test: fillPushInAcceptsCompressionDenserThanTheCuredStretch
+eq expected=[0, 1, 2, 3, 4, 5] actual=[0, 1, 2, 3, 4, 5]
+eq expected=12 actual=12
+test: fillPushInDefaultArgumentsOmitTheOptionalBoundaries
+eq expected=[[0, 1, 2, 3, 4], [5, 6, 7]] actual=[[0, 1, 2, 3, 4], [5, 6, 7]]
+test: fillPushInExtendsPastForbiddenHeadsAndUnbreakableChains
+eq expected=[0, 1, 2, 3, 4, 5] actual=[0, 1, 2, 3, 4, 5]
+eq expected=[0, 1, 2, 3, 4, 5] actual=[0, 1, 2, 3, 4, 5]
+eq expected=1 actual=1
+eq expected=[0, 1, 2, 3, 4, 5, 6, 7] actual=[0, 1, 2, 3, 4, 5, 6, 7]
+test: fillPushInHonoursProgressiveTierPromotionBoundaries
+eq expected='ProgressiveTechnicalTierPromotion' actual='ProgressiveTechnicalTierPromotion'
+null actual=-
+null actual=-
+eq expected=[0, 1] actual=[0, 1]
+eq expected=[0, 1, 2, 3, 4, 5] actual=[0, 1, 2, 3, 4, 5]
+eq expected='LineAdjustmentPushIn' actual='LineAdjustmentPushIn'
+test: fillPushInPullsTheGroupAndCascadesZeroShrinkFills
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+eq expected=[5, 6, 7] actual=[5, 6, 7]
+eq expected=0 actual=0
+is-true actual=true
+test: fillPushInRejectsOverlargePullsAndWorseCompressionDensity
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=[4, 5, 6, 7] actual=[4, 5, 6, 7]
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=[4, 5, 6, 7] actual=[4, 5, 6, 7]
+test: fillPushInSkipsFullLinesAndUnpullableGroups
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+test: fillPushInSkipsRepairedHangingAndNonAutoWrapLines
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+test: fillPushInSkipsShortInputsAndZeroBias
+eq expected=1 actual=1
+eq expected=2 actual=2
+test: forbiddenStartOverrideControlsTheKinsokuCheck
+null actual=-
+test: hangConsumesAZeroWidthMandatoryBreakTail
+eq expected=[0, 1, 2, 3, 4, 5] actual=[0, 1, 2, 3, 4, 5]
+eq expected=[4, 5] actual=[4, 5]
+eq expected=MandatoryBreak actual=MandatoryBreak
+test: hangMergesTheOffenderBeyondTheMeasure
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+eq expected=[4] actual=[4]
+eq expected=4 actual=4
+eq expected=64 actual=64
+eq expected=80 actual=80
+eq expected=[5, 6, 7, 8] actual=[5, 6, 7, 8]
+eq expected='Hang' actual='Hang'
+eq expected=5 actual=5
+test: hangStopsBeforeANonZeroWidthMandatoryBreakTail
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+eq expected=[4] actual=[4]
+eq expected=AutoWrap actual=AutoWrap
+eq expected=[5] actual=[5]
+test: leaveRaggedRecordsNoRoomToCarryForASingleClusterLine
+eq expected=false actual=false
+eq expected='no-room-to-carry' actual='no-room-to-carry'
+is-true actual=true
+test: leaveRaggedRefusesCarriesThatWouldSplitAnUnbreakableSpan
+eq expected='carry-would-split-mourning-span' actual='carry-would-split-mourning-span'
+eq expected=3 actual=3
+is-true actual=true
+test: mandatoryBreakAndEmptyLinesSkipTheRepairLoop
+null actual=-
+eq expected=2 actual=2
+is-true actual=true
+test: mandatoryBreakTailEndReturnsTheMergeThroughAtTheLineEnd
+eq expected=[0, 1, 2, 3, 4, 5] actual=[0, 1, 2, 3, 4, 5]
+test: pushInFiltersOutOfRangeZeroCapacityAndForeignLineEndOnlyOpportunities
+is-true actual=true
+eq expected=[PushInAllocation(clusterIndex=4, shrink=8, availableCapacity=16, channel=LeadingAndTrailingGlue)] actual=[PushInAllocation(clusterIndex=4, shrink=8, availableCapacity=16, channel=LeadingAndTrailingGlue)]
+eq expected=16 actual=16
+test: pushInFitsWithoutShrinkWhenTheMergedLineAlreadyMatches
+eq expected=2 actual=2
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+eq expected=0 actual=0
+eq expected=[5, 6, 7, 8] actual=[5, 6, 7, 8]
+is-true actual=true
+test: pushInPromotesTheOffendersOwnTrailingGlueToTierOne
+eq expected=4 actual=4
+eq expected=[PushInAllocation(clusterIndex=4, shrink=4, availableCapacity=8, channel=TrailingGlue)] actual=[PushInAllocation(clusterIndex=4, shrink=4, availableCapacity=8, channel=TrailingGlue)]
+eq expected='ForbiddenAtLineStart:，:pushed-in=4/16' actual='ForbiddenAtLineStart:，:pushed-in=4/16'
+test: pushInRejectsAMergeThroughClusterOutsideTheCurrentLine
+raises exception=IllegalArgumentException thrown='PushIn merge-through cluster must belong to the current line.'
+is-true actual=true msg='PushIn merge-through cluster must belong to the current line.'
+test: pushInRejectsMergeThroughOutsideTheCurrentLine
+raises exception=IllegalArgumentException thrown='PushIn merge-through cluster must belong to the current line.'
+test: pushInRejectsWhenCapacityIsInsufficient
+eq expected=false actual=false
+eq expected='insufficient-capacity' actual='insufficient-capacity'
+eq expected=20 actual=20
+eq expected=8 actual=8
+test: pushInReportsInfinityCapacityWithAPortableDebugString
+is-true actual=true
+is-true actual=true
+eq expected='ForbiddenAtLineStart:，:pushed-in=Infinity.0/Infinity.0' actual='ForbiddenAtLineStart:，:pushed-in=Infinity.0/Infinity.0'
+test: pushInUnderflowSharesSkipZeroValuedProportionalShares
+is-true actual=true
+eq expected=1 actual=1
+eq expected=1 actual=1
+eq expected=0 actual=0
+test: withFillPushInGateAppliesOrReturnsTheSolution
+eq expected=LineSolution(lines=[LineCandidate(clusterRange=0..3, sourceRange=TextRange(start=0, end=4), naturalWidth=64, adjustedWidth=64, endReason=AutoWrap, repair=null, repairCandidates=[], hangingClusterIndices=[]), LineCandidate(clusterRange=4..7,~412#b6848dc0 actual=LineSolution(lines=[LineCandidate(clusterRange=0..3, sourceRange=TextRange(start=0, end=4), naturalWidth=64, adjustedWidth=64, endReason=AutoWrap, repair=null, repairCandidates=[], hangingClusterIndices=[]), LineCandidate(clusterRange=4..7,~412#b6848dc0
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]

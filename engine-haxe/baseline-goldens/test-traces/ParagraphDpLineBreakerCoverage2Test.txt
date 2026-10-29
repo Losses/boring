@@ -1,0 +1,19 @@
+class: ParagraphDpLineBreakerCoverage2Test
+test: testCandidateEndsWindowBelowLineStart
+eq expected=3 actual=3
+test: testCandidateWindowBoundsCompressionEdges
+is-true actual=true
+test: testCommitSegmentOriginalBreakNotNullResultingBreakNull
+is-true actual=true
+test: testHardBreakAfterClustersInDpCommit
+eq expected=2 actual=2
+eq expected=MandatoryBreak actual=MandatoryBreak
+eq expected=ParagraphEnd actual=ParagraphEnd
+test: testProgressiveTierPromotionBranches
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: testShrinkOpportunitiesNegativeAndOutOfRange
+eq expected=1 actual=1
+test: testTierPreferredPoolEmptyFallback
+is-true actual=true

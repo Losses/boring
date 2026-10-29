@@ -1,0 +1,22 @@
+class: ClreqPunctuationGlyphSubstitutorTest
+test: preferPolicyDoesNotRewriteAmbiguousConnectorOrSolidusForms
+eq expected='～' actual='～'
+eq expected='-' actual='-'
+eq expected='/' actual='/'
+eq expected='／' actual='／'
+eq expected='．' actual='．'
+test: preferPolicyUsesClreqRecommendedDisplayCodepoints
+eq expected='⋯⋯' actual='⋯⋯'
+eq expected='⸺' actual='⸺'
+eq expected='·' actual='·'
+eq expected='·' actual='·'
+eq expected='·' actual='·'
+test: preservePolicyKeepsInputDisplayCodepoints
+eq expected='……' actual='……'
+eq expected='——' actual='——'
+eq expected='・' actual='・'
+test: recommendedDashCodepointOccupiesTwoEm
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=2 actual=2
+eq expected=2 actual=2

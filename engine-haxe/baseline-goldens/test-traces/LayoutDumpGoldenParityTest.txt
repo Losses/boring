@@ -1,0 +1,3 @@
+class: LayoutDumpGoldenParityTest
+test: layoutDecisionDumpsMatchEmbeddedGolden
+is-true actual=true msg='\n\nIf the change is intentional, regenerate with TIQIAN_UPDATE_GOLDEN=1 on the JVM and review the golden diff.'

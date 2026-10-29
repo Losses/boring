@@ -1,0 +1,89 @@
+class: PunctuationGeometryBranchArmsCoverageTest
+test: asciiPointMarkKinsokuSkipsEmptyTextClusters
+is-true actual=true
+is-true actual=true
+eq expected=[[0, 1]] actual=[[0, 1]]
+eq expected=1 actual=1
+eq expected=[[0, 1]] actual=[[0, 1]]
+eq expected=1 actual=1
+test: attachedAsciiPointMarkCheckSkipsEmptyPreviousText
+is-false actual=false
+test: attachedBoundaryReasonFallsBackToNaturalWithoutLeftAtom
+eq expected='AttachedInlineVirtualPunctuationBoundary:natural' actual='AttachedInlineVirtualPunctuationBoundary:natural'
+eq expected='」' actual='」'
+eq expected=8 actual=8
+test: attachedBoundaryRecordsNullCharactersForEmptyTextClusters
+eq expected='\u0000' actual='\u0000'
+eq expected='AttachedInlineVirtualPunctuationBoundary:natural' actual='AttachedInlineVirtualPunctuationBoundary:natural'
+eq expected=8 actual=8
+eq expected='\u0000' actual='\u0000'
+eq expected='AttachedInlineVirtualPunctuationBoundary:adjacent-punctuation' actual='AttachedInlineVirtualPunctuationBoundary:adjacent-punctuation'
+test: attachedBoundaryWithPlainPreviousClusterKeepsTheRightBudget
+is-true actual=true
+is-true actual=true
+eq expected=16 actual=16
+test: attachedMarkWalkStopsMidRunAtAGap
+is-true actual=true
+eq expected=[1, 2] actual=[1, 2]
+eq expected=3 actual=3
+test: attachedRunAtParagraphEndEmitsNoAutoSpace
+is-true actual=true
+eq expected=16 actual=16
+test: attachedTrailingGlueWidensABudgetedEndCluster
+eq expected=4 actual=4
+eq expected=20 actual=20
+test: centredAdjacencyConsumesBothSidesEqually
+is-true actual=true
+eq expected=4 actual=4
+eq expected=8 actual=8
+eq expected=16 actual=16
+test: emptyTextClustersCannotBeAttachedMarks
+is-true actual=true
+is-true actual=true
+is-true actual=true
+eq expected=1 actual=1
+test: glueCapacitiesMarkCentredFramesAsPaired
+is-true actual=true
+eq expected=4 actual=4
+eq expected=4 actual=4
+test: haltAdvanceIsRejectedAtZeroAndAtFullWidth
+eq expected=- actual=-
+eq expected='ProfileGlueFallbackWithoutFontGeometry' actual='ProfileGlueFallbackWithoutFontGeometry'
+eq expected=- actual=-
+eq expected='ProfileGlueFallbackWithoutFontGeometry' actual='ProfileGlueFallbackWithoutFontGeometry'
+test: inlineBoxSpanWithZeroNetStructuralEdgeStillAppliesLeading
+eq expected=8 actual=8
+eq expected=2 actual=2
+is-true actual=true
+eq expected=2 actual=2
+test: nonFiniteHaltPlacementIsIgnored
+eq expected='FontHaltAdvanceWithInkBoundsFittedPlacement' actual='FontHaltAdvanceWithInkBoundsFittedPlacement'
+eq expected='FontHaltAdvanceWithProfileFallback' actual='FontHaltAdvanceWithProfileFallback'
+eq expected=8 actual=8
+test: resolveClustersAppliesGlyphShiftWithUnchangedAdvance
+eq expected=16 actual=16
+eq expected=8 actual=8
+test: spaceRunRequiresNonEmptyAllSpaceText
+is-true actual=true
+is-true actual=true
+is-false actual=false
+is-false actual=false
+is-false actual=false
+test: spacingBoundariesAtListEdgesAreFalse
+is-false actual=false
+is-false actual=false
+test: spacingPlanIgnoresTargetsOutsideTheBudgets
+is-false actual=false
+eq expected=8 actual=8
+test: typedSpaceWithEmptyTextNeighboursKeepsItsWidth
+is-true actual=true
+eq expected=16 actual=16
+is-true actual=true
+is-true actual=true
+eq expected=16 actual=16
+test: unionIgnoresGlyphsWithoutBounds
+eq expected=8 actual=8
+eq expected=16 actual=16
+test: virtualGapWithEmptyPreviousTextHasNoNarrowCharacter
+is-true actual=true
+is-true actual=true

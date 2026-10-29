@@ -1,0 +1,34 @@
+class: ReplayableFontBackendCoverageTest
+test: capabilityReportReplayFlagRequiresFacesAndNoMissingFaceIssue
+is-false actual=false
+is-false actual=false
+is-true actual=true
+is-true actual=true
+test: catalogContractResolvesByRequest
+is-true actual=true
+eq expected=face-latin actual=face-latin
+null actual=-
+test: faceDescriptorDefaultsAreStable
+eq expected=400 actual=400
+is-false actual=false
+eq expected=0 actual=0
+is-true actual=true
+eq expected=face-a actual=face-a
+eq expected=700 actual=700
+is-true actual=true
+eq expected=2 actual=2
+eq expected=700 actual=700
+test: faceRequestRejectsNonPositiveAndNonFiniteFontSize
+eq expected=LatinText actual=LatinText
+eq expected=15 actual=15
+raises exception=IllegalArgumentException thrown='fontSize must be positive and finite'
+is-true actual=true msg='fontSize must be positive and finite'
+raises exception=IllegalArgumentException thrown='fontSize must be positive and finite'
+raises exception=IllegalArgumentException thrown='fontSize must be positive and finite'
+raises exception=IllegalArgumentException thrown='fontSize must be positive and finite'
+test: fontFaceIdRejectsBlankAndKeepsValue
+eq expected='noto-cjk-1' actual='noto-cjk-1'
+eq expected='noto-cjk-1' actual='noto-cjk-1'
+raises exception=IllegalArgumentException thrown='FontFaceId must not be blank'
+is-true actual=true msg='FontFaceId must not be blank'
+raises exception=IllegalArgumentException thrown='FontFaceId must not be blank'

@@ -1,0 +1,35 @@
+class: CoreBoundaryTest
+test: coerceToInteractionBoundaryBackwardReturnsBoundaryWhenAtEnd
+eq expected=3 actual=3
+test: coerceToInteractionBoundaryForwardReturnsNextBoundary
+eq expected=3 actual=3
+test: coerceToInteractionBoundaryNearestChoosesCloser
+eq expected=3 actual=3
+test: coerceToInteractionBoundaryWithInvalidSurrogatePair
+eq expected=1 actual=1
+test: coerceToInteractionBoundaryWithSurrogatePair
+eq expected=3 actual=3
+test: getSelectionOffsetForPositionReturnsStartOfFirstCluster
+eq expected=0 actual=0
+eq expected=1 actual=1
+eq expected=2 actual=2
+test: getSelectionOffsetForPositionReturnsStartOfLineWhenEmptyClusters
+eq expected=0 actual=0
+test: interactionBoundariesWithTextRange
+eq expected=[1, 2] actual=[1, 2]
+test: sourceGraphemeBoundariesReturnsSingleBoundaryForEmptyText
+eq expected=1 actual=1
+eq expected=0 actual=0
+test: sourceGraphemeBoundariesWithEmojiModifier
+is-true actual=true
+test: sourceGraphemeBoundariesWithEmojiZwjSequence
+eq expected=2 actual=2
+eq expected=0 actual=0
+test: sourceGraphemeBoundariesWithHangulLeadingJamo
+is-true actual=true
+test: sourceGraphemeBoundariesWithHangulSyllable
+eq expected=2 actual=2
+eq expected=0 actual=0
+eq expected=1 actual=1
+test: sourceGraphemeBoundariesWithRegionalIndicator
+is-true actual=true

@@ -1,0 +1,8 @@
+class: VerbatimRangeAutoSpaceTest
+test: internalBoundariesAreSuppressedAndOuterEdgesKeepTheGap
+eq expected=4 actual=4 msg='LayoutResult(input=LayoutInput(content=TiqianTextContent(text=跑print你好print跑, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400,~13201#62cf0814'
+eq expected=2 actual=2 msg='[AutoSpaceDecisionInfo(clusterRange=TextRange(start=1, end=6), side=leading, boundaryRole=EastAsianSpacing.Wide, mode=Insert, charactersAffected=0, reductionPerChar=0, totalReduction=-2, reason=TextAutoSpaceInsert:east-asian-spacing-W-N), A~985#2bc62ac9'
+eq expected=2 actual=2 msg='[AutoSpaceDecisionInfo(clusterRange=TextRange(start=1, end=6), side=leading, boundaryRole=EastAsianSpacing.Wide, mode=Insert, charactersAffected=0, reductionPerChar=0, totalReduction=-2, reason=TextAutoSpaceInsert:east-asian-spacing-W-N), A~985#2bc62ac9'
+test: typedSpaceInsideAVerbatimRangeIsNotNormalised
+eq expected=1 actual=1 msg='LayoutResult(input=LayoutInput(content=TiqianTextContent(text=跑a 你b跑, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, italic=~11306#ea199ba0'
+eq expected=0 actual=0 msg='LayoutResult(input=LayoutInput(content=TiqianTextContent(text=跑a 你b跑, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[TextRange(start=1, end=5)]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans~11105#9c887215'

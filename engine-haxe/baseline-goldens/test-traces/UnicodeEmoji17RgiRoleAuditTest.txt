@@ -1,0 +1,4 @@
+class: UnicodeEmoji17RgiRoleAuditTest
+test: fullyQualifiedEmojiSequencesResolveToOneEmojiRange
+eq expected=3944 actual=3944
+eq expected=0 actual=0 msg='0 RGI role mismatches: []'

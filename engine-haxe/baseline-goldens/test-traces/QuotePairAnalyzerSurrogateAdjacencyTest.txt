@@ -1,0 +1,19 @@
+class: QuotePairAnalyzerSurrogateAdjacencyTest
+test: apostropheAfterASurrogatePairWalksTheCombineArmBefore
+is-false actual=false
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+is-false actual=false
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+test: apostropheBeforeASurrogateWalksBothLowCheckArms
+is-false actual=false
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55357'
+test: lowQuoteCodePointsTakeTheSwitchDefaultWithoutPairing
+eq expected=[QuotePair(openIndex=2, closeIndex=3, quoteType=Double)] actual=[QuotePair(openIndex=2, closeIndex=3, quoteType=Double)]
+test: plainAndBoundaryNeighboursWalkTheNonSurrogateArms
+is-true actual=true
+is-false actual=false
+is-false actual=false
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 56320'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55357'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55357'

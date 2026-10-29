@@ -1,0 +1,10 @@
+class: UnicodePunctuationLineBreakCoverageTest
+test: lookupClassesCoverTheUaxTailorablePunctuationClasses
+eq expected=BreakAfter actual=BreakAfter
+eq expected=BreakBoth actual=BreakBoth
+eq expected=HyphenHH actual=HyphenHH
+eq expected=Nonstarter actual=Nonstarter
+test: nonScalarCodePointsAreRejected
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: -1'
+raises exception=IllegalArgumentException thrown='Not a Unicode scalar value: 1114112'
+raises exception=IllegalArgumentException thrown='Surrogate is not a Unicode scalar value: 55296'

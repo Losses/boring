@@ -1,0 +1,135 @@
+class: ClusterRoleResolutionCoverageTest
+test: clusterRoleRangesModifierBaseWithVariationSelectorAndModifier
+is-true actual=true
+eq expected=Emoji actual=Emoji
+test: clusterRoleRangesWithAsciiPointMark
+is-true actual=true
+test: clusterRoleRangesWithAsciiPointMarkAttached
+is-true actual=true
+test: clusterRoleRangesWithAttachedAsciiPointMarkAtStart
+is-true actual=true
+test: clusterRoleRangesWithAttachedAsciiPointMarkFollowedByLatin
+is-true actual=true
+test: clusterRoleRangesWithAttachedAsciiPointMarkNotAdjacent
+is-true actual=true
+test: clusterRoleRangesWithCjkPunctuationAndCoalesce
+is-true actual=true
+test: clusterRoleRangesWithCjkPunctuationCoalesce
+is-true actual=true
+test: clusterRoleRangesWithCoalesceRepeatablePunctuation
+is-true actual=true
+test: clusterRoleRangesWithCrAtEnd
+is-true actual=true
+test: clusterRoleRangesWithCrNotFollowedByLf
+is-true actual=true
+test: clusterRoleRangesWithCrOnly
+is-true actual=true
+test: clusterRoleRangesWithCrlfMandatoryBreak
+is-true actual=true
+test: clusterRoleRangesWithCrlfOnly
+is-true actual=true
+test: clusterRoleRangesWithCrlfPairProducesSingleCluster
+not-null actual=ResolvedClusterRange(range=TextRange(start=1, end=3), role=Unknown, mandatoryBreak=true, zeroWidthSoftBreak=false, roleOverride=null)
+is-true actual=true
+test: clusterRoleRangesWithEmoji
+is-true actual=true
+test: clusterRoleRangesWithEmojiModifierBaseCombiningMark
+is-true actual=true
+test: clusterRoleRangesWithEmojiModifierSequence
+is-true actual=true
+test: clusterRoleRangesWithEmojiRolePromotionNull
+is-true actual=true
+test: clusterRoleRangesWithEmojiShapingBoundaries
+is-true actual=true
+test: clusterRoleRangesWithEmojiShapingBoundaryAtGraphemeEnd
+is-true actual=true
+test: clusterRoleRangesWithEmojiShapingBoundaryInside
+is-true actual=true
+test: clusterRoleRangesWithEmojiShapingBoundaryInsideAndOutsideRange
+is-true actual=true
+test: clusterRoleRangesWithEmojiStyleVariation
+is-true actual=true
+test: clusterRoleRangesWithEmojiStyleVariationNoFE0F
+is-true actual=true
+test: clusterRoleRangesWithEmojiVariationAndModifier
+is-true actual=true
+eq expected=Emoji actual=Emoji
+test: clusterRoleRangesWithEmptyText
+eq expected=0 actual=0
+test: clusterRoleRangesWithGraphemeExtend
+is-true actual=true
+test: clusterRoleRangesWithGraphemeExtendAfterEmoji
+is-true actual=true
+test: clusterRoleRangesWithInlineObject
+eq expected=1 actual=1
+test: clusterRoleRangesWithKeycapBaseAndKeycap
+is-true actual=true
+eq expected=Emoji actual=Emoji
+test: clusterRoleRangesWithKeycapBaseNoKeycap
+is-true actual=true
+test: clusterRoleRangesWithKeycapSequence
+is-true actual=true
+test: clusterRoleRangesWithLfAtStart
+is-true actual=true
+test: clusterRoleRangesWithLfInsideCrlf
+is-true actual=true
+test: clusterRoleRangesWithLfOnly
+is-true actual=true
+test: clusterRoleRangesWithLoneSurrogate
+is-true actual=true
+test: clusterRoleRangesWithLoneSurrogateHighOnly
+is-true actual=true
+test: clusterRoleRangesWithMultipleEmojiShapingBoundaries
+is-true actual=true
+test: clusterRoleRangesWithMultipleSpanBoundaries
+is-true actual=true
+test: clusterRoleRangesWithNonAsciiPointMark
+is-true actual=true
+test: clusterRoleRangesWithNonCjkPunctuation
+is-true actual=true
+test: clusterRoleRangesWithNonCombiningMark
+is-true actual=true
+test: clusterRoleRangesWithNonVariationSelector
+is-true actual=true
+test: clusterRoleRangesWithOnlyWhitespace
+is-true actual=true
+test: clusterRoleRangesWithRoleOverride
+is-true actual=true
+test: clusterRoleRangesWithSimpleText
+is-true actual=true
+test: clusterRoleRangesWithSingleGrapheme
+eq expected=1 actual=1
+test: clusterRoleRangesWithSpanBoundaries
+is-true actual=true
+test: clusterRoleRangesWithSupplementaryCharacter
+is-true actual=true
+test: clusterRoleRangesWithSurrogatePairNonLow
+is-true actual=true
+test: clusterRoleRangesWithVariationSelector
+is-true actual=true
+test: clusterRoleRangesWithVariationSelectorAfterEmoji
+is-true actual=true
+test: clusterRoleRangesWithVariationSelectorAfterLatin
+is-true actual=true
+test: clusterRoleRangesWithZWJSequence
+is-true actual=true
+test: clusterRoleRangesWithZeroWidthSpace
+is-true actual=true
+test: requireCoveredByFailsWhenClusterCrossesDecisionRange
+raises exception=IllegalArgumentException thrown='TextShaper returned cluster TextRange(start=0, end=3) crossing TextRange(start=0, end=2)'
+test: requireCoveredByFailsWhenClustersAreNonContiguous
+raises exception=IllegalArgumentException thrown='TextShaper returned non-contiguous clusters for TextRange(start=0, end=3); expected start=1, actual=TextRange(start=2, end=3)'
+test: requireCoveredByFailsWhenClustersDoNotCoverEnd
+raises exception=IllegalArgumentException thrown='TextShaper must return clusters covering TextRange(start=0, end=3); coveredUntil=1'
+test: requireCoveredByWithContiguousClusters
+no-throw
+test: requireCoveredByWithEmptyDecisions
+no-throw
+test: requireCoveredByWithGapBetweenDecisions
+raises exception=IllegalArgumentException thrown='TextShaper must return clusters covering TextRange(start=2, end=3); coveredUntil=2'
+test: requireCoveredByWithMultipleDecisions
+no-throw
+test: requireCoveredByWithOverlappingDecisions
+raises exception=IllegalArgumentException thrown='TextShaper returned cluster TextRange(start=2, end=4) crossing TextRange(start=0, end=3)'
+test: requireCoveredByWithSingleCluster
+no-throw

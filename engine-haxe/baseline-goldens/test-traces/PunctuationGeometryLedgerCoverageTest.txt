@@ -1,0 +1,109 @@
+class: PunctuationGeometryLedgerCoverageTest
+test: attachedInlineBoundariesRequireAlignmentAndRunOnlyWithAttachments
+raises exception=IllegalArgumentException thrown='Inline attachments must align with punctuation geometry clusters.'
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: attachedInlineBoundaryAdjacentPunctuationHalvesTheVirtualGlue
+eq expected='AttachedInlineVirtualPunctuationBoundary:adjacent-punctuation' actual='AttachedInlineVirtualPunctuationBoundary:adjacent-punctuation'
+eq expected=16 actual=16
+eq expected=8 actual=8
+eq expected=8 actual=8
+eq expected=TextRange(start=0, end=5) actual=TextRange(start=0, end=5)
+eq expected=12 actual=12
+eq expected=4 actual=4
+is-true actual=true
+eq expected=4 actual=4
+test: attachedInlineBoundaryAtLineEndConsumesTrailingGlue
+eq expected=TextRange(start=0, end=4) actual=TextRange(start=0, end=4)
+eq expected='」' actual='」'
+eq expected='\u0000' actual='\u0000'
+eq expected='AttachedInlineVirtualPunctuationBoundary:line-end' actual='AttachedInlineVirtualPunctuationBoundary:line-end'
+eq expected=8 actual=8
+eq expected=8 actual=8
+is-true actual=true
+test: attachedInlineBoundaryBeforeAsciiPointMarkCollapsesLikeAdjacent
+eq expected='AttachedInlineVirtualPunctuationBoundary:ascii-point-mark' actual='AttachedInlineVirtualPunctuationBoundary:ascii-point-mark'
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=',' actual=','
+test: attachedInlineBoundarySkipsMandatoryBreakNeighbour
+eq expected='AttachedInlineVirtualPunctuationBoundary:line-end' actual='AttachedInlineVirtualPunctuationBoundary:line-end'
+test: attachedInlineBoundaryWithoutGlueEmitsNoDecision
+is-true actual=true
+eq expected='AttachedInlineVirtualPunctuationBoundary:natural' actual='AttachedInlineVirtualPunctuationBoundary:natural'
+eq expected=8 actual=8
+eq expected=8 actual=8
+eq expected={1=12} actual={1=12}
+eq expected=28 actual=28
+test: budgetsResolveAdvancesThroughRemainingGlue
+eq expected=8 actual=8
+eq expected=16 actual=16
+eq expected=16 actual=16
+is-true actual=true
+test: clusterIndexRangeFindCoveredClusters
+is-true actual=true
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+eq expected=[1] actual=[1]
+eq expected=- actual=-
+eq expected=[0] actual=[0]
+test: decisionInfoListsEveryGeometryWithBudgets
+eq expected=1 actual=1
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected='。' actual='。'
+eq expected=16 actual=16
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=8 actual=8
+eq expected=16 actual=16
+eq expected='PunctuationGeometryLedger' actual='PunctuationGeometryLedger'
+test: geometryWithoutBudgetFallsBackToBodyWidth
+eq expected=8 actual=8
+eq expected=10 actual=10
+test: glueCapacitiesReportSidesAndPairing
+eq expected=[1] actual=[1]
+eq expected=8 actual=8
+eq expected=0 actual=0
+eq expected=false actual=false
+test: justificationDeltasAndStructuralChannelsFeedResolvedAdvance
+eq expected=16 actual=16
+eq expected=17.500000 actual=17.500000
+eq expected=1.500000 actual=1.500000
+eq expected=0 actual=0
+eq expected=18 actual=18
+eq expected=2 actual=2
+eq expected=13 actual=13
+eq expected=0 actual=0
+is-true actual=true
+is-true actual=true
+is-true actual=true
+eq expected=20 actual=20
+test: lineEdgeTrimConsumesCentredPunctuationOncePerLine
+eq expected='both' actual='both'
+eq expected=4 actual=4
+eq expected=8 actual=8
+eq expected='LineEndCenteredPunctuationPairedCompression' actual='LineEndCenteredPunctuationPairedCompression'
+eq expected=0 actual=0
+eq expected=4 actual=4
+test: lineEdgeTrimConsumesHalfWidthAtEdgesAndSkipsEmptyInputs
+is-true actual=true
+is-true actual=true
+is-true actual=true
+eq expected='trailing' actual='trailing'
+eq expected=8 actual=8
+eq expected=8 actual=8
+eq expected='LineEndHalfWidthPunctuation' actual='LineEndHalfWidthPunctuation'
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=8 actual=8
+is-true actual=true
+eq expected=16 actual=16
+test: sideConsumptionIsCappedAndSkipsNonPositiveAmounts
+eq expected=4 actual=4
+is-true actual=true
+test: spacingPlanAdjustmentsConsumeByTargetAndAnchor
+eq expected=[0, 1] actual=[0, 1]
+eq expected=4 actual=4
+eq expected=8 actual=8
+is-true actual=true
+eq expected=0 actual=0
+eq expected=4 actual=4

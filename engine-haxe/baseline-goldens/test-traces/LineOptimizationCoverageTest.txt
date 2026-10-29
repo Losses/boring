@@ -1,0 +1,36 @@
+class: LineOptimizationCoverageTest
+test: breakCandidateCarriesExplicitForbiddenReasonAndRepairs
+eq expected='kinsoku' actual='kinsoku'
+eq expected=[LeaveRagged(penalty=30, reason=ForbiddenAtLineStart:，:leave-ragged, offenderClusterIndex=3)] actual=[LeaveRagged(penalty=30, reason=ForbiddenAtLineStart:，:leave-ragged, offenderClusterIndex=3)]
+test: breakCandidateDefaultsAreUsable
+null actual=-
+is-true actual=true
+test: carryNextRecordsTheMovedMark
+eq expected=15 actual=15
+eq expected=4 actual=4
+eq expected='ForbiddenAtLineEnd:“:carry-next' actual='ForbiddenAtLineEnd:“:carry-next'
+test: hangingClusterIndexPrefersTheHangOffenderOverTheSuffixEnd
+eq expected=3 actual=3
+eq expected=4 actual=4
+test: inMeasureClusterRangeExcludesTheHangingSuffix
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+test: lineCandidateAcceptsAContiguousTrailingHangingSuffix
+eq expected=[3, 4] actual=[3, 4]
+test: lineCandidateRejectsDiscontiguousHanging
+raises exception=IllegalArgumentException thrown='Hanging clusters must be contiguous: line=0..4 hanging=[2, 4]'
+test: lineCandidateRejectsHangingThatIsNotATrailingSuffix
+raises exception=IllegalArgumentException thrown='Hanging clusters must be a trailing line suffix: line=0..4 hanging=[0, 1]'
+raises exception=IllegalArgumentException thrown='Hanging clusters must be a trailing line suffix: line=0..4 hanging=[2, 3]'
+raises exception=IllegalArgumentException thrown='Hanging clusters must be a trailing line suffix: line=0..4 hanging=[7]'
+test: lineSolutionDefaultsToZeroBadness
+eq expected=0 actual=0
+test: optimizationStrategyEnumeratesAllThreeStrategies
+eq expected=[Greedy, Lookahead, ParagraphDynamicProgramming] actual=[Greedy, Lookahead, ParagraphDynamicProgramming]
+test: repairCandidateDefaultsAreUsable
+null actual=-
+null actual=-
+null actual=-
+eq expected=0 actual=0
+eq expected=0 actual=0
+eq expected=0 actual=0

@@ -1,0 +1,121 @@
+class: GreedyLineBreakerTest
+test: clusterWiderThanMaxWidthGetsOwnLineRatherThanInfiniteLoop
+eq expected=2 actual=2
+eq expected=[0] actual=[0]
+eq expected=[1] actual=[1]
+eq expected=112 actual=112
+test: customKinsokuRuleOverridesDefault
+eq expected=2 actual=2
+eq expected=- actual=-
+eq expected=0 actual=0
+test: doesNotHangWhenDisabled
+eq expected=2 actual=2
+eq expected=- actual=-
+eq expected=true actual=true
+test: emptyInputProducesNoLines
+eq expected=0 actual=0
+test: fillsLineUntilOverflowThenStartsNewLine
+eq expected=2 actual=2
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+eq expected=48 actual=48
+eq expected=[3, 4] actual=[3, 4]
+eq expected=32 actual=32
+test: hangsPauseStopPastMeasureWhenEnabledAndPushInCannotFit
+eq expected=1 actual=1
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+eq expected=4 actual=4
+eq expected=64 actual=64
+eq expected=true actual=true
+eq expected=4 actual=4
+eq expected=true actual=true
+test: keepsOpenerAtLineEndWhenItIsTheLineSoleCluster
+eq expected=[0] actual=[0]
+eq expected=- actual=-
+test: kinsokuCarriesPreviousWhenPushInCapacityCannotCoverOverflow
+eq expected=2 actual=2
+eq expected=[0, 1] actual=[0, 1]
+eq expected=[2, 3] actual=[2, 3]
+eq expected=true actual=true
+eq expected=2 actual=2
+eq expected='PushIn' actual='PushIn'
+eq expected=false actual=false
+eq expected='insufficient-capacity' actual='insufficient-capacity'
+eq expected='CarryPrevious' actual='CarryPrevious'
+eq expected=true actual=true
+test: kinsokuCarryPreviousMovesPrevClusterToNextLine
+eq expected=2 actual=2
+eq expected=[0, 1] actual=[0, 1]
+eq expected=[2, 3] actual=[2, 3]
+eq expected=32 actual=32
+eq expected=32 actual=32
+eq expected=true actual=true
+eq expected=10 actual=10
+test: kinsokuLeaveRaggedWhenPrevLineIsSingleCluster
+eq expected=2 actual=2
+eq expected=true actual=true
+eq expected=20 actual=20
+test: kinsokuPushesForbiddenPunctuationIntoPreviousLineWhenGlueCapacityCoversOverflow
+eq expected=1 actual=1
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=64 actual=64
+eq expected=60 actual=60
+eq expected=true actual=true
+eq expected=3 actual=3
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected=[3] actual=[3]
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected=1 actual=1
+eq expected='PushIn' actual='PushIn'
+eq expected=true actual=true
+eq expected=2 actual=2
+test: kinsokuRejectsCarryPreviousWhenCarriedLineWouldOverflow
+eq expected=2 actual=2
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+eq expected=[4, 5, 6, 7] actual=[4, 5, 6, 7]
+eq expected=64 actual=64
+eq expected=true actual=true
+eq expected=3 actual=3
+eq expected='PushIn' actual='PushIn'
+eq expected=false actual=false
+eq expected='insufficient-capacity' actual='insufficient-capacity'
+eq expected='CarryPrevious' actual='CarryPrevious'
+eq expected=false actual=false
+eq expected='carry-overflows' actual='carry-overflows'
+eq expected=3 actual=3
+eq expected='LeaveRagged' actual='LeaveRagged'
+eq expected=true actual=true
+eq expected=20 actual=20
+test: mandatoryBreakBlocksKinsokuRepairAcrossBoundary
+eq expected=2 actual=2
+eq expected=[0, 1] actual=[0, 1]
+eq expected=[2] actual=[2]
+eq expected=- actual=-
+test: mandatoryBreakClosesLineAndPreservesTrailingEmptyLine
+eq expected=2 actual=2
+eq expected=[0, 1] actual=[0, 1]
+eq expected=MandatoryBreak actual=MandatoryBreak
+eq expected=TextRange(start=2, end=2) actual=TextRange(start=2, end=2)
+eq expected=ParagraphEnd actual=ParagraphEnd
+test: misalignedClusterListsThrow
+raises exception=IllegalArgumentException thrown='naturalClusters and adjustedClusters must align cluster-for-cluster.'
+test: naturalAndAdjustedWidthsTrackIndependently
+eq expected=32 actual=32
+eq expected=28 actual=28
+test: pushInStillPreferredOverHangWhenGlueCovers
+eq expected=1 actual=1
+eq expected=- actual=-
+eq expected=true actual=true
+test: retreatsBreakSoLineDoesNotEndOnOpeningMark
+eq expected=2 actual=2
+eq expected=[0, 1] actual=[0, 1]
+eq expected=[2, 3, 4] actual=[2, 3, 4]
+eq expected=true actual=true
+eq expected=2 actual=2
+test: singleClusterFitsOnOneLine
+eq expected=1 actual=1
+eq expected=[0] actual=[0]
+eq expected=TextRange(start=0, end=1) actual=TextRange(start=0, end=1)
+eq expected=16 actual=16
+eq expected=16 actual=16

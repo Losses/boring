@@ -1,0 +1,20 @@
+class: ExplainableStubTextShaperTest
+test: keepsLatinRunAsSingleShapedClusterWithNominalGlyphs
+eq expected=1 actual=1
+eq expected='Hello' actual='Hello'
+eq expected=80 actual=80
+eq expected=5 actual=5
+eq expected=5 actual=5
+test: shapesClreqDashSubstitutionAsTwoEmDisplayCluster
+eq expected='——' actual='——'
+eq expected='⸺' actual='⸺'
+eq expected=32 actual=32
+eq expected=1 actual=1
+eq expected=32 actual=32
+test: shapesSingleCjkClusterWithOneEmAdvance
+eq expected=1 actual=1
+eq expected='中' actual='中'
+eq expected='中' actual='中'
+eq expected=16 actual=16
+eq expected=1 actual=1
+eq expected='Stub' actual='Stub'

@@ -1,0 +1,43 @@
+class: JustifierJfTest
+test: attachedInlineVirtualSinoWesternBoundaryOutOfBounds
+is-true actual=true
+test: attachedInlineVirtualSinoWesternZeroHeadroomInAllocate
+is-true actual=true
+is-true actual=true
+test: cjkLatinMixedZeroAndPositiveCapacityAllocation
+eq expected=1 actual=1
+eq expected=1 actual=1
+eq expected=4 actual=4
+eq expected=1 actual=1
+eq expected=1 actual=1
+eq expected=6 actual=6
+test: closedSpaceGapInTypedSinoWesternAndUniformSpace
+is-true actual=true
+test: closedSpaceGapInUniformSpaceWhenWordSpace
+is-true actual=true
+test: compressSubnormalUnderflowShrinkZero
+eq expected=0 actual=0
+eq expected=0 actual=0
+test: compressionWithZeroSurplusAndZeroCapacity
+eq expected=0 actual=0
+eq expected=0 actual=0
+is-true actual=true
+eq expected=10 actual=10
+eq expected=10 actual=10
+is-true actual=true
+test: emptyLineClusterRangeSkipsUniformSpaceLoop
+eq expected=0 actual=0
+eq expected=50 actual=50
+test: preferredInlineObjectBoundaryOutOfBounds
+is-true actual=true
+is-true actual=true
+test: singleClusterRangeProducesNoOpportunities
+eq expected=0 actual=0
+test: typedSpaceAndWordSpacePredicateEdgeConditions
+is-true actual=true
+test: virtualNonSinoWesternBoundaryWhenAllowSinoWesternGapStretchIsFalse
+is-true actual=true
+test: virtualSinoWesternGapWhenAllowSinoWesternGapStretchIsFalse
+is-true actual=true
+test: zeroCjkLatinHeadroomProducesNoOpportunities
+is-true actual=true

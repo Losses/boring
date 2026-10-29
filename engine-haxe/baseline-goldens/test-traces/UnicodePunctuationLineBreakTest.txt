@@ -1,0 +1,18 @@
+class: UnicodePunctuationLineBreakTest
+test: exposesPinnedWesternAndCjkPunctuationClasses
+eq expected=OpenPunctuation actual=OpenPunctuation msg='('
+eq expected=CloseParenthesis actual=CloseParenthesis msg=')'
+eq expected=OpenPunctuation actual=OpenPunctuation msg='{'
+eq expected=ClosePunctuation actual=ClosePunctuation msg='}'
+eq expected=Exclamation actual=Exclamation msg='!'
+eq expected=InfixNumericSeparator actual=InfixNumericSeparator msg=','
+eq expected=SymbolsAllowingBreakAfter actual=SymbolsAllowingBreakAfter msg='/'
+eq expected=Hyphen actual=Hyphen msg='-'
+eq expected=Inseparable actual=Inseparable msg='…'
+eq expected=Quotation actual=Quotation msg='“'
+eq expected=Quotation actual=Quotation msg='”'
+eq expected=OpenPunctuation actual=OpenPunctuation msg='（'
+eq expected=ClosePunctuation actual=ClosePunctuation msg='）'
+test: ordinaryLettersAreOutsideThePunctuationSubset
+eq expected=Other actual=Other
+eq expected=Other actual=Other

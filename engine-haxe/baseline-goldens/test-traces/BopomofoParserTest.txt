@@ -1,0 +1,14 @@
+class: BopomofoParserTest
+test: neutralToneIsPrefixed
+eq expected=['ㄉ', 'ㄜ'] actual=['ㄉ', 'ㄜ']
+eq expected=Neutral actual=Neutral
+test: singleSymbol
+eq expected=BopomofoReading(symbols=[ㄦ], tone=Yangping) actual=BopomofoReading(symbols=[ㄦ], tone=Yangping)
+test: suffixMarksAreToneAndStripped
+eq expected=BopomofoReading(symbols=[ㄔ, ㄤ], tone=Yangping) actual=BopomofoReading(symbols=[ㄔ, ㄤ], tone=Yangping)
+eq expected=BopomofoReading(symbols=[ㄋ, ㄧ], tone=Shang) actual=BopomofoReading(symbols=[ㄋ, ㄧ], tone=Shang)
+eq expected=BopomofoReading(symbols=[ㄑ, ㄩ], tone=Qu) actual=BopomofoReading(symbols=[ㄑ, ㄩ], tone=Qu)
+eq expected=BopomofoReading(symbols=[ㄇ, ㄚ], tone=Yinping) actual=BopomofoReading(symbols=[ㄇ, ㄚ], tone=Yinping)
+test: yinpingHasNoMark
+eq expected=['ㄓ', 'ㄨ', 'ㄥ'] actual=['ㄓ', 'ㄨ', 'ㄥ']
+eq expected=Yinping actual=Yinping

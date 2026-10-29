@@ -1,0 +1,28 @@
+class: AnnotationGeometryStageCoverageTest
+test: bopomofoAndDecorationLeadingBlankExhaustiveBranches
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=中文English, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, ital~10013#2f104e1d
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=中文English, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, ital~13862#d14f037e
+test: bopomofoDecisionsAllTonesAndSymbolCounts
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=一二三四五六七八九十甲乙丙丁戊己庚辛, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=~46568#a1c90813
+test: bopomofoDecisionsMultiGlyphMinMaxAndEmptyPlacements
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=一二三四五六七八, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, itali~25467#1820f4cf
+test: bopomofoOverLatinClustersCoversCrossMetricLookup
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=中文English, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, ital~11323#9b7cabc6
+test: decorationDecisionsEmphasisOnHanPunctuationAndWestern
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=汉字，。English, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400, it~14230#3ebe09a9
+test: decorationSegmentsLeadingAndTrailingBlanks
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=「开头」中文 English 混排【结束】, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeig~30520#3bb14f5f
+test: decorationSegmentsMourningProperNounBookTitleAndShortening
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=张三李四王五赵六钱七孙八周吴郑王, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=40~26536#89bf5383
+test: directResolveAnnotationGeometryEmptyLineRangesAndGapAtLineEdges
+not-null actual=AnnotationGeometryStageResult(inlineObjectDecisions=[InlineObjectDecisionInfo(range=TextRange(start=0, end=2), advance=32, ascent=16, descent=4, clusterIndex=0, lineIndex=1, leadingUniformStretch=false, leadingPreferredStretchKind=Relation,~2606#12a82b05
+test: directResolveAnnotationGeometryFallbackBranches
+not-null actual=AnnotationGeometryStageResult(inlineObjectDecisions=[InlineObjectDecisionInfo(range=TextRange(start=0, end=2), advance=32, ascent=12, descent=4, clusterIndex=0, lineIndex=0, leadingUniformStretch=false, leadingPreferredStretchKind=Punctuati~3471#525d136f
+eq expected=3 actual=3
+eq expected=-1 actual=-1
+not-null actual=AnnotationGeometryStageResult(inlineObjectDecisions=[], decorationDecisions=[DecorationDecisionInfo(clusterRange=TextRange(start=0, end=2), sourceText=汉字, kind=Emphasis, applied=true, reason=EmphasisDotOnHanText, anchorX=16, anchorY=23.12, ~1125#78f0425e
+test: inlineObjectDecisionsWithPreferredStretchAndFixed
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=前置文本【嵌入对象】后置文本, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWeight=400,~23411#b44aa834
+is-true actual=true
+test: rubyDecisionsPinyinSingleAndSplitLines
+not-null actual=LayoutResult(input=LayoutInput(content=TiqianTextContent(text=这是一个很长很长的段落用于测试拼音行间注跨行, spans=[], sourceBoundaries=[], lineBreakSpans=[], autoSpaceSuppressedRanges=[]), textStyle=TextStyle(fontFamilies=[], fontSize=16, locale=zh-Hans, fontWei~39927#bc2fd8c4

@@ -1,0 +1,45 @@
+class: PushInLineWideCapacityTest
+test: carryPreviousRefusesToSplitUnbreakableSpan
+eq expected=2 actual=2
+is-true actual=true
+is-true actual=true
+eq expected='carry-would-split-mourning-span' actual='carry-would-split-mourning-span'
+test: pushInAggregatesShrinkFromMultiplePrecedingClusters
+eq expected=1 actual=1
+eq expected=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] actual=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+eq expected=160 actual=160
+not-null actual=PushIn(penalty=2, reason=ForbiddenAtLineStart:。:pushed-in=16/16, offenderClusterIndex=10, allocations=[PushInAllocation(clusterIndex=10, shrink=8, availableCapacity=8, channel=TrailingGlue), PushInAllocation(clusterIndex=5, shrink=8, availa~321#dd80d69c
+is-true actual=true
+eq expected=10 actual=10
+eq expected=16 actual=16
+eq expected=16 actual=16
+eq expected=[10, 5] actual=[10, 5]
+eq expected=8 actual=8
+eq expected=8 actual=8
+test: pushInMergesOffenderThatFitsAfterChainedRepairs
+eq expected=3 actual=3
+eq expected=[0, 1, 2, 3, 4] actual=[0, 1, 2, 3, 4]
+eq expected=[5, 6, 7, 8] actual=[5, 6, 7, 8]
+eq expected=[9] actual=[9]
+is-true actual=true msg='line starts with forbidden '中''
+is-true actual=true msg='line starts with forbidden '中''
+is-true actual=true msg='line starts with forbidden '中''
+is-true actual=true
+eq expected=0 actual=0
+is-true actual=true
+eq expected=64 actual=64
+test: pushInOffenderOnlyCapacityStillWorksBackCompat
+eq expected=1 actual=1
+is-true actual=true
+eq expected=[3] actual=[3]
+eq expected=4 actual=4
+test: pushInRejectsWhenLineWideCapacityStillInsufficient
+eq expected=2 actual=2
+eq expected=[0, 1, 2, 3, 4, 5, 6, 7, 8] actual=[0, 1, 2, 3, 4, 5, 6, 7, 8]
+eq expected=[9, 10] actual=[9, 10]
+is-true actual=true
+not-null actual=RepairCandidate(kind=PushIn, reasonCode=ForbiddenAtLineStart, offenderClusterIndex=10, penalty=2, accepted=false, rejectionReason=insufficient-capacity, targetClusterIndex=10, carriedClusterIndex=null, shrink=0, requiredShrink=16, available~251#dfe484af
+eq expected=false actual=false
+eq expected='insufficient-capacity' actual='insufficient-capacity'
+eq expected=4 actual=4
+eq expected=16 actual=16

@@ -1,0 +1,14 @@
+class: UnicodeWordCharacterTest
+test: lettersAndNumbersAreWordCharactersAcrossScripts
+is-true actual=true msg='U+41'
+is-true actual=true msg='U+32'
+is-true actual=true msg='U+400d'
+is-true actual=true msg='U+301'
+is-true actual=true msg='U+3c0'
+is-true actual=true msg='U+416'
+is-true actual=true msg='U+662'
+is-true actual=true msg='U+20000'
+is-false actual=false msg='U+20'
+is-false actual=false msg='U+2019'
+is-false actual=false msg='U+ff1f'
+is-false actual=false msg='U+1f600'

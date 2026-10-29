@@ -1,0 +1,4 @@
+class: LineRepairTailCoverageTest
+test: fillPullAcrossDifferentTechnicalSpansSkipsTierComparisons
+eq expected=[0, 1, 2, 3, 4, 5] actual=[0, 1, 2, 3, 4, 5]
+eq expected=[6, 7] actual=[6, 7]

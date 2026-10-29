@@ -1,0 +1,65 @@
+class: RubyLayoutTest
+test: noRubyIsUnchanged
+is-true actual=true
+test: rubyDoesNotChangeLineBoxAndCentresOverBase
+eq-tol expected=0 actual=0 tol=0.001000
+eq-tol expected=18.080000 actual=18.080000 tol=0.001000
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=24 actual=24 tol=0.001000
+eq expected='PerLine' actual='PerLine'
+eq-tol expected=0 actual=0 tol=0.001000
+is-true actual=true
+is-true actual=true
+eq expected='ExistingInterlineSpaceFitsRuby' actual='ExistingInterlineSpaceFitsRuby'
+eq expected=1 actual=1
+eq expected='zhōng' actual='zhōng'
+is-true actual=true msg='centre 8 within 中's span'
+is-true actual=true msg='ruby baseline above base baseline'
+eq-tol expected=4 actual=4 tol=0.001000
+eq expected=500 actual=500 msg='ruby defaults one weight step heavier than base'
+test: rubyOnOneLineKeepsTheWholeBaselineGridStable
+eq expected=2 actual=2
+eq-tol expected=48 actual=48 tol=0.001000
+eq-tol expected=0 actual=0 tol=0.001000
+eq-tol expected=18.080000 actual=18.080000 tol=0.001000
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=42.080002 actual=42.080002 tol=0.001000
+eq-tol expected=48 actual=48 tol=0.001000
+eq-tol expected=24 actual=24.000002 tol=0.001000
+test: rubyVerticalGeometryUsesLatinMetricsNotReadingInk
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=0 actual=0 tol=0.001000
+eq-tol expected=21.080000 actual=21.080000 tol=0.001000
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=5.400000 actual=5.400000 tol=0.001000
+eq-tol expected=6.400000 actual=6.400000 tol=0.001000
+eq-tol expected=1.600000 actual=1.600000 tol=0.001000
+eq-tol expected=8 actual=8 tol=0.001000
+test: tightLineHeightRaisesOnlyTheAnnotatedLineByDefault
+eq expected=3 actual=3
+eq-tol expected=60 actual=60 tol=0.001000
+eq-tol expected=18 actual=18 tol=0.001000
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=18 actual=18 tol=0.001000
+eq-tol expected=24 actual=24.000002 tol=0.001000
+eq-tol expected=18 actual=18 tol=0.001000
+eq expected='PerLine' actual='PerLine'
+eq-tol expected=6 actual=6 tol=0.001000
+eq expected=[0, 6, 0] actual=[0, 6, 0]
+eq expected=[1] actual=[1]
+test: uniformModeAddsTheSameDeficitToEveryLine
+eq expected=3 actual=3
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=24 actual=24.000002 tol=0.001000
+eq-tol expected=24 actual=24 tol=0.001000
+eq-tol expected=72 actual=72 tol=0.001000
+eq expected='UniformParagraph' actual='UniformParagraph'
+eq-tol expected=6 actual=6 tol=0.001000
+eq expected=[6, 6, 6] actual=[6, 6, 6]
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+test: wideAdjacentReadingsSpreadButNarrowDoNot
+is-true actual=true msg='spread never shrinks the line (82 vs 64)'
+is-true actual=true msg='wider readings spread more (162 vs 82)'

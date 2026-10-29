@@ -1,0 +1,22 @@
+class: BopomofoLayoutTest
+test: annotatedBaseReservesHalfEmOnly
+is-true actual=true msg='bopomofo reserves advance on annotated base (24 vs 16)'
+eq expected=16 actual=16 msg='current v1 does not reserve the unannotated adjacent char'
+test: annotationLocaleDoesNotReplaceSimplifiedBaseLocale
+eq expected='zh-Hans' actual='zh-Hans'
+eq expected='zh-TW' actual='zh-TW'
+test: decisionKeepsSourceReadingForCopy
+eq expected='˙ㄉㄜ' actual='˙ㄉㄜ'
+eq expected=['˙', 'ㄉ', 'ㄜ'] actual=['˙', 'ㄉ', 'ㄜ']
+eq expected=Neutral actual=Neutral
+test: fontWeightFollowsAnnotatedBasePlusThreeSteps
+eq expected=800 actual=800
+eq expected=900 actual=900 msg='bopomofo weight clamps at 900'
+test: symbolsAndToneRightOfBase
+eq expected=2 actual=2
+eq expected=700 actual=700 msg='bopomofo defaults three weight steps heavier than base'
+eq expected=3 actual=3
+is-true actual=true
+is-true actual=true msg='symbols right of base: [16.533333, 16.533333, 16.533333]'
+eq expected=2 actual=2
+eq expected=1 actual=1

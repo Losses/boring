@@ -1,0 +1,59 @@
+class: ParagraphDpLineBreakerTest
+test: compressedSameTierBoundaryIsNotReportedAsPromotion
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+is-true actual=true
+test: compressionDisabledWithoutPushInFlag
+eq expected=0 actual=0 msg='lines must tile clusters in order'
+eq expected=4 actual=4 msg='lines must tile clusters in order'
+eq expected=5 actual=5 msg='lines must cover every cluster'
+is-true actual=true msg='PushOutOnly must not produce fill push-ins'
+test: compressionEdgeRecordsPushInRepair
+eq expected=0 actual=0 msg='lines must tile clusters in order'
+eq expected=4 actual=4 msg='lines must tile clusters in order'
+eq expected=7 actual=7 msg='lines must cover every cluster'
+eq expected=[0, 1, 2, 3] actual=[0, 1, 2, 3]
+is-true actual=true msg='compressed line must fit the measure'
+is-true actual=true msg='compression must be recorded as the fill-pass reason code'
+test: kinsokuAvoidanceRoutesAroundForbiddenLineStart
+eq expected=0 actual=0 msg='lines must tile clusters in order'
+eq expected=3 actual=3 msg='lines must tile clusters in order'
+eq expected=5 actual=5 msg='lines must tile clusters in order'
+eq expected=7 actual=7 msg='lines must cover every cluster'
+is-true actual=true msg='。 must not start a line without a recorded repair'
+is-true actual=true msg='。 must not start a line without a recorded repair'
+is-true actual=true msg='。 must not start a line without a recorded repair'
+test: mandatoryBreakBindsControlToPreviousLine
+eq expected=0 actual=0 msg='lines must tile clusters in order'
+eq expected=3 actual=3 msg='lines must tile clusters in order'
+eq expected=5 actual=5 msg='lines must cover every cluster'
+eq expected=2 actual=2
+eq expected=MandatoryBreak actual=MandatoryBreak
+eq expected=[0, 1, 2] actual=[0, 1, 2]
+eq expected=ParagraphEnd actual=ParagraphEnd
+test: neverBreaksInsideUnbreakableRange
+eq expected=0 actual=0 msg='lines must tile clusters in order'
+eq expected=3 actual=3 msg='lines must tile clusters in order'
+eq expected=7 actual=7 msg='lines must tile clusters in order'
+eq expected=10 actual=10 msg='lines must cover every cluster'
+is-true actual=true msg='break inside unbreakable range: 0..2'
+is-true actual=true msg='break inside unbreakable range: 3..6'
+is-true actual=true msg='break inside unbreakable range: 7..9'
+test: overWideSingleClusterStillProgresses
+eq expected=0 actual=0 msg='lines must tile clusters in order'
+eq expected=1 actual=1 msg='lines must tile clusters in order'
+eq expected=2 actual=2 msg='lines must tile clusters in order'
+eq expected=3 actual=3 msg='lines must cover every cluster'
+test: singleLineWhenEverythingFits
+eq expected=1 actual=1
+eq expected=ParagraphEnd actual=ParagraphEnd
+test: tilesAllClustersInOrder
+eq expected=0 actual=0 msg='lines must tile clusters in order'
+eq expected=6 actual=6 msg='lines must tile clusters in order'
+eq expected=12 actual=12 msg='lines must tile clusters in order'
+eq expected=18 actual=18 msg='lines must tile clusters in order'
+eq expected=23 actual=23 msg='lines must cover every cluster'
+eq expected=ParagraphEnd actual=ParagraphEnd
+test: trailingMandatoryBreakEmitsParagraphEndLine
+eq expected=MandatoryBreak actual=MandatoryBreak
+eq expected=ParagraphEnd actual=ParagraphEnd
+is-true actual=true

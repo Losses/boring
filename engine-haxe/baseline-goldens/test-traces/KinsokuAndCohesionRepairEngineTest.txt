@@ -1,0 +1,108 @@
+class: KinsokuAndCohesionRepairEngineTest
+test: bibliographicNumericLocatorExposesStructuralBreaks
+eq expected=TextRange(start=6, end=19) actual=TextRange(start=6, end=19)
+eq expected='44(10):21-38.' actual='44(10):21-38.'
+eq expected=[8, 13] actual=[8, 13]
+eq expected='BibliographicNumericLocatorBreak' actual='BibliographicNumericLocatorBreak'
+is-true actual=true msg='locator should fill the preceding line: [中文中文中文44(10):, 21-38.]'
+eq expected='21-38.' actual='21-38.'
+is-true actual=true msg='opening bracket cannot end a line: [中文中文中文44(10):, 21-38.]'
+is-true actual=true msg='closing bracket cannot start a line: [中文中文中文44(10):, 21-38.]'
+test: hangingPunctuationFillsLineToMeasureAndOverflowsVisual
+is-true actual=true
+eq expected=0 actual=0
+eq expected=5 actual=5
+eq expected=64 actual=64
+is-true actual=true msg='hung mark must overflow: 72'
+eq expected=8 actual=8
+eq expected='Hang' actual='Hang'
+is-true actual=true
+is-true actual=true
+test: kinsokuCarriesPreviousClusterWhenLineWouldStartWithForbiddenPunctuation
+eq expected=2 actual=2
+eq expected=0 actual=0
+eq expected=3 actual=3
+eq expected=3 actual=3
+eq expected=5 actual=5
+eq expected=48 actual=48
+eq expected=24 actual=24
+eq expected=- actual=-
+eq expected='CarryPrevious' actual='CarryPrevious'
+eq expected=10 actual=10
+eq expected='CarryPrevious' actual='CarryPrevious'
+eq expected='ForbiddenAtLineStart' actual='ForbiddenAtLineStart'
+eq expected=4 actual=4
+eq expected=5 actual=5
+eq expected=3 actual=3
+eq expected=2 actual=2
+eq expected='PushIn' actual='PushIn'
+eq expected=false actual=false
+eq expected='insufficient-capacity' actual='insufficient-capacity'
+eq expected='CarryPrevious' actual='CarryPrevious'
+eq expected=true actual=true
+is-true actual=true
+test: kinsokuFallsBackToLeaveRaggedWhenPreviousLineCannotSpareACluster
+eq expected=2 actual=2
+eq expected='Coffee' actual='Coffee'
+eq expected='LeaveRagged' actual='LeaveRagged'
+eq expected=20 actual=20
+is-true actual=true
+test: kinsokuLeavesGreedyBreakAloneWhenNoForbiddenPunctAtLineStart
+eq expected=2 actual=2
+eq expected=0 actual=0
+eq expected=4 actual=4
+eq expected=4 actual=4
+eq expected=6 actual=6
+eq expected=- actual=-
+eq expected=- actual=-
+test: kinsokuLevelNoneLeavesForbiddenMarksAtLineStart
+is-true actual=true
+is-true actual=true
+is-true actual=true
+test: kinsokuLevelStrictForbidsDashAtLineStart
+is-true actual=true
+is-true actual=true
+test: kinsokuPushesLineStartPunctuationIntoPreviousLineWhenTrailingGlueCanShrink
+eq expected=1 actual=1
+eq expected=0 actual=0
+eq expected=4 actual=4
+eq expected=64 actual=64
+eq expected=56 actual=56
+eq expected=56 actual=56
+eq expected=56 actual=56
+eq expected=56 actual=56
+eq expected=8 actual=8
+eq expected=8 actual=8
+eq expected=8 actual=8
+eq expected=1 actual=1
+eq expected='PushIn' actual='PushIn'
+eq expected=2 actual=2
+eq expected='PushIn' actual='PushIn'
+eq expected='ForbiddenAtLineStart' actual='ForbiddenAtLineStart'
+eq expected=3 actual=3
+eq expected=4 actual=4
+eq expected=3 actual=3
+eq expected=4 actual=4
+eq expected=8 actual=8
+eq expected=1 actual=1
+eq expected='PushIn' actual='PushIn'
+eq expected=true actual=true
+eq expected=4 actual=4
+eq expected=8 actual=8
+is-true actual=true
+test: lineEndKinsokuMovesDanglingOpenerToNextLine
+is-true actual=true msg='line must not end on 开括号: [Cluster(range=TextRange(start=0, end=1), text=中, displayText=中, fontKey=cjk-primary, advance=24, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0), Cluster(range=TextRange(start=1, end=2), text=中, displ~1318#3c67a327'
+is-true actual=true msg='line must not end on 开括号: [Cluster(range=TextRange(start=0, end=1), text=中, displayText=中, fontKey=cjk-primary, advance=24, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0), Cluster(range=TextRange(start=1, end=2), text=中, displ~1318#3c67a327'
+is-true actual=true msg='line must not end on 开括号: [Cluster(range=TextRange(start=0, end=1), text=中, displayText=中, fontKey=cjk-primary, advance=24, baselineShift=0, leadingLayoutAdvance=0, glyphInlineShift=0), Cluster(range=TextRange(start=1, end=2), text=中, displ~1318#3c67a327'
+is-true actual=true
+test: longLatinSentenceWrapsAtWordBoundaries
+is-true actual=true msg='long Latin must wrap at word boundaries'
+eq expected=0 actual=0
+test: numberWithSuffixSymbolNeverSplitsAcrossLines
+is-true actual=true msg='50% must stay together: [销量增长了, 50%呢]'
+is-true actual=true msg='no line may end mid-number: [销量增长了, 50%呢]'
+test: ordinaryNumericFormsDoNotBecomeBibliographicLocators
+is-true actual=true msg='3.14 must keep its existing numeric/token policy: []'
+is-true actual=true msg='1,000 must keep its existing numeric/token policy: []'
+is-true actual=true msg='12:34 must keep its existing numeric/token policy: []'
+is-true actual=true msg='2023-08-11 must keep its existing numeric/token policy: []'

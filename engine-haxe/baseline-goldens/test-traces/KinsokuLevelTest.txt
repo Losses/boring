@@ -1,0 +1,90 @@
+class: KinsokuLevelTest
+test: basicForbidsPauseStopsClosingConnectorsAtStartAndOpeningAtEnd
+is-true actual=true msg='。 start@Basic'
+is-true actual=true msg='， start@Basic'
+is-true actual=true msg='、 start@Basic'
+is-true actual=true msg='： start@Basic'
+is-true actual=true msg='； start@Basic'
+is-true actual=true msg='！ start@Basic'
+is-true actual=true msg='？ start@Basic'
+is-true actual=true msg='” start@Basic'
+is-true actual=true msg='） start@Basic'
+is-true actual=true msg='】 start@Basic'
+is-true actual=true msg='· start@Basic'
+is-true actual=true msg='～ start@Basic'
+is-true actual=true msg='／ start@Basic'
+is-true actual=true msg='“ end@Basic'
+is-true actual=true msg='（ end@Basic'
+is-true actual=true msg='《 end@Basic'
+is-true actual=true msg='「 end@Basic'
+is-true actual=true msg='【 end@Basic'
+is-false actual=false
+is-false actual=false
+is-false actual=false
+test: cjkBracketVariantsClassifyAsOpeningAndClosing
+eq expected=Opening actual=Opening msg='【'
+eq expected=Opening actual=Opening msg='〔'
+eq expected=Opening actual=Opening msg='〖'
+eq expected=Opening actual=Opening msg='〘'
+eq expected=Opening actual=Opening msg='〚'
+eq expected=Closing actual=Closing msg='】'
+eq expected=Closing actual=Closing msg='〕'
+eq expected=Closing actual=Closing msg='〗'
+eq expected=Closing actual=Closing msg='〙'
+eq expected=Closing actual=Closing msg='〛'
+test: exposesUnambiguousAsciiPointMarksWithoutGuessingQuotesOrConnectors
+is-true actual=true msg=', point mark'
+is-true actual=true msg='. point mark'
+is-true actual=true msg=': point mark'
+is-true actual=true msg='; point mark'
+is-true actual=true msg='! point mark'
+is-true actual=true msg='? point mark'
+is-false actual=false msg='" excluded'
+is-false actual=false msg='' excluded'
+is-false actual=false msg='- excluded'
+is-false actual=false msg='/ excluded'
+is-false actual=false msg='~ excluded'
+is-false actual=false msg='% excluded'
+test: gbStyleAddsSeparatorAtLineEnd
+is-false actual=false
+is-true actual=true
+is-false actual=false
+is-false actual=false
+test: measureAdaptiveResolvesPerLineWidth
+eq expected=Basic actual=Basic
+eq expected=PauseStops actual=PauseStops
+eq expected=Basic actual=Basic
+eq expected=Disabled actual=Disabled
+eq expected=GbStyle actual=GbStyle
+eq expected=Strict actual=Strict
+test: noneForbidsNothing
+is-false actual=false msg='。 start@None'
+is-false actual=false msg='。 end@None'
+is-false actual=false msg='， start@None'
+is-false actual=false msg='， end@None'
+is-false actual=false msg='、 start@None'
+is-false actual=false msg='、 end@None'
+is-false actual=false msg='” start@None'
+is-false actual=false msg='” end@None'
+is-false actual=false msg='） start@None'
+is-false actual=false msg='） end@None'
+is-false actual=false msg='· start@None'
+is-false actual=false msg='· end@None'
+is-false actual=false msg='／ start@None'
+is-false actual=false msg='／ end@None'
+is-false actual=false msg='— start@None'
+is-false actual=false msg='— end@None'
+is-false actual=false msg='… start@None'
+is-false actual=false msg='… end@None'
+is-false actual=false msg='“ start@None'
+is-false actual=false msg='“ end@None'
+is-false actual=false msg='（ start@None'
+is-false actual=false msg='（ end@None'
+test: profileDefaultsToMeasureAdaptive
+is-true actual=true
+test: strictAddsDashAndEllipsisAtLineStart
+is-false actual=false
+is-true actual=true
+is-true actual=true
+is-true actual=true
+is-true actual=true
