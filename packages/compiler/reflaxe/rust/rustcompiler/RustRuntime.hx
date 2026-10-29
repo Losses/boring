@@ -920,7 +920,7 @@ fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
 }
 
 // String.indexOf with a start position (stdlib spec 15): the start and
-// the returned index both count UTF-16 code units, matching the tiqian
+// the returned index both count UTF-16 code units, matching the host
 // ABI. A negative start is treated as 0 (Haxe/JS semantics); a start
 // past the last unit, or one that lands mid-surrogate (rounded up to
 // the next char), yields -1. The match index converts back to units so
