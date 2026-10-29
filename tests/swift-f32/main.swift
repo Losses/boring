@@ -37,7 +37,7 @@ func readBytes(_ path: String) -> [UInt8] {
 }
 
 func expectedRecords() -> ReadOnlyArray<GlyphMetrics> {
-    return ReadOnlyArray(BoringArray([
+    return ReadOnlyArray(TiqianArray([
         GlyphMetrics(codePoint: 65, advanceEm: 0.5, bounds: BoundsEm(xMin: 0.03125, yMin: -0.21875, xMax: 0.46875, yMax: 0.03125)),
         GlyphMetrics(codePoint: 19969, advanceEm: 1.0, bounds: BoundsEm(xMin: 0.03125, yMin: -0.875, xMax: 0.96875, yMax: 0.03125)),
         GlyphMetrics(codePoint: 65292, advanceEm: 0.5, bounds: BoundsEm(xMin: 0.03125, yMin: -0.21875, xMax: 0.46875, yMax: 0.03125)),
