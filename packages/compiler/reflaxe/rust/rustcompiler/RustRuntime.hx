@@ -22,21 +22,6 @@ impl Exception {
 }
 ';
 
-    /** SingleThread wraps a non-Send/Sync value (an Rc handle) so it can
-        live in a process-wide static. The safety contract is the Haxe
-        single-threaded execution model: generated code never runs Haxe
-        values concurrently, so the Rc/RefCell inside are never actually
-        shared or moved across threads despite the Send + Sync impls.
-        (SingleThreadStatic) */
-    public static final SINGLE_THREAD_SOURCE = '
-pub struct SingleThread<T>(pub T);
-
-// SAFETY: generated Haxe execution is single-threaded; an Rc<RefCell<T>>
-// inside is never shared or moved across threads at runtime.
-unsafe impl<T> Send for SingleThread<T> {}
-unsafe impl<T> Sync for SingleThread<T> {}
-';
-
     /** The Functional shim is precision-parameterized: sum_of_float keeps
         the element binding at the Float width (f32 mode binds f32, f64 mode
         binds f64), but the accumulator is binary64 with one closing
@@ -935,7 +920,7 @@ fn unit_index(s: &str, unit: u32, round_up: bool) -> usize {
 }
 
 // String.indexOf with a start position (stdlib spec 15): the start and
-// the returned index both count UTF-16 code units, matching the host
+// the returned index both count UTF-16 code units, matching the tiqian
 // ABI. A negative start is treated as 0 (Haxe/JS semantics); a start
 // past the last unit, or one that lands mid-surrogate (rounded up to
 // the next char), yields -1. The match index converts back to units so
