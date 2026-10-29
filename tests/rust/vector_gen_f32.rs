@@ -79,10 +79,10 @@ fn u16_and_u32_round_trip_in_big_endian_order() {
     bytes.extend_from_slice(&0x1234u16.to_be_bytes());
     bytes.extend_from_slice(&0x56789abc_u32.to_be_bytes());
     assert_eq!(bytes, vec![0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]);
-    let mut reader = BinaryReader::new(&bytes);
-    assert_eq!(reader.read_u16(), Ok(0x1234));
-    assert_eq!(reader.read_u32(), Ok(0x56789abc));
-    assert_eq!(reader.remaining(), 0);
+    let reader = BinaryReader::new(&bytes);
+    assert_eq!(reader.borrow_mut().read_u16(), Ok(0x1234));
+    assert_eq!(reader.borrow_mut().read_u32(), Ok(0x56789abc));
+    assert_eq!(reader.borrow().remaining(), 0);
 }
 
 #[test]

@@ -439,6 +439,7 @@ class Compiler extends PluginCompiler<Compiler> {
         emitShim("std.Process", "process.rs", RustRuntime.PROCESS_SOURCE);
         emitShim("std.Functional", "functional.rs", RustRuntime.functionalSource());
         emitShim("std.IntText", "int_text.rs", RustRuntime.INT_TEXT_SOURCE);
+        emitShim("runtime.SingleThread", "single_thread.rs", RustRuntime.SINGLE_THREAD_SOURCE);
         emitShim(RustTestBinding.externModule(), RustTestBinding.shimPath(), RustRuntime.TEST_SOURCE);
 
         final emitDir = RuntimeConfig.emitDir();
@@ -462,6 +463,8 @@ class Compiler extends PluginCompiler<Compiler> {
                 runtimeMods.push("functional");
             if (state.shimsUsed.exists("std.IntText"))
                 runtimeMods.push("int_text");
+            if (state.shimsUsed.exists("runtime.SingleThread"))
+                runtimeMods.push("single_thread");
             // The test shim file (RustTestBinding.shimPath, written above by
             // emitShim) is declared on shim usage like the other shims. The
             // compiled resident files (test_core, u_string, string_tools,

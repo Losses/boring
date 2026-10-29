@@ -65,7 +65,7 @@ class RustType {
             case TAbstract(a, params) if (a.get().name == "Null" && params.length == 1): "Option<" + recursiveClassField(params[0], root) + ">";
             case _:
                 switch (Context.follow(t)) {
-                    case TInst(c, _) if (c.get().module == root.module && c.get().name == root.name): "Box<" + root.name + ">";
+                    case TInst(c, _) if (c.get().module == root.module && c.get().name == root.name): RustDecl.isPlainClassHandleClass(root) ? of(t) : "Box<" + root.name + ">";
                     case _: of(t);
                 }
         };
@@ -216,9 +216,18 @@ class RustType {
                         "SortedSetTableBuilder<" + of(params[0]) + ">";
                     case _:
                         imports.requireType(cls.module, cls.name);
-                        // Generic classes carry their type arguments; the
-                        // resident runtime tables are the source of these.
-                        params.length > 0 ? cls.name + "<" + [for (p in params) of(p)].join(", ") + ">" : cls.name;
+                        final bareName = params.length > 0 ? cls.name + "<" + [for (p in params) of(p)].join(", ") + ">" : cls.name;
+                        // A plain class carries Haxe reference semantics, so
+                        // the lowering stores it as an Rc<RefCell<T>> handle.
+                        // The handle itself is Clone, so it crosses call
+                        // boundaries as an Rc::clone instead of a move.
+                        // (ClassParamHandle)
+                        if (RustDecl.isPlainClassHandle(t)) {
+                            imports.require("std::rc::Rc");
+                            imports.require("std::cell::RefCell");
+                            "Rc<RefCell<" + bareName + ">>";
+                        } else
+                            bareName;
                 }
             case TType(def, params):
                 final d = def.get();
