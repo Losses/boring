@@ -2768,6 +2768,40 @@ class KotlinExpr {
     }
 
     /**
+        Pure-Kotlin scalar to string, replacing java.lang.Character.toChars
+        so the generated code carries no java.* dependency and compiles on
+        every Kotlin backend. A BMP scalar keeps its single UTF-16 unit; a
+        supplementary scalar encodes as its surrogate pair.
+    **/
+    function codePointFromText(code:String):String {
+        return "run { val _c = " + code
+            + "; if (_c < 0x10000) _c.toChar().toString() else { val _v = _c - 0x10000"
+            + "; (0xD800 + (_v shr 10)).toChar().toString() + (0xDC00 + (_v and 0x3FF)).toChar().toString() } }";
+    }
+
+    /**
+        Pure-Kotlin code point at a UTF-16 cursor, replacing
+        java.lang.String.codePointAt. A cursor on a high surrogate reads the
+        pair; any other unit reads itself.
+    **/
+    function codePointAtText(s:String, i:String):String {
+        return "run { val _s = " + s + "; val _i = " + i
+            + "; val _c = _s[_i].code"
+            + "; if (_c >= 0xD800 && _c <= 0xDBFF && _i + 1 < _s.length) { val _n = _s[_i + 1].code"
+            + "; if (_n >= 0xDC00 && _n <= 0xDFFF) 0x10000 + ((_c - 0xD800) shl 10) + (_n - 0xDC00) else _c } else _c }";
+    }
+
+    /**
+        Pure-Kotlin next cursor after one code point, replacing
+        java.lang.Character.charCount and String.codePointAt together.
+    **/
+    function codePointAdvanceText(s:String, i:String):String {
+        return "run { val _s = " + s + "; val _i = " + i
+            + "; val _c = _s[_i].code"
+            + "; _i + (if (_c >= 0xD800 && _c <= 0xDBFF && _i + 1 < _s.length && _s[_i + 1].code >= 0xDC00 && _s[_i + 1].code <= 0xDFFF) 2 else 1) }";
+    }
+
+    /**
         The growth guard of one Array index write, as a single Kotlin
         statement; the index arrives as an operand, already parenthesized
         when it is rendered text. Haxe's Array.set grows past the end and fills the skipped
@@ -2785,7 +2819,8 @@ class KotlinExpr {
         final zero = valueElementZero(elementText);
         if (zero != null)
             return "while (" + list + ".size <= " + index + ") { " + list + ".add(" + zero + ") }";
-        return "if (" + list + ".size <= " + index + ") { " + list + ".addAll(java.util.Collections.nCopies<" + elementText + ">(" + index + " + 1 - "
+        imports.requireType("runtime.ListFill", "ListFill");
+        return "if (" + list + ".size <= " + index + ") { " + list + ".addAll(ListFill.nCopies<" + elementText + ">(" + index + " + 1 - "
             + list + ".size, null)) }";
     }
 
@@ -5083,7 +5118,7 @@ class KotlinExpr {
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "alloc" && args.length == 1):
                 return "ByteArray(" + expr(args[0]) + ")";
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "ofString" && args.length == 1):
-                return expr(args[0]) + ".toByteArray(Charsets.UTF_8)";
+                return expr(args[0]) + ".encodeToByteArray()";
             case TField(_, FStatic(c, cf)) if (c.get().module == "haxe.io.Bytes" && cf.get().name == "concat" && args.length == 2):
                 return expr(args[0]) + " + " + expr(args[1]);
             case TField(_, FStatic(c, cf)) if (c.get().pack.length == 0 && c.get().name == "String" && cf.get().name == "fromCharCode" && args.length == 1):
@@ -5096,12 +5131,12 @@ class KotlinExpr {
                     argumentDest("value", false));
                 // Haxe's fromCharCode takes a scalar; a supplementary scalar
                 // encodes as its surrogate pair. Kotlin's Char is one UTF-16
-                // unit, so the pair goes through Character.toChars. A BMP
-                // value (surrogate range included) keeps the single-char
-                // form the existing callers rely on. (FromCharCodeScalar)
-                // String(...) already yields a String: only the Char arm
-                // needs the conversion. (RedundantToStringFold)
-                return "(if (" + unwrapped + " > 0xFFFF) String(Character.toChars(" + unwrapped + ")) else ((" + unwrapped + ").toChar()).toString())";
+                // unit, so the pair splits through pure Kotlin arithmetic
+                // (codePointFromText) instead of java.lang.Character.toChars.
+                // A BMP value (surrogate range included) keeps the
+                // single-char form the existing callers rely on.
+                // (FromCharCodeScalar) (RedundantToStringFold)
+                return codePointFromText(unwrapped);
             case _:
                 return null;
         }
@@ -5283,20 +5318,21 @@ class KotlinExpr {
                 if (cls.module == "std.UStringPlatform") {
                     // Cursor primitives of the resident UString walk, inlined
                     // per call: a cursor is a UTF-16 unit index here, so end
-                    // is the unit length and codePointAt combines surrogate
-                    // pairs. Business code never reaches these; it calls
-                    // std.UString.
+                    // is the unit length and codeAt combines surrogate pairs
+                    // with pure Kotlin arithmetic, keeping the resident on
+                    // every Kotlin backend. Business code never reaches
+                    // these; it calls std.UString.
                     switch (name) {
                         case "end":
                             return expr(args[0]) + ".length";
                         case "codeAt":
-                            return expr(args[0]) + ".codePointAt(" + expr(args[1]) + ")";
+                            return codePointAtText(expr(args[0]), expr(args[1]));
                         case "advance":
-                            return "(" + expr(args[1]) + " + Character.charCount(" + expr(args[0]) + ".codePointAt(" + expr(args[1]) + ")))";
+                            return codePointAdvanceText(expr(args[0]), expr(args[1]));
                         case "substringBetween":
                             return expr(args[0]) + ".substring(" + expr(args[1]) + ", " + expr(args[2]) + ")";
                         case "fromCodePoint":
-                            return "String(Character.toChars(" + expr(args[0]) + "))";
+                            return codePointFromText(expr(args[0]));
                         case _:
                     }
                 }
@@ -5468,7 +5504,7 @@ class KotlinExpr {
                     return expr(subj) + ".copyOfRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ")";
                 }
                 if (name == "getString" && args.length == 2 && isBytes(stripCast(subj))) {
-                    return "String(" + expr(subj) + ", " + expr(args[0]) + ", " + expr(args[1]) + ", Charsets.UTF_8)";
+                    return expr(subj) + ".copyOfRange(" + expr(args[0]) + ", " + expr(args[0]) + " + " + expr(args[1]) + ").decodeToString()";
                 }
                 if (name == "charAt" && isString(stripCast(subj))) {
                     return expr(subj) + "[" + expr(args[0]) + "].toString()";
@@ -6321,7 +6357,6 @@ class KotlinExpr {
                 // only Kotlin shape carrying an initial capacity.
                 if (args.length == 0)
                     return "mutableListOf<" + types.of(params[0]) + ">()";
-                imports.require("java.util.ArrayList");
                 return "ArrayList<" + types.of(params[0]) + ">(" + renderedArgsText + ")";
             case _:
                 if (args.length == 1 && state.exceptionPayloads.exists(cls.module)) {

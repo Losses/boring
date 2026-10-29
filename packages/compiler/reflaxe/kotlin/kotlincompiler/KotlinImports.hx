@@ -22,6 +22,7 @@ class KotlinImports {
         "std.SortedSetBuilder" => true,
         "std.UStringRT" => true,
         "std.Graphemes" => true,
+        "runtime.ListFill" => true,
     ];
 
     /**

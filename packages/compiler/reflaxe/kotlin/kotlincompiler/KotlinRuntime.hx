@@ -14,10 +14,8 @@ package kotlincompiler;
     - test extern: test assertions and runner
 **/
 class KotlinRuntime {
-    public static final BYTES_BUFFER_SOURCE = "import java.util.ArrayList
-
-class BytesBuffer {
-    private val buffer = ArrayList<Byte>()
+    public static final BYTES_BUFFER_SOURCE = "class BytesBuffer {
+    private val buffer = mutableListOf<Byte>()
 
     fun addByte(byte: Int) {
         buffer.add((byte and 0xFF).toByte())
@@ -40,19 +38,70 @@ class BytesBuffer {
 ";
 
     public static final USTRING_SOURCE = "object UString {
-    fun count(s: String): Int = s.codePointCount(0, s.length)
-    fun at(s: String, index: Int): Int? = if (index < 0 || index >= count(s)) null else s.codePointAt(s.offsetByCodePoints(0, index))
+    private fun codeAt(s: String, cursor: Int): Int {
+        val c = s[cursor].code
+        if (c >= 0xD800 && c <= 0xDBFF && cursor + 1 < s.length) {
+            val n = s[cursor + 1].code
+            if (n >= 0xDC00 && n <= 0xDFFF) return 0x10000 + ((c - 0xD800) shl 10) + (n - 0xDC00)
+        }
+        return c
+    }
+    private fun advance(s: String, cursor: Int): Int {
+        val c = s[cursor].code
+        return cursor + (if (c >= 0xD800 && c <= 0xDBFF && cursor + 1 < s.length && s[cursor + 1].code >= 0xDC00 && s[cursor + 1].code <= 0xDFFF) 2 else 1)
+    }
+    fun count(s: String): Int {
+        var total = 0
+        var cursor = 0
+        while (cursor < s.length) { total += 1; cursor = advance(s, cursor) }
+        return total
+    }
+    fun at(s: String, index: Int): Int? {
+        if (index < 0) return null
+        var remaining = index
+        var cursor = 0
+        while (cursor < s.length) {
+            if (remaining == 0) return codeAt(s, cursor)
+            remaining -= 1
+            cursor = advance(s, cursor)
+        }
+        return null
+    }
     fun slice(s: String, start: Int, end: Int? = null): String {
         val length = count(s)
         val from = start.coerceIn(0, length)
         val until = (end ?: length).coerceIn(0, length)
-        return if (until <= from) \"\" else s.substring(s.offsetByCodePoints(0, from), s.offsetByCodePoints(0, until))
+        if (until <= from) return \"\"
+        var ordinal = 0
+        var startCursor = 0
+        var cursor = 0
+        while (ordinal < until) {
+            if (ordinal == from) startCursor = cursor
+            cursor = advance(s, cursor)
+            ordinal += 1
+        }
+        return s.substring(startCursor, cursor)
     }
-    fun fromCodePoint(codePoint: Int): String = String(Character.toChars(codePoint))
+    fun fromCodePoint(codePoint: Int): String {
+        if (codePoint < 0x10000) return codePoint.toChar().toString()
+        val v = codePoint - 0x10000
+        return (0xD800 + (v shr 10)).toChar().toString() + (0xDC00 + (v and 0x3FF)).toChar().toString()
+    }
     fun fromCodePoints(codePoints: Array<Int>): String = codePoints.joinToString(\"\") { fromCodePoint(it) }
     fun fromCodePoints(codePoints: List<Int>): String = codePoints.joinToString(\"\") { fromCodePoint(it) }
-    fun toCodePoints(s: String): Array<Int> = s.codePoints().toArray().toTypedArray()
+    fun toCodePoints(s: String): Array<Int> {
+        val out = mutableListOf<Int>()
+        var cursor = 0
+        while (cursor < s.length) { out.add(codeAt(s, cursor)); cursor = advance(s, cursor) }
+        return out.toTypedArray()
+    }
     fun compareTo(a: String, b: String): Int = a.compareTo(b)
+}
+";
+
+    public static final LIST_FILL_SOURCE = "object ListFill {
+    @Suppress(\"UNCHECKED_CAST\")
+    fun <T> nCopies(size: Int, value: T?): List<T> = List(size) { value as T }
 }
 ";
 
@@ -100,7 +149,7 @@ object FPHelper {
 
     fun formatFloat(value: Double): String = formatFloatText(value.toString())
 
-    fun formatFloat(value: Float): String = formatFloatText(java.lang.Float.toString(value))
+    fun formatFloat(value: Float): String = formatFloatText(value.toString())
 
     private fun formatFloatText(raw: String): String {
         var text = raw.replace('E', 'e')

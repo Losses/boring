@@ -462,7 +462,7 @@ class KotlinDecl {
         return lines.join("\n");
     }
 
-    /** Emits a marked abstract as an inline Kotlin value class. */
+    /** Emits a marked abstract as a Kotlin data class. */
     public function valueTypeDecl(cls:ClassType, info:ValueTypeInfo, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):String {
         final abs = info.abstractType;
         final ctor = ValueTypeSupport.constructorField(abs);
@@ -473,8 +473,7 @@ class KotlinDecl {
         final fieldName = first.name;
         final representation = types.of(info.representation);
         final lines:Array<String> = [
-            "@JvmInline",
-            "value class " + info.name + "(val " + fieldName + ": " + representation + ") {"
+            "data class " + info.name + "(val " + fieldName + ": " + representation + ") {"
         ];
 
         if (ctor != null && ValueTypeSupport.constructorThrows(abs)) {
@@ -1183,9 +1182,8 @@ class KotlinDecl {
                 && expr.isFloatType(field.type) ? expr.constValFloatLiteral(rawInit) : rawInit;
             // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
             final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
-            final jvmField = !field.isFinal && (field.isPublic || field.meta.has(":allow")) ? ["    @JvmField"] : [];
             final typeText = nullInitialized ? types.of(field.type) + "?" : types.of(field.type);
-            return jvmField.concat(['    $vis$kw ${KotlinNameEscape.escape(field.name)}: $typeText = $initStr']);
+            return ['    $vis$kw ${KotlinNameEscape.escape(field.name)}: $typeText = $initStr'];
         }
         if (field.meta.has(":value")) {
             Context.error("instance field default has no lowering; assign it in the constructor", field.pos);

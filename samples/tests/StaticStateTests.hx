@@ -14,7 +14,7 @@ class StaticStateTests {
 
     @:test("static fields round-trip assignments and retain container state")
     public static function testStaticState():Void {
-        StaticStateOps.setCurrent("own");
+        StaticStateOps.updateCurrent("own");
         Test.equals("own", StaticStateOps.readCurrent(), "assignment from the declaring class");
 
         StaticStateClient.install("other");

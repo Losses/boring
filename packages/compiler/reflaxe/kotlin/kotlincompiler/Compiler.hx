@@ -343,6 +343,7 @@ class Compiler extends PluginCompiler<Compiler> {
         }
         emitShim("haxe.io.FPHelper", "FPHelper.kt", KotlinRuntime.fpHelperSource());
         emitShim("haxe.io.BytesBuffer", "BytesBuffer.kt", KotlinRuntime.BYTES_BUFFER_SOURCE);
+        emitShim("runtime.ListFill", "ListFill.kt", KotlinRuntime.LIST_FILL_SOURCE);
         emitShim("std.Console", "Console.kt", KotlinRuntime.CONSOLE_SOURCE);
         emitShim("std.Env", "Env.kt", KotlinRuntime.ENV_SOURCE);
         emitShim("std.Process", "Process.kt", KotlinRuntime.PROCESS_SOURCE);
@@ -515,7 +516,7 @@ class Compiler extends PluginCompiler<Compiler> {
             "        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",
             "    }",
             "",
-            "    fun equalsValue(a: ByteArray, b: ByteArray): Boolean = java.util.Arrays.equals(a, b)",
+            "    fun equalsValue(a: ByteArray, b: ByteArray): Boolean = a.contentEquals(b)",
             "    fun formatValue(v: ByteArray): String = Test.formatBytes(v)",
             "    fun assertEquals(expected: ByteArray, actual: ByteArray, message: String? = null) {",
             "        if (!equalsValue(expected, actual)) Test.reportFailure(message, formatValue(expected), formatValue(actual))",

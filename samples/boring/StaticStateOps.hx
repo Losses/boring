@@ -22,7 +22,7 @@ class StaticStateOps {
 
     public static final emptyMark:String = "empty";
 
-    public static function setCurrent(value:String):Void {
+    public static function updateCurrent(value:String):Void {
         current = value;
     }
 
