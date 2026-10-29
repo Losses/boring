@@ -21,7 +21,7 @@ class RustType {
         settings, and the generated comparator suites plus the consumer rust
         census cover the emission.
     **/
-    static final FUNCTION_VALUE_BOUNDS = " + Send + Sync";
+    static final FUNCTION_VALUE_BOUNDS = "";
 
     /**
         Thread-safe function-value rule: every owned closure trait object has
