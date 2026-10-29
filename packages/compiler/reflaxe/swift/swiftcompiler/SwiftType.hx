@@ -81,7 +81,7 @@ class SwiftType {
                     case "haxe.ds.Map" if (params.length == 2): "[" + of(params[0]) + ": " + of(params[1]) + "]";
                     // Read-only arrays lower to the runtime ReadOnlyArray<T>
                     // reference view so the wrapper shares the underlying
-                    // TiqianArray buffer with its source Array.
+                    // BoringArray buffer with its source Array.
                     case "std.ReadOnlyArray":
                         imports.runtime("ReadOnlyArray");
                         "ReadOnlyArray<" + of(params[0]) + ">";
@@ -99,8 +99,8 @@ class SwiftType {
                     case "String": "[UInt16]";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";
                     case "Array":
-                        imports.runtime("TiqianArray");
-                        "TiqianArray<" + of(params[0]) + ">";
+                        imports.runtime(SwiftRuntime.ARRAY_CLASS);
+                        SwiftRuntime.ARRAY_CLASS + "<" + of(params[0]) + ">";
                     case "haxe.io.Bytes": "[UInt8]";
                     case "haxe.io.BytesBuffer":
                         imports.runtime("BytesBuffer");
@@ -201,8 +201,8 @@ class SwiftType {
                     case "String": "[UInt16]";
                     case "std.StringBuf" | "StringBuf": "[UInt16]";
                     case "Array":
-                        imports.runtime("TiqianArray");
-                        "TiqianArray<" + ofSubstituted(params2[0], params, args) + ">";
+                        imports.runtime(SwiftRuntime.ARRAY_CLASS);
+                        SwiftRuntime.ARRAY_CLASS + "<" + ofSubstituted(params2[0], params, args) + ">";
                     case "haxe.io.Bytes": "[UInt8]";
                     case _:
                         for (i in 0...params.length) {

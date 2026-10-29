@@ -375,7 +375,7 @@ private func boringFsRename(_ from: [UInt16], _ to: [UInt16]) throws {
 ';
 
     static final PROCESS_RUN = '
-private func boringProcessRun(_ command: [UInt16], _ args: TiqianArray<[UInt16]>, _ cwd: [UInt16], _ env: TiqianArray<ProcessEnv>) throws -> ProcessResult {
+private func boringProcessRun(_ command: [UInt16], _ args: BoringArray<[UInt16]>, _ cwd: [UInt16], _ env: BoringArray<ProcessEnv>) throws -> ProcessResult {
     #if canImport(Foundation)
     let fm = FileManager.default
     let task = Foundation.Process()
