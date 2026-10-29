@@ -736,8 +736,10 @@ class RustExpr {
                     // (`Fill::FILL_INSTANCE`) that the emitted module-scope
                     // static does not provide.
                     final plainClassStaticField = staticFieldOf(cls, fieldName);
-                    if (plainClassStaticField != null && RustDecl.isPlainClassHandle(plainClassStaticField.type)) {
-                        final value = "(*" + staticItemPath(cls, fieldName) + ").0.clone()";
+                    if (plainClassStaticField != null && RustDecl.isPlainClassHandleStaticType(types.of(plainClassStaticField.type))) {
+                        final value = plainClassStaticField.isFinal
+                            ? "(*" + staticItemPath(cls, fieldName) + ").0.clone()"
+                            : "(*" + staticItemPath(cls, fieldName) + ").lock().unwrap().0.clone()";
                         return isInterfaceSlotType(targetType) && !isInterfaceType(plainClassStaticField.type)
                             ? "Box::new(" + value + ")" : value;
                     }
@@ -8786,8 +8788,10 @@ class RustExpr {
                     final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
                     return isConst ? item : item + "()";
                 }
-                if (RustDecl.isPlainClassHandle(cf.get().type)) {
-                    return "(*" + staticItemPath(cls, name) + ").0.clone()";
+                if (RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))) {
+                    return cf.get().isFinal
+                        ? "(*" + staticItemPath(cls, name) + ").0.clone()"
+                        : "(*" + staticItemPath(cls, name) + ").lock().unwrap().0.clone()";
                 }
                 if (RustDecl.usesLazyLockStatic(cls, cf.get(), state)) {
                     // LazyLock owns its value. Static reads cross Haxe value
@@ -9140,7 +9144,7 @@ class RustExpr {
             && !isDirectArrayStaticField(field)
             && !isLazyArrayStaticField(field)
             && !RustDecl.usesLazyLockStatic(cls, field, state)
-            && !RustDecl.isPlainClassHandle(field.type)
+            && !RustDecl.isPlainClassHandleStaticType(types.of(field.type))
             && (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
     }
 
@@ -9939,6 +9943,11 @@ class RustExpr {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
                 "*" + staticGuardMutable(c.get(), cf.get().name);
+            // A mutable plain-class static is LazyLock<Mutex<SingleThread<T>>>;
+            // write through the guard into the SingleThread inner value.
+            // (RcContainerStatic)
+            case TField(_, FStatic(c, cf)) if (!cf.get().isFinal && RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))):
+                "(*" + staticItemPath(c.get(), cf.get().name) + ").lock().unwrap().0";
             case _: null;
         };
     }
@@ -11524,7 +11533,10 @@ class RustExpr {
                     // Parameter-typed arguments borrow unless the local
                     // already holds a reference (a borrowed parameter of
                     // the enclosing function).
-                    return "(" + expr(subj) + "." + snake + ")(" + renderCallArgs(cf.get().type, args, null, 0, null, subj.t) + ")";
+                    // A plain-class handle opens its Rc borrow before the
+                    // function-field read so the closure read reaches the
+                    // shared object. (ClassParamHandle)
+                    return "(" + expr(subj) + (receiverNeedsRcBorrow(subj) ? ".borrow()" : "") + "." + snake + ")(" + renderCallArgs(cf.get().type, args, null, 0, null, subj.t) + ")";
                 }
                 final isMethodFallible = isFallibleCallee(c, cf, false);
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");

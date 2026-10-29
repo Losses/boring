@@ -1596,6 +1596,15 @@ class RustDecl {
             });
     }
 
+    /** Whether a static's rendered type holds an Rc<RefCell<T>> handle,
+        directly or nested inside a container (Vec/HashMap/Option). The
+        top-level isPlainClassHandle misses the container case, which still
+        needs the SingleThread static treatment because Rc is not Send+Sync.
+        (RcContainerStatic) */
+    public static function isPlainClassHandleStaticType(typeStr:String):Bool {
+        return typeStr.indexOf("Rc<RefCell") >= 0;
+    }
+
     /**
         Whether the named field lowers as a borrowed byte reference. The
         field's Rust type is then a shared reference, which is Copy, so a
@@ -1799,12 +1808,21 @@ class RustDecl {
                 '${vis}static ${name}: [${elementType}; ${elements}] = ${expr.rawArrayLiteral(init)};'
             ];
         }
-        if (RustDecl.isPlainClassHandle(field.type)) {
+        if (RustDecl.isPlainClassHandleStaticType(typeStr)) {
             imports.require("std::sync::LazyLock");
             state.shimsUsed.set("runtime.SingleThread", true);
             imports.require(RuntimeConfig.requireImportName("module runtime.SingleThread") + "::single_thread::SingleThread");
+            // Immutable plain-class statics read-only via LazyLock deref; a
+            // mutable `var` static needs interior Mutex so the SingleThread
+            // inner value stays assignable. (RcContainerStatic)
+            if (field.isFinal) {
+                return [
+                    vis + "static " + name + ": LazyLock<SingleThread<" + typeStr + ">> = LazyLock::new(|| SingleThread(" + expr.rawExpression(init) + "));"
+                ];
+            }
+            imports.require("std::sync::Mutex");
             return [
-                vis + "static " + name + ": LazyLock<SingleThread<" + typeStr + ">> = LazyLock::new(|| SingleThread(" + expr.rawExpression(init) + "));"
+                vis + "static " + name + ": LazyLock<Mutex<SingleThread<" + typeStr + ">>> = LazyLock::new(|| Mutex::new(SingleThread(" + expr.rawExpression(init) + ")));"
             ];
         }
 
