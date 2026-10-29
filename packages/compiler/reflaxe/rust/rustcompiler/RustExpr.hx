@@ -7644,6 +7644,14 @@ class RustExpr {
                         return "{ let " + temp + " = " + rhs + "; " + assignTargetText + " = " + temp + " }";
                     }
                 }
+                // A cursor-style reassignment `cursor = ...cursor.borrow()...`
+                // holds the Rc borrow across the assignment; hoist the RHS
+                // so the borrow drops before the slot is reassigned.
+                // (RcBorrowAssignmentScope)
+                if (isLocalOrFieldTarget(l) && rhs.indexOf(assignTargetText) >= 0 && (rhs.indexOf(".borrow()") >= 0 || rhs.indexOf(".borrow_mut()") >= 0)) {
+                    final temp = freshRegionName("__rhs_value");
+                    return "{ let " + temp + " = " + rhs + "; " + assignTargetText + " = " + temp + " }";
+                }
                 return assignTargetText + " = " + rhs;
             case OpAssignOp(inner):
                 // Int compound assignments must preserve Haxe's 32-bit wrapping.
@@ -8789,6 +8797,10 @@ class RustExpr {
                     return isConst ? item : item + "()";
                 }
                 if (RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))) {
+                    // A container static mutates its contents in place; the
+                    // read is the mutable guard, not a clone. (RcContainerStatic)
+                    if (RustDecl.isPlainClassHandleContainerStaticType(types.of(cf.get().type)))
+                        return "(*" + staticItemPath(cls, name) + ").lock().unwrap().0";
                     return cf.get().isFinal
                         ? "(*" + staticItemPath(cls, name) + ").0.clone()"
                         : "(*" + staticItemPath(cls, name) + ").lock().unwrap().0.clone()";
@@ -12273,9 +12285,13 @@ class RustExpr {
                     final fieldSnake = RustImports.toSnakeCase(cf.get().name);
                     final capName = freshRegionName("_cap_" + fieldSnake);
                     final fieldTypeText = types.of(cf.get().type);
+                    // A plain-class handle opens its Rc borrow before the
+                    // field capture so the capture reads the shared object.
+                    // (ClassParamHandle)
+                    final rcBorrowCap = RustDecl.isPlainClassHandle(subj.t) ? ".borrow()" : "";
                     final prelude = StringTools.startsWith(fieldTypeText, "Arc<")
-                        ? "let " + capName + " = Arc::clone(&" + ws.text + "." + fieldSnake + ");"
-                        : "let " + capName + " = (" + ws.text + "." + fieldSnake + ").clone();";
+                        ? "let " + capName + " = Arc::clone(&" + ws.text + rcBorrowCap + "." + fieldSnake + ");"
+                        : "let " + capName + " = (" + ws.text + rcBorrowCap + "." + fieldSnake + ").clone();";
                     preludes.push(prelude);
                     fieldCaptureIdSeq += 1;
                     final capId = -3000000 - fieldCaptureIdSeq;
@@ -15819,7 +15835,7 @@ class RustExpr {
             return intToFloatSignedText(rendered, actual);
         // Methods returning an owned class value cannot leak the borrowed
         // `self` receiver into the return slot.
-        if (RustDecl.isPlainClassHandle(expected) && switch (stripWrap(actual).expr) {
+        if ((RustDecl.isPlainClassHandle(expected) || (isNullType(expected) && RustDecl.isPlainClassHandle(getNullInnerType(expected)))) && switch (stripWrap(actual).expr) {
             case TConst(TThis): true;
             case _: false;
         })
