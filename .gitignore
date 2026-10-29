@@ -72,3 +72,4 @@ boring-*.stuck.md
 .workspace-board-scratch-lock-*/
 
 .workspace-board-scratch-lock-*/
+engine-haxe/baseline-goldens/baseline-goldens
