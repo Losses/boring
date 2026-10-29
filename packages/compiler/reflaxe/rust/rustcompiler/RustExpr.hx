@@ -735,6 +735,12 @@ class RustExpr {
                     // otherwise name it as an associated item
                     // (`Fill::FILL_INSTANCE`) that the emitted module-scope
                     // static does not provide.
+                    final plainClassStaticField = staticFieldOf(cls, fieldName);
+                    if (plainClassStaticField != null && RustDecl.isPlainClassHandle(plainClassStaticField.type)) {
+                        final value = "(*" + staticItemPath(cls, fieldName) + ").0.clone()";
+                        return isInterfaceSlotType(targetType) && !isInterfaceType(plainClassStaticField.type)
+                            ? "Box::new(" + value + ")" : value;
+                    }
                     if (isGuardStaticField(cls, fieldName)) {
                         final value = staticGuardClone(cls, fieldName);
                         // A concrete singleton entering an interface slot boxes
@@ -1974,6 +1980,8 @@ class RustExpr {
                 // A parameter-typed read clones at the boundary: the
                 // element stays owned by its array.
                 switch (stripWrap(ret).expr) {
+                    case TConst(TThis) if (RustDecl.isPlainClassHandle(ret.t)):
+                        retStr = "Rc::new(RefCell::new(" + retStr + ".clone()))";
                     case TConst(TThis) if (!isTypeCopy(ret.t)):
                         retStr = "(" + retStr + ").clone()";
                     case TField(_, _) if (!isTypeCopy(ret.t)):
@@ -6537,7 +6545,7 @@ class RustExpr {
             return text;
         return switch (stripWrap(branch).expr) {
             case TConst(TThis):
-                StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()";
+                RustDecl.isPlainClassHandle(branch.t) ? "Rc::new(RefCell::new(" + text + ".clone()))" : (StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()");
             case _: text;
         };
     }
@@ -8778,6 +8786,9 @@ class RustExpr {
                     final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
                     return isConst ? item : item + "()";
                 }
+                if (RustDecl.isPlainClassHandle(cf.get().type)) {
+                    return "(*" + staticItemPath(cls, name) + ").0.clone()";
+                }
                 if (RustDecl.usesLazyLockStatic(cls, cf.get(), state)) {
                     // LazyLock owns its value. Static reads cross Haxe value
                     // boundaries, so clone the referent before passing it
@@ -9129,6 +9140,7 @@ class RustExpr {
             && !isDirectArrayStaticField(field)
             && !isLazyArrayStaticField(field)
             && !RustDecl.usesLazyLockStatic(cls, field, state)
+            && !RustDecl.isPlainClassHandle(field.type)
             && (!StaticFieldHelper.isConstruction(field.expr()) || StaticFieldHelper.isSelfConstruction(field, cls));
     }
 
@@ -10387,7 +10399,9 @@ class RustExpr {
                 state.memberPrintsTypeParam = true;
                 "format!(\"{:?}\", " + value + ")";
             case IsHashMap(_, _): '"{}".to_string()';
-            case IsRecordLike: value + ".to_string()";
+            case IsRecordLike:
+                final borrow = RustDecl.isPlainClassHandle(t) ? ".borrow()" : "";
+                value + borrow + ".to_string()";
             case IsInstanceToString:
                 // Display text has no propagation path, so a text read that
                 // emits a Result unwraps at the read site. A plain-class
@@ -13552,6 +13566,11 @@ class RustExpr {
             return "Box::new(" + text + ")";
         if (expected == null)
             return text;
+        if (RustDecl.isPlainClassHandle(expected) && switch (stripWrap(arg).expr) {
+            case TConst(TThis): true;
+            case _: false;
+        })
+            return "Rc::new(RefCell::new(" + text + ".clone()))";
         if (isStringType(expected) && isStringType(arg.t)) {
             if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone())"))
                 return text;
@@ -15788,6 +15807,11 @@ class RustExpr {
             return intToFloatSignedText(rendered, actual);
         // Methods returning an owned class value cannot leak the borrowed
         // `self` receiver into the return slot.
+        if (RustDecl.isPlainClassHandle(expected) && switch (stripWrap(actual).expr) {
+            case TConst(TThis): true;
+            case _: false;
+        })
+            return "Rc::new(RefCell::new(" + rendered + ".clone()))";
         if (!isTypeCopy(expected) && switch (stripWrap(actual).expr) {
             case TConst(TThis): true;
             case _: false;
