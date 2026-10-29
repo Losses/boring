@@ -1605,6 +1605,13 @@ class RustDecl {
         return typeStr.indexOf("Rc<RefCell") >= 0;
     }
 
+    /** A container (Vec/HashMap) of Rc handles needs interior mutation
+        (push/insert), so its static lowering must stay assignable even when
+        the Haxe binding is `final`. (RcContainerStatic) */
+    public static function isPlainClassHandleContainerStaticType(typeStr:String):Bool {
+        return typeStr.indexOf("Vec<") == 0 || typeStr.indexOf("HashMap<") == 0;
+    }
+
     /**
         Whether the named field lowers as a borrowed byte reference. The
         field's Rust type is then a shared reference, which is Copy, so a
@@ -1815,7 +1822,7 @@ class RustDecl {
             // Immutable plain-class statics read-only via LazyLock deref; a
             // mutable `var` static needs interior Mutex so the SingleThread
             // inner value stays assignable. (RcContainerStatic)
-            if (field.isFinal) {
+            if (field.isFinal && !RustDecl.isPlainClassHandleContainerStaticType(typeStr)) {
                 return [
                     vis + "static " + name + ": LazyLock<SingleThread<" + typeStr + ">> = LazyLock::new(|| SingleThread(" + expr.rawExpression(init) + "));"
                 ];
@@ -2950,7 +2957,15 @@ class RustDecl {
             final borrow = isMutating ? "self.borrow_mut()" : "self.borrow()";
             lines.push("    fn " + snakeName + methodGenericStr + "(" + allArgs + ")" + ret + " {");
             final delegatedCall = borrow + "." + snakeName + "(" + argNames + ")";
-            lines.push("        " + (isFallible && errOwner != null ? delegatedCall + ".map_err(" + errOwner.name + "::from)" : delegatedCall));
+            // An interface slot can be fallible while the concrete method is
+            // not (Haxe lets a non-throwing method satisfy a throwing one);
+            // then the raw concrete result wraps in Ok instead of map_err.
+            // (RcHandleTraitFallible)
+            final concreteFallible = funcIsFallible(f);
+            final body = isFallible && errOwner != null
+                ? (concreteFallible ? delegatedCall + ".map_err(" + errOwner.name + "::from)" : "Ok(" + delegatedCall + ")")
+                : delegatedCall;
+            lines.push("        " + body);
             lines.push("    }");
         }
         lines.push("}");
