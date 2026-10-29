@@ -20,7 +20,7 @@ describe("small static array initializer trees", () => {
 
     withTargetTree("swift", "array-root: each target uses the ruled array declaration", () => {
       expect(read("reference/swift/gen/boring/ArrayRootStateOps.swift")).toContain(
-        "static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(BoringArray<Int32>([10, 20, 30]))",
+        "static let readOnlyInts: ReadOnlyArray<Int32> = ReadOnlyArray(TiqianArray<Int32>([10, 20, 30]))",
       );
     });
     expect(read("reference/dart/gen/lib/boring/array_root_state_ops.dart")).toContain(
