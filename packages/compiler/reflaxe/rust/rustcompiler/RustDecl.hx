@@ -2921,12 +2921,8 @@ class RustDecl {
             final argNames = [for (a in f.args) RustImports.toSnakeCase(a.name)].join(", ");
             final borrow = isMutating ? "self.borrow_mut()" : "self.borrow()";
             lines.push("    fn " + snakeName + methodGenericStr + "(" + allArgs + ")" + ret + " {");
-<<<<<<< HEAD
             final delegatedCall = borrow + "." + snakeName + "(" + argNames + ")";
             lines.push("        " + (isFallible && errOwner != null ? delegatedCall + ".map_err(" + errOwner.name + "::from)" : delegatedCall));
-=======
-            lines.push("        " + borrow + "." + snakeName + "(" + argNames + ")");
->>>>>>> 53cd9e7f2 (feat(rust): make interface traits Rc-compatible via wrapper delegation)
             lines.push("    }");
         }
         lines.push("}");
