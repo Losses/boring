@@ -162,11 +162,11 @@ for rt in \
   "$slice_only/Runtime.swift" \
   "$boundary_only/Runtime.swift" \
   "$fs_readdir_only/Runtime.swift"; do
-  test "$(rg -c '^public final class TiqianArray<' "$rt")" = 1
+  test "$(rg -c '^public final class BoringArray<' "$rt")" = 1
   test "$(rg -c '^public final class ReadOnlyArray<' "$rt")" = 1
 done
 
-test_host_count=$(rg -c '^public final class (TiqianArray|ReadOnlyArray)<' "$with_tests/Test.swift" || printf '0')
+test_host_count=$(rg -c '^public final class (BoringArray|ReadOnlyArray)<' "$with_tests/Test.swift" || printf '0')
 test "$test_host_count" = 0
 
 swiftc "$with_tests/Runtime.swift" \

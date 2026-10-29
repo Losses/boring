@@ -29,7 +29,7 @@ describe("static fields generated trees", () => {
 	test.skipIf(targetTreeUnavailable("swift"))("Swift keeps array statics mutable for value-semantic append", () => {
 		const content = read("reference/swift/gen/boring/StaticStateOps.swift");
 		expect(content).toContain("static var current: String? = nil");
-		expect(content).toContain("private static var sections: TiqianArray<String> = TiqianArray<String>([])");
+		expect(content).toContain("private static var sections: BoringArray<String> = BoringArray<String>([])");
 		expect(content).toContain("static let limit: Int32 = 4096");
 		expect(content).toContain("StaticStateOps.current = value");
 	});

@@ -6858,7 +6858,16 @@ class RustExpr {
     function isSortedTable(subj:TypedExpr):Bool {
         final t = methodSubjectType(subj);
         return switch (Context.follow(t)) {
-            case TInst(c, _): final n = c.get().name; n == "SortedMap" || n == "SortedSet" || n == "SortedTable" || n == "SortedMapTable" || n == "SortedSetTable";
+            case TInst(c, _):
+                final cls = c.get();
+                final n = cls.name;
+                if (cls.module == "runtime.SortedTable")
+                    n == "SortedTable" || n == "SortedMapTable" || n == "SortedSetTable";
+                else if (cls.module == "std.SortedSet")
+                    n == "SortedSet";
+                else if (cls.module == "std.SortedMap")
+                    n == "SortedMap";
+                else false;
             case _: false;
         };
     }
@@ -9995,8 +10004,8 @@ class RustExpr {
 
     function staticMethodName(cls:ClassType, name:String):String {
         final runtimeClassName = cls.name == "UStringRT" ? "UString" : cls.name;
-        final qualifiedRuntimeClass = runtimeClassName == "TestCore" || runtimeClassName == "SortedTable" || runtimeClassName == "Graphemes"
-            || runtimeClassName == "StringTools" || runtimeClassName == "UString";
+        final qualifiedRuntimeClass = cls.module == "runtime.TestCore" || cls.module == "runtime.SortedTable" || cls.module == "runtime.Graphemes"
+            || cls.module == "runtime.StringTools" || cls.module == "runtime.UString";
         return qualifiedRuntimeClass ? RustImports.toSnakeCase(runtimeClassName + "_" + name) : RustImports.toSnakeCase(name);
     }
 

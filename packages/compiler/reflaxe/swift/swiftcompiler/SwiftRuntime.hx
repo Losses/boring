@@ -645,7 +645,7 @@ public enum Test {
 /// stored in a field and a caller local share one underlying buffer.
 /// The class mirrors the [T] API (subscript, count, push, indexOf, ...)
 /// so generated code reads naturally instead of spelling out .items.
-public final class TiqianArray<Element>: Sequence, Collection {
+public final class BoringArray<Element>: Sequence, Collection {
     public var items: [Element]
     public init() { self.items = [] }
     public init(_ items: [Element]) { self.items = items }
@@ -683,7 +683,7 @@ public final class TiqianArray<Element>: Sequence, Collection {
         items.insert(element, at: p)
     }
     public func remove(at index: Int) -> Element { return items.remove(at: index) }
-    public func splice(_ start: Int, _ len: Int) -> TiqianArray<Element> {
+    public func splice(_ start: Int, _ len: Int) -> BoringArray<Element> {
         // Haxe splice mutates and returns the removed sub-array, bounding
         // the call before removing: negative length or past-the-end start
         // removes nothing, negative start counts from the end, a length past
@@ -694,7 +694,7 @@ public final class TiqianArray<Element>: Sequence, Collection {
         let c = (len < 0 || p0 > sz) ? 0 : Swift.min(len, sz - p)
         let removed = Array(items[p..<(p + c)])
         if c > 0 { items.removeSubrange(p..<(p + c)) }
-        return TiqianArray(removed)
+        return BoringArray(removed)
     }
     public func removeLast() -> Element { return items.removeLast() }
     public func removeFirst() -> Element { return items.removeFirst() }
@@ -702,31 +702,31 @@ public final class TiqianArray<Element>: Sequence, Collection {
     public func reserveCapacity(_ n: Int) { items.reserveCapacity(n) }
     public func sort(by areInIncreasingOrder: (Element, Element) -> Bool) { items.sort(by: areInIncreasingOrder) }
 
-    // Array-producing operations return a fresh TiqianArray.
-    public func copy() -> TiqianArray<Element> { return TiqianArray(items) }
-    public func concat(_ other: TiqianArray<Element>) -> TiqianArray<Element> { return TiqianArray(items + other.items) }
-    public func slice(_ range: Range<Int>) -> TiqianArray<Element> { return TiqianArray(Array(items[range])) }
-    public func map<U>(_ transform: (Element) -> U) -> TiqianArray<U> { return TiqianArray<U>(items.map(transform)) }
-    public func filter(_ isIncluded: (Element) -> Bool) -> TiqianArray<Element> { return TiqianArray<Element>(items.filter(isIncluded)) }
+    // Array-producing operations return a fresh BoringArray.
+    public func copy() -> BoringArray<Element> { return BoringArray(items) }
+    public func concat(_ other: BoringArray<Element>) -> BoringArray<Element> { return BoringArray(items + other.items) }
+    public func slice(_ range: Range<Int>) -> BoringArray<Element> { return BoringArray(Array(items[range])) }
+    public func map<U>(_ transform: (Element) -> U) -> BoringArray<U> { return BoringArray<U>(items.map(transform)) }
+    public func filter(_ isIncluded: (Element) -> Bool) -> BoringArray<Element> { return BoringArray<Element>(items.filter(isIncluded)) }
     public func join(separator: String = "") -> String { return items.map { String(describing: $0) }.joined(separator: separator) }
     // Sequence supplies these too, but its forms return a Swift Array, which
     // no longer matches a Haxe Array slot. Declaring them on the class keeps
     // the container type through the call, as map and filter above already do.
-    public func sorted(by areInIncreasingOrder: (Element, Element) -> Bool) -> TiqianArray<Element> {
-        return TiqianArray(items.sorted(by: areInIncreasingOrder))
+    public func sorted(by areInIncreasingOrder: (Element, Element) -> Bool) -> BoringArray<Element> {
+        return BoringArray(items.sorted(by: areInIncreasingOrder))
     }
-    public func reversed() -> TiqianArray<Element> { return TiqianArray(Array(items.reversed())) }
-    public func compactMap<U>(_ transform: (Element) -> U?) -> TiqianArray<U> { return TiqianArray<U>(items.compactMap(transform)) }
+    public func reversed() -> BoringArray<Element> { return BoringArray(Array(items.reversed())) }
+    public func compactMap<U>(_ transform: (Element) -> U?) -> BoringArray<U> { return BoringArray<U>(items.compactMap(transform)) }
 }
 
-extension TiqianArray where Element: Comparable {
-    public func sorted() -> TiqianArray<Element> { return TiqianArray<Element>(items.sorted()) }
+extension BoringArray where Element: Comparable {
+    public func sorted() -> BoringArray<Element> { return BoringArray<Element>(items.sorted()) }
 }
 
 // Element equality operations live here so the class body stays free of the
 // constraint; Swift only exposes firstIndex(of:)/lastIndex(of:)/contains(_:)
-// when the element is Equatable. (TiqianArray)
-extension TiqianArray where Element: Equatable {
+// when the element is Equatable. (BoringArray)
+extension BoringArray where Element: Equatable {
     public func indexOf(_ element: Element) -> Int32 {
         if let i = items.firstIndex(of: element) { return Int32(items.distance(from: items.startIndex, to: i)) }
         return -1
@@ -741,18 +741,18 @@ extension TiqianArray where Element: Equatable {
 // A struct or enum that stores a Haxe Array needs the container to be
 // Equatable so Swift can synthesize its own ==. The comparison stays
 // element-wise, which is what the [T] representation this class replaced
-// already gave, so no equality behaviour changes. (TiqianArray)
-extension TiqianArray: Equatable where Element: Equatable {
-    public static func == (lhs: TiqianArray<Element>, rhs: TiqianArray<Element>) -> Bool { return lhs.items == rhs.items }
+// already gave, so no equality behaviour changes. (BoringArray)
+extension BoringArray: Equatable where Element: Equatable {
+    public static func == (lhs: BoringArray<Element>, rhs: BoringArray<Element>) -> Bool { return lhs.items == rhs.items }
 }
 
-/// Read-only reference view over the same slots held by a TiqianArray.
+/// Read-only reference view over the same slots held by a BoringArray.
 public final class ReadOnlyArray<Element>: RandomAccessCollection {
     public typealias Index = Int
-    private let backing: TiqianArray<Element>
+    private let backing: BoringArray<Element>
 
-    public init(_ backing: TiqianArray<Element>) { self.backing = backing }
-    public convenience init() { self.init(TiqianArray<Element>()) }
+    public init(_ backing: BoringArray<Element>) { self.backing = backing }
+    public convenience init() { self.init(BoringArray<Element>()) }
 
     public var startIndex: Int { return backing.startIndex }
     public var endIndex: Int { return backing.endIndex }
@@ -762,7 +762,7 @@ public final class ReadOnlyArray<Element>: RandomAccessCollection {
     public func distance(from start: Int, to end: Int) -> Int { return backing.items.distance(from: start, to: end) }
     public subscript(index: Int) -> Element { return backing[index] }
 
-    public func toMutableArray() -> TiqianArray<Element> { return TiqianArray(Array(self)) }
+    public func toMutableArray() -> BoringArray<Element> { return BoringArray(Array(self)) }
 }
 
 extension ReadOnlyArray: Equatable where Element: Equatable {
@@ -772,13 +772,14 @@ extension ReadOnlyArray: Equatable where Element: Equatable {
 }
 /// Backwards-compatibility bridge: toMutableArray lives on the
 /// ReadOnlyArray wrapper class; this extension still converts a native
-/// [T] array into a TiqianArray when generated code needs mutation.
+/// [T] array into a BoringArray when generated code needs mutation.
 extension Array {
-    public func toMutableArray() -> TiqianArray<Element> { return TiqianArray(self) }
+    public func toMutableArray() -> BoringArray<Element> { return BoringArray(self) }
 }
 ';
 
     static final ARRAY_MARKER = "/// Reference-semantics array:";
+    public static final ARRAY_CLASS = "BoringArray";
     public static final ARRAY_SOURCE = TEST_SOURCE.substr(TEST_SOURCE.indexOf(ARRAY_MARKER));
     public static final TEST_HOST_SOURCE = TEST_SOURCE.substr(0, TEST_SOURCE.indexOf(ARRAY_MARKER));
 }

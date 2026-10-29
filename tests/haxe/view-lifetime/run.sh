@@ -155,7 +155,7 @@ else
 	if [ "$SWIFT_GEN_STATUS" = "zero" ]; then
 		# Runtime declaration closure of the ordinary generated files.
 		if [ -f "$GEN/Runtime.swift" ]; then
-			TIQIAN_COUNT=$(rg -c '^public final class TiqianArray<' "$GEN/Runtime.swift" || printf '0')
+			TIQIAN_COUNT=$(rg -c '^public final class BoringArray<' "$GEN/Runtime.swift" || printf '0')
 			ROARRAY_COUNT=$(rg -c '^public final class ReadOnlyArray<' "$GEN/Runtime.swift" || printf '0')
 			printf '%s\n%s\n' "$TIQIAN_COUNT" "$ROARRAY_COUNT" >"$RUN/checks/runtime-declaration-counts"
 			[ "$TIQIAN_COUNT" = "1" ] && [ "$ROARRAY_COUNT" = "1" ] || add_reason runtime-declaration
