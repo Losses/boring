@@ -22,6 +22,21 @@ impl Exception {
 }
 ';
 
+    /** SingleThread wraps a non-Send/Sync value (an Rc handle) so it can
+        live in a process-wide static. The safety contract is the Haxe
+        single-threaded execution model: generated code never runs Haxe
+        values concurrently, so the Rc/RefCell inside are never actually
+        shared or moved across threads despite the Send + Sync impls.
+        (SingleThreadStatic) */
+    public static final SINGLE_THREAD_SOURCE = '
+pub struct SingleThread<T>(pub T);
+
+// SAFETY: generated Haxe execution is single-threaded; an Rc<RefCell<T>>
+// inside is never shared or moved across threads at runtime.
+unsafe impl<T> Send for SingleThread<T> {}
+unsafe impl<T> Sync for SingleThread<T> {}
+';
+
     /** The Functional shim is precision-parameterized: sum_of_float keeps
         the element binding at the Float width (f32 mode binds f32, f64 mode
         binds f64), but the accumulator is binary64 with one closing
