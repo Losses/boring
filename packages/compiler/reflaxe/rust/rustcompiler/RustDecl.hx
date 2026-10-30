@@ -2026,7 +2026,7 @@ class RustDecl {
                     // (MutableRefObjectParam)
                     if (StringTools.startsWith(pType, "&Vec<"))
                         pType = "&mut " + pType.substr(1);
-                    else if (isMutableRefParamType(a.type))
+                    else if (isMutableRefParamType(a.type) && !StringTools.startsWith(pType, "Rc<RefCell<"))
                         pType = "&mut " + pType;
                 }
                 final mut = mutatedArg && !StringTools.startsWith(pType, "&mut") ? "mut " : "";
