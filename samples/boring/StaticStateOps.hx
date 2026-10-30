@@ -31,6 +31,8 @@ class StaticStateOps {
         return value == null ? "none" : value;
     }
 
+    public static function touchP21():Void { new P21CollisionFixtures.P21FixtureHub().touch(); }
+
     public static function record(section:String):Void {
         sections.push(section);
     }
