@@ -162,7 +162,7 @@ class RustType {
                     // (ClassHandleShare)
                     && Lambda.exists(cls.interfaces, i -> {
                         final ic = i.t.get();
-                        ic.isInterface && RustDecl.isSharedInterface(ic.module, ic.name);
+                        ic.isInterface && RustDecl.isSharedInterface(ic);
                     })) {
                     imports.require("std::sync::Arc");
                     imports.require("std::sync::Mutex");
@@ -173,7 +173,7 @@ class RustType {
                     // Arc<Mutex<dyn Trait>>: the slot and the source binding
                     // share one object, matching Haxe reference semantics.
                     // (ClassHandleShare)
-                    if (RustDecl.isSharedInterface(cls.module, cls.name)) {
+                    if (RustDecl.isSharedInterface(cls)) {
                         imports.require("std::sync::Arc");
                         imports.require("std::sync::Mutex");
                         "Arc<Mutex<dyn " + cls.name + ">>";
@@ -406,7 +406,7 @@ class RustType {
                     // (ClassHandleShare)
                     && Lambda.exists(cls.interfaces, i -> {
                         final ic = i.t.get();
-                        ic.isInterface && RustDecl.isSharedInterface(ic.module, ic.name);
+                        ic.isInterface && RustDecl.isSharedInterface(ic);
                     })) false else if (isContentEqSortedTable(cls)) {
                     var all = true;
                     for (p in params)
