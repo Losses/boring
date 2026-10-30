@@ -138,6 +138,9 @@ Every candidate translation is evaluated across four fixed axes:
 
 ### Target specifications
 
+| Document | Status | Description |
+| --- | --- | --- |
+| [target-semantic-policy.md](target-semantic-policy.md) | Draft (v1.0.0-draft) | The single cross-target reference/handle semantics contract: representation classification, receiver ABI, passing modes, forbidden patterns, and the typed-IR vocabulary (ReprType/UseMode/ExprInfo/ReceiverAbi/ParamMode) in `packages/compiler/SemanticPolicy.hx`. |
 
 ## Maintenance rule
 
