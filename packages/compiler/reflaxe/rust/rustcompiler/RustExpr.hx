@@ -4895,13 +4895,7 @@ class RustExpr {
                 if (!StringTools.endsWith(s, ".clone()")
                     && !StringTools.endsWith(s, ".to_vec()")
                     && !StringTools.endsWith(s, ".to_ustring()")) {
-                    // A plain-class value entering a Null<Class> slot wraps
-                    // into its Rc handle before the Option, so the slot
-                    // stores Option<Rc<RefCell<T>>>. (NullPlainClassWrap)
-                    if (RustDecl.isPlainClassHandle(r.t))
-                        "Rc::new(RefCell::new(" + s + ".clone()))";
-                    else
-                        s + ".clone()";
+                    s + ".clone()";
                 } else {
                     s;
                 }
@@ -10018,10 +10012,6 @@ class RustExpr {
                 || StringTools.endsWith(rendered, ".clone()") ? rendered : rendered + ".to_ustring()";
         }
         if (!isTypeCopy(e.t) && !StringTools.endsWith(rendered, ".clone()") && !StringTools.endsWith(rendered, ".to_vec()")) {
-            // A plain-class static slot wraps its owned value into the Rc
-            // handle before storing. (NullPlainClassWrap)
-            if (RustDecl.isPlainClassHandle(e.t))
-                return "Rc::new(RefCell::new(" + rendered + ".clone()))";
             return rendered + ".clone()";
         }
         return rendered;
@@ -15942,12 +15932,6 @@ class RustExpr {
             final narrowed = narrowedSubject(actual);
             if (narrowed != null && !isTypeCopy(getNullInnerType(actual.t)))
                 return "(*" + narrowed + ").clone()";
-            // A plain nullable local passed to a non-null owned slot clones
-            // the payload through as_ref so the local survives later reads
-            // (a bare .unwrap() would move the Option and orphan them).
-            // (NullableArgBorrowClone)
-            if (!isTypeCopy(getNullInnerType(actual.t)))
-                return rendered + ".as_ref().unwrap().clone()";
         }
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
