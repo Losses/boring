@@ -1,0 +1,8 @@
+# Target Semantic Policy typed-IR contract: plain-Haxe assertions over the
+# shared contract types. No macro Context and no target renderer run.
+#   haxe tests/haxe/semantic-policy/contract.hxml
+-cp packages/compiler
+-cp tests/haxe/semantic-policy
+-main SemanticPolicyContract
+--interp
+
