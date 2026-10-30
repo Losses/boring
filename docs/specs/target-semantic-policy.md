@@ -1,6 +1,6 @@
 # Target Semantic Policy
 
-Status: **v1.0.2**
+Status: **v1.1.0**
 
 Release note (v1.0.2): semantic rules unchanged; test-module compilation coverage added (P-20a).
 
@@ -422,6 +422,39 @@ guesses):
    test-compilation layer fails review (mirrors P-20 element 4).
 5. Positive: every test-module fixture compiles under the test-configuration
    layer. Negative: none.
+6. (shared rule)
+
+### P-21 Target symbol identity and ABI collision resolution
+
+1. (governance) Haxe distinct declarations stay distinct. A property's
+   implicit accessor and an explicit function are different symbols even when
+   one target ABI computes the same signature for both. Each target computes
+   its own legal namespace and signature set; a backend never re-decides the
+   question from a target compiler error message.
+2. Realization: every target emits a symbol map from SymbolId to the emitted
+   name. A legal natural name wins; on collision the target applies a
+   deterministic, target-specific mangling. Kotlin/JVM detects with the full
+   JVM descriptor (name plus receiver/static context plus erasure); MPP does
+   not treat a JVM annotation as common semantics. This round fills the Kotlin
+   realization for one collision family (property accessor against an explicit
+   method); TS/Swift/Dart/Rust stay TODO.
+3. IR: SymbolId, DeclKind, AccessorOrigin, TargetName, TargetAbiSignature,
+   CollisionGroup, MangleReason, and StableMangleKey. Lowering synthesizes the
+   implicit accessor and produces candidate symbols; the allocator assigns
+   names; the renderer consumes only assigned names.
+4. Validator: no two distinct SymbolIds in one target module may share one ABI
+   signature; no silent merge, override, or drop; every internal reference
+   resolves through the symbol map; a rename is stable and reproducible. A
+   residual collision reports an error before render, never at the target
+   compiler.
+5. Positive: static var current plus explicit setCurrent; static getter plus
+   explicit getX; instance setter/getter; object/static-state path; getter and
+   setter colliding separately; a field with no explicit accessor (no
+   regression); multiple collisions with declaration order shuffled (golden
+   unchanged); explicit overload with and without JVM erasure collision;
+   inheritance/override legal rewrite (no false positive); MPP common and JVM
+   source both compile; internal reads and writes call the correct symbol.
+   Negative: no platform declaration clash, and the symbol map is traceable.
 6. (shared rule)
 
 ### Shared version rule (element 6 of every entry)
