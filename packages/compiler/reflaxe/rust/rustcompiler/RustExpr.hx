@@ -4895,7 +4895,13 @@ class RustExpr {
                 if (!StringTools.endsWith(s, ".clone()")
                     && !StringTools.endsWith(s, ".to_vec()")
                     && !StringTools.endsWith(s, ".to_ustring()")) {
-                    s + ".clone()";
+                    // A plain-class value entering a Null<Class> slot wraps
+                    // into its Rc handle before the Option, so the slot
+                    // stores Option<Rc<RefCell<T>>>. (NullPlainClassWrap)
+                    if (RustDecl.isPlainClassHandle(r.t))
+                        "Rc::new(RefCell::new(" + s + ".clone()))";
+                    else
+                        s + ".clone()";
                 } else {
                     s;
                 }
@@ -10012,6 +10018,10 @@ class RustExpr {
                 || StringTools.endsWith(rendered, ".clone()") ? rendered : rendered + ".to_ustring()";
         }
         if (!isTypeCopy(e.t) && !StringTools.endsWith(rendered, ".clone()") && !StringTools.endsWith(rendered, ".to_vec()")) {
+            // A plain-class static slot wraps its owned value into the Rc
+            // handle before storing. (NullPlainClassWrap)
+            if (RustDecl.isPlainClassHandle(e.t))
+                return "Rc::new(RefCell::new(" + rendered + ".clone()))";
             return rendered + ".clone()";
         }
         return rendered;
