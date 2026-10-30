@@ -48,7 +48,7 @@ class SemanticPolicyContract {
     }
 
     static function checkVersionAndGovernance():Void {
-        check(SemanticPolicy.VERSION == "1.0.0-draft", "VERSION is the draft version");
+        check(SemanticPolicy.VERSION == "1.0.0", "VERSION is the released version (TL sign-off)");
         check(SemanticPolicy.DOC_PATH == "docs/specs/target-semantic-policy.md", "DOC_PATH names the governing doc");
         check(SemanticPolicy.OWNER == "Executor-B", "owner is the executor");
         check(SemanticPolicy.SIGN_OFF == "TL", "sign-off is the TL");
