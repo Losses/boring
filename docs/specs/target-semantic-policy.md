@@ -1,11 +1,13 @@
 # Target Semantic Policy
 
-Status: **v1.0.0**
+Status: **v1.0.2**
+
+Release note (v1.0.2): semantic rules unchanged; test-module compilation coverage added (P-20a).
 
 | Role | Party |
 | --- | --- |
 | Author / owner | Executor-B |
-| Sign-off / version | TL (captain); the draft is not normative until the TL promotes it to v1.0.0 |
+| Sign-off / version | TL (captain); the draft is not normative until the TL promotes it to v1.0.2 |
 | Architecture arbitration | Astra (lingsuan gpt-6-astra, open-ended consultation) |
 
 ## Purpose
@@ -401,6 +403,25 @@ guesses):
 3. `SemanticPolicy.VERSION` and `entryIds()` are the contract's change ledger.
 4. A backend-only change with no policy/IR edit fails review.
 5. Positive: every fixture. Negative: none.
+6. (shared rule)
+
+### P-20a Validation coverage (test modules)
+
+1. (governance) A test module (a class carrying @:test functions) is emitted
+   under `#[cfg(test)]` and only compiles when the target's test configuration
+   builds; the L2 metadata/syntax layer never reaches it.
+2. Rust: the validation ladder adds a test-compilation layer (`cargo test
+   --no-run`) that compiles every cfg(test)/test module in addition to the
+   metadata/syntax layer, so a change is green only when both the shipping
+   tree and the test tree compile; a test unit skipped by an upstream
+   dependency failure is reported as not-measured, never as 0 errors. TS,
+   Kotlin, Swift, Dart: TODO interface.
+3. `SemanticPolicy.ENTRY_VALIDATION_COVERAGE` (a governance entry; no new IR
+   type).
+4. A backend change that alters test-module emission without running the
+   test-compilation layer fails review (mirrors P-20 element 4).
+5. Positive: every test-module fixture compiles under the test-configuration
+   layer. Negative: none.
 6. (shared rule)
 
 ### Shared version rule (element 6 of every entry)
