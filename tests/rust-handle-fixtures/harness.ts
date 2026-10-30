@@ -21,6 +21,8 @@ const CONSTRUCTS: Record<string, string> = {
   StaticMutable: "static-mutable",
   CollectionHandle: "collection",
   AliasIdentity: "alias-identity",
+  MultiFieldChain: "multi-field-chain",
+  HandleParamChain: "param-chain",
 };
 
 const GOLDEN_PATTERNS: Array<{ category: string; pattern: RegExp; desc: string }> = [
