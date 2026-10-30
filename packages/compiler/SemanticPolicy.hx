@@ -11,6 +11,14 @@ package;
     declared in the mapping table (docs/specs/target-semantic-policy.md), never
     the policy itself.
 
+    Final boundary (single-thread target):
+      - Rc<RefCell<T>>            = plain class
+      - Rc<RefCell<dyn Trait>>    = interface / shared interface
+      - Rc<RefCell<dyn FnMut..>>  = function value
+    All three express single-thread aliasing plus interior mutability.
+    Arc/Mutex belong only to an explicitly declared threaded realization and
+    are never implied by this v1 policy.
+
     Governance (see docs/specs/target-semantic-policy.md):
       - author/owner  = Executor-B
       - sign-off      = TL (captain); a draft is not normative until the TL
@@ -28,6 +36,15 @@ enum Nullability {
     Nullable;
 }
 
+/** Whether a function value's closure environment may mutate across calls. */
+enum FunctionMutability {
+    /** canonical: the environment may mutate, so calls take FnMut. */
+    FnMut;
+
+    /** optimization: proven immutable, so calls may take Fn (Rc<dyn Fn>). */
+    Fn;
+}
+
 /**
     The target representation category of a Haxe type (policy entry P-1).
 
@@ -42,12 +59,12 @@ enum Nullability {
                                  class/interface reference folds its nullability
                                  into the Handle; Null<T> over a *value* uses
                                  Nullable(inner) instead)
-      - function/closure      -> Function
+      - function/closure      -> Function(args, result, mutability, captures)
       - static/global         -> Static(inner)  (storage-position classifier)
 
     A plain class or interface is never a value: its object identity is shared,
-    realized in Rust as Rc<RefCell<T>> (plain) or Box<dyn Trait> /
-    Arc<Mutex<dyn Trait>> (interface, shared per @:sharedHandle).
+    realized in Rust as Rc<RefCell<T>> (plain class) or Rc<RefCell<dyn Trait>>
+    (interface, including shared interfaces per @:sharedHandle).
 **/
 enum ReprType {
     /** primitive/copy: Int, Float, Bool, String, parameterless enums, @:valueType abstracts. */
@@ -62,7 +79,10 @@ enum ReprType {
 
         - class_id   : the Haxe class/interface identity (module-qualified).
         - nullability: whether the slot admits Null.
-        - shared     : true when the interface is @:sharedHandle (Arc<Mutex<...>>).
+        - shared     : true when the interface is @:sharedHandle. This marks an
+                       alias obligation (the same implementor identity across
+                       slots), not thread safety; the realization stays
+                       Rc<RefCell<dyn Trait>>.
     **/
     Handle(class_id:String, nullability:Nullability, shared:Bool);
 
@@ -72,8 +92,19 @@ enum ReprType {
     /** nullable value: Null<T> where T is a value repr. Nullable handles use Handle(nullability=Nullable). */
     Nullable(inner:ReprType);
 
-    /** function/closure: a first-class function value. Realized as a boxed trait object. */
-    Function;
+    /**
+        function/closure: a first-class function value, i.e. a single-thread
+        alias to a closure environment. Canonical Rust realization is
+        Rc<RefCell<dyn FnMut(args) -> result>>; a proven-immutable value may use
+        Rc<dyn Fn(args) -> result> as an observationally-equivalent optimization.
+        Cloning clones the handle Rc only, never the environment.
+
+        - args      : the parameter reprs.
+        - result    : the return repr.
+        - mutability: FnMut (canonical) or Fn (proven immutable).
+        - captures  : the reprs of the captured bindings.
+    **/
+    Function(args:Array<ReprType>, result:ReprType, mutability:FunctionMutability, captures:Array<ReprType>);
 
     /** static/global state: a static-field position wrapping the inner repr. */
     Static(inner:ReprType);
@@ -83,9 +114,12 @@ enum ReprType {
     How a value or handle is passed or used at one occurrence (policy entry P-5).
 
     Frozen variant set: Owned, SharedRef, HandleClone, ReadBorrow, WriteBorrow,
-    Move. The four semantic render primitives map onto these modes and back:
+    Move. Function values add two primitives: FunctionHandleClone (clone the
+    handle Rc, never the environment) and Call (invoke through the handle).
+    The render primitives map onto the modes and back:
     handle_clone -> HandleClone, borrow_read -> ReadBorrow,
-    borrow_write -> WriteBorrow, call_receiver -> the receiver's resolved mode.
+    borrow_write -> WriteBorrow, call_receiver -> the receiver's resolved mode,
+    function_handle_clone -> FunctionHandleClone, function_call -> Call.
     A renderer may only emit an already-resolved mode, never a new judgment
     about whether a value is Copy, Rc, &Rc, or Clone.
 **/
@@ -107,6 +141,12 @@ enum UseMode {
 
     /** Move ownership: by-value transfer of an owned value or handle. */
     Move;
+
+    /** Clone a function handle: Rc::clone only, never a copy of the closure environment. */
+    FunctionHandleClone;
+
+    /** Invoke a function value through its handle. */
+    Call;
 }
 
 /**
