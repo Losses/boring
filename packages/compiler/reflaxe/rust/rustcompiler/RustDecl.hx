@@ -2858,7 +2858,7 @@ class RustDecl {
                 if (pType.indexOf("UString") >= 0)
                     imports.requireType("runtime.UString", "UString");
                 if (argIsMutated(f.expr, a.name) && StringTools.startsWith(pType, "&Vec<")) pType = "&mut " + pType.substr(1);
-                else if (argIsMutated(f.expr, a.name) && isMutableRefParamType(a.type)) pType = "&mut " + pType;
+                else if (argIsMutated(f.expr, a.name) && isMutableRefParamType(a.type) && !StringTools.startsWith(pType, "Rc<RefCell<")) pType = "&mut " + pType;
                 expr.setArgType(a.name, pType);
                 final mentioned = argIsMentioned(f.expr, a.name) || coalescedParams.exists(a.name);
                 (mentioned ? "" : "_") + RustImports.toSnakeCase(a.name) + ": " + pType;
