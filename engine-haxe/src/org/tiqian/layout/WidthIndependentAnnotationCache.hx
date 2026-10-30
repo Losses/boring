@@ -159,6 +159,7 @@ class WidthIndependentParagraphAnnotation {
     }
 }
 
+@:sharedHandle
 interface WidthIndependentAnnotationCache {
     function get(key:WidthIndependentAnnotationKey):Null<WidthIndependentParagraphAnnotation>;
     function put(key:WidthIndependentAnnotationKey, annotation:WidthIndependentParagraphAnnotation):Void;
