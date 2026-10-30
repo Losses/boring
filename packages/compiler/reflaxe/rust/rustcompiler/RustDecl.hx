@@ -3758,7 +3758,7 @@ lines.push("        }");
                     for (p in params) if (!isCloneTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) return false;
                     return true;
                 })() else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey) else if (cls.isInterface)
-                    sealedCloneInterfaces.exists(cls.module + "::" + cls.name) || (selfIfaceKey != null && selfIfaceKey == cls.module + "::" + cls.name) else if (cls.meta.has(":dataClass"))
+                    isSharedInterface(cls.module, cls.name) || sealedCloneInterfaces.exists(cls.module + "::" + cls.name) || (selfIfaceKey != null && selfIfaceKey == cls.module + "::" + cls.name) else if (cls.meta.has(":dataClass"))
                     dataClassFieldsAllClone(cls, depth, root, sealedCloneInterfaces, selfIfaceKey) else plainClassAllClone(cls, depth, root, sealedCloneInterfaces, selfIfaceKey);
             case TFun(_):
                 true;
