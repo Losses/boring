@@ -243,8 +243,8 @@ enum ParamMode {
     or more entries, so the document and the typed contract cannot drift.
 **/
 class SemanticPolicy {
-    /** Normative version, promoted to v1.0.2 under TL sign-off. */
-    public static final VERSION:String = "1.0.2";
+    /** Normative version, promoted to v1.1.0 under TL sign-off. */
+    public static final VERSION:String = "1.1.0";
 
     /** Governing document, repository-relative. */
     public static final DOC_PATH:String = "docs/specs/target-semantic-policy.md";
@@ -276,6 +276,7 @@ class SemanticPolicy {
     public static final ENTRY_TRACE:String = "P-19";
     public static final ENTRY_WORKFLOW:String = "P-20";
     public static final ENTRY_VALIDATION_COVERAGE:String = "P-20a";
+    public static final ENTRY_ABI_COLLISION:String = "P-21";
 
     /**
         Every policy entry id in document order. Validators and the unit suite
@@ -303,7 +304,8 @@ class SemanticPolicy {
             ENTRY_VALIDATOR,
             ENTRY_TRACE,
             ENTRY_WORKFLOW,
-            ENTRY_VALIDATION_COVERAGE
+            ENTRY_VALIDATION_COVERAGE,
+            ENTRY_ABI_COLLISION
         ];
     }
 }
