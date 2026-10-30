@@ -294,12 +294,12 @@ class KotlinDecl {
             if ((constructorArgNames.exists(v.field.name) && !boundary) || isGetterOnlyProperty(v.field)) {
                 continue;
             }
-            final backedByExplicitAccessor = hasExplicitAccessorFor(explicitAccessorNames, v.field.name);
             if (ctorInit.assigned.indexOf(v.field.name) >= 0) {
-                final vis = backedByExplicitAccessor ? "private " : "";
-                lines.push('    ${vis}${(v.field.isFinal ? "val" : "var")} ${KotlinNameEscape.escape(v.field.name)}: ${types.of(v.field.type)}');
+                final decl = '    ${(v.field.isFinal ? "val" : "var")} ${KotlinNameEscape.escape(v.field.name)}: ${types.of(v.field.type)}';
+                for (l in accessorRenameAnnotations(explicitAccessorNames, v.field.name).concat([decl]))
+                    lines.push(l);
             } else {
-                for (l in classVarDecl(v, backedByExplicitAccessor))
+                for (l in classVarDecl(v, explicitAccessorNames))
                     lines.push(l);
             }
         }
@@ -1183,7 +1183,9 @@ class KotlinDecl {
             // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
             final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
             final typeText = nullInitialized ? types.of(field.type) + "?" : types.of(field.type);
-            return ['    $vis$kw ${KotlinNameEscape.escape(field.name)}: $typeText = $initStr'];
+            final decl = '    $vis$kw ${KotlinNameEscape.escape(field.name)}: $typeText = $initStr';
+            final renames = kw == "const val" ? [] : accessorRenameAnnotations(staticMemberNames(cls), field.name);
+            return renames.concat([decl]);
         }
         if (field.meta.has(":value")) {
             Context.error("instance field default has no lowering; assign it in the constructor", field.pos);
@@ -1225,15 +1227,34 @@ class KotlinDecl {
         return methodNames.indexOf("set" + cap) >= 0 || methodNames.indexOf("get" + cap) >= 0;
     }
 
-    function classVarDecl(v:ClassVarData, backedByExplicitAccessor:Bool = false):Array<String> {
+    /**
+        JVM accessor renames for a property whose Kotlin accessor would
+        collide with an explicit getX/setX method. The implicit Haxe accessor
+        keeps its get_/set_ name, and the explicit method keeps its camelCase
+        name. The suffix is the field name, so it is deterministic and
+        independent of declaration order.
+    **/
+    function accessorRenameAnnotations(methodNames:Array<String>, fieldName:String):Array<String> {
+        final cap = fieldName.charAt(0).toUpperCase() + fieldName.substr(1);
+        final lines:Array<String> = [];
+        if (methodNames.indexOf("get" + cap) >= 0) {
+            lines.push('    @get:JvmName("get_' + fieldName + '")');
+        }
+        if (methodNames.indexOf("set" + cap) >= 0) {
+            lines.push('    @set:JvmName("set_' + fieldName + '")');
+        }
+        return lines;
+    }
+
+    function staticMemberNames(cls:ClassType):Array<String> {
+        return [for (f in cls.statics.get()) f.name];
+    }
+
+    function classVarDecl(v:ClassVarData, methodNames:Array<String>):Array<String> {
         final field = v.field;
         final kw = field.isFinal ? "val" : "var";
         // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
         final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
-        // A public backing field next to an explicit setX/getX method emits
-        // two same-erased-signature accessors; the explicit method wins and
-        // the storage goes private.
-        final effVis = backedByExplicitAccessor ? "private " : vis;
         var initStr = "";
         var lateStr = "";
         switch (field.kind) {
@@ -1264,9 +1285,8 @@ class KotlinDecl {
         // "var next: WidenedFieldNonNull" map back to the Haxe field.
         KotlinExpr.emissionTrace("FIELDDECL", KotlinNameEscape.escape(field.name), field.pos);
 #end
-        return [
-            '    ${effVis}${lateStr}${kw} ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}$initStr'
-        ];
+        final decl = '    ${vis}${lateStr}${kw} ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)}$initStr';
+        return accessorRenameAnnotations(methodNames, field.name).concat([decl]);
     }
 
     /**
