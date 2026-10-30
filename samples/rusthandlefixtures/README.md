@@ -23,6 +23,8 @@ to the Rust target and cargo-checked in its own crate.
 | StaticMutable | static-mutable | test_trace_recorder.rs (self -> static) |
 | CollectionHandle | collection | Array<handle> iteration |
 | AliasIdentity | alias-identity | Rc-clone identity, never a value copy |
+| MultiFieldChain | multi-field-chain | E0382 attempt: line_adjustment_stage.rs:899 LayoutResult::new giant call (implicit handle copy across multi-field borrow chain) |
+| HandleParamChain | param-chain | handle param drives multiple instance calls (mutate then read), borrowed per call |
 
 ## Run
 
@@ -50,7 +52,16 @@ the shared runtime) must stay free of:
 
 ## Frozen-v2 baseline
 
-reports/baseline.jsonl is the frozen v2 emitter snapshot. Currently red:
-SELF_REWRAP (SelfRewrap) and MUT_SELF (ClosureCapture). The other twelve
-constructs compile clean under v2's clone-everything call-site heuristic, so
-they act as the regression guard while the IR handle-lowering lands.
+reports/baseline.jsonl is the frozen v2 emitter snapshot. 16 fixtures, red:
+SELF_REWRAP (SelfRewrap), MUT_SELF (ClosureCapture), MUT_SELF (HandleParamChain).
+The other thirteen constructs compile clean under v2's clone-everything
+call-site heuristic, so they act as the regression guard while the IR
+handle-lowering lands.
+
+The two E0382-attempt fixtures (MultiFieldChain, HandleParamChain) are
+engine-level compound reproductions. In isolation they still compile green
+under v2's clone-everything heuristic -- E0382 ("value moved here") needs the
+full tiqian multi-field expression tree (LayoutResult::new at
+line_adjustment_stage.rs:899), not a single-construct reproducer. They stay
+as canaries: once the IR handle-lowering lands, these are the first E0382
+regression signals.
