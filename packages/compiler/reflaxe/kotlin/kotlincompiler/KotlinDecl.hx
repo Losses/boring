@@ -182,6 +182,8 @@ class KotlinDecl {
             return extractedParts.join("\n\n");
         }
 
+        validateAbiCollisions(cls, ordinaryFuncs);
+
         final isObject = isAllStatic(varFields, ordinaryFuncs);
         final lines:Array<String> = [];
 
@@ -1248,6 +1250,47 @@ class KotlinDecl {
 
     function staticMemberNames(cls:ClassType):Array<String> {
         return [for (f in cls.statics.get()) f.name];
+    }
+
+    function jvmErasure(t:Null<Type>):String {
+        switch (Context.follow(t)) {
+            case TAbstract(a, params):
+                switch (a.get().name) {
+                    case "Int": return "I";
+                    case "Float": return "F";
+                    case "Bool": return "Z";
+                    case "Void": return "V";
+                    case "Null": return jvmErasure(params[0]);
+                    case "String": return "Ljava/lang/String;";
+                    default: return "Ljava/lang/Object;";
+                }
+            case TInst(c, params):
+                final cn = c.get();
+                if (cn.name == "Array" && params.length > 0) {
+                    final e = jvmErasure(params[0]);
+                    return (e == "I" || e == "F" || e == "Z") ? "[" + e : "Ljava/util/List;";
+                }
+                return "L" + StringTools.replace(cn.module, ".", "/") + "/" + cn.name + ";";
+            case TEnum(e, _):
+                return "L" + StringTools.replace(e.get().module, ".", "/") + "/" + e.get().name + ";";
+            case TType(t, _):
+                return jvmErasure(t.get().type);
+            default:
+                return "Ljava/lang/Object;";
+        }
+    }
+
+    function validateAbiCollisions(cls:ClassType, funcFields:Array<ClassFuncData>):Void {
+        final seen:Map<String, String> = [];
+        for (f in funcFields) {
+            final params = [for (a in f.args) jvmErasure(a.type)].join("");
+            final sig = (f.isStatic ? "static" : "instance") + ":" + f.field.name + "(" + params + ")";
+            final symbol = cls.name + "." + f.field.name;
+            if (seen.exists(sig)) {
+                Context.error("ABI collision: " + seen.get(sig) + " and " + symbol + " share JVM signature " + sig, f.field.pos);
+            }
+            seen.set(sig, symbol);
+        }
     }
 
     function classVarDecl(v:ClassVarData, methodNames:Array<String>):Array<String> {
