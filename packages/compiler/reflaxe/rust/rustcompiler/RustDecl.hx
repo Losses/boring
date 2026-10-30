@@ -1548,7 +1548,6 @@ class RustDecl {
             case TInst(c, _):
                 final cls = c.get();
                 !cls.isInterface
-                    && !isPlainClassHandleClass(cls)
                     && cls.name != "Array" && cls.name != "String" && cls.name != "StringBuf"
                     && !(cls.pack.join(".") == "haxe.io" && cls.name == "Bytes");
             case _: false;
