@@ -9,6 +9,7 @@ import SemanticPolicy.ExprInfo;
 import SemanticPolicy.ReceiverAbi;
 import SemanticPolicy.ParamMode;
 import SemanticPolicy.Nullability;
+import SemanticPolicy.FunctionMutability;
 
 /**
     Unit contract for the Target Semantic Policy typed-IR vocabulary.
@@ -75,7 +76,12 @@ class SemanticPolicyContract {
         final shared:ReprType = ReprType.Handle("tests.ISharedCounter", Nullability.NonNull, true);
         final coll:ReprType = ReprType.Collection(ReprType.Copy);
         final nullableValue:ReprType = ReprType.Nullable(ReprType.Copy);
-        final fn:ReprType = ReprType.Function;
+        final fn:ReprType = ReprType.Function(
+            [ReprType.Copy],
+            ReprType.Copy,
+            FunctionMutability.FnMut,
+            [ReprType.Handle("tests.Counter", Nullability.NonNull, false)]
+        );
         final stat:ReprType = ReprType.Static(ReprType.Handle("tests.Counter", Nullability.NonNull, false));
 
         check(copy == ReprType.Copy, "Copy variant constructible");
@@ -92,7 +98,7 @@ class SemanticPolicyContract {
         }
         switch (shared) {
             case ReprType.Handle(_, _, s):
-                check(s == true, "shared handle carries shared=true");
+                check(s == true, "shared handle carries shared=true (alias obligation)");
             case _: check(false, "shared handle is a Handle");
         }
         switch (coll) {
@@ -103,7 +109,15 @@ class SemanticPolicyContract {
             case ReprType.Nullable(e): check(e == ReprType.Copy, "nullable value wraps a value repr");
             case _: check(false, "nullable value is a Nullable");
         }
-        check(fn == ReprType.Function, "Function variant constructible");
+        switch (fn) {
+            case ReprType.Function(args, result, mut, caps):
+                check(args.length == 1 && args[0] == ReprType.Copy, "function carries parameter reprs");
+                check(result == ReprType.Copy, "function carries its result repr");
+                check(mut == FunctionMutability.FnMut, "function mutability is FnMut by default");
+                check(caps.length == 1, "function carries its captured reprs");
+            case _: check(false, "function is a Function{args,result,mutability,captures}");
+        }
+        check(FunctionMutability.FnMut != FunctionMutability.Fn, "FnMut and Fn mutability are distinct");
         switch (stat) {
             case ReprType.Static(_): check(true, "Static variant constructible");
             case _: check(false, "static state is a Static");
@@ -114,8 +128,13 @@ class SemanticPolicyContract {
         check(UseMode.Owned != UseMode.Move, "Owned and Move are distinct modes");
         check(UseMode.SharedRef != UseMode.HandleClone, "SharedRef and HandleClone are distinct");
         check(UseMode.ReadBorrow != UseMode.WriteBorrow, "ReadBorrow and WriteBorrow are distinct");
-        final primitives:Array<String> = ["handle_clone", "borrow_read", "borrow_write", "call_receiver"];
-        check(primitives.length == 4, "exactly four render primitives are sanctioned");
+        check(UseMode.HandleClone != UseMode.FunctionHandleClone, "HandleClone and FunctionHandleClone are distinct");
+        check(UseMode.Call != UseMode.ReadBorrow, "Call is a distinct mode");
+        final primitives:Array<String> = [
+            "handle_clone", "borrow_read", "borrow_write", "call_receiver",
+            "function_handle_clone", "function_call"
+        ];
+        check(primitives.length == 6, "exactly six render primitives are sanctioned");
     }
 
     static function checkIdentityAndPlace():Void {

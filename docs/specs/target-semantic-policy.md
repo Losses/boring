@@ -39,6 +39,21 @@ A target realization must not be mistaken for a cross-target rule. `Rc<RefCell<T
 is how the Rust target realizes "plain-class handle", not a global policy that
 the other four targets must copy.
 
+## Final boundary
+
+This policy describes Haxe's single-threaded identity and aliasing semantics.
+Rust must not smuggle Arc/Mutex in to prepare for a possible future threaded
+host. In the single-thread Rust realization:
+
+- `Rc<RefCell<T>>` = plain class
+- `Rc<RefCell<dyn Trait>>` = interface / shared interface
+- `Rc<RefCell<dyn FnMut(..) -> R>>` = function value
+
+All three express single-thread aliasing plus interior mutability. Arc and Mutex
+belong only to an explicitly declared threaded realization, never to this v1
+policy. A future threaded host is a separate threaded target policy; v1 does not
+implicitly promise it.
+
 ## Typed IR vocabulary
 
 Defined in `packages/compiler/SemanticPolicy.hx`; one-to-one with the entries
@@ -46,10 +61,11 @@ below.
 
 - `ReprType` — the representation category of a Haxe type:
   `Copy`, `ImmutableValue`, `Handle(class_id, nullability, shared)`,
-  `Collection(element)`, `Nullable(inner)`, `Function`, `Static(inner)`.
+  `Collection(element)`, `Nullable(inner)`,
+  `Function(args, result, mutability, captures)`, `Static(inner)`.
 - `UseMode` — how a value/handle is used at one occurrence:
   `Owned`, `SharedRef`, `HandleClone`, `ReadBorrow`, `WriteBorrow`,
-  `Move`.
+  `Move`, plus the function primitives `FunctionHandleClone` and `Call`.
 - `ExprInfo` — `{ repr, identity, place_kind }`; `identity` is one of
   `SelfHandle`, `LocalHandle`, `FieldHandle`, `FreshObject`,
   `BorrowedProjection`; `place_kind` is one of `Value`, `Local`,
@@ -57,6 +73,7 @@ below.
 - `ReceiverAbi` — `None` (static) or `SharedHandle` (instance:
   `&Rc<RefCell<Self>>` in Rust).
 - `ParamMode` — `Owned`, `SharedRef`, `MutableRef`, `HandleClone`.
+- `FunctionMutability` — `FnMut` (canonical) or `Fn` (proven immutable).
 
 ### UseMode naming consolidation
 
@@ -73,11 +90,14 @@ used here:
 | WriteBorrow | BorrowMutInterior / DerefWrite |
 | Move | by-value transfer of an owned value or handle |
 
-The four render primitives map onto the modes and back:
-`handle_clone` -> `HandleClone`, `borrow_read` -> `ReadBorrow`,
+Function values add two primitives beyond the six value modes:
+`FunctionHandleClone` (clone the handle Rc, never the environment) and
+`Call` (invoke through the handle). The render primitives map onto the modes
+and back: `handle_clone` -> `HandleClone`, `borrow_read` -> `ReadBorrow`,
 `borrow_write` -> `WriteBorrow`, `call_receiver` -> the receiver's
-resolved mode. A renderer emits only these resolved primitives; it never
-re-derives whether a value is Copy, Rc, &Rc, or Clone.
+resolved mode, `function_handle_clone` -> `FunctionHandleClone`,
+`function_call` -> `Call`. A renderer emits only these resolved primitives;
+it never re-derives whether a value is Copy, Rc, &Rc, or Clone.
 
 ## Policy entries
 
@@ -99,10 +119,10 @@ Each entry carries the six required elements:
 2. Rust: Int/Float/Bool/String/parameterless-enums/@:valueType -> the native
    scalar or a Copy/Clone struct; @:dataClass/payload-enums/sorted-tables ->
    an owned value with Clone/PartialEq derives; plain class -> Rc<RefCell<T>>;
-   interface -> Box<dyn Trait> or Arc<Mutex<dyn Trait>>; collection -> Vec /
-   HashMap / sorted table; nullable -> Option<inner>; function -> a boxed trait
-   object; static/global -> a LazyLock/Mutex/single-thread wrapper. TS, Kotlin,
-   Swift, Dart: TODO interface.
+   interface -> Rc<RefCell<dyn Trait>>; collection -> Vec / HashMap / sorted
+   table; nullable -> Option<inner>; function -> Rc<RefCell<dyn FnMut>>;
+   static/global -> a LazyLock/Mutex/single-thread wrapper. TS, Kotlin, Swift,
+   Dart: TODO interface.
 3. `ReprType` (all variants).
 4. Every Haxe type handed to a renderer must carry a non-empty `ReprType`; an
    unclassified type is a lowering error.
@@ -124,14 +144,15 @@ Each entry carries the six required elements:
 
 ### P-3 Interface handle
 
-1. An interface value is a handle to a concrete implementor, not an owned copy.
-2. Rust: `Box<dyn Trait>`; when shared, `Arc<Mutex<dyn Trait>>`. The
-   generated trait declares **no** Send/Sync supertraits. TS/Kotlin/Swift/Dart:
-   TODO interface.
-3. `ReprType.Handle(class_id, nullability, shared)` with `shared` set from
-   @:sharedHandle.
+1. An interface value is an aliasing handle to an implementor, never an owned
+   copy. Interface handle identity is preserved across slots.
+2. Rust: canonical single-thread realization is `Rc<RefCell<dyn Trait>>`, the
+   same as a plain interface handle; the trait has no Send/Sync supertraits.
+   Arc<Mutex<dyn Trait>> is not policy. TS/Kotlin/Swift/Dart: TODO interface.
+3. `ReprType.Handle(class_id, nullability, shared)`.
 4. A generated trait that adds `Send` or `Sync` is rejected
-   (`NEG-send-sync`).
+   (`NEG-send-sync`); an interface slot that re-wraps the implementor into a
+   fresh handle is rejected (`NEG-self-rewrap`).
 5. Positive: `FX-interface-dispatch`. Negative: `NEG-send-sync`.
 6. (shared rule)
 
@@ -151,12 +172,13 @@ Each entry carries the six required elements:
 
 ### P-5 UseMode
 
-1. Every occurrence of a value/handle is passed or used in exactly one of the
-   six modes.
+1. Every occurrence of a value/handle is passed or used in exactly one mode.
 2. Rust: Owned -> owned Rc/Vec/value; SharedRef -> &Rc<RefCell<T>> / &T /
    &UStr / &[T]; HandleClone -> Rc::clone; ReadBorrow -> RefCell::borrow;
-   WriteBorrow -> RefCell::borrow_mut; Move -> by-value transfer.
-3. `UseMode` (all six variants).
+   WriteBorrow -> RefCell::borrow_mut; Move -> by-value transfer;
+   FunctionHandleClone -> Rc::clone of a function handle (never the
+   environment); Call -> invoke through the handle.
+3. `UseMode` (six value modes plus `FunctionHandleClone` and `Call`).
 4. An unresolved mode is a lowering error, never a silent guess.
 5. Positive: `FX-owned-borrowed-param`, `FX-chain-call`. Negative:
    `NEG-unresolved-mode`.
@@ -265,13 +287,24 @@ Each entry carries the six required elements:
 
 ### P-14 Function / closure value
 
-1. A first-class function value is a value that can be stored, passed, and
-   returned.
-2. Rust: a boxed trait object (`Arc<dyn Fn(..) -> R>`), carrying **no**
-   Send/Sync bounds, because a function value that captures a plain-class
-   handle is !Send. TS, Kotlin, Swift, Dart: TODO interface.
-3. `ReprType.Function`.
-4. A function-value trait object that re-adds Send/Sync is rejected.
+1. A function value is a single-thread alias to a closure environment. Cloning
+   a function value clones the handle and preserves one environment, never
+   copies the environment. The Haxe closure environment can be mutated by a
+   call, so FnMut is the robust base model.
+2. Rust: canonical realization is `Rc<RefCell<dyn FnMut(Args) -> R>>`. A
+   proven-immutable value may use `Rc<dyn Fn(Args) -> R>` as an
+   observationally-equivalent optimization; it must not change the policy-level
+   type. No Send/Sync bounds, ever. A function value crossing a shared-interface
+   slot is not cross-thread: shared-slot function parameters/returns still use
+   the same function handle, never Arc or Fn+Send+Sync. TS, Kotlin, Swift,
+   Dart: TODO interface.
+3. `ReprType.Function(args, result, mutability, captures)` with
+   `FunctionMutability.FnMut` (canonical) or `FunctionMutability.Fn`
+   (proven immutable); clone via `UseMode.FunctionHandleClone`; invoke via
+   `UseMode.Call`.
+4. The validator forbids copying a closure environment, forbids a function
+   value entering a Send/Sync-bound API, and checks that a shared-slot function
+   type stays consistent (same function handle, no Arc).
 5. Positive: `FX-closure`. Negative: `NEG-send-sync`.
 6. (shared rule)
 
@@ -291,14 +324,17 @@ Each entry carries the six required elements:
 
 ### P-16 @:sharedHandle metadata
 
-1. `@:sharedHandle` marks an interface whose implementors must be shared
-   across an interface slot (a cache or shaper handed to an engine).
-2. Rust: `Arc<Mutex<dyn Trait>>`; the shared flag enters classification
-   **from the metadata**, never from a hard-coded class-name whitelist. TS,
+1. `@:sharedHandle` marks an interface handle whose slots must alias the same
+   implementor identity. It changes classification and alias obligations, not
+   thread-safety or storage primitive.
+2. Rust: the single-thread realization remains `Rc<RefCell<dyn Trait>>`;
+   metadata is the only source of shared classification, never a class-name
+   whitelist. Each slot passes the same Rc; the object is never re-wrapped into
+   multiple handles; Rc::clone is a handle clone, not an object clone. TS,
    Kotlin, Swift, Dart: TODO interface.
 3. `ReprType.Handle(class_id, nullability, shared=true)`.
-4. A shared-classification path that compares class names instead of reading
-   `@:sharedHandle` is rejected.
+4. The validator rejects fresh wrappers that break identity and rejects
+   Arc/Mutex unless a separately declared threaded realization is selected.
 5. Positive: `FX-interface-dispatch` (shared interface). Negative:
    `NEG-class-name-whitelist`.
 6. (shared rule)
@@ -312,6 +348,8 @@ The frozen stop-list is normative. These are rejected, never worked around:
 - wrapping `self.clone()` in `Rc` to fabricate a receiver;
 - restoring Send+Sync on interface traits or function values;
 - classifying `shared` by a class-name whitelist;
+- introducing Arc/Mutex into a single-thread slot without a separately declared
+  threaded realization;
 - judging convergence by total error count alone;
 - treating an old fixture as an Rc-migrated baseline without a semantic diff.
 
@@ -331,6 +369,10 @@ guesses):
 - an instance-method call whose receiver is not a HandleExpr is rejected (P-4).
 - an unresolved mode is a lowering error (P-5).
 - every expression carries a complete `ExprInfo` (P-6).
+- a function value is never cloned by copying its environment, never enters a
+  Send/Sync-bound API, and stays a consistent handle across shared slots (P-14).
+- a shared interface slot never re-wraps the implementor, and never uses
+  Arc/Mutex without a threaded realization (P-16).
 
 3. `SemanticPolicy.hx` is the vocabulary the validator consumes.
 4. The validator runs before the renderer; a validator failure aborts emission.
@@ -376,29 +418,16 @@ fill-in (TODO -> concrete) does not bump the policy version.
 | primitive/copy | u32/i32, f32/f64, bool, UString | TODO | TODO | TODO | TODO |
 | immutable value | owned struct + Clone/PartialEq | TODO | TODO | TODO | TODO |
 | plain-class handle | Rc<RefCell<T>> | TODO | TODO | TODO | TODO |
-| interface handle | Box<dyn Trait> | TODO | TODO | TODO | TODO |
-| shared interface handle | Arc<Mutex<dyn Trait>> | TODO | TODO | TODO | TODO |
+| interface handle | Rc<RefCell<dyn Trait>> | TODO | TODO | TODO | TODO |
+| shared interface handle | Rc<RefCell<dyn Trait>> (alias obligation) | TODO | TODO | TODO | TODO |
 | collection (Array) | Vec<T> / &[T] / &mut Vec<T> | TODO | TODO | TODO | TODO |
 | collection (Map) | HashMap<K,V> / sorted table | TODO | TODO | TODO | TODO |
 | nullable value | Option<inner> | TODO | TODO | TODO | TODO |
-| function/closure | Arc<dyn Fn(..) -> R> (no Send/Sync) | TODO | TODO | TODO | TODO |
+| function/closure | Rc<RefCell<dyn FnMut(..) -> R>> (no Send/Sync); Rc<dyn Fn(..) -> R> as optimization | TODO | TODO | TODO | TODO |
 | static/global | LazyLock<SingleThread<T>> / Mutex / thread_local RefCell | TODO | TODO | TODO | TODO |
 
 The four TODO columns are declared interfaces only; this round implements the
 Rust realization and leaves the others untouched.
-
-## Open questions for TL / Astra
-
-These are recorded, not silently decided:
-
-1. **Function-value Send/Sync.** This policy strips Send/Sync from function
-   values (P-14) because a closure capturing a plain-class handle is !Send. The
-   frozen SOP names only "interface trait 无 Send+Sync". Confirm the P-14
-   extension or narrow it to interface traits only.
-2. **Shared interface realization.** The codebase currently realizes shared
-   interfaces as `Arc<Mutex<dyn Trait>>`, while plain handles use `Rc`. Confirm
-   that shared handles remain `Arc` (thread-safe) even though the rest of the
-   system is single-threaded, or rule that shared slots also use Rc.
 
 ## Design principles
 
