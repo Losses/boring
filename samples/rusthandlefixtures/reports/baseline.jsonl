@@ -5,7 +5,9 @@
 {"fixture":"CollectionHandle","construct":"collection","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|CollectionHandle"]}
 {"fixture":"HandleFieldRead","construct":"field-read","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|HandleFieldRead"]}
 {"fixture":"HandleFieldWrite","construct":"field-write","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|HandleFieldWrite"]}
+{"fixture":"HandleParamChain","construct":"param-chain","compile":"ok","cargoErrors":[],"fingerprints":["MUT_SELF|&mut self receiver|HandleParamChain"]}
 {"fixture":"InterfaceDispatch","construct":"interface-dispatch","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|InterfaceDispatch"]}
+{"fixture":"MultiFieldChain","construct":"multi-field-chain","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|MultiFieldChain"]}
 {"fixture":"NewReceiver","construct":"new-receiver","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|NewReceiver"]}
 {"fixture":"NullableHandle","construct":"nullable","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|NullableHandle"]}
 {"fixture":"OwnedParam","construct":"owned-param","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|OwnedParam"]}
