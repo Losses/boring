@@ -3625,9 +3625,21 @@ lines.push("        }");
     }
 
     function isAllClone(fields:Array<ClassVarData>, root:Null<ClassType> = null):Bool {
-        for (f in fields)
-            if (!f.isStatic && !isCloneTypeDepth(f.field.type, 0, root, state.sealedCloneInterfaces, null))
+        for (f in fields) {
+            if (f.isStatic)
+                continue;
+            // A shared interface lowers to Arc<Mutex<dyn Trait>>, which is
+            // always Clone regardless of the trait's clone_box sealing, so
+            // it keeps the owner's Clone derive. (SharedInterfaceClone)
+            final sharedIface = switch (Context.follow(f.field.type)) {
+                case TInst(c, _): final cls = c.get(); cls.isInterface && isSharedInterface(cls.module, cls.name);
+                case _: false;
+            };
+            if (sharedIface)
+                continue;
+            if (!isCloneTypeDepth(f.field.type, 0, root, state.sealedCloneInterfaces, null))
                 return false;
+        }
         return true;
     }
 
@@ -3758,7 +3770,7 @@ lines.push("        }");
                     for (p in params) if (!isCloneTypeDepth(p, depth, root, sealedCloneInterfaces, selfIfaceKey)) return false;
                     return true;
                 })() else if (n == "Array") params.length == 1 && isCloneTypeDepth(params[0], depth, root, sealedCloneInterfaces, selfIfaceKey) else if (cls.isInterface)
-                    isSharedInterface(cls.module, cls.name) || sealedCloneInterfaces.exists(cls.module + "::" + cls.name) || (selfIfaceKey != null && selfIfaceKey == cls.module + "::" + cls.name) else if (cls.meta.has(":dataClass"))
+                    sealedCloneInterfaces.exists(cls.module + "::" + cls.name) || (selfIfaceKey != null && selfIfaceKey == cls.module + "::" + cls.name) else if (cls.meta.has(":dataClass"))
                     dataClassFieldsAllClone(cls, depth, root, sealedCloneInterfaces, selfIfaceKey) else plainClassAllClone(cls, depth, root, sealedCloneInterfaces, selfIfaceKey);
             case TFun(_):
                 true;
