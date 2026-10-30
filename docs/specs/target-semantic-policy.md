@@ -1,6 +1,6 @@
 # Target Semantic Policy
 
-Status: **v1.0.0-draft**
+Status: **v1.0.0**
 
 | Role | Party |
 | --- | --- |

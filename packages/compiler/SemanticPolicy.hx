@@ -22,7 +22,7 @@ package;
     Governance (see docs/specs/target-semantic-policy.md):
       - author/owner  = Executor-B
       - sign-off      = TL (captain); a draft is not normative until the TL
-                        promotes v1.0.0-draft to v1.0.0.
+                        promotes a draft to a released version.
       - arbitration   = Astra (lingsuan gpt-6-astra, open-ended consultation).
 
     Every enum below corresponds one-to-one with a policy entry (P-n) in the
@@ -243,8 +243,8 @@ enum ParamMode {
     or more entries, so the document and the typed contract cannot drift.
 **/
 class SemanticPolicy {
-    /** Draft version. The TL promotes this to v1.0.0 after review. */
-    public static final VERSION:String = "1.0.0-draft";
+    /** Normative version, promoted to v1.0.0 under TL sign-off. */
+    public static final VERSION:String = "1.0.0";
 
     /** Governing document, repository-relative. */
     public static final DOC_PATH:String = "docs/specs/target-semantic-policy.md";
