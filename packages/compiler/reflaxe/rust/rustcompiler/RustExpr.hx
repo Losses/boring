@@ -15932,6 +15932,12 @@ class RustExpr {
             final narrowed = narrowedSubject(actual);
             if (narrowed != null && !isTypeCopy(getNullInnerType(actual.t)))
                 return "(*" + narrowed + ").clone()";
+            // A plain nullable local passed to a non-null owned slot clones
+            // the payload through as_ref so the local survives later reads
+            // (a bare .unwrap() would move the Option and orphan them).
+            // (NullableArgBorrowClone)
+            if (!isTypeCopy(getNullInnerType(actual.t)))
+                return rendered + ".as_ref().unwrap().clone()";
         }
         if (isNullType(expected) && isInterfaceType(getNullInnerType(expected)) && !isNullType(actual.t)) {
             if (rendered == "None" || StringTools.startsWith(rendered, "Some("))
