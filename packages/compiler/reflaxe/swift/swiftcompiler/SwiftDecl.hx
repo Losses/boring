@@ -457,8 +457,10 @@ class SwiftDecl {
 
     function emitHashOperation(owner:SwiftRecordPlan, operation:SwiftComparisonOperation, value:String, indent:String, lines:Array<String>, localIndex:Array<Int>, hasher:String = "hasher"):Void {
         switch (operation) {
-            case SwiftIntegerOrder, SwiftFloatOrder, SwiftBooleanOrder:
+            case SwiftIntegerOrder, SwiftBooleanOrder:
                 lines.push(indent + hasher + ".combine(" + value + ")");
+            case SwiftFloatOrder:
+                lines.push(indent + hasher + ".combine(" + floatHashBits(value) + ")");
             case SwiftUtf16StringOrder:
                 // Bulk-hash the UTF-16 storage in one pass instead of
                 // Array's element-wise Hashable walk: Dictionary keys built
@@ -505,6 +507,16 @@ class SwiftDecl {
                 lines.push(indent + "    " + index + " += 1");
                 lines.push(indent + "}");
         }
+    }
+
+    /** Canonical Haxe float hash bits (P-13 / Astra ruling): both signed
+        zeroes hash to zero bits, every NaN to the width's quiet-NaN token,
+        and any other value to its IEEE bitPattern (Infinity included).
+        Swift's bitPattern keeps raw NaN payloads, so the explicit isNaN
+        branch collapses them. (P-13 float canonical) */
+    function floatHashBits(value:String):String {
+        final nanToken = FloatPrecision.isF32() ? "0x7fc00000" : "0x7ff8000000000000";
+        return "(" + value + " == 0.0 ? 0 : (" + value + ".isNaN ? " + nanToken + " : " + value + ".bitPattern))";
     }
 
     function emitComparisonOperation(owner:SwiftRecordPlan, operation:SwiftComparisonOperation, left:String, right:String, indent:String, lines:Array<String>, localIndex:Array<Int>):Void {
