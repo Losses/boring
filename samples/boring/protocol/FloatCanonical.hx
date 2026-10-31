@@ -28,8 +28,14 @@ class FloatCanonical {
             high = bits.high;
             low = bits.low;
         }
-        writeU32(out, high);
-        writeU32(out, low);
+        out.addByte((high >>> 24) & 0xFF);
+        out.addByte((high >>> 16) & 0xFF);
+        out.addByte((high >>> 8) & 0xFF);
+        out.addByte(high & 0xFF);
+        out.addByte((low >>> 24) & 0xFF);
+        out.addByte((low >>> 16) & 0xFF);
+        out.addByte((low >>> 8) & 0xFF);
+        out.addByte(low & 0xFF);
         return out.getBytes();
     }
 
@@ -43,12 +49,15 @@ class FloatCanonical {
         } else {
             bits = haxe.io.FPHelper.floatToI32(value);
         }
-        writeU32(out, bits);
+        out.addByte((bits >>> 24) & 0xFF);
+        out.addByte((bits >>> 16) & 0xFF);
+        out.addByte((bits >>> 8) & 0xFF);
+        out.addByte(bits & 0xFF);
         return out.getBytes();
     }
 
     /** The lowercase hex text of the observation bytes (test-facing). */
-    public static function hex(b:Bytes):String {
+    public static function hex(b:haxe.io.Bytes):String {
         final digits = "0123456789abcdef";
         var out = "";
         for (i in 0...b.length) {
@@ -57,12 +66,5 @@ class FloatCanonical {
             out += digits.charAt(v & 0xF);
         }
         return out;
-    }
-
-    static function writeU32(out:BytesBuffer, value:Int):Void {
-        out.addByte((value >>> 24) & 0xFF);
-        out.addByte((value >>> 16) & 0xFF);
-        out.addByte((value >>> 8) & 0xFF);
-        out.addByte(value & 0xFF);
     }
 }
