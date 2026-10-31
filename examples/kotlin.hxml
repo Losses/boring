@@ -705,3 +705,7 @@ boring.WidenedFieldNonNull
 boring.FromCharCodeToString
 boring.ShiftPopStatement
 boring.GuardedNonNullTernaryElvis
+
+boring.protocol.FloatCanonical
+boring.protocol.CanonicalFingerprint
+tests.FloatCanonicalTests

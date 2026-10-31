@@ -706,3 +706,7 @@ boring.ClassInstanceLocalLet
 boring.BytesValueArrayVar
 boring.StringIndexOfDeadClamp
 boring.UnusedSwiftBinding
+
+boring.protocol.FloatCanonical
+boring.protocol.CanonicalFingerprint
+tests.FloatCanonicalTests
