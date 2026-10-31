@@ -69,7 +69,7 @@ class SemanticPolicyContract {
 
     static function checkEntryIds():Void {
         final ids = SemanticPolicy.entryIds();
-        check(ids.length == 22, "exactly 22 policy entries, got " + ids.length);
+        check(ids.length == 23, "exactly 23 policy entries, got " + ids.length);
         final seen = new Map<String, Bool>();
         for (i in 0...ids.length) {
             final id = ids[i];
@@ -77,7 +77,7 @@ class SemanticPolicyContract {
             check(!seen.exists(id), "entry id unique: " + id);
             seen.set(id, true);
         }
-        check(ids[0] == "P-1" && ids[ids.length - 1] == "P-21", "entry ids run P-1..P-21");
+        check(ids[0] == "P-1" && ids[ids.length - 1] == "P-23", "entry ids run P-1..P-23");
     }
 
     static function checkReprType():Void {

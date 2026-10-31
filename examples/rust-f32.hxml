@@ -707,3 +707,7 @@ tests.TestLitEdgeTests
 
 
 tests.SharedHandleTests
+
+boring.protocol.FloatCanonical
+boring.protocol.CanonicalFingerprint
+tests.FloatCanonicalTests

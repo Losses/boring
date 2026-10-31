@@ -79,3 +79,13 @@ export function canonicalFloatBytes(value: number, width: CanonicalFloatWidth): 
   }
   return out;
 }
+
+/** P-23 protocol observation: canonical f64 bytes (8 bytes, big-endian). */
+export function encode64(value: number): Uint8Array {
+  return canonicalFloatBytes(value, "F64");
+}
+
+/** P-23 protocol observation: canonical f32 bytes (4 bytes, big-endian). */
+export function encode32(value: number): Uint8Array {
+  return canonicalFloatBytes(value, "F32");
+}
