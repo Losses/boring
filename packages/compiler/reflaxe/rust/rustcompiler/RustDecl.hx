@@ -88,10 +88,10 @@ class RustDecl {
                 out.push(code);
             }
         }
-        if (out.length == 0) {
-            return "unsafe { &*(&[] as *const [u16] as *const crate::runtime::u_string::UStr) }";
-        }
-        return "unsafe { &*(&[" + [for (u in out) "0x" + StringTools.hex(u, 4) + "u16"].join(", ") + "] as *const [u16] as *const crate::runtime::u_string::UStr) }";
+        // Route every const UStr literal through the single proven safe
+        // constructor in the runtime (UStr::from_slice), so business
+        // modules never emit a bare unsafe reinterpretation (unsafe { &*(...) }).
+        return "crate::runtime::u_string::UStr::from_slice(&[" + [for (u in out) "0x" + StringTools.hex(u, 4) + "u16"].join(", ") + "])";
     }
 
     function constValFloatInit(init:TypedExpr, fieldType:Type):String {
