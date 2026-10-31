@@ -35,3 +35,12 @@ export type {
 } from "./vector-error.ts";
 export { VectorException, describeError } from "./vector-error.ts";
 export { vectorSortByCodePoint } from "./vector-sort.ts";
+export {
+  F32_BYTE_WIDTH,
+  F32_QUIET_NAN_TOKEN,
+  F64_BYTE_WIDTH,
+  F64_QUIET_NAN_TOKEN,
+  canonicalFloatBits,
+  canonicalFloatBytes,
+} from "./float-canonical.ts";
+export type { CanonicalFloatWidth } from "./float-canonical.ts";

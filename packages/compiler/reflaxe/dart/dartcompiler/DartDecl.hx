@@ -328,7 +328,8 @@ class DartDecl {
                 if (v.isStatic)
                     continue;
                 final fname = dartMemberName(v.field);
-                lines.push("    hash = 37 * hash + " + (isListType(v.field.type) ? "Object.hashAll(this." + fname + ")" : "this." + fname + ".hashCode") + ";");
+                final hashExpr = isListType(v.field.type) ? "Object.hashAll(this." + fname + ")" : (expr.isFloatType(v.field.type) ? "haxeFloatHashBits(this." + fname + ")" : "this." + fname + ".hashCode");
+                lines.push("    hash = 37 * hash + " + hashExpr + ";");
             }
             lines.push("    return hash;");
             lines.push("  }");

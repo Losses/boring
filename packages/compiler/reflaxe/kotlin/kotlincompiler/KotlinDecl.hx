@@ -376,14 +376,14 @@ class KotlinDecl {
         }
 
         if (isDataClass) {
-            var hasSortedField = false;
+            var needsManualHash = false;
             for (a in constructorFunc.args) {
-                if (isSortedTable(a.type)) {
-                    hasSortedField = true;
+                if (isSortedTable(a.type) || expr.isFloatType(a.type)) {
+                    needsManualHash = true;
                     break;
                 }
             }
-            if (hasSortedField) {
+            if (needsManualHash) {
                 final sortedNames:Map<String, Bool> = [];
                 for (a in constructorFunc.args) if (isSortedTable(a.type)) sortedNames.set(a.name, true);
                 final eqTerms:Array<String> = [];
@@ -393,6 +393,9 @@ class KotlinDecl {
                     if (sortedNames.exists(a.name)) {
                         eqTerms.push('this.' + name + '.toString() == other.' + name + '.toString()');
                         hashTerms.push('this.' + name + '.toString().hashCode()');
+                    } else if (expr.isFloatType(a.type)) {
+                        eqTerms.push('this.' + name + ' == other.' + name);
+                        hashTerms.push(floatHashBits('this.' + name));
                     } else {
                         eqTerms.push('this.' + name + ' == other.' + name);
                         hashTerms.push('this.' + name + '.hashCode()');
@@ -416,6 +419,18 @@ class KotlinDecl {
         lines.push("}");
         final result = withExtracted(extractedParts, lines.join("\n"));
         return cls.meta.has(":dataClass") ? result + "\n\n" + dataClassComparator(cls) : result;
+    }
+
+    /** Canonical Haxe float hash bits (P-13 / Astra ruling), then Kotlin's
+        Int fold via Long.hashCode(). Both signed zeroes hash to zero bits,
+        every NaN to the width's quiet-NaN token, and any other value to its
+        IEEE bits. Kotlin's toBits() already collapses every NaN payload to the
+        canonical token, so only the signed-zero collapse needs the explicit
+        comparison. (P-13 float canonical) */
+    function floatHashBits(access:String):String {
+        final zero = FloatPrecision.isF32() ? "0.0f" : "0.0";
+        final zeroBits = FloatPrecision.isF32() ? "0" : "0L";
+        return "(if (" + access + " == " + zero + ") " + zeroBits + " else " + access + ".toBits()).hashCode()";
     }
 
     function dataClassComparator(cls:ClassType):String {
