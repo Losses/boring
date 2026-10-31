@@ -23,6 +23,7 @@ const CONSTRUCTS: Record<string, string> = {
   AliasIdentity: "alias-identity",
   MultiFieldChain: "multi-field-chain",
   HandleParamChain: "param-chain",
+  OrConditionCountdown: "or-condition-countdown",
 };
 
 const GOLDEN_PATTERNS: Array<{ category: string; pattern: RegExp; desc: string }> = [
