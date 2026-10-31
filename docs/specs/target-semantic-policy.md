@@ -457,6 +457,39 @@ guesses):
    Negative: no platform declaration clash, and the symbol map is traceable.
 6. (shared rule)
 
+### P-23 Canonical floating-point equality, hashing, and fingerprint encoding
+
+1. Float-bearing equality, hashing, and cross-target fingerprinting all use
+   one language-independent canonical encoding. Equality remains Haxe equality:
+   the two signed zeroes are equal, NaN is unequal to every value including
+   itself, and equal values hash equal. Fingerprinting frames every value into
+   the same bytes on every target.
+2. Rust: a Float contributes canonical hash bits
+   `(if v == 0.0 { 0 } else if v.is_nan() { QUIET_NAN_TOKEN } else { v.to_bits() })`
+   at the declared width, and FloatCanonical.encode64/encode32 write those bits
+   big-endian (DataClassFloatHash / canonicalFloatHashBits). TS/Kotlin/Swift/
+   Dart: data-class Float hashing routes to the same canonical bits (Kotlin
+   `toBits` with the signed-zero collapse, Swift `bitPattern` with an explicit
+   `isNaN` branch, Dart a big-endian `ByteData` round trip); TS emits no
+   data-class hashCode, so its encoder is the reference module. FloatCanonical
+   writes the same bytes big-endian on all five targets.
+3. IR: `FloatCanonical(width, value)`, `CanonicalBytes`, `FingerprintField`,
+   `FieldOrder` (declaration order; inherited fields parent-first).
+4. Validator: a bare runtime hash fed into a fingerprint, a native-endian byte
+   write, an unsorted Map feed, or an undeclared field order is rejected.
+5. Positive: `FX-float-canonical`. Negative: `NEG-native-hash-feed`,
+   `NEG-native-endian`, `NEG-unsorted-map-feed`.
+6. (shared rule) Signed zeros encode as zero bits; nonzero non-NaN values encode
+   IEEE bits at their declared width; every NaN encodes the fixed quiet-NaN token
+   for that width (0x7ff8000000000000 binary64, 0x7fc00000 binary32); Infinity
+   retains IEEE bits. Fingerprint byte order, width, field order, null markers,
+   hash feed, and digest algorithm are normative: big-endian, SHA-256, fields in
+   declaration order, and Map feeds ordered by canonical key (never runtime
+   iteration order). Target runtimes may use native helpers only behind
+   conformance tests against the reference encoder; runtime hash and protocol
+   fingerprint are distinct APIs. An encoding-token, schema, or digest change
+   bumps at least the minor version, and goldens migrate by policy/schema version.
+
 ### Shared version rule (element 6 of every entry)
 
 An entry changes only by editing this document in the same commit as the code

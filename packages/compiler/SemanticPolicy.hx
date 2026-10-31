@@ -277,6 +277,7 @@ class SemanticPolicy {
     public static final ENTRY_WORKFLOW:String = "P-20";
     public static final ENTRY_VALIDATION_COVERAGE:String = "P-20a";
     public static final ENTRY_ABI_COLLISION:String = "P-21";
+    public static final ENTRY_FLOAT_CANONICAL:String = "P-23";
 
     /**
         Every policy entry id in document order. Validators and the unit suite
@@ -305,7 +306,8 @@ class SemanticPolicy {
             ENTRY_TRACE,
             ENTRY_WORKFLOW,
             ENTRY_VALIDATION_COVERAGE,
-            ENTRY_ABI_COLLISION
+            ENTRY_ABI_COLLISION,
+            ENTRY_FLOAT_CANONICAL
         ];
     }
 }
