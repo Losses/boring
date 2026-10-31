@@ -8815,6 +8815,16 @@ class RustExpr {
                     if (StaticFieldHelper.isConstruction(cf.get().expr()) && !StaticFieldHelper.isSelfConstruction(cf.get(), cls)) {
                         return "&*" + staticItemPath(cls, name);
                     }
+                    // A null guard narrows a nullable static to its inner
+                    // value: the read resolves to the match binding of the
+                    // unwrapped value instead of the Option clone, so a
+                    // guarded arm never formats the Option. (NarrowedStaticRead)
+                    final narrowed = narrowedText(staticGuardClone(cls, name));
+                    if (narrowed != null) {
+                        optionNarrowingHitCount++;
+                        final inner = getNullInnerType(cf.get().type);
+                        return isTypeCopy(inner) ? "*" + narrowed : "(*" + narrowed + ").clone()";
+                    }
                     final guard = staticGuard(cls, name);
                     return StaticFieldHelper.isArrayType(cf.get().type) ? guard : staticGuardClone(cls, name);
                 }
