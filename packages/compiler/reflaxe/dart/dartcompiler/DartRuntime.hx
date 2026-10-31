@@ -54,6 +54,18 @@ double i32ToFloat(int bits) {
   return bytes.getFloat32(0, Endian.little);
 }
 
+/// Canonical Haxe float hash bits (P-13 / Astra ruling): both signed zeroes
+/// hash to zero bits, every NaN to the quiet-NaN token, and any other value
+/// keeps its IEEE bits (Infinity included). Dart's double exposes no direct
+/// bit view, so the raw bits come from a big-endian ByteData round trip.
+int haxeFloatHashBits(double value) {
+  if (value == 0.0) return 0;
+  if (value.isNaN) return 0x7ff8000000000000;
+  final bytes = ByteData(8);
+  bytes.setFloat64(0, value, Endian.big);
+  return bytes.getUint64(0, Endian.big);
+}
+
 /// Base class of the exception classes features/06 lowers; the caught
 /// side reads the display message through it.
 class BoringException implements Exception {
