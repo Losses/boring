@@ -44,3 +44,13 @@ export {
   canonicalFloatBytes,
 } from "./float-canonical.ts";
 export type { CanonicalFloatWidth } from "./float-canonical.ts";
+export { encode32, encode64 } from "./float-canonical.ts";
+export {
+  TAG_BOOL,
+  TAG_F32,
+  TAG_F64,
+  TAG_I64,
+  TAG_STR,
+  encodeFingerprint,
+} from "./canonical-fingerprint.ts";
+export type { FingerprintField } from "./canonical-fingerprint.ts";

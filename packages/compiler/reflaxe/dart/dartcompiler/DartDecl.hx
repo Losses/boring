@@ -328,7 +328,7 @@ class DartDecl {
                 if (v.isStatic)
                     continue;
                 final fname = dartMemberName(v.field);
-                final hashExpr = isListType(v.field.type) ? "Object.hashAll(this." + fname + ")" : (expr.isFloatType(v.field.type) ? "haxeFloatHashBits(this." + fname + ")" : "this." + fname + ".hashCode");
+                final hashExpr = isListType(v.field.type) ? "Object.hashAll(this." + fname + ")" : (expr.isFloatType(v.field.type) ? runtimeHaxeFloatHashBits() + "(this." + fname + ")" : "this." + fname + ".hashCode");
                 lines.push("    hash = 37 * hash + " + hashExpr + ";");
             }
             lines.push("    return hash;");
@@ -638,6 +638,13 @@ class DartDecl {
     function runtimeBoringException():String {
         final prefix = imports.runtimePrefix();
         return prefix.length > 0 ? prefix + ".BoringException" : "BoringException";
+    }
+
+    /** The canonical float-hash runtime helper as this library references it. */
+    function runtimeHaxeFloatHashBits():String {
+        imports.runtime("haxeFloatHashBits");
+        final prefix = imports.runtimePrefix();
+        return prefix.length > 0 ? prefix + ".haxeFloatHashBits" : "haxeFloatHashBits";
     }
 
     function classParamsOf(cls:ClassType):String {

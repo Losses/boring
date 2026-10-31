@@ -713,3 +713,7 @@ tests.SharedHandleTests
 # R1 warn-zero regression samples (one mechanism each)
 boring.FlowPromotedDedupe
 boring.GuardTernaryDeadFallback
+
+boring.protocol.FloatCanonical
+boring.protocol.CanonicalFingerprint
+tests.FloatCanonicalTests
