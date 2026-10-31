@@ -995,9 +995,26 @@ pub struct UString(Vec<u16>);
 pub struct UStr([u16]);
 
 impl UStr {
+    /// The single unsafe core of the UTF-16 string view: reinterpret a
+    /// &[u16] slice as &UStr with no copy, no allocation, no validity
+    /// check. Every other &UStr construction funnels through here.
+    ///
+    /// # Safety
+    /// UStr is #[repr(transparent)] over [u16], so both types share the
+    /// same layout (a slice fat pointer: data address + unit count).
+    /// The cast changes no bytes, the returned borrow has exactly the
+    /// the lifetime of the input slice, and it aliases the same units. [u16]
+    /// imposes no UTF-16 validity requirement, so empty slices, non-empty
+    /// slices, and slices holding unpaired surrogate halves are all valid.
+    /// This is the same layout argument std relies on for &str over [u8].
+    #[inline]
+    pub const fn from_slice(units: &[u16]) -> &UStr {
+        unsafe { &*(units as *const [u16] as *const UStr) }
+    }
+
     #[inline]
     pub fn new<S: AsRef<[u16]> + ?Sized>(s: &S) -> &UStr {
-        unsafe { &*(s.as_ref() as *const [u16] as *const UStr) }
+        Self::from_slice(s.as_ref())
     }
 
     #[inline]
@@ -1738,6 +1755,55 @@ pub fn find_from(s: &UStr, needle: &UStr, start: i32) -> i32 {
         }
     }
     -1
+}
+
+#[cfg(test)]
+mod ustr_safety_tests {
+    use super::*;
+    use std::mem::{align_of, size_of};
+
+    #[test]
+    fn from_slice_is_zero_copy() {
+        let units = [0x68u16, 0x69u16, 0x21u16];
+        let slice: &[u16] = &units;
+        let view = UStr::from_slice(slice);
+        assert_eq!(view.as_slice().as_ptr(), slice.as_ptr());
+        assert_eq!(view.as_slice().len(), slice.len());
+    }
+
+    #[test]
+    fn layout_matches_u16_slice_fat_pointer() {
+        assert_eq!(size_of::<&UStr>(), size_of::<&[u16]>());
+        assert_eq!(align_of::<&UStr>(), align_of::<&[u16]>());
+    }
+
+    #[test]
+    fn empty_slice_roundtrips() {
+        let empty = UStr::from_slice(&[]);
+        assert!(empty.as_slice().is_empty());
+        assert_eq!(empty.to_ustring(), UString::new());
+    }
+
+    #[test]
+    fn surrogate_pair_roundtrips_through_utf8() {
+        // U+1F600 GRINNING FACE = surrogate pair D83D DE00 (UTF-8 F0 9F 98 80).
+        let units = [0xD83Du16, 0xDE00u16];
+        let view = UStr::from_slice(&units);
+        assert_eq!(view.as_slice(), &units[..]);
+        assert_eq!(view.to_utf8(), Some(String::from_utf8(vec![0xF0, 0x9F, 0x98, 0x80]).unwrap()));
+    }
+
+    #[test]
+    fn const_static_survives_the_whole_program() {
+        const KEY: &UStr = UStr::from_slice(&[0x41u16, 0x42u16]);
+        assert_eq!(KEY.as_slice(), &[0x41, 0x42]);
+    }
+
+    #[test]
+    fn new_and_from_slice_agree() {
+        let units = [0x66u16, 0x69u16, 0x6cu16, 0x65u16];
+        assert_eq!(UStr::new(&units), UStr::from_slice(&units));
+    }
 }
 ';
 
