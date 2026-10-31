@@ -3547,6 +3547,21 @@ class RustExpr {
         }
     }
 
+    // A >= 0 guard appearing as an operand of a compound (AND/OR)
+    // condition. transformCountdownLoops only shifts the simple i >= 0
+    // shape (and i >= 0 && ...), so an OR-condition countdown such as
+    // i >= 0 || j >= 0 || carry > 0 keeps its variable unsigned unless
+    // the variable is registered for the signed domain. (CompoundGteZeroCountdown)
+    function mentionsGteZero(e:TypedExpr, varId:Int):Bool {
+        final inner = stripWrap(e);
+        return switch (inner.expr) {
+            case TBinop(OpBoolAnd, l, r) | TBinop(OpBoolOr, l, r):
+                mentionsGteZero(l, varId) || mentionsGteZero(r, varId);
+            case _:
+                isGteZero(inner, varId);
+        };
+    }
+
     function isGteZero(e:TypedExpr, varId:Int):Bool {
         final inner = stripWrap(e);
         return switch (inner.expr) {
@@ -14589,8 +14604,7 @@ class RustExpr {
                         if (cd == null) {
                             switch [stmts[i].expr, stmts[i + 1].expr] {
                                 case [TVar(readVar, init), TWhile(cond, body, true)] if (init != null && isIntType(init.t)):
-                                    if (hasGteZeroCheck(cond, readVar.id)
-                                        && !mentionsUnitDecrement(statementsOf(body), readVar.id)
+                                    if (mentionsGteZero(cond, readVar.id)
                                         && mentionsAnyDecrement(statementsOf(body), readVar.id))
                                         signedCountdownVars.set(readVar.id, true);
                                 case _:
