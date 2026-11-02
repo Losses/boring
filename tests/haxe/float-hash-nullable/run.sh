@@ -104,6 +104,16 @@ grep_assert() {
 	fi
 }
 
+# fail <stage> <message>
+# Records a hard finding and sets the verdict to fail.
+fail() {
+	local stage="$1"
+	local message="$2"
+	VERDICT=fail
+	printf 'stage %s failed: %s\n' "$stage" "$message" >>"$FINDINGS"
+	log "$stage FAIL: $message"
+}
+
 # generate <target> <output-dir> <extra-define...>
 generate() {
 	local target="$1"
@@ -120,9 +130,11 @@ if generate kotlin "$KOTLIN_F32_DIR" -D float-precision=f32 -D "kotlin-output=$K
 	# shellcheck disable=SC2086
 	run_stage kotlinc-f32 kotlinc $kotlin_f32_sources -Xallow-kotlin-package -include-runtime -d "$KOTLIN_F32_JAR"
 	# Artifact assertion: the nullable float field must be null-guarded.
-	F32_SRC="$(find "$KOTLIN_F32_DIR" -name 'NullableFloatRecord.kt' | head -1)"
-	if [ -n "$F32_SRC" ]; then
-		grep_assert grep-f32-null-guard "$F32_SRC" 'if (this.value == null) 0 else' 'Kotlin f32 nullable float field is null-guarded'
+	F32_SRC="$(find "$KOTLIN_F32_DIR" -name 'FloatHashNullableContract.kt' | head -1)"
+	if [ -z "$F32_SRC" ]; then
+		fail grep-f32-null-guard "generated FloatHashNullableContract.kt not found under $KOTLIN_F32_DIR"
+	else
+		grep_assert grep-f32-null-guard "$F32_SRC" '?.let { __fv ->' 'Kotlin f32 nullable float field is null-guarded'
 	fi
 fi
 
@@ -134,9 +146,11 @@ if generate kotlin "$KOTLIN_F64_DIR" -D float-precision=f64 -D "kotlin-output=$K
 	kotlin_f64_sources="$(find "$KOTLIN_F64_DIR" -name '*.kt' -not -path '*/runtime/test/*' | sort | tr '\n' ' ')"
 	# shellcheck disable=SC2086
 	run_stage kotlinc-f64 kotlinc $kotlin_f64_sources -Xallow-kotlin-package -include-runtime -d "$KOTLIN_F64_JAR"
-	F64_SRC="$(find "$KOTLIN_F64_DIR" -name 'NullableFloatRecord.kt' | head -1)"
-	if [ -n "$F64_SRC" ]; then
-		grep_assert grep-f64-null-guard "$F64_SRC" 'if (this.value == null) 0 else' 'Kotlin f64 nullable float field is null-guarded'
+	F64_SRC="$(find "$KOTLIN_F64_DIR" -name 'FloatHashNullableContract.kt' | head -1)"
+	if [ -z "$F64_SRC" ]; then
+		fail grep-f64-null-guard "generated FloatHashNullableContract.kt not found under $KOTLIN_F64_DIR"
+	else
+		grep_assert grep-f64-null-guard "$F64_SRC" '?.let { __fv ->' 'Kotlin f64 nullable float field is null-guarded'
 	fi
 	if [ -f "$KOTLIN_F64_JAR" ]; then
 		run_stage kotlinc-f64-harness kotlinc -Xallow-kotlin-package -cp "$KOTLIN_F64_JAR" "$HERE/native/Main.kt" -d "$KOTLIN_F64_HARNESS"
