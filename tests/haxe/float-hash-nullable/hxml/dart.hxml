@@ -1,0 +1,21 @@
+# Focused Dart generation of the nullable-float hashCode regression
+# contract (board t-mvzn8ckw-vh3s). Run from the repository root; the caller
+# supplies the output tree so every attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/float-hash-nullable/hxml/dart.hxml \
+#     -D float-precision=f64 -D dart-output=out/float-hash-nullable/runs/<run>/dart-gen
+# The generated tree must pass dart analyze and compile (exit 0); the native
+# harness under native/main.dart asserts the hashCode/equals observations.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/dart/std-shadow
+-cp packages/compiler/reflaxe/dart
+-cp samples
+-cp tests/haxe/float-hash-nullable
+--macro Intercept.run(['tests/haxe/float-hash-nullable'])
+--macro dartcompiler.Compiler.use()
+-D dart-output=out/float-hash-nullable/current/dart-gen
+-D dart-test-output=out/float-hash-nullable/current/dart-gen-tests
+-D dart-test-runner=native
+-D runtime-import=@boring/runtime
+-D runtime-emit=.
+floathashnullable.FloatHashNullableContract
