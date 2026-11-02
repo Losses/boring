@@ -247,47 +247,28 @@ Stateful reader and writer classes, struct methods, and interface shapes are ver
 - `tests/haxe/Main.hx` (lines 89-96)
 - `tools/eslint/` rules enforcing interface shape constraints
 
-
 ## `@:allow` cross-target visibility mapping
 
 Haxe `@:allow(cls)` grants one named class access to a below-public member.
 The grant is program-wide: the allowed class may live in any compilation unit,
 including a unit a target compiles separately from the declaration.
 
-The targets map `@:allow` to a visibility that survives the target's own
-compilation-unit boundary:
-
-| Target | Emitted visibility | Reason |
+| Target | `@:allow` private member lowering | Rationale |
 | --- | --- | --- |
-| TypeScript | public (no modifier) | JavaScript has no below-public export that a separate file can import |
-| Swift | public | the generated-code module and its consumers compile separately |
-| Dart | public name (no underscore prefix) | a library reference crosses the library boundary |
-| Rust | `pub(crate)` | the test suite compiles every module into one crate |
-| Kotlin | public (no modifier) | see the Kotlin note below |
+| TypeScript / Swift / Dart | public (no visibility modifier) | no below-public visibility spans the generated-code and consumer test split, so public is the only spelling that compiles |
+| Rust | `pub(crate)` | the tests and the library compile into one crate, so crate scope already spans the allowed reference |
+| Kotlin | public | `internal` scope spans one compilation module (one jar), while the driver compiles `gen` and `gen-tests` into two jars; `@:allow` must cross that jar boundary |
 
-### Kotlin note
-
-Kotlin `internal` visibility spans one compilation module, and one
-compilation module equals one `kotlinc` invocation, whose output is one jar.
-The driver compiles the generated tree in two invocations: the main modules
-into `library.jar` and the test modules into `tests.jar` against
-`library.jar` on the classpath. A `@:allow` member lowered to `internal`
-is therefore invisible to the allowed class when the two classes land in
-different jars, and `kotlinc` rejects the reference with "cannot access ...
-it is internal".
-
-Mapping `@:allow` to `internal` implements a program-wide grant with a
-narrower, one-jar scope, so it fails at the jar boundary. The Kotlin
-realization therefore emits `@:allow` members with public visibility, the
-same realization TypeScript, Swift, and Dart already use. The omission of the
-modifier is a deliberate grant widening, not a forgotten `internal`.
+The Kotlin lowering omits the visibility modifier on purpose. The omission is a
+deliberate grant widening so an allowed class in the test jar can reach the
+member. The absent modifier records an intentional widening and must never be
+restored to `internal`.
 
 The alternative of keeping `internal` and passing
-`-Xfriend-paths=<library.jar>` to the test compilation was rejected: it is
-a driver-level change outside the Kotlin emitter, it grants access per module
-rather than per class, it does not help a third-party consumer of the shipped
-jar, and it is JVM-specific.
+`-Xfriend-paths=<library.jar>` to the test compilation was rejected: it grants
+access per jar (wider than the per-class grant), it does not help a third-party
+consumer of the shipped jar, and it is JVM-specific.
 
-The parameter-default inlining widening in `KotlinAccessGrants.isWidened`
-is a separate mechanism and keeps `internal`; it is not part of the
-`@:allow` mapping.
+The parameter-default inlining widening in `KotlinAccessGrants.isWidened` is a
+separate mechanism and keeps `internal`; it is not part of the `@:allow`
+mapping.
