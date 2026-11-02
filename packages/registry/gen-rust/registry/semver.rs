@@ -204,7 +204,7 @@ impl Semver {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Version {
     pub major: u32,
     pub minor: u32,

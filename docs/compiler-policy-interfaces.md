@@ -351,3 +351,35 @@ Record wrapper handling, result ordering, branch placement, and other writers
 of each consumed fact store. Share only the decisions established as equivalent
 in a preservation batch. Changed joins, effects, or accepted proof conditions
 belong to an explicitly verified correctness change.
+
+## Known limitations
+
+### Escaping interface methods fail closed on the trait-object path
+
+Trigger condition. A plain-class method whose body forwards the whole handle
+("this") to a handle-taking callee -- either a cross-class static function such as
+a layout stage, or transitively another method on "this" that itself escapes --
+needs the Rc<RefCell<Self>> identity. The bare-struct inner helper (logic on
+&mut self) cannot pass that handle on, and Rust offers no way to recover the
+Rc from &mut Self.
+
+Current behavior. Such a method lowers full-body concrete on the handle, so the
+forwarding callee receives the real handle. When the escaping method is also an
+interface method, its struct trait impl (impl Trait for Struct, the unsizing
+canonical) cannot run the same body from &mut Self; it fails closed with a
+diagnostic panic that names the method, states that handle identity is required,
+and points at the concrete Rc<RefCell<Struct>> receiver. No dyn dispatch
+reaches this path in the current Tiqian engine (the engine is never stored as
+Rc<RefCell<dyn Trait>>), so the panic is a documented dead path, not a live
+failure.
+
+Future direction. A generic adapter mechanism (tracked as a backlog task) will
+thread the handle through the trait-method boundary explicitly, so the direct
+impl can run the shared semantic helper with a caller-supplied handle context
+instead of failing closed. Until then the fail-closed body is the accepted
+intermediate state and its panic text is part of the contract.
+
+Verification. A three-way fixture asserts (1) the concrete handle path returns
+the expected layout, (2) the struct trait path reaches the fail-closed panic
+(the expected error, not a void branch), and (3) the unsized dyn path is absent
+from the engine and therefore not wired.

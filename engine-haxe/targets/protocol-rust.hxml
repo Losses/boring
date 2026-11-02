@@ -14,6 +14,7 @@
 -cp .haxelib/boring/git/packages/compiler/reflaxe/rust
 --macro Intercept.run(['engine-haxe/src', '.haxelib/boring/git/samples'])
 --macro rustcompiler.Compiler.use()
+-D rust-output=engine-haxe/out/rust-gen-protocol/src
 -D runtime-import=crate::runtime
 -D runtime-emit=runtime
 -D package-name=tiqian-protocol-gen

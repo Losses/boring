@@ -14,7 +14,7 @@ import PolicyQueries.KeyDomain;
 class RustType {
     /**
         Thread-safe comparator rule: a resident function typedef lowers to
-        `Arc<dyn Fn(..) -> R + Send + Sync>`. The sorted-table comparators are
+        `Rc<RefCell<dyn FnMut(..) -> R + Send + Sync>`. The sorted-table comparators are
         bound at builder creation, and the built tables are retained in static
         caches guarded by a mutex; a bare `dyn Fn` trait object would leave
         those caches non-Sync. The bound holds under both float-precision
@@ -32,8 +32,9 @@ class RustType {
         positions under both precision settings.
     **/
     function functionValueOf(args:Array<{name:String, opt:Bool, t:Type}>, ret:Type, lifetime:String = ""):String {
-        imports.require("std::sync::Arc");
-        return "Arc<dyn Fn(" + [for (arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + FUNCTION_VALUE_BOUNDS + lifetime + ">";
+        imports.require("std::rc::Rc");
+        imports.require("std::cell::RefCell");
+        return "Rc<RefCell<dyn FnMut(" + [for (arg in args) of(arg.t, true)].join(", ") + ") -> " + of(ret, false) + FUNCTION_VALUE_BOUNDS + lifetime + ">>";
     }
 
     function residentFunctionValueOf(t:Type):String {
@@ -164,21 +165,24 @@ class RustType {
                         final ic = i.t.get();
                         ic.isInterface && RustDecl.isSharedInterface(ic);
                     })) {
-                    imports.require("std::sync::Arc");
-                    imports.require("std::sync::Mutex");
-                    "Arc<Mutex<" + cls.name + ">>";
+                    imports.require("std::rc::Rc");
+                    imports.require("std::cell::RefCell");
+                    "Rc<RefCell<" + cls.name + ">>";
                 } else if (cls.isInterface) {
                     imports.requireType(cls.module, cls.name);
                     // A registered shared interface lowers its slot to an
-                    // Arc<Mutex<dyn Trait>>: the slot and the source binding
+                    // Rc<RefCell<dyn Trait>>: the slot and the source binding
                     // share one object, matching Haxe reference semantics.
                     // (ClassHandleShare)
                     if (RustDecl.isSharedInterface(cls)) {
-                        imports.require("std::sync::Arc");
-                        imports.require("std::sync::Mutex");
-                        "Arc<Mutex<dyn " + cls.name + ">>";
-                    } else
-                        "Box<dyn " + cls.name + ">";
+                        imports.require("std::rc::Rc");
+                        imports.require("std::cell::RefCell");
+                        "Rc<RefCell<dyn " + cls.name + ">>";
+                    } else {
+                        imports.require("std::rc::Rc");
+                        imports.require("std::cell::RefCell");
+                        "Rc<RefCell<dyn " + cls.name + ">>";
+                    }
                 } else switch (pathOf(cls.pack, cls.name)) {
                     case "String":
                         imports.requireType("runtime.UString", "UString");
@@ -272,7 +276,8 @@ class RustType {
     public function functionReturnOf(t:Null<Type>):String {
         return switch (Context.follow(t)) {
             case TFun(args, ret):
-                imports.require("std::sync::Arc");
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
                 final argStrs = [for (arg in args) of(arg.t, true)];
                 // A function value with no reference parameters cannot
                 // borrow from the enclosing scope, so the trait-object
@@ -282,7 +287,7 @@ class RustType {
                 for (s in argStrs)
                     if (s.indexOf("&") >= 0)
                         hasRef = true;
-                "Arc<dyn Fn(" + argStrs.join(", ") + ") -> " + of(ret, false) + FUNCTION_VALUE_BOUNDS + (hasRef ? " + '_>" : " + 'static>");
+                "Rc<RefCell<dyn FnMut(" + argStrs.join(", ") + ") -> " + of(ret, false) + FUNCTION_VALUE_BOUNDS + (hasRef ? " + '_>>" : " + 'static>>");
             case _:
                 of(t, false);
         }
@@ -296,13 +301,14 @@ class RustType {
     public function functionReturnOfFallible(t:Null<Type>, errorName:String):String {
         return switch (Context.follow(t)) {
             case TFun(args, ret):
-                imports.require("std::sync::Arc");
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
                 final argStrs = [for (arg in args) of(arg.t, true)];
                 var hasRef = false;
                 for (s in argStrs)
                     if (s.indexOf("&") >= 0)
                         hasRef = true;
-                "Arc<dyn Fn(" + argStrs.join(", ") + ") -> Result<" + of(ret, false) + ", " + errorName + ">" + FUNCTION_VALUE_BOUNDS + (hasRef ? " + '_>" : " + 'static>");
+                "Rc<RefCell<dyn FnMut(" + argStrs.join(", ") + ") -> Result<" + of(ret, false) + ", " + errorName + ">" + FUNCTION_VALUE_BOUNDS + (hasRef ? " + '_>>" : " + 'static>>");
             case _:
                 of(t, false);
         };
@@ -401,7 +407,7 @@ class RustType {
                 final cls = c.get();
                 final n = cls.name;
                 if (isSortedTableBuilder(cls)) false else if (!cls.isInterface
-                    // A shared implementor lowers to Arc<Mutex<...>>, which
+                    // A shared implementor lowers to Rc<RefCell<...>>, which
                     // carries no PartialEq; the struct derives Clone only.
                     // (ClassHandleShare)
                     && Lambda.exists(cls.interfaces, i -> {
@@ -745,6 +751,36 @@ class RustType {
         };
     }
 
+    /** Whether a class field type is Null<Float> (Option<f64/f32>, no Hash
+        impl). The enum/struct Hash impl must hash it through to_bits on the
+        inner float, the same way a direct Float is handled. (DataClassFloatHash) */
+    public static function isNullableFloatType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (t) {
+            case TAbstract(a, [inner]) if (a.get().name == "Null"): isDirectFloatType(inner);
+            case TLazy(f): isNullableFloatType(f());
+            case _: false;
+        };
+    }
+    /** Canonical Haxe float hash token (P-13): x == 0.0 normalises both signed
+        zeroes to one zero token; any other value (including NaN) keeps its
+        to_bits payload. Haxe Float equality is IEEE ==, so both signed zeroes
+        must hash equal while NaN payloads may hash distinct. access is the
+        owned/place float expression; isRef marks a &f32/&f64 binding that must
+        dereference before the comparison. */
+    public static function canonicalFloatHashBits(access:String, isRef:Bool):String {
+        // Canonical float hash bits (P-13 / Astra ruling): +-0.0 collapse to
+        // 0, every NaN collapses to the quiet-NaN token (so any NaN key finds
+        // the same bucket while Eq still treats NaN as unequal), and any other
+        // value keeps its IEEE bits (Infinity included). f32 uses the u32 token
+        // and never widens to f64 first.
+        final bitsType = FloatPrecision.isF32() ? "u32" : "u64";
+        final nanToken = FloatPrecision.isF32() ? "0x7fc00000" : "0x7ff8000000000000";
+        final cmp = isRef ? "*" + access + " == 0.0" : access + " == 0.0";
+        return "(if " + cmp + " { 0" + bitsType + " } else if " + access + ".is_nan() { " + nanToken + bitsType + " } else { " + access + ".to_bits() })";
+    }
+
     /** Whether any non-static field is a direct Float. (DataClassFloatHash) */
     public static function hasDirectFloatField(fields:Array<ClassVarData>):Bool {
         for (f in fields)
@@ -765,7 +801,9 @@ class RustType {
                 if ((abs.name == "Int" || abs.name == "Bool") && params.length == 0) true
                 else if (abs.name == "Float" && params.length == 0) allowFloatDirect
                 else if (ValueTypeSupport.isMarkedAbstract(abs) && !ValueTypeSupport.isFloatRepresentation(abs)) true
-                else if ((abs.name == "Null" || (abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray")) && params.length == 1)
+                else if (abs.name == "Null" && params.length == 1)
+                    isHashTypeDepthWithFloat(params[0], visiting, allowFloatDirect)
+                else if (abs.pack.join(".") == "std" && abs.name == "ReadOnlyArray" && params.length == 1)
                     isHashTypeDepthWithFloat(params[0], visiting, false)
                 else false;
             case TEnum(_):
