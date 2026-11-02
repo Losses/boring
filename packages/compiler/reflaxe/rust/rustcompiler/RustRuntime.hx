@@ -28,16 +28,105 @@ impl Exception {
         values concurrently, so the Rc/RefCell inside are never actually
         shared or moved across threads despite the Send + Sync impls.
         (SingleThreadStatic) */
+        /** SingleThread wraps a non-Send/Sync value (an Rc handle) so it can
+        live in a process-wide static. The safety contract is the Haxe
+        single-threaded execution model, enforced by a thread-affine guard:
+        the creating thread is recorded, and a different thread may only take
+        over after the original owner has finished (sequential hand-off, as
+        the test harness runs each test on a fresh thread). Concurrent access
+        from a still-running foreign thread panics instead of racing the Rc
+        refcount. (SingleThreadStatic) */
+        /** SingleThread wraps a non-Send/Sync value (an Rc handle) so it can
+        live in a process-wide static. The safety contract is the Haxe
+        single-threaded execution model, enforced by a thread-affine guard:
+        the creating thread is recorded together with a liveness token, and a
+        different thread may only take over after the original owner's token
+        has dropped (its thread exited -- sequential hand-off, as the test
+        harness runs each test on a fresh thread). Concurrent access from a
+        still-running foreign thread panics instead of racing the Rc refcount.
+        (SingleThreadStatic) */
     public static final SINGLE_THREAD_SOURCE = '
-pub struct SingleThread<T>(pub T);
+use std::cell::RefCell;
+use std::sync::{Arc, Mutex, Weak};
 
-// SAFETY: generated Haxe execution is single-threaded; an Rc<RefCell<T>>
-// inside is never shared or moved across threads at runtime.
+thread_local! {
+    // Held by a thread for its whole lifetime so a Weak<()> can detect when the
+    // owning thread has exited (sequential hand-off vs concurrent access).
+    static THREAD_LIVENESS: RefCell<Option<Arc<()>>> = RefCell::new(None);
+}
+
+fn thread_identity() -> (std::thread::ThreadId, Weak<()>) {
+    let id = std::thread::current().id();
+    THREAD_LIVENESS.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        if slot.is_none() {
+            *slot = Some(Arc::new(()));
+        }
+        (id, Arc::downgrade(slot.as_ref().unwrap()))
+    })
+}
+
+pub struct SingleThread<T> {
+    value: T,
+    owner: Mutex<Option<(std::thread::ThreadId, Weak<()>)>>,
+}
+
+impl<T> SingleThread<T> {
+    pub fn new(value: T) -> Self {
+        SingleThread {
+            value,
+            owner: Mutex::new(Some(thread_identity())),
+        }
+    }
+}
+
+impl<T> std::ops::Deref for SingleThread<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        let cur = std::thread::current().id();
+        let mut owner = self.owner.lock().unwrap();
+        match owner.as_ref() {
+            None => { *owner = Some(thread_identity()); }
+            Some((id, token)) => {
+                if *id != cur {
+                    assert!(
+                        token.upgrade().is_none(),
+                        "SingleThread value accessed concurrently from multiple threads (Haxe semantics are single-threaded)"
+                    );
+                    *owner = Some(thread_identity());
+                }
+            }
+        }
+        &self.value
+    }
+}
+
+impl<T> std::ops::DerefMut for SingleThread<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        let cur = std::thread::current().id();
+        let mut owner = self.owner.lock().unwrap();
+        match owner.as_ref() {
+            None => { *owner = Some(thread_identity()); }
+            Some((id, token)) => {
+                if *id != cur {
+                    assert!(
+                        token.upgrade().is_none(),
+                        "SingleThread value accessed concurrently from multiple threads (Haxe semantics are single-threaded)"
+                    );
+                    *owner = Some(thread_identity());
+                }
+            }
+        }
+        &mut self.value
+    }
+}
+
+// SAFETY: the thread-affine guard above rejects concurrent access from a
+// foreign thread (the only way an Rc<RefCell<T>> inside could race), so the
+// Send + Sync impls are sound under the single-threaded Haxe model.
 unsafe impl<T> Send for SingleThread<T> {}
 unsafe impl<T> Sync for SingleThread<T> {}
-';
-
-    /** The Functional shim is precision-parameterized: sum_of_float keeps
+';    /** The Functional shim is precision-parameterized: sum_of_float keeps
         the element binding at the Float width (f32 mode binds f32, f64 mode
         binds f64), but the accumulator is binary64 with one closing
         narrowing, matching std.Functional.sumOfFloat on the JVM/Kotlin

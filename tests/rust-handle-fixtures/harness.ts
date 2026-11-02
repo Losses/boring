@@ -30,6 +30,8 @@ const GOLDEN_PATTERNS: Array<{ category: string; pattern: RegExp; desc: string }
   { category: "SELF_REWRAP", pattern: /Rc::new\s*\(\s*RefCell::new\s*\(\s*self\b/, desc: "Rc::new(RefCell::new(self.clone()))" },
   { category: "SEND_SYNC", pattern: /Send\s*\+\s*Sync/, desc: "Send + Sync trait bound" },
   { category: "MUT_SELF", pattern: /&\s*mut\s+self\b/, desc: "&mut self receiver" },
+  { category: "SELF_RC_RECEIVER", pattern: /self:\s*&Rc/, desc: "self: &Rc receiver" },
+  { category: "IMPL_RC", pattern: /impl\s+Rc</, desc: "impl Rc< inherent impl" },
 ];
 
 function fixtureNames(): string[] {

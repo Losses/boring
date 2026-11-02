@@ -175,6 +175,7 @@ class RustEmissionState {
     **/
     public final funcErrorKnown:Map<String, Bool> = [];
 
+    public final escapingHandleMethods:Map<String, Bool> = [];
     public final interfaceMethodShapes:Map<String, {isFallible:Bool, isMutating:Bool, errorModule:Null<String>, errorName:Null<String>}> = [];
 
     public static function interfaceMethodKey(module:String, name:String, method:String):String {
@@ -206,6 +207,17 @@ class RustEmissionState {
         fallible block passed through a wrapper reaches the leaf callee.
     **/
     public final fallibleBlockParams:Map<String, Array<Int>> = [];
+
+    /**
+        Field-projection map for a static/instance function whose plain-class
+        handle parameter is only read through field accesses. Keyed by funcKey;
+        the value maps the handle parameter name to the projected field names
+        (snake-cased) in parameter order. The signature expands the handle into
+        those field handles, the body rewrites engine.field to the projected
+        parameter, and every call site projects self.field in its place.
+        (FieldProjection)
+    **/
+    public final fieldProjections:Map<String, {engineName:String, fields:Array<{name:String, snake:String}>}> = [];
 
     /**
         Fallible-block region error names, keyed by `funcKey#paramIndex`: the
