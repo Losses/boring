@@ -328,7 +328,13 @@ class DartDecl {
                 if (v.isStatic)
                     continue;
                 final fname = dartMemberName(v.field);
-                final hashExpr = isListType(v.field.type) ? "Object.hashAll(this." + fname + ")" : (expr.isFloatType(v.field.type) ? runtimeHaxeFloatHashBits() + "(this." + fname + ")" : "this." + fname + ".hashCode");
+                final hashExpr = isListType(v.field.type)
+                    ? "Object.hashAll(this." + fname + ")"
+                    : (expr.isFloatType(v.field.type)
+                        ? (isNullableType(v.field.type)
+                            ? "(this." + fname + " == null ? 0 : " + runtimeHaxeFloatHashBits() + "(this." + fname + "!))"
+                            : runtimeHaxeFloatHashBits() + "(this." + fname + ")")
+                        : "this." + fname + ".hashCode");
                 lines.push("    hash = 37 * hash + " + hashExpr + ";");
             }
             lines.push("    return hash;");
@@ -369,6 +375,14 @@ class DartDecl {
         final result = extractedParts.length > 0 ? extractedParts.join("\n\n") + "\n\n" + classPart : classPart;
         final comparator = cls.meta.has(":dataClass") ? DartComparisonPlan.schema(cls) : null;
         return comparator == null ? result : result + "\n\n" + dataClassComparator(cls, comparator);
+    }
+
+    /** True when the Haxe type is Null<T> (Dart T?). */
+    static function isNullableType(t:haxe.macro.Type):Bool {
+        return switch (t) {
+            case TAbstract(td, _): td.get().name == "Null";
+            case _: false;
+        };
     }
 
     /** Render the finite source ordering plan. Source owns field order, null

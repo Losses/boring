@@ -1,0 +1,21 @@
+# Focused Kotlin generation of the nullable-float hashCode regression
+# contract (board t-mvzn8ckw-vh3s). Run from the repository root; the caller
+# supplies the output tree so every attempt writes into its own run directory:
+#   nix develop -c haxe tests/haxe/float-hash-nullable/hxml/kotlin.hxml \
+#     -D float-precision=f32 -D kotlin-output=out/float-hash-nullable/runs/<run>/kotlin-f32-gen
+#   nix develop -c haxe tests/haxe/float-hash-nullable/hxml/kotlin.hxml \
+#     -D float-precision=f64 -D kotlin-output=out/float-hash-nullable/runs/<run>/kotlin-f64-gen
+# The generated tree must compile with kotlinc (exit 0); the native harness
+# under native/Main.kt asserts the hashCode/equals observations.
+-lib reflaxe
+-lib boring
+-cp packages/compiler/reflaxe/kotlin/std-shadow
+-cp packages/compiler/reflaxe/kotlin
+-cp samples
+-cp tests/haxe/float-hash-nullable
+--macro Intercept.run(['tests/haxe/float-hash-nullable'])
+--macro kotlincompiler.Compiler.use()
+-D kotlin-output=out/float-hash-nullable/current/kotlin-gen
+-D runtime-import=boring.runtime
+-D runtime-emit=runtime
+floathashnullable.FloatHashNullableContract
