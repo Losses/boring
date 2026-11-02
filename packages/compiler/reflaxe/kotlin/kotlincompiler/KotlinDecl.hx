@@ -395,7 +395,7 @@ class KotlinDecl {
                         hashTerms.push('this.' + name + '.toString().hashCode()');
                     } else if (expr.isFloatType(a.type)) {
                         eqTerms.push('this.' + name + ' == other.' + name);
-                        hashTerms.push(floatHashBits('this.' + name));
+                        hashTerms.push(floatHashBits('this.' + name, isNullableType(a.type)));
                     } else {
                         eqTerms.push('this.' + name + ' == other.' + name);
                         hashTerms.push('this.' + name + '.hashCode()');
@@ -426,11 +426,32 @@ class KotlinDecl {
         every NaN to the width's quiet-NaN token, and any other value to its
         IEEE bits. Kotlin's toBits() already collapses every NaN payload to the
         canonical token, so only the signed-zero collapse needs the explicit
-        comparison. (P-13 float canonical) */
-    function floatHashBits(access:String):String {
+        comparison. (P-13 float canonical)
+
+        A nullable float (Null<Float>) first checks null and hashes it to 0,
+        matching Haxe's hashCode(null) = 0 so the null hash is stable across
+        targets; a non-null value still follows the P-13 canonical bits above.
+        The result stays a single expression so the surrounding hash fold is
+        unaffected. */
+    function floatHashBits(access:String, nullable:Bool = false):String {
         final zero = FloatPrecision.isF32() ? "0.0f" : "0.0";
         final zeroBits = FloatPrecision.isF32() ? "0" : "0L";
-        return "(if (" + access + " == " + zero + ") " + zeroBits + " else " + access + ".toBits()).hashCode()";
+        final canonical = "(if (" + (nullable ? "__fv" : access) + " == " + zero + ") " + zeroBits
+            + " else " + (nullable ? "__fv" : access) + ".toBits()).hashCode()";
+        if (!nullable)
+            return canonical;
+        // A Null<Float> field is Double? on Kotlin: a stable smart cast is not
+        // available for a mutable property, so the non-null path is bound
+        // through let and a null receiver hashes to 0 (Haxe hashCode(null)).
+        return "(" + access + "?.let { __fv -> " + canonical + " } ?: 0)";
+    }
+
+    /** True when the Haxe type is Null<T> (Kotlin T?). */
+    static function isNullableType(t:haxe.macro.Type):Bool {
+        return switch (t) {
+            case TAbstract(td, _): td.get().name == "Null";
+            case _: false;
+        };
     }
 
     function dataClassComparator(cls:ClassType):String {
