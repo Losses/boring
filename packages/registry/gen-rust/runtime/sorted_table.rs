@@ -1,6 +1,7 @@
 use crate::runtime::u_string::UStr;
 use crate::runtime::u_string::UString;
-use std::sync::Arc;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 
 #[derive(Clone, Copy)]
@@ -49,11 +50,11 @@ impl SortedTable {
         return 0;
     }
 
-    pub fn sorted_table_map_builder<K: Clone, V: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> SortedMapTableBuilder<K, V> {
+    pub fn sorted_table_map_builder<K: Clone, V: Clone>(compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>) -> SortedMapTableBuilder<K, V> {
         return SortedMapTableBuilder::<K, V>::new(Vec::new().to_vec(), Vec::new().to_vec(), (compare).clone());
     }
 
-    pub fn sorted_table_set_builder<K: Clone>(compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> SortedSetTableBuilder<K> {
+    pub fn sorted_table_set_builder<K: Clone>(compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>) -> SortedSetTableBuilder<K> {
         return SortedSetTableBuilder::<K>::new(Vec::new().to_vec(), (compare).clone());
     }
 }
@@ -62,7 +63,7 @@ impl SortedTable {
 pub struct SortedMapTable<K, V> {
     pub(crate) keys: Vec<K>,
     pub(crate) values: Vec<V>,
-    pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>,
+    pub(crate) compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
 }
 
 impl<K: PartialEq, V: PartialEq> PartialEq for SortedMapTable<K, V> {
@@ -70,6 +71,7 @@ impl<K: PartialEq, V: PartialEq> PartialEq for SortedMapTable<K, V> {
         self.keys == other.keys && self.values == other.values
     }
 }
+impl<K: Eq, V: Eq> Eq for SortedMapTable<K, V> {}
 impl<K: core::hash::Hash, V: core::hash::Hash> core::hash::Hash for SortedMapTable<K, V> {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.keys.hash(state);
@@ -77,7 +79,7 @@ impl<K: core::hash::Hash, V: core::hash::Hash> core::hash::Hash for SortedMapTab
     }
 }
 impl<K: Clone, V: Clone> SortedMapTable<K, V> {
-    pub fn new(keys: Vec<K>, values: Vec<V>, compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> Self {
+    pub fn new(keys: Vec<K>, values: Vec<V>, compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>) -> Self {
         Self {
             keys,
             values,
@@ -114,7 +116,7 @@ impl<K: Clone, V: Clone> SortedMapTable<K, V> {
         let mut high = i32::from_ne_bytes(u32::try_from((((self.keys).clone()).len()) & 4294967295).unwrap_or(0).to_ne_bytes());
         while (low) < (high) {
             let mid = i32::wrapping_add(low, high) >> 1;
-            let order = (self.compare)(&((self.keys[usize::try_from(mid).unwrap_or(0)]).clone()), key);
+            let order = (self.compare).borrow_mut()(&((self.keys[usize::try_from(mid).unwrap_or(0)]).clone()), key);
             if order < (0) {
                 low = i32::wrapping_add(mid, 1);
             } else {
@@ -148,11 +150,11 @@ impl<K: Clone + std::fmt::Debug, V: Clone + std::fmt::Debug> SortedMapTable<K, V
 pub struct SortedMapTableBuilder<K, V> {
     pub(crate) keys: Vec<K>,
     pub(crate) values: Vec<V>,
-    pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>,
+    pub(crate) compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
 }
 
 impl<K: Clone, V: Clone> SortedMapTableBuilder<K, V> {
-    pub fn new(keys: Vec<K>, values: Vec<V>, compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> Self {
+    pub fn new(keys: Vec<K>, values: Vec<V>, compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>) -> Self {
         Self {
             keys,
             values,
@@ -169,7 +171,7 @@ impl<K: Clone, V: Clone> SortedMapTableBuilder<K, V> {
         let mut index = i32::from_ne_bytes(u32::try_from((((self.keys).clone()).len()) & 4294967295).unwrap_or(0).to_ne_bytes());
         while (index) > (0) {
             index = i32::wrapping_sub(index, 1);
-            if (self.compare)(&((self.keys[usize::try_from(index).unwrap_or(0)]).clone()), key) == 0 {
+            if self.compare.borrow_mut()(&((self.keys[usize::try_from(index).unwrap_or(0)]).clone()), key) == 0 {
                 return Some(((self.values[usize::try_from(index).unwrap_or(0)]).clone()).clone());
             }
         }
@@ -201,7 +203,7 @@ impl<K: Clone, V: Clone> SortedMapTableBuilder<K, V> {
                 let mut right = mid;
                 let mut k = start;
                 while (left) < (mid) && (right) < (end) {
-                    if (self.compare)(&((self.keys[usize::try_from(order[usize::try_from(left).unwrap_or(0)]).unwrap_or(0)]).clone()), &((self.keys[usize::try_from(order[usize::try_from(right).unwrap_or(0)]).unwrap_or(0)]).clone())) > (0) {
+                    if self.compare.borrow_mut()(&((self.keys[usize::try_from(order[usize::try_from(left).unwrap_or(0)]).unwrap_or(0)]).clone()), &((self.keys[usize::try_from(order[usize::try_from(right).unwrap_or(0)]).unwrap_or(0)]).clone())) > (0) {
                         { while tmp.len() <= usize::try_from(k).unwrap_or(0) { tmp.push(0); } tmp[usize::try_from(k).unwrap_or(0)] = order[usize::try_from(right).unwrap_or(0)]; };
                         right = i32::wrapping_add(right, 1);
                     } else {
@@ -234,7 +236,7 @@ impl<K: Clone, V: Clone> SortedMapTableBuilder<K, V> {
         i = 0i32;
         while (i) < (total) {
             let mut run = i;
-            while (i32::wrapping_add(run, 1)) < (total) && (self.compare)(&((self.keys[usize::try_from(order[usize::try_from(i32::wrapping_add(run, 1)).unwrap_or(0)]).unwrap_or(0)]).clone()), &((self.keys[usize::try_from(order[usize::try_from(i).unwrap_or(0)]).unwrap_or(0)]).clone())) == 0 {
+            while (i32::wrapping_add(run, 1)) < (total) && (self.compare).borrow_mut()(&((self.keys[usize::try_from(order[usize::try_from(i32::wrapping_add(run, 1)).unwrap_or(0)]).unwrap_or(0)]).clone()), &((self.keys[usize::try_from(order[usize::try_from(i).unwrap_or(0)]).unwrap_or(0)]).clone())) == 0 {
                 run = i32::wrapping_add(run, 1);
             }
             out_keys.push((self.keys[usize::try_from(order[usize::try_from(run).unwrap_or(0)]).unwrap_or(0)]).clone());
@@ -248,7 +250,7 @@ impl<K: Clone, V: Clone> SortedMapTableBuilder<K, V> {
 #[derive(Clone)]
 pub struct SortedSetTable<K> {
     pub(crate) keys: Vec<K>,
-    pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>,
+    pub(crate) compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
 }
 
 impl<K: PartialEq> PartialEq for SortedSetTable<K> {
@@ -256,13 +258,14 @@ impl<K: PartialEq> PartialEq for SortedSetTable<K> {
         self.keys == other.keys
     }
 }
+impl<K: Eq> Eq for SortedSetTable<K> {}
 impl<K: core::hash::Hash> core::hash::Hash for SortedSetTable<K> {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.keys.hash(state);
     }
 }
 impl<K: Clone> SortedSetTable<K> {
-    pub fn new(keys: Vec<K>, compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> Self {
+    pub fn new(keys: Vec<K>, compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>) -> Self {
         Self {
             keys,
             compare,
@@ -286,7 +289,7 @@ impl<K: Clone> SortedSetTable<K> {
         let mut high = i32::from_ne_bytes(u32::try_from((((self.keys).clone()).len()) & 4294967295).unwrap_or(0).to_ne_bytes());
         while (low) < (high) {
             let mid = i32::wrapping_add(low, high) >> 1;
-            let order = (self.compare)(&((self.keys[usize::try_from(mid).unwrap_or(0)]).clone()), key);
+            let order = (self.compare).borrow_mut()(&((self.keys[usize::try_from(mid).unwrap_or(0)]).clone()), key);
             if order < (0) {
                 low = i32::wrapping_add(mid, 1);
             } else {
@@ -319,11 +322,11 @@ impl<K: Clone + std::fmt::Debug> SortedSetTable<K> {
 #[derive(Clone)]
 pub struct SortedSetTableBuilder<K> {
     pub(crate) keys: Vec<K>,
-    pub(crate) compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>,
+    pub(crate) compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>,
 }
 
 impl<K: Clone> SortedSetTableBuilder<K> {
-    pub fn new(keys: Vec<K>, compare: Arc<dyn Fn(&K, &K) -> i32 + Send + Sync>) -> Self {
+    pub fn new(keys: Vec<K>, compare: Rc<RefCell<dyn FnMut(&K, &K) -> i32>>) -> Self {
         Self {
             keys,
             compare,
@@ -359,7 +362,7 @@ impl<K: Clone> SortedSetTableBuilder<K> {
                 let mut right = mid;
                 let mut k = start;
                 while (left) < (mid) && (right) < (end) {
-                    if (self.compare)(&((self.keys[usize::try_from(order[usize::try_from(left).unwrap_or(0)]).unwrap_or(0)]).clone()), &((self.keys[usize::try_from(order[usize::try_from(right).unwrap_or(0)]).unwrap_or(0)]).clone())) > (0) {
+                    if self.compare.borrow_mut()(&((self.keys[usize::try_from(order[usize::try_from(left).unwrap_or(0)]).unwrap_or(0)]).clone()), &((self.keys[usize::try_from(order[usize::try_from(right).unwrap_or(0)]).unwrap_or(0)]).clone())) > (0) {
                         { while tmp.len() <= usize::try_from(k).unwrap_or(0) { tmp.push(0); } tmp[usize::try_from(k).unwrap_or(0)] = order[usize::try_from(right).unwrap_or(0)]; };
                         right = i32::wrapping_add(right, 1);
                     } else {
@@ -391,7 +394,7 @@ impl<K: Clone> SortedSetTableBuilder<K> {
         i = 0i32;
         while (i) < (total) {
             let mut run = i;
-            while (i32::wrapping_add(run, 1)) < (total) && (self.compare)(&((self.keys[usize::try_from(order[usize::try_from(i32::wrapping_add(run, 1)).unwrap_or(0)]).unwrap_or(0)]).clone()), &((self.keys[usize::try_from(order[usize::try_from(i).unwrap_or(0)]).unwrap_or(0)]).clone())) == 0 {
+            while (i32::wrapping_add(run, 1)) < (total) && (self.compare).borrow_mut()(&((self.keys[usize::try_from(order[usize::try_from(i32::wrapping_add(run, 1)).unwrap_or(0)]).unwrap_or(0)]).clone()), &((self.keys[usize::try_from(order[usize::try_from(i).unwrap_or(0)]).unwrap_or(0)]).clone())) == 0 {
                 run = i32::wrapping_add(run, 1);
             }
             out_keys.push((self.keys[usize::try_from(order[usize::try_from(run).unwrap_or(0)]).unwrap_or(0)]).clone());

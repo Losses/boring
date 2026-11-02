@@ -432,6 +432,28 @@ pub enum JsonValue {
     JBool { value: bool },
     JNull,
 }
+impl core::hash::Hash for JsonValue {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            JsonValue::JObject { fields } => {
+                fields.hash(state);
+            }
+            JsonValue::JArray { values } => {
+                values.hash(state);
+            }
+            JsonValue::JString { value } => {
+                value.hash(state);
+            }
+            JsonValue::JNumber { value } => {
+                core::hash::Hash::hash(&(if *value == 0.0 { 0u64 } else if value.is_nan() { 0x7ff8000000000000u64 } else { value.to_bits() }), state);
+            }
+            JsonValue::JBool { value } => {
+                value.hash(state);
+            }
+            JsonValue::JNull => {},
+        }
+    }
+}
 
 impl JsonValue {
     pub fn to_string(&self) -> String {
@@ -471,7 +493,7 @@ impl JsonValue {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct JsonField {
     pub name: UString,
     pub value: JsonValue,

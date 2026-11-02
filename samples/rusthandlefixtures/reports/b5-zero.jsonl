@@ -1,0 +1,16 @@
+{"fixture":"AliasIdentity","construct":"alias-identity","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|AliasIdentity"]}
+{"fixture":"BorrowedParam","construct":"borrowed-param","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|BorrowedParam"]}
+{"fixture":"ChainedCall","construct":"chained-call","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|ChainedCall"]}
+{"fixture":"ClosureCapture","construct":"closure","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|ClosureCapture"]}
+{"fixture":"CollectionHandle","construct":"collection","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|CollectionHandle"]}
+{"fixture":"HandleFieldRead","construct":"field-read","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|HandleFieldRead"]}
+{"fixture":"HandleFieldWrite","construct":"field-write","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|HandleFieldWrite"]}
+{"fixture":"HandleParamChain","construct":"param-chain","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|HandleParamChain"]}
+{"fixture":"InterfaceDispatch","construct":"interface-dispatch","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|InterfaceDispatch"]}
+{"fixture":"MultiFieldChain","construct":"multi-field-chain","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|MultiFieldChain"]}
+{"fixture":"NewReceiver","construct":"new-receiver","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|NewReceiver"]}
+{"fixture":"NullableHandle","construct":"nullable","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|NullableHandle"]}
+{"fixture":"OwnedParam","construct":"owned-param","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|OwnedParam"]}
+{"fixture":"ReturnHandle","construct":"return-handle","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|ReturnHandle"]}
+{"fixture":"SelfRewrap","construct":"self-receiver","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|SelfRewrap"]}
+{"fixture":"StaticMutable","construct":"static-mutable","compile":"ok","cargoErrors":[],"fingerprints":["OK|-|StaticMutable"]}

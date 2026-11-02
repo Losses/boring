@@ -1,8 +1,11 @@
 # Target Semantic Policy
 
 Status: **v1.1.0**
+<<<<<<< Updated upstream
 
 Release note (v1.0.2): semantic rules unchanged; test-module compilation coverage added (P-20a).
+=======
+>>>>>>> Stashed changes
 
 | Role | Party |
 | --- | --- |
@@ -405,6 +408,7 @@ guesses):
 5. Positive: every fixture. Negative: none.
 6. (shared rule)
 
+<<<<<<< Updated upstream
 ### P-20a Validation coverage (test modules)
 
 1. (governance) A test module (a class carrying @:test functions) is emitted
@@ -424,6 +428,8 @@ guesses):
    layer. Negative: none.
 6. (shared rule)
 
+=======
+>>>>>>> Stashed changes
 ### P-21 Target symbol identity and ABI collision resolution
 
 1. (governance) Haxe distinct declarations stay distinct. A property's

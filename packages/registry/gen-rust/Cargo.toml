@@ -13,7 +13,3 @@ as-conversions = "deny"
 path = "lib.rs"
 
 [workspace]
-
-[[bin]]
-name = "registry-tool"
-path = "src_main.rs"

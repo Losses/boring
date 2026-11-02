@@ -446,6 +446,9 @@ class RustExpr {
         cannot be shadowed) and returns it.
     **/
     var thisBindingName:String = "self";
+    var projectionFieldIdSeq:Int = 0;
+    var currentIsTraitImpl:Bool = false;
+    var currentIsInnerHelper:Bool = false;
 
     function coalescingSiteFor(e:TypedExpr):Null<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
         if (currentClass == null || currentMethodName == null)
@@ -594,11 +597,24 @@ class RustExpr {
                 // (ClassHandleShare)
                 if (isInterfaceType(targetType)) {
                     if (isSharedIfaceType(targetType)) {
-                        imports.require("std::sync::Arc");
-                        imports.require("std::sync::Mutex");
-                        "Arc::new(Mutex::new(" + constructed + "))";
-                    } else
-                        "Box::new(" + constructed + ")";
+                        imports.require("std::rc::Rc");
+                        imports.require("std::cell::RefCell");
+                        "Rc::new(RefCell::new(" + constructed + "))";
+                    } else {
+                        imports.require("std::rc::Rc");
+                        imports.require("std::cell::RefCell");
+                        // A plain-class constructor already returns the
+                        // Rc<RefCell<T>> handle; clone it into the interface
+                        // slot with a single unsizing, never double-wrap.
+                        // (InnerHelperArchitecture)
+                        final isPlainHandle = switch (Context.getType(modulePath + "." + className)) {
+                            case TInst(ref, _): RustDecl.isPlainClassHandleClass(ref.get());
+                            default: false;
+                        };
+                        isPlainHandle
+                            ? "{ let __shared_handle: " + types.of(targetType, false) + " = " + constructed + "; __shared_handle }"
+                            : "Rc::new(RefCell::new(" + constructed + "))";
+                    }
                 } else
                     constructed;
         };
@@ -606,9 +622,9 @@ class RustExpr {
         // slot of its own class wraps into the shared handle, matching the
         // declaration-site lowering of the class. (ClassHandleShare)
         if (!isInterfaceType(targetType) && isSharedImplementorType(targetType)) {
-            imports.require("std::sync::Arc");
-            imports.require("std::sync::Mutex");
-            rendered = "Arc::new(Mutex::new(" + rendered + "))";
+            imports.require("std::rc::Rc");
+            imports.require("std::cell::RefCell");
+            rendered = "Rc::new(RefCell::new(" + rendered + "))";
         }
         if (!asOption)
             return rendered;
@@ -738,10 +754,10 @@ class RustExpr {
                     final plainClassStaticField = staticFieldOf(cls, fieldName);
                     if (plainClassStaticField != null && RustDecl.isPlainClassHandleStaticType(types.of(plainClassStaticField.type))) {
                         final value = plainClassStaticField.isFinal
-                            ? "(*" + staticItemPath(cls, fieldName) + ").0.clone()"
-                            : "(*" + staticItemPath(cls, fieldName) + ").lock().unwrap().0.clone()";
+                            ? "(*" + staticItemPath(cls, fieldName) + ").clone()"
+                            : "(*" + staticItemPath(cls, fieldName) + ").lock().unwrap().clone()";
                         return isInterfaceSlotType(targetType) && !isInterfaceType(plainClassStaticField.type)
-                            ? "Box::new(" + value + ")" : value;
+                            ? "{ let __shared_handle: " + types.of(targetType, false) + " = " + value + "; __shared_handle }" : value;
                     }
                     if (isGuardStaticField(cls, fieldName)) {
                         final value = staticGuardClone(cls, fieldName);
@@ -751,7 +767,7 @@ class RustExpr {
                         // its Option payload declares.
                         final field = staticFieldOf(cls, fieldName);
                         return isInterfaceSlotType(targetType) && (field == null || !isInterfaceType(field.type))
-                            ? "Box::new(" + value + ")" : value;
+                            ? "{ let __shared_handle: " + types.of(targetType, false) + " = " + value + "; __shared_handle }" : value;
                     }
                     // A construction or lazy-array static is emitted as a
                     // LazyLock; the coalescing default must deref and clone
@@ -765,7 +781,7 @@ class RustExpr {
                         // its Option payload declares.
                         final field = staticFieldOf(cls, fieldName);
                         return isInterfaceSlotType(targetType) && (field == null || !isInterfaceType(field.type))
-                            ? "Box::new(" + lazyRead + ")" : lazyRead;
+                            ? "{ let __shared_handle: " + types.of(targetType, false) + " = " + lazyRead + "; __shared_handle }" : lazyRead;
                     }
                     final rendered = staticRef(cls, fieldName);
                     // A direct array static lowers to a Rust array, while an
@@ -840,7 +856,169 @@ class RustExpr {
         };
     }
 
-    public function functionBody(cls:ClassType, f:ClassFuncData):Array<String> {
+    /**
+        FieldProjection body rewrite: replace `engine.field` reads with the
+        projected field parameter local and expand a whole-handle forward
+        (`callee(engine, ...)`) into that callee's projected fields. The
+        projected locals register like parameters so their handle types drive
+        receiver borrow decisions.
+    **/
+    function rewriteFieldProjection(e:TypedExpr, engineName:String, engineType:Null<Type>, fields:Array<{name:String, snake:String}>):Void {
+        final engineCls = switch (Context.follow(engineType)) { case TInst(c, _): c.get(); case _: null; };
+        final fieldVars:Map<String, TVar> = [];
+        for (fld in fields) {
+            var ft:Null<Type> = null;
+            if (engineCls != null)
+                for (fl in engineCls.fields.get())
+                    if (fl.name == fld.name) { ft = fl.type; break; }
+            final ftv = ft != null ? ft : engineType;
+            projectionFieldIdSeq += 1;
+            final tv:TVar = { id: -5000000 - projectionFieldIdSeq, name: fld.name, t: ftv, capture: false, extra: null, meta: null, isStatic: false };
+            fieldVars.set(fld.name, tv);
+            reserveName(fld.snake);
+            setArgType(fld.snake, types.of(ftv, true));
+            paramVarIds.set(tv.id, true);
+        }
+        function rewrite(node:TypedExpr):Void {
+            switch (node.expr) {
+                case TField(subj, FInstance(_, _, cf)):
+                    switch (subj.expr) {
+                        case TLocal(v) if (v.name == engineName):
+                            final tv = fieldVars.get(cf.get().name);
+                            if (tv != null)
+                                node.expr = TLocal(tv);
+                            return;
+                        case _:
+                    }
+                    rewrite(subj);
+                case TCall(fn, args):
+                    var expandedForward = false;
+                    switch (fn.expr) {
+                        case TField(_, FStatic(cc, cf)):
+                            final calleeProj = state.fieldProjections.get(RustEmissionState.funcKey(cc.get().module, cf.get().name, true));
+                            if (calleeProj != null) {
+                                for (i in 0...args.length) {
+                                    switch (args[i].expr) {
+                                        case TLocal(v) if (v.name == engineName):
+                                            final expanded:Array<TypedExpr> = [];
+                                            for (fld in calleeProj.fields) {
+                                                final tv = fieldVars.get(fld.name);
+                                                if (tv != null)
+                                                    expanded.push({expr: TLocal(tv), pos: args[i].pos, t: tv.t});
+                                            }
+                                            args.splice(i, 1);
+                                            for (j in 0...expanded.length)
+                                                args.insert(i + j, expanded[j]);
+                                            expandedForward = true;
+                                            break;
+                                        case _:
+                                    }
+                                }
+                            }
+                        case _:
+                    }
+                    rewrite(fn);
+                    for (a in args)
+                        rewrite(a);
+                case _:
+                    haxe.macro.TypedExprTools.iter(node, function(child) rewrite(child));
+            }
+        }
+        rewrite(e);
+    }
+
+    /**
+        FieldProjection call-site expansion: replace the projected handle
+        argument (a `this` or a forwarded projected engine) with one field
+        access per projected field so the caller projects `self.field.clone()`
+        in its place. Returns null when the argument list does not line up.
+    **/
+    function projectedStaticCallArgs(fnType:Type, args:Array<TypedExpr>, proj:{engineName:String, fields:Array<{name:String, snake:String}>}):Null<{fnType:Type, args:Array<TypedExpr>}> {
+        final followed = Context.follow(fnType);
+        final params = switch (followed) { case TFun(pa, ret): pa; case _: []; };
+        var enginePos = -1;
+        for (i in 0...params.length)
+            if (params[i].name == proj.engineName) { enginePos = i; break; }
+        if (enginePos < 0 || enginePos >= args.length)
+            return null;
+        final engineType = params[enginePos].t;
+        final engineCls = switch (Context.follow(engineType)) { case TInst(c, _): c.get(); case _: null; };
+        final engineClsRef = switch (Context.follow(engineType)) { case TInst(c, _): c; case _: null; };
+        if (engineCls == null || engineClsRef == null)
+            return null;
+        final ret = switch (followed) { case TFun(_, r): r; case _: null; };
+
+        // The field-parameter list of the expanded signature, used both for
+        // the already-expanded (forward rewritten by the body pass) case and
+        // the not-yet-expanded (this/forward at the call site) case.
+        final fieldParams:Array<{name:String, opt:Bool, t:Type}> = [];
+        final fieldTypes:Array<Type> = [];
+        for (fld in proj.fields) {
+            var ft:Null<Type> = null;
+            for (fl in engineCls.fields.get())
+                if (fl.name == fld.name) { ft = fl.type; break; }
+            if (ft == null)
+                return null;
+            fieldParams.push({name: fld.name, opt: false, t: ft});
+            fieldTypes.push(ft);
+        }
+        final expandedParams:Array<{name:String, opt:Bool, t:Type}> = [];
+        for (fp in fieldParams)
+            expandedParams.push(fp);
+        for (i in 0...params.length)
+            if (i != enginePos)
+                expandedParams.push(params[i]);
+        final expandedFnType = TFun(expandedParams, ret);
+
+        // The body pass (rewriteFieldProjection) already spliced a forwarded
+        // handle into the callee's field locals: the args line up with the
+        // expanded signature directly, so only the type needs re-pointing.
+        final alreadyExpanded = proj.fields.length > 0 && switch (stripWrap(args[enginePos]).expr) {
+            case TLocal(v): v.name == proj.fields[0].name;
+            case _: false;
+        };
+        if (alreadyExpanded)
+            return {fnType: expandedFnType, args: args};
+
+        final engineArg = args[enginePos];
+        final isThis = switch (stripWrap(engineArg).expr) { case TConst(TThis): true; case _: false; };
+        // A forwarded engine is any argument whose Haxe type is the engine
+        // class, regardless of the local name; test-support callers name it
+        // "e" or "engine" arbitrarily. (FieldProjectionForwardType)
+        final isForward = !isThis && switch (Context.follow(engineArg.t)) {
+            case TInst(c, _): c.get().module == engineCls.module && c.get().name == engineCls.name;
+            case _: false;
+        };
+        if (!isThis && !isForward)
+            return null;
+
+        final newArgs:Array<TypedExpr> = [];
+        for (i in 0...args.length) {
+            if (i == enginePos) {
+                var fi = 0;
+                for (fld in proj.fields) {
+                    final ft = fieldTypes[fi];
+                    fi += 1;
+                    var fcf:Null<ClassField> = null;
+                    for (fl in engineCls.fields.get())
+                        if (fl.name == fld.name) { fcf = fl; break; }
+                    if (fcf == null)
+                        return null;
+                    final fref:Ref<ClassField> = { get: () -> fcf, toString: () -> fcf.name };
+                    // Both "this" and a forwarded engine local are handles:
+                    // project each field as a field access on the engine, not
+                    // a bare local (the caller has no field local in scope).
+                    // (FieldProjectionCallSite)
+                    newArgs.push({expr: TField(engineArg, FInstance(engineClsRef, [], fref)), pos: engineArg.pos, t: ft});
+                }
+            } else {
+                newArgs.push(args[i]);
+            }
+        }
+        return {fnType: expandedFnType, args: newArgs};
+    }
+
+    public function functionBody(cls:ClassType, f:ClassFuncData, isTraitImpl:Bool = false, isInnerHelper:Bool = false):Array<String> {
         if (f.expr == null) {
             Context.error("function field has no body to lower", f.field.pos);
         }
@@ -849,6 +1027,9 @@ class RustExpr {
         PipelineExpander.expandRootExpr(f.expr);
         EnumQueryExpander.expandRootExpr(f.expr);
         currentClass = cls;
+        currentIsTraitImpl = isTraitImpl;
+        currentIsInnerHelper = isInnerHelper;
+        thisBindingName = (RustDecl.isPlainClassHandleClass(cls) && !isTraitImpl) ? "this" : "self";
         currentMethodName = f.field.name;
         currentLocalName = null;
         paramVarIds.clear();
@@ -910,14 +1091,22 @@ class RustExpr {
         // body never reassigns them. (StrParamHoist)
         scanStrParamHoists(f);
         scanFloatAccumulators(f.expr);
-        final previousReceiverContext = renderingMethodReceiver;
-        renderingMethodReceiver = RustDecl.methodWritesReceiver(f.field);
         final previousFunctionMutatesSelf = currentFunctionMutatesSelf;
-        currentFunctionMutatesSelf = renderingMethodReceiver;
+        currentFunctionMutatesSelf = RustDecl.methodWritesReceiver(f.field);
+        // FieldProjection: a projected static function rewrites its handle
+        // reads and whole-handle forwards to the projected field parameters
+        // before rendering, so the body never names the removed handle.
+        final projKey = RustEmissionState.funcKey(cls.module, f.field.name, f.isStatic);
+        final proj = state.fieldProjections.get(projKey);
+        if (proj != null) {
+            var engineType:Null<Type> = null;
+            for (a in f.args)
+                if (a.name == proj.engineName) { engineType = a.type; break; }
+            rewriteFieldProjection(f.expr, proj.engineName, engineType, proj.fields);
+        }
         final lines = blockLines(statementsOf(f.expr), 1, true);
         final normalized = coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]);
         currentFunctionMutatesSelf = previousFunctionMutatesSelf;
-        renderingMethodReceiver = previousReceiverContext;
         // Prepend hoisted string-param materializations before the body.
         final hoistLines:Array<String> = [];
         for (pid => info in hoistedStrParams) {
@@ -994,7 +1183,7 @@ class RustExpr {
         renders before the literal, so constructor validation survives on
         this target.
     **/
-    public function constructorBody(cls:ClassType, f:ClassFuncData):{statementLines:Array<String>, fieldInits:Map<String, String>, thisAsValue:Bool, thisBindingName:String} {
+    public function constructorBody(cls:ClassType, f:ClassFuncData):{statementLines:Array<String>, fieldInits:Map<String, String>, thisAsValue:Bool, thisBindingName:String, selfLocalName:String, handleName:Null<String>} {
         if (f.expr == null) {
             Context.error("constructor has no body to lower", f.field.pos);
         }
@@ -1228,7 +1417,10 @@ class RustExpr {
         }
         for (stmt in stmts)
             scanThisValue(stmt);
-        final bindingName = thisAsValue ? freshRegionName("__self") : "self";
+        final isHandleCtor = RustDecl.isPlainClassHandleClass(cls);
+        final selfLocalName = thisAsValue ? freshRegionName("__self") : "self";
+        final handleName = (thisAsValue && isHandleCtor) ? freshRegionName("handle") : null;
+        final bindingName = handleName != null ? handleName : selfLocalName;
         final previousThisBinding = thisBindingName;
         thisBindingName = bindingName;
         // tailScope stays off: the constructor's tail is the Ok(Self { ... })
@@ -1237,7 +1429,7 @@ class RustExpr {
         final lines = stmts.length > 0 ? blockLines(stmts, 1, false) : [];
         final normalized = coalescingNormalizationLines(f.expr, 1, [for (a in f.args) a.name]);
         thisBindingName = previousThisBinding;
-        return {statementLines: normalized.concat(fallbackBindings).concat(lines), fieldInits: fieldInits, thisAsValue: thisAsValue, thisBindingName: bindingName};
+        return {statementLines: normalized.concat(fallbackBindings).concat(lines), fieldInits: fieldInits, thisAsValue: thisAsValue, thisBindingName: bindingName, selfLocalName: selfLocalName, handleName: handleName};
     }
 
     function coalescingNormalizationLines(root:TypedExpr, depth:Int, parameterOrder:Null<Array<String>> = null):Array<String> {
@@ -1683,40 +1875,40 @@ class RustExpr {
                 // and every interface slot it enters name one object.
                 // (ClassHandleShare)
                 if (isSharedImplementorType(v.t) && !isTNull(init)
-                    && !StringTools.startsWith(initStr, "Arc::new(Mutex::new(")
-                    && !StringTools.startsWith(initStr, "Some(Arc::new(Mutex::new(")) {
-                    imports.require("std::sync::Arc");
-                    imports.require("std::sync::Mutex");
+                    && !StringTools.startsWith(initStr, "Rc::new(RefCell::new(")
+                    && !StringTools.startsWith(initStr, "Some(Rc::new(RefCell::new(")) {
+                    imports.require("std::rc::Rc");
+                    imports.require("std::cell::RefCell");
                     final copyOfShared = switch (stripWrap(init).expr) {
                         case TLocal(_) | TField(_, _): isSharedImplementorType(init.t);
                         case _: false;
                     };
-                    initStr = copyOfShared ? "Arc::clone(&" + initStr + ")" : "Arc::new(Mutex::new(" + initStr + "))";
+                    initStr = copyOfShared ? "Rc::clone(&" + initStr + ")" : "Rc::new(RefCell::new(" + initStr + "))";
                 }
                 if (isNullType(v.t) && !isTNull(init) && !StaticFieldHelper.isNullableType(init.t) && !lookupInit) {
                     initStr = "Some(" + initStr + ")";
                 }
-                // A shared closure array lowers as Arc<Mutex<Vec>> so the
+                // A shared closure array lowers as Rc<RefCell<Vec>> so the
                 // capturing closures observe one another's updates
                 // (SharedClosureArrays). The outer binding stays immutable:
                 // the Mutex carries the interior mutability.
                 if (sharedClosureArrays.exists(v.id)) {
-                    imports.require("std::sync::Arc");
-                    imports.require("std::sync::Mutex");
+                    imports.require("std::rc::Rc");
+                    imports.require("std::cell::RefCell");
                     final innerType = types.of(v.t, false);
-                    recordDeclInit(v, "Arc::new(Mutex::new(Vec::new()))");
-                    return [indent(depth) + "let " + name + ": Arc<Mutex<" + innerType + ">> = Arc::new(Mutex::new(Vec::new()));"];
+                    recordDeclInit(v, "Rc::new(RefCell::new(Vec::new()))");
+                    return [indent(depth) + "let " + name + ": Rc<RefCell<" + innerType + ">> = Rc::new(RefCell::new(Vec::new()));"];
                 }
-                // A shared closure scalar lowers as Arc<Mutex<T>>: the named
+                // A shared closure scalar lowers as Rc<RefCell<T>>: the named
                 // local function that assigns it is an Arc<dyn Fn>, whose
                 // captured bindings are immutable (SharedClosureScalars).
                 if (sharedClosureScalars.exists(v.id)) {
-                    imports.require("std::sync::Arc");
-                    imports.require("std::sync::Mutex");
+                    imports.require("std::rc::Rc");
+                    imports.require("std::cell::RefCell");
                     final innerType = types.of(v.t, false);
                     final valueText = isTNull(init) ? "Default::default()" : expr(init);
-                    recordDeclInit(v, "Arc::new(Mutex::new(" + valueText + "))");
-                    return [indent(depth) + "let " + name + ": Arc<Mutex<" + innerType + ">> = Arc::new(Mutex::new(" + valueText + "));"];
+                    recordDeclInit(v, "Rc::new(RefCell::new(" + valueText + "))");
+                    return [indent(depth) + "let " + name + ": Rc<RefCell<" + innerType + ">> = Rc::new(RefCell::new(" + valueText + "));"];
                 }
                 // An empty array literal is an untyped `vec![]` in Rust; the
                 // element reads and writes of an array local infer through
@@ -1983,6 +2175,8 @@ class RustExpr {
                 // element stays owned by its array.
                 switch (stripWrap(ret).expr) {
                     case TConst(TThis) if (RustDecl.isPlainClassHandle(ret.t)):
+                        imports.require("std::rc::Rc");
+                        imports.require("std::cell::RefCell");
                         retStr = "Rc::new(RefCell::new(" + retStr + ".clone()))";
                     case TConst(TThis) if (!isTypeCopy(ret.t)):
                         retStr = "(" + retStr + ").clone()";
@@ -3993,7 +4187,7 @@ class RustExpr {
             if (isScal) sharedClosureScalars.remove(v.id);
             subst.set(v.id, isArr ? guardName : (isTypeCopy(v.t) ? "*" + guardName : guardName));
             bodyGuardState.push({v: v, guard: guardName, isArr: isArr, isScal: isScal});
-            out.push(indent(depth) + "let mut " + guardName + " = " + RustImports.toSnakeCase(localName(v)) + ".lock().unwrap();");
+            out.push(indent(depth) + "let mut " + guardName + " = " + RustImports.toSnakeCase(localName(v)) + ".borrow_mut();");
         }
         // Re-render the bound after the body guards are substituted: a bound
         // that reads a body-guard array now renders through the guard (no
@@ -4204,6 +4398,24 @@ class RustExpr {
     }
 
     function loopBound(bound:TypedExpr):String {
+        // A loop bound is always an immutable length read (Rust evaluates it
+        // once before the loop). It must never open a mutable borrow: the
+        // body reads through .borrow() and a held .borrow_mut() from the
+        // bound would panic at runtime. (LoopBoundImmutableRead)
+        final prevAssignReceiver = renderingAssignTargetReceiver;
+        final prevMethodReceiver = renderingMethodReceiver;
+        final prevMutatorReceiver = renderingInPlaceMutatorReceiver;
+        renderingAssignTargetReceiver = false;
+        renderingMethodReceiver = false;
+        renderingInPlaceMutatorReceiver = false;
+        final result = loopBoundInner(bound);
+        renderingAssignTargetReceiver = prevAssignReceiver;
+        renderingMethodReceiver = prevMethodReceiver;
+        renderingInPlaceMutatorReceiver = prevMutatorReceiver;
+        return result;
+    }
+
+    function loopBoundInner(bound:TypedExpr):String {
         final inner = stripWrap(bound);
         switch (inner.expr) {
             case TField(subj, fa) if (fieldName(fa) == "length"):
@@ -4376,29 +4588,36 @@ class RustExpr {
         }
         return switch (RustType.classifyKey(kType, pos)) {
             case IntKey:
-                imports.require("std::sync::Arc");
-                "Arc::new(|a, b| SortedTable::sorted_table_compare_ints("
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+                final kt = types.of(kType);
+                "Rc::new(RefCell::new(|a: &" + kt + ", b: &" + kt + "| SortedTable::sorted_table_compare_ints("
                 + RustConversions.reinterpret("(*a)", "i32")
                 + ", "
                 + RustConversions.reinterpret("(*b)", "i32")
-                + "))";
+                + ")))";
             case StringKey:
-                imports.require("std::sync::Arc");
-                "Arc::new(|a, b| SortedTable::sorted_table_compare_strings(a.as_ustr(), b.as_ustr()))";
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+                final kt = types.of(kType);
+                "Rc::new(RefCell::new(|a: &" + kt + ", b: &" + kt + "| SortedTable::sorted_table_compare_strings(a.as_ustr(), b.as_ustr())))";
             case StructKey(def, _):
                 final cmpName = "compare_" + RustImports.toSnakeCase(def.name);
                 imports.requireType(def.module, cmpName);
-                imports.require("std::sync::Arc");
-                "Arc::new(" + cmpName + ")";
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+                "Rc::new(RefCell::new(" + cmpName + "))";
             case DataClassKey(cls, _):
                 final cmpName = "compare_" + RustImports.toSnakeCase(cls.name);
                 imports.requireType(cls.module, cmpName);
-                imports.require("std::sync::Arc");
-                "Arc::new(" + cmpName + ")";
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+                "Rc::new(RefCell::new(" + cmpName + "))";
             case EnumKey(en):
                 imports.requireType(en.module, "compare_" + RustImports.toSnakeCase(en.name));
-                imports.require("std::sync::Arc");
-                "Arc::new(compare_" + RustImports.toSnakeCase(en.name) + ")";
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+                "Rc::new(RefCell::new(compare_" + RustImports.toSnakeCase(en.name) + "))";
         };
     }
 
@@ -4631,7 +4850,7 @@ class RustExpr {
             if (isTNull(arg)) {
                 return argStr;
             }
-            argStr = argStr + ".unwrap()";
+            argStr = argStr + (isTypeCopy(getNullInnerType(arg.t)) ? ".unwrap()" : ".as_ref().unwrap()");
             if (!isTypeCopy(getNullInnerType(arg.t))) {
                 if (!StringTools.endsWith(argStr, ".clone()")
                     && !StringTools.endsWith(argStr, ".to_vec()")
@@ -4760,7 +4979,13 @@ class RustExpr {
                 final recv = if (narrowedSubject(receiver) != null) narrowedSubject(receiver)
                     else if (provenNonNullLocalSubject(receiver) != null) provenNonNullLocalSubject(receiver)
                     else if (fieldReceiverCarriesFallibleWrapper(receiver)) expr(receiver) + ".as_ref().unwrap()"
-                    else expr(receiver);
+                    else {
+                        // A plain-class handle receiver opens its Rc borrow before
+                        // the field path, matching the field() read path; otherwise
+                        // the path addresses the handle, not the object (E0609).
+                        final receiverText = expr(receiver);
+                        receiverNeedsRcBorrow(receiver) ? receiverText + ".borrow()" : receiverText;
+                    };
                 recv + "." + RustImports.toSnakeCase(cf.get().name);
             case _: expr(subject);
         };
@@ -4918,9 +5143,12 @@ class RustExpr {
     }
 
     /** The owned inner value a `Null<Interface>` assignment receives from a concrete `T` right side. */
-    function ownedNullInterfaceAssignValue(r:TypedExpr):String {
+    function ownedNullInterfaceAssignValue(r:TypedExpr, slotType:Null<Type>):String {
         final s = expr(r);
-        return "Box::new(" + normalizeConstructorResult(r, s) + ")";
+        final boxed = normalizeConstructorResult(r, s);
+        if (RustDecl.isPlainClassHandleOrNull(r.t) && slotType != null)
+            return "{ let __shared_handle: " + types.of(slotType, false) + " = " + boxed + "; __shared_handle }";
+        return "Box::new(" + boxed + ")";
     }
 
     /**
@@ -5478,7 +5706,7 @@ class RustExpr {
                 // mutex guard; index writes and pushes on the guard resolve
                 // through DerefMut (SharedClosureArrays).
                 if (sharedClosureArrays.exists(v.id))
-                    return RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
+                    return RustImports.toSnakeCase(localName(v)) + (renderingInPlaceMutatorReceiver ? ".borrow_mut()" : ".borrow()");
                 // A shared closure scalar read dereferences through the
                 // guard explicitly: binary operators do not auto-deref the
                 // MutexGuard, so every value read needs the leading star.
@@ -5491,7 +5719,7 @@ class RustExpr {
                     // guard, since a dereferenced read would move out of
                     // it. (SharedClosureScalars)
                     final star = isTypeCopy(v.t) ? "*" : "";
-                    return star + RustImports.toSnakeCase(localName(v)) + ".lock().unwrap()";
+                    return star + RustImports.toSnakeCase(localName(v)) + (renderingInPlaceMutatorReceiver ? ".borrow_mut()" : ".borrow()");
                 }
                 // A capture copy converted to its owned String form reads
                 // as a borrowed view: the body's &str consumers borrow the
@@ -5605,8 +5833,14 @@ class RustExpr {
                         // so the Vec carries one Box<dyn Trait> type. The
                         // concrete value is already cloned above, so the box
                         // takes an owned payload. (InterfaceElementBox)
-                        if (elemType != null && isInterfaceType(elemType) && !isInterfaceType(x.t))
-                            inner = "Box::new(" + inner + ") as " + types.of(elemType, false);
+                        if (elemType != null && isInterfaceType(elemType) && !isInterfaceType(x.t)) {
+                            imports.require("std::rc::Rc");
+                            imports.require("std::cell::RefCell");
+                            if (RustDecl.isPlainClassHandleOrNull(x.t))
+                                inner = "{ let __shared_handle: " + types.of(elemType, false) + " = " + inner + "; __shared_handle }";
+                            else
+                                inner = "Rc::new(RefCell::new(" + inner + ")) as " + types.of(elemType, false);
+                        }
                         if (isNullableElem && !isTNull(x) && !StaticFieldHelper.isNullableType(x.t)) {
                             "Some(" + inner + ")";
                         } else {
@@ -5637,7 +5871,7 @@ class RustExpr {
                         case _: false;
                     };
                     if (fromIface)
-                        return "(" + expr(inner) + ").as_any().downcast_ref::<" + targetCls.name + ">().unwrap()";
+                        return "(" + expr(inner) + ")" + (receiverNeedsRcBorrow(inner) ? ".borrow()" : "") + ".as_any().downcast_ref::<" + targetCls.name + ">().unwrap()";
                 }
                 // A cast out of a nullable value into a non-null class
                 // extracts the payload: the paired Std.isOfType fold proved
@@ -6562,7 +6796,7 @@ class RustExpr {
             return text;
         return switch (stripWrap(branch).expr) {
             case TConst(TThis):
-                RustDecl.isPlainClassHandle(branch.t) ? "Rc::new(RefCell::new(" + text + ".clone()))" : (StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()");
+                RustDecl.isPlainClassHandle(branch.t) ? "Rc::new(RefCell::new((" + text + ").clone()))" : (StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()");
             case _: text;
         };
     }
@@ -7079,11 +7313,21 @@ class RustExpr {
                     case _:
                 }
             }
+            if (mutable) {
+                final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
+                renderingInPlaceMutatorReceiver = true;
+                final r = expr(subj);
+                renderingInPlaceMutatorReceiver = previousMutatorReceiver;
+                return r;
+            }
             return expr(subj);
         }
         final previousReceiverContext = renderingMethodReceiver;
+        final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
         if (mutable) renderingMethodReceiver = true;
+        if (mutable) renderingInPlaceMutatorReceiver = true;
         final base = expr(subj);
+        renderingInPlaceMutatorReceiver = previousMutatorReceiver;
         renderingMethodReceiver = previousReceiverContext;
         // A null guard or a null-coalescing match already bound the inner
         // value; the binding holds the inner reference itself, so the
@@ -7190,13 +7434,17 @@ class RustExpr {
         final cls = structFieldEq(t);
         if (cls == null)
             return left + " == " + right;
+        // A plain-class handle opens its Rc borrow before the field read, so
+        // the field-wise comparison addresses the object, not the handle
+        // (E0609). Non-handle record structs keep the bare field path.
+        final handleBorrow = RustDecl.isPlainClassHandleClass(cls) ? ".borrow()" : "";
         final parts = [];
         for (f in cls.fields.get()) {
             switch (f.kind) {
                 case FVar(_, _):
                     final snake = RustImports.toSnakeCase(f.name);
-                    final l = "(" + left + ")." + snake;
-                    final r = "(" + right + ")." + snake;
+                    final l = "(" + left + ")" + handleBorrow + "." + snake;
+                    final r = "(" + right + ")" + handleBorrow + "." + snake;
                     if (RustType.isPartialEqType(f.type)) {
                         parts.push(l + " == " + r);
                     } else if (isNullableInterfaceType(f.type)) {
@@ -7204,8 +7452,8 @@ class RustExpr {
                         // inside Option without requiring PartialEq on them.
                         parts.push(nullableInterfaceFieldEqText(l, r, isSharedIfaceType(f.type)));
                     } else if (isInterfaceType(f.type)) {
-                        final lq = isSharedIfaceType(f.type) ? l + ".lock().unwrap()" : l;
-                        final rq = isSharedIfaceType(f.type) ? r + ".lock().unwrap()" : r;
+                        final lq = isSharedIfaceType(f.type) ? l + ".borrow()" : l + ".borrow()";
+                        final rq = isSharedIfaceType(f.type) ? r + ".borrow()" : r + ".borrow()";
                         parts.push(lq + ".__haxe_type_name() == " + rq + ".__haxe_type_name()");
                     } else if (structFieldEq(f.type) != null) {
                         parts.push(structEqText(f.type, l, r));
@@ -7226,8 +7474,8 @@ class RustExpr {
 
     /** Compare nullable interface fields by presence and dynamic Haxe type name. */
     function nullableInterfaceFieldEqText(left:String, right:String, shared:Bool):String {
-        final lq = shared ? "__left.lock().unwrap()" : "__left";
-        final rq = shared ? "__right.lock().unwrap()" : "__right";
+        final lq = shared ? "__left.lock().unwrap()" : "__left.borrow()";
+        final rq = shared ? "__right.lock().unwrap()" : "__right.borrow()";
         return "match (&" + left + ", &" + right + ") { (Some(__left), Some(__right)) => " + lq + ".__haxe_type_name() == " + rq + ".__haxe_type_name(), (None, None) => true, _ => false }";
     }
 
@@ -7365,8 +7613,8 @@ class RustExpr {
                 final right = expr(r);
                 // A shared interface handle opens its Mutex before the
                 // type-name read. (ClassHandleShare)
-                final lockL = isSharedIfaceType(l.t) ? left + ".lock().unwrap()" : left;
-                final lockR = isSharedIfaceType(r.t) ? right + ".lock().unwrap()" : right;
+                final lockL = isSharedIfaceType(l.t) ? left + ".borrow()" : left + ".borrow()";
+                final lockR = isSharedIfaceType(r.t) ? right + ".borrow()" : right + ".borrow()";
                 final eq = lockL + ".__haxe_type_name() == " + lockR + ".__haxe_type_name()";
                 return op == OpEq ? eq : "!(" + eq + ")";
             // A shared-handle operand (a concrete implementor held as the
@@ -7374,8 +7622,8 @@ class RustExpr {
             // equality is reference equality and the handle is the
             // reference. (ClassHandleShare)
             case OpEq | OpNotEq if (sharedHandleEqType(l.t) || sharedHandleEqType(r.t)):
-                imports.require("std::sync::Arc");
-                final eq = "Arc::ptr_eq(&(" + expr(l) + "), &(" + expr(r) + "))";
+                imports.require("std::rc::Rc");
+                final eq = "Rc::ptr_eq(&(" + expr(l) + "), &(" + expr(r) + "))";
                 return op == OpEq ? eq : "!(" + eq + ")";
             // A struct whose fields cannot all derive PartialEq (for
             // example, an interface field lowers to Box<dyn Trait>) compares
@@ -7517,7 +7765,7 @@ class RustExpr {
                 if (refCellPath != null) {
                     final staticValue = if (StaticFieldHelper.isNullableType(l.t)) {
                         isTNull(r) ? "None" : (isInterfaceType(getNullInnerType(l.t)) && (isConcreteConstructor(r) || !isInterfaceType(r.t))
-                            ? "Some(" + ownedNullInterfaceAssignValue(r) + ")"
+                            ? "Some(" + ownedNullInterfaceAssignValue(r, getNullInnerType(l.t)) + ")"
                             : "Some(" + staticOwnedValue(r) + ")");
                     } else if (StaticFieldHelper.isStringType(l.t)) {
                         staticOwnedValue(r);
@@ -7534,7 +7782,7 @@ class RustExpr {
                 if (staticTarget != null) {
                     final staticValue = if (StaticFieldHelper.isNullableType(l.t)) {
                         isTNull(r) ? "None" : (isInterfaceType(getNullInnerType(l.t)) && (isConcreteConstructor(r) || !isInterfaceType(r.t))
-                            ? "Some(" + ownedNullInterfaceAssignValue(r) + ")"
+                            ? "Some(" + ownedNullInterfaceAssignValue(r, getNullInnerType(l.t)) + ")"
                             : "Some(" + staticOwnedValue(r) + ")");
                     } else if (StaticFieldHelper.isStringType(l.t)) {
                         staticOwnedValue(r);
@@ -7558,7 +7806,7 @@ class RustExpr {
                     // recover the concrete class so the implementor still
                     // boxes into the Option<Box<dyn Trait>>.
                     if (isInterfaceType(getNullInnerType(l.t)) && (isConcreteConstructor(r) || !isInterfaceType(r.t)))
-                        "Some(" + ownedNullInterfaceAssignValue(r) + ")";
+                        "Some(" + ownedNullInterfaceAssignValue(r, getNullInnerType(l.t)) + ")";
                     else
                         "Some(" + ownedNullAssignValue(r) + ")";
                 } else if (isImplicitNullableLocal(l) && !isNullType(r.t) && !isTNull(r)) {
@@ -7652,12 +7900,22 @@ class RustExpr {
                 // assignment takes the lock. The receiver text is compared,
                 // not the variable name, so any guard-returning receiver
                 // with the same text is caught. (MutexGuardAssignmentScope)
-                if (assignTargetText.indexOf(".lock().unwrap()") >= 0 && rhs.indexOf(".lock().unwrap()") >= 0) {
+                if (assignTargetText.indexOf(".borrow()") >= 0 && rhs.indexOf(".borrow()") >= 0) {
                     final targetReceiver = lockReceiverAt(assignTargetText, assignTargetText.indexOf(".lock()"));
                     if (targetReceiver != null && lockReceiverIs(rhs, targetReceiver)) {
                         final temp = freshRegionName("__rhs_value");
                         return "{ let " + temp + " = " + rhs + "; " + assignTargetText + " = " + temp + " }";
                     }
+                }
+                // A field write through a plain-class handle
+                // (this.borrow_mut().field = ...) holds the mutable borrow
+                // across the statement; a RHS that reads any field of the
+                // same handle (this.borrow().other) panics at runtime.
+                // Hoist the RHS so the immutable read drops before the
+                // mutable write. (HandleFieldAssignScope)
+                if (isLocalOrFieldTarget(l) && assignTargetText.indexOf(".borrow_mut()") >= 0 && (rhs.indexOf(".borrow()") >= 0 || rhs.indexOf(".borrow_mut()") >= 0)) {
+                    final temp = freshRegionName("__rhs_value");
+                    return "{ let " + temp + " = " + rhs + "; " + assignTargetText + " = " + temp + " }";
                 }
                 // A cursor-style reassignment `cursor = ...cursor.borrow()...`
                 // holds the Rc borrow across the assignment; hoist the RHS
@@ -8395,9 +8653,12 @@ class RustExpr {
     function intStepWrapping(subj:TypedExpr, add:Bool, ?renderedTarget:String):Null<String> {
         if (!isIntType(subj.t) || !isLocalOrFieldTarget(subj) || isGenericLocal(subj) || RustType.isTypeParam(subj.t))
             return null;
-        final target = renderedTarget != null ? renderedTarget : expr(subj);
+        final readTarget = renderedTarget != null ? renderedTarget : expr(subj);
+        // The assignment target opens the mutable Rc borrow on a plain-class
+        // handle field; the read keeps the immutable borrow (E0594).
+        final writeTarget = assignTarget(subj);
         final domain = i32LocalDomain(subj) ? "i32" : types.of(subj.t);
-        return target + " = " + domain + "::" + (add ? "wrapping_add" : "wrapping_sub") + "(" + target + ", 1)";
+        return writeTarget + " = " + domain + "::" + (add ? "wrapping_add" : "wrapping_sub") + "(" + readTarget + ", 1)";
     }
 
     function unop(e:TypedExpr, op:Unop, post:Bool, subj:TypedExpr):String {
@@ -8815,10 +9076,10 @@ class RustExpr {
                     // A container static mutates its contents in place; the
                     // read is the mutable guard, not a clone. (RcContainerStatic)
                     if (RustDecl.isPlainClassHandleContainerStaticType(types.of(cf.get().type)))
-                        return "(*" + staticItemPath(cls, name) + ").lock().unwrap().0";
+                        return "(*" + staticItemPath(cls, name) + ").lock().unwrap()";
                     return cf.get().isFinal
-                        ? "(*" + staticItemPath(cls, name) + ").0.clone()"
-                        : "(*" + staticItemPath(cls, name) + ").lock().unwrap().0.clone()";
+                        ? "(*" + staticItemPath(cls, name) + ").clone()"
+                        : "(*" + staticItemPath(cls, name) + ").lock().unwrap().clone()";
                 }
                 if (RustDecl.usesLazyLockStatic(cls, cf.get(), state)) {
                     // LazyLock owns its value. Static reads cross Haxe value
@@ -9008,12 +9269,12 @@ class RustExpr {
                 // (ClassHandleShare)
                 final sharedFieldRecv = receiverNeedsSharedLock(subj);
                 if (sharedFieldRecv)
-                    imports.require("std::sync::Mutex");
+                    imports.require("std::cell::RefCell");
                 // A plain-class handle opens its Rc borrow before the field
                 // read so the read reaches the shared object. (ClassParamHandle)
                 final rcBorrow = receiverNeedsRcBorrow(subj);
-                final rcAccessor = renderingAssignTargetReceiver ? ".borrow_mut()" : ".borrow()";
-                final access = (sharedFieldRecv ? subjStr + ".lock().unwrap()" : rcBorrow ? subjStr + rcAccessor : subjStr) + "." + snake;
+                final rcAccessor = (renderingAssignTargetReceiver || renderingMethodReceiver || renderingInPlaceMutatorReceiver) ? ".borrow_mut()" : ".borrow()";
+                final access = (sharedFieldRecv ? subjStr + ".borrow()" : rcBorrow ? subjStr + rcAccessor : subjStr) + "." + snake;
                 if (name != "length" && isRecursiveField(subj, name)) {
                     // A cursor-local receiver re-binds the recursive field
                     // value: the as_ref borrow maps to an owned clone so the
@@ -9984,7 +10245,11 @@ class RustExpr {
             // write through the guard into the SingleThread inner value.
             // (RcContainerStatic)
             case TField(_, FStatic(c, cf)) if (!cf.get().isFinal && RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))):
-                "(*" + staticItemPath(c.get(), cf.get().name) + ").lock().unwrap().0";
+                // A mutable plain-class static is LazyLock<Mutex<SingleThread<T>>>;
+                // the assignment target derefs MutexGuard -> SingleThread -> T so
+                // the write reaches the inner value through the thread-affine
+                // guard. (RcContainerStatic)
+                "**(*" + staticItemPath(c.get(), cf.get().name) + ").lock().unwrap()";
             case _: null;
         };
     }
@@ -10356,12 +10621,12 @@ class RustExpr {
         // one the Option enum does not carry.
         // (NullableIsOfTypeMatch)
         if (isNullType(args[0].t)) {
-            final vq = isSharedIfaceType(getNullInnerType(args[0].t)) ? "v.lock().unwrap()" : "v";
+            final vq = isSharedIfaceType(getNullInnerType(args[0].t)) ? "v.lock().unwrap()" : "v.borrow()";
             return "match &(" + subject + ") { Some(v) => " + vq + ".__haxe_type_name() == " + nameTest + ", None => false }";
         }
         // A shared interface handle opens its Mutex before the name read.
         // (ClassHandleShare)
-        final subjectRead = isSharedIfaceType(args[0].t) ? subject + ".lock().unwrap()" : subject;
+        final subjectRead = isSharedIfaceType(args[0].t) ? subject + ".borrow()" : subject + ".borrow()";
         return subjectRead + ".__haxe_type_name() == " + nameTest;
     }
 
@@ -10451,10 +10716,16 @@ class RustExpr {
             case IsInstanceToString:
                 // Display text has no propagation path, so a text read that
                 // emits a Result unwraps at the read site. A plain-class
-                // handle opens its Rc borrow before the Display read.
-                // (ClassParamHandle)
-                final borrow = RustDecl.isPlainClassHandle(t) ? ".borrow()" : "";
-                value + borrow + ".to_string()" + (instanceToStringFallible(t) ? ".unwrap()" : "");
+                // handle's toString is an associated function (explicit-handle
+                // ABI: to_string(this: &Rc<RefCell<Self>>)), not a Display
+                // method, so render Cls::to_string(&handle) instead of a
+                // .borrow().to_string() that has no Display. (HandleToStringOperand)
+                if (RustDecl.isPlainClassHandle(t)) {
+                    final clsName = switch (Context.follow(t)) { case TInst(c, _): c.get().name; case _: ""; };
+                    final bare = StringTools.endsWith(value, ".clone()") ? value.substr(0, value.length - 8) : value;
+                    return clsName + "::to_string(&" + bare + ")";
+                }
+                value + ".to_string()" + (instanceToStringFallible(t) ? ".unwrap()" : "");
             case IsMarkedAbstract(abs):
                 imports.requireType("runtime.UString", "UString");
                 return "UString::from(" + value + ".0.to_string().as_str())";
@@ -10772,7 +11043,7 @@ class RustExpr {
                     }
                 }
                 // The Functional shims (sum_of_float, for_each, ...) are
-                // generic over their callback; the Arc::new(move |o| ...)
+                // generic over their callback; the Rc::new(RefCell::new(move |o| ...)
                 // closure cannot infer the parameter type through the generic
                 // bound, so the lambda parameter is annotated from the
                 // receiver's element type.
@@ -11573,7 +11844,7 @@ class RustExpr {
                     // A plain-class handle opens its Rc borrow before the
                     // function-field read so the closure read reaches the
                     // shared object. (ClassParamHandle)
-                    return "(" + expr(subj) + (receiverNeedsRcBorrow(subj) ? ".borrow()" : "") + "." + snake + ")(" + renderCallArgs(cf.get().type, args, null, 0, null, subj.t) + ")";
+                    return "(" + expr(subj) + (receiverNeedsRcBorrow(subj) ? ".borrow()" : "") + "." + snake + ").borrow_mut()(" + renderCallArgs(cf.get().type, args, null, 0, null, subj.t) + ")";
                 }
                 final isMethodFallible = isFallibleCallee(c, cf, false);
                 final q = isFallible ? (isMethodFallible ? errorPropagationSuffix(c, cf, false) : "") : (isMethodFallible ? ".unwrap()" : "");
@@ -11592,7 +11863,23 @@ class RustExpr {
                 // the receiver-writer list the concrete ones. The table is
                 // keyed by interface and method, matching the registration.
                 // (MutatingForcing, InterfaceKeyedTraitMutation)
+                // A shared interface slot resolves its field to the concrete
+                // implementor, so the trait-mutation registry (keyed by
+                // interface) misses it. Check every interface the concrete
+                // class implements as well as the class itself.
+                // (SharedInterfaceMutatesCall)
                 final mutCall = RustDecl.mutatingTraitMethods.exists(RustEmissionState.interfaceMethodKey(c.get().module, c.get().name, cf.get().name))
+                    || (if (c.get().isInterface) {
+                        false;
+                    } else {
+                        var hit = false;
+                        for (ifaceRef in c.get().interfaces) {
+                            final ifc = ifaceRef.t.get();
+                            if (RustDecl.mutatingTraitMethods.exists(RustEmissionState.interfaceMethodKey(ifc.module, ifc.name, cf.get().name)))
+                                hit = true;
+                        }
+                        hit;
+                    })
                     || RustDecl.methodWritesReceiver(cf.get());
                 // The receiver stays borrowed (not cloned) when the method
                 // writes through it. Interface methods carry no body for
@@ -11607,17 +11894,20 @@ class RustExpr {
                 // internal state of a stateful object (a shaper, a
                 // classifier, a cache). (SelfFieldReceiverBorrow)
                 final previousReceiverContext = renderingMethodReceiver;
+                final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
                 renderingMethodReceiver = mutCall || isSelfRootedReceiver(subj);
+                renderingInPlaceMutatorReceiver = inPlaceMutatorName(cf.get().name);
                 var subjText = expr(subj);
                 // A fresh constructor of a shared implementor used directly
                 // as a receiver builds the shared handle inline, so the
                 // lock below reaches a real handle. (ClassHandleShare)
                 if (receiverNeedsSharedLock(subj)
                     && switch (stripWrap(subj).expr) { case TNew(_): true; case _: false; }) {
-                    imports.require("std::sync::Arc");
-                    imports.require("std::sync::Mutex");
-                    subjText = "Arc::new(Mutex::new(" + subjText + "))";
+                    imports.require("std::rc::Rc");
+                    imports.require("std::cell::RefCell");
+                    subjText = "Rc::new(RefCell::new(" + subjText + "))";
                 }
+                renderingInPlaceMutatorReceiver = previousMutatorReceiver;
                 renderingMethodReceiver = previousReceiverContext;
                 final narrowed = narrowedSubject(subj);
                 if (narrowed != null)
@@ -11630,13 +11920,16 @@ class RustExpr {
                 // method reaches the shared object. (ClassHandleShare)
                 final sharedLocked = receiverNeedsSharedLock(subj);
                 if (sharedLocked)
-                    imports.require("std::sync::Mutex");
+                    imports.require("std::cell::RefCell");
                 // A plain-class handle opens its Rc borrow before the call so
                 // the method reaches the shared object; a mutating method
                 // borrows mutably. (ClassParamHandle)
                 final rcLocked = receiverNeedsRcBorrow(subj);
+                // A shared-interface handle and a plain-class handle both open
+                // the Rc borrow before the call; a mutating method borrows
+                // mutably on either path. (SharedInterfaceMutatesBorrow)
                 final lockedSubjStr = sharedLocked
-                    ? subjStr + ".lock().unwrap()"
+                    ? subjStr + (mutCall ? ".borrow_mut()" : ".borrow()")
                     : rcLocked
                         ? subjStr + (mutCall ? ".borrow_mut()" : ".borrow()")
                         : subjStr;
@@ -11648,6 +11941,30 @@ class RustExpr {
                     case _: false;
                 };
                 final throughGuardClone = receiverSharedLocal && RustDecl.methodConsumesSelf(cf.get());
+                // Concrete-class instance call: associated function with an
+                // explicit handle receiver (explicit-handle ABI, P-4 v1.2).
+                if (RustDecl.isPlainClassHandleOrNull(subj.t) && !throughGuardClone) {
+                    final clsName = c.get().name;
+                    // Cross-module associated-function call needs the declaring
+                    // class in scope (same-module is a no-op in requireType).
+                    imports.requireType(c.get().module, c.get().name);
+                    // An inner-helper body calling another method of this same
+                    // class routes through its own inner helper (the shared
+                    // logic), not the thin concrete delegation that expects
+                    // the handle. (InnerHelperCallRedirect)
+                    final isInnerCall = currentIsInnerHelper
+                        && c.get().module == currentClass.module
+                        && c.get().name == currentClass.name
+                        && switch (stripWrap(subj).expr) { case TConst(TThis): true; case _: false; };
+                    final callName = isInnerCall ? snake + "_inner" : snake;
+                    // A nullable handle already unwraps through .as_ref().unwrap()
+                    // into a &Rc<RefCell<T>>, so the receiver arg carries no
+                    // extra borrow; a bare handle takes &handle.
+                    final receiverArg = isInnerCall ? subjStr : (narrowed != null || receiverCarriesFallibleWrapper(subj) ? "" : "&") + subjStr;
+                    final argsText = renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()), subj.t, null);
+                    final allArgs = argsText.length > 0 ? receiverArg + ", " + argsText : receiverArg;
+                    return clsName + "::" + callName + "(" + allArgs + ")" + q;
+                }
                 final callReceiver = throughGuardClone ? subjText + ".clone()" : lockedSubjStr;
                 final receiverOrderNeutral = narrowed == null && !throughGuardClone
                     && !receiverCarriesFallibleWrapper(subj) && isOrderNeutralArg(subj);
@@ -12036,8 +12353,21 @@ class RustExpr {
                 }
                 final fbKey = RustEmissionState.funcKey(cls.module, name, true);
                 final fbIdx = state.fallibleBlockParams.get(fbKey);
-                final callStr = callWithSiblingReadHoist(staticRef(cls, name), true, cf.get().type, args, signedPositions, 0,
-                    mutableParamPositions(cf.get()), null, q, fbIdx, fbKey);
+                // FieldProjection: a projected static call expands its handle
+                // argument into one field-clone argument per projected field.
+                final projStatic = state.fieldProjections.get(fbKey);
+                final callStr = if (projStatic != null) {
+                    final pc = projectedStaticCallArgs(cf.get().type, args, projStatic);
+                    if (pc != null)
+                        callWithSiblingReadHoist(staticRef(cls, name), true, pc.fnType, pc.args, signedPositions, 0,
+                            mutableParamPositions(cf.get()), null, q, fbIdx, fbKey);
+                    else
+                        callWithSiblingReadHoist(staticRef(cls, name), true, cf.get().type, args, signedPositions, 0,
+                            mutableParamPositions(cf.get()), null, q, fbIdx, fbKey);
+                } else {
+                    callWithSiblingReadHoist(staticRef(cls, name), true, cf.get().type, args, signedPositions, 0,
+                        mutableParamPositions(cf.get()), null, q, fbIdx, fbKey);
+                };
                 if (calleeResident != callerResident && returnsInt(cf.get().type)) {
                     // An Int result crosses between the two conventions;
                     // containers never cross whole, only their elements
@@ -12070,7 +12400,7 @@ class RustExpr {
                 // A fallible local function returns Result; propagate the
                 // throw to the enclosing error domain at the call.
                 final localQ = fallibleLocalFunctionErrors.exists(v.id) ? (isFallible ? "?" : ".unwrap()") : "";
-                return expr(fn) + "(" + renderCallArgs(fn.t, args) + ")" + localQ;
+                return expr(fn) + ".borrow_mut()(" + renderCallArgs(fn.t, args) + ")" + localQ;
             case _:
                 // A class-static callee has typed parameters: when any of
                 // them is a mutable-reference position, the args must route
@@ -12145,8 +12475,23 @@ class RustExpr {
     }
 
     function functionLiteral(f:TFunc, functionType:Null<Type>):String {
-        final params = [for (a in f.args)
-            (unusedLocalIds.exists(a.v.id) ? "_" : "") + RustImports.toSnakeCase(a.v.name)].join(", ");
+        final fnArgs = switch (functionType) {
+            case null: null;
+            case _: switch (Context.follow(functionType)) {
+                    case TFun(fargs, _): fargs;
+                    case _: null;
+                }
+        };
+        // A closure slot (Rc<RefCell<dyn Fn...>>) carries the parameter types
+        // in its target signature; annotate them so the closure body infers
+        // instead of demanding explicit types. isParam=true renders reference
+        // params (&UStr, &Vec<T>) exactly as the Fn signature expects.
+        // (ClosureParamAnnotation)
+        final params = [for (i in 0...f.args.length) {
+            final a = f.args[i];
+            final ptype = (!closureBorrowedParamIds.exists(a.v.id) && fnArgs != null && i < fnArgs.length) ? types.of(fnArgs[i].t, true) : null;
+            (unusedLocalIds.exists(a.v.id) ? "_" : "") + RustImports.toSnakeCase(a.v.name) + (ptype != null && ptype != "" ? ": " + ptype : "");
+        }].join(", ");
         final previousReturnUnsigned = returnUnsigned;
         final previousReturnTypeName = returnTypeName;
         final previousReturnType = currentReturnType;
@@ -12221,10 +12566,10 @@ class RustExpr {
         // (SharedClosureArrays, SharedClosureScalars).
         final sharedCaptures = [for (v in closureOwnedCaptures(f))
             if (sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id))
-                "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
+                "let " + RustImports.toSnakeCase(localName(v)) + " = Rc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
         ];
         if (sharedCaptures.length > 0) {
-            imports.require("std::sync::Arc");
+            imports.require("std::rc::Rc");
             return "{ " + sharedCaptures.join(" ") + " " + closureText + " }";
         }
         return closureText;
@@ -12287,7 +12632,7 @@ class RustExpr {
 
     /** Rewrites a 'static function value body so each whole-struct field read
         becomes a field-capture local and returns the capture prelude lines.
-        The prelude binds Arc::clone(&subject.field) for a shared handle and
+        The prelude binds Rc::clone(&subject.field) for a shared handle and
         subject.field.clone() for a Clone value. (ClosureFieldCapture) */
     function bindClosureFieldCaptures(f:TFunc):Array<String> {
         final preludes:Array<String> = [];
@@ -12315,7 +12660,7 @@ class RustExpr {
                     // (ClassParamHandle)
                     final rcBorrowCap = RustDecl.isPlainClassHandle(subj.t) ? ".borrow()" : "";
                     final prelude = StringTools.startsWith(fieldTypeText, "Arc<")
-                        ? "let " + capName + " = Arc::clone(&" + ws.text + rcBorrowCap + "." + fieldSnake + ");"
+                        ? "let " + capName + " = Rc::clone(&" + ws.text + rcBorrowCap + "." + fieldSnake + ");"
                         : "let " + capName + " = (" + ws.text + rcBorrowCap + "." + fieldSnake + ").clone();";
                     preludes.push(prelude);
                     fieldCaptureIdSeq += 1;
@@ -12346,7 +12691,8 @@ class RustExpr {
     }
 
     function functionValueLiteral(f:TFunc, functionType:Null<Type>):String {
-        imports.require("std::sync::Arc");
+        imports.require("std::rc::Rc");
+        imports.require("std::cell::RefCell");
         // Rewrite whole-struct field reads into field-capture locals before
         // the capture scan, so the scan sees the synthesized locals and never
         // the whole struct. (ClosureFieldCapture)
@@ -12359,13 +12705,13 @@ class RustExpr {
         currentCaptureMut = captureMutatedCopies(f, captures);
         captureOwnedStringCopies = [for (v in captures) if (captureCopySuffix(v) == ".to_ustring()") v.id => true];
         final copies = fieldPreludes.concat([for (v in captures) sharedClosureArrays.exists(v.id)
-            ? "let " + RustImports.toSnakeCase(localName(v)) + " = Arc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
+            ? "let " + RustImports.toSnakeCase(localName(v)) + " = Rc::clone(&" + RustImports.toSnakeCase(localName(v)) + ");"
             // The prologue copy feeds the move capture by value and is only
             // read afterwards: the closure body mutates its own inner copy,
             // so this binding never needs mut. (CapturePreludeImmutable)
             : "let " + RustImports.toSnakeCase(localName(v)) + " = ("
                 + RustImports.toSnakeCase(localName(v)) + ")" + captureCopySuffix(v) + ";"]);
-        final text = "{ " + copies.join(" ") + " Arc::new(" + functionLiteral(f, functionType) + ") }";
+        final text = "{ " + copies.join(" ") + " Rc::new(RefCell::new(" + functionLiteral(f, functionType) + ")) }";
         currentCaptureClones = previousClones;
         currentCaptureMut = previousMut;
         captureOwnedStringCopies = previousOwnedStrings;
@@ -12452,7 +12798,7 @@ class RustExpr {
                     return;
                 case TLocal(v):
                     // A shared closure array or scalar renders as
-                    // Arc<Mutex<_>>, which never copies, even when the
+                    // Rc<RefCell<_>>, which never copies, even when the
                     // Haxe macro type (Null<Float>, Null<Int>) reads as a
                     // Copy scalar. The capture line must clone the Arc or
                     // the move closure takes the outer binding.
@@ -12489,7 +12835,7 @@ class RustExpr {
     /**
         Records every Array local that two or more nested functions capture
         while the mutation scan proved a write on it. The declaration then
-        lowers as Arc<Mutex<Vec>> and each capturing closure clones the Arc,
+        lowers as Rc<RefCell<Vec>> and each capturing closure clones the Arc,
         so one closure's writes are visible to the others' reads. A single
         capturing closure, or a read-only capture set, keeps the snapshot
         clone because its observable behavior already matches.
@@ -13114,7 +13460,7 @@ class RustExpr {
                                 // forbids assigning a captured binding of
                                 // every type; the earlier rule covered scalars only.
                                 // (SharedClosureScalars)
-                                if (!bound.exists(v.id) && mutated.exists(v.id))
+                                if (!bound.exists(v.id) && mutated.exists(v.id) && !RustDecl.isPlainClassHandle(v.t))
                                     sharedClosureScalars.set(v.id, true);
                             case _:
                         }
@@ -13622,8 +13968,10 @@ class RustExpr {
         if (RustDecl.isPlainClassHandle(expected) && switch (stripWrap(arg).expr) {
             case TConst(TThis): true;
             case _: false;
-        })
-            return "Rc::new(RefCell::new(" + text + ".clone()))";
+        }) {
+            imports.require("std::rc::Rc");
+            return "Rc::clone(" + text + ")";
+        }
         if (isStringType(expected) && isStringType(arg.t)) {
             if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone())"))
                 return text;
@@ -14318,7 +14666,7 @@ class RustExpr {
             // the Mutex supplies the interior mutability the Fn rule
             // forbids on captured bindings (SharedClosureScalars).
             final name = RustImports.toSnakeCase(localName(v));
-            sharedClosureScalars.exists(v.id) ? "*" + name + ".lock().unwrap()" : name;
+            sharedClosureScalars.exists(v.id) ? "*" + name + ".borrow_mut()" : name;
         }, (e, _) -> fail(e, "assignment target has no Rust lowering: " + Std.string(e.expr)));
     }
 
@@ -15619,12 +15967,10 @@ class RustExpr {
         first: the value is a plain-class handle, but self inside its own
         impl already names the bare struct. (ClassParamHandle) */
     function receiverNeedsRcBorrow(e:TypedExpr):Bool {
-        if (RustDecl.isPlainClassHandle(e.t))
-            return switch (stripWrap(e).expr) {
-                case TConst(TThis): false;
-                case _: true;
-            };
-        return false;
+        final isSelf = switch (stripWrap(e).expr) { case TConst(TThis): true; case _: false; };
+        if (currentIsTraitImpl && isSelf)
+            return false;
+        return RustDecl.isPlainClassHandleOrNull(e.t) || (isInterfaceType(e.t) && !isSharedIfaceType(e.t));
     }
 
     /** The shared-handle construction for an interface slot: a shared
@@ -15632,8 +15978,8 @@ class RustExpr {
         (Haxe reference semantics leave the source alive); any other
         concrete value builds a fresh shared handle. (ClassHandleShare) */
     function sharedSlotPayload(actual:TypedExpr, inner:String, slotType:String):String {
-        imports.require("std::sync::Arc");
-        imports.require("std::sync::Mutex");
+        imports.require("std::rc::Rc");
+        imports.require("std::cell::RefCell");
         final isHandle = switch (stripWrap(actual).expr) {
             case TLocal(_): isSharedImplementorType(actual.t);
             case _: false;
@@ -15643,7 +15989,7 @@ class RustExpr {
         // clone annotates the slot type explicitly. (ClassHandleShare)
         return isHandle
             ? "{ let __shared_handle: " + slotType + " = " + inner + ".clone(); __shared_handle }"
-            : "Arc::new(Mutex::new(" + inner + "))";
+            : "Rc::new(RefCell::new(" + inner + "))";
     }
 
     /**
@@ -15728,6 +16074,15 @@ class RustExpr {
         else stays Unknown and no boundary adapts it.
         (DeclShapeRecord, ShapeParse) */
     function renderedArgShape(text:String, e:TypedExpr):RustShape {
+        // A nullable static field read yields Option<T> even though its
+        // rendered text (a Mutex-guard clone) parses as bare; the type decides
+        // before the text parser so the non-null boundary unwraps it.
+        // (StaticNullShape)
+        if (isNullType(e.t))
+            switch (stripWrap(e).expr) {
+                case TField(_, FStatic(_, _)): return RustShape.ShapeOption;
+                case _:
+            }
         final fromText = RustShapeParse.shapeOf(text);
         if (fromText != RustShape.ShapeUnknown)
             return fromText;
@@ -15817,15 +16172,21 @@ class RustExpr {
         // one object; a value already typed as the implementor is itself a
         // handle and clones. (ClassHandleShare)
         if (!isNullType(expected) && isSharedImplementorType(expected)) {
-            imports.require("std::sync::Arc");
-            imports.require("std::sync::Mutex");
+            imports.require("std::rc::Rc");
+            imports.require("std::cell::RefCell");
             if (isSharedImplementorType(actual.t))
                 return switch (stripWrap(actual).expr) {
-                    case TLocal(_): "Arc::clone(&" + rendered + ")";
+                    case TLocal(_): "Rc::clone(&" + rendered + ")";
                     case _: rendered;
                 };
-            return "Arc::new(Mutex::new(" + rendered + "))";
+            return "Rc::new(RefCell::new(" + rendered + "))";
         }
+        // A Null<Interface> read (a static or field read) entering a
+        // non-null interface slot unwraps its proven payload; the surrounding
+        // null-guard has already established presence. (NullableInterfaceBoundaryUnwrap)
+        if (!isNullType(expected) && isNullType(actual.t) && isInterfaceType(getNullInnerType(actual.t))
+            && renderedArgShape(rendered, actual) == RustShape.ShapeOption)
+            return rendered + ".as_ref().unwrap().clone()";
         // A non-null Haxe local initialized to null stores Option<T> until
         // assigned. At a non-null value boundary Haxe's declaration rule
         // requires its payload; Copy values may consume the Option, while
@@ -15862,8 +16223,10 @@ class RustExpr {
         if ((RustDecl.isPlainClassHandle(expected) || (isNullType(expected) && RustDecl.isPlainClassHandle(getNullInnerType(expected)))) && switch (stripWrap(actual).expr) {
             case TConst(TThis): true;
             case _: false;
-        })
-            return "Rc::new(RefCell::new(" + rendered + ".clone()))";
+        }) {
+            imports.require("std::rc::Rc");
+            return "Rc::clone(" + rendered + ")";
+        }
         if (!isTypeCopy(expected) && switch (stripWrap(actual).expr) {
             case TConst(TThis): true;
             case _: false;
@@ -15923,7 +16286,15 @@ class RustExpr {
             // object. (ClassHandleShare)
             if (isSharedIfaceType(expected))
                 return sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(expected, false));
-            return "Box::new(" + boxedInterfacePayload(actual, rendered) + ")";
+            imports.require("std::rc::Rc");
+            imports.require("std::cell::RefCell");
+            final boxed = boxedInterfacePayload(actual, rendered);
+            // A plain-class handle is already an Rc<RefCell<T>>; clone it with
+            // an explicit slot-type annotation and unsize once (single
+            // unsizing), never double-wrap a handle. (InnerHelperArchitecture)
+            if (RustDecl.isPlainClassHandleOrNull(actual.t))
+                return "{ let __shared_handle: " + types.of(expected, false) + " = " + boxed + "; __shared_handle }";
+            return "Rc::new(RefCell::new(" + boxed + "))";
         }
         // Haxe unifies an object-literal field value's type to the interface
         // even when the value is a concrete constructor. Recover the concrete
@@ -15933,7 +16304,15 @@ class RustExpr {
         if (!isNullType(expected) && isInterfaceType(expected) && isConcreteConstructor(actual)) {
             if (isSharedIfaceType(expected))
                 return sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(expected, false));
-            return "Box::new(" + boxedInterfacePayload(actual, rendered) + ")";
+            imports.require("std::rc::Rc");
+            imports.require("std::cell::RefCell");
+            final boxed = boxedInterfacePayload(actual, rendered);
+            // A plain-class handle is already an Rc<RefCell<T>>; clone it with
+            // an explicit slot-type annotation and unsize once (single
+            // unsizing), never double-wrap a handle. (InnerHelperArchitecture)
+            if (RustDecl.isPlainClassHandleOrNull(actual.t))
+                return "{ let __shared_handle: " + types.of(expected, false) + " = " + boxed + "; __shared_handle }";
+            return "Rc::new(RefCell::new(" + boxed + "))";
         }
         // An interface-typed reusable read (a field of an owned object)
         // entering an owned interface slot clones: Haxe's read leaves the
@@ -15976,14 +16355,18 @@ class RustExpr {
                 // A shared slot clones the handle: the Option carries the
                 // same object the source binding names. (ClassHandleShare)
                 if (isInterfaceType(actual.t))
-                    return "Some(Arc::clone(&" + rendered + "))";
+                    return "Some(Rc::clone(&" + rendered + "))";
                 return "Some(" + sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(getNullInnerType(expected), false)) + ")";
             }
             final boxed = normalizeConstructorResult(actual, rendered);
             final owned = isReusableOwnedRead(actual) && !isTypeCopy(actual.t)
                 && !StringTools.startsWith(boxed, "&") && !StringTools.endsWith(boxed, ".clone()")
                 ? "(" + boxed + ").clone()" : boxed;
-            return "Some(Box::new(" + owned + "))";
+            imports.require("std::rc::Rc");
+            imports.require("std::cell::RefCell");
+            if (RustDecl.isPlainClassHandleOrNull(actual.t))
+                return "Some({ let __shared_handle: " + types.of(getNullInnerType(expected), false) + " = " + owned + "; __shared_handle })";
+            return "Some(Rc::new(RefCell::new(" + owned + ")))";
         }
         // Haxe unifies a nullable interface slot's value type to the
         // interface even for a concrete constructor; recover the concrete
@@ -15994,7 +16377,12 @@ class RustExpr {
             #end
             if (isSharedIfaceType(expected))
                 return "Some(" + sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(getNullInnerType(expected), false)) + ")";
-            return "Some(Box::new(" + normalizeConstructorResult(actual, rendered) + "))";
+            imports.require("std::rc::Rc");
+            imports.require("std::cell::RefCell");
+            final boxedCtor = normalizeConstructorResult(actual, rendered);
+            if (RustDecl.isPlainClassHandleOrNull(actual.t))
+                return "Some({ let __shared_handle: " + types.of(getNullInnerType(expected), false) + " = " + boxedCtor + "; __shared_handle })";
+            return "Some(Rc::new(RefCell::new(" + boxedCtor + ")))";
         }
         if (!isInterfaceType(expected) && !isNullType(expected) && isFallibleConstructor(actual)) {
             return normalizeConstructorResult(actual, rendered);
@@ -16004,11 +16392,12 @@ class RustExpr {
         // Arc at its declaration site. Adapt the former only when a ruled
         // Arc-held function slot receives it.
         if (isFunctionType(expected) && isFunctionType(actual.t) && !isBoxedFunctionExpr(actual)) {
-            imports.require("std::sync::Arc");
+            imports.require("std::rc::Rc");
+            imports.require("std::cell::RefCell");
             final bridged = fallibleFunctionItemBridge(expected, actual, rendered);
             if (bridged != null)
                 return bridged;
-            return "Arc::new(" + rendered + ")";
+            return "Rc::new(RefCell::new(" + rendered + "))";
         }
         return rendered;
     }
@@ -16034,7 +16423,7 @@ class RustExpr {
             case _: [];
         };
         final forwarded = argNames.join(", ");
-        return "Arc::new(|" + forwarded + "| " + rendered + "(" + forwarded + ").unwrap())";
+        return "Rc::new(RefCell::new(|" + forwarded + "| " + rendered + "(" + forwarded + ").unwrap())";
     }
 
     function isBoxedFunctionExpr(e:TypedExpr):Bool {
@@ -16175,8 +16564,14 @@ class RustExpr {
             // own binding is already a mutable reference parameter passes
             // by implicit reborrow; every other argument takes an explicit
             // borrow. (MutableRefObjectParam)
+            // A plain-class handle (Rc<RefCell<T>>) mutates through interior
+            // mutability, never through an &mut of the handle itself; the
+            // declaration already keeps such a parameter at Rc<RefCell<T>>
+            // (no &mut prefix), so the call site must skip the &mut borrow
+            // and fall through to the reusable-owned-read clone below.
+            // (HandleParamNoMutBorrow)
             if (mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0
-                && pt != null && RustDecl.isMutableRefParamType(pt)) {
+                && pt != null && RustDecl.isMutableRefParamType(pt) && !RustDecl.isPlainClassHandleOrNull(pt)) {
                 // A self receiver of a mutating method reborrows directly:
                 // self is already a mutable reference, so cloning it (as a
                 // value read would) discards every write the callee makes.
@@ -17244,7 +17639,11 @@ class RustExpr {
                     case TConst(TThis): true;
                     case _: false;
                 };
-                if (thisField || isBorrowedExpression(subj))
+                if (thisField) {
+                    final access = receiverNeedsRcBorrow(subj) ? expr(subj) + ".borrow()" : expr(subj);
+                    return access + "." + RustImports.toSnakeCase(name);
+                }
+                if (isBorrowedExpression(subj))
                     return expr(subj) + "." + RustImports.toSnakeCase(name);
                 return null;
             case _:
@@ -17704,12 +18103,16 @@ class RustExpr {
                         case TInst(c, _): c.get().name;
                         case _: "";
                     };
-                    imports.require("std::sync::Arc");
-                    imports.require("std::sync::Mutex");
-                    return "Some({ let __shared_handle: Arc<Mutex<dyn " + ifaceName + ">> = Arc::new(Mutex::new("
+                    imports.require("std::rc::Rc");
+                    imports.require("std::cell::RefCell");
+                    return "Some({ let __shared_handle: Rc<RefCell<dyn " + ifaceName + ">> = Rc::new(RefCell::new("
                         + normalizeConstructorResult(branch, coerced) + ")); __shared_handle })";
                 }
-                return "Some(Box::new(" + normalizeConstructorResult(branch, coerced) + ") as " + types.of(inner, false) + ")";
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+                if (RustDecl.isPlainClassHandleOrNull(branch.t))
+                    return "Some({ let __shared_handle: " + types.of(inner, false) + " = " + normalizeConstructorResult(branch, coerced) + "; __shared_handle })";
+                return "Some(Rc::new(RefCell::new(" + normalizeConstructorResult(branch, coerced) + ")) as " + types.of(inner, false) + ")";
             }
             return "Some(" + coerced + ")";
         }
@@ -17724,8 +18127,13 @@ class RustExpr {
         // Some wrapper. The cast pins the arm to the trait object, so a
         // local initialized from the conditional infers the boxed shape.
         if (resultType != null && isNullType(resultType) && isInterfaceType(getNullInnerType(resultType))
-            && !isInterfaceType(branch.t))
-            return "Box::new(" + text + ") as " + types.of(getNullInnerType(resultType), false);
+            && !isInterfaceType(branch.t)) {
+            imports.require("std::rc::Rc");
+            imports.require("std::cell::RefCell");
+            if (RustDecl.isPlainClassHandleOrNull(branch.t))
+                return "{ let __shared_handle: " + types.of(getNullInnerType(resultType), false) + " = " + text + "; __shared_handle }";
+            return "Rc::new(RefCell::new(" + text + ")) as " + types.of(getNullInnerType(resultType), false);
+        }
         if (resultType != null && isStringType(resultType)) {
             if (StringTools.endsWith(text, ".to_ustring()") || StringTools.endsWith(text, ".clone()"))
                 return text;

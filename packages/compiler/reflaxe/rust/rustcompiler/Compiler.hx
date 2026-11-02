@@ -596,15 +596,14 @@ class Compiler extends PluginCompiler<Compiler> {
             lines.push('name = "${test.name}"');
             lines.push('path = "${test.path}"');
         }
-        // The f32 twin crate of feature spec 23 stays outside the
-        // consumer's cargo workspace, so it declares itself a workspace
-        // root. Without the marker cargo walks up past the manifest that
-        // excludes it and rejects the build as a package that believes it
-        // is in a workspace when it is not.
-        if (FloatPrecision.isF32()) {
-            lines.push("");
-            lines.push("[workspace]");
-        }
+        // Every independent generated crate (the f32/f64 engine twins and
+        // the protocol crate) sits under the consumer workspace root without
+        // being a member, so it declares itself a workspace root. Without the
+        // marker cargo walks up past the manifest and rejects the build as a
+        // package that believes it is in a workspace when it is not.
+        // (GeneratedCrateWorkspaceRoot)
+        lines.push("");
+        lines.push("[workspace]");
         return lines.join("\n") + "\n";
     }
 
@@ -1085,7 +1084,7 @@ class Compiler extends PluginCompiler<Compiler> {
         for (mt in mtypes) switch (mt) {
             case TClassDecl(c):
                 final cls = c.get();
-                if (cls.isExtern || !inSourceScope(cls.pos))
+                if (cls.isExtern || !inSourceScope(cls.pos) || cls.interfaces.length == 0)
                     continue;
                 if (cls.isInterface)
                     continue;
@@ -1227,6 +1226,232 @@ class Compiler extends PluginCompiler<Compiler> {
         emissionPlan = computeEmissionPlan(mtypes);
         scanFallibility(mtypes);
         scanInterfaceMethodShapes(mtypes);
+        scanFieldProjections(mtypes);
+        scanEscapingHandleMethods(mtypes);
+    }
+    /**
+        Field-projection scan (FieldProjection): a static function whose
+        plain-class handle parameter is passed `this` (TConst(TThis)) at a
+        call site and whose body only reads fields of that handle, or forwards
+        the whole handle to another projectable static (cascading at most five
+        levels), projects the handle into its field handles. Storing,
+        capturing, returning, or otherwise escaping the whole handle, or
+        cascading past the bound, leaves the function ineligible.
+    **/
+    function scanFieldProjections(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+        // Index in-scope static functions whose first plain-class-handle
+        // parameter is a projection candidate, keyed by funcKey.
+        final staticsByKey:Map<String, {cls:ClassType, field:ClassField, engineName:String}> = [];
+        for (mt in mtypes) switch (mt) {
+            case TClassDecl(c):
+                final cls = c.get();
+                if (cls.isExtern || !inSourceScope(cls.pos))
+                    continue;
+                for (f in cls.statics.get()) {
+                    if (f.expr() == null)
+                        continue;
+                    final params = switch (Context.follow(f.type)) { case TFun(pa, _): pa; case _: []; };
+                    for (p in params) {
+                        if (RustDecl.isPlainClassHandleOrNull(p.t)) {
+                            staticsByKey.set(RustEmissionState.funcKey(cls.module, f.name, true), {cls: cls, field: f, engineName: p.name});
+                    if (f.name == "prepareWidthIndependentAnnotation" || f.name == "buildParagraphLayoutPrep" || f.name == "finishParagraphLayout" || f.name == "planParagraphLines" || f.name == "shapeParagraph")
+                            break;
+                        }
+                    }
+                }
+            case _:
+        }
+        // Project one static function: the field set its handle parameter is
+        // read through, following whole-handle forwards to other projectable
+        // statics. Returns null when the whole handle escapes. Records the
+        // function and every forwarded callee it reaches.
+        function projectStatic(cls:ClassType, field:ClassField, engineName:String, depth:Int):Null<Array<{name:String, snake:String}>> {
+            if (depth > 5)
+                return null;
+            final body = field.expr();
+            if (body == null)
+                return null;
+            final key = RustEmissionState.funcKey(cls.module, field.name, true);
+            final fields:Array<{name:String, snake:String}> = [];
+            final seen:Map<String, Bool> = [];
+            var escaped = false;
+            function addName(n:String):Void {
+                if (!seen.exists(n)) {
+                    seen.set(n, true);
+                    fields.push({name: n, snake: RustImports.toSnakeCase(n)});
+                }
+            }
+            function walk(e:TypedExpr):Void {
+                if (escaped)
+                    return;
+                switch (stripDecorations(e).expr) {
+                    case TField(subj, FInstance(_, _, cf)):
+                        switch (stripDecorations(subj).expr) {
+                            case TLocal(v) if (v.name == engineName):
+                                // A field read is projectable; a method called on the
+                                // whole handle (e.g. engine.layoutWithRejectedTechnicalTiers)
+                                // needs the full handle and therefore escapes.
+                                if (cf.get().kind.match(FVar(_, _)))
+                                    addName(cf.get().name);
+                                else {
+                                    escaped = true;
+                                }
+                            case _:
+                                haxe.macro.TypedExprTools.iter(e, walk);
+                        }
+                    case TCall(fn, args):
+                        switch (stripDecorations(fn).expr) {
+                            case TField(_, FStatic(cc, cf)):
+                                final calleeKey = RustEmissionState.funcKey(cc.get().module, cf.get().name, true);
+                                final info = staticsByKey.get(calleeKey);
+                                for (i in 0...args.length) {
+                                    switch (stripDecorations(args[i]).expr) {
+                                        case TLocal(v) if (v.name == engineName):
+                                            if (info == null) {
+                                                escaped = true;
+                                            } else {
+                                                final sub = projectStatic(info.cls, info.field, info.engineName, depth + 1);
+                                                if (sub == null) {
+                                                    escaped = true;
+                                                }
+                                                else
+                                                    for (f2 in sub) addName(f2.name);
+                                            }
+                                        case _:
+                                            walk(args[i]);
+                                    }
+                                }
+                                haxe.macro.TypedExprTools.iter(fn, walk);
+                            case _:
+                                haxe.macro.TypedExprTools.iter(e, walk);
+                        }
+                    case TLocal(v):
+                        if (v.name == engineName) {
+                            escaped = true;
+                        }
+                    case _:
+                        haxe.macro.TypedExprTools.iter(e, walk);
+                }
+            }
+            walk(body);
+            if (escaped)
+                return null;
+            state.fieldProjections.set(key, {engineName: engineName, fields: fields});
+            return fields;
+        }
+        // Trigger: a call site that passes `this` into a candidate's handle
+        // parameter projects the callee.
+        for (mt in mtypes) switch (mt) {
+            case TClassDecl(c):
+                final cls = c.get();
+                if (cls.isExtern || !inSourceScope(cls.pos))
+                    continue;
+                final bodies:Array<TypedExpr> = [];
+                for (f in cls.fields.get()) {
+                    final e = f.expr();
+                    if (e != null)
+                        bodies.push(e);
+                }
+                final ctor = cls.constructor;
+                if (ctor != null && ctor.get().expr() != null)
+                    bodies.push(ctor.get().expr());
+                for (body in bodies) {
+                    function find(e:TypedExpr):Void {
+                        switch (stripDecorations(e).expr) {
+                            case TCall(fn, args):
+                                switch (stripDecorations(fn).expr) {
+                                    case TField(_, FStatic(cc, cf)):
+                                        final calleeKey = RustEmissionState.funcKey(cc.get().module, cf.get().name, true);
+                                        final info = staticsByKey.get(calleeKey);
+                                        if (info != null && !state.fieldProjections.exists(calleeKey)) {
+                                            final params = switch (Context.follow(cf.get().type)) { case TFun(pa, _): pa; case _: []; };
+                                            for (i in 0...args.length) {
+                                                final isThis = switch (stripDecorations(args[i]).expr) { case TConst(TThis): true; case _: false; };
+                                                if (isThis && i < params.length && RustDecl.isPlainClassHandleOrNull(params[i].t))
+                                                    projectStatic(info.cls, info.field, info.engineName, 0);
+                                            }
+                                        }
+                                    case _:
+                                }
+                                haxe.macro.TypedExprTools.iter(e, find);
+                            case _:
+                                haxe.macro.TypedExprTools.iter(e, find);
+                        }
+                    }
+                    find(body);
+                }
+            case _:
+        }
+    }
+
+    /**
+        Escaping-handle-method scan (NonTraitMethodFullBody): a method whose
+        body needs the whole handle escapes the bare-struct inner helper. It
+        either forwards "this" to a handle-taking static callee, or calls
+        (on "this") another escaping method, transitively. Escaping methods
+        lower full-body concrete on the handle; an escaping interface method
+        gets a fail-closed trait impl because &mut Self cannot recover the Rc.
+    **/
+    function scanEscapingHandleMethods(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+        function methodEscapes(body:TypedExpr):Bool {
+            var escapes = false;
+            function walk(e:TypedExpr):Void {
+                if (escapes)
+                    return;
+                switch (stripDecorations(e).expr) {
+                    case TCall(fn, args):
+                        switch (stripDecorations(fn).expr) {
+                            case TField(_, FStatic(cc, cf)):
+                                final params = switch (Context.follow(cf.get().type)) { case TFun(pa, _): pa; case _: []; };
+                                for (i in 0...args.length) {
+                                    final isThis = switch (stripDecorations(args[i]).expr) { case TConst(TThis): true; case _: false; };
+                                    if (isThis && i < params.length && RustDecl.isPlainClassHandleOrNull(params[i].t))
+                                        escapes = true;
+                                }
+                                haxe.macro.TypedExprTools.iter(fn, walk);
+                                for (a in args)
+                                    walk(a);
+                            case TField(subj, FInstance(c2, _, cf2)):
+                                final onThis = switch (stripDecorations(subj).expr) { case TConst(TThis): true; case _: false; };
+                                if (onThis) {
+                                    final calleeKey = RustEmissionState.funcKey(c2.get().module, cf2.get().name, false);
+                                    if (state.escapingHandleMethods.exists(calleeKey))
+                                        escapes = true;
+                                }
+                                haxe.macro.TypedExprTools.iter(e, walk);
+                            case _:
+                                haxe.macro.TypedExprTools.iter(e, walk);
+                        }
+                    case _:
+                        haxe.macro.TypedExprTools.iter(e, walk);
+                }
+            }
+            walk(body);
+            return escapes;
+        }
+        var changed = true;
+        while (changed) {
+            changed = false;
+            for (mt in mtypes) switch (mt) {
+                case TClassDecl(c):
+                    final cls = c.get();
+                    if (cls.isInterface || cls.isExtern || !inSourceScope(cls.pos))
+                        continue;
+                    for (f in cls.fields.get()) {
+                        final body = f.expr();
+                        if (body == null)
+                            continue;
+                        final fk = RustEmissionState.funcKey(cls.module, f.name, false);
+                        if (state.escapingHandleMethods.exists(fk))
+                            continue;
+                        if (methodEscapes(body)) {
+                            state.escapingHandleMethods.set(fk, true);
+                            changed = true;
+                        }
+                    }
+                case _:
+            }
+        }
     }
 
     /**
@@ -1260,7 +1485,7 @@ class Compiler extends PluginCompiler<Compiler> {
                         final previous = state.interfaceMethodShapes.get(shapeKey);
                         state.interfaceMethodShapes.set(shapeKey, {
                             isFallible: errorPair != null || state.funcErrorEnums.exists(key) || (previous != null && previous.isFallible),
-                            isMutating: RustDecl.fieldWritesReceiver(impl) || (previous != null && previous.isMutating),
+                            isMutating: RustDecl.isSharedInterface(iface) || RustDecl.fieldWritesReceiver(impl) || (previous != null && previous.isMutating),
                             errorModule: errorPair != null ? errorPair.module : (previous != null ? previous.errorModule : null),
                             errorName: errorPair != null ? errorPair.name : (previous != null ? previous.errorName : null)
                         });
