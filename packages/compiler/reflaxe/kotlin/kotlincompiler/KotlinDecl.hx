@@ -91,7 +91,7 @@ class KotlinDecl {
                     }
                 }
                 if (hasInstanceGetter) {
-                    final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
+                    final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "" : "private ");
                     final overrideStr = hasGetterPropertyInInterface(cls, field.name) ? "override " : "";
                     lines.push('    ${vis}${overrideStr}val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} get() = get_${KotlinNameEscape.escape(field.name)}()');
                 }
@@ -325,8 +325,8 @@ class KotlinDecl {
                 }
             }
             if (hasInstanceGetter) {
-                // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
-                final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
+                // @:allow members use Kotlin public visibility so allowed cross-module references compile.
+                final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "" : "private ");
                 final overrideStr = hasGetterPropertyInInterface(cls, field.name) ? "override " : "";
                 lines.push('    ${vis}${overrideStr}val ${KotlinNameEscape.escape(field.name)}: ${types.of(field.type)} get() = get_${KotlinNameEscape.escape(field.name)}()');
             }
@@ -518,8 +518,8 @@ class KotlinDecl {
                 args.push(name + (a.opt ? "?" : "") + ": " + type);
             }
             final ret = types.of(f.ret);
-            // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
-            final vis = isOperator || f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "internal " : "private ");
+            // @:allow members use Kotlin public visibility so allowed cross-module references compile.
+            final vis = isOperator || f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "" : "private ");
             final name = isOperator ? kotlinOperatorName(op) : f.field.name;
             final overrideKw = f.field.name == "toString" ? "override " : "";
             lines.push("");
@@ -1197,8 +1197,8 @@ class KotlinDecl {
             final initStr = kw == "const val"
                 && expr.isIntOrLongType(init.t)
                 && expr.isFloatType(field.type) ? expr.constValFloatLiteral(rawInit) : rawInit;
-            // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
-            final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
+            // @:allow members use Kotlin public visibility so allowed cross-module references compile.
+            final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "" : "private ");
             final typeText = nullInitialized ? types.of(field.type) + "?" : types.of(field.type);
             final decl = '    $vis$kw ${KotlinNameEscape.escape(field.name)}: $typeText = $initStr';
             final renames = kw == "const val" ? [] : accessorRenameAnnotations(staticMemberNames(cls), field.name);
@@ -1311,8 +1311,8 @@ class KotlinDecl {
     function classVarDecl(v:ClassVarData, methodNames:Array<String>):Array<String> {
         final field = v.field;
         final kw = field.isFinal ? "val" : "var";
-        // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
-        final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "internal " : "private ");
+        // @:allow members use Kotlin public visibility so allowed cross-module references compile.
+        final vis = field.isPublic ? "" : (field.meta.has(":allow") ? "" : "private ");
         var initStr = "";
         var lateStr = "";
         switch (field.kind) {
@@ -1464,13 +1464,13 @@ class KotlinDecl {
         final overridesAny = (f.field.name == "toString" || f.field.name == "hashCode") && f.args.length == 0;
         final overrideStr = (isInterfaceMethod(cls, f) || overridesAny) ? "override " : "";
         // Kotlin requires override members to be at least as visible as the
-        // overridden member (interface members are public), so drop private/internal
-        // visibility when the override modifier is present.
-        // @:allow members and members a parameter default inlines at call
-        // sites use Kotlin module visibility so the cross-class references
-        // compile.
-        final vis = overrideStr.length > 0 ? "" : (f.field.isPublic ? "" : (f.field.meta.has(":allow")
-            || KotlinAccessGrants.isWidened(cls, f.field.name) ? "internal " : "private "));
+        // overridden member (interface members are public), so drop private and
+        // internal visibility when the override modifier is present.
+        // @:allow members use Kotlin public visibility so allowed cross-module
+        // references compile; members a parameter default inlines at call sites
+        // use Kotlin module visibility so the inlined reference compiles.
+        final vis = overrideStr.length > 0 ? "" : (f.field.isPublic ? "" : (f.field.meta.has(":allow") ? ""
+            : (KotlinAccessGrants.isWidened(cls, f.field.name) ? "internal " : "private ")));
         // A method's own type parameters (the resident builders'
         // factory functions) render as method generics; the class's own
         // parameters stay in the class header only.
@@ -1504,8 +1504,8 @@ class KotlinDecl {
         ].join(", ");
         final retType = types.of(f.ret);
         final ret = retType == "Unit" ? "" : ": " + retType;
-        // @:allow members use Kotlin module visibility so allowed cross-class calls compile.
-        final vis = f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "internal " : "private ");
+        // @:allow members use Kotlin public visibility so allowed cross-module references compile.
+        final vis = f.field.isPublic ? "" : (f.field.meta.has(":allow") ? "" : "private ");
         final methodParams = collectMethodTypeParams(cls, f);
         final genericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + "> " : "";
         final receiver = isExtension ? types.of(f.args[0].type) + "." : "";
