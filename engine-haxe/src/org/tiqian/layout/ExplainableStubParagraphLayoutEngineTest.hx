@@ -5,6 +5,7 @@ import org.tiqian.linebreak.Hyphenator.NoHyphenator;
 import org.tiqian.test.trace.*;
 import org.tiqian.layout.ParagraphLayoutEngine.ExplainableStubParagraphLayoutEngine;
 import std.UString;
+import std.SortedMap;
 import org.tiqian.layout.LineBreaker.LookaheadLineBreaker;
 import org.tiqian.layout.LineBreaker;
 import org.tiqian.layout.ExplainableStubParagraphLayoutEngineTestSupport.EmptyTextShaper;
@@ -320,6 +321,26 @@ class ExplainableStubParagraphLayoutEngineTest {
             ExplainableStubParagraphLayoutEngineTestSupport.renderRanges(a));
         TracedAssertions.assertEqualsRendered("['👩', '🏽‍💻']",
             ExplainableStubParagraphLayoutEngineTestSupport.renderStrings([r.debug.shapingDecisions[0].sourceText, r.debug.shapingDecisions[1].sourceText]));
+    }
+
+    @:test public static function handleIrEscapingMethodRunsOnConcreteHandle():Void {
+        var t = ExplainableStubParagraphLayoutEngineTestSupport.start("handleIrEscapingMethodRunsOnConcreteHandle");
+        var engine = new ExplainableStubParagraphLayoutEngine();
+        var input = ExplainableStubParagraphLayoutEngineTestSupport.input("提椠", 240);
+        // layoutWithRejectedTechnicalTiers forwards the whole handle to
+        // finishParagraphLayout (a cross-class static), so it lowers full-body
+        // concrete on the handle. The concrete path must produce the same result
+        // as layout (empty rejected-tiers map).
+        var viaLayout = engine.layout(input);
+        var viaEscaping = engine.layoutWithRejectedTechnicalTiers(input, SortedMap.builder().build());
+        TracedAssertions.assertEqualsInt(viaLayout.lines.length, viaEscaping.lines.length);
+        TracedAssertions.assertEqualsInt(viaLayout.clusters.length, viaEscaping.clusters.length);
+        // The struct trait path (impl ParagraphLayoutEngine for the bare struct)
+        // fails closed with a diagnostic panic: layout needs the handle identity
+        // and the engine is never stored as Rc<RefCell<dyn ParagraphLayoutEngine>>,
+        // so no dyn dispatch reaches it. The panic is the verified assertion; see
+        // docs/compiler-policy-interfaces.md "Known limitations / Escaping
+        // interface methods fail closed on the trait-object path".
     }
 
     public static function flushTestTrace():Void {

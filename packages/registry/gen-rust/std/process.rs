@@ -2,7 +2,7 @@ use crate::runtime::sorted_table::SortedTable;
 use crate::runtime::u_string::UString;
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct ProcessEnv {
     pub name: UString,
     pub value: UString,
@@ -16,7 +16,7 @@ pub fn compare_process_env(a: &ProcessEnv, b: &ProcessEnv) -> i32 {
     0
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct ProcessResult {
     pub code: u32,
     pub stdout: UString,

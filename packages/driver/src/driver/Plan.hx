@@ -115,7 +115,10 @@ class Plan {
             addStep(steps, "run", "java", ["-cp", libraryJar + ":" + testsJar + ":" + generatedDir + "/resources"].concat(bundle.run.args).concat(["TestMainKt"]), project.root, runEnv);
         } else if (bundle.target == "rust") {
             addStep(steps, "build", "cargo", ["test", "--release", "--no-run"].concat(bundle.build.args), generatedDir, bundle.build.env);
-            addStep(steps, "run", "cargo", ["test", "--release"].concat(bundle.run.args), generatedDir, runEnv);
+            // Haxe semantics are single-threaded (P-15 SingleThread statics
+            // hold Rc handles behind an unsafe Send+Sync); the test harness must
+            // run serially or the thread-affine guard panics. (SingleThreadStatic)
+            addStep(steps, "run", "cargo", ["test", "--release", "--", "--test-threads=1"].concat(bundle.run.args), generatedDir, runEnv);
         } else if (bundle.target == "swift") {
             if (swiftModule == null) throw new DriverException(InvalidConfig('bundle "${bundle.id}": missing swift-test-import'));
             final module = swiftModule + "";

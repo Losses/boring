@@ -724,7 +724,7 @@ impl Core {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct InputRecord {
     pub path: UString,
     pub content: UString,
@@ -741,7 +741,7 @@ pub fn compare_input_record(a: &InputRecord, b: &InputRecord) -> i32 {
     0
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct OutputFile {
     pub path: UString,
     pub content: UString,
@@ -758,7 +758,7 @@ pub fn compare_output_file(a: &OutputFile, b: &OutputFile) -> i32 {
     0
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct RegistryConfig {
     pub tree: UString,
     pub output: UString,

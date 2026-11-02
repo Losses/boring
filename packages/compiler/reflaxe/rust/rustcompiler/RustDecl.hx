@@ -39,7 +39,7 @@ class RustDecl {
         engine through an interface slot, the engine's writes must be
         visible to the caller's later reads. Cloning into the slot breaks
         that. Interfaces annotated @:sharedHandle at their declaration
-        lower their interface slots to Arc<Mutex<dyn Trait>>, so the slot
+        lower their interface slots to Rc<RefCell<dyn Trait>>, so the slot
         and the source binding share one object. (ClassHandleShare)
     **/
     public static function isSharedInterface(cls:ClassType):Bool {
@@ -216,7 +216,7 @@ class RustDecl {
                 lines.push("}");
             }
             // A shared interface keeps the Debug impl for the trait object:
-            // Arc<Mutex<dyn X>> is Debug through it, so structs that derive
+            // Rc<RefCell<dyn X>> is Debug through it, so structs that derive
             // Debug over the shared handle stay printable.
             // (ClassHandleShare)
             final isSharedIface = isSharedInterface(cls);
@@ -378,7 +378,7 @@ class RustDecl {
         // When every field also implements PartialEq, add that derive so
         // containing structs can derive PartialEq over the data class.
         final isSortedTableResident = RustType.isContentEqSortedTable(cls);
-        final isHashManual = cls.meta.has(":dataClass") && RustType.hasDirectFloatField(varFields) && RustType.isHashTypeFieldsWithFloat(varFields);
+        final isHashManual = RustType.hasDirectFloatField(varFields) && RustType.isHashTypeFieldsWithFloat(varFields);
         if ((StaticFieldHelper.hasSelfConstructionStatic(cls) || cls.meta.has(":dataClass") || classParams.length > 0 || isSortedTableResident)
             && (isAllClone(varFields, cls) || isSortedTableResident)) {
             final isDebug = cls.meta.has(":dataClass") && isAllDebug(varFields, cls);
@@ -430,7 +430,11 @@ class RustDecl {
                 if (v.isStatic)
                     continue;
                 final fname = RustImports.toSnakeCase(v.field.name);
-                lines.push("        " + (RustType.isDirectFloatType(v.field.type) ? "core::hash::Hash::hash(&self." + fname + ".to_bits(), state)" : "self." + fname + ".hash(state)") + ";");
+                lines.push("        " + (RustType.isDirectFloatType(v.field.type)
+                    ? "core::hash::Hash::hash(&" + RustType.canonicalFloatHashBits("self." + fname, false) + ", state)"
+                    : RustType.isNullableFloatType(v.field.type)
+                        ? "self." + fname + ".as_ref().map(|v| " + RustType.canonicalFloatHashBits("v", true) + ").hash(state)"
+                        : "self." + fname + ".hash(state)") + ";");
             }
             lines.push("    }");
             lines.push("}");
@@ -500,7 +504,31 @@ class RustDecl {
                     lines.push(l);
             } else {
                 state.memberPrintsTypeParam = false;
-                final memberLines = instanceFuncDecl(cls, f, hasLifetime);
+                // A plain-class method lowers to a shared inner helper (logic on
+                // the bare struct) plus a thin concrete delegation that borrows
+                // the handle. (InnerHelperArchitecture)
+                final isPlainHandleMethod = RustDecl.isPlainClassHandleClass(cls) && f.field.name != "new";
+                final snakeN = RustImports.toSnakeCase(f.field.name);
+                final innerName = snakeN + "_inner";
+                // A non-interface plain class has no trait impl to share the
+                // inner helper with, so the concrete method carries the full
+                // body on the handle directly; the inner helper would hold the
+                // bare struct and could not pass the handle to cross-class
+                // callees that take it. (InnerHelperNeedsInterface)
+                // A method whose body needs the whole handle (it forwards
+                // "this" to a handle-taking callee, transitively) lowers
+                // full-body concrete so the handle stays in scope; it has no
+                // inner helper. (EscapingHandleMethod)
+                final fk = RustEmissionState.funcKey(cls.module, f.field.name, false);
+                final escaping = state.escapingHandleMethods.exists(fk);
+                final memberLines = isPlainHandleMethod
+                    ? (escaping
+                        ? instanceFuncDecl(cls, f, hasLifetime, false, null, null, null, false, null)
+                        : (cls.interfaces.length > 0
+                            ? instanceFuncDecl(cls, f, hasLifetime, true, null, null, innerName, true)
+                                .concat(instanceFuncDecl(cls, f, hasLifetime, false, null, null, null, false, innerName))
+                            : instanceFuncDecl(cls, f, hasLifetime, false, null, null, null, false, null)))
+                    : instanceFuncDecl(cls, f, hasLifetime);
                 if (state.memberPrintsTypeParam) {
                     printingMembers.push(memberLines);
                 } else {
@@ -570,17 +598,17 @@ class RustDecl {
                     if (ifaceSep)
                         lines.push("");
                     ifaceSep = true;
-                    for (l in instanceFuncDecl(cls, f, hasLifetime, true, ifaceCls.module, ifaceCls.name))
-                        lines.push(l);
+                    if (RustDecl.isPlainClassHandleClass(cls)) {
+                        final snakeI = RustImports.toSnakeCase(f.field.name);
+                        for (l in instanceFuncDecl(cls, f, hasLifetime, true, ifaceCls.module, ifaceCls.name, null, false, snakeI + "_inner"))
+                            lines.push(l);
+                    } else {
+                        for (l in instanceFuncDecl(cls, f, hasLifetime, true, ifaceCls.module, ifaceCls.name))
+                            lines.push(l);
+                    }
                 }
             }
             lines.push("}");
-            if (RustDecl.isPlainClassHandleClass(cls)) {
-                imports.require("std::rc::Rc");
-                imports.require("std::cell::RefCell");
-                for (l in rcHandleTraitImpl(cls, ifaceCls, ordinaryFuncs))
-                    lines.push(l);
-            }
         }
 
         final classPart = prefixLines.length > 0 ? prefixLines.join("\n\n") + "\n\n" + lines.join("\n") : lines.join("\n");
@@ -1553,6 +1581,22 @@ class RustDecl {
         every binding names the same object through an Rc<RefCell<T>>
         handle instead of an owned value (ClassParamHandle).
     **/
+    /**
+        Whether the type lowers to a shared plain-class handle, directly or
+        behind a Null wrapper (Option<Rc<RefCell<T>>>). The Null abstract is
+        not a TInst, so isPlainClassHandle alone misses the nullable handle
+        slot; callers that render a method receiver, a field borrow, or a
+        by-value argument must recognise both shapes. (ClassParamHandle)
+    **/
+    public static function isPlainClassHandleOrNull(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TAbstract(a, [inner]) if (a.get().name == "Null"): isPlainClassHandle(inner);
+            case _: isPlainClassHandle(t);
+        }
+    }
+
     public static function isPlainClassHandle(t:Null<Type>):Bool {
         if (t == null)
             return false;
@@ -1814,12 +1858,12 @@ class RustDecl {
             // inner value stays assignable. (RcContainerStatic)
             if (field.isFinal && !RustDecl.isPlainClassHandleContainerStaticType(typeStr)) {
                 return [
-                    vis + "static " + name + ": LazyLock<SingleThread<" + typeStr + ">> = LazyLock::new(|| SingleThread(" + expr.rawExpression(init) + "));"
+                    vis + "static " + name + ": LazyLock<SingleThread<" + typeStr + ">> = LazyLock::new(|| SingleThread::new(" + expr.rawExpression(init) + "));"
                 ];
             }
             imports.require("std::sync::Mutex");
             return [
-                vis + "static " + name + ": LazyLock<Mutex<SingleThread<" + typeStr + ">>> = LazyLock::new(|| Mutex::new(SingleThread(" + expr.rawExpression(init) + ")));"
+                vis + "static " + name + ": LazyLock<Mutex<SingleThread<" + typeStr + ">>> = LazyLock::new(|| Mutex::new(SingleThread::new(" + expr.rawExpression(init) + ")));"
             ];
         }
 
@@ -1988,9 +2032,22 @@ class RustDecl {
         final fallibleBlockIdx = state.fallibleBlockParams.get(funcKey);
         final isFallible = funcIsFallible(f);
         final errOwner = isFallible ? resolveErrorOwner(f, cls) : null;
-        final args = [
-            for (i in firstArg...f.args.length) {
-                final a = f.args[i];
+        final proj = state.fieldProjections.get(funcKey);
+        final argsList:Array<String> = [];
+        for (i in firstArg...f.args.length) {
+            final a = f.args[i];
+            if (proj != null && a.name == proj.engineName) {
+                // FieldProjection: expand the projected handle parameter into
+                // one owned handle parameter per read field, in field order.
+                final engineCls = switch (Context.follow(a.type)) { case TInst(c, _): c.get(); case _: null; };
+                for (fld in proj.fields) {
+                    var ft:Null<Type> = null;
+                    if (engineCls != null)
+                        for (fl in engineCls.fields.get())
+                            if (fl.name == fld.name) { ft = fl.type; break; }
+                    argsList.push(RustImports.toSnakeCase(fld.name) + ": " + (ft != null ? types.of(ft, true) : types.of(a.type, true)));
+                }
+            } else {
                 // A fallible block propagates into the try region that encloses
                 // the callee's call, so the slot names that region's error type
                 // and not the callee's own error enum. Without a known region
@@ -2021,9 +2078,10 @@ class RustDecl {
                 }
                 final mut = mutatedArg && !StringTools.startsWith(pType, "&mut") ? "mut " : "";
                 final mentioned = argIsMentioned(f.expr, a.name) || coalescedParams.exists(a.name);
-                mut + (mentioned ? "" : "_") + RustImports.toSnakeCase(a.name) + ": " + pType;
+                argsList.push(mut + (mentioned ? "" : "_") + RustImports.toSnakeCase(a.name) + ": " + pType);
             }
-        ].join(", ");
+        }
+        final args = argsList.join(", ");
         final allArgs = if (receiverMethod) {
             args.length > 0 ? "&self, " + args : "&self";
         } else {
@@ -2589,9 +2647,9 @@ class RustDecl {
             + expr.sortedComparator(params[0], Context.currentPos()) + ").build()";
     }
 
-    function instanceFuncDecl(cls:ClassType, f:ClassFuncData, hasLifetime:Bool, isTraitImpl:Bool = false, interfaceModule:Null<String> = null, interfaceName:Null<String> = null):Array<String> {
+    function instanceFuncDecl(cls:ClassType, f:ClassFuncData, hasLifetime:Bool, isTraitImpl:Bool = false, interfaceModule:Null<String> = null, interfaceName:Null<String> = null, nameOverride:Null<String> = null, isInnerHelper:Bool = false, delegateToInner:Null<String> = null):Array<String> {
         final isConstructor = f.field.name == "new";
-        final snakeName = isConstructor ? "new" : RustImports.toSnakeCase(f.field.name);
+        final snakeName = nameOverride != null ? nameOverride : (isConstructor ? "new" : RustImports.toSnakeCase(f.field.name));
 
         for (a in f.args) {
             expr.reserveName(a.name);
@@ -2648,7 +2706,7 @@ class RustDecl {
             // name, since `self` is a keyword and cannot be shadowed), run
             // the body against it, and return it.
             final thisAsValue = parts.thisAsValue && !ctorFallible;
-            final selfName = thisAsValue ? parts.thisBindingName : "self";
+            final selfName = thisAsValue ? parts.selfLocalName : "self";
             if (thisAsValue) {
                 lines.push("        let mut " + selfName + " = Self {");
             } else {
@@ -2715,8 +2773,8 @@ class RustDecl {
                     // in generated trees, so the optional box wrap renders as
                     // a match.
                     lines.push(StringTools.startsWith(argType,
-                        "Option<") ? '            $sname: match $sname { Some(v) => Some(Box::new(v)), None => None },'
-                        : '            $sname: Box::new($sname),');
+                        "Option<") ? '            $sname: match $sname { Some(v) => Some(Rc::new(RefCell::new(v))), None => None },'
+                        : '            $sname: Rc::new(RefCell::new($sname)),');
                 } else {
                     final argTypeStr = types.of(a.type, false);
                     final fieldTypeStr = types.of(getFieldType(cls, a.name));
@@ -2780,9 +2838,9 @@ class RustDecl {
                             // handle; the initializer wraps once here.
                             // (ClassHandleShare)
                             final sharedInit = sharedImplementorField(field.type)
-                                && !StringTools.startsWith(ownedInit, "Arc::new(Mutex::new(")
+                                && !StringTools.startsWith(ownedInit, "Rc::new(RefCell::new(")
                                 && ownedInit != "Default::default()"
-                                && ownedInit != "None" ? "Arc::new(Mutex::new(" + ownedInit + "))" : ownedInit;
+                                && ownedInit != "None" ? "Rc::new(RefCell::new(" + ownedInit + "))" : ownedInit;
                             final fieldType = types.of(field.type);
                             final wrappedInit = StringTools.startsWith(fieldType, "Option<")
                                 && init != "None" && !StringTools.startsWith(sharedInit, "Some(")
@@ -2799,6 +2857,11 @@ class RustDecl {
                 lines.push("            __phantom_" + p.toLowerCase() + ": core::marker::PhantomData,");
             if (thisAsValue) {
                 lines.push("        };");
+                if (parts.handleName != null) {
+                    imports.require("std::rc::Rc");
+                    imports.require("std::cell::RefCell");
+                    lines.push("        let " + parts.handleName + " = Rc::new(RefCell::new(" + selfName + "));");
+                }
                 for (l in parts.statementLines) {
                     lines.push("    " + l);
                 }
@@ -2809,12 +2872,15 @@ class RustDecl {
                         case FVar(_, _):
                             if (parts.fieldInits.exists(field.name)) {
                                 final sname = RustImports.toSnakeCase(field.name);
-                                lines.push('            ' + selfName + '.$sname = ' + parts.fieldInits.get(field.name) + ';');
+                                final writeTarget = parts.handleName != null ? parts.handleName + '.borrow_mut().' + sname : selfName + '.' + sname;
+                                lines.push('            ' + writeTarget + ' = ' + parts.fieldInits.get(field.name) + ';');
                             }
                         case _:
                     }
                 }
-                lines.push("        return " + (isHandleCtor ? "Rc::new(RefCell::new(" + selfName + "))" : selfName) + ";");
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+                lines.push("        return " + (parts.handleName != null ? parts.handleName : (isHandleCtor ? "Rc::new(RefCell::new(" + selfName + "))" : selfName)) + ";");
             } else {
                 lines.push("        " + (ctorFallible
                     ? (isHandleCtor ? "})))" : "})")
@@ -2833,7 +2899,7 @@ class RustDecl {
         // immutable table, so its build method consumes the builder instead
         // of moving that box out of a shared borrow.
         final consumesSelf = cls.module == "runtime.SortedTable" && f.field.name == "build";
-        final selfParam = f.isStatic && isTraitImpl ? "" : (consumesSelf ? "self" : (isMutating ? "&mut self" : "&self"));
+        final selfParam = f.isStatic && isTraitImpl ? "" : (consumesSelf ? "self" : (isPlainClassHandleClass(cls) && !isTraitImpl ? "this: &Rc<RefCell<Self>>" : (isMutating ? "&mut self" : "&self")));
         final coalescedParams:Map<String, Bool> = [];
         for (site in DefaultArgExpander.coalescingSitesForFunction(f.expr)) {
             coalescedParams.set(site.parameter, true);
@@ -2884,7 +2950,34 @@ class RustDecl {
         expr.setReturnTypeName(rawRetType);
         expr.setReturnType(f.ret);
         EmitSink.record("FUNC", f.field.pos, snakeName + "(");
-        final body = expr.functionBody(cls, f);
+        final argNamesStr = [for (a in f.args) (argIsMentioned(f.expr, a.name) || coalescedParams.exists(a.name) ? "" : "_") + RustImports.toSnakeCase(a.name)].join(", ");
+        // A thin delegation forwards to the shared inner helper: the concrete
+        // method borrows the handle, the direct impl passes self through.
+        // (InnerHelperDelegation)
+        final innerCall = (isTraitImpl ? "self" : "this") + (isTraitImpl ? "" : (isMutating ? ".borrow_mut()" : ".borrow()")) + "." + delegateToInner + "(" + argNamesStr + ")";
+        // A fallible interface method whose concrete body never throws
+        // forwards the inner helper's plain value through Ok(...) so the
+        // direct impl matches the trait's Result return. A concrete body that
+        // throws a different fault maps the inner helper's error into the
+        // interface union via the generated From impl, so the variant need not
+        // be named; same-fault delegations return the Result directly.
+        // (InnerHelperFallibility)
+        final delegatedBody = if (isFallible && !funcIsFallible(f)) {
+            "Ok(" + innerCall + ")";
+        } else if (isFallible && interfaceShape != null && errOwner != null && funcIsFallible(f)) {
+            final innerOwner = resolveErrorOwner(f, cls);
+            (innerOwner != null && innerOwner.name != errOwner.name) ? innerCall + ".map_err(|e| e.into())" : innerCall;
+        } else innerCall;
+        // An escaping interface method lowers full-body concrete on the
+        // handle; its struct trait impl cannot recover the Rc from &mut Self
+        // (unsizing-canonical forbids it), and no dyn dispatch reaches it, so
+        // the body fails closed with a diagnostic panic. (EscapingTraitImplFailClosed)
+        final escapingMethod = isTraitImpl && state.escapingHandleMethods.exists(RustEmissionState.funcKey(cls.module, f.field.name, false));
+        final body = escapingMethod
+            ? ["panic!(\"" + cls.name + "::" + f.field.name + ": this trait method requires handle identity and cannot run through a bare trait-object (&mut Self). Call it on the concrete handle (Rc<RefCell<" + cls.name + ">) instead. The dyn " + (interfaceName != null ? interfaceName : cls.name) + " dispatch path is not wired.\")"]
+            : delegateToInner != null
+                ? [delegatedBody]
+                : expr.functionBody(cls, f, isTraitImpl, isInnerHelper);
         return [head].concat(body.map(l -> "    " + l)).concat(["    }"]);
     }
 
@@ -2929,7 +3022,7 @@ class RustDecl {
             final snakeName = RustImports.toSnakeCase(f.field.name);
             final interfaceShape = state.interfaceMethodShapes.get(RustEmissionState.interfaceMethodKey(ifaceCls.module, ifaceCls.name, f.field.name));
             final isMutating = interfaceShape != null ? interfaceShape.isMutating : isMethodMutating(f);
-            final selfParam = isMutating ? "&mut self" : "&self";
+            final selfParam = "&self";
             final otherArgs = [for (a in f.args) RustImports.toSnakeCase(a.name) + ": " + paramType(a.type, f.field.name, a.name)].join(", ");
             final allArgs = otherArgs.length > 0 ? selfParam + ", " + otherArgs : selfParam;
             final isFallible = interfaceShape != null ? interfaceShape.isFallible : funcIsFallible(f);
@@ -3439,7 +3532,11 @@ class RustDecl {
                     lines.push("            " + en.name + "::" + variant + " { " + params.join(", ") + " } => {");
                     for (arg in o.args) {
                         final fname = RustImports.toSnakeCase(arg.name);
-                        lines.push("                " + (RustType.isDirectFloatType(arg.type) ? "core::hash::Hash::hash(&" + fname + ".to_bits(), state)" : fname + ".hash(state)") + ";");
+                        lines.push("                " + (RustType.isDirectFloatType(arg.type)
+                    ? "core::hash::Hash::hash(&" + RustType.canonicalFloatHashBits(fname, true) + ", state)"
+                    : RustType.isNullableFloatType(arg.type)
+                        ? fname + ".as_ref().map(|v| " + RustType.canonicalFloatHashBits("v", true) + ").hash(state)"
+                        : fname + ".hash(state)") + ";");
                     }
                     lines.push("            }");
                 }
@@ -3558,6 +3655,27 @@ lines.push("        }");
                     : isAllCopy(fields) ? "#[derive(Debug, Clone, Copy)]" : "#[derive(Debug, Clone)]";
                 final structStr = [deriveAttr, 'pub struct ${def.name} {', fieldLines.join("\n"), "}"].join("\n");
 
+                // A record with a Float field derives PartialEq but not Hash
+                // (f32/f64 have no Hash). Generate a manual canonical Hash impl
+                // so the record can key a Map or nest in a hashed enum variant.
+                // (P-13 record-float-hash)
+                final hasRecordFloat = (function() { for (field in fields) if (RustType.isDirectFloatType(field.type) || RustType.isNullableFloatType(field.type)) return true; return false; })();
+                final allRecordHashWithFloat = (function() { for (field in fields) if (!RustType.isHashTypeWithFloat(field.type)) return false; return true; })();
+                var recordHashImpl = "";
+                if (hasRecordFloat && allRecordHashWithFloat && RustType.fieldsAllPartialEq(fields)) {
+                    final rname = def.name;
+                    recordHashImpl = "\n\nimpl Eq for " + rname + " {}\nimpl core::hash::Hash for " + rname + " {\n    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {\n";
+                    for (field in fields) {
+                        final rfname = RustImports.toSnakeCase(field.name);
+                        recordHashImpl += "        " + (RustType.isDirectFloatType(field.type)
+                            ? "core::hash::Hash::hash(&" + RustType.canonicalFloatHashBits("self." + rfname, false) + ", state)"
+                            : RustType.isNullableFloatType(field.type)
+                                ? "self." + rfname + ".as_ref().map(|v| " + RustType.canonicalFloatHashBits("v", true) + ").hash(state)"
+                                : "self." + rfname + ".hash(state)") + ";\n";
+                    }
+                    recordHashImpl += "    }\n}";
+                }
+
                 if (isStructKeyCandidate(fields)) {
                     // The comparator matches the resident table signature,
                     // fn(&K, &K) -> i32: integer fields order the signed
@@ -3603,10 +3721,10 @@ lines.push("        }");
                     }
                     cmpLines.push('    0');
                     cmpLines.push("}");
-                    return structStr + "\n\n" + cmpLines.join("\n");
+                    return structStr + recordHashImpl + "\n\n" + cmpLines.join("\n");
                 }
 
-                return structStr;
+                return structStr + recordHashImpl;
             case TType(_, _):
                 return 'pub type ${def.name} = ${types.of(def.type)};';
             case _:
@@ -3618,7 +3736,7 @@ lines.push("        }");
         for (f in fields) {
             if (f.isStatic)
                 continue;
-            // A shared interface lowers to Arc<Mutex<dyn Trait>>, which is
+            // A shared interface lowers to Rc<RefCell<dyn Trait>>, which is
             // always Clone regardless of the trait's clone_box sealing, so
             // it keeps the owner's Clone derive. (SharedInterfaceClone)
             final sharedIface = switch (Context.follow(f.field.type)) {
