@@ -3,9 +3,9 @@
   "url": "https://github.com/Losses/boring",
   "description": "Haxe-to-TypeScript/Kotlin/Rust transpiler toolkit built on reflaxe",
   "license": "MIT",
-  "version": "0.0.1",
+  "version": "1.4.0",
   "classPath": "packages/compiler",
-  "releasenote": "Initial package form: Intercept entry, runtime defines, target output defines.",
+  "releasenote": "Rust handle call sites migrate to UFCS; a nullable write receiver keeps the write target (SemanticPolicy.nullableProjection); f32 and f64 report 1348 passing tests and protocol 37 on the pinned artifact.",
   "contributors": ["Losses"],
   "tags": ["cross", "transpiler", "reflaxe"],
   "dependencies": {
