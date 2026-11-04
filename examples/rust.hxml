@@ -303,6 +303,8 @@ boring.HaxeExceptionOps
 tests.HaxeExceptionTests
 boring.ArrayAccessOps
 tests.ArrayAccessTests
+boring.NestedIndexWriteOps
+tests.NestedIndexWriteTests
 boring.ArraySliceOps
 tests.ArraySliceTests
 boring.StaticRefOps

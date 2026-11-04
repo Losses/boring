@@ -74,6 +74,7 @@ class AssignTargetPlan {
     public static final placePathReaders:Array<String> = [
         "lock().unwrap()", "try_lock().unwrap()",
         "borrow().unwrap()", "borrow_mut().unwrap()",
+        "as_mut().unwrap()", "as_ref().unwrap()",
         "borrow()", "borrow_mut()"
     ];
 

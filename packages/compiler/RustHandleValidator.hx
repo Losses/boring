@@ -4,13 +4,21 @@ import SemanticPolicy.ExprIdentity;
 import SemanticPolicy.PlaceKind;
 import SemanticPolicy.ExprInfo;
 import SemanticPolicy.ReceiverAbi;
+import SemanticPolicy.RepresentationRole;
+import SemanticPolicy.RepresentationPlan;
+import SemanticPolicy.ConversionEdge;
+import SemanticPolicy.ModuleContext;
 
 /**
     M2 lowering validator for the Target Semantic Policy.
 
     Consumes the typed-IR vocabulary in SemanticPolicy.hx and enforces the
-    frozen invariants named in docs/specs/target-semantic-policy.md (P-2, P-4,
-    P-5, P-6, P-7, P-14, P-16) plus the Astra defect ruling d-4. It is a pure,
+    frozen invariants named in docs/specs/target-semantic-policy.md (P-4,
+    P-5, P-6, P-7, P-14) plus the Astra defect ruling d-4. P-2 (plain class
+    handle) and P-16 (shared handle meta) have no standalone validator site: P-2
+    is enforced by SemanticPolicy.roleFor(ClassHandle) + RustAbiProfile.spell +
+    the P-22 plan/repr mismatch, and P-16 by the RustAbiProfile.spell sendSync
+    two-way split (guarded by a dedicated contract test). It is a pure,
     plain-Haxe module with no macro Context and no target renderer, so it is
     unit-testable over synthetic IR before the M3 lowering exists.
 
@@ -60,6 +68,15 @@ class HandleNode {
     /** true when a Send/Sync bound or Arc/Mutex enters a single-thread slot. */
     public var sendSyncBound:Bool;
 
+    /** The declaration this node belongs to; the validator groups by this for plan-key uniqueness. Null means ungrouped. */
+    public var declId:String;
+
+    /** The plan assigned to this node (P-22/P-24). Null means the node was not run through decide(). */
+    public var plan:Null<RepresentationPlan>;
+
+    /** The module context the plan was decided under (governance only; the validator checks invariance, never reads it for representation). */
+    public var moduleContext:Null<ModuleContext>;
+
     public function new(id:String, kind:HandleNodeKind, info:ExprInfo, ?mode:UseMode) {
         this.id = id;
         this.kind = kind;
@@ -79,20 +96,116 @@ typedef ValidationError = {
 };
 
 class RustHandleValidator {
-    public static final P_2 = "P-2";
     public static final P_4 = "P-4";
     public static final P_5 = "P-5";
     public static final P_6 = "P-6";
     public static final P_7 = "P-7";
     public static final P_14 = "P-14";
-    public static final P_16 = "P-16";
     public static final D_4 = "d-4";
+    public static final P_22 = "P-22";
+    public static final P_24 = "P-24";
+    public static final P_25 = "P-25";
 
     public static function validate(nodes:Array<HandleNode>):Array<ValidationError> {
         final errors:Array<ValidationError> = [];
         for (node in nodes)
             validateNode(node, errors);
         return errors;
+    }
+
+    /**
+        Plan-level fail-closed validation (policy entries P-22/P-24/P-25).
+
+        Checks, in addition to the per-node invariants above:
+          - missing plan: a grouped handle node with no RepresentationPlan.
+          - plan/repr mismatch: the plan role disagrees with the node repr.
+          - plan-key uniqueness: one declaration resolves to exactly one planKey.
+          - test-module invariance: cfg(test) must not change planKey or repr.
+          - adapter edge legality: every edge the plan cites must be registered.
+
+        Every failure is a named error citing a policy entry id, never a silent
+        guess. The validator never infers representation from rendered text, a
+        module name, or cfg(test); it only checks that the plan agrees with the
+        already-resolved representation.
+    **/
+    public static function validatePlans(nodes:Array<HandleNode>, ?registeredEdges:Array<ConversionEdge>):Array<ValidationError> {
+        final errors:Array<ValidationError> = [];
+        if (registeredEdges == null)
+            registeredEdges = [];
+
+        for (node in nodes) {
+            // missing plan
+            if (node.declId != null && node.plan == null && isHandle(node.info.repr))
+                errors.push(planError(P_22, node, "missing plan", "a grouped handle node has no RepresentationPlan"));
+            if (node.plan == null)
+                continue;
+
+            // adapter-handle escape invariant (P-22): AdapterHandle is a coercion
+            // transient and must never resolve an emitted occurrence's plan.
+            if (node.plan.role == RepresentationRole.AdapterHandle)
+                errors.push(planError(P_22, node, "adapter handle escaped", "AdapterHandle is a coercion transient and must not appear at an emitted occurrence"));
+
+            // plan/repr mismatch
+            if (node.plan.failureReason == "") {
+                final reprIsHandle = isHandle(node.info.repr);
+                switch (node.plan.role) {
+                    case RepresentationRole.ClassHandle | RepresentationRole.TraitHandle | RepresentationRole.TraitHandleAdapter:
+                        if (!reprIsHandle)
+                            errors.push(planError(P_22, node, "plan/repr mismatch", "plan role " + SemanticPolicy.roleToString(node.plan.role) + " requires a handle but the node repr is a value"));
+                    case RepresentationRole.Value:
+                        if (reprIsHandle)
+                            errors.push(planError(P_22, node, "plan/repr mismatch", "plan role is Value but the node repr is a handle"));
+                    case _: // ReadBorrow/WriteBorrow are use-mode refinements
+                }
+            }
+
+            // adapter edge legality: every cited edge must be registered
+            for (edge in node.plan.conversionEdges)
+                if (!edgeRegistered(edge, registeredEdges))
+                    errors.push(planError(P_25, node, "unregistered adapter edge", "the plan cites an unregistered conversion edge (" + edge.adapter + ")"));
+        }
+
+        // plan-key uniqueness + test-module invariance, grouped by declaration
+        final byDecl = new Map<String, Array<HandleNode>>();
+        for (node in nodes) {
+            if (node.declId == null)
+                continue;
+            if (!byDecl.exists(node.declId))
+                byDecl.set(node.declId, []);
+            byDecl.get(node.declId).push(node);
+        }
+        for (declId in byDecl.keys()) {
+            final group = byDecl.get(declId);
+            var baseKey:String = null;
+            for (node in group) {
+                if (node.plan == null)
+                    continue;
+                if (baseKey == null) {
+                    baseKey = node.plan.planKey;
+                    continue;
+                }
+                if (node.plan.planKey != baseKey) {
+                    final isCfgTest = node.moduleContext != null && node.moduleContext.isCfgTest;
+                    if (isCfgTest)
+                        errors.push(planError(P_24, node, "test-module invariance", "cfg(test) changed planKey for declaration " + declId + ": " + baseKey + " vs " + node.plan.planKey));
+                    else
+                        errors.push(planError(P_24, node, "plan-key mismatch", "declaration " + declId + " resolved to more than one planKey: " + baseKey + " vs " + node.plan.planKey));
+                }
+            }
+        }
+
+        return errors;
+    }
+
+    static function edgeRegistered(edge:ConversionEdge, registered:Array<ConversionEdge>):Bool {
+        for (reg in registered)
+            if (reg.adapter == edge.adapter && SemanticPolicy.reprEquals(reg.from, edge.from))
+                return true;
+        return false;
+    }
+
+    static function planError(entry:String, node:HandleNode, rule:String, message:String):ValidationError {
+        return { entry: entry, expr_id: node.id, rule: rule, message: message };
     }
 
     public static function hasError(errors:Array<ValidationError>, entry:String):Bool {
@@ -107,6 +220,20 @@ class RustHandleValidator {
             if (e.entry == entry && e.expr_id == exprId)
                 return true;
         return false;
+    }
+
+    /**
+        Fail-closed plan access for a renderer site. Reads node.plan and throws
+        with the declaration id and the site when the plan is not yet decided, so
+        an ordering bug (a site reading the plan before collectHandleNode ran
+        decide) surfaces as an explicit "plan not decided" error with the context,
+        never a bare null dereference. This is the renderer-side counterpart of
+        the validator's P-22 "missing plan" gate.
+    **/
+    public static function requirePlan(node:HandleNode, site:String):RepresentationPlan {
+        if (node == null || node.plan == null)
+            throw "plan not decided for " + (node != null ? node.declId : "<null>") + " at " + site + "; collectHandleNode must run decide before render";
+        return node.plan;
     }
 
     public static function isHandle(r:ReprType):Bool {
