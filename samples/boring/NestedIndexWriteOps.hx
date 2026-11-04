@@ -9,6 +9,15 @@ package boring;
 class NestedIndexWriteOps {
     public function new() {}
 
+    /** A fresh handle call root: new C().mutate() is a legal place for a
+        MutateReferent; the referent identity is the fresh object. (PlacePolicy
+        positive control) */
+    public static function newCallMutate():Int {
+        final c = new NestedIndexCell(1);
+        c.setValue(5);
+        return c.value;
+    }
+
     public static function writeDepth2():Array<Array<Int>> {
         final grid:Array<Array<Int>> = [[1, 2], [3, 4]];
         grid[0][1] = 20;
@@ -99,10 +108,15 @@ class NestedIndexWriteOps {
 }
 
 
+
+
 class NestedIndexCell {
     public var value:Int;
     public function new(value:Int) {
         this.value = value;
+    }
+    public function setValue(v:Int):Void {
+        value = v;
     }
 }
 
