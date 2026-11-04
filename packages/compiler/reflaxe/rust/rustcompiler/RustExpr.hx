@@ -40,6 +40,13 @@ import SemanticPolicy.SemanticFacts;
 import SemanticPolicy.DecideInput;
 import SemanticPolicy.RepresentationPlan;
 import SemanticPolicy.RepresentationRole;
+import SemanticPolicy.RootPlaceClass;
+import SemanticPolicy.StorageKind;
+import SemanticPolicy.CloneRelation;
+import SemanticPolicy.MutationCapability;
+import SemanticPolicy.PlaceCapability;
+import SemanticPolicy.NullableProjection;
+import SemanticPolicy.StaticStorage;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Rust.
@@ -17846,7 +17853,7 @@ class RustExpr {
         // innermost storage. The recursive planner passes the AssignSlot
         // intent down the chain instead of relying on the WriteTargetPlaceChain
         // switch. (PlacePlan)
-        final receiver = mutable ? mutableReceiver(arr) : expr(arr);
+        final receiver = mutable ? planPlaceChain(arr, AssignSlot).root : expr(arr);
         return applyIndex(receiver, arr, idx, mutable);
     }
 
@@ -17885,6 +17892,13 @@ class RustExpr {
         final unwrapOption = !guardedCollapse
             && (isNullType(arr.t) || receiverCarriesFallibleWrapper(arr) || emittedOptionContainer);
         if (unwrapOption) {
+            // The receiver may already carry the nullable unwrap (the root
+            // renderer applied .as_mut().unwrap() for an AssignSlot root).
+            // Unwrap each Option once: if the receiver already ends with
+            // .unwrap(), do not append a second one (E0282 on the inner Vec).
+            // (SingleOptionUnwrap)
+            if (StringTools.endsWith(receiver, ".unwrap()"))
+                return "(" + receiver + ")" + "[" + castArg(idx, "usize") + "]";
             final coerce = mutable ? ".as_mut().unwrap()" : ".as_ref().unwrap()";
             return "(" + receiver + ")" + coerce + "[" + castArg(idx, "usize") + "]";
         }
@@ -17893,14 +17907,6 @@ class RustExpr {
     }
 
     /**
-        WIP, NOT WIRED AND NOT VALIDATED. The root branch below still reports
-        isPlace/verified without deriving them from a policy declaration, so
-        requirePlacePlan cannot yet reject a DetachedCopy. It is deliberately
-        kept off every live path: optionContainerIndexAccess and
-        mutableArrayReceiver use mutableReceiver instead. Task
-        t-mw1c788e-voiy replaces this with the declared-capability planner
-        before it is ever called from a mutation site. (PlacePlan-WIP)
-
         planPlaceChain: the recursive place planner for a write target. It
         walks the projection chain (index and field projections) from the
         root, passing the target intent down, and produces a PlacePlan whose
@@ -17927,18 +17933,82 @@ class RustExpr {
                 }
             case _:
                 // The root of the chain: a local, self, static, or a bare
-                // field. Render it as a place (no value-read clone).
-                // (PlacePlan)
+                // field. Render it as a place (no value-read clone). The root
+                // place-ness is derived from the declared policy domains
+                // (spec 9.2), never hardcoded: a DetachedCopy root or a
+                // missing declaration fails closed here. (PlacePolicy)
+                final cls = classifyRootPlace(e);
                 {
-                    root: renderPlaceRoot(e),
+                    root: renderPlaceRoot(e, intent),
                     projections: [],
                     intent: intent,
-                    isPlace: true,
+                    isPlace: cls.isPlace,
                     writeback: null,
-                    verified: true
+                    verified: cls.verified
                 }
         };
         return requirePlacePlan(plan, e);
+    }
+
+    /**
+        classifyRootPlace: derive the root place classification of a mutation
+        target from the declared policy domains (spec 9.2). A local or this is
+        always a place; a field root is classified by its representation and
+        static/nullable flags through SemanticPolicy.classifyRoot. A missing
+        declaration yields verified=false so requirePlacePlan rejects before
+        generation. (PlacePolicy)
+    **/
+    function classifyRootPlace(e:TypedExpr):{isPlace:Bool, kind:String, verified:Bool, domain:String, reason:String} {
+        final inner = stripWrap(e);
+        switch (inner.expr) {
+            case TLocal(_) | TConst(TThis):
+                // A local or this is a storage slot; always a place.
+                return { isPlace: true, kind: "PreserveLocation", verified: true, domain: "root", reason: "local/this is a place" };
+            case TField(_, FStatic(_, _)):
+                // A static-field root: place-ness is declared by staticStorage.
+                final repr = rootReprType(inner.t);
+                return SemanticPolicy.classifyRoot(repr, true, isNullType(inner.t));
+            case TField(_, _):
+                // An instance-field root: classify by its representation.
+                final repr = rootReprType(inner.t);
+                return SemanticPolicy.classifyRoot(repr, false, isNullType(inner.t));
+            case TCall(_, _):
+                // A call root: a fresh handle (new C()) is a legal place for a
+                // MutateReferent; a pure value temp is a DetachedCopy. Classify
+                // by the call's result representation.
+                final repr = rootReprType(inner.t);
+                return SemanticPolicy.classifyRoot(repr, false, isNullType(inner.t));
+            case _:
+                // Any other root: classify by its representation.
+                final repr = rootReprType(inner.t);
+                return SemanticPolicy.classifyRoot(repr, false, isNullType(inner.t));
+        }
+    }
+
+    /**
+        rootReprType: map a Haxe type to a ReprType for root place
+        classification. This is the planner's view of the declared policy
+        domains; it never invents a capability. (PlacePolicy)
+    **/
+    function rootReprType(t:Null<Type>):ReprType {
+        if (t == null)
+            return ReprType.ImmutableValue;
+        // Check nullability on the original type, not the followed type:
+        // Context.follow strips a Null wrapper, so isNullType(followed) is
+        // false for a nullable slot and the Nullable repr is lost.
+        // (NullableReprPreserve)
+        if (isNullType(t)) {
+            final inner = getNullInnerType(t);
+            return ReprType.Nullable(rootReprType(inner));
+        }
+        final followed = Context.follow(t);
+        if (RustDecl.isPlainClassHandle(followed) || isInterfaceType(followed))
+            return ReprType.Handle(reprTypeId(followed), Nullability.NonNull, false);
+        if (isTypeCopy(followed))
+            return ReprType.Copy;
+        if (isArrayType(followed) || isMapType(followed))
+            return ReprType.Collection(ReprType.ImmutableValue);
+        return ReprType.ImmutableValue;
     }
 
     /**
@@ -17963,14 +18033,25 @@ class RustExpr {
         would add. Used by planPlaceChain for the root of a nested subscript
         write. (PlacePlan)
     **/
-    function renderPlaceRoot(e:TypedExpr):String {
+    function renderPlaceRoot(e:TypedExpr, intent:AccessIntent):String {
         // The root of a nested subscript write must be a place. A local or
         // this renders directly; a field root must render as the bare field
-        // (no value-read clone). Reuse mutableReceiver for the root: it is a
-        // single non-index expression, so the WriteTargetPlaceChain switch it
-        // sets only affects the root's own field clone suppression, never a
-        // nested index chain (the chain is planned recursively by
-        // planPlaceChain). (PlacePlan)
+        // (no value-read clone). A nullable root renders the projection
+        // decided by AccessIntent: AssignSlot borrows the real storage
+        // (.as_mut().unwrap()), ReadValue preserves presence. (PlacePolicy)
+        if (isNullType(e.t)) {
+            final inner = getNullInnerType(e.t);
+            final proj = SemanticPolicy.nullableProjectionFor(rootReprType(inner));
+            switch (proj) {
+                case NullableProjection.UnwrapBorrow:
+                    // AssignSlot: borrow the real storage so the write reaches it.
+                    return "(" + mutableReceiver(e) + ").as_mut().unwrap()";
+                case NullableProjection.PreservePresence | NullableProjection.WritebackRequired | NullableProjection.NonPlace | NullableProjection.Unknown:
+                    // A handle inner (PreservePresence) writes through the shallow
+                    // copy; anything else fails closed in classifyRootPlace.
+                    return mutableReceiver(e);
+            }
+        }
         return mutableReceiver(e);
     }
 
@@ -18079,7 +18160,7 @@ class RustExpr {
         // The growth-guard receiver is planned recursively: every
         // intermediate index stays a place so the guard and the write target
         // the same container. (PlacePlan)
-        final receiver = mutableReceiver(arr);
+        final receiver = planPlaceChain(arr, AssignSlot).root;
         final narrowed = narrowedSubject(arr);
         if (narrowed != null)
             return "(" + receiver + ")";
