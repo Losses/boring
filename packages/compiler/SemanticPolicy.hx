@@ -457,6 +457,124 @@ typedef DecideInput = {
     docs/specs/target-semantic-policy.md, and every IR type above maps onto one
     or more entries, so the document and the typed contract cannot drift.
 **/
+
+/**
+    The seven-domain declaration surface for place/identity proof (Astra
+    ruling, spec section 9.2). SemanticPolicy declares these as authoritative
+    facts; the PlacePlanner derives a path's place/identity from them and never
+    invents an undeclared capability. A missing declaration is Unknown, which
+    fails closed on any mutation path (never a silent default to a place).
+    (PlacePolicy)
+**/
+
+/** Where a value or handle's storage lives. */
+enum StorageKind {
+    /** a plain owned value (Copy / ImmutableValue / Collection backing). */
+    Value;
+    /** a shared referent behind a handle (Rc<RefCell<..>> / Arc<Mutex<..>>). */
+    SharedReferent;
+    /** a static-field slot. */
+    StaticSlot;
+    /** a borrowed view (guard, borrow). */
+    BorrowedView;
+    /** not yet declared; fails closed on mutation. */
+    Unknown;
+}
+
+/** What a clone of the value does to the original storage. */
+enum CloneRelation {
+    /** the clone is a detached copy; writing it does not reach the original. */
+    DetachedCopy;
+    /** the clone keeps the referent identity; writing through it is correct. */
+    PreserveReferentIdentity;
+    /** the value has no clone (Copy / NoClone). */
+    NoClone;
+    /** not yet declared; fails closed on mutation. */
+    Unknown;
+}
+
+/** What a mutation of the value is allowed to change. */
+enum MutationCapability {
+    /** the value is immutable; a slot write is the only admissible mutation. */
+    Immutable;
+    /** a method call mutates the shared referent. */
+    MutatesReferent;
+    /** a write replaces the storage slot. */
+    MutatesSlot;
+    /** the mutation needs explicit writeback to reach the original slot. */
+    RequiresWriteback;
+    /** not yet declared; fails closed on mutation. */
+    Unknown;
+}
+
+/** Whether a value is a place (a storage location you can write through). */
+enum PlaceCapability {
+    /** a place: writing through it reaches the original slot/referent. */
+    Place;
+    /** not a place: a detached value; writing it loses the write. */
+    NonPlace;
+    /** a place only under a condition (e.g. presence of a nullable). */
+    Conditional;
+    /** not yet declared; fails closed on mutation. */
+    Unknown;
+}
+
+/** How a nullable projection preserves (or loses) the underlying place. */
+enum NullableProjection {
+    /** unwrapping preserves presence and the underlying place. */
+    PreservePresence;
+    /** unwrapping borrows the referent (handle inner). */
+    UnwrapBorrow;
+    /** unwrapping a value payload needs explicit writeback. */
+    WritebackRequired;
+    /** unwrapping yields a non-place. */
+    NonPlace;
+    /** not yet declared; fails closed on mutation. */
+    Unknown;
+}
+
+/** The declared place-ness of a static-field slot. */
+enum StaticStorage {
+    /** a mutable place; a subscript write reaches the slot. */
+    MutablePlace;
+    /** immutable; a subscript write is rejected. */
+    Immutable;
+    /** a runtime-guarded place (LazyLock/OnceLock); needs a runtime access contract. */
+    RuntimeGuardedPlace;
+    /** a read-only view; a subscript write is rejected. */
+    ReadOnlyView;
+    /** not yet declared; fails closed on mutation. */
+    Unknown;
+}
+
+/** A named alias/writeback contract for a set/remove/index/write operation. */
+typedef OperationContract = {
+    var id:String;
+    /** the alias relationship the operation preserves. */
+    var alias:StorageKind;
+    /** the writeback the operation requires, or "" when none. */
+    var writeback:String;
+}
+
+/**
+    The root place classification for a mutation target root, derived from the
+    declared policy domains (spec 9.2). isPlace is never defaulted: it is true
+    only when the declaration proves the root is a place, and false when the
+    declaration proves it is a DetachedCopy. verified is true only when the
+    classification was actually computed from a declaration (never a silent
+    default). (PlacePolicy)
+**/
+typedef RootPlaceClass = {
+    var isPlace:Bool;
+    /** PreserveLocation for a slot, PreserveReferentIdentity for a handle root. */
+    var kind:String;
+    var verified:Bool;
+    /** the policy domain that decided this class, for diagnostics. */
+    var domain:String;
+    /** a human-readable reason citing the declared capability. */
+    var reason:String;
+}
+
 class SemanticPolicy {
     /**
         Normative version 1.4.0 (TL sign-off). Entry provenance ledger:
@@ -768,6 +886,127 @@ class SemanticPolicy {
             case ParamMode.SharedRef: "SharedRef";
             case ParamMode.MutableRef: "MutableRef";
             case ParamMode.HandleClone: "HandleClone";
+        };
+    }
+
+    /**
+        classifyRoot: derive the root place classification of a mutation
+        target from the declared policy domains (spec 9.2). This is the single
+        authority for whether a root is a place or a DetachedCopy; the planner
+        never hardcodes isPlace. A missing declaration (Unknown) fails closed
+        with verified=false so requirePlacePlan rejects before generation.
+        (PlacePolicy)
+
+        @param repr the root's representation (ReprType).
+        @param isStatic true when the root is a static-field slot (FStatic).
+        @param isNullable true when the root slot is Nullable.
+    **/
+    public static function classifyRoot(repr:ReprType, isStatic:Bool, isNullable:Bool):{isPlace:Bool, kind:String, verified:Bool, domain:String, reason:String} {
+        // A static-field root's place-ness is declared by staticStorage, not
+        // guessed from final/name/text (spec 9.4).
+        if (isStatic) {
+            return switch (repr) {
+                case ReprType.Static(inner):
+                    switch (staticStorageFor(inner)) {
+                        case StaticStorage.MutablePlace:
+                            { isPlace: true, kind: "PreserveLocation", verified: true, domain: "staticStorage", reason: "staticStorage=MutablePlace" };
+                        case StaticStorage.RuntimeGuardedPlace:
+                            { isPlace: true, kind: "PreserveLocation", verified: true, domain: "staticStorage", reason: "staticStorage=RuntimeGuardedPlace (runtime access contract required)" };
+                        case StaticStorage.Immutable:
+                            { isPlace: false, kind: "DetachedValueWithWriteback", verified: true, domain: "staticStorage", reason: "staticStorage=Immutable: static subscript write rejected" };
+                        case StaticStorage.ReadOnlyView:
+                            { isPlace: false, kind: "DetachedValueWithWriteback", verified: true, domain: "staticStorage", reason: "staticStorage=ReadOnlyView: static subscript write rejected" };
+                        case StaticStorage.Unknown:
+                            { isPlace: false, kind: "DetachedValueWithWriteback", verified: false, domain: "staticStorage", reason: "staticStorage=Unknown: cannot classify static mutation target" };
+                    }
+                case _:
+                    { isPlace: false, kind: "DetachedValueWithWriteback", verified: false, domain: "staticStorage", reason: "static root has no Static repr: cannot classify" };
+            };
+        }
+
+        // A nullable root's place-ness is declared by nullableProjection.
+        if (isNullable) {
+            return switch (repr) {
+                case ReprType.Nullable(inner):
+                    switch (nullableProjectionFor(inner)) {
+                        case NullableProjection.PreservePresence | NullableProjection.UnwrapBorrow:
+                            { isPlace: true, kind: "PreserveLocation", verified: true, domain: "nullableProjection", reason: "nullableProjection preserves the underlying place" };
+                        case NullableProjection.WritebackRequired:
+                            { isPlace: false, kind: "DetachedValueWithWriteback", verified: true, domain: "nullableProjection", reason: "nullableProjection=WritebackRequired: value payload needs explicit writeback" };
+                        case NullableProjection.NonPlace:
+                            { isPlace: false, kind: "DetachedValueWithWriteback", verified: true, domain: "nullableProjection", reason: "nullableProjection=NonPlace: nullable unwrap yields a non-place" };
+                        case NullableProjection.Unknown:
+                            { isPlace: false, kind: "DetachedValueWithWriteback", verified: false, domain: "nullableProjection", reason: "nullableProjection=Unknown: cannot classify nullable mutation target" };
+                    }
+                case _:
+                    { isPlace: false, kind: "DetachedValueWithWriteback", verified: false, domain: "nullableProjection", reason: "nullable root has no Nullable repr: cannot classify" };
+            };
+        }
+
+        // A non-static, non-nullable root: classify by placeCapability.
+        return switch (placeCapabilityFor(repr)) {
+            case PlaceCapability.Place:
+                { isPlace: true, kind: "PreserveLocation", verified: true, domain: "placeCapability", reason: "placeCapability=Place" };
+            case PlaceCapability.Conditional:
+                { isPlace: true, kind: "PreserveLocation", verified: true, domain: "placeCapability", reason: "placeCapability=Conditional" };
+            case PlaceCapability.NonPlace:
+                { isPlace: false, kind: "DetachedValueWithWriteback", verified: true, domain: "placeCapability", reason: "placeCapability=NonPlace: root is a detached value" };
+            case PlaceCapability.Unknown:
+                { isPlace: false, kind: "DetachedValueWithWriteback", verified: false, domain: "placeCapability", reason: "placeCapability=Unknown: cannot classify mutation target" };
+        };
+    }
+
+    /** Declared staticStorage for a static-field inner repr. (PlacePolicy) */
+    public static function staticStorageFor(inner:ReprType):StaticStorage {
+        return switch (inner) {
+            case ReprType.Copy | ReprType.ImmutableValue | ReprType.Collection(_):
+                StaticStorage.MutablePlace;
+            case ReprType.Handle(_, _, _):
+                StaticStorage.RuntimeGuardedPlace;
+            case ReprType.Static(_):
+                StaticStorage.Unknown;
+            case ReprType.Nullable(_):
+                StaticStorage.Unknown;
+            case ReprType.Function(_, _, _, _):
+                StaticStorage.Unknown;
+        };
+    }
+
+    /** Declared nullableProjection for a nullable inner repr. (PlacePolicy) */
+    public static function nullableProjectionFor(inner:ReprType):NullableProjection {
+        return switch (inner) {
+            case ReprType.Handle(_, _, _):
+                NullableProjection.UnwrapBorrow;
+            case ReprType.Copy | ReprType.ImmutableValue:
+                NullableProjection.PreservePresence;
+            case ReprType.Collection(_):
+                // An AssignSlot write borrows the real storage (UnwrapBorrow);
+                // a ReadValue read preserves presence. The root of a mutation
+                // is always AssignSlot/MutateReferent, so a Collection inner
+                // unwraps to the mutable storage. (PlacePolicy)
+                NullableProjection.UnwrapBorrow;
+            case ReprType.Nullable(_):
+                NullableProjection.Unknown;
+            case ReprType.Static(_):
+                NullableProjection.Unknown;
+            case ReprType.Function(_, _, _, _):
+                NullableProjection.Unknown;
+        };
+    }
+
+    /** Declared placeCapability for a non-static, non-nullable repr. (PlacePolicy) */
+    public static function placeCapabilityFor(repr:ReprType):PlaceCapability {
+        return switch (repr) {
+            case ReprType.Copy | ReprType.ImmutableValue | ReprType.Collection(_):
+                PlaceCapability.Place;
+            case ReprType.Handle(_, _, _):
+                PlaceCapability.Place;
+            case ReprType.Static(_):
+                PlaceCapability.Unknown;
+            case ReprType.Nullable(_):
+                PlaceCapability.Unknown;
+            case ReprType.Function(_, _, _, _):
+                PlaceCapability.Place;
         };
     }
 }
