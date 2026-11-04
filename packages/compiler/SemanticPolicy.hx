@@ -901,13 +901,14 @@ class SemanticPolicy {
         @param isStatic true when the root is a static-field slot (FStatic).
         @param isNullable true when the root slot is Nullable.
     **/
-    public static function classifyRoot(repr:ReprType, isStatic:Bool, isNullable:Bool):{isPlace:Bool, kind:String, verified:Bool, domain:String, reason:String} {
+    public static function classifyRoot(repr:ReprType, isStatic:Bool, isNullable:Bool, isStaticFinal:Bool = false):{isPlace:Bool, kind:String, verified:Bool, domain:String, reason:String} {
         // A static-field root's place-ness is declared by staticStorage, not
-        // guessed from final/name/text (spec 9.4).
+        // guessed from final/name/text (spec 9.4). The field's mutability is a
+        // fact the planner passes in; the Policy decides the storage.
         if (isStatic) {
             return switch (repr) {
                 case ReprType.Static(inner):
-                    switch (staticStorageFor(inner)) {
+                    switch (staticStorageFor(inner, isStaticFinal)) {
                         case StaticStorage.MutablePlace:
                             { isPlace: true, kind: "PreserveLocation", verified: true, domain: "staticStorage", reason: "staticStorage=MutablePlace" };
                         case StaticStorage.RuntimeGuardedPlace:
@@ -956,11 +957,14 @@ class SemanticPolicy {
         };
     }
 
-    /** Declared staticStorage for a static-field inner repr. (PlacePolicy) */
-    public static function staticStorageFor(inner:ReprType):StaticStorage {
+    /** Declared staticStorage for a static-field inner repr. (PlacePolicy)
+        A final static value is Immutable storage: a subscript write is
+        rejected. A var static value is a MutablePlace. The mutability is a
+        fact the planner passes in; the Policy decides. (StaticStorageDecl) */
+    public static function staticStorageFor(inner:ReprType, isStaticFinal:Bool):StaticStorage {
         return switch (inner) {
             case ReprType.Copy | ReprType.ImmutableValue | ReprType.Collection(_):
-                StaticStorage.MutablePlace;
+                isStaticFinal ? StaticStorage.Immutable : StaticStorage.MutablePlace;
             case ReprType.Handle(_, _, _):
                 StaticStorage.RuntimeGuardedPlace;
             case ReprType.Static(_):
@@ -976,7 +980,10 @@ class SemanticPolicy {
     public static function nullableProjectionFor(inner:ReprType):NullableProjection {
         return switch (inner) {
             case ReprType.Handle(_, _, _):
-                NullableProjection.UnwrapBorrow;
+                // A handle inner (Option<Rc<RefCell<T>>>) writes through the
+                // shallow handle copy: PreservePresence keeps the place.
+                // (NullableHandlePreservePresence)
+                NullableProjection.PreservePresence;
             case ReprType.Copy | ReprType.ImmutableValue:
                 NullableProjection.PreservePresence;
             case ReprType.Collection(_):
@@ -991,6 +998,24 @@ class SemanticPolicy {
                 NullableProjection.Unknown;
             case ReprType.Function(_, _, _, _):
                 NullableProjection.Unknown;
+        };
+    }
+
+    /** Declared cloneRelation: whether reading this container as a value is a
+        detached copy. This is a separate axis from nullableProjection: it
+        answers "is the container itself a detached copy when read", not "how
+        to cross the Option". A value container (Collection) reads as a
+        detached copy; a handle reads as a shared referent. (PlacePolicy) */
+    public static function cloneRelationFor(repr:ReprType):CloneRelation {
+        return switch (repr) {
+            case ReprType.Copy:
+                CloneRelation.NoClone;
+            case ReprType.ImmutableValue | ReprType.Collection(_):
+                CloneRelation.DetachedCopy;
+            case ReprType.Handle(_, _, _) | ReprType.Function(_, _, _, _):
+                CloneRelation.PreserveReferentIdentity;
+            case ReprType.Static(_) | ReprType.Nullable(_):
+                CloneRelation.Unknown;
         };
     }
 
