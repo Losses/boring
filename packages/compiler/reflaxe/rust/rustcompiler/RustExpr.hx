@@ -17964,10 +17964,14 @@ class RustExpr {
             case TLocal(_) | TConst(TThis):
                 // A local or this is a storage slot; always a place.
                 return { isPlace: true, kind: "PreserveLocation", verified: true, domain: "root", reason: "local/this is a place" };
-            case TField(_, FStatic(_, _)):
+            case TField(_, FStatic(_, cf)):
                 // A static-field root: place-ness is declared by staticStorage.
+                // Wrap the field repr in Static so classifyRoot's static branch
+                // matches and reads the declared staticStorage; pass the field
+                // mutability so a final static value is Immutable. (StaticReprWrap)
                 final repr = rootReprType(inner.t);
-                return SemanticPolicy.classifyRoot(repr, true, isNullType(inner.t));
+                final isFinal = cf.get().isFinal;
+                return SemanticPolicy.classifyRoot(ReprType.Static(repr), true, isNullType(inner.t), isFinal);
             case TField(_, _):
                 // An instance-field root: classify by its representation.
                 final repr = rootReprType(inner.t);

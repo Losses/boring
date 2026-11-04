@@ -108,4 +108,11 @@ class NestedIndexWriteTests {
         Test.equals(20, NestedIndexWriteOps.mutateHandleElement());
         #end
     }
+    @:test("new C().mutate() is a legal place for MutateReferent")
+    public static function testNewCallMutate():Void {
+        #if (rust_output || kotlin_output || ts_output)
+        Test.equals(5, NestedIndexWriteOps.newCallMutate());
+        #end
+    }
+
 }
