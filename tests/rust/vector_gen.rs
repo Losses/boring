@@ -78,9 +78,9 @@ fn u16_and_u32_round_trip_in_big_endian_order() {
     bytes.extend_from_slice(&0x56789abc_u32.to_be_bytes());
     assert_eq!(bytes, vec![0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]);
     let reader = BinaryReader::new(&bytes);
-    assert_eq!(reader.borrow_mut().read_u16(), Ok(0x1234));
-    assert_eq!(reader.borrow_mut().read_u32(), Ok(0x56789abc));
-    assert_eq!(reader.borrow().remaining(), 0);
+    assert_eq!(BinaryReader::read_u16(&reader), Ok(0x1234));
+    assert_eq!(BinaryReader::read_u32(&reader), Ok(0x56789abc));
+    assert_eq!(BinaryReader::remaining(&reader), 0);
 }
 
 #[test]
@@ -199,8 +199,8 @@ mod protocol_regressions {
     #[test]
     fn field_initialized_bytes_buffer_constructs_and_writes() {
         let holder = BufferHolder::new();
-        holder.borrow_mut().write_byte(0xAB);
-        assert_eq!(holder.borrow_mut().finish(), vec![0xAB]);
+        BufferHolder::write_byte(&holder, 0xAB);
+        assert_eq!(BufferHolder::finish(&holder), vec![0xAB]);
     }
 
     #[test]

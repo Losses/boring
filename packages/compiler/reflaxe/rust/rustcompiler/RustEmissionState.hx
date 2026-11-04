@@ -3,6 +3,7 @@ package rustcompiler;
 #if (macro || reflaxe_runtime)
 import haxe.macro.Type;
 import rustcompiler.RustSymbols.SymbolRef;
+import SemanticPolicy.RepresentationPlan;
 
 /**
     Emission state shared across modules for the Rust target.
@@ -73,6 +74,14 @@ class RustEmissionState {
         impl block whose parameters also carry the Debug bound.
     **/
     public var memberPrintsTypeParam:Bool = false;
+
+    /**
+        Representation plans already decided for this compilation, keyed by
+        planKey. Lives here rather than in a class-level static so it follows
+        the compiler instance lifetime: a second compilation must not read a
+        plan decided by the first one. (RPlan v1, P-22)
+    **/
+    public final representationPlans:Map<String, RepresentationPlan> = [];
 
     /** Maps payload enum identity to its owning exception class module path. */
     public final payloadEnumModules:Map<String, String> = [];
