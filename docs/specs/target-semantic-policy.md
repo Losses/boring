@@ -1,11 +1,8 @@
 # Target Semantic Policy
 
 Status: **v1.1.0**
-<<<<<<< Updated upstream
 
 Release note (v1.0.2): semantic rules unchanged; test-module compilation coverage added (P-20a).
-=======
->>>>>>> Stashed changes
 
 | Role | Party |
 | --- | --- |
@@ -408,7 +405,6 @@ guesses):
 5. Positive: every fixture. Negative: none.
 6. (shared rule)
 
-<<<<<<< Updated upstream
 ### P-20a Validation coverage (test modules)
 
 1. (governance) A test module (a class carrying @:test functions) is emitted
@@ -428,8 +424,6 @@ guesses):
    layer. Negative: none.
 6. (shared rule)
 
-=======
->>>>>>> Stashed changes
 ### P-21 Target symbol identity and ABI collision resolution
 
 1. (governance) Haxe distinct declarations stay distinct. A property's
@@ -460,6 +454,30 @@ guesses):
    unchanged); explicit overload with and without JVM erasure collision;
    inheritance/override legal rewrite (no false positive); MPP common and JVM
    source both compile; internal reads and writes call the correct symbol.
+   Negative: no platform declaration clash, and the symbol map is traceable.
+   Validator trigger (reachable form; the "two same-name Haxe methods" form is
+   unwritable because Haxe rejects same-name overloads with "Duplicate class
+   field declaration"):
+     Positive (collision): two methods in one class, @:native named to the same
+       JVM name with the same erasure, e.g. @:native("pick") pickA(x:Int) plus
+       @:native("pick") pickB(x:Null<Int>)
+       -> ABI collision: NativeProbe.pick and NativeProbe.pick share JVM
+          signature instance:pick(I)
+       (both reported names are "pick", the @:native JVM name, not pickA/pickB)
+     Counterexample (no collision, must stay in the doc): @:native("pick")
+       pickA(x:Int) plus @:native("pick") pickB(x:String) -> erasures I vs
+       Ljava/lang/String; differ, so no collision; validator passes silently.
+       This is correct behavior, not a missed catch. Do not treat it as
+       evidence: it is compatible with both "validator does not read @:native"
+       and "validator reads it but different erasures should not collide", so
+       it is a control group, not a diagnostic observation.
+   Judgment: an observation is evidence only if the opposite hypothesis would
+   produce a different result; if both hypotheses give the same result, it is
+   a control group, not evidence.
+   Probe hygiene: a probe class is only meaningful if it actually entered the
+   compilation pipeline. Confirm by putting a deliberately erroring expression
+   in the probe and checking that the error appears; only then is the probe
+   being compiled. (keep() being called does not guarantee the class is typed.)
    Negative: no platform declaration clash, and the symbol map is traceable.
 6. (shared rule)
 

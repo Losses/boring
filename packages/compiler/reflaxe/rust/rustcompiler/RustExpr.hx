@@ -16,6 +16,11 @@ import PolicyQueries.EnumQueryStep;
 import ExpressionBlockNorm;
 import AssignTargetPlan;
 import AssignTargetPlan.AssignTargetFieldKind;
+import PlacePlan;
+import PlacePlan.AccessIntent;
+import PlacePlan.ProjectionKind;
+import PlacePlan.PlacePlan;
+import PlacePlan.MutationPlan;
 import PolicyQueries.StdStringCategory;
 import PolicyQueries.Int64Op;
 import FusionPlan;
@@ -25,6 +30,16 @@ import TerminationAnalysis;
 import ValueTypeSupport;
 import ValueTypePlan;
 import EmitSink;
+import SemanticPolicy;
+import SemanticPolicy.ReprType;
+import SemanticPolicy.Nullability;
+import SemanticPolicy.ExprIdentity;
+import SemanticPolicy.DestinationContract;
+import SemanticPolicy.UseMode;
+import SemanticPolicy.SemanticFacts;
+import SemanticPolicy.DecideInput;
+import SemanticPolicy.RepresentationPlan;
+import SemanticPolicy.RepresentationRole;
 
 /**
     Statement and expression lowering from the Haxe typed AST to Rust.
@@ -136,6 +151,12 @@ class RustExpr {
     // region, and the innermost argument pass cannot re-route it.
     var blockClosureErrorName:Null<String> = null;
     var inGenericFunction:Bool = false;
+    // While rendering a closure argument whose target function-typed
+    // parameter is generic (its Fn signature borrows the type param as &T),
+    // the closure parameter must render the same borrow (&u32, &UString) so
+    // the coercion matches instead of demanding an owned value.
+    // (GenericFnParamClosureBorrow)
+    var closureBorrowGenericParams:Bool = false;
     final borrowedLoopVarIds:Map<Int, Bool> = [];
     final provenNonNullVarIds:Map<Int, Bool> = [];
     // Array locals captured by two or more nested functions whose scan
@@ -752,7 +773,7 @@ class RustExpr {
                     // (`Fill::FILL_INSTANCE`) that the emitted module-scope
                     // static does not provide.
                     final plainClassStaticField = staticFieldOf(cls, fieldName);
-                    if (plainClassStaticField != null && RustDecl.isPlainClassHandleStaticType(types.of(plainClassStaticField.type))) {
+                    if (plainClassStaticField != null && plainClassStaticField.kind.match(FVar(_, _)) && RustDecl.isPlainClassHandleStaticType(types.of(plainClassStaticField.type))) {
                         final value = plainClassStaticField.isFinal
                             ? "(*" + staticItemPath(cls, fieldName) + ").clone()"
                             : "(*" + staticItemPath(cls, fieldName) + ").lock().unwrap().clone()";
@@ -2380,11 +2401,9 @@ class RustExpr {
             case TMeta(_, inner):
                 return stmtLines(inner, depth);
             case TUnop(OpIncrement, _, subj):
-                final wrapped = intStepWrapping(subj, true);
-                return [indent(depth) + (wrapped != null ? wrapped : assignTarget(subj) + " += 1") + ";"];
+                return [indent(depth) + incrementStatement(subj, true) + ";"];
             case TUnop(OpDecrement, _, subj):
-                final wrapped = intStepWrapping(subj, false);
-                return [indent(depth) + (wrapped != null ? wrapped : assignTarget(subj) + " -= 1") + ";"];
+                return [indent(depth) + incrementStatement(subj, false) + ";"];
             case _:
                 return [indent(depth) + expr(e) + ";"];
         }
@@ -3089,7 +3108,11 @@ class RustExpr {
                 switch (stmts[i].expr) {
                     case TVar(base, baseInit) if (baseInit != null):
                         switch (stripWrap(baseInit).expr) {
-                            case TLocal(_) | TField(_, _):
+                            // A nested index compound assignment decomposes
+                            // to a base that is itself an index read; fuse it
+                            // back so the write reaches the outer storage.
+                            // (NestedIndexCompoundAssign)
+                            case TLocal(_) | TField(_, _) | TArray(_, _):
                                 if (isOwnedVecType(base.t)) {
                                     // Optional index temp
                                     switch (stmts[i + 1].expr) {
@@ -3101,6 +3124,7 @@ class RustExpr {
                                                     subst.set(base.id, baseInit);
                                                     subst.set(index.id, indexInit);
                                                     out.push(substituteLocals(stmts[i + 2], subst));
+                                                    markFusedRootMutated(baseInit);
                                                     i += 3;
                                                     fused = true;
                                                 }
@@ -3112,6 +3136,7 @@ class RustExpr {
                                             final subst = new Map<Int, TypedExpr>();
                                             subst.set(base.id, baseInit);
                                             out.push(substituteLocals(stmts[i + 1], subst));
+                                            markFusedRootMutated(baseInit);
                                             i += 2;
                                             fused = true;
                                         }
@@ -3127,6 +3152,29 @@ class RustExpr {
             }
         }
         return out;
+    }
+
+    /**
+        markFusedRootMutated: a fused array compound assignment
+        (var base = grid[i]; base[j] += rhs fused to grid[i][j] += rhs)
+        mutates the root local of the base initializer. The mutation scan
+        ran on the pre-fusion AST and marked only the temp base, so mark
+        the real root local here so its binding renders mut.
+        (NestedIndexCompoundAssign)
+    **/
+    function markFusedRootMutated(baseInit:TypedExpr):Void {
+        var inner = stripWrap(baseInit);
+        while (true) {
+            switch (inner.expr) {
+                case TLocal(v):
+                    mutated.set(v.id, true);
+                    return;
+                case TField(next, _) | TArray(next, _):
+                    inner = stripWrap(next);
+                case _:
+                    return;
+            }
+        }
     }
 
     function isCompoundAssignTarget(e:TypedExpr, base:TVar):Bool {
@@ -4217,12 +4265,25 @@ class RustExpr {
         // replaces it: the vector and the count then describe the same
         // snapshot. (PerCharLoopUnits)
         final boundText = rangePerChar != null ? rangePerChar.countTemp : boundStr;
+        // Rust extends the temporaries of a `for` range expression over the
+        // whole loop body. A range START that reads a guard static therefore
+        // holds its mutex until the loop ends, and a body that locks the same
+        // mutex again self-deadlocks -- the loop then never terminates instead
+        // of failing loudly. Evaluate the start into a fresh local first so the
+        // guard drops before the loop begins, mirroring the right-hand-side
+        // hoist used for guard-static assignments. (LoopGuardScope)
+        var startText = startStr;
+        if (rhsMentionsGuardStatic(loop.start)) {
+            final startName = freshRegionName("__loop_start");
+            out.push(indent(depth) + "let " + startName + " = " + startStr + ";");
+            startText = startName;
+        }
         if (boundNeedsHoist) {
             final boundName = freshRegionName("__loop_bound");
             out.push(indent(depth) + "let " + boundName + " = " + boundText + ";");
-            out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundName + " {");
+            out.push(indent(depth) + "for " + loopName + " in " + startText + ".." + boundName + " {");
         } else {
-            out.push(indent(depth) + "for " + loopName + " in " + startStr + ".." + boundText + " {");
+            out.push(indent(depth) + "for " + loopName + " in " + startText + ".." + boundText + " {");
         }
         if (rangePerChar != null)
             perCharLoopUnits.push(rangePerChar);
@@ -5848,7 +5909,7 @@ class RustExpr {
                         }
                     }
                 ];
-                return renderArrayLiteral(rendered, true);
+                return hoistGuardedLiteral(rendered, true);
             case TCall(fn, args):
                 return call(fn, args);
             case TNew(c, params, args):
@@ -6796,7 +6857,11 @@ class RustExpr {
             return text;
         return switch (stripWrap(branch).expr) {
             case TConst(TThis):
-                RustDecl.isPlainClassHandle(branch.t) ? "Rc::new(RefCell::new((" + text + ").clone()))" : (StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()");
+                // A plain-class handle receiver is &Rc<RefCell<Self>>; cloning
+                // the handle yields the owned Rc<RefCell<Self>> an owned result
+                // slot expects, so the branch clones the handle itself rather
+                // than re-wrapping it in another Rc<RefCell>. (HandleThisClone)
+                (StringTools.endsWith(text, ".clone()") ? text : "(" + text + ").clone()");
             case _: text;
         };
     }
@@ -7437,7 +7502,7 @@ class RustExpr {
         // A plain-class handle opens its Rc borrow before the field read, so
         // the field-wise comparison addresses the object, not the handle
         // (E0609). Non-handle record structs keep the bare field path.
-        final handleBorrow = RustDecl.isPlainClassHandleClass(cls) ? ".borrow()" : "";
+        final handleBorrow = requirePlan(t, "structEqText").role == RepresentationRole.ClassHandle ? ".borrow()" : "";
         final parts = [];
         for (f in cls.fields.get()) {
             switch (f.kind) {
@@ -7913,7 +7978,14 @@ class RustExpr {
                 // same handle (this.borrow().other) panics at runtime.
                 // Hoist the RHS so the immutable read drops before the
                 // mutable write. (HandleFieldAssignScope)
-                if (isLocalOrFieldTarget(l) && assignTargetText.indexOf(".borrow_mut()") >= 0 && (rhs.indexOf(".borrow()") >= 0 || rhs.indexOf(".borrow_mut()") >= 0)) {
+                // The target alone decides the hazard: whatever the left side's
+                // expression shape, a mutable guard held for the statement
+                // conflicts with any guard the right side takes. Requiring a
+                // local-or-field target missed composite left sides such as
+                // `cur.borrow_mut().pos = wrapping_add(cur.borrow().pos, 1)`,
+                // where the right side is wrapped in an arithmetic helper.
+                // (HandleFieldAssignScope)
+                if (assignTargetText.indexOf(".borrow_mut()") >= 0 && (rhs.indexOf(".borrow()") >= 0 || rhs.indexOf(".borrow_mut()") >= 0)) {
                     final temp = freshRegionName("__rhs_value");
                     return "{ let " + temp + " = " + rhs + "; " + assignTargetText + " = " + temp + " }";
                 }
@@ -7932,9 +8004,7 @@ class RustExpr {
                     case OpMult | OpAdd | OpSub
                         if (isIntType(l.t) && isLocalOrFieldTarget(l) && !isGenericLocal(l) && !isClosureParam(l) && !RustType.isTypeParam(l.t)):
                         final domain = i32LocalDomain(l) ? "i32" : types.of(l.t);
-                        assignTarget(l)
-                        + " = "
-                        + domain
+                        final wrapped = domain
                         + "::"
                         + wrappingMethod(inner)
                         + "("
@@ -7942,6 +8012,17 @@ class RustExpr {
                         + ", "
                         + expr(r)
                         + ")";
+                        // The wrapped form reads the target again (that is how
+                        // the compound operator is expressed), and a handle
+                        // target reads through a shared borrow while the write
+                        // needs the mutable one: both in one statement panics.
+                        // Bind the value first so its borrow ends before the
+                        // write starts. (CompoundGuardReadScope)
+                        if (assignTarget(l).indexOf(".borrow_mut()") >= 0) {
+                            final temp = freshRegionName("__rhs_value");
+                            "{ let " + temp + " = " + wrapped + "; " + assignTarget(l) + " = " + temp + " }";
+                        } else
+                            assignTarget(l) + " = " + wrapped;
                     case _: null;
                 };
                 if (intCompound != null)
@@ -8650,6 +8731,23 @@ class RustExpr {
         it must wrap. Both the expression spelling (unop) and the statement
         spelling (stmtLines) call this so they agree. (IntWrappingStep)
     **/
+    /** A bare increment/decrement statement. The wrapping form reads the
+        target again, and on a plain-class handle that read holds a shared
+        borrow while the write needs the mutable one, so the statement panics
+        on the same handle. Bind the old value first, then write through it:
+        the read's borrow ends before the write starts. (StepGuardReadScope) */
+    function incrementStatement(subj:TypedExpr, add:Bool):String {
+        final wrapped = intStepWrapping(subj, add);
+        if (wrapped == null)
+            return assignTarget(subj) + (add ? " += 1" : " -= 1");
+        if (wrapped.indexOf(".borrow_mut()") < 0)
+            return wrapped;
+        final readT = freshRegionName("__step_read");
+        final domain = i32LocalDomain(subj) ? "i32" : types.of(subj.t);
+        return "{ let " + readT + " = " + expr(subj) + "; " + assignTarget(subj) + " = " + domain + "::"
+            + (add ? "wrapping_add" : "wrapping_sub") + "(" + readT + ", 1); }";
+    }
+
     function intStepWrapping(subj:TypedExpr, add:Bool, ?renderedTarget:String):Null<String> {
         if (!isIntType(subj.t) || !isLocalOrFieldTarget(subj) || isGenericLocal(subj) || RustType.isTypeParam(subj.t))
             return null;
@@ -8684,6 +8782,22 @@ class RustExpr {
                 return "-" + inner;
             case OpIncrement | OpDecrement:
                 final wrapping = intStepWrapping(subj, op == OpIncrement, inner);
+                // A handle target writes through a mutable borrow and reads
+                // through a shared one. The step helper puts both in a single
+                // assignment, so the read's borrow is still alive when the
+                // write takes its own and the handle panics. Bind the old and
+                // new values first, then write, so no borrow spans the write.
+                // (StepGuardReadScope)
+                if (wrapping != null && wrapping.indexOf(".borrow_mut()") >= 0) {
+                    final readT = freshRegionName("__step_read");
+                    final newT = freshRegionName("__step_new");
+                    final writeTarget = assignTarget(subj);
+                    final domain = i32LocalDomain(subj) ? "i32" : types.of(subj.t);
+                    final body = "{ let " + readT + " = " + inner + "; let " + newT + " = " + domain + "::"
+                        + (op == OpIncrement ? "wrapping_add" : "wrapping_sub") + "(" + readT + ", 1); " + writeTarget + " = " + newT
+                        + "; ";
+                    return post ? body + readT + " }" : body + newT + " }";
+                }
                 final assign = wrapping != null ? wrapping : assignTarget(subj) + (op == OpIncrement ? " += 1" : " -= 1");
                 return post ? "({ let t = " + inner + "; " + assign + "; t })" : "({ " + assign + "; " + inner + " })";
             case _:
@@ -9072,7 +9186,12 @@ class RustExpr {
                     final item = valueType.name + "::" + (isConst ? RustImports.toScreamingSnakeCase(name) : RustImports.toSnakeCase(name));
                     return isConst ? item : item + "()";
                 }
-                if (RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))) {
+                // A static method referenced as a value (a function reference) is
+                // a function item, not a LazyLock static field; its rendered
+                // type still says Rc<RefCell<dyn FnMut>>, so skip the
+                // handle-static read and let staticRef name the function item.
+                // (StaticMethodValueReference)
+                if (cf.get().kind.match(FVar(_, _)) && RustDecl.isPlainClassHandleStaticType(types.of(cf.get().type))) {
                     // A container static mutates its contents in place; the
                     // read is the mutable guard, not a clone. (RcContainerStatic)
                     if (RustDecl.isPlainClassHandleContainerStaticType(types.of(cf.get().type)))
@@ -9363,6 +9482,19 @@ class RustExpr {
         if (receiverNeedsRcBorrow(subj))
             text = text + (mut ? ".borrow_mut()" : ".borrow()");
         return text;
+    }
+
+    /**
+        A plain-class handle method call in UFCS form: Class::method(&receiver, args).
+        The handle ABI lowers instance methods to associated functions taking
+        &Rc<RefCell<Self>>, so a receiver that is itself a handle (this or a
+        local Rc) must be passed as &receiver; a this receiver reborrows
+        through the extra & via deref coercion. (HandleMethodUFCS)
+    **/
+    function handleMethodCall(subj:TypedExpr, cls:ClassType, snakeName:String, argsText:String):String {
+        imports.requireType(cls.module, cls.name);
+        final receiverArg = "&" + expr(subj);
+        return cls.name + "::" + snakeName + "(" + (argsText.length > 0 ? receiverArg + ", " + argsText : receiverArg) + ")";
     }
 
     function staticFieldOf(cls:ClassType, name:String):Null<ClassField> {
@@ -10711,8 +10843,16 @@ class RustExpr {
                 "format!(\"{:?}\", " + value + ")";
             case IsHashMap(_, _): '"{}".to_string()';
             case IsRecordLike:
-                final borrow = RustDecl.isPlainClassHandle(t) ? ".borrow()" : "";
-                value + borrow + ".to_string()";
+                // A plain-class record's toString is an associated function
+                // under the explicit-handle ABI (to_string(this: &Rc<RefCell<Self>>)),
+                // not a Display method, so render Cls::to_string(&handle) instead
+                // of a .borrow().to_string() that has no Display. (HandleToStringRecord)
+                if (RustDecl.isPlainClassHandle(t)) {
+                    final clsName = switch (Context.follow(t)) { case TInst(c, _): c.get().name; case _: ""; };
+                    final bare = StringTools.endsWith(value, ".clone()") ? value.substr(0, value.length - 8) : value;
+                    return clsName + "::to_string(&" + bare + ")";
+                }
+                value + ".to_string()";
             case IsInstanceToString:
                 // Display text has no propagation path, so a text read that
                 // emits a Result unwraps at the read site. A plain-class
@@ -10995,6 +11135,61 @@ class RustExpr {
         };
     }
 
+    /** The receiver of a mutating call has to be the place itself. Reading a
+        non-Copy field yields an owned copy, and calling `insert`/`remove`/
+        `clear` on that copy mutates a temporary that is dropped immediately, so
+        the caller's container silently never changes. (MutReceiverPlace) */
+    function mutableReceiver(subj:TypedExpr):String {
+        // Render the receiver as a write target, not as a value read: every
+        // element and field read inside the receiver chain must stay a place,
+        // otherwise a nested index write (arr[i][j][k] = v) puts a clone of
+        // the element between the target and the storage. Same pattern as the
+        // mutable branch above. (WriteTargetPlaceChain)
+        final previousMutatorReceiver = renderingInPlaceMutatorReceiver;
+        renderingInPlaceMutatorReceiver = true;
+        final text = expr(subj);
+        renderingInPlaceMutatorReceiver = previousMutatorReceiver;
+        if (!StringTools.endsWith(text, ".clone()"))
+            return text;
+        final bare = text.substr(0, text.length - ".clone()".length);
+        // A nullable container is stripped by the caller into
+        // `.as_mut().unwrap()`, which needs `&mut` on the receiver: on an owned
+        // copy that unwrap yields a mutable view of the copy (what the old
+        // value read did), on the bare field it needs `&mut self`. Keep the
+        // copy so a nullable handle field does not turn into E0596, and so a
+        // nullable plain container keeps its previous behaviour rather than
+        // silently changing meaning. (NullableWriteTargetCopy)
+        if (isNullType(subj.t))
+            return text;
+        return switch (stripWrap(subj).expr) {
+            case TLocal(_): bare;
+            // Nested index write (arr[i][j] = v): the element is a place, and
+            // indexing its clone would store into a temporary. (ArrayElementPlace)
+            case TArray(_, _): bare;
+            // A handle-typed field is an Rc<RefCell<T>>/Arc<Mutex<T>>: its clone
+            // is a shallow handle copy, so writing through the clone already
+            // reached the shared storage, while the bare field needs &mut self
+            // and Rc has no IndexMut. Keep the handle copy.
+            // (HandleFieldWriteTarget)
+            case TField(_, FInstance(_, _, cf)) if (isHandleFieldType(cf.get().type)): text;
+            case TField(_, FAnon(cf)) if (isHandleFieldType(cf.get().type)): text;
+            case TField(_, FInstance(_, _, _)) | TField(_, FAnon(_)): bare;
+            // A static field is not a writable place (a final array or a
+            // LazyLock has no IndexMut); the pre-existing value copy is kept
+            // rather than turned into a compile error. (StaticFieldWriteTarget)
+            case _: text;
+        };
+    }
+
+    /** True when the emitted Rust type is a shared handle wrapper, whose
+        clone is a handle copy rather than a deep copy of the storage. */
+    function isHandleFieldType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        final text = types.of(t);
+        return StringTools.startsWith(text, "Rc<RefCell<") || StringTools.startsWith(text, "Arc<Mutex<");
+    }
+
     function call(fn:TypedExpr, args:Array<TypedExpr>):String {
         final int64CallText = int64Call(fn, args);
         if (int64CallText != null)
@@ -11143,11 +11338,11 @@ class RustExpr {
                     if (name == "get" && args.length == 1)
                         return expr(subj) + ".get(&" + rustMapKey(args[0]) + ").cloned()";
                     if (name == "set" && args.length == 2)
-                        return expr(subj) + ".insert(" + rustMapKey(args[0]) + ", " + rustMapValue(args[1]) + ")";
+                        return mutableReceiver(subj) + ".insert(" + rustMapKey(args[0]) + ", " + rustMapValue(args[1]) + ")";
                     if (name == "remove" && args.length == 1)
-                        return expr(subj) + ".remove(&" + rustMapKey(args[0]) + ").is_some()";
+                        return mutableReceiver(subj) + ".remove(&" + rustMapKey(args[0]) + ").is_some()";
                     if (name == "clear" && args.length == 0)
-                        return expr(subj) + ".clear()";
+                        return mutableReceiver(subj) + ".clear()";
                 }
                 if (isStringBuf(subj)) {
                     // stdlib/08: add and addChar lower only as statements,
@@ -11188,7 +11383,14 @@ class RustExpr {
                     return intDomain + "::from(" + expr(subj) + "[" + castArg(args[0], "usize") + "])";
                 }
                 if (name == "set" && args.length == 2 && isBytes(stripCast(subj))) {
-                    return expr(subj) + "[" + castArg(args[0], "usize") + "] = " + castArg(args[1], "u8");
+                    // Bytes.set writes one byte in place. The value read of a
+                    // non-Copy Bytes field clones the buffer, and `set` on the
+                    // clone stores into a temporary that is dropped at the end
+                    // of the statement, so the field silently keeps its old
+                    // byte while the generated code looks like a store. This is
+                    // how the transpiled Sha256 lost every input byte.
+                    // (MutableIndexTargetPlace)
+                    return mutableReceiver(subj) + "[" + castArg(args[0], "usize") + "] = " + castArg(args[1], "u8");
                 }
                 if (name == "blit" && args.length == 4 && isBytes(stripCast(subj))) {
                     return expr(subj)
@@ -11662,10 +11864,10 @@ class RustExpr {
                     return "{ let mut result = " + expr(subj) + ".clone(); result.extend(" + expr(args[0]) + ".iter().cloned()); result }";
                 }
                 if (name == "shift" && isVecType(subj)) {
-                    return "{ if " + expr(subj) + ".is_empty() { None } else { Some(" + expr(subj) + ".remove(0)) } }";
+                    return "{ if " + expr(subj) + ".is_empty() { None } else { Some(" + mutableReceiver(subj) + ".remove(0)) } }";
                 }
                 if (name == "unshift" && isVecType(subj) && args.length == 1) {
-                    return expr(subj) + ".insert(0, " + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
+                    return mutableReceiver(subj) + ".insert(0, " + renderPushArg(args[0], arrayElementType(subj.t)) + ")";
                 }
                 // Haxe bounds an Array position before the call sees it: a
                 // negative position counts from the end of the array and
@@ -11676,7 +11878,7 @@ class RustExpr {
                 // clamped in the signed domain and then widened losslessly.
                 // (ArrayInsertClamping)
                 if (name == "insert" && isVecType(subj) && args.length == 2) {
-                    return "{ let _a = &mut (" + expr(subj) + "); let _n = i32::try_from(_a.len()).unwrap_or(0); let _pos = " + castSignedI32(args[0])
+                    return "{ let _a = &mut (" + mutableReceiver(subj) + "); let _n = i32::try_from(_a.len()).unwrap_or(0); let _pos = " + castSignedI32(args[0])
                         + "; let _at = " + clampedArrayBound("_n", "_pos") + "; _a.insert(usize::try_from(_at).unwrap_or(0), "
                         + renderPushArg(args[1], arrayElementType(subj.t)) + "); }";
                 }
@@ -11699,7 +11901,7 @@ class RustExpr {
                     final idxVar = freshRegionName("splice_index");
                     final countVar = freshRegionName("splice_count");
                     final removedVar = freshRegionName("splice_removed");
-                    final subjText = expr(subj);
+                    final subjText = mutableReceiver(subj);
                     final lenArg = isSelfLengthRead(args[1], subj) ? RustConversions.reinterpret(subjText + ".len()", "i32") : castSignedI32(args[1]);
                     return "{ let _n = i32::try_from(" + subjText + ".len()).unwrap_or(0); let _pos = "
                         + castSignedI32(args[0]) + "; let " + idxVar + " = " + clampedArrayBound("_n", "_pos") + "; let _len = " + lenArg
@@ -11792,14 +11994,14 @@ class RustExpr {
                     // u32; the widening is total, so from covers every
                     // value the field can hold. The read is fallible, so
                     // the call propagates before the widening.
-                    return "u32::from(" + receiverText(subj, cf) + ".read_u16()?)";
+                    return "u32::from(" + handleMethodCall(subj, c.get(), "read_u16", "") + "?)";
                 }
                 if (name == "writeU16") {
                     // The Int domain is u32 while the wire field is u16;
                     // the Haxe writer masks to the low half, and the Rust
                     // cast truncates identically, so the narrowing matches
                     // source semantics for every value.
-                    return receiverText(subj, cf) + ".write_u16(" + RustConversions.truncate(expr(args[0]), "u16") + ")";
+                    return handleMethodCall(subj, c.get(), "write_u16", RustConversions.truncate(expr(args[0]), "u16"));
                 }
                 if (name == "writeU32") {
                     final innerArg = stripWrap(args[0]);
@@ -11813,9 +12015,9 @@ class RustExpr {
                             return "";
                         }
                         final errVariant = errorTypeName + "::" + countOverflowVariant;
-                        return receiverText(subj, cf) + ".write_u32(u32::try_from(" + expr(args[0]) + ").map_err(|_| " + errVariant + ")?)";
+                        return handleMethodCall(subj, c.get(), "write_u32", "u32::try_from(" + expr(args[0]) + ").map_err(|_| " + errVariant + ")?");
                     }
-                    return receiverText(subj, cf) + ".write_u32(" + expr(args[0]) + ")";
+                    return handleMethodCall(subj, c.get(), "write_u32", expr(args[0]));
                 }
                 if (name == "writeAscii") {
                     // A heap String argument borrows as &str; string
@@ -11830,7 +12032,7 @@ class RustExpr {
                     } else {
                         expr(args[0]);
                     };
-                    return receiverText(subj, cf) + ".write_ascii(" + argStr + ")";
+                    return handleMethodCall(subj, c.get(), "write_ascii", argStr);
                 }
                 if (cf != null && cf.get().kind.match(FVar(_, _)) && Context.follow(cf.get().type).match(TFun(_, _))) {
                     // A function-typed field calls through a parenthesized
@@ -12413,6 +12615,12 @@ class RustExpr {
                             return callWithSiblingReadHoist(expr(fn), isOrderNeutralArg(fn), cf.get().type, args, null, 0, positions, null, "");
                     case _:
                 }
+                // A function value reached here (a returned function, a cast,
+                // or a parenthesized function value) is an Rc<RefCell<dyn FnMut>>;
+                // call through borrow_mut like the local-function arm above.
+                // (FunctionValueCallResult)
+                if (isFunctionType(fn.t))
+                    return expr(fn) + ".borrow_mut()(" + renderedArgs + ")";
                 return expr(fn) + "(" + renderedArgs + ")";
         }
     }
@@ -12489,7 +12697,9 @@ class RustExpr {
         // (ClosureParamAnnotation)
         final params = [for (i in 0...f.args.length) {
             final a = f.args[i];
-            final ptype = (!closureBorrowedParamIds.exists(a.v.id) && fnArgs != null && i < fnArgs.length) ? types.of(fnArgs[i].t, true) : null;
+            final ptype = (!closureBorrowedParamIds.exists(a.v.id) && fnArgs != null && i < fnArgs.length)
+                ? (closureBorrowGenericParams ? "&" + types.of(fnArgs[i].t, false) : types.of(fnArgs[i].t, true))
+                : null;
             (unusedLocalIds.exists(a.v.id) ? "_" : "") + RustImports.toSnakeCase(a.v.name) + (ptype != null && ptype != "" ? ": " + ptype : "");
         }].join(", ");
         final previousReturnUnsigned = returnUnsigned;
@@ -14780,7 +14990,27 @@ class RustExpr {
                 RustImports.toSnakeCase(f.name) + ": " + val;
             }
         ];
-        return typeName + " { " + parts.join(", ") + " }";
+        // Every field value of a struct literal is evaluated inside one
+        // statement, so a field whose value takes a borrow_mut()/lock() still
+        // holds that guard while the next field evaluates, and a literal that
+        // reads the same handle twice panics with "RefCell already borrowed".
+        // Bind guarded values first, then build the literal from the bindings.
+        // (MultiGuardFieldLiteral)
+        final binds:Array<String> = [];
+        for (i in 0...parts.length) {
+            final sep = parts[i].indexOf(": ");
+            if (sep < 0)
+                continue;
+            final value = parts[i].substr(sep + 2);
+            if (value.indexOf(".borrow_mut()") >= 0 || value.indexOf(".lock()") >= 0) {
+                final n = freshRegionName("__field_lit");
+                binds.push("let " + n + " = " + value + ";");
+                parts[i] = parts[i].substr(0, sep + 2) + n;
+            }
+        }
+        if (binds.length == 0)
+            return typeName + " { " + parts.join(", ") + " }";
+        return "{ " + binds.join(" ") + " " + typeName + " { " + parts.join(", ") + " } }";
     }
 
     /**
@@ -15017,9 +15247,11 @@ class RustExpr {
                     case TArray(arr, _):
                         final receiver = mapBackingReceiver(arr);
                         // The index target's receiver may be a field chain
-                        // (holder.values[i] = ...): walk the chain to its
-                        // root local so the binding renders mut, matching
-                        // the TField case below. (IndexedFieldRootMut)
+                        // (holder.values[i] = ...) or a nested index chain
+                        // (grid[i][j] = ...): walk the chain to its root
+                        // local so the binding renders mut, matching the
+                        // TField case below. (IndexedFieldRootMut)
+                        // (NestedIndexRootMut)
                         var inner = receiver == null ? arr : receiver;
                         while (true) {
                             switch (stripWrap(inner).expr) {
@@ -15027,6 +15259,8 @@ class RustExpr {
                                     mutated.set(v.id, true);
                                     break;
                                 case TField(next, _):
+                                    inner = next;
+                                case TArray(next, _):
                                     inner = next;
                                 case _:
                                     break;
@@ -15596,8 +15830,31 @@ class RustExpr {
         return prefix + "\n    " + elements.join(",\n    ") + ",\n" + suffix;
     }
 
+    /** A literal evaluates every element inside ONE statement, so a RefCell or
+        Mutex guard taken by one element is still alive while the next element
+        runs: two such elements panic (RefCell) or deadlock (Mutex) instead of
+        producing a value. Hoist each guard-taking element into its own `let`
+        so that element's statement ends -- and its guard drops -- before the
+        next one starts. Elements that take no guard keep their inline text.
+        (MultiGuardLiteral) */
+    function hoistGuardedLiteral(texts:Array<String>, vec:Bool):String {
+        final binds:Array<String> = [];
+        final names:Array<String> = [];
+        for (t in texts) {
+            if (t.indexOf(".borrow_mut()") >= 0 || t.indexOf(".lock()") >= 0) {
+                final n = freshRegionName("__literal_elem");
+                binds.push("let " + n + " = " + t + ";");
+                names.push(n);
+            } else
+                names.push(t);
+        }
+        if (binds.length == 0)
+            return renderArrayLiteral(texts, vec);
+        return "{ " + binds.join(" ") + " " + renderArrayLiteral(names, vec) + " }";
+    }
+
     function renderArrayLiteralExpr(elements:Array<TypedExpr>, vec:Bool):String {
-        return renderArrayLiteral([for (x in elements) expr(x)], vec);
+        return hoistGuardedLiteral([for (x in elements) expr(x)], vec);
     }
 
     function indent(depth:Int):String {
@@ -15963,6 +16220,64 @@ class RustExpr {
         return false;
     }
 
+    /** The single representation decision point (P-22).
+
+        The inputs are syntactic (the same predicates the emitters used
+        before), so the plan cannot disagree with the previous behaviour: this
+        is the wiring, not a policy change. What it buys is one place where a
+        representation is decided, a cache keyed by planKey, and a plan a
+        renderer can read instead of re-deriving a type predicate.
+
+        The cache lives on the emission state, not on this class: a static map
+        would outlive one compilation and let the next one read a plan decided
+        by the previous one. **/
+    function requirePlan(t:Null<Type>, site:String, orNull:Bool = false):RepresentationPlan {
+        final isHandle = orNull ? RustDecl.isPlainClassHandleOrNull(t) : RustDecl.isPlainClassHandle(t);
+        final isIface = !isHandle && isInterfaceType(t) && !isSharedIfaceType(t);
+        final sourceType:ReprType = (isHandle || isIface)
+            ? ReprType.Handle(reprTypeId(t), Nullability.NonNull, false)
+            : ReprType.ImmutableValue;
+        final facts:SemanticFacts = {
+            identitySensitive: false,
+            isInterface: isIface,
+            isCrossThreadShared: false,
+            lifetime: false,
+            aliased: false,
+            mutable: false,
+            nullability: Nullability.NonNull
+        };
+        final input:DecideInput = {
+            sourceType: sourceType,
+            sourceIdentity: ExprIdentity.LocalHandle,
+            destinationContract: DestinationContract.Receiver,
+            useMode: UseMode.SharedRef,
+            moduleContext: null,
+            facts: facts,
+            capabilities: {
+                supportsDirectInner: true,
+                supportsHandleAdapter: true,
+                conversionEdges: []
+            }
+        };
+        final plan = SemanticPolicy.decide(input);
+        final cached = state.representationPlans.get(plan.planKey);
+        if (cached != null)
+            return cached;
+        state.representationPlans.set(plan.planKey, plan);
+        return plan;
+    }
+
+    /** A stable module-qualified identity for the plan key. **/
+    function reprTypeId(t:Null<Type>):String {
+        if (t == null)
+            return "?";
+        return switch (Context.follow(t)) {
+            case TInst(c, _): c.get().module + "." + c.get().name;
+            case TAbstract(a, _): a.get().module + "." + a.get().name;
+            case _: Std.string(t);
+        };
+    }
+
     /** Whether reading through this expression must open the Rc borrow
         first: the value is a plain-class handle, but self inside its own
         impl already names the bare struct. (ClassParamHandle) */
@@ -15970,7 +16285,9 @@ class RustExpr {
         final isSelf = switch (stripWrap(e).expr) { case TConst(TThis): true; case _: false; };
         if (currentIsTraitImpl && isSelf)
             return false;
-        return RustDecl.isPlainClassHandleOrNull(e.t) || (isInterfaceType(e.t) && !isSharedIfaceType(e.t));
+        final plan = requirePlan(e.t, "receiverNeedsRcBorrow", true);
+        return plan.role == RepresentationRole.ClassHandle || plan.role == RepresentationRole.TraitHandle
+            || plan.role == RepresentationRole.TraitHandleAdapter;
     }
 
     /** The shared-handle construction for an interface slot: a shared
@@ -16497,6 +16814,25 @@ class RustExpr {
         };
     }
 
+    /**
+        Whether a function-typed parameter is generic: one of its argument
+        types is a type parameter, so its Fn signature renders that slot as
+        &T (borrowed). A closure argument for such a slot must render the
+        same borrow over the concrete type (&u32, &UString). (GenericFnParam)
+    **/
+    function isGenericFunctionParam(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TFun(args, _):
+                for (a in args)
+                    if (RustType.isTypeParam(a.t))
+                        return true;
+                false;
+            case _: false;
+        }
+    }
+
     function renderCallArgs(fnType:Null<Type>, args:Array<TypedExpr>, signedPositions:Null<Array<Int>> = null, paramOffset:Int = 0,
             mutablePositions:Null<Array<Int>> = null, receiverType:Null<Type> = null,
             hoistOut:Null<Array<{name:String, bind:String}>> = null, fallibleBlockIdx:Null<Array<Int>> = null,
@@ -16554,7 +16890,11 @@ class RustExpr {
                 localFunctionErrorName = blockRegion;
                 blockClosureErrorName = blockRegion;
             }
+            final savedBorrowGeneric = closureBorrowGenericParams;
+            if (isGenericFunctionParam(pt) && switch (stripWrap(arg).expr) { case TFunction(_): true; case _: false; })
+                closureBorrowGenericParams = true;
             var argStr = renderValueForType(pt, arg, expr(arg));
+            closureBorrowGenericParams = savedBorrowGeneric;
             localFunctionErrorName = savedBlockError;
             blockClosureErrorName = savedBlockClosure;
 
@@ -16571,7 +16911,7 @@ class RustExpr {
             // and fall through to the reusable-owned-read clone below.
             // (HandleParamNoMutBorrow)
             if (mutablePositions != null && mutablePositions.indexOf(paramIndex) >= 0
-                && pt != null && RustDecl.isMutableRefParamType(pt) && !RustDecl.isPlainClassHandleOrNull(pt)) {
+                && pt != null && RustDecl.isMutableRefParamType(pt) && requirePlan(pt, "renderCallArgs", true).role != RepresentationRole.ClassHandle) {
                 // A self receiver of a mutating method reborrows directly:
                 // self is already a mutable reference, so cloning it (as a
                 // value read would) discards every write the callee makes.
@@ -16942,8 +17282,22 @@ class RustExpr {
                                 case TLocal(v): isBorrowedLocal(v);
                                 case _: false;
                             };
+                            final placeShaped = switch (stripWrap(arg).expr) {
+                                case TLocal(_) | TField(_, _): true;
+                                case _: false;
+                            };
                             if (borrowedArg) {
                                 // Already borrowed; leave the expression unchanged.
+                            } else if (placeShaped && StringTools.endsWith(argStr, ".clone()")) {
+                                // A place passed into a &mut parameter must be
+                                // the place itself. The default argument
+                                // rendering copies arrays to an owned value,
+                                // and `&mut <copy>` writes into a temporary that
+                                // is dropped immediately, so the caller's field
+                                // silently never changes. Strip the copy here so
+                                // the callee receives the field. (MutPlaceArg)
+                                argStr = argStr.substr(0, argStr.length - ".clone()".length);
+                                argStr = "&mut " + argStr;
                             } else if (StringTools.startsWith(argStr, "&"))
                                 argStr = "&mut " + (StringTools.startsWith(argStr, "&mut ") ? argStr.substr(5) : argStr.substr(1));
                             else
@@ -17073,6 +17427,26 @@ class RustExpr {
                     hoistOut.push({name: hoistNames.get(i), bind: hoisted.bind});
                     argStr = hoisted.usage;
                 }
+            }
+            // A call argument whose rendering opens an Rc borrow
+            // (`this.borrow().field` or a chained handle read) holds the Ref
+            // temporary until the end of the enclosing statement. When that
+            // statement is a return (or any call whose argument list spans a
+            // nested call), the borrow outlives the callee and a deeper
+            // borrow_mut() on the same handle panics at runtime. Scope the
+            // owned value read into a block so the Ref drops before the
+            // callee runs. Only owned reads (a trailing clone/to_ustring/
+            // to_vec) are wrapped: a &-prefixed reference into the borrow
+            // must keep its lifetime, and a hoisted sibling read already
+            // binds ahead of the call. (HandleBorrowCallArgScope)
+            if (StringTools.contains(argStr, ".borrow()")
+                && !StringTools.startsWith(argStr, "&")
+                && !(hoistOut != null && hoistNames.exists(i))
+                && (StringTools.endsWith(argStr, ".clone()")
+                    || StringTools.endsWith(argStr, ".to_ustring()")
+                    || StringTools.endsWith(argStr, ".to_vec()"))) {
+                final temp = freshRegionName("__handle_read");
+                argStr = "{ let " + temp + " = " + argStr + "; " + temp + " }";
             }
             rendered.push(argStr);
         }
@@ -17461,7 +17835,30 @@ class RustExpr {
             if (fieldPath != null)
                 return fieldPath + "[" + castArg(idx, "usize") + "]";
         }
-        final receiver = expr(arr);
+        // A mutable index target has to be the place itself. The value read
+        // of a non-Copy field clones the whole container, and assigning into
+        // that clone writes an element of a temporary that is dropped at the
+        // end of the statement, so the field keeps its old contents while the
+        // generated code looks like it stored the value.
+        // (MutableIndexTargetPlace)
+        // The receiver of a nested subscript write is planned recursively:
+        // every intermediate index stays a place so the write reaches the
+        // innermost storage. The recursive planner passes the AssignSlot
+        // intent down the chain instead of relying on the WriteTargetPlaceChain
+        // switch. (PlacePlan)
+        final receiver = mutable ? mutableReceiver(arr) : expr(arr);
+        return applyIndex(receiver, arr, idx, mutable);
+    }
+
+    /**
+        applyIndex: apply one index projection to an already-rendered
+        receiver. The receiver is a place (for a write) or a value (for a
+        read); this step adds the nullable unwrap, narrowed binding, and the
+        `[idx]` suffix. Factored out of optionContainerIndexAccess so the
+        recursive place planner can reuse it at every projection step.
+        (PlacePlan)
+    **/
+    function applyIndex(receiver:String, arr:TypedExpr, idx:TypedExpr, mutable:Bool):String {
         // A narrowed receiver already renders as the match binding, a
         // reference to the inner Vec (match &(opt) { Some(name) => ... }).
         // Applying `.as_ref().unwrap()` to that reference would ask Vec for
@@ -17493,6 +17890,88 @@ class RustExpr {
         }
         final receiverText = StringTools.startsWith(receiver, "&*") ? "(" + receiver + ")" : receiver;
         return receiverText + "[" + castArg(idx, "usize") + "]";
+    }
+
+    /**
+        WIP, NOT WIRED AND NOT VALIDATED. The root branch below still reports
+        isPlace/verified without deriving them from a policy declaration, so
+        requirePlacePlan cannot yet reject a DetachedCopy. It is deliberately
+        kept off every live path: optionContainerIndexAccess and
+        mutableArrayReceiver use mutableReceiver instead. Task
+        t-mw1c788e-voiy replaces this with the declared-capability planner
+        before it is ever called from a mutation site. (PlacePlan-WIP)
+
+        planPlaceChain: the recursive place planner for a write target. It
+        walks the projection chain (index and field projections) from the
+        root, passing the target intent down, and produces a PlacePlan whose
+        rendered root text is a full-chain place: every intermediate index
+        stays a place so a nested subscript write (arr[i][j][k] = v) reaches
+        the innermost storage. This replaces the WriteTargetPlaceChain switch
+        on the nested subscript write path. (PlacePlan)
+    **/
+    function planPlaceChain(e:TypedExpr, intent:AccessIntent):PlacePlan {
+        final plan:PlacePlan = switch (stripWrap(e).expr) {
+            case TArray(arr, idx):
+                // An index projection: plan the inner chain as a place, then
+                // apply the index. The intermediate step stays a place so the
+                // outer write reaches the innermost storage. (PlacePlan)
+                final inner = planPlaceChain(arr, intent);
+                final text = applyIndex(inner.root, arr, idx, true);
+                {
+                    root: text,
+                    projections: inner.projections.concat([{kind: PreserveLocation, text: text}]),
+                    intent: intent,
+                    isPlace: inner.isPlace,
+                    writeback: inner.writeback,
+                    verified: true
+                }
+            case _:
+                // The root of the chain: a local, self, static, or a bare
+                // field. Render it as a place (no value-read clone).
+                // (PlacePlan)
+                {
+                    root: renderPlaceRoot(e),
+                    projections: [],
+                    intent: intent,
+                    isPlace: true,
+                    writeback: null,
+                    verified: true
+                }
+        };
+        return requirePlacePlan(plan, e);
+    }
+
+    /**
+        requirePlacePlan: a mutation target must carry a verified place plan.
+        A missing plan, or a DetachedCopy without complete writeback, fails
+        here before any product is printed, so a lost write can never reach
+        the generated artifact. (PlacePlan)
+    **/
+    function requirePlacePlan(plan:PlacePlan, e:TypedExpr):PlacePlan {
+        if (plan == null)
+            Context.error("mutation target has no PlacePlan; the write would be silently dropped", e.pos);
+        if (!plan.verified)
+            Context.error("mutation target PlacePlan is unverified; the write would be silently dropped", e.pos);
+        if (!plan.isPlace)
+            Context.error("mutation target is a DetachedCopy without writeback; the write would be silently dropped", e.pos);
+        return plan;
+    }
+
+    /**
+        renderPlaceRoot: render a non-index root expression as a place (a
+        write target), without the value-read clone a non-Copy value read
+        would add. Used by planPlaceChain for the root of a nested subscript
+        write. (PlacePlan)
+    **/
+    function renderPlaceRoot(e:TypedExpr):String {
+        // The root of a nested subscript write must be a place. A local or
+        // this renders directly; a field root must render as the bare field
+        // (no value-read clone). Reuse mutableReceiver for the root: it is a
+        // single non-index expression, so the WriteTargetPlaceChain switch it
+        // sets only affects the root's own field clone suppression, never a
+        // nested index chain (the chain is planned recursively by
+        // planPlaceChain). (PlacePlan)
+        return mutableReceiver(e);
     }
 
     /**
@@ -17593,7 +18072,14 @@ class RustExpr {
         the same container.
     **/
     function mutableArrayReceiver(arr:TypedExpr):String {
-        final receiver = expr(arr);
+        // The growth guard and the write itself must target the container
+        // place, not the value-read clone of a non-Copy field: writing an
+        // element of a temporary Vec looks like a store and stores nothing.
+        // (MutableIndexTargetPlace)
+        // The growth-guard receiver is planned recursively: every
+        // intermediate index stays a place so the guard and the write target
+        // the same container. (PlacePlan)
+        final receiver = mutableReceiver(arr);
         final narrowed = narrowedSubject(arr);
         if (narrowed != null)
             return "(" + receiver + ")";
