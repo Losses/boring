@@ -325,15 +325,19 @@ class RustType {
     }
 
     function staticFunctionArgOf(t:Type):String {
+        // A capture-free function pointer carries the same Int domain as a
+        // function value: u32 in business modules, i32 in resident modules.
+        // Hardcoding i32 mismatches the closure body's u32 annotation and the
+        // static's own return domain. (StaticFnIntDomain)
         return switch (Context.follow(t)) {
-            case TAbstract(a, _) if (a.get().name == "Int"): "i32";
+            case TAbstract(a, _) if (a.get().name == "Int"): of(t, true);
             case _: of(t, true);
         }
     }
 
     function staticFunctionReturnOf(t:Type):String {
         return switch (Context.follow(t)) {
-            case TAbstract(a, _) if (a.get().name == "Int"): "i32";
+            case TAbstract(a, _) if (a.get().name == "Int"): of(t, false);
             case _: of(t, false);
         }
     }
