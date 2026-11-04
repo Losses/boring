@@ -8112,8 +8112,21 @@ class RustExpr {
                     && !RustType.isTypeParam(l.t)
                     && !RustType.isTypeParam(r.t)):
                 final wrapDomain = (i32OperandDomain(l) || i32OperandDomain(r) || i32InitializerTarget || i32ComparisonTarget) ? "i32" : types.of(e.t);
-                return wrapDomain + "::" + wrappingMethod(op) + "(" + wrappingOperand(l, op, wrapDomain, true) + ", "
-                    + wrappingOperand(r, op, wrapDomain, false) + ")";
+                final leftText = wrappingOperand(l, op, wrapDomain, true);
+                final rightText = wrappingOperand(r, op, wrapDomain, false);
+                // Both operands open a mutable guard (`x.borrow_mut().m()` /
+                // `x.lock().unwrap().m()`) inside one statement: the left guard
+                // is still held while the right operand evaluates, so a second
+                // borrow of the same handle panics ("RefCell already borrowed").
+                // Bind the left operand first so its guard drops before the
+                // right side runs; the bound value is an Int, so moving it out
+                // of the guard is always legal. (BinaryOperandGuardScope)
+                if ((leftText.indexOf(".borrow_mut()") >= 0 || leftText.indexOf(".lock()") >= 0)
+                    && (rightText.indexOf(".borrow_mut()") >= 0 || rightText.indexOf(".lock()") >= 0)) {
+                    final temp = freshRegionName("__operand");
+                    return "{ let " + temp + " = " + leftText + "; " + wrapDomain + "::" + wrappingMethod(op) + "(" + temp + ", " + rightText + ") }";
+                }
+                return wrapDomain + "::" + wrappingMethod(op) + "(" + leftText + ", " + rightText + ")";
             case OpMult | OpAdd | OpSub | OpDiv if (isFloatType(e.t)):
                 final real = FloatPrecision.isF32() ? "f32" : "f64";
                 // An integer operand crosses through its exact decimal
