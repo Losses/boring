@@ -28,8 +28,9 @@ jobs:
         run: |
           GEN_DIR=reference/registry-tool/gen
           cd "$GEN_DIR"
-          echo "" >> Cargo.toml
-          echo "[workspace]" >> Cargo.toml
+          # The generated manifest already declares [workspace]; appending a
+          # second one makes cargo refuse the build with a duplicate-key error.
+          grep -q '^\[workspace\]' Cargo.toml || printf '\n[workspace]\n' >> Cargo.toml
           cat > src_main.rs << 'ENTRY'
           fn main() {
               match registry_tool::registry::main::Main::main_main() {
