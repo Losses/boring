@@ -4,6 +4,7 @@ import registry.Json.JsonValue;
 
 class Release {
     public var owner:String;
+    public var repository:Null<String>;
     public var repo:String;
     public var version:String;
     public var name:String;
@@ -21,6 +22,7 @@ class Release {
 
     public function new(o:String, r:String, v:String, p:String, n:String, l:Null<String>, read:String) {
         owner = o;
+        repository = null;
         repo = r;
         version = v;
         platform = p;
