@@ -128,8 +128,8 @@ class PackageArtifacts {
         `<name>-<version>/`: cargo rejects an archive whose members sit at the
         root ("invalid tarball downloaded"), and pub resolves the same layout.
     **/
-    public static function emitTarGz(outputDir:String, extension:String):Void {
-        final stem = PackageShell.name() + "-" + PackageShell.version();
+    public static function emitTarGz(outputDir:String, extension:String, ?nameOverride:String):Void {
+        final stem = (nameOverride == null ? PackageShell.name() : nameOverride) + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + extension]);
         sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes(stem + "/")));
     }
