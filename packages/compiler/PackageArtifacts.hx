@@ -448,32 +448,31 @@ class PackageArtifacts {
         read before the exit code is queried; compile output fits the
         pipe buffer, so the streams cannot deadlock.
     **/
+    static function shellQuote(value:String):String {
+        return "'" + StringTools.replace(value, "'", "'\\''") + "'";
+    }
+
+    static function readText(path:String):String {
+        return sys.FileSystem.exists(path) ? sys.io.File.getContent(path) : "";
+    }
+
     static function runTool(label:String, command:String, args:Array<String>):Void {
-        var output = "";
-        var code = 0;
-#if js
-        // Reading stdout to EOF before touching stderr deadlocks as soon as the
-        // child fills the stderr pipe buffer: kotlinc, swiftc and dart emit more
-        // than a pipeful of diagnostics. The driver runs on bun, so the runtime
-        // collects both streams without that ordering.
-        final argv:Array<String> = [command];
-        for (arg in args) argv.push(arg);
-        final spawned:Dynamic = js.Syntax.code("Bun.spawnSync({0}, {{stdout: 'pipe', stderr: 'pipe'}})", argv);
-        final decoder:Dynamic = js.Syntax.code("new TextDecoder()");
-        output = js.Syntax.code("{0}.decode({1}.stdout)", decoder, spawned)
-            + js.Syntax.code("{0}.decode({1}.stderr)", decoder, spawned);
-        code = js.Syntax.code("{0}.exitCode", spawned);
-#else
-        var proc:sys.io.Process = null;
-        try {
-            proc = new sys.io.Process(command, args);
-        } catch (e:Dynamic) {
-            Context.fatalError(label + " could not start: " + command + " (" + Std.string(e) + ")", Context.currentPos());
+        // The child writes both streams through pipes. Reading stdout to EOF
+        // before touching stderr deadlocks as soon as the child fills the stderr
+        // pipe buffer, which kotlinc, swiftc and dart all do: their diagnostics
+        // exceed one pipeful. Redirecting both streams into files removes the
+        // ordering entirely.
+        final stamp = Std.string(Std.random(1000000)) + "-" + Std.string(Date.now().getTime());
+        final outPath = haxe.io.Path.join([Sys.getTempDir(), "boring-tool-" + stamp + ".out"]);
+        final errPath = haxe.io.Path.join([Sys.getTempDir(), "boring-tool-" + stamp + ".err"]);
+        final parts:Array<String> = [shellQuote(command)];
+        for (arg in args) parts.push(shellQuote(arg));
+        final line = parts.join(" ") + " > " + shellQuote(outPath) + " 2> " + shellQuote(errPath);
+        final code = Sys.command("/bin/sh", ["-c", line]);
+        final output = readText(outPath) + readText(errPath);
+        for (path in [outPath, errPath]) {
+            if (sys.FileSystem.exists(path)) sys.FileSystem.deleteFile(path);
         }
-        output = proc.stdout.readAll().toString() + proc.stderr.readAll().toString();
-        code = proc.exitCode();
-        proc.close();
-#end
         if (code != 0) {
             Context.fatalError(label + " failed with exit code " + code + ":\n" + command + " " + args.join(" ") + "\n" + output, Context.currentPos());
         }
