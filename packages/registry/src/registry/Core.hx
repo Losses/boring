@@ -360,7 +360,9 @@ class Core {
             }
             emit("pub/api/packages/" + n, Json.write(O([
                 {name: "name", value: S(n)},
-                {name: "latest", value: S(latest(g))},
+                // The hosted pub API expects the latest version entry here,
+                // not its version string.
+                {name: "latest", value: rev.length > 0 ? rev[0] : JNull},
                 {name: "versions", value: A(rev)}
             ])));
         }
