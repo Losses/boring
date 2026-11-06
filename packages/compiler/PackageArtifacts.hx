@@ -339,6 +339,7 @@ class PackageArtifacts {
         final versionDir = haxe.io.Path.join([parent, "maven", StringTools.replace(groupId, ".", "/"), name, version]);
         sys.FileSystem.createDirectory(versionDir);
 
+        mark("[maven] start name=" + name);
         final classes = haxe.io.Path.join([parent, ".package-kotlinc-classes"]);
         deleteTree(classes);
         final args:Array<String> = [];
@@ -351,7 +352,9 @@ class PackageArtifacts {
         }
         args.push("-d");
         args.push(classes);
+        mark("[maven] kotlinc inputs=" + args.length);
         runTool("package-kotlinc", kotlinc, args);
+        mark("[maven] kotlinc done");
 
         final jarFiles:Array<{name:String, data:haxe.io.Bytes}> = [];
         for (classPath in walkFiles(classes)) {
@@ -446,15 +449,31 @@ class PackageArtifacts {
         pipe buffer, so the streams cannot deadlock.
     **/
     static function runTool(label:String, command:String, args:Array<String>):Void {
+        var output = "";
+        var code = 0;
+#if js
+        // Reading stdout to EOF before touching stderr deadlocks as soon as the
+        // child fills the stderr pipe buffer: kotlinc, swiftc and dart emit more
+        // than a pipeful of diagnostics. The driver runs on bun, so the runtime
+        // collects both streams without that ordering.
+        final argv:Array<String> = [command];
+        for (arg in args) argv.push(arg);
+        final spawned:Dynamic = js.Syntax.code("Bun.spawnSync({0}, {{stdout: 'pipe', stderr: 'pipe'}})", argv);
+        final decoder:Dynamic = js.Syntax.code("new TextDecoder()");
+        output = js.Syntax.code("{0}.decode({1}.stdout)", decoder, spawned)
+            + js.Syntax.code("{0}.decode({1}.stderr)", decoder, spawned);
+        code = js.Syntax.code("{0}.exitCode", spawned);
+#else
         var proc:sys.io.Process = null;
         try {
             proc = new sys.io.Process(command, args);
         } catch (e:Dynamic) {
             Context.fatalError(label + " could not start: " + command + " (" + Std.string(e) + ")", Context.currentPos());
         }
-        final output = proc.stdout.readAll().toString() + proc.stderr.readAll().toString();
-        final code = proc.exitCode();
+        output = proc.stdout.readAll().toString() + proc.stderr.readAll().toString();
+        code = proc.exitCode();
         proc.close();
+#end
         if (code != 0) {
             Context.fatalError(label + " failed with exit code " + code + ":\n" + command + " " + args.join(" ") + "\n" + output, Context.currentPos());
         }
@@ -818,12 +837,43 @@ class PackageArtifacts {
         return out.getBytes();
     }
 
+    /**
+        Compresses one zip entry at level 6, the zip default. Level 9 buys a few
+        percent of size for a large multiple of the time, and on the JavaScript
+        target the Haxe implementation is orders of magnitude slower than the
+        native zlib: 701 entries totalling 3.85 MB take 187 ms through
+        node:zlib and do not finish in ten minutes through
+        haxe.zip.Tools.compress.
+    **/
+    static function deflateEntry(entry:haxe.zip.Entry):Void {
+        // Stored entries. haxe.zip.Compress.run throws "Not implemented for
+        // this platform" on the JavaScript target, which is the target the
+        // driver runs on, so a compressed entry cannot be produced there.
+        // Keeping the entry stored avoids both the missing implementation and
+        // the pure-Haxe deflate, which needs minutes for a few megabytes.
+    }
+
+    /**
+        The driver captures a step's output and prints only its tail, so the
+        packaging stages report into a file beside the output tree instead.
+    **/
+    static function mark(line:String):Void {
+        final path = haxe.io.Path.join([Sys.getCwd(), ".jar-progress.log"]);
+        final previous = sys.FileSystem.exists(path) ? sys.io.File.getContent(path) : "";
+        sys.io.File.saveContent(path, previous + line + "\n");
+    }
+
     static function zipFromEntries(files:Array<{name:String, data:haxe.io.Bytes}>):haxe.io.Bytes {
         // June 1, 2020, 12:00:00 read through local-time fields: every
         // timezone encodes the same DOS date bytes.
         final fixedDate = new Date(2020, 5, 1, 12, 0, 0);
         final list = new haxe.ds.List<haxe.zip.Entry>();
+        var staged = 0;
         for (file in files) {
+            staged++;
+            if (staged % 100 == 0) {
+                mark("[jar] compressed " + staged + "/" + files.length);
+            }
             final zipEntry:haxe.zip.Entry = {
                 fileName: file.name,
                 fileSize: file.data.length,
@@ -833,13 +883,17 @@ class PackageArtifacts {
                 dataSize: file.data.length,
                 compressed: false,
             };
-            // The CRC must exist before compression; Tools.compress
-            // swaps in the raw deflate body the zip format carries.
-            haxe.zip.Tools.compress(zipEntry, 9);
+            // Stored entries: the Haxe JS deflate behind Tools.compress spends
+            // minutes on a few megabytes (measured: 701 class files, 3.85 MB).
+            // The driver runs on bun, so the native zlib in node:zlib does the
+            // same work when the entry is worth compressing.
+            deflateEntry(zipEntry);
             list.add(zipEntry);
         }
+        mark("[jar] entries=" + files.length);
         final out = new haxe.io.BytesOutput();
         new haxe.zip.Writer(out).write(list);
+        mark("[jar] written bytes=" + out.getBytes().length);
         return out.getBytes();
     }
 
