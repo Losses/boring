@@ -749,7 +749,31 @@ class PackageArtifacts {
         return out.getBytes();
     }
 
+    /**
+        Splits a member path into the ustar name (100 bytes) and prefix (155
+        bytes) fields. Paths that fit the name field keep an empty prefix; the
+        generated trees reach past 100 bytes once the package directory is
+        prepended, and a name that overruns the field corrupts every following
+        header byte (tar then reports "numeric field was not a number").
+    **/
+    static function splitTarName(full:String):{name:String, prefix:String} {
+        if (full.length <= 100) {
+            return {name: full, prefix: ""};
+        }
+        var index = full.length - 100;
+        while (index < full.length) {
+            if (full.charAt(index) == "/" && index <= 155) {
+                return {name: full.substr(index + 1), prefix: full.substr(0, index)};
+            }
+            index++;
+        }
+        throw "tar member path needs a split point: " + full;
+    }
+
     static function writeTarMember(out:haxe.io.BytesOutput, name:String, data:haxe.io.Bytes):Void {
+        final split = splitTarName(name);
+        final prefix = split.prefix;
+        name = split.name;
         final mode = tarOctal(420 & 0x1FF, 7);
         final uid = tarOctal(0, 7);
         final gid = tarOctal(0, 7);
@@ -764,7 +788,8 @@ class PackageArtifacts {
             + tarCharSum(gid)
             + tarCharSum(size)
             + tarCharSum(date)
-            + tarCharSum("0");
+            + tarCharSum("0")
+            + tarCharSum(prefix);
         out.writeString(name);
         for (i in 0...100 - name.length)
             out.writeByte(0);
@@ -789,7 +814,12 @@ class PackageArtifacts {
             out.writeByte(0);
         for (i in 0...32)
             out.writeByte(0);
-        for (i in 0...8 + 8 + 155 + 12)
+        for (i in 0...8 + 8)
+            out.writeByte(0);
+        out.writeString(prefix);
+        for (i in 0...155 - prefix.length)
+            out.writeByte(0);
+        for (i in 0...12)
             out.writeByte(0);
         out.writeFullBytes(data, 0, data.length);
         for (i in 0...(512 - data.length % 512) % 512)
