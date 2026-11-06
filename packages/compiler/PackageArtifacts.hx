@@ -772,58 +772,42 @@ class PackageArtifacts {
 
     static function writeTarMember(out:haxe.io.BytesOutput, name:String, data:haxe.io.Bytes):Void {
         final split = splitTarName(name);
-        final prefix = split.prefix;
-        name = split.name;
-        final mode = tarOctal(420 & 0x1FF, 7);
-        final uid = tarOctal(0, 7);
-        final gid = tarOctal(0, 7);
-        final size = tarOctal(data.length, 11);
-        final date = tarOctal(0, 6) + tarOctal(0, 5);
-        // 879 is the checksum of the eight spaces and the "ustar  "
-        // magic the fixed header fields contribute.
-        var chsum = 879
-            + tarCharSum(name)
-            + tarCharSum(mode)
-            + tarCharSum(uid)
-            + tarCharSum(gid)
-            + tarCharSum(size)
-            + tarCharSum(date)
-            + tarCharSum("0")
-            + tarCharSum(prefix);
-        out.writeString(name);
-        for (i in 0...100 - name.length)
-            out.writeByte(0);
-        out.writeString(mode);
-        out.writeByte(0);
-        out.writeString(uid);
-        out.writeByte(0);
-        out.writeString(gid);
-        out.writeByte(0);
-        out.writeString(size);
-        out.writeByte(0);
-        out.writeString(date);
-        out.writeByte(0);
-        out.writeString(tarOctal(chsum, 6));
-        out.writeByte(0);
-        out.writeString(" 0");
-        for (i in 0...100)
-            out.writeByte(0);
-        out.writeString("ustar  ");
-        out.writeByte(0);
-        for (i in 0...32)
-            out.writeByte(0);
-        for (i in 0...32)
-            out.writeByte(0);
-        for (i in 0...8 + 8)
-            out.writeByte(0);
-        out.writeString(prefix);
-        for (i in 0...155 - prefix.length)
-            out.writeByte(0);
-        for (i in 0...12)
-            out.writeByte(0);
+        final header = haxe.io.Bytes.alloc(512);
+        putString(header, 0, 100, split.name);
+        putString(header, 100, 8, tarOctal(420 & 0x1FF, 7));
+        putString(header, 108, 8, tarOctal(0, 7));
+        putString(header, 116, 8, tarOctal(0, 7));
+        putString(header, 124, 12, tarOctal(data.length, 11));
+        putString(header, 136, 12, tarOctal(0, 11));
+        for (i in 0...8) {
+            header.set(148 + i, 0x20);
+        }
+        header.set(156, "0".charCodeAt(0));
+        // POSIX ustar magic and version: the prefix field at 345 only counts
+        // for this magic, and the Rust and npm tar readers both honour it.
+        putString(header, 257, 6, "ustar");
+        putString(header, 263, 2, "00");
+        putString(header, 345, 155, split.prefix);
+        var sum = 0;
+        for (i in 0...512) {
+            sum += header.get(i);
+        }
+        putString(header, 148, 6, tarOctal(sum, 6));
+        header.set(154, 0);
+        header.set(155, 0x20);
+        out.writeFullBytes(header, 0, 512);
         out.writeFullBytes(data, 0, data.length);
-        for (i in 0...(512 - data.length % 512) % 512)
+        for (i in 0...(512 - data.length % 512) % 512) {
             out.writeByte(0);
+        }
+    }
+
+    static function putString(target:haxe.io.Bytes, offset:Int, length:Int, value:String):Void {
+        var index = 0;
+        while (index < value.length && index < length) {
+            target.set(offset + index, value.charCodeAt(index));
+            index++;
+        }
     }
 
     /** One number as `len` zero-padded octal digits, the field form the tar header carries. */
