@@ -4449,7 +4449,7 @@ class KotlinExpr {
                 final field = cf.get();
                 final rendered = staticRef(cls, field.name);
                 if (DataTableHelper.isDataTableField(field))
-                    return rendered + ".toMutableList()";
+                    return rendered;
                 // Static methods referenced as function values need a Kotlin
                 // callable reference (::); kotlinc rejects property-access (.)
                 // with "function invocation 'X' expected". Static vars (FVar)

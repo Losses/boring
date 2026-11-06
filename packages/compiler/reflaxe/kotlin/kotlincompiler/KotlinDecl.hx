@@ -1022,14 +1022,14 @@ class KotlinDecl {
                 final CHUNK = 8000;
                 if (elems.length > CHUNK) {
                     final name = KotlinNameEscape.escape(field.name);
-                    final typeText = imports.selfResident ? "List<Int>" : "IntArray";
+                    final typeText = "MutableList<Int>";
                     final lines:Array<String> = ['    val $name: $typeText = build$name()'];
                     lines.push('    private fun build$name(): $typeText {');
                     lines.push('        val a = IntArray(${elems.length})');
                     final nChunks = Std.int(Math.ceil(elems.length / CHUNK));
                     for (c in 0...nChunks)
                         lines.push('        fill${name}$c(a)');
-                    lines.push('        return ' + (imports.selfResident ? "a.toList()" : "a"));
+                    lines.push('        return a.toMutableList()');
                     lines.push('    }');
                     for (c in 0...nChunks) {
                         lines.push('    private fun fill${name}$c(a: IntArray) {');
@@ -1052,7 +1052,7 @@ class KotlinDecl {
                 // (List<T> here), so it renders as a list; business
                 // tables stay primitive arrays because business code
                 // indexes them directly and never passes them along.
-                final wrapper = imports.selfResident ? "listOf" : "intArrayOf";
+                final wrapper = "mutableListOf";
                 // JVM caps every method at 64KB of bytecode, and the
                 // object initializer is one method: a table whose element
                 // constants exceed the cap loads through part functions,
@@ -1060,7 +1060,7 @@ class KotlinDecl {
                 // then only joins the parts. (KotlinChunkedTableInit)
                 final chunkElements = 8192;
                 if (formatted.length > chunkElements) {
-                    final partType = imports.selfResident ? "List<Int>" : "IntArray";
+                    final partType = "List<Int>";
                     final lowered = field.name.charAt(0).toLowerCase() + field.name.substr(1);
                     final outLines:Array<String> = [];
                     final partCount = Math.ceil(formatted.length / chunkElements);
@@ -1081,7 +1081,7 @@ class KotlinDecl {
                         p++;
                     }
                     final joined = [for (q in 0...partCount) '${lowered}Part${q + 1}()'].join(" + ");
-                    outLines.push('    val ${field.name} = $joined');
+                    outLines.push('    val ${field.name}: MutableList<Int> = ($joined).toMutableList()');
                     return outLines;
                 }
                 return ['    val ${field.name} = $wrapper(\n' + chunks.join(",\n") + '\n    )'];
