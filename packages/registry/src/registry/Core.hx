@@ -281,6 +281,7 @@ class Core {
                             fail(tree + "/" + pp + ": expected metadata.json");
                         var j:JsonValue = readMetadata(contentOf(records, pp + "/metadata.json"), tree + "/" + pp);
                         var r = new Release(owner, repo, v, p, str(j, "name"), opt(j, "license"), contentOf(records, rp + "/README.md"));
+                        r.repository = opt(j, "repository");
                         if (str(j, "version") != v)
                             fail(tree + "/" + pp + ": version disagreement");
                         if (Semver.parse(v) == null)
@@ -465,7 +466,8 @@ class Core {
         for (ni in 0...cn.length) {
             var n = cn[ni];
             var r = group(a, "cargo", n)[0];
-            lines.push("/cargo/dl/" + n + "-:version.crate  https://github.com/" + r.owner + "/" + r.repo + "/releases/download/v:version/" + n
+            final cargoTarget = r.repository == null ? r.owner + "/" + r.repo : r.repository;
+        lines.push("/cargo/dl/" + n + "-:version.crate  https://github.com/" + cargoTarget + "/releases/download/v:version/" + n
                 + "-:version.crate  302");
         }
         for (ai in 0...a.length) {
@@ -475,7 +477,8 @@ class Core {
                     var file = r.artifacts[fi],
                         rg = r.groupId,
                         gid:String = rg == null ? "" : rg;
-                    lines.push("/maven/" + gid.split(".").join("/") + "/" + r.name + "/:version/" + file + "  https://github.com/" + r.owner + "/" + r.repo
+                    final mavenTarget = r.repository == null ? r.owner + "/" + r.repo : r.repository;
+                    lines.push("/maven/" + gid.split(".").join("/") + "/" + r.name + "/:version/" + file + "  https://github.com/" + mavenTarget
                         + "/releases/download/v:version/" + file + "  302");
                 }
         }
