@@ -339,7 +339,6 @@ class PackageArtifacts {
         final versionDir = haxe.io.Path.join([parent, "maven", StringTools.replace(groupId, ".", "/"), name, version]);
         sys.FileSystem.createDirectory(versionDir);
 
-        mark("[maven] start name=" + name);
         final classes = haxe.io.Path.join([parent, ".package-kotlinc-classes"]);
         deleteTree(classes);
         final args:Array<String> = [];
@@ -352,9 +351,7 @@ class PackageArtifacts {
         }
         args.push("-d");
         args.push(classes);
-        mark("[maven] kotlinc inputs=" + args.length);
         runTool("package-kotlinc", kotlinc, args);
-        mark("[maven] kotlinc done");
 
         final jarFiles:Array<{name:String, data:haxe.io.Bytes}> = [];
         for (classPath in walkFiles(classes)) {
@@ -856,16 +853,6 @@ class PackageArtifacts {
         // the pure-Haxe deflate, which needs minutes for a few megabytes.
     }
 
-    /**
-        The driver captures a step's output and prints only its tail, so the
-        packaging stages report into a file beside the output tree instead.
-    **/
-    static function mark(line:String):Void {
-        final path = haxe.io.Path.join([Sys.getCwd(), ".jar-progress.log"]);
-        final previous = sys.FileSystem.exists(path) ? sys.io.File.getContent(path) : "";
-        sys.io.File.saveContent(path, previous + line + "\n");
-    }
-
     static function zipFromEntries(files:Array<{name:String, data:haxe.io.Bytes}>):haxe.io.Bytes {
         // June 1, 2020, 12:00:00 read through local-time fields: every
         // timezone encodes the same DOS date bytes.
@@ -875,7 +862,6 @@ class PackageArtifacts {
         for (file in files) {
             staged++;
             if (staged % 100 == 0) {
-                mark("[jar] compressed " + staged + "/" + files.length);
             }
             final zipEntry:haxe.zip.Entry = {
                 fileName: file.name,
@@ -893,10 +879,8 @@ class PackageArtifacts {
             deflateEntry(zipEntry);
             list.add(zipEntry);
         }
-        mark("[jar] entries=" + files.length);
         final out = new haxe.io.BytesOutput();
         new haxe.zip.Writer(out).write(list);
-        mark("[jar] written bytes=" + out.getBytes().length);
         return out.getBytes();
     }
 
