@@ -123,13 +123,15 @@ class PackageArtifacts {
     }
 
     /**
-        Packs the recorded writes as a tar+gzip artifact with the tree
-        at the archive root (the cargo `.crate` and the Pub `.tar.gz`).
+        Packs the recorded writes as a tar+gzip artifact (the cargo `.crate`
+        and the Pub `.tar.gz`). Both formats require every member under
+        `<name>-<version>/`: cargo rejects an archive whose members sit at the
+        root ("invalid tarball downloaded"), and pub resolves the same layout.
     **/
     public static function emitTarGz(outputDir:String, extension:String):Void {
         final stem = PackageShell.name() + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + extension]);
-        sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes("")));
+        sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes(stem + "/")));
     }
 
     /** Packs the recorded writes as the Swift zip artifact. */
