@@ -134,11 +134,19 @@ class PackageArtifacts {
         sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes(stem + "/")));
     }
 
-    /** Packs the recorded writes as the Swift zip artifact. */
+    /**
+        Packs the recorded writes as the Swift zip artifact. SwiftPM requires a
+        source archive to hold exactly one root directory, so every member sits
+        under `<name>-<version>/`; an archive with members at the root fails
+        with "failed extract".
+    **/
     public static function emitZip(outputDir:String):Void {
         final stem = PackageShell.name() + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + ".zip"]);
-        sys.io.File.saveBytes(artifactPath, zipFromEntries(recordedEntries()));
+        final entries = [
+            for (entry in recordedEntries()) {name: stem + "/" + entry.name, data: entry.data}
+        ];
+        sys.io.File.saveBytes(artifactPath, zipFromEntries(entries));
     }
 
     // ------------------------------------------------------------------
