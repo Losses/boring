@@ -540,6 +540,30 @@ fill-in (TODO -> concrete) does not bump the policy version.
 The four TODO columns are declared interfaces only; this round implements the
 Rust realization and leaves the others untouched.
 
+## Place plan contract
+
+A mutation is emitted only when its place plan proves that the write reaches the
+storage the source program names. The plan is orthogonal to the representation
+plan: the representation says how storage is spelled, the place plan says which
+storage a write reaches.
+
+```
+AccessIntent    = ReadValue | AssignSlot | MutateReferent | ReadModifyWrite
+ProjectionKind  = PreserveLocation | PreserveReferentIdentity | DetachedValueWithWriteback
+PlacePlan       = root + projections + intent + finalRepr
+                + evaluationOrder + aliasRelationship + borrowScope + writeback
+```
+
+`RustHandleValidator.placePlanFailure` rejects a plan when:
+
+- the plan is not verified against the source semantics;
+- the plan is not a place and carries no writeback evidence;
+- a projection detaches a value and the plan carries no writeback evidence.
+
+`RustHandleValidator.validatePlacePlans` turns each rejection into a `P-22`
+diagnostic, so the target refuses to emit code instead of patching the generated
+text after the fact.
+
 ## Design principles
 
 This policy upholds the repository design principles (design-principles.md):

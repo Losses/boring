@@ -6,6 +6,8 @@ import SemanticPolicy.ExprInfo;
 import SemanticPolicy.ReceiverAbi;
 import SemanticPolicy.RepresentationRole;
 import SemanticPolicy.RepresentationPlan;
+import PlacePlan;
+import PlacePlan.ProjectionKind;
 import SemanticPolicy.ConversionEdge;
 import SemanticPolicy.ModuleContext;
 
@@ -206,6 +208,42 @@ class RustHandleValidator {
 
     static function planError(entry:String, node:HandleNode, rule:String, message:String):ValidationError {
         return { entry: entry, expr_id: node.id, rule: rule, message: message };
+    }
+
+    /**
+        Check every place plan against the mutation contract. A plan that cannot
+        prove its write reaches the source location yields one error, so the
+        target refuses to emit code for it instead of patching the text later.
+    **/
+    public static function validatePlacePlans(plans:Array<PlacePlan>):Array<ValidationError> {
+        final errors:Array<ValidationError> = [];
+        for (plan in plans) {
+            final failure = placePlanFailure(plan);
+            if (failure != null)
+                errors.push({
+                    entry: "place-plan",
+                    expr_id: plan.root,
+                    rule: P_22,
+                    message: failure,
+                });
+        }
+        return errors;
+    }
+
+    /**
+        Return the first unmet obligation of one place plan, or null when the
+        plan proves that its write reaches the source location.
+    **/
+    public static function placePlanFailure(plan:PlacePlan):Null<String> {
+        if (!plan.verified)
+            return "place plan is not verified against the source semantics";
+        if (!plan.isPlace && (plan.writeback == null || plan.writeback.length == 0))
+            return "plan detaches a value without writeback evidence";
+        for (step in plan.projections) {
+            if (step.kind == DetachedValueWithWriteback && (plan.writeback == null || plan.writeback.length == 0))
+                return "detached projection has no writeback evidence";
+        }
+        return null;
     }
 
     public static function hasError(errors:Array<ValidationError>, entry:String):Bool {
