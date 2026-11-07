@@ -756,11 +756,24 @@ class DartDecl {
         return ["  " + late + types.of(field.type) + " " + name + ";"];
     }
 
+    /** Builtin Dart type names a member cannot carry without shadowing
+        the type inside its own class body; such members take a Value
+        suffix (bool -> boolValue). Shared by the declaration and the
+        call-site renderers so the two paths stay consistent. */
+    public static final builtinTypeNames:Array<String> = [
+        "bool", "int", "double", "num", "String", "List", "Map", "Set", "Object", "dynamic", "Function"
+    ];
+
+    /** A member name with builtin Dart type names suffixed to Value. */
+    public static function builtinValueName(name:String):String {
+        return builtinTypeNames.indexOf(name) >= 0 ? name + "Value" : name;
+    }
+
     // @:allow members use a public Dart name so allowed cross-library references compile.
     // Dart's Object.hashCode is a getter, so a source method with that name
     // must use a distinct Dart member name to avoid a method and getter clash.
     static function dartMemberName(field:ClassField):String {
-        final base = field.name == "hashCode" ? "hashCodeValue" : field.name;
+        final base = field.name == "hashCode" ? "hashCodeValue" : builtinValueName(field.name);
         return field.isPublic || field.meta.has(":allow") ? base : "_" + base;
     }
 

@@ -1834,12 +1834,23 @@ class DartExpr {
                 final addR = operand(r, op, true);
                 final addLFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(addL) : addL;
                 final addRFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(addR) : addR;
-                return addLFinal + " + " + addRFinal;
+                // Dart's int is a 64-bit word; the source's Int is a
+                // 32-bit one, so an int addition whose result leaves the
+                // domain re-signs into it, the same wrap the targets
+                // with a native 32-bit int perform in hardware.
+                return isIntTyped(l) && isIntTyped(r)
+                    ? "(" + addLFinal + " + " + addRFinal + ").toSigned(32)"
+                    : addLFinal + " + " + addRFinal;
             case OpSub | OpMult | OpDiv:
                 final lStr = operand(l, op, false);
                 final rStr = operand(r, op, true);
                 final lFinal = isIntOrLongType(emittedType(l)) && isFloatType(emittedType(r)) ? intToFloatText(lStr) : lStr;
                 final rFinal = isIntOrLongType(emittedType(r)) && isFloatType(emittedType(l)) ? intToFloatText(rStr) : rStr;
+                if (op != OpDiv && isIntTyped(l) && isIntTyped(r)) {
+                    // The i32 domain of OpSub and OpMult mirrors OpShl:
+                    // a result outside the source's Int re-signs into it.
+                    return "(" + lFinal + " " + symbolOf(op) + " " + rFinal + ").toSigned(32)";
+                }
                 return lFinal + " " + symbolOf(op) + " " + rFinal;
             case OpMod if (isIntTyped(l) && isIntTyped(r)):
                 // Dart's `%` is the Euclidean modulo (the result is always
@@ -5340,7 +5351,7 @@ class DartExpr {
 
     function memberName(ownerModule:String, cf:Ref<ClassField>, pos:haxe.macro.Expr.Position):String {
         final field = cf.get();
-        final base = field.name == "hashCode" ? "hashCodeValue" : field.name;
+        final base = field.name == "hashCode" ? "hashCodeValue" : DartDecl.builtinValueName(field.name);
         if (field.isPublic || field.meta.has(":allow")) {
             // @:allow members use a public Dart name across libraries.
             return base;
