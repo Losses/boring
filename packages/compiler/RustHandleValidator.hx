@@ -8,6 +8,7 @@ import SemanticPolicy.RepresentationRole;
 import SemanticPolicy.RepresentationPlan;
 import PlacePlan;
 import PlacePlan.ProjectionKind;
+import PlaceWritePolicy;
 import SemanticPolicy.ConversionEdge;
 import SemanticPolicy.ModuleContext;
 
@@ -243,6 +244,9 @@ class RustHandleValidator {
             if (step.kind == DetachedValueWithWriteback && (plan.writeback == null || plan.writeback.length == 0))
                 return "detached projection has no writeback evidence";
         }
+        final combo = PlaceWritePolicy.forbiddenProjectionCombo(plan);
+        if (combo != null)
+            return combo;
         return null;
     }
 
