@@ -1289,7 +1289,7 @@ class RustExpr {
                                 final fieldStorageType = registered != null
                                     ? DefaultArgExpander.coalescingParameterType(registered, cf.get().type)
                                     : cf.get().type;
-                                fieldInits.set(fieldName, renderValueForType(fieldStorageType, value, expr(value)));
+                                fieldInits.set(fieldName, renderValueForType(fieldStorageType, value, expr(value), DestinationContract.Field));
                                 continue;
                             }
                             final paramLocal = switch (stripWrap(value).expr) {
@@ -1304,7 +1304,7 @@ class RustExpr {
                             // declaration-side initializer branches own its conversions
                             // (String borrow, recursive-class Box wrap, shorthand move).
                             if (paramLocal == null || RustImports.toSnakeCase(paramLocal.name) != RustImports.toSnakeCase(fieldName)) {
-                                fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value)));
+                                fieldInits.set(fieldName, renderValueForType(cf.get().type, value, expr(value), DestinationContract.Field));
                             }
                         case _:
                             stmts.push(stmt);
@@ -1772,7 +1772,7 @@ class RustExpr {
                 // assignments leave the inner type unconstrained (E0282).
                 if (nullableType == "" && isTNull(init) && !isNullType(v.t))
                     nullableType = ": Option<" + types.of(v.t, false) + ">";
-                initStr = renderValueForType(v.t, init, initStr);
+                initStr = renderValueForType(v.t, init, initStr, DestinationContract.Local);
                 // A sunk initializer crossed an assignment boundary, so it
                 // renders through the same numeric adaptation an assignment
                 // applies; without it a signed rendering would reach the
@@ -2207,7 +2207,7 @@ class RustExpr {
                 var retStr = if (returnUnsigned && isUsizeExpr(ret)) {
                     RustConversions.truncate(expr(ret), "u32");
                 } else {
-                    renderValueForType(currentReturnType, ret, expr(ret));
+                    renderValueForType(currentReturnType, ret, expr(ret), DestinationContract.Return);
                 };
                 // An i32-domain local (String.indexOf result, wrapping
                 // binop) returned from a business u32 Int function
@@ -2222,7 +2222,7 @@ class RustExpr {
                 // A parameter-typed read clones at the boundary: the
                 // element stays owned by its array.
                 switch (stripWrap(ret).expr) {
-                    case TConst(TThis) if (RustDecl.isPlainClassHandle(ret.t)):
+                    case TConst(TThis) if (requirePlan(ret.t, "returnThisHandleRewrap", false, DestinationContract.Return, UseMode.HandleClone).role == RepresentationRole.ClassHandle):
                         imports.require("std::rc::Rc");
                         imports.require("std::cell::RefCell");
                         retStr = "Rc::new(RefCell::new(" + retStr + ".clone()))";
@@ -5954,7 +5954,7 @@ class RustExpr {
                         if (elemType != null && isInterfaceType(elemType) && !isInterfaceType(x.t)) {
                             imports.require("std::rc::Rc");
                             imports.require("std::cell::RefCell");
-                            if (RustDecl.isPlainClassHandleOrNull(x.t))
+                            if (requirePlan(x.t, "ifaceElemHandleBox", true, DestinationContract.Local, UseMode.Owned).role == RepresentationRole.ClassHandle)
                                 inner = "{ let __shared_handle: " + types.of(elemType, false) + " = " + inner + "; __shared_handle }";
                             else
                                 inner = "Rc::new(RefCell::new(" + inner + ")) as " + types.of(elemType, false);
@@ -6936,7 +6936,7 @@ class RustExpr {
     function interfaceConditionalBranch(expected:Null<Type>, branch:TypedExpr, text:String):String {
         if (expected == null || isNullType(expected) || !isInterfaceType(expected) || isTNull(branch) || text == "None")
             return text;
-        return renderValueForType(expected, branch, text);
+        return renderValueForType(expected, branch, text, DestinationContract.Return);
     }
 
     /**
@@ -7959,7 +7959,7 @@ class RustExpr {
                     // its assignments stay in that domain and must not
                     // re-wrap in Some(...).
                     final collapsedTarget = stripAssignTargetLocal(l);
-                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(collapsedTarget) ? "i32" : null,
+                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r), DestinationContract.Local), i32BindingLocals.exists(collapsedTarget) ? "i32" : null,
                         collapsedTarget >= 0 && !i32Locals.exists(collapsedTarget));
                 } else if (isStringType(l.t) && !isNullType(l.t)) {
                     final rhsText = switch (stripWrap(r).expr) {
@@ -7986,7 +7986,7 @@ class RustExpr {
                     // the bits at the assignment boundary; a local that
                     // already carries the signed domain keeps its rendering.
                     final assignTarget = stripAssignTargetLocal(l);
-                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r)), i32BindingLocals.exists(assignTarget) ? "i32" : null,
+                    numericAssignmentValue(l.t, r, renderValueForType(l.t, r, expr(r), DestinationContract.Local), i32BindingLocals.exists(assignTarget) ? "i32" : null,
                         assignTarget >= 0 && !i32Locals.exists(assignTarget));
                 };
 #if (rust_fold_debug || rust_emit_origins)
@@ -10961,7 +10961,7 @@ class RustExpr {
                 // under the explicit-handle ABI (to_string(this: &Rc<RefCell<Self>>)),
                 // not a Display method, so render Cls::to_string(&handle) instead
                 // of a .borrow().to_string() that has no Display. (HandleToStringRecord)
-                if (RustDecl.isPlainClassHandle(t)) {
+                if (requirePlan(t, "stdStringRecordToString", false, DestinationContract.StringConcatArgument, UseMode.SharedRef).role == RepresentationRole.ClassHandle) {
                     final clsName = switch (Context.follow(t)) { case TInst(c, _): c.get().name; case _: ""; };
                     final bare = StringTools.endsWith(value, ".clone()") ? value.substr(0, value.length - 8) : value;
                     return clsName + "::to_string(&" + bare + ")";
@@ -10974,7 +10974,7 @@ class RustExpr {
                 // ABI: to_string(this: &Rc<RefCell<Self>>)), not a Display
                 // method, so render Cls::to_string(&handle) instead of a
                 // .borrow().to_string() that has no Display. (HandleToStringOperand)
-                if (RustDecl.isPlainClassHandle(t)) {
+                if (requirePlan(t, "stdStringOperandToString", false, DestinationContract.StringConcatArgument, UseMode.SharedRef).role == RepresentationRole.ClassHandle) {
                     final clsName = switch (Context.follow(t)) { case TInst(c, _): c.get().name; case _: ""; };
                     final bare = StringTools.endsWith(value, ".clone()") ? value.substr(0, value.length - 8) : value;
                     return clsName + "::to_string(&" + bare + ")";
@@ -14314,7 +14314,8 @@ class RustExpr {
             return "Box::new(" + text + ")";
         if (expected == null)
             return text;
-        if (RustDecl.isPlainClassHandle(expected) && switch (stripWrap(arg).expr) {
+        if (requirePlan(expected, "ownedCtorArgClassHandle", false, DestinationContract.Param, UseMode.HandleClone).role == RepresentationRole.ClassHandle
+            && switch (stripWrap(arg).expr) {
             case TConst(TThis): true;
             case _: false;
         }) {
@@ -14613,7 +14614,7 @@ class RustExpr {
                             nullableArrayPayload(arg, argStr);
                         case _:
                             if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t))
-                                renderValueForType(getNullInnerType(pt), arg, argStr);
+                                renderValueForType(getNullInnerType(pt), arg, argStr, DestinationContract.Param);
                             else if (isReusableNullableRead(pt, arg, argStr))
                                 ownedNullableReadText(argStr);
                             else
@@ -14623,7 +14624,7 @@ class RustExpr {
                     continue;
                 }
                 if (isInterfaceType(pt)) {
-                    out.push(renderValueForType(pt, arg, argStr));
+                    out.push(renderValueForType(pt, arg, argStr, DestinationContract.Param));
                     continue;
                 }
                 if (stringLikeType(pt) && stringLikeType(arg.t)) {
@@ -15097,10 +15098,10 @@ class RustExpr {
                 // constructor to the interface, so the boxing decision reads
                 // the cast target.
                 if (fieldType != null && isInterfaceSlotType(fieldType))
-                    val = renderValueForType(fieldType, stripWrap(f.expr), val);
+                    val = renderValueForType(fieldType, stripWrap(f.expr), val, DestinationContract.Field);
                 else if (fieldType != null && !isStringType(fieldType)) {
                     val = ownedObjectFieldText(fieldType, f.expr, val);
-                    val = renderValueForType(fieldType, f.expr, val);
+                    val = renderValueForType(fieldType, f.expr, val, DestinationContract.Field);
                     // A business u32 Int field reinterprets a signed rendering
                     // so the struct literal field carries the declared domain.
                     if (isIntType(fieldType) && types.of(fieldType, false) == "u32"
@@ -16661,7 +16662,12 @@ class RustExpr {
         return text;
     }
 
-    function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
+    function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String,
+        contract:DestinationContract = DestinationContract.Param):String {
+        // contract names the destination position this coercion serves (P-22:
+        // decide() is handed the contract, never asked to infer it). Every
+        // caller passes its own position; the default only guards unforeseen
+        // callers on the parameter axis.
         if (expected == null || actual == null)
             return rendered;
         // A value entering a slot that names a shared concrete implementor
@@ -16727,7 +16733,7 @@ class RustExpr {
         }
         // Methods returning an owned class value cannot leak the borrowed
         // `self` receiver into the return slot.
-        if ((RustDecl.isPlainClassHandle(expected) || (isNullType(expected) && RustDecl.isPlainClassHandle(getNullInnerType(expected)))) && switch (stripWrap(actual).expr) {
+        if (requirePlan(expected, "rvftSelfHandleClone", true, contract, UseMode.HandleClone).role == RepresentationRole.ClassHandle && switch (stripWrap(actual).expr) {
             case TConst(TThis): true;
             case _: false;
         }) {
@@ -16799,7 +16805,7 @@ class RustExpr {
             // A plain-class handle is already an Rc<RefCell<T>>; clone it with
             // an explicit slot-type annotation and unsize once (single
             // unsizing), never double-wrap a handle. (InnerHelperArchitecture)
-            if (RustDecl.isPlainClassHandleOrNull(actual.t))
+            if (requirePlan(actual.t, "rvftIfaceArgHandle", true, contract, UseMode.Owned).role == RepresentationRole.ClassHandle)
                 return "{ let __shared_handle: " + types.of(expected, false) + " = " + boxed + "; __shared_handle }";
             return "Rc::new(RefCell::new(" + boxed + "))";
         }
@@ -16817,7 +16823,7 @@ class RustExpr {
             // A plain-class handle is already an Rc<RefCell<T>>; clone it with
             // an explicit slot-type annotation and unsize once (single
             // unsizing), never double-wrap a handle. (InnerHelperArchitecture)
-            if (RustDecl.isPlainClassHandleOrNull(actual.t))
+            if (requirePlan(actual.t, "rvftIfaceCtorHandle", true, contract, UseMode.Owned).role == RepresentationRole.ClassHandle)
                 return "{ let __shared_handle: " + types.of(expected, false) + " = " + boxed + "; __shared_handle }";
             return "Rc::new(RefCell::new(" + boxed + "))";
         }
@@ -16871,7 +16877,7 @@ class RustExpr {
                 ? "(" + boxed + ").clone()" : boxed;
             imports.require("std::rc::Rc");
             imports.require("std::cell::RefCell");
-            if (RustDecl.isPlainClassHandleOrNull(actual.t))
+            if (requirePlan(actual.t, "rvftNullIfaceArgHandle", true, contract, UseMode.Owned).role == RepresentationRole.ClassHandle)
                 return "Some({ let __shared_handle: " + types.of(getNullInnerType(expected), false) + " = " + owned + "; __shared_handle })";
             return "Some(Rc::new(RefCell::new(" + owned + ")))";
         }
@@ -16887,7 +16893,7 @@ class RustExpr {
             imports.require("std::rc::Rc");
             imports.require("std::cell::RefCell");
             final boxedCtor = normalizeConstructorResult(actual, rendered);
-            if (RustDecl.isPlainClassHandleOrNull(actual.t))
+            if (requirePlan(actual.t, "rvftNullIfaceCtorHandle", true, contract, UseMode.Owned).role == RepresentationRole.ClassHandle)
                 return "Some({ let __shared_handle: " + types.of(getNullInnerType(expected), false) + " = " + boxedCtor + "; __shared_handle })";
             return "Some(Rc::new(RefCell::new(" + boxedCtor + ")))";
         }
@@ -17083,7 +17089,7 @@ class RustExpr {
             final savedBorrowGeneric = closureBorrowGenericParams;
             if (isGenericFunctionParam(pt) && switch (stripWrap(arg).expr) { case TFunction(_): true; case _: false; })
                 closureBorrowGenericParams = true;
-            var argStr = renderValueForType(pt, arg, expr(arg));
+            var argStr = renderValueForType(pt, arg, expr(arg), DestinationContract.Param);
             closureBorrowGenericParams = savedBorrowGeneric;
             localFunctionErrorName = savedBlockError;
             blockClosureErrorName = savedBlockClosure;
@@ -17381,7 +17387,7 @@ class RustExpr {
                                 "(*" + argStr + ").clone()";
                             case _:
                                 if (isInterfaceType(getNullInnerType(pt)) && !isInterfaceType(arg.t))
-                                    renderValueForType(getNullInnerType(pt), arg, argStr);
+                                    renderValueForType(getNullInnerType(pt), arg, argStr, DestinationContract.Param);
                                 else if (isReusableNullableRead(pt, arg, argStr))
                                     ownedNullableReadText(argStr);
                                 else
@@ -18870,7 +18876,7 @@ class RustExpr {
                 }
                 imports.require("std::rc::Rc");
                 imports.require("std::cell::RefCell");
-                if (RustDecl.isPlainClassHandleOrNull(branch.t))
+                if (requirePlan(branch.t, "nullableBranchHandleBox", true, DestinationContract.Return, UseMode.Owned).role == RepresentationRole.ClassHandle)
                     return "Some({ let __shared_handle: " + types.of(inner, false) + " = " + normalizeConstructorResult(branch, coerced) + "; __shared_handle })";
                 return "Some(Rc::new(RefCell::new(" + normalizeConstructorResult(branch, coerced) + ")) as " + types.of(inner, false) + ")";
             }
@@ -18890,7 +18896,7 @@ class RustExpr {
             && !isInterfaceType(branch.t)) {
             imports.require("std::rc::Rc");
             imports.require("std::cell::RefCell");
-            if (RustDecl.isPlainClassHandleOrNull(branch.t))
+            if (requirePlan(branch.t, "branchIfaceHandleBox", true, DestinationContract.Return, UseMode.Owned).role == RepresentationRole.ClassHandle)
                 return "{ let __shared_handle: " + types.of(getNullInnerType(resultType), false) + " = " + text + "; __shared_handle }";
             return "Rc::new(RefCell::new(" + text + ")) as " + types.of(getNullInnerType(resultType), false);
         }
