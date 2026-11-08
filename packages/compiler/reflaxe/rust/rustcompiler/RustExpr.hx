@@ -7583,7 +7583,7 @@ class RustExpr {
                     } else if (isNullableInterfaceType(f.type)) {
                         // NullableInterfaceFieldEq compares the trait objects
                         // inside Option without requiring PartialEq on them.
-                        parts.push(nullableInterfaceFieldEqText(l, r, isSharedIfaceType(f.type)));
+                        parts.push(nullableInterfaceFieldEqText(l, r));
                     } else if (isInterfaceType(f.type)) {
                         final lq = l + ".borrow()";
                         final rq = r + ".borrow()";
@@ -7606,9 +7606,11 @@ class RustExpr {
     }
 
     /** Compare nullable interface fields by presence and dynamic Haxe type name. */
-    function nullableInterfaceFieldEqText(left:String, right:String, shared:Bool):String {
-        final lq = shared ? "__left.lock().unwrap()" : "__left.borrow()";
-        final rq = shared ? "__right.lock().unwrap()" : "__right.borrow()";
+    function nullableInterfaceFieldEqText(left:String, right:String):String {
+        // Shared interfaces lower to Rc<RefCell<dyn Trait>> (ClassHandleShare),
+        // so both arms read through borrow(); there is no Mutex to lock.
+        final lq = "__left.borrow()";
+        final rq = "__right.borrow()";
         return "match (&" + left + ", &" + right + ") { (Some(__left), Some(__right)) => " + lq + ".__haxe_type_name() == " + rq + ".__haxe_type_name(), (None, None) => true, _ => false }";
     }
 
@@ -10865,11 +10867,11 @@ class RustExpr {
         // one the Option enum does not carry.
         // (NullableIsOfTypeMatch)
         if (isNullType(args[0].t)) {
-            final vq = isSharedIfaceType(getNullInnerType(args[0].t)) ? "v.lock().unwrap()" : "v.borrow()";
+            // Shared interfaces lower to Rc<RefCell<dyn Trait>>
+            // (ClassHandleShare), so both arms read through borrow().
+            final vq = "v.borrow()";
             return "match &(" + subject + ") { Some(v) => " + vq + ".__haxe_type_name() == " + nameTest + ", None => false }";
         }
-        // A shared interface handle opens its Mutex before the name read.
-        // (ClassHandleShare)
         final subjectRead = subject + ".borrow()";
         return subjectRead + ".__haxe_type_name() == " + nameTest;
     }
