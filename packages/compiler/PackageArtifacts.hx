@@ -129,7 +129,7 @@ class PackageArtifacts {
         root ("invalid tarball downloaded"), and pub resolves the same layout.
     **/
     public static function emitTarGz(outputDir:String, extension:String, ?nameOverride:String):Void {
-        final stem = (nameOverride == null ? PackageShell.name() : nameOverride) + "-" + PackageShell.version();
+        final stem = (nameOverride == null ? PackageShell.artifactStem() : nameOverride) + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + extension]);
         sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes(stem + "/")));
     }
@@ -141,7 +141,7 @@ class PackageArtifacts {
         with "failed extract".
     **/
     public static function emitZip(outputDir:String):Void {
-        final stem = PackageShell.name() + "-" + PackageShell.version();
+        final stem = PackageShell.artifactStem() + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + ".zip"]);
         final entries = [
             for (entry in recordedEntries()) {name: stem + "/" + entry.name, data: entry.data}
@@ -193,7 +193,7 @@ class PackageArtifacts {
             files.push({name: "dist/" + distPath, data: sys.io.File.getBytes(haxe.io.Path.join([stage, "dist", distPath]))});
         }
         files.sort((a, b) -> Reflect.compare(a.name, b.name));
-        final stem = StringTools.replace(PackageShell.name(), "/", "-") + "-" + PackageShell.version();
+        final stem = StringTools.replace(PackageShell.artifactStem(), "/", "-") + "-" + PackageShell.version();
         sys.io.File.saveBytes(haxe.io.Path.join([parent, stem + ".tgz"]), gzipBytes(tarFromEntries("package/", files)));
         deleteTree(stage);
     }
@@ -343,7 +343,7 @@ class PackageArtifacts {
         }
         final groupDefine = Context.definedValue("package-group");
         final groupId = groupDefine == null ? PackageShell.name() : groupDefine;
-        final name = PackageShell.name();
+        final name = PackageShell.artifactStem();
         final version = PackageShell.version();
         final parent = artifactDirectory(outputDir);
         final versionDir = haxe.io.Path.join([parent, "maven", StringTools.replace(groupId, ".", "/"), name, version]);

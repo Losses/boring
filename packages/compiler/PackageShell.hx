@@ -14,6 +14,10 @@ import haxe.macro.Context;
     - `package-shell=none`: source only; the consumer maintains its own
       manifest.
     - `package-name`: the manifest name, default `generated`.
+    - `package-artifact-stem`: the artifact file name stem, default the
+      manifest name. Registry layouts that keep one package per manifest
+      name set this to distinguish precision variants without minting
+      new package names.
     - `package-version`: the manifest version, default `0.1.0`.
     - `package-license`: optional; the license field appears only under
       this define.
@@ -40,6 +44,17 @@ class PackageShell {
     public static function name():String {
         final value = Context.definedValue("package-name");
         return value == null ? "generated" : value;
+    }
+
+    /**
+        The install-artifact file name stem (the `.crate`, `.tgz`, and
+        `.zip` base before `-<version>`), the manifest name when the
+        define is absent. The manifest identity stays `name()`; this
+        only names the artifact file a registry distributes.
+    **/
+    public static function artifactStem():String {
+        final value = Context.definedValue("package-artifact-stem");
+        return value == null ? name() : value;
     }
 
     /** The manifest version; `0.1.0` when the define is absent. */
