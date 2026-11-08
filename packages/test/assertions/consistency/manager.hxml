@@ -1,4 +1,4 @@
--cp tools/test-consistency
+-cp packages/test/assertions/consistency
 -cp packages/driver/src
 -cp packages/registry/src
 -cp samples

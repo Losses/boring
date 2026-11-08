@@ -2,7 +2,7 @@
 # In-repo regression controls for the shared recording layer.
 #
 # Single command:
-#   bash tests/support/runner-record-controls.sh
+#   bash tests/support/runner-record-controls.sh  (library: packages/test/harness/runner-record.sh)
 #
 # The script resolves the library through a relative path, writes only under an
 # exclusive temporary directory, and exits non-zero when any assertion fails.
@@ -19,13 +19,13 @@ for tool in mktemp python3 cmp tr grep sed chmod cp mkdir rm dirname; do
 done
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)" || exit 2
-LIB="${RUNNER_RECORD_LIB:-$ROOT/tools/runner-record/runner-record.sh}"
+LIB="${RUNNER_RECORD_LIB:-$ROOT/packages/test/harness/runner-record.sh}"
 [ -f "$LIB" ] || { printf 'missing library: %s\n' "$LIB" >&2; exit 2; }
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/runner-record-controls.XXXXXXXX")" || exit 2
 trap 'chmod -R u+w "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
 
-# shellcheck source=../../tools/runner-record/runner-record.sh
+# shellcheck source=../../packages/test/harness/runner-record.sh
 . "$LIB" || { printf 'cannot source %s\n' "$LIB" >&2; exit 2; }
 
 PASS=0

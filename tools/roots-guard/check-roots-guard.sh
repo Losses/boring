@@ -118,7 +118,7 @@
 #   * test ids, @:test case sets, module bodies, runtime behaviour under
 #     binary32/binary64.  `samples/tests/f32/PrintedFloatTests.hx` ships 6
 #     f32-only ids that this guard cannot see (declared in
-#     tools/test-consistency/extra-id-allowlist.json);
+#     packages/test/assertions/consistency/extra-id-allowlist.json);
 #   * dart/ts pairs are not guarded (no -f32 variant);
 #   * bypass surfaces: ROOTS_GUARD_ALLOWLIST (see below) and --repo-root /
 #     ROOTS_GUARD_REPO_ROOT redirect what is checked; a caller who can set

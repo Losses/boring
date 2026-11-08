@@ -1,54 +1,18 @@
-import { chmodSync, cpSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+// CLI cross-target driver probe — orchestration and assertions.
+//
+// Boundary (packages/test/README.md): the fixture project and stub toolchain
+// construction live in packages/test/fixtures/cli-driver-fixture.ts, the
+// command executor in packages/test/bin/cli-command.ts. This file keeps the
+// per-backend orchestration and every pass/fail decision.
+import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-type CommandResult = { code: number; output: string };
+import { command } from "../../packages/test/bin/cli-command.ts";
+import { createCliFixture, type CliFixture } from "../../packages/test/fixtures/cli-driver-fixture.ts";
 
 const root = resolve(".");
-const fixture = mkdtempSync(join(tmpdir(), "boring-driver-cli-"));
-cpSync(resolve("tests/driver/fixtures/compare"), fixture, { recursive: true });
-const project = join(fixture, "boring.json");
-const verifyRoot = join(fixture, "verify");
-const toolbin = join(fixture, "toolbin");
-const afterGenLog = join(fixture, "after-gen.log");
-mkdirSync(verifyRoot);
-mkdirSync(toolbin);
-mkdirSync(join(verifyRoot, "src", "demo"), { recursive: true });
-writeFileSync(join(verifyRoot, "src", "demo", "ZTest.hx"), "package demo; class ZTest {}\n");
-writeFileSync(join(verifyRoot, "src", "demo", "ATest.hx"), "package demo; class ATest {}\n");
-writeFileSync(join(verifyRoot, "src", "demo", "Helper.hx"), "package demo; class Helper {}\n");
-writeFileSync(join(verifyRoot, "boring.json"), JSON.stringify({
-  outRoot: "out", resultsDir: "results", baseline: "only", sourceRoots: ["src"],
-  sourceSets: { core: { types: ["demo.Helper"], discover: [{ root: "src", packages: ["demo"], suffix: "Test" }] } },
-  bundles: [{ id: "only", target: "ts", sourceSet: "core", package: { name: "demo", version: "1.0.0" },
-    afterGen: { command: "postgen" } }],
-}));
-for (const name of ["haxe", "tsc"]) {
-  const path = join(toolbin, name);
-  writeFileSync(path, "#!/usr/bin/env sh\nexit 0\n");
-  chmodSync(path, 0o755);
-}
-const bunStub = join(toolbin, "bun");
-writeFileSync(bunStub, "#!/usr/bin/env sh\nif [ \"$1\" = test ]; then printf '{\"id\":\"smoke\",\"name\":\"smoke\",\"verdict\":\"pass\"}\\n' > \"$BORING_TEST_RESULTS\"; fi\n");
-chmodSync(bunStub, 0o755);
-const postgen = join(toolbin, "postgen");
-writeFileSync(postgen, "#!/usr/bin/env sh\nprintf 'ran\\n' >> \"$BORING_AFTER_GEN_LOG\"\n");
-chmodSync(postgen, 0o755);
-const fakeToolsEnv = { ...process.env, PATH: `${toolbin}:${process.env.PATH ?? ""}`, BORING_AFTER_GEN_LOG: afterGenLog };
-
-function command(program: string, args: string[], env: NodeJS.ProcessEnv = process.env): CommandResult {
-  const result = Bun.spawnSync([program, ...args], {
-    cwd: root,
-    env,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const output = result.stdout.toString() + result.stderr.toString();
-  if (result.exitCode !== 0) {
-    throw new Error(`${program} ${args.join(" ")} failed (${result.exitCode}):\n${output}`);
-  }
-  return { code: result.exitCode, output };
-}
+const fx: CliFixture = createCliFixture();
+const { fixture, project, verifyRoot, afterGenLog, fakeToolsEnv } = fx;
 
 function sources(directory: string, suffix: string): string[] {
   const files: string[] = [];

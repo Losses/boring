@@ -7,7 +7,7 @@
 // upstream unit failed is NOT_OBSERVED - so a downstream compile that a
 // broken upstream masked reads NOT_OBSERVED, never "0 errors".
 //
-//   bun tools/unit-coverage-report.ts [--bundle <id>] [--list]
+//   bun packages/test/ci/unit-coverage-report.ts [--bundle <id>] [--list]
 //
 // --list prints the derived units without running anything.
 // Exit 0 when every unit is CHECKED (or SKIPPED: toolchain absent);

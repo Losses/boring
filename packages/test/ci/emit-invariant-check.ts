@@ -16,7 +16,7 @@
 //   call stack, then exits 1.
 //
 // Usage:
-//   bun tools/emit-invariant-check.ts <gen-dir> [--lang kotlin|swift|rust]
+//   bun packages/test/ci/emit-invariant-check.ts <gen-dir> [--lang kotlin|swift|rust]
 
 import fs from "node:fs";
 import path from "node:path";
@@ -325,7 +325,7 @@ function reportViolation(rel: string, t: Token, sidecar: Sidecar | null, entry: 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.length < 1) {
-    console.error("usage: bun tools/emit-invariant-check.ts <gen-dir> [--lang kotlin|swift|rust]");
+    console.error("usage: bun packages/test/ci/emit-invariant-check.ts <gen-dir> [--lang kotlin|swift|rust]");
     process.exit(2);
   }
   const genDir = args[0] as string;

@@ -340,12 +340,12 @@ emitter functions active during generation.
 
 ### Trace CLI
 
-`tools/trace-emit-origin.mjs` reads a sidecar and answers questions about a
+`packages/test/probes/trace-emit-origin.mjs` reads a sidecar and answers questions about a
 specific line or about the whole file:
 
 ```
-node tools/trace-emit-origin.mjs <sidecar.json> <line> [column]
-node tools/trace-emit-origin.mjs <sidecar.json> summary
+node packages/test/probes/trace-emit-origin.mjs <sidecar.json> <line> [column]
+node packages/test/probes/trace-emit-origin.mjs <sidecar.json> summary
 ```
 
 The line command prints the emitter frame, the Haxe source location, the origin
@@ -358,7 +358,7 @@ the call-stack frame table.
 When a host compiler reports a diagnostic at `file:line:column`:
 
 1. Locate the sidecar at `file.emit-origin.json`.
-2. Run `node tools/trace-emit-origin.mjs file.emit-origin.json <line> <column>`.
+2. Run `node packages/test/probes/trace-emit-origin.mjs file.emit-origin.json <line> <column>`.
 3. The output names the boring emitter frame, the Haxe source site, and the
    generation call stack.
 

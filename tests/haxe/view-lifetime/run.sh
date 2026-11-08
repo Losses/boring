@@ -87,7 +87,7 @@ fi
 # inputs, the fixture, the probe and its ChildEvidence owner, the shared
 # checker, and the project identity file the probe hashes.
 input_manifest() {
-	find packages/compiler samples/std tools/bundle tests/haxe/view-lifetime \
+	find -L packages/compiler samples/std tools/bundle tests/haxe/view-lifetime \
 		tests/bundle-child-evidence/probe tests/support boring.json \
 		-type f | LC_ALL=C sort | xargs -d '\n' sha256sum
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dedicated control for tests/support/stage-check.sh.
+# Dedicated control for packages/test/harness/stage-check.sh (tests/support/stage-check.sh is a path-stable link).
 #
 # Exercises the shared stage membership check against synthetic status
 # tables: the default membership behavior, the optional strict producer

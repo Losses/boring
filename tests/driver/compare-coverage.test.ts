@@ -39,7 +39,7 @@ test("a consumer comparison skips repository mechanism coverage", () => {
 
 test("a project mechanism declaration enforces coverage", () => {
   const dir = project();
-  const marker = join(dir, "tools", "test-consistency");
+  const marker = join(dir, "packages", "test", "assertions", "consistency");
   mkdirSync(marker, { recursive: true });
   writeFileSync(join(marker, "mechanism-coverage.json"),
     JSON.stringify({ covered: [], uncoveredAllowlist: [] }));
@@ -50,7 +50,7 @@ test("a project mechanism declaration enforces coverage", () => {
 
 test("a malformed mechanism declaration reports its path", () => {
   const dir = project();
-  const marker = join(dir, "tools", "test-consistency");
+  const marker = join(dir, "packages", "test", "assertions", "consistency");
   mkdirSync(marker, { recursive: true });
   writeFileSync(join(marker, "mechanism-coverage.json"), "{bad");
   const result = compare(dir);
