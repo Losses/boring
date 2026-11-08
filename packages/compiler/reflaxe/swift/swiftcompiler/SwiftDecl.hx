@@ -1193,12 +1193,14 @@ class SwiftDecl {
             lines.push("}");
             return lines.join("\n");
         }
-        // A payload enum keeps the synthesized Equatable except when one
-        // payload is Array<Self>: the BoringArray<Self> conformance then
-        // requires Self: Equatable, a circular requirement Swift rejects.
-        // A class payload still synthesizes because the comparison plan
-        // gives that class its own manual ==. (EnumEquatableCircularity)
-        final equatable = !enumHasRecursiveArray(en);
+        // A payload enum keeps the synthesized Equatable when every
+        // payload type itself synthesizes Equatable. Recursive payload
+        // enums (an indirect enum holding Array<Self>) still qualify:
+        // the recursion resolves through the declaration's own
+        // conformance. A class payload still synthesizes because the
+        // comparison plan gives that class its own manual ==.
+        // (EnumEquatableCircularity)
+        final equatable = enumSupportsEquatable(en, []);
         final lines:Array<String> = [ // Equatable backs the construct comparisons the samples run
             // (`width == F64`); payload types of the subset (Int32,
             // String, nested enums) synthesize the conformance. A payload
@@ -1241,7 +1243,7 @@ class SwiftDecl {
                 // A field that cannot synthesize it (an interface lowers to
                 // a protocol existential) makes the struct drop the
                 // conformance; Swift cannot synthesize it for such a field.
-                final equatable = recordFieldsSupportEquatable(fields) ? ": Equatable" : "";
+                final equatable = recordFieldsSupportEquatable(fields, []) ? ": Equatable" : "";
                 final lines:Array<String> = ["public struct " + def.name + equatable + " {"];
                 for (field in fields) {
                     lines.push("    public var " + field.name + ": " + types.of(field.type));
@@ -1273,50 +1275,41 @@ class SwiftDecl {
         those, nested records, and enums. A class or interface field does
         not, so the record must drop the conformance.
     **/
-    function recordFieldsSupportEquatable(fields:Array<{type:Type}>):Bool {
+    function recordFieldsSupportEquatable(fields:Array<{type:Type}>, seen:Array<String>):Bool {
         for (field in fields) {
-            if (!fieldTypeSupportsEquatable(field.type)) {
+            if (!fieldTypeSupportsEquatable(field.type, seen)) {
                 return false;
             }
         }
         return true;
     }
 
-    /** Whether a payload type is Array<T> whose element is the enum itself: the
-        synthesized Equatable then requires BoringArray<Self>: Equatable, which
-        requires Self: Equatable, a circular conformance Swift rejects. */
-    function selfArrayPayload(t:Null<Type>, en:EnumType):Bool {
-        return switch (Context.follow(t)) {
-            case TInst(c, params) if (c.get().name == "Array" && params.length == 1):
-                switch (Context.follow(params[0])) {
-                    case TEnum(e, _): e.get().name == en.name;
-                    case _: false;
-                }
-            case _: false;
-        };
-    }
-
-    /** Whether any construct carries an Array<Self> payload: the synthesized
-        Equatable then requires BoringArray<Self>: Equatable, which requires
-        Self: Equatable, a circular conformance Swift rejects. Shared by
-        enumDecl (drop the conformance) and fieldTypeSupportsEquatable (a
-        record typedef field of this enum also drops it). */
-    function enumHasRecursiveArray(en:EnumType):Bool {
+    /** Whether the enum's every payload type synthesizes Equatable, walking
+        through its constructs with a seen-set of enum names. An enum already
+        in the seen-set counts as supported: a recursive payload enum (an
+        indirect enum holding Array<Self>) resolves its own cycle through the
+        declaration's conformance, so the recursion is assumed to hold rather
+        than rejecting the whole cluster. (EnumEquatableCircularity) */
+    function enumSupportsEquatable(en:EnumType, seen:Array<String>):Bool {
+        if (seen.indexOf(en.name) >= 0) {
+            return true;
+        }
+        final next = seen.concat([en.name]);
         for (ef in en.constructs) {
             switch (ef.type) {
                 case TFun(args, _):
                     for (arg in args) {
-                        if (selfArrayPayload(arg.t, en)) {
-                            return true;
+                        if (!fieldTypeSupportsEquatable(arg.t, next)) {
+                            return false;
                         }
                     }
                 case _:
             }
         }
-        return false;
+        return true;
     }
 
-    function fieldTypeSupportsEquatable(t:Null<Type>):Bool {
+    function fieldTypeSupportsEquatable(t:Null<Type>, seen:Array<String>):Bool {
         if (t == null) {
             return false;
         }
@@ -1324,7 +1317,7 @@ class SwiftDecl {
             case TAbstract(a, params):
                 switch (a.get().name) {
                     case "Int" | "Float" | "Bool": true;
-                    case "Null" if (params.length == 1): fieldTypeSupportsEquatable(params[0]);
+                    case "Null" if (params.length == 1): fieldTypeSupportsEquatable(params[0], seen);
                     case _: false;
                 }
             case TInst(c, params):
@@ -1333,11 +1326,21 @@ class SwiftDecl {
                     false;
                 } else switch (cls.name) {
                     case "String": true;
-                    case "Array": params.length == 1 && fieldTypeSupportsEquatable(params[0]);
-                    case _: false;
+                    case "Array": params.length == 1 && fieldTypeSupportsEquatable(params[0], seen);
+                    // A @:dataClass payload class gets its own manual == from
+                    // the comparison plan (classDecl shouldEmitComparator), so
+                    // an enum or record holding one still synthesizes
+                    // Equatable. A dataClass whose comparison plan failed
+                    // emits no ==, so it must not count.
+                    case _: cls.meta.has(":dataClass")
+                        && switch (SwiftComparisonPlan.select(SourceComparisonAnalysis.declarationReference(cls),
+                            [for (parameter in cls.params) parameter.t], OptionalEqualityCapability)) {
+                            case SwiftComparisonPlanReady(_): true;
+                            case _: false;
+                        };
                 }
-            case TEnum(e, _): !enumHasRecursiveArray(e.get());
-            case TAnonymous(anon): recordFieldsSupportEquatable([for (f in anon.get().fields) f]);
+            case TEnum(e, _): enumSupportsEquatable(e.get(), seen);
+            case TAnonymous(anon): recordFieldsSupportEquatable([for (f in anon.get().fields) f], seen);
             case _: false;
         };
     }
