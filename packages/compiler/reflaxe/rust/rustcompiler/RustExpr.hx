@@ -10454,6 +10454,33 @@ class RustExpr {
             || (isLocalId(r, indexId) && isIntLiteralOne(l));
     }
 
+    /** The full field-write place through a mutable plain-class-handle
+        static (h.field where h is a static var of Null<Holder>), or null
+        when the subject is not that shape. The MutexGuard derefs through
+        the SingleThread inner Option, the nullable slot unwraps, and the
+        handle borrows, so the rendered text is the place of the field of
+        the shared object. (HandleStaticWriteTarget) **/
+    function staticHandleFieldWritePlace(subj:TypedExpr):Null<String> {
+        return switch (stripWrap(subj).expr) {
+            case TField(s, FInstance(_, _, cf)):
+                final staticPath = switch (stripWrap(s).expr) {
+                    case TField(_, FStatic(c, scf)):
+                        (!scf.get().isFinal && RustDecl.isPlainClassHandleStaticType(types.of(scf.get().type)))
+                            ? staticItemPath(c.get(), scf.get().name)
+                            : null;
+                    case _: null;
+                };
+                staticPath == null ? null
+                    // The double deref opens the MutexGuard and the
+                    // SingleThread inner value with plain deref operators, so
+                    // no DerefMut trait import is needed at the write site.
+                    // (HandleStaticWriteTarget)
+                    : "(**(*" + staticPath + ").lock().unwrap_or_else(|e| e.into_inner())).as_mut().unwrap().borrow_mut()."
+                        + RustImports.toSnakeCase(cf.get().name);
+            case _: null;
+        };
+    }
+
     function staticAssignmentTarget(e:TypedExpr):Null<String> {
         return switch (stripWrap(e).expr) {
             case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
@@ -11225,6 +11252,18 @@ class RustExpr {
         `clear` on that copy mutates a temporary that is dropped immediately, so
         the caller's container silently never changes. (MutReceiverPlace) */
     function mutableReceiver(subj:TypedExpr):String {
+        // A field write through a mutable plain-class-handle static
+        // (h.data[i] = v where h is a static var of Null<Holder>) must
+        // render the lock-guard place, not the handle clone read out of the
+        // static: the clone read out of the Mutex is a value the
+        // DegradedLvalueGuard rightly refuses, and writing through it would
+        // not reach the shared object either. The guard derefs MutexGuard
+        // and SingleThread to &mut Option<Rc<RefCell<T>>>, unwraps the
+        // nullable slot, and borrows the handle so the field subscript is a
+        // place. (HandleStaticWriteTarget)
+        final handleStaticPlace = staticHandleFieldWritePlace(subj);
+        if (handleStaticPlace != null)
+            return handleStaticPlace;
         // Render the receiver as a write target, not as a value read: every
         // element and field read inside the receiver chain must stay a place,
         // otherwise a nested index write (arr[i][j][k] = v) puts a clone of
@@ -14969,6 +15008,12 @@ class RustExpr {
             };
         }, (subj, kind, _) -> switch (kind) {
             case Instance(_, cf) | Anonymous(cf):
+                // A field write through a mutable plain-class-handle static
+                // renders the lock-guard place directly; the Rc borrow is
+                // already part of that place. (HandleStaticWriteTarget)
+                final staticHandlePlace = staticHandleFieldWritePlace(subj);
+                if (staticHandlePlace != null)
+                    return staticHandlePlace;
                 // (IndexElementFieldWrite) A field assignment through an array
                 // element must reach the element in place, through the mutable
                 // index path, so the field write acts on the Vec element rather
