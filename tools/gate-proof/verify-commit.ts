@@ -20,7 +20,7 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -31,6 +31,30 @@ const fail = (message: string): never => {
 
 const git = (args: string[]): string =>
   execFileSync("git", args, { maxBuffer: 1 << 28 }).toString();
+
+// GATE-GUARD self-check: fail loudly (exit 1 with a clear message) when this
+// script has been gutted or the package.json entry no longer points here.
+// The line threshold is deliberately buffered (~60% of the real length) so
+// cosmetic edits never trip it; only wholesale deletion/emptying does.
+const MIN_SELF_LINES = 100;
+const selfCheck = (): void => {
+  const selfLines = readFileSync(join(import.meta.dir, "verify-commit.ts"), "utf8").split("\n").length;
+  if (selfLines < MIN_SELF_LINES)
+    fail("gate:verify entry looks gutted: verify-commit.ts has only " + selfLines + " lines (expected >= " + MIN_SELF_LINES + ")");
+  let entry: string | undefined;
+  try {
+    const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../../package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    entry = pkg.scripts?.["gate:verify"];
+  } catch (error) {
+    fail("cannot read package.json for gate:verify self-check: " + error);
+  }
+  const expectedTarget = "tools/gate-proof/verify-commit.ts";
+  if (entry === undefined || !entry.endsWith(expectedTarget))
+    fail('package.json scripts["gate:verify"] must point at ' + expectedTarget + ', found: ' + (entry ?? "(missing)"));
+};
+selfCheck();
 
 const args = process.argv.slice(2);
 const jsonPathIndex = args.indexOf("--json");
