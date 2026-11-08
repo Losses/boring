@@ -147,15 +147,15 @@ impl Functional {
         }
     }
 
-    pub fn sum_of_float<T, F>(arr: &Vec<T>, mut f: F) -> $f
+    pub fn sum_of_float<T, F>(arr: &Vec<T>, mut f: F) -> crate::TiqianFloat
     where
-        F: FnMut(&T) -> $f,
+        F: FnMut(&T) -> crate::TiqianFloat,
     {
         let mut total = 0.0f64;
         for item in arr {
             total += f(item) as f64;
         }
-        total as $f
+        total as crate::TiqianFloat
     }
 }
 ';
@@ -203,7 +203,14 @@ pub struct Int64Halves {
 }
 
 impl FPHelper {
-    pub fn format_float(v: f64) -> UString {
+    pub fn format_float(v: crate::TiqianFloat) -> UString {
+        #[cfg(feature = "f32")]
+        return Self::format_float_f32(v);
+        #[cfg(not(feature = "f32"))]
+        return Self::format_float_f64(v);
+    }
+
+    pub fn format_float_f64(v: f64) -> UString {
         if v.is_nan() { return UString::from("NaN"); }
         if v == f64::INFINITY { return UString::from("Infinity"); }
         if v == f64::NEG_INFINITY { return UString::from("-Infinity"); }
@@ -253,8 +260,8 @@ impl FPHelper {
         (v as f32).to_bits() as i32
     }
 
-    pub fn i32_to_float(v: i32) -> f64 {
-        f32::from_bits(v as u32) as f64
+    pub fn i32_to_float(v: i32) -> crate::TiqianFloat {
+        f32::from_bits(v as u32) as crate::TiqianFloat
     }
 
     pub fn f32_to_i32(v: f32) -> i32 {
@@ -265,14 +272,15 @@ impl FPHelper {
         f32::from_bits(v as u32)
     }
 
-    pub fn i64_to_double(low: u32, high: u32) -> f64 {
+    pub fn i64_to_double(low: u32, high: u32) -> crate::TiqianFloat {
         let h = high.to_be_bytes();
         let l = low.to_be_bytes();
         let bits = u64::from_be_bytes([h[0], h[1], h[2], h[3], l[0], l[1], l[2], l[3]]);
-        f64::from_bits(bits)
+        f64::from_bits(bits) as crate::TiqianFloat
     }
 
-    pub fn double_to_i64(v: f64) -> Int64Halves {
+    pub fn double_to_i64(v: crate::TiqianFloat) -> Int64Halves {
+        let v = v as f64;
         let bytes = v.to_bits().to_be_bytes();
         let high = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
         let low = u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
@@ -338,7 +346,7 @@ impl FPHelper {
     }
 
     pub fn f32_to_i64(v: f32) -> Int64Halves {
-        Self::double_to_i64(f64::from(v))
+        Self::double_to_i64(v as crate::TiqianFloat)
     }
 }
 ';
@@ -909,6 +917,8 @@ pub fn parse_f64(s: &str) -> f64 {
     if !valid_decimal_token(t.as_bytes()) {
         return f64::NAN;
     }
+    // parse_f64 keeps the protocol f64 width even under the f32 lane;
+    // parse_f32 is the separate TiqianFloat-width edge.
     t.parse::<f64>().unwrap_or(f64::NAN)
 }
 
@@ -1719,6 +1729,8 @@ pub fn parse_f64(s: &UStr) -> f64 {
     if !valid_decimal_token(t2.as_bytes()) {
         return f64::NAN;
     }
+    // parse_f64 keeps the protocol f64 width even under the f32 lane;
+    // parse_f32 is the separate TiqianFloat-width edge.
     t2.parse::<f64>().unwrap_or(f64::NAN)
 }
 

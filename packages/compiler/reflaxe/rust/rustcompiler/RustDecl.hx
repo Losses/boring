@@ -97,7 +97,10 @@ class RustDecl {
     function constValFloatInit(init:TypedExpr, fieldType:Type):String {
         final text = expr.rawExpression(init);
         if (expr.isIntType(expr.emittedType(init)) && expr.isFloatType(fieldType))
-            return expr.intToFloatText(text);
+            // The Float field is the crate alias slot; rename the
+            // generation-time cast so the --features f32 build matches.
+            // (FloatSlotAliasCast)
+            return expr.floatSlotAliasCast(expr.intToFloatText(text));
         return text;
     }
 
@@ -2845,6 +2848,7 @@ class RustDecl {
                             final wrappedInit = StringTools.startsWith(fieldType, "Option<")
                                 && init != "None" && !StringTools.startsWith(sharedInit, "Some(")
                                 && !StringTools.startsWith(sharedInit, "match ") ? "Some(" + sharedInit + ")" : sharedInit;
+                            Context.warning("DECLSOME [" + sharedInit + "]", Context.currentPos());
                             lines.push('            $sname: $wrappedInit,');
                         }
                     case _:

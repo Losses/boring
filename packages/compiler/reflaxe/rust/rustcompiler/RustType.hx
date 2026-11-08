@@ -121,7 +121,7 @@ class RustType {
                     case "Int": RuntimeResidents.isResident(imports.selfModule) ? "i32" : "u32";
                     // The module precision switch selects the Float
                     // width for the whole compilation (feature spec 23).
-                    case "Float": FloatPrecision.isF32() ? "f32" : "f64";
+                    case "Float": "crate::TiqianFloat";
                     case "Bool": "bool";
                     case "Void": "()";
                     case "Null": "Option<" + of(params[0]) + ">";
@@ -779,10 +779,10 @@ class RustType {
         // the same bucket while Eq still treats NaN as unequal), and any other
         // value keeps its IEEE bits (Infinity included). f32 uses the u32 token
         // and never widens to f64 first.
-        final bitsType = FloatPrecision.isF32() ? "u32" : "u64";
-        final nanToken = FloatPrecision.isF32() ? "0x7fc00000" : "0x7ff8000000000000";
+        final bitsType = "crate::TiqianBits";
+        final nanToken = "crate::TIQIAN_NAN_BITS";
         final cmp = isRef ? "*" + access + " == 0.0" : access + " == 0.0";
-        return "(if " + cmp + " { 0" + bitsType + " } else if " + access + ".is_nan() { " + nanToken + bitsType + " } else { " + access + ".to_bits() })";
+        return "(if " + cmp + " { crate::TIQIAN_ZERO_BITS } else if " + access + ".is_nan() { crate::TIQIAN_NAN_BITS } else { " + access + ".to_bits() })";
     }
 
     /** Whether any non-static field is a direct Float. (DataClassFloatHash) */

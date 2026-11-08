@@ -490,6 +490,20 @@ class Compiler extends PluginCompiler<Compiler> {
 
         // Generate root lib.rs
         final libLines = [];
+        libLines.push('#[cfg(feature = "f32")]');
+        libLines.push("pub type TiqianFloat = f32;");
+        libLines.push('#[cfg(not(feature = "f32"))]');
+        libLines.push("pub type TiqianFloat = f64;");
+        libLines.push('#[cfg(feature = "f32")]');
+        libLines.push("pub type TiqianBits = u32;");
+        libLines.push('#[cfg(not(feature = "f32"))]');
+        libLines.push("pub type TiqianBits = u64;");
+        libLines.push('#[cfg(feature = "f32")]');
+        libLines.push("pub const TIQIAN_NAN_BITS: u32 = 0x7fc00000;");
+        libLines.push('#[cfg(not(feature = "f32"))]');
+        libLines.push("pub const TIQIAN_NAN_BITS: u64 = 0x7ff8000000000000;");
+        libLines.push("pub const TIQIAN_ZERO_BITS: TiqianBits = 0;");
+        libLines.push("");
         final rootPackages:Array<String> = packageChildren.get("") == null ? [] : packageChildren.get("").copy();
         rootPackages.sort(Reflect.compare);
         // Root-level modules (a module with no Haxe package) are module leaves
@@ -589,6 +603,10 @@ class Compiler extends PluginCompiler<Compiler> {
         lines.push("");
         lines.push("[lib]");
         lines.push('path = "lib.rs"');
+        lines.push("");
+        lines.push("[features]");
+        lines.push("default = []");
+        lines.push("f32 = []");
         final test = PackageShell.rustTest();
         if (test != null) {
             lines.push("");

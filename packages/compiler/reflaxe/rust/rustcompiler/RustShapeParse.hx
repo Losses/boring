@@ -109,7 +109,7 @@ class RustShapeParse {
             if (changed)
                 continue;
             // A numeric cast preserves the operand's shape.
-            for (castSuffix in [" as f64", " as f32", " as u32", " as i32", " as u64", " as i64", " as usize"]) {
+            for (castSuffix in [" as crate::TiqianFloat", " as f64", " as f32", " as u32", " as i32", " as u64", " as i64", " as usize"]) {
                 if (StringTools.endsWith(s, castSuffix)) {
                     s = StringTools.trim(s.substr(0, s.length - castSuffix.length));
                     changed = true;

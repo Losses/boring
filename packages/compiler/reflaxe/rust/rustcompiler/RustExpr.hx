@@ -513,10 +513,18 @@ class RustExpr {
                 default:
             }
         var rendered = switch (value) {
-            case CInt(v): isFloatType(targetType) ? intToFloatText(Std.string(v)) : Std.string(v);
+            // An Int literal filling an Option<Float> slot cannot use the global
+            // int-to-float text: that helper also serves ternary arms and NaN
+            // branches whose other side fixes the type, so changing it there
+            // broke the f64 build. Here the slot type is known, so cast to the
+            // crate alias directly.
+            case CInt(v):
+                isFloatType(targetType)
+                    ? (asOption ? "(" + v + ") as crate::TiqianFloat" : floatSlotAliasCast(intToFloatText(Std.string(v))))
+                    : Std.string(v);
             case CFloat(s):
                 final padded = s.indexOf(".") >= 0 || s.indexOf("e") >= 0 || s.indexOf("E") >= 0 ? s : s + ".0";
-                FloatPrecision.isF32() ? padded + "f32" : padded;
+                if (asOption) "(" + padded + ") as crate::TiqianFloat" else padded;
             case CString(s):
                 imports.requireType("runtime.UString", "UString");
                 final lit = "UString::from(" + quoteString(s) + ")";
@@ -532,8 +540,8 @@ class RustExpr {
             case CEmptyMap:
                 imports.require("std::collections::HashMap");
                 "HashMap::new()";
-            case CPositiveInfinity: FloatPrecision.isF32() ? "f32::INFINITY" : "f64::INFINITY";
-            case CNegativeInfinity: FloatPrecision.isF32() ? "f32::NEG_INFINITY" : "f64::NEG_INFINITY";
+            case CPositiveInfinity: "crate::TiqianFloat::INFINITY";
+            case CNegativeInfinity: "crate::TiqianFloat::NEG_INFINITY";
             case CEnum(enumRef, enumField):
                 final en = enumRef.get();
                 requireEnum(en.module, en.name);
@@ -665,10 +673,21 @@ class RustExpr {
         // at the boundary so the Option owns its text.
         if (isStringType(inner) && reusableReadText(rendered) && !StringTools.endsWith(rendered, ".to_ustring()"))
             return "Some(" + rendered + ".to_ustring())";
+        // An Int literal filling a Float slot arrives as `0 as f64` from the
+        // global int-to-float text. Inside an Option the slot type is known, so
+        // the cast names the crate alias instead of the generation-time
+        // precision; the global helper stays untouched because it also serves
+        // ternary arms and NaN branches whose other side fixes the type.
+        if (isFloatType(inner) && !isNullType(inner)) {
+            final intCast = ~/^\(?(-?[0-9]+)\)? as (f32|f64)$/;
+            if (intCast.match(rendered))
+                rendered = "(" + intCast.matched(1) + ") as crate::TiqianFloat";
+        }
         if (!isTypeCopy(inner) && !isStringType(inner) && reusableReadText(rendered)
             && !StringTools.endsWith(rendered, ".clone()")
             && !StringTools.endsWith(rendered, ".to_vec()"))
             return "Some(" + ownedNullableReadText(rendered) + ")";
+        Context.warning("SOMETXT [" + rendered + "]", Context.currentPos());
         return "Some(" + rendered + ")";
     }
 
@@ -697,6 +716,7 @@ class RustExpr {
             for (o in omitted)
                 rendered.push(coalescingDefaultText(o.value, o.type, isNullType(o.type), nestedArg, inClosure));
         }
+        emissionTrace("CALLARGS " + modulePath + "." + fieldName, rendered.join(", "), null);
         return rendered;
     }
 
@@ -1564,7 +1584,7 @@ class RustExpr {
                 // A binary64 accumulator local widens its declaration: the
                 // storage type names f64 and a float-literal initializer
                 // rebinds at the wider width. (FloatAccumulatorBinary64)
-                if (FloatPrecision.isF32() && f64AccumLocals.exists(v.id) && isFloatType(v.t) && !isNullType(v.t)) {
+                if (f64AccumLocals.exists(v.id) && isFloatType(v.t) && !isNullType(v.t)) {
                     var accInit = expr(init);
                     if (StringTools.endsWith(accInit, "f32"))
                         accInit = accInit.substr(0, accInit.length - 3) + "f64";
@@ -2378,6 +2398,28 @@ class RustExpr {
                 #if rust_emit_origins
                 emissionTrace("RETURN", retStr, e.pos);
                 #end
+                // A Float return slot names the crate alias: a generation-time
+                // precision cast suffix renames to the alias at the statement
+                // terminal, after every shape predicate has run.
+                // (FloatSlotAliasCast)
+                if (currentReturnType != null && isFloatType(currentReturnType) && !isNullType(currentReturnType)) {
+                    retStr = floatSlotAliasCast(retStr);
+                    // A Float local bound from an f64-width runtime helper (a
+                    // parse_f64 result) renders as a bare name; the return
+                    // statement is the emission terminal, so it casts once
+                    // into the slot alias. An alias-typed value casts to
+                    // itself, so both lanes keep their values.
+                    // (FloatSlotAliasCast)
+                    if (!StringTools.endsWith(retStr, " as crate::TiqianFloat")
+                        && !StringTools.endsWith(retStr, " as f64")
+                        && !StringTools.endsWith(retStr, " as f32")) {
+                        final composite = StringTools.startsWith(retStr, "{")
+                            || StringTools.endsWith(retStr, "}");
+                        retStr = composite
+                            ? "(" + retStr + ") as crate::TiqianFloat"
+                            : retStr + " as crate::TiqianFloat";
+                    }
+                }
                 return [indent(depth) + "return " + retStr + ";"];
             case TThrow(x):
                 if (isFallible) {
@@ -5402,7 +5444,10 @@ class RustExpr {
         final getText = expr(ifTrue);
         final fallback = isFloatType(emittedType(ifTrue)) && isIntType(emittedType(ifFalse))
             // The fallback Int may carry a wrapped u32 value; widen signed. (SignedIntFloatWiden)
-            ? intToFloatSignedText(expr(ifFalse), ifFalse)
+            // The fallback literal is a ternary arm terminal: it names the
+            // float slot alias so both arms unify under either feature lane.
+            // (FloatSlotAliasCast)
+            ? floatSlotAliasCast(intToFloatSignedText(expr(ifFalse), ifFalse))
             : expr(ifFalse);
         // The fallback must be a concrete non-null value so both arms of the
         // unwrapped ternary share the inner value type. A null literal keeps
@@ -5565,6 +5610,11 @@ class RustExpr {
         if (StringTools.startsWith(noneText, "({") && StringTools.endsWith(noneText, "})")
             && matchingParens(noneText))
             noneText = noneText.substr(1, noneText.length - 2);
+        // The float slot is the crate alias: a literal-cast arm suffix produced
+        // for generation-time precision renames to the alias after every shape
+        // predicate has already run on the raw text. (FloatSlotAliasCast)
+        narrowedText = floatSlotAliasCast(narrowedText);
+        noneText = floatSlotAliasCast(noneText);
         final matchText = info.noneWhenTrue ? "match &("
             + subjectText
             + ") { None => "
@@ -5738,10 +5788,10 @@ class RustExpr {
                             if (abs > 3.4028234663852886e38)
                                 return v < 0 ? "-f32::INFINITY" : "f32::INFINITY";
                             if (v != 0 && abs < 1.401298464324817e-45)
-                                return "0.0f32";
-                            return padded + "f32";
+                                return "0.0";
+                            return padded;
                         }
-                        return padded + "f64";
+                        return padded;
                     case TString(s):
                         imports.requireType("runtime.UString", "UString");
                         return "UString::from(" + quoteString(s) + ")";
@@ -5798,8 +5848,8 @@ class RustExpr {
                 // A binary64 accumulator narrows once per value read; the
                 // assignment target path above bypasses this so writes reach
                 // the wide storage. (FloatAccumulatorBinary64)
-                if (FloatPrecision.isF32() && f64AccumLocals.exists(v.id))
-                    return "(" + RustImports.toSnakeCase(localName(v)) + " as f32)";
+                if (f64AccumLocals.exists(v.id))
+                    return "(" + RustImports.toSnakeCase(localName(v)) + " as crate::TiqianFloat)";
                 return RustImports.toSnakeCase(localName(v));
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
@@ -6004,7 +6054,7 @@ class RustExpr {
                             || thenText == "0.0" || thenText == "(0.0f64)"
                             || thenText == "(0 as f64)" || thenText == "0 as f64");
                         if (zeroLike && (elseText == subjectText || StringTools.startsWith(elseText, subjectText)))
-                            return "(" + subjectText + ").unwrap_or(" + thenText + ")";
+                            return "(" + subjectText + ").unwrap_or(" + floatSlotAliasCast(thenText) + ")";
                     }
                 }
                 // The typed-AST form of the same fold: the Haxe condition is
@@ -6045,9 +6095,9 @@ class RustExpr {
                     final zeroText:Null<String> = switch (zeroArm.expr) {
                         case TConst(TInt(v)) if (v == 0):
                             innerType != null && isFloatType(innerType)
-                                ? (FloatPrecision.isF32() ? "0.0f32" : "0.0f64") : "0";
+                                ? "0 as crate::TiqianFloat" : "0";
                         case TConst(TFloat(v)) if (v == "0" || v == "0.0"):
-                            FloatPrecision.isF32() ? "0.0f32" : "0.0f64";
+                            "0.0 as crate::TiqianFloat";
                         case _:
                             null;
                     };
@@ -6820,7 +6870,7 @@ class RustExpr {
         if (StringTools.startsWith(text, "Some(") && StringTools.endsWith(text, ")")) {
             final payload = text.substr(5, text.length - 6);
             if (isIntType(inner) && (target == "f32" || target == "f64"))
-                return "Some(" + intToFloatSignedText(payload) + ")";
+                return "Some(" + floatSlotAliasCast(intToFloatSignedText(payload)) + ")";
             return text;
         }
         // An Int arm widened to Float takes its sign from the i32 bits: the
@@ -6829,7 +6879,12 @@ class RustExpr {
         // literal keeps the plain cast inside the helper.
         // (SignedIntToFloatBranch)
         if (isIntType(inner) && (target == "f32" || target == "f64"))
-            return intToFloatSignedText(text);
+            // The arm terminal renames its cast to the slot alias so both
+            // ternary arms unify under either feature lane; the numeric
+            // float-shape predicate recognizes the alias text, so the
+            // enclosing boundary keeps its plain-cast route.
+            // (FloatSlotAliasCast)
+            return floatSlotAliasCast(intToFloatSignedText(text));
         // A signed i32 arm entering the business u32 conditional slot
         // reinterprets its bits so both Rust arms carry one type. The
         // rendered-text check catches an i32-returning call (unit_count,
@@ -7043,6 +7098,12 @@ class RustExpr {
                 if (isStringType(sw.t) && !isNullType(sw.t) && StringTools.endsWith(armText, ".to_string()")) {
                     armText = ustringFromStdText(armText);
                 }
+                // A Float match unifies its arms on the crate alias: a
+                // generation-time precision cast suffix renames to the alias
+                // at the arm terminal, after shape predicates ran.
+                // (FloatSlotAliasCast)
+                if (sw.t != null && isFloatType(sw.t) && !isNullType(sw.t))
+                    armText = floatSlotAliasCast(armText);
                 final suffix = i == arm.length - 1 ? "," : "";
                 out.push("    " + pattern + " => " + armText + suffix);
             }
@@ -7615,9 +7676,9 @@ class RustExpr {
                 var collapsedLeft = expr(l);
                 var collapsedRight = expr(r);
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
-                    collapsedLeft = intToFloatSignedText(collapsedLeft, l);
+                    collapsedLeft = floatSlotAliasCast(intToFloatSignedText(collapsedLeft, l));
                 else if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
-                    collapsedRight = intToFloatSignedText(collapsedRight, r);
+                    collapsedRight = floatSlotAliasCast(intToFloatSignedText(collapsedRight, r));
                 return collapsedLeft + " " + symbolOf(op) + " " + collapsedRight;
             case OpEq | OpNotEq if (nullableEnumComparedWithEnum(l.t, r.t) || nullableEnumComparedWithEnum(r.t, l.t)):
                 // A narrowed operand renders the dereferenced match binding
@@ -8059,7 +8120,7 @@ class RustExpr {
                 // A binary64 accumulator widens each added operand; the
                 // storage does the accumulation the JVM performs in double.
                 // (FloatAccumulatorBinary64)
-                if (FloatPrecision.isF32() && (switch (stripWrap(l).expr) {
+                if ((switch (stripWrap(l).expr) {
                     case TLocal(v): f64AccumLocals.exists(v.id);
                     case _: false;
                 }))
@@ -8248,9 +8309,9 @@ class RustExpr {
                 // Rust does not implicitly widen integer literals or Haxe
                 // Int expressions when the other comparison operand is Float.
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
-                    leftText = intToFloatSignedText(leftText, l);
+                    leftText = floatSlotAliasCast(intToFloatSignedText(leftText, l));
                 if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
-                    rightText = intToFloatSignedText(rightText, r);
+                    rightText = floatSlotAliasCast(intToFloatSignedText(rightText, r));
                 // An ordered comparison keeps both sides in one Rust integer
                 // type. When one operand renders in the signed i32 domain and
                 // the other in the business u32 domain, reinterpret the u32
@@ -8315,9 +8376,9 @@ class RustExpr {
                 // Haxe unifies Int and Float; widen Int comparison operands to
                 // Float when the other side is Float.
                 if (isIntType(emittedType(l)) && isFloatType(emittedType(r)))
-                    left = intToFloatSignedText(left, l);
+                    left = floatSlotAliasCast(intToFloatSignedText(left, l));
                 if (isIntType(emittedType(r)) && isFloatType(emittedType(l)))
-                    right = intToFloatSignedText(right, r);
+                    right = floatSlotAliasCast(intToFloatSignedText(right, r));
                 // An i32-domain operand compared with a business u32 operand
                 // reinterprets its bits so both sides share the u32 domain.
                 if (isIntType(emittedType(l)) && isIntType(emittedType(r)) && !isFloatType(e.t)) {
@@ -10563,7 +10624,7 @@ class RustExpr {
             case "Math":
                 // The f32 configuration renders the whole Math family from f32, the
                 // binary32 equivalent of every static (feature spec 23).
-                final real = FloatPrecision.isF32() ? "f32" : "f64";
+                final real = "crate::TiqianFloat";
                 if (name == "NaN")
                     return real + "::NAN";
                 if (name == "POSITIVE_INFINITY")
@@ -10902,7 +10963,7 @@ class RustExpr {
             case IsFloat:
                 if (!inConcat)
                     state.shimsUsed.set("haxe.io.FPHelper", true);
-                inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + (FloatPrecision.isF32() ? "_f32" : "") + "(" + value + ")";
+                inConcat ? value : "crate::runtime::fp_helper::FPHelper::format_float" + "(" + value + ")";
             case IsBool:
                 inConcat ? value : ustringFromStdText("(" + value + ").to_string()");
             case IsInt:
@@ -12364,6 +12425,11 @@ class RustExpr {
                     final fpArgs = if (name == "i32ToFloat" && args.length == 1 && isIntType(args[0].t)) {
                         final argStr = expr(args[0]);
                         rendersSignedIntArg(args[0], argStr) ? argStr : RustConversions.reinterpret(argStr, "i32");
+                    } else if (name == "floatToI32" && args.length == 1 && isFloatType(emittedType(args[0]))) {
+                        // The FPHelper shim keeps the protocol f64 width; a
+                        // TiqianFloat argument (f32 under the precision
+                        // switch) widens explicitly at the boundary.
+                        "(" + expr(args[0]) + ") as f64";
                     } else {
                         renderCallArgs(cf.get().type, args, null, 0, mutableParamPositions(cf.get()));
                     };
@@ -12382,7 +12448,11 @@ class RustExpr {
                     // single evaluation of both arguments. The bind names
                     // are fresh so an argument that references a local
                     // named `a`/`b` is not shadowed by the block bindings.
-                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    // The slot float is the crate alias: a generation-time
+                    // f64 run must still emit precision-agnostic text, or the
+                    // --features f32 build sees a hardcoded as-f64/f64::NAN
+                    // against f32 bindings (E0308). (NaNMinTextAlias)
+                    final real = "crate::TiqianFloat";
                     final aName = freshRegionName("__min_a");
                     final bName = freshRegionName("__min_b");
                     final a = mathFloatBindingArg(args[0]);
@@ -12398,7 +12468,7 @@ class RustExpr {
                 if (cls.module == "Math" && name == "pow" && args.length == 2) {
                     // Rust names the power function powf; the f32
                     // configuration reads it from f32 (feature spec 23).
-                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    final real = "crate::TiqianFloat";
                     return real + "::powf(" + mathFloatBindingArg(args[0]) + ", " + mathFloatBindingArg(args[1]) + ")";
                 }
                 if (cls.module == "Math" && name == "sqrt")
@@ -12407,7 +12477,7 @@ class RustExpr {
                     // Haxe types floor, ceil, and round as Int; the Rust
                     // methods return the real type, so the call site
                     // truncates through the same conversion Std.int uses.
-                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    final real = "crate::TiqianFloat";
                     final rounded = real + "::" + name + "(" + mathFloatBindingArg(args[0]) + ")";
                     // Haxe Int is signed, so the business u32 domain keeps
                     // the signed floor and reinterprets its bits; the
@@ -13403,9 +13473,13 @@ class RustExpr {
             haxe.macro.TypedExprTools.iter(node, collect);
         }
         collect(root);
-        for (id in compoundTargets.keys())
-            if (!plainAssignTargets.exists(id))
-                f64AccumLocals.set(id, true);
+        // The binary64 accumulator widening is f64-lane-only: under the f32
+        // build the local must accumulate in binary32 storage, matching the
+        // Kotlin Float and the JS Math.fround reference. (FloatAccumulatorBinary64)
+        if (!FloatPrecision.isF32())
+            for (id in compoundTargets.keys())
+                if (!plainAssignTargets.exists(id))
+                    f64AccumLocals.set(id, true);
     }
 
     function scanUnusedLocals(root:TypedExpr):Void {
@@ -14487,7 +14561,7 @@ class RustExpr {
                         case _ if (isStringType(getNullInnerType(pt)) && isStringType(arg.t)):
                             nullableStringArgText(argStr);
                         case _ if (isFloatType(getNullInnerType(pt)) && isIntType(emittedType(arg))):
-                            intToFloatSignedText(argStr);
+                            floatSlotAliasCast(intToFloatSignedText(argStr));
                         case TLocal(v) if (borrowedLoopVarIds.exists(v.id) && isTypeCopy(getNullInnerType(pt))):
                             "*" + argStr;
                         case _ if (isOwnedVecType(getNullInnerType(pt))):
@@ -14637,7 +14711,7 @@ class RustExpr {
 
     function numericAssignmentValue(expected:Type, actual:TypedExpr, rendered:String, targetOverride:Null<String> = null, signedBoundary:Bool = false):String {
         if (isFloatType(expected) && isIntType(emittedType(actual)))
-            return intToFloatSignedText(rendered, actual);
+            return floatSlotAliasCast(intToFloatSignedText(rendered, actual));
         // A nullable target holds an Option; the rendered value is already
         // in the Option domain (a null literal renders None, a nullable
         // expression keeps its Option shape), so no null-to-zero bridge or
@@ -16521,6 +16595,20 @@ class RustExpr {
         return composite ? "(" + text + ")" + postfix : text + postfix;
     }
 
+    /** The float slot type is the crate alias, so a literal-cast suffix
+        produced for generation-time precision renames to the alias; the
+        --features f32 build aliases TiqianFloat to f32 and a hardcoded
+        as-f64 cast breaks E0308. Only the final cast renames; an inner
+        cast still compiles as a float-to-float narrowing.
+        (FloatSlotAliasCast) */
+    public function floatSlotAliasCast(text:String):String {
+        if (StringTools.endsWith(text, " as f64"))
+            return text.substr(0, text.length - 7) + " as crate::TiqianFloat";
+        if (StringTools.endsWith(text, " as f32"))
+            return text.substr(0, text.length - 7) + " as crate::TiqianFloat";
+        return text;
+    }
+
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String):String {
         if (expected == null || actual == null)
             return rendered;
@@ -16573,8 +16661,18 @@ class RustExpr {
         // so a wrapped negative reads as its signed Float; a genuine Float
         // expression (an Int/Int division Haxe types as Float) is already
         // widened and keeps the plain cast.
-        if (isFloatType(expected) && isIntType(emittedType(actual)))
-            return intToFloatSignedText(rendered, actual);
+        if (isFloatType(expected) && isIntType(emittedType(actual))) {
+            // A rendered text that already names the slot alias (a ternary
+            // arm terminal cast through FloatSlotAliasCast) re-casts here:
+            // intToFloatText would wrap the whole text in a precision
+            // `as f64` cast, which breaks the --features f32 build with a
+            // hardcoded-width leak once the declaration strips the outer
+            // parentheses. Naming the boundary cast with the alias keeps
+            // both lanes at slot width. (FloatSlotAliasCast)
+            if (rendered.indexOf(" as crate::TiqianFloat") >= 0)
+                return "(" + rendered + ") as crate::TiqianFloat";
+            return floatSlotAliasCast(intToFloatSignedText(rendered, actual));
+        }
         // Methods returning an owned class value cannot leak the borrowed
         // `self` receiver into the return slot.
         if ((RustDecl.isPlainClassHandle(expected) || (isNullType(expected) && RustDecl.isPlainClassHandle(getNullInnerType(expected)))) && switch (stripWrap(actual).expr) {
@@ -16620,7 +16718,7 @@ class RustExpr {
             // The Int actual may be the wrapped u32 decimal of a negative
             // Haxe Int, so the sign comes from the i32 bits.
             // (SignedIntToFloatNullableArg)
-            return "Some(" + intToFloatSignedText(rendered) + ")";
+            return "Some(" + floatSlotAliasCast(intToFloatSignedText(rendered)) + ")";
         if (isNullType(expected) && isNullType(actual.t) && isStringType(getNullInnerType(expected))) {
             final borrowedParam = switch (stripWrap(actual).expr) {
                 case TLocal(v): isBorrowedParamLocal(v);
@@ -18342,6 +18440,11 @@ class RustExpr {
         not 4294967289.0. A bare literal or an already-Float expression
         (a widened division, a Float cast) keeps the plain cast. */
     public function intToFloatSignedText(text:String, e:Null<TypedExpr> = null):String {
+        // An alias-cast boundary (FloatSlotAliasCast) already names the slot
+        // float; re-casting it would route through the u32 reinterpret
+        // fallback below because the text no longer carries `as f64`.
+        if (StringTools.endsWith(text, " as crate::TiqianFloat"))
+            return text;
         if (~/^-?[0-9]+$/.match(text) || ~/^\(-?[0-9]+\)$/.match(text))
             return intToFloatText(text);
         // A u32-domain expression reinterprets to i32 so a wrapped
@@ -18353,6 +18456,7 @@ class RustExpr {
         // keeps the plain cast.
         if (text.indexOf(".parse::<f64>") >= 0 || text.indexOf(".parse::<f32>") >= 0
             || text.indexOf(" as f64") >= 0 || text.indexOf(" as f32") >= 0
+            || text.indexOf(" as crate::TiqianFloat") >= 0
             || StringTools.startsWith(text, "f64::") || StringTools.startsWith(text, "f32::")
             || ~/^-?[0-9]+\.[0-9]+/.match(text) || text.indexOf(".0f64") >= 0 || text.indexOf(".0f32") >= 0)
             return intToFloatText(text);

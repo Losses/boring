@@ -120,7 +120,7 @@ class RustConversions {
         integer is always parseable.
     **/
     public static function intToFloat(x:String, real:String):String {
-        return "format!(\"{}\", (" + x + ")).parse::<" + real + ">().unwrap_or(0.0)";
+        return "format!(\"{}\", (" + x + ")).parse::<crate::TiqianFloat>().unwrap_or(0.0)";
     }
 
     /**
