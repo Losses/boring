@@ -1829,6 +1829,16 @@ class RustDecl {
             return [];
         }
         final init = StaticFieldHelper.validatedInitializer(field, cls);
+        if (init == null) {
+            // A static var spelled without an initializer reaches here as a
+            // null validated initializer; passing it to the expression
+            // renderer dereferences null inside expr(). Report a compile
+            // error instead: the sanctioned static-initializer language
+            // requires an explicit initializer spelling.
+            Context.error("static var " + cls.name + "." + field.name
+                + " has no initializer; declare it with an explicit initializer (for example = null or = [])", field.pos);
+            return [];
+        }
         // Static initializer default completion: the per-function default
         // completion never visits static initializers, so every construction
         // nested anywhere in the initializer (a direct construction, an array
