@@ -32,6 +32,13 @@ class DartType {
         return switch (t) {
             case TAbstract(a, params):
                 final abs = a.get();
+                // Null<T> must unwrap before any other shape check: the
+                // path-spelled "Null" case misses the StdTypes module path
+                // and falls through to the underlying enum/enum-like type,
+                // dropping the "?" from a declared local annotation.
+                if (abs.name == "Null" && params.length == 1) {
+                    return wrapOptional(of(params[0]));
+                }
                 if (ValueTypeSupport.isMarkedAbstract(abs)) {
                     final prefix = imports.type(abs.module, abs.name);
                     prefix.length > 0 ? prefix + "." + abs.name : abs.name;

@@ -1210,6 +1210,21 @@ class KotlinDecl {
             };
             if (nullInitialized)
                 KotlinExpr.registerNullInitializedField(cls.module + ":" + field.name);
+            // A declaration-only static (no initializer; assigned before use)
+            // renders as lateinit var (mutable, non-null) or a nullable val
+            // fallback; Kotlin has no bare declaration form.
+            if (init == null) {
+                final vis0 = field.isPublic ? "" : (field.meta.has(":allow") ? "" : "private ");
+                final type0 = types.of(field.type);
+                // A mutable non-null reference uses lateinit var so the
+                // function bodies read the field without safe-call noise;
+                // everything else falls back to a nullable val.
+                if (!field.isFinal && !StringTools.endsWith(type0, "?")) {
+                    return ['    ${vis0}lateinit var ${KotlinNameEscape.escape(field.name)}: $type0'];
+                }
+                final nullableType0 = StringTools.endsWith(type0, "?") ? type0 : type0 + "?";
+                return ['    ${vis0}val ${KotlinNameEscape.escape(field.name)}: $nullableType0 = null'];
+            }
             final rawInit = StaticFieldHelper.isNonEmptyArrayLiteral(init)
                 && StaticFieldHelper.isReadOnlyArrayType(field.type) ? expr.rawArrayExpression(init, "listOf") : expr.rawExpression(init);
             final kw = field.isFinal && StaticFieldHelper.isConstValue(field) ? "const val" : (field.isFinal ? "val" : "var");

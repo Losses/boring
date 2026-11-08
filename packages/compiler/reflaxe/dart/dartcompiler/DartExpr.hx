@@ -870,8 +870,18 @@ class DartExpr {
                     // yields a non-null value; narrow the local so Dart
                     // accepts it where a String is demanded.
                     final localType = if (coalescing != null && coalescingValue == null && !isNullLeafType(coalescing.defaultExpr.t))
-                        DefaultArgExpander.withoutNull(v.t) else (coalescingValue != null ? DefaultArgExpander.coalescingLocalType(coalescingValue,
-                            v.t) : v.t);
+                        DefaultArgExpander.withoutNull(v.t)
+                    else if (coalescingValue != null)
+                        DefaultArgExpander.coalescingLocalType(coalescingValue, v.t)
+                    else if (!mutated.exists(v.id) && !isNullLeafType(init.t))
+                        // Haxe already narrowed the initializer (a null-guard
+                        // ternary types as the non-null element), but Dart does
+                        // not promote a final local declared with an explicit
+                        // nullable annotation, so a later use fails E_nullable.
+                        // Declare the non-null element instead. (FinalLocalPromotion)
+                        DefaultArgExpander.withoutNull(v.t)
+                    else
+                        v.t;
                     if (coalescing != null && !isNullLeafType(localType))
                         nonNullLocals.set(v.id, true);
                     var initText = switch (init.expr) {

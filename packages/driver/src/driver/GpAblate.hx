@@ -9,12 +9,13 @@ import driver.Host.HostResult;
     added and must fail (rc!=0). The two rc values must differ, and when
     --expect names a fragment the ablated arm's output must contain it. **/
 class GpAblate {
-    static var project:Project;
-
     public static function run(p:Project, args:Array<String>):Int {
-        project = p;
-        var fixture:String = null;
-        var define:String = null;
+        final project = p;
+        // The empty string is the "absent" sentinel: keeping the local
+        // non-null avoids the nullable-local lowering the transpiled
+        // targets render inconsistently.
+        var fixture:String = "";
+        var define:Null<String> = null;
         var compile:String = "";
         var expect:String = "";
 
@@ -27,10 +28,10 @@ class GpAblate {
             else if (a == "--compile") { if (i + 1 >= args.length) fail("--compile needs a value"); compile = args[i + 1]; i += 2; }
             else if (StringTools.startsWith(a, "--expect=")) { expect = a.substr("--expect=".length); i++; }
             else if (a == "--expect") { if (i + 1 >= args.length) fail("--expect needs a value"); expect = args[i + 1]; i += 2; }
-            else { if (fixture != null) fail("too many positional args; gp-ablate takes <fixture.hxml> [--define <switch>] [--compile <shell>] [--expect <fragment>]"); fixture = a; i++; }
+            else { if (fixture != "") fail("too many positional args; gp-ablate takes <fixture.hxml> [--define <switch>] [--compile <shell>] [--expect <fragment>]"); fixture = a; i++; }
         }
 
-        if (fixture == null) fail("gp-ablate needs a fixture hxml path");
+        if (fixture == "") fail("gp-ablate needs a fixture hxml path");
         if (define == null) fail("gp-ablate needs --define <target>_coerce_ablate=<Role>");
 
         final fixtureAbs = Host.resolve(project.root, fixture);
@@ -39,18 +40,21 @@ class GpAblate {
         final armA = buildArm(fixture, null, compile);
         final armB = buildArm(fixture, define, compile);
 
-        Host.outputLine("GP-ABLATE  fixture=" + fixture + "  define=" + define);
+        // Null<String> must compare against null before the concat: Dart
+        // string concat demands a non-null String and Std.string rejects
+        // a Null operand outright.
+        Host.outputLine("GP-ABLATE  fixture=" + fixture + "  define=" + (define == null ? "null" : define));
         Host.outputLine("           compile=[" + compile + "]");
         Host.outputLine("  arm A (normal):  " + armA);
         Host.outputLine("  arm B (ablated): " + armB);
 
-        final ra = runShell(armA);
-        final rb = runShell(armB);
+        final ra = runShell(project, armA);
+        final rb = runShell(project, armB);
 
         final fragmentOk = expect == "" || rb.output.indexOf(expect) >= 0;
         final pass = ra.code == 0 && rb.code != 0 && fragmentOk;
 
-        writeStatus(fixture, define, armA, armB, ra, rb, expect, pass);
+        writeStatus(project, fixture, define, armA, armB, ra, rb, expect, pass);
 
         Host.outputLine("  arm A rc=" + Std.string(ra.code) + "  arm B rc=" + Std.string(rb.code));
         if (pass) {
@@ -72,7 +76,7 @@ class GpAblate {
         Host.exit(1);
     }
 
-    static function buildArm(fixture:String, define:String, compile:String):String {
+    static function buildArm(fixture:String, define:Null<String>, compile:String):String {
         final hx = define == null
             ? "haxe \"" + fixture + "\""
             : "haxe \"" + fixture + "\" -D " + define;
@@ -80,11 +84,11 @@ class GpAblate {
         return hx + " && " + compile;
     }
 
-    static function runShell(command:String):HostResult {
+    static function runShell(project:Project, command:String):HostResult {
         return Host.run("bash", ["-c", command], project.root, []);
     }
 
-    static function writeStatus(fixture:String, define:String, armA:String, armB:String,
+    static function writeStatus(project:Project, fixture:String, define:Null<String>, armA:String, armB:String,
             ra:HostResult, rb:HostResult, expect:String, pass:Bool):Void {
         final cacheRoot = Host.resolve(project.root, "out/.gp-cache");
         Host.makeDirs(cacheRoot);

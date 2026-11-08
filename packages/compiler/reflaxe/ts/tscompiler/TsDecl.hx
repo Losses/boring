@@ -675,6 +675,12 @@ class TsDecl {
             final vis = field.isPublic ? "public"
                 : (field.meta.has(":allow") || Compiler.hasCrossClassPrivateAccess(cls.module, cls.name, field.name)) ? "" : "private";
             final ro = field.isFinal ? "readonly " : "";
+            // A declaration-only static (no initializer; the class assigns
+            // it before use, e.g. a scratch root) renders bare instead of
+            // dereferencing a null initializer expression.
+            if (init == null) {
+                return ['  $vis static ${ro}${field.name}: ${types.of(field.type)};'];
+            }
             return [
                 '  $vis static ${ro}${field.name}: ${types.of(field.type)} = ${expr.rawExpression(init)};'
             ];

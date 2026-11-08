@@ -5,17 +5,14 @@ package driver;
     Three phases, each parallelised by one bash invocation with &+wait so
     Haxe targets compile concurrently and never block the runner. **/
 class GpDiff {
-    static var project:Project;
-    static var tempRoot:String;
-
     public static function run(p:Project, targetIds:Array<String>, baseRev:String):Int {
-        project = p;
+        final project = p;
         final bundles = selectBundles(p, targetIds);
 
         final sha = resolveBase(project.root, baseRev);
         final cacheRoot = Host.resolve(project.root, "out/.gp-cache");
         final shaDir = Host.join(cacheRoot, sha);
-        tempRoot = Host.join(cacheRoot, ".tmp");
+        final tempRoot = Host.join(cacheRoot, ".tmp");
         Host.makeDirs(tempRoot);
 
         Host.outputLine("GP-DIFF  base=" + baseRev + "  sha=" + sha);
@@ -27,16 +24,19 @@ class GpDiff {
 
         if (missing.length > 0) {
             Host.outputLine("  baseline: cache miss [" + missing.map(b -> b.id).join(", ") + "]");
-            populateBaselines(sha, shaDir, missing);
+            populateBaselines(project, sha, shaDir, missing);
             Host.outputLine("  baseline: done");
         } else {
             Host.outputLine("  baseline: all cached, skip regeneration");
         }
 
-        regenerateCurrent(bundles);
+        regenerateCurrent(project, tempRoot, bundles);
 
-        final diffs = diffAll(shaDir, bundles);
-        writeStatus(cacheRoot, sha, shaDir, bundles, diffs, missing.map(b -> b.id));
+        final diffs = diffAll(project, tempRoot, shaDir, bundles);
+        // The pipeline expander expands map calls in direct statement
+        // positions only: hoist the id projection before the call.
+        final missingIds = missing.map(b -> b.id);
+        writeStatus(project, tempRoot, cacheRoot, sha, shaDir, bundles, diffs, missingIds);
 
         var failures = 0;
         for (d in diffs) if (d.code != 0) failures++;
@@ -53,11 +53,20 @@ class GpDiff {
 
     static function selectBundles(p:Project, ids:Array<String>):Array<BundleSpec> {
         final out:Array<BundleSpec> = [];
+        // V08: the known-bundle list is projected outside the loop with a
+        // plain loop, so the bodies carry no function value (the map
+        // pipeline expansion breaks the Kotlin leg here).
+        final knownIdsBuf = new StringBuf();
+        for (b in p.bundles) {
+            if (knownIdsBuf.length > 0) knownIdsBuf.add(", ");
+            knownIdsBuf.add(b.id);
+        }
+        final knownIds = knownIdsBuf.toString();
         for (id in ids) {
-            var found:BundleSpec = null;
+            var found:Null<BundleSpec> = null;
             for (b in p.bundles) if (b.id == id) { found = b; break; }
             if (found == null)
-                fail("unknown bundle \"" + id + "\"; known: " + p.bundles.map(b -> b.id).join(", "));
+                fail("unknown bundle \"" + id + "\"; known: " + knownIds);
             out.push(found);
         }
         return out;
@@ -75,7 +84,11 @@ class GpDiff {
 
     // ---- 1. baseline --------------------------------------------------------
 
-    static var baselineScript = 'set -u
+    // A function literal keeps the multiline shell script out of the
+    // static-initializer forms the transpiled targets admit (null,
+    // literal, empty array only) while holding one shared constant.
+    static function baselineScript():String {
+        return 'set -u
 ROOT="$1" SHA="$2" CACHEDIR="$3"
 shift 3
 SRC="$$CACHEDIR/.tmp/gp-base-src"
@@ -102,9 +115,10 @@ for T in "$$@"; do
   fi
 done
 ';
+    }
 
-    static function populateBaselines(sha:String, shaDir:String, bundles:Array<BundleSpec>):Void {
-        final args:Array<String> = ["-c", baselineScript, "gp-diff-baseline",
+    static function populateBaselines(project:Project, sha:String, shaDir:String, bundles:Array<BundleSpec>):Void {
+        final args:Array<String> = ["-c", baselineScript(), "gp-diff-baseline",
             project.root, sha, shaDir];
         for (b in bundles) args.push(b.id);
 
@@ -114,7 +128,8 @@ done
             for (b in bundles) {
                 final rcFile = Host.join(Host.join(shaDir, ".tmp"), "gp-base-" + b.id + ".rc");
                 if (!Host.exists(rcFile)) { failed.push(b.id + ": no rc file"); continue; }
-                final rc = StringTools.trim(Host.readText(rcFile));
+                final raw = Host.readText(rcFile);
+                final rc = StringTools.trim(raw);
                 if (rc != "0") failed.push(b.id + ": rc=" + rc);
             }
             if (failed.length > 0)
@@ -131,7 +146,8 @@ done
 
     // ---- 2. regenerate current ----------------------------------------------
 
-    static var currentScript = 'set -u
+    static function currentScript():String {
+        return 'set -u
 ROOT="$$1"
 shift
 for T in "$$@"; do
@@ -140,10 +156,11 @@ done
 wait
 exit 0
 ';
+    }
 
-    static function regenerateCurrent(bundles:Array<BundleSpec>):Void {
+    static function regenerateCurrent(project:Project, tempRoot:String, bundles:Array<BundleSpec>):Void {
         Host.outputLine("  current: regenerating...");
-        final args:Array<String> = ["-c", currentScript, "gp-diff-current", project.root];
+        final args:Array<String> = ["-c", currentScript(), "gp-diff-current", project.root];
         for (b in bundles) args.push(b.id);
 
         final r = Host.run("bash", args, project.root, []);
@@ -152,7 +169,8 @@ exit 0
             for (b in bundles) {
                 final rcFile = Host.join(tempRoot, "gp-curr-" + b.id + ".rc");
                 if (!Host.exists(rcFile)) continue;
-                final rc = StringTools.trim(Host.readText(rcFile));
+                final raw = Host.readText(rcFile);
+                final rc = StringTools.trim(raw);
                 if (rc != "0") failed.push(b.id + ": rc=" + rc);
             }
             if (failed.length > 0)
@@ -164,7 +182,8 @@ exit 0
 
     // ---- 3. diff ------------------------------------------------------------
 
-    static var diffScript = 'set -u
+    static function diffScript():String {
+        return 'set -u
 CACHEDIR="$$1" ROOT="$$2"
 shift 2
 for T in "$$@"; do
@@ -185,10 +204,11 @@ done
 wait
 exit 0
 ';
+    }
 
-    static function diffAll(shaDir:String, bundles:Array<BundleSpec>):Array<DiffResult> {
+    static function diffAll(project:Project, tempRoot:String, shaDir:String, bundles:Array<BundleSpec>):Array<DiffResult> {
         Host.outputLine("  diff: comparing...");
-        final args:Array<String> = ["-c", diffScript, "gp-diff-diff", shaDir, project.root];
+        final args:Array<String> = ["-c", diffScript(), "gp-diff-diff", shaDir, project.root];
         for (b in bundles) args.push(b.id);
 
         Host.run("bash", args, project.root, []);
@@ -197,7 +217,11 @@ exit 0
         for (b in bundles) {
             final rcFile = Host.join(tempRoot, "gp-diff-" + b.id + ".rc");
             final txtFile = Host.join(tempRoot, "gp-diff-" + b.id + ".txt");
-            final rc = Host.exists(rcFile) ? Std.parseInt(StringTools.trim(Host.readText(rcFile))) : -1;
+            // Plain arithmetic parse: Std.parseInt reads Null<Int> and the
+            // transpiled legs render the null guard with mismatched Int
+            // domains, so the rc file parses through a digit loop that
+            // stays in the plain Int domain on every target.
+            final rc = readRc(rcFile);
             final text = Host.exists(txtFile) ? Host.readText(txtFile) : "";
             out.push({id: b.id, code: rc, diff: text});
         }
@@ -206,7 +230,7 @@ exit 0
 
     // ---- 4. status ----------------------------------------------------------
 
-    static function writeStatus(cacheRoot:String, sha:String, shaDir:String, bundles:Array<BundleSpec>, diffs:Array<DiffResult>, generatedIds:Array<String>):Void {
+    static function writeStatus(project:Project, tempRoot:String, cacheRoot:String, sha:String, shaDir:String, bundles:Array<BundleSpec>, diffs:Array<DiffResult>, generatedIds:Array<String>):Void {
         final statusPath = Host.join(cacheRoot, "status.tsv");
         var buf = new StringBuf();
         buf.add("stage\tstatus\ttarget\texit\tdetail\n");
@@ -214,7 +238,11 @@ exit 0
         for (b in bundles) {
             if (generatedIds.indexOf(b.id) < 0) {
                 final marker = Host.join(Host.join(shaDir, b.id), ".gp-cached");
-                final cachedAt = Host.exists(marker) ? StringTools.trim(Host.readText(marker)) : "?";
+                var cachedAt = "?";
+                if (Host.exists(marker)) {
+                    final rawMarker = Host.readText(marker);
+                    cachedAt = StringTools.trim(rawMarker);
+                }
                 buf.add("gp-diff:" + b.id + ":baseline\tcached\t" + b.id + "\t0\tcachedAt=" + cachedAt + " haxe=0 sha=" + sha + "\n");
             } else {
                 final times = readTimes(Host.join(Host.join(shaDir, ".tmp"), "gp-base-" + b.id + ".times"));
@@ -247,9 +275,31 @@ exit 0
         Host.writeText(summaryPath, sum.toString());
     }
 
+    /** Reads one decimal rc file; a missing or malformed file reads -1. */
+    static function readRc(path:String):Int {
+        if (!Host.exists(path)) return -1;
+        final raw = Host.readText(path);
+        final text = StringTools.trim(raw);
+        if (text.length == 0) return -1;
+        var negative = false;
+        var start = 0;
+        if (text.charCodeAt(0) == 45) {
+            negative = true;
+            start = 1;
+        }
+        var value = 0;
+        for (i in start...text.length) {
+            final c = text.charCodeAt(i);
+            if (c < 48 || c > 57) return -1;
+            value = value * 10 + (c - 48);
+        }
+        return negative ? -value : value;
+    }
+
     static function readTimes(path:String):String {
         if (!Host.exists(path)) return "start=? end=?";
-        final parts = StringTools.trim(Host.readText(path)).split(" ");
+        final rawTimes = Host.readText(path);
+        final parts = StringTools.trim(rawTimes).split(" ");
         if (parts.length < 3) return "start=? end=?";
         return "start=" + parts[0] + " end=" + parts[1] + " durMs=" + parts[2];
     }

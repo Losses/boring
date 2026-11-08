@@ -18516,7 +18516,12 @@ class RustExpr {
         // A genuine Float expression (a widened division, a Float cast, a
         // Float function call, a Float literal) is already widened and
         // keeps the plain cast.
+        // The Int operand widening renders through the precision alias
+        // (RustConversions.intToFloat), so a widened division text names
+        // .parse::<crate::TiqianFloat>; recognize it beside the concrete
+        // f64/f32 spellings or the alias form reinterprets as Int bits.
         if (text.indexOf(".parse::<f64>") >= 0 || text.indexOf(".parse::<f32>") >= 0
+            || text.indexOf(".parse::<crate::TiqianFloat>") >= 0
             || text.indexOf(" as f64") >= 0 || text.indexOf(" as f32") >= 0
             || text.indexOf(" as crate::TiqianFloat") >= 0
             || StringTools.startsWith(text, "f64::") || StringTools.startsWith(text, "f32::")
