@@ -46,7 +46,7 @@ class Compare {
         The mechanism-coverage declaration of the project the results
         directory belongs to, or an empty string when no project up the chain
         declares one. The nearest ancestor holding
-        tools/test-consistency/mechanism-coverage.json names the
+        packages/test/assertions/consistency/mechanism-coverage.json names the
         project, and the file found is the file the check reads. A
         consumer project's results directory sits outside every boring
         checkout, so the walk finds nothing and the check is skipped
@@ -57,7 +57,7 @@ class Compare {
         // Resolve to an absolute path so the walk starts at the results
         // directory itself whatever the invocation named.
         var dir = Path.normalize(Path.join(Process.cwd(), resultsDir));
-        final marker = "tools/test-consistency/mechanism-coverage.json";
+        final marker = "packages/test/assertions/consistency/mechanism-coverage.json";
         while (true) {
             final candidate = Path.join(dir, marker);
             if (exists(candidate)) {
@@ -81,7 +81,7 @@ class Compare {
         The declared-extra allowlist of the project the results directory
         belongs to, or an empty string when no project up the chain declares
         one. The nearest ancestor holding
-        tools/test-consistency/extra-id-allowlist.json names the project.
+        packages/test/assertions/consistency/extra-id-allowlist.json names the project.
         An entry declares a test id that a target legitimately carries
         while the baseline does not -- for example the f32-only oracle
         tests collected from samples/tests/f32 under the precision switch
@@ -91,7 +91,7 @@ class Compare {
     **/
     static function findExtraAllowlist(resultsDir:String):String {
         var dir = Path.normalize(Path.join(Process.cwd(), resultsDir));
-        final marker = "tools/test-consistency/extra-id-allowlist.json";
+        final marker = "packages/test/assertions/consistency/extra-id-allowlist.json";
         while (true) {
             final candidate = Path.join(dir, marker);
             if (exists(candidate)) {

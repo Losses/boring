@@ -129,7 +129,7 @@ class CompareCore {
                         // legitimately exists outside the baseline (an entry
                         // without a reason is rejected at load), so it is
                         // reported as declared instead of counted as a
-                        // divergence. Ported from tools/test-consistency
+                        // divergence. Ported from packages/test/assertions/consistency
                         // (feature spec 44 f32 extras).
                         final extra = findExtra(extras, id);
                         if (extra != null) {
