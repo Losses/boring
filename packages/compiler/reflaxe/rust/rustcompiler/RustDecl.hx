@@ -1839,6 +1839,17 @@ class RustDecl {
                 + " has no initializer; declare it with an explicit initializer (for example = null or = [])", field.pos);
             return [];
         }
+            // A nullable container static has no Rust representation: the
+            // container lowers to a Mutex-wrapped static whose value slot
+            // cannot carry the None that a bare null initializer renders
+            // (spec: static initializers outside the repr domain). Report a
+            // compile error on the same route as the missing-initializer
+            // case above instead of emitting mismatched code.
+            if (StaticFieldHelper.isNullInitializer(init) && StaticFieldHelper.isContainerSourceType(field.type)) {
+                Context.error("static var " + cls.name + "." + field.name
+                    + " is a container static initialized with null; the null-container static spelling has no Rust representation. Initialize it with an array literal (for example = [])", field.pos);
+                return [];
+            }
         // Static initializer default completion: the per-function default
         // completion never visits static initializers, so every construction
         // nested anywhere in the initializer (a direct construction, an array

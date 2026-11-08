@@ -250,6 +250,26 @@ class StaticFieldHelper {
         };
     }
 
+    /**
+        Whether the written type names any built-in container face, whatever
+        the outer Null wrapper spelling. The Rust target lowers container
+        statics to Mutex-wrapped containers, which cannot carry a null
+        initializer, so the null-container static spelling must be rejected
+        before any declaration is rendered. Source identity comes from
+        `SourceContainerAnalysis`; this adapter adds no recognition of its
+        own.
+    **/
+    public static function isContainerSourceType(t:Null<Type>):Bool {
+        final facts = SourceContainerAnalysis.analyze(t);
+        return switch (facts.face) {
+            case MutableArray(_): true;
+            case ReadOnlyArrayFace(_): true;
+            case SortedMapFace(_, _): true;
+            case SortedSetFace(_): true;
+            case _: false;
+        };
+    }
+
     /** Whether an initializer is a bare null literal. */
     public static function isNullInitializer(e:Null<TypedExpr>):Bool {
         return e != null && switch (stripDecorations(e).expr) {
