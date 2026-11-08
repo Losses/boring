@@ -16427,6 +16427,10 @@ class RustExpr {
             }
         };
         final plan = SemanticPolicy.decide(input);
+        // Cache is keyed by role only, so on a hit receiverAbi/paramAbi are
+        // first-caller-wins and may not match this site's contract/useMode.
+        // Callers may read plan.role only; the ABI read rule is documented on
+        // RepresentationPlan.receiverAbi (SemanticPolicy.hx).
         final cached = state.representationPlans.get(plan.planKey);
         if (cached != null)
             return cached;

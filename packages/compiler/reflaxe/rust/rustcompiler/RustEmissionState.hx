@@ -77,7 +77,11 @@ class RustEmissionState {
 
     /**
         Representation plans already decided for this compilation, keyed by
-        planKey. Lives here rather than in a class-level static so it follows
+        planKey (role only). Because the key carries no ABI, a cached plan's
+        receiverAbi/paramAbi are whichever use site decided it first:
+        first-caller-wins. Renderer sites must read plan.role only; the ABI
+        read rule is documented on RepresentationPlan.receiverAbi.
+        Lives here rather than in a class-level static so it follows
         the compiler instance lifetime: a second compilation must not read a
         plan decided by the first one. (RPlan v1, P-22)
     **/

@@ -426,6 +426,17 @@ typedef RepresentationPlan = {
     var sendSync:Bool;
     /** concrete spelling, filled by the target profile (RustAbiProfile.spell), NOT by decide(). */
     var concreteRepr:String;
+    /**
+        Per-use-site ABI (P-4/P-8), decided by decide() from the calling site's
+        destinationContract/useMode. CONSTRAINT (plan-cache read rule, P-24): the
+        plan cache (RustEmissionState.representationPlans) is keyed by role only,
+        first-caller-wins — on a cached plan these two fields hold whichever use
+        site computed the plan FIRST, not this site's ABI. Only the Receiver
+        position may read receiverAbi off a plan, and no renderer site may read
+        paramAbi off a plan at all; reading either at any other site is a
+        use-case error. Sites needing the per-use-site ABI must derive it
+        locally via receiverAbiFor()/paramAbiFor().
+    **/
     var receiverAbi:ReceiverAbi;
     var paramAbi:ParamMode;
     var conversionEdges:Array<ConversionEdge>;
@@ -824,7 +835,10 @@ class SemanticPolicy {
         target spelling or module/cfg. A plan is the per-source-type decision;
         the ABI is a per-use-site attribute, so it stays out of the key (P-24:
         the same source type resolves to the same decision across every use
-        site, lib/test/test-support, receiver or local).
+        site, lib/test/test-support, receiver or local). Consequence: on a
+        cached plan the per-use-site receiverAbi/paramAbi are
+        first-caller-wins; the read rule on RepresentationPlan.receiverAbi
+        governs who may read them.
     **/
     public static function planKeyFor(role:RepresentationRole):String {
         return "plan:" + roleToString(role);
