@@ -2600,7 +2600,7 @@ class RustExpr {
                 // A plain-class handle behind the nullable wrapper opens its
                 // Rc borrow mutably before the field mutation. (ClassParamHandle)
                 final inner = isNullType(base.t) ? getNullInnerType(base.t) : base.t;
-                final rcBorrowMut = RustDecl.isPlainClassHandle(inner) ? ".borrow_mut()" : "";
+                final rcBorrowMut = requirePlan(inner, "nullableBufFieldMutBorrow").role == RepresentationRole.ClassHandle ? ".borrow_mut()" : "";
                 "(" + expr(base) + ").as_mut().unwrap()" + rcBorrowMut + "." + RustImports.toSnakeCase(cf.get().name);
             case _: expr(subj);
         }
@@ -5182,7 +5182,7 @@ class RustExpr {
                     // opens its Rc borrow before the field read.
                     // (ClassParamHandle)
                     final inner = isNullType(receiver.t) ? getNullInnerType(receiver.t) : receiver.t;
-                    final rcAccessor = RustDecl.isPlainClassHandle(inner) ? ".borrow()" : "";
+                    final rcAccessor = requirePlan(inner, "narrowedReceiverBorrow").role == RepresentationRole.ClassHandle ? ".borrow()" : "";
                     base + rcAccessor + "." + RustImports.toSnakeCase(cf.get().name);
                 }
             case _:
@@ -12269,7 +12269,7 @@ class RustExpr {
                 final throughGuardClone = receiverSharedLocal && RustDecl.methodConsumesSelf(cf.get());
                 // Concrete-class instance call: associated function with an
                 // explicit handle receiver (explicit-handle ABI, P-4 v1.2).
-                if (RustDecl.isPlainClassHandleOrNull(subj.t) && !throughGuardClone) {
+                if (requirePlan(subj.t, "callPlainClassMethod", true).role == RepresentationRole.ClassHandle && !throughGuardClone) {
                     final clsName = c.get().name;
                     // Cross-module associated-function call needs the declaring
                     // class in scope (same-module is a no-op in requireType).
@@ -13001,7 +13001,7 @@ class RustExpr {
                     // A plain-class handle opens its Rc borrow before the
                     // field capture so the capture reads the shared object.
                     // (ClassParamHandle)
-                    final rcBorrowCap = RustDecl.isPlainClassHandle(subj.t) ? ".borrow()" : "";
+                    final rcBorrowCap = requirePlan(subj.t, "closureFieldCapture").role == RepresentationRole.ClassHandle ? ".borrow()" : "";
                     final prelude = StringTools.startsWith(fieldTypeText, "Arc<")
                         ? "let " + capName + " = Rc::clone(&" + ws.text + rcBorrowCap + "." + fieldSnake + ");"
                         : "let " + capName + " = (" + ws.text + rcBorrowCap + "." + fieldSnake + ").clone();";
@@ -16389,8 +16389,13 @@ class RustExpr {
 
         The cache lives on the emission state, not on this class: a static map
         would outlive one compilation and let the next one read a plan decided
-        by the previous one. **/
-    function requirePlan(t:Null<Type>, site:String, orNull:Bool = false):RepresentationPlan {
+        by the previous one.
+
+        contract and useMode default to the receiver-shared-ref axis the first
+        three wired sites consumed, so existing call sites keep their decided
+        plan byte-for-byte; newer sites pass their own axis and still share the
+        decide call and the planKey cache. **/
+    function requirePlan(t:Null<Type>, site:String, orNull:Bool = false, contract:DestinationContract = DestinationContract.Receiver, useMode:UseMode = UseMode.SharedRef):RepresentationPlan {
         final isHandle = orNull ? RustDecl.isPlainClassHandleOrNull(t) : RustDecl.isPlainClassHandle(t);
         final isIface = !isHandle && isInterfaceType(t) && !isSharedIfaceType(t);
         final sourceType:ReprType = (isHandle || isIface)
@@ -16408,8 +16413,8 @@ class RustExpr {
         final input:DecideInput = {
             sourceType: sourceType,
             sourceIdentity: ExprIdentity.LocalHandle,
-            destinationContract: DestinationContract.Receiver,
-            useMode: UseMode.SharedRef,
+            destinationContract: contract,
+            useMode: useMode,
             moduleContext: null,
             facts: facts,
             capabilities: {
