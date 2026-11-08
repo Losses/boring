@@ -20,7 +20,7 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdtempSync, readFileSync, readlinkSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -134,7 +134,14 @@ for (const [path, oid] of [...expected.entries()].sort((a, b) => a[0].localeComp
   }
   let actual: string;
   try {
-    actual = execFileSync("git", ["hash-object", "--", file], { maxBuffer: 1 << 24 }).toString().trim();
+    // git archive exports symlinks as links; a plain read would follow the
+    // link and hash the pointed-to file instead of the link-target text the
+    // tree records. Hash the target bytes directly for that mode.
+    if (lstatSync(file).isSymbolicLink()) {
+      actual = execFileSync("git", ["hash-object", "--stdin"], { input: readlinkSync(file), maxBuffer: 1 << 24 }).toString().trim();
+    } else {
+      actual = execFileSync("git", ["hash-object", "--", file], { maxBuffer: 1 << 24 }).toString().trim();
+    }
   } catch (error) {
     mismatches.push({ path, reason: `hash-object failed: ${error}` });
     continue;

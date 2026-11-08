@@ -7,6 +7,7 @@
 -cp tests/haxe
 -cp packages/test/build-stubs
 -cp packages/registry/src
+-cp packages/driver/src
 --macro haxe.macro.Compiler.addGlobalMetadata('boring', '@:build(std.RecordMember.build())')
 --macro TestCollector.generate('reference/haxe-f32/gen-tests', ['samples/tests/f32', 'samples/boring'], 'TestMainF32')
 -main GenerateMain

@@ -334,6 +334,11 @@ class $mainName {
         js.Syntax.code("globalThis.std.UStringPlatform = {0};", UStringPlatform);
         js.Syntax.code("globalThis.std.Graphemes = {0};", Graphemes);
         js.Syntax.code("globalThis.std.TestPlatform = {0};", TestPlatform);
+        // stdlib/19: the mutable hash map is a target-native extern with no
+        // runtime resident, so the stage-one JS host binds the structural-key
+        // oracle beside the other std faces (the plain Haxe JS backend emits
+        // new std.HashMap() as an unbound native reference).
+        js.Syntax.code("globalThis.std = globalThis.std || {}; globalThis.std.HashMap = {0};", HashMapOracle);
         js.Syntax.code("globalThis.__runtime_sorted_table = {0};", SortedTable);
         js.Syntax.code("globalThis.std = globalThis.std || {};", null);
         // stdlib/17 platform modules on the stage-one JS host: node backs
@@ -617,6 +622,103 @@ class StringBufOracle {
             throw new UStringException(UnpairedSurrogate(tail));
         }
         return content;
+    }
+}
+
+@:expose("HashMapOracle")
+class HashMapOracle<K, V> {
+    // stdlib/19 oracle face for the JS host: entries live in parallel
+    // arrays and keys compare structurally, matching the std.HashMap
+    // dictKey contract (dataClass and struct keys compare by content,
+    // not by reference).
+    var keys:Array<Dynamic>;
+    var values:Array<Dynamic>;
+
+    public function new() {
+        this.keys = [];
+        this.values = [];
+    }
+
+    function slot(key:K):Int {
+        for (i in 0...keys.length) {
+            if (keyEquals(keys[i], key)) return i;
+        }
+        return -1;
+    }
+
+    public function get(key:K):Null<V> {
+        final i = slot(key);
+        return i < 0 ? null : values[i];
+    }
+
+    public function exists(key:K):Bool {
+        return slot(key) >= 0;
+    }
+
+    public function set(key:K, value:V):Void {
+        final i = slot(key);
+        if (i >= 0) {
+            values[i] = value;
+        } else {
+            keys.push(key);
+            values.push(value);
+        }
+    }
+
+    public function remove(key:K):Bool {
+        final i = slot(key);
+        if (i < 0) return false;
+        keys.splice(i, 1);
+        values.splice(i, 1);
+        return true;
+    }
+
+    public function clear():Void {
+        keys.resize(0);
+        values.resize(0);
+    }
+
+    public function toString():String {
+        // stdlib/19: Std.string emits the deterministic "{}" placeholder.
+        return "{}";
+    }
+
+    static function keyEquals(a:Dynamic, b:Dynamic):Bool {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        if (Std.isOfType(a, Array) && Std.isOfType(b, Array)) {
+            final aa:Array<Dynamic> = a;
+            final bb:Array<Dynamic> = b;
+            if (aa.length != bb.length) return false;
+            for (i in 0...aa.length) {
+                if (!keyEquals(aa[i], bb[i])) return false;
+            }
+            return true;
+        }
+        // JS string primitives expose index properties to Reflect.fields
+        // (a one-char key would recurse on itself), so primitives that
+        // missed the == fast path compare as unequal here.
+        if (Std.isOfType(a, String) || Std.isOfType(b, String)) return false;
+        final ta = Type.typeof(a);
+        // ValueType enum instances are fresh objects per Type.typeof call,
+        // so identity comparison would always fail here.
+        if (!Type.enumEq(ta, Type.typeof(b))) return false;
+        return switch (ta) {
+            case TObject | TClass(_) | TEnum(_):
+                // haxe enum values compare by constructor identity first.
+                if ((a.__enum__ != null || b.__enum__ != null)
+                    && (a.__enum__ != b.__enum__ || a._hx_index != b._hx_index)) {
+                    return false;
+                }
+                final fa = Reflect.fields(a);
+                if (fa.length != Reflect.fields(b).length) return false;
+                for (f in fa) {
+                    if (!keyEquals(Reflect.field(a, f), Reflect.field(b, f))) return false;
+                }
+                return true;
+            case _:
+                false;
+        }
     }
 }
 
