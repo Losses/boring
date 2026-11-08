@@ -7585,8 +7585,8 @@ class RustExpr {
                         // inside Option without requiring PartialEq on them.
                         parts.push(nullableInterfaceFieldEqText(l, r, isSharedIfaceType(f.type)));
                     } else if (isInterfaceType(f.type)) {
-                        final lq = isSharedIfaceType(f.type) ? l + ".borrow()" : l + ".borrow()";
-                        final rq = isSharedIfaceType(f.type) ? r + ".borrow()" : r + ".borrow()";
+                        final lq = l + ".borrow()";
+                        final rq = r + ".borrow()";
                         parts.push(lq + ".__haxe_type_name() == " + rq + ".__haxe_type_name()");
                     } else if (structFieldEq(f.type) != null) {
                         parts.push(structEqText(f.type, l, r));
@@ -7746,8 +7746,8 @@ class RustExpr {
                 final right = expr(r);
                 // A shared interface handle opens its Mutex before the
                 // type-name read. (ClassHandleShare)
-                final lockL = isSharedIfaceType(l.t) ? left + ".borrow()" : left + ".borrow()";
-                final lockR = isSharedIfaceType(r.t) ? right + ".borrow()" : right + ".borrow()";
+                final lockL = left + ".borrow()";
+                final lockR = right + ".borrow()";
                 final eq = lockL + ".__haxe_type_name() == " + lockR + ".__haxe_type_name()";
                 return op == OpEq ? eq : "!(" + eq + ")";
             // A shared-handle operand (a concrete implementor held as the
@@ -10870,7 +10870,7 @@ class RustExpr {
         }
         // A shared interface handle opens its Mutex before the name read.
         // (ClassHandleShare)
-        final subjectRead = isSharedIfaceType(args[0].t) ? subject + ".borrow()" : subject + ".borrow()";
+        final subjectRead = subject + ".borrow()";
         return subjectRead + ".__haxe_type_name() == " + nameTest;
     }
 
