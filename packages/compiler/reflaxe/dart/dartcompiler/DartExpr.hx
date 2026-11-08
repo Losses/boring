@@ -106,6 +106,10 @@ class DartExpr {
     // the analyzer flags them. Function-scoped; cleared at each body.
     // (FlowPromotedDedup)
     final flowPromotedNonNull:Map<Int, Bool> = [];
+    /** Conditional-branch render depth: GuardReturnPromotion's post-if
+        escape is sound only at statement level, never inside a branch whose
+        merge the null path can still reach. (BranchPromotionScope) */
+    var branchRenderDepth:Int = 0;
     var probeTextEmitted:Bool = false;
 
     /** Optional parameters materialized by default expansion. */
@@ -873,7 +877,9 @@ class DartExpr {
                         DefaultArgExpander.withoutNull(v.t)
                     else if (coalescingValue != null)
                         DefaultArgExpander.coalescingLocalType(coalescingValue, v.t)
-                    else if (!mutated.exists(v.id) && !isNullLeafType(init.t))
+                    else if (!mutated.exists(v.id) && (!isNullLeafType(init.t)
+                        || guardedTernaryNonNullInit(init))
+                        && EnumQueryExpander.markerKind(init) != QLookup)
                         // Haxe already narrowed the initializer (a null-guard
                         // ternary types as the non-null element), but Dart does
                         // not promote a final local declared with an explicit
@@ -929,7 +935,8 @@ class DartExpr {
                 // /tmp/warnstd/promo/t5.dart P2/P7/P8, t9.dart P9 (not-null
                 // guard with a terminating else arm).
                 if (guarded != null && f == null && !isNotNullGuard(c)
-                    && !mutated.exists(guarded.id) && branchTerminates(t))
+                    && !mutated.exists(guarded.id) && branchTerminates(t)
+                    && branchRenderDepth == 0)
                     flowPromotedNonNull.set(guarded.id, true);
                 // A null-defaulting branch promotes its local after the
                 // branch only when the then arm exits: on a fall-through
@@ -944,7 +951,8 @@ class DartExpr {
                 // to consult `mutated` here (GuardThenReassign). Probe:
                 // tests/haxe/dc-null-guard-fallthrough p8/p10.
                 if (guarded != null && f == null && !isNotNullGuard(c)
-                    && !mutated.exists(guarded.id) && branchTerminates(t))
+                    && !mutated.exists(guarded.id) && branchTerminates(t)
+                    && branchRenderDepth == 0)
                     nonNullLocals.set(guarded.id, true);
                 return lines;
             case TWhile(c, b, true):
@@ -953,8 +961,10 @@ class DartExpr {
                 // (PromotionMergeReset)
                 final savedLoopPromoted = flowPromotedNonNull.copy();
                 final out = [indent(depth) + "while (" + conditionText(c) + ") {"];
+                branchRenderDepth++;
                 for (l in blockLines(statementsOf(b), depth + 1))
                     out.push(l);
+                branchRenderDepth--;
                 flowPromotedNonNull.clear();
                 for (k in savedLoopPromoted.keys())
                     flowPromotedNonNull.set(k, savedLoopPromoted.get(k));
@@ -1068,8 +1078,10 @@ class DartExpr {
         // dart read it as redundant. (ConditionRenderPromotionSurvives)
         final out = [indent(depth) + "if (" + conditionText(c) + ") {"];
         final savedPromoted = flowPromotedNonNull.copy();
+        branchRenderDepth++;
         for (l in blockLines(statementsOf(t), depth + 1))
             out.push(l);
+        branchRenderDepth--;
         if (f != null) {
             flowPromotedNonNull.clear();
             for (k in savedPromoted.keys())
@@ -1088,8 +1100,10 @@ class DartExpr {
                 }
             }
             out.push(indent(depth) + "} else {");
+            branchRenderDepth++;
             for (l in blockLines(elseStmts, depth + 1))
                 out.push(l);
+            branchRenderDepth--;
         }
         // The promotion a branch recorded dies at the merge point: dart
         // restarts from the pre-if state after the statement.
@@ -2345,6 +2359,28 @@ class DartExpr {
 
     /** Whether an emitted expression can still contain a nullable value even
         when Haxe has unified its enclosing expression with a required type. */
+    /**
+        A null-guard ternary whose proven arm unwraps (`x == null ? d : x`)
+        and whose other arm is already non-null renders a value Dart can
+        never see as null, even though Haxe types the whole ternary as the
+        nullable element. A final local it initializes may declare the
+        non-null element. (GuardTernaryNonNullInit)
+    **/
+    function guardedTernaryNonNullInit(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TIf(c, t, f) if (f != null):
+                final guarded = nullGuardExpr(c);
+                if (guarded == null)
+                    false;
+                else {
+                    final provenArm = isNotNullGuard(c) ? t : f;
+                    final otherArm = isNotNullGuard(c) ? f : t;
+                    structurallySame(provenArm, guarded) && !nullableValue(otherArm);
+                }
+            case _: false;
+        };
+    }
+
     function nullableValue(e:TypedExpr):Bool {
         if (isNullLeafType(e.t) || optionalValued(e))
             return true;
