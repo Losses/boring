@@ -1,7 +1,8 @@
-//! Live reproduction of the EscapingTraitImplFailClosed dead path:
-//! direct calls on the concrete handle keep working, while a call
-//! dispatched through the @:sharedHandle slot reaches the struct trait
-//! impl whose body is the fail-closed panic.
+//! Trait-object parity for the EscapingTraitIdentityOps fixture: a call
+//! dispatched through the @:sharedHandle slot reaches the gated
+//! implementor's C__HandleAdapter, which delegates on the stored handle —
+//! so the trait-object path reads exactly what the concrete-handle path
+//! reads. (TraitIdentityAdapter)
 
 use boring_codec_gen::boring::EscapingTraitIdentityOps;
 
@@ -21,19 +22,16 @@ fn path_c_concrete_handle_stays_correct() {
 }
 
 #[test]
-#[should_panic(expected = "requires handle identity")]
-fn path_a_trait_object_reaches_fail_closed_panic() {
-    let _ = EscapingTraitIdentityOps::escaping_trait_identity_ops_through_sink_a();
+fn path_a_trait_object_matches_concrete() {
+    assert_eq!("a:a:host", EscapingTraitIdentityOps::escaping_trait_identity_ops_through_sink_a().to_string());
 }
 
 #[test]
-#[should_panic(expected = "requires handle identity")]
-fn path_b_trait_object_reaches_fail_closed_panic() {
-    let _ = EscapingTraitIdentityOps::escaping_trait_identity_ops_through_sink_b();
+fn path_b_trait_object_matches_concrete() {
+    assert_eq!("host", EscapingTraitIdentityOps::escaping_trait_identity_ops_through_sink_b().to_string());
 }
 
 #[test]
-#[should_panic(expected = "requires handle identity")]
-fn path_c_trait_object_reaches_fail_closed_panic() {
-    let _ = EscapingTraitIdentityOps::escaping_trait_identity_ops_through_sink_c();
+fn path_c_trait_object_matches_concrete() {
+    assert_eq!("c-c:host|c-a:host", EscapingTraitIdentityOps::escaping_trait_identity_ops_through_sink_c().to_string());
 }

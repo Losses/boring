@@ -16851,8 +16851,26 @@ class RustExpr {
             // A registered shared interface builds a shared handle instead
             // of an owning box, so the engine and the caller observe one
             // object. (ClassHandleShare)
-            if (isSharedIfaceType(expected))
-                return sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(expected, false));
+            if (isSharedIfaceType(expected)) {
+                final payload = sharedSlotPayload(actual, normalizeConstructorResult(actual, rendered), types.of(expected, false));
+                // A gated implementor enters the slot through its adapter: the
+                // slot borrows the adapter's RefCell while the concrete body
+                // borrows the class's own. (TraitIdentityAdapter)
+                final slotCls = switch (actual.t != null ? Context.follow(actual.t) : null) {
+                    case TInst(c, _): c.get();
+                    case _: null;
+                };
+                if (slotCls != null && RustDecl.isTraitAdapterClass(slotCls)) {
+                    imports.requireType(slotCls.module, slotCls.name + "__HandleAdapter");
+                    imports.require("std::rc::Rc");
+                    imports.require("std::cell::RefCell");
+                    // The adapter stores the concrete handle, not the unsized
+                    // slot value, so it takes the pre-unsize payload.
+                    final concreteHandle = normalizeConstructorResult(actual, rendered);
+                    return "Rc::new(RefCell::new(" + slotCls.name + "__HandleAdapter(" + concreteHandle + ")))";
+                }
+                return payload;
+            }
             imports.require("std::rc::Rc");
             imports.require("std::cell::RefCell");
             final boxed = boxedInterfacePayload(actual, rendered);
