@@ -2869,7 +2869,6 @@ class RustDecl {
                             final wrappedInit = StringTools.startsWith(fieldType, "Option<")
                                 && init != "None" && !StringTools.startsWith(sharedInit, "Some(")
                                 && !StringTools.startsWith(sharedInit, "match ") ? "Some(" + sharedInit + ")" : sharedInit;
-                            Context.warning("DECLSOME [" + sharedInit + "]", Context.currentPos());
                             lines.push('            $sname: $wrappedInit,');
                         }
                     case _:
