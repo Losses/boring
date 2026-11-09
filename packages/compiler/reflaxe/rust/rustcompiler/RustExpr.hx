@@ -653,11 +653,27 @@ class RustExpr {
         };
         // A concrete implementor of a shared interface defaulting into a
         // slot of its own class wraps into the shared handle, matching the
-        // declaration-site lowering of the class. (ClassHandleShare)
+        // declaration-site lowering of the class -- unless the class is a
+        // handle-ABI class (TraitIdentityAdapter): its constructor already
+        // returns the handle, so the default binds directly, and a rendered
+        // value that is not that constructor is a value copy of a gated
+        // class, which is a compile-time error, never a silent double-wrap.
+        // (ClassHandleShare)
         if (!isInterfaceType(targetType) && isSharedImplementorType(targetType)) {
-            imports.require("std::rc::Rc");
-            imports.require("std::cell::RefCell");
-            rendered = "Rc::new(RefCell::new(" + rendered + "))";
+            final clsRef = switch (Context.follow(targetType)) { case TInst(cr, _): cr.get(); case _: null; };
+            if (clsRef != null && RustDecl.usesHandleIdentity(clsRef)) {
+                // Named judgment (TraitIdentityAdapter): Rc::clone, a
+                // handle-returning constructor and an already-wrapped slot
+                // are all handles -- bind directly. Anything else is a
+                // value copy of a gated class: hard error, never a silent
+                // double-wrap.
+                if (GatedValueCopy.isValueCopy(true, rendered))
+                    Context.error("TraitIdentityAdapter: gated class value copy rendered where a shared handle is required", Context.currentPos());
+            } else {
+                imports.require("std::rc::Rc");
+                imports.require("std::cell::RefCell");
+                rendered = "Rc::new(RefCell::new(" + rendered + "))";
+            }
         }
         if (!asOption)
             return rendered;
@@ -1919,7 +1935,9 @@ class RustExpr {
                 // interface holds the shared handle itself, so the local
                 // and every interface slot it enters name one object.
                 // (ClassHandleShare)
-                if (isSharedImplementorType(v.t) && !isTNull(init)
+                final initIsHandleJoin = isNullType(init.t)
+                    && RustDecl.isPlainClassHandle(getNullInnerType(init.t));
+                if (isSharedImplementorType(v.t) && !isTNull(init) && !initIsHandleJoin
                     && !StringTools.startsWith(initStr, "Rc::new(RefCell::new(")
                     && !StringTools.startsWith(initStr, "Some(Rc::new(RefCell::new(")) {
                     imports.require("std::rc::Rc");
@@ -12252,7 +12270,7 @@ class RustExpr {
                 // as a receiver builds the shared handle inline, so the
                 // lock below reaches a real handle. (ClassHandleShare)
                 if (receiverNeedsSharedLock(subj)
-                    && switch (stripWrap(subj).expr) { case TNew(_): true; case _: false; }) {
+                    && switch (stripWrap(subj).expr) { case TNew(c, _, _): !RustDecl.usesHandleIdentity(c.get()); case _: false; }) {
                     imports.require("std::rc::Rc");
                     imports.require("std::cell::RefCell");
                     subjText = "Rc::new(RefCell::new(" + subjText + "))";
@@ -16709,6 +16727,16 @@ class RustExpr {
                     case TLocal(_): "Rc::clone(&" + rendered + ")";
                     case _: rendered;
                 };
+            // A handle-ABI implementor must never be re-wrapped into a
+            // value slot. Named judgment (TraitIdentityAdapter): a handle
+            // form binds with one explicit unsize; anything else is a value
+            // copy of a gated class -- hard error, never a silent
+            // double-wrap.
+            if (RustDecl.isPlainClassHandle(actual.t)) {
+                if (GatedValueCopy.isValueCopy(true, rendered))
+                    Context.error("TraitIdentityAdapter: gated class rendered as value where a shared handle is required", Context.currentPos());
+                return "{ let __shared_handle: " + types.of(actual.t, false) + " = " + rendered + "; __shared_handle }";
+            }
             return "Rc::new(RefCell::new(" + rendered + "))";
         }
         // A Null<Interface> read (a static or field read) entering a
@@ -18907,14 +18935,16 @@ class RustExpr {
                     };
                     imports.require("std::rc::Rc");
                     imports.require("std::cell::RefCell");
+                    // A handle-ABI implementor constructor already returns
+                    // the Rc<RefCell<Self>> handle: the slot binds it with one
+                    // explicit unsize instead of wrapping a second Rc<RefCell>
+                    // around it. (TraitIdentityAdapter)
+                    if (isConcreteConstructor(branch) && RustDecl.isPlainClassHandle(branch.t))
+                        return "Some({ let __shared_handle: Rc<RefCell<dyn " + ifaceName + ">> = "
+                            + normalizeConstructorResult(branch, coerced) + "; __shared_handle })";
                     return "Some({ let __shared_handle: Rc<RefCell<dyn " + ifaceName + ">> = Rc::new(RefCell::new("
                         + normalizeConstructorResult(branch, coerced) + ")); __shared_handle })";
                 }
-                imports.require("std::rc::Rc");
-                imports.require("std::cell::RefCell");
-                if (requirePlan(branch.t, "nullableBranchHandleBox", true, DestinationContract.Return, UseMode.Owned).role == RepresentationRole.ClassHandle)
-                    return "Some({ let __shared_handle: " + types.of(inner, false) + " = " + normalizeConstructorResult(branch, coerced) + "; __shared_handle })";
-                return "Some(Rc::new(RefCell::new(" + normalizeConstructorResult(branch, coerced) + ")) as " + types.of(inner, false) + ")";
             }
             return "Some(" + coerced + ")";
         }
@@ -18927,13 +18957,20 @@ class RustExpr {
     function coerceBranchText(branch:TypedExpr, text:String, resultType:Null<Type>, sibling:TypedExpr):String {
         // A concrete arm of a nullable interface result boxes before the
         // Some wrapper. The cast pins the arm to the trait object, so a
-        // local initialized from the conditional infers the boxed shape.
         if (resultType != null && isNullType(resultType) && isInterfaceType(getNullInnerType(resultType))
             && !isInterfaceType(branch.t)) {
             imports.require("std::rc::Rc");
             imports.require("std::cell::RefCell");
             if (requirePlan(branch.t, "branchIfaceHandleBox", true, DestinationContract.Return, UseMode.Owned).role == RepresentationRole.ClassHandle)
                 return "{ let __shared_handle: " + types.of(getNullInnerType(resultType), false) + " = " + text + "; __shared_handle }";
+            return "Rc::new(RefCell::new(" + text + ")) as " + types.of(getNullInnerType(resultType), false);
+        }
+        if (resultType != null && isNullType(resultType)) {
+            // A Null<handle-ABI class> join already holds handles in both
+            // arms; wrapping the match again would double the Rc<RefCell>.
+            // (TraitIdentityAdapter)
+            if (RustDecl.isPlainClassHandle(getNullInnerType(resultType)))
+                return text;
             return "Rc::new(RefCell::new(" + text + ")) as " + types.of(getNullInnerType(resultType), false);
         }
         if (resultType != null && isStringType(resultType)) {

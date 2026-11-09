@@ -6,8 +6,10 @@
     "reference/ts"
   ],
   "scripts": {
-    "test": "bun test tests/ packages/registry/tests/",
+    "test": "bun test tests/ packages/registry/tests/ && haxe tests/haxe/semantic-policy/contract.hxml",
     "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
+    "test:contract": "haxe tests/haxe/semantic-policy/contract.hxml && haxe -cp packages/compiler/reflaxe/rust -cp tests -x tests.haxe.rustGatedValueCopy.GatedValueCopyAssertions",
+    "test:handle-fixtures": "bun tests/rust-handle-fixtures/harness.ts run",
     "test:kotlin": "mkdir -p out/kotlin && kotlinc $(find reference/kotlin/gen -name '*.kt') tests/kotlin/Main.kt -include-runtime -d out/kotlin/tests.jar && java -cp out/kotlin/tests.jar MainKt",
     "test:rust": "cargo test",
     "test:intercept": "bun tests/interception/run.ts",

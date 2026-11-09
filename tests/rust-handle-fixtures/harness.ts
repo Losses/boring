@@ -113,6 +113,9 @@ function runFixture(name: string): any {
     writeFileSync(manifest, readFileSync(manifest, "utf8") + "\n[workspace]\n");
   }
   const check = spawnSync("cargo", ["check", "--manifest-path", manifest], { cwd: REPO_ROOT, encoding: "utf8" });
+  if (check.error) {
+    throw new Error("cargo is not executable on PATH: " + check.error.message);
+  }
   const cargoErrors = check.status === 0 ? [] : parseCargoErrors(check.stderr ?? "");
   for (const e of cargoErrors) fingerprints.push(e.code + "|" + e.rule + "|" + name);
   if (cargoErrors.length === 0 && fingerprints.length === 0) fingerprints.push("OK|-|" + name);
