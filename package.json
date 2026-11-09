@@ -6,6 +6,7 @@
     "reference/ts"
   ],
   "scripts": {
+    "gen:all": "haxe examples/ts.hxml && haxe examples/kotlin.hxml && haxe examples/kotlin-f32.hxml && haxe examples/swift.hxml && haxe examples/swift-f32.hxml && haxe examples/dart.hxml && haxe examples/rust.hxml && haxe examples/rust-f32.hxml",
     "test": "bun test tests/ packages/registry/tests/",
     "test:compiler": "haxe tests/haxe/semantic-policy/contract.hxml && haxe -cp packages/compiler/reflaxe/rust -cp tests -x tests.haxe.rustGatedValueCopy.GatedValueCopyAssertions && bun tests/rust-handle-fixtures/harness.ts run",
     "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
