@@ -67,7 +67,7 @@ const HAXE_FIXTURES = join(REPO_ROOT, "tests", "haxe");
  * guard's contract demands ("must not drift while nobody is looking");
  * wiring them in is deferred to a follow-up task, not this quick-fix.
  */
-const RECORDED_UNCOLLECTED = 42;
+const RECORDED_UNCOLLECTED = 43; // +1: tests/haxe/rustGatedValueCopy (TraitIdentityAdapter pure-assertion runner)
 
 interface Fixture {
   readonly name: string;
