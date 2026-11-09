@@ -319,6 +319,11 @@ class Compiler extends PluginCompiler<Compiler> {
     // ------------------------------------------------------------------
 
     public override function generateFilesManually() {
+        // The rust emitter renders every Float as the crate alias, so it no
+        // longer branches on the lane; this call stays as the generation-time
+        // validation of the float-precision define (f64/f32) and as the
+        // registered shared-mechanism consumption (SemanticPassRegistry).
+        FloatPrecision.isF32();
         // Contract 6: every render-time write to state.referencedImpls
         // (RustExpr.hx static call sites) must already be in the emission
         // plan's referenced-impl set; a miss means the pre-scan root-set
@@ -626,10 +631,10 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     function generateTestHelper():Void {
-        // The float helpers follow the precision switch so the aggregate
-        // helpers (equals_vec_f32, ...) resolve against a defined symbol
-        // on both target configurations (feature spec 23, ruling 10).
-        final real = FloatPrecision.isF32() ? "f32" : "f64";
+        // The float helpers name the crate alias in both feature lanes, so
+        // the aggregate helpers (equals_vec_float, ...) resolve against a
+        // defined symbol on both target configurations (feature spec 23,
+        // ruling 10) and the generated tree stays precision-independent.
         final lines = [
             "// Generated test helper for type-guided assertions (Ruling C);
 			// the canonical failure text and scalar formatting live in the
@@ -665,11 +670,11 @@ class Compiler extends PluginCompiler<Compiler> {
             "    }",
             "}",
             "",
-            'pub fn equals_$real(a: &$real, b: &$real) -> bool { *a == *b }',
-            'pub fn format_$real(v: &$real) -> String { crate::runtime::fp_helper::FPHelper::format_float${FloatPrecision.isF32() ? "_f32" : ""}(*v).to_utf8_lossy() }',
-            'pub fn assert_equals_$real(expected: &$real, actual: &$real, message: &UStr) {',
-            '    if !equals_$real(expected, actual) {',
-            '        test_core::TestCore::test_core_report_failure(message, &UString::from(format_$real(expected).as_str()).as_ustr(), &UString::from(format_$real(actual).as_str()).as_ustr());',
+            "pub fn equals_float(a: &crate::TiqianFloat, b: &crate::TiqianFloat) -> bool { *a == *b }",
+            "pub fn format_float(v: &crate::TiqianFloat) -> String { crate::runtime::fp_helper::FPHelper::format_float(*v).to_utf8_lossy() }",
+            "pub fn assert_equals_float(expected: &crate::TiqianFloat, actual: &crate::TiqianFloat, message: &UStr) {",
+            "    if !equals_float(expected, actual) {",
+            "        test_core::TestCore::test_core_report_failure(message, &UString::from(format_float(expected).as_str()).as_ustr(), &UString::from(format_float(actual).as_str()).as_ustr());",
             "    }",
             "}",
             "",
@@ -869,7 +874,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 final abs = a.get();
                 switch (abs.pack.concat([abs.name]).join(".")) {
                     case "Int": "u32";
-                    case "Float": FloatPrecision.isF32() ? "f32" : "f64";
+                    case "Float": "crate::TiqianFloat";
                     case "Bool": "bool";
                     case "String": "UString";
                     case "std.ReadOnlyArray": "Vec<" + rustType(params[0]) + ">";
@@ -904,7 +909,7 @@ class Compiler extends PluginCompiler<Compiler> {
             case TAbstract(a, _):
                 switch (a.get().name) {
                     case "Int": "i32";
-                    case "Float": FloatPrecision.isF32() ? "f32" : "f64";
+                    case "Float": "float";
                     case "Bool": "bool";
                     case "String": "ustring";
                     case _: RustImports.toSnakeCase(a.get().name);

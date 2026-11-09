@@ -119,7 +119,7 @@ class RustConversions {
         The `unwrap_or(0.0)` arm cannot fire because the decimal of any
         integer is always parseable.
     **/
-    public static function intToFloat(x:String, real:String):String {
+    public static function intToFloat(x:String):String {
         return "format!(\"{}\", (" + x + ")).parse::<crate::TiqianFloat>().unwrap_or(0.0)";
     }
 

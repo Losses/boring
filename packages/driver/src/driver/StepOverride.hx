@@ -1,3 +1,3 @@
 package driver;
 
-typedef StepOverride = { args:Array<String>, env:Array<EnvVar> };
+typedef StepOverride = { args:Array<String>, env:Array<EnvVar>, ?cargoArgs:Null<Array<String>> };

@@ -133,7 +133,10 @@ unsafe impl<T> Sync for SingleThread<T> {}
         reference (AccurateSum.of depends on it: thirty 16.0 advances must
         total exactly 480; a binary32 accumulator yields 479.99982). */
     public static function functionalSource():String {
-        final f = FloatPrecision.isF32() ? "f32" : "f64";
+        // The template text is precision-independent: the element binding is
+        // the crate alias (FnMut(&T) -> crate::TiqianFloat) and the
+        // accumulator is the fixed binary64 literal 0.0f64, so no
+        // generation-time precision switch is needed here.
         return '
 pub struct Functional;
 

@@ -5774,23 +5774,29 @@ class RustExpr {
                         final padded = withIntPart.indexOf(".") >= 0
                             || withIntPart.indexOf("e") >= 0
                             || withIntPart.indexOf("E") >= 0 ? (StringTools.endsWith(withIntPart, ".") ? withIntPart + "0" : withIntPart) : withIntPart + ".0";
-                        // Mark both precision configurations so method calls on a
-                        // literal (for example `is_nan`) never leave its
-                        // type to Rust inference.
-                        if (FloatPrecision.isF32()) {
-                            // A literal outside the f32 domain renders as the
-                            // f32 value it rounds to: overflow renders as the
-                            // signed infinity, underflow to zero as zero. Rust
-                            // denies the out-of-range literal form itself.
-                            // (Float32LiteralRange)
-                            final v = Std.parseFloat(padded);
-                            final abs = Math.abs(v);
-                            if (abs > 3.4028234663852886e38)
-                                return v < 0 ? "-f32::INFINITY" : "f32::INFINITY";
-                            if (v != 0 && abs < 1.401298464324817e-45)
-                                return "0.0";
-                            return padded;
-                        }
+                        // The literal renders bare: the slot type at the
+                        // consuming position (the crate alias) pins the
+                        // numeric type through inference, so no
+                        // generation-time precision switch is needed here.
+                        // A literal outside the binary32 representable domain
+                        // (overflow or underflow to zero) cannot stand as a
+                        // bare f32-typed slot value: rustc denies the literal
+                        // form itself (overflowing_literals). It renders as an
+                        // explicit cast through the crate alias, so the
+                        // untyped literal parses at binary64 first. The
+                        // decision reads only the literal value, so both
+                        // feature lanes emit identical text.
+                        // (Float32LiteralRange)
+                        final v = Std.parseFloat(padded);
+                        final abs = Math.abs(v);
+                        if (abs > 3.4028234663852886e38
+                            || (v != 0 && abs < 1.401298464324817e-45))
+                            // The literal carries an f64 suffix before the
+                            // alias cast: rustc types a bare literal inside an
+                            // `as` expression at the cast target, so
+                            // `(1e300) as crate::TiqianFloat` still denies the
+                            // literal; `1e300f64` parses at binary64 first.
+                            return "(" + padded + "f64) as crate::TiqianFloat";
                         return padded;
                     case TString(s):
                         imports.requireType("runtime.UString", "UString");
@@ -6792,7 +6798,7 @@ class RustExpr {
     function numericBranchType(e:TypedExpr):String {
         final t = isNullType(e.t) ? getNullInnerType(e.t) : e.t;
         if (isFloatType(t))
-            return FloatPrecision.isF32() ? "f32" : "f64";
+            return "crate::TiqianFloat";
         if (isNegativeIntLiteral(e))
             return "i32";
         return resolveExprType(e);
@@ -6805,7 +6811,7 @@ class RustExpr {
             && !isIntType(secondInner) && !isFloatType(secondInner))
             return null;
         if (isFloatType(firstInner) || isFloatType(secondInner))
-            return FloatPrecision.isF32() ? "f32" : "f64";
+            return "crate::TiqianFloat";
         // Both arms are business Int. An arm that renders in the signed i32
         // domain (a negation, an index result, an i32-domain wrapping binop)
         // beside an unsigned arm must agree on the conditional's Rust type,
@@ -6860,7 +6866,7 @@ class RustExpr {
                 target = numericBranchType(c.expr);
         }
         if (sawFloat)
-            return FloatPrecision.isF32() ? "f32" : "f64";
+            return "crate::TiqianFloat";
         return null;
     }
 
@@ -6869,7 +6875,7 @@ class RustExpr {
         final inner = nullable ? getNullInnerType(branch.t) : branch.t;
         if (StringTools.startsWith(text, "Some(") && StringTools.endsWith(text, ")")) {
             final payload = text.substr(5, text.length - 6);
-            if (isIntType(inner) && (target == "f32" || target == "f64"))
+            if (isIntType(inner) && (target == "f32" || target == "f64" || target == "crate::TiqianFloat"))
                 return "Some(" + floatSlotAliasCast(intToFloatSignedText(payload)) + ")";
             return text;
         }
@@ -6878,7 +6884,7 @@ class RustExpr {
         // decimal, so a plain float cast turns -1 into 4294967295.0. A bare
         // literal keeps the plain cast inside the helper.
         // (SignedIntToFloatBranch)
-        if (isIntType(inner) && (target == "f32" || target == "f64"))
+        if (isIntType(inner) && (target == "f32" || target == "f64" || target == "crate::TiqianFloat"))
             // The arm terminal renames its cast to the slot alias so both
             // ternary arms unify under either feature lane; the numeric
             // float-shape predicate recognizes the alias text, so the
@@ -8195,14 +8201,13 @@ class RustExpr {
                 }
                 return wrapDomain + "::" + wrappingMethod(op) + "(" + leftText + ", " + rightText + ")";
             case OpMult | OpAdd | OpSub | OpDiv if (isFloatType(e.t)):
-                final real = FloatPrecision.isF32() ? "f32" : "f64";
                 // An integer operand crosses through its exact decimal
                 // (T7), which rounds identically to `as` without a cast.
                 // Haxe Int is signed, so a u32-domain operand reinterprets to
                 // i32 before the Float conversion; the unsigned decimal parse
                 // would read a wrapped negative as a very large positive.
-                final lStr = if (isIntType(l.t)) RustConversions.intToFloat(castSignedI32(l), real) else operand(l, op, false);
-                final rStr = if (isIntType(r.t)) RustConversions.intToFloat(castSignedI32(r), real) else operand(r, op, true);
+                final lStr = if (isIntType(l.t)) RustConversions.intToFloat(castSignedI32(l)) else operand(l, op, false);
+                final rStr = if (isIntType(r.t)) RustConversions.intToFloat(castSignedI32(r)) else operand(r, op, true);
                 return lStr + " " + symbolOf(op) + " " + rStr;
             case OpAnd:
                 final rightInner = stripWrap(r);
@@ -8979,9 +8984,10 @@ class RustExpr {
         return switch (stripWrap(a).expr) {
             case TConst(TInt(v)):
                 // Math arguments are Float even when the typed AST retains the
-                // original Int constant. Suffixing this literal prevents Rust
-                // method calls from leaving its numeric type ambiguous.
-                Std.string(v) + ".0" + (FloatPrecision.isF32() ? "f32" : "f64");
+                // original Int constant. Casting this literal to the crate
+                // alias prevents Rust method calls from leaving its numeric
+                // type ambiguous under either feature lane.
+                "(" + Std.string(v) + ".0) as crate::TiqianFloat";
             // A Math call treats its Int argument as a signed Haxe Int; a wrapped negative (u32::wrapping_sub underflow) must widen through the i32 bit reading; the u32 Display value would be wrong. (SignedMathFloatArg)
             case _ if (isIntType(emittedType(a))): intToFloatSignedText(expr(a), a);
             case _:
@@ -12441,25 +12447,12 @@ class RustExpr {
                 }
                 if (path == "haxe.io.FPHelper") {
                     imports.requireType(cls.module, "FPHelper");
-                    // The f32 configuration converts the two 64-bit value edges
-                    // to their binary32 runtime variants and routes the two
-                    // 32-bit value edges to the bit-semantics f32 pair: like
-                    // TS/Dart/Kotlin, floatToI32 and i32ToFloat always operate
-                    // on the binary32 bit pattern (feature spec 23, ruling 7).
-                    final targetName = if (FloatPrecision.isF32()) {
-                        if (name == "i64ToDouble")
-                            "i64ToF32"
-                        else if (name == "doubleToI64")
-                            "f32ToI64"
-                        else if (name == "i32ToFloat")
-                            "i32ToF32"
-                        else if (name == "floatToI32")
-                            "f32ToI32"
-                        else
-                            name;
-                    } else {
-                        name;
-                    }
+                    // The FPHelper entry names are precision-independent:
+                    // i64ToDouble, doubleToI64, i32ToFloat, and floatToI32
+                    // exist in the resident runtime under both feature lanes
+                    // and route through the crate alias, so no
+                    // generation-time rename is applied.
+                    final targetName = name;
                     // The signed bit edge takes the i32 domain while the Haxe
                     // parameter is the business u32 Int, so the argument
                     // reinterprets unless it already lowers signed.
@@ -12526,9 +12519,11 @@ class RustExpr {
                     return RuntimeResidents.isResident(imports.selfModule) ? rounded + " as i32" : RustConversions.reinterpret(RustConversions.floatToI32(rounded), "u32");
                 }
                 if (cls.module == "Std" && name == "parseFloat") {
-                    final real = FloatPrecision.isF32() ? "f32" : "f64";
+                    // The parse edge names the binary64 runtime entry in both
+                    // feature lanes; the closing cast names the crate alias so
+                    // the Float slot type holds under either lane.
                     imports.require("crate::runtime::u_string");
-                    return "u_string::parse_" + real + "(&(" + expr(args[0]) + "))";
+                    return "u_string::parse_f64(&(" + expr(args[0]) + ")) as crate::TiqianFloat";
                 }
                 if (cls.module == "Std" && name == "parseInt") {
                     imports.require("crate::runtime::u_string");
@@ -13514,13 +13509,13 @@ class RustExpr {
             haxe.macro.TypedExprTools.iter(node, collect);
         }
         collect(root);
-        // The binary64 accumulator widening is f64-lane-only: under the f32
-        // build the local must accumulate in binary32 storage, matching the
-        // Kotlin Float and the JS Math.fround reference. (FloatAccumulatorBinary64)
-        if (!FloatPrecision.isF32())
-            for (id in compoundTargets.keys())
-                if (!plainAssignTargets.exists(id))
-                    f64AccumLocals.set(id, true);
+        // The binary64 accumulator widening applies under both feature
+        // lanes with identical emission: the generated tree is
+        // precision-independent and the crate alias decides the slot
+        // width. (FloatAccumulatorBinary64)
+        for (id in compoundTargets.keys())
+            if (!plainAssignTargets.exists(id))
+                f64AccumLocals.set(id, true);
     }
 
     function scanUnusedLocals(root:TypedExpr):Void {
@@ -17965,7 +17960,7 @@ class RustExpr {
             case TAbstract(a, _):
                 switch (a.get().name) {
                     case "Int": "u32";
-                    case "Float": FloatPrecision.isF32() ? "f32" : "f64";
+                    case "Float": "float";
                     case "Bool": "bool";
                     case "String": "ustring";
                     case _: RustImports.toSnakeCase(a.get().name);
@@ -18292,7 +18287,7 @@ class RustExpr {
         if (isIntType(element))
             return "0";
         if (isFloatType(element))
-            return FloatPrecision.isF32() ? "0.0f32" : "0.0";
+            return "0.0";
         if (isBoolType(element))
             return "false";
         if (isStringType(element))
@@ -18477,9 +18472,9 @@ class RustExpr {
         };
     }
 
-    /** Convert an integer expression text to Float (as f64 / as f32). */
+    /** Convert an integer expression text to Float (as crate::TiqianFloat). */
     public function intToFloatText(text:String):String {
-        final precision = FloatPrecision.isF32() ? "f32" : "f64";
+        final precision = "crate::TiqianFloat";
         // Call-site rendering may already parenthesize integer literals. Avoid
         // producing redundant parentheses around the resulting cast.
         if (~/^\(-?[0-9]+\)$/.match(text))
@@ -18522,6 +18517,7 @@ class RustExpr {
         // f64/f32 spellings or the alias form reinterprets as Int bits.
         if (text.indexOf(".parse::<f64>") >= 0 || text.indexOf(".parse::<f32>") >= 0
             || text.indexOf(".parse::<crate::TiqianFloat>") >= 0
+            || text.indexOf("parse_f64") >= 0 || text.indexOf("parse_f32") >= 0
             || text.indexOf(" as f64") >= 0 || text.indexOf(" as f32") >= 0
             || text.indexOf(" as crate::TiqianFloat") >= 0
             || StringTools.startsWith(text, "f64::") || StringTools.startsWith(text, "f32::")

@@ -11,7 +11,7 @@ class Config {
     static final BUNDLE_FIELDS = ["id", "target", "precision", "haxeArgs", "rootsFile", "sourceSet", "build", "run", "package", "test", "compare", "afterGen"];
     static final SOURCE_SET_FIELDS = ["packages", "types", "discover"];
     static final DISCOVER_FIELDS = ["root", "packages", "suffix"];
-    static final STEP_FIELDS = ["args", "env"];
+    static final STEP_FIELDS = ["args", "env", "cargoArgs"];
     static final COMMAND_FIELDS = ["command", "args", "env"];
     static final PACKAGE_FIELDS = ["name", "version", "license"];
     static final TARGETS = ["haxe", "ts", "kotlin", "rust", "swift", "dart"];
@@ -241,7 +241,11 @@ class Config {
         }
         final values = fieldsOf(field(fields, name), '$where: field "$name"');
         checkFields(values, STEP_FIELDS, '$where: $name');
-        final stepValue:StepOverride = {args: strings(values, "args", '$where: $name'), env: env(values, '$where: $name')};
+        // cargoArgs carries cargo-level options (for example --features f32)
+        // that must land before the test-harness -- separator; the rust
+        // plan inserts them there and every other target ignores them.
+        final cargoArgs = has(values, "cargoArgs") ? strings(values, "cargoArgs", '$where: $name') : null;
+        final stepValue:StepOverride = {args: strings(values, "args", '$where: $name'), env: env(values, '$where: $name'), cargoArgs: cargoArgs};
         return stepValue;
     }
 

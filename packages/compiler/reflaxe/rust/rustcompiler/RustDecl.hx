@@ -3186,7 +3186,7 @@ class RustDecl {
         if (funcName == "readU32")
             return "u32";
         if (funcName == "readF64" || funcName == "readF32" || funcName == "readF16")
-            return FloatPrecision.isF32() ? "f32" : "f64";
+            return "crate::TiqianFloat";
         if (funcName == "readAscii")
             return "UString";
         if (funcName == "remaining" || funcName == "consumed")
