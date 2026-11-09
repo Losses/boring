@@ -60,7 +60,7 @@ class SemanticPolicyContract {
     }
 
     static function checkVersionAndGovernance():Void {
-        check(SemanticPolicy.VERSION == "1.1.0", "VERSION is the released version (TL sign-off)");
+        check(SemanticPolicy.VERSION == "1.4.0", "VERSION is the released version (TL sign-off)");
         check(SemanticPolicy.DOC_PATH == "docs/specs/target-semantic-policy.md", "DOC_PATH names the governing doc");
         check(SemanticPolicy.OWNER == "Executor-B", "owner is the executor");
         check(SemanticPolicy.SIGN_OFF == "TL", "sign-off is the TL");
@@ -69,7 +69,7 @@ class SemanticPolicyContract {
 
     static function checkEntryIds():Void {
         final ids = SemanticPolicy.entryIds();
-        check(ids.length == 23, "exactly 23 policy entries, got " + ids.length);
+        check(ids.length == 27, "exactly 27 policy entries, got " + ids.length);
         final seen = new Map<String, Bool>();
         for (i in 0...ids.length) {
             final id = ids[i];
@@ -77,7 +77,7 @@ class SemanticPolicyContract {
             check(!seen.exists(id), "entry id unique: " + id);
             seen.set(id, true);
         }
-        check(ids[0] == "P-1" && ids[ids.length - 1] == "P-23", "entry ids run P-1..P-23");
+        check(ids[0] == "P-1" && ids[ids.length - 1] == "P-25", "entry ids run P-1..P-25 (P-26..P-28 live in PlaceWritePolicy and are not registered)");
     }
 
     static function checkReprType():Void {

@@ -4,5 +4,6 @@
 -cp packages/compiler
 -cp tests/haxe/semantic-policy
 -main SemanticPolicyContract
+-D reflaxe_runtime
 --interp
 
