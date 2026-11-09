@@ -700,7 +700,6 @@ class RustExpr {
             && !StringTools.endsWith(rendered, ".clone()")
             && !StringTools.endsWith(rendered, ".to_vec()"))
             return "Some(" + ownedNullableReadText(rendered) + ")";
-        Context.warning("SOMETXT [" + rendered + "]", Context.currentPos());
         return "Some(" + rendered + ")";
     }
 
