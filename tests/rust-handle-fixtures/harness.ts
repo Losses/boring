@@ -7,6 +7,7 @@ const FIXTURE_DIR = join(REPO_ROOT, "samples", "rusthandlefixtures");
 const OUT_ROOT = join(REPO_ROOT, "out", "rust-handle-fixtures");
 
 const CONSTRUCTS: Record<string, string> = {
+  EscapingSelfForward: "escaping-self-forward",
   SelfRewrap: "self-receiver",
   NewReceiver: "new-receiver",
   OwnedParam: "owned-param",
@@ -112,7 +113,7 @@ function runFixture(name: string): any {
     writeFileSync(manifest, readFileSync(manifest, "utf8") + "\n[workspace]\n");
   }
   const check = spawnSync("cargo", ["check", "--manifest-path", manifest], { cwd: REPO_ROOT, encoding: "utf8" });
-  const cargoErrors = check.status === 0 ? [] : parseCargoErrors(check.stderr);
+  const cargoErrors = check.status === 0 ? [] : parseCargoErrors(check.stderr ?? "");
   for (const e of cargoErrors) fingerprints.push(e.code + "|" + e.rule + "|" + name);
   if (cargoErrors.length === 0 && fingerprints.length === 0) fingerprints.push("OK|-|" + name);
 
