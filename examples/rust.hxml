@@ -20,12 +20,14 @@
 -D runtime-emit=runtime
 -D package-name=boring-codec-gen
 -D package-license=MIT
--D package-test=vector_gen:../../../tests/rust/vector_gen.rs
+-D package-test=vector_gen:../../../tests/rust/vector_gen.rs;escaping_trait:../../../tests/rust/escaping_trait.rs
 boring.BinaryReader
 boring.BinaryWriter
 boring.DataClassStringCompare
 boring.BufferHolder
 boring.BytesFrame
+boring.EscapingTraitIdentityFacade
+boring.EscapingTraitIdentityOps
 boring.Int64Ops
 boring.ValuePassingOps
 boring.BytesOps

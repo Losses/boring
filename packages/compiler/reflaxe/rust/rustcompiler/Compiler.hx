@@ -612,8 +612,7 @@ class Compiler extends PluginCompiler<Compiler> {
         lines.push("[features]");
         lines.push("default = []");
         lines.push("f32 = []");
-        final test = PackageShell.rustTest();
-        if (test != null) {
+        for (test in PackageShell.rustTests()) {
             lines.push("");
             lines.push("[[test]]");
             lines.push('name = "${test.name}"');
@@ -1428,7 +1427,8 @@ class Compiler extends PluginCompiler<Compiler> {
                                 final params = switch (Context.follow(cf.get().type)) { case TFun(pa, _): pa; case _: []; };
                                 for (i in 0...args.length) {
                                     final isThis = switch (stripDecorations(args[i]).expr) { case TConst(TThis): true; case _: false; };
-                                    if (isThis && i < params.length && RustDecl.isPlainClassHandleOrNull(params[i].t))
+                                    if (isThis && i < params.length && (RustDecl.isPlainClassHandleOrNull(params[i].t)
+                                        || RustDecl.isSharedImplementorHandleType(params[i].t)))
                                         escapes = true;
                                 }
                                 haxe.macro.TypedExprTools.iter(fn, walk);
@@ -1469,6 +1469,7 @@ class Compiler extends PluginCompiler<Compiler> {
                             continue;
                         if (methodEscapes(body)) {
                             state.escapingHandleMethods.set(fk, true);
+                            RustEmissionState.escapingHandleClassKeys.set(cls.module + "::" + cls.name, true);
                             changed = true;
                         }
                     }

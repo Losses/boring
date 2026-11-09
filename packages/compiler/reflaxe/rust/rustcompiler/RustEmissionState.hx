@@ -189,6 +189,13 @@ class RustEmissionState {
     public final funcErrorKnown:Map<String, Bool> = [];
 
     public final escapingHandleMethods:Map<String, Bool> = [];
+
+    /** Class-level index of the escaping scan: "<module>::<name>" for
+        every class with at least one escaping method. Static so the
+        declaration-side ABI predicates (RustDecl.usesHandleIdentity)
+        can read it without a state instance. One compilation per
+        process, so no cross-run reset is needed. (TraitIdentityAdapter) */
+    public static final escapingHandleClassKeys:Map<String, Bool> = [];
     public final interfaceMethodShapes:Map<String, {isFallible:Bool, isMutating:Bool, errorModule:Null<String>, errorName:Null<String>}> = [];
 
     public static function interfaceMethodKey(module:String, name:String, method:String):String {

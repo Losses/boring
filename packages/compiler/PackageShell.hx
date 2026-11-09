@@ -69,21 +69,28 @@ class PackageShell {
     }
 
     /**
-        The name of the `[[test]]` integration test and its path, or null.
+        The `[[test]]` integration tests and their paths, or null.
         Rust only: the one manifest field that carries repository geometry,
-        so it exists solely through this define.
+        so it exists solely through this define. Several tests ride in one
+        define separated by ";" (`name1:path1;name2:path2`), because Haxe
+        dedupes repeated -D keys, so a second -D package-test would
+        silently replace the first. (TraitIdentityAdapter)
     **/
-    public static function rustTest():Null<{name:String, path:String}> {
+    public static function rustTests():Array<{name:String, path:String}> {
         final value = Context.definedValue("package-test");
         if (value == null) {
-            return null;
+            return [];
         }
-        final separator = value.indexOf(":");
-        if (separator <= 0 || separator + 1 >= value.length) {
-            Context.error("package-test accepts name:path", Context.currentPos());
-            return null;
+        final tests:Array<{name:String, path:String}> = [];
+        for (entry in value.split(";")) {
+            final separator = entry.indexOf(":");
+            if (separator <= 0 || separator + 1 >= entry.length) {
+                Context.error("package-test accepts name:path entries separated by ;", Context.currentPos());
+                continue;
+            }
+            tests.push({name: entry.substring(0, separator), path: entry.substring(separator + 1)});
         }
-        return {name: value.substring(0, separator), path: value.substring(separator + 1)};
+        return tests;
     }
 }
 #end

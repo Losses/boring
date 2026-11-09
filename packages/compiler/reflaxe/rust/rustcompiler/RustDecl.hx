@@ -510,7 +510,7 @@ class RustDecl {
                 // A plain-class method lowers to a shared inner helper (logic on
                 // the bare struct) plus a thin concrete delegation that borrows
                 // the handle. (InnerHelperArchitecture)
-                final isPlainHandleMethod = RustDecl.isPlainClassHandleClass(cls) && f.field.name != "new";
+                final isPlainHandleMethod = usesHandleIdentity(cls) && f.field.name != "new";
                 final snakeN = RustImports.toSnakeCase(f.field.name);
                 final innerName = snakeN + "_inner";
                 // A non-interface plain class has no trait impl to share the
@@ -601,7 +601,7 @@ class RustDecl {
                     if (ifaceSep)
                         lines.push("");
                     ifaceSep = true;
-                    if (RustDecl.isPlainClassHandleClass(cls)) {
+                    if (usesHandleIdentity(cls)) {
                         final snakeI = RustImports.toSnakeCase(f.field.name);
                         for (l in instanceFuncDecl(cls, f, hasLifetime, true, ifaceCls.module, ifaceCls.name, null, false, snakeI + "_inner"))
                             lines.push(l);
@@ -1606,13 +1606,16 @@ class RustDecl {
         return switch (Context.follow(t)) {
             case TInst(c, _):
                 final cls = c.get();
-                isPlainClassHandleClass(cls);
+                usesHandleIdentity(cls);
             case _: false;
         }
     }
 
     /** The ClassType counterpart of isPlainClassHandle: a concrete class
-        that lowers to an Rc<RefCell<T>> handle. (ClassParamHandle) */
+        that lowers to an Rc<RefCell<T>> handle. (ClassParamHandle)
+        Shared-interface implementors are excluded by default and opt in
+        per class through usesHandleIdentity, so only implementors whose
+        bodies genuinely need handle identity switch ABI. */
     public static function isPlainClassHandleClass(cls:ClassType):Bool {
         // Only business modules (not haxe std, not std shadow) use the
         // Rc<RefCell> handle. Extern and shadow classes keep their specific
@@ -1631,6 +1634,46 @@ class RustDecl {
                 final ic = i.t.get();
                 ic.isInterface && isSharedInterface(ic);
             });
+    }
+
+    /** Whether a concrete class renders with the explicit-handle ABI. A
+        shared-interface implementor opts in only when the escaping scan
+        marked one of its methods as needing handle identity: such a body
+        forwards "this" to a handle-taking callee, and the value ABI would
+        lower the forward as a value copy (rustc E0308). Gating per class
+        keeps implementors without escaping bodies on the value ABI.
+        (TraitIdentityAdapter) */
+    public static function usesHandleIdentity(cls:ClassType):Bool {
+        if (cls.isInterface)
+            return false;
+        if (isPlainClassHandleClass(cls))
+            return true;
+        return implementsSharedInterface(cls)
+            && RustEmissionState.escapingHandleClassKeys.exists(cls.module + "::" + cls.name);
+    }
+
+    public static function implementsSharedInterface(cls:ClassType):Bool {
+        return Lambda.exists(cls.interfaces, i -> {
+            final ic = i.t.get();
+            ic.isInterface && isSharedInterface(ic);
+        });
+    }
+
+    /** Whether the type names a concrete implementor of a shared
+        interface. Such a value always travels through an Rc<RefCell<...>>
+        handle at the call boundary (ClassHandleShare), so a body
+        forwarding "this" into it needs handle identity even though the
+        class itself is excluded from isPlainClassHandle by default.
+        (TraitIdentityAdapter) */
+    public static function isSharedImplementorHandleType(t:Null<Type>):Bool {
+        if (t == null)
+            return false;
+        return switch (Context.follow(t)) {
+            case TInst(c, _):
+                final cls = c.get();
+                !cls.isInterface && implementsSharedInterface(cls);
+            case _: false;
+        };
     }
 
     /** Whether a static's rendered type holds an Rc<RefCell<T>> handle,
@@ -2695,7 +2738,7 @@ class RustDecl {
             }
             expr.setFallible(ctorFallible, errOwner != null ? errOwner.name : null, errOwner != null
                 && errOwner.hasOverflow ? state.overflowVariant : null, errOwner != null ? errOwner.module : null);
-            final isHandleCtor = RustDecl.isPlainClassHandleClass(cls);
+            final isHandleCtor = usesHandleIdentity(cls);
             if (isHandleCtor) {
                 imports.require("std::rc::Rc");
                 imports.require("std::cell::RefCell");
@@ -2923,7 +2966,7 @@ class RustDecl {
         // immutable table, so its build method consumes the builder instead
         // of moving that box out of a shared borrow.
         final consumesSelf = cls.module == "runtime.SortedTable" && f.field.name == "build";
-        final selfParam = f.isStatic && isTraitImpl ? "" : (consumesSelf ? "self" : (isPlainClassHandleClass(cls) && !isTraitImpl ? "this: &Rc<RefCell<Self>>" : (isMutating ? "&mut self" : "&self")));
+        final selfParam = f.isStatic && isTraitImpl ? "" : (consumesSelf ? "self" : (usesHandleIdentity(cls) && !isTraitImpl ? "this: &Rc<RefCell<Self>>" : (isMutating ? "&mut self" : "&self")));
         final coalescedParams:Map<String, Bool> = [];
         for (site in DefaultArgExpander.coalescingSitesForFunction(f.expr)) {
             coalescedParams.set(site.parameter, true);

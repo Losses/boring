@@ -632,25 +632,22 @@ class RustExpr {
                 // interface builds the shared handle instead.
                 // (ClassHandleShare)
                 if (isInterfaceType(targetType)) {
-                    if (isSharedIfaceType(targetType)) {
-                        imports.require("std::rc::Rc");
-                        imports.require("std::cell::RefCell");
-                        "Rc::new(RefCell::new(" + constructed + "))";
-                    } else {
-                        imports.require("std::rc::Rc");
-                        imports.require("std::cell::RefCell");
-                        // A plain-class constructor already returns the
-                        // Rc<RefCell<T>> handle; clone it into the interface
-                        // slot with a single unsizing, never double-wrap.
-                        // (InnerHelperArchitecture)
-                        final isPlainHandle = switch (Context.getType(modulePath + "." + className)) {
-                            case TInst(ref, _): RustDecl.isPlainClassHandleClass(ref.get());
-                            default: false;
-                        };
-                        isPlainHandle
-                            ? "{ let __shared_handle: " + types.of(targetType, false) + " = " + constructed + "; __shared_handle }"
-                            : "Rc::new(RefCell::new(" + constructed + "))";
-                    }
+                    imports.require("std::rc::Rc");
+                    imports.require("std::cell::RefCell");
+                    // A plain-class constructor already returns the
+                    // Rc<RefCell<T>> handle; clone it into the interface
+                    // slot with a single unsizing, never double-wrap.
+                    // Shared-interface implementors are handle classes too
+                    // (TraitIdentityAdapter), so their construction takes
+                    // the same single-unsizing path into the shared slot.
+                    // (InnerHelperArchitecture)
+                    final isPlainHandle = switch (Context.getType(modulePath + "." + className)) {
+                        case TInst(ref, _): RustDecl.usesHandleIdentity(ref.get());
+                        default: false;
+                    };
+                    isPlainHandle
+                        ? "{ let __shared_handle: " + types.of(targetType, false) + " = " + constructed + "; __shared_handle }"
+                        : "Rc::new(RefCell::new(" + constructed + "))";
                 } else
                     constructed;
         };
@@ -1077,7 +1074,7 @@ class RustExpr {
         currentClass = cls;
         currentIsTraitImpl = isTraitImpl;
         currentIsInnerHelper = isInnerHelper;
-        thisBindingName = (RustDecl.isPlainClassHandleClass(cls) && !isTraitImpl) ? "this" : "self";
+        thisBindingName = (RustDecl.usesHandleIdentity(cls) && !isTraitImpl) ? "this" : "self";
         currentMethodName = f.field.name;
         currentLocalName = null;
         paramVarIds.clear();
@@ -1465,7 +1462,7 @@ class RustExpr {
         }
         for (stmt in stmts)
             scanThisValue(stmt);
-        final isHandleCtor = RustDecl.isPlainClassHandleClass(cls);
+        final isHandleCtor = RustDecl.usesHandleIdentity(cls);
         final selfLocalName = thisAsValue ? freshRegionName("__self") : "self";
         final handleName = (thisAsValue && isHandleCtor) ? freshRegionName("handle") : null;
         final bindingName = handleName != null ? handleName : selfLocalName;
@@ -1931,7 +1928,16 @@ class RustExpr {
                         case TLocal(_) | TField(_, _): isSharedImplementorType(init.t);
                         case _: false;
                     };
-                    initStr = copyOfShared ? "Rc::clone(&" + initStr + ")" : "Rc::new(RefCell::new(" + initStr + "))";
+                    // A fresh constructor of a shared implementor already
+                    // returns the Rc<RefCell<Self>> handle (handle ABI), so
+                    // the binding takes it as-is; wrapping again would
+                    // double the Rc<RefCell> and break the trait-object
+                    // unsize. (TraitIdentityAdapter)
+                    final initIsHandleCtor = switch (stripWrap(init).expr) {
+                        case TNew(_): RustDecl.isPlainClassHandle(init.t);
+                        case _: false;
+                    };
+                    initStr = initIsHandleCtor ? initStr : (copyOfShared ? "Rc::clone(&" + initStr + ")" : "Rc::new(RefCell::new(" + initStr + "))");
                 }
                 if (isNullType(v.t) && !isTNull(init) && !StaticFieldHelper.isNullableType(init.t) && !lookupInit) {
                     initStr = "Some(" + initStr + ")";
@@ -16473,16 +16479,28 @@ class RustExpr {
     function sharedSlotPayload(actual:TypedExpr, inner:String, slotType:String):String {
         imports.require("std::rc::Rc");
         imports.require("std::cell::RefCell");
-        final isHandle = switch (stripWrap(actual).expr) {
-            case TLocal(_): isSharedImplementorType(actual.t);
+        // Shared-interface implementors are plain-handle classes
+        // (TraitIdentityAdapter): a local clones its handle so the source
+        // binding stays alive, and a fresh constructor call already owns
+        // the handle, so the slot binds it with one explicit unsizing
+        // instead of wrapping a second Rc<RefCell> around it.
+        // (ClassHandleShare)
+        final isLocal = switch (stripWrap(actual).expr) {
+            case TLocal(_): true;
             case _: false;
         };
-        // A shared implementor local is itself a handle; the concrete-to-
-        // trait-object unsize cannot cross Arc::clone inference, so the
-        // clone annotates the slot type explicitly. (ClassHandleShare)
-        return isHandle
-            ? "{ let __shared_handle: " + slotType + " = " + inner + ".clone(); __shared_handle }"
-            : "Rc::new(RefCell::new(" + inner + "))";
+        // A shared implementor local of a value-ABI class (no escaping
+        // bodies) still wraps: the slot owns the shared handle built from
+        // the value, and the clone keeps the source binding alive.
+        // (ClassHandleShare)
+        if (isLocal && !RustDecl.isPlainClassHandle(actual.t))
+            return "{ let __shared_handle: " + slotType + " = " + inner + ".clone(); __shared_handle }";
+        // A fresh constructor of a handle-ABI implementor already owns the
+        // Rc<RefCell<Self>>; the slot binds it with one explicit unsizing.
+        // (TraitIdentityAdapter)
+        if (RustDecl.isPlainClassHandle(actual.t))
+            return "{ let __shared_handle: " + slotType + " = " + inner + "; __shared_handle }";
+        return "Rc::new(RefCell::new(" + inner + "))";
     }
 
     /**
