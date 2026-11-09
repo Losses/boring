@@ -6,7 +6,7 @@
     "reference/ts"
   ],
   "scripts": {
-    "test": "bun test tests/ packages/registry/tests/ && haxe tests/haxe/semantic-policy/contract.hxml",
+    "test": "bun test tests/ packages/registry/tests/ && haxe tests/haxe/semantic-policy/contract.hxml && bun tests/rust-handle-fixtures/harness.ts run",
     "test:haxe": "haxe tests/haxe/compile.hxml && bun out/haxe/tests.js",
     "test:contract": "haxe tests/haxe/semantic-policy/contract.hxml && haxe -cp packages/compiler/reflaxe/rust -cp tests -x tests.haxe.rustGatedValueCopy.GatedValueCopyAssertions",
     "test:handle-fixtures": "bun tests/rust-handle-fixtures/harness.ts run",
