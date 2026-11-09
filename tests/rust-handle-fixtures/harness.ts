@@ -8,6 +8,7 @@ const OUT_ROOT = join(REPO_ROOT, "out", "rust-handle-fixtures");
 
 const CONSTRUCTS: Record<string, string> = {
   EscapingSelfForward: "escaping-self-forward",
+  ChainedNewForward: "chained-new-forward",
   SelfRewrap: "self-receiver",
   NewReceiver: "new-receiver",
   OwnedParam: "owned-param",

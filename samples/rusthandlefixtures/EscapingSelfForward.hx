@@ -27,7 +27,12 @@ class ForwardWorker implements ForwardSink {
 
 class EscapingSelfForwardOps {
     public static function run():String {
-        return new ForwardWorker().forwardA();
+        // Bound to a local first: this fixture pins the escaping-self
+        // forward (the scan + handle receiver), not the chained-new
+        // receiver shape, which ChainedNewForward owns.
+        // (TraitIdentityAdapter)
+        final worker = new ForwardWorker();
+        return worker.forwardA();
     }
 }
 #end
