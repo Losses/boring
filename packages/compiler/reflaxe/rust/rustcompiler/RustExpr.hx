@@ -18244,6 +18244,9 @@ class RustExpr {
             Context.error("mutation target PlacePlan is unverified; the write would be silently dropped", e.pos);
         if (!plan.isPlace)
             Context.error("mutation target is a DetachedCopy without writeback; the write would be silently dropped", e.pos);
+        final policyFailure = RustHandleValidator.placePlanFailure(plan);
+        if (policyFailure != null)
+            Context.error("place plan violates policy: " + policyFailure, e.pos);
         return plan;
     }
 

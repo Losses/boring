@@ -646,6 +646,12 @@ class SemanticPolicy {
     public static final ENTRY_FLOAT_CANONICAL:String = "P-23";            // [1.1.0]
     public static final ENTRY_PLAN_DECISION:String = "P-24";              // [1.4.0]
     public static final ENTRY_CONVERSION_EDGE:String = "P-25";            // [1.4.0]
+    /** Write-landing rulings (P-26; declared in PlaceWritePolicy as P_26). */
+    public static final ENTRY_WRITE_LANDING:String = PlaceWritePolicy.P_26;
+    /** Alias-check obligations (P-27; declared in PlaceWritePolicy as P_27). */
+    public static final ENTRY_ALIAS_OBLIGATION:String = PlaceWritePolicy.P_27;
+    /** Forbidden projection combinations (P-28; declared in PlaceWritePolicy as P_28). */
+    public static final ENTRY_FORBIDDEN_PROJECTION:String = PlaceWritePolicy.P_28;
 
     /**
         Every policy entry id in document order. Validators and the unit suite
@@ -679,7 +685,10 @@ class SemanticPolicy {
             ENTRY_REPRESENTATION_PLAN,
             ENTRY_FLOAT_CANONICAL,
             ENTRY_PLAN_DECISION,
-            ENTRY_CONVERSION_EDGE
+            ENTRY_CONVERSION_EDGE,
+            ENTRY_WRITE_LANDING,
+            ENTRY_ALIAS_OBLIGATION,
+            ENTRY_FORBIDDEN_PROJECTION
         ];
     }
 
