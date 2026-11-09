@@ -18,6 +18,15 @@ must reproduce that behavior against the same vectors. Reference
 translations and test tooling live in separate trees; every test suite
 and the shared vectors live under `tests/`.
 
+Three scripts run the checks. `test:compiler` needs no regeneration and
+covers the compiler itself: it runs the semantic-policy contract, the
+`GatedValueCopy` assertions and the handle fixture matrix. `test` runs the
+bun suites under `tests/`, which read the generated trees and therefore need
+`gen:all` to have produced them first; without it those suites fail with
+`ENOENT` under `reference/<target>/` and the failure says nothing about the
+code. `gen:all` runs the eight `examples/*.hxml` generators in sequence and
+takes a long time, so run it when the bun suites are what you need.
+
 The root `package.json` is the bun workspace (member:
 `reference/ts`); the root `Cargo.toml` is the cargo workspace (members:
 `reference/rust`, `reference/rust/gen`). The Rust test suite carries no
