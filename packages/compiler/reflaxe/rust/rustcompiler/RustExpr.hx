@@ -2245,6 +2245,16 @@ class RustExpr {
                         } else {
                             retStr = "(*" + retStr + ").clone()";
                         }
+                    case TLocal(v) if ((sharedClosureArrays.exists(v.id) || sharedClosureScalars.exists(v.id))
+                        && !isTypeCopy(ret.t) && isOwnedVecType(ret.t)
+                        && (returnTypeName == null || !StringTools.startsWith(returnTypeName, "&"))):
+                        // A shared closure binding read renders as .borrow()
+                        // (arrays via SharedClosureArrays, any mutated capture
+                        // via SharedClosureScalars); an owned Vec return slot
+                        // clones the referent once at the boundary so the
+                        // slot owns its storage and the closure-shared
+                        // binding stays intact. (SharedClosureReturn)
+                        retStr = "(*" + retStr + ").clone()";
                     case _:
                 }
                 if (RustType.isTypeParam(ret.t)) {

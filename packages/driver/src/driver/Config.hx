@@ -236,7 +236,7 @@ class Config {
 
     static function step(fields:Array<JsonField>, name:String, where:String):StepOverride {
         if (!has(fields, name)) {
-            final empty:StepOverride = {args: [], env: []};
+            final empty:StepOverride = {args: [], env: [], cargoArgs: null};
             return empty;
         }
         final values = fieldsOf(field(fields, name), '$where: field "$name"');
