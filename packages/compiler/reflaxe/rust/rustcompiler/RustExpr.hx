@@ -2443,6 +2443,13 @@ class RustExpr {
                     // into the slot alias. An alias-typed value casts to
                     // itself, so both lanes keep their values.
                     // (FloatSlotAliasCast)
+                    // A u32-domain return carries a wrapped negative as its
+                    // two's complement bits; converting it numerically would
+                    // read -4 as 4294967292. Reinterpret to i32 first so the
+                    // sign survives the widening. (FlooredSign)
+                    if (retStr.indexOf("u32::from_ne_bytes") >= 0
+                        && retStr.indexOf("i32::from_ne_bytes") < 0)
+                        retStr = RustConversions.reinterpret(retStr, "i32");
                     if (!StringTools.endsWith(retStr, " as crate::TiqianFloat")
                         && !StringTools.endsWith(retStr, " as f64")
                         && !StringTools.endsWith(retStr, " as f32")) {
@@ -16794,6 +16801,12 @@ class RustExpr {
             // hardcoded-width leak once the declaration strips the outer
             // parentheses. Naming the boundary cast with the alias keeps
             // both lanes at slot width. (FloatSlotAliasCast)
+            // A u32-domain value carries a wrapped negative as its two's
+            // complement bits; converting it numerically would read -4 as
+            // 4294967292. Reinterpret to i32 before the widening, even when
+            // the text already names the slot alias further in. (FlooredSign)
+            if (StringTools.startsWith(rendered, "u32::from_ne_bytes"))
+                return floatSlotAliasCast(intToFloatText(RustConversions.reinterpret(rendered, "i32")));
             if (rendered.indexOf(" as crate::TiqianFloat") >= 0)
                 return "(" + rendered + ") as crate::TiqianFloat";
             return floatSlotAliasCast(intToFloatSignedText(rendered, actual));
@@ -18547,6 +18560,12 @@ class RustExpr {
     /** Convert an integer expression text to Float (as crate::TiqianFloat). */
     public function intToFloatText(text:String):String {
         final precision = "crate::TiqianFloat";
+        // A u32-domain value carries a wrapped negative as its two's
+        // complement bits; converting it numerically would read -4 as
+        // 4294967292. Reinterpret to i32 first so the sign survives.
+        // (FlooredSign)
+        if (text.indexOf("u32::from_ne_bytes") >= 0 && text.indexOf("i32::from_ne_bytes") < 0)
+            return intToFloatText(RustConversions.reinterpret(text, "i32"));
         // Call-site rendering may already parenthesize integer literals. Avoid
         // producing redundant parentheses around the resulting cast.
         if (~/^\(-?[0-9]+\)$/.match(text))
@@ -18577,8 +18596,12 @@ class RustExpr {
         if (~/^-?[0-9]+$/.match(text) || ~/^\(-?[0-9]+\)$/.match(text))
             return intToFloatText(text);
         // A u32-domain expression reinterprets to i32 so a wrapped
-        // negative reads as its signed Float.
-        if (StringTools.startsWith(text, "u32::") || StringTools.startsWith(text, "(u32::"))
+        // negative reads as its signed Float. The u32 form can sit behind a
+        // grouping or a byte round-trip, so match it anywhere in the text
+        // rather than only at the start: a wrapped negative such as -4
+        // otherwise converts as 4294967292. (FlooredSign)
+        if (StringTools.startsWith(text, "u32::") || StringTools.startsWith(text, "(u32::")
+            || text.indexOf("u32::from_ne_bytes") >= 0)
             return intToFloatText(RustConversions.reinterpret(text, "i32"));
         // A genuine Float expression (a widened division, a Float cast, a
         // Float function call, a Float literal) is already widened and
