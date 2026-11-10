@@ -813,9 +813,7 @@ class RustExpr {
                     // static does not provide.
                     final plainClassStaticField = staticFieldOf(cls, fieldName);
                     if (plainClassStaticField != null && plainClassStaticField.kind.match(FVar(_, _)) && RustDecl.isPlainClassHandleStaticType(types.of(plainClassStaticField.type))) {
-                        final value = plainClassStaticField.isFinal
-                            ? "(*" + staticItemPath(cls, fieldName) + ").clone()"
-                            : "(*" + staticItemPath(cls, fieldName) + ").lock().unwrap().clone()";
+                        final value = "(*" + staticItemPath(cls, fieldName) + ").lock().unwrap().clone()";
                         return isInterfaceSlotType(targetType) && !isInterfaceType(plainClassStaticField.type)
                             ? "{ let __shared_handle: " + types.of(targetType, false) + " = " + value + "; __shared_handle }" : value;
                     }
@@ -9329,9 +9327,11 @@ class RustExpr {
                     // read is the mutable guard, not a clone. (RcContainerStatic)
                     if (RustDecl.isPlainClassHandleContainerStaticType(types.of(cf.get().type)))
                         return "(*" + staticItemPath(cls, name) + ").lock().unwrap()";
-                    return cf.get().isFinal
-                        ? "(*" + staticItemPath(cls, name) + ").clone()"
-                        : "(*" + staticItemPath(cls, name) + ").lock().unwrap().clone()";
+                    // The Mutex lowering serializes every read: the
+                    // SingleThread deref guard rejects concurrent access from
+                    // live threads, so a clone outside the lock races the Rc
+                    // refcount under a parallel test harness.
+                    return "(*" + staticItemPath(cls, name) + ").lock().unwrap().clone()";
                 }
                 if (RustDecl.usesLazyLockStatic(cls, cf.get(), state)) {
                     // LazyLock owns its value. Static reads cross Haxe value

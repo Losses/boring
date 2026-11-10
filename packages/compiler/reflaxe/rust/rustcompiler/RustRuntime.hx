@@ -23,107 +23,43 @@ impl Exception {
 ';
 
     /** SingleThread wraps a non-Send/Sync value (an Rc handle) so it can
-        live in a process-wide static. The safety contract is the Haxe
-        single-threaded execution model: generated code never runs Haxe
-        values concurrently, so the Rc/RefCell inside are never actually
-        shared or moved across threads despite the Send + Sync impls.
-        (SingleThreadStatic) */
-        /** SingleThread wraps a non-Send/Sync value (an Rc handle) so it can
-        live in a process-wide static. The safety contract is the Haxe
-        single-threaded execution model, enforced by a thread-affine guard:
-        the creating thread is recorded, and a different thread may only take
-        over after the original owner has finished (sequential hand-off, as
-        the test harness runs each test on a fresh thread). Concurrent access
-        from a still-running foreign thread panics instead of racing the Rc
-        refcount. (SingleThreadStatic) */
-        /** SingleThread wraps a non-Send/Sync value (an Rc handle) so it can
-        live in a process-wide static. The safety contract is the Haxe
-        single-threaded execution model, enforced by a thread-affine guard:
-        the creating thread is recorded together with a liveness token, and a
-        different thread may only take over after the original owner's token
-        has dropped (its thread exited -- sequential hand-off, as the test
-        harness runs each test on a fresh thread). Concurrent access from a
-        still-running foreign thread panics instead of racing the Rc refcount.
-        (SingleThreadStatic) */
+        live in a process-wide static. Every emitted static lowers as
+        LazyLock<Mutex<SingleThread<T>>>, so the Mutex owns exclusivity: reads
+        from a parallel test harness serialize instead of racing the Rc
+        refcount, and a legal serialized cross-thread read no longer trips a
+        thread-affine guard. SingleThread itself is a plain wrapper recording
+        the Haxe single-threaded value semantics. (SingleThreadStatic) */
     public static final SINGLE_THREAD_SOURCE = '
-use std::cell::RefCell;
-use std::sync::{Arc, Mutex, Weak};
-
-thread_local! {
-    // Held by a thread for its whole lifetime so a Weak<()> can detect when the
-    // owning thread has exited (sequential hand-off vs concurrent access).
-    static THREAD_LIVENESS: RefCell<Option<Arc<()>>> = RefCell::new(None);
-}
-
-fn thread_identity() -> (std::thread::ThreadId, Weak<()>) {
-    let id = std::thread::current().id();
-    THREAD_LIVENESS.with(|cell| {
-        let mut slot = cell.borrow_mut();
-        if slot.is_none() {
-            *slot = Some(Arc::new(()));
-        }
-        (id, Arc::downgrade(slot.as_ref().unwrap()))
-    })
-}
-
+// SingleThread marks a value with Haxe single-threaded semantics (an Rc
+// handle) stored in a process-wide static. The emitting lowering always
+// wraps it in a Mutex (LazyLock<Mutex<SingleThread<T>>>), which serializes
+// every access -- including reads handed across threads by a parallel test
+// harness -- so an Rc<RefCell<T>> inside can never race.
 pub struct SingleThread<T> {
     value: T,
-    owner: Mutex<Option<(std::thread::ThreadId, Weak<()>)>>,
 }
 
 impl<T> SingleThread<T> {
     pub fn new(value: T) -> Self {
-        SingleThread {
-            value,
-            owner: Mutex::new(Some(thread_identity())),
-        }
+        SingleThread { value }
     }
 }
 
 impl<T> std::ops::Deref for SingleThread<T> {
     type Target = T;
     fn deref(&self) -> &T {
-        let cur = std::thread::current().id();
-        let mut owner = self.owner.lock().unwrap();
-        match owner.as_ref() {
-            None => { *owner = Some(thread_identity()); }
-            Some((id, token)) => {
-                if *id != cur {
-                    assert!(
-                        token.upgrade().is_none(),
-                        "SingleThread value accessed concurrently from multiple threads (Haxe semantics are single-threaded)"
-                    );
-                    *owner = Some(thread_identity());
-                }
-            }
-        }
         &self.value
     }
 }
 
 impl<T> std::ops::DerefMut for SingleThread<T> {
     fn deref_mut(&mut self) -> &mut T {
-        let cur = std::thread::current().id();
-        let mut owner = self.owner.lock().unwrap();
-        match owner.as_ref() {
-            None => { *owner = Some(thread_identity()); }
-            Some((id, token)) => {
-                if *id != cur {
-                    assert!(
-                        token.upgrade().is_none(),
-                        "SingleThread value accessed concurrently from multiple threads (Haxe semantics are single-threaded)"
-                    );
-                    *owner = Some(thread_identity());
-                }
-            }
-        }
         &mut self.value
     }
 }
 
-// SAFETY: the thread-affine guard above rejects concurrent access from a
-// foreign thread (the only way an Rc<RefCell<T>> inside could race), so the
-// Send + Sync impls are sound under the single-threaded Haxe model.
+// SAFETY: SingleThread is only stored behind a Mutex, which provides the
+// synchronization a non-Send Rc payload needs for Send + Sync.
 unsafe impl<T> Send for SingleThread<T> {}
 unsafe impl<T> Sync for SingleThread<T> {}
 ';    /** The Functional shim is precision-parameterized: sum_of_float keeps

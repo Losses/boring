@@ -1949,11 +1949,11 @@ class RustDecl {
             // Immutable plain-class statics read-only via LazyLock deref; a
             // mutable `var` static needs interior Mutex so the SingleThread
             // inner value stays assignable. (RcContainerStatic)
-            if (field.isFinal && !RustDecl.isPlainClassHandleContainerStaticType(typeStr)) {
-                return [
-                    vis + "static " + name + ": LazyLock<SingleThread<" + typeStr + ">> = LazyLock::new(|| SingleThread::new(" + expr.rawExpression(init) + "));"
-                ];
-            }
+            // Final non-container statics take the same Mutex lowering:
+            // the SingleThread deref guard only hands ownership between
+            // threads sequentially, while a parallel test harness really
+            // reads the static from live threads at once, which races the
+            // Rc refcount. Every read serializes through the Mutex.
             imports.require("std::sync::Mutex");
             return [
                 vis + "static " + name + ": LazyLock<Mutex<SingleThread<" + typeStr + ">>> = LazyLock::new(|| Mutex::new(SingleThread::new(" + expr.rawExpression(init) + ")));"
