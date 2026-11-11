@@ -848,8 +848,15 @@ class SwiftExpr {
                         { type: v.t, admitsAbsence: false, role: Assignment(""), errorSlot: null });
                 if (swiftShadowedLocals.exists(v.id))
                     return [];
-                if (swiftUnusedLocals.exists(v.id))
+                if (swiftUnusedLocals.exists(v.id)) {
+                    // A local nobody reads and whose initializer has no
+                    // observable evaluation is dropped outright; anything that
+                    // can run code keeps its evaluation as `_ = init`.
+                    // (DeadPureBinding)
+                    if (swiftInitHasNoEffect(init))
+                        return [];
                     return [indent(depth) + "_ = " + tryKw + initText];
+                }
                 return [indent(depth) + '$kw ${localName(v)}$annotation = $tryKw$initText'];
             case TVar(v, _):
                 // A declaration without initializer: definite
@@ -6716,6 +6723,7 @@ class SwiftExpr {
         final declNames:Map<Int, String> = [];
         final readCounts:Map<Int, Int> = [];
         final nullLiteralInits:Map<Int, Bool> = [];
+        final assignedLocals:Map<Int, Bool> = [];
         function countReads(node:TypedExpr):Void {
             var skipIter = false;
             switch (node.expr) {
@@ -6731,6 +6739,18 @@ class SwiftExpr {
                     nullLiteralInits.set(v.id, init != null && init.expr.match(TConst(TNull)));
                 case TLocal(v):
                     readCounts.set(v.id, (readCounts.exists(v.id) ? readCounts.get(v.id) : 0) + 1);
+                case TBinop(OpAssign, l, r):
+                    // The target of an assignment is written, not read. Counting it
+                    // as a read kept the dead siblings Haxe leaves behind when it
+                    // splits a constant array literal into element locals. A local
+                    // that receives a standalone assignment still needs its
+                    // declaration, so it is recorded separately. (AssignTargetIsNotRead)
+                    countReads(r);
+                    switch (stripWrap(l).expr) {
+                        case TLocal(v): assignedLocals.set(v.id, true);
+                        case _: countReads(l);
+                    }
+                    return;
                 case TBinop(OpEq, l, r) | TBinop(OpNotEq, l, r):
                     // The emitter folds a null comparison whose subject's
                     // binding is non-optional into its constant
@@ -6747,12 +6767,21 @@ class SwiftExpr {
                     }
                 case _:
             }
-            if (!skipIter)
-                haxe.macro.TypedExprTools.iter(node, countReads);
+            if (skipIter) return;
+            switch (node.expr) {
+                case TBlock(stmts):
+                    // Mirror the statement form blockLines renders: the typer
+                    // leaves `var x; x = value;` pairs that the emitter fuses, so
+                    // the scan must fuse them too or the consumed assignment keeps
+                    // its local looking assigned. (FusedFormScan)
+                    for (st in fuseUninitializedVars(stmts)) countReads(st);
+                case _:
+                    haxe.macro.TypedExprTools.iter(node, countReads);
+            }
         }
         countReads(e);
         for (id in readCounts.keys())
-            if (readCounts.get(id) == 0)
+            if (readCounts.get(id) == 0 && !assignedLocals.exists(id))
                 swiftUnusedLocals.set(id, true);
         // A declaration the typer shares with a counted loop's index rebinds
         // the same var: the interval machinery re-emits the loop as
@@ -7160,6 +7189,30 @@ class SwiftExpr {
             }
         }
         return false;
+    }
+
+    /**
+        Whether evaluating this initializer is unobservable: literals, local
+        reads, and array/object literals of those, through parentheses,
+        casts and metadata. Calls, constructors, field reads (a Haxe
+        property can run a getter) and operators (a division can trap) are
+        observable and never eliminated. This is the single purity judgement
+        the dead-binding paths use. (DeadPureBinding)
+    **/
+    function swiftInitHasNoEffect(e:TypedExpr):Bool {
+        if (e == null) return true;
+        return switch (stripWrap(e).expr) {
+            case TConst(_) | TLocal(_): true;
+            case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): swiftInitHasNoEffect(inner);
+            case TArrayDecl(elems): swiftAllHaveNoEffect(elems);
+            case TObjectDecl(fields): swiftAllHaveNoEffect([for (f in fields) f.expr]);
+            case _: false;
+        };
+    }
+
+    function swiftAllHaveNoEffect(list:Array<TypedExpr>):Bool {
+        for (item in list) if (!swiftInitHasNoEffect(item)) return false;
+        return true;
     }
 
     function localName(v:TVar):String {
