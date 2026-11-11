@@ -710,3 +710,4 @@ boring.UnusedSwiftBinding
 boring.protocol.FloatCanonical
 boring.protocol.CanonicalFingerprint
 tests.FloatCanonicalTests
+tests.NestedIndexWriteTests
