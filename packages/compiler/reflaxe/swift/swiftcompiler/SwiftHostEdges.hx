@@ -227,8 +227,23 @@ private func boringFsIsDirectory(_ path: [UInt16]) -> Bool {
     static final FS_ERROR = '
 private func boringFsError(_ operation: [UInt16], _ path: [UInt16], _ error: Error) -> FsException {
     #if canImport(FoundationEssentials) || canImport(Darwin)
-    let ns = error as NSError
-    let detail = Array(ns.localizedDescription.utf16)
+    let outer = error as NSError
+    let detail = Array(outer.localizedDescription.utf16)
+    var ns = outer
+    #if canImport(Darwin)
+    // Foundation wraps the POSIX cause of its file helpers: the outer error is
+    // NSCocoaErrorDomain and the errno sits in NSUnderlyingErrorKey. Descend
+    // only into a POSIX underlying error, so an unrelated userInfo entry cannot
+    // reclassify a Cocoa error, and classify by that errno once for every
+    // helper. (UnderlyingPosixCause)
+    var depth = 0
+    while ns.domain == NSCocoaErrorDomain, depth < 4,
+          let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError,
+          underlying.domain == NSPOSIXErrorDomain {
+        ns = underlying
+        depth += 1
+    }
+    #endif
     #if canImport(Darwin)
     if ns.domain == NSCocoaErrorDomain {
         switch ns.code {
