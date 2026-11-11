@@ -16,10 +16,7 @@ class ProcessOps {
     }
 
     public static function hostProbe():Bool {
-        final result = Process.run("printenv", ["BORING_PROCESS_PROBE"], Process.cwd(), [
-            {name: "BORING_PROCESS_PROBE", value: "working"}
-        ]);
-        if (result.code != 0 || result.stdout != "working\n" || result.stderr != "") {
+        if (!probeEnvInheritance()) {
             return false;
         }
         final path = Process.cwd() + "/boring-process-probe.txt";
@@ -35,6 +32,23 @@ class ProcessOps {
         final replaced = !Fs.exists(source) && Fs.readText(path) == "new content";
         Fs.deleteFile(path);
         return replaced && !Fs.exists(path);
+    }
+
+    /** The env-inheritance half of the probe. A POSIX host reads the
+        variable through printenv; a Windows host has no such program, so
+        it reads it through the cmd shell builtin. Either way the child must
+        see the variable passed in the spawn environment - that is the
+        behaviour under test, not the choice of program. (PortableEnvProbe) */
+    static function probeEnvInheritance():Bool {
+        final windows = Process.platform() == "windows";
+        final result = windows
+            ? Process.run("cmd", ["/c", "echo %BORING_PROCESS_PROBE%"], Process.cwd(), [
+                {name: "BORING_PROCESS_PROBE", value: "working"}
+            ])
+            : Process.run("printenv", ["BORING_PROCESS_PROBE"], Process.cwd(), [
+                {name: "BORING_PROCESS_PROBE", value: "working"}
+            ]);
+        return result.code == 0 && StringTools.trim(result.stdout) == "working" && StringTools.trim(result.stderr) == "";
     }
 
     public static function consoleProbe():Void {
