@@ -397,9 +397,22 @@ private func boringProcessRun(_ command: [UInt16], _ args: BoringArray<[UInt16]>
     var executable = String(decoding: command, as: UTF16.self)
     if !executable.contains("/") && !executable.contains("\\\\") {
         let separator: Character = variables["PATH"]?.contains(";") == true ? ";" : ":"
-        for directory in (variables["PATH"] ?? "").split(separator: separator) {
-            let candidate = URL(fileURLWithPath: String(directory), isDirectory: true).appendingPathComponent(String(decoding: command, as: UTF16.self)).path
-            if fm.isExecutableFile(atPath: candidate) { executable = candidate; break }
+        // Windows resolves a bare command name through PATHEXT (`cmd` is
+        // `cmd.exe`); POSIX requires the exact name, so its candidate list
+        // stays a single entry. (WindowsPathExt)
+        var names = [String(decoding: command, as: UTF16.self)]
+        #if os(Windows)
+        let pathExt = variables["PATHEXT"] ?? ".COM;.EXE;.BAT;.CMD"
+        for ext in pathExt.split(separator: ";") where !ext.isEmpty {
+            names.append(String(decoding: command, as: UTF16.self) + ext.lowercased())
+            names.append(String(decoding: command, as: UTF16.self) + ext.uppercased())
+        }
+        #endif
+        search: for directory in (variables["PATH"] ?? "").split(separator: separator) {
+            for name in names {
+                let candidate = URL(fileURLWithPath: String(directory), isDirectory: true).appendingPathComponent(name).path
+                if fm.isExecutableFile(atPath: candidate) { executable = candidate; break search }
+            }
         }
     }
     task.executableURL = URL(fileURLWithPath: executable)
