@@ -112,6 +112,10 @@ class RustExpr {
     // when the closure assigns them.
     final tryCapturedAssignments:Map<Int, Bool> = [];
     final mutated:Map<Int, Bool> = [];
+    // Locals whose BINDING is reassigned (x = ...), as opposed to locals
+    // whose pointee is mutated through the binding. A handle local needs
+    // let mut only for the former. (HandleLocalMut)
+    final reassignedLocals:Map<Int, Bool> = [];
     /**
         Set while emitting a switch whose value the statement position
         discards (`case X: null;` side-effect idiom). The arm renderer
@@ -1117,6 +1121,7 @@ class RustExpr {
         signedCountdownVars.clear();
         countdownShiftedVars.clear();
         mutated.clear();
+        reassignedLocals.clear();
         deadInitLocals.clear();
         deferredLocals.clear();
         for (a in f.args) {
@@ -1220,6 +1225,7 @@ class RustExpr {
         paramVarIds.clear();
         unsignedLocals.clear();
         mutated.clear();
+        reassignedLocals.clear();
         deadInitLocals.clear();
         for (a in f.args)
             if (a.tvar != null)
@@ -1260,6 +1266,7 @@ class RustExpr {
         paramVarIds.clear();
         unsignedLocals.clear();
         mutated.clear();
+        reassignedLocals.clear();
         deadInitLocals.clear();
         for (a in f.args) {
             if (a.tvar != null)
@@ -1725,8 +1732,21 @@ class RustExpr {
                 // bare: the emitted `for` rebinds and the loop's increment
                 // disappears into the stride, so no write reaches it.
                 // (IntervalCounterMut)
+                // A local whose RUST type is exactly Rc<RefCell<T>> mutates
+                // through borrow_mut() or a UFCS &receiver, never through the
+                // binding, so `let mut` is dead weight and rustc flags it.
+                // The test is on the lowered type, not the Haxe type: a
+                // nullable class lowers to Option<Rc<RefCell<T>>>, and
+                // Option::as_mut() takes &mut self, so that binding does need
+                // `mut`. A binding that is itself reassigned needs it too.
+                // (HandleLocalMut)
+                final rustType = types.of(v.t, false);
+                final handleLocal = StringTools.startsWith(rustType, "Rc<RefCell<")
+                    && StringTools.endsWith(rustType, ">>");
+                final bindingReassigned = reassignedLocals.exists(v.id) || tryCapturedAssignments.exists(v.id);
                 final isMut = (mutated.exists(v.id) || tryCapturedAssignments.exists(v.id))
-                    && !intervalCounterLocals.exists(v.id);
+                    && !intervalCounterLocals.exists(v.id)
+                    && (!handleLocal || bindingReassigned);
                 final kw = isMut ? "let mut" : "let";
                 final raw = RustImports.toSnakeCase(localName(v));
                 final name = unusedLocalIds.exists(v.id) ? "_" + raw : raw;
@@ -9753,7 +9773,14 @@ class RustExpr {
                 // field. Non-Copy fields must clone at the read site so the
                 // value slots that consume them receive an owned copy.
                 // Covers the borrowed-field-read family (E0507).
+                // A borrowed byte field is the exception: its Rust type is
+                // already `&[u8]`, which is Copy, so a clone here is
+                // `&[u8] -> &[u8]` - rustc reports it as a no-op clone and as a
+                // double-reference clone. The `TThis` arm above already skips it;
+                // this arm reaches the same field through a borrowed subject or
+                // an Rc borrow, so it needs the same guard. (BorrowedByteFieldClone)
                 if (name != "length" && !renderingMethodReceiver && !renderingInPlaceMutatorReceiver && !renderingAssignTargetReceiver && !isTypeCopy(cf.get().type)
+                    && !RustDecl.isBorrowedByteField(imports.selfModule, name)
                     && (isBorrowedExpression(subj) || StringTools.contains(subjStr, ".as_ref().unwrap()") || rcBorrow)) {
                     return "(" + access + ").clone()";
                 }
@@ -15659,6 +15686,7 @@ class RustExpr {
                 switch (stripWrap(t).expr) {
                     case TLocal(v):
                         mutated.set(v.id, true);
+                        reassignedLocals.set(v.id, true);
                     case TArray(arr, _):
                         final receiver = mapBackingReceiver(arr);
                         // The index target's receiver may be a field chain
@@ -15705,6 +15733,7 @@ class RustExpr {
                 switch (stripWrap(subj).expr) {
                     case TLocal(v):
                         mutated.set(v.id, true);
+                        reassignedLocals.set(v.id, true);
                     case _:
                 }
             case TCall(fn, args):

@@ -3123,7 +3123,13 @@ class RustDecl {
         final vis = isTraitImpl ? "" : (f.field.isPublic || isGetterAccessor ? "pub " : (f.field.meta.has(":allow") ? "pub " : ""));
         final methodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
         final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
-        final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
+        // The handle ABI takes `this: &Rc<RefCell<Self>>` on every method,
+        // including the ones whose body never reads it; rustc flags those as
+        // unused_variables. The parameter is part of the calling convention, so
+        // allow it per method instead of renaming it (the body may still refer
+        // to `this` through paths the AST scan does not see). (HandleAbiThis)
+        final thisAllow = (selfParam.indexOf("this: &Rc<RefCell<Self>>") >= 0) ? "#[allow(unused_variables)] " : "";
+        final head = '    ${thisAllow}${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
 
         expr.setReturnUnsigned(rawRetType == "u32");
         expr.setReturnTypeName(rawRetType);
@@ -3186,6 +3192,9 @@ class RustDecl {
             state.emittedAdapterStructs.set(adapterKey, true);
             lines.push("");
             lines.push("#[derive(Clone)]");
+            // The double underscore cannot collide with a Haxe class name, so
+            // the adapter keeps it and silences the naming lint. (HandleAdapterName)
+            lines.push("#[allow(non_camel_case_types)]");
             lines.push("pub struct " + adapterName + implGenerics + "(pub Rc<RefCell<" + cls.name + genericStr + ">>);");
         }
         lines.push("");
