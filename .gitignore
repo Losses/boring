@@ -73,3 +73,22 @@ boring-*.stuck.md
 
 .workspace-board-scratch-lock-*/
 engine-haxe/baseline-goldens/baseline-goldens
+
+# Debug scratch and dumps that must never be tracked. Each of these was
+# committed by accident during a debugging session and then survived in the
+# tree; the ignore rules keep a re-run from re-adding them.
+.hang-evidence/
+.hxtest/
+.probe/
+release-prep/
+repro/
+dropdebug.txt
+lambdadump.txt
+.swiftbuild2.log
+zzc
+zztest_12414
+smoke2.ts
+probe-tsconfig.json
+
+# Board task workspaces (managed by the workspace board, never tracked).
+.scratch/
