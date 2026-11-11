@@ -26,7 +26,10 @@
 // ---------------------------------------------------------------------
 
 typealias DWORD = UInt32
-typealias BOOL = Int32
+// The WinSDK overlay imports Win32 BOOL as Bool (nonzero is true): the windows
+// CI compiler proved that when it resolved MoveFileExW(...) to Bool. Modelling
+// BOOL as Int32 here is what let an emitted `result == 0` pass this gate.
+typealias BOOL = Bool
 typealias HANDLE = UnsafeMutableRawPointer
 typealias LPCWSTR = UnsafePointer<UInt16>
 
@@ -51,16 +54,16 @@ func FindFirstFileW(_ name: LPCWSTR?, _ data: UnsafeMutablePointer<WIN32_FIND_DA
     return INVALID_HANDLE_VALUE
 }
 func FindNextFileW(_ handle: HANDLE, _ data: UnsafeMutablePointer<WIN32_FIND_DATAW>?) -> BOOL {
-    return 0
+    return false
 }
 func FindClose(_ handle: HANDLE) -> BOOL {
-    return 1
+    return true
 }
 func GetFileAttributesW(_ name: LPCWSTR?) -> DWORD {
     return INVALID_FILE_ATTRIBUTES
 }
 func CreateDirectoryW(_ name: LPCWSTR?, _ attrs: UnsafePointer<SECURITY_ATTRIBUTES>?) -> BOOL {
-    return 0
+    return false
 }
 // The overlay imports Win32 BOOL as Bool (nonzero is true): the windows CI
 // compiler resolves MoveFileExW(...) to Bool, so the stand-in models that
@@ -194,7 +197,7 @@ private func boringFsMakeDirs(_ path: String) throws {
             if !segment.isEmpty {
                 prefix += segment
                 let wide = Array(prefix.utf16)
-                let created = wide.withUnsafeBufferPointer { CreateDirectoryW($0.baseAddress, nil) != 0 }
+                let created = wide.withUnsafeBufferPointer { CreateDirectoryW($0.baseAddress, nil) }
                 if !created {
                     let code = GetLastError()
                     if code != ERROR_ALREADY_EXISTS {
@@ -230,7 +233,7 @@ private func boringFsReadDir(_ path: String) throws -> [String] {
         if name != "." && name != ".." {
             names.append(name)
         }
-        if FindNextFileW(handle, &data) == 0 {
+        if !FindNextFileW(handle, &data) {
             if GetLastError() != ERROR_NO_MORE_FILES {
                 throw BoringException(message: path + ": Win32 error " + String(GetLastError()))
             }
