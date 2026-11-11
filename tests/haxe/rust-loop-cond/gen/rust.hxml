@@ -1,0 +1,13 @@
+-lib reflaxe
+-lib boring
+-cp packages/compiler
+-cp packages/compiler/reflaxe/rust/std-shadow
+-cp packages/compiler/reflaxe/rust
+-cp tests/haxe/rust-loop-cond
+-cp samples
+--macro Intercept.run(['samples', 'tests/haxe/rust-loop-cond'])
+--macro rustcompiler.Compiler.use()
+-D runtime-import=crate::runtime
+-D runtime-emit=runtime
+probe.LoopCond
+runtime.UString

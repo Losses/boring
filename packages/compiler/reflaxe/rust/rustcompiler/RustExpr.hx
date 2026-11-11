@@ -1587,8 +1587,18 @@ class RustExpr {
                 if (!field.kind.match(FVar(_, _)))
                     return null;
                 final typeStr = types.of(field.type);
+                // TODO(StaticReadContainer): a container static read is the
+                // guard itself (*S).lock().unwrap(), not a clone; two reads
+                // of one container static in one statement still hold two
+                // guards and can deadlock. It is excluded here because the
+                // statement hoist binds a cloned value, while the container
+                // form would have to bind one mutable guard and reuse it
+                // across the statement. No current corpus site reads one
+                // container static twice in one statement; revisit when one
+                // does.
+                if (RustDecl.isPlainClassHandleContainerStaticType(typeStr))
+                    return null;
                 RustDecl.isPlainClassHandleStaticType(typeStr)
-                    && !RustDecl.isPlainClassHandleContainerStaticType(typeStr)
                     ? staticItemPath(c.get(), field.name) : null;
             case _: null;
         };
@@ -1618,11 +1628,14 @@ class RustExpr {
                 case TCall(fn, args): walk(fn); for (a in args) walk(a);
                 case TNew(_, _, args): for (a in args) walk(a);
                 case TIf(cond, _, _): walk(cond);
-                case TWhile(cond, _, _): walk(cond);
+                // A while condition is re-evaluated on every iteration, so
+                // its reads are hoisted inside the condition block by the
+                // TWhile rendering, never before the loop. (StaticReadLoop)
                 case TVar(_, init): if (init != null) walk(init);
                 case TReturn(value): if (value != null) walk(value);
                 case TThrow(value): walk(value);
-                case TBlock(_) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TFunction(_):
+                case TFor(_, iter, _): walk(iter);
+                case TBlock(_) | TWhile(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TFunction(_):
                     // Statement bodies and function bodies are separate scopes.
                 case TConst(_) | TLocal(_) | TTypeExpr(_) | TIdent(_): 
                 case _:
@@ -1630,6 +1643,47 @@ class RustExpr {
         }
         walk(e);
         return out;
+    }
+
+    /**
+        Render a while condition. A condition is re-evaluated on every
+        iteration, so a duplicated static read is hoisted inside the
+        condition block itself: the block runs each iteration, re-locking
+        and re-cloning, instead of hoisting before the loop. (StaticReadLoop)
+
+        The block form is the semantically correct lowering for a body that
+        reassigns the static to a new object; a body that only mutates the
+        object in place sees the same value through either form, because the
+        clone is an Rc handle to the same RefCell. Reassignment is not
+        reachable in the current subset (a static field initializer accepts
+        null/literal/empty-array only, and a nullable static does not
+        compile), so no test discriminates the two forms today; the block
+        form is still the one that stays correct when that changes.
+    **/
+    function loopConditionText(cond:TypedExpr):String {
+        final reads = collectStaticReads(cond);
+        if (reads.length == 0)
+            return expr(cond);
+        final counts = new Map<String, Int>();
+        for (path in reads)
+            counts.set(path, (counts.exists(path) ? counts.get(path) : 0) + 1);
+        final duplicated = [];
+        for (path => count in counts)
+            if (count > 1)
+                duplicated.push(path);
+        if (duplicated.length == 0)
+            return expr(cond);
+        final saved = activeStaticReadSubstitution;
+        activeStaticReadSubstitution = new Map();
+        final lets = [];
+        for (path in duplicated) {
+            final local = freshRegionName("__static_read");
+            activeStaticReadSubstitution.set(path, local);
+            lets.push("let " + local + " = { let __g = (*" + path + ").lock().unwrap(); (*__g).clone() };");
+        }
+        final body = expr(cond);
+        activeStaticReadSubstitution = saved;
+        return "{ " + lets.join(" ") + " " + body + " }";
     }
 
     function stmtLines(e:TypedExpr, depth:Int):Array<String> {
@@ -2244,7 +2298,7 @@ class RustExpr {
                 return out;
             case TWhile(c, b, true):
                 final perChar = perCharLoopInfo(c, b);
-                var condStr = nullableBoolOperand(c, expr(c));
+                var condStr = nullableBoolOperand(c, loopConditionText(c));
                 while (StringTools.startsWith(condStr, "(") && StringTools.endsWith(condStr, ")") && matchingParens(condStr)) {
                     condStr = condStr.substr(1, condStr.length - 2);
                 }
