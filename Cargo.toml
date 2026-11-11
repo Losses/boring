@@ -1,20 +1,24 @@
 # Root cargo workspace, symmetric with the bun workspace in package.json.
 # Member crates hold the language implementations; test suites live in
 # tests/ and are wired into crates through explicit [[test]] paths.
-# The generated crates carry their own emitted Cargo.toml at their
-# output root (feature spec 24); membership here stays the consumer's
-# act. The f64 crate sits at the bundle driver's derived directory
-# reference/rust/gen (feature spec 59); the f32 twin crate (feature
-# spec 23) stays outside the workspace and runs through its own
-# verification command, so a plain `cargo test` needs no f32 tree.
+# The generated codec crates carry their own emitted Cargo.toml at their
+# output root (feature spec 24) and declare themselves workspace roots, so
+# they stay outside this workspace and run through their own manifest paths:
+# the f64 crate at the bundle driver's derived directory reference/rust/gen
+# (feature spec 59) and the f32 twin (feature spec 23). A plain `cargo test`
+# therefore needs no generated tree, and needs no f32 tree (see the exclusion
+# below).
 [workspace]
-members = ["reference/rust", "reference/rust/gen"]
-default-members = ["reference/rust", "reference/rust/gen"]
-# Generated trees under out/ are build output, never members. The
-# runner-timeout probe (tests/timeout-probe/rust.hxml) emits one crate
-# there, and cargo refuses to build a package that sits under the
-# workspace root without being a member or an exclusion; the f32 twin
-# crate is excluded for the same reason: it stands as a crate of its
-# own once generated.
-exclude = ["out", "reference/rust-f32/gen"]
+members = ["reference/rust"]
+default-members = ["reference/rust"]
+# Generated trees are build output, never members. The runner-timeout probe
+# (tests/timeout-probe/rust.hxml) emits one crate under out/, and cargo
+# refuses to build a package that sits under the workspace root without being
+# a member or an exclusion. Both generated codec crates are excluded for the
+# same reason: the emitter declares each one a workspace root of its own (it
+# carries the semantic test crates), so cargo would otherwise see two
+# workspace roots for one tree. Their suites run by manifest path:
+#   cargo test --manifest-path reference/rust/gen/Cargo.toml
+#   cargo test --features f32 --manifest-path reference/rust-f32/gen/Cargo.toml
+exclude = ["out", "reference/rust/gen", "reference/rust-f32/gen"]
 resolver = "3"

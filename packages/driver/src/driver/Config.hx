@@ -244,7 +244,7 @@ class Config {
         // cargoArgs carries cargo-level options (for example --features f32)
         // that must land before the test-harness -- separator; the rust
         // plan inserts them there and every other target ignores them.
-        final cargoArgs = has(values, "cargoArgs") ? strings(values, "cargoArgs", '$where: $name') : null;
+        final cargoArgs:Null<Array<String>> = has(values, "cargoArgs") ? strings(values, "cargoArgs", '$where: $name') : null;
         final stepValue:StepOverride = {args: strings(values, "args", '$where: $name'), env: env(values, '$where: $name'), cargoArgs: cargoArgs};
         return stepValue;
     }

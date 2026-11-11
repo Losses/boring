@@ -3,8 +3,10 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 /**
- * The Rust reference tree is a workspace member, so `cargo test` compiles and
- * tests it -- but nothing regenerates it before that happens.
+ * The Rust reference tree is generated build output that its own cargo
+ * invocation compiles and tests (`cargo test --manifest-path
+ * reference/rust/gen/Cargo.toml`) -- but nothing regenerates it before that
+ * happens.
  *
  * That combination already cost us once: commit 304ed70c changed
  * tests/rust/vector_gen.rs to use the UString API and the data-class
