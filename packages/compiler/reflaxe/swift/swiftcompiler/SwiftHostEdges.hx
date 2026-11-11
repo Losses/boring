@@ -362,8 +362,30 @@ private func boringFsReadDir(_ path: [UInt16]) throws -> [[UInt16]] {
     static final FS_DELETE_FILE = '
 private func boringFsDeleteFile(_ path: [UInt16]) throws {
     #if canImport(FoundationEssentials) || canImport(Darwin)
+    let text = String(decoding: path, as: UTF16.self)
+    // stdlib/17: deleteFile removes a regular file. FileManager.removeItem
+    // removes a directory tree recursively, so the target type decides before
+    // the call: a directory entry raises isDirectory and the tree survives.
+    // lstat keeps a symlink-to-directory a file entry, so the link itself is
+    // removed as unlink does on the other targets. (DeleteFileDirectoryGuard)
+    #if canImport(Glibc)
+    var info = Glibc.stat()
+    let isDirectory = text.withCString { Glibc.lstat($0, &info) == 0 && (info.st_mode & mode_t(Glibc.S_IFMT)) == mode_t(Glibc.S_IFDIR) }
+    #elseif canImport(Darwin)
+    var info = Darwin.stat()
+    let isDirectory = text.withCString { Darwin.lstat($0, &info) == 0 && (info.st_mode & mode_t(Darwin.S_IFMT)) == mode_t(Darwin.S_IFDIR) }
+    #elseif canImport(FoundationEssentials)
+    var directory = false
+    let isDirectory = FileManager.default.fileExists(atPath: text, isDirectory: &directory) && directory
+    #else
+    var directory = ObjCBool(false)
+    let isDirectory = FileManager.default.fileExists(atPath: text, isDirectory: &directory) && directory.boolValue
+    #endif
+    if isDirectory {
+        throw FsException(FsError.isDirectory(operation: Array("deleteFile".utf16), path: path, nativeDetail: Array("EISDIR".utf16)))
+    }
     do {
-        try FileManager.default.removeItem(atPath: String(decoding: path, as: UTF16.self))
+        try FileManager.default.removeItem(atPath: text)
     } catch {
         throw boringFsError(Array("deleteFile".utf16), path, error)
     }
