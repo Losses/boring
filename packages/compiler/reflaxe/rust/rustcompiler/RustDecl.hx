@@ -1730,6 +1730,21 @@ class RustDecl {
         return typeStr.indexOf("Vec<") == 0 || typeStr.indexOf("HashMap<") == 0;
     }
 
+    /** A mutable plain-class static whose declared Haxe type is non-null but
+        whose initializer is the null literal. Haxe lets a class-typed static
+        hold null, so the Rust slot carries Option<T> even though the Haxe
+        type names T; reads that consume the value unwrap it and a null
+        comparison observes the Option. (NullableStaticInit) */
+    public static function isNullBackedPlainClassStatic(field:ClassField, typeStr:String):Bool {
+        if (field == null || field.isFinal)
+            return false;
+        if (StaticFieldHelper.isNullableType(field.type))
+            return false;
+        if (!isPlainClassHandleStaticType(typeStr))
+            return false;
+        return StaticFieldHelper.isNullInitializer(StaticFieldHelper.initializer(field));
+    }
+
     /**
         Whether the named field lowers as a borrowed byte reference. The
         field's Rust type is then a shared reference, which is Copy, so a
@@ -1987,8 +2002,13 @@ class RustDecl {
             // reads the static from live threads at once, which races the
             // Rc refcount. Every read serializes through the Mutex.
             imports.require("std::sync::Mutex");
+            final nullBacked = RustDecl.isNullBackedPlainClassStatic(field, typeStr);
+            // A null-initialized class static stores None in an Option slot
+            // even though the Haxe type names the class; every read unwraps
+            // and every assignment wraps. (NullableStaticInit)
+            final slotType = nullBacked ? "Option<" + typeStr + ">" : typeStr;
             return [
-                vis + "static " + name + ": LazyLock<Mutex<SingleThread<" + typeStr + ">>> = LazyLock::new(|| Mutex::new(SingleThread::new(" + expr.rawExpression(init) + ")));"
+                vis + "static " + name + ": LazyLock<Mutex<SingleThread<" + slotType + ">>> = LazyLock::new(|| Mutex::new(SingleThread::new(" + expr.rawExpression(init) + ")));"
             ];
         }
 

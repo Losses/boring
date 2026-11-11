@@ -1654,11 +1654,11 @@ class RustExpr {
         The block form is the semantically correct lowering for a body that
         reassigns the static to a new object; a body that only mutates the
         object in place sees the same value through either form, because the
-        clone is an Rc handle to the same RefCell. Reassignment is not
-        reachable in the current subset (a static field initializer accepts
-        null/literal/empty-array only, and a nullable static does not
-        compile), so no test discriminates the two forms today; the block
-        form is still the one that stays correct when that changes.
+        clone is an Rc handle to the same RefCell. A null-initialized class
+        static (static var X:T = null) is Option-backed and re-assignable, so
+        tests/rust-loop-cond.test.ts pins the runtime difference with a
+        counterfactual hoist-before-loop build. (StaticReadLoop,
+        NullableStaticInit)
     **/
     function loopConditionText(cond:TypedExpr):String {
         final reads = collectStaticReads(cond);
@@ -7910,6 +7910,13 @@ class RustExpr {
                 })):
                 final test = "matches!(" + expr(r) + ".as_ref(), Some(__v) if __v == &(" + optionSomeInner(l) + "))";
                 return op == OpEq ? test : "!(" + test + ")";
+            // A null-initialized class static is Option-backed in Rust even
+            // though its Haxe type names the class, so a null comparison
+            // observes the Option slot. (NullableStaticInit)
+            case OpEq | OpNotEq if (isTNull(r) && isNullBackedStaticRead(l)):
+                return nullBackedStaticStorageText(l) + (op == OpEq ? ".is_none()" : ".is_some()");
+            case OpEq | OpNotEq if (isTNull(l) && isNullBackedStaticRead(r)):
+                return nullBackedStaticStorageText(r) + (op == OpEq ? ".is_none()" : ".is_some()");
             // A non-nullable operand compared against null is a tautology:
             // the value can never be None, so the comparison emits a literal
             // consistent with the parameter declaration (== null is false,
@@ -8107,7 +8114,12 @@ class RustExpr {
                 }
                 final staticTarget = staticAssignmentTarget(l);
                 if (staticTarget != null) {
-                    final staticValue = if (StaticFieldHelper.isNullableType(l.t)) {
+                    // A null-initialized class static stores Option<T> even
+                    // when the Haxe type names T, so the assignment wraps the
+                    // value in Some exactly like a Null<T> slot.
+                    // (NullableStaticInit)
+                    final nullBackedSlot = isNullBackedStaticRead(l);
+                    final staticValue = if (StaticFieldHelper.isNullableType(l.t) || nullBackedSlot) {
                         isTNull(r) ? "None" : (isInterfaceType(getNullInnerType(l.t)) && (isConcreteConstructor(r) || !isInterfaceType(r.t))
                             ? "Some(" + ownedNullInterfaceAssignValue(r, getNullInnerType(l.t)) + ")"
                             : "Some(" + staticOwnedValue(r) + ")");
@@ -8630,6 +8642,10 @@ class RustExpr {
         is a tautology.
         Covers the non-null-null-compare family. **/
     function nonNullableInRust(e:TypedExpr):Bool {
+        // A null-initialized class static is Option-backed in Rust even
+        // though its Haxe type names the class. (NullableStaticInit)
+        if (isNullBackedStaticRead(e))
+            return false;
         // The emitted Rust type text decides the null comparison: a value
         // whose rendering is not Option/Result can never be None. Reading
         // the type text directly keeps; the wrapper probe does not preserve
@@ -9490,9 +9506,10 @@ class RustExpr {
                     // live threads, so a clone outside the lock races the Rc
                     // refcount under a parallel test harness.
                     final staticPath = staticItemPath(cls, name);
+                    final nullBacked = RustDecl.isNullBackedPlainClassStatic(cf.get(), types.of(cf.get().type));
                     if (activeStaticReadSubstitution != null && activeStaticReadSubstitution.exists(staticPath))
-                        return activeStaticReadSubstitution.get(staticPath) + ".clone()";
-                    return "(*" + staticPath + ").lock().unwrap().clone()";
+                        return activeStaticReadSubstitution.get(staticPath) + (nullBacked ? ".clone().unwrap()" : ".clone()");
+                    return "(*" + staticPath + ").lock().unwrap().clone()" + (nullBacked ? ".unwrap()" : "");
                 }
                 if (RustDecl.usesLazyLockStatic(cls, cf.get(), state)) {
                     // LazyLock owns its value. Static reads cross Haxe value
@@ -9945,14 +9962,54 @@ class RustExpr {
     }
     function staticGuardOfNullable(e:TypedExpr, mutate:Bool):Null<String> {
         return switch (stripWrap(e).expr) {
-            case TField(_, FStatic(c, cf)) if (isGuardStaticField(c.get(), cf.get().name)):
-                final guard = staticGuard(c.get(), cf.get().name);
-                if (StaticFieldHelper.isNullableType(cf.get().type))
-                    return guard + (mutate ? ".as_mut().unwrap()" : ".as_ref().unwrap()");
-                guard;
+            case TField(_, FStatic(c, cf)):
+                final cls = c.get();
+                final field = cf.get();
+                if (!field.kind.match(FVar(_, _)))
+                    return null;
+                final typeStr = types.of(field.type);
+                final nullableHandleStatic = RustDecl.isPlainClassHandleStaticType(typeStr)
+                    && (StaticFieldHelper.isNullableType(field.type) || RustDecl.isNullBackedPlainClassStatic(field, typeStr));
+                if (!isGuardStaticField(cls, field.name) && !nullableHandleStatic)
+                    return null;
+                final path = staticItemPath(cls, field.name);
+                final hoisted = activeStaticReadSubstitution != null ? activeStaticReadSubstitution.get(path) : null;
+                final guard = hoisted != null ? hoisted : staticGuard(cls, field.name);
+                final nullable = StaticFieldHelper.isNullableType(field.type)
+                    || RustDecl.isNullBackedPlainClassStatic(field, typeStr);
+                // A nullable plain-class static opens the Option and then the
+                // Rc borrow in one place, because the FInstance read path
+                // returns this text before its generic borrow logic runs.
+                // (NullableStaticInit)
+                if (nullableHandleStatic)
+                    return guard + (mutate ? ".as_mut().unwrap().borrow_mut()" : ".as_ref().unwrap().borrow()");
+                nullable ? guard + (mutate ? ".as_mut().unwrap()" : ".as_ref().unwrap()") : guard;
             case _: null;
         };
     }
+    /** Whether the expression reads a null-initialized class static, whose
+        declared Haxe type names the class but whose Rust slot is
+        Option<T>. (NullableStaticInit) */
+    function isNullBackedStaticRead(e:TypedExpr):Bool {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(_, cf)):
+                RustDecl.isNullBackedPlainClassStatic(cf.get(), types.of(cf.get().type));
+            case _: false;
+        };
+    }
+
+    /** The Option storage of a null-initialized class static read, used by
+        the null comparison and never by a value consumer. (NullableStaticInit) */
+    function nullBackedStaticStorageText(e:TypedExpr):String {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)):
+                final path = staticItemPath(c.get(), cf.get().name);
+                final hoisted = activeStaticReadSubstitution != null ? activeStaticReadSubstitution.get(path) : null;
+                hoisted != null ? hoisted : "(*" + path + ").lock().unwrap().clone()";
+            case _: expr(e);
+        };
+    }
+
     /** The Rust item path of a guard static read, or null when the expression
         is not one. (StaticGuardIndexScope) */
     function staticGuardPathOf(e:TypedExpr):Null<String> {

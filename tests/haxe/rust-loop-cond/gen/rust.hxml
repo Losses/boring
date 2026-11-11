@@ -10,4 +10,5 @@
 -D runtime-import=crate::runtime
 -D runtime-emit=runtime
 probe.LoopCond
+probe.ReassignLoop
 runtime.UString
