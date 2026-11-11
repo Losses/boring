@@ -62,8 +62,12 @@ func GetFileAttributesW(_ name: LPCWSTR?) -> DWORD {
 func CreateDirectoryW(_ name: LPCWSTR?, _ attrs: UnsafePointer<SECURITY_ATTRIBUTES>?) -> BOOL {
     return 0
 }
-func MoveFileExW(_ source: LPCWSTR?, _ target: LPCWSTR?, _ flags: DWORD) -> BOOL {
-    return 0
+// The overlay imports Win32 BOOL as Bool (nonzero is true): the windows CI
+// compiler resolves MoveFileExW(...) to Bool, so the stand-in models that
+// instead of the BOOL alias - modelling it as Int32 is what hid the
+// emitted `result == 0` from this Linux-side typecheck gate.
+func MoveFileExW(_ source: LPCWSTR?, _ target: LPCWSTR?, _ flags: DWORD) -> Bool {
+    return false
 }
 func GetLastError() -> DWORD {
     return ERROR_ALREADY_EXISTS
@@ -245,7 +249,7 @@ private func boringFsRename(_ from: String, _ to: String) throws {
             MoveFileExW(s.baseAddress, t.baseAddress, DWORD(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
         }
     }
-    if result == 0 { throw BoringException(message: from + " -> " + to + ": rename failed") }
+    if !result { throw BoringException(message: from + " -> " + to + ": rename failed") }
 }
 
 // Referencing every probe helper keeps the type checker over the whole

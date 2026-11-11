@@ -367,7 +367,11 @@ private func boringFsRename(_ from: [UInt16], _ to: [UInt16]) throws {
             MoveFileExW(s.baseAddress, t.baseAddress, DWORD(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
         }
     }
-    if result == 0 { throw FsException(FsError.other(operation: Array("rename".utf16), path: from, nativeDetail: to + Array(": rename failed".utf16))) }
+    // Win32 MoveFileExW returns BOOL, and the Swift WinSDK overlay imports
+    // BOOL as Bool (nonzero is true): success is `result`, failure is
+    // `!result`. Comparing to 0 is the C spelling and does not typecheck
+    // on Windows (windows CI: binary operator == (Bool, Int)).
+    if !result { throw FsException(FsError.other(operation: Array("rename".utf16), path: from, nativeDetail: to + Array(": rename failed".utf16))) }
     #else
     throw FsException(FsError.unavailable(operation: Array("rename".utf16), path: from))
     #endif
