@@ -2314,6 +2314,16 @@ class SwiftExpr {
         if (site == null)
             return null;
         final targetText = expr(site.target);
+        // A parameter carrying a native Swift default is bound non-optionally
+        // (SwiftParameterPlan.NativeValueDefault), so a Haxe null guard over it
+        // can never be taken and "p ?? fallback" warns that the left side is
+        // non-optional. The value arm of the guard is the whole expression then.
+        final declaredParam = switch (stripWrap(site.target).expr) {
+            case TLocal(v): parameterPlansByLocal.get(v.id);
+            case _: null;
+        };
+        if (declaredParam != null && !isNullLeafType(declaredParam.parameterType))
+            return targetText;
         emissionTrace("OPTIONAL_IF", targetText, e.pos);
         return "(" + targetText + " ?? " + coalescingFallbackText(site.fallback, e.t) + ")";
     }
@@ -4610,7 +4620,7 @@ class SwiftExpr {
                     // with the receiver read once (mirrors the TS
                     // splice-by-indexOf IIFE).
                     final s = receiverText(subj);
-                    return "{ () -> Bool in let _a = " + s + "; let _i = _a.indexOf(" + expr(args[0]) + "); if _i >= 0 { _a.remove(at: Int(_i)); return true }; return false }()";
+                    return "{ () -> Bool in let _a = " + s + "; let _i = _a.indexOf(" + expr(args[0]) + "); if _i >= 0 { _ = _a.remove(at: Int(_i)); return true }; return false }()";
                 }
                 if (name == "concat" && isUnitArrayTyped(subj) && args.length == 1) {
                     return receiverText(subj) + ".concat(" + expr(args[0]) + ")";
@@ -4689,11 +4699,18 @@ class SwiftExpr {
                         // reads 0, a bound past the end clamps to the count,
                         // and a start past the end swaps (String.substring).
                         final from = "Int(" + expr(args[0]) + ")";
+                        // The clamp is written with min/max ternaries instead of
+                        // mutating guard statements: a literal bound such as
+                        // substring(1) or substring(0, 3) makes each guard
+                        // statically false and swiftc reports "will never be
+                        // executed" for every emitted slice. The ternary form
+                        // folds to the same value with no unreachable branch and
+                        // matches the Array.slice lowering above.
                         if (endOmitted) {
-                            return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; var _s = " + from + "; if _s < 0 { _s = 0 }; if _s > _n { _s = _n }; return Array(_a[_s..<_n]) }())";
+                            return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; let _f = " + from + "; let _s = _f < 0 ? 0 : min(_f, _n); return Array(_a[_s..<_n]) }())";
                         }
                         final to = "Int(" + expr(args[1]) + ")";
-                        return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; var _f = " + from + "; var _t = " + to + "; if _f < 0 { _f = 0 }; if _t < 0 { _t = 0 }; if _f > _t { let _tmp = _f; _f = _t; _t = _tmp }; if _f >= _n { return [UInt16]() }; if _t > _n { _t = _n }; return Array(_a[_f..<_t]) }())";
+                        return "({ () -> [UInt16] in let _a = " + s + "; let _n = _a.count; let _f = " + from + "; let _s = _f < 0 ? 0 : _f; let _t = " + to + "; let _e = _t < 0 ? 0 : _t; let _lo = _e < _s ? _e : _s; let _hi = _e < _s ? _s : _e; return Array(_a[min(_lo, _n)..<min(_hi, _n)]) }())";
                     }
                     if (endOmitted) {
                         // dropFirst counts Characters. The suffix cut uses UTF-16
