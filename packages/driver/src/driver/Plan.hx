@@ -121,7 +121,7 @@ class Plan {
             // cargoArgs land before the harness -- separator, so cargo-level
             // options (for example --features f32) reach cargo itself while
             // run.args stay after the separator as harness arguments.
-            final runCargoArgs = bundle.run.cargoArgs == null ? [] : bundle.run.cargoArgs;
+            final runCargoArgs:Array<String> = bundle.run.cargoArgs == null ? [] : bundle.run.cargoArgs;
             addStep(steps, "run", "cargo", ["test", "--release"].concat(runCargoArgs).concat(["--", "--test-threads=1"]).concat(bundle.run.args), generatedDir, runEnv);
         } else if (bundle.target == "swift") {
             if (swiftModule == null) throw new DriverException(InvalidConfig('bundle "${bundle.id}": missing swift-test-import'));
