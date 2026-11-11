@@ -711,3 +711,4 @@ boring.protocol.FloatCanonical
 boring.protocol.CanonicalFingerprint
 tests.FloatCanonicalTests
 tests.NestedIndexWriteTests
+boring.P21PrivateAccessorClash

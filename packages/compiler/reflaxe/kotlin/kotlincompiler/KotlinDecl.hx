@@ -1002,12 +1002,22 @@ class KotlinDecl {
             // A Kotlin property parameter generates get<Name>/set<Name>; a Haxe
             // class may legitimately also declare a method with that name (the
             // sample has `var value` next to `function setValue`), and the two
-            // share the JVM signature (setValue(I)V). @JvmField keeps the
-            // property usable as `obj.value` in Kotlin while suppressing the
-            // generated accessors, so the explicit method keeps its name.
+            // share the JVM signature (setValue(I)V). A public field suppresses
+            // the accessors with @JvmField, so the property stays usable as
+            // `obj.value` and the explicit method keeps its name. Kotlin rejects
+            // @JvmField on a private property, and a private property has no
+            // accessor to collide with, so the private field simply omits it.
             // (JvmAccessorClash)
             final accessorClash = isField && !boundary && declaresAccessorNamed(cls, a.name);
-            final prefix = isField && !boundary ? (accessorClash ? "@JvmField " : "") + (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
+            final privateField = isField && !boundary && !isPublic;
+            // A private property generates no JVM accessor that can collide with an
+            // explicit method of the same name, so it needs no @JvmField either;
+            // only a public property does. (JvmAccessorClash)
+            final prefix = isField && !boundary
+                ? (accessorClash && !privateField ? "@JvmField " : "")
+                    + (privateField ? "private " : "")
+                    + (isFinal ? "val " : "var ")
+                : "";
             final typeOverride = isField && !boundary && fieldType != null && isNullType(a.type) && !isNullType(fieldType) ? fieldType : null;
             params.push(prefix + parameterText(cls, ctor.field.name, a, true, typeOverride));
         }
