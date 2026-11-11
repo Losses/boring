@@ -1940,15 +1940,17 @@ class KotlinExpr {
                 return localName(v);
             case TArray(arr, idx):
                 final mapReceiver = mapBackingReceiver(arr);
-                // The array receiver may render nullable (e.g. a local bound
-                // from a nullable expression); emit safe array access when it
-                // is, and plain element access otherwise.
+                // Haxe does not null-check a plain subscript: for a
+                // nullable receiver it throws at run time (measured on the
+                // reference interpreter: `g[0][1]` with a null g raises
+                // "Null Access", while `g?.length` yields null). Only the
+                // source-level safe navigation propagates absence. So a
+                // nullable receiver is asserted and then indexed - `?.get()`
+                // would both silence the throw and make chained subscripts
+                // (`grid?.get(0).set(1, 20)`) uncompilable. (NullIndexThrows)
                 final receiver = mapReceiver == null ? arr : mapReceiver;
-                if (isNullType(receiver.t) && !receiverProven(receiver)) {
-                    return expr(receiver) + "?.get(" + expr(idx) + ")";
-                }
-                if (nullableChainHop(receiver) && !receiverProven(receiver)) {
-                    return expr(receiver) + "?.get(" + expr(idx) + ")";
+                if ((isNullType(receiver.t) || nullableChainHop(receiver)) && !receiverProven(receiver)) {
+                    return expr(receiver) + "!![" + expr(idx) + "]";
                 }
                 return expr(receiver) + "[" + expr(idx) + "]";
             case TBinop(OpDiv, l, r):
