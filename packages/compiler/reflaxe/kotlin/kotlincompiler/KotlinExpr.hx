@@ -7066,11 +7066,18 @@ class KotlinExpr {
         // `e.file` is used so the path expression is not evaluated twice. The JVM
         // has no structured ENOTDIR signal, so that case stays Other in every
         // locale instead of only outside an English one. (FsErrorStructured)
-        final directoryProbe = name == "readText" || name == "writeText" || name == "appendText";
+        final directoryProbe = name == "writeText" || name == "appendText";
         final fsCatch = directoryProbe
             ? "catch (e: java.nio.file.FileSystemException) { if (java.nio.file.Files.isDirectory(java.nio.file.Paths.get(e.file))) { "
                 + throwKind("IsDirectory") + " } else { " + throwKind("Other") + " } } "
             : "catch (e: java.nio.file.FileSystemException) { " + throwKind("Other") + " } ";
+        // Files.readString on a directory fails with a plain java.io.IOException
+        // (not FileSystemException), so the read probe belongs in the last catch;
+        // reading a directory has no second failure meaning, so path state decides.
+        final ioCatch = name == "readText"
+            ? "catch (e: java.io.IOException) { if (java.nio.file.Files.isDirectory(java.nio.file.Paths.get(" + p + "))) { "
+                + throwKind("IsDirectory") + " } else { " + throwKind("Other") + " } }"
+            : "catch (e: java.io.IOException) { " + throwKind("Other") + " }";
         return "try { " + raw + " } "
             + "catch (e: java.nio.file.NoSuchFileException) { " + throwKind("NotFound") + " } "
             + "catch (e: java.nio.file.NotDirectoryException) { " + throwKind("NotDirectory") + " } "
@@ -7078,7 +7085,7 @@ class KotlinExpr {
             + "catch (e: java.nio.file.FileAlreadyExistsException) { " + throwKind("AlreadyExists") + " } "
             + "catch (e: java.nio.file.InvalidPathException) { " + throwKind("InvalidInput") + " } "
             + fsCatch 
-            + "catch (e: java.io.IOException) { " + throwKind("Other") + " }";
+            + ioCatch;
     }
 
     /**
