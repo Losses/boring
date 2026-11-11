@@ -999,11 +999,38 @@ class KotlinDecl {
             // A required Null<T> constructor parameter cannot be a Kotlin
             // property parameter when the stored field is non-null. Keep the
             // nullable boundary parameter separate from the initialized field.
-            final prefix = isField && !boundary ? (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
+            // A Kotlin property parameter generates get<Name>/set<Name>; a Haxe
+            // class may legitimately also declare a method with that name (the
+            // sample has `var value` next to `function setValue`), and the two
+            // share the JVM signature (setValue(I)V). @JvmField keeps the
+            // property usable as `obj.value` in Kotlin while suppressing the
+            // generated accessors, so the explicit method keeps its name.
+            // (JvmAccessorClash)
+            final accessorClash = isField && !boundary && declaresAccessorNamed(cls, a.name);
+            final prefix = isField && !boundary ? (accessorClash ? "@JvmField " : "") + (isPublic ? "" : "private ") + (isFinal ? "val " : "var ") : "";
             final typeOverride = isField && !boundary && fieldType != null && isNullType(a.type) && !isNullType(fieldType) ? fieldType : null;
             params.push(prefix + parameterText(cls, ctor.field.name, a, true, typeOverride));
         }
         return "(" + params.join(", ") + ")";
+    }
+
+    /**
+        Whether the class (or an ancestor) declares a method whose JVM name
+        collides with the accessor a Kotlin property parameter would generate.
+        Only then does the field need @JvmField. (JvmAccessorClash)
+    **/
+    static function declaresAccessorNamed(cls:ClassType, fieldName:String):Bool {
+        if (fieldName.length == 0) return false;
+        final cap = fieldName.charAt(0).toUpperCase() + fieldName.substr(1);
+        final wanted = ["get" + cap, "set" + cap, "is" + cap];
+        var c:Null<ClassType> = cls;
+        while (c != null) {
+            for (f in c.fields.get()) {
+                if (wanted.indexOf(f.name) >= 0) return true;
+            }
+            c = c.superClass == null ? null : c.superClass.t.get();
+        }
+        return false;
     }
 
     /**

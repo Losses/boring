@@ -715,3 +715,4 @@ tests.TestLitEdgeTests
 boring.protocol.FloatCanonical
 boring.protocol.CanonicalFingerprint
 tests.FloatCanonicalTests
+tests.NestedIndexWriteTests
