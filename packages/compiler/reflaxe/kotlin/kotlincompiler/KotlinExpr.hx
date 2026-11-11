@@ -7059,18 +7059,25 @@ class KotlinExpr {
         final throwKind = function(kind:String):String {
             return "throw FsException." + kind + "(" + op + ", " + p + ", " + detail + ")";
         };
+        // A directory path is the EISDIR condition only for the members that read or
+        // write one file: reading or writing a directory necessarily fails with
+        // EISDIR, while deleting a directory can succeed (empty) or fail with
+        // DirectoryNotEmptyException, and rename has several directory outcomes.
+        // `e.file` is used so the path expression is not evaluated twice. The JVM
+        // has no structured ENOTDIR signal, so that case stays Other in every
+        // locale instead of only outside an English one. (FsErrorStructured)
+        final directoryProbe = name == "readText" || name == "writeText" || name == "appendText";
+        final fsCatch = directoryProbe
+            ? "catch (e: java.nio.file.FileSystemException) { if (java.nio.file.Files.isDirectory(java.nio.file.Paths.get(e.file))) { "
+                + throwKind("IsDirectory") + " } else { " + throwKind("Other") + " } } "
+            : "catch (e: java.nio.file.FileSystemException) { " + throwKind("Other") + " } ";
         return "try { " + raw + " } "
             + "catch (e: java.nio.file.NoSuchFileException) { " + throwKind("NotFound") + " } "
             + "catch (e: java.nio.file.NotDirectoryException) { " + throwKind("NotDirectory") + " } "
             + "catch (e: java.nio.file.AccessDeniedException) { " + throwKind("PermissionDenied") + " } "
             + "catch (e: java.nio.file.FileAlreadyExistsException) { " + throwKind("AlreadyExists") + " } "
             + "catch (e: java.nio.file.InvalidPathException) { " + throwKind("InvalidInput") + " } "
-            // The JVM reports ENOTDIR through FileSystemException.reason
-            // ("Not a directory"), not through the typed subclass, so the
-            // reason channel carries both directory-type kinds.
-            + "catch (e: java.nio.file.FileSystemException) { if ((e.reason ?: \"\") == \"Is a directory\") { "
-            + throwKind("IsDirectory") + " } else if ((e.reason ?: \"\") == \"Not a directory\") { "
-            + throwKind("NotDirectory") + " } else { " + throwKind("Other") + " } } "
+            + fsCatch 
             + "catch (e: java.io.IOException) { " + throwKind("Other") + " }";
     }
 
