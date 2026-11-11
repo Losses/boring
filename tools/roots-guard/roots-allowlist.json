@@ -26,6 +26,26 @@
       "target": "*",
       "module": "tests.f32.PrintedFloatTests",
       "reason": "f32-only oracle collected by the haxe f32 TestCollector bundle (tests/haxe/generate-main-f32.hxml scans samples/tests/f32), so none of the three guarded example pairs lists it as a root; its six test ids are separately declared in tools/test-consistency/extra-id-allowlist.json."
+    },
+    {
+      "target": "kotlin",
+      "module": "tests.EscapingTraitIdentityTests",
+      "reason": "Rust-only fixture: the module carries the same '#if rust_output' guard as its subject samples/boring/EscapingTraitIdentityOps.hx, so no test type exists on the kotlin bundle (measured before that guard: Class<boring.EscapingTraitIdentityOps> has no field concreteDirectA). The rust pair roots it, where the concrete-handle ABI it locks exists."
+    },
+    {
+      "target": "swift",
+      "module": "tests.EscapingTraitIdentityTests",
+      "reason": "Rust-only fixture: the module carries the same '#if rust_output' guard as its subject samples/boring/EscapingTraitIdentityOps.hx, so no test type exists on the swift bundle either. The rust pair roots it only, where that concrete-handle lowering exists."
+    },
+    {
+      "target": "kotlin",
+      "module": "tests.NestedIndexWriteTests",
+      "reason": "Rust place-plan regression fixture: the detached-copy defect it locks (reading a non-Copy array element clones the container, so a nested subscript write stores into a temporary) is a Rust lowering. Kotlin and TypeScript reference arrays cannot lose a nested write this way, so neither the subject boring.NestedIndexWriteOps nor its tests are rooted there; the rust pair carries both."
+    },
+    {
+      "target": "swift",
+      "module": "tests.NestedIndexWriteTests",
+      "reason": "Rust place-plan regression fixture, and its bodies are also compiled out for swift by the module's own '#if (rust_output || kotlin_output || ts_output)' guard, so rooting it here would register fourteen test ids that assert nothing. The rust pair carries the subject and the locks."
     }
   ]
 }

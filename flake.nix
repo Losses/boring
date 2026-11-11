@@ -106,12 +106,20 @@
           src = swift-system;
           nativeBuildInputs = [ pkgs.clang ] ++ (if pkgs.stdenv.hostPlatform.isDarwin then [ ] else [ swiftToolchain ]);
           dontConfigure = true;
+          # SPM builds the Package.swift manifest in its own macOS sandbox, and the
+          # Nix build sandbox refuses sandbox_apply ("sandbox-exec:
+          # sandbox_apply: Operation not permitted"), which failed every macos
+          # job. nixpkgs patches swiftpm to skip the nested sandbox whenever
+          # NIX_BUILD_TOP is set for the same reason: the Nix sandbox is the real
+          # isolation boundary, and the nested one cannot apply inside it.
+          # /usr/bin/swift is the unpatched Xcode toolchain, so pass the flag
+          # explicitly on Darwin only.
           buildPhase = ''
             runHook preBuild
             export HOME="$TMPDIR/home"
             mkdir -p "$HOME"
             ${if pkgs.stdenv.hostPlatform.isDarwin then "unset DEVELOPER_DIR; export CC=/usr/bin/clang; export SDKROOT=$(/usr/bin/xcrun --sdk macosx --show-sdk-path)" else ""}
-            ${swiftCommand} build --package-path . --build-path "$TMPDIR/swift-system-build" --target SystemPackage
+            ${swiftCommand} build --package-path . --build-path "$TMPDIR/swift-system-build" --target SystemPackage${if pkgs.stdenv.hostPlatform.isDarwin then " --disable-sandbox" else ""}
             runHook postBuild
           '';
           installPhase = ''

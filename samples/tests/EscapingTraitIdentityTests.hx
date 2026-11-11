@@ -1,3 +1,4 @@
+#if rust_output
 package tests;
 
 import std.Test;
@@ -26,3 +27,4 @@ class EscapingTraitIdentityTests {
         Test.equals("c-c:host|c-a:host", boring.EscapingTraitIdentityOps.concreteDirectC());
     }
 }
+#end

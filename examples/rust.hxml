@@ -28,6 +28,7 @@ boring.BufferHolder
 boring.BytesFrame
 boring.EscapingTraitIdentityFacade
 boring.EscapingTraitIdentityOps
+tests.EscapingTraitIdentityTests
 boring.Int64Ops
 boring.ValuePassingOps
 boring.BytesOps

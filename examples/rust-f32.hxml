@@ -29,6 +29,9 @@ boring.BinaryWriter
 boring.DataClassStringCompare
 boring.BufferHolder
 boring.BytesFrame
+boring.EscapingTraitIdentityFacade
+boring.EscapingTraitIdentityOps
+tests.EscapingTraitIdentityTests
 boring.Int64Ops
 boring.ValuePassingOps
 boring.BytesOps
@@ -64,6 +67,7 @@ boring.WordCharacterTable
 boring.PayloadTextTable
 boring.CodePointNames
 std.SortedMap
+std.HashMap
 std.SortedSet
 std.Functional
 runtime.UString
@@ -288,6 +292,8 @@ boring.HaxeExceptionOps
 tests.HaxeExceptionTests
 boring.ArrayAccessOps
 tests.ArrayAccessTests
+boring.NestedIndexWriteOps
+tests.NestedIndexWriteTests
 boring.ArraySliceOps
 tests.ArraySliceTests
 boring.StaticRefOps
@@ -394,6 +400,8 @@ tests.NullGuardFieldTests
 
 boring.MapHasGetOps
 tests.MapHasGetTests
+boring.HashMapOps
+tests.HashMapTests
 
 boring.FPHelperSwiftOps
 tests.FPHelperSwiftTests
