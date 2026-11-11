@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { VectorSort } from "../../reference/ts/gen/boring/VectorSort.ts";
 import type { GlyphMetrics } from "../../reference/ts/gen/boring/GlyphMetrics.ts";
-import { ScriptEvidenceTable } from "../../reference/ts/gen/boring/ScriptEvidenceTable.ts";
+import { ScriptEvidenceTable } from "../../reference/ts/gen-tests/boring/ScriptEvidenceTable.test.ts";
 
 /**
  * Runtime witnesses for the degradation-granularity audit

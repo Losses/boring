@@ -1,21 +1,24 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { ScriptEvidenceTable } from "../../reference/ts/gen/boring/ScriptEvidenceTable.ts";
-import { WordCharacterTable } from "../../reference/ts/gen/boring/WordCharacterTable.ts";
-import { PayloadTextTable } from "../../reference/ts/gen/boring/PayloadTextTable.ts";
-import { CodePointNames } from "../../reference/ts/gen/boring/CodePointNames.ts";
+import { ScriptEvidenceTable } from "../../reference/ts/gen-tests/boring/ScriptEvidenceTable.test.ts";
+import { WordCharacterTable } from "../../reference/ts/gen-tests/boring/WordCharacterTable.test.ts";
+import { PayloadTextTable } from "../../reference/ts/gen-tests/boring/PayloadTextTable.test.ts";
+import { CodePointNames } from "../../reference/ts/gen-tests/boring/CodePointNames.test.ts";
 
 /**
  * Structural and behavioral assertions for compile-time data tables and sorted tables in TS,
  * per docs/specs/features/20-compile-time-data-tables.md and stdlib/07-sorted-keyed-tables.md.
  */
 
-const GEN_DIR = join(import.meta.dir, "../../reference/ts/gen/boring");
+// The five table classes are reclassified to test units (their only
+// referencers are test modules), so the TypeScript target emits them into
+// gen-tests rather than gen. The structural reads below follow that tree.
+const GEN_TESTS_DIR = join(import.meta.dir, "../../reference/ts/gen-tests/boring");
 
 describe("data tables TypeScript generation and behavior", () => {
   test("ScriptEvidenceTable emits new Int32Array table form without per-element unrolling", () => {
-    const source = readFileSync(join(GEN_DIR, "ScriptEvidenceTable.ts"), "utf8");
+    const source = readFileSync(join(GEN_TESTS_DIR, "ScriptEvidenceTable.test.ts"), "utf8");
     expect(source.includes("new Int32Array(")).toBe(true);
     expect(source.includes("const RANGES = new Int32Array([")).toBe(true);
     // Must not contain a static array property declared inside a class
@@ -23,14 +26,14 @@ describe("data tables TypeScript generation and behavior", () => {
   });
 
   test("WordCharacterTable emits new Int32Array table form without per-element unrolling", () => {
-    const source = readFileSync(join(GEN_DIR, "WordCharacterTable.ts"), "utf8");
+    const source = readFileSync(join(GEN_TESTS_DIR, "WordCharacterTable.test.ts"), "utf8");
     expect(source.includes("new Int32Array(")).toBe(true);
     expect(source.includes("const RANGES = new Int32Array([")).toBe(true);
     expect(source.includes("static RANGES")).toBe(false);
   });
 
   test("PayloadTextTable emits new Int32Array table form without per-element unrolling", () => {
-    const source = readFileSync(join(GEN_DIR, "PayloadTextTable.ts"), "utf8");
+    const source = readFileSync(join(GEN_TESTS_DIR, "PayloadTextTable.test.ts"), "utf8");
     expect(source.includes("new Int32Array(")).toBe(true);
     expect(source.includes("const TEXT_UNITS = new Int32Array([")).toBe(true);
     expect(source.includes("static TEXT_UNITS")).toBe(false);
@@ -40,7 +43,7 @@ describe("data tables TypeScript generation and behavior", () => {
     // The length read and computed index reads are native on Int32Array
     // (feature spec 20); each Array.from(TEXT_UNITS) would copy the whole
     // table per loop iteration (quadratic blowup, see fix/ts-typed-array-access).
-    const source = readFileSync(join(GEN_DIR, "PayloadTextTable.ts"), "utf8");
+    const source = readFileSync(join(GEN_TESTS_DIR, "PayloadTextTable.test.ts"), "utf8");
     expect(source.includes("Array.from(TEXT_UNITS)")).toBe(false);
     expect(source.includes("while (index < TEXT_UNITS.length)")).toBe(true);
     expect(source.includes("TEXT_UNITS[index]!")).toBe(true);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { SwitchOps } from "../../reference/ts/gen/boring/SwitchOps";
+import { SwitchOps } from "../../reference/ts/gen-tests/boring/SwitchOps.test.ts";
 
 describe("variant switch lowering", () => {
   test("supports statement and initializer positions", () => {
