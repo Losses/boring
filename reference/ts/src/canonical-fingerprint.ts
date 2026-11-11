@@ -37,7 +37,9 @@ export function encodeFingerprint(fields: readonly FingerprintField[]): Uint8Arr
     chunks.push(field.isNull ? 1 : 0);
     if (!field.isNull) {
       for (let i = 0; i < field.value.length; i += 1) {
-        chunks.push(field.value[i]);
+        // The loop bound proves the index in range; noUncheckedIndexedAccess
+        // still types the read as number | undefined.
+        chunks.push(field.value[i]!);
       }
     }
   }

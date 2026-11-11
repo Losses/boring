@@ -79,12 +79,14 @@ const commitish = args[0]!;
 
 // R1 pre-condition: the argument must resolve to a commit. A blob, tree or
 // tag object or a nonexistent name fails here with a clear message.
-let commit: string;
-try {
-  commit = git(["rev-parse", "--verify", "--quiet", `${commitish}^{commit}`]).trim();
-} catch {
-  fail(`'${commitish}' does not resolve to a commit object (nonexistent hash, or a blob/tree/tag was given)`);
-}
+const resolveCommit = (name: string): string => {
+  try {
+    return git(["rev-parse", "--verify", "--quiet", `${name}^{commit}`]).trim();
+  } catch {
+    return fail(`'${name}' does not resolve to a commit object (nonexistent hash, or a blob/tree/tag was given)`);
+  }
+};
+const commit = resolveCommit(commitish);
 const tree = git(["rev-parse", "--verify", "--quiet", `${commit}^{tree}`]).trim();
 
 // Recorded side of the comparison: every path the tree carries, with its blob.

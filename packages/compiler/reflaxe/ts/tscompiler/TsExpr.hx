@@ -3958,7 +3958,7 @@ class TsExpr {
         return {
             name: name,
             lines: [
-                indent(depth) + "const " + name + " = " + buf + ".length > 0 ? " + buf + "[" + buf + ".length - 1].charCodeAt(" + buf + "[" + buf + ".length - 1].length - 1) : NaN;"
+                indent(depth) + "const " + name + " = " + buf + ".length > 0 ? " + buf + "[" + buf + ".length - 1]!.charCodeAt(" + buf + "[" + buf + ".length - 1]!.length - 1) : NaN;"
             ]
         };
     }
@@ -4688,6 +4688,10 @@ class TsExpr {
         return switch (stripWrap(init).expr) {
             case TConst(TNull) | TField(_, FEnum(_, _)): ": " + types.of(v.t);
             case TArrayDecl(elements) if (elements.length == 0): ": " + types.of(v.t);
+            // A StringBuf lowers to a mutable string[] initialized by the
+            // empty literal, so the declaration must name the element type
+            // or the local is an implicit any[] (noImplicitAny).
+            case TNew(_, _, _) if (isStringBufType(v.t)): ": " + types.of(v.t);
             case TLocal(_):
                 // When the declared type is nullable, the explicit
                 // annotation keeps TS from inferring a non-null type from
