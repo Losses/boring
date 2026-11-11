@@ -7033,7 +7033,25 @@ class KotlinExpr {
             case "isDirectory":
                 "Files.isDirectory(Paths.get(" + p + "))";
             case "deleteFile":
-                "Files.delete(Paths.get(" + p + "))";
+                // stdlib/17: deleteFile removes a regular file, but Files.delete
+                // also removes an *empty* directory (a non-empty one raises
+                // DirectoryNotEmptyException instead of the Haxe failure). The
+                // target type therefore decides before the call: a directory
+                // entry raises IsDirectory and the directory survives the
+                // refusal. NOFOLLOW_LINKS keeps a symlink-to-directory a file
+                // entry, so the link itself is deleted as unlink does on the
+                // other targets. The path is bound once (guard, delete and error
+                // message share it) and the probe stays inside the try so
+                // Paths.get's InvalidPathException still maps to InvalidInput.
+                // There is no host exception to borrow a message from, so the
+                // synthesized IsDirectory names the POSIX condition as its
+                // nativeDetail.
+                imports.require("java.nio.file.LinkOption");
+                "run { val __fsDeletePath = " + p
+                + "; val __fsDeleteTarget = java.nio.file.Paths.get(__fsDeletePath)"
+                + "; if (java.nio.file.Files.isDirectory(__fsDeleteTarget, java.nio.file.LinkOption.NOFOLLOW_LINKS)) { "
+                + "throw FsException.IsDirectory(" + '"' + name + '"' + ", __fsDeletePath, \"EISDIR\")"
+                + " } else { java.nio.file.Files.delete(__fsDeleteTarget) } }";
             case "rename":
                 imports.require("java.nio.file.StandardCopyOption");
                 "Files.move(Paths.get(" + p + "), Paths.get(" + expr(args[1])
@@ -7061,11 +7079,11 @@ class KotlinExpr {
         };
         // A directory path is the EISDIR condition only for the members that read or
         // write one file: reading or writing a directory necessarily fails with
-        // EISDIR, while deleting a directory can succeed (empty) or fail with
-        // DirectoryNotEmptyException, and rename has several directory outcomes.
-        // `e.file` is used so the path expression is not evaluated twice. The JVM
-        // has no structured ENOTDIR signal, so that case stays Other in every
-        // locale instead of only outside an English one. (FsErrorStructured)
+        // EISDIR, while rename has several directory outcomes. deleteFile refuses a
+        // directory before the call (its arm), so its catch stays Other. `e.file` is
+        // used so the path expression is not evaluated twice. The JVM has no
+        // structured ENOTDIR signal, so that case stays Other in every locale
+        // instead of only outside an English one. (FsErrorStructured)
         final directoryProbe = name == "writeText" || name == "appendText";
         final fsCatch = directoryProbe
             ? "catch (e: java.nio.file.FileSystemException) { if (java.nio.file.Files.isDirectory(java.nio.file.Paths.get(e.file))) { "
