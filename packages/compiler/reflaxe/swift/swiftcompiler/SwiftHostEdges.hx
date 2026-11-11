@@ -215,6 +215,15 @@ private func boringFsIsDirectory(_ path: [UInt16]) -> Bool {
 }
 ';
 
+    // The emitted NSCocoaErrorDomain switch maps only constants Foundation
+    // actually defines (Unknown/NoPermission/InvalidFileName/FileExists/
+    // InapplicableStringEncoding/UnsupportedScheme/OutOfSpace/VolumeReadOnly).
+    // The is-directory NSFileWrite error constant does not exist in that
+    // family - macOS reports a directory target as EISDIR in the POSIX
+    // domain, which the NSPOSIXErrorDomain block below maps. Note that
+    // Foundation-wrapped calls carry EISDIR in NSUnderlyingErrorKey, which
+    // this helper does not unwrap, so those call sites still classify as
+    // FsError.other. (MacFSIsDirectoryCurrency)
     static final FS_ERROR = '
 private func boringFsError(_ operation: [UInt16], _ path: [UInt16], _ error: Error) -> FsException {
     #if canImport(FoundationEssentials) || canImport(Darwin)
@@ -229,8 +238,6 @@ private func boringFsError(_ operation: [UInt16], _ path: [UInt16], _ error: Err
             return FsException(FsError.permissionDenied(operation: operation, path: path, nativeDetail: detail))
         case NSFileWriteFileExistsError:
             return FsException(FsError.alreadyExists(operation: operation, path: path, nativeDetail: detail))
-        case NSFileWriteIsDirectoryError:
-            return FsException(FsError.isDirectory(operation: operation, path: path, nativeDetail: detail))
         default:
             break
         }
