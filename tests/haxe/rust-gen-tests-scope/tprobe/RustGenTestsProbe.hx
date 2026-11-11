@@ -5,8 +5,8 @@ import std.Fs;
 /**
     P6.6 probe: a fallible std.Fs call inside a test module.
 
-    The test module (a @:test class) is emitted in-crate under "#![cfg(test)]"
-    inside the SAME rust-output root and the SAME Intercept roots as the main
+    The test module (a @:test class) is emitted as a cargo integration test
+    under the SAME rust-output root and the SAME Intercept roots as the main
     scope -- Rust has no separate test-output directory.  readText() is
     uncaught, so its error slot resolves through the std.FsError payload enum.
 

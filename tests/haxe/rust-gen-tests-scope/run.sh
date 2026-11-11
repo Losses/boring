@@ -3,10 +3,10 @@
 # (task t-mv4klg3z-hghs, row arch/p6-6).
 #
 # A fallible std.Fs.readText call sits INSIDE a test module (@:test class).
-# The test module is emitted in-crate (#[cfg(test)]) under the SAME Intercept
-# roots as the main scope, so "main scope vs test scope Intercept config" is
-# the same single set of roots for Rust -- the only variance is whether
-# samples/std is inside that set.
+# The test module is emitted as a cargo integration test under the SAME
+# Intercept roots as the main scope, so "main scope vs test scope Intercept
+# config" is the same single set of roots for Rust -- the only variance is
+# whether samples/std is inside that set.
 #
 # Two arms with divergent expected outcomes:
 #
@@ -115,7 +115,7 @@ if [ "$GEN_IN_RC" != "0" ]; then
 	VERDICT=generation-failed
 else
 	run_stage cargo-in-scope \
-		bash -c "cd '$GEN_IN' && cargo check --offline"
+		bash -c "cd '$GEN_IN' && cargo check --offline --tests"
 	CARGO_RC="$(cat "$ST/$(printf '%02d' "$STAGE_NO")-cargo-in-scope/status")"
 	errs="$(error_count "$ST/$(printf '%02d' "$STAGE_NO")-cargo-in-scope")"
 	printf 'cargo-in-scope rc=%s errors=%s\n' "$CARGO_RC" "$errs"

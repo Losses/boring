@@ -196,6 +196,10 @@ class RustEmissionState {
         can read it without a state instance. One compilation per
         process, so no cross-run reset is needed. (TraitIdentityAdapter) */
     public static final escapingHandleClassKeys:Map<String, Bool> = [];
+
+    /** Adapter structs already emitted for one class, so a class that
+        implements several interfaces defines its adapter once. (P-4a) */
+    public final emittedAdapterStructs:Map<String, Bool> = [];
     public final interfaceMethodShapes:Map<String, {isFallible:Bool, isMutating:Bool, errorModule:Null<String>, errorName:Null<String>}> = [];
 
     public static function interfaceMethodKey(module:String, name:String, method:String):String {

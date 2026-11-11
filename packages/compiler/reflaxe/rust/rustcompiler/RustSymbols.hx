@@ -2,6 +2,7 @@ package rustcompiler;
 
 #if (macro || reflaxe_runtime)
 import haxe.macro.Context;
+import CompilationUnits;
 import EmitSink;
 
 /**
@@ -45,6 +46,77 @@ class RustSymbols {
     static var references: Array<{ref: SymbolRef, fromModule: String}> = [];
 
     /**
+        Module-to-module references recorded while paths are rendered.
+        The file split (lib tree vs cargo integration test) reads this to
+        decide which test modules another module depends on, so a helper
+        type declared beside a test stays reachable from the crate that
+        imports it. Never used for symbol resolution.
+    **/
+    static var moduleReferences: Array<{fromModule: String, targetModule: String}> = [];
+    static var moduleReferenceKeys: Map<String, Bool> = [];
+
+    /**
+        Prefix markers for a path that crosses the generated crate split.
+        A test-unit source renders main-unit targets with MAIN_PREFIX and
+        test-unit targets with TEST_PREFIX; the writer substitutes the
+        library crate name or the test-support crate name. Main-unit
+        sources keep plain crate:: paths.
+    **/
+    public static final MAIN_PREFIX = "\u0001MAIN::";
+    public static final TEST_PREFIX = "\u0001TEST::";
+    public static final SUPPORT_PREFIX = "\u0001SUPPORT::";
+
+    /**
+        Test-unit modules the compiler keeps in the library crate (asset
+        carriers, whose data must not be duplicated into every per-test
+        support crate). They render and resolve as main-unit modules.
+    **/
+    public static var mainEmittedTestModules: Map<String, Bool> = [];
+
+    /** True when the module is a test-unit module emitted outside the library. */
+    static function isTestTarget(module: String): Bool {
+        if (mainEmittedTestModules.exists(module))
+            return false;
+        if (StringTools.endsWith(module, "TestSupport"))
+            return true;
+        return CompilationUnits.isTestModule(module);
+    }
+
+    /** True when the module is emitted into a test crate. */
+    static function isTestSource(module: String): Bool {
+        if (mainEmittedTestModules.exists(module))
+            return false;
+        if (module == "tests")
+            return true;
+        if (StringTools.endsWith(module, "TestSupport"))
+            return true;
+        return CompilationUnits.isTestModule(module);
+    }
+
+    /** Clears the per-compilation reference state. */
+    public static function resetReferences(): Void {
+        references = [];
+        moduleReferences = [];
+        moduleReferenceKeys = [];
+    }
+
+    /** Records that fromModule's rendered source names targetModule. */
+    public static function recordModuleReference(fromModule: String, targetModule: String): Void {
+        if (fromModule == null || targetModule == null || fromModule == targetModule)
+            return;
+        final key = fromModule + "|" + targetModule;
+        if (moduleReferenceKeys.exists(key))
+            return;
+        moduleReferenceKeys.set(key, true);
+        moduleReferences.push({fromModule: fromModule, targetModule: targetModule});
+    }
+
+    /** The recorded module-to-module references, for the file split. */
+    public static function recordedModuleReferences(): Array<{fromModule: String, targetModule: String}> {
+        return moduleReferences.copy();
+    }
+
+    /**
         Definitions collected by emitted(), keyed by
         RustEmissionState.identityKey(module, name).
     **/
@@ -68,7 +140,17 @@ class RustSymbols {
             && state.payloadEnumModules.exists(RustEmissionState.identityKey(ref.module, ref.name)))
             ? state.payloadEnumModules.get(RustEmissionState.identityKey(ref.module, ref.name))
             : ref.module;
-        return "crate::"
+        // A symbol declared in the same module renders unqualified: an
+        // integration test source is its own crate root, so a self path
+        // written as crate::<module> names nothing there.
+        if (targetModule == fromModule)
+            return RustImports.emittedTypeName(ref.name);
+        final prefix = isTestSource(fromModule)
+            ? (isTestTarget(targetModule)
+                ? (state != null && state.testModules.exists(fromModule) ? SUPPORT_PREFIX : TEST_PREFIX)
+                : MAIN_PREFIX)
+            : "crate::";
+        return prefix
             + RustImports.moduleToRustPath(targetModule)
             + "::"
             + RustImports.emittedTypeName(ref.name);
@@ -79,9 +161,40 @@ class RustSymbols {
         function or a static/const item) without registering a symbol
         reference: these are not Haxe-declared types, so checkAll() must not
         demand an emitted() definition for them (P6.5).
+
+        fromModule is the module whose source is being rendered. It lets a
+        same-module item stay unqualified (the integration-test crate root
+        has no crate::<module> path) and records the module-to-module edge
+        the file split needs.
     **/
-    public static function path(module: String, name: String): String {
+    public static function path(module: String, name: String, ?fromModule: String): String {
+        if (fromModule != null) {
+            if (module == fromModule)
+                return name;
+            recordModuleReference(fromModule, module);
+            final prefix = isTestSource(fromModule)
+                ? (isTestTarget(module)
+                    ? (state != null && state.testModules.exists(fromModule) ? SUPPORT_PREFIX : TEST_PREFIX)
+                    : MAIN_PREFIX)
+                : "crate::";
+            return prefix + RustImports.moduleToRustPath(module) + "::" + name;
+        }
         return "crate::" + RustImports.moduleToRustPath(module) + "::" + name;
+    }
+
+    /**
+        The path of a raw type name (a synthetic fault union member), with
+        the same same-module rule as path(). The raw name is used because
+        the caller already holds the emitted declaration name.
+    **/
+    public static function typePath(module: String, name: String, fromModule: String): String {
+        if (module == fromModule)
+            return name;
+        recordModuleReference(fromModule, module);
+        final prefix = isTestSource(fromModule)
+            ? (isTestTarget(module) ? TEST_PREFIX : MAIN_PREFIX)
+            : "crate::";
+        return prefix + RustImports.moduleToRustPath(module) + "::" + name;
     }
 
     /**

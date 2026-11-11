@@ -418,23 +418,43 @@ entry leaves the cross-target id set unchanged.
 
 ### Rust
 
-Rust keeps unit tests inside the crate; no output-tree split exists:
+Rust emits each test class as a cargo integration test:
 
 - Test module `tests.VectorCodecTests` emits to
-  `<rust-output>/tests/vector_codec_tests.rs` as a `#[cfg(test)]`
-  module; the generated `lib.rs` declares each test module under
-  `#[cfg(test)]`, derived from the module list the compiler processed.
+  `<rust-output>/tests/vector_codec_tests.rs` as its own crate; the
+  generated `Cargo.toml` declares one `[[test]]` target per test
+  class. A test class another module names stays in the library crate
+  instead, so a helper declared beside it remains reachable.
+- Each test class becomes its own crate under the semantic path
+  `tests/<source directory>/<test class>/` (for example
+  `tests/layout/unicode_punctuation_boundary_resolver_coverage_test/`).
+  Its support closure lives in a sibling `<test class>_support/` crate,
+  a normal library the test crate links as a dev-dependency; the test
+  crate itself holds only the test class under `#[cfg(test)]`. The
+  library crate stays free of test code. Test code that names a private
+  member requires the emitter to widen `pub(crate)` to `pub`, because
+  the test and support crates are separate crates.
+- A module whose leaf ends in `_test_support` is test support by
+  construction and follows its test class even when the single-pass
+  closure leaves it behind.
+- A large `static final Array<String>` (more than 256 elements) lowers
+  to one joined `&str` plus a `split`+`map` instead of one
+  `UString::from` call per element. An element containing the separator
+  or a control character falls back to the element-wise form, so the
+  compressed value is always identical to the element-wise value.
 - Each test function becomes a `#[test] fn` whose body wraps in
   `testlib::run`; scalar assertions call the resident directly
-  (`crate::runtime::test_core::TestCore::…`, messages as `&str` with
-  the empty string for an absent message), aggregate assertions call
-  the emitted `test_helper`, failing through `panic!` with the
+  (`<package>::runtime::test_core::TestCore::…`, messages as `&str`
+  with the empty string for an absent message), aggregate assertions
+  call the emitted `test_helper`, failing through `panic!` with the
   canonical message.
+- Integration-test sources name the library crate
+  (`<package>::runtime::test as testlib`) instead of `crate::`.
 - `cargo test` discovers and runs them natively.
 
 ```rust
-use crate::runtime::test as testlib;
-use crate::runtime::test_core;
+use generated::runtime::test as testlib;
+use generated::runtime::test_core;
 
 #[test]
 fn vector_codec_tests_roundtrip() {

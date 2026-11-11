@@ -45,7 +45,7 @@ function subdirs(base: string): string[] {
 test("unit-closure: test-only main data class leaves release on all five targets", async () => {
   fs.mkdirSync(scratch, { recursive: true });
 
-  // --- Rust: cfg(test) marking ---------------------------------------------
+  // --- Rust: library support vs cargo integration test ---------------------
   const rust = path.join(scratch, "rust");
   fs.mkdirSync(rust, { recursive: true });
   const rustDefs = [
@@ -58,8 +58,20 @@ test("unit-closure: test-only main data class leaves release on all five targets
   const rustUnits = read(rust + "/units.tsv");
   expect(rustUnits).toContain("probe.GoldenData\ttests");
   expect(rustUnits).toContain("probe.MainEntry\tmain");
-  expect(read(rust + "/gen/probe/golden_data.rs").startsWith("#![cfg(test)]")).toBe(true);
+  // Each test class moves to its own semantic crate
+  // (tests/<source directory>/<test class>/), with its support closure in
+  // a sibling support crate. The library crate stays free of test code.
+  expect(exists(rust + "/gen/probe/golden_data.rs")).toBe(false);
+  expect(exists(rust + "/gen/tests/probe/golden_data_test_support/probe/golden_data.rs")).toBe(true);
   expect(read(rust + "/gen/probe/main_entry.rs").startsWith("#![cfg(test)]")).toBe(false);
+  expect(exists(rust + "/gen/probe/golden_data_test.rs")).toBe(false);
+  expect(exists(rust + "/gen/tests/probe/golden_data_test/probe/golden_data_test.rs")).toBe(true);
+  expect(read(rust + "/gen/tests/probe/golden_data_test/probe/golden_data_test.rs").startsWith("#![cfg(test)]")).toBe(false);
+  expect(read(rust + "/gen/tests/probe/golden_data_test/probe/golden_data_test.rs").includes("use generated_tests_probe_golden_data_test_support::probe::golden_data::GoldenData;")).toBe(true);
+  expect(read(rust + "/gen/tests/probe/golden_data_test/probe/golden_data_test.rs").includes("use generated::runtime::test as testlib;")).toBe(true);
+  expect(read(rust + "/gen/Cargo.toml").includes('"tests/probe/golden_data_test_support/",')).toBe(true);
+  expect(read(rust + "/gen/Cargo.toml").includes('"tests/probe/golden_data_test/",')).toBe(true);
+  expect(read(rust + "/gen/Cargo.toml").includes('default-members = [\n    ".",\n    "tests/probe/golden_data_test/",\n]')).toBe(true);
 
   // --- TypeScript: separate test tree --------------------------------------
   const ts = path.join(scratch, "ts");

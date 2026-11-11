@@ -119,14 +119,18 @@ the shell.
 4. **Rust.** The manifest declares the crate the compiler already
    emitted: `[lib] path` is the compiler's crate root file, dependencies
    are empty (the subset references no external crate), and `edition`
-   pins the dialect the current tree uses. The generated `tests/`
-   directory is a `#[cfg(test)]` module tree of the library, so test
-   autodiscovery is off; without `autotests = false` cargo would
-   compile those module files as standalone integration tests where the
-   `crate::` paths no longer resolve. `package-test=name:path` appends
-   one `[[test]]` block for repositories that keep integration tests
-   outside the crate; the path is interpreted by cargo; the emitter does
-   not validate it.
+   pins the dialect the current tree uses. Each test class is emitted as
+   its own `tests/<name>.rs` cargo integration test and declared with
+   one `[[test]]` block; each test class becomes its own semantic crate
+   under `tests/<source directory>/<test class>/` (a default member),
+   and its support closure lives in a sibling `<test class>_support/`
+   crate (a workspace member but not a default member, linked by the
+   test crate as a dev-dependency). The library crate stays free of test
+   code. Autodiscovery stays off because `tests/` also holds those
+   crates, which are not test binaries of the library package.
+   `package-test=name:path` appends one further `[[test]]` block for
+   repositories that keep integration tests outside the crate; the path
+   is interpreted by cargo; the emitter does not validate it.
 5. **TypeScript.** The tree is TypeScript source, so the manifest
    carries `type: "module"` and a `typescript` devDependency for
    consumers that typecheck; the version follows the repository's own

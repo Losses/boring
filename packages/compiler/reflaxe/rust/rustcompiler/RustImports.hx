@@ -106,7 +106,7 @@ class RustImports {
         final emitted = state.payloadEnumEmittedIn(module);
         final targetModule = emitted != null ? emitted : module;
         if (targetModule != selfModule) {
-            require(RustSymbols.path(targetModule, name));
+            require(RustSymbols.path(targetModule, name, selfModule));
         }
     }
 

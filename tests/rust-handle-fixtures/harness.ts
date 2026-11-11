@@ -26,6 +26,7 @@ const CONSTRUCTS: Record<string, string> = {
   MultiFieldChain: "multi-field-chain",
   HandleParamChain: "param-chain",
   OrConditionCountdown: "or-condition-countdown",
+  NonSharedEscapingForward: "non-shared-escaping-forward",
 };
 
 const GOLDEN_PATTERNS: Array<{ category: string; pattern: RegExp; desc: string }> = [

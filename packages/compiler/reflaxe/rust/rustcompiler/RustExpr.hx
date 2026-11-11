@@ -299,6 +299,11 @@ class RustExpr {
     // are hoisted once at function entry and every read routes through
     // unit_at_from. Key is the param local id. (StrParamHoist)
     final hoistedStrParams:Map<Int, {unitsTemp:String, countTemp:String, receiverText:String}> = [];
+    // Active statement-level static-read hoist: static path -> local name.
+    // Set while stmtLines renders one statement so a second read of the same
+    // static in that statement resolves to the one cloned local instead of
+    // taking the Mutex again. (StaticReadStatementScope)
+    var activeStaticReadSubstitution:Map<String, String> = null;
     // Locals whose declaration initializer is provably dead (overwritten
     // by a later store before any read): the declaration demotes to a
     // typed binding and the later store initializes it.
@@ -1564,7 +1569,96 @@ class RustExpr {
         return PolicyQueries.statementsOf(e);
     }
 
+    /**
+        The Rust path of a static field read, or null when e is not one.
+        A static read lowers through a Mutex lock; two reads of the same
+        static in one statement hold two guards and deadlock on the second
+        lock. (StaticReadStatementScope)
+    **/
+    function staticReadPath(e:TypedExpr):Null<String> {
+        return switch (stripWrap(e).expr) {
+            case TField(_, FStatic(c, cf)):
+                final field = cf.get();
+                // Only the Mutex-backed handle static read lowers to
+                // (*STATIC).lock().unwrap().clone(); constants and value
+                // statics read by value and never take a guard. Check the
+                // field kind before lowering its type: a method or dynamic
+                // static has no handle representation.
+                if (!field.kind.match(FVar(_, _)))
+                    return null;
+                final typeStr = types.of(field.type);
+                RustDecl.isPlainClassHandleStaticType(typeStr)
+                    && !RustDecl.isPlainClassHandleContainerStaticType(typeStr)
+                    ? staticItemPath(c.get(), field.name) : null;
+            case _: null;
+        };
+    }
+
+    /**
+        Collect the static field reads evaluated by one statement's own
+        expressions. Nested statement bodies are separate scopes and are
+        hoisted by their own stmtLines call.
+    **/
+    function collectStaticReads(e:TypedExpr):Array<String> {
+        final out = [];
+        function walk(x:TypedExpr):Void {
+            switch (stripWrap(x).expr) {
+                case TField(_, FStatic(_, _)):
+                    final path = staticReadPath(x);
+                    if (path != null)
+                        out.push(path);
+                case TField(subj, _): walk(subj);
+                case TParenthesis(inner): walk(inner);
+                case TCast(inner, _): walk(inner);
+                case TMeta(_, inner): walk(inner);
+                case TBinop(_, left, right): walk(left); walk(right);
+                case TUnop(_, _, inner): walk(inner);
+                case TArrayDecl(values): for (v in values) walk(v);
+                case TObjectDecl(fields): for (f in fields) walk(f.expr);
+                case TCall(fn, args): walk(fn); for (a in args) walk(a);
+                case TNew(_, _, args): for (a in args) walk(a);
+                case TIf(cond, _, _): walk(cond);
+                case TWhile(cond, _, _): walk(cond);
+                case TVar(_, init): if (init != null) walk(init);
+                case TReturn(value): if (value != null) walk(value);
+                case TThrow(value): walk(value);
+                case TBlock(_) | TFor(_, _, _) | TSwitch(_, _, _) | TTry(_, _) | TFunction(_):
+                    // Statement bodies and function bodies are separate scopes.
+                case TConst(_) | TLocal(_) | TTypeExpr(_) | TIdent(_): 
+                case _:
+            }
+        }
+        walk(e);
+        return out;
+    }
+
     function stmtLines(e:TypedExpr, depth:Int):Array<String> {
+        final reads = collectStaticReads(e);
+        if (reads.length == 0)
+            return stmtLinesCore(e, depth);
+        final counts = new Map<String, Int>();
+        for (path in reads)
+            counts.set(path, (counts.exists(path) ? counts.get(path) : 0) + 1);
+        final duplicated = [];
+        for (path => count in counts)
+            if (count > 1)
+                duplicated.push(path);
+        if (duplicated.length == 0)
+            return stmtLinesCore(e, depth);
+        final saved = activeStaticReadSubstitution;
+        activeStaticReadSubstitution = new Map();
+        final lets = [];
+        for (path in duplicated) {
+            final local = freshRegionName("__static_read");
+            activeStaticReadSubstitution.set(path, local);
+            lets.push("let " + local + " = { let __g = (*" + path + ").lock().unwrap(); (*__g).clone() };");
+        }
+        final body = stmtLinesCore(e, depth);
+        activeStaticReadSubstitution = saved;
+        return [indent(depth) + lets.join(" ")].concat(body);
+    }
+
+    function stmtLinesCore(e:TypedExpr, depth:Int):Array<String> {
         switch (e.expr) {
             case TVar(v, init) if (init != null && isTryRegion(init)):
                 return regionInitializerLines(v, stripWrap(init), depth);
@@ -7977,6 +8071,16 @@ class RustExpr {
                         final temp = freshRegionName("__rhs_value");
                         return "{ let " + temp + " = " + staticValue + "; " + staticTarget + " = " + temp + "; }";
                     }
+                    // A mutable plain-class static writes through a Mutex
+                    // guard. A direct assignment drops the previous value while
+                    // the guard is held; an old value whose Drop re-enters the
+                    // same static would deadlock. Replace first, release the
+                    // guard, then drop the old value. (StaticReplaceScope)
+                    final lockSuffix = ").lock().unwrap()";
+                    if (StringTools.startsWith(staticTarget, "**(*") && StringTools.endsWith(staticTarget, lockSuffix)) {
+                        final path = staticTarget.substring(4, staticTarget.length - lockSuffix.length);
+                        return "{ let __new = " + staticValue + "; let __old = { let mut __g = (*" + path + ").lock().unwrap(); std::mem::replace(&mut **__g, __new) }; drop(__old); }";
+                    }
                     return staticTarget + " = " + staticValue;
                 }
                 final rhs = if (isNullType(l.t) && !isNullType(r.t) && !isTNull(r) && !isNullableCollapsedLocal(l)) {
@@ -9331,7 +9435,10 @@ class RustExpr {
                     // SingleThread deref guard rejects concurrent access from
                     // live threads, so a clone outside the lock races the Rc
                     // refcount under a parallel test harness.
-                    return "(*" + staticItemPath(cls, name) + ").lock().unwrap().clone()";
+                    final staticPath = staticItemPath(cls, name);
+                    if (activeStaticReadSubstitution != null && activeStaticReadSubstitution.exists(staticPath))
+                        return activeStaticReadSubstitution.get(staticPath) + ".clone()";
+                    return "(*" + staticPath + ").lock().unwrap().clone()";
                 }
                 if (RustDecl.usesLazyLockStatic(cls, cf.get(), state)) {
                     // LazyLock owns its value. Static reads cross Haxe value
@@ -9713,7 +9820,7 @@ class RustExpr {
 
     function staticItemPath(cls:ClassType, name:String):String {
         final itemName = RustImports.toScreamingSnakeCase(cls.name + "_" + name);
-        return cls.module == imports.selfModule ? itemName : RustSymbols.path(cls.module, itemName);
+        return cls.module == imports.selfModule ? itemName : RustSymbols.path(cls.module, itemName, imports.selfModule);
     }
 
     function staticGuard(cls:ClassType, name:String):String {
@@ -12655,8 +12762,8 @@ class RustExpr {
                             final nullInner = getNullInnerType(expectedArg.t != null
                                 && isNullType(expectedArg.t) ? expectedArg.t : actualArg.t);
                             final innerKind = scalarTypeKind(nullInner);
-                            imports.requireGlob("crate::tests::test_helper::*", "assert_equals_opt");
-                            imports.requireGlob("crate::tests::test_helper::*", "assert_equals_opt_string");
+                            imports.requireGlob(RustSymbols.TEST_PREFIX + "tests::test_helper::*", "assert_equals_opt");
+                            imports.requireGlob(RustSymbols.TEST_PREFIX + "tests::test_helper::*", "assert_equals_opt_string");
                             switch (innerKind) {
                                 case "String":
                                     final expStr = renderOptArg(expectedArg, "String");
@@ -12692,7 +12799,7 @@ class RustExpr {
                         // Aggregate equality
                         recordAggregateType(expectedArg.t);
                         final fnName = aggregateAssertFuncName(expectedArg.t);
-                        imports.requireGlob("crate::tests::test_helper::*", fnName);
+                        imports.requireGlob(RustSymbols.TEST_PREFIX + "tests::test_helper::*", fnName);
                         return fnName + "(&" + expr(expectedArg) + ", &" + expr(actualArg) + ", " + msg + ")";
                     }
                 }
@@ -16726,6 +16833,34 @@ class RustExpr {
         return text;
     }
 
+    /**
+        The adapter payload for a concrete adapter class entering an
+        interface slot, or null when the conversion does not apply. The
+        class's dyn impl lives on the adapter struct, so the slot must hold
+        the adapter; the stored handle is the class's own Rc<RefCell<C>>.
+        (P-4a)
+    **/
+    function adapterSlotPayload(actual:TypedExpr, rendered:String):Null<String> {
+        final slotCls = switch (actual.t != null ? Context.follow(actual.t) : null) {
+            case TInst(c, _): c.get();
+            case _: null;
+        };
+        if (slotCls == null || slotCls.isInterface || !RustDecl.isTraitAdapterClass(slotCls))
+            return null;
+        imports.require("std::rc::Rc");
+        imports.require("std::cell::RefCell");
+        imports.requireType(slotCls.module, slotCls.name + "__HandleAdapter");
+        final inner = normalizeConstructorResult(actual, rendered);
+        // A local or receiver names the class handle by reference; cloning
+        // the handle keeps the source binding alive and yields the owned
+        // Rc the adapter stores. A fresh constructor already owns it.
+        final owned = switch (stripWrap(actual).expr) {
+            case TLocal(_) | TConst(TThis): "(" + inner + ").clone()";
+            case _: inner;
+        };
+        return "Rc::new(RefCell::new(" + slotCls.name + "__HandleAdapter(" + owned + ")))";
+    }
+
     function renderValueForType(expected:Null<Type>, actual:TypedExpr, rendered:String,
         contract:DestinationContract = DestinationContract.Param):String {
         // contract names the destination position this coercion serves (P-22:
@@ -16757,6 +16892,15 @@ class RustExpr {
                 return "{ let __shared_handle: " + types.of(actual.t, false) + " = " + rendered + "; __shared_handle }";
             }
             return "Rc::new(RefCell::new(" + rendered + "))";
+        }
+        // An adapter class entering an interface slot travels as its
+        // adapter, for a shared or a plain interface alike: the dyn impl is
+        // on the adapter, and the plain slot would otherwise unsize the bare
+        // handle into a dyn value with no trait impl. (P-4a)
+        if (isInterfaceSlotType(expected)) {
+            final payload = adapterSlotPayload(actual, rendered);
+            if (payload != null)
+                return isNullType(expected) ? "Some(" + payload + ")" : payload;
         }
         // A Null<Interface> read (a static or field read) entering a
         // non-null interface slot unwraps its proven payload; the surrounding

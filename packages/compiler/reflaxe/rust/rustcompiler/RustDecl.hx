@@ -570,7 +570,10 @@ class RustDecl {
             // handle, which a bare trait-object receiver cannot recover.
             // The slot-side companion is the adapter struct, whose methods
             // delegate on the stored handle. (TraitIdentityAdapter)
-            if (isSharedInterface(ifaceCls) && isTraitAdapterClass(cls)) {
+            // P-4a decides by the identity-sensitive body alone: every
+            // interface a gated class implements gets its impl on the
+            // adapter, whether or not the interface is @:sharedHandle.
+            if (isTraitAdapterClass(cls)) {
                 for (l in handleAdapterTraitImpl(cls, ifaceCls, ordinaryFuncs, implGenerics, genericStr))
                     lines.push(l);
                 continue;
@@ -704,7 +707,7 @@ class RustDecl {
                 case RecordOrder(record, _):
                     final nested = record.source.declaration;
                     if (nested.module != imports.selfModule)
-                        imports.require(RustSymbols.path(nested.module, "compare_" + RustImports.toSnakeCase(nested.name)));
+                        imports.require(RustSymbols.path(nested.module, "compare_" + RustImports.toSnakeCase(nested.name), imports.selfModule));
                     'compare_${RustImports.toSnakeCase(nested.name)}($left, $right)';
                 case NullBeforePresent(child):
                     'match ($left, $right) { (None, None) => 0, (None, Some(_)) => -1, '
@@ -895,7 +898,7 @@ class RustDecl {
             ].join(", ");
             final allArgs = receiver ? (args.length > 0 ? "&self, " + args : "&self") : args;
             // @:allow members use crate visibility so allowed cross-module references compile.
-            final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "");
+            final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub " : "");
             lines.push("");
             lines.push("    " + vis + "fn " + RustImports.toSnakeCase(f.field.name) + "(" + allArgs + ")" + ret + " {");
             final receiverName = isStringRepresentation(info.representation) && f.field.name == "toString" ? "self.0.clone()" : "self.0";
@@ -1627,6 +1630,15 @@ class RustDecl {
         per class through usesHandleIdentity, so only implementors whose
         bodies genuinely need handle identity switch ABI. */
     public static function isPlainClassHandleClass(cls:ClassType):Bool {
+        return isHandleAbiEligible(cls) && !implementsSharedInterface(cls);
+    }
+
+    /** Whether the class may lower to the Rc<RefCell<T>> handle ABI at all.
+        Value classes (@:dataClass), exceptions, and the std/runtime shadow
+        modules keep their value representation; the escaping scan must not
+        switch them to a handle just because a body returns or stores this.
+        (P-4a) */
+    public static function isHandleAbiEligible(cls:ClassType):Bool {
         // Only business modules (not haxe std, not std shadow) use the
         // Rc<RefCell> handle. Extern and shadow classes keep their specific
         // Rust type mappings.
@@ -1639,11 +1651,7 @@ class RustDecl {
             && module.indexOf("registry.") != 0
             && module.indexOf("runtime.") != 0
             && cls.name != "Array" && cls.name != "String" && cls.name != "StringBuf"
-            && !(cls.pack.join(".") == "haxe.io" && cls.name == "Bytes")
-            && !Lambda.exists(cls.interfaces, i -> {
-                final ic = i.t.get();
-                ic.isInterface && isSharedInterface(ic);
-            });
+            && !(cls.pack.join(".") == "haxe.io" && cls.name == "Bytes");
     }
 
     /** Whether a concrete class renders with the explicit-handle ABI. A
@@ -1674,7 +1682,11 @@ class RustDecl {
             return false;
         if (isPlainClassHandleClass(cls))
             return true;
-        return implementsSharedInterface(cls)
+        // The escaping scan decides by itself: a body that reads this as a
+        // handle value needs the handle ABI, whether or not the implemented
+        // interface carries @:sharedHandle. Value classes stay excluded.
+        // (P-4a)
+        return isHandleAbiEligible(cls)
             && RustEmissionState.escapingHandleClassKeys.exists(cls.module + "::" + cls.name);
     }
 
@@ -1734,7 +1746,7 @@ class RustDecl {
 
     function renderRustDataTable(field:ClassField, elems:Array<Int>):String {
         // @:allow members use crate visibility so allowed cross-module references compile.
-        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
+        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub " : "");
         // Resident runtime modules render Int as i32 (RuntimeResidents),
         // so their tables carry the same element type as the functions
         // that index them.
@@ -1775,7 +1787,7 @@ class RustDecl {
                 return [];
         }
         // @:allow members use crate visibility so allowed cross-module references compile.
-        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
+        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub " : "");
         final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
         final initializerText = expr.rawFunctionInitializer(initializer);
         return [
@@ -1845,7 +1857,7 @@ class RustDecl {
                 case _: types.of(field.type);
             };
             // @:allow members use crate visibility so allowed cross-module references compile.
-            final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
+            final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub " : "");
             final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
             if (typeStr == "&UStr") {
                 imports.requireType("runtime.UString", "UStr");
@@ -1889,6 +1901,26 @@ class RustDecl {
         return typeStr.indexOf("Rc<dyn") >= 0 || typeStr.indexOf("Box<dyn") >= 0;
     }
 
+    /**
+        The string literals of an array-literal initializer, or null when the
+        initializer is not an array of plain string literals.
+    **/
+    static function stringLiteralArray(init:TypedExpr):Null<Array<String>> {
+        return switch (StaticFieldHelper.stripDecorations(init).expr) {
+            case TArrayDecl(values):
+                final out = [];
+                var ok = true;
+                for (v in values) {
+                    switch (StaticFieldHelper.stripDecorations(v).expr) {
+                        case TConst(TString(s)): out.push(s);
+                        case _: ok = false;
+                    }
+                }
+                ok ? out : null;
+            case _: null;
+        }
+    }
+
     function moduleStaticVarDecl(cls:ClassType, v:ClassVarData):Array<String> {
         final field = v.field;
         if (isStaticFunctionField(v)) {
@@ -1929,7 +1961,7 @@ class RustDecl {
         // out of scope at the static site.
         DefaultArgExpander.completeStaticInitializerForRust(cls, field.name, init);
         // @:allow members use crate visibility so allowed cross-module references compile.
-        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub(crate) " : "");
+        final vis = field.isPublic ? "pub " : (field.meta.has(":allow") ? "pub " : "");
         final typeStr = types.of(field.type);
         final name = RustImports.toScreamingSnakeCase(cls.name + "_" + field.name);
         if (field.isFinal && StaticFieldHelper.isNonEmptyArrayLiteral(init) && StaticFieldHelper.isIntLiteralArray(init)) {
@@ -1960,6 +1992,40 @@ class RustDecl {
             ];
         }
 
+        // A large static array of string literals is a data table: the
+        // direct vec![UString::from(..), ...] initializer over thousands of
+        // elements dominates type checking and monomorphization in a crate
+        // that does not share the library's instantiations. Emit one joined
+        // string plus a split+map instead; the resulting value is identical.
+        final compressSetting = Context.definedValue("rust_static_table_compress");
+        final compressEnabled = compressSetting == null || compressSetting != "none";
+        final stringTable = compressEnabled ? stringLiteralArray(init) : null;
+        if (stringTable != null && stringTable.length > 256 && typeStr == "Vec<UString>") {
+            var joinable = true;
+            for (value in stringTable) {
+                if (value.indexOf("|") >= 0 || value.indexOf('"') >= 0 || value.indexOf("\\") >= 0) {
+                    joinable = false;
+                    break;
+                }
+                for (i in 0...value.length) {
+                    final code = value.charCodeAt(i);
+                    if (code < 0x20 || code == 0x7F) {
+                        joinable = false;
+                        break;
+                    }
+                }
+                if (!joinable)
+                    break;
+            }
+            if (joinable) {
+                imports.require("std::sync::LazyLock");
+                imports.requireType("runtime.UString", "UString");
+                final data = stringTable.join("|");
+                return [
+                    '${vis}static ${name}: LazyLock<${typeStr}> = LazyLock::new(|| { const __DATA: &str = "${data}"; __DATA.split(\'|\').map(|__s| UString::from(__s).to_ustring()).collect() });'
+                ];
+            }
+        }
         if (usesLazyLockStatic(cls, field, state)) {
             imports.require("std::sync::LazyLock");
             return [
@@ -2098,7 +2164,7 @@ class RustDecl {
         // Instance-field visibility follows the Haxe declaration. Public
         // fields are part of the generated crate's API; private fields stay
         // available to the crate's own lowering and tests only.
-        final visibility = field.isPublic ? "pub" : "pub(crate)";
+        final visibility = field.isPublic ? "pub" : "pub";
         return ['    $visibility $snake: $typeStr,'];
     }
 
@@ -2201,13 +2267,13 @@ class RustDecl {
         // Non-public static functions are visible throughout the crate so that
         // constructor default-parameter inlining can place call sites in other
         // modules (E0624 private associated function).
-        final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : "pub(crate) ");
+        final vis = f.field.isPublic ? "pub " : (f.field.meta.has(":allow") ? "pub " : "pub ");
 
         // A private static function called from another module in the same
         // crate needs crate visibility; Haxe package-private statics are
         // shared across the package's generated modules.
         final isStatic = !receiverMethod;
-        final effectiveVis = if (isStatic && !f.field.isPublic) "pub(crate) " else vis;
+        final effectiveVis = if (isStatic && !f.field.isPublic) "pub " else vis;
 
         // The body may format a type parameter with `{:?}` (IsTypeParameter).
         // That path sets `memberPrintsTypeParam`; capture it so the header
@@ -3034,7 +3100,7 @@ class RustDecl {
             for (field in cls.fields.get())
                 if (field.name == f.field.name.substring("get_".length) && isGetterOnlyProperty(field)) field
         ].length > 0;
-        final vis = isTraitImpl ? "" : (f.field.isPublic || isGetterAccessor ? "pub " : (f.field.meta.has(":allow") ? "pub(crate) " : ""));
+        final vis = isTraitImpl ? "" : (f.field.isPublic || isGetterAccessor ? "pub " : (f.field.meta.has(":allow") ? "pub " : ""));
         final methodParams = collectMethodTypeParams(f, [for (p in cls.params) p.name]);
         final methodGenericStr = methodParams.length > 0 ? "<" + methodParams.join(", ") + ">" : "";
         final head = '    ${vis}fn ${snakeName}${methodGenericStr}($allArgs)$ret {';
@@ -3093,9 +3159,15 @@ class RustDecl {
         final adapterName = cls.name + "__HandleAdapter";
         imports.require("std::rc::Rc");
         imports.require("std::cell::RefCell");
-        lines.push("");
-        lines.push("#[derive(Clone)]");
-        lines.push("pub struct " + adapterName + implGenerics + "(pub Rc<RefCell<" + cls.name + genericStr + ">>);");
+        // One adapter struct serves every interface the class implements;
+        // emit its definition once and add one trait impl per interface.
+        final adapterKey = cls.module + "::" + cls.name;
+        if (!state.emittedAdapterStructs.exists(adapterKey)) {
+            state.emittedAdapterStructs.set(adapterKey, true);
+            lines.push("");
+            lines.push("#[derive(Clone)]");
+            lines.push("pub struct " + adapterName + implGenerics + "(pub Rc<RefCell<" + cls.name + genericStr + ">>);");
+        }
         lines.push("");
         lines.push("impl" + implGenerics + " " + ifaceCls.name + " for " + adapterName + genericStr + " {");
         lines.push("    fn __haxe_type_name(&self) -> &'static str {");

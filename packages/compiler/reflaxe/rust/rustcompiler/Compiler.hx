@@ -48,6 +48,14 @@ class Compiler extends PluginCompiler<Compiler> {
     var current:Null<RustDecl> = null;
     var emissionPlan:Null<RustEmissionPlan> = null;
 
+    /**
+        Test-group crates this compilation wrote under tests/. Each group
+        holds a bounded slice of the test classes, so no single crate
+        monomorphizes the whole suite. packageManifest() declares them as
+        workspace members and default members.
+    **/
+    final groupCrates:Array<{path:String, packageName:String, defaultMember:Bool}> = [];
+
     function saveTreeFile(path:String, content:String):Void {
         final folded = wrapGeneratedSource(content);
         PackageArtifacts.saveTreeFile(output, path, folded.wrapped);
@@ -150,6 +158,7 @@ class Compiler extends PluginCompiler<Compiler> {
     public function new() {
         super();
         state = new RustEmissionState();
+        RustSymbols.resetReferences();
     }
 
     // ------------------------------------------------------------------
@@ -336,9 +345,16 @@ class Compiler extends PluginCompiler<Compiler> {
         modules.sort(Reflect.compare);
         CompilationUnits.dumpIfRequested(modules);
 
-        final packages:Map<String, Array<String>> = [];
-        final packageChildren:Map<String, Array<String>> = [];
-        final testModuleLeaves:Map<String, Bool> = [];
+        final mainPackages:Map<String, Array<String>> = [];
+        final mainChildren:Map<String, Array<String>> = [];
+        // Every test class becomes its own crate under a semantic path
+        // (tests/<source directory>/<test class>/), carrying its support
+        // closure. The library crate stays free of test code, and no crate
+        // monomorphizes the whole suite.
+        final renderedTestModules:Map<String, String> = [];
+        final testClassNames:Array<String> = [];
+        final mainCrate = PackageShell.name().split("-").join("_");
+        RustSymbols.mainEmittedTestModules = [];
 
         for (module in modules) {
             // A payload enum and its exception can share one Haxe module; that
@@ -360,79 +376,131 @@ class Compiler extends PluginCompiler<Compiler> {
             if (synthetic.length > 0)
                 body = synthetic + (body.length > 0 ? "\n\n" + body : "");
             final imports = decl.renderImportsFiltered(body);
-            final isTest = CompilationUnits.isTestModule(module);
-            final content = (isTest ? "#![cfg(test)]\n\n" : "") + imports + (imports.length > 0 ? "\n" : "") + body + "\n";
-            saveTreeFile(modulePath(module), content);
-
-            final pack = packageOf(module);
-            if (!packages.exists(pack)) {
-                packages.set(pack, []);
+            final isTestUnit = isRustTestUnit(module);
+            final isTestClass = state.testModules.exists(module);
+            var content = imports + (imports.length > 0 ? "\n" : "") + body + "\n";
+            if (isTestUnit) {
+                renderedTestModules.set(module, markTestSourceCratePaths(content));
+                if (isTestClass)
+                    testClassNames.push(module);
+            } else {
+                saveTreeFile(modulePath(module), content);
+                addPackage(module, mainPackages, mainChildren);
             }
-            final modName = moduleLeafName(module);
-            packages.get(pack).push(modName);
-            if (isTest) {
-                testModuleLeaves.set(pack + "." + modName, true);
-            }
-            registerPackagePath(pack, packageChildren);
         }
 
-        // Flush externalized asset files beside their generated module files.
-        // Written raw (no line-wrap) so the bytes match the source literals.
-        for (asset in AssetModules.pendingAssets()) {
-            final dir = haxe.io.Path.directory(modulePath(asset.module));
-            PackageArtifacts.saveTreeFile(output, dir + "/" + asset.file, asset.content);
+        // The Haxe tests package owns the generated test helper; every
+        // per-test crate includes it.
+        var hasHaxeTestsPackage = false;
+        for (m in modules) {
+            if (m == "tests" || StringTools.startsWith(m, "tests.")) {
+                hasHaxeTestsPackage = true;
+                break;
+            }
         }
+        final testHelperContent = hasHaxeTestsPackage ? generateTestHelperContent() : null;
 
-        // Generate one Rust module layer per Haxe package segment.
-        final allPackages:Map<String, Bool> = [];
-        for (pack in packages.keys())
-            allPackages.set(pack, true);
-        for (pack in packageChildren.keys())
-            allPackages.set(pack, true);
-        for (pack in allPackages.keys()) {
-            if (pack == "" || pack == "tests")
+        // Test-unit reference graph for the per-test support closure.
+        final testUnitRefs:Map<String, Array<String>> = [];
+        for (entry in RustSymbols.recordedModuleReferences()) {
+            if (!isRustTestUnit(entry.fromModule) || !isRustTestUnit(entry.targetModule))
                 continue;
-            final modNames:Array<String> = packages.get(pack) == null ? [] : packages.get(pack).copy();
-            final childNames:Array<String> = packageChildren.get(pack) == null ? [] : packageChildren.get(pack).copy();
-            modNames.sort(Reflect.compare);
-            childNames.sort(Reflect.compare);
-            final lines = ["#![allow(ambiguous_glob_reexports)]", ""];
-            for (child in childNames)
-                lines.push("pub mod " + child + ";");
-            for (m in modNames) {
-                if (testModuleLeaves.exists(pack + "." + m))
-                    lines.push("#[cfg(test)]");
-                lines.push("pub mod " + m + ";");
-            }
-            lines.push("");
-            for (child in childNames)
-                lines.push("pub use " + child + "::*;");
-            for (m in modNames) {
-                if (testModuleLeaves.exists(pack + "." + m))
-                    lines.push("#[cfg(test)]");
-                lines.push("pub use " + m + "::*;");
-            }
-            final modPath = pack.split(".").map(RustImports.toSnakeCase).join("/") + "/mod.rs";
-            saveTreeFile(modPath, lines.join("\n") + "\n");
+            if (!testUnitRefs.exists(entry.fromModule))
+                testUnitRefs.set(entry.fromModule, []);
+            testUnitRefs.get(entry.fromModule).push(entry.targetModule);
         }
 
-        if (packages.exists("tests")) {
-            generateTestHelper();
-            final modNames = packages.get("tests");
-            if (modNames.indexOf("test_helper") < 0) {
-                modNames.push("test_helper");
+        final assets = AssetModules.pendingAssets();
+        testClassNames.sort(Reflect.compare);
+        final usedCratePaths:Map<String, Bool> = [];
+        for (testClass in testClassNames) {
+            final sourceDir = sourceDirOf(testClass);
+            final leaf = moduleLeafName(testClass);
+            final baseDir = "tests/" + (sourceDir == "" ? "" : sourceDir + "/") + leaf;
+            var testPath = baseDir + "/";
+            var supportPath = baseDir + "_support/";
+            var suffix = 2;
+            while (usedCratePaths.exists(testPath) || usedCratePaths.exists(supportPath)) {
+                testPath = baseDir + "_" + suffix + "/";
+                supportPath = baseDir + "_support_" + suffix + "/";
+                suffix++;
             }
-            modNames.sort(Reflect.compare);
-            final lines = ["#![allow(unused_imports)]", ""];
-            for (m in modNames) {
-                lines.push("pub mod " + m + ";");
+            usedCratePaths.set(testPath, true);
+            usedCratePaths.set(supportPath, true);
+            final baseName = PackageShell.name() + "-tests-" + (sourceDir == "" ? "" : sourceDir.split("/").join("-") + "-") + leaf.split("_").join("-");
+            final testPackageName = baseName;
+            final supportPackageName = baseName + "-support";
+            final testDepDepth = testPath.split("/").filter(s -> s != "").length;
+            var testDepPath = "..";
+            for (i in 1...testDepDepth)
+                testDepPath += "/..";
+            final supportDepDepth = supportPath.split("/").filter(s -> s != "").length;
+            var supportDepPath = "..";
+            for (i in 1...supportDepDepth)
+                supportDepPath += "/..";
+            final suffixName = testPath.split("/").filter(s -> s != "").pop();
+            final supportRelPath = "../" + supportPath.split("/").filter(s -> s != "").pop();
+
+            // The support crate is a normal library of the test class's
+            // support closure. It is a workspace member but not a default
+            // member, so cargo build never compiles it; the test crate pulls
+            // it in as a dev-dependency for the test build only.
+            final closure = testModuleClosure(testClass, testUnitRefs, hasHaxeTestsPackage);
+            final sp:Map<String, Array<String>> = [];
+            final sc:Map<String, Array<String>> = [];
+            final emittedSupport:Map<String, Bool> = [];
+            for (m in closure) {
+                if (emittedSupport.exists(m))
+                    continue;
+                final c = renderedTestModules.get(m);
+                if (c == null)
+                    continue;
+                saveTreeFile(supportPath + modulePath(m), resolveSentinels(c, mainCrate, "crate"));
+                addPackage(m, sp, sc);
+                emittedSupport.set(m, true);
+                for (asset in assets) {
+                    if (asset.module != m)
+                        continue;
+                    final dir = haxe.io.Path.directory(modulePath(m));
+                    PackageArtifacts.saveTreeFile(output, supportPath + dir + "/" + asset.file, asset.content);
+                }
             }
-            lines.push("");
-            for (m in modNames) {
-                lines.push("pub use " + m + "::*;");
+            if (hasHaxeTestsPackage) {
+                final helper = resolveSentinels(markTestSourceCratePaths(testHelperContent), mainCrate, "crate");
+                saveTreeFile(supportPath + "tests/test_helper.rs", helper);
+                if (!sp.exists("tests"))
+                    sp.set("tests", []);
+                if (sp.get("tests").indexOf("test_helper") < 0)
+                    sp.get("tests").push("test_helper");
+                registerPackagePath("tests", sc);
             }
-            saveTreeFile("tests/mod.rs", lines.join("\n") + "\n");
+            generatePackageTree(sp, sc, supportPath);
+            generateSupportLib(sp, sc, supportPath);
+            saveTreeFile(supportPath + "Cargo.toml", supportManifest(supportPackageName, supportDepPath));
+            groupCrates.push({path: supportPath, packageName: supportPackageName, defaultMember: false});
+
+            // The test crate holds only the test class. Its test-unit
+            // references name the support crate; main-unit references name
+            // the library crate.
+            final tp:Map<String, Array<String>> = [];
+            final tc:Map<String, Array<String>> = [];
+            final c = renderedTestModules.get(testClass);
+            final supportCrate = supportPackageName.split("-").join("_");
+            saveTreeFile(testPath + modulePath(testClass), resolveSentinels(c, mainCrate, supportCrate, supportCrate));
+            addPackage(testClass, tp, tc);
+            for (asset in assets) {
+                if (asset.module != testClass)
+                    continue;
+                final dir = haxe.io.Path.directory(modulePath(testClass));
+                PackageArtifacts.saveTreeFile(output, testPath + dir + "/" + asset.file, asset.content);
+            }
+            generateTestGroupTree(tp, tc, testPath);
+            generateTestGroupLib(tp, tc, testPath);
+            saveTreeFile(testPath + "Cargo.toml", testCrateManifest(testPackageName, testDepPath, supportPackageName, supportRelPath));
+            groupCrates.push({path: testPath, packageName: testPackageName, defaultMember: true});
         }
+
+        generatePackageTree(mainPackages, mainChildren, "");
 
         // Emit runtime shims
         emitShim("haxe.io.FPHelper", "fp_helper.rs", RustRuntime.FP_HELPER_SOURCE);
@@ -509,13 +577,13 @@ class Compiler extends PluginCompiler<Compiler> {
         libLines.push("pub const TIQIAN_NAN_BITS: u64 = 0x7ff8000000000000;");
         libLines.push("pub const TIQIAN_ZERO_BITS: TiqianBits = 0;");
         libLines.push("");
-        final rootPackages:Array<String> = packageChildren.get("") == null ? [] : packageChildren.get("").copy();
+        final rootPackages:Array<String> = mainChildren.get("") == null ? [] : mainChildren.get("").copy();
         rootPackages.sort(Reflect.compare);
         // Root-level modules (a module with no Haxe package) are module leaves
         // emitted beside the crate root. They are declared here directly, not
         // as package children, so a root module can never be dropped from the
         // crate entry. (RustRootModuleRegistration)
-        final rootModules:Array<String> = packages.get("") == null ? [] : packages.get("").copy();
+        final rootModules:Array<String> = mainPackages.get("") == null ? [] : mainPackages.get("").copy();
         rootModules.sort(Reflect.compare);
         // A root-level module and a root package can share one snake-case
         // module name (a class `Consumer` and a package `consumer.*`). Both
@@ -523,40 +591,23 @@ class Compiler extends PluginCompiler<Compiler> {
         // Reject that collision here with a named diagnostic instead of
         // emitting a duplicate module declaration. (RustRootModuleRegistration)
         for (m in rootModules) {
-            // Only names that this emission actually writes collide: a non-tests
-            // root package (the tests package is emitted in its own block below),
-            // the cfg(test) tests block, or the runtime shim directory.
-            if (rootPackages.indexOf(m) >= 0 && m != "tests")
+            if (rootPackages.indexOf(m) >= 0)
                 Context.error("root module '" + m + "' collides with a root package of the same name; rename one to avoid a duplicate `pub mod " + m + ";`", Context.currentPos());
-            if (m == "tests" && packages.exists("tests"))
-                Context.error("root module 'tests' collides with the generated tests module; rename the root module", Context.currentPos());
             if (emitDir != null && hasAnyShim() && m == emitDir)
                 Context.error("root module '" + m + "' collides with the runtime shim module; rename the root module", Context.currentPos());
         }
         for (p in rootPackages)
-            if (p != "tests")
-                libLines.push("pub mod " + p + ";");
-        for (m in rootModules) {
-            if (testModuleLeaves.exists("." + m))
-                libLines.push("#[cfg(test)]");
+            libLines.push("pub mod " + p + ";");
+        for (m in rootModules)
             libLines.push("pub mod " + m + ";");
-        }
         if (emitDir != null && hasAnyShim()) {
             libLines.push("pub mod " + emitDir + ";");
         }
-        if (packages.exists("tests")) {
-            libLines.push("#[cfg(test)]");
-            libLines.push("pub mod tests;");
-        }
         libLines.push("");
         for (p in rootPackages)
-            if (p != "tests")
-                libLines.push("pub use " + p + "::*;");
-        for (m in rootModules) {
-            if (testModuleLeaves.exists("." + m))
-                libLines.push("#[cfg(test)]");
+            libLines.push("pub use " + p + "::*;");
+        for (m in rootModules)
             libLines.push("pub use " + m + "::*;");
-        }
         saveTreeFile("lib.rs", libLines.join("\n") + "\n");
 
         RustSymbols.checkAll();
@@ -577,14 +628,292 @@ class Compiler extends PluginCompiler<Compiler> {
     }
 
     /**
+        Marks the crate::-rooted paths of a test-unit source. RustSymbols
+        already rendered cross-crate targets with MAIN_PREFIX/TEST_PREFIX;
+        the remaining crate:: paths are the emitter's hardcoded runtime and
+        alias references, all of which name the library crate. String
+        literals are copied verbatim.
+    **/
+    function markTestSourceCratePaths(content:String):String {
+        final needle = "crate::";
+        final out = new StringBuf();
+        var i = 0;
+        while (i < content.length) {
+            final c = content.charAt(i);
+            if (c == '"') {
+                out.add(c);
+                i++;
+                while (i < content.length) {
+                    final d = content.charAt(i);
+                    out.add(d);
+                    i++;
+                    if (d == "\\") {
+                        if (i < content.length) {
+                            out.add(content.charAt(i));
+                            i++;
+                        }
+                    } else if (d == '"') {
+                        break;
+                    }
+                }
+            } else if (c == "c" && i + needle.length <= content.length && content.substr(i, needle.length) == needle) {
+                out.add(RustSymbols.MAIN_PREFIX);
+                i += needle.length;
+            } else {
+                out.add(c);
+                i++;
+            }
+        }
+        return out.toString();
+    }
+
+    /** Substitutes the crate names for the cross-crate path markers. */
+    function resolveSentinels(content:String, mainCrate:String, testCrate:String, ?supportCrate:String):String {
+        var out = StringTools.replace(content, RustSymbols.MAIN_PREFIX, mainCrate + "::");
+        out = StringTools.replace(out, RustSymbols.TEST_PREFIX, testCrate + "::");
+        if (supportCrate != null)
+            out = StringTools.replace(out, RustSymbols.SUPPORT_PREFIX, supportCrate + "::");
+        return out;
+    }
+
+    /** Adds a module to a package map and records its package chain. */
+    function addPackage(module:String, packages:Map<String, Array<String>>, children:Map<String, Array<String>>):Void {
+        final pack = packageOf(module);
+        if (!packages.exists(pack))
+            packages.set(pack, []);
+        packages.get(pack).push(moduleLeafName(module));
+        registerPackagePath(pack, children);
+    }
+
+    /** Writes one mod.rs layer per package under prefix. */
+    function generatePackageTree(packages:Map<String, Array<String>>, children:Map<String, Array<String>>, prefix:String, ?testModules:Map<String, Bool>):Void {
+        final allPackages:Map<String, Bool> = [];
+        for (pack in packages.keys())
+            allPackages.set(pack, true);
+        for (pack in children.keys())
+            allPackages.set(pack, true);
+        for (pack in allPackages.keys()) {
+            if (pack == "")
+                continue;
+            final modNames:Array<String> = packages.get(pack) == null ? [] : packages.get(pack).copy();
+            final childNames:Array<String> = children.get(pack) == null ? [] : children.get(pack).copy();
+            modNames.sort(Reflect.compare);
+            childNames.sort(Reflect.compare);
+            final lines = ["#![allow(ambiguous_glob_reexports)]", ""];
+            for (child in childNames)
+                lines.push("pub mod " + child + ";");
+            for (m in modNames) {
+                if (testModules != null && testModules.exists(pack + "." + m))
+                    lines.push("#[cfg(test)]");
+                lines.push("pub mod " + m + ";");
+            }
+            lines.push("");
+            for (child in childNames)
+                lines.push("pub use " + child + "::*;");
+            for (m in modNames) {
+                if (testModules != null && testModules.exists(pack + "." + m))
+                    lines.push("#[cfg(test)]");
+                lines.push("pub use " + m + "::*;");
+            }
+            final modPath = prefix + pack.split(".").map(RustImports.toSnakeCase).join("/") + "/mod.rs";
+            saveTreeFile(modPath, lines.join("\n") + "\n");
+        }
+    }
+
+    /** Writes one test-group crate root; every module is cfg(test). */
+    function generateTestGroupLib(packages:Map<String, Array<String>>, children:Map<String, Array<String>>, path:String):Void {
+        final lines = ["#![allow(ambiguous_glob_reexports)]", ""];
+        final rootPackages:Array<String> = children.get("") == null ? [] : children.get("").copy();
+        rootPackages.sort(Reflect.compare);
+        final rootModules:Array<String> = packages.get("") == null ? [] : packages.get("").copy();
+        rootModules.sort(Reflect.compare);
+        for (p in rootPackages) {
+            lines.push("#[cfg(test)]");
+            lines.push("pub mod " + p + ";");
+        }
+        for (m in rootModules) {
+            lines.push("#[cfg(test)]");
+            lines.push("pub mod " + m + ";");
+        }
+        lines.push("");
+        for (p in rootPackages) {
+            lines.push("#[cfg(test)]");
+            lines.push("pub use " + p + "::*;");
+        }
+        for (m in rootModules) {
+            lines.push("#[cfg(test)]");
+            lines.push("pub use " + m + "::*;");
+        }
+        saveTreeFile(path + "/lib.rs", lines.join("\n") + "\n");
+    }
+
+    /** Writes one mod.rs layer per package for a test-group crate. */
+    function generateTestGroupTree(packages:Map<String, Array<String>>, children:Map<String, Array<String>>, prefix:String):Void {
+        final allPackages:Map<String, Bool> = [];
+        for (pack in packages.keys())
+            allPackages.set(pack, true);
+        for (pack in children.keys())
+            allPackages.set(pack, true);
+        for (pack in allPackages.keys()) {
+            if (pack == "")
+                continue;
+            final modNames:Array<String> = packages.get(pack) == null ? [] : packages.get(pack).copy();
+            final childNames:Array<String> = children.get(pack) == null ? [] : children.get(pack).copy();
+            modNames.sort(Reflect.compare);
+            childNames.sort(Reflect.compare);
+            final lines = ["#![allow(ambiguous_glob_reexports)]", ""];
+            for (child in childNames) {
+                lines.push("#[cfg(test)]");
+                lines.push("pub mod " + child + ";");
+            }
+            for (m in modNames) {
+                lines.push("#[cfg(test)]");
+                lines.push("pub mod " + m + ";");
+            }
+            lines.push("");
+            for (child in childNames) {
+                lines.push("#[cfg(test)]");
+                lines.push("pub use " + child + "::*;");
+            }
+            for (m in modNames) {
+                lines.push("#[cfg(test)]");
+                lines.push("pub use " + m + "::*;");
+            }
+            final modPath = prefix + pack.split(".").map(RustImports.toSnakeCase).join("/") + "/mod.rs";
+            saveTreeFile(modPath, lines.join("\n") + "\n");
+        }
+    }
+
+    /** The test class crate: depends on the library, dev-depends on support. */
+    function testCrateManifest(packageName:String, depPath:String, supportPackageName:String, supportPath:String):String {
+        final lines = [
+            "# Generated by the reflaxe Rust target. Do not edit.",
+            "[package]",
+            'name = "${packageName}"',
+            'version = "${PackageShell.version()}"',
+            'edition = "2024"',
+            "autotests = false",
+            "",
+            "[lib]",
+            'path = "lib.rs"',
+            "",
+            "[dependencies]",
+            '${PackageShell.name()} = { path = "${depPath}" }',
+            "",
+            "[dev-dependencies]",
+            '${supportPackageName} = { path = "${supportPath}" }',
+        ];
+        return lines.join("\n") + "\n";
+    }
+
+    /** The support crate: a normal library the test crate links for tests. */
+    function supportManifest(packageName:String, depPath:String):String {
+        final lines = [
+            "# Generated by the reflaxe Rust target. Do not edit.",
+            "[package]",
+            'name = "${packageName}"',
+            'version = "${PackageShell.version()}"',
+            'edition = "2024"',
+            "autotests = false",
+            "",
+            "[lib]",
+            'path = "lib.rs"',
+            "",
+            "[dependencies]",
+            '${PackageShell.name()} = { path = "${depPath}" }',
+        ];
+        return lines.join("\n") + "\n";
+    }
+
+    /** Writes a normal (non-cfg(test)) support crate root. */
+    function generateSupportLib(packages:Map<String, Array<String>>, children:Map<String, Array<String>>, path:String):Void {
+        final lines = ["#![allow(ambiguous_glob_reexports)]", ""];
+        final rootPackages:Array<String> = children.get("") == null ? [] : children.get("").copy();
+        rootPackages.sort(Reflect.compare);
+        final rootModules:Array<String> = packages.get("") == null ? [] : packages.get("").copy();
+        rootModules.sort(Reflect.compare);
+        for (p in rootPackages)
+            lines.push("pub mod " + p + ";");
+        for (m in rootModules)
+            lines.push("pub mod " + m + ";");
+        lines.push("");
+        for (p in rootPackages)
+            lines.push("pub use " + p + "::*;");
+        for (m in rootModules)
+            lines.push("pub use " + m + "::*;");
+        saveTreeFile(path + "lib.rs", lines.join("\n") + "\n");
+    }
+
+    /**
+        Rust test-unit classification. On top of CompilationUnits, a
+        `*TestSupport` module is test support by construction: a single-pass
+        test-support closure can leave it behind when its referencer is
+        itself reclassified later, and the support crate split must move it
+        with the test it serves.
+    **/
+    function isRustTestUnit(module:String):Bool {
+        return CompilationUnits.isTestModule(module) || StringTools.endsWith(moduleLeafName(module), "_test_support");
+    }
+
+    /**
+        Semantic source directory of a module: the package path below the
+        project root (org.tiqian.layout -> layout, org.tiqian.core -> core,
+        tests.trace -> tests/trace). The per-test crate lives under it.
+    **/
+    function sourceDirOf(module:String):String {
+        final pack = packageOf(module);
+        if (pack == "")
+            return "";
+        final projectPrefix = "org.tiqian.";
+        if (StringTools.startsWith(pack, projectPrefix))
+            return pack.substr(projectPrefix.length).split(".").join("/");
+        return pack.split(".").join("/");
+    }
+
+    /**
+        The test-unit modules a test class needs, transitively. The class
+        itself is the integration-test crate root and is excluded.
+    **/
+    function testModuleClosure(testClass:String, refs:Map<String, Array<String>>, includeHelper:Bool):Array<String> {
+        final seen:Map<String, Bool> = [];
+        final order:Array<String> = [];
+        final queue:Array<String> = [testClass];
+        while (queue.length > 0) {
+            final cur = queue.shift();
+            final nexts = refs.get(cur);
+            if (nexts == null)
+                continue;
+            for (next in nexts) {
+                if (next == testClass || seen.exists(next))
+                    continue;
+                seen.set(next, true);
+                order.push(next);
+                queue.push(next);
+            }
+        }
+        if (includeHelper && testClass != "tests.test_helper" && !seen.exists("tests.test_helper")) {
+            seen.set("tests.test_helper", true);
+            order.push("tests.test_helper");
+        }
+        order.sort(Reflect.compare);
+        return order;
+    }
+
+
+    /**
         The crate manifest of the generated tree (feature spec 24). The
         crate is the output directory itself: the library entry is the
         compiler's own lib.rs, the dependency set is empty because the
         translatable subset references no external crate, and one
         `package-test` define appends the integration-test block
-        repositories with tests outside the crate need. The generated
-        `tests/` directory is a `#[cfg(test)]` module tree of the lib,
-        not cargo integration tests, so test autodiscovery is off.
+        repositories with tests outside the crate need.
+
+        Test classes are cargo integration tests: each one is written as
+        its own tests/<name>.rs crate, so a suite never monomorphizes as a
+        single crate. Autodiscovery stays off because the tests/ directory
+        also holds the generated library support modules and test_helper,
+        which are not test binaries; every real test target is declared
+        explicitly below.
     **/
     function packageManifest():String {
         final license = PackageShell.license();
@@ -626,10 +955,22 @@ class Compiler extends PluginCompiler<Compiler> {
         // (GeneratedCrateWorkspaceRoot)
         lines.push("");
         lines.push("[workspace]");
+        if (groupCrates.length > 0) {
+            lines.push("members = [");
+            for (crate in groupCrates)
+                lines.push('    "' + crate.path + '",');
+            lines.push("]");
+            lines.push("default-members = [");
+            lines.push('    ".",');
+            for (crate in groupCrates)
+                if (crate.defaultMember)
+                    lines.push('    "' + crate.path + '",');
+            lines.push("]");
+        }
         return lines.join("\n") + "\n";
     }
 
-    function generateTestHelper():Void {
+    function generateTestHelperContent():String {
         // The float helpers name the crate alias in both feature lanes, so
         // the aggregate helpers (equals_vec_float, ...) resolve against a
         // defined symbol on both target configurations (feature spec 23,
@@ -864,7 +1205,7 @@ class Compiler extends PluginCompiler<Compiler> {
                 case _:
             }
         }
-        saveTreeFile("tests/test_helper.rs", lines.join("\n") + "\n");
+        return lines.join("\n") + "\n";
     }
 
     function rustType(t:Type):String {
@@ -1023,7 +1364,7 @@ class Compiler extends PluginCompiler<Compiler> {
                     final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
                     final variant = variants != null && variants.exists(item.module + "::" + item.name)
                         ? variants.get(item.module + "::" + item.name) : item.name + "Fault";
-                    lines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
+                    lines.push("    " + variant + "(" + RustSymbols.typePath(emitted, item.name, module) + "),");
                 }
                 lines.push("}");
                 // The union derives only Debug; a message read or a
@@ -1097,6 +1438,10 @@ class Compiler extends PluginCompiler<Compiler> {
         RustSymbols.state = state;
         ErrorDomainRegistry.state = state;
         CompilationUnits.registerFromModuleTypes(mtypes, false);
+        // Asset carriers are test-unit modules like any other: they move
+        // into the per-test support crate that needs them, so the library
+        // crate stays free of test data.
+        RustSymbols.mainEmittedTestModules = [];
         // An interface whose implementors all derive Clone gets a clone_box
         // hook so a Box<dyn Trait> field keeps its owner's derive. Collect
         // the implementor set first, then mark the interfaces whose whole
@@ -1415,6 +1760,38 @@ class Compiler extends PluginCompiler<Compiler> {
         gets a fail-closed trait impl because &mut Self cannot recover the Rc.
     **/
     function scanEscapingHandleMethods(mtypes:Array<haxe.macro.Type.ModuleType>):Void {
+        // P-4a: an identity-sensitive method reads "this" as a handle value.
+        // The body returns it, passes it, stores it, or compares it. Any of
+        // those needs the canonical handle, so the bare-struct receiver
+        // cannot serve the method.
+        function isThisExpr(e:TypedExpr):Bool {
+            return switch (stripDecorations(e).expr) {
+                case TConst(TThis): true;
+                case _: false;
+            };
+        }
+        // An interface slot holds Rc<RefCell<dyn I>> in both the shared and
+        // the plain declaration, so a forward into it is a handle forward.
+        function isInterfaceSlotType(t:Null<Type>):Bool {
+            if (t == null)
+                return false;
+            return switch (Context.follow(t)) {
+                case TAbstract(a, [inner]) if (a.get().name == "Null"): isInterfaceSlotType(inner);
+                case TInst(c, _): c.get().isInterface;
+                case _: false;
+            };
+        }
+        function paramTakesHandle(t:Null<Type>):Bool {
+            return RustDecl.isPlainClassHandleOrNull(t)
+                || RustDecl.isSharedImplementorHandleType(t)
+                || isInterfaceSlotType(t);
+        }
+        function forwardedThisEscapes(args:Array<TypedExpr>, params:Array<{name:String, t:Type, opt:Bool}>):Bool {
+            for (i in 0...args.length)
+                if (isThisExpr(args[i]) && i < params.length && paramTakesHandle(params[i].t))
+                    return true;
+            return false;
+        }
         function methodEscapes(body:TypedExpr):Bool {
             var escapes = false;
             function walk(e:TypedExpr):Void {
@@ -1423,28 +1800,47 @@ class Compiler extends PluginCompiler<Compiler> {
                 switch (stripDecorations(e).expr) {
                     case TCall(fn, args):
                         switch (stripDecorations(fn).expr) {
-                            case TField(_, FStatic(cc, cf)):
+                            case TField(_, FStatic(_, cf)):
                                 final params = switch (Context.follow(cf.get().type)) { case TFun(pa, _): pa; case _: []; };
-                                for (i in 0...args.length) {
-                                    final isThis = switch (stripDecorations(args[i]).expr) { case TConst(TThis): true; case _: false; };
-                                    if (isThis && i < params.length && (RustDecl.isPlainClassHandleOrNull(params[i].t)
-                                        || RustDecl.isSharedImplementorHandleType(params[i].t)))
-                                        escapes = true;
-                                }
+                                if (forwardedThisEscapes(args, params))
+                                    escapes = true;
                                 haxe.macro.TypedExprTools.iter(fn, walk);
                                 for (a in args)
                                     walk(a);
                             case TField(subj, FInstance(c2, _, cf2)):
-                                final onThis = switch (stripDecorations(subj).expr) { case TConst(TThis): true; case _: false; };
-                                if (onThis) {
+                                if (isThisExpr(subj)) {
                                     final calleeKey = RustEmissionState.funcKey(c2.get().module, cf2.get().name, false);
                                     if (state.escapingHandleMethods.exists(calleeKey))
                                         escapes = true;
                                 }
+                                final params = switch (Context.follow(cf2.get().type)) { case TFun(pa, _): pa; case _: []; };
+                                if (forwardedThisEscapes(args, params))
+                                    escapes = true;
                                 haxe.macro.TypedExprTools.iter(e, walk);
                             case _:
                                 haxe.macro.TypedExprTools.iter(e, walk);
                         }
+                    case TReturn(ret):
+                        // returns "this": the caller receives the object
+                        // identity, not a copy of its fields. (P-4a)
+                        if (ret != null && isThisExpr(ret))
+                            escapes = true;
+                        haxe.macro.TypedExprTools.iter(e, walk);
+                    case TBinop(op, left, right):
+                        switch (op) {
+                            // stores "this" in a field, local, or element
+                            // slot: the slot keeps the identity. (P-4a)
+                            case OpAssign | OpAssignOp(_):
+                                if (isThisExpr(right))
+                                    escapes = true;
+                            // compares "this": identity comparison reads the
+                            // handle. (P-4a)
+                            case OpEq | OpNotEq:
+                                if (isThisExpr(left) || isThisExpr(right))
+                                    escapes = true;
+                            case _:
+                        }
+                        haxe.macro.TypedExprTools.iter(e, walk);
                     case _:
                         haxe.macro.TypedExprTools.iter(e, walk);
                 }
@@ -1458,7 +1854,10 @@ class Compiler extends PluginCompiler<Compiler> {
             for (mt in mtypes) switch (mt) {
                 case TClassDecl(c):
                     final cls = c.get();
-                    if (cls.isInterface || cls.isExtern || !inSourceScope(cls.pos))
+                    // Value classes keep their value representation; the
+                    // escaping scan only decides the handle ABI for classes
+                    // that may carry one. (P-4a)
+                    if (cls.isInterface || cls.isExtern || !inSourceScope(cls.pos) || !RustDecl.isHandleAbiEligible(cls))
                         continue;
                     for (f in cls.fields.get()) {
                         final body = f.expr();
@@ -2401,7 +2800,7 @@ class Compiler extends PluginCompiler<Compiler> {
                         && StringTools.endsWith(item.name, "Fault") ? item.name.substr(className.length) : item.name + "Fault";
                     variants.set(item.module + "::" + item.name, variant);
                     final emitted = state.payloadEnumModules.exists(RustEmissionState.identityKey(item.module, item.name)) ? state.payloadEnumModules.get(RustEmissionState.identityKey(item.module, item.name)) : item.module;
-                    declLines.push("    " + variant + "(crate::" + RustImports.moduleToRustPath(emitted) + "::" + item.name + "),");
+                    declLines.push("    " + variant + "(" + RustSymbols.typePath(emitted, item.name, module) + "),");
                 }
                 declLines.push("}");
                 var decls = state.syntheticErrorEnums.get(module);
