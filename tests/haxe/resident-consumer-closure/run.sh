@@ -49,7 +49,7 @@ mkdir -p "$L"
 # ------------------------------------------------------------------
 export PATH=/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin:$PATH
 export PATH=/nix/store/agfrkw7lvckq29w4dp0i3jfrhxjmgv3q-rust-default-1.98.0/bin:$PATH
-export PATH=/home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-bin:$PATH
+export PATH="${SWIFT_SHIM_BIN:-$(dirname "$(git rev-parse --show-toplevel)")/p09-chainA-work/swift-shim-bin}:$PATH"
 export PATH=/nix/store/rqx09a40a82di944xi6ydjyzx632av28-kotlin-2.4.10/bin:$PATH
 export PATH=/nix/store/qpggxvncr1jwa7xjn0wf0i6045na7hki-dart-3.13.0/bin:$PATH
 export PATH=/nix/store/vd788darzi6n1k2zrj5x3kqgg03kbz93-nodejs-official-22.23.3/bin:$PATH

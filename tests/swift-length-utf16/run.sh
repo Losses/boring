@@ -3,11 +3,11 @@
 # Run from the repository root: tests/swift-length-utf16/run.sh /tmp/len-utf16
 # Toolchain (not on PATH):
 #   haxe  = /nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin
-#   swiftc = /home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-bin/swiftc
+#   swiftc = $SWIFT_SHIM_BIN/swiftc
 set -euo pipefail
 OUT=${1:-/tmp/len-utf16}
 export PATH=/nix/store/98pb92k7pi6g5cifmg872jn18kghaxw5-haxe-4.3.7/bin:$PATH
-SWIFTC=/home/losses/Development/tq-workspace/p09-chainA-work/swift-shim-bin/swiftc
+SWIFTC="${SWIFT_SHIM_BIN:-$(dirname "$(git rev-parse --show-toplevel)")/p09-chainA-work/swift-shim-bin}/swiftc"
 
 echo "== Haxe oracle =="
 haxe tests/swift-length-utf16/oracle.hxml

@@ -71,7 +71,7 @@ The former survived because it resides inside `dc-warn`; the latter disappears w
 | `out/...` worktree names (three places) | **none of the three present** |
 
 The three `out/` names are `out/kotlin-local-presence-facts`, `out/sw04-fix-wt`,
-`out/switchexpr-destination`; searched under `/home/losses/Development/tq-workspace` by directory name,
+`out/switchexpr-destination`; searched under the workspace root (`$WORKSPACE`) by directory name,
 branch name, and worktree name — **none found**. Among them, `out/sw04-fix-wt` differs from the actually present
 `sw04-xcheck-local` by only a few characters, making it easy to mistake as verified.
 

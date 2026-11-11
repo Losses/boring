@@ -89,7 +89,7 @@ toolchain, `swift-toolchain-6.2.4-al2`, verified by `ls -d /nix/store/*swift*`).
 `haxelib path` resolves `-lib reflaxe` to
 `/nix/store/ch901mw058pjvr3nyxgwxps31vc46wmm-source/src/` (dev marker
 `.haxelib/reflaxe/.dev`) and `-lib boring` to
-`/home/losses/Development/tq-workspace/boring-wt-growthkeyfix/packages/compiler/`
+`<repo>/packages/compiler/`
 (dev marker `.haxelib/boring/.dev`), plus the `format` package from the shared
 `.haxelib`; all input roots are digested before and after the run and were
 unchanged.

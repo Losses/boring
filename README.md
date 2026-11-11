@@ -69,7 +69,7 @@ what still works is recorded here rather than left to be rediscovered:
 
     $ nix develop -c echo ok
     error: ... attempt to write a readonly database
-      (in '/home/losses/.cache/nix/fetcher-cache-v4.sqlite')
+      (in '~/.cache/nix/fetcher-cache-v4.sqlite')
 
 The cache file is mode 644 and owner-writable; the denial is the sandbox refusing
 writes **outside the workspace**, so `nix develop`, and therefore `bun run

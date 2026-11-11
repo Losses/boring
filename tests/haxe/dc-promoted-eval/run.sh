@@ -267,7 +267,7 @@ mutate() {
 # dependency (package.json: typescript ^5.9.0) is the compiler this runner
 # checks the generated TypeScript with. Its resolved path and digest are
 # recorded in the identity stage.
-BASE_TSC="/home/losses/Development/tq-workspace/boring/node_modules/.bin/tsc"
+BASE_TSC="$(git rev-parse --show-toplevel)/node_modules/.bin/tsc"
 TSC="${TSC:-$(command -v tsc 2>/dev/null || printf '%s' "$BASE_TSC")}"
 TSC_REAL="$(readlink -f "$TSC" 2>/dev/null || printf '%s' "$TSC")"
 
