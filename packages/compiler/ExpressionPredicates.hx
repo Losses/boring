@@ -6,6 +6,7 @@ import haxe.macro.TypedExprTools;
 /** Shared expression predicates and constant analyses. */
 class ExpressionPredicates {
     public static function stripWrap(e:TypedExpr):TypedExpr {
+        SharedModuleTrace.record("ExpressionPredicates");
         return switch (e.expr) {
             case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stripWrap(inner);
             case _: e;
@@ -13,6 +14,7 @@ class ExpressionPredicates {
     }
 
     public static function stripParentheses(e:TypedExpr):TypedExpr {
+        SharedModuleTrace.record("ExpressionPredicates");
         return switch (e.expr) {
             case TParenthesis(inner): stripParentheses(inner);
             case _: e;
@@ -20,6 +22,7 @@ class ExpressionPredicates {
     }
 
     public static function stripCast(e:TypedExpr):TypedExpr {
+        SharedModuleTrace.record("ExpressionPredicates");
         return switch (e.expr) {
             case TCast(inner, _): stripCast(inner);
             case _: e;
@@ -27,6 +30,7 @@ class ExpressionPredicates {
     }
 
     public static function fieldName(fa:FieldAccess):String {
+        SharedModuleTrace.record("ExpressionPredicates");
         return switch (fa) {
             case FInstance(_, _, cf): cf.get().name;
             case FStatic(_, cf): cf.get().name;
@@ -38,6 +42,7 @@ class ExpressionPredicates {
     }
 
     public static function isNegativeIntLiteral(e:TypedExpr):Bool {
+        SharedModuleTrace.record("ExpressionPredicates");
         return switch (stripWrap(e).expr) {
             case TConst(TInt(value)): value < 0;
             case TUnop(OpNeg, _, inner):
@@ -50,6 +55,7 @@ class ExpressionPredicates {
     }
 
     public static function isNullExpr(e:TypedExpr):Bool {
+        SharedModuleTrace.record("ExpressionPredicates");
         return switch (stripWrap(e).expr) {
             case TConst(TNull): true;
             case _: false;
@@ -57,6 +63,7 @@ class ExpressionPredicates {
     }
 
     public static function isVarAssigned(e:TypedExpr, varId:Int):Bool {
+        SharedModuleTrace.record("ExpressionPredicates");
         var found = false;
         function walk(x:TypedExpr) {
             switch (x.expr) {
@@ -83,10 +90,12 @@ class ExpressionPredicates {
     /** Renders the folded writeAscii call for an already-rendered
         receiver text; asciiFoldWord supplies the folded record. */
     public static function asciiFoldCallText(subjText:String, folded:{word:Int, method:String, digits:Int}):String {
+        SharedModuleTrace.record("ExpressionPredicates");
         return subjText + "." + folded.method + "(0x" + StringTools.hex(folded.word, folded.digits) + ")";
     }
 
     public static function asciiFoldWord(name:String, args:Array<TypedExpr>):Null<{word:Int, method:String, digits:Int}> {
+        SharedModuleTrace.record("ExpressionPredicates");
         if (name != "writeAscii" || args.length != 1) {
             return null;
         }

@@ -35,7 +35,7 @@
     "typecheck": "tsc -p .",
     "check:docs": "bun tools/doc-style/check.ts",
     "check:ledger": "bun tools/ledger-check/check.ts",
-    "check:registry": "bun tools/registry-guard/backstop.ts",
+    "check:registry": "bun tools/registry-guard/trace-check.ts",
     "check:mapping": "bun tools/type-mapping/check.ts",
     "check:invariants": "bun packages/test/ci/emit-invariant-check.ts reference/kotlin/gen --lang kotlin",
     "report:coverage": "bun packages/test/ci/unit-coverage-report.ts",

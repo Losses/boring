@@ -142,13 +142,16 @@ class Intercept {
 
     /** The source roots this run guards; targets scope compilation to them. */
     public static function sourceRoots():Array<String> {
+        SharedModuleTrace.record("Intercept");
         return roots.copy();
     }
 
     public static function run(rootPrefixes:Array<String>):Void {
+        SharedModuleTrace.record("Intercept");
         SemanticExceptionLedger.validate();
         SemanticExceptionLedger.emitArtifact();
-        SemanticPassRegistry.validate();
+        SemanticPassRegistry.emitArtifact();
+        SharedModuleTrace.install();
         for (index in 0...rootPrefixes.length) {
             roots.push(rootPrefixes[index]);
         }

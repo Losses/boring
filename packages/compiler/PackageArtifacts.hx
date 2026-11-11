@@ -77,6 +77,7 @@ class PackageArtifacts {
 
     /** True when the compilation packs an install artifact. Errors on any value outside emit/none. */
     public static function enabled():Bool {
+        SharedModuleTrace.record("PackageArtifacts");
         final value = Context.definedValue("package-artifacts");
         if (value == null || value == "none") {
             return false;
@@ -94,6 +95,7 @@ class PackageArtifacts {
         uninstallable archive.
     **/
     public static function requireShell():Void {
+        SharedModuleTrace.record("PackageArtifacts");
         if (!PackageShell.enabled()) {
             Context.error("package artifacts require the package shell: an artifact wraps the manifest the shell emits; pass package-shell emit or package-artifacts none",
                 Context.currentPos());
@@ -111,11 +113,13 @@ class PackageArtifacts {
         output root are recorded away by the filter below.
     **/
     public static function saveTreeFile(output:Null<OutputManager>, path:String, content:String):Void {
+        SharedModuleTrace.record("PackageArtifacts");
         output.saveFile(path, content);
         record(path, content);
     }
 
     public static function record(path:String, content:String):Void {
+        SharedModuleTrace.record("PackageArtifacts");
         if (StringTools.startsWith(path, "../")) {
             return;
         }
@@ -129,6 +133,7 @@ class PackageArtifacts {
         root ("invalid tarball downloaded"), and pub resolves the same layout.
     **/
     public static function emitTarGz(outputDir:String, extension:String, ?nameOverride:String):Void {
+        SharedModuleTrace.record("PackageArtifacts");
         final stem = (nameOverride == null ? PackageShell.artifactStem() : nameOverride) + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + extension]);
         sys.io.File.saveBytes(artifactPath, gzipBytes(tarBytes(stem + "/")));
@@ -141,6 +146,7 @@ class PackageArtifacts {
         with "failed extract".
     **/
     public static function emitZip(outputDir:String):Void {
+        SharedModuleTrace.record("PackageArtifacts");
         final stem = PackageShell.artifactStem() + "-" + PackageShell.version();
         final artifactPath = haxe.io.Path.join([artifactDirectory(outputDir), stem + ".zip"]);
         final entries = [
@@ -164,6 +170,7 @@ class PackageArtifacts {
         own JSON string, so the exports map targets the compiled files.
     **/
     public static function emitNpmTarGz(outputDir:String, manifest:String, excluded:Array<String>):Void {
+        SharedModuleTrace.record("PackageArtifacts");
         final tsc = requiredTool("package-tsc", "TypeScript target", "the TypeScript compiler: the npm artifact ships compiled JavaScript and declarations");
         if (tsc == null) {
             return;
@@ -336,6 +343,7 @@ class PackageArtifacts {
         registry-wide field.
     **/
     public static function emitMaven(outputDir:String):Void {
+        SharedModuleTrace.record("PackageArtifacts");
         final kotlinc = requiredTool("package-kotlinc", "Kotlin target",
             "the Kotlin compiler: the Maven artifact carries a jar compiled from the generated sources");
         if (kotlinc == null) {

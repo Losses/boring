@@ -8,6 +8,7 @@ class EnumCycleDetector {
     static final cache:Map<String, Bool> = [];
 
     public static function isCyclic(en:EnumType):Bool {
+        SharedModuleTrace.record("EnumCycleDetector");
         final key = en.module + ":" + en.name;
         final known = cache.get(key);
         if (known != null)

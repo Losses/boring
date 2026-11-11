@@ -21,6 +21,7 @@ class FusionPlan {
         or the statement is not such an allocation.
     **/
     public static function allocOf(stmts:Array<TypedExpr>, i:Int):Null<{arr:TVar, elem:Type}> {
+        SharedModuleTrace.record("FusionPlan");
         if (i + 1 >= stmts.length) {
             return null;
         }
@@ -47,6 +48,7 @@ class FusionPlan {
         store or push line, then flush).
     **/
     public static function plan(alloc:{arr:TVar, elem:Type}, loop:LoopInterval):Null<Plan> {
+        SharedModuleTrace.record("FusionPlan");
         var storeValue:Null<TypedExpr> = null;
         var pushArg:Null<TypedExpr> = null;
         final steps:Array<FusionStep> = [];

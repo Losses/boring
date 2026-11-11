@@ -25,6 +25,7 @@ import haxe.macro.Context;
 class PackageShell {
     /** True when the compilation emits a package manifest. Errors on any value outside emit/none. */
     public static function enabled():Bool {
+        SharedModuleTrace.record("PackageShell");
         final value = Context.definedValue("package-shell");
         if (value == null || value == "emit") {
             return true;
@@ -42,6 +43,7 @@ class PackageShell {
         package identity of the sources it compiles.
     **/
     public static function name():String {
+        SharedModuleTrace.record("PackageShell");
         final value = Context.definedValue("package-name");
         return value == null ? "generated" : value;
     }
@@ -53,18 +55,21 @@ class PackageShell {
         only names the artifact file a registry distributes.
     **/
     public static function artifactStem():String {
+        SharedModuleTrace.record("PackageShell");
         final value = Context.definedValue("package-artifact-stem");
         return value == null ? name() : value;
     }
 
     /** The manifest version; `0.1.0` when the define is absent. */
     public static function version():String {
+        SharedModuleTrace.record("PackageShell");
         final value = Context.definedValue("package-version");
         return value == null ? "0.1.0" : value;
     }
 
     /** The license line value, or null to omit the field. */
     public static function license():Null<String> {
+        SharedModuleTrace.record("PackageShell");
         return Context.definedValue("package-license");
     }
 
@@ -77,6 +82,7 @@ class PackageShell {
         silently replace the first. (TraitIdentityAdapter)
     **/
     public static function rustTests():Array<{name:String, path:String}> {
+        SharedModuleTrace.record("PackageShell");
         final value = Context.definedValue("package-test");
         if (value == null) {
             return [];

@@ -5,6 +5,7 @@ import haxe.macro.Type;
 /** Shared validation for structural sorted-table keys. */
 class StructuralKeyValidator {
     public static function validateStructDef(def:DefType, pos:haxe.macro.Expr.Position, visited:Array<String>):Array<ClassField> {
+        SharedModuleTrace.record("StructuralKeyValidator");
         return switch (def.type) {
             case TAnonymous(anonRef):
                 final fields = anonRef.get().fields.copy();
@@ -22,6 +23,7 @@ class StructuralKeyValidator {
     }
 
     public static function validateFieldType(t:Type, pos:haxe.macro.Expr.Position, visited:Array<String>):Void {
+        SharedModuleTrace.record("StructuralKeyValidator");
         switch (t) {
             case TAbstract(a, _):
                 final name = a.get().name;

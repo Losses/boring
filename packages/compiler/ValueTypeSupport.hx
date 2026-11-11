@@ -36,10 +36,12 @@ class ValueTypeSupport {
     public static inline final ERROR = "value type markers accept single-field abstracts over a primitive representation only";
 
     public static function isMarkedAbstract(abs:AbstractType):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return abs.meta.has(MARKER);
     }
 
     public static function markedAbstractOfClass(cls:ClassType):Null<AbstractType> {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (cls.kind) {
             case KAbstractImpl(ref) if (isMarkedAbstract(ref.get())): ref.get();
             case _: null;
@@ -47,6 +49,7 @@ class ValueTypeSupport {
     }
 
     public static function infoOfClass(cls:ClassType):Null<ValueTypeInfo> {
+        SharedModuleTrace.record("ValueTypeSupport");
         final abs = markedAbstractOfClass(cls);
         return abs == null ? null : {
             abstractType: abs,
@@ -62,6 +65,7 @@ class ValueTypeSupport {
         them with the ordinary synthetic-class filters.
     **/
     public static function validateModules(modules:Array<ModuleType>):Void {
+        SharedModuleTrace.record("ValueTypeSupport");
         for (module in modules) {
             switch (module) {
                 case TAbstract(ref):
@@ -89,11 +93,13 @@ class ValueTypeSupport {
     }
 
     public static function isValidAbstract(abs:AbstractType):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return abs.params.length == 0 && primitiveRepresentation(abs.type);
     }
 
     /** The marker's closed representation set; aliases do not widen it. */
     public static function primitiveRepresentation(t:Type):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (t) {
             case TAbstract(ref, params): final abs = ref.get(); params.length == 0 && (abs.name == "Int" || abs.name == "Float" || abs.name == "Bool");
             case TInst(ref, params): final cls = ref.get(); params.length == 0 && cls.name == "String" && cls.pack.length == 0;
@@ -102,6 +108,7 @@ class ValueTypeSupport {
     }
 
     public static function isFloatRepresentation(abs:AbstractType):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (abs.type) {
             case TAbstract(ref, params): params.length == 0 && ref.get().name == "Float";
             case _: false;
@@ -110,6 +117,7 @@ class ValueTypeSupport {
 
     /** Finds a marked wrapper directly, or through `Null<Wrapper>`. */
     public static function markedAbstractOfType(t:Null<Type>):Null<AbstractType> {
+        SharedModuleTrace.record("ValueTypeSupport");
         if (t == null)
             return null;
         return switch (t) {
@@ -121,10 +129,12 @@ class ValueTypeSupport {
     }
 
     public static function sameAbstract(a:AbstractType, b:AbstractType):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return a.name == b.name && a.module == b.module;
     }
 
     public static function operatorOf(abs:AbstractType, field:ClassField):Null<ValueTypeOperator> {
+        SharedModuleTrace.record("ValueTypeSupport");
         for (entry in abs.binops) {
             if (entry.field.name == field.name)
                 return Binary(entry.op);
@@ -137,6 +147,7 @@ class ValueTypeSupport {
     }
 
     public static function binaryOperatorField(abs:AbstractType, op:Binop):Null<ClassField> {
+        SharedModuleTrace.record("ValueTypeSupport");
         for (entry in abs.binops) {
             if (entry.op == op)
                 return entry.field;
@@ -145,6 +156,7 @@ class ValueTypeSupport {
     }
 
     public static function unaryOperatorField(abs:AbstractType, op:Unop):Null<ClassField> {
+        SharedModuleTrace.record("ValueTypeSupport");
         for (entry in abs.unops) {
             if (entry.op == op)
                 return entry.field;
@@ -153,6 +165,7 @@ class ValueTypeSupport {
     }
 
     public static function memberField(abs:AbstractType, name:String):Null<ClassField> {
+        SharedModuleTrace.record("ValueTypeSupport");
         if (abs.impl == null)
             return null;
         for (field in abs.impl.get().statics.get()) {
@@ -163,14 +176,17 @@ class ValueTypeSupport {
     }
 
     public static function constructorName(abs:AbstractType):String {
+        SharedModuleTrace.record("ValueTypeSupport");
         return "make" + upperFirst(abs.name);
     }
 
     public static function upperFirst(value:String):String {
+        SharedModuleTrace.record("ValueTypeSupport");
         return NameConversion.upperFirst(value);
     }
 
     public static function constructorField(abs:AbstractType):Null<ClassField> {
+        SharedModuleTrace.record("ValueTypeSupport");
         if (abs.impl == null)
             return null;
         for (field in abs.impl.get().statics.get()) {
@@ -181,12 +197,14 @@ class ValueTypeSupport {
     }
 
     public static function constructorThrows(abs:AbstractType):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         final ctor = constructorField(abs);
         return ctor != null && expressionContainsThrow(ctor.expr());
     }
 
     /** The stored field name used by each target's wrapper declaration. */
     public static function representationFieldName(abs:AbstractType):String {
+        SharedModuleTrace.record("ValueTypeSupport");
         final ctor = constructorField(abs);
         if (ctor != null) {
             final first = firstArgument(ctor);
@@ -197,6 +215,7 @@ class ValueTypeSupport {
     }
 
     public static function functionArgs(field:ClassField):Array<{name:String, type:Type, opt:Bool}> {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (field.type) {
             case TFun(args, _): [for (a in args) {name: a.name, type: a.t, opt: a.opt}];
             case _: [];
@@ -204,6 +223,7 @@ class ValueTypeSupport {
     }
 
     public static function functionReturn(field:ClassField):Null<Type> {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (field.type) {
             case TFun(_, ret): ret;
             case _: null;
@@ -211,16 +231,19 @@ class ValueTypeSupport {
     }
 
     public static function firstArgument(field:ClassField):Null<{name:String, type:Type}> {
+        SharedModuleTrace.record("ValueTypeSupport");
         final args = functionArgs(field);
         return args.length == 0 ? null : {name: args[0].name, type: args[0].type};
     }
 
     public static function hasReceiver(field:ClassField):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         final first = firstArgument(field);
         return first != null && first.name == "this";
     }
 
     public static function isWrapperField(field:ClassField, abs:AbstractType):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (markedAbstractOfType(field.type)) {
             case null: false;
             case other: sameAbstract(other, abs);
@@ -229,6 +252,7 @@ class ValueTypeSupport {
 
     /** Private inline helpers are compile-time implementation details. */
     public static function isInlineHelper(field:ClassField):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         if (field.isPublic)
             return false;
         return switch (field.kind) {
@@ -239,6 +263,7 @@ class ValueTypeSupport {
 
     /** The value assigned to Haxe's synthetic `this` in an inline wrapper. */
     public static function syntheticValue(e:Null<TypedExpr>):Null<TypedExpr> {
+        SharedModuleTrace.record("ValueTypeSupport");
         if (e == null || markedAbstractOfType(e.t) == null)
             return null;
         return switch (e.expr) {
@@ -265,6 +290,7 @@ class ValueTypeSupport {
     }
 
     public static function isThisDeclaration(e:TypedExpr):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (e.expr) {
             case TVar(v, _) if (isSyntheticThisName(v.name)): true;
             case _: false;
@@ -272,6 +298,7 @@ class ValueTypeSupport {
     }
 
     public static function isThisAssignment(e:TypedExpr):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (e.expr) {
             case TBinop(OpAssign, lhs, _): isThisLocal(lhs);
             case _: false;
@@ -279,6 +306,7 @@ class ValueTypeSupport {
     }
 
     public static function isThisReturn(e:TypedExpr):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (e.expr) {
             case TReturn(value) if (value != null): isThisLocal(value);
             case _: false;
@@ -286,6 +314,7 @@ class ValueTypeSupport {
     }
 
     public static function unwrapDecorations(e:TypedExpr):TypedExpr {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (e.expr) {
             case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): unwrapDecorations(inner);
             case _: e;
@@ -301,6 +330,7 @@ class ValueTypeSupport {
         non-constant expression return false and keep their existing render.
     **/
     public static function isBareRepresentationLiteral(e:TypedExpr, representation:Type):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         return switch (unwrapDecorations(e).expr) {
             case TConst(c):
                 switch (c) {
@@ -337,6 +367,7 @@ class ValueTypeSupport {
     }
 
     public static function expressionContainsThrow(e:Null<TypedExpr>):Bool {
+        SharedModuleTrace.record("ValueTypeSupport");
         if (e == null)
             return false;
         var found = false;

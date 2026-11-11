@@ -21,11 +21,13 @@ import haxe.macro.Context;
 class RuntimeConfig {
     /** The configured runtime import specifier, or null when unset. */
     public static function importName():Null<String> {
+        SharedModuleTrace.record("RuntimeConfig");
         return Context.definedValue("runtime-import");
     }
 
     /** The emit directory under the output root, or null for bring-your-own mode. */
     public static function emitDir():Null<String> {
+        SharedModuleTrace.record("RuntimeConfig");
         final value = Context.definedValue("runtime-emit");
         if (value == null || value == "none") {
             return null;
@@ -39,6 +41,7 @@ class RuntimeConfig {
         be written without it.
     **/
     public static function requireImportName(what:String):String {
+        SharedModuleTrace.record("RuntimeConfig");
         final name = importName();
         if (name == null) {
             Context.error("runtime-import define is required to reference the runtime package ("
@@ -51,6 +54,7 @@ class RuntimeConfig {
 
     /** A file name under the emit directory, which may be the output root itself. */
     public static function emitPath(dir:String, fileName:String):String {
+        SharedModuleTrace.record("RuntimeConfig");
         return dir == "." ? fileName : dir + "/" + fileName;
     }
 }

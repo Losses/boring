@@ -7,24 +7,28 @@ class SealedVariantHelper {
     public static inline final INVALID_TARGET = "@:sealed applies to interfaces only";
 
     public static function validateClass(cls:ClassType):Void {
+        SharedModuleTrace.record("SealedVariantHelper");
         if (cls.meta.has(":sealed") && !cls.isInterface) {
             Context.error(INVALID_TARGET, cls.pos);
         }
     }
 
     public static function validateEnum(en:EnumType):Void {
+        SharedModuleTrace.record("SealedVariantHelper");
         if (en.meta.has(":sealed")) {
             Context.error(INVALID_TARGET, en.pos);
         }
     }
 
     public static function validateTypedef(def:DefType):Void {
+        SharedModuleTrace.record("SealedVariantHelper");
         if (def.meta.has(":sealed")) {
             Context.error(INVALID_TARGET, def.pos);
         }
     }
 
     public static function isSealedInterface(cls:ClassType):Bool {
+        SharedModuleTrace.record("SealedVariantHelper");
         return cls.isInterface && cls.meta.has(":sealed");
     }
 }

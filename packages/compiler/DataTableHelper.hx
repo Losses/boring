@@ -14,6 +14,7 @@ class DataTableHelper {
     public static final THRESHOLD:Int = 64;
 
     public static function isDataTableField(field:ClassField):Bool {
+        SharedModuleTrace.record("DataTableHelper");
         if (field == null || !field.isFinal || field.expr == null) {
             return false;
         }
@@ -25,6 +26,7 @@ class DataTableHelper {
     }
 
     public static function getDataTableElements(e:TypedExpr):Null<Array<Int>> {
+        SharedModuleTrace.record("DataTableHelper");
         if (e == null) {
             return null;
         }

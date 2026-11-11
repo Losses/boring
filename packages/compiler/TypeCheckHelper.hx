@@ -5,6 +5,7 @@ import haxe.macro.Type;
 /** Shared typed checks for the small Std.isOfType lowering used by the samples. */
 class TypeCheckHelper {
     public static function classOfType(type:Null<Type>):Null<ClassType> {
+        SharedModuleTrace.record("TypeCheckHelper");
         if (type == null) {
             return null;
         }
@@ -15,6 +16,7 @@ class TypeCheckHelper {
     }
 
     public static function classOfTypeExpr(expr:TypedExpr):Null<ClassType> {
+        SharedModuleTrace.record("TypeCheckHelper");
         return switch (expr.expr) {
             case TTypeExpr(TClassDecl(ref)): ref.get();
             case TMeta(_, inner) | TParenthesis(inner) | TCast(inner, _): classOfTypeExpr(inner);
@@ -24,6 +26,7 @@ class TypeCheckHelper {
 
     /** A non-null result means the value's static type decides the check. */
     public static function knownIsOfType(value:TypedExpr, target:ClassType):Null<Bool> {
+        SharedModuleTrace.record("TypeCheckHelper");
         // Haxe semantics: Std.isOfType(null, T) is false. A nullable static type
         // (or a literal null) can hold null at runtime, so the static type cannot
         // decide the check; return null to force a runtime instanceof check
@@ -42,6 +45,7 @@ class TypeCheckHelper {
         subclass: Std.isOfType then equals a native nil test on the value,
         because only null can make the check fail. */
     public static function nullableClassIsTarget(value:TypedExpr, target:ClassType):Bool {
+        SharedModuleTrace.record("TypeCheckHelper");
         if (!PolicyQueries.isNullableType(value.t) && !ExpressionPredicates.isNullExpr(value)) {
             return false;
         }

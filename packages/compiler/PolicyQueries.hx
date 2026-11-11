@@ -122,6 +122,7 @@ enum EnumQueryStep {
 class PolicyQueries {
     /** Hop count up the super chain to haxe.Exception; 0 when the chain does not reach it. */
     public static function exceptionDepth(cls:ClassType):Int {
+        SharedModuleTrace.record("PolicyQueries");
         var depth = 0;
         var current = cls;
         while (current.superClass != null) {
@@ -140,11 +141,13 @@ class PolicyQueries {
         (stdlib/08): the first probe reads `tail`, later probes append
         their ordinal. */
     public static function freshTailName(counter:Int):String {
+        SharedModuleTrace.record("PolicyQueries");
         return counter == 1 ? "tail" : "tail" + counter;
     }
 
     /** Options of one enum sorted by construct index, in a fresh array. */
     public static function sortedEnumOptions(options:Array<EnumOptionData>):Array<EnumOptionData> {
+        SharedModuleTrace.record("PolicyQueries");
         final sorted = options.copy();
         sorted.sort((a, b) -> Reflect.compare(a.field.index, b.field.index));
         return sorted;
@@ -152,6 +155,7 @@ class PolicyQueries {
 
     /** True when every option carries no payload (a parameterless enum). */
     public static function isValueEnumOptions(sorted:Array<EnumOptionData>):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         for (o in sorted)
             if (o.args.length > 0)
                 return false;
@@ -160,12 +164,14 @@ class PolicyQueries {
 
     /** Anonymous-structure fields sorted by source position, in a fresh array. */
     public static function sortedAnonFields(anonRef:Ref<AnonType>):Array<ClassField> {
+        SharedModuleTrace.record("PolicyQueries");
         final fields = anonRef.get().fields.copy();
         fields.sort((a, b) -> Reflect.compare(Context.getPosInfos(a.pos).min, Context.getPosInfos(b.pos).min));
         return fields;
     }
 
     public static function canEmitDataClassComparator(cls:ClassType):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         for (f in cls.fields.get())
             if (switch (f.kind) {
                     case FVar(read, write):
@@ -191,6 +197,7 @@ class PolicyQueries {
     }
 
     public static function isDataClassFieldKey(t:Type):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return isSortedKeyShape(SourceComparisonAnalysis.analyzeShape(t));
     }
 
@@ -229,6 +236,7 @@ class PolicyQueries {
     }
 
     public static function validateDataClassField(root:ClassType, field:ClassField, path:String):Void {
+        SharedModuleTrace.record("PolicyQueries");
         if (!SourceComparisonAnalysis.isStoredField(field))
             return;
         if (!isDataClassFieldKey(field.type)) {
@@ -237,6 +245,7 @@ class PolicyQueries {
     }
 
     public static function classifyKey(t:Null<Type>, ?pos:haxe.macro.Expr.Position):KeyDomain {
+        SharedModuleTrace.record("PolicyQueries");
         if (t == null) {
             final p = pos != null ? pos : Context.currentPos();
             Context.error("sorted keyed tables support Int, String, structure, and dataClass keys; parameterless enums are supported; enums with payloads are not keys",
@@ -294,6 +303,7 @@ class PolicyQueries {
     }
 
     public static function isStructKeyCandidate(fields:Array<ClassField>):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         for (f in fields) {
             if (!isFieldKeyCandidate(f.type))
                 return false;
@@ -302,6 +312,7 @@ class PolicyQueries {
     }
 
     public static function isFieldKeyCandidate(t:Type):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (t) {
             case TAbstract(a, _): final n = a.get().name; n == "Int" || n == "Bool";
             case TInst(c, _):
@@ -319,6 +330,7 @@ class PolicyQueries {
     }
 
     public static function isInlineOnly(classType:ClassType, varFields:Array<ClassVarData>, funcFields:Array<ClassFuncData>):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         if (varFields.length == 0 && funcFields.length == 0)
             return true;
         if (varFields.length == 0 && funcFields.length > 0) {
@@ -335,10 +347,12 @@ class PolicyQueries {
     }
 
     public static function isSyntheticImpl(name:String):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return StringTools.endsWith(name, "_Impl_");
     }
 
     public static function isMapType(t:Type):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (Context.follow(t)) {
             case TInst(def, params) if (def.get().module == "std.HashMap" && params.length == 2): true;
             case TInst(def, params) if (def.get().pack.join(".") == "haxe" && def.get().name == "IMap" && params.length == 2): true;
@@ -351,10 +365,12 @@ class PolicyQueries {
     }
 
     public static function isMapImplementation(cls:ClassType):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return cls.pack.join(".") == "haxe.ds" && ["StringMap", "IntMap", "ObjectMap", "HashMap"].indexOf(cls.name) >= 0;
     }
 
     public static function isMapBackingType(t:Type):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (Context.follow(t)) {
             case TInst(def, _):
                 final cls = def.get();
@@ -364,11 +380,13 @@ class PolicyQueries {
     }
 
     public static function isTestExtern(cls:ClassType):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return RuntimeResidents.externsOf("runtime.TestCore").indexOf(cls.module) >= 0
             || (cls.pack.join(".") == "std" && RuntimeResidents.testExternNativeFaces().indexOf(cls.name) >= 0);
     }
 
     public static function isGetterOnlyProperty(field:ClassField):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         switch (field.kind) {
             case FVar(read, write):
                 return read.match(AccCall) && write.match(AccNever);
@@ -378,6 +396,7 @@ class PolicyQueries {
     }
 
     public static function isFunctionType(t:Null<Type>):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         if (t == null) {
             return false;
         }
@@ -388,6 +407,7 @@ class PolicyQueries {
     }
 
     public static function isStringBuf(e:TypedExpr):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         if (e == null)
             return false;
         return switch (Context.follow(e.t)) {
@@ -397,6 +417,7 @@ class PolicyQueries {
     }
 
     public static function isParameterlessEnum(en:EnumType):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         for (ef in en.constructs)
             switch (ef.type) {
                 case TFun(args, _) if (args.length > 0):
@@ -409,6 +430,7 @@ class PolicyQueries {
     /** Classifies a Std.string operand type once for every target;
         renderers keep their per-category emission. */
     public static function stdStringCategory(t:Type):StdStringCategory {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (Context.follow(t)) {
             case TInst(c, _) if (c.get().name == "String"): IsString;
             case TInst(c, [element]) if (c.get().name == "Array"): IsArray(element);
@@ -433,6 +455,7 @@ class PolicyQueries {
     }
 
     public static function hasInstanceToString(cls:ClassType):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         for (field in cls.fields.get())
             if (field.name == "toString")
                 return true;
@@ -442,6 +465,7 @@ class PolicyQueries {
     }
 
     public static function indexedStoreOf(s:TypedExpr):Null<{arr:TVar, idx:TVar, value:TypedExpr}> {
+        SharedModuleTrace.record("PolicyQueries");
         switch (ExpressionPredicates.stripWrap(s).expr) {
             case TBinop(OpAssign, target, value):
                 switch (ExpressionPredicates.stripWrap(target).expr) {
@@ -460,6 +484,7 @@ class PolicyQueries {
     }
 
     public static function inSourceScope(pos:haxe.macro.Expr.Position):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         final file = Context.getPosInfos(pos).file;
         for (root in Intercept.sourceRoots()) {
             final prefix = root.charAt(root.length - 1) == "/" ? root : root + "/";
@@ -471,6 +496,7 @@ class PolicyQueries {
     }
 
     public static function isFpHelperInt64Call(fn:TypedExpr):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (ExpressionPredicates.stripWrap(fn).expr) {
             case TField(_, FStatic(classRef, fieldRef)): classRef.get()
                     .module == "haxe.io.FPHelper" && (fieldRef.get().name == "doubleToI64" || fieldRef.get().name == "f32ToI64");
@@ -483,6 +509,7 @@ class PolicyQueries {
         mismatches and unknown names return null exactly as the five
         per-target dispatch tables did. */
     public static function int64OpOf(fn:TypedExpr, args:Array<TypedExpr>):Null<Int64Op> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (ExpressionPredicates.stripWrap(fn).expr) {
             case TField(_, FStatic(classRef, fieldRef)) if (classRef.get().module == "haxe.Int64" && classRef.get().name == "Int64_Impl_"):
                 switch (fieldRef.get().name) {
@@ -514,6 +541,7 @@ class PolicyQueries {
     }
 
     public static function isHasOwnPropertyValue(e:TypedExpr):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TField(_, FInstance(_, _, cf)) | TField(_, FAnon(cf)) if (cf.get().name == "hasOwnProperty"): true;
             case _: false;
@@ -521,6 +549,7 @@ class PolicyQueries {
     }
 
     public static function mapAssignment(e:TypedExpr):Null<{receiver:TypedExpr, key:TypedExpr}> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TArray(arr, key):
                 final receiver = mapBackingReceiver(arr);
@@ -530,6 +559,7 @@ class PolicyQueries {
     }
 
     public static function mapBackingReceiver(e:TypedExpr):Null<TypedExpr> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TField(receiver, FInstance(_, _, cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
             case TField(receiver, FAnon(cf)) if (cf.get().name == "h" && isMapBackingType(receiver.t)): receiver;
@@ -538,6 +568,7 @@ class PolicyQueries {
     }
 
     public static function mentionsLocal(e:TypedExpr, v:TVar):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         var found = false;
         function walk(x:TypedExpr) {
             switch (x.expr) {
@@ -552,6 +583,7 @@ class PolicyQueries {
     }
 
     public static function writesLocal(stmts:Array<TypedExpr>, v:TVar):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         var found = false;
         function walk(x:TypedExpr) {
             switch (ExpressionPredicates.stripWrap(x).expr) {
@@ -577,10 +609,12 @@ class PolicyQueries {
     }
 
     public static function pathOf(pack:Array<String>, name:String):String {
+        SharedModuleTrace.record("PolicyQueries");
         return pack.length == 0 ? name : pack.join(".") + "." + name;
     }
 
     public static function statementsOf(e:TypedExpr):Array<TypedExpr> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (e.expr) {
             case TBlock(stmts): stmts;
             case _: [e];
@@ -593,6 +627,7 @@ class PolicyQueries {
         value:Null<TypedExpr>,
         stringBufSubject:Null<TypedExpr>
     } {
+        SharedModuleTrace.record("PolicyQueries");
         final stmts = statementsOf(e);
         if (stmts.length == 0)
             return {body: [], value: null, stringBufSubject: null};
@@ -620,6 +655,7 @@ class PolicyQueries {
         TBlock/TMeta, and the trailing value expression. The subst map,
         rendered text, keywords, and indentation stay in each target. */
     public static function variantArmPlan(e:TypedExpr):Array<VariantArmStep> {
+        SharedModuleTrace.record("PolicyQueries");
         final steps:Array<VariantArmStep> = [];
         function walk(stmts:Array<TypedExpr>) {
             for (idx in 0...stmts.length) {
@@ -656,6 +692,7 @@ class PolicyQueries {
         to its generic rendering. Import calls and target syntax stay in each
         target. */
     public static function enumQueryPlan(e:TypedExpr):Null<EnumQueryStep> {
+        SharedModuleTrace.record("PolicyQueries");
         switch (e.expr) {
             case TField(subj, fa):
                 final name = switch (fa) {
@@ -682,6 +719,7 @@ class PolicyQueries {
     }
 
     public static function lambdaBody(e:TypedExpr):TypedExpr {
+        SharedModuleTrace.record("PolicyQueries");
         if (e == null)
             return e;
         return switch (e.expr) {
@@ -693,6 +731,7 @@ class PolicyQueries {
     }
 
     public static function pushOf(s:TypedExpr):Null<{arr:TVar, arg:TypedExpr}> {
+        SharedModuleTrace.record("PolicyQueries");
         switch (ExpressionPredicates.stripWrap(s).expr) {
             case TCall(fn, args) if (args.length == 1):
                 switch (ExpressionPredicates.stripWrap(fn).expr) {
@@ -709,6 +748,7 @@ class PolicyQueries {
     }
 
     public static function stdStringArg(e:TypedExpr):Null<TypedExpr> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TCall({expr: TField(_, FStatic(c, cf))}, args) if (c.get().module == "Std" && cf.get().name == "string" && args.length == 1): args[0];
             case _: null;
@@ -716,6 +756,7 @@ class PolicyQueries {
     }
 
     public static function stringBufMutationParts(fn:TypedExpr):Null<{name:String, subj:TypedExpr}> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (fn.expr) {
             case TField(subj, FInstance(_, _, cf)) if (isStringBuf(subj)): final n = cf.get()
                     .name; n == "add" || n == "addChar" ? {name: n, subj: subj} : null;
@@ -724,6 +765,7 @@ class PolicyQueries {
     }
 
     public static function unwrapLambda(e:TypedExpr):Null<TFunc> {
+        SharedModuleTrace.record("PolicyQueries");
         if (e == null)
             return null;
         return switch (e.expr) {
@@ -734,6 +776,7 @@ class PolicyQueries {
     }
 
     public static function valueTypeLocalValues(wrapper:TypedExpr):Map<Int, TypedExpr> {
+        SharedModuleTrace.record("PolicyQueries");
         final values:Map<Int, TypedExpr> = [];
         switch (wrapper.expr) {
             case TBlock(stmts):
@@ -748,6 +791,7 @@ class PolicyQueries {
     }
 
     public static function flattenAdd(e:TypedExpr, into:Array<TypedExpr>):Void {
+        SharedModuleTrace.record("PolicyQueries");
         switch (e.expr) {
             case TBinop(OpAdd, a, b):
                 flattenAdd(a, into);
@@ -758,6 +802,7 @@ class PolicyQueries {
     }
 
     public static function isValueEnum(en:EnumType):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         for (ef in en.constructs)
             switch (Context.follow(ef.type)) {
                 case TFun(args, _) if (args.length > 0):
@@ -768,6 +813,7 @@ class PolicyQueries {
     }
 
     public static function kTypeOf(fn:TypedExpr):Null<Type> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (fn.t) {
             case TFun(_, TInst(_, params)) if (params.length > 0): params[0];
             case _: null;
@@ -775,6 +821,7 @@ class PolicyQueries {
     }
 
     public static function vTypeOf(fn:TypedExpr):Null<Type> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (fn.t) {
             case TFun(_, TInst(_, params)) if (params.length > 1): params[1];
             case _: null;
@@ -782,6 +829,7 @@ class PolicyQueries {
     }
 
     public static function structureSignature(anon:Ref<AnonType>):String {
+        SharedModuleTrace.record("PolicyQueries");
         final entries = [for (f in anon.get().fields) f.name + ":" + Std.string(f.type)];
         entries.sort(Reflect.compare);
         return entries.join(";");
@@ -802,6 +850,7 @@ class PolicyQueries {
         strict miss when two registered typedefs fit equally well.
     **/
     public static function matchStructTypedefByUnification(anon:Ref<AnonType>, registry:Map<String, {module:String, name:String}>):Null<{module:String, name:String}> {
+        SharedModuleTrace.record("PolicyQueries");
         final lit = anon.get();
         final litTypes = [for (f in lit.fields) f.name => f.type];
         var best:Null<{module:String, name:String}> = null;
@@ -860,6 +909,7 @@ class PolicyQueries {
     }
 
     public static function isStringSubject(e:TypedExpr):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (Context.follow(ExpressionPredicates.stripCast(e).t)) {
             case TInst(c, _): c.get().name == "String";
             case _: false;
@@ -867,6 +917,7 @@ class PolicyQueries {
     }
 
     public static function findStaticField(cls:ClassType, name:String):Null<ClassField> {
+        SharedModuleTrace.record("PolicyQueries");
         for (field in cls.statics.get())
             if (field.name == name)
                 return field;
@@ -874,6 +925,7 @@ class PolicyQueries {
     }
 
     public static function findFunc(funcFields:Array<ClassFuncData>, name:String, missingError:String):ClassFuncData {
+        SharedModuleTrace.record("PolicyQueries");
         for (f in funcFields)
             if (f.field.name == name)
                 return f;
@@ -882,6 +934,7 @@ class PolicyQueries {
     }
 
     public static function findConstructor(funcFields:Array<ClassFuncData>):Null<ClassFuncData> {
+        SharedModuleTrace.record("PolicyQueries");
         for (f in funcFields) {
             if (f.field.name == "new")
                 return f;
@@ -896,6 +949,7 @@ class PolicyQueries {
         body:Array<TypedExpr>,
         counter:TVar
     }> {
+        SharedModuleTrace.record("PolicyQueries");
         switch (e.expr) {
             case TBlock(stmts) if (stmts.length == 3):
                 return intervalCore(stmts[0], stmts[1], stmts[2]);
@@ -913,6 +967,7 @@ class PolicyQueries {
         body:Array<TypedExpr>,
         counter:TVar
     }> {
+        SharedModuleTrace.record("PolicyQueries");
         switch [counterDecl.expr, boundDecl.expr, whileExpr.expr] {
             case [TVar(counter, start), TVar(boundVar, bound), TWhile(cond, body, true)] if (start != null && bound != null):
                 final condOk = switch (ExpressionPredicates.stripWrap(cond).expr) {
@@ -1016,6 +1071,7 @@ class PolicyQueries {
         body:Array<TypedExpr>,
         counter:TVar
     }> {
+        SharedModuleTrace.record("PolicyQueries");
         final counterAndStart = switch (counterDecl.expr) {
             case TVar(counter, start) if (start != null): {counter: counter, start: start};
             case TBinop(OpAssign, lhs, start):
@@ -1113,6 +1169,7 @@ class PolicyQueries {
         body:Array<TypedExpr>,
         counter:TVar
     }> {
+        SharedModuleTrace.record("PolicyQueries");
         final counter = switch (counterDecl.expr) {
             case TVar(v, null): v;
             case _: null;
@@ -1133,6 +1190,7 @@ class PolicyQueries {
         in a target loop header would otherwise make later assignments refer
         to a name that no longer exists. */
     public static function counterUsedAfter(stmts:Array<TypedExpr>, end:Int, counter:TVar):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         for (j in end...stmts.length)
             if (mentionsLocal(stmts[j], counter))
                 return true;
@@ -1140,6 +1198,7 @@ class PolicyQueries {
     }
 
     public static function regroupLoops(stmts:Array<TypedExpr>):Array<TypedExpr> {
+        SharedModuleTrace.record("PolicyQueries");
         final out:Array<TypedExpr> = [];
         var i = 0;
         while (i < stmts.length) {
@@ -1185,7 +1244,9 @@ class PolicyQueries {
         return false;
     }
 
-    public static function stringToolsHexArgs(args:Array<TypedExpr>):{value:TypedExpr, digits:Null<TypedExpr>} {
+    public static function stringToolsHexArgs(args:Array<TypedExpr>):{
+        value:TypedExpr, digits:Null<TypedExpr>} {
+        SharedModuleTrace.record("PolicyQueries");
         final value = args[0];
         final digits = args.length > 1 && !ExpressionPredicates.isNullExpr(args[1]) ? args[1] : null;
         if (ExpressionPredicates.isNegativeIntLiteral(value) || (digits != null && ExpressionPredicates.isNegativeIntLiteral(digits))) {
@@ -1195,6 +1256,7 @@ class PolicyQueries {
     }
 
     public static function isNullableType(t:Null<Type>):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         if (t == null) {
             return false;
         }
@@ -1206,6 +1268,7 @@ class PolicyQueries {
     }
 
     public static function collectTypeParamsInto(t:Null<Type>, skip:Array<String>, found:Array<String>):Void {
+        SharedModuleTrace.record("PolicyQueries");
         if (t == null) {
             return;
         }
@@ -1241,6 +1304,7 @@ class PolicyQueries {
     // it. Kotlin lowers a `_` local to a generated name, so its scan
     // passes excludeUnderscore; the other targets reserve the raw name.
     public static function noteDeclaredLocalName(v:TVar, usedNames:Map<String, Bool>, excludeUnderscore:Bool):Void {
+        SharedModuleTrace.record("PolicyQueries");
         if (v.name != "`" && (!excludeUnderscore || v.name != "_")) {
             usedNames.set(v.name, true);
         }
@@ -1251,6 +1315,7 @@ class PolicyQueries {
     // whose scanLocals keeps this as a standalone initializer check;
     // Rust folds the same detection into a wider call scan.
     public static function noteFpInt64Init(v:TVar, init:Null<TypedExpr>, fpInt64Halves:Map<Int, Bool>):Void {
+        SharedModuleTrace.record("PolicyQueries");
         if (init == null) {
             return;
         }
@@ -1264,6 +1329,7 @@ class PolicyQueries {
     /** True when the expression reads an Int64 helper call directly or a
         local whose initializer was one (recorded via noteFpInt64Init). */
     public static function isFpHelperInt64Halves(e:TypedExpr, fpInt64Halves:Map<Int, Bool>):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TCall(fn, _): isFpHelperInt64Call(fn);
             case TLocal(v): fpInt64Halves.exists(v.id);
@@ -1273,6 +1339,7 @@ class PolicyQueries {
 
     /** Tests whether an expression is a StringBuf toString call. */
     public static function isStringBufToStringCall(e:Null<TypedExpr>):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         if (e == null)
             return false;
         return switch (ExpressionPredicates.stripWrap(e).expr) {
@@ -1287,6 +1354,7 @@ class PolicyQueries {
 
     /** Returns the receiver of a StringBuf toString call, or the call itself. */
     public static function stringBufToStringSubject(call:TypedExpr):TypedExpr {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (call.expr) {
             case TCall(fn, _):
                 switch (fn.expr) {
@@ -1299,6 +1367,7 @@ class PolicyQueries {
 
     /** Tests whether an expression is a single-catch try region. */
     public static function isTryRegion(e:Null<TypedExpr>):Bool {
+        SharedModuleTrace.record("PolicyQueries");
         if (e == null)
             return false;
         return switch (ExpressionPredicates.stripWrap(e).expr) {
@@ -1309,6 +1378,7 @@ class PolicyQueries {
 
     /** Returns the body and catch binding of a single-catch try region. */
     public static function tryRegionParts(e:TypedExpr):Null<{body:TypedExpr, c:{v:TVar, expr:TypedExpr}}> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (ExpressionPredicates.stripWrap(e).expr) {
             case TTry(body, catches) if (catches.length == 1): {body: body, c: catches[0]};
             case _: null;
@@ -1317,6 +1387,7 @@ class PolicyQueries {
 
     /** Returns the argument names carried by an enum field. */
     public static function payloadNames(ef:EnumField):Array<String> {
+        SharedModuleTrace.record("PolicyQueries");
         return switch (ef.type) {
             case TFun(args, _): [for (a in args) a.name];
             case _: [];

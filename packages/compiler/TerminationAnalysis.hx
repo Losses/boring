@@ -9,6 +9,7 @@ import haxe.macro.Type;
 class TerminationAnalysis {
     /** Whether control never falls through an expression. */
     public static function alwaysTerminates(e:TypedExpr):Bool {
+        SharedModuleTrace.record("TerminationAnalysis");
         return switch (stripWrap(e).expr) {
             case TReturn(_) | TThrow(_) | TBreak | TContinue: true;
             case TBlock(stmts): blockTerminates(stmts);
@@ -19,6 +20,7 @@ class TerminationAnalysis {
 
     /** Whether one of the statements ends control before the block ends. */
     public static function blockTerminates(stmts:Array<TypedExpr>):Bool {
+        SharedModuleTrace.record("TerminationAnalysis");
         for (s in stmts) {
             if (alwaysTerminates(s))
                 return true;

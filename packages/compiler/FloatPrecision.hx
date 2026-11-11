@@ -16,6 +16,7 @@ import haxe.macro.Context;
 class FloatPrecision {
     /** True when the compilation uses binary32. Errors on any value outside f64/f32. */
     public static function isF32():Bool {
+        SharedModuleTrace.record("FloatPrecision");
         final value = Context.definedValue("float-precision");
         if (value == null || value == "f64") {
             return false;

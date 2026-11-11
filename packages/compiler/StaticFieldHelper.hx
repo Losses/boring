@@ -17,6 +17,7 @@ class StaticFieldHelper {
     public static inline final INVALID_ARGUMENT = "constructed static field arguments accept literal, enum, array, construction, static field, and static function forms only";
 
     public static function initializer(field:ClassField):Null<TypedExpr> {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (field == null || field.expr == null) {
             return null;
         }
@@ -24,6 +25,7 @@ class StaticFieldHelper {
     }
 
     public static function validatedInitializer(field:ClassField, declaringClass:Null<ClassType> = null):Null<TypedExpr> {
+        SharedModuleTrace.record("StaticFieldHelper");
         final init = initializer(field);
         if (init == null || isSanctioned(init) || isSelfConstruction(field, declaringClass, init)) {
             return init;
@@ -52,6 +54,7 @@ class StaticFieldHelper {
 
     /** Whether a static final field is the sanctioned singleton spelling. */
     public static function isSelfConstruction(field:ClassField, declaringClass:Null<ClassType>, init:Null<TypedExpr> = null):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (field == null || declaringClass == null || !field.isFinal) {
             return false;
         }
@@ -80,6 +83,7 @@ class StaticFieldHelper {
 
     /** Whether a class declares any instance field (variable or property). */
     public static function hasInstanceFields(cls:Null<ClassType>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (cls == null) {
             return false;
         }
@@ -95,6 +99,7 @@ class StaticFieldHelper {
 
     /** Whether a class carries the sanctioned singleton static. */
     public static function hasSelfConstructionStatic(cls:Null<ClassType>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (cls == null) {
             return false;
         }
@@ -111,6 +116,7 @@ class StaticFieldHelper {
     }
 
     public static function isConstruction(e:Null<TypedExpr>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (e == null)
             return false;
         return switch (stripDecorations(e).expr) {
@@ -157,6 +163,7 @@ class StaticFieldHelper {
     }
 
     public static function isNonEmptyArrayLiteral(e:Null<TypedExpr>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (e == null)
             return false;
         return switch (stripDecorations(e).expr) {
@@ -173,6 +180,7 @@ class StaticFieldHelper {
     }
 
     public static function isIntLiteralArray(e:Null<TypedExpr>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (e == null)
             return false;
         return switch (stripDecorations(e).expr) {
@@ -201,6 +209,7 @@ class StaticFieldHelper {
         consume typed class fields or expression types after Haxe typing.
     **/
     public static function isReadOnlyArrayType(t:Null<Type>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         final facts = SourceContainerAnalysis.analyze(t);
         return switch (facts.face) {
             case ReadOnlyArrayFace(_): true;
@@ -218,6 +227,7 @@ class StaticFieldHelper {
         distinguish those states must use `SourceContainerAnalysis.analyze`.
     **/
     public static function arrayElementType(t:Null<Type>):Null<Type> {
+        SharedModuleTrace.record("StaticFieldHelper");
         final facts = SourceContainerAnalysis.analyze(t);
         if (!matchesNoExplicitWrapper(facts)) {
             return null;
@@ -239,6 +249,7 @@ class StaticFieldHelper {
     }
 
     public static function isSanctioned(e:TypedExpr):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         return switch (stripDecorations(e).expr) {
             case TConst(TNull): true;
             case TConst(TBool(_)): true;
@@ -260,6 +271,7 @@ class StaticFieldHelper {
         own.
     **/
     public static function isContainerSourceType(t:Null<Type>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         final facts = SourceContainerAnalysis.analyze(t);
         return switch (facts.face) {
             case MutableArray(_): true;
@@ -272,6 +284,7 @@ class StaticFieldHelper {
 
     /** Whether an initializer is a bare null literal. */
     public static function isNullInitializer(e:Null<TypedExpr>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         return e != null && switch (stripDecorations(e).expr) {
             case TConst(TNull): true;
             case _: false;
@@ -279,6 +292,7 @@ class StaticFieldHelper {
     }
 
     public static function isConstValue(field:ClassField):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (field == null || !field.isFinal || !isScalarOrString(field.type)) {
             return false;
         }
@@ -304,6 +318,7 @@ class StaticFieldHelper {
         typed-analysis phase before interpreting that result as a non-array.
     **/
     public static function isArrayType(t:Null<Type>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         final facts = SourceContainerAnalysis.analyze(t);
         if (!matchesNoExplicitWrapper(facts)) {
             return false;
@@ -315,6 +330,7 @@ class StaticFieldHelper {
     }
 
     public static function isNullableType(t:Null<Type>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (t == null) {
             return false;
         }
@@ -325,6 +341,7 @@ class StaticFieldHelper {
     }
 
     public static function isStringType(t:Null<Type>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (t == null) {
             return false;
         }
@@ -335,6 +352,7 @@ class StaticFieldHelper {
     }
 
     public static function isScalarOrString(t:Null<Type>):Bool {
+        SharedModuleTrace.record("StaticFieldHelper");
         if (t == null) {
             return false;
         }
@@ -350,6 +368,7 @@ class StaticFieldHelper {
     }
 
     public static function stripDecorations(e:TypedExpr):TypedExpr {
+        SharedModuleTrace.record("StaticFieldHelper");
         return switch (e.expr) {
             case TParenthesis(inner) | TCast(inner, _) | TMeta(_, inner): stripDecorations(inner);
             case _: e;

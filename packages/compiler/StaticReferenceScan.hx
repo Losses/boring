@@ -9,6 +9,7 @@ import haxe.macro.Type;
 class StaticReferenceScan {
     /** Returns private static method keys referenced by emitted class bodies. */
     public static function scan(mtypes:Array<ModuleType>, inEmissionScope:ClassType->Bool, alwaysKeepClass:ClassType->Bool = null):Map<String, Bool> {
+        SharedModuleTrace.record("StaticReferenceScan");
         final candidates:Map<String, TypedExpr> = [];
         final bodies:Array<{e:TypedExpr, candidateKey:Null<String>}> = [];
         function classBodies(c:Ref<ClassType>) {

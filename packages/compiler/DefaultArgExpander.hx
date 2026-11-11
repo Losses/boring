@@ -104,10 +104,12 @@ class DefaultArgExpander {
 
     /** Stable identity of a class across the syntax and typed passes. */
     public static function classKeyOf(classType:ClassType):String {
+        SharedModuleTrace.record("DefaultArgExpander");
         return getClassKey(classType);
     }
 
     public static function registerClassFields(classType:ClassType, fields:Array<Field>):Void {
+        SharedModuleTrace.record("DefaultArgExpander");
         final classKey = getClassKey(classType);
         final instanceFields:Map<String, Bool> = new Map();
         for (field in fields) {
@@ -370,6 +372,7 @@ class DefaultArgExpander {
     }
 
     public static function isNormalizationSource(pos:Position):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         final infos = Context.getPosInfos(pos);
         for (range in normalizationSourceRanges)
             if (range.file == infos.file && infos.min == range.min && infos.max == range.max)
@@ -1002,6 +1005,7 @@ class DefaultArgExpander {
 
     /** True when the coalescing value tree reads any parameter reference. */
     public static function readsParameter(value:CoalescingDefaultValue):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         return switch (value) {
             case CParameterRead(_): true;
             case CFieldAccess(CParameterRead(_), ""): false;
@@ -1030,6 +1034,7 @@ class DefaultArgExpander {
         statics without matching on the module-private value constructors.
     **/
     public static function visitDefaultStaticTargets(visit:(modulePath:String, className:String, methodName:String) -> Void):Void {
+        SharedModuleTrace.record("DefaultArgExpander");
         for (key in fieldCoalescing.keys()) {
             visitStaticCalls(fieldCoalescing.get(key), visit);
         }
@@ -1042,6 +1047,7 @@ class DefaultArgExpander {
         matching on the module-private value constructors themselves.
     **/
     public static function visitStaticCalls(value:CoalescingDefaultValue, visit:(modulePath:String, className:String, methodName:String) -> Void):Void {
+        SharedModuleTrace.record("DefaultArgExpander");
         switch (value) {
             case CStaticCall(modulePath, className, methodName, args):
                 visit(modulePath, className, methodName);
@@ -1076,6 +1082,7 @@ class DefaultArgExpander {
 
     /** True only for a source expression accepted during registration. */
     public static function isRegisteredCoalescingSource(pos:Position):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         final infos = Context.getPosInfos(pos);
         for (range in coalescingSourceRanges) {
             if (range.file == infos.file && infos.min >= range.min && infos.max <= range.max) {
@@ -1113,6 +1120,7 @@ class DefaultArgExpander {
      * registered values, so the rewrite changes no target output.
      */
     public static function rewriteCrossSiteReads(body:Null<Expr>, sites:Array<CoalescingSiteInfo>):Void {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (body == null || sites.length == 0)
             return;
         final coalescedByName:Map<String, CoalescingSiteInfo> = new Map();
@@ -1376,6 +1384,7 @@ class DefaultArgExpander {
     }
 
     public static function completeRootExpr(classType:ClassType, fieldName:String, root:TypedExpr):Void {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (root == null)
             return;
         completeExpr(getClassKey(classType), fieldName, root, false);
@@ -1383,6 +1392,7 @@ class DefaultArgExpander {
 
     /** Kotlin retains native default-argument calls and does not materialize omissions. */
     public static function completeRootExprForKotlin(classType:ClassType, fieldName:String, root:TypedExpr):Void {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (root == null)
             return;
         completeExpr(getClassKey(classType), fieldName, root, false, true);
@@ -1390,6 +1400,7 @@ class DefaultArgExpander {
 
     /** Rust has no parameter-default syntax, so coalescing omissions become None. */
     public static function completeRootExprForRust(classType:ClassType, fieldName:String, root:TypedExpr):Void {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (root == null)
             return;
         completeExpr(getClassKey(classType), fieldName, root, true);
@@ -1403,6 +1414,7 @@ class DefaultArgExpander {
         initializer expression.
      */
     public static function completeStaticInitializerForRust(classType:ClassType, fieldName:String, init:Null<TypedExpr>):Void {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (init == null)
             return;
         completeExpr(getClassKey(classType), fieldName, init, true);
@@ -1581,6 +1593,7 @@ class DefaultArgExpander {
     }
 
     public static function defaultAt(classType:ClassType, fieldName:String, index:Int):Null<DefaultArgValue> {
+        SharedModuleTrace.record("DefaultArgExpander");
         final defaults = lookupFieldDefaultsExact(classType, fieldName);
         if (defaults == null || index < 0 || index >= defaults.length)
             return null;
@@ -1588,6 +1601,7 @@ class DefaultArgExpander {
     }
 
     public static function coalescingDefaultAt(classType:ClassType, fieldName:String, index:Int):Null<CoalescingDefaultValue> {
+        SharedModuleTrace.record("DefaultArgExpander");
         return switch (defaultAt(classType, fieldName, index)) {
             case VCoalescing(value): value;
             default: null;
@@ -1598,6 +1612,7 @@ class DefaultArgExpander {
         VNull or an explicit coalescing default). Dart renders such a
         parameter in the optional positional group. */
     public static function isOptionalDefaultAt(classType:ClassType, fieldName:String, index:Int):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         return switch (defaultAt(classType, fieldName, index)) {
             case VNull | VCoalescing(_): true;
             default: false;
@@ -1606,6 +1621,7 @@ class DefaultArgExpander {
 
     /** The coalescing form of a registered default; constants convert, a coalescing value unwraps. */
     public static function coalescingOf(value:DefaultArgValue):CoalescingDefaultValue {
+        SharedModuleTrace.record("DefaultArgExpander");
         return switch (value) {
             case VInt(v): CInt(v);
             case VFloat(s): CFloat(s);
@@ -1626,6 +1642,7 @@ class DefaultArgExpander {
     **/
     public static function omittedCallDefaults(modulePath:String, fieldName:String, explicitCount:Int,
             ?className:String):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (modulePath == null || modulePath.length == 0 || explicitCount < 0)
             return null;
         var cls:Null<ClassType> = null;
@@ -1705,6 +1722,7 @@ class DefaultArgExpander {
 
     /** Defaults for the leading constructor slots omitted by Haxe's suffix form. */
     public static function constructorPrefixDefaultsForClass(cls:ClassType, explicitCount:Int):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (cls == null || cls.constructor == null || explicitCount < 0)
             return null;
         final parameters = switch (Context.follow(cls.constructor.get().type)) {
@@ -1753,6 +1771,7 @@ class DefaultArgExpander {
     }
 
     public static function constructorPrefixDefaults(modulePath:String, className:String, explicitCount:Int):Null<Array<{value:CoalescingDefaultValue, type:Type}>> {
+        SharedModuleTrace.record("DefaultArgExpander");
         var cls:ClassType = null;
         try {
             switch (Context.getType(modulePath + "." + className)) {
@@ -1764,6 +1783,7 @@ class DefaultArgExpander {
     }
 
     public static function defaultParameterType(value:DefaultArgValue, t:Type):Type {
+        SharedModuleTrace.record("DefaultArgExpander");
         return switch (value) {
             case VNull: t;
             case VCoalescing(coalescing): coalescingParameterType(coalescing, t);
@@ -1773,12 +1793,14 @@ class DefaultArgExpander {
 
     /** True when the coalescing default for a specific parameter reads an earlier parameter. */
     public static function coalescingReadsParamForParam(classType:ClassType, fieldName:String, parameterName:String):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         final key = getClassKey(classType) + ":" + fieldName + ":" + parameterName;
         return fieldCoalescingReadsParam.exists(key) && fieldCoalescingReadsParam.get(key);
     }
 
     /** True when the local coalescing default reads an earlier parameter. */
     public static function coalescingReadsParamForLocalParam(classType:ClassType, fieldName:String, localName:String, parameterName:String):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (classType == null)
             return false;
         final key = getClassKey(classType) + ":" + fieldName + ":" + localName + ":" + parameterName;
@@ -1787,11 +1809,13 @@ class DefaultArgExpander {
 
     /** Returns a sanctioned default by the exact class/field/parameter identity. */
     public static function coalescingDefaultForParam(classType:ClassType, fieldName:String, parameterName:String):Null<CoalescingDefaultValue> {
+        SharedModuleTrace.record("DefaultArgExpander");
         return lookupFieldCoalescing(classType, fieldName, parameterName);
     }
 
     public static function coalescingDefaultForLocalParam(classType:ClassType, fieldName:String, localName:String,
             parameterName:String):Null<CoalescingDefaultValue> {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (classType == null)
             return null;
         return localCoalescing.get(getClassKey(classType) + ":" + fieldName + ":" + localName + ":" + parameterName);
@@ -1822,6 +1846,7 @@ class DefaultArgExpander {
         never treated as a default.
      */
     public static function coalescingSite(e:TypedExpr):Null<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
+        SharedModuleTrace.record("DefaultArgExpander");
         final cur = unwrapTypedExpr(e);
         if (cur == null)
             return null;
@@ -1838,6 +1863,7 @@ class DefaultArgExpander {
     }
 
     public static function hasNestedConditional(e:TypedExpr):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         var found = false;
         function visit(x:TypedExpr):Void {
             if (x == null || found)
@@ -1854,6 +1880,7 @@ class DefaultArgExpander {
     }
 
     public static function isCoalescingShape(e:TypedExpr):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         final cur = unwrapTypedExpr(e);
         if (cur == null)
             return false;
@@ -1865,6 +1892,7 @@ class DefaultArgExpander {
     }
 
     public static function coalescingSites(root:TypedExpr):Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
+        SharedModuleTrace.record("DefaultArgExpander");
         final result:Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> = [];
         if (root == null)
             return result;
@@ -1874,6 +1902,7 @@ class DefaultArgExpander {
 
     /** Collects sites in one function body, leaving nested function bodies to their own pass. */
     public static function coalescingSitesForFunction(root:TypedExpr):Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> {
+        SharedModuleTrace.record("DefaultArgExpander");
         final result:Array<{parameter:String, defaultExpr:TypedExpr, valueExpr:TypedExpr}> = [];
         if (root == null)
             return result;
@@ -1946,6 +1975,7 @@ class DefaultArgExpander {
 
     /** Removes the Null<T> wrapper for native-default target parameters. */
     public static function withoutNull(t:Type):Type {
+        SharedModuleTrace.record("DefaultArgExpander");
         if (t == null)
             return t;
         return switch (t) {
@@ -1958,6 +1988,7 @@ class DefaultArgExpander {
     /** The registered default value at one parameter position, wrapped so a
         target emitter can render it through its own DefaultArgValue path. */
     public static function coalescingDefaultValueAt(classType:ClassType, fieldName:String, index:Int):Null<DefaultArgValue> {
+        SharedModuleTrace.record("DefaultArgExpander");
         final value = defaultAt(classType, fieldName, index);
         return switch (value) {
             case VCoalescing(_): value;
@@ -1968,6 +1999,7 @@ class DefaultArgExpander {
     /** True when the registered default at one parameter position reads a
         parameter of its own function, so its text belongs to the callee scope. */
     public static function coalescingDefaultReadsParameter(classType:ClassType, fieldName:String, index:Int):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         return switch (defaultAt(classType, fieldName, index)) {
             case VCoalescing(value): readsParameter(value);
             default: false;
@@ -1976,6 +2008,7 @@ class DefaultArgExpander {
 
     /** Keeps a nullable target parameter when its sanctioned default is null. */
     public static function coalescingParameterType(value:CoalescingDefaultValue, t:Type):Type {
+        SharedModuleTrace.record("DefaultArgExpander");
         return switch (value) {
             case CNull: t;
             case CConditional(_, ifTrue, ifFalse):
@@ -1985,6 +2018,7 @@ class DefaultArgExpander {
     }
 
     public static function coalescingCanBeNull(value:CoalescingDefaultValue):Bool {
+        SharedModuleTrace.record("DefaultArgExpander");
         return switch (value) {
             case CNull: true;
             case CConditional(_, ifTrue, ifFalse): coalescingCanBeNull(ifTrue) || coalescingCanBeNull(ifFalse);
@@ -2000,6 +2034,7 @@ class DefaultArgExpander {
         wrapper for a native null default.
      */
     public static function coalescingLocalType(value:CoalescingDefaultValue, t:Type):Type {
+        SharedModuleTrace.record("DefaultArgExpander");
         return switch (value) {
             case CNull:
                 switch (t) {

@@ -32,11 +32,13 @@ class RuntimeResidents {
 
     /** Whether a module compiles into the runtime package. */
     public static function isResident(module:String):Bool {
+        SharedModuleTrace.record("RuntimeResidents");
         return MODULES.indexOf(module) >= 0 || TEST_MODULES.indexOf(module) >= 0;
     }
 
     /** Whether a module compiles into the test runtime package. */
     public static function isTestResident(module:String):Bool {
+        SharedModuleTrace.record("RuntimeResidents");
         return TEST_MODULES.indexOf(module) >= 0;
     }
 
@@ -50,6 +52,7 @@ class RuntimeResidents {
      * set faces together with their builder externs.
      */
     public static function externsOf(module:String):Array<String> {
+        SharedModuleTrace.record("RuntimeResidents");
         return switch (module) {
             case "runtime.StringTools": ["StringTools"];
             case "runtime.UString": ["std.UStringRT"];
@@ -68,11 +71,13 @@ class RuntimeResidents {
      */
     /** Native faces exposed by test externs at typed pipeline stages. */
     public static function testExternNativeFaces():Array<String> {
+        SharedModuleTrace.record("RuntimeResidents");
         return ["__test_shim"];
     }
 
     /** Resident-side platform extern ownership. */
     public static function residentOfPlatformExtern(module:String):Null<String> {
+        SharedModuleTrace.record("RuntimeResidents");
         return switch (module) {
             case "std.TestPlatform": "runtime.TestCore";
             case "std.UStringPlatform": "runtime.UString";
@@ -81,6 +86,7 @@ class RuntimeResidents {
     }
 
     public static function isResidentAbi(module:String):Bool {
+        SharedModuleTrace.record("RuntimeResidents");
         if (isResident(module)) {
             return true;
         }

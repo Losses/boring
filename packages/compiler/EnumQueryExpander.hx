@@ -24,6 +24,7 @@ class EnumQueryExpander {
     static inline final MARKER = ":enumValueQuery";
 
     public static function expandRootExpr(root:TypedExpr):Void {
+        SharedModuleTrace.record("EnumQueryExpander");
         if (root == null)
             return;
         collectAliases(root);
@@ -36,14 +37,17 @@ class EnumQueryExpander {
         lookup:Bool,
         en:EnumType
     }> {
+        SharedModuleTrace.record("EnumQueryExpander");
         return uses.get(en.module);
     }
 
     public static function requireNameRead(en:EnumType):Void {
+        SharedModuleTrace.record("EnumQueryExpander");
         register(en, QName);
     }
 
     public static function markerKind(e:TypedExpr):Null<EnumQueryKind> {
+        SharedModuleTrace.record("EnumQueryExpander");
         return switch (e.expr) {
             case TMeta(meta, _) if (meta.name == MARKER && meta.params.length == 1):
                 switch (meta.params[0].expr) {
@@ -56,13 +60,16 @@ class EnumQueryExpander {
         };
     }
 
-    public static function markerInner(e:TypedExpr):TypedExpr
+    public static function markerInner(e:TypedExpr):TypedExpr {
+        SharedModuleTrace.record("EnumQueryExpander");
         return switch (e.expr) {
             case TMeta(_, inner): inner;
             case _: e;
         };
+    }
 
     public static function enumOf(e:TypedExpr):Null<EnumType> {
+        SharedModuleTrace.record("EnumQueryExpander");
         final inner = markerInner(e);
         return switch (inner.expr) {
             case TCall(_, args):
@@ -73,29 +80,35 @@ class EnumQueryExpander {
         };
     }
 
-    public static function aliasEnum(e:TypedExpr):Null<EnumType>
+    public static function aliasEnum(e:TypedExpr):Null<EnumType> {
+        SharedModuleTrace.record("EnumQueryExpander");
         return switch (e.expr) {
             case TLocal(v): aliases.get(v.id);
             case TMeta(_, inner): aliasEnum(inner);
             case _: null;
         };
+    }
 
     public static function aliasById(id:Int):Null<EnumType>
         return aliases.get(id);
 
     public static function collectionEnum(e:TypedExpr):Null<EnumType> {
+        SharedModuleTrace.record("EnumQueryExpander");
         if (markerKind(e) == QCollection)
             return enumOf(e);
         return aliasEnum(e);
     }
 
-    public static function callArgs(e:TypedExpr):Array<TypedExpr>
+    public static function callArgs(e:TypedExpr):Array<TypedExpr> {
+        SharedModuleTrace.record("EnumQueryExpander");
         return switch (markerInner(e).expr) {
             case TCall(_, args): args;
             case _: [];
         };
+    }
 
     public static function constructorCount(en:EnumType):Int {
+        SharedModuleTrace.record("EnumQueryExpander");
         var count = 0;
         for (_ in en.constructs)
             count++;
@@ -103,6 +116,7 @@ class EnumQueryExpander {
     }
 
     public static function upperSnake(name:String):String {
+        SharedModuleTrace.record("EnumQueryExpander");
         final out = new StringBuf();
         for (i in 0...name.length) {
             final c = name.charAt(i);
@@ -114,6 +128,7 @@ class EnumQueryExpander {
     }
 
     public static function lowerFirst(name:String):String {
+        SharedModuleTrace.record("EnumQueryExpander");
         return NameConversion.lowerFirst(name);
     }
 

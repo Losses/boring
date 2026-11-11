@@ -91,6 +91,7 @@ class PipelineExpander {
     static var varIdCounter:Int = 100000;
 
     public static function expandModules(modules:Array<haxe.macro.Type.ModuleType>):Void {
+        SharedModuleTrace.record("PipelineExpander");
         for (index in 0...modules.length) {
             switch (modules[index]) {
                 case haxe.macro.Type.ModuleType.TClassDecl(classRef):
@@ -137,6 +138,7 @@ class PipelineExpander {
     }
 
     public static function expandRootExpr(root:TypedExpr):Void {
+        SharedModuleTrace.record("PipelineExpander");
         final usedNames:Map<String, Bool> = [];
         collectNames(root, usedNames);
         hoistSwitchSubjects(root, usedNames);
