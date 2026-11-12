@@ -11,9 +11,11 @@ import runtime.GraphemeWalk;
     (docs/specs/stdlib/11-grapheme-clusters.md).
 
     At compilation start this module reads the pinned Unicode data files
-    from `tools/unicode-data/`, merges them into the flat range table,
-    and gates the merge on the official GraphemeBreakTest conformance
-    vectors run through the shared walk in `runtime.GraphemeWalk`.
+    from `tools/unicode-data/` of the boring checkout that contains this
+    module (`-D unicode-data-dir=<path>` overrides the directory), merges
+    them into the flat range table, and gates the merge on the official
+    GraphemeBreakTest conformance vectors run through the shared walk in
+    `runtime.GraphemeWalk`.
     The one consumer is `tableField()`: the `:build` macro on
     `runtime.Graphemes` injects the table as a static field, and that
     resident module compiles into every target's runtime package.
@@ -121,7 +123,32 @@ class GraphemeData {
         cachedVersion = version;
     }
 
+    /**
+        The directory holding the pinned Unicode data files.
+        `-D unicode-data-dir=<path>` names it explicitly. Otherwise the
+        directory is located from this module's own file: the walk
+        climbs to the checkout root that carries `tools/unicode-data/`,
+        so a consumer repository reads boring's copy and keeps no copy of
+        its own. A module loaded without a checkout (a precompiled
+        haxelib archive) keeps the historical cwd-relative path.
+    **/
     static function dataDir():String {
+        final overrideDir = Context.definedValue("unicode-data-dir");
+        if (overrideDir != null && overrideDir.length > 0) {
+            return overrideDir;
+        }
+        var dir = haxe.io.Path.directory(Context.resolvePath("reflaxe/unicode/GraphemeData.hx"));
+        while (true) {
+            final candidate = haxe.io.Path.join([dir, "tools", "unicode-data"]);
+            if (sys.FileSystem.exists(candidate)) {
+                return candidate;
+            }
+            final parent = haxe.io.Path.directory(dir);
+            if (parent == dir) {
+                break;
+            }
+            dir = parent;
+        }
         return "tools/unicode-data";
     }
 
@@ -130,7 +157,7 @@ class GraphemeData {
         if (!sys.FileSystem.exists(path)) {
             Context.fatalError("pinned Unicode data file is missing: "
                 + path
-                + " (expected next to the compilation root; run from the repository root, or refresh with -D fetch-unicode=<version>)",
+                + " (read from the boring checkout that carries tools/unicode-data; override the directory with -D unicode-data-dir=<path>, or refresh with -D fetch-unicode=<version>)",
                 Context.currentPos());
         }
         return sys.io.File.getContent(path);
