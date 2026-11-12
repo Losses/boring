@@ -73,7 +73,7 @@ run_stage() {
 	return 0
 }
 
-# error_count <dir> : diagnostics counted by shape, not by bare 'error'.
+# error_count <dir> : diagnostics counted by shape.
 error_count() {
 	grep -cE '^error(\[E[0-9]+\])?:' "$1/stderr" 2>/dev/null || true
 }

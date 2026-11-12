@@ -116,7 +116,7 @@ export function targetTreeReason(id: TargetId): string {
 
 /**
  * `true` when the target's tree is absent, i.e. when a case wholly about this
- * target must be declared inapplicable rather than run. Read this at test
+ * target must be declared inapplicable. Read this at test
  * *registration* time, so the runner records a skip:
  *
  *   test.skipIf(targetTreeUnavailable("swift"))("Swift emits ...", () => { ... });

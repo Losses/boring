@@ -74,7 +74,7 @@ import * as path from "node:path";
  *
  * When generated artifacts are absent, all tests fail with ENOENT
  * (fs.readFileSync / dynamic import), which satisfies the "missing artifacts
- * must fail, not skip" requirement — no skipped test, no silent pass.
+ * must fail" requirement — no skipped test, no silent pass.
  */
 
 const gen = (name: string): string =>

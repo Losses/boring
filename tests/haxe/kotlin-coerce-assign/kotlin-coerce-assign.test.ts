@@ -12,8 +12,8 @@ import { expect, test } from "bun:test";
 // -D kotlin_coerce_ablate=Assignment, which skips the Assignment coercion
 // and leaves the bare nullable value; kotlinc then rejects it with a type
 // mismatch. The two compile arms must differ (GP-ABLATE). Assertions name
-// the emitted form (the `!!` extraction) rather than merely "it compiles"
-// (LAYERED-VERIFICATION).
+// the emitted form (the `!!` extraction); a successful compile alone does not
+// satisfy LAYERED-VERIFICATION.
 const root = `${import.meta.dir}/../../..`;
 const out =
   Bun.env.BORING_COERCE_ASSIGN_OUT ??

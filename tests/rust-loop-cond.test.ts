@@ -5,7 +5,8 @@ import { randomUUID } from "node:crypto";
 
 /**
  * A while condition is re-evaluated on every iteration, so a duplicated
- * static read must hoist inside the condition block, not before the loop.
+ * static read must hoist inside the condition block; hoisting it before the
+ * loop breaks the runtime semantics below.
  * (StaticReadLoop)
  *
  * The first test locks the emitted shape. The second one locks the runtime

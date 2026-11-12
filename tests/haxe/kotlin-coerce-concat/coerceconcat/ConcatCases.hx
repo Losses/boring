@@ -7,7 +7,7 @@ package coerceconcat;
 
     * leftSafeChain -- a nullable receiver read through a safe call
       (value.label renders value?.label); the concatenation therefore
-      uses ?.plus so a null receiver propagates null instead of coercing
+      uses ?.plus so a null receiver propagates null, with no coercion
       to the text "null".
     * rightNullable -- a plain non-null left and a nullable right; the
       right operand is the plus argument, and Kotlin's String.plus(Any?)

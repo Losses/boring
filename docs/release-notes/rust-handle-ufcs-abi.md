@@ -29,7 +29,7 @@ h.borrow().m(args);       // read-only method
 T::m(&h, args);
 ```
 
-Note it is `&h`, not `h`: the generated signature receives `&Rc<RefCell<Self>>`.
+Note the first argument is `&h`: the generated signature receives `&Rc<RefCell<Self>>`.
 
 ## Examples (boring's own tests/rust/vector_gen.rs and vector_gen_f32.rs are migrated)
 
@@ -46,7 +46,7 @@ holder.borrow_mut().finish()         -> BufferHolder::finish(&holder)
 
 ## Unaffected
 
-- `@:dataClass` and other value types still generate by value/borrow, not by handle.
+- `@:dataClass` and other value types still generate by value/borrow.
 - Opaque handle parameters (for example callback receivers) are outside this migration.
 - Callers generated for kotlin/ts/dart/swift need no change (they already emit per-target syntax).
 

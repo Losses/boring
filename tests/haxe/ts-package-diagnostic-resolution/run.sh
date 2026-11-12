@@ -63,8 +63,8 @@ trap finish EXIT
 # --- compiler provenance gate ------------------------------------------------
 # The hxml files below compile with the haxelib-resolved `boring` classpath
 # (and its dependencies) loaded by the haxe toolchain, so the compiler bytes
-# of the run are whatever the haxelib repository resolves, not necessarily
-# the bytes of this checkout. Bind the run to the bytes it will actually
+# of the run are whatever the haxelib repository resolves; they may differ
+# from the bytes of this checkout. Bind the run to the bytes it will actually
 # load: record `haxelib path boring` with its argv, cwd, streams and status,
 # and require its realpath to sit under this checkout. A wrong HAXELIB_PATH
 # that still resolves (a sibling checkout's or a store source's `.haxelib`)

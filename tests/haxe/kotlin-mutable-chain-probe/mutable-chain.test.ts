@@ -6,7 +6,7 @@ import { expect, test } from "bun:test";
 // chain present. This is a two-level chain -- `o.current` (var, nullable)
 // then `.fin` (final, nullable) -- which the single-level
 // kotlin-var-field-smartcast fixture deliberately does not cover: that
-// fixture pins a direct property read (holder.value), not a chained one.
+// fixture pins a direct property read (holder.value).
 //
 // Dev-time commits 40820371/57b1beb8 introduced this probe for the Kotlin
 // mutable-chain fix; until this test existed the directory was collected by

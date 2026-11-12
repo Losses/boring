@@ -10,9 +10,9 @@
 # which includes tree-root Runtime.swift whenever the compiler emits it.
 # The earlier formulation (find std <module> -name '*.swift') structurally
 # excluded the tree root, so pre/post patches were indistinguishable: the
-# fixture measured "Runtime.swift in argv", not the patch. Assertion
-# semantics are unchanged: this fixture still asserts "the leg compiles
-# and runs".
+# fixture measured "Runtime.swift in argv"; the patch did not change the
+# result. Assertion semantics are unchanged: this fixture still asserts
+# "the leg compiles and runs".
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 NAME="$(basename "$HERE")"        # swift-rt-probe / swift-rt-plain

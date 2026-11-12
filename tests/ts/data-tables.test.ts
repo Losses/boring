@@ -13,7 +13,7 @@ import { CodePointNames } from "../../reference/ts/gen-tests/boring/CodePointNam
 
 // The five table classes are reclassified to test units (their only
 // referencers are test modules), so the TypeScript target emits them into
-// gen-tests rather than gen. The structural reads below follow that tree.
+// gen-tests. The structural reads below follow that tree.
 const GEN_TESTS_DIR = join(import.meta.dir, "../../reference/ts/gen-tests/boring");
 
 describe("data tables TypeScript generation and behavior", () => {

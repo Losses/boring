@@ -16,15 +16,13 @@ import SemanticPolicy.RepresentationRole;
     shared handle (@:sharedHandle, isCrossThreadShared) is
     Arc<Mutex<dyn Trait + Send + Sync>> (the Send/Sync bound is forced by E0277);
     the single-thread shared handle stays Rc<RefCell<dyn Trait>>. The one
-    semantic fact isCrossThreadShared decides the two spellings, not two
-    competing strategies.
+    semantic fact isCrossThreadShared decides the two spellings.
 
     Fail-closed: a null/unknown role throws immediately at generation time. It
     is never returned as a string and never rendered into a product, so a bad
     plan cannot silently produce bad Rust or defer the failure to cargo (where
     the planKey context would be lost). The wiring wraps this throw with the
-    planKey. A runtime test asserts spell(null) throws rather than returning a
-    spellable string.
+    planKey. A runtime test asserts that spell(null) throws.
 **/
 class RustAbiProfile {
     public static function spell(role:Null<RepresentationRole>, sendSync:Bool):String {

@@ -77,7 +77,7 @@ run_stage() {
 	return 0
 }
 
-# error_count <dir> : diagnostics counted by shape, not by bare 'error'.
+# error_count <dir> : diagnostics counted by shape.
 # grep -c prints "0" and exits 1 when nothing matches; `|| true` keeps that
 # single "0" without printing a second one.
 error_count() {

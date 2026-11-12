@@ -2,7 +2,7 @@
 //
 // The runner copies this file into the generated tree root, so the relative
 // import reaches <tree>/lib/vble/probe.dart. The Dart target emits the probe
-// as top-level functions and top-level counter variables, not as a class.
+// as top-level functions and top-level counter variables; no class wraps them.
 // The driver only observes: it calls the three generated probe functions once
 // each and prints the three returned bound-read counts. The generated main()
 // calls the fixture shadow of haxe.Log (a no-op), so this driver is the only

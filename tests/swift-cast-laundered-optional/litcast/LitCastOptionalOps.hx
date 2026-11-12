@@ -22,7 +22,7 @@ class LitCastOptionalOps {
     public static function pick():Float
         return edges()[0].inlineStart == null ? -1.0 : (edges()[0].inlineStart : Float);
 
-    /** A local subject renders through the nil-merge path (?? ), not the ternary. */
+    /** A local subject renders through the nil-merge path (?? ). */
     public static function pickLocal(e:LitCastEdge):Float
         return e.inlineStart == null ? -1.0 : (e.inlineStart : Float);
 

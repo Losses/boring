@@ -13,7 +13,7 @@ import std.Fs;
  * Foundation.
  */
 class FsFoundationOps {
-    /** A missing path must surface as std.FsError.notFound, not a compile error. */
+    /** A missing path must surface as std.FsError.notFound at run time. */
     public static function readText(path:String):String {
         return Fs.readText(path);
     }

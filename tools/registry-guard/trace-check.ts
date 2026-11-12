@@ -100,7 +100,7 @@ function firstTargetCaller(callers: Set<string> | undefined, target: Target): st
  * is tests.DriverPlanTests: it pulls in driver.Config, whose StepOverride
  * object literal the dart and swift emitters reject on the current baseline,
  * so keeping it would make the settled targets and the unsettled ones
- * incomparable. The hxml is derived here rather than checked in, so the
+ * incomparable. The hxml is derived here at read time, so the
  * corpus cannot drift from examples/<target>.hxml.
  */
 function traceHxml(target: Target): string {

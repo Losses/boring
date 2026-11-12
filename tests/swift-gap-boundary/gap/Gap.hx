@@ -97,7 +97,7 @@ class GapExtra {
 
 class GapStatics {
 	// Static read-only array field: routes through SwiftDecl's own
-	// prepare/render calls, not through lowerArrayBoundary.
+	// prepare/render calls.
 	public static final values:ReadOnlyArray<Int> = [41];
 }
 

@@ -81,8 +81,8 @@ class RustEmissionState {
         receiverAbi/paramAbi are whichever use site decided it first:
         first-caller-wins. Renderer sites must read plan.role only; the ABI
         read rule is documented on RepresentationPlan.receiverAbi.
-        Lives here rather than in a class-level static so it follows
-        the compiler instance lifetime: a second compilation must not read a
+        Lives on the compiler instance so it follows the compiler
+        instance lifetime: a second compilation must not read a
         plan decided by the first one. (RPlan v1, P-22)
     **/
     public final representationPlans:Map<String, RepresentationPlan> = [];
@@ -123,7 +123,7 @@ class RustEmissionState {
         class. This map keeps that identity per class, so the growth-variant
         registration gate (Compiler.registerThrownExceptionVariant) and the
         try-region error name (Compiler.regionErrorNameOf) resolve the payload
-        of the class in hand rather than of whichever class was scanned last.
+        of the class in hand.
         (ThrowFaultVariantGrowth)
     **/
     public final exceptionPayloadEnums:Map<String, {module:String, name:String}> = [];

@@ -2,7 +2,7 @@ package xcheckscope;
 
 /** Boundary fixture for the PRE-EXISTING growth channel: a callee whose fault
     domain differs from the caller's declared fault enum must merge through the
-    callee-edge registration, not through the new throw-side one. */
+    callee-edge registration. */
 enum AFault {
 	AOne(tag:String);
 }

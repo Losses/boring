@@ -7,7 +7,7 @@
 # numeric exit status of every stage into one fresh attempt directory and
 # never rewrites it. The last block compares each run stage's stdout with
 # expected.txt so a target that raises on the missing path is visible as a
-# non-zero run status instead of a silently different line.
+# non-zero run status, with no silently different line.
 #
 # Invoked as:
 #   XDG_CACHE_HOME=/tmp/fs-missing-isdirectory-cache \

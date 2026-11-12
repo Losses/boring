@@ -46,8 +46,8 @@ describe("rust resident emission from a data class", () => {
         `(the environment-not-reached path exits 0 by construction)\n${output}`,
     ).toBe(0);
 
-    // 2. On success, a missing toolchain is reported as a stage rather than a
-    //    silent green, so the reader knows what was actually proven.
+    // 2. On success, a missing toolchain is reported as a stage, so the
+    //    reader knows what was actually proven.
     if (output.includes("environment-not-reached")) {
       console.log(output.trim());
       return;

@@ -39,7 +39,7 @@ describe("node:fs extern fallibility", () => {
 
   test("the extern lowering and the inference reach the same path as std.Fs", () => {
     const expr = read("packages/compiler/reflaxe/rust/rustcompiler/RustExpr.hx");
-    // The extern branch dispatches on the shared predicate, not a local copy.
+    // The extern branch dispatches on the shared predicate.
     expect(expr).toContain("case TField(_, FStatic(c, cf)) if (RustEmissionState.nodeFsExternFallibleMember(c.get(), cf.get().name)):");
     // Both members append the std.Fs propagation/diagnostic suffix.
     expect(expr).toContain(`"Fs::make_dirs(" + stdStrViewArg(args[0]) + ")" + errorPropagationSuffix(c, cf, true)`);

@@ -44,8 +44,8 @@ function rewriteHxml(source: string, opts: GenerationOptions): string {
     .replace("-D ts-output=reference/ts/gen", `-D ts-output=${opts.tsOutput}`);
   if(opts.runtimeImport !== undefined) {
     // Rewrite whatever specifier the repository's hxml currently carries,
-    // so the scenario pins its own runtime import instead of inheriting
-    // the repository state of that line.
+    // so the scenario pins its own runtime import, leaving the repository
+    // state of that line out of the run.
     out = out.replace(/^-D runtime-import=[^\s]+$/m, `-D runtime-import=${opts.runtimeImport}`);
   }
   if(opts.packageShell === undefined) {

@@ -51,11 +51,12 @@ describe("Std.string lowering", () => {
   test("Rust standalone scalars route unsigned Int through int_text", () => {
     const content = fs.readFileSync(path.join(root, "reference/rust/gen/boring/std_string_ops.rs"), "utf8");
     // The parameter is `u32` -- the unsigned domain -- so it goes through
-    // IntText::int_text rather than Display. Commit ef3c874b (int_text domain)
-    // routed only the SIGNED-domain values (indexOf, unary neg, i32 locals,
-    // fpHelper i32, closure params) through direct to_string and says so in its
-    // message. This expectation still named the pre-ef3c874b form and was missed
-    // when 40cf0ad0 refreshed "stale Rust string expectations across 13 files".
+    // IntText::int_text; the signed domain keeps Display. Commit ef3c874b
+    // (int_text domain) routed only the SIGNED-domain values (indexOf, unary
+    // neg, i32 locals, fpHelper i32, closure params) through direct to_string
+    // and says so in its message. This expectation still named the pre-ef3c874b
+    // form and was missed when 40cf0ad0 refreshed "stale Rust string
+    // expectations across 13 files".
     //
     // It stayed invisible because reference/rust/gen is git-ignored build output
     // that nothing regenerated: the stale tree still emitted the old form, so

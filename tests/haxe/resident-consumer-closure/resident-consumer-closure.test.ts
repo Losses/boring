@@ -27,7 +27,7 @@ import { join, resolve } from "node:path";
  *      lookup) that never touches the real sources; the resident must vanish.
  *
  * Step 2 is the reverse-discrimination half: it proves the loop is
- * load-bearing, not merely present. Pre-fix baselines and the native readings
+ * load-bearing. Pre-fix baselines and the native readings
  * are in REPORT.md §2 and §7; the mutation negative control stays in run.sh.
  */
 
@@ -73,8 +73,8 @@ function runHaxe(args: readonly string[]): { status: number | null; output: stri
 /**
  * The whole-set force-typing block, exactly as each target's `use()` writes it.
  * A missing block is itself a failure: this is the only collected guard that
- * reads it, so a refactor that drops the loop must fail here rather than
- * silently stop testing anything.
+ * reads it, so a refactor that drops the loop must fail here, and the
+ * coverage cannot disappear silently.
  */
 function withoutWholeSetLoops(target: Target): string {
   const source = readFileSync(

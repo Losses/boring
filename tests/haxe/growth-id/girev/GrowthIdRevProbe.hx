@@ -3,9 +3,9 @@ package girev;
 /**
 	Order-swap mirror of gi/GrowthIdProbe.hx (t-munebyud-bxbr): the E domain
 	is declared FIRST here, A second. The registration/lookup identity
-	mismatch is architectural (which enum each side keys), not scan-order
-	sensitive, so both declaration orders must fail before the fix and pass
-	after it.
+	mismatch is architectural (which enum each side keys); declaration order
+	does not affect it, so both declaration orders must fail before the fix and
+	pass after it.
 **/
 enum EFault {
 	Bad(tag:String);

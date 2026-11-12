@@ -66,9 +66,9 @@ func CreateDirectoryW(_ name: LPCWSTR?, _ attrs: UnsafePointer<SECURITY_ATTRIBUT
     return false
 }
 // The overlay imports Win32 BOOL as Bool (nonzero is true): the windows CI
-// compiler resolves MoveFileExW(...) to Bool, so the stand-in models that
-// instead of the BOOL alias - modelling it as Int32 is what hid the
-// emitted `result == 0` from this Linux-side typecheck gate.
+// compiler resolves MoveFileExW(...) to Bool, so the stand-in returns Bool.
+// Modelling it as Int32 is what hid the emitted `result == 0` from this
+// Linux-side typecheck gate.
 func MoveFileExW(_ source: LPCWSTR?, _ target: LPCWSTR?, _ flags: DWORD) -> Bool {
     return false
 }

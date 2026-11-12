@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runtime cost of the per-character units hoisting, measured rather than read.
+# Runtime cost of the per-character units hoisting, measured on a release build.
 #
 # Not part of the collected suite (it needs cargo and a release build). Run it
 # on a branch to get that branch's numbers; run it on the base to get the

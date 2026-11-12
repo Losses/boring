@@ -9,7 +9,7 @@
 // the authored expectation.
 //
 // The pinned toolchain ships no @types/node, so the little of the Node surface
-// this driver uses is declared here instead of pulled from the network. The
+// this driver uses is declared here, with nothing pulled from the network. The
 // generated modules are compiled unmodified; only this authored driver carries
 // the declaration.
 declare const process: {

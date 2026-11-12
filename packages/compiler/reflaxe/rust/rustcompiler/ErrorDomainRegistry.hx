@@ -10,8 +10,7 @@ import rustcompiler.RustSymbols.SymbolRef;
     Fallible names the error enum or union the function can throw;
     Infallible marks a function the fallibility scan proved cannot throw;
     Unknown marks a function whose domain is not registered in this
-    compilation scope, which consumers must reject instead of silently
-    treating as infallible.
+    compilation scope, which consumers must reject with a scope diagnostic.
 **/
 enum ErrorDomain {
     Fallible(ref:SymbolRef);
@@ -23,7 +22,7 @@ enum ErrorDomain {
     Central lookup over RustEmissionState.funcErrorEnums and
     RustEmissionState.funcErrorKnown. Replaces the scattered
     funcErrorEnums.exists reads so a reference that resolves to neither
-    map faults with a scope diagnostic instead of defaulting to infallible.
+    map faults with a scope diagnostic.
 **/
 class ErrorDomainRegistry {
     public static var state:Null<RustEmissionState> = null;

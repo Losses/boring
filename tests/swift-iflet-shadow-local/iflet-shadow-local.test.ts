@@ -35,7 +35,7 @@ test("a shadowed optional local renders bare / Float-converted, never force-unwr
   // The shadow binding is emitted in every function.
   expect(source, "shadow binding is emitted").toContain("if let x = x {");
 
-  // Return site: the shadowed local goes through the Float conversion, not x!.
+  // Return site: the shadowed local goes through the Float conversion.
   expect(source, "return site is Float-converted, not force-unwrapped").toContain("return Double(x)");
 
   // Operand site: the shadowed local renders bare.

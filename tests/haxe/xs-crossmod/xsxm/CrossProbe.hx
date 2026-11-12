@@ -2,8 +2,8 @@ package xsxm;
 
 /** Neighbour-shape probe (reviewer-authored): two payload exception classes in
     ONE Haxe module whose payload enums live in TWO DIFFERENT modules.
-    In this shape `payloadEnumNames` does not collide, but `exceptionPayloads`
-    (keyed by the exception class's own module) still does. */
+    In this shape `payloadEnumNames` stays distinct, while `exceptionPayloads`
+    (keyed by the exception class's own module) still collides. */
 class E1 extends haxe.Exception {
 	public final fault:Faults1.F1Fault;
 

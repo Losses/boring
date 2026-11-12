@@ -438,8 +438,8 @@ Rust emits each test class as a cargo integration test:
   construction and follows its test class even when the single-pass
   closure leaves it behind.
 - A large `static final Array<String>` (more than 256 elements) lowers
-  to one joined `&str` plus a `split`+`map` instead of one
-  `UString::from` call per element. An element containing the separator
+  to one joined `&str` plus a `split`+`map`; the element-wise
+  `UString::from` form remains the fallback. An element containing the separator
   or a control character falls back to the element-wise form, so the
   compressed value is always identical to the element-wise value.
 - Each test function becomes a `#[test] fn` whose body wraps in
@@ -449,7 +449,8 @@ Rust emits each test class as a cargo integration test:
   call the emitted `test_helper`, failing through `panic!` with the
   canonical message.
 - Integration-test sources name the library crate
-  (`<package>::runtime::test as testlib`) instead of `crate::`.
+  (`<package>::runtime::test as testlib`); `crate::` does not resolve in an
+  integration test.
 - `cargo test` discovers and runs them natively.
 
 ```rust

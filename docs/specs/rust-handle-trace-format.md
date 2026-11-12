@@ -13,8 +13,8 @@ Status: v1.0.0
 This document is the normative format of the machine-readable lowering trace for
 the Rust handle-semantics IR (policy entry P-19 in
 docs/specs/target-semantic-policy.md). The trace is target-neutral text over the
-typed IR (repr / mode / identity / place_kind), never rendered Rust: a consumer
-reasons about the resolved typed-IR vocabulary, not about Rust surface syntax.
+typed IR (repr / mode / identity / place_kind); a consumer reasons about the
+resolved typed-IR vocabulary, and rendered Rust text stays outside the format.
 
 The executable producer of this format is packages/compiler/RustHandleTrace.hx;
 the validator (packages/compiler/RustHandleValidator.hx) and this trace share the
@@ -84,7 +84,7 @@ Value, Local, Field, Index, Static. A missing place kind serializes as missing.
 ## Design principles
 
 The trace upholds the repository design principle that the stage-one oracle
-verifies rather than defines (docs/specs/design-principles.md): a trace record
+verifies the resolved facts (docs/specs/design-principles.md): a trace record
 reports the resolved typed-IR facts a later fingerprint/bucketing harness
 consumes, and it never re-derives a representation, mode, identity, or place
 kind from rendered target text.

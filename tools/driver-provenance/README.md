@@ -49,4 +49,4 @@ A PASS establishes the four links the script prints:
 It does not cover generation, tests, or driver behaviour, and it does not
 decide which driver a consumer should run. It is not a substitute for the
 fixed-matrix acceptance. The P09 B2 run of 2026-10-05 and its raw logs are
-archived in the workspace evidence archive, not in this repository.
+archived in the workspace evidence archive, outside this repository.

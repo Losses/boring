@@ -7,7 +7,7 @@ package rangerange;
     When the bound renders nullable -- a nullable array field, or a function
     returning Null<Int> -- the emitted endpoint is Int? unless the emitter
     hardens it with !!; Kotlin rejects a nullable range endpoint with a
-    type mismatch (the endpoint must be Int, not Int?).
+    type mismatch (the endpoint must be a non-null Int).
 
     sumFieldBound reads the items field bound (items?.size!!), and
     sumCallBound reads the limit() call bound (limit()!!). Both loop bodies

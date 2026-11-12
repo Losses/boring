@@ -30,10 +30,10 @@ commands="$RR_CMD"
 identity_dir="$run_dir/identity"
 
 # Identity and input hashes. Tool identities name explicit paths so a PATH
-# lookup cannot stand in for identity, and the revision is the explicit
-# BORING_REVISION input rather than a repository command. A failure here is a
-# value that stops the run before any check executes; the identity body holds
-# no command substitution that could lose one.
+# lookup cannot stand in for identity, and the revision comes from the
+# explicit BORING_REVISION input; no repository command supplies it. A
+# failure here is a value that stops the run before any check executes; the
+# identity body holds no command substitution that could lose one.
 haxe_path="$(command -v haxe)" || {
 	echo "refusing to run: haxe is not on the PATH of this environment" >&2
 	exit 2
@@ -67,7 +67,7 @@ rr_identity_files source-hashes \
 # sibling checkout's or a store source's `.haxelib`) would let the checks
 # compile with another tree's compiler. The command is recorded through the
 # shared layer with argv, cwd, streams and numeric status, so the record is
-# reproducible rather than inferred from log text.
+# reproducible from recorded fields, with nothing inferred from log text.
 rr_identity_stream haxelib-path-boring -- haxelib path boring || { echo "recording failed: haxelib-path-boring" >&2; exit 2; }
 # The path line immediately before "-D boring=" is the library this haxelib
 # build resolved; fall back to the first absolute line when that marker is

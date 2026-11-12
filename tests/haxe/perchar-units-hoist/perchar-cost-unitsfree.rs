@@ -1,8 +1,8 @@
 // Self-contained measurement harness for the per-character `units` defect
 // (boring task t-mukem10i-n8ll). The two functions under test are copied
 // VERBATIM from a generated Tiqian tree, so the numbers describe the generated
-// code, not a rewrite of it: only the hoists are lifted to the caller, which is
-// what the fix makes the compiler do.
+// code: only the hoists are lifted to the caller, which is what the fix makes
+// the compiler do.
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub static UNITS_CALLS: AtomicU64 = AtomicU64::new(0);

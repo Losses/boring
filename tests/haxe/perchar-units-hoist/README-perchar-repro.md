@@ -40,7 +40,7 @@ unitsfree bytes=400002 walk_units_calls=0      walk_ms=3
 
 How to read: `walk_units_calls` is proportional to the input (≈ n/3, once per character), and the time ×4s with each doubling of the input
 (4.9→19.2→88.8 s), i.e. **O(n²) `units()` allocation/copy**; swapping `units()` for O(1)
-drops the same loop to 0/2/3 milliseconds (linear), showing the cost is **entirely** from this hoist, not the loop itself.
+drops the same loop to 0/2/3 milliseconds (linear), showing the cost is **entirely** from this hoist.
 `control`'s call count is exactly double `repro`'s: before the fix, the inner function hoisted one extra copy on every entry.
 
 A same-direction reading at the generated-tree level: in `org/tiqian/test/trace/test_trace_render.rs`

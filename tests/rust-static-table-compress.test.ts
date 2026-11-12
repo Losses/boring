@@ -7,9 +7,9 @@ import { randomUUID } from "node:crypto";
  * Rust static-table compression contract (Emit-StaticTableCompress).
  *
  * A large `static final Array<String>` lowers to one joined `&str` plus a
- * split+map instead of thousands of `UString::from` calls. The compressed
- * value must equal the element-wise value, and an element containing the
- * separator must fall back to the element-wise form.
+ * split+map; the element-wise form would be thousands of `UString::from`
+ * calls. The compressed value must equal the element-wise value, and an
+ * element containing the separator must fall back to the element-wise form.
  */
 
 const root = path.resolve(import.meta.dir, "..");

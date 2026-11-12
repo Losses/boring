@@ -430,8 +430,8 @@ class TsDecl {
                 final index = "i" + depth;
                 // The bound hoists into the init section next to the counter
                 // (feature 09 loop rule): the condition must evaluate as a
-                // local, so each length reads once here instead of once per
-                // iteration. The minimum of the two declared lengths is the
+                // local, so each length reads once here, before the loop
+                // starts. The minimum of the two declared lengths is the
                 // same iteration count the per-iteration conjunction read.
                 final bound = "n" + depth;
                 lines.push('${indent}for (let ${index} = 0, ${bound} = ${left}.length < ${right}.length ? ${left}.length : ${right}.length; ${index} < ${bound}; ${index}++) {');
@@ -706,8 +706,8 @@ class TsDecl {
                 : (field.meta.has(":allow") || Compiler.hasCrossClassPrivateAccess(cls.module, cls.name, field.name)) ? "" : "private";
             final ro = field.isFinal ? "readonly " : "";
             // A declaration-only static (no initializer; the class assigns
-            // it before use, e.g. a scratch root) renders bare instead of
-            // dereferencing a null initializer expression.
+            // it before use, e.g. a scratch root) renders bare, since there
+            // is no initializer expression to dereference.
             if (init == null) {
                 return ['  $vis static ${ro}${field.name}: ${types.of(field.type)};'];
             }

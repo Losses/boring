@@ -137,8 +137,8 @@ for (const [path, oid] of [...expected.entries()].sort((a, b) => a[0].localeComp
   let actual: string;
   try {
     // git archive exports symlinks as links; a plain read would follow the
-    // link and hash the pointed-to file instead of the link-target text the
-    // tree records. Hash the target bytes directly for that mode.
+    // link and hash the pointed-to file. The tree records the link-target
+    // text, which is what this branch hashes directly.
     if (lstatSync(file).isSymbolicLink()) {
       actual = execFileSync("git", ["hash-object", "--stdin"], { input: readlinkSync(file), maxBuffer: 1 << 24 }).toString().trim();
     } else {

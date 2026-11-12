@@ -10,7 +10,7 @@ package probe;
     forcing the generated Rust to compile the Rc<RefCell<Engine>> handle and
     the Rc::clone capture.
 
-    Reverse assertion (encoded in the Haxe source, not a separate check):
+    Reverse assertion (encoded in the Haxe source):
       - correct emitter  -> param Rc<RefCell<Engine>>, closure captures Rc::clone
                            -> cargo build GREEN.
       - degraded emitter -> param bare &mut Engine / &Engine, the 'static
